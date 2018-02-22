@@ -176,6 +176,14 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return '[' + Global.implode(',', strings) + ']';
 	}
 
+	public function resize( len:Int ) : Void {
+		if (length < len) {
+			offsetSet(len - 1, null);
+		} else if (length > len) {
+			splice(len, length - len);
+		}
+	}
+
 	@:noCompletion
 	function offsetExists( offset:Int ) : Bool {
 		return offset < length;

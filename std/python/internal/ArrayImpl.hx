@@ -181,4 +181,13 @@ class ArrayImpl {
 		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
 	}
+
+	public static inline function resize<T>(x:Array<T>, len:Int):Void {
+		var l = x.length;
+		if (l < len) {
+			_set(x, len - 1, null);
+		} else if (l > len) {
+			splice(x, len, l - len);
+		}
+	}
 }

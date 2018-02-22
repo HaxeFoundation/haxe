@@ -284,6 +284,17 @@
 		return ret;
 	}
 
+	public function resize ( len : Int ) : Void {
+		if (length < len) {
+			__set(len - 1, null);
+		} else if (length > len) {
+			for (i in len ... length) {
+				__a[i] = null;
+			}
+			this.length = len;
+		}
+	}
+
 
 	/* NEKO INTERNAL */
 

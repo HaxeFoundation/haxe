@@ -257,6 +257,14 @@ class BytesIterator<T> {
 		return a;
 	}
 
+	public function resize( len : Int ) : Void {
+		if (length < len) {
+			__expand(len - 1);
+		} else if (length > len) {
+			this.length = len;
+		}
+	}
+
 	override function getDyn( pos : Int ) : Dynamic {
 		var pos : UInt = pos;
 		if( pos >= length )

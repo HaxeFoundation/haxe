@@ -281,3 +281,14 @@ b.length == 2;
 b[0] == 0;
 b[1] == 20;
 #end
+
+// resize
+var a : Array<Int> = [1,2,3];
+a.resize(10);
+a.length == 10;
+a.resize(2);
+a.length == 2;
+a.resize(3);
+a[2] != 3;
+a.resize(0);
+a == [];

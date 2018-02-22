@@ -112,6 +112,10 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.filter(this,f);
 	}
 
+	public inline function resize ( len : Int ) : Void {
+		ArrayImpl.resize(this, len);
+	}
+
 	@:keep private inline function _get(idx:Int):T
 	{
 		return ArrayImpl._get(this, idx);

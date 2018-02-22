@@ -71,4 +71,8 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.iter(this);
 	}
 
+	inline function resize( len : Int ) : Void {
+		this.length = len;
+	}
+
 }

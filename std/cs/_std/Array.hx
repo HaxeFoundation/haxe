@@ -428,6 +428,19 @@ import cs.NativeArray;
 		return new ArrayIterator<T>(this);
 	}
 
+	public function resize( len : Int ) : Void
+	{
+		if (length < len)
+		{
+			cs.system.Array.Resize(__a, len);
+			this.length = len;
+		}
+		else if (length > len)
+		{
+			spliceVoid(len, length - len);
+		}
+	}
+
 	private function __get(idx:Int):T
 	{
 		return if ((cast idx : UInt) >= length) null else __a[idx];
