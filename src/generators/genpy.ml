@@ -1886,7 +1886,7 @@ module Generator = struct
 			| None,e2 ->
 				let expr_string_2 = texpr_str e2 pctx in
 				if field = "" then
-					spr ctx expr_string_2
+					print ctx "%s%s" indent expr_string_2
 				else
 					print ctx "%s%s = %s" indent field expr_string_2
 
@@ -2427,11 +2427,13 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
+				spr ctx "if __name__ == '__main__':";
+				newline ctx;
 				match e.eexpr with
 				| TBlock el ->
-					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
+					List.iter (fun e -> gen_expr ctx e "" "    "; newline ctx) el;
 				| _ ->
-					gen_expr ctx e "" ""
+					gen_expr ctx e "" "    "; newline ctx
 
 	(* Entry point *)
 
