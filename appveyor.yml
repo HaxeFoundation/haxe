@@ -49,6 +49,7 @@ install:
     # Install php
     - choco install php --version 7.2.0 -y
     - echo extension=php_openssl.dll >> C:\tools\php72\php.ini
+    - echo extension=php_mbstring.dll >> C:\tools\php72\php.ini
     - RefreshEnv
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
