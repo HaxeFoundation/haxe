@@ -194,3 +194,12 @@ let unshift a v =
 	end;
 	Array.set a.avalues 0 v;
 	a.alength <- a.alength + 1
+
+let resize a l =
+	if a.alength < l then begin
+		set a (l - 1) vnull;
+		()
+	end else if a.alength > l then begin
+		splice a l (a.alength - l) a.alength;
+		()
+	end else ()

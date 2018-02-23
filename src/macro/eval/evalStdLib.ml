@@ -254,6 +254,13 @@ module StdArray = struct
 		EvalArray.unshift this v;
 		vnull
 	)
+
+	let resize = vifun1 (fun vthis len ->
+		let this = this vthis in
+		let len = decode_int len in
+		EvalArray.resize this len;
+		vnull
+	)
 end
 
 let outside_bounds () =
@@ -2729,6 +2736,7 @@ let init_standard_library builtins =
 		"pop",StdArray.pop;
 		"push",StdArray.push;
 		"remove",StdArray.remove;
+		"resize",StdArray.resize;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
