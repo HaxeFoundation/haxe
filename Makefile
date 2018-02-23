@@ -212,7 +212,7 @@ package_unix:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
 	#delete all content which was generated in _build dir except interfaces
-	# find _build/ -type f ! -name '*.cmi' -delete
+	find _build/ -type f ! -name '*.cmi' -delete
 	#add ocaml version to the _build dir
 	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
