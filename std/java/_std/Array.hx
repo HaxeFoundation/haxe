@@ -411,10 +411,13 @@ import java.NativeArray;
 	{
 		if (length < len)
 		{
-			var newArr = new NativeArray<T>(len);
-			if (length > 0)
-				System.arraycopy(__a, 0, newArr, 0, length);
-			this.__a = __a = newArr;
+			if (__a.length < len)
+			{
+				var newArr = new NativeArray<T>(len);
+				if (length > 0)
+					System.arraycopy(__a, 0, newArr, 0, length);
+				this.__a = __a = newArr;
+			}
 			this.length = len;
 		}
 		else if (length > len)

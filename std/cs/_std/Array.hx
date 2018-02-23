@@ -432,7 +432,10 @@ import cs.NativeArray;
 	{
 		if (length < len)
 		{
-			cs.system.Array.Resize(__a, len);
+			if (__a.length < len)
+			{
+				cs.system.Array.Resize(__a, len);
+			}
 			this.length = len;
 		}
 		else if (length > len)
