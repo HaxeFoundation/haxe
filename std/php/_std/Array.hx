@@ -178,10 +178,11 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public function resize( len:Int ) : Void {
 		if (length < len) {
-			offsetSet(len - 1, null);
+			arr = Global.array_pad(arr, len, null);
 		} else if (length > len) {
-			splice(len, length - len);
+			Global.array_splice(arr, len, length - len);
 		}
+		length = len;
 	}
 
 	@:noCompletion
