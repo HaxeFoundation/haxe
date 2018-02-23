@@ -192,8 +192,8 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	@:noCompletion
 	function offsetSet( offset:Int, value:T ) : Void {
-		if (length <= offset) {
-			arr = Global.array_merge(arr, Global.array_fill(0, offset + 1 - length, null));
+		if (length < offset) {
+			arr = Global.array_pad(arr, offset + 1, null);
 			length = offset + 1;
 		}
 		arr[offset] = value;

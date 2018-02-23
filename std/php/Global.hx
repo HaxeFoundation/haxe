@@ -226,6 +226,11 @@ extern class Global {
 	static function array_fill( start_index:Int, num:Int, value:Dynamic ) : NativeArray ;
 
 	/**
+		@see http://php.net/manual/en/function.array-pad.php
+	**/
+	static function array_pad( array:NativeArray, size:Int, value:Dynamic ) : NativeArray ;
+
+	/**
 		@see http://php.net/manual/en/function.in-array.php
 	**/
 	static function in_array( needle:Dynamic, haystack:NativeArray, strict:Bool = false ) : Bool ;
