@@ -427,10 +427,14 @@ and process_args arg_spec =
 		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
 		(* deprecated argument names *)
 		let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in
+		(* For now, these warnings are a noop. Can replace this function to
+		enable error output: *)
+		(* let dep_fun = prerr_endline (dep_msg arg) in *)
+		let dep_fun arg spec = () in
 		let dep_spec arg spec = match spec with
-			| Arg.String f -> Arg.String (fun x -> prerr_endline (dep_msg arg); f x)
-			| Arg.Unit f -> Arg.Unit (fun x -> prerr_endline (dep_msg arg); f x)
-			| Arg.Bool f -> Arg.Bool (fun x -> prerr_endline (dep_msg arg); f x)
+			| Arg.String f -> Arg.String (fun x -> dep_fun arg spec; f x)
+			| Arg.Unit f -> Arg.Unit (fun x -> dep_fun arg spec; f x)
+			| Arg.Bool f -> Arg.Bool (fun x -> dep_fun arg spec; f x)
 			| _ -> spec in
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
