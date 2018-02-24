@@ -1363,6 +1363,34 @@ let rec gen_expr_content ctx retval e =
 	| TIdent s ->
 		abort ("Unbound variable " ^ s) e.epos
 
+and gen_vmem ctx meth args pos =
+	match args with
+	| [e1; e2] ->
+		gen_expr ctx true e2;
+		gen_expr ctx true e1;
+		write ctx (HOp (match meth with
+			| "setByte"   -> A3OMemSet8
+			| "setI16"    -> A3OMemSet16
+			| "setI32"    -> A3OMemSet32
+			| "setFloat"  -> A3OMemSetFloat
+			| "setDouble" -> A3OMemSetDouble
+			| _ -> assert false
+		))
+	| [e1] ->
+		gen_expr ctx true e1;
+		write ctx (HOp (match meth with
+			| "getByte"   -> A3OMemGet8
+			| "getUI16"   -> A3OMemGet16
+			| "getI32"    -> A3OMemGet32
+			| "getFloat"  -> A3OMemGetFloat
+			| "getDouble" -> A3OMemGetDouble
+			| "signExtend1"  -> A3OSign1
+			| "signExtend8"  -> A3OSign8
+			| "signExtend16" -> A3OSign16
+			| _ -> assert false
+		))
+	| _  -> abort "Exception" pos
+
 and gen_call ctx retval e el r =
 	match e.eexpr , el with
 	| TIdent "__is__", [e;t] ->
@@ -1458,6 +1486,8 @@ and gen_call ctx retval e el r =
 			write ctx (HObject 1);
 		) ctx.com.resources;
 		write ctx (HArray !count)
+	| TField (_, FStatic ({ cl_path = ["flash"],"Memory" }, { cf_expr = None; cf_name = meth })), args ->
+		gen_vmem ctx meth args e.epos
 	| TIdent "__vmem_set__", [{ eexpr = TConst (TInt code) };e1;e2] ->
 		gen_expr ctx true e2;
 		gen_expr ctx true e1;
