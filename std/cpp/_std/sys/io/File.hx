@@ -59,6 +59,10 @@ class File {
 		return untyped new FileOutput(NativeFile.file_open(path,(if( binary ) "ab" else "a")));
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		return untyped new FileOutput(NativeFile.file_open(path,(if( binary ) "rb+" else "r+")));
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		var s = read(srcPath,true);
 		var d = write(dstPath,true);

@@ -103,6 +103,21 @@ class File {
 		}
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput
+	{
+		var f = new java.io.File(path);
+
+		try
+		{
+			var ra = new java.io.RandomAccessFile(f, "rw");
+			return new FileOutput( ra );
+		}
+		catch (e:Dynamic) //swallow checked exceptions
+		{
+			throw e;
+		}
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
 		var r:FileInput = null;

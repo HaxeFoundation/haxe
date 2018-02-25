@@ -73,6 +73,12 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 		return @:privateAccess new FileOutput(f);
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		var f = file_open(Sys.getPath(path),3,binary);
+		if( f == null ) throw new Sys.SysError("Can't open "+path+" for update");
+		return @:privateAccess new FileOutput(f);
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		var s = read(srcPath,true);
 		var d = write(dstPath,true);
