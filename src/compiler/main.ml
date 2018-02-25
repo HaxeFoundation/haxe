@@ -548,11 +548,11 @@ try
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class>","select startup class");
-		("Compilation",["-l";"--lib"],["-lib"],Arg.String (fun l ->
+		("Compilation",["-L";"--lib"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
 			Common.raw_define com l;
 		),"<library[:version]>","use a haxelib library");
-		("Compilation",["-D"],[],Arg.String (fun var ->
+		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			begin match var with
 				| "no_copt" | "no-copt" -> com.foptimize <- false;
 				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
