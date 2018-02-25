@@ -36,33 +36,25 @@ class UdpSocket extends Socket {
 	
 	public function sendTo( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw OutsideBounds;
-		return try {
-			socket_send_to(__s, (buf:hl.Bytes).offset(pos), len, addr.host, addr.port);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
-				throw Blocked;
-			else
-				throw Custom(e);
+		var ret = socket_send_to(__s, (buf:hl.Bytes).offset(pos), len, addr.host, addr.port);
+		if( ret < 0 ) {
+			if( ret == -1 ) throw Blocked;
+			throw new haxe.io.Eof();
 		}
+		return ret;
 	}
 
 	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
-		var r;
 		var host = 0, port = 0;
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw OutsideBounds;
-		try {
-			r = socket_recv_from(__s,(buf:hl.Bytes).offset(pos),len,host,port);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
-				throw Blocked;
-			else
-				throw Custom(e);
-		}
-		if( r == 0 )
+		var ret = socket_recv_from(__s,(buf:hl.Bytes).offset(pos),len,host,port);
+		if( ret <= 0 ) {
+			if( ret == -1 ) throw Blocked;
 			throw new haxe.io.Eof();
+		}
 		addr.host = host;
 		addr.port = port;
-		return r;
+		return ret;
 	}
 
 	@:hlNative("std","socket_send_to") static function socket_send_to( s : SocketHandle, bytes : hl.Bytes, len : Int, host : Int, port : Int ) : Int { return 0; }
