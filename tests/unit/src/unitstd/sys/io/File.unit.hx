@@ -25,6 +25,11 @@ var fu = sys.io.File.update(filename);
 fu.writeString("cherry\n");
 fu.close();
 sys.io.File.getContent(filename) == "cherry\napple\n";
+var fu = sys.io.File.update(filename);
+fu.seek(7, sys.io.FileSeek.SeekBegin);
+fu.writeString("banana\n");
+fu.close();
+sys.io.File.getContent(filename) == "cherry\nbanana\n";
 
 sys.FileSystem.deleteFile(filename);
 #end
