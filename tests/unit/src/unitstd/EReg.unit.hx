@@ -109,6 +109,4 @@ pos.len == 2;
 ~/(Hola)/.map("Hello World", function(e) return throw "not called") == "Hello World";
 
 // escape
-#if !hl
 new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ ^ $ * + ? . ( ) | { } [ ]") == true;
-#end

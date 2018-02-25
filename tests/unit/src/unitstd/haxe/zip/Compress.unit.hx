@@ -1,5 +1,5 @@
 // not supported in js/python/cs yet
-#if (cpp || php || java || neko || flash)
+#if (cpp || php || java || neko || flash || hl)
 var b = haxe.io.Bytes.ofString("test");
 var c = haxe.zip.Compress.run(b, 9);
 
