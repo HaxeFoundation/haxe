@@ -57,7 +57,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 	public function iterator() : Iterator<T> {
 		return h.values().iter();
 	}
-	
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
 		for(key in keys()) copied.set(key, get(key));
@@ -79,5 +79,21 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	@:keep function __getitem__( key : String ) : T {
+		return get(key);
+	}
+
+	@:keep function __setitem__( key : String, value : T ) : Void {
+		set(key, value);
+	}
+
+	@:keep function __delitem__( key : String ) : Void {
+		remove(key);
+	}
+
+	@:keep function __contains__( key : String ) : Bool {
+		return exists(key);
 	}
 }

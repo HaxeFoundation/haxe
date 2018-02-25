@@ -57,7 +57,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	public function iterator() : Iterator<T> {
 		return h.values().iter();
 	}
-	
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));
@@ -77,5 +77,21 @@ class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	@:keep function __getitem__( key : Int ) : T {
+		return get(key);
+	}
+
+	@:keep function __setitem__( key : Int, value : T ) : Void {
+		set(key, value);
+	}
+
+	@:keep function __delitem__( key : Int ) : Void {
+		remove(key);
+	}
+
+	@:keep function __contains__( key : Int ) : Bool {
+		return exists(key);
 	}
 }

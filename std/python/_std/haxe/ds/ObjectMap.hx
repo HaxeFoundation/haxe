@@ -58,7 +58,7 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 	public function iterator() : Iterator<V> {
 		return h.values().iter();
 	}
-	
+
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();
 		for(key in keys()) copied.set(key, get(key));
@@ -78,5 +78,21 @@ class ObjectMap<K:{},V> implements haxe.Constraints.IMap<K, V> {
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	@:keep function __getitem__( key : K ) : V {
+		return get(key);
+	}
+
+	@:keep function __setitem__( key : K, value : V ) : Void {
+		set(key, value);
+	}
+
+	@:keep function __delitem__( key : K ) : Void {
+		remove(key);
+	}
+
+	@:keep function __contains__( key : K ) : Bool {
+		return exists(key);
 	}
 }
