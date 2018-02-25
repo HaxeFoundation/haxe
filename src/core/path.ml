@@ -38,7 +38,7 @@ let parse_path f =
 		| x :: l ->
 			if String.length x = 0 then
 				error "empty part"
-			else if x.[0] < 'a' || x.[0] > 'z' then
+			else if (x.[0] < 'a' || x.[0] > 'z') && x.[0] <> '_' then
 				error "Package name must start with a lower case character";
 			invalid_char x;
 			let path,name = loop l in

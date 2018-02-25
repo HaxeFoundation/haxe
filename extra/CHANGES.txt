@@ -1,3 +1,9 @@
+XXXX-XX-XX: 4.0.0-preview.4
+
+	Bugfixes:
+
+	display: fixed completion in packages starting with underscore (#5417)
+
 2018-02-23: 4.0.0-preview.3
 
 	See full commit history at https://github.com/HaxeFoundation/haxe/compare/4.0.0-preview.2...4.0.0-preview.3, notable changes below:
