@@ -1119,6 +1119,15 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		j();
 		op ctx (ONull out);
 		out
+	| HRef t1, HNull t2 ->
+		let j = jump ctx (fun n -> OJNull (r,n)) in
+		let rtmp = alloc_tmp ctx t1 in
+		op ctx (OUnref (rtmp,r));
+		let out = cast_to ctx rtmp t p in
+		op ctx (OJAlways 1);
+		j();
+		op ctx (ONull out);
+		out
 	| (HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64), HNull ((HF32 | HF64) as t) ->
 		let tmp = alloc_tmp ctx t in
 		op ctx (OToSFloat (tmp, r));
