@@ -241,7 +241,7 @@ class ArrayObj<T> extends ArrayBase {
 		return a;
 	}
 
-	public function resize( len : Int ) : Void {
+	override public function resize( len : Int ) : Void {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {

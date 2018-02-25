@@ -257,10 +257,11 @@ class BytesIterator<T> {
 		return a;
 	}
 
-	public function resize( len : Int ) : Void {
+	override public function resize( len : Int ) : Void {
 		if (length < len) {
 			__expand(len - 1);
 		} else if (length > len) {
+			(bytes:Bytes).fill(len << bytes.sizeBits, (length - len) << bytes.sizeBits, 0);
 			this.length = len;
 		}
 	}

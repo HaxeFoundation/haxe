@@ -93,6 +93,10 @@ class ArrayDyn extends ArrayAccess {
 		array.reverse();
 	}
 
+	public function resize( len : Int ) {
+		array.resize(len);
+	}
+
 	public function shift() : Null<Dynamic> {
 		return array.shiftDyn();
 	}
