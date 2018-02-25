@@ -419,6 +419,7 @@
     <hidden path="src\generators\genphp7.cmt" />
     <hidden path="src\generators\genphp7.cmx" />
     <hidden path="src\generators\genphp7.o" />
+    <hidden path="_build" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>
@@ -426,7 +427,7 @@
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->
   <options>
-    <option showHiddenPaths="True" />
+    <option showHiddenPaths="False" />
     <option testMovie="Custom" />
     <option testMovieCommand="" />
   </options>
