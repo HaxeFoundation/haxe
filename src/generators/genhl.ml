@@ -2408,6 +2408,21 @@ and eval_expr ctx e =
 				op ctx (OSafeCast (tmp,r));
 				unop tmp;
 				op ctx (OToDyn (r,tmp));
+			| HDyn when uop = Increment ->
+				hold ctx r;
+				let tmp = alloc_tmp ctx HDyn in
+				free ctx r;
+				op ctx (OToDyn (tmp, reg_int ctx 1));
+				op ctx (OCall2 (r,alloc_fun_path ctx ([],"Std") "__add__",r,tmp))
+			| HDyn when uop = Decrement ->
+				let r2 = alloc_tmp ctx HF64 in
+				hold ctx r2;
+				let tmp = alloc_tmp ctx HF64 in
+				free ctx r2;
+				op ctx (OSafeCast (r2, r));
+				op ctx (OFloat (tmp, alloc_float ctx 1.));
+				op ctx (OSub (r2, r2, tmp));
+				op ctx (OSafeCast (r, r2));
 			| _ ->
 				assert false
 		in
@@ -2417,8 +2432,10 @@ and eval_expr ctx e =
 			r
 		| ALocal (v,r), Postfix ->
 			let r2 = alloc_tmp ctx (rtype ctx r) in
+			hold ctx r2;
 			op ctx (OMov (r2,r));
 			unop r;
+			free ctx r2;
 			r2
 		| acc, _ ->
 			let ret = ref 0 in
