@@ -2070,7 +2070,14 @@ and eval_expr ctx e =
 			op ctx (match ethis.eexpr with TConst TThis -> OGetThis (r,fid) | _ -> OField (r,robj,fid));
 		| AInstanceProto (ethis,fid) | AVirtualMethod (ethis, fid) ->
 			let robj = eval_null_check ctx ethis in
-			op ctx (OVirtualClosure (r,robj,fid));
+			(match rtype ctx robj with
+			| HObj _ ->
+				op ctx (OVirtualClosure (r,robj,fid))
+			| HVirtual vp ->
+				let _, sid, _ = vp.vfields.(fid) in
+				op ctx (ODynGet (r,robj, sid))
+			| _ ->
+				assert false)
 		| ADynamic (ethis, f) ->
 			let robj = eval_null_check ctx ethis in
 			op ctx (ODynGet (r,robj,f))

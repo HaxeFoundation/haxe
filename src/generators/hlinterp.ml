@@ -969,16 +969,6 @@ let interp ctx f args =
 			let m = (match get o with
 			| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 			| VNull -> null_access()
-			| VVirtual v ->
-				let name, _, _ = v.vtype.vfields.(m) in
-				(match v.vvalue with
-				| VObj o as obj ->
-					(try
-						let m = PMap.find name o.oproto.pclass.pfunctions in
-						VClosure (get_function ctx m, Some obj)
-					with Not_found ->
-						VNull)
-				| _ -> assert false)
 			| _ -> assert false
 			) in
 			set r (if m = VNull then m else dyn_cast ctx m (match get_type m with None -> assert false | Some v -> v) (rtype r))
@@ -2380,9 +2370,6 @@ let check code macros =
 						reg r (HFun (tl,tret));
 					| _ ->
 						assert false)
-				| HVirtual v ->
-					let _,_, t = v.vfields.(fid) in
-					reg r t;
 				| _ ->
 					is_obj o)
 			| OInstanceClosure (r,f,arg) ->
