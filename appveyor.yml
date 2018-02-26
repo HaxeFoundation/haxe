@@ -30,7 +30,8 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
     # http://help.appveyor.com/discussions/problems/5616-not-able-to-build-due-to-problem-in-chocolateyinstallps1
     - ps: Set-Service wuauserv -StartupType Manual
-    - choco install curl nsis.portable wget awscli -y
+    - choco install nsis.portable --version 3.02 -y
+    - choco install curl wget awscli -y
     # Install neko
     - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install ocaml
