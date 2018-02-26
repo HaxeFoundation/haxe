@@ -3,6 +3,7 @@ XXXX-XX-XX: 4.0.0-preview.4
 	Bugfixes:
 
 	display: fixed completion in packages starting with underscore (#5417)
+	flash: fixed silently swallowing exceptions in getters/setters when invoked with Reflect methods (#5460, #6871)
 
 2018-02-23: 4.0.0-preview.3
 
