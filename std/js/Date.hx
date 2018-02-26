@@ -21,6 +21,8 @@
  */
 package js;
 
+import Date in HaxeDate;
+
 /**
 	Creates a JavaScript Date instance that represents a single moment in time. Date objects are based on a time value that is the number of milliseconds since 1 January 1970 UTC.
 **/
@@ -31,6 +33,13 @@ extern class Date
 	@:overload(function(dateString:String):Void {})
 	@:overload(function(year:Int, month:Int, ?day:Int, ?hours:Int, ?minutes:Int, ?seconds:Int, ?milliseconds:Int):Void {})
 	function new() : Void;
+
+	/**
+		Cast Haxe's Date to js.Date.
+	**/
+	static public inline function fromHaxeDate(date:HaxeDate):js.Date {
+		return cast date;
+	}
 
 	/**
 		Returns the numeric value corresponding to the current time - the number of milliseconds elapsed since January 1, 1970 00:00:00 UTC, with leap seconds ignored
