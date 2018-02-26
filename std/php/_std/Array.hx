@@ -192,8 +192,10 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	@:noCompletion
 	function offsetSet( offset:Int, value:T ) : Void {
-		if (length < offset) {
-			arr = Global.array_pad(arr, offset + 1, null);
+		if (length <= offset) {
+			if(length < offset) {
+				arr = Global.array_pad(arr, offset + 1, null);
+			}
 			length = offset + 1;
 		}
 		arr[offset] = value;
