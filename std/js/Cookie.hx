@@ -21,6 +21,8 @@
  */
 package js;
 
+import Date;
+
 class Cookie {
 	/**
 		Create or update a cookie.
