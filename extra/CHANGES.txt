@@ -1,5 +1,9 @@
 XXXX-XX-XX: 4.0.0-preview.4
 
+	General improvements and optimizations:
+
+	js : added externs for js.Date (#6855)
+
 	Bugfixes:
 
 	display: fixed completion in packages starting with underscore (#5417)
