@@ -9,18 +9,22 @@ class Issue6871 extends unit.Test {
 	static function set_field(v:Int):Int throw SETTER_ERROR;
 
 	function test() {
+		inline function exception(e:Dynamic) {
+			return #if cs e.InnerException.Message #else e #end;
+		}
+
 		try {
 			Reflect.getProperty(Issue6871, 'field');
 			t(false);
 		} catch(e:Dynamic) {
-			eq(GETTER_ERROR, e);
+			eq(GETTER_ERROR, exception(e));
 		}
 
 		try {
 			Reflect.setProperty(Issue6871, 'field', 123);
 			t(false);
 		} catch(e:Dynamic) {
-			eq(SETTER_ERROR, e);
+			eq(SETTER_ERROR, exception(e));
 		}
 	}
 }
