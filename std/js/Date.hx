@@ -42,6 +42,13 @@ extern class Date
 	}
 
 	/**
+		Cast js.Date to Haxe's Date.
+	**/
+	static public inline function toHaxeDate(date:Date):HaxeDate {
+		return cast date;
+	}
+
+	/**
 		Returns the numeric value corresponding to the current time - the number of milliseconds elapsed since January 1, 1970 00:00:00 UTC, with leap seconds ignored
 	**/
 	static function now() : Float;
