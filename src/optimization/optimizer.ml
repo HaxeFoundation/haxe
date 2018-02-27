@@ -789,7 +789,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
-	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) when false ->
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
 		begin try
 			let num_expr = ref 0 in
 			let rec loop e = match fst e with
@@ -800,8 +800,6 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					Ast.map_expr loop e
 			in
 			ignore(loop e2);
-			let v = add_local ctx i pt p in
-			let e2 = type_expr ctx e2 NoValue in
 			let cost = (List.length el) * !num_expr in
 			let max_cost = try
 				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
@@ -809,13 +807,15 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 				250
 			in
 			if cost > max_cost then raise Exit;
-			let eloc = mk (TLocal v) v.v_type p in
 			let el = List.map (fun e ->
+				let v = add_local ctx i pt p in
+				let ev = mk (TVar(v, None)) ctx.t.tvoid p in
+				let typed_e2 = type_expr ctx e2 NoValue in
+				let eloc = mk (TLocal v) v.v_type p in
 				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
-				concat e_assign e2
+				concat ev (concat e_assign typed_e2)
 			) el in
-			let ev = mk (TVar(v, None)) ctx.t.tvoid p in
-			Some (mk (TBlock (ev :: el)) ctx.t.tvoid p)
+			Some (mk (TBlock el) ctx.t.tvoid p)
 		with Exit ->
 			gen_int_iter pt get_next_array_element get_array_length
 		end

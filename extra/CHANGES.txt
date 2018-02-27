@@ -2,6 +2,7 @@ XXXX-XX-XX: 4.0.0-preview.4
 
 	General improvements and optimizations:
 
+	all : implemented `for` loop unrolling (#3784)
 	js : added externs for js.Date (#6855)
 
 	Bugfixes:
