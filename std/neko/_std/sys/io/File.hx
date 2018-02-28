@@ -58,6 +58,10 @@ enum FileHandle {
 		return untyped new FileOutput(file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		return untyped new FileOutput(file_open(path.__s,(if( binary ) "rb+" else "r+").__s));
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		var s = read(srcPath,true);
 		var d = write(dstPath,true);

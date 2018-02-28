@@ -56,6 +56,10 @@ import php.Global;
 		return untyped new FileOutput(fopen(path, binary ? "ab" : "a"));
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		return untyped new FileOutput(fopen(path, binary ? "rb+" : "r+"));
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		Global.copy(srcPath, dstPath);
 	}

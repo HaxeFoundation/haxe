@@ -84,6 +84,16 @@ class File {
 		return new FileOutput(stream);
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput
+	{
+		#if std_buffer //standardize 4kb buffers
+		var stream = new cs.system.io.FileStream(path, OpenOrCreate, Write, ReadWrite, 4096);
+		#else
+		var stream = new cs.system.io.FileStream(path, OpenOrCreate, Write, ReadWrite);
+		#end
+		return new FileOutput(stream);
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
 		cs.system.io.File.Copy(srcPath, dstPath, true);

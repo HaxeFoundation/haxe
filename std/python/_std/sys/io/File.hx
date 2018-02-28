@@ -77,6 +77,13 @@ class File {
 		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
 	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		var mode = if (binary) "rb+" else "r+";
+		var f = python.lib.Builtins.open(path, mode, -1, null, null, binary ? null : "");
+
+		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
+	}
+
 	public static function copy( srcPath : String, dstPath : String ) : Void
 	{
 		return python.lib.Shutil.copy(srcPath, dstPath);

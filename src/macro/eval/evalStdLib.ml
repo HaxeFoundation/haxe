@@ -951,6 +951,10 @@ module StdFile = struct
 		create_out path binary [Open_append]
 	)
 
+	let update = vfun2 (fun path binary ->
+		create_out path binary [Open_rdonly; Open_wronly]
+	)
+
 	let getBytes = vfun1 (fun path ->
 		let path = decode_string path in
 		try encode_bytes (Bytes.unsafe_of_string (Std.input_file ~bin:true path)) with Sys_error _ -> exc_string ("Could not read file " ^ path)
@@ -2824,6 +2828,7 @@ let init_standard_library builtins =
 		"read",StdFile.read;
 		"saveBytes",StdFile.saveBytes;
 		"saveContent",StdFile.saveContent;
+		"update",StdFile.update;
 		"write",StdFile.write;
 	] [];
 	init_fields builtins (["sys";"io"],"FileInput") [] [
