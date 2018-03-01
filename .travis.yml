@@ -93,7 +93,7 @@ install_linux: &install_linux
         git submodule update --init --recursive;
       fi;
     fi;
-    cmake . -G Ninja || (git clean -dfx && cmake . -G Ninja);
+    cmake . -DWITH_SDL2=off -G Ninja || (git clean -dfx && cmake . -DWITH_SDL2=off -G Ninja);
     ninja -j 4;
     sudo ninja install;
     popd;
