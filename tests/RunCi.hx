@@ -79,7 +79,7 @@ class RunCi {
 					case As3:
 						runci.targets.As3.run(args);
 					case Hl:
-						runCommand("haxe", ["compile-hl.hxml"]);
+						runci.targets.Hl.run(args);
 					case t:
 						throw "unknown target: " + t;
 				}

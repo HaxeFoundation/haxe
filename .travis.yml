@@ -3,6 +3,7 @@ cache:
   directories:
     - $HOME/.opam
     - $HOME/neko
+    - $HOME/hashlink
     - $HOME/apt-cache
     - $HOME/hxcache
     - $HOME/lua_env
@@ -75,6 +76,27 @@ install_linux: &install_linux
       sudo ninja install;
       popd;
     fi
+  # install hashlink
+  - if [ ! -d "$HOME/hashlink" ]; then
+      mkdir $HOME/hashlink;
+      pushd $HOME/hashlink;
+      git clone https://github.com/HaxeFoundation/hashlink.git .;
+      git submodule update --init --recursive;
+    else
+      pushd $HOME/hashlink;
+      if [ ! -d "$HOME/hashlink/.git" ]; then
+        git clone https://github.com/HaxeFoundation/hashlink.git .;
+        git submodule update --init --recursive;
+      else
+        git fetch --all;
+        git reset --hard origin/master;
+        git submodule update --init --recursive;
+      fi;
+    fi;
+    cmake . -G Ninja || (git clean -dfx && cmake . -G Ninja);
+    ninja -j 4;
+    sudo ninja install;
+    popd;
   # Setup JDK
   - jdk_switcher use oraclejdk7
   - java -version
