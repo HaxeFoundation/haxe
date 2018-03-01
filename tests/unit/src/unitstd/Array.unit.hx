@@ -200,6 +200,14 @@ a == [i0, i1];
 a.remove(null) == false;
 a == [i0, i1];
 
+// contains
+[].contains(1) == false;
+[1].contains(1) == true;
+[1].contains(2) == false;
+[1,2].contains(1) == true;
+[1,2].contains(2) == true;
+[1,2].contains(3) == false;
+
 // indexOf
 [].indexOf(10) == -1;
 [10].indexOf(10) == 0;
