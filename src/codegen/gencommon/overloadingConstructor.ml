@@ -41,16 +41,6 @@ open Gencommon
 		empty construction without the need of incompatibility with the platform's native construction method
 		the ability to call super() constructor in any place in the constructor
 *)
-let rec cur_ctor c tl =
-	match c.cl_constructor with
-	| Some ctor ->
-		ctor, c, tl
-	| None ->
-		match c.cl_super with
-		| None ->
-			raise Not_found
-		| Some (sup,stl) ->
-			cur_ctor sup (List.map (apply_params c.cl_params tl) stl)
 
 let rec prev_ctor c tl =
 	match c.cl_super with
