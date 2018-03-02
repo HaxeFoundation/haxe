@@ -65,10 +65,13 @@ class Reflect {
 		var need = ft.getArgsCount();
 		var cval = hl.Api.getClosureValue(func);
 		var isClosure = cval != null && need >= 0;
-		if( o == null )
-			o = cval;
-		else if( !isClosure && count == need )
-			o = null;
+		if( isClosure ) {
+			if( o == null )
+				o = cval;
+		} else {
+			if( count == need )
+				o = null;
+		}
 		var nargs = o == null ? count : count + 1;
 		if( isClosure ) need++;
 		if( nargs < need ) nargs = need;
