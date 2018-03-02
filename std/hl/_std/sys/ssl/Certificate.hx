@@ -78,17 +78,17 @@ class Certificate {
 
 	function get_altNames() : Array<String> {
 		var a = cert_get_altnames(__x);
-		return [for( e in a ) @:privateAccess String.fromUTF8(e)];
+		return [for( e in a ) @:privateAccess String.fromUCS2(e)];
 	}
 	
 	public function subject( field : String ) : Null<String> {
 		var s = cert_get_subject(__x, @:privateAccess field.toUtf8() );
-		return s==null ? null : new String( cast s );
+		return s==null ? null : @:privateAccess String.fromUCS2( cast s );
 	}
 	
 	public function issuer( field : String ) : Null<String> {
 		var s = cert_get_issuer(__x, @:privateAccess field.toUtf8());
-		return s==null ? null : new String( cast s );
+		return s==null ? null : @:privateAccess String.fromUCS2( cast s );
 	}
 
 	function get_notBefore() : Date {
