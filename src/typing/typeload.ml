@@ -1659,17 +1659,24 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if fmode <> FunConstructor then
 		e
 	else begin
-		let final_vars = Hashtbl.create 0 in
+		let final_uninit_vars = Hashtbl.create 0
+		and final_init_vars = Hashtbl.create 0 in
 		List.iter (fun cf -> match cf.cf_kind with
-			| Var _ when Meta.has Meta.Final cf.cf_meta && cf.cf_expr = None ->
+			| Var _ when Meta.has Meta.Final cf.cf_meta ->
+				let final_vars = if cf.cf_expr = None then final_uninit_vars else final_init_vars in
 				Hashtbl.add final_vars cf.cf_name cf
 			| _ ->
 				()
 		) ctx.curclass.cl_ordered_fields;
-		if Hashtbl.length final_vars > 0 then begin
+		if Hashtbl.length final_uninit_vars > 0 || Hashtbl.length final_init_vars > 0 then begin
 			let rec find_inits e = match e.eexpr with
 				| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
-					Hashtbl.remove final_vars (field_name fa);
+					Hashtbl.remove final_uninit_vars (field_name fa);
+					(try
+						let cf = Hashtbl.find final_init_vars (field_name fa) in
+						display_error ctx ("final field " ^ cf.cf_name ^ " has already been initialized") cf.cf_pos
+					with
+						Not_found -> ());
 					find_inits e2;
 				| _ ->
 					Type.iter find_inits e
@@ -1677,7 +1684,7 @@ let type_function ctx args ret fmode f do_display p =
 			find_inits e;
 			Hashtbl.iter (fun _ cf ->
 				display_error ctx ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
-			) final_vars
+			) final_uninit_vars
 		end;
 		match has_super_constr() with
 		| Some (was_forced,t_super) ->
@@ -2845,6 +2852,14 @@ module ClassInitializer = struct
 		in
 		let cl_if_feature = check_if_feature c.cl_meta in
 		let cl_req = check_require c.cl_meta in
+		(* #6772 Final fields are expected before constructor, so initialize final fields first *)
+		let fields = List.stable_sort (fun a b ->
+			match (List.mem AFinal a.cff_access, List.mem AFinal b.cff_access) with
+			| true, false -> -1
+			| false, true -> 1
+			| _ -> 0
+		) fields
+		in
 		List.iter (fun f ->
 			let p = f.cff_pos in
 			try
