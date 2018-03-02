@@ -289,6 +289,16 @@ class TestMisc extends Test {
 		eq( MyDynamicClass.staticDynamic(1,2), 103 );
 	}
 
+	function testMakeVarArgs () {
+		var f = function (a:Array<Dynamic>) {
+			eq(a.length, 2);
+			return a[0] + a[1];
+		}
+		var g = Reflect.makeVarArgs(f);
+		var res = g(1,2);
+		eq(3, res);
+	}
+
 	function testMD5() {
 		eq( haxe.crypto.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e" );
 		eq( haxe.crypto.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );

@@ -205,16 +205,6 @@ class TestPython extends Test {
 		eq(5, Reflect.field(x, "__iter__"));
 	}
 
-
-	function testMakeVarArgs () {
-		var f = function (a:Array<Dynamic>) {
-			return a[0] + a[1];
-		}
-		var g = Reflect.makeVarArgs(f);
-		var res = g(1,2);
-		eq(3, res);
-	}
-
 	function testKwArgsAfterVarArgs () {
 		function test (va:VarArgs<Dynamic>, kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
