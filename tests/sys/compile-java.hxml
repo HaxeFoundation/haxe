@@ -1,13 +1,13 @@
 compile-each.hxml
--main Main
+--main Main
 -java bin/java
 
 --next
 compile-each.hxml
--main TestArguments
+--main TestArguments
 -java bin/java
 
 --next
 compile-each.hxml
--main ExitCode
+--main ExitCode
 -java bin/java

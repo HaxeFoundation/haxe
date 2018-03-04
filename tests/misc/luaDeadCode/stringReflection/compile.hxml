@@ -1,5 +1,5 @@
--main Issue6276
+--main Issue6276
 -lua issue6276.lua
 -cmd lua issue6276.lua
--cp tests/misc/luaDeadCode/issue6276
+-p tests/misc/luaDeadCode/issue6276
 
