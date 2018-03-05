@@ -20,6 +20,7 @@ depends: [
   "extlib"       {build & >= "1.7"}
   "rope"         {build}
   "ptmap"        {build}
+  "sha"
   "conf-libpcre"
   "conf-zlib"
   "conf-neko"
