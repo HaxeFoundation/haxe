@@ -588,7 +588,7 @@ try
 		),"","print help for all compiler metadatas");
 	] in
 	let adv_args_spec = [
-		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
+		("Optimization",["--dce";"--dead-code-elimination"],["-dce"],Arg.String (fun mode ->
 			(match mode with
 			| "std" | "full" | "no" -> ()
 			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
