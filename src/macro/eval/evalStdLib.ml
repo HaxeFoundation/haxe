@@ -1689,6 +1689,18 @@ module StdResource = struct
 	)
 end
 
+module StdSha1 = struct
+	let encode = vfun1 (fun s ->
+		let s = decode_string s in
+		encode_string (Sha1.to_hex (Sha1.string s))
+	)
+
+	let make = vfun1 (fun b ->
+		let b = decode_bytes b in
+		encode_bytes (Bytes.unsafe_of_string (Sha1.to_bin (Sha1.string (Bytes.unsafe_to_string b))))
+	)
+end
+
 module StdSocket = struct
 	open Unix
 
@@ -2954,6 +2966,10 @@ let init_standard_library builtins =
 		"listNames",StdResource.listNames;
 		"getString",StdResource.getString;
 		"getBytes",StdResource.getBytes;
+	] [];
+	init_fields builtins (["haxe";"crypto"],"Sha1") [
+		"encode",StdSha1.encode;
+		"make",StdSha1.make;
 	] [];
 	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
 		"select",StdSocket.select;
