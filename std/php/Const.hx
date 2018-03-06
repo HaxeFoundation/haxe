@@ -156,7 +156,7 @@ extern class Const {
 	static var STREAM_CLIENT_ASYNC_CONNECT : Int;
 	static var STREAM_CLIENT_PERSISTENT : Int;
 	/**
-		@see http://php.net/manual/en/function.socket-create.php
+		@see http://php.net/manual/en/sockets.constants.php
 	**/
 	static var SOCK_STREAM : Int;
 	static var SOCK_DGRAM : Int;
@@ -166,6 +166,9 @@ extern class Const {
 	static var AF_INET : Int;
 	static var AF_INET6 : Int;
 	static var AF_UNIX : Int;
+	static var SOL_TCP : Int;
+	static var TCP_NODELAY : Int;
+	static var PHP_BINARY_READ : Int;
 	/**
 		@see http://php.net/manual/en/json.constants.php
 	**/
