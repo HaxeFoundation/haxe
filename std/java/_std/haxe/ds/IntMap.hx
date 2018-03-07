@@ -407,6 +407,7 @@ import java.NativeArray;
 		Returns an displayable representation of the hashtable content.
 	**/
 
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

@@ -28,6 +28,6 @@ extern class Vector<T> implements ArrayAccess<T> {
 	public function toArray():Array<T>;
 	static public function fromArrayCopy<T>(array:Array<T>):Vector<T>;
 	public function copy<T>():Vector<T>;
-	public function join<T>(sep:String):String;
+	@:toString(T) public function join<T>(sep:String):String;
 	public function map<S>(f:T->S):Vector<S>;
 }

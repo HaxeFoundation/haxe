@@ -73,13 +73,14 @@ class ArrayImpl {
 		return -1;
 	}
 
-	@:access(python.Boot)
+	@:access(python.Boot) @:toString(x)
 	@:ifFeature("dynamic_read.join", "anon_optional_read.join", "python.internal.ArrayImpl.join")
 	public static inline function join<T>(x:Array<T>, sep : String ) : String {
 		return Boot.arrayJoin(x, sep);
 	}
 
 	@:ifFeature("dynamic_read.toString", "anon_optional_read.toString", "python.internal.ArrayImpl.toString")
+	@:toString
 	public static inline function toString<T>(x:Array<T>) : String {
 		return "[" + join(x, ",") + "]";
 	}

@@ -85,6 +85,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return new ArrayIterator(this);
 	}
 
+	@:toString(T)
 	public function join(sep:String):String {
 		return Global.implode(sep, Global.array_map('strval', arr));
 	}
@@ -168,6 +169,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 		length = Global.array_unshift(arr, x);
 	}
 
+	@:toString(T)
 	public function toString():String {
 		var strings = Syntax.arrayDecl();
 		Syntax.foreach(arr, function(index:Int, value:T) {

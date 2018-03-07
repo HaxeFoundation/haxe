@@ -32,7 +32,7 @@ import js.Boot;
 		return js.Syntax.instanceof(value, c) ? cast value : null;
 	}
 
-	@:pure
+	@:pure @:toString
 	public static function string( s : Dynamic ) : String {
 		return @:privateAccess js.Boot.__string_rec(s,"");
 	}

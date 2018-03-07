@@ -69,6 +69,7 @@ extern class Std {
 
 		If s is null, "null" is returned.
 	**/
+	@:toString
 	public static function string( s : Dynamic ) : String;
 
 	/**

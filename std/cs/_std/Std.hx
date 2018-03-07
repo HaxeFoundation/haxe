@@ -63,6 +63,7 @@ import cs.internal.Exceptions;
 		return false;
 	}
 
+	@:toString
 	public static function string( s : Dynamic ) : String {
 		if (s == null)
 			return "null";

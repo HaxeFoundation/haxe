@@ -76,6 +76,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constrain
 		return copied;
 	}
 
+	@:toString(K, V)
 	public function toString() : String {
 		var s = "";
 		var it = keys();

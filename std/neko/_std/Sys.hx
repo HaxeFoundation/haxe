@@ -21,10 +21,12 @@
  */
 @:coreApi class Sys {
 
+	@:toString
 	public static function print( v : Dynamic ) : Void {
 		untyped __dollar__print(v);
 	}
 
+	@:toString
 	public static function println( v : Dynamic ) : Void {
 		untyped __dollar__print(v,"\n");
 	}

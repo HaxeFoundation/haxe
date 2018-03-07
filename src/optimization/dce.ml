@@ -503,31 +503,33 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
-	(* keep toString method of T when array<T>.join() is called *)
-	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
-		List.iter (fun e -> to_string dce e) pl;
-		expr dce ef;
-		List.iter (expr dce) args;
-
-	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
-	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
-		mark_class dce c;
-		to_string dce e2.etype;
-		begin match el with
-			| [{eexpr = TObjectDecl fl}] ->
-				begin try
-					begin match Expr.field_assoc "customParams" fl with
-						| {eexpr = TArrayDecl el} ->
-							List.iter (fun e -> to_string dce e.etype) el
-						| _ ->
-							()
-					end
-				with Not_found ->
-					()
-				end
+	(* keep toString method according to toString metadata *)
+	| TCall ({eexpr = TField(_, ((FInstance(c, _, cf) | FStatic(c, cf)) as f))} as ef, args) when Meta.has Meta.ToString cf.cf_meta ->
+		let _, ts, _ = Meta.get Meta.ToString cf.cf_meta in
+		begin match ts with
+			| [] ->
+				begin match f with
+					| FInstance(_, pl, _) -> List.iter (fun t -> to_string dce t) pl;
+					| _ -> ()
+				end;
+				List.iter (fun e -> to_string dce e.etype) args;
 			| _ ->
-				()
+				let ts = List.map (fun (e, p) -> match e with
+					| EConst(Ident s) -> s
+					| _ -> ""
+				) ts in
+				begin match f with
+					| FInstance(_, pl, _) ->
+						List.iter2 (fun (n, _) t -> if List.mem n ts then to_string dce t) c.cl_params pl;
+					| _ ->
+						()
+				end;
+				begin match cf.cf_type with
+					| TFun(pl, _) ->
+						List.iter2 (fun (n, _, _) e -> if List.mem n ts then to_string dce e.etype) pl args
+					| _ ->
+						()
+				end
 		end;
 		expr dce ef;
 		List.iter (expr dce) args;

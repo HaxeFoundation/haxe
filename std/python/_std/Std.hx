@@ -128,7 +128,7 @@ import python.Syntax;
 		}
 	}
 
-	@:access(python.Boot)
+	@:access(python.Boot) @:toString
 	public static function string( s : Dynamic ) : String
 	{
 		return python.Boot.toString(s);

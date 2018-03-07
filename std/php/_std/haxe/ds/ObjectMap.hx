@@ -74,6 +74,7 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		return copied;
 	}
 
+	@:toString(K, V)
 	public function toString() : String {
 		var s = "{";
 		var it = keys();

@@ -46,10 +46,12 @@ class Sys {
 		return utf8Path ? String.fromUTF8(b) : String.fromUCS2(b);
 	}
 
+	@:toString
 	public static function print( v : Dynamic ) : Void {
 		sys_print(Std.string(v).bytes);
 	}
 
+	@:toString
 	public static function println( v : Dynamic ) : Void {
 		sys_print(Std.string(v).bytes);
 		sys_print("\n".bytes);

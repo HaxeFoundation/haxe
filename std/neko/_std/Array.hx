@@ -79,6 +79,7 @@
 		a[pos] = x;
 	}
 
+	@:toString(T)
 	public function join( sep : String ) : String {
 		var s = new StringBuf();
 		var a = this.__a;
@@ -91,6 +92,7 @@
 		return s.toString();
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("[");

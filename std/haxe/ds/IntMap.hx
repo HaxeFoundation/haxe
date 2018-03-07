@@ -73,6 +73,7 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	/**
 		See `Map.toString`
 	**/
+	@:toString(T)
 	public function toString() : String;
 
 }

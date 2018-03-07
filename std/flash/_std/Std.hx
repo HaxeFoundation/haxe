@@ -31,6 +31,7 @@ import flash.Boot;
 		return flash.Lib.as(value, c);
 	}
 
+	@:toString
 	public static function string( s : Dynamic ) : String {
 		return untyped flash.Boot.__string_rec(s,"");
 	}

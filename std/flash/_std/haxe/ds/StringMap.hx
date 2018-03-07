@@ -118,6 +118,7 @@ package haxe.ds;
 		return copied;
 	}
 
+	@:toString(K, V)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

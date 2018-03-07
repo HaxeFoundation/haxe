@@ -357,7 +357,7 @@ let get_info = function
 	| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 	| This -> ":this",("Internally used to pass a 'this' expression to macros",[UsedInternally; UsedOn TExpr])
 	| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
-	| ToString -> ":toString",("Internally used",[UsedInternally])
+	| ToString -> ":toString",("Internally used",[HasParam "Type or method parameter names";UsedInternally; UsedOn TClassField])
 	| Transient -> ":transient",("Adds the 'transient' flag to the class field",[Platform Java; UsedOn TClassField])
 	| ValueUsed -> ":valueUsed",("Internally used by DCE to mark an abstract value as used",[UsedInternally])
 	| Volatile -> ":volatile",("",[Platforms [Java;Cs]])

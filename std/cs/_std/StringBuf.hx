@@ -36,6 +36,7 @@ class StringBuf {
 		return b.Length;
 	}
 
+	@:toString
 	public inline function add<T>( x : T ) : Void {
 		b.Append(Std.string(x));
 	}

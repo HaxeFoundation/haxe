@@ -35,6 +35,7 @@ class StringBuf {
 		return b.length();
 	}
 
+	@:toString
 	public function add<T>( x : T ) : Void {
 		if (Std.is(x, Int))
 		{

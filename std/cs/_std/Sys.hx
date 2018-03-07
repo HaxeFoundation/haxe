@@ -28,11 +28,13 @@ class Sys {
 	private static var _env:haxe.ds.StringMap<String>;
 	private static var _args:Array<String>;
 
+	@:toString
 	public static inline function print( v : Dynamic ) : Void
 	{
 		cs.system.Console.Write(v);
 	}
 
+	@:toString
 	public static inline function println( v : Dynamic ) : Void
 	{
 		cs.system.Console.WriteLine(v);

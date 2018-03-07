@@ -30,6 +30,7 @@
 		return Std.is(value, c) ? cast value : null;
 	}
 
+	@:toString
 	public static function string( s : Dynamic ) : String {
 		return new String(untyped __dollar__string(s));
 	}

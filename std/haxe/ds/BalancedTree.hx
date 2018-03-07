@@ -239,6 +239,7 @@ class TreeNode<K,V> {
 
 	@:extern public inline function get_height() return this == null ? 0 : _height;
 
+	@:toString(K, V)
 	public function toString() {
 		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " +right.toString());
 	}

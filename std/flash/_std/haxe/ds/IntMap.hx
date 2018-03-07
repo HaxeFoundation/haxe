@@ -81,7 +81,8 @@ package haxe.ds;
 		for(key in keys()) copied.set(key, get(key));
 		return copied;
 	}
-	
+
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

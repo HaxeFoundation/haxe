@@ -23,10 +23,12 @@ import cpp.NativeSys;
 
 @:coreApi class Sys {
 
+	@:toString
 	public static function print( v : Dynamic ) : Void {
 		untyped __global__.__hxcpp_print(v);
 	}
 
+	@:toString
 	public static function println( v : Dynamic ) : Void {
 		untyped __global__.__hxcpp_println(v);
 	}

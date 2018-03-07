@@ -138,6 +138,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		The exact representation depends on the platform and key-type.
 	**/
+	@:toString(K, V)
 	public inline function toString():String {
 		return this.toString();
 	}

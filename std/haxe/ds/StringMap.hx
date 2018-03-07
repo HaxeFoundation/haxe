@@ -74,6 +74,7 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	/**
 		See `Map.toString`
 	**/
+	@:toString(T)
 	public function toString() : String;
 
 }

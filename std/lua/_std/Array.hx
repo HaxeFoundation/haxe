@@ -32,6 +32,8 @@ class Array<T> {
 		for (i in a) ret.push(i);
 		return ret;
 	}
+
+	@:toString(T)
 	public function join( sep : String ) : String {
 		var tbl : lua.Table<Int,String> = lua.Table.create();
 		for (i in iterator()){
@@ -125,6 +127,7 @@ class Array<T> {
 		return ret;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var tbl : lua.Table<Int,String> = lua.Table.create();
 		lua.Table.insert(tbl, '[');

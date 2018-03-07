@@ -86,6 +86,7 @@ class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 		return copied;
 	}
 
+	@:toString(A, B)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

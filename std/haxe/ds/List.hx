@@ -168,6 +168,7 @@ class List<T> {
 		The result is enclosed in { } with the individual elements being
 		separated by a comma.
 	**/
+	@:toString(T)
 	public function toString() {
 		var s = new StringBuf();
 		var first = true;
@@ -189,6 +190,7 @@ class List<T> {
 		Returns a string representation of `this` List, with `sep` separating
 		each element.
 	**/
+	@:toString(T)
 	public function join(sep : String) {
 		var s = new StringBuf();
 		var first = true;

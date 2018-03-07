@@ -23,8 +23,8 @@
 @:require(sys)
 @:coreApi
 class Sys {
-	@:extern static public function print(v:Dynamic):Void { }
-	@:extern static public function println(v:Dynamic):Void { }
+	@:extern @:toString static public function print(v:Dynamic):Void { }
+	@:extern @:toString static public function println(v:Dynamic):Void { }
 	@:extern static public function args():Array<String> { return []; }
 	@:extern static public function getEnv(s:String):String { return ""; }
 	@:extern static public function putEnv(s:String, v:String):Void { }

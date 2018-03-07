@@ -46,10 +46,12 @@ class Sys {
 		python.lib.Sys.exit(code);
 	}
 
+	@:toString
 	public static inline function print(v:Dynamic):Void {
 		python.Lib.print(v);
 	}
 
+	@:toString
 	public static inline function println(v:Dynamic):Void {
 		python.Lib.println(v);
 	}

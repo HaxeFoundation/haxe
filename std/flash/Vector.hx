@@ -40,7 +40,7 @@ package flash;
 	function slice( ?pos : Int, ?end : Int ) : Vector<T>;
 	function sort( f : T -> T -> Int ) : Void;
 	function splice( pos : Int, len : Int ) : Vector<T>;
-	function toString() : String;
+	@:toString(T) function toString() : String;
 	function indexOf( x : T, ?from : Int ) : Int;
 	function lastIndexOf( x : T, ?from : Int ) : Int;
 

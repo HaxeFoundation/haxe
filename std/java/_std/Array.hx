@@ -87,6 +87,7 @@ import java.NativeArray;
 		this.length = len;
 	}
 
+	@:toString(T)
 	public function join( sep : String ) : String
 	{
 		var buf = new StringBuf();
@@ -271,6 +272,7 @@ import java.NativeArray;
 			a[this.length + len] = null;
 	}
 
+	@:toString(T)
 	public function toString() : String
 	{
 		var ret = new StringBuf();

@@ -55,6 +55,7 @@ class StringBuf {
       return len;
    }
 
+   @:toString
    public inline function add<T>( x : T ) : Void {
       if (charBuf!=null) flush();
       if (b==null)

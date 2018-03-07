@@ -26,7 +26,7 @@ extern class Array<T> {
 
 	function new() : Void;
 	function concat( a : Array<T> ) : Array<T>;
-	function join( sep : String ) : String;
+	@:toString(T) function join( sep : String ) : String;
 	function pop() : Null<T>;
 	function push(x : T) : Int;
 	function reverse() : Void;
@@ -34,7 +34,7 @@ extern class Array<T> {
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 	function sort( f : T -> T -> Int ) : Void;
 	function splice( pos : Int, len : Int ) : Array<T>;
-	function toString() : String;
+	@:toString(T) function toString() : String;
 	function unshift( x : T ) : Void;
 
 	inline function insert( pos : Int, x : T ) : Void {

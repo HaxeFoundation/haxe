@@ -28,10 +28,12 @@ import sys.io.FileInput;
 	/** Environment variables set by `Sys.putEnv()` */
 	static var customEnvVars = new NativeAssocArray<String>();
 
+	@:toString
 	public static inline function print( v : Dynamic ) : Void {
 		Global.echo(Std.string(v));
 	}
 
+	@:toString
 	public static inline function println( v : Dynamic ) : Void {
 		Global.echo(Std.string(v) + "\n");
 	}

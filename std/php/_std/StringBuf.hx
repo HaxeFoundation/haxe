@@ -36,6 +36,7 @@ import php.Syntax;
 		return b.length;
 	}
 
+	@:toString
 	public function add<T>( x : T ) : Void {
 		if( x == null ) {
 			b = Syntax.concat(b, 'null');

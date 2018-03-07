@@ -125,6 +125,7 @@ import cs.NativeArray;
 		return cs.system.Array.LastIndexOf(__a, x, i, i + 1);
 	}
 
+	@:toString(T)
 	public function join( sep : String ) : String
 	{
 		var buf = new StringBuf();
@@ -308,6 +309,7 @@ import cs.NativeArray;
 			a[this.length + len] = null;
 	}
 
+	@:toString(T)
 	public function toString() : String
 	{
 		var ret = new StringBuf();

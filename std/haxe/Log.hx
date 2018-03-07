@@ -30,6 +30,7 @@ class Log {
 	/**
 		Format the output of `trace` before printing it.
 	**/
+	@:toString(v)
 	public static function formatOutput( v : Dynamic, infos : PosInfos ) : String {
 		var str = Std.string(v);
 		if( infos == null )
@@ -56,6 +57,7 @@ class Log {
 		If it is bound to null, subsequent calls to `trace()` will cause an
 		exception.
 	**/
+	@:toString(v)
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		var str = formatOutput(v,infos);
 		#if js

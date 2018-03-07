@@ -28,7 +28,7 @@
 		return Std.is(value, c) ? cast value : null;
 	}
 
-	@:keep public static function string( s : Dynamic ) : String {
+	@:keep @:toString public static function string( s : Dynamic ) : String {
 		return untyped s==null ? "null" : s.toString();
 	}
 

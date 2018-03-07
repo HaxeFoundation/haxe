@@ -28,11 +28,13 @@ extern class Sys {
 	/**
 		Print any value on the standard output.
 	**/
+	@:toString
 	static function print( v : Dynamic ) : Void;
 
 	/**
 		Print any value on the standard output, followed by a newline.
 	**/
+	@:toString
 	static function println( v : Dynamic ) : Void;
 
 	/**

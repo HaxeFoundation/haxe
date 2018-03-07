@@ -69,6 +69,7 @@ import haxe.Constraints;
 		return copied;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var parts = new NativeArray();
 		Syntax.foreach(data, function(key:String, value:T) {

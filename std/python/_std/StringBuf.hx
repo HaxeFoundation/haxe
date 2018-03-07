@@ -42,6 +42,7 @@ class StringBuf {
 		return len;
 	}
 
+	@:toString
 	public inline function add<T>( x : T ) : Void {
 		add1(Std.string(x));
 	}

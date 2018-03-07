@@ -64,6 +64,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		return copied;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 
 		var s = new StringBuf();

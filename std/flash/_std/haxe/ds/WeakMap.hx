@@ -76,6 +76,7 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints
 		return copied;
 	}
 
+	@:toString(K, V)
 	public function toString() : String {
 		var s = "";
 		var it = keys();

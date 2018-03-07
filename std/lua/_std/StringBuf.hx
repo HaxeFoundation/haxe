@@ -64,6 +64,7 @@ class StringBuf {
 
 		If `x` is null, the String "null" is appended.
 	**/
+	@:toString
 	public inline function add<T>( x : T ) : Void {
 		var str = Std.string(x);
 		Table.insert(b, str);

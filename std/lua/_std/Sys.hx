@@ -36,9 +36,11 @@ import sys.io.FileOutput;
 @:coreApi
 class Sys {
 	static var _system_name : String;
+	@:toString
 	public static inline function print( v : Dynamic ) : Void {
 		return lua.Lib.print(v);
 	}
+	@:toString(T)
 	public static inline function println( v : Dynamic ) : Void {
 		return lua.Lib.println(v);
 	}

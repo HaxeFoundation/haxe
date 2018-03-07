@@ -29,11 +29,13 @@ using haxe.Int64;
 	private static var _env:haxe.ds.StringMap<String>;
 	private static var _sysName:String;
 
+	@:toString
 	public static inline function print( v : Dynamic ) : Void
 	{
 		java.lang.System.out.print(v);
 	}
 
+	@:toString
 	public static inline function println( v : Dynamic ) : Void
 	{
 		java.lang.System.out.println(v);

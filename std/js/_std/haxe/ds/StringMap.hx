@@ -131,6 +131,7 @@ private class StringMapIterator<T> {
 		return copied;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

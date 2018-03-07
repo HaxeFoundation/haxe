@@ -51,11 +51,11 @@ extern class Array<T> implements ArrayAccess<T> {
 	}
 
 
-	@:runtime public inline function join( sep : String ) : String {
+	@:runtime @:toString(T) public inline function join( sep : String ) : String {
 		return ArrayImpl.join(this, sep);
 	}
 
-	public inline function toString() : String {
+	@:toString(T) public inline function toString() : String {
 		return ArrayImpl.toString(this);
 	}
 

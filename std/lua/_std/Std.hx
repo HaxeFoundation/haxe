@@ -33,7 +33,7 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
-	@:keep
+	@:keep @:toString
 	public static function string( s : Dynamic ) : String {
 		return untyped lua.Boot.__string_rec(s);
 	}

@@ -36,6 +36,7 @@ import php.Syntax;
 		return Boot.is(value, cast c) ? cast value : null;
 	}
 
+	@:toString
 	public static function string( s : Dynamic ) : String {
 		return Boot.stringify(s);
 	}

@@ -440,6 +440,7 @@ import java.lang.ref.ReferenceQueue;
 		Returns an displayable representation of the hashtable content.
 	**/
 
+	@:toString(K, V)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

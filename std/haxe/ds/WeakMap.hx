@@ -91,6 +91,7 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 	/**
 		See `Map.toString`
 	**/
+	@:toString(K, V)
 	public function toString():String {
 		return null;
 	}

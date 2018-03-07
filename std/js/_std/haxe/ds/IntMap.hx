@@ -68,6 +68,7 @@ package haxe.ds;
 		return copied;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

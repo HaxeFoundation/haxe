@@ -87,6 +87,7 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 		return copied;
 	}
 
+	@:toString(T)
 	public function toString() : String {
 		var s = new StringBuf();
 		s.add("{");

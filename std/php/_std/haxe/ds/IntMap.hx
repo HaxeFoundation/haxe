@@ -93,6 +93,7 @@ import php.NativeIndexedArray;
 	/**
 		See `Map.toString`
 	**/
+	@:toString(T)
 	public function toString() : String {
 		var parts = new NativeArray();
 		Syntax.foreach(data, function(key:Int, value:T) {

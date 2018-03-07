@@ -23,6 +23,7 @@ package haxe;
 
 @:coreApi class Log {
 
+	@:toString(v)
 	public static function formatOutput( v : Dynamic, infos : PosInfos ) : String {
 		var str = Std.string(v);
 		if( infos == null )
@@ -32,6 +33,7 @@ package haxe;
 		return pstr+": "+str;
 	}
 
+	@:toString(v)
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if (fdb || native_trace)
 			var str = formatOutput(v,infos);

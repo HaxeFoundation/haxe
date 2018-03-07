@@ -33,6 +33,7 @@
 		return __get_length == null ? untyped __dollar__ssize( __to_string(b) ) : __get_length(b);
 	}
 
+	@:toString
 	public inline function add<T>( x : T ) : Void {
 		__add(b,x);
 	}

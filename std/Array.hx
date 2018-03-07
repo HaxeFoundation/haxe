@@ -66,6 +66,7 @@ extern class Array<T> {
 
 		If `sep` is null, the result is unspecified.
 	**/
+	@:toString(T)
 	function join( sep : String ) : String;
 
 	/**
@@ -179,6 +180,7 @@ extern class Array<T> {
 		use `Std.string()` to get a String representation that is consistent
 		across platforms.
 	**/
+	@:toString(T)
 	function toString() : String;
 
 	/**
