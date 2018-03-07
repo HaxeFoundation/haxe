@@ -43,8 +43,9 @@ abstract FlatEnum(Dynamic) { }
 /**
 	This type unifies with any instance of classes that have a constructor
 	which
-		* is public and
-		* unifies with the type used for type parameter `T`.
+
+	  * is public and
+	  * unifies with the type used for type parameter `T`.
 
 	If a type parameter A is assigned to a type parameter B which is constrained
 	to `Constructible<T>`, A must be explicitly constrained to
