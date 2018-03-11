@@ -618,7 +618,7 @@ let create version s_version args =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		sys_args = args;
+		sys_args = [];
 		debug = false;
 		display = DisplayMode.create !display_default;
 		verbose = false;

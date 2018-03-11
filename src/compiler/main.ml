@@ -384,7 +384,7 @@ let rec process_params create pl =
 		| "--each" :: l ->
 			each_params := List.rev acc;
 			loop [] l
-		| "--cwd" :: dir :: l ->
+		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
@@ -397,7 +397,7 @@ let rec process_params create pl =
 				(* already connected : skip *)
 				loop acc l)
 		| "--run" :: cl :: args ->
-			let acc = cl :: "-main" :: "--interp" :: acc in
+			let acc = cl :: "-x" :: acc in
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.com.sys_args <- args;
 			init ctx;
@@ -532,13 +532,23 @@ try
 			Parser.use_doc := true;
 			xml_out := Some file
 		),"<file>","generate XML types description");
-		("Target",["-interp"],["--interp"], Arg.Unit (fun() ->
+		("Target",["-x";"--execute"],[], Arg.String (fun cl ->
+			let cpath = Path.parse_type_path cl in
+			(match com.main_class with
+				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
+				| None -> com.main_class <- Some cpath);
+			classes := cpath :: !classes;
+			Common.define com Define.Interp;
+			Initialize.set_platform com (!Globals.macro_platform) "";
+			interp := true;
+		),"<class>","interpret the program using internal macro system");
+		("Target",[],["--interp"], Arg.Unit (fun() ->
 			Common.define com Define.Interp;
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"","interpret the program using internal macro system");
 
-		("Compilation",["-c";"--cp"],["-cp"],Arg.String (fun path ->
+		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
 			process_libs();
 			com.class_path <- Path.add_trailing_slash path :: com.class_path
 		),"<path>","add a directory to find source files");
@@ -548,7 +558,7 @@ try
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class>","select startup class");
-		("Compilation",["-L";"--lib"],["-lib"],Arg.String (fun l ->
+		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
 			Common.raw_define com l;
 		),"<library[:version]>","use a haxelib library");
@@ -586,6 +596,9 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
+		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
+			com.sys_args <- com.sys_args @ [arg];
+		),"[args...]","args that will be passed to the macro interpreter");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce";"--dead-code-elimination"],["-dce"],Arg.String (fun mode ->
@@ -642,16 +655,6 @@ try
 		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
 		),"<arg>","pass option <arg> to the native Java/C# compiler");
-		("Target-specific",["-x"],[], Arg.String (fun file ->
-			let neko_file = file ^ ".n" in
-			Initialize.set_platform com Neko neko_file;
-			if com.main_class = None then begin
-				let cpath = Path.parse_type_path file in
-				com.main_class <- Some cpath;
-				classes := cpath :: !classes
-			end;
-			cmds := ("neko " ^ neko_file) :: !cmds;
-		),"<file>","shortcut for compiling and executing a neko file");
 		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
@@ -727,7 +730,7 @@ try
 		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			assert false
 		),"<[host:]port>","connect on the given port and run commands there)");
-		("Compilation",["--cwd"],[], Arg.String (fun dir ->
+		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			assert false
 		),"<dir>","set current working directory");
 	] in
@@ -932,6 +935,7 @@ with
 let other = Timer.timer ["other"] in
 Sys.catch_break true;
 MacroContext.setup();
+
 let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
