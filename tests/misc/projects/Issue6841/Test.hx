@@ -12,6 +12,10 @@ class Test {
 			"Main4.hx" => "[a,a,a]",
 			"Main5.hx" => "[a,a,a]",
 			"Main6.hx" => "{2 => a, 1 => a}",
+			"Main7.hx" => "[a,a,a]",
+			"Main8.hx" => "[b,b,b]",
+			"Main9.hx" => "[b,b,b]",
+			"Main10.hx" => "[b,a,b]",
 		];
 		for (key in tests.keys()) {
 			var proc = new sys.io.Process("haxe", ["-dce", "full", "-x", key]);
