@@ -78,6 +78,9 @@ class File {
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		var mode = if (binary) "rb+" else "r+";
 		var f = python.lib.Builtins.open(path, mode, -1, null, null, binary ? null : "");
 
