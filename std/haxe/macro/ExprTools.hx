@@ -73,7 +73,8 @@ class ExprTools {
 			case EConst(_),
 				EContinue,
 				EBreak,
-				EDisplayNew(_):
+				EDisplayNew(_),
+				EComplexType(_):
 			case EField(e, _),
 				EParenthesis(e),
 				EUntyped(e),
@@ -156,7 +157,7 @@ class ExprTools {
 	**/
 	static public function map( e : Expr, f : Expr -> Expr ) : Expr {
 		return {pos: e.pos, expr: switch(e.expr) {
-			case EConst(_): e.expr;
+			case EConst(_), EComplexType(_): e.expr;
 			case EArray(e1, e2): EArray(f(e1), f(e2));
 			case EBinop(op, e1, e2): EBinop(op, f(e1), f(e2));
 			case EField(e, field): EField(f(e), field);

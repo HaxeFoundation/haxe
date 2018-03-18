@@ -3597,6 +3597,13 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		in
 		ctx.meta <- old;
 		e
+	| EComplexType t ->
+		let t = Typeload.load_complex_type ctx true p (t,p) in
+		try
+			let mt = module_type_of_type t in
+			type_module_type ctx mt None p
+		with Exit ->
+			error "Type has no runtime value" p
 
 and handle_display ctx e_ast with_type =
 	let old = ctx.in_display,ctx.in_call_args in

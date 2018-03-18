@@ -530,6 +530,11 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta( s : MetadataEntry, e : Expr );
+
+	/**
+		A `:T<P>` complex type.
+	**/
+	EComplexType ( c : ComplexType );
 }
 
 /**

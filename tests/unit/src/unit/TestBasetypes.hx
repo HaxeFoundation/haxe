@@ -1,5 +1,10 @@
 package unit;
 
+typedef TestArray = Array<Test>;
+private enum TestEnum { V1; V2; }
+
+@:generic private class GenericTestClass<T> {}
+
 class TestBasetypes extends Test {
 
 	function testArray() {
@@ -514,5 +519,22 @@ class TestBasetypes extends Test {
 			var a:{?f:Int} = i; // allowed to fail at runtime
 			unspec(function() a.f);
 		});
+	}
+
+	function testComplexTypeLiteral() {
+		var arrayOfTest = :Array<Test>,
+			testArrayLiteral = :TestArray,
+			qualifiedLiteral = :unit.TestBasetypes.TestArray,
+			testArrayIdentifier = TestArray,
+			generic1 = :GenericTestClass<Int>,
+			generic2 = :GenericTestClass<Float>,
+			enumLiteral = :TestEnum;
+		eq(arrayOfTest, arrayOfTest);
+		eq(arrayOfTest, testArrayLiteral);
+		eq(arrayOfTest, qualifiedLiteral);
+		eq(arrayOfTest, testArrayIdentifier);
+		t((arrayOfTest:Class<Dynamic>) != (generic1:Class<Dynamic>));
+		t((generic1:Class<Dynamic>) != (generic2:Class<Dynamic>));
+		eq(enumLiteral, enumLiteral);
 	}
 }

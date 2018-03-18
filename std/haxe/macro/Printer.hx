@@ -242,6 +242,7 @@ class Printer {
 		case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
 		case ECheckType(e1, ct): '(${printExpr(e1)} : ${printComplexType(ct)})';
 		case EMeta(meta, e1): printMetadata(meta) + " " +printExpr(e1);
+		case EComplexType(ct): ":" + printComplexType(ct);
 	}
 
 	public function printExprs(el:Array<Expr>, sep:String) {

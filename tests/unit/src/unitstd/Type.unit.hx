@@ -71,6 +71,7 @@ c2.b == "bar";
 var c = Type.createEmptyInstance(ClassWithCtorDefaultValues);
 c.a == null;
 c.b == null;
+Std.is(c, ClassWithCtorDefaultValues) == true;
 var c = Type.createEmptyInstance(ClassWithCtorDefaultValuesChild);
 c.a == null;
 c.b == null;

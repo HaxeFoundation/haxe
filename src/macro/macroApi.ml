@@ -556,6 +556,8 @@ and encode_expr e =
 				27, [loop e; encode_ctype t]
 			| EMeta (m,e) ->
 				28, [encode_meta_entry m;loop e]
+			| EComplexType t ->
+				30, [encode_ctype (t,p)]
 		in
 		encode_obj OExpr [
 			"pos", encode_pos p;
@@ -827,6 +829,9 @@ and decode_expr v =
 			EMeta (decode_meta_entry m,loop e)
 		| 29, [e;f] ->
 			EField (loop e, decode_string f) (*** deprecated EType, keep until haxe 3 **)
+		| 30, [t] ->
+			let (t,_) = decode_ctype t in
+			EComplexType t
 		| _ ->
 			raise Invalid_expr
 	in
