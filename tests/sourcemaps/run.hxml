@@ -1,0 +1,11 @@
+-cp src
+-D eval-stack
+-main Test
+--interp
+# -lib sourcemap
+# -main cases.Assignment
+# -dce full
+# -D source-map
+# -D analyzer-optimize
+# -js bin/sourcemaps.js
+# -php bin/php
