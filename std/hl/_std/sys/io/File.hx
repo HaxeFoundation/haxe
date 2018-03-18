@@ -74,6 +74,9 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		var f = file_open(Sys.getPath(path),3,binary);
 		if( f == null ) throw new Sys.SysError("Can't open "+path+" for update");
 		return @:privateAccess new FileOutput(f);

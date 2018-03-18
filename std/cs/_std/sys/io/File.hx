@@ -86,6 +86,9 @@ class File {
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput
 	{
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		#if std_buffer //standardize 4kb buffers
 		var stream = new cs.system.io.FileStream(path, OpenOrCreate, Write, ReadWrite, 4096);
 		#else

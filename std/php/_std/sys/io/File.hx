@@ -57,6 +57,9 @@ import php.Global;
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		return untyped new FileOutput(fopen(path, binary ? "rb+" : "r+"));
 	}
 
