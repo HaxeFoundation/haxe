@@ -9,7 +9,7 @@ bug-reports: "https://github.com/HaxeFoundation/haxe/issues"
 license: ["GPL2+" "MIT"]
 dev-repo: "https://github.com/HaxeFoundation/haxe.git"
 build: [
-  [ "env" "OCAMLPARAM=safe-string=0,_" make ]
+  ["env" "OCAMLPARAM=safe-string=0,_" make]
 ]
 install: [
   ["cp" "haxe" "haxelib" "%{bin}%"]
@@ -23,6 +23,8 @@ remove: [
 depends: [
   "ocamlfind" {build}
   "camlp4"    {build}
+  "conf-libpcre"
+  "conf-zlib"
   "conf-neko"
 ]
-available: [ ocaml-version > "4.02" ]
+available: [ocaml-version >= "4.02"]
