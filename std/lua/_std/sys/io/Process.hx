@@ -44,7 +44,7 @@ class Process {
 	public var  stdin(default,null) : haxe.io.Output;
 
 	static var argQuote = Sys.systemName() == "Windows" ? function(x) return StringTools.quoteWinArg(x,true) : StringTools.quoteUnixArg;
-	static var _shell = Sys.systemName() == "Window" ? 'cmd.exe' : '/bin/bash';
+	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/bash';
 
 	/**
 	  Sets the args for the shell, which will include the cmd to be executed
