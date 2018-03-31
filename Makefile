@@ -61,7 +61,9 @@ else
 	OCAMLDEP_FLAGS = -native
 endif
 
-CC_CMD = ($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
+PPX_SEDLEX = $(shell ocamlfind printppx sedlex.ppx)
+
+CC_CMD = ($(COMPILER) $(PPX_SEDLEX) $(ALL_CFLAGS) -c $< 2>tmp.tmp && $(MESSAGE_FILTER)) || ($(MESSAGE_FILTER) && exit 1)
 
 # Meta information
 
