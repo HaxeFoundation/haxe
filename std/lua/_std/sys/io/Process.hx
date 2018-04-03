@@ -122,7 +122,7 @@ class Process {
 	}
 }
 
-class ProcessInput extends haxe.io.Input {
+private class ProcessInput extends haxe.io.Input {
 	var b : Pipe;
 	var buf : String;
 	var idx : Int;
@@ -170,7 +170,7 @@ class ProcessInput extends haxe.io.Input {
 
 }
 
-class ProcessOutput extends haxe.io.Output {
+private class ProcessOutput extends haxe.io.Output {
 	var b : Pipe;
 
 	public function new(pipe:Pipe) {
