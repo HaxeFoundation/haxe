@@ -44,7 +44,6 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
     - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.02.3+mingw${ARCH}c --switch 4.02.3+mingw${ARCH}c --auto-setup --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam pin add conf-neko https://raw.githubusercontent.com/ocaml/opam-repository/master/packages/conf-neko/conf-neko.1/opam --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
     # Install php
