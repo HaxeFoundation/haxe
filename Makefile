@@ -147,9 +147,14 @@ build_pass_2:
 build_pass_3:
 	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
+build_pass_4: $(MODULES:%=%.$(MODULE_EXT)) kill_exe_win
 	$(COMPILER) -safe-string -linkpkg -g -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
+kill_exe_win:
+ifdef SYSTEMROOT
+	-@taskkill /F /IM haxe.exe
+endif
+	
 plugin:
 ifeq ($(BYTECODE),1)
 	$(CC_CMD) $(PLUGIN).ml
