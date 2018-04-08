@@ -6,7 +6,7 @@ EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
 
 kill:
-	-@taskkill /F /IM haxe.exe 2>NUL
+	-@taskkill /F /IM haxe.exe
 
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"

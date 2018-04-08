@@ -152,7 +152,7 @@ build_pass_4: $(MODULES:%=%.$(MODULE_EXT)) kill_exe_win
 
 kill_exe_win:
 ifdef SYSTEMROOT
-	-@taskkill /F /IM haxe.exe
+	-@taskkill /F /IM haxe.exe 2>/dev/null
 endif
 	
 plugin:
