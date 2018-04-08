@@ -6,7 +6,7 @@
 		{
 			"label": "Compile",
 			"type": "shell",
-			"command": "make -s haxe",
+			"command": "make ADD_REVISION=1 -j -s haxe",
 			"group": {
 				"kind": "build",
 				"isDefault": true
