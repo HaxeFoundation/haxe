@@ -54,7 +54,7 @@ class MainEvent {
 @:access(haxe.MainEvent)
 class MainLoop {
 
-	static var pending : MainEvent = null;
+	static var pending : MainEvent;
 
 	public static var threadCount(get, never) : Int;
 
