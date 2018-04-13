@@ -8,7 +8,7 @@ haxe.Log.trace = function(v, ?i) {
 trace("test trace");
 haxe.Log.trace = old;
 s == "test trace";
-p.fileName == "Log.unit.hx";
+p.fileName == "src/unitstd/haxe/Log.unit.hx";
 p.lineNumber == 8;
 haxe.Log.trace = null;
 exc(function() trace("exc test"));
