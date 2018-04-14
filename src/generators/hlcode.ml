@@ -220,6 +220,7 @@ type code = {
 	natives : (string index * string index * ttype * functable index) array;
 	functions : fundecl array;
 	debugfiles : string array;
+	constants : (global * int array) array;
 }
 
 let null_proto =
@@ -661,4 +662,8 @@ let dump pr code =
 		List.iter (fun (i,fidx) ->
 			pr ("		  @" ^ string_of_int i ^ " fun@" ^ string_of_int fidx)
 		) p.pbindings;
-	) protos
+	) protos;
+	pr (string_of_int (Array.length code.constants) ^ " constant values");
+	Array.iter (fun (g,fields) ->
+		pr (Printf.sprintf "    @%d %s [%s]" g (tstr code.globals.(g)) (String.concat "," (List.map string_of_int (Array.to_list fields))));
+	) code.constants
