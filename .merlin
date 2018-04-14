@@ -10,3 +10,4 @@ PKG extlib
 PKG camlzip
 PKG xml-light
 FLG -safe-string
+FLG -w -3
