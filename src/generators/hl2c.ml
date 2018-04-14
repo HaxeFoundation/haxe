@@ -1155,11 +1155,36 @@ let write_c com file (code:code) =
 		let name = "global$" ^ string_of_int i in
 		sexpr "%s = 0" (var_type name t)
 	) code.globals;
+	Array.iter (fun (g,fields) ->
+		let t = code.globals.(g) in
+		let name = "constant$" ^ string_of_int g in
+		let field_value t idx =
+			match t with
+			| HI32 ->
+				Int32.to_string code.ints.(idx)
+			| HBytes ->
+				"(vbyte*)" ^ string ctx idx
+			| _ ->
+				assert false
+		in
+		let fields = match t with
+			| HObj o ->
+				type_value ctx t :: List.map2 field_value (List.map (fun (_,_,t) -> t) (Array.to_list o.pfields)) (Array.to_list fields)
+			| _ ->
+				assert false
+		in
+		sexpr "static struct _%s %s = {%s}" (ctype t) name (String.concat "," fields);
+	) code.constants;
 	line "";
 	line "void hl_init_roots() {";
 	block ctx;
+	let is_const = Hashtbl.create 0 in
+	Array.iter (fun (g,fields) ->
+		sexpr "global$%d = &constant$%d" g g;
+		Hashtbl.add is_const g true;
+	) code.constants;
 	Array.iteri (fun i t ->
-		if is_ptr t then sexpr "hl_add_root((void**)&global$%d)" i;
+		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&global$%d)" i;
 	) code.globals;
 	unblock ctx;
 	line "}";
