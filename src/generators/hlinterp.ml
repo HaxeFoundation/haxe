@@ -2166,7 +2166,7 @@ let add_code ctx code =
 			let proto,_,_ = get_proto ctx o in
 			VObj {
 				oproto = proto;
-				ofields = Array.map2 (fun (_,_,t) idx -> get_const_val t idx) o.pfields fields;
+				ofields = Array.mapi (fun i (_,_,t) -> get_const_val t fields.(i)) o.pfields;
 			}
 		| _ -> assert false
 		) in
