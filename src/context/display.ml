@@ -456,6 +456,7 @@ module Diagnostics = struct
 				()
 			| TFunction tf ->
 				loop false tf.tf_expr
+			| TCall({eexpr = TField(e1,fa)},el) when OptimizerTexpr.PurityState.is_pure_field_access fa -> compound "call" el e.epos
 			| TNew _ | TCall _ | TBinop ((Ast.OpAssignOp _ | Ast.OpAssign),_,_) | TUnop ((Ast.Increment | Ast.Decrement),_,_)
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast (_,Some _)
 			| TIf _ | TTry _ | TSwitch _ | TWhile _ | TFor _ ->
