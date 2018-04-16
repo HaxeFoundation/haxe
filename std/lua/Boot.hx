@@ -380,7 +380,7 @@ class Boot {
 			var popen_result : lua.FileHandle = null;
 			untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
 			if (popen_status) {
-				popen_result.close;
+				popen_result.close();
 				os = lua.Io.popen('uname -s','r').read('*l').toLowerCase();
 			} else {
 				os = lua.Os.getenv('OS').toLowerCase();
