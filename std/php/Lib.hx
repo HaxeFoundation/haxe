@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -156,10 +156,10 @@ class Lib {
 			var obj = result;
 			while(parts.length > 1) {
 				var pack = parts.shift();
-				if(Syntax.getField(obj, pack) == null) {
+				if(Syntax.field(obj, pack) == null) {
 					Syntax.setField(obj, pack, {});
 				}
-				obj = Syntax.getField(obj, pack);
+				obj = Syntax.field(obj, pack);
 			}
 			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
 		});

@@ -185,7 +185,6 @@
     <hidden path="src\syntax\parser.cmx" />
     <hidden path="src\syntax\parser.cmi" />
     <hidden path="src\syntax\lexer.obj" />
-    <hidden path="src\syntax\lexer.ml" />
     <hidden path="src\syntax\lexer.cmx" />
     <hidden path="src\syntax\lexer.cmi" />
     <hidden path="src\syntax\ast.obj" />
@@ -420,6 +419,7 @@
     <hidden path="src\generators\genphp7.cmt" />
     <hidden path="src\generators\genphp7.cmx" />
     <hidden path="src\generators\genphp7.o" />
+    <hidden path="_build" />
   </hiddenPaths>
   <!-- Executed before build -->
   <preBuildCommand>make -j4 FD_OUTPUT=1 -f Makefile.win kill haxe</preBuildCommand>

@@ -260,9 +260,8 @@ class TestType extends Test {
 		var f : Void -> String = foo.bind(0);
  		eq("foo0", f());
 
-		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
-		#if (flash || hl)
+		#if (flash || hl) // Cannot skip not-nullable argument
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);

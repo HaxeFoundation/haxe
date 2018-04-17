@@ -15,6 +15,22 @@ This repository is about the Haxe compiler itself and the Haxe standard library.
 * Something on api.haxe.org: For content this is probably the right repository. If it's about the representation, try <https://github.com/HaxeFoundation/dox/issues> instead.
 * Something else on haxe.org: <https://github.com/HaxeFoundation/haxe.org/issues>
 
+## Debugging Hints
+
+### Using a debugger
+
+To debug the Haxe compiler, you can use either a system debugger (`gdb`/`lldb`), or [ocamldebug](http://caml.inria.fr/pub/docs/manual-ocaml/debugger.html). `ocamldebug` provides a better debugging experience. To use it, compile with `make BYTECODE=1`.
+
+### Using printf
+
+To print information about a type, you can add the following before most lines:
+
+```ocaml
+Printf.printf "%s\n" (s_type_kind t);
+```
+
+There are lots of other stringifying functions, search for "Printing" in `src/core/type.ml` and scroll down to find them.
+
 ## Other remarks:
 
 - Sometimes people try to be particularly helpful by not only including broken parts in their code, but also "similar" code which is working. More often than not this is more distracting than helpful. If you want to highlight something like this, consider adding the working code commented out.

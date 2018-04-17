@@ -10,7 +10,7 @@
 #
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mly
 
-INSTALL_DIR=$(DESTDIR)/usr/local
+INSTALL_DIR=/usr/local
 INSTALL_BIN_DIR=$(INSTALL_DIR)/bin
 INSTALL_LIB_DIR=$(INSTALL_DIR)/lib/haxe
 INSTALL_STD_DIR=$(INSTALL_DIR)/share/haxe/std
@@ -31,7 +31,7 @@ STATICLINK?=0
 HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib rope ptmap
+OPAM_LIBS=sedlex xml-light extlib rope ptmap sha
 
 FINDLIB_LIBS=$(OCAML_LIBS)
 FINDLIB_LIBS+=$(OPAM_LIBS)
@@ -147,9 +147,14 @@ build_pass_2:
 build_pass_3:
 	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
+build_pass_4: $(MODULES:%=%.$(MODULE_EXT)) kill_exe_win
+	$(COMPILER) -safe-string -linkpkg -g -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
+kill_exe_win:
+ifdef SYSTEMROOT
+	-@taskkill /F /IM haxe.exe 2>/dev/null
+endif
+	
 plugin:
 ifeq ($(BYTECODE),1)
 	$(CC_CMD) $(PLUGIN).ml
@@ -177,33 +182,20 @@ haxelib:
 tools: haxelib
 
 install: uninstall
-	mkdir -p $(INSTALL_BIN_DIR)
-	mkdir -p $(INSTALL_LIB_DIR)/lib
-	mkdir -p $(INSTALL_STD_DIR)
-	cp -rf std/* $(INSTALL_STD_DIR)
-	cp -rf extra $(INSTALL_LIB_DIR)
-	cp haxe $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxe $(INSTALL_BIN_DIR)/haxe
-	cp haxelib $(INSTALL_LIB_DIR)
-	ln -s $(INSTALL_LIB_DIR)/haxelib $(INSTALL_BIN_DIR)/haxelib
-	chmod -R a+rx $(INSTALL_LIB_DIR)
-	chmod 777 $(INSTALL_LIB_DIR)/lib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-
-# will install native version of the tools instead of script ones
-install_tools: tools
-	cp haxelib ${INSTALL_BIN_DIR}/haxelib
-	chmod a+rx $(INSTALL_BIN_DIR)/haxelib
+	mkdir -p "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	cp haxe haxelib "$(DESTDIR)$(INSTALL_BIN_DIR)"
+	mkdir -p "$(DESTDIR)$(INSTALL_STD_DIR)"
+	cp -r std/* "$(DESTDIR)$(INSTALL_STD_DIR)"
 
 uninstall:
-	rm -rf $(INSTALL_BIN_DIR)/haxe $(INSTALL_BIN_DIR)/haxelib
-	if [ -d "$(INSTALL_LIB_DIR)/lib" ] && find "$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
-		echo "The local haxelib repo at $(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
-		find $(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
+	rm -rf $(DESTDIR)$(INSTALL_BIN_DIR)/haxe $(DESTDIR)$(INSTALL_BIN_DIR)/haxelib
+	if [ -d "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" ] && find "$(DESTDIR)$(INSTALL_LIB_DIR)/lib" -mindepth 1 -print -quit | grep -q .; then \
+		echo "The local haxelib repo at $(DESTDIR)$(INSTALL_LIB_DIR)/lib will not be removed. Remove it manually if you want."; \
+		find $(DESTDIR)$(INSTALL_LIB_DIR)/ ! -name 'lib' -mindepth 1 -maxdepth 1 -exec rm -rf {} +; \
 	else \
-		rm -rf $(INSTALL_LIB_DIR); \
+		rm -rf $(DESTDIR)$(INSTALL_LIB_DIR); \
 	fi
-	rm -rf  $(INSTALL_STD_DIR)
+	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
 	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
@@ -224,9 +216,13 @@ package_src:
 package_unix:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
+	#delete all content which was generated in _build dir except interfaces
+	find _build/ -type f ! -name '*.cmi' -delete
+	#add ocaml version to the _build dir
+	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
-	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
+	cp -r $(OUTPUT) haxelib$(EXTENSION) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt _build $(PACKAGE_FILE_NAME)
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -351,47 +351,49 @@ class Web {
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {
-		var post = Lib.hashOfAssociativeArray(_POST);
-
-		for (key in post.keys())
-		{
+		Syntax.foreach(_POST, function(key:String, value:Dynamic) {
 			onPart(key, "");
-			var v = post.get(key);
-			onData(Bytes.ofString(v), 0, strlen(v));
-		}
+			onData(Bytes.ofString(value), 0, strlen(value));
+		});
 
 		if(!isset(_FILES)) return;
-		var parts : Array<String> = @:privateAccess Array.wrap(array_keys(_FILES));
-		for(part in parts) {
-			var info : NativeAssocArray<Dynamic> = _FILES[part];
-			var tmp : String = info['tmp_name'];
-			var file : String = info['name'];
-			var err : Int = info['error'];
-
-			if(err > 0) {
-				switch(err) {
-					case 1: throw "The uploaded file exceeds the max size of " + ini_get('upload_max_filesize');
-					case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + ini_get('post_max_size') + ")";
-					case 3: throw "The uploaded file was only partially uploaded";
-					case 4: continue; // No file was uploaded
-					case 6: throw "Missing a temporary folder";
-					case 7: throw "Failed to write file to disk";
-					case 8: throw "File upload stopped by extension";
+		Syntax.foreach(_FILES, function(part:String, data:NativeAssocArray<Dynamic>) {
+			function handleFile(tmp:String, file:String, err:Int) {
+				var fileUploaded = true;
+				if(err > 0) {
+					switch(err) {
+						case 1: throw "The uploaded file exceeds the max size of " + ini_get('upload_max_filesize');
+						case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + ini_get('post_max_size') + ")";
+						case 3: throw "The uploaded file was only partially uploaded";
+						case 4: fileUploaded = false; // No file was uploaded
+						case 6: throw "Missing a temporary folder";
+						case 7: throw "Failed to write file to disk";
+						case 8: throw "File upload stopped by extension";
+					}
+				}
+				if(fileUploaded) {
+					onPart(part, file);
+					if ("" != file)
+					{
+						var h = fopen(tmp, "r");
+						var bsize = 8192;
+						while (!feof(h)) {
+							var buf : String = fread(h, bsize);
+							var size : Int = strlen(buf);
+							onData(Bytes.ofString(buf), 0, size);
+						}
+						fclose(h);
+					}
 				}
 			}
-			onPart(part, file);
-			if ("" != file)
-			{
-				var h = fopen(tmp, "r");
-				var bsize = 8192;
-				while (!feof(h)) {
-					var buf : String = fread(h, bsize);
-					var size : Int = strlen(buf);
-					onData(Bytes.ofString(buf), 0, size);
-				}
-				fclose(h);
+			if(is_array(data['name'])) {
+				for(index in array_keys(data['name'])) {
+					handleFile(data['tmp_name'][index], data['name'][index], data['error'][index]);
+				};
+			} else {
+				handleFile(data['tmp_name'], data['name'], data['error']);
 			}
-		}
+		});
 	}
 
 	/**
@@ -399,7 +401,7 @@ class Web {
 		this can be useful for displaying some long operation progress.
 	**/
 	public static inline function flush() : Void {
-		flush();
+		Global.flush();
 	}
 
 	/**

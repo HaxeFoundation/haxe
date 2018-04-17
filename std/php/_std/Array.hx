@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -193,7 +193,9 @@ class Array<T> implements ArrayAccess<Int,T> {
 	@:noCompletion
 	function offsetSet( offset:Int, value:T ) : Void {
 		if (length <= offset) {
-			arr = Global.array_merge(arr, Global.array_fill(0, offset + 1 - length, null));
+			if(length < offset) {
+				arr = Global.array_pad(arr, offset + 1, null);
+			}
 			length = offset + 1;
 		}
 		arr[offset] = value;

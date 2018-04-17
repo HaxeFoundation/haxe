@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -48,6 +48,7 @@ open Common.DisplayMode
 open Type
 open Server
 open Globals
+open Filename
 
 exception Abort
 
@@ -343,21 +344,24 @@ let get_std_class_paths () =
 		let parts = Str.split_delim (Str.regexp "[;:]") p in
 		"" :: List.map Path.add_trailing_slash (loop parts)
 	with Not_found ->
+		let base_path = Path.get_real_path (try executable_path() with _ -> "./") in
 		if Sys.os_type = "Unix" then
+			let prefix_path = Filename.dirname base_path in
+			let lib_path = Filename.concat prefix_path "lib" in
+			let share_path = Filename.concat prefix_path "share" in
 			[
-				"/usr/local/share/haxe/std/";
-				"/usr/local/lib/haxe/std/";
-				"/usr/local/lib/haxe/extraLibs/";
-				"/usr/share/haxe/std/";
-				"/usr/lib/haxe/std/";
-				"/usr/lib/haxe/extraLibs/";
+				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
+				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
+				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
+				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
+				Path.add_trailing_slash (Filename.concat base_path "std");
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
 				""
 			]
 		else
-			let base_path = Path.add_trailing_slash (Path.get_real_path (try executable_path() with _ -> "./")) in
 			[
-				base_path ^ "std/";
-				base_path ^ "extraLibs/";
+				Path.add_trailing_slash (Filename.concat base_path "std");
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
 				""
 			]
 
@@ -414,7 +418,7 @@ let rec process_params create pl =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2017 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in

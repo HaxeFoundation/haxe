@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -665,6 +665,14 @@ let stack_frame ctx (f,pos) =
 	let file, line = make_stack ctx (f,pos) in
 	Printf.sprintf "%s:%d: Called from fun@%d @x%X" file line f.findex (!pos - 1)
 
+let cached_string ctx idx =
+	try
+		Hashtbl.find ctx.cached_strings idx
+	with Not_found ->
+		let s = caml_to_hl ctx.code.strings.(idx) in
+		Hashtbl.add ctx.cached_strings idx s;
+		s
+
 let virt_make_val v =
 	let hfields = Hashtbl.create 0 in
 	let ftypes = DynArray.create() in
@@ -756,14 +764,6 @@ let interp ctx f args =
 	let check v t id =
 		if ctx.checked && not (is_compatible v t) then error (Printf.sprintf "Can't set %s(%s) with %s" (id()) (tstr t) (vstr_d ctx v))
 	in
-	let cached_string idx =
-		try
-			Hashtbl.find ctx.cached_strings idx
-		with Not_found ->
-			let s = caml_to_hl ctx.code.strings.(idx) in
-			Hashtbl.add ctx.cached_strings idx s;
-			s
-	in
 	let check_obj v o fid =
 		if ctx.checked then match o with
 		| VObj o ->
@@ -840,7 +840,7 @@ let interp ctx f args =
 		| OMov (a,b) -> set a (get b)
 		| OInt (r,i) -> set r (VInt ctx.code.ints.(i))
 		| OFloat (r,i) -> set r (VFloat (Array.unsafe_get ctx.code.floats i))
-		| OString (r,s) -> set r (VBytes (cached_string s))
+		| OString (r,s) -> set r (VBytes (cached_string ctx s))
 		| OBytes (r,s) -> set r (VBytes (ctx.code.strings.(s) ^ "\x00"))
 		| OBool (r,b) -> set r (VBool b)
 		| ONull r -> set r VNull
@@ -969,16 +969,6 @@ let interp ctx f args =
 			let m = (match get o with
 			| VObj v as obj -> VClosure (v.oproto.pmethods.(m), Some obj)
 			| VNull -> null_access()
-			| VVirtual v ->
-				let name, _, _ = v.vtype.vfields.(m) in
-				(match v.vvalue with
-				| VObj o as obj ->
-					(try
-						let m = PMap.find name o.oproto.pclass.pfunctions in
-						VClosure (get_function ctx m, Some obj)
-					with Not_found ->
-						VNull)
-				| _ -> assert false)
 			| _ -> assert false
 			) in
 			set r (if m = VNull then m else dyn_cast ctx m (match get_type m with None -> assert false | Some v -> v) (rtype r))
@@ -1196,8 +1186,9 @@ let call_fun ctx f args =
 			throw_msg ctx msg
 		| Sys_exit _ as exc ->
 			raise exc
-		| e ->
+(*		| e ->
 			throw_msg ctx (Printexc.to_string e)
+*)
 
 let call_wrap ?(final=(fun()->())) ctx f args =
 	let old_st = ctx.call_stack in
@@ -1796,17 +1787,7 @@ let load_native ctx lib name t =
 			| [VBytes s; VRef (r, HI32)] ->
 				let s = hl_to_caml s in
 				let buf = Buffer.create 0 in
-				let hex = "0123456789ABCDEF" in
-				for i = 0 to String.length s - 1 do
-					let c = String.unsafe_get s i in
-					match c with
-					| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-						utf16_char buf c
-					| _ ->
-						utf16_char buf '%';
-						utf16_char buf (String.unsafe_get hex (int_of_char c lsr 4));
-						utf16_char buf (String.unsafe_get hex (int_of_char c land 0xF));
-				done;
+				Common.url_encode s (utf16_char buf);
 				utf16_add buf 0;
 				let str = Buffer.contents buf in
 				set_ref r (to_int (String.length str lsr 1 - 1));
@@ -2129,6 +2110,7 @@ let create checked =
 			floats = [||];
 			entrypoint = 0;
 			version = 0;
+			constants = [||];
 		};
 		checked = checked;
 		fcall = (fun _ _ -> assert false);
@@ -2167,9 +2149,29 @@ let add_code ctx code =
 		functions.(fd.findex) <- FFun fd;
 		loop (i + 1)
 	in
-	loop  (Array.length ctx.code.functions);
+	loop (Array.length ctx.code.functions);
 	ctx.t_functions <- functions;
 	ctx.code <- code;
+	Array.iter (fun (g,fields) ->
+		let t = code.globals.(g) in
+		let get_const_val t idx =
+			match t with
+			| HI32 -> VInt code.ints.(idx)
+			| HBytes -> VBytes (cached_string ctx idx)
+			| _ -> assert false
+		in
+		let v = (match t with
+		| HObj o ->
+			if Array.length o.pfields <> Array.length fields then assert false;
+			let proto,_,_ = get_proto ctx o in
+			VObj {
+				oproto = proto;
+				ofields = Array.mapi (fun i (_,_,t) -> get_const_val t fields.(i)) o.pfields;
+			}
+		| _ -> assert false
+		) in
+		ctx.t_globals.(g) <- v;
+	) code.constants;
 	(* call entrypoint *)
 	ignore(call_wrap ctx functions.(code.entrypoint) [])
 
@@ -2390,9 +2392,6 @@ let check code macros =
 						reg r (HFun (tl,tret));
 					| _ ->
 						assert false)
-				| HVirtual v ->
-					let _,_, t = v.vfields.(fid) in
-					reg r t;
 				| _ ->
 					is_obj o)
 			| OInstanceClosure (r,f,arg) ->

@@ -35,6 +35,8 @@ private class SocketInput extends haxe.io.Input {
 	}
 
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+		if( pos < 0 || len < 0 || ((pos+len):UInt) > (buf.length : UInt) )
+			throw haxe.io.Error.OutsideBounds;
 		__s.handshake();
 		var r = ssl_recv(  @:privateAccess __s.ssl, @:privateAccess buf.b, pos, len );
 		if( r == -1 )
@@ -70,6 +72,8 @@ private class SocketOutput extends haxe.io.Output {
 	}
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
+		if( pos < 0 || len < 0 || ((pos+len):UInt) > (buf.length : UInt) )
+			throw haxe.io.Error.OutsideBounds;
 		__s.handshake();
 		var r = ssl_send( @:privateAccess __s.ssl, @:privateAccess buf.b, pos, len);
 		if( r == -1 )

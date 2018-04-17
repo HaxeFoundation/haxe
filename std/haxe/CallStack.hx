@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -57,7 +57,11 @@ class CallStack {
 						method = Method(className, methodName);
 					}
 				}
-				stack.push(FilePos(method, site.getFileName(), site.getLineNumber(), site.getColumnNumber()));
+				var fileName : String = site.getFileName();
+				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
+				if( wrapCallSite != null && fileAddr > 0 )
+					fileName = fileName.substr(fileAddr + 6);
+				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
 			}
 			return stack;
 		}

@@ -114,3 +114,5 @@ tmp.tmp
 
 dev-display.hxml
 tests/benchs/i18n/bin
+.DS_Store
+tests/sourcemaps/bin

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -67,10 +67,10 @@ class Boot {
 	}
 
 	/**
-		Returns root namespace based on a value of `--php-prefix` compiler flag.
-		Returns empty string if no `--php-prefix` provided.
+		Returns root namespace based on a value of `-D php-prefix=value` compiler flag.
+		Returns empty string if no `-D php-prefix=value` provided.
 	**/
-	public static inline function getPrefix() : String {
+	public static function getPrefix() : String {
 		return Syntax.code('self::PHP_PREFIX');
 	}
 
@@ -245,7 +245,7 @@ class Boot {
 					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
 					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
 					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable":
+					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object":
 						part += '_hx';
 				case _:
 			}
@@ -350,7 +350,7 @@ class Boot {
 				return value.__toString();
 			}
 			if (Std.is(value, StdClass)) {
-				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
+				if (Global.isset(Syntax.field(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
@@ -519,7 +519,7 @@ class Boot {
 		if(Global.is_string(value)) {
 			value = @:privateAccess new HxDynamicStr(value);
 		}
-		return Syntax.getField(value, field);
+		return Syntax.field(value, field);
 	}
 
 	public static function dynamicString( str:String ) : HxDynamicStr {
@@ -813,7 +813,7 @@ private class HxAnon extends StdClass {
 
 	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.getField(this, name);
+		var method = Syntax.field(this, name);
 		Syntax.keepVar(method);
 		return method(Syntax.splat(args));
 	}
@@ -856,7 +856,7 @@ private class HxClosure {
 		}
 		if (Std.is(eThis, StdClass)) {
 			if (Std.is(eThis, HxAnon)) {
-				return Syntax.getField(eThis, func);
+				return Syntax.field(eThis, func);
 			}
 		}
 		return Syntax.arrayDecl(eThis, func);

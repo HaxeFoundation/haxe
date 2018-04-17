@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -104,7 +104,7 @@ class Browser {
 			return new XMLHttpRequest();
 		}
 		if( untyped __js__("typeof ActiveXObject") != "undefined" ) {
-			return js.Syntax.new_("ActiveXObject","Microsoft.XMLHTTP");
+			return js.Syntax.construct("ActiveXObject","Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";
 	}

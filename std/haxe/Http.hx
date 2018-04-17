@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,8 @@ package haxe;
 typedef Http = sys.Http;
 #elseif nodejs
 typedef Http = haxe.http.HttpNodeJs;
+#elseif js
+typedef Http = haxe.http.HttpJs;
 #else
 typedef Http = haxe.http.HttpBase;
 #end

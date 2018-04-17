@@ -140,7 +140,7 @@ let is_keyword str =
 		| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
 		| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
 		| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-		| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable"
+		| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object"
 			-> true
 		| _ -> false
 
@@ -2381,9 +2381,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			match name with
 				| "code" | "codeDeref" -> self#write_expr_syntax_code args
 				| "instanceof" -> self#write_expr_syntax_instanceof args
+				| "nativeClassName" -> self#write_expr_syntax_native_class_name args
 				| "foreach" -> self#write_expr_syntax_foreach args
 				| "construct" -> self#write_expr_syntax_construct args
-				| "getField" -> self#write_expr_syntax_get_field args
+				| "field" | "getField" -> self#write_expr_syntax_get_field args
 				| "setField" -> self#write_expr_syntax_set_field args
 				| "getStaticField" -> self#write_expr_syntax_get_static_field args
 				| "setStaticField" -> self#write_expr_syntax_set_static_field args
@@ -2402,7 +2403,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| [] -> fail self#pos __POS__
 				| { eexpr = TConst (TString php) } :: args ->
 					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
-				| _ -> ctx.error "First argument of php.Syntax.php() must be a constant string." self#pos
+				| _ -> ctx.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
 			Writes error suppression operator (for `php.Syntax.suppress()`)
 		*)
@@ -2511,6 +2512,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			in
 			self#write "new ";
 			self#write_expr class_expr;
+			(match follow class_expr.etype with
+				| TInst ({ cl_path = ([], "String") }, _) -> ()
+				| _ -> self#write "->phpClassName"
+			);
 			self#write "(";
 			write_args self#write (fun e -> self#write_expr e) args;
 			self#write ")"
@@ -2531,6 +2536,22 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							if not (is_string type_expr) then self#write "->phpClassName"
 					);
 					self#write ")"
+				| _ -> fail self#pos __POS__
+		(**
+			Writes either a "Cls::class" expression (if class is passed directly) or a `$cls->phpClassName` expression
+			(if class is passed as a variable) to output buffer (for `php.Syntax.nativeClassName()`)
+		*)
+		method write_expr_syntax_native_class_name args =
+			match args with
+				| cls_expr :: [] ->
+					(match (reveal_expr cls_expr).eexpr with
+						| TTypeExpr mtype ->
+							self#write (self#use_t (type_of_module_type mtype));
+							self#write "::class"
+						| _ ->
+							self#write_expr cls_expr;
+							self#write "->phpClassName"
+					);
 				| _ -> fail self#pos __POS__
 		(**
 			Writes `foreach` expression to output buffer (for `php.Syntax.foreach()`)

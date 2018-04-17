@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,6 +30,7 @@ class File {
 	@:extern static public function read(path:String, binary:Bool = true):FileInput { return null; }
 	@:extern static public function write(path:String, binary:Bool = true):FileOutput { return null; }
 	@:extern static public function append(path:String, binary:Bool = true):FileOutput { return null; }
+	@:extern static public function update(path:String, binary:Bool = true):FileOutput { return null; }
 
 	static public function copy(srcPath:String, dstPath:String):Void {
 		var s = read(srcPath, true);

@@ -193,7 +193,7 @@ class Test {
 	}
 
    static function logVerbose(msg:String) {
-	  #if (cpp || neko || php)
+	  #if (cpp || neko || php || hl)
 	  Sys.println(msg);
 	  #end
    }

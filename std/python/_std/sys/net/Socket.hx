@@ -1,5 +1,5 @@
 /*
-* Copyright (C)2005-2017 Haxe Foundation
+* Copyright (C)2005-2018 Haxe Foundation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -48,7 +48,7 @@ private class SocketInput extends haxe.io.Input {
         }
         if( r.length == 0 )
             throw new haxe.io.Eof();
-        return python.Syntax.pythonCode("r[0]");
+        return python.Syntax.code("r[0]");
     }
 
     public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
@@ -84,7 +84,7 @@ private class SocketOutput extends haxe.io.Output {
 
     public override function writeByte( c : Int ) {
         try {
-            __s.send(python.Syntax.pythonCode('bytes([c])'),0);
+            __s.send(python.Syntax.code('bytes([c])'),0);
         } catch( e : BlockingIOError ) {
                 throw Blocked;
         }
@@ -93,7 +93,7 @@ private class SocketOutput extends haxe.io.Output {
     public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
         try {
             var data    = buf.getData();
-            var payload = python.Syntax.pythonCode("data[{0}:{0}+{1}]", pos, len);
+            var payload = python.Syntax.code("data[{0}:{0}+{1}]", pos, len);
             var r = __s.send(payload,0);
             return r;
         } catch( e : BlockingIOError ) {

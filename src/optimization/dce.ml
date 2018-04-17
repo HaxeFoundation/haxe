@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -145,7 +145,7 @@ and mark_field dce c cf stat =
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
 			add cf;
-		if not stat then
+		if not stat && is_physical_field cf then
 			match c.cl_constructor with
 				| None -> ()
 				| Some ctor -> mark_field dce c ctor false
@@ -503,6 +503,12 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
+	(* keep toString method of T when array<T>.join() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
+		List.iter (fun e -> to_string dce e) pl;
+		expr dce ef;
+		List.iter (expr dce) args;
+
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
@@ -586,7 +592,7 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_binop_==";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
 		check_and_add_feature dce "dynamic_binop_!=";
 		expr dce e1;
 		expr dce e2;

@@ -1,6 +1,8 @@
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.io.Path;
 
+using sys.FileSystem;
 using Lambda;
 
 class Macro {
@@ -49,15 +51,20 @@ class Macro {
 	}
 
 	macro static public function getCases(pack:String) {
-		var path = Context.resolvePath(pack);
 		var cases = [];
-		for (file in sys.FileSystem.readDirectory(path)) {
-			var p = new haxe.io.Path(file);
-			if (p.ext == "hx") {
-				var tp = {pack: [pack], name: p.file};
-				cases.push(macro new $tp());
+		function loop(pack:Array<String>) {
+			var path = Context.resolvePath(Path.join(pack));
+			for (file in sys.FileSystem.readDirectory(path)) {
+				var p = new haxe.io.Path(file);
+				if (p.ext == "hx") {
+					var tp = {pack: pack, name: p.file};
+					cases.push(macro new $tp());
+				} else if(Path.join([path, file]).isDirectory()) {
+					loop(pack.concat([file]));
+				}
 			}
 		}
+		loop(pack.split('.'));
 		return macro $a{cases};
 	}
 }

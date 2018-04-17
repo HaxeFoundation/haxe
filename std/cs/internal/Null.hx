@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,6 +46,10 @@ package cs.internal;
 			private __NoValue__() {}
 		}
 
+		override public string ToString() {
+			if (!hasValue) return "null";
+			else return value.ToString();
+		}
 ')
 #if core_api_serialize
 @:meta(System.Serializable)

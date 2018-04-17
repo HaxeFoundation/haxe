@@ -1,6 +1,6 @@
 (*
    The Haxe Compiler
-   Copyright (C) 2005-2017  Haxe Foundation
+   Copyright (C) 2005-2018  Haxe Foundation
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -5732,17 +5732,19 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                          *)
                          let castKey = if interface_name="_hx_haxe_IMap" && realName="set" then castKey ^ "*" else castKey in
                          let implementationKey = realName ^ "::" ^ class_implementation in
-                         if castKey <> implementationKey && not (Hashtbl.mem alreadyGlued castKey) then begin
-                            Hashtbl.replace alreadyGlued castKey ();
+                         if castKey <> implementationKey then begin
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
-                            let argList = ctx_tfun_arg_list ctx true args in
-                            let returnType = ctx_type_string ctx return_type in
-                            let returnStr = if returnType="void" then "" else "return " in
-                            let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
-                               "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
-                            let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
-                            header_glue := headerCode :: !header_glue;
-                            cpp_glue := cppCode :: !cpp_glue;
+                            if not (Hashtbl.mem alreadyGlued castKey) then begin
+                               Hashtbl.replace alreadyGlued castKey ();
+                               let argList = ctx_tfun_arg_list ctx true args in
+                               let returnType = ctx_type_string ctx return_type in
+                               let returnStr = if returnType="void" then "" else "return " in
+                               let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
+                                  "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
+                               let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
+                               header_glue := headerCode :: !header_glue;
+                               cpp_glue := cppCode :: !cpp_glue;
+                            end;
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n");
                          end else
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");

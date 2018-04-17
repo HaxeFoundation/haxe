@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -170,6 +170,8 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
+			Some (Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
@@ -787,7 +789,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
-	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) when false ->
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
 		begin try
 			let num_expr = ref 0 in
 			let rec loop e = match fst e with
@@ -798,8 +800,6 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					Ast.map_expr loop e
 			in
 			ignore(loop e2);
-			let v = add_local ctx i pt p in
-			let e2 = type_expr ctx e2 NoValue in
 			let cost = (List.length el) * !num_expr in
 			let max_cost = try
 				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
@@ -807,13 +807,15 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 				250
 			in
 			if cost > max_cost then raise Exit;
-			let eloc = mk (TLocal v) v.v_type p in
 			let el = List.map (fun e ->
+				let v = add_local ctx i pt p in
+				let ev = mk (TVar(v, None)) ctx.t.tvoid p in
+				let typed_e2 = type_expr ctx e2 NoValue in
+				let eloc = mk (TLocal v) v.v_type p in
 				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
-				concat e_assign e2
+				concat ev (concat e_assign typed_e2)
 			) el in
-			let ev = mk (TVar(v, None)) ctx.t.tvoid p in
-			Some (mk (TBlock (ev :: el)) ctx.t.tvoid p)
+			Some (mk (TBlock el) ctx.t.tvoid p)
 		with Exit ->
 			gen_int_iter pt get_next_array_element get_array_length
 		end

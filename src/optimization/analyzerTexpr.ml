@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -1237,7 +1237,7 @@ module Purity = struct
 				| None ->
 					if not (is_pure c cf) then taint node
 				(* TODO: The function code check shouldn't be here I guess. *)
-				| Some _ when (Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.Custom ":hlNative") cf.cf_meta || Meta.has (Meta.Custom ":hlNative") c.cl_meta) ->
+				| Some _ when (Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
 					if not (is_pure c cf) then taint node
 				| Some e ->
 					try

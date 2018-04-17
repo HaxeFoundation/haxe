@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -76,6 +76,7 @@ enum ValueType {
 			case "System.Int32": "Int";
 			case "System.Double": "Float";
 			case "System.String": "String";
+			case "System.Boolean": "Bool";
 			case "System.Object": "Dynamic";
 			case "System.Type": "Class";
 			default: cast(ret,cs.system.String).Split(cs.NativeArray.make(("`".code : cs.StdTypes.Char16)))[0];
@@ -119,6 +120,7 @@ enum ValueType {
 				case #if no_root "haxe.root.Class" #else "Class" #end: return cast Class;
 				case #if no_root "haxe.root.Dynamic" #else "Dynamic" #end: return cast Dynamic;
 				case #if no_root "haxe.root.String" #else "String" #end: return cast String;
+				case #if no_root "haxe.root.Bool" #else "Bool" #end: return cast Bool;
 				default: return null;
 			}
 #if !erase_generics

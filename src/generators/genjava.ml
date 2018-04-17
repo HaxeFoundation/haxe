@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -2590,6 +2590,8 @@ let generate con =
 	IntDivisionSynf.configure gen;
 
 	UnreachableCodeEliminationSynf.configure gen true;
+
+	ArraySpliceOptimization.configure gen;
 
 	ArrayDeclSynf.configure gen native_arr_cl change_param_type;
 

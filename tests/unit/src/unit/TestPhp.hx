@@ -193,6 +193,23 @@ class TestPhp extends Test
 		t(a.indexOf(fn2) < 0);
 		f(a.remove(fn2));
 	}
+
+	function testSyntaxInstanceof() {
+		var o = new ClosureDummy();
+		var phpClassName = Boot.castClass(ClosureDummy).phpClassName;
+		t(Syntax.instanceof(o, ClosureDummy));
+		t(Syntax.instanceof(o, phpClassName));
+	}
+
+	@:analyzer(no_user_var_fusion)
+	function testSyntaxNativeClassName() {
+		eq("Array_hx", Syntax.nativeClassName(Array));
+		eq("unit\\Annotation", Syntax.nativeClassName(Annotation));
+		var cls = php.Web;
+		eq("php\\Web", Syntax.nativeClassName(cls));
+		var enm = Annotation;
+		eq("unit\\Annotation", Syntax.nativeClassName(enm));
+	}
 }
 
 private class ClosureDummy {

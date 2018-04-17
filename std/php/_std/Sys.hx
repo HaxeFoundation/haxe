@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,8 @@ import sys.io.FileInput;
 		Global.echo(Std.string(v));
 	}
 
-	public static function println( v : Dynamic ) : Void {
-		print(v);
-		print("\n");
+	public static inline function println( v : Dynamic ) : Void {
+		Global.echo(Std.string(v) + "\n");
 	}
 
 	public static function args() : Array<String> {

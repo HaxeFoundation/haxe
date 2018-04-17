@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -85,35 +85,35 @@ enum ValueType {
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
 		switch( args.length ) {
 		case 0:
-			return js.Syntax.new_(cl);
+			return js.Syntax.construct(cl);
 		case 1:
-			return js.Syntax.new_(cl,args[0]);
+			return js.Syntax.construct(cl,args[0]);
 		case 2:
-			return js.Syntax.new_(cl,args[0],args[1]);
+			return js.Syntax.construct(cl,args[0],args[1]);
 		case 3:
-			return js.Syntax.new_(cl,args[0],args[1],args[2]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2]);
 		case 4:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3]);
 		case 5:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4]);
 		case 6:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
 		case 7:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
 		case 8:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
 		case 9:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
 		case 10:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
 		case 11:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
 		case 12:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
 		case 13:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
 		case 14:
-			return js.Syntax.new_(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
+			return js.Syntax.construct(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
 		default:
 			throw "Too many arguments";
 		}

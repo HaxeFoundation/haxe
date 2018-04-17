@@ -108,6 +108,7 @@ type strict_defined =
 	| UseNekoc
 	| UseRttiDoc
 	| Vcproj
+	| WarnVarShadowing
 	| NoMacroCache
 	| Last (* must be last *)
 
@@ -221,6 +222,7 @@ let infos = function
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
 	| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
 	| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
+	| WarnVarShadowing -> "warn_var_shadowing",("Warn about shadowing variable declarations",[])
 	| Last -> assert false
 
 let get_documentation_list() =

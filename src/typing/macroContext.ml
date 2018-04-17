@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -131,6 +131,14 @@ let make_macro_api ctx p =
 	let parse_expr_string s p inl =
 		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
 	in
+	let parse_metadata s p =
+		try
+			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
+			| _,[ETypedef t,_] -> t.d_meta
+			| _ -> assert false
+		with _ ->
+			error "Malformed metadata string" p
+	in
 	{
 		MacroApi.pos = p;
 		MacroApi.get_com = (fun() -> ctx.com);
@@ -229,10 +237,7 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s ->
-			let m = (match ParserEntry.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let m = parse_metadata m p in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
@@ -367,10 +372,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
-			let meta = (match ParserEntry.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let meta = parse_metadata s2 p in
 			List.iter (fun m ->
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
@@ -396,6 +398,7 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
+		MacroApi.typer_ctx = ctx;
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -669,7 +672,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false in
+		let elt, _ = try unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
 		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with

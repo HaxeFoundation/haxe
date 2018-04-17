@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -951,6 +951,10 @@ module StdFile = struct
 		create_out path binary [Open_append]
 	)
 
+	let update = vfun2 (fun path binary ->
+		create_out path binary [Open_rdonly; Open_wronly]
+	)
+
 	let getBytes = vfun1 (fun path ->
 		let path = decode_string path in
 		try encode_bytes (Bytes.unsafe_of_string (Std.input_file ~bin:true path)) with Sys_error _ -> exc_string ("Could not read file " ^ path)
@@ -1354,14 +1358,17 @@ module StdLog = struct
 
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
-		let infos = decode_object infos in
-		let file_name = decode_string (object_field infos key_fileName) in
-		let line_number = decode_int (object_field infos key_lineNumber) in
-		let l = match object_field infos key_customParams with
-			| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
-			| _ -> [s]
-		in
-		((get_ctx()).curapi.MacroApi.get_com()).Common.print (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l));
+		let s = match infos with
+			| VNull -> Printf.sprintf "%s\n" s
+			| _ ->  let infos = decode_object infos in
+				let file_name = decode_string (object_field infos key_fileName) in
+				let line_number = decode_int (object_field infos key_lineNumber) in
+				let l = match object_field infos key_customParams with
+					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
+					| _ -> [s]
+				in
+				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
 end
@@ -1682,6 +1689,18 @@ module StdResource = struct
 
 	let getBytes = vfun1 (fun name ->
 		try encode_bytes (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
+	)
+end
+
+module StdSha1 = struct
+	let encode = vfun1 (fun s ->
+		let s = decode_string s in
+		encode_string (Sha1.to_hex (Sha1.string s))
+	)
+
+	let make = vfun1 (fun b ->
+		let b = decode_bytes b in
+		encode_bytes (Bytes.unsafe_of_string (Sha1.to_bin (Sha1.string (Bytes.unsafe_to_string b))))
 	)
 end
 
@@ -2066,17 +2085,7 @@ end
 module StdStringTools = struct
 	let url_encode s =
 		let b = Rope.Buffer.create 0 in
-		let hex = "0123456789ABCDEF" in
-		for i = 0 to String.length s - 1 do
-			let c = String.unsafe_get s i in
-			match c with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-				Rope.Buffer.add_char b c
-			| _ ->
-				Rope.Buffer.add_char b '%';
-				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
-				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
-		done;
+		Common.url_encode s (Rope.Buffer.add_char b);
 		Rope.Buffer.contents b
 
 	let fastCodeAt = vfun2 (fun s index ->
@@ -2834,6 +2843,7 @@ let init_standard_library builtins =
 		"read",StdFile.read;
 		"saveBytes",StdFile.saveBytes;
 		"saveContent",StdFile.saveContent;
+		"update",StdFile.update;
 		"write",StdFile.write;
 	] [];
 	init_fields builtins (["sys";"io"],"FileInput") [] [
@@ -2959,6 +2969,10 @@ let init_standard_library builtins =
 		"listNames",StdResource.listNames;
 		"getString",StdResource.getString;
 		"getBytes",StdResource.getBytes;
+	] [];
+	init_fields builtins (["haxe";"crypto"],"Sha1") [
+		"encode",StdSha1.encode;
+		"make",StdSha1.make;
 	] [];
 	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
 		"select",StdSocket.select;

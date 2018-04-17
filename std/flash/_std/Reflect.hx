@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,7 @@
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		// sealed classes will throw an exception
-		return try o[field] catch( e : Dynamic ) null;
+		return o != null && __in__(field, o) ? o[field] : null;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
@@ -35,19 +34,19 @@
 	}
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
-		try {
-			return o["get_" + field]();
-		} catch( e : Dynamic ) try {
-			return o[field];
-		} catch( e : Dynamic ) {
-			return null;
+		if(o == null) return null;
+		var getter = 'get_$field';
+		if(__in__(getter, o)) {
+			return o[getter]();
 		}
+		return __in__(field, o) ? o[field] : null;
 	}
 
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		try {
-			o["set_" + field](value);
-		} catch( e : Dynamic ) {
+		var setter = 'set_$field';
+		if(__in__(setter, o)) {
+			o[setter](value);
+		} else {
 			o[field] = value;
 		}
 	}

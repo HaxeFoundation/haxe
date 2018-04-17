@@ -35,11 +35,15 @@ CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) &&
 CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-PACKAGE_FILES=$(OUTPUT) haxelib$(EXTENSION) std "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")"
+PACKAGE_FILES=$(OUTPUT) haxelib$(EXTENSION) std _build "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")"
 
 package_win:
 	mkdir -p out
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).zip temp.zip
+	#delete all content which was generated in _build dir except interfaces
+	find _build/ -type f ! -name '*.cmi' -delete
+	#add ocaml version to the _build dir
+	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)

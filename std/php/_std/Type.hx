@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -107,28 +107,22 @@ enum ValueType {
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
 		if (String == cast cl) return args[0];
 
-		var phpName = getPhpName(cl);
-		if (phpName == null) return null;
 		var nativeArgs:NativeArray = @:privateAccess args.arr;
-		return Syntax.construct(phpName, Syntax.splat(nativeArgs));
+		return Syntax.construct(Syntax.nativeClassName(cl), Syntax.splat(nativeArgs));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T {
 		if (String == cast cl) return cast '';
 		if (Array == cast cl) return cast [];
 
-		var phpName = getPhpName(cl);
-		if (phpName == null) return null;
-
-		var reflection = new ReflectionClass(phpName);
+		var reflection = new ReflectionClass(Syntax.nativeClassName(cl));
 		return reflection.newInstanceWithoutConstructor();
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
 		if (e == null || constr == null) return null;
 
-		var phpName = getPhpName(e);
-		if (phpName == null) return null;
+		var phpName = Syntax.nativeClassName(e);
 
 		if (!Global.in_array(constr, Syntax.staticCall(phpName, "__hx__list"))) {
 			throw 'No such constructor $constr';
@@ -150,8 +144,7 @@ enum ValueType {
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 		if (e == null || index == null) return null;
 
-		var phpName = getPhpName(e);
-		if (phpName == null) return null;
+		var phpName = Syntax.nativeClassName(e);
 
 		var constructors:NativeIndexedArray<String> = Syntax.staticCall(phpName, "__hx__list");
 		if (index < 0 || index >= Global.count(constructors)) {
@@ -182,10 +175,7 @@ enum ValueType {
 			];
 		}
 
-		var phpName = getPhpName(c);
-		if (phpName == null) return null;
-
-		var reflection = new ReflectionClass(phpName);
+		var reflection = new ReflectionClass(Syntax.nativeClassName(c));
 
 		var methods = new NativeArray();
 		for (m in reflection.getMethods()) {
@@ -219,8 +209,7 @@ enum ValueType {
 		if (c == null) return null;
 		if (c == String) return ['fromCharCode'];
 
-		var phpName = getPhpName(c);
-		if (phpName == null) return null;
+		var phpName = Syntax.nativeClassName(c);
 
 		var reflection = new ReflectionClass(phpName);
 
@@ -326,8 +315,7 @@ enum ValueType {
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
 		if (e == null) return null;
 
-		var phpName = getPhpName(e);
-		if (phpName == null) return null;
+		var phpName = Syntax.nativeClassName(e);
 
 		var result = [];
 
@@ -339,16 +327,6 @@ enum ValueType {
 		}
 
 		return result;
-	}
-
-	/**
-		Get corresponding PHP name for specified `type`.
-		Returns `null` if `type` does not exist.
-	**/
-	static function getPhpName( type:EitherType<Class<Dynamic>,Enum<Dynamic>> ) : Null<String> {
-		var haxeName = Boot.getHaxeName(cast type);
-
-		return (haxeName == null ? null : Boot.getPhpName(haxeName));
 	}
 
 	/**

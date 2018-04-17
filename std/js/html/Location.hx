@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -98,4 +98,9 @@ extern class Location
 		Reloads the resource from the current URL. Its optional unique parameter is a `Boolean`, which, when it is `true`, causes the page to always be reloaded from the server. If it is `false` or not specified, the browser may reload the page from its cache.
 	**/
 	function reload( ?forceget : Bool = false ) : Void;
+
+	/**
+		Returns a string containing the whole URL.
+	**/
+	function toString() : String;
 }

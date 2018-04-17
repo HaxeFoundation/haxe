@@ -30,10 +30,13 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "echo initialize"'
     # http://help.appveyor.com/discussions/problems/5616-not-able-to-build-due-to-problem-in-chocolateyinstallps1
     - ps: Set-Service wuauserv -StartupType Manual
-    - choco install curl nsis.portable wget awscli -y
+    - choco install nsis.portable --version 3.02 -y
+    - choco install curl wget awscli -y
+    # Install neko
+    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install ocaml
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
-    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
+    - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P zlib-devel -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P libpcre-devel -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
     - if not exist "opam.tar.xz" (
         curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam%ARCH%.tar.xz
       )
@@ -43,11 +46,10 @@ install:
     - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
-    # Install neko
-    - choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
     # Install php
-    - choco install php -y
-    - echo extension=php_openssl.dll >> C:\tools\php71\php.ini
+    - choco install php --version 7.2.0 -y
+    - echo extension=php_openssl.dll >> C:\tools\php72\php.ini
+    - echo extension=php_mbstring.dll >> C:\tools\php72\php.ini
     - RefreshEnv
     # setup python
     - cmd: mklink C:\Python34-x64\python3.exe C:\Python34-x64\python.exe
@@ -65,6 +67,8 @@ build_script:
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win libs && make -j -s -f Makefile.win haxe && make -s -f Makefile.win haxelib"'
     - 'set PATH=%PATH%;%APPVEYOR_BUILD_FOLDER%'
     - 'set HAXEPATH=%APPVEYOR_BUILD_FOLDER%'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cygcheck haxe.exe"'
+    - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && cygcheck haxelib.exe"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_bin"'
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && make -s -f Makefile.win package_choco"'
     - move out\haxe.*.nupkg .

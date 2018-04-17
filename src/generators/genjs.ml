@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -252,7 +252,7 @@ let print ctx =
 
 let write_mappings ctx smap =
 	let basefile = Filename.basename ctx.com.file in
-	print ctx "\n//# sourceMappingURL=%s.map" basefile;
+	print ctx "\n//# sourceMappingURL=%s.map" (url_encode_s basefile);
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
 	let sources = DynArray.to_list smap.sources in
 	let to_url file =
@@ -384,8 +384,8 @@ let rec gen_call ctx e el in_value =
 	| TField (_, FStatic ({ cl_path = ["js"],"Syntax" }, { cf_name = meth })), args ->
 		gen_syntax ctx meth args e.epos
 	| TIdent "__new__", args ->
-		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.new_ instead" e.epos;
-		gen_syntax ctx "new_" args e.epos
+		print_deprecation_message ctx.com "__new__ is deprecated, use js.Syntax.construct instead" e.epos;
+		gen_syntax ctx "construct" args e.epos
 	| TIdent "__js__", args ->
 		(* TODO: add deprecation warning when we figure out what to do with purity here *)
 		gen_syntax ctx "code" args e.epos
@@ -892,7 +892,7 @@ and gen_value ctx e =
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
-	| "new_", cl :: params ->
+	| "construct", cl :: params ->
 		spr ctx "new ";
 		begin
 			match cl.eexpr with
@@ -1267,7 +1267,7 @@ let set_current_class ctx c =
 
 let alloc_ctx com =
 	let smap =
-		if com.debug || Common.defined com Define.JsSourceMap then
+		if com.debug || Common.defined com Define.JsSourceMap || Common.defined com Define.SourceMap then
 			Some {
 				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;
@@ -1499,7 +1499,11 @@ let generate com =
 	if has_feature ctx "use.$bind" then begin
 		print ctx "var $_, $fid = 0";
 		newline ctx;
-		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }";
+		(if ctx.es_version < 5 then
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
+		else
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
+		);
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin

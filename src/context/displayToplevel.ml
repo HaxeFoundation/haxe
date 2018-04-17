@@ -1,3 +1,21 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2018  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*)
 open Common
 open Type
 open Typecore
@@ -47,7 +65,7 @@ let collect ctx only_types =
 		if ctx.curfun <> FunStatic then begin
 			let rec loop c =
 				List.iter (fun cf ->
-					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember(ctx.curclass,cf))
+					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember cf)
 				) c.cl_ordered_fields;
 				match c.cl_super with
 					| None ->
@@ -61,7 +79,7 @@ let collect ctx only_types =
 
 		(* statics *)
 		List.iter (fun cf ->
-			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic(ctx.curclass,cf))
+			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic cf)
 		) ctx.curclass.cl_ordered_statics;
 
 		(* enum constructors *)
@@ -104,6 +122,10 @@ let collect ctx only_types =
 		add (ITLiteral "null");
 		add (ITLiteral "true");
 		add (ITLiteral "false");
+		add (ITLiteral "this");
+		match ctx.curclass.cl_super with
+			| Some _ -> add (ITLiteral "super")
+			| None -> ()
 	end;
 
 	let module_types = ref [] in

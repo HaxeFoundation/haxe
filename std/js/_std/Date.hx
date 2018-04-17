@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,11 +36,11 @@
 	}
 
 	@:pure static inline function now() : Date {
-		return js.Syntax.new_(Date);
+		return js.Syntax.construct(Date);
 	}
 
 	@:pure static inline function fromTime( t : Float ) : Date {
-		return js.Syntax.new_(Date, t);
+		return js.Syntax.construct(Date, t);
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {

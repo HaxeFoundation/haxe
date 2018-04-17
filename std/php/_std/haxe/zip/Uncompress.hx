@@ -24,11 +24,18 @@ package haxe.zip;
 class Uncompress {
 
 	public function new( ?windowBits : Int ) {
-		throw "Not implemented for this platform";
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return null;
+		var input = src.sub( srcPos, src.length - srcPos );
+		var data = run( input );
+		dst.blit( dstPos, data, 0, data.length );
+
+		return {
+			done: true,
+			read: input.length,
+			write: data.length
+		};
 	}
 
 	public function setFlushMode( f : FlushMode ) {

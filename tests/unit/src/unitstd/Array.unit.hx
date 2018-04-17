@@ -4,6 +4,8 @@
 var a = [];
 a[4] = 1;
 a.length == 5;
+a[a.length] = 1;
+a.length == 6;
 
 // concat
 [].concat([]) == [];

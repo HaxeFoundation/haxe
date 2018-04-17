@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,7 +37,7 @@ class Http extends haxe.http.HttpBase {
 	public function new(url:String) {
 		cnxTimeout = 10;
 		#if php
-		noShutdown = ! untyped __call__('function_exists', 'stream_socket_shutdown');
+		noShutdown = !php.Global.function_exists('stream_socket_shutdown');
 		#end
 		super(url);
 	}
@@ -398,7 +398,7 @@ class Http extends haxe.http.HttpBase {
 				if(p.len <= len) {
 					var cstr = chunk_re.matched(1);
 					chunk_size = Std.parseInt("0x"+cstr);
-					if(cstr == "0") {
+					if(chunk_size == 0) {
 						chunk_size = null;
 						chunk_buf = null;
 						return false;

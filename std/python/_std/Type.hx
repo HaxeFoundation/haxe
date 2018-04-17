@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -113,7 +113,7 @@ enum ValueType {
 
 	public static inline function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T
 	{
-		return Syntax.newInstance(cl, Syntax.varArgs(args));
+		return Syntax.construct(cl, Syntax.varArgs(args));
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T

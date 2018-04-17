@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ typedef Position = {
     var line:Int;
 
     /**
-        Character offset on a line in a document (zero-based).
+        Character offset on a line in a document (1-based).
     **/
     var character:Int;
 }

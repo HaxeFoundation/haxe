@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -219,8 +219,8 @@ type compiler_callback = {
 module IdentifierType = struct
 	type t =
 		| ITLocal of tvar
-		| ITMember of tclass * tclass_field
-		| ITStatic of tclass * tclass_field
+		| ITMember of tclass_field
+		| ITStatic of tclass_field
 		| ITEnum of tenum * tenum_field
 		| ITEnumAbstract of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
@@ -231,7 +231,7 @@ module IdentifierType = struct
 
 	let get_name = function
 		| ITLocal v -> v.v_name
-		| ITMember(_,cf) | ITStatic(_,cf) | ITEnumAbstract(_,cf) -> cf.cf_name
+		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
 		| ITEnum(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
 		| ITType mt -> snd (t_infos mt).mt_path
@@ -840,6 +840,24 @@ let hash f =
 		h := !h * 223 + int_of_char (String.unsafe_get f i);
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
+
+let url_encode s add_char =
+	let hex = "0123456789ABCDEF" in
+	for i = 0 to String.length s - 1 do
+		let c = String.unsafe_get s i in
+		match c with
+		| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
+			add_char c
+		| _ ->
+			add_char '%';
+			add_char (String.unsafe_get hex (int_of_char c lsr 4));
+			add_char (String.unsafe_get hex (int_of_char c land 0xF));
+	done
+
+let url_encode_s s =
+	let b = Buffer.create 0 in
+	url_encode s (Buffer.add_char b);
+	Buffer.contents b
 
 let add_diagnostics_message com s p sev =
 	let di = com.shared.shared_display_information in
