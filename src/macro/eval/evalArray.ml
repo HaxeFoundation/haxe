@@ -150,7 +150,7 @@ let reverse a =
 let set a i v =
 	if i >= a.alength then begin
 		if i >= Array.length a.avalues then begin
-			let values' = make (i + 5) in
+			let values' = make (max (i + 5) (Array.length a.avalues * 2 + 5)) in
 			Array.blit a.avalues 0 values' 0 a.alength;
 			a.avalues <- values';
 		end;

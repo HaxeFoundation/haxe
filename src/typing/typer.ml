@@ -58,7 +58,7 @@ let relative_path ctx file =
 	let fpath_lower = String.lowercase fpath in
 	let flen = String.length fpath_lower in
 	let rec loop = function
-		| [] -> Filename.basename file
+		| [] -> file
 		| path :: l ->
 			let spath = String.lowercase (slashes path) in
 			let slen = String.length spath in

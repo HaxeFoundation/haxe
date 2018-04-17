@@ -665,6 +665,14 @@ let stack_frame ctx (f,pos) =
 	let file, line = make_stack ctx (f,pos) in
 	Printf.sprintf "%s:%d: Called from fun@%d @x%X" file line f.findex (!pos - 1)
 
+let cached_string ctx idx =
+	try
+		Hashtbl.find ctx.cached_strings idx
+	with Not_found ->
+		let s = caml_to_hl ctx.code.strings.(idx) in
+		Hashtbl.add ctx.cached_strings idx s;
+		s
+
 let virt_make_val v =
 	let hfields = Hashtbl.create 0 in
 	let ftypes = DynArray.create() in
@@ -756,14 +764,6 @@ let interp ctx f args =
 	let check v t id =
 		if ctx.checked && not (is_compatible v t) then error (Printf.sprintf "Can't set %s(%s) with %s" (id()) (tstr t) (vstr_d ctx v))
 	in
-	let cached_string idx =
-		try
-			Hashtbl.find ctx.cached_strings idx
-		with Not_found ->
-			let s = caml_to_hl ctx.code.strings.(idx) in
-			Hashtbl.add ctx.cached_strings idx s;
-			s
-	in
 	let check_obj v o fid =
 		if ctx.checked then match o with
 		| VObj o ->
@@ -840,7 +840,7 @@ let interp ctx f args =
 		| OMov (a,b) -> set a (get b)
 		| OInt (r,i) -> set r (VInt ctx.code.ints.(i))
 		| OFloat (r,i) -> set r (VFloat (Array.unsafe_get ctx.code.floats i))
-		| OString (r,s) -> set r (VBytes (cached_string s))
+		| OString (r,s) -> set r (VBytes (cached_string ctx s))
 		| OBytes (r,s) -> set r (VBytes (ctx.code.strings.(s) ^ "\x00"))
 		| OBool (r,b) -> set r (VBool b)
 		| ONull r -> set r VNull
@@ -1186,8 +1186,9 @@ let call_fun ctx f args =
 			throw_msg ctx msg
 		| Sys_exit _ as exc ->
 			raise exc
-		| e ->
+(*		| e ->
 			throw_msg ctx (Printexc.to_string e)
+*)
 
 let call_wrap ?(final=(fun()->())) ctx f args =
 	let old_st = ctx.call_stack in
@@ -2109,6 +2110,7 @@ let create checked =
 			floats = [||];
 			entrypoint = 0;
 			version = 0;
+			constants = [||];
 		};
 		checked = checked;
 		fcall = (fun _ _ -> assert false);
@@ -2147,9 +2149,29 @@ let add_code ctx code =
 		functions.(fd.findex) <- FFun fd;
 		loop (i + 1)
 	in
-	loop  (Array.length ctx.code.functions);
+	loop (Array.length ctx.code.functions);
 	ctx.t_functions <- functions;
 	ctx.code <- code;
+	Array.iter (fun (g,fields) ->
+		let t = code.globals.(g) in
+		let get_const_val t idx =
+			match t with
+			| HI32 -> VInt code.ints.(idx)
+			| HBytes -> VBytes (cached_string ctx idx)
+			| _ -> assert false
+		in
+		let v = (match t with
+		| HObj o ->
+			if Array.length o.pfields <> Array.length fields then assert false;
+			let proto,_,_ = get_proto ctx o in
+			VObj {
+				oproto = proto;
+				ofields = Array.mapi (fun i (_,_,t) -> get_const_val t fields.(i)) o.pfields;
+			}
+		| _ -> assert false
+		) in
+		ctx.t_globals.(g) <- v;
+	) code.constants;
 	(* call entrypoint *)
 	ignore(call_wrap ctx functions.(code.entrypoint) [])
 
