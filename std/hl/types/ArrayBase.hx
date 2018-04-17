@@ -96,6 +96,10 @@ class ArrayBase extends ArrayAccess {
 		throw "Not implemented";
 	}
 
+	public function resize( len : Int ) {
+		throw "Not implemented";
+	}
+
 	public function toString() : String {
 		throw "Not implemented";
 		return null;

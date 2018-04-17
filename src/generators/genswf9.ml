@@ -319,7 +319,7 @@ let property ctx p t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" -> ident p , None, true
+		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with

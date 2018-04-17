@@ -213,6 +213,16 @@ class Array<T> {
 			next : function() return this[cur_length++]
 		}
 	}
+	public function resize(len:Int):Void {
+		if (length < len) {
+			this.length = len;
+		} else if (length > len) {
+			for (i in len ... length) {
+				this[i] = null;
+			}
+			this.length = len;
+		}
+	}
 	private static function __init__() : Void{
 		// table-to-array helper
 		haxe.macro.Compiler.includeFile("lua/_lua/_hx_tab_array.lua");

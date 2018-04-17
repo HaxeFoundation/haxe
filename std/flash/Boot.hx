@@ -262,10 +262,14 @@ class Boot extends flash.display.MovieClip {
 				}
 			}
 		};
+		aproto.resize = function(len) {
+			__this__.length = len;
+		};
 		aproto.setPropertyIsEnumerable("copy", false);
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
+		aproto.setPropertyIsEnumerable("resize", false);
 		#if (as3 || no_flash_override)
 		aproto.filterHX = function(f) {
 			var ret = [];
