@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ open Common
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 open ClosuresToClass
 
@@ -238,7 +239,7 @@ let switch_case ctx pos field_name =
 			let i = hash_field_i32 ctx pos field_name in
 			mk (TConst (TInt i)) ctx.rcf_gen.gcon.basic.tint pos
 		| false ->
-			ExprBuilder.make_string ctx.rcf_gen.gcon field_name pos
+			make_string ctx.rcf_gen.gcon.basic field_name pos
 
 let call_super ctx fn_args ret_t cf cl this_t pos =
 	{
@@ -264,7 +265,7 @@ let enumerate_dynamic_fields ctx cl when_found base_arr =
 		let convert_str e = if ctx.rcf_optimize then ctx.rcf_lookup_function e else e in
 		let tmpinc = { eexpr = TUnop(Ast.Increment, Ast.Postfix, mk_local vtmp pos); etype = basic.tint; epos = pos } in
 		[
-			{ eexpr = TBinop(OpAssign, mk_local vtmp pos, ExprBuilder.make_int ctx.rcf_gen.gcon 0 pos); etype = basic.tint; epos = pos };
+			{ eexpr = TBinop(OpAssign, mk_local vtmp pos, make_int ctx.rcf_gen.gcon.basic 0 pos); etype = basic.tint; epos = pos };
 			{
 				eexpr = TWhile (
 					{ eexpr = TBinop(Ast.OpLt, mk_local vtmp pos, len); etype = basic.tbool; epos = pos },
@@ -378,12 +379,12 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 				let vconflict = alloc_var "conflict" conflict_ctx.t in
 				let local_conflict = mk_local vconflict pos in
 				[mk (TIf (
-					mk (TBinop (OpLt, hash_local, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
+					mk (TBinop (OpLt, hash_local, make_int gen.gcon.basic 0 pos)) basic.tbool pos,
 					mk (TBlock [
 						mk (TVar (vconflict, Some (conflict_ctx.get_conflict ehead hash_local field_local))) basic.tvoid pos;
 						mk (TIf (
 							mk (TBinop (OpNotEq, local_conflict, mk (TConst TNull) local_conflict.etype pos)) basic.tbool pos,
-							mk_return (Codegen.field local_conflict "value" t_dynamic pos),
+							mk_return (field local_conflict "value" t_dynamic pos),
 							None
 						)) basic.tvoid pos;
 					]) basic.tvoid pos,
@@ -453,7 +454,7 @@ let abstract_dyn_lookup_implementation ctx this field_local hash_local may_value
 					let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 					let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 					[mk (TIf (
-						mk (TBinop (OpLt, hash_local, ExprBuilder.make_int gen.gcon 0 pos)) basic.tbool pos,
+						mk (TBinop (OpLt, hash_local, make_int gen.gcon.basic 0 pos)) basic.tbool pos,
 						conflict_ctx.set ehead hash_local field_local value_local,
 						Some (mk (TBlock block) basic.tvoid pos)
 					)) basic.tvoid pos]
@@ -538,7 +539,7 @@ let get_delete_field ctx cl is_dynamic =
 			let conflict_ctx = Option.get ctx.rcf_hash_conflict_ctx in
 			let ehead = mk_this (mk_internal_name "hx" "conflicts") conflict_ctx.t in
 			(mk (TIf (
-				binop OpLt local_switch_var (ExprBuilder.make_int gen.gcon 0 pos) basic.tbool pos,
+				binop OpLt local_switch_var (make_int gen.gcon.basic 0 pos) basic.tbool pos,
 				mk_return (conflict_ctx.delete ehead local_switch_var local_name),
 				None
 			)) basic.tvoid pos) :: common
@@ -693,7 +694,7 @@ let implement_dynamic_object_ctor ctx cl =
 		if ctx.rcf_optimize then begin
 			mk (TConst (TInt (hash_field_i32 ctx pos s))) basic.tint pos
 		end else begin
-			ExprBuilder.make_string gen.gcon s pos
+			make_string gen.gcon.basic s pos
 		end
 	in
 
@@ -837,7 +838,7 @@ let implement_final_lookup ctx cl =
 
 	let mk_throw str pos =
 		let e = ctx.rcf_mk_exception str pos in
-		ExprBuilder.make_throw e pos
+		make_throw e pos
 	in
 
 	(*
@@ -1219,7 +1220,7 @@ let implement_getFields ctx cl =
 				| Var _
 				| Method MethDynamic when not (List.memq cf cl.cl_overrides) ->
 					has_value := true;
-					mk_push (ExprBuilder.make_string gen.gcon cf.cf_name pos)
+					mk_push (make_string gen.gcon.basic cf.cf_name pos)
 				| _ -> null basic.tvoid pos
 		)
 	in
@@ -1338,7 +1339,7 @@ let implement_invokeField ctx slow_invoke cl =
 			(cases,
 				mk_return (
 					mk_this_call cf (List.map (fun (name,_,t) ->
-						let ret = { eexpr = TArray(dyn_arg_local, ExprBuilder.make_int ctx.rcf_gen.gcon !i pos); etype = t_dynamic; epos = pos } in
+						let ret = { eexpr = TArray(dyn_arg_local, make_int ctx.rcf_gen.gcon.basic !i pos); etype = t_dynamic; epos = pos } in
 						incr i;
 						ret
 					) (fst (get_fun (cf.cf_type))))
@@ -1367,9 +1368,9 @@ let implement_invokeField ctx slow_invoke cl =
 				let tf_args, _ = field_type_args ctx pos in
 				let tf_args, args = fun_args tf_args, field_args_exprs in
 
-				let tf_args, args = tf_args @ ["throwErrors",false, basic.tbool],       args @ [ExprBuilder.make_bool gen.gcon true pos] in
-				let tf_args, args = tf_args @ ["isCheck", false, basic.tbool],          args @ [ExprBuilder.make_bool gen.gcon false pos] in
-				let tf_args, args = tf_args @ ["handleProperties", false, basic.tbool], args @ [ExprBuilder.make_bool gen.gcon false pos] in
+				let tf_args, args = tf_args @ ["throwErrors",false, basic.tbool],       args @ [make_bool gen.gcon.basic true pos] in
+				let tf_args, args = tf_args @ ["isCheck", false, basic.tbool],          args @ [make_bool gen.gcon.basic false pos] in
+				let tf_args, args = tf_args @ ["handleProperties", false, basic.tbool], args @ [make_bool gen.gcon.basic false pos] in
 
 				mk (TCall ({ (mk_field_access gen this fun_name pos) with etype = TFun(tf_args, t_dynamic) }, args)) t_dynamic pos
 			end in
@@ -1549,7 +1550,7 @@ let implement_closure_cl ctx cl =
 			tf_args = tf_args;
 			tf_type = basic.tvoid;
 			tf_expr = { eexpr = TBlock({
-				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(cl,[]); epos = pos }, [ExprBuilder.make_int ctx.rcf_gen.gcon (-1) pos; ExprBuilder.make_int ctx.rcf_gen.gcon (-1) pos]);
+				eexpr = TCall({ eexpr = TConst(TSuper); etype = TInst(cl,[]); epos = pos }, [make_int ctx.rcf_gen.gcon.basic (-1) pos; make_int ctx.rcf_gen.gcon.basic (-1) pos]);
 				etype = basic.tvoid;
 				epos = pos
 			} :: ctor_body); etype = basic.tvoid; epos = pos }
@@ -1561,7 +1562,7 @@ let implement_closure_cl ctx cl =
 	cl.cl_constructor <- Some ctor_cf;
 
 	let closure_fun eclosure e field is_static =
-		let f = ExprBuilder.make_string gen.gcon field eclosure.epos in
+		let f = make_string gen.gcon.basic field eclosure.epos in
 		let args = if ctx.rcf_optimize then [ f; { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else [ f ] in
 		let args = args @ [ mk_cast (TInst(ctx.rcf_object_iface, [])) e ] in
 
@@ -1576,7 +1577,7 @@ let get_closure_func ctx closure_cl =
 		mk_cast eclosure.etype { eclosure with
 			eexpr = TNew(closure_cl, [], [
 				e;
-				ExprBuilder.make_string gen.gcon field eclosure.epos
+				make_string gen.gcon.basic field eclosure.epos
 			] @ (
 				if ctx.rcf_optimize then [ { eexpr = TConst(TInt (hash_field_i32 ctx eclosure.epos field)); etype = basic.tint; epos = eclosure.epos } ] else []
 			));

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,7 @@ private class SQLiteConnection implements Connection {
 	var db:SQLite3;
 
 	public function new( file:String ) {
-		db = new SQLite3('sqlite:$file');
+		db = new SQLite3(file);
 		db.enableExceptions(true);
 	}
 

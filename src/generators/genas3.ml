@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -75,7 +75,7 @@ let is_fixed_override cf t =
 
 let protect name =
 	match name with
-	| "Error" | "Namespace" -> "_" ^ name
+	| "Error" | "Namespace" | "Object" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =
@@ -676,7 +676,7 @@ and gen_expr ctx e =
 		let bend = open_block ctx in
 		let cb = (if not ctx.constructor_block then
 			(fun () -> ())
-		else if not (Codegen.constructor_side_effects e) then begin
+		else if not (Texpr.constructor_side_effects e) then begin
 			ctx.constructor_block <- false;
 			(fun () -> ())
 		end else begin
@@ -1204,7 +1204,7 @@ let generate_enum ctx e =
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	newline ctx;
-	(match Codegen.build_metadata ctx.inf.com (TEnumDecl e) with
+	(match Texpr.build_metadata ctx.inf.com.basic (TEnumDecl e) with
 	| None -> ()
 	| Some e ->
 		print ctx "public static var __meta__ : * = ";

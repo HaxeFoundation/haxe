@@ -1,6 +1,6 @@
 #if php
 // php's haxe.Utf8 uses mbstring
-if (untyped __call__("extension_loaded", "mbstring")) {
+if (php.Global.extension_loaded("mbstring")) {
 #end
 
 #if false

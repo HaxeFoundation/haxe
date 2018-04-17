@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -44,7 +44,7 @@ class Process {
 	public var  stdin(default,null) : haxe.io.Output;
 
 	static var argQuote = Sys.systemName() == "Windows" ? function(x) return StringTools.quoteWinArg(x,true) : StringTools.quoteUnixArg;
-	static var _shell = Sys.systemName() == "Window" ? 'cmd.exe' : '/bin/bash';
+	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/bash';
 
 	/**
 	  Sets the args for the shell, which will include the cmd to be executed
@@ -122,7 +122,7 @@ class Process {
 	}
 }
 
-class ProcessInput extends haxe.io.Input {
+private class ProcessInput extends haxe.io.Input {
 	var b : Pipe;
 	var buf : String;
 	var idx : Int;
@@ -170,7 +170,7 @@ class ProcessInput extends haxe.io.Input {
 
 }
 
-class ProcessOutput extends haxe.io.Output {
+private class ProcessOutput extends haxe.io.Output {
 	var b : Pipe;
 
 	public function new(pipe:Pipe) {

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Type
 open Common
+open Texpr.Builder
 open Error
 
 exception Internal_match_failure
@@ -111,10 +112,10 @@ module Constructor = struct
  				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
  			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
-		| ConConst ct -> Codegen.ExprBuilder.make_const_texpr ctx.com ct p
-		| ConArray i -> Codegen.ExprBuilder.make_int ctx.com i p
+		| ConConst ct -> make_const_texpr ctx.com.basic ct p
+		| ConArray i -> make_int ctx.com.basic i p
 		| ConTypeExpr mt -> Typer.type_module_type ctx mt None p
-		| ConStatic(c,cf) -> Codegen.ExprBuilder.make_static_field c cf p
+		| ConStatic(c,cf) -> make_static_field c cf p
 		| ConFields _ -> error "Something went wrong" p
 
 	let hash = Hashtbl.hash
@@ -293,7 +294,7 @@ module Pattern = struct
 				pctx.in_reification <- old;
 				e
 			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
-				let e = Codegen.type_constant ctx.com ct p in
+				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
 				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
 				PatConstructor(ConConst ct,[])
@@ -383,7 +384,7 @@ module Pattern = struct
 					| TInst(c,tl) ->
 						let rec loop fields c tl =
 							let fields = List.fold_left (fun acc cf ->
-								if Typer.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
+								if Typecore.can_access ctx c cf false then (cf,apply_params c.cl_params tl cf.cf_type) :: acc
 								else acc
 							) fields c.cl_ordered_fields in
 							match c.cl_super with
@@ -867,7 +868,7 @@ module Compile = struct
 		| ConArray i ->
 			let t = match follow e.etype with TInst({cl_path=[],"Array"},[t]) -> t | TDynamic _ as t -> t | _ -> assert false in
 			ExtList.List.init i (fun i ->
-				let ei = Codegen.ExprBuilder.make_int mctx.ctx.com i e.epos in
+				let ei = make_int mctx.ctx.com.basic i e.epos in
 				mk (TArray(e,ei)) t e.epos
 			)
 		| ConConst _ | ConTypeExpr _ | ConStatic _ ->
@@ -1395,7 +1396,7 @@ module TexprConverter = struct
 					mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
 				end
 			| GuardNull(e,dt1,dt2) ->
-				let e_null = Codegen.ExprBuilder.make_null e.etype e.epos in
+				let e_null = make_null e.etype e.epos in
 				let f = try
 					let e_then = loop false params dt1 in
 					(fun () ->

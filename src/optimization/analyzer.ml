@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -473,7 +473,7 @@ module ConstPropagation = DataFlow(struct
 			| Top | Bottom | EnumValue _ | Null _ ->
 				raise Not_found
 			| Const ct ->
-				let e' = Codegen.type_constant ctx.com (tconst_to_const ct) e.epos in
+				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
 		in
@@ -896,7 +896,7 @@ module Run = struct
 	open Graph
 
 	let with_timer detailed s f =
-		let timer = timer (if detailed then "analyzer" :: s else ["analyzer"]) in
+		let timer = Timer.timer (if detailed then "analyzer" :: s else ["analyzer"]) in
 		let r = f() in
 		timer();
 		r

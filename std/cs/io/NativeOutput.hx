@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -63,14 +63,14 @@ class NativeOutput extends Output
 
 	public function seek( p : Int, pos : sys.io.FileSeek ) : Void
 	{
-		var p = switch(pos)
+		var pos = switch(pos)
 		{
 			case SeekBegin: cs.system.io.SeekOrigin.Begin;
 			case SeekCur: cs.system.io.SeekOrigin.Current;
 			case SeekEnd: cs.system.io.SeekOrigin.End;
 		};
 
-		stream.Seek(cast(p, Int64), p);
+		stream.Seek(cast(p, Int64), pos);
 	}
 
 	public function tell() : Int

@@ -25,6 +25,7 @@ package cpp;
    public function iterator() : Iterator<Dynamic>;
    public function map<S>( f : Dynamic -> S ) : VirtualArray;
    public function filter( f : Dynamic -> Bool ) : VirtualArray;
+   public function resize( len : Int ) : Void;
 }
 
 
@@ -72,5 +73,6 @@ abstract VirtualArray(NativeVirtualArray)
    @:extern inline public function iterator() : Iterator<Dynamic> return this.iterator();
    @:extern inline public function map<S>( f : Dynamic -> S ) : VirtualArray return this.map(f);
    @:extern inline public function filter( f : Dynamic -> Bool ) : VirtualArray return this.filter(f);
+   @:extern inline public function resize( len : Int ) : Void return this.resize(len);
 }
 

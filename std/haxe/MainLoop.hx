@@ -6,6 +6,10 @@ class MainEvent {
 	var f : Void -> Void;
 	var prev : MainEvent;
 	var next : MainEvent;
+	/**
+		Tells if the event can lock the process from exiting (default:true)
+	**/
+	public var isBlocking : Bool = true;
 	public var nextRun(default,null) : Float;
 	public var priority(default,null) : Int;
 
@@ -50,14 +54,20 @@ class MainEvent {
 @:access(haxe.MainEvent)
 class MainLoop {
 
-	static var pending : MainEvent = null;
+	static var pending : MainEvent;
 
 	public static var threadCount(get, never) : Int;
 
 	inline static function get_threadCount() return EntryPoint.threadCount;
 
-	public inline static function hasEvents() {
-		return pending != null;
+	public static function hasEvents() {
+		var p = pending;
+		while( p != null ) {
+			if( p.isBlocking )
+				return true;
+			p = p.next;
+		}
+		return false;
 	}
 
 	public static function addThread( f : Void -> Void ) {

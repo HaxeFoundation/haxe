@@ -85,12 +85,14 @@ type strict_defined =
 	| PhpLib
 	| PhpFront
 	| PhpPrefix
+	| PythonVersion
 	| RealPosition
 	| ReplaceFiles
 	| Scriptable
 	| ShallowExpose
 	| SourceHeader
 	| SourceMapContent
+	| Static
 	| Swc
 	| SwfCompressLevel
 	| SwfDebugPassword
@@ -106,6 +108,7 @@ type strict_defined =
 	| UseNekoc
 	| UseRttiDoc
 	| Vcproj
+	| WarnVarShadowing
 	| NoMacroCache
 	| Last (* must be last *)
 
@@ -193,15 +196,17 @@ let infos = function
 	| Objc -> "objc",("Sets the hxcpp output to objective-c++ classes. Must be defined for interop",[Platform Cpp])
 	| OldConstructorInline -> "old-constructor-inline",("Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version.",[])
 	| OldErrorFormat -> "old-error-format",("Use Haxe 3.x zero-based column error messages instead of new one-based format.",[])
-	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`--php-prefix some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
+	| PhpPrefix -> "php_prefix",("Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",[Platform Php])
 	| PhpLib -> "php_lib",("Select the name for the php lib folder.",[Platform Php])
 	| PhpFront -> "php_front",("Select the name for the php front file (by default: `index.php`).", [Platform Php])
+	| PythonVersion -> "python_version",("The python version to target (default 3.3)",[Platform Python])
 	| RealPosition -> "real_position",("Disables Haxe source mapping when targetting C#, removes position comments in Java and Php output",[Platforms [Cs;Java;Php]])
 	| ReplaceFiles -> "replace_files",("GenCommon internal",[Platforms [Java;Cs]])
 	| Scriptable -> "scriptable",("GenCPP internal",[Platform Cpp])
 	| ShallowExpose -> "shallow-expose",("Expose types to surrounding scope of Haxe generated closure without writing to window object",[Platform Js])
 	| SourceHeader -> "source-header",("Print value as comment on top of generated files, use '' value to disable",[])
 	| SourceMapContent -> "source-map-content",("Include the hx sources as part of the JS source map",[Platform Js])
+	| Static -> "static",("Defined if the current target is static",[])
 	| Swc -> "swc",("Output a SWC instead of a SWF",[Platform Flash])
 	| SwfCompressLevel -> "swf_compress_level",("<level:1-9> Set the amount of compression for the SWF output",[Platform Flash])
 	| SwfDebugPassword -> "swf_debug_password",("Set a password for debugging",[Platform Flash])
@@ -217,6 +222,7 @@ let infos = function
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
 	| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
 	| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
+	| WarnVarShadowing -> "warn_var_shadowing",("Warn about shadowing variable declarations",[])
 	| Last -> assert false
 
 let get_documentation_list() =

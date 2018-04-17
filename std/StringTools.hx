@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -451,7 +451,7 @@ class StringTools {
 		#elseif cs
 		return ( cast(index, UInt) < s.length ) ? cast(s[index], Int) : -1;
 		#elseif js
-		return (untyped s).charCodeAt(index);
+		return (cast s).charCodeAt(index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl

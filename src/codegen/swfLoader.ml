@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -235,7 +235,7 @@ let build_class com c file =
 							| HVInt i | HVUInt i ->
 								Some (Int (Int32.to_string i))
 							| HVFloat f ->
-								Some (Float (float_repres f))
+								Some (Float (Numeric.float_repres f))
 							) in
 							match v with
 							| None -> None
@@ -358,7 +358,7 @@ let build_class com c file =
 	(path.tpackage, [(EClass class_data,pos)])
 
 let extract_data (_,tags) =
-	let t = Common.timer ["read";"swf"] in
+	let t = Timer.timer ["read";"swf"] in
 	let h = Hashtbl.create 0 in
 	let rec loop_field f =
 		match f.hlf_kind with
@@ -450,7 +450,7 @@ let remove_debug_infos as3 =
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
-	let t = Common.timer ["read";"swf"] in
+	let t = Timer.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
 	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin

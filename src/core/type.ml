@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -236,12 +236,12 @@ and tclass = {
 
 and tenum_field = {
 	ef_name : string;
-	ef_type : t;
+	mutable ef_type : t;
 	ef_pos : pos;
 	ef_name_pos : pos;
 	ef_doc : Ast.documentation;
 	ef_index : int;
-	ef_params : type_params;
+	mutable ef_params : type_params;
 	mutable ef_meta : metadata;
 }
 
@@ -321,7 +321,7 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_macro_calls : string list;
+	mutable m_reuse_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
@@ -337,6 +337,16 @@ and build_state =
 	| Built
 	| Building of tclass list
 	| BuildMacro of (unit -> unit) list ref
+
+type basic_types = {
+	mutable tvoid : t;
+	mutable tint : t;
+	mutable tfloat : t;
+	mutable tbool : t;
+	mutable tnull : t -> t;
+	mutable tstring : t;
+	mutable tarray : t -> t;
+}
 
 (* ======= General utility ======= *)
 
@@ -416,7 +426,7 @@ let module_extra file sign time kind policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_binded_res = PMap.empty;
-		m_macro_calls = [];
+		m_reuse_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -780,11 +790,16 @@ let extract_field = function
 	| FAnon f | FInstance (_,_,f) | FStatic (_,f) | FClosure (_,f) -> Some f
 	| _ -> None
 
+let is_physical_var_field f =
+	match f.cf_kind with
+	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
+	| Var _ -> Meta.has Meta.IsVar f.cf_meta
+	| _ -> false
+
 let is_physical_field f =
 	match f.cf_kind with
 	| Method _ -> true
-	| Var { v_read = AccNormal | AccInline | AccNo } | Var { v_write = AccNormal | AccNo } -> true
-	| _ -> Meta.has Meta.IsVar f.cf_meta
+	| _ -> is_physical_var_field f
 
 let field_type f =
 	match f.cf_params with
@@ -1476,7 +1491,7 @@ module Printer = struct
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_macro_calls",String.concat ", " me.m_macro_calls;
+			"m_reuse_macro_calls",String.concat ", " me.m_reuse_macro_calls;
 			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
@@ -2460,13 +2475,13 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = fst p;
 				tname = snd p;
-				tparams = List.map (fun t -> TPType t) pl;
+				tparams = pl;
 				tsub = None;
 			}
 		else CTPath {
 				tpackage = fst mp;
 				tname = snd mp;
-				tparams = List.map (fun t -> TPType t) pl;
+				tparams = pl;
 				tsub = Some (snd p);
 			}
 
@@ -2482,26 +2497,28 @@ module TExprToExpr = struct
 			CTPath {
 				tpackage = [];
 				tname = name;
-				tparams = List.map (fun t -> TPType (convert_type' t)) tl;
+				tparams = List.map tparam tl;
 				tsub = None;
 			}
 		| TEnum (e,pl) ->
-			tpath e.e_path e.e_module.m_path (List.map convert_type' pl)
+			tpath e.e_path e.e_module.m_path (List.map tparam pl)
+		| TInst({cl_kind = KExpr e} as c,pl) ->
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map tparam pl)
 		| TInst({cl_kind = KTypeParameter _} as c,pl) ->
-			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map convert_type' pl)
+			tpath ([],snd c.cl_path) ([],snd c.cl_path) (List.map tparam pl)
 		| TInst (c,pl) ->
-			tpath c.cl_path c.cl_module.m_path (List.map convert_type' pl)
+			tpath c.cl_path c.cl_module.m_path (List.map tparam pl)
 		| TType (t,pl) as tf ->
 			(* recurse on type-type *)
-			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map convert_type' pl)
+			if (snd t.t_path).[0] = '#' then convert_type (follow tf) else tpath t.t_path t.t_module.m_path (List.map tparam pl)
 		| TAbstract (a,pl) ->
-			tpath a.a_path a.a_module.m_path (List.map convert_type' pl)
+			tpath a.a_path a.a_module.m_path (List.map tparam pl)
 		| TFun (args,ret) ->
 			CTFunction (List.map (fun (_,_,t) -> convert_type' t) args, (convert_type' ret))
 		| TAnon a ->
 			begin match !(a.a_status) with
-			| Statics c -> tpath ([],"Class") ([],"Class") [tpath c.cl_path c.cl_path [],null_pos]
-			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [tpath e.e_path e.e_path [],null_pos]
+			| Statics c -> tpath ([],"Class") ([],"Class") [TPType (tpath c.cl_path c.cl_path [],null_pos)]
+			| EnumStatics e -> tpath ([],"Enum") ([],"Enum") [TPType (tpath e.e_path e.e_path [],null_pos)]
 			| _ ->
 				CTAnonymous (PMap.foldi (fun _ f acc ->
 					{
@@ -2515,12 +2532,16 @@ module TExprToExpr = struct
 				) a.a_fields [])
 			end
 		| (TDynamic t2) as t ->
-			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [convert_type' t2])
+			tpath ([],"Dynamic") ([],"Dynamic") (if t == t_dynamic then [] else [tparam t2])
 		| TLazy f ->
 			convert_type (lazy_type f)
 
 	and convert_type' t =
 		convert_type t,null_pos
+
+	and tparam = function
+		| TInst ({cl_kind = KExpr e}, _) -> TPExpr e
+		| t -> TPType (convert_type' t)
 
 	and mk_type_hint t p =
 		match follow t with
@@ -2605,213 +2626,6 @@ module TExprToExpr = struct
 
 end
 
-module Texpr = struct
-	let equal_fa fa1 fa2 = match fa1,fa2 with
-		| FStatic(c1,cf1),FStatic(c2,cf2) -> c1 == c2 && cf1 == cf2
-		| FInstance(c1,tl1,cf1),FInstance(c2,tl2,cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
-		(* TODO: This is technically not correct but unfortunately the compiler makes a distinct tclass_field for each anon field access. *)
-		| FAnon cf1,FAnon cf2 -> cf1.cf_name = cf2.cf_name
-		| FDynamic s1,FDynamic s2 -> s1 = s2
-		| FClosure(None,cf1),FClosure(None,cf2) -> cf1 == cf2
-		| FClosure(Some(c1,tl1),cf1),FClosure(Some(c2,tl2),cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
-		| FEnum(en1,ef1),FEnum(en2,ef2) -> en1 == en2 && ef1 == ef2
-		| _ -> false
-
-	let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
-		| TConst ct1,TConst ct2 -> ct1 = ct2
-		| TLocal v1,TLocal v2 -> v1 == v2
-		| TArray(eb1,ei1),TArray(eb2,ei2) -> equal eb1 eb2 && equal ei1 ei2
-		| TBinop(op1,lhs1,rhs1),TBinop(op2,lhs2,rhs2) -> op1 = op2 && equal lhs1 lhs2 && equal rhs1 rhs2
-		| TField(e1,fa1),TField(e2,fa2) -> equal e1 e2 && equal_fa fa1 fa2
-		| TTypeExpr mt1,TTypeExpr mt2 -> mt1 == mt2
-		| TParenthesis e1,TParenthesis e2 -> equal e1 e2
-		| TObjectDecl fl1,TObjectDecl fl2 -> safe_for_all2 (fun (s1,e1) (s2,e2) -> s1 = s2 && equal e1 e2) fl1 fl2
-		| (TArrayDecl el1,TArrayDecl el2) | (TBlock el1,TBlock el2) -> safe_for_all2 equal el1 el2
-		| TCall(e1,el1),TCall(e2,el2) -> equal e1 e2 && safe_for_all2 equal el1 el2
-		| TNew(c1,tl1,el1),TNew(c2,tl2,el2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && safe_for_all2 equal el1 el2
-		| TUnop(op1,flag1,e1),TUnop(op2,flag2,e2) -> op1 = op2 && flag1 = flag2 && equal e1 e2
-		| TFunction tf1,TFunction tf2 -> tf1 == tf2
-		| TVar(v1,None),TVar(v2,None) -> v1 == v2
-		| TVar(v1,Some e1),TVar(v2,Some e2) -> v1 == v2 && equal e1 e2
-		| TFor(v1,ec1,eb1),TFor(v2,ec2,eb2) -> v1 == v2 && equal ec1 ec2 && equal eb1 eb2
-		| TIf(e1,ethen1,None),TIf(e2,ethen2,None) -> equal e1 e2 && equal ethen1 ethen2
-		| TIf(e1,ethen1,Some eelse1),TIf(e2,ethen2,Some eelse2) -> equal e1 e2 && equal ethen1 ethen2 && equal eelse1 eelse2
-		| TWhile(e1,eb1,flag1),TWhile(e2,eb2,flag2) -> equal e1 e2 && equal eb2 eb2 && flag1 = flag2
-		| TSwitch(e1,cases1,eo1),TSwitch(e2,cases2,eo2) ->
-			equal e1 e2 &&
-			safe_for_all2 (fun (el1,e1) (el2,e2) -> safe_for_all2 equal el1 el2 && equal e1 e2) cases1 cases2 &&
-			(match eo1,eo2 with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
-		| TTry(e1,catches1),TTry(e2,catches2) -> equal e1 e2 && safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2
-		| TReturn None,TReturn None -> true
-		| TReturn(Some e1),TReturn(Some e2) -> equal e1 e2
-		| TThrow e1,TThrow e2 -> equal e1 e2
-		| TCast(e1,None),TCast(e2,None) -> equal e1 e2
-		| TCast(e1,Some mt1),TCast(e2,Some mt2) -> equal e1 e2 && mt1 == mt2
-		| TMeta((m1,el1,_),e1),TMeta((m2,el2,_),e2) -> m1 = m2 && safe_for_all2 (fun e1 e2 -> (* TODO: cheating? *) (Ast.s_expr e1) = (Ast.s_expr e2)) el1 el2 && equal e1 e2
-		| (TBreak,TBreak) | (TContinue,TContinue) -> true
-		| TEnumParameter(e1,ef1,i1),TEnumParameter(e2,ef2,i2) -> equal e1 e2 && ef1 == ef2 && i1 = i2
-		| _ -> false
-
-	let duplicate_tvars e =
-		let vars = Hashtbl.create 0 in
-		let copy_var v =
-			let v2 = alloc_var v.v_name v.v_type v.v_pos in
-			v2.v_meta <- v.v_meta;
-			v2.v_extra <- v.v_extra;
-			Hashtbl.add vars v.v_id v2;
-			v2;
-		in
-		let rec build_expr e =
-			match e.eexpr with
-			| TVar (v,eo) ->
-				let v2 = copy_var v in
-				{e with eexpr = TVar(v2, Option.map build_expr eo)}
-			| TFor (v,e1,e2) ->
-				let v2 = copy_var v in
-				{e with eexpr = TFor(v2, build_expr e1, build_expr e2)}
-			| TTry (e1,cl) ->
-				let cl = List.map (fun (v,e) ->
-					let v2 = copy_var v in
-					v2, build_expr e
-				) cl in
-				{e with eexpr = TTry(build_expr e1, cl)}
-			| TFunction f ->
-				let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
-				let f = {
-					tf_args = args;
-					tf_type = f.tf_type;
-					tf_expr = build_expr f.tf_expr;
-				} in
-				{e with eexpr = TFunction f}
-			| TLocal v ->
-				(try
-					let v2 = Hashtbl.find vars v.v_id in
-					{e with eexpr = TLocal v2}
-				with _ ->
-					e)
-			| _ ->
-				map_expr build_expr e
-		in
-		build_expr e
-
-	let rec skip e = match e.eexpr with
-		| TParenthesis e1 | TMeta(_,e1) | TBlock [e1] | TCast(e1,None) -> skip e1
-		| _ -> e
-
-	let foldmap_list f acc el =
-		let rec loop acc el acc2 = (match el with
-			| [] -> acc,(List.rev acc2)
-			| e1 :: el ->
-				let acc,e1 = f acc e1 in
-				loop acc el (e1 :: acc2))
-		in loop acc el []
-
-	let foldmap_opt f acc eo = match eo with
-		| Some(e) -> let acc,e = f acc e in acc,Some(e)
-		| None    -> acc,eo
-
-	let foldmap_pairs f acc pairs =
-		let acc,pairs = List.fold_left
-			(fun (acc,el) (v,e) -> let acc,e = f acc e in (acc,(v,e) :: el))
-			(acc,[])
-			pairs
-		in acc,(List.rev pairs)
-
-	let foldmap f acc e =
-		begin match e.eexpr with
-		| TConst _
-		| TLocal _
-		| TBreak
-		| TContinue
-		| TTypeExpr _
-		| TIdent _ ->
-			acc,e
-		| TArray (e1,e2) ->
-			let acc,e1 = f acc e1 in
-			let acc,e2 = f acc e2 in
-			acc,{ e with eexpr = TArray (e1, e2) }
-		| TBinop (op,e1,e2) ->
-			let acc,e1 = f acc e1 in
-			let acc,e2 = f acc e2 in
-			acc,{ e with eexpr = TBinop (op,e1,e2) }
-		| TFor (v,e1,e2) ->
-			let acc,e1 = f acc e1 in
-			let acc,e2 = f acc e2 in
-			acc,{ e with eexpr = TFor (v,e1,e2) }
-		| TWhile (e1,e2,flag) ->
-			let acc,e1 = f acc e1 in
-			let acc,e2 = f acc e2 in
-			acc,{ e with eexpr = TWhile (e1,e2,flag) }
-		| TThrow e1 ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TThrow (e1) }
-		| TEnumParameter (e1,ef,i) ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TEnumParameter(e1,ef,i) }
-		| TEnumIndex e1 ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TEnumIndex e1 }
-		| TField (e1,v) ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TField (e1,v) }
-		| TParenthesis e1 ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TParenthesis (e1) }
-		| TUnop (op,pre,e1) ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TUnop (op,pre,e1) }
-		| TArrayDecl el ->
-			let acc,el = foldmap_list f acc el in
-			acc,{ e with eexpr = TArrayDecl el }
-		| TNew (t,pl,el) ->
-			let acc,el = foldmap_list f acc el in
-			acc,{ e with eexpr = TNew (t,pl,el) }
-		| TBlock el ->
-			let acc,el = foldmap_list f acc el in
-			acc,{ e with eexpr = TBlock (el) }
-		| TObjectDecl el ->
-			let acc,el = foldmap_pairs f acc el in
-			acc,{ e with eexpr = TObjectDecl el }
-		| TCall (e1,el) ->
-			let acc,e1 = f acc e1 in
-			let acc,el = foldmap_list f acc el in
-			acc,{ e with eexpr = TCall (e1,el) }
-		| TVar (v,eo) ->
-			let acc,eo = foldmap_opt f acc eo in
-			acc,{ e with eexpr = TVar (v, eo) }
-		| TFunction fu ->
-			let acc,e1 = f acc fu.tf_expr in
-			acc,{ e with eexpr = TFunction { fu with tf_expr = e1 } }
-		| TIf (ec,e1,eo) ->
-			let acc,ec = f acc ec in
-			let acc,e1 = f acc e1 in
-			let acc,eo = foldmap_opt f acc eo in
-			acc,{ e with eexpr = TIf (ec,e1,eo)}
-		| TSwitch (e1,cases,def) ->
-			let acc,e1 = f acc e1 in
-			let acc,cases = List.fold_left (fun (acc,cases) (el,e2) ->
-				let acc,el = foldmap_list f acc el in
-				let acc,e2 = f acc e2 in
-				acc,((el,e2) :: cases)
-			) (acc,[]) cases in
-			let acc,def = foldmap_opt f acc def in
-			acc,{ e with eexpr = TSwitch (e1, cases, def) }
-		| TTry (e1,catches) ->
-			let acc,e1 = f acc e1 in
-			let acc,catches = foldmap_pairs f acc catches in
-			acc,{ e with eexpr = TTry (e1, catches) }
-		| TReturn eo ->
-			let acc,eo = foldmap_opt f acc eo in
-			acc,{ e with eexpr = TReturn eo }
-		| TCast (e1,t) ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TCast (e1,t) }
-		| TMeta (m,e1) ->
-			let acc,e1 = f acc e1 in
-			acc,{ e with eexpr = TMeta(m,e1)}
-		end
-end
-
 module ExtType = struct
 	let is_void = function
 		| TAbstract({a_path=[],"Void"},_) -> true
@@ -2874,3 +2688,45 @@ module StringError = struct
 		try string_error_raise s sl msg
 		with Not_found -> msg
 end
+
+let class_module_type c = {
+	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
+	t_module = c.cl_module;
+	t_doc = None;
+	t_pos = c.cl_pos;
+	t_name_pos = null_pos;
+	t_type = TAnon {
+		a_fields = c.cl_statics;
+		a_status = ref (Statics c);
+	};
+	t_private = true;
+	t_params = [];
+	t_meta = no_meta;
+}
+
+let enum_module_type m path p  = {
+	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
+	t_module = m;
+	t_doc = None;
+	t_pos = p;
+	t_name_pos = null_pos;
+	t_type = mk_mono();
+	t_private = true;
+	t_params = [];
+	t_meta = [];
+}
+
+let abstract_module_type a tl = {
+	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
+	t_module = a.a_module;
+	t_doc = None;
+	t_pos = a.a_pos;
+	t_name_pos = null_pos;
+	t_type = TAnon {
+		a_fields = PMap.empty;
+		a_status = ref (AbstractStatics a);
+	};
+	t_private = true;
+	t_params = [];
+	t_meta = no_meta;
+}

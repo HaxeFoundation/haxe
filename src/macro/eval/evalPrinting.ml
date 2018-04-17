@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -98,7 +98,7 @@ and s_value depth v =
 	| VTrue -> rtrue
 	| VFalse -> rfalse
 	| VFloat f ->
-		let s = Common.float_repres f in
+		let s = Numeric.float_repres f in
 		let len = String.length s in
 		of_string (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
 	| VFunction (f,_) ->

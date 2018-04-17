@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -70,6 +70,15 @@ typedef FileHandle = hl.Abstract<"hl_fdesc">;
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
 		var f = file_open(Sys.getPath(path),2,binary);
 		if( f == null ) throw new Sys.SysError("Can't open "+path+" for append");
+		return @:privateAccess new FileOutput(f);
+	}
+
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
+		var f = file_open(Sys.getPath(path),3,binary);
+		if( f == null ) throw new Sys.SysError("Can't open "+path+" for update");
 		return @:privateAccess new FileOutput(f);
 	}
 

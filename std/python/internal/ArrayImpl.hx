@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -180,5 +180,14 @@ class ArrayImpl {
 	public static inline function unsafeSet<T>(x:Array<T>,idx:Int, val:T):T {
 		Syntax.assign(Syntax.arrayAccess(x, idx), val);
 		return val;
+	}
+
+	public static inline function resize<T>(x:Array<T>, len:Int):Void {
+		var l = x.length;
+		if (l < len) {
+			_set(x, len - 1, null);
+		} else if (l > len) {
+			splice(x, len, l - len);
+		}
 	}
 }

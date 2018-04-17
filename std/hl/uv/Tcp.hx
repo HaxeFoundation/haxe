@@ -24,6 +24,10 @@ class Tcp extends Stream {
 		return new Stream(client);
 	}
 
+	public function noDelay(b:Bool) {
+		tcp_nodelay_wrap(handle, b);
+	}
+
 	static function tcp_init_wrap( loop : Loop ) : HandleData {
 		return null;
 	}
@@ -38,6 +42,9 @@ class Tcp extends Stream {
 
 	static function tcp_accept_wrap( h : HandleData ) : HandleData {
 		return null;
+	}
+
+	static function tcp_nodelay_wrap( h : HandleData, b : Bool ) : Void {
 	}
 
 }

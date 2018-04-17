@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -282,6 +282,17 @@
 			if (f(elt))
 				ret.push(elt);
 		return ret;
+	}
+
+	public function resize ( len : Int ) : Void {
+		if (length < len) {
+			__set(len - 1, null);
+		} else if (length > len) {
+			for (i in len ... length) {
+				__a[i] = null;
+			}
+			this.length = len;
+		}
 	}
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,7 +80,13 @@ enum ValueType {
 		#end
 		default:
 		}
-		return str.split("::").join(".");
+		var parts = str.split("::");
+		#if as3
+		if(parts[parts.length - 1] == "_Object") {
+			parts[parts.length - 1] = "Object";
+		}
+		#end
+		return parts.join(".");
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {

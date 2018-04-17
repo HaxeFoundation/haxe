@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,16 +25,16 @@ import js.Boot;
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped js.Boot.__instanceof(v,t);
+		return @:privateAccess js.Boot.__instanceof(v,t);
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped __instanceof__(value, c) ? cast value : null;
+		return js.Syntax.instanceof(value, c) ? cast value : null;
 	}
 
 	@:pure
 	public static function string( s : Dynamic ) : String {
-		return untyped js.Boot.__string_rec(s,"");
+		return @:privateAccess js.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -243,7 +243,7 @@ abstract Int32(Int) from Int to Int {
 		// we might be on 64-bit php, so sign extend from 32-bit
 		return (x << extraBits) >> extraBits;
 		#elseif python
-		return python.Syntax.pythonCode("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) - python.Syntax.opPow(2, 31);
+		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)):Int) - python.Syntax.opPow(2, 31);
 		#elseif lua
 		return lua.Boot.clamp(x);
 		#else

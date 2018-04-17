@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 open Common
 open Type
 open Codegen
-open Codegen.ExprBuilder
+open Texpr.Builder
 
 (*
 	This Module Filter will go through all defined functions in all modules and change them
@@ -48,7 +48,7 @@ let add_opt com block pos (var,opt) =
 	| None | Some TNull ->
 		(var,opt)
 	| Some (TString str) ->
-		block := Codegen.set_default com var (TString str) pos :: !block;
+		block := Texpr.set_default com.basic var (TString str) pos :: !block;
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in

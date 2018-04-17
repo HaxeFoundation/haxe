@@ -41,7 +41,7 @@ class TestCommandBase {
 			#elseif hl
 				run("hl", [bin].concat(args));
 			#elseif php
-				run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+				run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 			#elseif lua
 				run("lua", [bin].concat(args));
 			#else
@@ -123,7 +123,7 @@ class TestCommandBase {
 				#elseif hl
 					run("hl", [bin].concat(args));
 				#elseif php
-					run(untyped __php__("defined('PHP_BINARY') ? PHP_BINARY : 'php'"), [bin].concat(args));
+					run(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [bin].concat(args));
 				#elseif lua
 					run("lua", [bin].concat(args));
 				#else

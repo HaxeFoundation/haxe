@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,11 +48,11 @@ class Boot {
 	]);
 
 	inline static function arrayJoin <T>(x:Array<T>, sep:String):String {
-		return Syntax.field(sep, "join")(Syntax.pythonCode("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
+		return Syntax.field(sep, "join")(Syntax.code("[{0}(x1,'') for x1 in {1}]", python.Boot.toString1, x));
 	}
 
 	inline static function safeJoin (x:Array<String>, sep:String):String {
-		return Syntax.field(sep, "join")(Syntax.pythonCode("[x1 for x1 in {0}]", x));
+		return Syntax.field(sep, "join")(Syntax.code("[x1 for x1 in {0}]", x));
 	}
 
 	inline static function isPyBool(o:Dynamic):Bool {
@@ -60,7 +60,8 @@ class Boot {
 	}
 
 	inline static function isPyInt(o:Dynamic):Bool {
-		return UBuiltins.isinstance(o, UBuiltins.int);
+		// for historic reasons bool extends int
+		return UBuiltins.isinstance(o, UBuiltins.int) && !isPyBool(o);
 	}
 
 	inline static function isPyFloat(o:Dynamic):Bool {
@@ -253,15 +254,15 @@ class Boot {
 				var keys = Syntax.callField(d, "keys");
 				var handler = unhandleKeywords;
 
-				Syntax.pythonCode("for k in keys:");
-				Syntax.pythonCode("    a.append(handler(k))");
+				Syntax.code("for k in keys:");
+				Syntax.code("    a.append(handler(k))");
 			}
 			else if (UBuiltins.hasattr(o, "__dict__")) {
 				var a = [];
 				var d = Syntax.field(o, "__dict__");
 				var keys1  = Syntax.callField(d, "keys");
-				Syntax.pythonCode("for k in keys1:");
-				Syntax.pythonCode("    a.append(k)");
+				Syntax.code("for k in keys1:");
+				Syntax.code("    a.append(k)");
 
 			}
 		}

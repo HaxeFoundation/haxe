@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ class Float64Array {
 
 	static function _new( ?arg1 : Dynamic, ?offset : Int, ?length : Int ) : Dynamic {
 		var arr : Array<Float>;
-		if( untyped __typeof__(arg1) == 'number' ) {
+		if( js.Syntax.typeof(arg1) == 'number' ) {
 			arr = new Array();
 			for( i in 0...arg1 )
 				arr[i] = 0;

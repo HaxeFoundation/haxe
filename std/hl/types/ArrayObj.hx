@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -239,6 +239,17 @@ class ArrayObj<T> extends ArrayBase {
 			if( f(v) ) a.push(v);
 		}
 		return a;
+	}
+
+	override public function resize( len : Int ) : Void {
+		if (length < len) {
+			__expand(len - 1);
+		} else if (length > len) {
+			for (i in length ... len) {
+				array[i] = null;
+			}
+			this.length = len;
+		}
 	}
 
 	// called by compiler when accessing the array outside of its bounds, might trigger resize

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -319,7 +319,7 @@ let property ctx p t =
 		(match p with
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "map" | "filter" when Common.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
-		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" -> ident p , None, true
+		| "copy" | "insert" | "remove" | "iterator" | "toString" | "map" | "filter" | "resize" -> ident p , None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
@@ -1788,7 +1788,7 @@ let generate_construct ctx fdata c =
 	(* if skip_constructor, then returns immediatly *)
 	if ctx.need_ctor_skip then (match c.cl_kind with
 	| KGenericInstance _ -> ()
-	| _ when not (Codegen.constructor_side_effects fdata.tf_expr) -> ()
+	| _ when not (Texpr.constructor_side_effects fdata.tf_expr) -> ()
 	| _ ->
 		let id = ident "skip_constructor" in
 		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
@@ -2327,7 +2327,7 @@ let rec generate_type ctx t =
 		if e.e_extern then
 			None
 		else
-			let meta = Codegen.build_metadata ctx.com t in
+			let meta = Texpr.build_metadata ctx.com.basic t in
 			let hlc = generate_enum ctx e meta in
 			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false e.e_pos in
 			generate_enum_init ctx e hlc meta;

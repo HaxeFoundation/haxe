@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -20,6 +20,7 @@ open Option
 open Common
 open Globals
 open Codegen
+open Texpr.Builder
 open Ast
 open Type
 open Gencommon
@@ -691,7 +692,7 @@ struct
 			if arity >= max_arity then begin
 				let varray = match changed_args with | [v,_] -> v | _ -> assert false in
 				let varray_local = mk_local varray pos in
-				let mk_varray i = { eexpr = TArray(varray_local, ExprBuilder.make_int gen.gcon i pos); etype = t_dynamic; epos = pos } in
+				let mk_varray i = { eexpr = TArray(varray_local, make_int gen.gcon.basic i pos); etype = t_dynamic; epos = pos } in
 				let el =
 					snd (List.fold_left (fun (count,acc) (v,const) ->
 						(count + 1, (mk (TVar(v, Some(mk_const const (mk_varray count) v.v_type))) basic.tvoid pos) :: acc)
@@ -794,8 +795,8 @@ struct
 			invoke_field.cf_expr <- Some invoke_fun;
 
 			invoke_field, [
-				ExprBuilder.make_int gen.gcon arity pos;
-				ExprBuilder.make_int gen.gcon type_number pos;
+				make_int gen.gcon.basic arity pos;
+				make_int gen.gcon.basic type_number pos;
 			]
 		in
 
@@ -1028,7 +1029,7 @@ struct
 			let pos = cl.cl_pos in
 
 			let rec mk_dyn_call arity api =
-				let zero = ExprBuilder.make_float gen.gcon "0.0" pos in
+				let zero = make_float gen.gcon.basic "0.0" pos in
 				let rec loop i acc =
 					if i = 0 then
 						acc
@@ -1046,7 +1047,7 @@ struct
 			let mk_invoke_switch i api =
 				let t = TFun (func_sig_i i, t_dynamic) in
 				(* case i: return this.invokeX_o(0, 0, 0, 0, 0, ... arg[0], args[1]....); *)
-				[ExprBuilder.make_int gen.gcon i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
+				[make_int gen.gcon.basic i pos], mk_return (mk (TCall(mk_this (iname i false) t, mk_dyn_call i api)) t_dynamic pos)
 			in
 			let rec loop_cases api arity acc =
 				if arity < 0 then
@@ -1067,8 +1068,8 @@ struct
 				in
 				{
 					eexpr = TIf(
-						mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, (ExprBuilder.make_int gen.gcon (if is_float then 0 else 1) pos))) basic.tbool pos,
-						ExprBuilder.make_throw (mk_arg_exception "Wrong number of arguments" pos) pos,
+						mk (TBinop (Ast.OpNotEq, mk_this type_name basic.tint, (make_int gen.gcon.basic (if is_float then 0 else 1) pos))) basic.tbool pos,
+						make_throw (mk_arg_exception "Wrong number of arguments" pos) pos,
 						Some (mk_return call_expr)
 					);
 					etype = t_dynamic;
@@ -1099,7 +1100,7 @@ struct
 						eexpr = TSwitch(
 							switch_cond,
 							loop_cases api !max_arity [],
-							Some(ExprBuilder.make_throw (mk_arg_exception "Too many arguments" pos) pos));
+							Some(make_throw (mk_arg_exception "Too many arguments" pos) pos));
 						etype = basic.tvoid;
 						epos = pos;
 					}

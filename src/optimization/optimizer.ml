@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -130,11 +130,17 @@ let api_inline2 com c field params p =
 
 let api_inline ctx c field params p = match c.cl_path, field, params with
 	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let mk_local ctx n t pos = mk (TIdent n) t pos in
-
 		let tstring = ctx.com.basic.tstring in
 		let tbool = ctx.com.basic.tbool in
 		let tint = ctx.com.basic.tint in
+
+		let esyntax =
+			let m = Hashtbl.find ctx.g.modules (["js"],"Syntax") in
+			ExtList.List.find_map (function
+				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
+				| _ -> None
+			) m.m_types
+		in
 
 		let is_trivial e =
 			match e.eexpr with
@@ -143,8 +149,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = mk (TIdent "__typeof__") (tfun [o.etype] tstring) p in
-			let tof = mk (TCall (tof, [o])) tstring p in
+			let tof = Texpr.Builder.fcall esyntax "typeof" [o] tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
@@ -155,18 +160,18 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Float" })) -> Some (typeof "number")
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* generate typeof(o) == "number" && (o|0) === o check *)
-			let teq = mk_local ctx "__strict_eq__" (tfun [tint; tint] tbool) p in
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			let jscheck = mk (TCall (teq, [lhs; o])) tbool p in
+			let jscheck = Texpr.Builder.fcall esyntax "strictEq" [lhs;o] tbool p in
 			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
-			let iof = mk_local ctx "__instanceof__" (tfun [o.etype;t.etype] tbool) p in
-			let iof = mk (TCall (iof, [o; t])) tbool p in
+			let iof = Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p in
 			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
+		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
+			Some (Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
@@ -784,7 +789,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
-	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) when false ->
+	| TArrayDecl el, TInst({ cl_path = [],"Array" },[pt]) ->
 		begin try
 			let num_expr = ref 0 in
 			let rec loop e = match fst e with
@@ -795,8 +800,6 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 					Ast.map_expr loop e
 			in
 			ignore(loop e2);
-			let v = add_local ctx i pt p in
-			let e2 = type_expr ctx e2 NoValue in
 			let cost = (List.length el) * !num_expr in
 			let max_cost = try
 				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
@@ -804,13 +807,15 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 				250
 			in
 			if cost > max_cost then raise Exit;
-			let eloc = mk (TLocal v) v.v_type p in
 			let el = List.map (fun e ->
+				let v = add_local ctx i pt p in
+				let ev = mk (TVar(v, None)) ctx.t.tvoid p in
+				let typed_e2 = type_expr ctx e2 NoValue in
+				let eloc = mk (TLocal v) v.v_type p in
 				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
-				concat e_assign e2
+				concat ev (concat e_assign typed_e2)
 			) el in
-			let ev = mk (TVar(v, None)) ctx.t.tvoid p in
-			Some (mk (TBlock (ev :: el)) ctx.t.tvoid p)
+			Some (mk (TBlock el) ctx.t.tvoid p)
 		with Exit ->
 			gen_int_iter pt get_next_array_element get_array_length
 		end

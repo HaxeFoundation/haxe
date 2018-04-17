@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -41,16 +41,6 @@ open Gencommon
 		empty construction without the need of incompatibility with the platform's native construction method
 		the ability to call super() constructor in any place in the constructor
 *)
-let rec cur_ctor c tl =
-	match c.cl_constructor with
-	| Some ctor ->
-		ctor, c, tl
-	| None ->
-		match c.cl_super with
-		| None ->
-			raise Not_found
-		| Some (sup,stl) ->
-			cur_ctor sup (List.map (apply_params c.cl_params tl) stl)
 
 let rec prev_ctor c tl =
 	match c.cl_super with
@@ -106,7 +96,7 @@ let replace_super_call com c tl with_params me p follow_type =
 	{
 		eexpr = TCall(
 			{
-				eexpr = TField(ExprBuilder.make_static_this sup p, FStatic(sup,cf));
+				eexpr = TField(Texpr.Builder.make_static_this sup p, FStatic(sup,cf));
 				etype = apply_params cf.cf_params stl cf.cf_type;
 				epos = p
 			},
@@ -205,7 +195,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 				eexpr = TCall(
 					{
 						eexpr = TField(
-							ExprBuilder.make_static_this cl p,
+							Texpr.Builder.make_static_this cl p,
 							FStatic(cl, static_ctor));
 						etype = apply_params static_ctor.cf_params (List.map snd cl.cl_params) static_ctor.cf_type;
 						epos = p

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,7 +62,7 @@ class FileSystem {
 	}
 
 	public static inline function fullPath( relPath : String ) : String {
-		return (Syntax.binop(Global.realpath(relPath), "?:", null));
+		return Syntax.shortTernary(Global.realpath(relPath), null);
 	}
 
 	public static function absolutePath ( relPath : String ) : String {

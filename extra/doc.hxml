@@ -1,0 +1,60 @@
+--no-output
+--macro ImportAll.run()
+-dce no
+-D doc-gen
+
+--each
+
+-neko all.n
+-xml doc/neko.xml
+
+--next
+
+-js all.js
+-xml doc/js.xml
+
+--next
+
+-swf all9.swf
+-xml doc/flash.xml
+-swf-version 11.4
+
+--next
+
+-php all_php
+-xml doc/php.xml
+
+--next
+
+-cpp all_cpp
+-xml doc/cpp.xml
+-D xmldoc
+-D HXCPP_MULTI_THREADED
+
+--next
+-java all_java
+-xml doc/java.xml
+-D xmldoc
+
+--next
+-cs all_cs
+-D unsafe
+-xml doc/cs.xml
+-D xmldoc
+
+--next
+-python all_py
+-xml doc/python.xml
+-D xmldoc
+
+--next
+--interp
+-xml doc/macro.xml
+
+--next
+-lua all_lua
+-xml doc/lua.xml
+
+--next
+-hl all_hl
+-xml doc/hl.xml

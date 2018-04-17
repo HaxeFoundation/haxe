@@ -190,7 +190,7 @@ let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
         | None | Some TNull -> e
-        | Some c -> Type.concat (Codegen.set_default ctx.com a c p) e
+        | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
 
@@ -244,7 +244,7 @@ let index_of f l =
 (* create a __lua__ call *)
 let mk_lua_code com code args t pos =
     let lua_local = mk (TIdent "__lua__") t_dynamic pos in
-    let code_const = Codegen.ExprBuilder.make_string com code pos in
+    let code_const = Texpr.Builder.make_string com code pos in
     mk (TCall (lua_local, code_const :: args)) t pos
 
 (* create a multi-return boxing call for given expr *)
@@ -258,7 +258,7 @@ let mk_mr_box ctx e =
     add_feature ctx "use._hx_box_mr";
     add_feature ctx "use._hx_table";
     let code = Printf.sprintf "_hx_box_mr(_hx_table.pack({0}), {%s})" s_fields in
-    mk_lua_code ctx.com code [e] e.etype e.epos
+    mk_lua_code ctx.com.basic code [e] e.etype e.epos
 
 (* create a multi-return select call for given expr and field name *)
 let mk_mr_select com e ecall name =
@@ -338,7 +338,34 @@ let gen_constant ctx p = function
     | TThis -> spr ctx (this ctx)
     | TSuper -> assert false
 
-let rec gen_call ctx e el =
+
+
+let rec is_function_type t =
+    match follow(t) with
+    | TFun _ -> true
+    | TAbstract({a_path=["haxe"],"Function" },_) -> true
+    | _ -> false
+
+and gen_argument ctx e = begin
+    match e.eexpr with
+    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+            add_feature ctx "use._hx_bind";
+            print ctx "_hx_bind(";
+            gen_value ctx x;
+            print ctx ",";
+            gen_value ctx x;
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+    | _ ->
+        gen_value ctx e;
+end
+
+and gen_paren_arguments ctx el = begin
+    spr ctx "(";
+    concat ctx ", " (gen_argument ctx) el;
+    spr ctx ")";
+end
+
+and gen_call ctx e el =
     ctx.iife_assign <- true;
     (match e.eexpr , el with
      | TConst TSuper , params ->
@@ -346,7 +373,7 @@ let rec gen_call ctx e el =
           | None -> error "Missing api.setCurrentClass" e.epos
           | Some (c,_) ->
               print ctx "%s.super(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
-              List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+              List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
      | TField ({ eexpr = TConst TSuper },f) , params ->
@@ -355,27 +382,25 @@ let rec gen_call ctx e el =
           | Some (c,_) ->
               let name = field_name f in
               print ctx "%s.prototype%s(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
-              List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+              List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__new__", { eexpr = TConst (TString cl) } :: params ->
-         print ctx "%s.new(" cl;
-         concat ctx "," (gen_value ctx) params;
-         spr ctx ")";
+         print ctx "%s.new" cl;
+         gen_paren_arguments ctx params;
      | TIdent "__new__", e :: params ->
          gen_value ctx e;
-         spr ctx ".new(";
-         concat ctx "," (gen_value ctx) params;
-         spr ctx ")";
+         spr ctx ".new";
+         gen_paren_arguments ctx params;
      | TIdent "__callself__", { eexpr = TConst (TString head) } :: { eexpr = TConst (TString tail) } :: el ->
          print ctx "%s:%s" head tail;
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__call__", { eexpr = TConst (TString code) } :: el ->
          spr ctx code;
-         gen_paren ctx el;
+         gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
      | TIdent "__lua_table__", el ->
@@ -458,7 +483,7 @@ let rec gen_call ctx e el =
          gen_value ctx e;
          print ctx ",'%s'" (field_name ef);
          spr ctx ")(";
-         concat ctx "," (gen_value ctx) (e::el);
+         concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
      | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
@@ -468,7 +493,7 @@ let rec gen_call ctx e el =
              gen_value ctx e;
              print ctx ",\"%s\"" (field_name ef);
              if List.length(el) > 0 then spr ctx ",";
-             concat ctx "," (gen_value ctx) el;
+             concat ctx "," (gen_argument ctx) el;
              spr ctx ")";
          end else begin
              gen_value ctx e;
@@ -476,11 +501,11 @@ let rec gen_call ctx e el =
                  print ctx ".%s" (field_name ef)
              else
                  print ctx ":%s" (field_name ef);
-             gen_paren ctx el;
+             gen_paren_arguments ctx el;
          end;
      | _ ->
          gen_value ctx e;
-         gen_paren ctx el);
+         gen_paren_arguments ctx el);
     ctx.iife_assign <- false;
 
 and has_continue e =
@@ -562,6 +587,23 @@ and is_possible_string_field e field_name=
         | _ ->
             false
 
+
+and ttype_multireturn t = match t with
+    | TInst (c,_) ->
+            Meta.has Meta.MultiReturn c.cl_meta
+    | TType (c,_) ->
+            Meta.has Meta.MultiReturn c.t_meta
+    | _ ->
+            false
+and check_multireturn_param ctx t pos =
+   match t with
+         TAbstract(_,p) | TInst(_,p) ->
+            if List.exists ttype_multireturn p then
+                error "MultiReturns must not be type parameters" pos
+            else
+                ()
+        | _ ->
+                ();
 
 and gen_expr ?(local=true) ctx e = begin
     match e.eexpr with
@@ -1071,7 +1113,7 @@ and gen_anon_value ctx e =
         ctx.in_value <- fst old;
         ctx.in_loop <- snd old;
         ctx.separator <- true
-    | _ when (is_function_type ctx e.etype) && not (is_const_null e) ->
+    | _ when (is_function_type e.etype) && not (is_const_null e) ->
         spr ctx "function(_,...) return ";
         gen_value ctx e;
         spr ctx "(...) end";
@@ -1215,11 +1257,6 @@ and gen_value ctx e =
                                         )) e.etype e.epos);
         v()
 
-and is_function_type ctx t =
-    match follow(t) with
-    | TFun _ -> true
-    | _ -> false;
-
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
      | Ast.OpAssign, TField(e3, FInstance _), TFunction f ->
@@ -1264,7 +1301,7 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
-          | TField(_, FInstance _ ), TLocal t  when (is_function_type ctx t.v_type)   ->
+          | TField(_, FInstance _ ), TLocal t  when (is_function_type t.v_type)   ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
               add_feature ctx "use._hx_funcToField";
@@ -1394,7 +1431,7 @@ and gen_return ctx e eo =
          spr ctx "do return end"
      | Some e ->
          (match e.eexpr with
-          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when is_function_type ctx tcf.cf_type ->
+          | TField (e2, ((FClosure (_, tcf) | FAnon tcf |FInstance (_,_,tcf)))) when (is_function_type tcf.cf_type) ->
               (* See issue #6259 *)
               add_feature ctx "use._hx_bind";
               spr ctx "do return ";
@@ -1713,7 +1750,7 @@ let generate_static ctx (c,f,e) =
 let generate_enumMeta_fields ctx = function
     | TEnumDecl e -> begin
             let p = s_path ctx e.e_path in
-            match Codegen.build_metadata ctx.com (TEnumDecl e) with
+            match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
             | None -> ()
             | Some e ->
                 print ctx "%s.__meta__ = " p;
@@ -1815,19 +1852,20 @@ let alloc_ctx com =
 let transform_multireturn ctx = function
     | TClassDecl c ->
         let transform_field f =
+            check_multireturn_param ctx f.cf_type f.cf_pos;
             match f.cf_expr with
             | Some e ->
+                let is_multireturn t =
+                    match follow t with
+                    | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
+                    | _ -> false
+                in
                 let rec loop e =
-                    let is_multireturn t =
-                        match follow t with
-                        | TInst (c, _) when Meta.has Meta.MultiReturn c.cl_meta -> true
-                        | _ -> false
-                    in
                     match e.eexpr with
-     (*
-						if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
-						so it will later be generated as multiple locals unpacking the value
-					*)
+                    (*
+                        if we found a var declaration initialized by a multi-return call, mark it with @:multiReturn meta,
+                        so it will later be generated as multiple locals unpacking the value
+                    *)
                     | TVar (v, Some ({ eexpr = TCall _ } as ecall)) when is_multireturn v.v_type ->
                         v.v_meta <- (Meta.MultiReturn,[],v.v_pos) :: v.v_meta;
                         let ecall = Type.map_expr loop ecall in
@@ -1836,7 +1874,7 @@ let transform_multireturn ctx = function
                     (* if we found a field access for the multi-return call, generate select call *)
                     | TField ({ eexpr = TCall _ } as ecall, f) when is_multireturn ecall.etype ->
                         let ecall = Type.map_expr loop ecall in
-                        mk_mr_select ctx.com e ecall (field_name f)
+                        mk_mr_select ctx.com.basic e ecall (field_name f)
 
                     (* if we found a multi-return call used as a value, box it *)
                     | TCall _ when is_multireturn e.etype ->
@@ -2012,7 +2050,7 @@ let generate com =
     List.iter (generate_static ctx) (List.rev ctx.statics);
     (* Localize init variables inside a do-block *)
     (* Note: __init__ logic can modify static variables. *)
-    (* Generate statics *)
+    (* Generate static inits *)
     List.iter (gen_block_element ctx) (List.rev ctx.inits);
     b();
     newline ctx;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@ package python.internal;
 
 import python.Syntax;
 
-import python.Syntax.pythonCode in py;
+import python.Syntax.code in py;
 
 @:noDoc
 @:native("HxOverrides")
@@ -44,7 +44,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
 	static function eq( a:Dynamic, b:Dynamic ) : Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
-			return Syntax.pythonCode('a is b');
+			return Syntax.code('a is b');
 		}
 		return Syntax.binop(a, "==", b);
 	}
@@ -117,18 +117,36 @@ class HxOverrides {
 		return Syntax.callField(x, "toLowerCase");
 	}
 
+	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "anon_read.split")
+	static public function split(x:Dynamic, delimiter:String) {
+		if (Boot.isString(x)) {
+			return (x:String).split(delimiter);
+		}
+		return Syntax.callField(x, "split", delimiter);
+	}
+
+	@:ifFeature("dynamic_read.length", "anon_optional_read.length", "anon_read.length")
+	static public function length(x:Dynamic) {
+		if (Boot.isString(x)) {
+			return (x:String).length;
+		} else if (Boot.isArray(x)) {
+			return (x:Array<Dynamic>).length;
+		}
+		return Syntax.field(x, "length");
+	}
+
 	@:ifFeature("binop_>>>")
 	static public function rshift(val:Int, n:Int) {
-		return Syntax.binop(Syntax.binop(val, "%", Syntax.pythonCode("0x100000000")), ">>", n);
+		return Syntax.binop(Syntax.binop(val, "%", Syntax.code("0x100000000")), ">>", n);
 	}
 
 	@:ifFeature("binop_%")
 	static public function modf(a:Float, b:Float) {
-		return Syntax.pythonCode("float('nan') if (b == 0.0) else a % b if a >= 0 else -(-a % b)");
+		return Syntax.code("float('nan') if (b == 0.0) else a % b if a >= 0 else -(-a % b)");
 	}
 	@:ifFeature("binop_%")
 	static public function mod(a:Int, b:Int) {
-		return Syntax.pythonCode("a % b if a >= 0 else -(-a % b)");
+		return Syntax.code("a % b if a >= 0 else -(-a % b)");
 	}
 
 	@:ifFeature("dynamic_array_read")

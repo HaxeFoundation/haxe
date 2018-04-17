@@ -1,5 +1,6 @@
 open Globals
 open Common
+open Timer
 open Common.DisplayMode
 open Type
 open Display
@@ -16,12 +17,12 @@ let htmlescape s =
 
 let get_timer_fields start_time =
 	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Timer.htimers;
 	let fields = [("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time))] in
 	if !tot > 0. then
 		Hashtbl.fold (fun _ t acc ->
 			((String.concat "." t.id),(Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot))) :: acc
-		) Common.htimers fields
+		) Timer.htimers fields
 	else
 		fields
 
@@ -71,9 +72,9 @@ let print_toplevel il =
 	List.iter (fun id -> match id with
 		| IdentifierType.ITLocal v ->
 			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-		| IdentifierType.ITMember(c,cf) ->
+		| IdentifierType.ITMember cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITStatic(c,cf) ->
+		| IdentifierType.ITStatic cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| IdentifierType.ITEnum(en,ef) ->
 			if check_ident ef.ef_name then Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);

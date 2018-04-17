@@ -63,6 +63,8 @@ class TestMain {
 			new TestGADT(),
 			new TestGeneric(),
 			new TestArrowFunctions(),
+			new TestCasts(),
+			new TestSyntaxModule(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end

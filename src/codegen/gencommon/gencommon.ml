@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -120,7 +120,7 @@ let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
 let alloc_var n t = Type.alloc_var n t null_pos
 
-let mk_local = ExprBuilder.make_local
+let mk_local = Texpr.Builder.make_local
 
 (* the undefined is a special var that works like null, but can have special meaning *)
 let undefined =
@@ -136,7 +136,7 @@ let debug_expr = s_expr debug_type
 
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
-let timer name = if !debug_mode then Common.timer name else fun () -> ()
+let timer name = if !debug_mode then Timer.timer name else fun () -> ()
 
 let is_string t =
 	match follow t with
@@ -186,7 +186,7 @@ let mk_castfast t e = { e with eexpr = TCast(e, Some (TClassDecl null_class)); e
 
 let mk_static_field_access_infer cl field pos params =
 	try
-		let e_type = ExprBuilder.make_static_this cl pos in
+		let e_type = Texpr.Builder.make_static_this cl pos in
 		let cf = PMap.find field cl.cl_statics in
 		let t = if params = [] then cf.cf_type else apply_params cf.cf_params params cf.cf_type in
 		mk (TField(e_type, FStatic(cl, cf))) t pos
@@ -302,7 +302,7 @@ class ['tp, 'ret] rule_dispatcher name =
 				if key < priority then begin
 					let q = Hashtbl.find tbl key in
 					Stack.iter (fun (n, rule) ->
-						let t = if !debug_mode then Common.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
+						let t = if !debug_mode then Timer.timer [("rule dispatcher rule: " ^ n)] else fun () -> () in
 						let r = rule(tp) in
 						t();
 						if is_some r then begin ret := r; raise Exit end
@@ -362,7 +362,7 @@ class ['tp] rule_map_dispatcher name = object(self)
 				let q = Hashtbl.find tbl key in
 				Stack.iter (fun (n, rule) ->
 					trace ("running rule " ^ n);
-					let t = if !debug_mode then Common.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
+					let t = if !debug_mode then Timer.timer [("rule map dispatcher rule: " ^ n)] else fun () -> () in
 					cur := rule !cur;
 					t();
 				) q
@@ -719,7 +719,7 @@ let run_filters gen =
 	let has_errors = ref false in
 	gen.gcon.error <- (fun msg pos -> has_errors := true; last_error msg pos);
 	(* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
-	let t = Common.timer ["gencommon_filters"] in
+	let t = Timer.timer ["gencommon_filters"] in
 	(if Common.defined gen.gcon Define.GencommonDebug then debug_mode := true else debug_mode := false);
 	let run_filters (filter : texpr rule_map_dispatcher) =
 		let rec loop acc mds =
@@ -815,7 +815,7 @@ let write_file gen w source_dir path extension out_files =
 	let t = timer ["write";"file"] in
 	let s_path = source_dir	^ "/" ^ (snd path) ^ "." ^ (extension) in
 	(* create the folders if they don't exist *)
-	mkdir_from_path s_path;
+	Path.mkdir_from_path s_path;
 
 	let contents = SourceWriter.contents w in
 	let should_write = if not (Common.defined gen.gcon Define.ReplaceFiles) && Sys.file_exists s_path then begin

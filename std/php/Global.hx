@@ -226,6 +226,11 @@ extern class Global {
 	static function array_fill( start_index:Int, num:Int, value:Dynamic ) : NativeArray ;
 
 	/**
+		@see http://php.net/manual/en/function.array-pad.php
+	**/
+	static function array_pad( array:NativeArray, size:Int, value:Dynamic ) : NativeArray ;
+
+	/**
 		@see http://php.net/manual/en/function.in-array.php
 	**/
 	static function in_array( needle:Dynamic, haystack:NativeArray, strict:Bool = false ) : Bool ;
@@ -1093,9 +1098,24 @@ extern class Global {
 	static function mktime( ?hour:Int, ?minute:Int, ?second:Int, ?month:Int, ?day:Int, ?year:Int, ?is_dst:Int ) : EitherType<Int,Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.gmmktime.php
+	**/
+	static function gmmktime( ?hour:Int, ?minute:Int, ?second:Int, ?month:Int, ?day:Int, ?year:Int, ?is_dst:Int ) : Int;
+
+	/**
 		@see http://php.net/manual/en/function.date.php
 	**/
 	static function date( format:String, ?timestamp:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.time.php
+	**/
+	static function time() : Int;
+
+	/**
+		@see http://php.net/manual/en/function.strftime.php
+	**/
+	static function strftime( format:String, ?timestamp:Int ) : EitherType<String,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.strtotime.php
@@ -1197,4 +1217,24 @@ extern class Global {
 		@see http://php.net/manual/en/function.include-once.php
 	**/
 	static function include_once( include_path:String ) : Void;
+
+	/**
+		@see http://php.net/manual/en/function.gzcompress.php
+	**/
+	static function gzcompress( data:String, ?level:Int, ?encoding:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.gzuncompress.php
+	**/
+	static function gzuncompress( data:String, ?length:Int ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.move-uploaded-file.php
+	**/
+	static function move_uploaded_file( filename:String, destination:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.is-uploaded-file.php
+	**/
+	static function is_uploaded_file( filename:String ) : Bool;
 }

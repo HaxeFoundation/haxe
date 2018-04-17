@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -488,7 +488,7 @@ let code_graph (f:fundecl) =
 	in
 	blocks_pos, make_block 0
 
-let optimize dump (f:fundecl) =
+let optimize dump get_str (f:fundecl) =
 	let nregs = Array.length f.regs in
 	let old_code = match dump with None -> f.code | Some _ -> Array.copy f.code in
 	let op index = f.code.(index) in
@@ -632,6 +632,10 @@ let optimize dump (f:fundecl) =
 			| ONullCheck r ->
 				let s = state.(r) in
 				if s.rnullcheck then set_nop i "nullcheck" else begin do_read r; s.rnullcheck <- true; end;
+			| ONew r ->
+				let s = state.(r) in
+				do_write r;
+				s.rnullcheck <- true;
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
@@ -743,6 +747,8 @@ let optimize dump (f:fundecl) =
 
 	(* done *)
 	if dump <> None then begin
+		let assigns = Hashtbl.create 0 in
+		Array.iter (fun (var,pos) -> if pos >= 0 then Hashtbl.replace assigns pos var) f.assigns;
 		let rec loop i block =
 			if i = Array.length f.code then () else
 			let block = try
@@ -765,10 +771,17 @@ let optimize dump (f:fundecl) =
 				live_loop (r + 1) (if is_live r i then r :: l else l)
 			in
 			let live = "LIVE=" ^ String.concat "," (List.map string_of_int (live_loop 0 [])) in
-			write (Printf.sprintf "\t@%-3X %-20s %-20s%s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) live);
+			let var_set = (try let v = Hashtbl.find assigns i in "set " ^ get_str v with Not_found -> "") in
+			write (Printf.sprintf "\t@%-3X %-20s %-20s %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) var_set live);
 			loop (i + 1) block
 		in
 		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);
+		let rec loop_arg = function
+			| [] -> []
+			| (_,p) :: _ when p >= 0 -> []
+			| (str,p) :: l -> (get_str str ^ ":" ^ string_of_int p) :: loop_arg l
+		in
+		write (Printf.sprintf "ARGS = %s\n" (String.concat ", " (loop_arg (Array.to_list f.assigns))));
 		if reg_remap then begin
 			for i=0 to nregs-1 do
 				write (Printf.sprintf "\tr%-2d %-10s%s" i (tstr f.regs.(i)) (if reg_map.(i) < 0 then " unused" else if reg_map.(i) = i then "" else Printf.sprintf " r%-2d" reg_map.(i)))
@@ -785,6 +798,7 @@ let optimize dump (f:fundecl) =
 	let code = ref f.code in
 	let regs = ref f.regs in
 	let debug = ref f.debug in
+	let assigns = ref f.assigns in
 
 	if !nop_count > 0 || reg_remap then begin
 		let new_pos = Array.make (Array.length f.code) 0 in
@@ -831,8 +845,13 @@ let optimize dump (f:fundecl) =
 			| OTrap (r,d) -> OTrap (r,pos d)
 			| _ -> assert false)
 		) !jumps;
+
+		let new_assigns = List.filter (fun (i,p) -> p < 0 || (match f.code.(p) with ONop _ -> false | _ -> true)) (Array.to_list !assigns) in
+		let new_assigns = List.map (fun (i,p) -> i, if p < 0 then p else new_pos.(p)) new_assigns in
+
 		code := out_code;
 		debug := new_debug;
+		assigns := Array.of_list new_assigns;
 		if reg_remap then begin
 			let new_regs = Array.make !used_regs HVoid in
 			for i=0 to nregs-1 do
@@ -843,4 +862,4 @@ let optimize dump (f:fundecl) =
 		end;
 	end;
 
-	{ f with code = !code; regs = !regs; debug = !debug }
+	{ f with code = !code; regs = !regs; debug = !debug; assigns = !assigns }

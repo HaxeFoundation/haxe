@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,9 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:arrayAccess
 	inline function set(idx:Int, val:T):T
 		return this[idx] = val;
+
+	public inline function push(val:T)
+		Syntax.code('{0}[] = {1}', this, val);
 
 	@:to
 	inline function toHaxeArray():Array<T>

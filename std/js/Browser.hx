@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,7 +52,7 @@ class Browser {
 	 * environment such as node.js.
 	 */
 	public static var supported(get, never):Bool;
-	inline static function get_supported() return untyped __typeof__(window) != "undefined";
+	inline static function get_supported() return js.Syntax.typeof(window) != "undefined";
 
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
@@ -104,7 +104,7 @@ class Browser {
 			return new XMLHttpRequest();
 		}
 		if( untyped __js__("typeof ActiveXObject") != "undefined" ) {
-			return untyped __new__("ActiveXObject","Microsoft.XMLHTTP");
+			return js.Syntax.construct("ActiveXObject","Microsoft.XMLHTTP");
 		}
 		throw "Unable to create XMLHttpRequest object.";
 	}

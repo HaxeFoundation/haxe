@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,18 +32,18 @@
 	@:pure function getDay() : Int;
 
 	@:pure inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+		return @:privateAccess HxOverrides.dateStr(this);
 	}
 
 	@:pure static inline function now() : Date {
-		return untyped __new__(Date);
+		return js.Syntax.construct(Date);
 	}
 
 	@:pure static inline function fromTime( t : Float ) : Date {
-		return untyped __new__(Date, t);
+		return js.Syntax.construct(Date, t);
 	}
 
 	@:pure static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+		return @:privateAccess HxOverrides.strDate(s);
 	}
 }

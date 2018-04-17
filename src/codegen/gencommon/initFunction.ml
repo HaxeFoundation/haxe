@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -19,6 +19,7 @@
 open Common
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (*
@@ -88,14 +89,14 @@ let handle_class com cl =
 				| Some e ->
 					(match cf.cf_params with
 					| [] ->
-						let var = mk (TField (ExprBuilder.make_static_this cl cf.cf_pos, FStatic(cl,cf))) cf.cf_type cf.cf_pos in
+						let var = mk (TField (make_static_this cl cf.cf_pos, FStatic(cl,cf))) cf.cf_type cf.cf_pos in
 						let ret = binop Ast.OpAssign var e cf.cf_type cf.cf_pos in
 						cf.cf_expr <- None;
 						ret :: acc
 					| _ ->
 						let params = List.map (fun _ -> t_dynamic) cf.cf_params in
 						let fn = apply_params cf.cf_params params in
-						let var = mk (TField (ExprBuilder.make_static_this cl cf.cf_pos, FStatic(cl,cf))) (fn cf.cf_type) cf.cf_pos in
+						let var = mk (TField (make_static_this cl cf.cf_pos, FStatic(cl,cf))) (fn cf.cf_type) cf.cf_pos in
 						let rec change_expr e =
 							Type.map_expr_type change_expr fn (fun v -> v.v_type <- fn v.v_type; v) e
 						in

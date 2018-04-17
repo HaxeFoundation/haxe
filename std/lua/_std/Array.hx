@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -211,6 +211,16 @@ class Array<T> {
 		return {
 			hasNext : function() return cur_length < length,
 			next : function() return this[cur_length++]
+		}
+	}
+	public function resize(len:Int):Void {
+		if (length < len) {
+			this.length = len;
+		} else if (length > len) {
+			for (i in len ... length) {
+				this[i] = null;
+			}
+			this.length = len;
 		}
 	}
 	private static function __init__() : Void{

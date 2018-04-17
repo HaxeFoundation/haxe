@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -206,6 +206,7 @@ type fundecl = {
 	regs : ttype array;
 	code : opcode array;
 	debug : (int * int) array;
+	assigns : (string index * int) array;
 }
 
 type code = {
@@ -219,6 +220,7 @@ type code = {
 	natives : (string index * string index * ttype * functable index) array;
 	functions : fundecl array;
 	debugfiles : string array;
+	constants : (global * int array) array;
 }
 
 let null_proto =
@@ -660,4 +662,8 @@ let dump pr code =
 		List.iter (fun (i,fidx) ->
 			pr ("		  @" ^ string_of_int i ^ " fun@" ^ string_of_int fidx)
 		) p.pbindings;
-	) protos
+	) protos;
+	pr (string_of_int (Array.length code.constants) ^ " constant values");
+	Array.iter (fun (g,fields) ->
+		pr (Printf.sprintf "    @%d %s [%s]" g (tstr code.globals.(g)) (String.concat "," (List.map string_of_int (Array.to_list fields))));
+	) code.constants

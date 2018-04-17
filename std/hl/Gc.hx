@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,6 +34,10 @@ enum GcFlag {
 		Enable allocation tracking
 	**/
 	Track;
+	/**
+		Disable GC locking for multithreads
+	**/
+	NoThreads;
 }
 
 class Gc {
@@ -60,6 +64,14 @@ class Gc {
 	static function set_flags(v : haxe.EnumFlags<GcFlag>) {
 		_set_flags(v.toInt());
 		return v;
+	}
+	
+	/**
+		Enter/leave a blocking section: when in a blocking section the thread cannot
+		allocate any memory but other threads will not wait for it for collecting memory.
+	**/
+	@:hlNative("std", "blocking")
+	public static function blocking( b : Bool ) {
 	}
 
 	@:hlNative("std", "gc_dump_memory") static function _dump( b : hl.Bytes ) : Void {}

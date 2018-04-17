@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Type
 open Common
-open Codegen.ExprBuilder
+open Texpr.Builder
 
 module Utils = struct
 	let class_of_module_type mt = match mt with
@@ -430,7 +430,7 @@ module Transformer = struct
 			let mk_or e1 e2 = mk (TBinop(OpOr,e1,e2)) !t_bool (punion e1.epos e2.epos) in
 			let mk_if (el,e) eo =
 				let eif = List.fold_left (fun eacc e -> mk_or eacc (mk_eq e1 e)) (mk_eq e1 (List.hd el)) (List.tl el) in
-				mk (TIf(Codegen.mk_parent eif,e,eo)) e.etype e.epos
+				mk (TIf(mk_parent eif,e,eo)) e.etype e.epos
 			in
 			let cases = Hashtbl.fold (fun i el acc ->
 				let eint = mk (TConst (TInt (Int32.of_int i))) !t_int e1.epos in
@@ -1426,6 +1426,8 @@ module Printer = struct
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
 			| FInstance(c,_,{cf_name = "length"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "len(%s)" (print_expr pctx e1)
+			| FAnon({cf_name = "length"}) | FDynamic ("length") ->
+				Printf.sprintf "HxOverrides.length(%s)" (print_expr pctx e1)
 			| FStatic(c,{cf_name = "fromCharCode"}) when (is_type "" "str")(TClassDecl c) ->
 				Printf.sprintf "HxString.fromCharCode"
 			| FStatic({cl_path = ["python";"internal"],"UBuiltins"},{cf_name = s}) ->
@@ -1469,13 +1471,16 @@ module Printer = struct
 			let assign = if is_empty_expr then "" else Printf.sprintf "%s = _hx_e1\n%s" v.v_name indent in
 			let handle_base_type bt =
 				let t = print_base_type bt in
+				let print_custom_check t_str =
+					Printf.sprintf "if %s:\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+				in
 				let print_type_check t_str =
-					Printf.sprintf "if isinstance(_hx_e1, %s):\n%s    %s    %s" t_str indent assign (print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} e)
+					print_custom_check ("isinstance(_hx_e1, " ^ t_str ^ ")")
 				in
 				let res = match t with
 				| "str" -> print_type_check "str"
 				| "Bool" -> print_type_check "bool"
-				| "Int" -> print_type_check "int"
+				| "Int" -> print_custom_check "(isinstance(_hx_e1, int) and not isinstance(_hx_e1, bool))" (* for historic reasons bool extends int *)
 				| "Float" -> print_type_check "float"
 				| t -> print_type_check t
 				in
@@ -1521,7 +1526,8 @@ module Printer = struct
 			| "super",_ ->
 				let s_el = (print_call_args pctx e1 el) in
 				Printf.sprintf "super().__init__(%s)" s_el
-			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}] ->
+			| ("python_Syntax._pythonCode"),[({ eexpr = TConst (TString code) } as ecode); {eexpr = TArrayDecl tl}]
+			| ("python_Syntax.code"),({ eexpr = TConst (TString code) } as ecode) :: tl ->
 				let buf = Buffer.create 0 in
 				let interpolate () =
 					Codegen.interpolate_code pctx.pc_com code tl (Buffer.add_string buf) (fun e -> Buffer.add_string buf (print_expr pctx e)) ecode.epos
@@ -1531,6 +1537,12 @@ module Printer = struct
 				Std.finally (fun() -> pctx.pc_com.error <- old) interpolate ();
 				Buffer.contents buf
 			| ("python_Syntax._pythonCode"), [e] ->
+				print_expr pctx e
+			| ("python_Syntax.code"), [e] ->
+				(match e.eexpr with
+					| TConst (TString py) -> ()
+					| _ -> pctx.pc_com.error "First argument of python.Syntax.code() must be a constant string." e1.epos
+				);
 				print_expr pctx e
 			| "python_Syntax._callNamedUntyped",el ->
 				let res,fields = match List.rev el with
@@ -1575,8 +1587,14 @@ module Printer = struct
 				Printf.sprintf "%s = %s" (print_expr pctx e0) (print_expr pctx e1)
 			| "python_Syntax.arraySet",[e1;e2;e3] ->
 				Printf.sprintf "%s[%s] = %s" (print_expr pctx e1) (print_expr pctx e2) (print_expr pctx e3)
-			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}] ->
-				Printf.sprintf "%s(%s)" (print_expr pctx e1) (print_exprs pctx ", " el)
+			| "python_Syntax._newInstance", e1 :: [{eexpr = TArrayDecl el}]
+			| "python_Syntax.construct", e1 :: el ->
+				let cls =
+					match e1.eexpr with
+						| TConst (TString class_name) -> class_name
+						| _ -> print_expr pctx e1
+				in
+				Printf.sprintf "%s(%s)" cls (print_exprs pctx ", " el)
 			| "python_Syntax.opPow", [e1;e2] ->
 				Printf.sprintf "(%s ** %s)" (print_expr pctx e1) (print_expr pctx e2)
  			| "python_Syntax._foreach",[e1;e2;e3] ->
@@ -1616,7 +1634,7 @@ module Printer = struct
 					"print(" ^ (print_expr pctx e) ^ ")"
 				else
 					"print(str(" ^ (print_expr pctx e) ^ "))"
-			| TField(e1,((FAnon {cf_name = (("join" | "push" | "map" | "filter") as s)}) | FDynamic (("join" | "push" | "map" | "filter") as s))), [x] ->
+			| TField(e1,((FAnon {cf_name = (("split" | "join" | "push" | "map" | "filter") as s)}) | FDynamic (("split" | "join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
 			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
@@ -1868,7 +1886,7 @@ module Generator = struct
 			| None,e2 ->
 				let expr_string_2 = texpr_str e2 pctx in
 				if field = "" then
-					spr ctx expr_string_2
+					print ctx "%s%s" indent expr_string_2
 				else
 					print ctx "%s%s = %s" indent field expr_string_2
 
@@ -2153,7 +2171,7 @@ module Generator = struct
 		gen_class_init ctx c
 
 	let gen_enum_metadata ctx en p =
-		let meta = Codegen.build_metadata ctx.com (TEnumDecl en) in
+		let meta = Texpr.build_metadata ctx.com.basic (TEnumDecl en) in
 		match meta with
 			| None ->
 				()
@@ -2370,7 +2388,9 @@ module Generator = struct
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
 				spr ctx "    def __init__(self, fields):\n";
-				spr ctx "        self.__dict__ = fields"
+				spr ctx "        self.__dict__ = fields\n";
+				spr ctx "    def __repr__(self):\n";
+				spr ctx "        return repr(self.__dict__)"
 			end else
 				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;
@@ -2407,11 +2427,13 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
+				spr ctx "if __name__ == '__main__':";
+				newline ctx;
 				match e.eexpr with
 				| TBlock el ->
-					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
+					List.iter (fun e -> gen_expr ctx e "" "    "; newline ctx) el;
 				| _ ->
-					gen_expr ctx e "" ""
+					gen_expr ctx e "" "    "; newline ctx
 
 	(* Entry point *)
 
@@ -2428,7 +2450,7 @@ module Generator = struct
 		gen_static_inits ctx;
 		gen_main ctx;
 
-		mkdir_from_path com.file;
+		Path.mkdir_from_path com.file;
 		let ch = open_out_bin com.file in
 		output_string ch (Buffer.contents ctx.buf);
 		close_out ch

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -46,11 +46,11 @@ class Sys {
 		python.lib.Sys.exit(code);
 	}
 
-	public static function print(v:Dynamic):Void {
+	public static inline function print(v:Dynamic):Void {
 		python.Lib.print(v);
 	}
 
-	public static function println(v:Dynamic):Void {
+	public static inline function println(v:Dynamic):Void {
 		python.Lib.println(v);
 	}
 

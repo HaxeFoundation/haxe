@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -50,6 +50,15 @@ let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp
 let unify_call_args_ref = ref (fun _ _ _ _ _ _ _-> assert false)
 let unify_call_args a b c d e f g : (texpr list * t) = !unify_call_args_ref a b c d e f g
 
+let safe_decode v t p f =
+	try
+		f ()
+	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+		let s,errors = Interp.handle_decoding_error v t in
+		print_endline s;
+		List.iter (fun (s,i) -> print_endline (Printf.sprintf "line %i: %s" i s)) (List.rev errors);
+		error "There was a problem decoding" p
+
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
 	(fun() -> incr uid; !uid)
@@ -82,10 +91,10 @@ let get_type_patch ctx t sub =
 			tp
 
 let macro_timer ctx l =
-	Common.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
+	Timer.timer (if Common.defined ctx.com Define.MacroTimes then ("macro" :: l) else ["macro"])
 
 let typing_timer ctx need_type f =
-	let t = Common.timer ["typing"] in
+	let t = Timer.timer ["typing"] in
 	let old = ctx.com.error and oldp = ctx.pass and oldlocals = ctx.locals in
 	(*
 		disable resumable errors... unless we are in display mode (we want to reach point of completion)
@@ -121,6 +130,14 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
 		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
+	in
+	let parse_metadata s p =
+		try
+			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
+			| _,[ETypedef t,_] -> t.d_meta
+			| _ -> assert false
+		with _ ->
+			error "Malformed metadata string" p
 	in
 	{
 		MacroApi.pos = p;
@@ -220,15 +237,12 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.meta_patch = (fun m t f s ->
-			let m = (match ParserEntry.parse_string ctx.com.defines (m ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let m = parse_metadata m p in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
 		MacroApi.set_js_generator = (fun gen ->
-			Common.mkdir_from_path ctx.com.file;
+			Path.mkdir_from_path ctx.com.file;
 			let js_ctx = Genjs.alloc_ctx ctx.com in
 			ctx.com.js_gen <- Some (fun() ->
 				let t = macro_timer ctx ["jsGenerator"] in
@@ -281,7 +295,11 @@ let make_macro_api ctx p =
 			!get_pattern_locals_ref ctx e t
 		);
 		MacroApi.define_type = (fun v mdep ->
-			let m, tdef, pos = (try Interp.decode_type_def v with MacroApi.Invalid_expr -> Interp.exc_string "Invalid type definition") in
+			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
+			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
+			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let f () = Interp.decode_type_def v in
+			let m, tdef, pos = safe_decode v ttype p f in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> Typeload.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = Typeload.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
@@ -290,8 +308,8 @@ let make_macro_api ctx p =
 			in
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
-			if not ctx.in_macro then match tdef,ctx.g.macros with
-			| EClass c,Some (_,mctx) when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
+			if not ctx.in_macro then match tdef with
+			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
 				()
@@ -318,12 +336,13 @@ let make_macro_api ctx p =
 				add_dependency mnew ctx.m.curmod;
 			end
 		);
-		MacroApi.module_dependency = (fun mpath file ismacro ->
+		MacroApi.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
-			if ismacro then
-				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
-			else
-				add_dependency m (create_fake_module ctx file);
+			add_dependency m (create_fake_module ctx file);
+		);
+		MacroApi.module_reuse_call = (fun mpath call ->
+			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			m.m_extra.m_reuse_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_reuse_macro_calls
 		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
@@ -353,10 +372,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.add_global_metadata = (fun s1 s2 config ->
-			let meta = (match ParserEntry.parse_string ctx.com.defines (s2 ^ " typedef T = T") null_pos error false with
-				| _,[ETypedef t,_] -> t.d_meta
-				| _ -> assert false
-			) in
+			let meta = parse_metadata s2 p in
 			List.iter (fun m ->
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
@@ -382,6 +398,7 @@ let make_macro_api ctx p =
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
 		MacroApi.decode_type = Interp.decode_type;
+		MacroApi.typer_ctx = ctx;
 	}
 
 let rec init_macro_interp ctx mctx mint =
@@ -640,7 +657,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e = (try
-				(match Codegen.type_constant_value ctx.com e with
+				(match Texpr.type_constant_value ctx.com.basic e with
 				| { eexpr = TConst (TString _); epos = p } when Lexer.is_fmt_string p ->
 					Lexer.remove_fmt_string p;
 					todo := (fun() -> Lexer.add_fmt_string p) :: !todo;
@@ -657,7 +674,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false in
+		let elt, _ = try unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
 		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
@@ -690,7 +707,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		match call_macro args with
 		| None -> None
 		| Some v ->
-			try
+			let process () =
 				Some (match mode with
 				| MExpr | MDisplay -> Interp.decode_expr v
 				| MBuild ->
@@ -714,11 +731,9 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					ctx.ret <- t;
 					(EBlock [],p)
 				)
-			with MacroApi.Invalid_expr ->
-				if v = Interp.vnull then
-					error "Unexpected null value returned from macro" p
-				else
-					error "The macro didn't return a valid result" p
+			in
+			safe_decode v mret p process
+
 	in
 	let e = (if ctx.in_macro then begin
 		(*

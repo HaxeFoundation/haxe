@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -67,11 +67,11 @@ class Boot {
 	}
 
 	/**
-		Returns root namespace based on a value of `--php-prefix` compiler flag.
-		Returns empty string if no `--php-prefix` provided.
+		Returns root namespace based on a value of `-D php-prefix=value` compiler flag.
+		Returns empty string if no `-D php-prefix=value` provided.
 	**/
-	public static inline function getPrefix() : String {
-		return untyped __php__('self::PHP_PREFIX');
+	public static function getPrefix() : String {
+		return Syntax.code('self::PHP_PREFIX');
 	}
 
 	/**
@@ -245,7 +245,7 @@ class Boot {
 					| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
 					| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
 					| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable":
+					| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object":
 						part += '_hx';
 				case _:
 			}
@@ -320,22 +320,6 @@ class Boot {
 	}
 
 	/**
-		`trace()` implementation
-	**/
-	public static function trace( value:Dynamic, infos:PosInfos ) : Void {
-		if (infos != null) {
-			Global.echo('${infos.fileName}:${infos.lineNumber}: ');
-		}
-		Global.echo(stringify(value));
-		if (infos.customParams != null) {
-			for (value in infos.customParams) {
-				Global.echo(',' + stringify(value));
-			}
-		}
-		Global.echo('\n');
-	}
-
-	/**
 		Returns string representation of `value`
 	**/
 	public static function stringify( value : Dynamic ) : String {
@@ -366,7 +350,7 @@ class Boot {
 				return value.__toString();
 			}
 			if (Std.is(value, StdClass)) {
-				if (Global.isset(Syntax.getField(value, 'toString')) && value.toString.is_callable()) {
+				if (Global.isset(Syntax.field(value, 'toString')) && value.toString.is_callable()) {
 					return value.toString();
 				}
 				var result = new NativeIndexedArray<String>();
@@ -397,9 +381,12 @@ class Boot {
 	**/
 	public static function equal( left:Dynamic, right:Dynamic ) : Bool {
 		if (isNumber(left) && isNumber(right)) {
-			return Syntax.binop(left, '==', right);
+			return Syntax.equal(left, right);
 		}
-		return Syntax.binop(left, '===', right);
+		if (Std.is(left, HxClosure) && Std.is(right, HxClosure)) {
+			return (left:HxClosure).equals(right);
+		}
+		return Syntax.strictEqual(left, right);
 	}
 
 	/**
@@ -410,7 +397,7 @@ class Boot {
 		if (left.is_string() || right.is_string()) {
 			return (left:String) + (right:String);
 		}
-		return Syntax.binop(left, '+', right);
+		return Syntax.add(left, right);
 	}
 
 	/**
@@ -428,7 +415,7 @@ class Boot {
 						value.is_int()
 						|| (
 							value.is_float()
-							&& Syntax.binop(Syntax.int(value), '==', value)
+							&& Syntax.equal(Syntax.int(value), value)
 							&& !Global.is_nan(value)
 						)
 					)
@@ -532,7 +519,7 @@ class Boot {
 		if(Global.is_string(value)) {
 			value = @:privateAccess new HxDynamicStr(value);
 		}
-		return Syntax.getField(value, field);
+		return Syntax.field(value, field);
 	}
 
 	public static function dynamicString( str:String ) : HxDynamicStr {
@@ -572,6 +559,8 @@ private class HxClass {
 			return Global.constant('$phpClassName::$property');
 		} else if (Boot.hasGetter(phpClassName, property)) {
 			return Syntax.staticCall(phpClassName, 'get_$property');
+		} else if(phpClassName.method_exists(property)) {
+			return new HxClosure(phpClassName, property);
 		} else {
 			return Syntax.getStaticField(phpClassName, property);
 		}
@@ -597,26 +586,9 @@ private class HxClass {
 @:keep
 @:dox(hide)
 private class HxEnum {
-	static var singletons = new Map<String,HxEnum>();
-
 	var tag : String;
 	var index : Int;
 	var params : NativeArray;
-
-	/**
-		Returns instances of constructors without arguments
-	**/
-	public static function singleton( enumClass:String, tag:String, index:Int ) : HxEnum {
-		var key = '$enumClass::$tag';
-
-		var instance = singletons.get(key);
-		if (instance == null) {
-			instance = Syntax.construct(enumClass, tag, index);
-			singletons.set(key, instance);
-		}
-
-		return instance;
-	}
 
 	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.tag = tag;
@@ -841,7 +813,7 @@ private class HxAnon extends StdClass {
 
 	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.getField(this, name);
+		var method = Syntax.field(this, name);
 		Syntax.keepVar(method);
 		return method(Syntax.splat(args));
 	}
@@ -884,7 +856,7 @@ private class HxClosure {
 		}
 		if (Std.is(eThis, StdClass)) {
 			if (Std.is(eThis, HxAnon)) {
-				return Syntax.getField(eThis, func);
+				return Syntax.field(eThis, func);
 			}
 		}
 		return Syntax.arrayDecl(eThis, func);

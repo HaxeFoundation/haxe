@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,7 +49,7 @@ class Compress {
 	}
 
 	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
-		var c = untyped __call__("gzcompress", s.toString(), level);
+		var c = php.Global.gzcompress(s.toString(), level);
 		return haxe.io.Bytes.ofString(c);
 	}
 }

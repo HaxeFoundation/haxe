@@ -1,6 +1,6 @@
 (*
    The Haxe Compiler
-   Copyright (C) 2005-2017  Haxe Foundation
+   Copyright (C) 2005-2018  Haxe Foundation
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -176,7 +176,7 @@ let cached_source_writer common_ctx filename =
    new source_writer common_ctx (add_header) (add_buf) (close)
 ;;
 
-let make_class_directories = Common.mkdir_recursive;;
+let make_class_directories = Path.mkdir_recursive;;
 
 let make_base_directory dir =
    make_class_directories "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) );;
@@ -4736,7 +4736,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
          | _ -> () );
          ) enum_def.e_constrs;
       if (not header_only) then begin
-         let meta = Codegen.build_metadata ctx.ctx_common (TEnumDecl enum_def) in
+         let meta = Texpr.build_metadata ctx.ctx_common.basic (TEnumDecl enum_def) in
          match meta with Some expr -> visit_params expr | _ -> ();
       end;
    in
@@ -5732,17 +5732,19 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                          *)
                          let castKey = if interface_name="_hx_haxe_IMap" && realName="set" then castKey ^ "*" else castKey in
                          let implementationKey = realName ^ "::" ^ class_implementation in
-                         if castKey <> implementationKey && not (Hashtbl.mem alreadyGlued castKey) then begin
-                            Hashtbl.replace alreadyGlued castKey ();
+                         if castKey <> implementationKey then begin
                             let glue =  Printf.sprintf "%s_%08lx" field.cf_name (gen_hash32 0 cast) in
-                            let argList = ctx_tfun_arg_list ctx true args in
-                            let returnType = ctx_type_string ctx return_type in
-                            let returnStr = if returnType="void" then "" else "return " in
-                            let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
-                               "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
-                            let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
-                            header_glue := headerCode :: !header_glue;
-                            cpp_glue := cppCode :: !cpp_glue;
+                            if not (Hashtbl.mem alreadyGlued castKey) then begin
+                               Hashtbl.replace alreadyGlued castKey ();
+                               let argList = ctx_tfun_arg_list ctx true args in
+                               let returnType = ctx_type_string ctx return_type in
+                               let returnStr = if returnType="void" then "" else "return " in
+                               let cppCode = returnType ^ " " ^ class_name ^ "::" ^ glue ^ "(" ^ argList ^ ") {\n" ^
+                                  "\t\t\t" ^ returnStr ^ realName ^ "(" ^ cpp_arg_names args ^ ");\n}\n" in
+                               let headerCode = "\t\t" ^ returnType ^ " " ^ glue ^ "(" ^ argList ^ ");\n" in
+                               header_glue := headerCode :: !header_glue;
+                               cpp_glue := cppCode :: !cpp_glue;
+                            end;
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ glue ^ ",\n");
                          end else
                             output_cpp ("	" ^ cast ^ "&" ^ implname ^ "::" ^ realName ^ ",\n");
@@ -6051,7 +6053,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          )
       in
 
-      output_cpp "#if HXCPP_SCRIPTABLE\n";
+      output_cpp "#ifdef HXCPP_SCRIPTABLE\n";
 
       let stored_fields = List.filter is_data_member implemented_instance_fields in
       if ( (List.length stored_fields) > 0) then begin
@@ -8076,7 +8078,7 @@ let generate_cppia ctx =
          if (is_internal) then
             (if (debug>=4) then print_endline (" internal enum " ^ (join_class_path enum_def.e_path ".") ))
          else begin
-            let meta = Codegen.build_metadata common_ctx object_def in
+            let meta = Texpr.build_metadata common_ctx.basic object_def in
             if (enum_def.e_extern) then
                (if (debug>=4) then print_endline ("external enum " ^  (join_class_path enum_def.e_path ".") ));
             generate_script_enum common_ctx script enum_def meta
@@ -8171,7 +8173,7 @@ let generate_source ctx =
          if (is_internal) then
             (if (debug>1) then print_endline (" internal enum " ^ name ))
          else begin
-            let meta = Codegen.build_metadata common_ctx object_def in
+            let meta = Texpr.build_metadata common_ctx.basic object_def in
             if (enum_def.e_extern) then
                (if (debug>1) then print_endline ("external enum " ^ name ));
             boot_enums := enum_def.e_path :: !boot_enums;
@@ -8260,7 +8262,7 @@ let generate_source ctx =
       | _ -> cmd_defines := !cmd_defines ^ " -D" ^ name ^ "=\"" ^ (escape_command value) ^ "\"" ) common_ctx.defines.Define.values;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Common.defined common_ctx Define.NoCompilation) ) then begin
-      let t = Common.timer ["generate";"cpp";"native compilation"] in
+      let t = Timer.timer ["generate";"cpp";"native compilation"] in
       let old_dir = Sys.getcwd() in
       Sys.chdir common_ctx.file;
       let cmd = ref "haxelib run hxcpp Build.xml haxe" in

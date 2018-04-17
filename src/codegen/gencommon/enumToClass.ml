@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@ open Globals
 open Ast
 open Type
 open Codegen
+open Texpr.Builder
 open Gencommon
 
 (* ******************************************* *)
@@ -79,7 +80,7 @@ struct
 		let cl = mk_class en.e_module en.e_path pos in
 		Hashtbl.add t.ec_tbl en.e_path cl;
 
-		(match Codegen.build_metadata gen.gcon (TEnumDecl en) with
+		(match Texpr.build_metadata gen.gcon.basic (TEnumDecl en) with
 			| Some expr ->
 				let cf = mk_class_field "__meta__" expr.etype false expr.epos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
 				cf.cf_expr <- Some expr;
@@ -143,7 +144,7 @@ struct
 						eexpr = TFunction({
 							tf_args = tf_args;
 							tf_type = ret;
-							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [ExprBuilder.make_int gen.gcon old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
+							tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [make_int gen.gcon.basic old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
 						});
 						etype = ef_type;
 						epos = pos
@@ -157,9 +158,9 @@ struct
 					in
 					let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNever }) [] in
 					let args = if has_params then
-						[ExprBuilder.make_int gen.gcon old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
+						[make_int gen.gcon.basic old_i pos; null (gen.gclasses.nativearray t_dynamic) pos]
 					else
-						[ExprBuilder.make_int gen.gcon old_i pos]
+						[make_int gen.gcon.basic old_i pos]
 					in
 					cf.cf_meta <- [Meta.ReadOnly,[],pos];
 					cf.cf_expr <- Some {
@@ -287,7 +288,7 @@ struct
 					f
 				in
 				let cond_array = { (mk_field_access gen f "params" f.epos) with etype = gen.gclasses.nativearray t_dynamic } in
-				Codegen.index gen.gcon cond_array i e.etype e.epos
+				index gen.gcon.basic cond_array i e.etype e.epos
 			| _ ->
 				Type.map_expr run e
 		in

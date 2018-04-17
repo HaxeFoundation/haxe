@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,14 +25,15 @@ import sys.io.FileOutput;
 import sys.io.FileInput;
 
 @:coreApi class Sys {
+	/** Environment variables set by `Sys.putEnv()` */
+	static var customEnvVars = new NativeAssocArray<String>();
 
 	public static inline function print( v : Dynamic ) : Void {
 		Global.echo(Std.string(v));
 	}
 
-	public static function println( v : Dynamic ) : Void {
-		print(v);
-		print("\n");
+	public static inline function println( v : Dynamic ) : Void {
+		Global.echo(Std.string(v) + "\n");
 	}
 
 	public static function args() : Array<String> {
@@ -48,7 +49,8 @@ import sys.io.FileInput;
 		return value == false ? null : value;
 	}
 
-	public static inline function putEnv( s : String, v : String ) : Void {
+	public static function putEnv( s : String, v : String ) : Void {
+		customEnvVars[s] = '$v'; //in case of `null` it should become `"null"`
 		Global.putenv('$s=$v');
 	}
 
@@ -117,7 +119,11 @@ import sys.io.FileInput;
 	}
 
 	public static function environment() : Map<String,String> {
-		return php.Lib.hashOfAssociativeArray(SuperGlobal._SERVER);
+		var env = SuperGlobal._SERVER;
+		Syntax.foreach(customEnvVars, function(name:String, value:String) {
+			env[name] = value;
+		});
+		return php.Lib.hashOfAssociativeArray(env);
 	}
 
 	public static function stdin() : haxe.io.Input {

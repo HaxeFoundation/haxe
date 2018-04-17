@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -122,11 +122,7 @@ class JsonPrinter {
 				var v : Date = v;
 				quote(v.toString());
 			} else
-				#if flash
 				classString(v);
-				#else
-				objString(v);
-				#end
 		case TEnum(_):
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
@@ -154,11 +150,9 @@ class JsonPrinter {
 		#end
 	}
 
-	#if flash
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
-	#end
 
 	inline function objString( v : Dynamic ) {
 		fieldsString(v,Reflect.fields(v));

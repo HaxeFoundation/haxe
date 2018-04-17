@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,9 +26,9 @@ import python.internal.StringImpl;
 @:native("str")
 extern class String {
 	var length(default,null) : Int;
-	
+
 	function new(string:String) : Void;
-	
+
 	@:runtime public inline function toUpperCase() : String {
 		return StringImpl.toUpperCase(this);
 	}
@@ -55,7 +55,7 @@ extern class String {
 		return StringImpl.lastIndexOf(this, str, startIndex);
 	}
 
-	inline function split( delimiter : String ) : Array<String> {
+	@:runtime inline function split( delimiter : String ) : Array<String> {
 		return StringImpl.split(this, delimiter);
 	}
 

@@ -15,6 +15,7 @@ extern class Const {
 	**/
 	static var PHP_OS : String;
 	static var PHP_SAPI : String;
+	static var PHP_BINARY : String;
 	static var PHP_EOL : String;
 	static var PHP_INT_MAX : Int;
 	static var PHP_INT_MIN : Int;
@@ -309,4 +310,23 @@ extern class Const {
 	static var GLOB_BRACE : Int;
 	static var GLOB_ONLYDIR : Int;
 	static var GLOB_ERR : Int;
+	/**
+		@see http://php.net/manual/en/zlib.constants.php
+	**/
+	static var FORCE_GZIP : Int;
+	static var FORCE_DEFLATE : Int;
+	static var ZLIB_ENCODING_RAW : Int;
+	static var ZLIB_ENCODING_DEFLATE : Int;
+	static var ZLIB_ENCODING_GZIP : Int;
+	static var ZLIB_FILTERED : Int;
+	static var ZLIB_HUFFMAN_ONLY : Int;
+	static var ZLIB_FIXED : Int;
+	static var ZLIB_RLE : Int;
+	static var ZLIB_DEFAULT_STRATEGY : Int;
+	static var ZLIB_BLOCK : Int;
+	static var ZLIB_NO_FLUSH : Int;
+	static var ZLIB_PARTIAL_FLUSH : Int;
+	static var ZLIB_SYNC_FLUSH : Int;
+	static var ZLIB_FULL_FLUSH : Int;
+	static var ZLIB_FINISH : Int;
 }

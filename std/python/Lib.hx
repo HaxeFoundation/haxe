@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -36,9 +36,11 @@ class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	public static function print(v:Dynamic):Void {
-		var str = Std.string(v);
+	public static inline function print(v:Dynamic):Void {
+		printString(Std.string(v));
+	}
 
+	private static function printString (str:String):Void {
 		PySys.stdout.buffer.write( NativeStringTools.encode(str, "utf-8"));
 		PySys.stdout.flush();
 	}
@@ -46,11 +48,9 @@ class Lib {
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
-	public static function println(v:Dynamic):Void {
+	public static inline function println(v:Dynamic):Void {
 		var str = Std.string(v);
-
-		PySys.stdout.buffer.write( NativeStringTools.encode('$str\n', "utf-8"));
-		PySys.stdout.flush();
+		printString('$str\n');
 	}
 
 	/**

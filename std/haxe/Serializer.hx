@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ import haxe.ds.List;
 	or may not work for instances of external/native classes.
 
 	The specification of the serialization format can be found here:
-	<https://haxe.org/manual/serialization/format>
+	<https://haxe.org/manual/std-serialization-format.html>
 **/
 class Serializer {
 
@@ -172,12 +172,12 @@ class Serializer {
 
 	function serializeRef(v:Dynamic) {
 		#if js
-		var vt = js.Lib.typeof(v);
+		var vt = js.Syntax.typeof(v);
 		#end
 		for( i in 0...cache.length ) {
 			#if js
 			var ci = cache[i];
-			if( js.Lib.typeof(ci) == vt && ci == v ) {
+			if( js.Syntax.typeof(ci) == vt && ci == v ) {
 			#else
 			if( cache[i] == v ) {
 			#end
@@ -472,7 +472,7 @@ class Serializer {
 			} else
 				serializeString(v.tag);
 			buf.add(":");
-			var l : Int = untyped __call__("count", v.params);
+			var l : Int = php.Syntax.code("count({0})", v.params);
 			if( l == 0 || v.params == null)
 				buf.add(0);
 			else {
@@ -537,7 +537,7 @@ class Serializer {
 		}
 	}
 
-	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return untyped o[f];
+	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");

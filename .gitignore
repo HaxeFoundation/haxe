@@ -19,6 +19,7 @@
 /extra/deploy_key
 /extra/*_sec.gpg
 /extra/*_ssh
+/extra/doc/
 
 /src/version.ml
 /haxe
@@ -112,3 +113,6 @@ tests/unit/pypy3-*
 tmp.tmp
 
 dev-display.hxml
+
+.DS_Store
+tests/sourcemaps/bin

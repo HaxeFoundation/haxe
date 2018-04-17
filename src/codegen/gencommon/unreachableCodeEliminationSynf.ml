@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -129,7 +129,7 @@ let init com java_mode =
 			| TFunction tf ->
 				let changed, kind = process_expr tf.tf_expr in
 				let changed = if not (ExtType.is_void tf.tf_type) && kind <> BreaksFunction then
-					Type.concat changed (Codegen.mk_return (null tf.tf_type expr.epos))
+					Type.concat changed (Texpr.Builder.mk_return (null tf.tf_type expr.epos))
 				else
 					changed
 				in

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,7 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module( m : String );
-	FilePos( s : Null<StackItem>, file : String, line : Int );
+	FilePos( s : Null<StackItem>, file : String, line : Int, ?column : Null<Int> );
 	Method( classname : String, method : String );
 	LocalFunction( ?v : Int );
 }
@@ -57,7 +57,11 @@ class CallStack {
 						method = Method(className, methodName);
 					}
 				}
-				stack.push(FilePos(method, site.getFileName(), site.getLineNumber()));
+				var fileName : String = site.getFileName();
+				var fileAddr = fileName == null ? -1 : fileName.indexOf("file:");
+				if( wrapCallSite != null && fileAddr > 0 )
+					fileName = fileName.substr(fileAddr + 6);
+				stack.push(FilePos(method, fileName, site.getLineNumber(), site.getColumnNumber()));
 			}
 			return stack;
 		}
@@ -95,7 +99,7 @@ class CallStack {
 			try {
 				throw new js.Error();
 			} catch( e : Dynamic ) {
-				var a = getStack(e);
+				var a = getStack(js.Lib.getOriginalException());
 				a.shift(); // remove Stack.callStack()
 				return a;
 			}
@@ -219,7 +223,7 @@ class CallStack {
 			}
 			return stack;
 		#elseif js
-			return untyped __define_feature__("haxe.CallStack.exceptionStack", getStack(lastException));
+			return getStack(lastException);
 		#elseif eval
 			return getExceptionStack();
 		#else
@@ -246,7 +250,7 @@ class CallStack {
 		case Module(m):
 			b.add("module ");
 			b.add(m);
-		case FilePos(s,file,line):
+		case FilePos(s,file,line,col):
 			if( s != null ) {
 				itemToString(b,s);
 				b.add(" (");
@@ -254,6 +258,10 @@ class CallStack {
 			b.add(file);
 			b.add(" line ");
 			b.add(line);
+			if(col != null) {
+				b.add(" column ");
+				b.add(col);
+			}
 			if( s != null ) b.add(")");
 		case Method(cname,meth):
 			b.add(cname);
@@ -318,7 +326,7 @@ class CallStack {
 		#elseif js
 			if (s == null) {
 				return [];
-			} else if (js.Lib.typeof(s) == "string") {
+			} else if (js.Syntax.typeof(s) == "string") {
 				// Return the raw lines in browsers that don't support prepareStackTrace
 				var stack : Array<String> = s.split("\n");
 				if( stack[0] == "Error" ) stack.shift();
@@ -330,7 +338,8 @@ class CallStack {
 						var meth = path.pop();
 						var file = rie10.matched(2);
 						var line = Std.parseInt(rie10.matched(3));
-						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line ));
+						var column = Std.parseInt(rie10.matched(4));
+						m.push(FilePos( meth == "Anonymous function" ? LocalFunction() : meth == "Global code" ? null : Method(path.join("."),meth), file, line, column ));
 					} else
 						m.push(Module(StringTools.trim(line))); // A little weird, but better than nothing
 				}
@@ -362,10 +371,13 @@ class CallStack {
 		#elseif hl
 			var stack = [];
 			var r = ~/^([A-Za-z0-9.$_]+)\.([A-Za-z0-9_]+)\((.+):([0-9]+)\)$/;
+			var r_fun = ~/^fun\$([0-9]+)\((.+):([0-9]+)\)$/;
 			for( i in 0...s.length-1 ) {
 				var str = @:privateAccess String.fromUCS2(s[i]);
 				if( r.match(str) )
 					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4))));
+				else if( r_fun.match(str) )
+					stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
 				else
 					stack.push(Module(str));
 			}

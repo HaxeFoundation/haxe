@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,20 +40,20 @@ class HxOverrides {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
 			var k = s.split(":");
-			var d : Date = untyped __new__(Date);
-			untyped d["setTime"](0);
-			untyped d["setUTCHours"](k[0]);
-			untyped d["setUTCMinutes"](k[1]);
-			untyped d["setUTCSeconds"](k[2]);
+			var d = js.Syntax.construct(Date);
+			(cast d)[cast "setTime"](0);
+			(cast d)[cast "setUTCHours"](k[0]);
+			(cast d)[cast "setUTCMinutes"](k[1]);
+			(cast d)[cast "setUTCSeconds"](k[2]);
 			return d;
 		case 10: // YYYY-MM-DD
 			var k = s.split("-");
-			return new Date(cast k[0],cast untyped k[1] - 1,cast k[2],0,0,0);
+			return new Date(cast k[0],(cast k[1]) - 1,cast k[2],0,0,0);
 		case 19: // YYYY-MM-DD hh:mm:ss
 			var k = s.split(" ");
 			var y = k[0].split("-");
 			var t = k[1].split(":");
-			return new Date(cast y[0],cast untyped y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
+			return new Date(cast y[0],(cast y[1]) - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
 		default:
 			throw "Invalid date format : " + s;
 		}
@@ -98,7 +98,7 @@ class HxOverrides {
 		}
 		while (i < len)
 		{
-			if (untyped __js__("a[i] === obj"))
+			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i++;
 		}
@@ -114,7 +114,7 @@ class HxOverrides {
 			i += len;
 		while (i >= 0)
 		{
-			if (untyped __js__("a[i] === obj"))
+			if (js.Syntax.strictEq(a[i], obj))
 				return i;
 			i--;
 		}

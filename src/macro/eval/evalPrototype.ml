@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -128,14 +128,16 @@ module PrototypeBuilder = struct
 				| Some proto -> proto.pinstance_names,proto.pinstance_fields
 				| None -> IntMap.empty,[||]
 			in
-			let a = Array.make (Array.length fields + DynArray.length pctx.instance_fields) vnull in
-			Array.blit fields 0 a 0 (Array.length fields);
+			let offset = Array.length fields in
+			let a = Array.make (offset + DynArray.length pctx.instance_fields) vnull in
+			Array.blit fields 0 a 0 (offset);
 			(* Create the mapping from hashed name to field offset for instance fields. *)
 			let names,_ = DynArray.fold_left (fun (fields,count) (name,v) ->
 				IntMap.add name count fields,count + 1
-			) (names,Array.length fields) pctx.instance_fields in
+			) (names,offset) pctx.instance_fields in
 			names,a,(fun proto ->
-				DynArray.iteri (fun i (_,v) -> a.(i + Array.length fields) <- Lazy.force v) pctx.instance_fields;
+				Array.iteri (fun i v -> a.(i) <- v) fields;
+				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- Lazy.force v) pctx.instance_fields;
 				initialize_fields pctx proto;
 			)
 		end else
@@ -173,7 +175,7 @@ let is_removable_field cf =
 let create_static_prototype ctx mt =
 	let key = path_hash (t_infos mt).mt_path in
 	let com = ctx.curapi.MacroApi.get_com() in
-	let meta = Codegen.build_metadata com mt in
+	let meta = Texpr.build_metadata com.Common.basic mt in
 	let o = match mt with
 	| TClassDecl c ->
 		let pparent = match c.cl_super with
@@ -268,7 +270,7 @@ let get_object_prototype ctx l =
 		proto,l
 
 let add_types ctx types ready =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"add_types"] in
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in

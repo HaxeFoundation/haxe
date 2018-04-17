@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -25,110 +25,6 @@ open Globals
 
 (* -------------------------------------------------------------------------- *)
 (* TOOLS *)
-
-(* Collection of functions that return expressions *)
-module ExprBuilder = struct
-	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
-		mk (TTypeExpr (TClassDecl c)) ta p
-
-	let make_typeexpr mt pos =
-		let t =
-			match mt with
-			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
-			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
-			| _ -> assert false
-		in
-		mk (TTypeExpr mt) t pos
-
-	let make_static_field c cf p =
-		let e_this = make_static_this c p in
-		mk (TField(e_this,FStatic(c,cf))) cf.cf_type p
-
-	let make_throw e p =
-		mk (TThrow e) t_dynamic p
-
-	let make_int com i p =
-		mk (TConst (TInt (Int32.of_int i))) com.basic.tint p
-
-	let make_float com f p =
-		mk (TConst (TFloat f)) com.basic.tfloat p
-
-	let make_bool com b p =
-		mk (TConst(TBool b)) com.basic.tbool p
-
-	let make_string com s p =
-		mk (TConst (TString s)) com.basic.tstring p
-
-	let make_null t p =
-		mk (TConst TNull) t p
-
-	let make_local v p =
-		mk (TLocal v) v.v_type p
-
-	let make_const_texpr com ct p = match ct with
-		| TString s -> mk (TConst (TString s)) com.basic.tstring p
-		| TInt i -> mk (TConst (TInt i)) com.basic.tint p
-		| TFloat f -> mk (TConst (TFloat f)) com.basic.tfloat p
-		| TBool b -> mk (TConst (TBool b)) com.basic.tbool p
-		| TNull -> mk (TConst TNull) (com.basic.tnull (mk_mono())) p
-		| _ -> error "Unsupported constant" p
-end
-
-let field e name t p =
-	mk (TField (e,try quick_field e.etype name with Not_found -> assert false)) t p
-
-let fcall e name el ret p =
-	let ft = tfun (List.map (fun e -> e.etype) el) ret in
-	mk (TCall (field e name ft p,el)) ret p
-
-let mk_parent e =
-	mk (TParenthesis e) e.etype e.epos
-
-let mk_return e =
-	mk (TReturn (Some e)) t_dynamic e.epos
-
-let binop op a b t p =
-	mk (TBinop (op,a,b)) t p
-
-let index com e index t p =
-	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
-
-let maybe_cast e t =
-	try
-		type_eq EqDoNotFollowNull e.etype t;
-		e
-	with
-		Unify_error _ -> mk (TCast(e,None)) t e.epos
-
-let type_constant com c p =
-	let t = com.basic in
-	match c with
-	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
-		(try mk (TConst (TInt (Int32.of_string s))) t.tint p
-		with _ -> mk (TConst (TFloat s)) t.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) t.tfloat p
-	| String s -> mk (TConst (TString s)) t.tstring p
-	| Ident "true" -> mk (TConst (TBool true)) t.tbool p
-	| Ident "false" -> mk (TConst (TBool false)) t.tbool p
-	| Ident "null" -> mk (TConst TNull) (t.tnull (mk_mono())) p
-	| Ident t -> error ("Invalid constant :  " ^ t) p
-	| Regexp _ -> error "Invalid constant" p
-
-let rec type_constant_value com (e,p) =
-	match e with
-	| EConst c ->
-		type_constant com c p
-	| EParenthesis e ->
-		type_constant_value com e
-	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
-	| EArrayDecl el ->
-		mk (TArrayDecl (List.map (type_constant_value com) el)) (com.basic.tarray t_dynamic) p
-	| _ ->
-		error "Constant value expected" p
 
 let rec has_properties c =
 	List.exists (fun f ->
@@ -160,7 +56,7 @@ let add_property_field com c =
 	| _ ->
 		let fields,values = List.fold_left (fun (fields,values) (n,v) ->
 			let cf = mk_field n com.basic.tstring p null_pos in
-			PMap.add n cf fields,((n,null_pos,NoQuotes),ExprBuilder.make_string com v p) :: values
+			PMap.add n cf fields,((n,null_pos,NoQuotes),Texpr.Builder.make_string com.basic v p) :: values
 		) (PMap.empty,[]) props in
 		let t = mk_anon fields in
 		let e = mk (TObjectDecl values) t p in
@@ -177,48 +73,6 @@ let escape_res_name name allow_dirs =
 			"/"
 		else
 			"-x" ^ (string_of_int (Char.code chr))) name
-
-(* -------------------------------------------------------------------------- *)
-(* BUILD META DATA OBJECT *)
-
-let build_metadata com t =
-	let api = com.basic in
-	let p, meta, fields, statics = (match t with
-		| TClassDecl c ->
-			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
-			let statics =  List.map (fun f -> f.cf_name,f.cf_meta) c.cl_ordered_statics in
-			(c.cl_pos, ["",c.cl_meta],fields,statics)
-		| TEnumDecl e ->
-			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
-		| TTypeDecl t ->
-			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
-		| TAbstractDecl a ->
-			(a.a_pos, ["",a.a_meta],[],[])
-	) in
-	let filter l =
-		let l = List.map (fun (n,ml) -> n, ExtList.List.filter_map (fun (m,el,p) -> match m with Meta.Custom s when String.length s > 0 && s.[0] <> ':' -> Some (s,el,p) | _ -> None) ml) l in
-		List.filter (fun (_,ml) -> ml <> []) l
-	in
-	let meta, fields, statics = filter meta, filter fields, filter statics in
-	let make_meta_field ml =
-		let h = Hashtbl.create 0 in
-		mk (TObjectDecl (List.map (fun (f,el,p) ->
-			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
-			Hashtbl.add h f ();
-			(f,null_pos,NoQuotes), mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
-		) ml)) t_dynamic p
-	in
-	let make_meta l =
-		mk (TObjectDecl (List.map (fun (f,ml) -> (f,null_pos,NoQuotes),make_meta_field ml) l)) t_dynamic p
-	in
-	if meta = [] && fields = [] && statics = [] then
-		None
-	else
-		let meta_obj = [] in
-		let meta_obj = (if fields = [] then meta_obj else (("fields",null_pos,NoQuotes),make_meta fields) :: meta_obj) in
-		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
-		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
-		Some (mk (TObjectDecl meta_obj) t_dynamic p)
 
 let update_cache_dependencies t =
 	let rec check_t m t = match t with
@@ -260,108 +114,6 @@ let update_cache_dependencies t =
 			(match c.cl_constructor with None -> () | Some cf -> check_field c.cl_module cf);
 		| _ ->
 			()
-
-(* -------------------------------------------------------------------------- *)
-(* STACK MANAGEMENT EMULATION *)
-
-type stack_context = {
-	stack_var : string;
-	stack_exc_var : string;
-	stack_pos_var : string;
-	stack_pos : pos;
-	stack_expr : texpr;
-	stack_pop : texpr;
-	stack_save_pos : texpr;
-	stack_restore : texpr list;
-	stack_push : tclass -> string -> texpr;
-	stack_return : texpr -> texpr;
-}
-
-let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
-	let t = com.basic in
-	let st = t.tarray t.tstring in
-	let stack_var = alloc_var stack_var st p in
-	let exc_var = alloc_var exc_var st p in
-	let pos_var = alloc_var pos_var t.tint p in
-	let stack_e = mk (TLocal stack_var) st p in
-	let exc_e = mk (TLocal exc_var) st p in
-	let stack_pop = fcall stack_e "pop" [] t.tstring p in
-	let stack_push c m =
-		fcall stack_e "push" [
-			if use_add then
-				binop OpAdd (ExprBuilder.make_string com (s_type_path c.cl_path ^ "::") p) (ExprBuilder.make_string com m p) t.tstring p
-			else
-				ExprBuilder.make_string com (s_type_path c.cl_path ^ "::" ^ m) p
-		] t.tvoid p
-	in
-	let stack_return e =
-		let tmp = alloc_var tmp_var e.etype e.epos in
-		mk (TBlock [
-			mk (TVar (tmp, Some e)) t.tvoid e.epos;
-			stack_pop;
-			mk (TReturn (Some (mk (TLocal tmp) e.etype e.epos))) e.etype e.epos
-		]) e.etype e.epos
-	in
-	{
-		stack_var = stack_var.v_name;
-		stack_exc_var = exc_var.v_name;
-		stack_pos_var = pos_var.v_name;
-		stack_pos = p;
-		stack_expr = stack_e;
-		stack_pop = stack_pop;
-		stack_save_pos = mk (TVar (pos_var, Some (field stack_e "length" t.tint p))) t.tvoid p;
-		stack_push = stack_push;
-		stack_return = stack_return;
-		stack_restore = [
-			binop OpAssign exc_e (mk (TArrayDecl []) st p) st p;
-			mk (TWhile (
-				mk_parent (binop OpGte (field stack_e "length" t.tint p) (mk (TLocal pos_var) t.tint p) t.tbool p),
-				fcall exc_e "unshift" [fcall stack_e "pop" [] t.tstring p] t.tvoid p,
-				NormalWhile
-			)) t.tvoid p;
-			fcall stack_e "push" [index com exc_e 0 t.tstring p] t.tvoid p
-		];
-	}
-
-let stack_init com use_add =
-	stack_context_init com "$s" "$e" "$spos" "$tmp" use_add null_pos
-
-let rec stack_block_loop ctx e =
-	match e.eexpr with
-	| TFunction _ ->
-		e
-	| TReturn None | TReturn (Some { eexpr = TConst _ }) | TReturn (Some { eexpr = TLocal _ }) ->
-		mk (TBlock [
-			ctx.stack_pop;
-			e;
-		]) e.etype e.epos
-	| TReturn (Some e) ->
-		ctx.stack_return (stack_block_loop ctx e)
-	| TTry (v,cases) ->
-		let v = stack_block_loop ctx v in
-		let cases = List.map (fun (v,e) ->
-			let e = stack_block_loop ctx e in
-			let e = (match (mk_block e).eexpr with
-				| TBlock l -> mk (TBlock (ctx.stack_restore @ l)) e.etype e.epos
-				| _ -> assert false
-			) in
-			v , e
-		) cases in
-		mk (TTry (v,cases)) e.etype e.epos
-	| _ ->
-		map_expr (stack_block_loop ctx) e
-
-let stack_block ctx c m e =
-	match (mk_block e).eexpr with
-	| TBlock l ->
-		mk (TBlock (
-			ctx.stack_push c m ::
-			ctx.stack_save_pos ::
-			List.map (stack_block_loop ctx) l
-			@ [ctx.stack_pop]
-		)) e.etype e.epos
-	| _ ->
-		assert false
 
 (* -------------------------------------------------------------------------- *)
 (* FIX OVERRIDES *)
@@ -506,37 +258,10 @@ let rec is_volatile t =
 	| _ ->
 		false
 
-let set_default ctx a c p =
-	let t = a.v_type in
-	let ve = mk (TLocal a) t p in
-	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (mk_parent (mk cond ctx.basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
-
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
 	Bytes.unsafe_to_string (Base64.str_encode ~tbl data)
-
-(*
-	Tells if the constructor might be called without any issue whatever its parameters
-*)
-let rec constructor_side_effects e =
-	match e.eexpr with
-	| TBinop (op,_,_) when op <> OpAssign ->
-		true
-	| TField (_,FEnum _) ->
-		false
-	| TUnop _ | TArray _ | TField _ | TEnumParameter _ | TEnumIndex _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TReturn _ | TThrow _ ->
-		true
-	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVar _
-	| TFunction _ | TArrayDecl _ | TObjectDecl _
-	| TParenthesis _ | TTypeExpr _ | TLocal _ | TMeta _
-	| TConst _ | TContinue | TBreak | TCast _ | TIdent _ ->
-		try
-			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
-			false;
-		with Exit ->
-			true
 
 module Dump = struct
 	(*
@@ -725,7 +450,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
@@ -866,23 +591,8 @@ module ExtClass = struct
 			| Some e' -> c.cl_init <- Some (concat e' e)
 
 	let add_static_init c cf e p =
-		let ethis = ExprBuilder.make_static_this c p in
+		let ethis = Texpr.Builder.make_static_this c p in
 		let ef1 = mk (TField(ethis,FStatic(c,cf))) cf.cf_type p in
 		let e_assign = mk (TBinop(OpAssign,ef1,e)) e.etype p in
 		add_cl_init c e_assign
 end
-
-let for_remap com v e1 e2 p =
-	let v' = alloc_var v.v_name e1.etype e1.epos in
-	let ev' = mk (TLocal v') e1.etype e1.epos in
-	let t1 = (Abstract.follow_with_abstracts e1.etype) in
-	let ehasnext = mk (TField(ev',quick_field t1 "hasNext")) (tfun [] com.basic.tbool) e1.epos in
-	let ehasnext = mk (TCall(ehasnext,[])) com.basic.tbool ehasnext.epos in
-	let enext = mk (TField(ev',quick_field t1 "next")) (tfun [] v.v_type) e1.epos in
-	let enext = mk (TCall(enext,[])) v.v_type e1.epos in
-	let eassign = mk (TVar(v,Some enext)) com.basic.tvoid p in
-	let ebody = Type.concat eassign e2 in
-	mk (TBlock [
-		mk (TVar (v',Some e1)) com.basic.tvoid e1.epos;
-		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) com.basic.tvoid e1.epos;
-	]) com.basic.tvoid p

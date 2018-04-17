@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -136,6 +136,7 @@ let reify in_macro =
 		| CTParent t -> ct "TParent" [to_type_hint t p]
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
+		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
@@ -245,8 +246,8 @@ let reify in_macro =
 		| EObjectDecl fl ->
 			let quote_kind kk p =
 				let n = match kk with
-					| NoQuotes -> "NoQuotes"
-					| DoubleQuotes -> "DoubleQuotes"
+					| NoQuotes -> "Unquoted"
+					| DoubleQuotes -> "Quoted"
 				in
 				mk_enum "QuoteStatus" n [] p
 			in

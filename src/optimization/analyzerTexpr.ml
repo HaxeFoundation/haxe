@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -356,7 +356,7 @@ module TexprFilter = struct
 		| TWhile(e1,e2,flag) when not (is_true_expr e1) ->
 			let p = e.epos in
 			let e_break = mk TBreak t_dynamic p in
-			let e_not = mk (TUnop(Not,Prefix,Codegen.mk_parent e1)) e1.etype e1.epos in
+			let e_not = mk (TUnop(Not,Prefix,Texpr.Builder.mk_parent e1)) e1.etype e1.epos in
 			let e_if eo = mk (TIf(e_not,e_break,eo)) com.basic.tvoid p in
 			let rec map_continue e = match e.eexpr with
 				| TContinue ->
@@ -370,10 +370,10 @@ module TexprFilter = struct
 			let e_if = e_if None in
 			let e_block = if flag = NormalWhile then Type.concat e_if e2 else Type.concat e2 e_if in
 			let e_true = mk (TConst (TBool true)) com.basic.tbool p in
-			let e = mk (TWhile(Codegen.mk_parent e_true,e_block,NormalWhile)) e.etype p in
+			let e = mk (TWhile(Texpr.Builder.mk_parent e_true,e_block,NormalWhile)) e.etype p in
 			loop e
 		| TFor(v,e1,e2) ->
-			let e = Codegen.for_remap com v e1 e2 e.epos in
+			let e = Texpr.for_remap com.basic v e1 e2 e.epos in
 			loop e
 		| _ ->
 			Type.map_expr loop e
@@ -1237,7 +1237,7 @@ module Purity = struct
 				| None ->
 					if not (is_pure c cf) then taint node
 				(* TODO: The function code check shouldn't be here I guess. *)
-				| Some _ when (Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.Custom ":hlNative") cf.cf_meta || Meta.has (Meta.Custom ":hlNative") c.cl_meta) ->
+				| Some _ when (Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
 					if not (is_pure c cf) then taint node
 				| Some e ->
 					try

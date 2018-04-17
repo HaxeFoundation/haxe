@@ -50,7 +50,7 @@ abstract ModuleCheckPolicy(Int) {
 	`--macro server.field(args)`.
 **/
 class CompilationServer {
-	#if macro
+	#if (macro || display)
 
 	/**
 		Sets the `ModuleCheckPolicy` of all files whose dot-path matches an

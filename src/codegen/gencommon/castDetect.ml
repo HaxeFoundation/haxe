@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -81,10 +81,10 @@ struct
 				let ret_type = match !current_ret_type with | Some(s) -> s | None -> gen.gcon.error "Invalid return outside function declaration." e.epos; assert false in
 				(match eopt with
 				| None when not (ExtType.is_void ret_type) ->
-					mk_return (null ret_type e.epos)
+					Texpr.Builder.mk_return (null ret_type e.epos)
 				| None -> e
 				| Some eret ->
-					mk_return (handle (run eret) ret_type eret.etype))
+					Texpr.Builder.mk_return (handle (run eret) ret_type eret.etype))
 			| TFunction(tfunc) ->
 				let last_ret = !current_ret_type in
 				current_ret_type := Some(tfunc.tf_type);
@@ -582,8 +582,19 @@ let select_overload gen applied_f overloads types params =
 	| (t,cf) :: _ -> cf,t,false
 	| _ -> assert false
 
+let rec cur_ctor c tl =
+	match c.cl_constructor with
+	| Some ctor ->
+		ctor, c, tl
+	| None ->
+		match c.cl_super with
+		| None ->
+			raise Not_found
+		| Some (sup,stl) ->
+			cur_ctor sup (List.map (apply_params c.cl_params tl) stl)
+
 let choose_ctor gen cl tparams etl maybe_empty_t p =
-	let ctor, sup, stl = OverloadingConstructor.cur_ctor cl tparams in
+	let ctor, sup, stl = cur_ctor cl tparams in
 	(* get returned stl, with Dynamic as t_empty *)
 	let rec get_changed_stl c tl =
 		if c == sup then

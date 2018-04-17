@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -341,14 +341,14 @@ typedef Catch = {
 **/
 enum QuoteStatus {
 	/**
-		No qutoes
+		No quotes
 	**/
-	NoQuotes;
+	Unquoted;
 
 	/**
 		Double quotes `"`
 	**/
-	DoubleQuotes;
+	Quoted;
 }
 
 /**
@@ -570,6 +570,11 @@ enum ComplexType {
 		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
+
+	/**
+		Represents a type with a name.
+	**/
+	TNamed( n : String, t : ComplexType );
 }
 
 /**

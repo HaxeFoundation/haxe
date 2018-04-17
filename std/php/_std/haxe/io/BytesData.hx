@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,8 @@
 package haxe.io;
 
 import php.*;
+
+using php.Syntax;
 
 typedef BytesData = BytesDataAbstract;
 
@@ -49,7 +51,7 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 	}
 
 	public inline function compare (other:BytesDataAbstract):Int {
-		return Syntax.binop(this.s, '<=>', (other:Container).s);
+		return Syntax.spaceship(this.s, (other:Container).s);
 	}
 
 	public inline function getString (pos:Int, len:Int):String {
@@ -61,7 +63,7 @@ private abstract BytesDataAbstract(Container) from Container to Container {
 	}
 
 	public inline function blit (pos : Int, src : BytesDataAbstract, srcpos : Int, len : Int):Void {
-		this.s = Syntax.binop(Syntax.binop(Global.substr(this.s, 0, pos), '.', Global.substr(src, srcpos, len)), '.', Global.substr(this.s, pos + len));
+		this.s = Global.substr(this.s, 0, pos).concat(Global.substr(src, srcpos, len)).concat(Global.substr(this.s, pos + len));
 	}
 
 	inline function get_length ():Int {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -95,6 +95,21 @@ class File {
 			{
 				ra.seek(f.length());
 			}
+			return new FileOutput( ra );
+		}
+		catch (e:Dynamic) //swallow checked exceptions
+		{
+			throw e;
+		}
+	}
+
+	public static function update( path : String, binary : Bool = true ) : FileOutput
+	{
+		var f = new java.io.File(path);
+
+		try
+		{
+			var ra = new java.io.RandomAccessFile(f, "rw");
 			return new FileOutput( ra );
 		}
 		catch (e:Dynamic) //swallow checked exceptions

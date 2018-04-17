@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -783,7 +783,7 @@ and jit_expr jit return e =
 		unop jit op flag v1 e.epos
 	(* rewrites/skips *)
 	| TFor(v,e1,e2) ->
-		loop (Codegen.for_remap (ctx.curapi.MacroApi.get_com()) v e1 e2 e.epos)
+		loop (Texpr.for_remap (ctx.curapi.MacroApi.get_com()).Common.basic v e1 e2 e.epos)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
 	| TIdent s ->
@@ -808,7 +808,7 @@ and jit_tfunction jit static pos tf =
 	(* Add conditionals for default values. *)
 	let e = List.fold_left (fun e (v,cto) -> match cto with
 		| None -> e
-		| Some ct -> concat (Codegen.set_default (ctx.curapi.MacroApi.get_com()) v ct e.epos) e
+		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
 	) tf.tf_expr tf.tf_args in
 	(* Jit the function expression. *)
 	let exec = jit_expr jit true e in
@@ -838,7 +838,7 @@ and get_env jit static file info =
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	(* Create a new JitContext with an initial scope *)
 	let jit = EvalJitContext.create ctx in
 	let exec = jit_tfunction jit static pos tf in
@@ -852,7 +852,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
-	let t = Common.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
+	let t = Timer.timer [(if ctx.is_macro then "macro" else "interp");"jit"] in
 	let jit = EvalJitContext.create ctx in
 	let f = jit_expr jit false (mk_block e) in
 	t();

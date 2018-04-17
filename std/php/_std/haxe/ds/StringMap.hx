@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,7 +39,7 @@ import haxe.Constraints;
 	}
 
 	public inline function get( key : String ) : Null<T> {
-		return Syntax.binop(data[key], '??', null);
+		return Syntax.coalesce(data[key], null);
 	}
 
 	public inline function exists( key : String ) : Bool {
@@ -62,7 +62,7 @@ import haxe.Constraints;
 	public inline function iterator() : Iterator<T> {
 		return data.iterator();
 	}
-	
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
 		copied.data = data;

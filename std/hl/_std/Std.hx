@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -102,6 +102,7 @@ class Std {
 			switch( tb.kind ) {
 			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
+			case HVoid: return a;
 			default:
 			}
 		case HF32, HF64:
@@ -109,6 +110,13 @@ class Std {
 			switch( tb.kind ) {
 			case HUI8, HUI16, HI32: return a + (b:Int);
 			case HF32, HF64: return a + (b:Float);
+			case HVoid: return a;
+			default:
+			}
+		case HVoid:
+			switch( tb.kind ) {
+			case HUI8, HUI16, HI32, HF32, HF64: return b;
+			case HVoid: return 0.;
 			default:
 			}
 		default:

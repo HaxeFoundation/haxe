@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,7 +49,8 @@ class Prime {
    #if (macro)
    static function codeToType(code:String,forCpp:Bool) : String
    {
-      var isCpp = Context.defined("cpp");
+      if (code=="c" && !forCpp)
+         throw "const char * type only supported in cpp mode";
 
       switch(code)
       {
@@ -60,10 +61,7 @@ class Prime {
          case "f" : return forCpp ? "cpp.Float32" : "Float";
          case "o" : return forCpp ? "cpp.Object" : "Dynamic";
          case "v" : return forCpp ? "cpp.Void" : "Dynamic";
-         case "c" :
-             if (forCpp)
-                return "cpp.ConstCharStar";
-             throw "const char * type only supported in cpp mode";
+         case "c" : return "cpp.ConstCharStar";
          default:
             throw "Unknown signature type :" + code;
       }
@@ -97,7 +95,8 @@ class Prime {
          throw "Invalid function signature " + inSig;
       var argCount = parts.length-1;
 
-      var cppMode = Context.defined("cpp");
+      var cppiaMode = Context.defined("cppia");
+      var cppMode = Context.defined("cpp") && !cppiaMode;
 
       var typeString = parts.length==1 ? "Void" : codeToType(parts.shift(),cppMode);
       for(p in parts)
@@ -114,7 +113,8 @@ class Prime {
          if (argCount>5)
             argCount = -1;
          var lazy = inAllowFail ? "loadLazy" : "load";
-         var expr = 'new cpp.Callable<$typeString>(neko.Lib.$lazy("$inModule","$inName",$argCount))';
+         var lib = cppiaMode ? "cpp" : "neko";
+         var expr = 'new cpp.Callable<$typeString>($lib.Lib.$lazy("$inModule","$inName",$argCount))';
          return Context.parse( expr, Context.currentPos() );
       }
    }

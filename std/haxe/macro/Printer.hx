@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -120,6 +120,7 @@ class Printer {
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
+		case TNamed(n,ct): n + ":" + printComplexType(ct);
 		case TExtend(tpl, fields): '{> ${tpl.map(printTypePath).join(" >, ")}, ${fields.map(printField).join(", ")} }';
 	}
 
@@ -173,8 +174,8 @@ class Printer {
 
 	public function printObjectFieldKey(of:ObjectField) {
 		return switch (of.quotes) {
-			case NoQuotes: of.field;
-			case DoubleQuotes: '"${of.field}"'; // TODO: Have to escape that?
+			case null | Unquoted: of.field;
+			case Quoted: '"${of.field}"'; // TODO: Have to escape that?
 		}
 	}
 

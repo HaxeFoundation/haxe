@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -252,6 +252,13 @@ module StdArray = struct
 	let unshift = vifun1 (fun vthis v ->
 		let this = this vthis in
 		EvalArray.unshift this v;
+		vnull
+	)
+
+	let resize = vifun1 (fun vthis len ->
+		let this = this vthis in
+		let len = decode_int len in
+		EvalArray.resize this len;
 		vnull
 	)
 end
@@ -561,8 +568,8 @@ module StdCallStack = struct
 		let l = DynArray.create () in
 		List.iter (fun (pos,kind) ->
 			let file_pos s =
-				let line = Lexer.get_error_line pos in
-				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line|] None
+				let line1,col1,_,_ = Lexer.get_pos_coords pos in
+				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line1;vint col1|] None
 			in
 			match kind with
 			| EKLocalFunction i ->
@@ -951,6 +958,10 @@ module StdFile = struct
 		create_out path binary [Open_append]
 	)
 
+	let update = vfun2 (fun path binary ->
+		create_out path binary [Open_rdonly; Open_wronly]
+	)
+
 	let getBytes = vfun1 (fun path ->
 		let path = decode_string path in
 		try encode_bytes (Bytes.unsafe_of_string (Std.input_file ~bin:true path)) with Sys_error _ -> exc_string ("Could not read file " ^ path)
@@ -1134,7 +1145,7 @@ module StdFileSystem = struct
 	)
 
 	let createDirectory = vfun1 (fun path ->
-		(try Common.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
+		(try Path.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
 		vnull
 	)
 
@@ -1354,14 +1365,17 @@ module StdLog = struct
 
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
-		let infos = decode_object infos in
-		let file_name = decode_string (object_field infos key_fileName) in
-		let line_number = decode_int (object_field infos key_lineNumber) in
-		let l = match object_field infos key_customParams with
-			| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
-			| _ -> [s]
-		in
-		((get_ctx()).curapi.MacroApi.get_com()).Common.print (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l));
+		let s = match infos with
+			| VNull -> Printf.sprintf "%s\n" s
+			| _ ->  let infos = decode_object infos in
+				let file_name = decode_string (object_field infos key_fileName) in
+				let line_number = decode_int (object_field infos key_lineNumber) in
+				let l = match object_field infos key_customParams with
+					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
+					| _ -> [s]
+				in
+				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
 end
@@ -1685,6 +1699,18 @@ module StdResource = struct
 	)
 end
 
+module StdSha1 = struct
+	let encode = vfun1 (fun s ->
+		let s = decode_string s in
+		encode_string (Sha1.to_hex (Sha1.string s))
+	)
+
+	let make = vfun1 (fun b ->
+		let b = decode_bytes b in
+		encode_bytes (Bytes.unsafe_of_string (Sha1.to_bin (Sha1.string (Bytes.unsafe_to_string b))))
+	)
+end
+
 module StdSocket = struct
 	open Unix
 
@@ -1853,11 +1879,11 @@ module StdStd = struct
 	)
 
 	let parseInt = vfun1 (fun v ->
-		try vint32 (Common.parse_int (decode_string v)) with _ -> vnull
+		try vint32 (Numeric.parse_int (decode_string v)) with _ -> vnull
 	)
 
 	let parseFloat = vfun1 (fun v ->
-		try vfloat (Common.parse_float (decode_string v)) with _ -> vnull
+		try vfloat (Numeric.parse_float (decode_string v)) with _ -> vnull
 	)
 
 	let random = vfun1 (fun v ->
@@ -2066,17 +2092,7 @@ end
 module StdStringTools = struct
 	let url_encode s =
 		let b = Rope.Buffer.create 0 in
-		let hex = "0123456789ABCDEF" in
-		for i = 0 to String.length s - 1 do
-			let c = String.unsafe_get s i in
-			match c with
-			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-				Rope.Buffer.add_char b c
-			| _ ->
-				Rope.Buffer.add_char b '%';
-				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
-				Rope.Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
-		done;
+		Common.url_encode s (Rope.Buffer.add_char b);
 		Rope.Buffer.contents b
 
 	let fastCodeAt = vfun2 (fun s index ->
@@ -2723,6 +2739,7 @@ let init_standard_library builtins =
 		"pop",StdArray.pop;
 		"push",StdArray.push;
 		"remove",StdArray.remove;
+		"resize",StdArray.resize;
 		"reverse",StdArray.reverse;
 		"shift",StdArray.shift;
 		"slice",StdArray.slice;
@@ -2834,6 +2851,7 @@ let init_standard_library builtins =
 		"read",StdFile.read;
 		"saveBytes",StdFile.saveBytes;
 		"saveContent",StdFile.saveContent;
+		"update",StdFile.update;
 		"write",StdFile.write;
 	] [];
 	init_fields builtins (["sys";"io"],"FileInput") [] [
@@ -2959,6 +2977,10 @@ let init_standard_library builtins =
 		"listNames",StdResource.listNames;
 		"getString",StdResource.getString;
 		"getBytes",StdResource.getBytes;
+	] [];
+	init_fields builtins (["haxe";"crypto"],"Sha1") [
+		"encode",StdSha1.encode;
+		"make",StdSha1.make;
 	] [];
 	init_fields builtins (["sys";"net";"_Socket"],"NativeSocket") [
 		"select",StdSocket.select;

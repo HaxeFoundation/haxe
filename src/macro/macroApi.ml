@@ -38,7 +38,8 @@ type 'value compiler_api = {
 	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
-	module_dependency : string -> string -> bool -> unit;
+	module_dependency : string -> string -> unit;
+	module_reuse_call : string -> string -> unit;
 	current_module : unit -> module_def;
 	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
@@ -53,6 +54,7 @@ type 'value compiler_api = {
 	encode_ctype : Ast.type_hint -> 'value;
 	decode_type : 'value -> t;
 	flush_context : (unit -> t) -> t;
+	typer_ctx : Typecore.typer;
 }
 
 
@@ -192,6 +194,8 @@ module type InterpApi = sig
 
 	val flush_core_context : (unit -> t) -> t
 
+	val handle_decoding_error : value -> Type.t -> (string * (string * int) list)
+
 end
 
 let enum_name = function
@@ -283,7 +287,7 @@ let haxe_float f p =
 	else if (f <> f) then
 		(Ast.EField (math, "NaN"), p)
 	else
-		(Ast.EConst (Ast.Float (float_repres f)), p)
+		(Ast.EConst (Ast.Float (Numeric.float_repres f)), p)
 
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
@@ -433,6 +437,8 @@ and encode_ctype t =
 		4, [encode_array (List.map encode_path tl); encode_array (List.map encode_field fields)]
 	| CTOptional t ->
 		5, [encode_ctype t]
+	| CTNamed (n,t) ->
+		6, [encode_placed_name n; encode_ctype t]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -732,6 +738,8 @@ and decode_ctype t =
 		CTExtend (List.map decode_path (decode_array tl), List.map decode_field (decode_array fl))
 	| 5, [t] ->
 		CTOptional (decode_ctype t)
+	| 6, [n;t] ->
+		CTNamed ((decode_string n,p), decode_ctype t)
 	| _ ->
 		raise Invalid_expr),p
 
@@ -1661,7 +1669,7 @@ let macro_api ccom get_api =
 						encode_string ("\"" ^ Ast.s_escape (decode_string v) ^ "\"")
 					);
 					"buildMetaData", vfun1 (fun t ->
-						match Codegen.build_metadata com (decode_type_decl t) with
+						match Texpr.build_metadata com.basic (decode_type_decl t) with
 						| None -> vnull
 						| Some e -> encode_texpr e
 					);
@@ -1827,11 +1835,11 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"register_module_dependency", vfun2 (fun m file ->
-			(get_api()).module_dependency (decode_string m) (decode_string file) false;
+			(get_api()).module_dependency (decode_string m) (decode_string file);
 			vnull
 		);
 		"register_module_reuse_call", vfun2 (fun m mcall ->
-			(get_api()).module_dependency (decode_string m) (decode_string mcall) true;
+			(get_api()).module_reuse_call (decode_string m) (decode_string mcall);
 			vnull
 		);
 		"get_typed_expr", vfun1 (fun e ->

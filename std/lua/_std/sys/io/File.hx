@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,13 @@ class File {
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
 		return new FileOutput(Io.open(path, "a"));
+	}
 
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
+		return new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {

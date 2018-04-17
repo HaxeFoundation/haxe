@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -156,7 +156,7 @@ class TypedExprTools {
 		}
 	}
 
-	#if macro
+	#if (macro || display)
 	static public function toString(t:TypedExpr, ?pretty = false):String {
 		return @:privateAccess haxe.macro.Context.sExpr(t, pretty);
 	}

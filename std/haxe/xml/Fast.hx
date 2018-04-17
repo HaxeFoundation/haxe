@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -221,7 +221,7 @@ abstract Fast(Xml) {
 	function get_innerHTML() {
 		var s = new StringBuf();
 		for( x in this )
-			s.add(this.toString());
+			s.add(x.toString());
 		return s.toString();
 	}
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -296,7 +296,7 @@ and gen_expr ctx e =
 			in
 			match c with
 			| None | Some TNull -> acc
-			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc
+			| Some c ->	gen_expr ctx (Texpr.set_default ctx.com.basic a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
@@ -630,7 +630,7 @@ let gen_name ctx acc t =
 		let setname = (EBinop ("=",field p path "__ename__",arr),p) in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) e.e_names); int p (List.length e.e_names)] in
 		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in
-		let meta = (match Codegen.build_metadata ctx.com (TEnumDecl e) with
+		let meta = (match Texpr.build_metadata ctx.com.basic (TEnumDecl e) with
 			| None -> []
 			| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p]
 		) in
@@ -794,7 +794,7 @@ let generate com =
 	let use_nekoc = Common.defined com Define.UseNekoc in
 	if not use_nekoc then begin
 		try
-			mkdir_from_path com.file;
+			Path.mkdir_from_path com.file;
 			let ch = IO.output_channel (open_out_bin com.file) in
 			Nbytecode.write ch (Ncompile.compile ctx.version e);
 			IO.close_out ch;

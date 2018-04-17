@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -138,7 +138,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									eexpr = TFunction({
 										tf_args = List.map (fun v -> v,None) vars;
 										tf_type = r2;
-										tf_expr = if is_void then call else (mk_return (mk_cast r2 call));
+										tf_expr = if is_void then call else (Texpr.Builder.mk_return (mk_cast r2 call));
 									});
 									etype = real_ftype;
 									epos = p;
@@ -208,7 +208,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in
 								let tf_args = List.rev new_args in
-								let f3_mk_return = if ExtType.is_void ret then (fun e -> e) else (fun e -> mk_return (mk_cast ret e)) in
+								let f3_mk_return = if ExtType.is_void ret then (fun e -> e) else (fun e -> Texpr.Builder.mk_return (mk_cast ret e)) in
 								f3.cf_expr <- Some {
 									eexpr = TFunction({
 										tf_args = tf_args;

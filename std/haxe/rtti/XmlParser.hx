@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -569,14 +569,14 @@ class XmlParser {
 			var evalues = x.has.v ? x.att.v.split(":").iterator() : null;
 			for( e in x.elements ) {
 				var opt = false;
-				var a = eargs.next();
+				var a = eargs.hasNext() ? eargs.next() : null;
 				if( a == null )
 					a = "";
 				if( a.charAt(0) == "?" ) {
 					opt = true;
 					a = a.substr(1);
 				}
-				var v = evalues == null ? null : evalues.next();
+				var v = evalues == null || !evalues.hasNext() ? null : evalues.next();
 				args.push({
 					name : a,
 					opt : opt,

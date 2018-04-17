@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -42,7 +42,7 @@ let stdlib = ref None
 let debug = ref None
 
 let create com api is_macro =
-	let t = Common.timer [(if is_macro then "macro" else "interp");"create"] in
+	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr sid;
 	let builtins = match !stdlib with
 		| None ->
@@ -430,3 +430,103 @@ let value_string = value_string
 let exc_string = exc_string
 
 let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
+
+let handle_decoding_error v t =
+	let line = ref 1 in
+	let errors = ref [] in
+	let error msg v s =
+		errors := (msg,!line) :: !errors;
+		Printf.sprintf "%s%s <- %s" s (value_string v) msg
+	in
+	let rec loop tabs s t v =
+		match t with
+		| TAnon an ->
+			let s = s ^ "{" in
+			let s = PMap.fold (fun cf s ->
+				incr line;
+				let s = Printf.sprintf "%s\n%s%s: " s (tabs ^ "\t") cf.cf_name in
+				try
+					let vf = field_raise v (EvalHash.hash_s cf.cf_name) in
+					begin match vf with
+					| VNull when not (is_explicit_null cf.cf_type) -> error "expected value" vf s
+					| _ -> loop (tabs ^ "\t") s cf.cf_type vf
+					end
+				with Not_found ->
+					if not (is_explicit_null cf.cf_type) then error "expected value" VNull s
+					else s ^ "null"
+			) an.a_fields s in
+			incr line;
+			Printf.sprintf "%s\n%s}" s tabs
+		| TInst({cl_path=[],"Array"},[t1]) ->
+			begin match v with
+				| VArray va ->
+					let s = s ^ "[" in
+					let s = snd (List.fold_left (fun (first,s) v ->
+						let s = if first then s else s ^ ", " in
+						false,loop tabs s t1 v
+					) (true,s) (EvalArray.to_list va)) in
+					s ^ "]"
+				| _ -> error "expected Array" v s
+			end
+		| TInst({cl_path=[],"String"},_) ->
+			begin match v with
+				| VString _ -> s ^ (value_string v)
+				| _ -> error "expected String" v s
+			end
+		| TAbstract({a_path=[],"Null"},[t1]) ->
+			if v = VNull then s ^ "null" else loop tabs s t1 v
+		| TAbstract({a_path=[],"Bool"},_) ->
+			begin match v with
+				| VTrue -> s ^ "true"
+				| VFalse -> s ^ "false"
+				| _ -> error "expected Bool" v s
+			end
+		| TAbstract({a_path=[],("Int" | "Float")},_) ->
+			begin match v with
+				| VInt32 _ | VFloat _ -> s ^ (value_string v)
+				| _ -> error "expected Bool" v s
+			end
+		| TType(t,tl) ->
+			loop tabs s (apply_params t.t_params tl t.t_type) v
+		| TAbstract({a_path=["haxe";"macro"],"Position"},_) ->
+			begin match v with
+				| VInstance {ikind=IPos _} -> s ^ "#pos"
+				| _ -> error "expected Position" v s
+			end
+		| TEnum(en,_) ->
+			begin match v with
+				| VEnumValue ev ->
+					let ef = PMap.find (List.nth en.e_names ev.eindex) en.e_constrs in
+					let s = Printf.sprintf "%s%s" s ef.ef_name in
+					let rec loop2 first s tl vl = match tl,vl with
+						| _,[] -> s
+						| [],_ -> s (* ? *)
+						| (_,_,t) :: tl,v :: vl ->
+							let s = if first then s else s ^ ", " in
+							let s = loop tabs s t v in
+							loop2 false s tl vl
+					in
+					begin match follow ef.ef_type,Array.to_list ev.eargs with
+						| _,[] -> s
+						| TFun(tl,_),vl ->
+							let s = s ^ "(" in
+							let s =  loop2 true s tl vl in
+							s ^ ")"
+						| _ -> s
+					end
+				| _ -> error "expected enum value" v s
+			end
+		| TInst _ | TAbstract _ | TFun _ ->
+			(* TODO: might need some more of these, not sure *)
+			assert false
+		| TMono r ->
+			begin match !r with
+				| None -> s
+				| Some t -> loop tabs s t v
+			end
+		| TLazy r ->
+			loop tabs s (lazy_type r) v
+		| TDynamic _ ->
+			s (* Nothing we can do *)
+	in
+	loop "" "" t v,!errors

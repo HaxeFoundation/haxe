@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -84,7 +84,7 @@ private class SocketInput extends haxe.io.Input {
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		if( pos < 0 || len < 0 || pos + len > buf.length ) throw haxe.io.Error.OutsideBounds;
 		var r = socket_recv(@:privateAccess sock.__s,buf.getData().bytes,pos,len);
-		if( r < 0 ) {
+		if( r <= 0 ) {
 			if( r == -1 ) throw Blocked;
 			throw new haxe.io.Eof();
 		}
@@ -118,7 +118,7 @@ class Socket {
 	}
 
 	function init() : Void {
-		__s = socket_new(false);
+		if( __s == null ) __s = socket_new(false);
 		input = new SocketInput(this);
 		output = new SocketOutput(this);
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ class ComplexTypeTools {
 	static public function toString( c : ComplexType ) : String
 		return new Printer().printComplexType(c);
 
-	#if macro
+	#if (macro || display)
 
 	/**
 		Returns a type corresponding to `c`.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -92,7 +92,7 @@ class Socket {
 		var errs = Boot.deref(null);
 		var errn = Boot.deref(null);
 		var r = stream_socket_server(
-			protocol + '://' + host.ip + ':' + port,
+			protocol + '://' + host.host + ':' + port,
 			errn,
 			errs,
 			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN)

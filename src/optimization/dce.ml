@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2017  Haxe Foundation
+	Copyright (C) 2005-2018  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -46,14 +46,22 @@ let rec super_forces_keep c =
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
-let rec is_or_overrides_extern_field cf c =
-	if c.cl_extern then cf.cf_expr = None
-	else
+let overrides_extern_field cf c =
+	let is_extern c cf = c.cl_extern && cf.cf_expr = None in
+	let rec loop c cf =
 		match c.cl_super with
-			| None -> false
-			| Some (csup,_) ->
-				try is_or_overrides_extern_field (PMap.find cf.cf_name csup.cl_fields) csup
-				with Not_found -> false
+		| None -> false
+		| Some (c,_) ->
+			try
+				let cf = PMap.find cf.cf_name c.cl_fields in
+				if is_extern c cf then
+					true
+				else
+					loop c cf
+			with Not_found ->
+				false
+	in
+	loop c cf
 
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
@@ -75,13 +83,23 @@ let keep_whole_enum dce en =
 	Meta.has Meta.Keep en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
-(* check if a field is kept *)
-let keep_field dce cf c is_static =
+(*
+	Check if a field is kept.
+	`keep_field` is checked to determine the DCE entry points, i.e. all fields that have `@:keep` or kept for other reasons.
+	And then it is used at the end to check which fields can be filtered from their classes.
+*)
+let rec keep_field dce cf c is_static =
 	Meta.has Meta.Keep cf.cf_meta
 	|| Meta.has Meta.Used cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
-	|| (not is_static && is_or_overrides_extern_field cf c)
+	|| (not is_static && overrides_extern_field cf c)
+	|| (
+		cf.cf_name = "new"
+		&& match c.cl_super with (* parent class kept constructor *)
+			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
+			| _ -> false
+	)
 
 (* marking *)
 
@@ -126,7 +144,11 @@ and mark_field dce c cf stat =
 			| None -> add cf
 			| Some (c,_) -> mark_field dce c cf stat
 		end else
-			add cf
+			add cf;
+		if not stat && is_physical_field cf then
+			match c.cl_constructor with
+				| None -> ()
+				| Some ctor -> mark_field dce c ctor false
 	end
 
 let rec update_marked_class_fields dce c =
@@ -481,6 +503,12 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
+	(* keep toString method of T when array<T>.join() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
+		List.iter (fun e -> to_string dce e) pl;
+		expr dce ef;
+		List.iter (expr dce) args;
+
 	(* keep toString method when the class is argument to Std.string or haxe.Log.trace *)
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = (["haxe"],"Log")} as c))},FStatic (_,{cf_name="trace"}))} as ef, ((e2 :: el) as args))
 	| TCall ({eexpr = TField({eexpr = TTypeExpr (TClassDecl ({cl_path = ([],"Std")} as c))},FStatic (_,{cf_name="string"}))} as ef, ((e2 :: el) as args)) ->
@@ -510,7 +538,7 @@ and expr dce e =
 		check_and_add_feature dce "array_write";
 		check_and_add_feature dce "array_read";
 		expr dce e1;
-	| TBinop(OpAdd,e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
+	| TBinop((OpAdd | OpAssignOp(OpAdd)),e1,e2) when is_dynamic e1.etype || is_dynamic e2.etype ->
 		check_and_add_feature dce "add_dynamic";
 		expr dce e1;
 		expr dce e2;
@@ -564,7 +592,7 @@ and expr dce e =
 		check_and_add_feature dce "dynamic_binop_==";
 		expr dce e1;
 		expr dce e2;
-	| TBinop(OpEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
+	| TBinop(OpNotEq,({ etype = t1} as e1), ({ etype = t2} as e2) ) when is_dynamic t1 || is_dynamic t2 ->
 		check_and_add_feature dce "dynamic_binop_!=";
 		expr dce e1;
 		expr dce e2;

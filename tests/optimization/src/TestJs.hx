@@ -62,7 +62,7 @@ class TestJs {
 		return v + v2;
 	}
 
-	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {tmp = null;}tmp;")
+	@:js("var a = [];var tmp;try {tmp = a[0];} catch( e ) {(e instanceof js__$Boot_HaxeError);tmp = null;}tmp;")
 	@:analyzer(no_local_dce)
 	static function testInlineWithComplexExpr() {
 		var a = [];
@@ -172,16 +172,25 @@ class TestJs {
 		try throw false catch (e:Dynamic) {}
 	}
 
-	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;TestJs.use(e);}')
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {TestJs.use((e instanceof js__$Boot_HaxeError) ? e.val : e);}')
 	static function testHaxeErrorUnwrappingWhenUsed() {
 		try throw false catch (e:Dynamic) use(e);
 	}
 
-	@:js("try {throw new js__$Boot_HaxeError(false);} catch( e ) {if (e instanceof js__$Boot_HaxeError) e = e.val;if( js_Boot.__instanceof(e,Bool) ) {} else throw(e);}")
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) != "boolean") {throw e;}}')
 	static function testHaxeErrorUnwrappingWhenTypeChecked() {
 		try throw false catch (e:Bool) {};
 	}
 
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {TestJs.use(e);} else {throw e;}}')
+	static function testGetOriginalException() {
+		try throw false catch (e:Bool) use(js.Lib.getOriginalException());
+	}
+
+	@:js('try {throw new js__$Boot_HaxeError(false);} catch( e ) {if(typeof((e instanceof js__$Boot_HaxeError) ? e.val : e) == "boolean") {throw e;} else {throw e;}}')
+	static function testRethrow() {
+		try throw false catch (e:Bool) js.Lib.rethrow();
+	}
 
 	@:js('TestJs.use(2);')
 	static function testIssue3938() {

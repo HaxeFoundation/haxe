@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -107,7 +107,12 @@ class Lib {
 		return @:privateAccess hash.data;
 	}
 
-	public static inline function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+		Syntax.foreach(arr, function(key:Scalar, value:Dynamic) {
+			if(Global.is_array(value)) {
+				arr[key] = objectOfAssociativeArray(value);
+			}
+		});
 		return Boot.createAnon(arr);
 	}
 
@@ -136,7 +141,7 @@ class Lib {
 	}
 
 	/**
-		Tries to load all compiled php files and returns list of tpes.
+		Tries to load all compiled php files and returns list of types.
 	**/
 	public static function getClasses():Dynamic {
 		if(!loaded) {
@@ -151,10 +156,10 @@ class Lib {
 			var obj = result;
 			while(parts.length > 1) {
 				var pack = parts.shift();
-				if(Syntax.getField(obj, pack) == null) {
+				if(Syntax.field(obj, pack) == null) {
 					Syntax.setField(obj, pack, {});
 				}
-				obj = Syntax.getField(obj, pack);
+				obj = Syntax.field(obj, pack);
 			}
 			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
 		});

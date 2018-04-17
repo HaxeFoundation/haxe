@@ -24,11 +24,18 @@ package haxe.zip;
 class Uncompress {
 
 	public function new( ?windowBits : Int ) {
-		throw "Not implemented for this platform";
 	}
 
 	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return null;
+		var input = src.sub( srcPos, src.length - srcPos );
+		var data = run( input );
+		dst.blit( dstPos, data, 0, data.length );
+
+		return {
+			done: true,
+			read: input.length,
+			write: data.length
+		};
 	}
 
 	public function setFlushMode( f : FlushMode ) {
@@ -38,7 +45,7 @@ class Uncompress {
 	}
 
 	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
-		var c = untyped __call__("gzuncompress", src.toString());
+		var c = php.Global.gzuncompress(src.toString());
 		return haxe.io.Bytes.ofString(c);
 	}
 

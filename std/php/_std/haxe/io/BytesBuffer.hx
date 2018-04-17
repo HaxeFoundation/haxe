@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,15 +34,15 @@ class BytesBuffer {
 	}
 
 	public inline function addByte( byte : Int ) {
-		b = Syntax.binop(b, '.', Global.chr(byte));
+		b = Syntax.concat(b, Global.chr(byte));
 	}
 
 	public inline function add( src : Bytes ) {
-		b = Syntax.binop(b, '.', src.getData().toNativeString());
+		b = Syntax.concat(b, src.getData().toNativeString());
 	}
 
 	public inline function addString( v : String ) {
-		b = Syntax.binop(b, '.', v);
+		b = Syntax.concat(b, v);
 	}
 
 	public function addInt32( v : Int ) {
@@ -69,7 +69,7 @@ class BytesBuffer {
 		if( pos < 0 || len < 0 || pos + len > src.length ) {
 			throw Error.OutsideBounds;
 		} else {
-			b = Syntax.binop(b, '.', src.getData().sub(pos, len).toString());
+			b = Syntax.concat(b, src.getData().sub(pos, len).toString());
 		}
 	}
 

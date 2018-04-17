@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2017 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,7 +45,7 @@ import lua.NativeStringTools;
 
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
-		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-FA-F]*");
+		var hexMatch = NativeStringTools.match(x, "^ *[%-+]*0[xX][%da-fA-F]*");
 		if (hexMatch != null){
 			return lua.Lua.tonumber(hexMatch.substr(2), 16);
 		} else {
