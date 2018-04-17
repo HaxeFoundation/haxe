@@ -2320,7 +2320,7 @@ and type_ident ctx i p mode =
 				if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
 					AKExpr (type_module_type ctx (TClassDecl c) None p)
 				else begin
-					display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p;
+					display_error ctx ("Unless declared on a @:generic class, type parameter " ^ i ^ " is not available at runtime") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
 				end
 			with Not_found ->
