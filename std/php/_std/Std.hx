@@ -26,7 +26,6 @@ import php.Global;
 import php.Const;
 import php.Syntax;
 
-@:keep
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {

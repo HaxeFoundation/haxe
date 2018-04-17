@@ -41,6 +41,9 @@ class File {
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		return new FileOutput(Io.open(path, binary ? "r+b" : "r+"));
 	}
 

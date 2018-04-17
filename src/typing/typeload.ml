@@ -1272,16 +1272,19 @@ let add_constructor ctx c force_constructor p =
 		(* nothing to do *)
 		()
 
-let get_method_args field = 
+let get_method_args field =
 	match field.cf_expr with
 		| Some { eexpr = TFunction { tf_args = args } } -> args
 		| _ -> raise Not_found
 
+(**
+	Get super constructor data required for @:structInit descendants.
+*)
 let get_struct_init_super_info ctx c p =
 	match c.cl_super with
-		| Some ({ cl_constructor = Some ctor } as csup, cparams) -> 
+		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl,el = 
+			let tl,el =
 				List.fold_left (fun (args,exprs) (v,value) ->
 					let opt = match value with Some _ -> true | None -> false in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
@@ -1290,25 +1293,53 @@ let get_struct_init_super_info ctx c p =
 			in
 			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, el)) ctx.t.tvoid p in
 			(args,Some super_expr,tl)
-		| _ -> 
+		| _ ->
 			[],None,[]
 
-let check_struct_init_constructor ctx c p =
+(**
+	Generates a constructor for a @:structInit class `c` if it does not have one yet.
+*)
+let ensure_struct_init_constructor ctx c ast_fields p =
 	match c.cl_constructor with
 	| Some _ ->
 		()
 	| None ->
+		let field_has_default_expr field_name =
+			List.exists
+				(fun ast_field ->
+					match ast_field.cff_name with
+						| (name, _) when name <> field_name -> false
+						| _ ->
+							match ast_field.cff_kind with
+								| FVar (_, Some _) | FProp (_, _, _, Some _) -> true
+								| _ -> false
+				)
+				ast_fields
+		in
 		let super_args,super_expr,super_tl = get_struct_init_super_info ctx c p in
 		let params = List.map snd c.cl_params in
 		let ethis = mk (TConst TThis) (TInst(c,params)) p in
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
 			| Var _ ->
-				let opt = Meta.has Meta.Optional cf.cf_meta in
+				let has_default_expr = field_has_default_expr cf.cf_name in
+				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
 				let v = alloc_var cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
 				let ev = mk (TLocal v) v.v_type p in
-				let e = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
+				(* this.field = <constructor_argument> *)
+				let assign_expr = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
+				let e =
+					if has_default_expr then
+						begin
+							(* <constructor_argument> != null *)
+							let condition = mk (TBinop(OpNotEq, ev, (null t p))) ctx.t.tbool p in
+							(* if(<constructor_argument> != null) this.field = <constructor_argument> *)
+							mk (TIf(condition, assign_expr, None)) ctx.t.tvoid p
+						end
+					else
+						assign_expr
+				in
 				(v,None) :: args,e :: el,(cf.cf_name,opt,t) :: tl
 			| Method _ ->
 				args,el,tl
@@ -2917,8 +2948,8 @@ module ClassInitializer = struct
 			| _ ->
 				()
 		end;
-		if Meta.has Meta.StructInit c.cl_meta then 
-			check_struct_init_constructor ctx c p
+		if Meta.has Meta.StructInit c.cl_meta then
+			ensure_struct_init_constructor ctx c fields p
 		else
 			(* add_constructor does not deal with overloads correctly *)
 			if not ctx.com.config.pf_overload then add_constructor ctx c cctx.force_constructor p;

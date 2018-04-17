@@ -144,7 +144,7 @@ class DateTools {
 		#if (neko && !(macro || interp))
 			return new String(untyped date_format(d.__t, f.__s));
 		#elseif php
-			return untyped __call__("strftime",f,d.__t);
+			return php.Global.strftime(f, php.Syntax.int(@:privateAccess d.__t));
 		#else
 			return __format(d,f);
 		#end

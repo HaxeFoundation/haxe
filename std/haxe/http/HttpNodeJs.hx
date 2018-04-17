@@ -58,10 +58,10 @@ class HttpNodeJs extends haxe.http.HttpBase {
 
 			arr.push(i.value);
 		}
-		var uri = postData;
-		if( uri != null )
+		if( postData != null )
 			post = true;
-		else for( p in params ) {
+		var uri = null;
+		for( p in params ) {
 			if( uri == null )
 				uri = "";
 			else
@@ -69,7 +69,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 			uri += StringTools.urlEncode(p.name)+"="+StringTools.urlEncode(p.value);
 		}
 		var question = path.split("?").length <= 1;
-		if (!post && uri != null) path += (if( question ) "?" else "&") + uri;
+		if (uri != null) path += (if( question ) "?" else "&") + uri;
 
 		var opts = {
 			protocol: parsedUrl.protocol,
@@ -98,7 +98,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 			});
 		}
 		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
-		if (post) req.write(uri);
+		if (post) req.write(postData);
 		req.end();
 	}
 }

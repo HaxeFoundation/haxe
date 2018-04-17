@@ -79,6 +79,9 @@ type array_impl = {
 	af64 : tclass;
 }
 
+type constval =
+	| CString of string
+
 type context = {
 	com : Common.context;
 	cglobals : (string, ttype) lookup;
@@ -88,6 +91,7 @@ type context = {
 	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
+	cconstants : (constval, (global * int array)) lookup;
 	optimize : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
@@ -1440,15 +1444,23 @@ and eval_null_check ctx e =
 	| _ -> op ctx (ONullCheck r));
 	r
 
+and make_const ctx c p =
+	let cidx = lookup ctx.cconstants c (fun() ->
+		let fields, t = (match c with
+		| CString s ->
+			let str, len = to_utf8 s p in
+			[alloc_string ctx str; alloc_i32 ctx (Int32.of_int len)], to_type ctx ctx.com.basic.tstring
+		) in
+		let g = lookup_alloc ctx.cglobals t in
+		g, Array.of_list fields
+	) in
+	let g, _ = DynArray.get ctx.cconstants.arr cidx in
+	g
+
 and make_string ctx s p =
-	let str, len = to_utf8 s p in
-	let r = alloc_tmp ctx HBytes in
-	let s = alloc_tmp ctx (to_type ctx ctx.com.basic.tstring) in
-	op ctx (ONew s);
-	op ctx (OString (r,alloc_string ctx str));
-	op ctx (OSetField (s,0,r));
-	op ctx (OSetField (s,1,reg_int ctx len));
-	s
+	let r = alloc_tmp ctx (to_type ctx ctx.com.basic.tstring) in
+	op ctx (OGetGlobal (r, make_const ctx (CString s) p));
+	r
 
 and get_enum_index ctx v =
 	let r = alloc_tmp ctx HI32 in
@@ -3570,6 +3582,7 @@ let write_code ch code debug =
 	write_index (Array.length code.globals);
 	write_index (Array.length code.natives);
 	write_index (Array.length code.functions);
+	write_index (Array.length code.constants);
 	write_index code.entrypoint;
 
 	Array.iter (IO.write_real_i32 ch) code.ints;
@@ -3722,7 +3735,12 @@ let write_code ch code debug =
 				write_index (p + 1);
 			) f.assigns;
 		end;
-	) code.functions
+	) code.functions;
+	Array.iter (fun (g,fields) ->
+		write_index g;
+		write_index (Array.length fields);
+		Array.iter write_index fields;
+	) code.constants
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
@@ -3756,6 +3774,7 @@ let create_context com is_macro dump =
 		cfloats = new_lookup();
 		cglobals = new_lookup();
 		cnatives = new_lookup();
+		cconstants = new_lookup();
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
 		cached_types = PMap.empty;
@@ -3831,7 +3850,7 @@ let add_types ctx types =
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
 	{
-		version = 3;
+		version = 4;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
 		ints = DynArray.to_array ctx.cints.arr;
@@ -3840,6 +3859,7 @@ let build_code ctx types main =
 		natives = DynArray.to_array ctx.cnatives.arr;
 		functions = DynArray.to_array ctx.cfunctions;
 		debugfiles = DynArray.to_array ctx.cdebug_files.arr;
+		constants = DynArray.to_array ctx.cconstants.arr;
 	}
 
 let check ctx =

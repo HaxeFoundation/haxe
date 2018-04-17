@@ -37,7 +37,7 @@ class Http extends haxe.http.HttpBase {
 	public function new(url:String) {
 		cnxTimeout = 10;
 		#if php
-		noShutdown = ! untyped __call__('function_exists', 'stream_socket_shutdown');
+		noShutdown = !php.Global.function_exists('stream_socket_shutdown');
 		#end
 		super(url);
 	}

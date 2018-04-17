@@ -59,6 +59,9 @@ enum FileHandle {
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		return untyped new FileOutput(file_open(path.__s,(if( binary ) "rb+" else "r+").__s));
 	}
 

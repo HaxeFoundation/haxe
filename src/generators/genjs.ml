@@ -1267,7 +1267,7 @@ let set_current_class ctx c =
 
 let alloc_ctx com =
 	let smap =
-		if com.debug || Common.defined com Define.JsSourceMap then
+		if com.debug || Common.defined com Define.JsSourceMap || Common.defined com Define.SourceMap then
 			Some {
 				source_last_pos = { file = 0; line = 0; col = 0};
 				print_comma = false;

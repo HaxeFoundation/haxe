@@ -1,0 +1,4 @@
+-cp src
+-D eval-stack
+-main Test
+--interp

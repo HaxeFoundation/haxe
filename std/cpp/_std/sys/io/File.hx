@@ -60,6 +60,9 @@ class File {
 	}
 
 	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
 		return untyped new FileOutput(NativeFile.file_open(path,(if( binary ) "rb+" else "r+")));
 	}
 

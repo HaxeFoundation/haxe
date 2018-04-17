@@ -32,9 +32,8 @@ import sys.io.FileInput;
 		Global.echo(Std.string(v));
 	}
 
-	public static function println( v : Dynamic ) : Void {
-		print(v);
-		print("\n");
+	public static inline function println( v : Dynamic ) : Void {
+		Global.echo(Std.string(v) + "\n");
 	}
 
 	public static function args() : Array<String> {
