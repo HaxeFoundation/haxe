@@ -4324,7 +4324,7 @@ let rec create com =
 			| "Null" ->
 				let mk_null t =
 					try
-						if not (is_null ~no_lazy:true t) then TAbstract (a,[t]) else t
+						if not (is_null ~no_lazy:true t || is_explicit_null t) then TAbstract (a,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
 						let r = ref (lazy_available t_dynamic) in
