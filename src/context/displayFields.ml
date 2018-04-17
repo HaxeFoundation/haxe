@@ -169,7 +169,7 @@ let collect ctx e_ast e with_type p =
 			) c.cl_ordered_statics;
 			!acc
 	in
-	let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
+	let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) (ctx.m.module_using_priority @ ctx.m.module_using) in
 	let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
 	let fields = match fst e_ast with
 		| EConst(String s) when String.length s = 1 ->
