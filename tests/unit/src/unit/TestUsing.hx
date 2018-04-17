@@ -1,7 +1,7 @@
 package unit;
 
 using unit.TestUsing.MyUsingClass;
-using default unit.TestUsing.MyDefaultUsingClass;
+using override unit.TestUsing.MyDefaultUsingClass;
 using unit.TestUsing.MyUsingClass;
 
 class MyDefaultUsingClass {

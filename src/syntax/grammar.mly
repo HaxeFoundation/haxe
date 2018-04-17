@@ -221,7 +221,7 @@ and parse_using s p1 =
 			p2,List.rev acc
 	in
 	let priority = match s with parser
-		| [< '(Kwd Default,_) >] -> true
+		| [< '(Kwd Override,_) >] -> true
 		| [< >] -> false
 	in
 	let p2, path = (match s with parser
