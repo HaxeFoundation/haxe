@@ -325,7 +325,9 @@ let add_types ctx types ready =
 		f proto;
 		match delays with
 		| [] -> ()
-		| _ -> DynArray.add fl_static_init (proto,delays)
+		| _ ->
+			DynArray.add fl_static_init (proto,delays);
+			ctx.static_inits <- IntMap.add proto.ppath (proto,delays) ctx.static_inits;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun f -> f proto) delays) fl_static_init;

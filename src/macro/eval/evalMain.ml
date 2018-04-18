@@ -121,6 +121,7 @@ let create com api is_macro =
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
+		static_inits = IntMap.empty;
 		(* eval *)
 		eval = eval;
 		exception_stack = [];
@@ -356,7 +357,8 @@ let setup get_api =
 let can_reuse ctx types = true
 
 let do_reuse ctx api =
-	ctx.curapi <- api
+	ctx.curapi <- api;
+	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)

@@ -36,6 +36,7 @@ type server_message =
 	| RemovedDirectory of string
 	| Reusing of module_def
 	| SkippingDep of (module_def * module_def)
+	| HaxePrint of string
 
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
@@ -127,6 +128,7 @@ let rec wait_loop process_params verbose accept =
 				| RemovedDirectory dir -> "removedDirectory",JString dir
 				| Reusing m -> "reusing",module_path m
 				| SkippingDep(m,m') -> "skipping",JObject ["skipped",module_path m;"dependency",module_path m']
+				| HaxePrint s -> "print",JString s
 			in
 			let js = JObject [("kind",JString kind);("data",data)] in
 			DynArray.add test_server_messages js;
@@ -143,6 +145,7 @@ let rec wait_loop process_params verbose accept =
 			| RemovedDirectory dir -> print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
 			| Reusing m -> print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path));
 			| SkippingDep(m,m') -> print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
+			| HaxePrint s -> print_endline s
 		)
 	in
 	MacroContext.macro_enable_cache := true;
@@ -470,7 +473,10 @@ let rec wait_loop process_params verbose accept =
 					Hashtbl.add arguments sign ctx.com.class_path;
 					()
 			);
-			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
+			ctx.com.print <- (fun str ->
+				if Common.raw_defined ctx.com "compilation-server-test" then process_server_message ctx.com "" (HaxePrint str)
+				else write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n")
+			);
 			ctx
 		in
 		(try

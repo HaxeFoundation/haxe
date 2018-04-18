@@ -1,6 +1,7 @@
 import HaxeServer;
 import haxe.Json;
 import utest.Assert;
+using StringTools;
 
 typedef Message<T> = {
 	kind: String,
@@ -68,6 +69,7 @@ class HaxeServerTestCase {
 			return switch (msg.kind) {
 				case "reusing" | "notCached": data1 == data2;
 				case "skipping": data1.skipped == data2.skipped && data1.dependency == data2.dependency;
+				case "print": Std.string(data1).trim() == Std.string(data2).trim();
 				case _: false;
 			}
 		}
@@ -77,6 +79,10 @@ class HaxeServerTestCase {
 			}
 		}
 		return false;
+	}
+
+	function assertHasPrint(line:String) {
+		Assert.isTrue(hasMessage({kind: "print", data: line}));
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {

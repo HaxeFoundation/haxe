@@ -138,6 +138,7 @@ type context = {
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
+	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	eval : eval;
 	mutable exception_stack : (pos * env_kind) list;
