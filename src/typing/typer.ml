@@ -309,7 +309,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 	| [] -> mk_mono()
 	| [e] -> e.etype
 	| _ ->
-		let rec chk_null e = is_null e.etype ||
+		let rec chk_null e = is_null e.etype || is_explicit_null e.etype ||
 			match e.eexpr with
 			| TConst TNull -> true
 			| TBlock el ->
