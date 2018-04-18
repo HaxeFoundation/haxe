@@ -226,8 +226,19 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = TableTools.maxn(tab) + 1; // maxn doesn't count 0 index
-		return untyped _hx_tab_array(tab, length);
+		if (length == null){
+			length = TableTools.maxn(tab);
+			if (length > 0){
+				var head = tab[1];
+				Table.remove(tab, 1);
+				tab[0] =  head;
+				return untyped _hx_tab_array(tab, length);
+			} else {
+				return [];
+			}
+		} else {
+			return untyped _hx_tab_array(tab, length);
+		}
 	}
 
 	/*

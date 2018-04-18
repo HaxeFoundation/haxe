@@ -25,8 +25,8 @@ import lua.Io;
 import lua.NativeStringTools;
 
 /**
-	Platform-specific Lua Library. Provides some platform-specific functions 
-	for the Lua target, such as conversion from Haxe types to native types 
+	Platform-specific Lua Library. Provides some platform-specific functions
+	for the Lua target, such as conversion from Haxe types to native types
 	and vice-versa.
 **/
 class Lib {

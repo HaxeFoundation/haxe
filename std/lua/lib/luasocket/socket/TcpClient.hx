@@ -20,19 +20,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package lua.lib.luasocket;
-import lua.lib.luasocket.socket.*;
+package lua.lib.luasocket.socket;
+import haxe.extern.EitherType;
 
-@:luaRequire("socket")
-extern class Socket {
-	public static var _DEBUG : Bool;
-	public static var _VERSION : String;
-	public static function tcp() : Result<TcpMaster>;
-	public static function bind(address : String, port : Int, ?backlog : Int) : Result<TcpServer>;
-	public static function connect(address : String, port : Int, ?locaddr : String, ?locport : Int) : Result<TcpClient>;
-	public static function gettime() : Float;
-	public static function select(recvt : Table<Int, Socket>, sendt : Table<Int, Socket>, ?timeout : Float) : SelectResult;
-	public function close() : Void;
-	public function getsockname() : AddrInfo;
-
+extern class TcpClient extends Socket {
+	public function getpeername() :  AddrInfo;
+	public function receive(pattern : EitherType<ReceivePattern,Int>, ?prefix : String) : Result<String>;
+	public function send(data : String, ?i : Int, ?j : Int) : Result<Int>;
+	public function shutdown(mode : ShutdownMode) : Result<Int>;
+	public function settimeout(value  : Float, ?mode : TimeoutMode) : Void;
+	public function setoption(option : TcpOption , value : EitherType<Bool, {on : Bool, timeout : Float}>) : Void;
 }
+
+
