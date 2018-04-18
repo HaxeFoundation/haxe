@@ -1,4 +1,5 @@
 import AsyncMacro.async;
+using StringTools;
 
 class NoModification extends HaxeServerTestCase {
 	public function test() {
@@ -57,6 +58,15 @@ class Macro extends HaxeServerTestCase {
 			vfs.touchFile("MacroMain.hx");
 			haxe(args);
 			assertHasPrint("1");
+			vfs.touchFile("Macro.hx");
+			haxe(args);
+			assertHasPrint("1");
+			vfs.putContent("Macro.hx", getTemplate("Macro.hx").replace("1", "2"));
+			haxe(args);
+			assertHasPrint("2");
+			vfs.touchFile("MacroMain.hx");
+			haxe(args);
+			assertHasPrint("2");
 		});
 	}
 }
