@@ -81,8 +81,8 @@ class HaxeServerTestCase {
 		return false;
 	}
 
-	function assertHasPrint(line:String) {
-		Assert.isTrue(hasMessage({kind: "print", data: line}));
+	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasMessage({kind: "print", data: line}), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
