@@ -16,8 +16,9 @@ class Vfs {
 	public function touchFile(path:String) {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
-		var notNow = js.Date.fromHaxeDate(DateTools.delta(Date.now(), 1000));
 		var file = Fs.openSync(path.dir + "/" + path.file + "." + path.ext, 'a');
+        var last = Date.fromString(Fs.fstatSync(file).mtime.toTimeString().substr(0, 8));
+        var notNow = js.Date.fromHaxeDate(DateTools.delta(last, 1000));
 		Fs.futimesSync(file, notNow, notNow);
 		Fs.closeSync(file);
 	}
