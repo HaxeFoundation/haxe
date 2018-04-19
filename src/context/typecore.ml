@@ -373,17 +373,22 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 	loop ctx.curclass;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
-		(try
-			(* if our common ancestor declare/override the field, then we can access it *)
-			let f = if is_constr then (match c.cl_constructor with None -> raise Not_found | Some c -> c) else PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields) in
-			is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths)
-		with Not_found ->
-			false
-		)
-		|| (match c.cl_super with
-		| Some (csup,_) -> loop csup
-		| None -> false)
-		|| has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
+		try
+			has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
+			|| (
+				(* if our common ancestor declare/override the field, then we can access it *)
+				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
+				if is_constr
+				then (match c.cl_constructor with
+					| Some cf -> if allowed cf then true else raise Not_found
+					| _ -> false
+				)
+				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false
+			)
+			|| (match c.cl_super with
+			| Some (csup,_) -> loop csup
+			| None -> false)
+		with Not_found -> false
 	in
 	let b = loop c
 	(* access is also allowed of we access a type parameter which is constrained to our (base) class *)
