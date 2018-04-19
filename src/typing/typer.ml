@@ -2965,7 +2965,7 @@ and type_new ctx path el with_type p =
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-		if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
+		if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_type_path c.cl_path)) p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());
