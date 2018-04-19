@@ -43,8 +43,8 @@ class Sys {
 		return lua.Lib.println(v);
 	}
 	public inline static function args() : Array<String> {
-		var args = lua.Lib.tableToArray(lua.Lua.arg).copy();
-		args.shift();
+		var targs = lua.PairTools.copy(lua.Lua.arg);
+		var args = lua.Lib.tableToArray(targs);
 		return args;
 	}
 	public static function command( cmd : String, ?args : Array<String> ) : Int  {
