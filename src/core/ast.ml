@@ -293,7 +293,7 @@ type type_def =
 	| ETypedef of (enum_flag, type_hint) definition
 	| EAbstract of (abstract_flag, class_field list) definition
 	| EImport of import
-	| EUsing of placed_name list
+	| EUsing of placed_name list * bool
 
 type type_decl = type_def * pos
 
