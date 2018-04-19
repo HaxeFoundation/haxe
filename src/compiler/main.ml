@@ -442,7 +442,7 @@ and process_args arg_spec =
 and usage_string arg_spec usage =
 	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
 	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
-	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Compilation Server";"Target-specific";"Miscellaneous"] in
+	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
 	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
 	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
 	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> [cat] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
@@ -494,44 +494,40 @@ try
 	let arg_delays = ref [] in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
-		("Target",["-js"],[],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
-		("Target",["-lua"],[],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
-		("Target",["-swf"],[],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
-		("Target",["-as3"],[],Arg.String (fun dir ->
+		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
+		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
+		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
+		("Target",["--as3"],["-as3"],Arg.String (fun dir ->
 			Initialize.set_platform com Flash dir;
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
 		),"<directory>","generate AS3 code into target directory");
-		("Target",["-neko"],[],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
-		("Target",["-php"],[],Arg.String (fun dir ->
+		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
+		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
 		),"<directory>","generate PHP code into target directory");
-		("Target",["-cpp"],[],Arg.String (fun dir ->
+		("Target",["--cpp"],["-cpp"],Arg.String (fun dir ->
 			Initialize.set_platform com Cpp dir;
 		),"<directory>","generate C++ code into target directory");
-		("Target",["-cppia"],[],Arg.String (fun file ->
+		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
 			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
 		),"<file>","generate Cppia code into target file");
-		("Target",["-cs"],[],Arg.String (fun dir ->
+		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			Initialize.set_platform com Cs dir;
 		),"<directory>","generate C# code into target directory");
-		("Target",["-java"],[],Arg.String (fun dir ->
+		("Target",["--java"],["-java"],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
 		),"<directory>","generate Java code into target directory");
-		("Target",["-python"],[],Arg.String (fun dir ->
+		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
 		),"<file>","generate Python code as target file");
-		("Target",["-hl"],[],Arg.String (fun file ->
+		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
 		),"<file>","compile HL code as target file");
-		("Target",["-xml"],[],Arg.String (fun file ->
-			Parser.use_doc := true;
-			xml_out := Some file
-		),"<file>","generate XML types description");
 		("Target",["-x";"--execute"],[], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
@@ -581,7 +577,7 @@ try
 			message ctx (CMInfo(s_version,null_pos));
 			did_something := true;
 		),"","print version and exit");
-		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
+		("Miscellaneous", ["help";"-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
 		),"","show extended help information");
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
@@ -596,6 +592,7 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
+		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "","TODO");
 		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
 			com.sys_args <- com.sys_args @ [arg];
 		),"[args...]","args that will be passed to the macro interpreter");
@@ -698,9 +695,13 @@ try
 		),"","generate hx headers for all input classes");
 		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
 		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
-		("Compilation Server",["--display"],[], Arg.String (fun file_pos ->
+		("Services",["--display"],[], Arg.String (fun file_pos ->
 			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
 		),"","display code tips");
+		("Services",["--xml"],["-xml"],Arg.String (fun file ->
+			Parser.use_doc := true;
+			xml_out := Some file
+		),"<file>","generate XML types description");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> no_output := true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
