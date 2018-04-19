@@ -2829,7 +2829,7 @@ and type_object_decl ctx fl with_type p =
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType t) in
-				let e = AbstractCast.cast_or_unify ctx t e p in
+				let e = AbstractCast.cast_or_unify ctx t e e.epos in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
