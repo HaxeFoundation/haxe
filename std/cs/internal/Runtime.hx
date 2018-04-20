@@ -485,7 +485,10 @@ import cs.system.Object;
 
 			methodLength = last;
 		} else if (methodLength == 1 && methods[0].GetParameters().Length != length) {
-			methodLength = 0;
+			var oargs2 = new NativeArray(methods[0].GetParameters().Length);
+			for (i in 0 ... oargs2.length)
+				oargs2[i] = oargs[i];
+			oargs = oargs2;
 		}
 
 		//At this time, we should be left with only one method.
