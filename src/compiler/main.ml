@@ -405,7 +405,11 @@ let rec process_params create pl =
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
-				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				let acc, l =
+					(try
+						let parsed = parse_hxml arg in
+						if (List.mem "--" parsed) then raise (Arg.Bad "Rest arguments (--) are not allowed in hxml files") else (acc, parsed @ l)
+					with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
@@ -592,7 +596,7 @@ try
 			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
 			did_something := true
 		),"","print help for all compiler metadatas");
-		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "","TODO");
+		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
 		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
 			com.sys_args <- com.sys_args @ [arg];
 		),"[args...]","args that will be passed to the macro interpreter");
