@@ -44,8 +44,11 @@ class Int64Helper {
 			s = s.substring(1, s.length);
 		}
 		var len = s.length;
+		var multiplierOverflow = false;
 
 		for (i in 0...len) {
+			multiplierOverflow = multiplierOverflow || Int64.isNeg(multiplier);
+
 			var digitInt = s.charCodeAt(len - 1 - i) - '0'.code;
 
 			if (digitInt < 0 || digitInt > 9) {
@@ -53,6 +56,10 @@ class Int64Helper {
 			}
 			
 			if (digitInt != 0 ) {
+				if (multiplierOverflow) {
+					throw "NumberFormatError: Multiplier overflow";
+				}
+				
 				var digit:Int64 = Int64.ofInt(digitInt);
 				if (sIsNegative) {
 					current = Int64.sub(current, Int64.mul(multiplier, digit));
