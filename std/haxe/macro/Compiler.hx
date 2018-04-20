@@ -182,22 +182,22 @@ class Compiler {
 		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
-		var ignore_wildcard:Array<String> = [];
+		var ignoreWildcard:Array<String> = [];
 		if(ignore != null) {
-			var i = ignore.length;
-			while (i-- > 0) {
-				if(StringTools.endsWith(ignore[i], "*")) {
-					ignore_wildcard.push(ignore[i].substr(0, ignore[i].length-1));
-					ignore.splice(i, 1);
+			for (ignoreRule in ignore) {
+				if(StringTools.endsWith(ignoreRule, "*")) {
+					ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length-1));
+				}else{
+					ignoreString.push(ignoreRule);
 				}
-			}
+			} 
 		}
 		var skip = if( ignore == null ) {
 			function(c) return false;
 		} else {
 			function(c:String) {
-				if(Lambda.has(ignore, c)) return true;
-				for (ignore_rule in ignore_wildcard) if(StringTools.startsWith(c, ignore_rule)) return true;
+				if(Lambda.has(ignoreString, c)) return true;
+				for (ignoreRule in ignoreWildcard) if(StringTools.startsWith(c, ignoreRule)) return true;
 				return false;
 			}
 		}
