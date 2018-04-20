@@ -32,12 +32,8 @@ class FileSystem {
 	public static function exists( path : String ) : Bool {
 		if (path == null) return false;
 		else{
-			var f = Io.open(path);
-			if (f == null) return false;
-			else {
-				f.close();
-				return true;
-			}
+			var res = LFileSystem.stat(path);
+			return res.result != null;
 		}
 	}
 
