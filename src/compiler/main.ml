@@ -680,7 +680,16 @@ try
 		),"<command>","run the specified command after successful compilation");
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
-		("Debug",["--gen-hx-classes"],[], Arg.Unit (fun() ->
+		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
+		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
+		("Services",["--display"],[], Arg.String (fun file_pos ->
+			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
+		),"","display code tips");
+		("Services",["--xml"],["-xml"],Arg.String (fun file ->
+			Parser.use_doc := true;
+			xml_out := Some file
+		),"<file>","generate XML types description");
+		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
 			force_typing := true;
 			pre_compilation := (fun() ->
 				List.iter (fun (_,_,extract) ->
@@ -697,15 +706,6 @@ try
 			) :: !pre_compilation;
 			xml_out := Some "hx"
 		),"","generate hx headers for all input classes");
-		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
-		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
-		("Services",["--display"],[], Arg.String (fun file_pos ->
-			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
-		),"","display code tips");
-		("Services",["--xml"],["-xml"],Arg.String (fun file ->
-			Parser.use_doc := true;
-			xml_out := Some file
-		),"<file>","generate XML types description");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> no_output := true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
