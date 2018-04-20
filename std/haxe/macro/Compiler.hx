@@ -183,6 +183,7 @@ class Compiler {
 	**/
 	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
 		var ignoreWildcard:Array<String> = [];
+		var ignoreString:Array<String> = [];
 		if(ignore != null) {
 			for (ignoreRule in ignore) {
 				if(StringTools.endsWith(ignoreRule, "*")) {
