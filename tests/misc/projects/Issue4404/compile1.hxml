@@ -1,4 +1,4 @@
--cp src
--main Main
+-p src
+--main Main
 -js js.js
 --no-output

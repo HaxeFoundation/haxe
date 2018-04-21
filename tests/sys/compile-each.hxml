@@ -1,11 +1,11 @@
--cp src
--main ExitCode
+-p src
+--main ExitCode
 -neko bin/neko/ExitCode.n
 -lib utest
 -cmd nekotools boot bin/neko/ExitCode.n
 
 --next
 -D source-header=''
--debug
+--debug
 -lib utest
--cp src
+-p src

@@ -51,6 +51,7 @@ open Globals
 open Filename
 
 exception Abort
+exception HelpMessage of string
 
 let executable_path() =
 	Extc.executable_path()
@@ -108,7 +109,7 @@ let add_libs com libs =
 		let ret = Unix.close_process_full (pin,pout,perr) in
 		if ret <> Unix.WEXITED 0 then failwith (match lines, err with
 			| [], [] -> "Failed to call haxelib (command not found ?)"
-			| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found : path" -> "The haxelib command has been strip'ed, please install it again"
+			| [], [s] when ExtString.String.ends_with (ExtString.String.strip s) "Module not found: path" -> "The haxelib command has been strip'ed, please install it again"
 			| _ -> String.concat "\n" (lines@err));
 		t();
 		lines
@@ -383,7 +384,7 @@ let rec process_params create pl =
 		| "--each" :: l ->
 			each_params := List.rev acc;
 			loop [] l
-		| "--cwd" :: dir :: l ->
+		| "--cwd" :: dir :: l | "-C" :: dir :: l ->
 			(* we need to change it immediately since it will affect hxml loading *)
 			(try Unix.chdir dir with _ -> raise (Arg.Bad ("Invalid directory: " ^ dir)));
 			loop acc l
@@ -396,7 +397,7 @@ let rec process_params create pl =
 				(* already connected : skip *)
 				loop acc l)
 		| "--run" :: cl :: args ->
-			let acc = cl :: "-main" :: "--interp" :: acc in
+			let acc = cl :: "-x" :: acc in
 			let ctx = create (!each_params @ (List.rev acc)) in
 			ctx.com.sys_args <- args;
 			init ctx;
@@ -404,7 +405,11 @@ let rec process_params create pl =
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
-				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				let acc, l =
+					(try
+						let parsed = parse_hxml arg in
+						if (List.mem "--" parsed) then raise (Arg.Bad "Rest arguments (--) are not allowed in hxml files") else (acc, parsed @ l)
+					with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
@@ -416,9 +421,42 @@ let rec process_params create pl =
 	) in
 	loop [] pl
 
+and process_args arg_spec =
+	(* Takes a list of arg specs including some custom info, and generates a
+	list in the format Arg.parse_argv wants. Handles multiple official or
+	deprecated names for the same arg; deprecated versions will display a
+	warning. *)
+	List.flatten(List.map (fun (cat, ok, dep, spec, hint, doc) ->
+		(* official argument names *)
+		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
+		(* deprecated argument names *)
+		let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in
+		(* For now, these warnings are a noop. Can replace this function to
+		enable error output: *)
+		(* let dep_fun = prerr_endline (dep_msg arg) in *)
+		let dep_fun arg spec = () in
+		let dep_spec arg spec = match spec with
+			| Arg.String f -> Arg.String (fun x -> dep_fun arg spec; f x)
+			| Arg.Unit f -> Arg.Unit (fun x -> dep_fun arg spec; f x)
+			| Arg.Bool f -> Arg.Bool (fun x -> dep_fun arg spec; f x)
+			| _ -> spec in
+		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
+	) arg_spec)
+
+and usage_string arg_spec usage =
+	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
+	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
+	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
+	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
+	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
+	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> [cat] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
+		let label = make_label ok hint in
+		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
+	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
+
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-cppia|-as3|-cs|-java|-python|-hl|-lua] <output> [options]\n Options :"
+		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n\n"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -458,87 +496,124 @@ try
 		| args -> (!process_ref) args
 	in
 	let arg_delays = ref [] in
+	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
-		("-cp",Arg.String (fun path ->
-			process_libs();
-			com.class_path <- Path.add_trailing_slash path :: com.class_path
-		),"<path> : add a directory to find source files");
-		("-js",Arg.String (Initialize.set_platform com Js),"<file> : compile code to JavaScript file");
-		("-lua",Arg.String (Initialize.set_platform com Lua),"<file> : compile code to Lua file");
-		("-swf",Arg.String (Initialize.set_platform com Flash),"<file> : compile code to Flash SWF file");
-		("-as3",Arg.String (fun dir ->
+		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
+		("Target",["--lua"],["-lua"],Arg.String (Initialize.set_platform com Lua),"<file>","compile code to Lua file");
+		("Target",["--swf"],["-swf"],Arg.String (Initialize.set_platform com Flash),"<file>","compile code to Flash SWF file");
+		("Target",["--as3"],["-as3"],Arg.String (fun dir ->
 			Initialize.set_platform com Flash dir;
 			Common.define com Define.As3;
 			Common.define com Define.NoInline;
-		),"<directory> : generate AS3 code into target directory");
-		("-neko",Arg.String (Initialize.set_platform com Neko),"<file> : compile code to Neko Binary");
-		("-php",Arg.String (fun dir ->
+		),"<directory>","generate AS3 code into target directory");
+		("Target",["--neko"],["-neko"],Arg.String (Initialize.set_platform com Neko),"<file>","compile code to Neko Binary");
+		("Target",["--php"],["-php"],Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
 			Initialize.set_platform com Php dir;
-		),"<directory> : generate PHP code into target directory");
-		("-cpp",Arg.String (fun dir ->
+		),"<directory>","generate PHP code into target directory");
+		("Target",["--cpp"],["-cpp"],Arg.String (fun dir ->
 			Initialize.set_platform com Cpp dir;
-		),"<directory> : generate C++ code into target directory");
-		("-cppia",Arg.String (fun file ->
+		),"<directory>","generate C++ code into target directory");
+		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
 			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
-		),"<file> : generate Cppia code into target file");
-		("-cs",Arg.String (fun dir ->
+		),"<file>","generate Cppia code into target file");
+		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
 			Initialize.set_platform com Cs dir;
-		),"<directory> : generate C# code into target directory");
-		("-java",Arg.String (fun dir ->
+		),"<directory>","generate C# code into target directory");
+		("Target",["--java"],["-java"],Arg.String (fun dir ->
 			cp_libs := "hxjava" :: !cp_libs;
 			Initialize.set_platform com Java dir;
-		),"<directory> : generate Java code into target directory");
-		("-python",Arg.String (fun dir ->
+		),"<directory>","generate Java code into target directory");
+		("Target",["--python"],["-python"],Arg.String (fun dir ->
 			Initialize.set_platform com Python dir;
-		),"<file> : generate Python code as target file");
-		("-hl",Arg.String (fun file ->
+		),"<file>","generate Python code as target file");
+		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
-		),"<file> : compile HL code as target file");
-		("-xml",Arg.String (fun file ->
-			Parser.use_doc := true;
-			xml_out := Some file
-		),"<file> : generate XML types description");
-		("-main",Arg.String (fun cl ->
-			if com.main_class <> None then raise (Arg.Bad "Multiple -main");
+		),"<file>","compile HL code as target file");
+		("Target",["-x";"--execute"],[], Arg.String (fun cl ->
+			let cpath = Path.parse_type_path cl in
+			(match com.main_class with
+				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
+				| None -> com.main_class <- Some cpath);
+			classes := cpath :: !classes;
+			Common.define com Define.Interp;
+			Initialize.set_platform com (!Globals.macro_platform) "";
+			interp := true;
+		),"<class>","interpret the program using internal macro system");
+		("Target",[],["--interp"], Arg.Unit (fun() ->
+			Common.define com Define.Interp;
+			Initialize.set_platform com (!Globals.macro_platform) "";
+			interp := true;
+		),"","interpret the program using internal macro system");
+
+		("Compilation",["-p";"--class-path"],["-cp"],Arg.String (fun path ->
+			process_libs();
+			com.class_path <- Path.add_trailing_slash path :: com.class_path
+		),"<path>","add a directory to find source files");
+		("Compilation",["-m";"--main"],["-main"],Arg.String (fun cl ->
+			if com.main_class <> None then raise (Arg.Bad "Multiple --main classes specified");
 			let cpath = Path.parse_type_path cl in
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
-		),"<class> : select startup class");
-		("-lib",Arg.String (fun l ->
+		),"<class>","select startup class");
+		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
 			Common.raw_define com l;
-		),"<library[:version]> : use a haxelib library");
-		("-D",Arg.String (fun var ->
+		),"<library[:version]>","use a haxelib library");
+		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			begin match var with
 				| "no_copt" | "no-copt" -> com.foptimize <- false;
 				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
 				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			end;
 			Common.raw_define com var;
-		),"<var[=value]> : define a conditional compilation flag");
-		("-v",Arg.Unit (fun () ->
+		),"<var[=value]>","define a conditional compilation flag");
+		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
 			com.verbose <- true
-		),": turn on verbose mode");
-		("-debug", Arg.Unit (fun() ->
+		),"","turn on verbose mode");
+		("Debug",["--debug"],["-debug"], Arg.Unit (fun() ->
 			Common.define com Define.Debug;
 			com.debug <- true;
-		), ": add debug information to the compiled code");
+		),"","add debug information to the compiled code");
+		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
+			message ctx (CMInfo(s_version,null_pos));
+			did_something := true;
+		),"","print version and exit");
+		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
+			raise (Arg.Help "")
+		),"","show extended help information");
+		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
+			let all,max_length = Define.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
+			did_something := true
+		),"","print help for all compiler specific defines");
+		("Miscellaneous",["--help-metas"],[], Arg.Unit (fun() ->
+			let all,max_length = Meta.get_documentation_list() in
+			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
+			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
+			did_something := true
+		),"","print help for all compiler metadatas");
+		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
+		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
+			com.sys_args <- com.sys_args @ [arg];
+		),"[args...]","args that will be passed to the macro interpreter");
 	] in
 	let adv_args_spec = [
-		("-dce", Arg.String (fun mode ->
+		("Optimization",["--dce";"--dead-code-elimination"],["-dce"],Arg.String (fun mode ->
 			(match mode with
 			| "std" | "full" | "no" -> ()
 			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
 			Common.define_value com Define.Dce mode
-		),"[std|full|no] : set the dead code elimination mode (default std)");
-		("-swf-version",Arg.Float (fun v ->
+		),"[std|full|no]","set the dead code elimination mode (default std)");
+		("Target-specific",["--swf-version"],["-swf-version"],Arg.Float (fun v ->
 			if not !swf_version || com.flash_version < v then com.flash_version <- v;
 			swf_version := true;
-		),"<version> : change the SWF version");
-		("-swf-header",Arg.String (fun h ->
+		),"<version>","change the SWF version");
+		(* FIXME: replace with -D define *)
+		("Target-specific",["--swf-header"],["-swf-header"],Arg.String (fun h ->
 			try
 				swf_header := Some (match ExtString.String.nsplit h ":" with
 				| [width; height; fps] ->
@@ -549,19 +624,22 @@ try
 				| _ -> raise Exit)
 			with
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
-		),"<header> : define SWF header (width:height:fps:color)");
-		("-swf-lib",Arg.String (fun file ->
+		),"<header>","define SWF header (width:height:fps:color)");
+		(* FIXME: replace with -D define *)
+		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
 			SwfLoader.add_swf_lib com file false
-		),"<file> : add the SWF library to the compiled SWF");
-		("-swf-lib-extern",Arg.String (fun file ->
+		),"<file>","add the SWF library to the compiled SWF");
+		(* FIXME: replace with -D define *)
+		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
 			SwfLoader.add_swf_lib com file true
-		),"<file> : use the SWF library for type checking");
-		("-java-lib",Arg.String (fun file ->
+		),"<file>","use the SWF library for type checking");
+		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
+		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			let std = file = "lib/hxjava-std.jar" in
 			arg_delays := (fun () -> Java.add_java_lib com file std) :: !arg_delays;
-		),"<file> : add an external JAR or class directory library");
-		("-net-lib",Arg.String (fun file ->
+		),"<file>","add an external JAR or class directory library");
+		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
 				| [file] ->
 					file,false
@@ -570,24 +648,15 @@ try
 				| _ -> raise Exit
 			in
 			arg_delays := (fun () -> Dotnet.add_net_lib com file is_std) :: !arg_delays;
-		),"<file>[@std] : add an external .NET DLL file");
-		("-net-std",Arg.String (fun file ->
+		),"<file>[@std]","add an external .NET DLL file");
+		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
-		),"<file> : add a root std .NET DLL search path");
-		("-c-arg",Arg.String (fun arg ->
+		),"<file>","add a root std .NET DLL search path");
+		(* FIXME: replace with -D define *)
+		("Target-specific",["--c-arg"],["-c-arg"],Arg.String (fun arg ->
 			com.c_args <- arg :: com.c_args
-		),"<arg> : pass option <arg> to the native Java/C# compiler");
-		("-x", Arg.String (fun file ->
-			let neko_file = file ^ ".n" in
-			Initialize.set_platform com Neko neko_file;
-			if com.main_class = None then begin
-				let cpath = Path.parse_type_path file in
-				com.main_class <- Some cpath;
-				classes := cpath :: !classes
-			end;
-			cmds := ("neko " ^ neko_file) :: !cmds;
-		),"<file> : shortcut for compiling and executing a neko file");
-		("-resource",Arg.String (fun res ->
+		),"<arg>","pass option <arg> to the native Java/C# compiler");
+		("Compilation",["-r";"--resource"],["-resource"],Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
 				| [file] -> file, file
@@ -599,19 +668,28 @@ try
 				if String.length s > 12000000 then raise Exit;
 				s;
 			with
-				| Sys_error _ -> failwith ("Resource file not found : " ^ file)
+				| Sys_error _ -> failwith ("Resource file not found: " ^ file)
 				| _ -> failwith ("Resource '" ^ file ^ "' excess the maximum size of 12MB")
 			) in
 			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
 			Hashtbl.add com.resources name data
-		),"<file>[@name] : add a named resource file");
-		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
-		("-cmd", Arg.String (fun cmd ->
+		),"<file>[@name]","add a named resource file");
+		("Debug",["--prompt"],["-prompt"], Arg.Unit (fun() -> prompt := true),"","prompt on error");
+		("Compilation",["--cmd"],["-cmd"], Arg.String (fun cmd ->
 			cmds := DisplayOutput.unquote cmd :: !cmds
-		),": run the specified command after successful compilation");
-		("--flash-strict", define Define.FlashStrict, ": more type strict flash API");
-		("--no-traces", define Define.NoTraces, ": don't compile trace calls in the program");
-		("--gen-hx-classes", Arg.Unit (fun() ->
+		),"<command>","run the specified command after successful compilation");
+		(* FIXME: replace with -D define *)
+		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
+		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
+		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
+		("Services",["--display"],[], Arg.String (fun file_pos ->
+			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
+		),"","display code tips");
+		("Services",["--xml"],["-xml"],Arg.String (fun file ->
+			Parser.use_doc := true;
+			xml_out := Some file
+		),"<file>","generate XML types description");
+		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
 			force_typing := true;
 			pre_compilation := (fun() ->
 				List.iter (fun (_,_,extract) ->
@@ -627,33 +705,23 @@ try
 				) com.net_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
-		),": generate hx headers for all input classes");
-		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
-		("--each", Arg.Unit (fun() -> assert false), ": append preceding parameters to all haxe compilations separated by --next");
-		("--display", Arg.String (fun file_pos ->
-			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
-		),": display code tips");
-		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
-		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
-		("--no-inline", define Define.NoInline, ": disable inlining");
-		("--no-opt", Arg.Unit (fun() ->
+		),"","generate hx headers for all input classes");
+		("Optimization",["--no-output"],[], Arg.Unit (fun() -> no_output := true),"","compiles but does not generate any file");
+		("Debug",["--times"],[], Arg.Unit (fun() -> measure_times := true),"","measure compilation times");
+		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
+		("Optimization",["--no-opt"],[], Arg.Unit (fun() ->
 			com.foptimize <- false;
 			Common.define com Define.NoOpt;
-		), ": disable code optimizations");
-		("--remap", Arg.String (fun s ->
+		), "","disable code optimizations");
+		("Compilation",["--remap"],[], Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid remap format, expected source:target")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
-		),"<package:target> : remap a package to another one");
-		("--interp", Arg.Unit (fun() ->
-			Common.define com Define.Interp;
-			Initialize.set_platform com (!Globals.macro_platform) "";
-			interp := true;
-		),": interpret the program using internal macro system");
-		("--macro", Arg.String (fun e ->
+		),"<package:target>","remap a package to another one");
+		("Compilation",["--macro"],[], Arg.String (fun e ->
 			force_typing := true;
 			config_macros := e :: !config_macros
-		)," : call the given macro before typing anything else");
-		("--wait", Arg.String (fun hp ->
+		),"<macro>","call the given macro before typing anything else");
+		("Compilation Server",["--wait"],[], Arg.String (fun hp ->
 			let accept = match hp with
 				| "stdio" ->
 					Server.init_wait_stdio()
@@ -663,29 +731,13 @@ try
 					init_wait_socket com.verbose host port
 			in
 			wait_loop process_params com.verbose accept
-		),"[[host:]port]|stdio] : wait on the given port (or use standard i/o) for commands to run)");
-		("--connect",Arg.String (fun _ ->
+		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run)");
+		("Compilation Server",["--connect"],[],Arg.String (fun _ ->
 			assert false
-		),"<[host:]port> : connect on the given port and run commands there)");
-		("--cwd", Arg.String (fun dir ->
+		),"<[host:]port>","connect on the given port and run commands there)");
+		("Compilation",["-C";"--cwd"],[], Arg.String (fun dir ->
 			assert false
-		),"<dir> : set current working directory");
-		("-version",Arg.Unit (fun() ->
-			message ctx (CMInfo(s_version,null_pos));
-			did_something := true;
-		),": print version and exit");
-		("--help-defines", Arg.Unit (fun() ->
-			let all,max_length = Define.get_documentation_list() in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
-			did_something := true
-		),": print help for all compiler specific defines");
-		("--help-metas", Arg.Unit (fun() ->
-			let all,max_length = Meta.get_documentation_list() in
-			let all = List.map (fun (n,doc) -> Printf.sprintf " %-*s: %s" max_length n (limit_string doc (max_length + 3))) all in
-			List.iter (fun msg -> ctx.com.print (msg ^ "\n")) all;
-			did_something := true
-		),": print help for all compiler metadatas");
+		),"<dir>","set current working directory");
 	] in
 	let args_callback cl =
 		let path,name = Path.parse_path cl in
@@ -696,13 +748,19 @@ try
 			config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
 		end
 	in
-	let all_args_spec = basic_args_spec @ adv_args_spec in
+	let all_args = (basic_args_spec @ adv_args_spec) in
+	let all_args_spec = process_args all_args in
 	let process args =
 		let current = ref 0 in
 		(try
-			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback usage;
+			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback "";
 			List.iter (fun fn -> fn()) !arg_delays
-		with (Arg.Bad msg) as exc ->
+		with
+		| Arg.Help _ ->
+			raise (HelpMessage (usage_string all_args usage))
+		| Arg.Bad msg ->
+			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
+			let new_msg = (Printf.sprintf "%s\n\n%s" first_line (usage_string all_args usage)) in
 			let r = Str.regexp "unknown option `\\([-A-Za-z]+\\)'" in
 			try
 				ignore(Str.search_forward r msg 0);
@@ -711,7 +769,7 @@ try
 				let msg = StringError.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
 				raise (Arg.Bad msg)
 			with Not_found ->
-				raise exc);
+				raise (Arg.Bad new_msg));
 		arg_delays := []
 	in
 	process_ref := process;
@@ -745,18 +803,11 @@ try
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] && not !force_typing then begin
-		let help_spec = basic_args_spec @ [
-			("-help", Arg.Unit (fun () -> ()),": show extended help information");
-			("--help", Arg.Unit (fun () -> ()),": show extended help information");
-			("--help-defines", Arg.Unit (fun () -> ()),": print help for all compiler specific defines");
-			("--help-metas", Arg.Unit (fun () -> ()),": print help for all compiler metadatas");
-			("<dot-path>", Arg.Unit (fun () -> ()),": compile the module specified by dot-path");
-		] in
-		if !cmds = [] && not !did_something then print_endline (Arg.usage_string help_spec usage);
+		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
 		ctx.setup();
-		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
-		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
+		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
+		Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
 		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
@@ -785,7 +836,7 @@ try
 		| Some "hx" ->
 			Genxml.generate_hx com
 		| Some file ->
-			Common.log com ("Generating xml : " ^ file);
+			Common.log com ("Generating xml: " ^ file);
 			Path.mkdir_from_path file;
 			Genxml.generate com file);
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
@@ -829,7 +880,7 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) null_pos
-	| Arg.Help msg ->
+	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
@@ -889,6 +940,7 @@ with
 let other = Timer.timer ["other"] in
 Sys.catch_break true;
 MacroContext.setup();
+
 let args = List.tl (Array.to_list Sys.argv) in
 (try
 	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in

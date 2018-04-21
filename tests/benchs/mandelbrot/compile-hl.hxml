@@ -1,9 +1,9 @@
--main Mandelbrot
+--main Mandelbrot
 -hl bin/mandelbrot.hl
 -D interp
 
 --next
--main Mandelbrot
+--main Mandelbrot
 -hl bin/mandelbrot-anon.hl
 -D interp
 -D anon_objects

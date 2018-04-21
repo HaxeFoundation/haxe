@@ -1,9 +1,9 @@
 -D source-header=''
--debug
--cp src
+--debug
+-p src
 # -cp "C:\Program Files\The Haxe Effect\src/dev/null"
--resource res1.txt@re/s?!%[]))("'1.txt
--resource res2.bin@re/s?!%[]))("'1.bin
--dce full
+--resource res1.txt@re/s?!%[]))("'1.txt
+--resource res2.bin@re/s?!%[]))("'1.bin
+--dce full
 -D analyzer-optimize
 -D analyzer-user-var-fusion
