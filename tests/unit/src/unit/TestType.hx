@@ -809,6 +809,12 @@ class TestType extends Test {
 		typedAs(unit.MyAbstract.GADTEnumAbstract.A, expectedA);
 		typedAs(unit.MyAbstract.GADTEnumAbstract.B, expectedB);
 	}
+
+	function testCreateFromComplexType() {
+		var c = :Array<Int>,
+			v = Type.createInstance(c, []);
+		t(Std.is(v, c));
+	}
 }
 
 typedef TypedefToStringMap<T> = Map<String,T>

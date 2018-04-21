@@ -322,6 +322,8 @@ let reify in_macro =
 			expr "EThrow" [loop e]
 		| ECast (e,ct) ->
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
+		| EComplexType ct ->
+			expr "EComplexType" [to_type_hint (ct,p) p]
 		| EDisplay (e,flag) ->
 			expr "EDisplay" [loop e; to_bool flag p]
 		| EDisplayNew t ->
