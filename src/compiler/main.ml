@@ -581,7 +581,7 @@ try
 			message ctx (CMInfo(s_version,null_pos));
 			did_something := true;
 		),"","print version and exit");
-		("Miscellaneous", ["help";"-h";"--help"], ["-help"], Arg.Unit (fun () ->
+		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
 			raise (Arg.Help "")
 		),"","show extended help information");
 		("Miscellaneous",["--help-defines"],[], Arg.Unit (fun() ->
