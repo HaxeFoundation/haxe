@@ -1796,12 +1796,17 @@ module StdSocket = struct
 		let proto = get_instance_prototype (get_ctx()) key_sys_net_Socket null_pos in
 		let i = get_instance_field_index proto key_socket null_pos in
 		let pair = function
-			| VInstance vi as v -> this vi.iproto.pfields.(i),v
+			| VInstance vi as v -> this vi.ifields.(i),v
 			| v -> unexpected_value v "NativeSocket"
 		in
-		let read = List.map pair (decode_array read) in
-		let write = List.map pair (decode_array write) in
-		let others = List.map pair (decode_array others) in
+		let decode_optional_array = function
+			| VNull -> []
+			| VArray va -> EvalArray.to_list va
+			| v -> unexpected_value v "array"
+		in
+		let read = List.map pair (decode_optional_array read) in
+		let write = List.map pair (decode_optional_array write) in
+		let others = List.map pair (decode_optional_array others) in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let read',write',others' = Unix.select (List.map fst read) (List.map fst write) (List.map fst others) timeout in
 		let read = List.map (fun sock -> List.assq sock read) read' in

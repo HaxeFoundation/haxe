@@ -23,6 +23,8 @@ package sys.net;
 
 import haxe.io.Error;
 import cpp.NativeSocket;
+import cpp.NativeString;
+import cpp.Pointer;
 
 private class SocketInput extends haxe.io.Input {
 
@@ -144,7 +146,8 @@ class Socket {
    public function read() : String {
       var bytes:haxe.io.BytesData = NativeSocket.socket_read(__s);
       if (bytes==null) return "";
-      return bytes.toString();
+      var arr:Array<cpp.Char> = cast bytes;
+      return NativeString.fromPointer(Pointer.ofArray(arr));
    }
 
    public function write( content : String ) : Void {

@@ -1028,6 +1028,91 @@ extern class Global {
 	static function stream_socket_get_name( stream:Resource, want_peer:Bool ) : EitherType<String,Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.socket-create.php
+	**/
+	static function socket_create( domain:Int, type:Int, protocol:Int ) : Resource;
+
+	/**
+		@see http://php.net/manual/en/function.socket-connect.php
+	**/
+	static function socket_connect( stream:Resource, host:String, port:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-listen.php
+	**/
+	static function socket_listen( stream:Resource, connections:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-shutdown.php
+	**/
+	static function socket_shutdown( stream:Resource, rw:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-bind.php
+	**/
+	static function socket_bind( stream:Resource, host:String, port:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-accept.php
+	**/
+	static function socket_accept( stream:Resource ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-getpeername.php
+	**/
+	static function socket_getpeername( stream:Resource, host:Ref<String>, port:Ref<Int> ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-getsockname.php
+	**/
+	static function socket_getsockname( stream:Resource, host:Ref<String>, port:Ref<Int> ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-block.php
+	**/
+	static function socket_set_block( stream:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-nonblock.php
+	**/
+	static function socket_set_nonblock( stream:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-option.php
+	**/
+	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Bool ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-select.php
+	**/
+	static function socket_select( read:NativeIndexedArray<Resource>, write:NativeIndexedArray<Resource>, other:NativeIndexedArray<Resource>, tv_sec:Int=0, tv_usec:Int=0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-read.php
+	**/
+	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-write.php
+	**/
+	static function socket_write( resource:Resource, buffer:String, len:Int=0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-import-stream.php
+	**/
+	static function socket_import_stream( resource:Resource ) : EitherType<Bool, Resource>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-export-stream.php
+	**/
+	static function socket_export_stream( resource:Resource ) : EitherType<Bool, Resource>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-close.php
+	**/
+	static function socket_close( resource:Resource ) : Void;
+
+	/**
 		@see http://php.net/manual/en/function.ini-get.php
 	**/
 	static function ini_get( var_name:String ) : EitherType<Bool,String>;

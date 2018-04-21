@@ -56,6 +56,6 @@ class Host {
 	}
 
 	public static function localhost() : String {
-		return _SERVER['HTTP_HOST'];
+		return php.Syntax.coalesce(_SERVER['HTTP_HOST'], "localhost");
 	}
 }
