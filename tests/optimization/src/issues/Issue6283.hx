@@ -6,7 +6,6 @@ import TestJs.use;
 
 @:callable
 abstract From<T>(T) from T to T {
-	inline function new (t:T) return new From(t);
 	@:from macro public static function fromExpr (e:haxe.macro.Expr) {
 		return macro function (a, b) return a+b;
 	}

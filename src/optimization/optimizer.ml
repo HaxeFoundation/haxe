@@ -1131,6 +1131,17 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
+			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline ->
+				begin match cf.cf_expr with
+				| Some {eexpr = TFunction tf} ->
+					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
+					let inl = (try type_inline ctx cf tf ef el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
+					(match inl with
+					| None -> reduce_expr ctx e
+					| Some e -> reduce_loop ctx e)
+				| _ ->
+					reduce_expr ctx e
+				end
 			| { eexpr = TField ({ eexpr = TTypeExpr (TClassDecl c) },field) } ->
 				(match api_inline ctx c (field_name field) el e.epos with
 				| None -> reduce_expr ctx e
