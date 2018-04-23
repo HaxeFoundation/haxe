@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.net;
- 
+
 
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
@@ -49,11 +49,12 @@ class Host {
 	public function new( name : String ) : Void {
 		host = name;
 		if (lua.NativeStringTools.find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null){
-			_ip = name;	
+			_ip = name;
 		} else {
 			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
-			_ip = res.result[1].addr; 
 			if (res.result == null) throw "Unrecognized node name";
+			_ip = res.result[1].addr;
+			if (_ip == "::1") _ip = "127.0.0.0";
 		}
 		var num = 0;
 		for (a in _ip.split(".")){

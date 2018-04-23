@@ -9,9 +9,7 @@ class Main {
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
-		#if !lua
 		runner.addCase(new net.TestSocket());
-		#end
 		Report.create(runner);
 		runner.run();
 	}
