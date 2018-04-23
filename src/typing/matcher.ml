@@ -299,16 +299,13 @@ module Pattern = struct
 				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
 				PatConstructor(ConConst ct,[])
 			| EConst (Ident i) ->
-				begin match i with
-					| "_" ->
-						begin match follow t with
-							| TFun(ta,tr) when tr == fake_tuple_type ->
-								PatTuple(List.map (fun (_,_,t) -> (PatAny,pos e)) ta)
-							| _ ->
-								PatAny
-						end
+				begin match follow t with
+					| TFun(ta,tr) when tr == fake_tuple_type ->
+						if i = "_" then PatTuple(List.map (fun (_,_,t) -> (PatAny,pos e)) ta)
+						else error "Cannot bind matched tuple to variable, use _ instead" p
 					| _ ->
-						handle_ident i (pos e)
+						if i = "_" then PatAny
+						else handle_ident i (pos e)
 				end
 			| EVars([(s,p),None,None]) ->
 				let v = add_local s p in
