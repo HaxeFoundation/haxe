@@ -3150,7 +3150,7 @@ and type_local_function ctx name f with_type p =
 	List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
 	let inline, v = (match name with
 		| None -> false, None
-		| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))
+		| Some v when ExtString.String.starts_with v "inline_" && String.length v > 7 -> true, Some (String.sub v 7 (String.length v - 7))
 		| Some v -> false, Some v
 	) in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
