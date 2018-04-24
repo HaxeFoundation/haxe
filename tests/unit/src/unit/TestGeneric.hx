@@ -1,5 +1,10 @@
 package unit;
 
+private typedef MyAnon = {
+	a:Int,
+	?b:MyRandomClass,
+}
+
 @:generic
 class MyGeneric<T> {
 	public var t:T;
@@ -50,5 +55,11 @@ class TestGeneric extends Test {
 		n.root = new MyData(1);
 		n.root.rbLeft = new MyData(2);
 		n.root.rbRight = new MyData(3);
+	}
+
+	function testGenericAnon() {
+		var a = new MyGeneric<MyAnon>({a: 1});
+		eq(a.t.a, 1);
+		eq(a.t.b, null);
 	}
 }
