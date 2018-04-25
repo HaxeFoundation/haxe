@@ -38,7 +38,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Typer.acc_get ctx (Typer.type_field ~resume ctx e name e.epos Typer.MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field ~resume ctx e name e.epos TyperBase.MGet) e.epos
 
 let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
@@ -114,7 +114,7 @@ module Constructor = struct
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 		| ConConst ct -> make_const_texpr ctx.com.basic ct p
 		| ConArray i -> make_int ctx.com.basic i p
-		| ConTypeExpr mt -> Typer.type_module_type ctx mt None p
+		| ConTypeExpr mt -> TyperBase.type_module_type ctx mt None p
 		| ConStatic(c,cf) -> make_static_field c cf p
 		| ConFields _ -> error "Something went wrong" p
 
@@ -250,7 +250,7 @@ module Pattern = struct
 			| Exit | Bad_pattern _ ->
 				begin try
 					let mt = module_type_of_type t in
-					let e_mt = Typer.type_module_type ctx mt None p in
+					let e_mt = TyperBase.type_module_type ctx mt None p in
 					let e = type_field_access ctx ~resume:true e_mt s in
 					let pat = check_expr e in
 					save();

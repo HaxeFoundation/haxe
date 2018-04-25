@@ -133,6 +133,7 @@ exception WithTypeError of error_msg * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 let type_expr_ref : (typer -> expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_block_ref : (typer -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let type_module_type_ref : (typer -> module_type -> t list option -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let match_expr_ref : (typer -> expr -> (expr list * expr option * expr option * pos) list -> (expr option * pos) option -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ _ -> assert false)
