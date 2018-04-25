@@ -442,7 +442,7 @@ module Pattern = struct
 				let rec loop in_display e = match e with
 					| (EConst (Ident s),p) ->
 						let v = add_local s p in
-						if in_display then ignore(Typer.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
+						if in_display then ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
 					| (EParenthesis e1,_) -> loop in_display e1
@@ -461,8 +461,8 @@ module Pattern = struct
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
 				let pat = loop e in
-				let _ = if iscall then Typer.handle_signature_display ctx e (WithType t)
-				else Typer.handle_display ctx e (WithType t) in
+				let _ = if iscall then TyperDisplay.handle_signature_display ctx e (WithType t)
+				else TyperDisplay.handle_display ctx e (WithType t) in
 				pat
 			| _ ->
 				fail()
@@ -535,8 +535,8 @@ module Case = struct
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
 		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
-			| Some e,Some e_ast -> ignore(Typer.display_expr ctx e_ast e with_type p)
-			| None,None -> ignore(Typer.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
+			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e with_type p)
+			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
 			| _ -> assert false
 		end;
 		{
@@ -1487,5 +1487,3 @@ module Match = struct
 		end;
 		{e with epos = p}
 end
-;;
-Typecore.match_expr_ref := Match.match_expr
