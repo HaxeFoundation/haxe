@@ -77,6 +77,8 @@ let semicolon s =
 			let pos = snd (last_token s) in
 			if do_resume() then pos else error Missing_semicolon pos
 
+let parsing_macro_cond = ref false
+
 let rec	parse_file s =
 	last_doc := None;
 	match s with parser
@@ -859,6 +861,8 @@ and expr = parser
 			(match b with
 			| EObjectDecl _ -> expr_next e s
 			| _ -> e))
+	| [< '(Kwd k,p) when !parsing_macro_cond; s >] ->
+		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
 		parse_macro_expr p s
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
@@ -1106,31 +1110,45 @@ and parse_call_params f p1 s =
 		make_display_call [] p2
 	| [< >] -> parse_next_param [] p1
 
-and parse_macro_cond allow_op s =
-	match s with parser
-	| [< '(Const (Ident t),p) >] ->
-		parse_macro_ident allow_op t p s
-	| [< '(Const (String s),p) >] ->
-		None, (EConst (String s),p)
-	| [< '(Const (Int i),p) >] ->
-		None, (EConst (Int i),p)
-	| [< '(Const (Float f),p) >] ->
-		None, (EConst (Float f),p)
-	| [< '(Kwd k,p) >] ->
-		parse_macro_ident allow_op (s_keyword k) p s
-	| [< '(POpen, p1); _,e = parse_macro_cond true; '(PClose, p2) >] ->
-		let e = (EParenthesis e,punion p1 p2) in
-		if allow_op then parse_macro_op e s else None, e
-	| [< '(Unop op,p); tk, e = parse_macro_cond allow_op >] ->
-		tk, make_unop op e p
+and parse_macro_cond s =
+	parsing_macro_cond := true;
+	try
+		let cond = (match s with parser
+			| [< '(Const (Ident t),p) >] ->
+				parse_macro_ident t p s
+			| [< '(Const (String s),p) >] ->
+				None, (EConst (String s),p)
+			| [< '(Const (Int i),p) >] ->
+				None, (EConst (Int i),p)
+			| [< '(Const (Float f),p) >] ->
+				None, (EConst (Float f),p)
+			| [< '(Kwd k,p) >] ->
+				parse_macro_ident (s_keyword k) p s
+			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->
+				tk, make_unop op e p
+			| [< '(POpen,p1); (e,p) = expr; '(PClose,_) >] ->
+				None, (EParenthesis(validate_macro_cond (e,p)),p1)) in
+		parsing_macro_cond := false;
+		cond
+	with e ->
+		parsing_macro_cond := false;
+		raise e
 
-and parse_macro_ident allow_op t p s =
+and validate_macro_cond e = match fst e with
+	| EConst (Ident _)
+	| EConst (String _)
+	| EConst (Int _)
+	| EConst (Float _)
+		-> e
+	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond e1), snd e)
+	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond e1), (validate_macro_cond e2)), snd e)
+	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond e1), snd e)
+	| _ -> serror()
+
+and parse_macro_ident t p s =
 	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
 	let e = (EConst (Ident t),p) in
-	if not allow_op then
-		None, e
-	else
-		parse_macro_op e s
+	None, e
 
 and parse_macro_op e s =
 	match Stream.peek s with
@@ -1142,7 +1160,7 @@ and parse_macro_op e s =
 				OpGte
 			| _ -> op
 		in
-		let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
+		let tk, e2 = (try parse_macro_cond s with Stream.Failure -> serror()) in
 		tk, make_binop op e e2
 	| tk ->
 		tk, e
