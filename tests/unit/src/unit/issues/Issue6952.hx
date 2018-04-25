@@ -3,7 +3,7 @@ package unit.issues;
 @:generic class Issue6952TestClass<@:const T> {
 	public function new() {}
 	public function foo() {
-		return T;
+		T;
 	}
 }
 
