@@ -2062,7 +2062,7 @@ and type_local_function ctx name f with_type p =
 and type_array_decl ctx el with_type p =
 	let tp = (match with_type with
 	| WithType t ->
-		let rec loop t =
+		let rec loop seen t =
 			(match follow t with
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
 				(match follow tp with
@@ -2073,14 +2073,14 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) ->
-				(match List.fold_left (fun acc t -> match loop t with None -> acc | Some t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t t') seen) ->
+				(match List.fold_left (fun acc t -> match loop (t :: seen) t with None -> acc | Some t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> Some t
 				| _ -> None)
 			| t ->
 				if t == t_dynamic then Some t else None)
 		in
-		loop t
+		loop [] t
 	| _ ->
 		None
 	) in
