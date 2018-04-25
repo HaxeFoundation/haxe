@@ -409,7 +409,17 @@ let check_param_constraints ctx types t pl c p =
 			try
 				unify_raise ctx t ti p
 			with Error(Unify l,p) ->
-				if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+				let fail() =
+					if not ctx.untyped then display_error ctx (error_msg (Unify (Constraint_failure (s_type_path c.cl_path) :: l))) p;
+				in
+				match follow t with
+				| TInst({cl_kind = KExpr e},_) ->
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType ti) in
+					begin try unify_raise ctx e.etype ti p
+					with Error (Unify _,_) -> fail() end
+				| _ ->
+					fail()
+
 		) ctl
 
 let requires_value_meta com co =
@@ -3776,7 +3786,7 @@ type generic_context = {
 let generic_check_const_expr ctx t =
 	match follow t with
 	| TInst({cl_kind = KExpr e},_) ->
-		let e = type_expr ctx e Value in
+		let e = type_expr {ctx with locals = PMap.empty} e Value in
 		e.etype,Some e
 	| _ -> t,None
 
