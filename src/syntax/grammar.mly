@@ -1110,7 +1110,34 @@ and parse_call_params f p1 s =
 		make_display_call [] p2
 	| [< >] -> parse_next_param [] p1
 
-and parse_macro_cond s =
+and toplevel_expr s =
+	try
+		expr s
+	with
+		Display e -> e
+
+and secure_expr s =
+	match s with parser
+	| [< e = expr >] -> e
+	| [< >] -> serror()
+
+let rec validate_macro_cond e = match fst e with
+	| EConst (Ident _)
+	| EConst (String _)
+	| EConst (Int _)
+	| EConst (Float _)
+		-> e
+	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond e1), snd e)
+	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond e1), (validate_macro_cond e2)), snd e)
+	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond e1), snd e)
+	| _ -> serror()
+
+let parse_macro_ident t p s =
+	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
+	let e = (EConst (Ident t),p) in
+	None, e
+
+let rec parse_macro_cond s =
 	parsing_macro_cond := true;
 	try
 		let cond = (match s with parser
@@ -1133,45 +1160,3 @@ and parse_macro_cond s =
 	with e ->
 		parsing_macro_cond := false;
 		raise e
-
-and validate_macro_cond e = match fst e with
-	| EConst (Ident _)
-	| EConst (String _)
-	| EConst (Int _)
-	| EConst (Float _)
-		-> e
-	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond e1), snd e)
-	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond e1), (validate_macro_cond e2)), snd e)
-	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond e1), snd e)
-	| _ -> serror()
-
-and parse_macro_ident t p s =
-	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
-	let e = (EConst (Ident t),p) in
-	None, e
-
-and parse_macro_op e s =
-	match Stream.peek s with
-	| Some (Binop op,_) ->
-		Stream.junk s;
-		let op = match Stream.peek s with
-			| Some (Binop OpAssign,_) when op = OpGt ->
-				Stream.junk s;
-				OpGte
-			| _ -> op
-		in
-		let tk, e2 = (try parse_macro_cond s with Stream.Failure -> serror()) in
-		tk, make_binop op e e2
-	| tk ->
-		tk, e
-
-and toplevel_expr s =
-	try
-		expr s
-	with
-		Display e -> e
-
-and secure_expr s =
-	match s with parser
-	| [< e = expr >] -> e
-	| [< >] -> serror()
