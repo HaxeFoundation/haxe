@@ -280,7 +280,6 @@ let parse_file com file p =
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
 let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
-let return_partial_type = ref false
 
 let type_function_arg ctx t e opt p =
 	if opt then

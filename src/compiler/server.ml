@@ -491,7 +491,7 @@ let rec wait_loop process_params verbose accept =
 				Hashtbl.clear changed_directories;
 				Common.display_default := DMNone;
 				Parser.resume_display := null_pos;
-				Typeload.return_partial_type := false;
+				return_partial_type := false;
 				measure_times := false;
 				close_times();
 				stats.s_files_parsed := 0;
