@@ -4,10 +4,6 @@ open Type
 open Typecore
 open Error
 
-type switch_mode =
-	| CMatch of (tenum_field * (string * t) option list option * pos)
-	| CExpr of texpr
-
 type access_mode =
 	| MGet
 	| MSet
