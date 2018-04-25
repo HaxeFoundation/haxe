@@ -397,7 +397,11 @@ let unify_field_call ctx fa el args ret p inline =
 				a.a_path
 			| _ -> c.cl_path
 		in
-		let e = if stat then type_type ctx path p else e in
+		let e = match c.cl_kind with
+			| KAbstractImpl(a) ->
+				type_type ctx a.a_path p
+			| _ -> e
+		in
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
