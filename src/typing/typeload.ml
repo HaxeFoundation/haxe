@@ -3767,18 +3767,27 @@ exception Generic_Exception of string * pos
 
 type generic_context = {
 	ctx : typer;
-	subst : (t * t) list;
+	subst : (t * (t * texpr option)) list;
 	name : string;
 	p : pos;
 	mutable mg : module_def option;
 }
+
+let generic_check_const_expr ctx t =
+	match follow t with
+	| TInst({cl_kind = KExpr e},_) ->
+		let e = type_expr ctx e Value in
+		e.etype,Some e
+	| _ -> t,None
 
 let make_generic ctx ps pt p =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
 		| (x,TLazy f) :: l1, _ -> loop ((x,lazy_type f) :: l1) l2
-		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| (_,t1) :: l1 , t2 :: l2 ->
+			let t,eo = generic_check_const_expr ctx t2 in
+			(t1,(t,eo)) :: loop l1 l2
 		| _ -> assert false
 	in
 	let name =
@@ -3820,7 +3829,8 @@ let rec generic_substitute_type gctx t =
 		t
 	| _ ->
 		try
-			generic_substitute_type gctx (List.assq t gctx.subst)
+			let t,_ = List.assq t gctx.subst in
+			generic_substitute_type gctx t
 		with Not_found ->
 			Type.map (generic_substitute_type gctx) t
 
@@ -3848,18 +3858,18 @@ let generic_substitute_expr gctx e =
 			build_expr {e with eexpr = TField(e1,fa)}
 		| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter _;} as c)) when Meta.has Meta.Const c.cl_meta ->
 			let rec loop subst = match subst with
-				| (t1,t2) :: subst ->
+				| (t1,(_,eo)) :: subst ->
 					begin match follow t1 with
-						| TInst(c2,_) when c == c2 -> t2
+						| TInst(c2,_) when c == c2 -> eo
 						| _ -> loop subst
 					end
 				| [] -> raise Not_found
 			in
 			begin try
-				let t = loop gctx.subst in
-				begin match follow t with
-					| TInst({cl_kind = KExpr e},_) -> type_expr gctx.ctx e Value
-					| _ -> error "Only Const type parameters can be used as value" e.epos
+				let eo = loop gctx.subst in
+				begin match eo with
+					| Some e -> e
+					| None -> error "Only Const type parameters can be used as value" e.epos
 				end
 			with Not_found ->
 				e
@@ -3951,7 +3961,7 @@ let rec build_generic ctx c p tl =
 			let param_subst,params = List.fold_left (fun (subst,params) (s,t) -> match follow t with
 				| TInst(c,tl) as t ->
 					let t2 = TInst({c with cl_module = mg;},tl) in
-					(t,t2) :: subst,(s,t2) :: params
+					(t,(t2,None)) :: subst,(s,t2) :: params
 				| _ -> assert false
 			) ([],[]) cf_old.cf_params in
 			let gctx = {gctx with subst = param_subst @ gctx.subst} in

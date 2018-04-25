@@ -1142,9 +1142,10 @@ and type_ident ctx i p mode =
 			begin try
 				let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 				let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
-				if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then
-					AKExpr (type_module_type ctx (TClassDecl c) None p)
-				else begin
+                if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
+                    let e = type_module_type ctx (TClassDecl c) None p in
+                    AKExpr {e with etype = (snd t)}
+				end else begin
 					display_error ctx ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
 				end
