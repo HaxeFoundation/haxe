@@ -430,7 +430,7 @@ and process_args arg_spec =
 		(* official argument names *)
 		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
 		(* deprecated argument names *)
-		let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in
+		(* let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in *)
 		(* For now, these warnings are a noop. Can replace this function to
 		enable error output: *)
 		(* let dep_fun = prerr_endline (dep_msg arg) in *)
@@ -813,7 +813,7 @@ try
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
-		Typer.finalize tctx;
+		Finalization.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
 		if ctx.com.display.dms_exit_during_typing then begin
@@ -821,7 +821,7 @@ try
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
-		let main, types, modules = Typer.generate tctx in
+		let main, types, modules = Finalization.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

@@ -162,7 +162,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 			begin try
 				(* first try: do we have an @:arrayAccess getter field? *)
 				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_,_ = (!find_array_access_raise_ref) ctx a tl todo None p in
+				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
 				let get_next e_base e_index t p =
 					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
 				in

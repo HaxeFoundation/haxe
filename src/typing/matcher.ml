@@ -108,7 +108,7 @@ module Constructor = struct
 	let to_texpr ctx match_debug p con = match con with
 		| ConEnum(en,ef) ->
 			if Meta.has Meta.FakeEnum en.e_meta then begin
-				let e_mt = !type_module_type_ref ctx (TEnumDecl en) None p in
+				let e_mt = TyperBase.type_module_type ctx (TEnumDecl en) None p in
  				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
  			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p

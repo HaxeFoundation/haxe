@@ -294,7 +294,7 @@ let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType t) in
-	let e = (!cast_or_unify_ref) ctx t e p in
+	let e = AbstractCast.cast_or_unify ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e

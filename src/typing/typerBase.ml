@@ -29,6 +29,18 @@ type object_decl_kind =
 
 let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
+let merge_core_doc ctx c =
+	let c_core = Typeload.load_core_class ctx c in
+	if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
+	let maybe_merge cf_map cf =
+		if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
+	in
+	List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
+	List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
+	match c.cl_constructor,c_core.cl_constructor with
+		| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
+		| _ -> ()
+
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
 	let fpath = slashes (Path.get_full_path file) in

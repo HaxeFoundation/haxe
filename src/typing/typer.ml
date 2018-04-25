@@ -244,20 +244,6 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
-let fast_enum_field e ef p =
-	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
-	TField (et,FEnum (e,ef))
-
-let get_constructor ctx c params p =
-	match c.cl_kind with
-	| KAbstractImpl a ->
-		let f = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
-		let ct = field_type ctx c params f p in
-		apply_params a.a_params params ct, f
-	| _ ->
-		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
-		apply_params c.cl_params params ct, f
-
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -392,72 +378,6 @@ let rec type_ident_raise ctx i p mode =
 		Display.ImportHandling.maybe_mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
 		type_field ctx e name p mode
-
-let type_bind ctx (e : texpr) (args,ret) params p =
-	let vexpr v = mk (TLocal v) v.v_type p in
-	let acount = ref 0 in
-	let alloc_name n =
-		if n = "" && not ctx.is_display_file then begin
-			incr acount;
-			"a" ^ string_of_int !acount;
-		end else
-			n
-	in
-	let rec loop args params given_args missing_args ordered_args = match args, params with
-		| [], [] -> given_args,missing_args,ordered_args
-		| [], _ -> error "Too many callback arguments" p
-		| (n,o,t) :: args , [] when o ->
-			let a = if is_pos_infos t then
-					let infos = mk_infos ctx p [] in
-					ordered_args @ [type_expr ctx infos (WithType t)]
-				else if ctx.com.config.pf_pad_nulls then
-					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
-				else
-					ordered_args
-			in
-			loop args [] given_args missing_args a
-		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
-			error "Usage of _ is not supported for optional non-nullable arguments" p
-		| (n,o,t) :: args , ([] as params)
-		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) p in
-			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
-		| (n,o,t) :: args , param :: params ->
-			let e = type_expr ctx param (WithType t) in
-			let e = AbstractCast.cast_or_unify ctx t e p in
-			let v = alloc_var (alloc_name n) t (pos param) in
-			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
-	in
-	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let rec gen_loc_name n =
-		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
-		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
-	in
-	let loc = alloc_var (gen_loc_name 0) e.etype e.epos in
-	let given_args = (loc,false,Some e) :: given_args in
-	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(inner_fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) ordered_args ret p in
-	let e_ret = match follow ret with
-		| TAbstract ({a_path = [],"Void"},_) ->
-			call
-		| TMono _ ->
-			mk (TReturn (Some call)) t_dynamic p;
-		| _ ->
-			mk (TReturn (Some call)) t_dynamic p;
-	in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some TNull else None) missing_args;
-		tf_type = ret;
-		tf_expr = e_ret;
-	}) t_inner p in
-	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
-		tf_type = t_inner;
-		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(outer_fun_args given_args, t_inner)) p in
-	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
 
 (*
 	We want to try unifying as an integer and apply side effects.
@@ -2736,167 +2656,6 @@ and type_call ctx e el (with_type:with_type) p =
 	| _ ->
 		def ()
 
-
-
-(* ---------------------------------------------------------------------- *)
-(* FINALIZATION *)
-
-let get_main ctx types =
-	match ctx.com.main_class with
-	| None -> None
-	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
-		let fmode, ft, r = (match t with
-		| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
-		| TClassDecl c ->
-			try
-				let f = PMap.find "main" c.cl_statics in
-				let t = Type.field_type f in
-				(match follow t with
-				| TFun ([],r) -> FStatic (c,f), t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
-			with
-				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
-		) in
-		let emain = type_type ctx cl null_pos in
-		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
-		(* add haxe.EntryPoint.run() call *)
-		let main = (try
-			let et = List.find (fun t -> t_path t = (["haxe"],"EntryPoint")) types in
-			let ec = (match et with TClassDecl c -> c | _ -> assert false) in
-			let ef = PMap.find "run" ec.cl_statics in
-			let p = null_pos in
-			let et = mk (TTypeExpr et) (TAnon { a_fields = PMap.empty; a_status = ref (Statics ec) }) p in
-			let call = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type p,[])) ctx.t.tvoid p in
-			mk (TBlock [main;call]) ctx.t.tvoid p
-		with Not_found ->
-			main
-		) in
-		Some main
-
-let finalize ctx =
-	flush_pass ctx PFinal "final";
-	match ctx.com.callbacks.after_typing with
-		| [] ->
-			()
-		| fl ->
-			let rec loop handled_types =
-				let all_types = Hashtbl.fold (fun _ m acc -> m.m_types @ acc) ctx.g.modules [] in
-				match (List.filter (fun mt -> not (List.memq mt handled_types)) all_types) with
-				| [] ->
-					()
-				| new_types ->
-					List.iter (fun f -> f new_types) fl;
-					flush_pass ctx PFinal "final";
-					loop all_types
-			in
-			loop []
-
-type state =
-	| Generating
-	| Done
-	| NotYet
-
-let sort_types com modules =
-	let types = ref [] in
-	let states = Hashtbl.create 0 in
-	let state p = try Hashtbl.find states p with Not_found -> NotYet in
-	let statics = ref PMap.empty in
-
-	let rec loop t =
-		let p = t_path t in
-		match state p with
-		| Done -> ()
-		| Generating ->
-			com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
-		| NotYet ->
-			Hashtbl.add states p Generating;
-			let t = (match t with
-			| TClassDecl c ->
-				walk_class p c;
-				t
-			| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
-				t
-			) in
-			Hashtbl.replace states p Done;
-			types := t :: !types
-
-	and loop_class p c =
-		if c.cl_path <> p then loop (TClassDecl c)
-
-	and loop_enum p e =
-		if e.e_path <> p then loop (TEnumDecl e)
-
-	and loop_abstract p a =
-		if a.a_path <> p then loop (TAbstractDecl a)
-
-	and walk_static_field p c cf =
-		match cf.cf_expr with
-		| None -> ()
-		| Some e ->
-			if PMap.mem (c.cl_path,cf.cf_name) (!statics) then
-				()
-			else begin
-				statics := PMap.add (c.cl_path,cf.cf_name) () (!statics);
-				walk_expr p e;
-			end
-
-	and walk_expr p e =
-		match e.eexpr with
-		| TTypeExpr t ->
-			(match t with
-			| TClassDecl c -> loop_class p c
-			| TEnumDecl e -> loop_enum p e
-			| TAbstractDecl a -> loop_abstract p a
-			| TTypeDecl _ -> assert false)
-		| TNew (c,_,_) ->
-			iter (walk_expr p) e;
-			loop_class p c;
-			let rec loop c =
-				if PMap.mem (c.cl_path,"new") (!statics) then
-					()
-				else begin
-					statics := PMap.add (c.cl_path,"new") () !statics;
-					(match c.cl_constructor with
-					| Some { cf_expr = Some e } -> walk_expr p e
-					| _ -> ());
-					match c.cl_super with
-					| None -> ()
-					| Some (csup,_) -> loop csup
-				end
-			in
-			loop c
-		| TField(e1,FStatic(c,cf)) ->
-			walk_expr p e1;
-			walk_static_field p c cf;
-		| _ ->
-			iter (walk_expr p) e
-
-	and walk_class p c =
-		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
-		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
-		(match c.cl_init with
-		| None -> ()
-		| Some e -> walk_expr p e);
-		PMap.iter (fun _ f ->
-			match f.cf_expr with
-			| None -> ()
-			| Some e ->
-				match e.eexpr with
-				| TFunction _ -> ()
-				| _ -> walk_expr p e
-		) c.cl_statics
-
-	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
-	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	List.rev !types, sorted_modules
-
-let generate ctx =
-	let types,modules = sort_types ctx.com ctx.g.modules in
-	get_main ctx types,types,modules
-
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
 
@@ -2927,8 +2686,8 @@ let rec create com =
 			do_optimize = Optimizer.reduce_expression;
 			do_build_instance = Typeload.build_instance;
 			do_format_string = format_string;
-			do_finalize = finalize;
-			do_generate = generate;
+			do_finalize = Finalization.finalize;
+			do_generate = Finalization.generate;
 		};
 		m = {
 			curmod = null_module;
@@ -3025,11 +2784,6 @@ let rec create com =
 ;;
 unify_min_ref := unify_min;
 make_call_ref := make_call;
-get_constructor_ref := get_constructor;
-cast_or_unify_ref := AbstractCast.cast_or_unify_raise;
-type_module_type_ref := type_module_type;
-find_array_access_raise_ref := AbstractCast.find_array_access_raise;
 build_call_ref := build_call;
 merge_core_doc_ref := merge_core_doc;
-MacroContext.unify_call_args_ref := unify_call_args;
 type_block_ref := type_block

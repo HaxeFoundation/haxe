@@ -640,3 +640,69 @@ let rec build_call ctx acc el (with_type:with_type) p =
 			mk (TCall (e,el)) t p
 		in
 		loop e.etype
+
+let type_bind ctx (e : texpr) (args,ret) params p =
+	let vexpr v = mk (TLocal v) v.v_type p in
+	let acount = ref 0 in
+	let alloc_name n =
+		if n = "" && not ctx.is_display_file then begin
+			incr acount;
+			"a" ^ string_of_int !acount;
+		end else
+			n
+	in
+	let rec loop args params given_args missing_args ordered_args = match args, params with
+		| [], [] -> given_args,missing_args,ordered_args
+		| [], _ -> error "Too many callback arguments" p
+		| (n,o,t) :: args , [] when o ->
+			let a = if is_pos_infos t then
+					let infos = mk_infos ctx p [] in
+					ordered_args @ [type_expr ctx infos (WithType t)]
+				else if ctx.com.config.pf_pad_nulls then
+					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
+				else
+					ordered_args
+			in
+			loop args [] given_args missing_args a
+		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
+			error "Usage of _ is not supported for optional non-nullable arguments" p
+		| (n,o,t) :: args , ([] as params)
+		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
+			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) p in
+			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
+		| (n,o,t) :: args , param :: params ->
+			let e = type_expr ctx param (WithType t) in
+			let e = AbstractCast.cast_or_unify ctx t e p in
+			let v = alloc_var (alloc_name n) t (pos param) in
+			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
+	in
+	let given_args,missing_args,ordered_args = loop args params [] [] [] in
+	let rec gen_loc_name n =
+		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
+		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
+	in
+	let loc = alloc_var (gen_loc_name 0) e.etype e.epos in
+	let given_args = (loc,false,Some e) :: given_args in
+	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
+	let t_inner = TFun(inner_fun_args missing_args, ret) in
+	let call = make_call ctx (vexpr loc) ordered_args ret p in
+	let e_ret = match follow ret with
+		| TAbstract ({a_path = [],"Void"},_) ->
+			call
+		| TMono _ ->
+			mk (TReturn (Some call)) t_dynamic p;
+		| _ ->
+			mk (TReturn (Some call)) t_dynamic p;
+	in
+	let func = mk (TFunction {
+		tf_args = List.map (fun (v,o) -> v, if o then Some TNull else None) missing_args;
+		tf_type = ret;
+		tf_expr = e_ret;
+	}) t_inner p in
+	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
+	let func = mk (TFunction {
+		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
+		tf_type = t_inner;
+		tf_expr = mk (TReturn (Some func)) t_inner p;
+	}) (TFun(outer_fun_args given_args, t_inner)) p in
+	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p

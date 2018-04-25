@@ -95,6 +95,20 @@ let field_type ctx c pl f p =
 		if not (Meta.has Meta.Generic f.cf_meta) then add_constraint_checks ctx c.cl_params pl f monos p;
 		apply_params l monos f.cf_type
 
+let fast_enum_field e ef p =
+	let et = mk (TTypeExpr (TEnumDecl e)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }) p in
+	TField (et,FEnum (e,ef))
+
+let get_constructor ctx c params p =
+	match c.cl_kind with
+	| KAbstractImpl a ->
+		let f = (try PMap.find "_new" c.cl_statics with Not_found -> raise_error (No_constructor (TAbstractDecl a)) p) in
+		let ct = field_type ctx c params f p in
+		apply_params a.a_params params ct, f
+	| _ ->
+		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
+		apply_params c.cl_params params ct, f
+
 let field_access ctx mode f fmode t e p =
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
