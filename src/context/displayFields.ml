@@ -45,9 +45,9 @@ let collect ctx e_ast e with_type p =
 	let opt_type t =
 		match t with
 		| TLazy f ->
-			Typeload.return_partial_type := true;
+			return_partial_type := true;
 			let t = lazy_type f in
-			Typeload.return_partial_type := false;
+			return_partial_type := false;
 			t
 		| _ ->
 			t

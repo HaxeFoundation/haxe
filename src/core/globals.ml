@@ -28,6 +28,8 @@ let version_revision = (version mod 100)
 
 let macro_platform = ref Neko
 
+let return_partial_type = ref false
+
 let is_windows = Sys.os_type = "Win32" || Sys.os_type = "Cygwin"
 
 let platforms = [

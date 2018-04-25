@@ -92,3 +92,18 @@ and s_call_error = function
 let error msg p = raise (Error (Custom msg,p))
 
 let raise_error err p = raise (Error(err,p))
+
+let error_require r p =
+	if r = "" then
+		error "This field is not available with the current compilation flags" p
+	else
+	let r = if r = "sys" then
+		"a system platform (php,neko,cpp,etc.)"
+	else try
+		if String.sub r 0 5 <> "flash" then raise Exit;
+		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
+		"flash version " ^ v ^ " (use -swf-version " ^ v ^ ")"
+	with _ ->
+		"'" ^ r ^ "' to be enabled"
+	in
+	error ("Accessing this field requires " ^ r) p

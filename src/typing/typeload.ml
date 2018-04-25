@@ -280,7 +280,6 @@ let parse_file com file p =
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
 let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
-let return_partial_type = ref false
 
 let type_function_arg ctx t e opt p =
 	if opt then
@@ -294,7 +293,7 @@ let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
 	let e = type_expr ctx e (WithType t) in
-	let e = (!cast_or_unify_ref) ctx t e p in
+	let e = AbstractCast.cast_or_unify ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e

@@ -38,7 +38,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Typer.acc_get ctx (Typer.type_field ~resume ctx e name e.epos Typer.MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field ~resume ctx e name e.epos TyperBase.MGet) e.epos
 
 let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
@@ -108,13 +108,13 @@ module Constructor = struct
 	let to_texpr ctx match_debug p con = match con with
 		| ConEnum(en,ef) ->
 			if Meta.has Meta.FakeEnum en.e_meta then begin
-				let e_mt = !type_module_type_ref ctx (TEnumDecl en) None p in
+				let e_mt = TyperBase.type_module_type ctx (TEnumDecl en) None p in
  				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
  			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 		| ConConst ct -> make_const_texpr ctx.com.basic ct p
 		| ConArray i -> make_int ctx.com.basic i p
-		| ConTypeExpr mt -> Typer.type_module_type ctx mt None p
+		| ConTypeExpr mt -> TyperBase.type_module_type ctx mt None p
 		| ConStatic(c,cf) -> make_static_field c cf p
 		| ConFields _ -> error "Something went wrong" p
 
@@ -250,7 +250,7 @@ module Pattern = struct
 			| Exit | Bad_pattern _ ->
 				begin try
 					let mt = module_type_of_type t in
-					let e_mt = Typer.type_module_type ctx mt None p in
+					let e_mt = TyperBase.type_module_type ctx mt None p in
 					let e = type_field_access ctx ~resume:true e_mt s in
 					let pat = check_expr e in
 					save();
@@ -442,7 +442,7 @@ module Pattern = struct
 				let rec loop in_display e = match e with
 					| (EConst (Ident s),p) ->
 						let v = add_local s p in
-						if in_display then ignore(Typer.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
+						if in_display then ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
 					| (EParenthesis e1,_) -> loop in_display e1
@@ -461,8 +461,8 @@ module Pattern = struct
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,iscall) ->
 				let pat = loop e in
-				let _ = if iscall then Typer.handle_signature_display ctx e (WithType t)
-				else Typer.handle_display ctx e (WithType t) in
+				let _ = if iscall then TyperDisplay.handle_signature_display ctx e (WithType t)
+				else TyperDisplay.handle_display ctx e (WithType t) in
 				pat
 			| _ ->
 				fail()
@@ -535,8 +535,8 @@ module Case = struct
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
 		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
-			| Some e,Some e_ast -> ignore(Typer.display_expr ctx e_ast e with_type p)
-			| None,None -> ignore(Typer.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
+			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e with_type p)
+			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
 			| _ -> assert false
 		end;
 		{
@@ -1487,5 +1487,3 @@ module Match = struct
 		end;
 		{e with epos = p}
 end
-;;
-Typecore.match_expr_ref := Match.match_expr

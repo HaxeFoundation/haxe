@@ -47,8 +47,6 @@ let macro_interp_on_reuse = ref []
 let macro_interp_reused = ref false
 
 let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp.value)
-let unify_call_args_ref = ref (fun _ _ _ _ _ _ _-> assert false)
-let unify_call_args a b c d e f g : (texpr list * t) = !unify_call_args_ref a b c d e f g
 
 let safe_decode v t p f =
 	try
@@ -672,7 +670,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = try unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
+		let elt, _ = try Calls.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false with e -> List.iter (fun f -> f()) (!todo); raise e; in
 		List.iter (fun f -> f()) (!todo);
 		List.map2 (fun (_,mct) e ->
 			let e, et = (match e.eexpr with
@@ -766,7 +764,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 
 let call_macro ctx path meth args p =
 	let mctx, (margs,_,mclass,mfield), call = load_macro ctx false path meth p in
-	let el, _ = unify_call_args mctx args margs t_dynamic p false false in
+	let el, _ = Calls.unify_call_args mctx args margs t_dynamic p false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
