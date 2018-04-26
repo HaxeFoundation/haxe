@@ -24,7 +24,7 @@ package sys;
 import sys.net.Host;
 import sys.net.Socket;
 
-class Http extends haxe.http.HttpBase {
+class Http extends haxe.http.HttpBase<Http> {
 	public var noShutdown:Bool;
 	public var cnxTimeout:Float;
 	public var responseHeaders:Map<String,String>;

@@ -23,7 +23,7 @@ package haxe.http;
 
 #if js
 
-class HttpJs extends haxe.http.HttpBase {
+class HttpJs extends haxe.http.HttpBase<HttpJs> {
 	public var async:Bool;
 	public var withCredentials:Bool;
 	var req:js.html.XMLHttpRequest;

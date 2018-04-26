@@ -23,7 +23,7 @@ package haxe;
 
 typedef Http = HttpFlash;
 
-class HttpFlash extends haxe.http.HttpBase {
+class HttpFlash extends haxe.http.HttpBase<HttpFlash> {
 	var req:flash.net.URLLoader;
 
 	/**

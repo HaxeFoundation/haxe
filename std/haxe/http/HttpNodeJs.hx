@@ -23,7 +23,7 @@ package haxe.http;
 
 #if nodejs
 
-class HttpNodeJs extends haxe.http.HttpBase {
+class HttpNodeJs extends haxe.http.HttpBase<HttpNodeJs> {
 	var req:js.node.http.ClientRequest;
 
 	public function new(url:String) {

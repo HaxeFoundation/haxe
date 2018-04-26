@@ -35,7 +35,7 @@ private typedef StringKeyValue = {
 	- create a `new haxe.Http(url)`, register your callbacks for `onData`,
 	`onError` and `onStatus`, then call `request()`.
 **/
-class HttpBase {
+class HttpBase<This:HttpBase<This>> {
 
 	/**
 		The url of `this` request. It is used only by the `request()` method and
@@ -72,20 +72,20 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setHeader(name:String, value:String) {
+	public function setHeader(name:String, value:String):This {
 		for (i in 0...headers.length) {
 			if (headers[i].name == name) {
 				headers[i] = { name: name, value: value };
-				return this;
+				return cast this;
 			}
 		}
 		headers.push({ name: name, value: value });
-		return this;
+		return cast this;
 	}
 
-	public function addHeader(header:String, value:String) {
+	public function addHeader(header:String, value:String):This {
 		headers.push({ name:header, value:value });
-		return this;
+		return cast this;
 	}
 
 	/**
@@ -95,20 +95,20 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setParameter(name:String, value:String) {
+	public function setParameter(name:String, value:String):This {
 		for (i in 0...params.length) {
 			if (params[i].name == name) {
 				params[i] = { name: name, value: value };
-				return this;
+				return cast this;
 			}
 		}
 		params.push({ name: name, value: value });
-		return this;
+		return cast this;
 	}
 
-	public function addParameter(name:String, value:String) {
+	public function addParameter(name:String, value:String):This {
 		params.push({ name: name, value: value });
-		return this;
+		return cast this;
 	}
 
 	/**
@@ -121,9 +121,9 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setPostData(data:String) {
+	public function setPostData(data:String):This {
 		postData = data;
-		return this;
+		return cast this;
 	}
 
 	/**
