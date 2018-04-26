@@ -1142,7 +1142,7 @@ and type_ident ctx i p mode =
 			begin try
 				let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
 				let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
-                if Typeload.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
+                if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
                     let e = type_module_type ctx (TClassDecl c) None p in
                     AKExpr {e with etype = (snd t)}
 				end else begin
@@ -1246,7 +1246,7 @@ and handle_efield ctx e p mode =
 					(* try accessing subtype or main class static field by `sname` in given module with path `m` *)
 					let check_module m =
 						try
-							let md = Typeload.load_module ctx m p in
+							let md = TypeloadModule.load_module ctx m p in
 							(* first look for existing subtype *)
 							(try
 								let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
@@ -1757,10 +1757,10 @@ and type_new ctx path el with_type p =
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
 		begin match t with
-			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Typeload.build_generic ctx c p tl)
+			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Typeload.Generic_Exception _ ->
+	with Generic.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
 		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
@@ -1768,11 +1768,11 @@ and type_new ctx path el with_type p =
 			let ct, f = get_constructor ctx c monos p in
 			ignore (unify_constructor_call c monos f ct);
 			begin try
-				let t = Typeload.build_generic ctx c p monos in
+				let t = Generic.build_generic ctx c p monos in
 				let map = apply_params c.cl_params monos in
 				check_constraints ctx (s_type_path c.cl_path) c.cl_params monos map true p;
 				t
-			with Typeload.Generic_Exception _ as exc ->
+			with Generic.Generic_Exception _ as exc ->
 				(* If we have an expected type, just use that (issue #3804) *)
 				begin match with_type with
 					| WithType t ->
@@ -1800,7 +1800,7 @@ and type_new ctx path el with_type p =
 	in
 	try begin match t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
-		if not (Typeload.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
+		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 		let el = List.map (fun e -> type_expr ctx e Value) el in
 		let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
 		let rec loop t = match follow t with
@@ -1867,7 +1867,7 @@ and type_try ctx e1 catches with_type p =
 	let catches = List.fold_left (fun acc ((v,pv),t,e_ast,pc) ->
 		let t = Typeload.load_complex_type ctx true p t in
 		let rec loop t = match follow t with
-			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (Typeload.is_generic_parameter ctx c) ->
+			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
 			| TInst ({ cl_path = path },params)
 			| TEnum ({ e_path = path },params) ->
@@ -1951,7 +1951,7 @@ and type_map_declaration ctx e1 el with_type p =
 		let tval = unify_min_resume el_v in
 		el_k,el_v,tkey,tval
 	end in
-	let m = Typeload.load_module ctx (["haxe";"ds"],"Map") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
 		| _ -> assert false
@@ -1968,7 +1968,7 @@ and type_map_declaration ctx e1 el with_type p =
 	mk (TBlock el) tmap p
 
 and type_local_function ctx name f with_type p =
-	let params = Typeload.type_function_params ctx f (match name with None -> "localfun" | Some n -> n) p in
+	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some n -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
@@ -1985,7 +1985,7 @@ and type_local_function ctx name f with_type p =
 	let rt = Typeload.load_type_hint ctx p f.f_type in
 	let args = List.map (fun ((s,_),opt,_,t,c) ->
 		let t = Typeload.load_type_hint ctx p t in
-		let t, c = Typeload.type_function_arg ctx t c opt p in
+		let t, c = TypeloadFunction.type_function_arg ctx t c opt p in
 		s, c, t
 	) f.f_args in
 	(match with_type with
@@ -2025,7 +2025,7 @@ and type_local_function ctx name f with_type p =
 		| FunMemberAbstract -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
-	let e , fargs = Typeload.type_function ctx args rt curfun f ctx.in_display p in
+	let e , fargs = TypeloadFunction.type_function ctx args rt curfun f ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
 	let f = {
@@ -2484,9 +2484,9 @@ let rec create com =
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
-			do_load_module = Typeload.load_module;
+			do_load_module = TypeloadModule.load_module;
 			do_optimize = Optimizer.reduce_expression;
-			do_build_instance = Typeload.build_instance;
+			do_build_instance = InstanceBuilder.build_instance;
 			do_format_string = format_string;
 			do_finalize = Finalization.finalize;
 			do_generate = Finalization.generate;
@@ -2523,7 +2523,7 @@ let rec create com =
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 	} in
 	ctx.g.std <- (try
-		Typeload.load_module ctx ([],"StdTypes") null_pos
+		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
 	);
@@ -2557,11 +2557,11 @@ let rec create com =
 		| TEnumDecl _ | TClassDecl _ | TTypeDecl _ ->
 			()
 	) ctx.g.std.m_types;
-	let m = Typeload.load_module ctx ([],"String") null_pos in
+	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
 	(match m.m_types with
 	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
 	| _ -> assert false);
-	let m = Typeload.load_module ctx ([],"Array") null_pos in
+	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (
 			match t with
@@ -2572,11 +2572,11 @@ let rec create com =
 		)) m.m_types;
 		assert false
 	with Exit -> ());
-	let m = Typeload.load_module ctx (["haxe"],"EnumTools") null_pos in
+	let m = TypeloadModule.load_module ctx (["haxe"],"EnumTools") null_pos in
 	(match m.m_types with
 	| [TClassDecl c1;TClassDecl c2] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 	| [TClassDecl c1] ->
-		let m = Typeload.load_module ctx (["haxe"],"EnumValueTools") null_pos in
+		let m = TypeloadModule.load_module ctx (["haxe"],"EnumValueTools") null_pos in
 		(match m.m_types with
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);

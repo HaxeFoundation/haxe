@@ -351,7 +351,7 @@ module TypePathHandler = struct
 			let ctx = Typer.create com in
 			let rec lookup p =
 				try
-					Typeload.load_module ctx (p,s_module) null_pos
+					TypeloadModule.load_module ctx (p,s_module) null_pos
 				with e ->
 					if cur_package then
 						match List.rev p with

@@ -147,13 +147,13 @@ let rec wait_loop process_params verbose accept =
 	in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
-	Typeload.parse_hook := (fun com2 file p ->
+	TypeloadParse.parse_hook := (fun com2 file p ->
 		let ffile = Path.unique_full_path file in
 		let is_display_file = ffile = (!Parser.resume_display).pfile in
 
 		match is_display_file, !current_stdin with
 		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
-			Typeload.parse_file_from_string com2 file p stdin
+			TypeloadParse.parse_file_from_string com2 file p stdin
 		| _ ->
 			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
@@ -164,7 +164,7 @@ let rec wait_loop process_params verbose accept =
 				data
 			with Not_found ->
 				has_parse_error := false;
-				let data = Typeload.parse_file com2 file p in
+				let data = TypeloadParse.parse_file com2 file p in
 				let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
 					else if is_display_file then "not cached, is display file",true
 					else begin try
@@ -264,7 +264,7 @@ let rec wait_loop process_params verbose accept =
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
-	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
+	TypeloadModule.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let t = Timer.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
 		let sign = Define.get_signature com2.defines in
@@ -275,7 +275,7 @@ let rec wait_loop process_params verbose accept =
 				let _, old_data = CompilationServer.find_file cs fkey in
 				(* We must use the module path here because the file path is absolute and would cause
 				   positions in the parsed declarations to differ. *)
-				let new_data = Typeload.parse_module ctx m.m_path p in
+				let new_data = TypeloadParse.parse_module ctx m.m_path p in
 				snd old_data <> snd new_data
 			with Not_found ->
 				true
@@ -381,7 +381,7 @@ let rec wait_loop process_params verbose accept =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					Typeload.add_module ctx m p;
+					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
 						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;

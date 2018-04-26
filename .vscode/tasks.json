@@ -6,7 +6,7 @@
 		{
 			"label": "Compile",
 			"type": "shell",
-			"command": "make ADD_REVISION=1 -f Makefile.win -s haxe",
+			"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe",
 			"group": {
 				"kind": "build",
 				"isDefault": true

@@ -4,6 +4,7 @@ open Common
 open Type
 open Typecore
 open Typeload
+open TypeloadModule
 open Error
 
 (* -------------------------------------------------------------------------- *)
@@ -25,7 +26,7 @@ let extend_remoting ctx c t p async prot =
 	(* build it *)
 	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
 	let file, decls = (try
-		parse_module ctx path p
+		TypeloadParse.parse_module ctx path p
 	with
 		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
 		| e -> ctx.com.package_rules <- rules; raise e) in
