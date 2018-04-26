@@ -139,7 +139,7 @@ let is_to_string t =
 	| _ -> false
 
 let is_extern_field f =
-	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || Meta.has Meta.Extern f.cf_meta
+	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || f.cf_extern
 
 let is_array_class name =
 	match name with
@@ -3156,7 +3156,7 @@ let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ ->
 		()
-	| Method _ when Meta.has Meta.Extern f.cf_meta ->
+	| Method _ when f.cf_extern ->
 		()
 	| Method m ->
 		let add_native lib name =

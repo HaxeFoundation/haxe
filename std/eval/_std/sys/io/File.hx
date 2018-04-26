@@ -23,14 +23,14 @@ package sys.io;
 
 @:coreApi
 class File {
-	@:extern static public function getContent(path:String):String { return ""; }
-	@:extern static public function saveContent(path:String, content:String):Void { }
-	@:extern static public function getBytes(path:String):haxe.io.Bytes { return haxe.io.Bytes.alloc(0); }
-	@:extern static public function saveBytes(path:String, bytes:haxe.io.Bytes):Void { }
-	@:extern static public function read(path:String, binary:Bool = true):FileInput { return null; }
-	@:extern static public function write(path:String, binary:Bool = true):FileOutput { return null; }
-	@:extern static public function append(path:String, binary:Bool = true):FileOutput { return null; }
-	@:extern static public function update(path:String, binary:Bool = true):FileOutput { return null; }
+	extern static public function getContent(path:String):String { return ""; }
+	extern static public function saveContent(path:String, content:String):Void { }
+	extern static public function getBytes(path:String):haxe.io.Bytes { return haxe.io.Bytes.alloc(0); }
+	extern static public function saveBytes(path:String, bytes:haxe.io.Bytes):Void { }
+	extern static public function read(path:String, binary:Bool = true):FileInput { return null; }
+	extern static public function write(path:String, binary:Bool = true):FileOutput { return null; }
+	extern static public function append(path:String, binary:Bool = true):FileOutput { return null; }
+	extern static public function update(path:String, binary:Bool = true):FileOutput { return null; }
 
 	static public function copy(srcPath:String, dstPath:String):Void {
 		var s = read(srcPath, true);

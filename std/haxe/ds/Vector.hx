@@ -239,7 +239,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `array` is null, the result is unspecified.
 	**/
-	#if as3 @:extern #end
+	#if as3 extern #end
 	static public inline function fromArrayCopy<T>(array:Array<T>):Vector<T> {
 		#if python
 		return cast array.copy();
@@ -271,7 +271,7 @@ abstract Vector<T>(VectorData<T>) {
 		`a[i] == a.copy()[i]` is true for any valid `i`. However,
 		`a == a.copy()` is always false.
 	**/
-	#if cs @:extern #end public inline function copy<T>():Vector<T> {
+	#if cs extern #end public inline function copy<T>():Vector<T> {
 		#if eval
 		return fromData(this.copy());
 		#else
@@ -294,7 +294,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `sep` is null, the result is unspecified.
 	**/
-	#if cs @:extern #end public inline function join<T>(sep:String):String {
+	#if cs extern #end public inline function join<T>(sep:String):String {
 		#if (flash10 || cpp || eval)
 		return this.join(sep);
 		#else
@@ -318,7 +318,7 @@ abstract Vector<T>(VectorData<T>) {
 
 		If `f` is null, the result is unspecified.
 	**/
-	#if cs @:extern #end public inline function map<S>(f:T->S):Vector<S> {
+	#if cs extern #end public inline function map<S>(f:T->S):Vector<S> {
 		#if eval
 			return fromData(this.map(f));
 		#else

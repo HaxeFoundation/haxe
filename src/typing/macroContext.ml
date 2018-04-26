@@ -162,7 +162,7 @@ let make_macro_api ctx p =
 		MacroApi.get_module = (fun s ->
 			typing_timer ctx false (fun() ->
 				let path = parse_path s in
-				let m = List.map type_of_module_type (Typeload.load_module ctx path p).m_types in
+				let m = List.map type_of_module_type (TypeloadModule.load_module ctx path p).m_types in
 				m
 			)
 		);
@@ -299,8 +299,8 @@ let make_macro_api ctx p =
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode v ttype p f in
 			let add is_macro ctx =
-				let mdep = Option.map_default (fun s -> Typeload.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = Typeload.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
+				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
+				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 			in
@@ -327,19 +327,19 @@ let make_macro_api ctx p =
 			let mpath = Ast.parse_path m in
 			begin try
 				let m = Hashtbl.find ctx.g.modules mpath in
-				ignore(Typeload.type_types_into_module ctx m types pos)
+				ignore(TypeloadModule.type_types_into_module ctx m types pos)
 			with Not_found ->
-				let mnew = Typeload.type_module ctx mpath ctx.m.curmod.m_extra.m_file types pos in
+				let mnew = TypeloadModule.type_module ctx mpath ctx.m.curmod.m_extra.m_file types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
-			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
 			add_dependency m (create_fake_module ctx file);
 		);
 		MacroApi.module_reuse_call = (fun mpath call ->
-			let m = typing_timer ctx false (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
 			m.m_extra.m_reuse_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_reuse_macro_calls
 		);
 		MacroApi.current_module = (fun() ->
@@ -378,7 +378,7 @@ let make_macro_api ctx p =
 		MacroApi.add_module_check_policy = (fun sl il b i ->
 			let add ctx =
 				ctx.g.module_check_policies <- (List.fold_left (fun acc s -> (ExtString.String.nsplit s ".",List.map Obj.magic il,b) :: acc) ctx.g.module_check_policies sl);
-				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- Typeload.get_policy ctx m.m_path) ctx.g.modules;
+				Hashtbl.iter (fun _ m -> m.m_extra.m_check_policy <- TypeloadModule.get_policy ctx m.m_path) ctx.g.modules;
 			in
 			let add_macro ctx = match ctx.g.macros with
 				| None -> ()
@@ -401,8 +401,8 @@ let make_macro_api ctx p =
 
 let rec init_macro_interp ctx mctx mint =
 	let p = null_pos in
-	ignore(Typeload.load_module mctx (["haxe";"macro"],"Expr") p);
-	ignore(Typeload.load_module mctx (["haxe";"macro"],"Type") p);
+	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Expr") p);
+	ignore(TypeloadModule.load_module mctx (["haxe";"macro"],"Type") p);
 	flush_macro_context mint ctx;
 	Interp.init mint;
 	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
@@ -531,7 +531,7 @@ let load_macro ctx display cpath f p =
 		(* Temporarily enter display mode while typing the macro. *)
 		if display then mctx.com.display <- ctx.com.display;
 		let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-		let mloaded = Typeload.load_module mctx m p in
+		let mloaded = TypeloadModule.load_module mctx m p in
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		mctx.m <- {
 			curmod = mloaded;

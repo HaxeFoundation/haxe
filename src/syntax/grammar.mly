@@ -634,6 +634,7 @@ and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Override,_) when not (List.mem AOverride l); l = parse_cf_rights false (AOverride :: l) >] -> l
 	| [< '(Kwd Dynamic,_) when not (List.mem ADynamic l); l = parse_cf_rights allow_static (ADynamic :: l) >] -> l
 	| [< '(Kwd Inline,_); l = parse_cf_rights allow_static (AInline :: l) >] -> l
+	| [< '(Kwd Extern,_); l = parse_cf_rights allow_static (AExtern :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser

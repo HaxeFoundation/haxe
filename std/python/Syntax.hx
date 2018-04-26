@@ -30,7 +30,7 @@ import haxe.macro.ExprTools;
 import haxe.extern.Rest;
 
 @:noPackageRestrict
-extern class Syntax {
+#if !macro extern #end class Syntax {
 
 	#if macro
 	static var self = macro python.Syntax;

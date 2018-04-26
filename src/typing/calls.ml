@@ -12,7 +12,7 @@ let is_forced_inline c cf =
 	match c with
 	| Some { cl_extern = true } -> true
 	| Some { cl_kind = KAbstractImpl _ } -> true
-	| _ when Meta.has Meta.Extern cf.cf_meta -> true
+	| _ when cf.cf_extern -> true
 	| _ -> false
 
 let make_call ctx e params t p =
@@ -337,8 +337,8 @@ let unify_field_call ctx fa el args ret p inline =
 	end;
 	let el = match using_param with None -> el | Some e -> e :: el in
 	(try
-		let gctx = Typeload.make_generic ctx cf.cf_params monos p in
-		let name = cf.cf_name ^ "_" ^ gctx.Typeload.name in
+		let gctx = Generic.make_generic ctx cf.cf_params monos p in
+		let name = cf.cf_name ^ "_" ^ gctx.Generic.name in
 		let unify_existing_field tcf pcf = try
 			unify_raise ctx tcf t p
 		with Error(Unify _,_) as err ->
@@ -369,7 +369,7 @@ let unify_field_call ctx fa el args ret p inline =
 			end;
 			ignore(follow cf.cf_type);
 			let rec check e = match e.eexpr with
-				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (Typeload.is_generic_parameter ctx c) ->
+				| TNew({cl_kind = KTypeParameter _} as c,_,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 					display_error ctx "Only generic type parameters can be constructed" e.epos;
 					display_error ctx "While specializing this call" p;
 				| _ ->
@@ -379,7 +379,7 @@ let unify_field_call ctx fa el args ret p inline =
 				| None ->
 					display_error ctx "Recursive @:generic function" p; None;
 				| Some e ->
-					let e = Typeload.generic_substitute_expr gctx e in
+					let e = Generic.generic_substitute_expr gctx e in
 					check e;
 					Some e
 			);
@@ -400,7 +400,7 @@ let unify_field_call ctx fa el args ret p inline =
 		let fa = if stat then FStatic (c,cf2) else FInstance (c,tl,cf2) in
 		let e = mk (TField(e,fa)) cf2.cf_type p in
 		make_call ctx e el ret p
-	with Typeload.Generic_Exception (msg,p) ->
+	with Generic.Generic_Exception (msg,p) ->
 		error msg p)
 
 let rec acc_get ctx g p =
@@ -451,7 +451,7 @@ let rec acc_get ctx g p =
 		| None ->
 			error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = (c.cl_extern || f.cf_extern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -486,7 +486,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics {cl_extern = false} when Meta.has Meta.Extern f.cf_meta ->
+						| Statics {cl_extern = false} when f.cf_extern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
@@ -582,9 +582,9 @@ let rec build_call ctx acc el (with_type:with_type) p =
 		ctx.on_error <- (fun ctx msg ep ->
 			(* display additional info in the case the error is not part of our original call *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then begin
-				Typeload.locate_macro_error := false;
+				TypeloadFields.locate_macro_error := false;
 				old ctx msg ep;
-				Typeload.locate_macro_error := true;
+				TypeloadFields.locate_macro_error := true;
 				ctx.com.error "Called from macro here" p;
 			end else
 				old ctx msg ep;

@@ -24,33 +24,33 @@ package sys.db;
 @:keep
 private class D {
 
-   @:extern @:native("_hx_mysql_connect")
-	public static function connect(params:Dynamic):Dynamic return null;
-   @:extern @:native("_hx_mysql_select_db")
-	public static function select_db(handle:Dynamic, db:String):Void { }
-   @:extern @:native("_hx_mysql_request")
-	public static function request(handle:Dynamic,req:String):Dynamic return null;
-   @:extern @:native("_hx_mysql_close")
-	public static function close(handle:Dynamic):Dynamic return null;
-   @:extern @:native("_hx_mysql_escape")
-	public static function escape(handle:Dynamic,str:String):String return null;
-   @:extern @:native("_hx_mysql_result_get_length")
-	public static function result_get_length(handle:Dynamic):Int return 0;
-   @:extern @:native("_hx_mysql_result_get_nfields")
-	public static function result_get_nfields(handle:Dynamic):Int return 0;
-   @:extern @:native("_hx_mysql_result_next")
-	public static function result_next(handle:Dynamic):Dynamic return null;
-   @:extern @:native("_hx_mysql_result_get")
-	public static function result_get(handle:Dynamic,i:Int) : String return null;
-   @:extern @:native("_hx_mysql_result_get_int")
-	public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
-   @:extern @:native("_hx_mysql_result_get_float")
-	public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
-   @:extern @:native("_hx_mysql_result_get_fields_names")
-	public static function result_fields_names(handle:Dynamic):Array<String> return null;
+   @:native("_hx_mysql_connect")
+	extern public static function connect(params:Dynamic):Dynamic return null;
+   @:native("_hx_mysql_select_db")
+	extern public static function select_db(handle:Dynamic, db:String):Void { }
+   @:native("_hx_mysql_request")
+	extern public static function request(handle:Dynamic,req:String):Dynamic return null;
+   @:native("_hx_mysql_close")
+	extern public static function close(handle:Dynamic):Dynamic return null;
+   @:native("_hx_mysql_escape")
+	extern public static function escape(handle:Dynamic,str:String):String return null;
+   @:native("_hx_mysql_result_get_length")
+	extern public static function result_get_length(handle:Dynamic):Int return 0;
+   @:native("_hx_mysql_result_get_nfields")
+	extern public static function result_get_nfields(handle:Dynamic):Int return 0;
+   @:native("_hx_mysql_result_next")
+	extern public static function result_next(handle:Dynamic):Dynamic return null;
+   @:native("_hx_mysql_result_get")
+	extern public static function result_get(handle:Dynamic,i:Int) : String return null;
+   @:native("_hx_mysql_result_get_int")
+	extern public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
+   @:native("_hx_mysql_result_get_float")
+	extern public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
+   @:native("_hx_mysql_result_get_fields_names")
+	extern public static function result_fields_names(handle:Dynamic):Array<String> return null;
 
-   @:extern @:native("_hx_mysql_set_conversion")
-	public static function set_conv_funs(
+   @:native("_hx_mysql_set_conversion")
+	extern public static function set_conv_funs(
       charsToBytes: cpp.Callable< Dynamic -> Dynamic >,
       intToDate: cpp.Callable< Float -> Dynamic > ) : Void {}
 

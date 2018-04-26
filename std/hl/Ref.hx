@@ -23,20 +23,20 @@ package hl;
 
 @:coreType abstract Ref<T> {
 
-	@:extern @:from public static inline function make<T>( v : T ) {
+	@:from extern public static inline function make<T>( v : T ) {
 		return new Ref<T>(v);
 	}
 
-	@:extern public inline function new( v : T ) {
+	extern public inline function new( v : T ) {
 		this = untyped $ref(v);
 	}
-	@:extern public inline function get() : T {
+	extern public inline function get() : T {
 		return untyped $unref(this);
 	}
-	@:extern public inline function set( v : T ) : Void {
+	extern public inline function set( v : T ) : Void {
 		return untyped $setref(this,v);
 	}
-	@:extern public inline function offset( v : Int ) : Ref<T> {
+	extern public inline function offset( v : Int ) : Ref<T> {
 		return untyped $refoffset(this, v);
 	}
 }

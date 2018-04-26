@@ -874,7 +874,7 @@ with
 		message ctx (CMError(msg,p));
 		List.iter (fun p -> message ctx (CMError("Called from",p))) l;
 		error ctx "Aborted" null_pos;
-	| Typeload.Generic_Exception(m,p) ->
+	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
 		error ctx ("Error: " ^ msg) null_pos

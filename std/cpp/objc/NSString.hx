@@ -27,19 +27,19 @@ package cpp.objc;
 extern abstract NSString( NSStringData )
 {
    inline function new(s:NSStringData) this = s;
-   @:native("(id)") @:extern static function toObject(d:NSStringData) : NSObject return null;
+   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject return null;
 
-   @:native("(NSString *)") @:extern static function castFromString(s:String) : NSString return null;
-   @:native("String") @:extern static function castToString(s:NSStringData) : String return null;
+   @:native("(NSString *)") extern static function castFromString(s:String) : NSString return null;
+   @:native("String") extern static function castToString(s:NSStringData) : String return null;
 
 
-   @:from @:extern
+   @:from extern
    static public inline function fromString(s:String):NSString return castFromString(s);
 
 
-   @:to @:extern
+   @:to extern
    public inline function toString():String return castToString(this);
 
-   @:to @:extern public inline function toNSObject():NSObject return toObject(this);
+   @:to extern public inline function toNSObject():NSObject return toObject(this);
 }
 

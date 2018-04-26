@@ -170,7 +170,7 @@ module PrototypeBuilder = struct
 end
 
 let is_removable_field cf =
-	Meta.has Meta.Extern cf.cf_meta || Meta.has Meta.Generic cf.cf_meta
+	cf.cf_extern || Meta.has Meta.Generic cf.cf_meta
 
 let create_static_prototype ctx mt =
 	let key = path_hash (t_infos mt).mt_path in

@@ -107,7 +107,7 @@ let get_this ctx p =
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->
-		let _,_,f = Typeload.build_instance ctx t p in
+		let _,_,f = InstanceBuilder.build_instance ctx t p in
 		let t = f (match tparams with None -> [] | Some tl -> tl) in
 		let mt = try
 			module_type_of_type t

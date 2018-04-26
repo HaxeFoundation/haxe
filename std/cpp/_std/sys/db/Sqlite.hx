@@ -96,14 +96,14 @@ private class SqliteConnection implements Connection {
 	}
 
 
-   @:extern @:native("_hx_sqlite_connect")
-	public static function _connect(filename:String):Dynamic return null;
-   @:extern @:native("_hx_sqlite_request")
-	public static function _request(handle:Dynamic,req:String):Dynamic return null;
-   @:extern @:native("_hx_sqlite_close")
-	public static function _close(handle:Dynamic):Void { };
-   @:extern @:native("_hx_sqlite_last_insert_id")
-	public static function _last_id(handle:Dynamic):Int return 0;
+   @:native("_hx_sqlite_connect")
+	extern public static function _connect(filename:String):Dynamic return null;
+   @:native("_hx_sqlite_request")
+	extern public static function _request(handle:Dynamic,req:String):Dynamic return null;
+   @:native("_hx_sqlite_close")
+	extern public static function _close(handle:Dynamic):Void { };
+   @:native("_hx_sqlite_last_insert_id")
+	extern public static function _last_id(handle:Dynamic):Int return 0;
 
 }
 
@@ -182,18 +182,18 @@ private class SqliteResultSet implements ResultSet {
 
 
 
-   @:extern @:native("_hx_sqlite_result_next")
-	public static function result_next(handle:Dynamic):Dynamic return null;
-   @:extern @:native("_hx_sqlite_result_get_length")
-	public static function result_get_length(handle:Dynamic):Int return 0;
-   @:extern @:native("_hx_sqlite_result_get_nfields")
-	public static function result_get_nfields(handle:Dynamic):Int return 0;
-   @:extern @:native("_hx_sqlite_result_get")
-	public static function result_get(handle:Dynamic,i:Int) : String return null;
-   @:extern @:native("_hx_sqlite_result_get_int")
-	public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
-   @:extern @:native("_hx_sqlite_result_get_float")
-	public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
+    @:native("_hx_sqlite_result_next")
+	extern public static function result_next(handle:Dynamic):Dynamic return null;
+    @:native("_hx_sqlite_result_get_length")
+	extern public static function result_get_length(handle:Dynamic):Int return 0;
+    @:native("_hx_sqlite_result_get_nfields")
+	extern public static function result_get_nfields(handle:Dynamic):Int return 0;
+    @:native("_hx_sqlite_result_get")
+	extern public static function result_get(handle:Dynamic,i:Int) : String return null;
+    @:native("_hx_sqlite_result_get_int")
+	extern public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
+    @:native("_hx_sqlite_result_get_float")
+	extern public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
 
 }
 

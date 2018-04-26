@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Long(LongClass) from LongClass to LongClass
 {
-	@:to @:extern inline public function toLong():haxe.Int64
+	@:to extern inline public function toLong():haxe.Int64
 		return this.longValue();
-	@:from @:extern inline public static function fromLong(b:haxe.Int64):Long
+	@:from extern inline public static function fromLong(b:haxe.Int64):Long
 		return LongClass.valueOf(b);
 }
 

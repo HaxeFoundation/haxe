@@ -42,8 +42,8 @@ class Host {
 		this.ip = ip;
 	}
 
-	@:extern static public function localhost() { return ""; }
-	@:extern static function hostReverse(ip:Int) { return ""; }
-	@:extern static function hostToString(ip:Int) { return ""; }
-	@:extern static function resolve(name:String) { return 0; }
+	extern static public function localhost() { return ""; }
+	extern static function hostReverse(ip:Int) { return ""; }
+	extern static function hostToString(ip:Int) { return ""; }
+	extern static function resolve(name:String) { return 0; }
 }
