@@ -106,21 +106,39 @@ and parse_type_decls pack acc s =
 		) acc;
 		raise (TypePath (pack,Some(name,true),b))
 
+and parse_abstract doc meta flags = parser
+	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		let flags = List.map decl_flag_to_abstract_flag flags in
+		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
+		({
+			d_name = name;
+			d_doc = doc;
+			d_meta = meta;
+			d_params = tl;
+			d_flags = flags @ sl;
+			d_data = fl;
+		},punion p1 p2)
+
 and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1) >] -> parse_import s p1
 	| [< '(Kwd Using,p1) >] -> parse_using s p1
 	| [< doc = get_doc; meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
-		| [< n , p1 = parse_enum_flags; name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
-			(EEnum {
-				d_name = name;
-				d_doc = doc;
-				d_meta = meta;
-				d_params = tl;
-				d_flags = List.map decl_flag_to_enum_flag c @ n;
-				d_data = l
-			}, punion p1 p2)
+		| [< '(Kwd Enum,p1) >] ->
+			begin match s with parser
+			| [< a,p = parse_abstract doc ((Meta.Enum,[],null_pos) :: meta) c >] ->
+				(EAbstract a,p)
+			| [< name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
+				(EEnum {
+					d_name = name;
+					d_doc = doc;
+					d_meta = meta;
+					d_params = tl;
+					d_flags = List.map decl_flag_to_enum_flag c;
+					d_data = l
+				}, punion p1 p2)
+			end
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			(EClass {
 				d_name = name;
@@ -142,17 +160,9 @@ and parse_type_decl s =
 				d_flags = List.map decl_flag_to_enum_flag c;
 				d_data = t;
 			}, punion p1 (pos t))
-		| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
-			let flags = List.map decl_flag_to_abstract_flag c in
-			let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
-			(EAbstract {
-				d_name = name;
-				d_doc = doc;
-				d_meta = meta;
-				d_params = tl;
-				d_flags = flags @ sl;
-				d_data = fl;
-			},punion p1 p2)
+		| [< a,p = parse_abstract doc meta c >] ->
+			EAbstract a,p
+
 
 and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "",null_pos | Some n -> n) in
