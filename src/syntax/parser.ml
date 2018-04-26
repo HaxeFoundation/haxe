@@ -61,8 +61,8 @@ let decl_flag_to_enum_flag = function
 	| DExtern -> EExtern
 
 let decl_flag_to_abstract_flag = function
-	| DPrivate -> APrivAbstract
-	| DExtern -> AExtern
+	| DPrivate -> AbPrivate
+	| DExtern -> AbExtern
 
 module TokenCache = struct
 	let cache = ref (DynArray.create ())

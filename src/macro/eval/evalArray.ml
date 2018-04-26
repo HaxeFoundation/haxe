@@ -200,6 +200,6 @@ let resize a l =
 		set a (l - 1) vnull;
 		()
 	end else if a.alength > l then begin
-		splice a l (a.alength - l) a.alength;
+		ignore(splice a l (a.alength - l) a.alength);
 		()
 	end else ()

@@ -144,7 +144,7 @@ and parse_type_decl s =
 			}, punion p1 (pos t))
 		| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			let flags = List.map decl_flag_to_abstract_flag c in
-			let flags = (match st with None -> flags | Some t -> AIsType t :: flags) in
+			let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 			(EAbstract {
 				d_name = name;
 				d_doc = doc;
@@ -230,8 +230,8 @@ and parse_using s p1 =
 
 and parse_abstract_relations s =
 	match s with parser
-	| [< '(Const (Ident "to"),_); t = parse_complex_type >] -> AToType t
-	| [< '(Const (Ident "from"),_); t = parse_complex_type >] -> AFromType t
+	| [< '(Const (Ident "to"),_); t = parse_complex_type >] -> AbTo t
+	| [< '(Const (Ident "from"),_); t = parse_complex_type >] -> AbFrom t
 
 and parse_abstract_subtype s =
 	match s with parser

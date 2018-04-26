@@ -392,11 +392,6 @@ let unify_field_call ctx fa el args ret p inline =
 			cf2.cf_meta <- (Meta.NoCompletion,[],p) :: (Meta.NoUsing,[],p) :: (Meta.GenericInstance,[],p) :: metadata;
 			cf2
 		in
-		let path = match c.cl_kind with
-			| KAbstractImpl(a) ->
-				a.a_path
-			| _ -> c.cl_path
-		in
 		let e = match c.cl_kind with
 			| KAbstractImpl(a) ->
 				type_type ctx a.a_path p

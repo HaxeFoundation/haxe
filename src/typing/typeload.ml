@@ -167,7 +167,7 @@ let module_pass_1 ctx m tdecls loadp =
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
 			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
-			let priv = List.mem APrivAbstract d.d_flags in
+			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
 				a_path = path;
@@ -201,7 +201,7 @@ let module_pass_1 ctx m tdecls loadp =
 				in
 				let rec loop = function
 					| [] -> a_t
-					| AIsType t :: _ -> t
+					| AbOver t :: _ -> t
 					| _ :: l -> loop l
 				in
 				let this_t = loop d.d_flags in
@@ -3473,9 +3473,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 			t
 		in
 		List.iter (function
-			| AFromType t -> a.a_from <- (load_type t true) :: a.a_from
-			| AToType t -> a.a_to <- (load_type t false) :: a.a_to
-			| AIsType t ->
+			| AbFrom t -> a.a_from <- (load_type t true) :: a.a_from
+			| AbTo t -> a.a_to <- (load_type t false) :: a.a_to
+			| AbOver t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx true p t in
@@ -3487,9 +3487,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 				);
 				a.a_this <- at;
 				is_type := true;
-			| AExtern ->
+			| AbExtern ->
 				(match a.a_impl with Some c -> c.cl_extern <- true | None -> (* Hmmmm.... *) ())
-			| APrivAbstract -> ()
+			| AbPrivate -> ()
 		) d.d_flags;
 		if not !is_type then begin
 			if Meta.has Meta.CoreType a.a_meta then
@@ -3728,7 +3728,7 @@ let parse_module ctx m p =
 			| EClass d -> build HPrivate d
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
-			| EAbstract d -> build APrivAbstract d
+			| EAbstract d -> build AbPrivate d
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else

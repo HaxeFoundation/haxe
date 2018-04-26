@@ -255,11 +255,11 @@ type class_flag =
 	| HImplements of placed_type_path
 
 type abstract_flag =
-	| APrivAbstract
-	| AFromType of type_hint
-	| AToType of type_hint
-	| AIsType of type_hint
-	| AExtern
+	| AbPrivate
+	| AbFrom of type_hint
+	| AbTo of type_hint
+	| AbOver of type_hint
+	| AbExtern
 
 type enum_constructor = {
 	ec_name : placed_name;

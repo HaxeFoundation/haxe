@@ -703,7 +703,7 @@ let convert_delegate ctx p ilcls =
 		d_doc = None;
 		d_params = types;
 		d_meta = mk_metas [Meta.Delegate; Meta.Forward] p;
-		d_flags = [AIsType (underlying_type,null_pos)];
+		d_flags = [AbOver (underlying_type,null_pos)];
 		d_data = [fn_new;fn_from_hx;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
 	}
 
