@@ -33,7 +33,7 @@ private class E {
 		b = 2;
 	}
 
-	@:extern public inline function set(inA:Int, inB:Int) {
+	extern public inline function set(inA:Int, inB:Int) {
 		setA(inA);
 		setB(inB);
 	}
@@ -109,7 +109,7 @@ class Issue1827 extends Test {
 		return 0;
 	}
 
-	@:extern static inline function callInline(i1:Int, _) {
+	extern static inline function callInline(i1:Int, _) {
 		return i1;
 	}
 }

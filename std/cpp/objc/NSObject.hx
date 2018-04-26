@@ -26,18 +26,18 @@ package cpp.objc;
 @:objc
 extern abstract NSObject( NSObjectData )
 {
-   @:native("_hx_value_to_objc") @:extern static function _hx_value_to_objc(obj:Dynamic) : NSObject return null;
-   @:native("_hx_objc_to_dynamic") @:extern static function _hx_objc_to_dynamic(d:NSObjectData) : Dynamic return null;
+   @:native("_hx_value_to_objc") extern static function _hx_value_to_objc(obj:Dynamic) : NSObject return null;
+   @:native("_hx_objc_to_dynamic") extern static function _hx_objc_to_dynamic(d:NSObjectData) : Dynamic return null;
 
 
    inline function new(d:NSObjectData) this = d;
 
 
-   @:from @:extern
+   @:from extern
    static public inline function fromHaxe(d:Dynamic):NSObject return _hx_value_to_objc(d);
 
 
-   @:to @:extern
+   @:to extern
    public inline function toHaxe():Dynamic return _hx_objc_to_dynamic(this);
 }
 

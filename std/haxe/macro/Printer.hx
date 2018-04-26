@@ -137,6 +137,7 @@ class Printer {
 		case ADynamic: "dynamic";
 		case AMacro: "macro";
 		case AFinal: "final";
+		case AExtern: "extern";
 	}
 
 	public function printField(field:Field) return

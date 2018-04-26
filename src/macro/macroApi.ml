@@ -394,6 +394,7 @@ and encode_access a =
 		| AInline -> 5
 		| AMacro -> 6
 		| AFinal -> 7
+		| AExtern -> 8
 	in
 	encode_enum IAccess tag []
 
@@ -696,6 +697,7 @@ and decode_access v =
 	| 5, [] -> AInline
 	| 6, [] -> AMacro
 	| 7, [] -> AFinal
+	| 8, [] -> AExtern
 	| _ -> raise Invalid_expr
 
 and decode_meta_entry v =
@@ -946,6 +948,7 @@ and encode_cfield f =
 		"namePos",encode_pos f.cf_name_pos;
 		"doc", null encode_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
+		"isExtern", vbool f.cf_extern;
 	]
 
 and encode_field_kind k =
@@ -1319,6 +1322,7 @@ let decode_cfield v =
 		cf_expr = None;
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
+		cf_extern = decode_bool (field v "isExtern");
 	}
 
 let decode_efield v =

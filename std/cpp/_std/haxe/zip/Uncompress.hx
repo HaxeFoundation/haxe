@@ -59,16 +59,16 @@ class Uncompress {
 		return b.getBytes();
 	}
 
-   @:extern @:native("_hx_inflate_init")
-	static function _inflate_init(windowBits:Dynamic) : Dynamic return null;
+   @:native("_hx_inflate_init")
+	extern static function _inflate_init(windowBits:Dynamic) : Dynamic return null;
 
-   @:extern @:native("_hx_inflate_buffer")
-	static function _inflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
+   @:native("_hx_inflate_buffer")
+	extern static function _inflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
 
-   @:extern @:native("_hx_inflate_end")
-	static function _inflate_end(handle:Dynamic):Void { }
+   @:native("_hx_inflate_end")
+	extern static function _inflate_end(handle:Dynamic):Void { }
 
-   @:extern @:native("_hx_zip_set_flush_mode")
-	static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
+   @:native("_hx_zip_set_flush_mode")
+	extern static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
 
 }

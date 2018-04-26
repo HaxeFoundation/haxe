@@ -25,7 +25,7 @@ typedef IntMapData = Abstract<"hl_int_map">;
 
 abstract IntMap(IntMapData) {
 
-	@:extern public inline function new() {
+	extern public inline function new() {
 		this = alloc();
 	}
 
@@ -62,7 +62,7 @@ abstract IntMap(IntMapData) {
 		return null;
 	}
 
-	@:extern public inline function iterator() {
+	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}
 

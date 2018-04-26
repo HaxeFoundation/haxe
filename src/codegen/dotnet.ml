@@ -661,8 +661,8 @@ let convert_delegate ctx p ilcls =
 			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = p;
-			cff_meta = [ Meta.Extern,[],p ; Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
-			cff_access = [APublic;AInline;AStatic];
+			cff_meta = [ Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
+			cff_access = [APublic;AInline;AStatic;AExtern];
 			cff_kind = mk_op_fn op name p;
 		}
 	in
@@ -694,9 +694,9 @@ let convert_delegate ctx p ilcls =
 			EReturn( Some ( EConst(Ident "this"), p ) ), p
 		);
 	} in
-	let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
-	let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
-	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
+	let fn_new = mk_abstract_fun "new" p fn_new [] [APublic;AInline;AExtern] in
+	let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.From] [APublic;AInline;AStatic;AExtern] in
+	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [] [APublic;AInline;AExtern] in
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EAbstract {
 		d_name = netname_to_hx c,null_pos;

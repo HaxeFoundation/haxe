@@ -25,10 +25,10 @@ package sys.io;
 
 @:coreApi
 class FileInput extends haxe.io.Input {
-	@:extern public override function close():Void { }
-	@:extern public function eof():Bool { return false; }
-	@:extern public function seek(p:Int, pos:FileSeek):Void { }
-	@:extern public function tell():Int { return 0; }
-	@:extern public override function readByte():Int { return 0; }
-	@:extern public override function readBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int { return 0; }
+	extern public override function close():Void { }
+	extern public function eof():Bool { return false; }
+	extern public function seek(p:Int, pos:FileSeek):Void { }
+	extern public function tell():Int { return 0; }
+	extern public override function readByte():Int { return 0; }
+	extern public override function readBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int { return 0; }
 }

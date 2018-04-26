@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Integer(IntegerClass) from IntegerClass to IntegerClass
 {
-	@:to @:extern inline public function toInt():Int
+	@:to extern inline public function toInt():Int
 		return this.intValue();
-	@:from @:extern inline public static function fromInt(b:Int):Integer
+	@:from extern inline public static function fromInt(b:Int):Integer
 		return IntegerClass.valueOf(b);
 }
 

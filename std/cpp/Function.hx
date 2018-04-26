@@ -36,23 +36,23 @@ extern abstract Function<T, ABI:cpp.abi.Abi>( FunctionData<T,ABI> )
 
 
    @:native("::cpp::Function_obj::getProcAddress")
-   @:extern static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : AutoCast return null;
+   extern static function nativeGetProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : AutoCast return null;
    inline public static function getProcAddress<T,ABI:cpp.abi.Abi>(inModule:String, inFunction:String) : Function<T,ABI>
    {
       return cast nativeGetProcAddress(inModule, inFunction);
    }
 
    @:native("::cpp::Function_obj::fromStaticFunction")
-   @:extern static function nativeFromStaticFunction<T>(inStaticFunction:T) : AutoCast return null;
+   extern static function nativeFromStaticFunction<T>(inStaticFunction:T) : AutoCast return null;
    inline public static function fromStaticFunction<T>(inStaticFunction:T) : Callable<T>
    {
       return cast nativeFromStaticFunction(inStaticFunction);
    }
 
-	@:extern public function lt(inOther:Function<T,ABI>):Bool return false;
-	@:extern public function leq(inOther:Function<T,ABI>):Bool return false;
-	@:extern public function gt(inOther:Function<T,ABI>):Bool return false;
-	@:extern public function geq(inOther:Function<T,ABI>):Bool return false;
+	extern public function lt(inOther:Function<T,ABI>):Bool return false;
+	extern public function leq(inOther:Function<T,ABI>):Bool return false;
+	extern public function gt(inOther:Function<T,ABI>):Bool return false;
+	extern public function geq(inOther:Function<T,ABI>):Bool return false;
 }
 
 

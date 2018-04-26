@@ -191,7 +191,7 @@ import cs.internal.Exceptions;
 			Math.NaN;
 	}
 
-	@:extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return cs.Lib.as(value,c);
 	}
 

@@ -38,14 +38,14 @@ abstract Flags<T : EnumValue>(T) from T to T
 		Creates a new `Flags` type with an optional initial value. If no initial value was specified,
 		the default enum value for an empty flags attribute is specified
 	 **/
-	@:extern inline public function new(?initial:T)
+	extern inline public function new(?initial:T)
 		this = initial;
 
 	/**
 		Accessible through the bitwise OR operator (`|`). Returns a new `Flags` type with the flags
 		passed at `flags` added to it.
 	 **/
-	@:op(A|B) @:extern inline public function add(flags:Flags<T>):Flags<T>
+	@:op(A|B) extern inline public function add(flags:Flags<T>):Flags<T>
 	{
 		return new Flags(underlying() | flags.underlying());
 	}
@@ -54,7 +54,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 		Accessible through the bitwise AND operator (`&`). Returns a new `Flags` type with
 		the flags that are set on both `this` and `flags`
 	 **/
-	@:op(A&B) @:extern inline public function bitAnd(flags:Flags<T>):Flags<T>
+	@:op(A&B) extern inline public function bitAnd(flags:Flags<T>):Flags<T>
 	{
 		return new Flags(underlying() & flags.underlying());
 	}
@@ -62,7 +62,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 	/**
 		Accessible through the bitwise XOR operator (`^`).
 	 **/
-	@:op(A^B) @:extern inline public function bitXor(flags:Flags<T>):Flags<T>
+	@:op(A^B) extern inline public function bitXor(flags:Flags<T>):Flags<T>
 	{
 		return new Flags(underlying() & flags.underlying());
 	}
@@ -71,7 +71,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 		Accesible through the bitwise negation operator (`~`). Returns a new `Flags` type
 		with all unset flags as set - but the ones that are set already.
 	 **/
-	@:op(~A) @:extern inline public function bitNeg():Flags<T>
+	@:op(~A) extern inline public function bitNeg():Flags<T>
 	{
 		return new Flags(~underlying());
 	}
@@ -79,7 +79,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 	/**
 		Returns a new `Flags` type with all flags set by `flags` unset
 	 **/
-	@:extern inline public function remove(flags:Flags<T>):Flags<T>
+	extern inline public function remove(flags:Flags<T>):Flags<T>
 	{
 		return new Flags(underlying() & ~flags.underlying());
 	}
@@ -87,7 +87,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 	/**
 		Returns whether `flag` is present on `this` type
 	 **/
-	@:extern inline public function has(flag:T):Bool
+	extern inline public function has(flag:T):Bool
 	{
 		return underlying() & new Flags(flag).underlying() != null;
 	}
@@ -95,7 +95,7 @@ abstract Flags<T : EnumValue>(T) from T to T
 	/**
 		Returns whether `this` type has any flag set by `flags` also set
 	 **/
-	@:extern inline public function hasAny(flags:Flags<T>):Bool
+	extern inline public function hasAny(flags:Flags<T>):Bool
 	{
 		return underlying() & flags.underlying() != null;
 	}
@@ -103,12 +103,12 @@ abstract Flags<T : EnumValue>(T) from T to T
 	/**
 		Returns whether `this` type has all flags set by `flags` also set
 	 **/
-	@:extern inline public function hasAll(flags:Flags<T>):Bool
+	extern inline public function hasAll(flags:Flags<T>):Bool
 	{
 		return underlying() & flags.underlying() == flags.underlying();
 	}
 
-	@:extern inline private function underlying():EnumUnderlying<T>
+	extern inline private function underlying():EnumUnderlying<T>
 		return this;
 }
 

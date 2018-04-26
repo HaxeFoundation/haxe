@@ -228,6 +228,7 @@ and access =
 	| AInline
 	| AMacro
 	| AFinal
+	| AExtern
 
 and class_field_kind =
 	| FVar of type_hint option * expr option
@@ -370,6 +371,7 @@ let s_access = function
 	| AInline -> "inline"
 	| AMacro -> "macro"
 	| AFinal -> "final"
+	| AExtern -> "extern"
 
 let s_keyword = function
 	| Function -> "function"

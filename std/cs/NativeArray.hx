@@ -48,14 +48,14 @@ extern class NativeArray<T> extends cs.system.Array implements ArrayAccess<T>
 	 **/
 	public var length(get,never):Int;
 
-	@:extern inline private function get_length():Int return this.Length;
+	extern inline private function get_length():Int return this.Length;
 
 	static function Reverse(arr:cs.system.Array):Void;
 
 	/**
 		Returns an iterator so it's possible to use `for` with C#'s `NativeArray`
 	 **/
-	@:extern inline public function iterator():NativeArrayIterator<T>
+	extern inline public function iterator():NativeArrayIterator<T>
 		return new NativeArrayIterator(this);
 }
 
