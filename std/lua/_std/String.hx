@@ -26,7 +26,7 @@ import lua.Boot;
 import lua.NativeStringTools;
 
 @:coreApi
-extern
+@:extern
 class String {
 	static var __oldindex : String->String->Dynamic;
 	public var length(default,null) : Int;
