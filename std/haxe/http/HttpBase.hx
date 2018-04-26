@@ -76,16 +76,14 @@ class HttpBase {
 		for (i in 0...headers.length) {
 			if (headers[i].name == name) {
 				headers[i] = { name: name, value: value };
-				return this;
+				return;
 			}
 		}
 		headers.push({ name: name, value: value });
-		return this;
 	}
 
 	public function addHeader(header:String, value:String) {
 		headers.push({ name:header, value:value });
-		return this;
 	}
 
 	/**
@@ -99,16 +97,14 @@ class HttpBase {
 		for (i in 0...params.length) {
 			if (params[i].name == name) {
 				params[i] = { name: name, value: value };
-				return this;
+				return;
 			}
 		}
 		params.push({ name: name, value: value });
-		return this;
 	}
 
 	public function addParameter(name:String, value:String) {
 		params.push({ name: name, value: value });
-		return this;
 	}
 
 	/**
@@ -123,7 +119,6 @@ class HttpBase {
 	**/
 	public function setPostData(data:String) {
 		postData = data;
-		return this;
 	}
 
 	/**
