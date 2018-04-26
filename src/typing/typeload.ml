@@ -36,7 +36,7 @@ let transform_abstract_field com this_t a_t a f =
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
 		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_meta <- (Meta.Extern,[],null_pos) :: f.cff_meta;
+		if Common.defined com Define.As3 then f.cff_access <- AExtern :: f.cff_access;
 		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
@@ -45,13 +45,11 @@ let transform_abstract_field com this_t a_t a f =
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],null_pos) :: f.cff_meta in
-		let meta = if Meta.has Meta.MultiType a.a_meta then begin
+		if Meta.has Meta.MultiType a.a_meta then begin
 			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-			(Meta.Extern,[],null_pos) :: meta
-		end else
-			meta
-		in
+			f.cff_access <- AExtern :: f.cff_access
+		end;
 		(* We don't want the generated expression positions to shadow the real code. *)
 		let p = { p with pmax = p.pmin } in
 		let fu = {
@@ -622,7 +620,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar(t,e) when !final ->
@@ -2093,9 +2091,15 @@ module ClassInitializer = struct
 			pass = PBuildClass; (* will be set later to PTypeExpr *)
 		} in
 		let is_static = List.mem AStatic cff.cff_access in
-		let is_extern = Meta.has Meta.Extern cff.cff_meta || c.cl_extern in
+		let is_extern = List.mem AExtern cff.cff_access in
+		let is_extern = if Meta.has Meta.Extern cff.cff_meta then begin
+			ctx.com.warning "`@:extern function` is deprecated in favor of `extern function`" (pos cff.cff_name);
+			true
+		end else
+			is_extern
+		in
 		let allow_inline = cctx.abstract <> None || match cff.cff_kind with
-			| FFun _ -> ctx.g.doinline || is_extern
+			| FFun _ -> ctx.g.doinline || is_extern || c.cl_extern
 			| _ -> true
 		in
 		let is_inline = allow_inline && List.mem AInline cff.cff_access in
@@ -2301,7 +2305,7 @@ module ClassInitializer = struct
 						| None -> display_error ctx msg p; e
 					in
 					let e = (match cf.cf_kind with
-					| Var v when c.cl_extern || Meta.has Meta.Extern cf.cf_meta ->
+					| Var v when c.cl_extern || fctx.is_extern ->
 						if not fctx.is_static then begin
 							display_error ctx "Extern non-static variables may not be initialized" p;
 							e
@@ -2398,6 +2402,7 @@ module ClassInitializer = struct
 			cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
 			cf_kind = Var kind;
 			cf_public = is_public (ctx,cctx) f.cff_access None;
+			cf_extern = fctx.is_extern;
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
@@ -2617,6 +2622,7 @@ module ClassInitializer = struct
 			cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 			cf_public = is_public (ctx,cctx) f.cff_access parent;
 			cf_params = params;
+			cf_extern = fctx.is_extern;
 		} in
 		cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 			| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
@@ -2806,6 +2812,7 @@ module ClassInitializer = struct
 			cf_meta = f.cff_meta;
 			cf_kind = Var { v_read = get; v_write = set };
 			cf_public = is_public (ctx,cctx) f.cff_access None;
+			cf_extern = fctx.is_extern;
 		} in
 		ctx.curfield <- cf;
 		bind_var (ctx,cctx,fctx) cf eo;
@@ -2819,7 +2826,7 @@ module ClassInitializer = struct
 		if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 		List.iter (fun acc ->
 			match (acc, f.cff_kind) with
-			| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ -> ()
+			| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 			| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
 			| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
 			| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p

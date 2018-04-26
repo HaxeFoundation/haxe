@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass
 {
-	@:to @:extern inline public function toFloat():Float
+	@:to extern inline public function toFloat():Float
 		return this.doubleValue();
-	@:from @:extern inline public static function fromFloat(b:Float):Double
+	@:from extern inline public static function fromFloat(b:Float):Double
 		return DoubleClass.valueOf(b);
 }
 

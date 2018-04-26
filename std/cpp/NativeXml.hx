@@ -123,7 +123,7 @@ class NativeXmlState
       x._nodeValue = text.substr(1);
       cur.addChild(x);
    }
-   
+
    @:keep
    public function done()
    {
@@ -244,8 +244,8 @@ class Xml {
    function new() : Void {
    }
 
-   @:extern @:native("parse_xml")
-   static function parse_xml(str:String, state:NativeXmlState) { }
+   @:native("parse_xml")
+   extern static function parse_xml(str:String, state:NativeXmlState) { }
 
    public static function parse( str : String ) : Xml
    {

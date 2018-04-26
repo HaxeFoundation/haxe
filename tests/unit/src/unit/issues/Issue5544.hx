@@ -15,7 +15,7 @@ private abstract A(T) {
 
 	public function new();
 
-	@:to @:extern inline function toC():C {
+	@:to extern inline function toC():C {
 		return null;
 	}
 

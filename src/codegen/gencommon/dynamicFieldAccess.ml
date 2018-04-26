@@ -89,7 +89,7 @@ let configure gen (is_dynamic:texpr->Type.tfield_access->bool) (change_expr:texp
 					assert false
 			with Not_found ->
 				match f with
-				| FStatic (cl, cf) when Meta.has Meta.Extern cf.cf_meta ->
+				| FStatic (cl, cf) when cf.cf_extern ->
 					{ e with eexpr = TField ({ fexpr with eexpr = TTypeExpr decl }, FStatic (cl, cf)) }
 				| _ ->
 					change_expr e { fexpr with eexpr = TTypeExpr decl } (field_name f) None true)

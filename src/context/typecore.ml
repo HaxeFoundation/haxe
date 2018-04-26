@@ -309,7 +309,7 @@ let push_this ctx e = match e.eexpr with
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field ctx f =
-	Meta.has Meta.Extern f.cf_meta || Meta.has Meta.Generic f.cf_meta
+	f.cf_extern || Meta.has Meta.Generic f.cf_meta
 	|| (match f.cf_kind with
 		| Var {v_read = AccRequire (s,_)} -> true
 		| Method MethMacro -> not ctx.in_macro

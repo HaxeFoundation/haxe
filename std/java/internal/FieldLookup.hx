@@ -73,7 +73,7 @@ import java.lang.System;
 		a[length - 1] = null;
 	}
 
-	@:extern
+	extern
 	static inline function __insert<T>(a:java.NativeArray<T>, length:Int, pos:Int, x:T):java.NativeArray<T>
 	{
 		var capacity = a.length;

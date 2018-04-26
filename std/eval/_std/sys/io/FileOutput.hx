@@ -25,10 +25,10 @@ package sys.io;
 
 @:coreApi
 class FileOutput extends haxe.io.Output {
-	@:extern public override function close():Void { }
-	@:extern public override function flush():Void { }
-	@:extern public function seek(p:Int, pos:FileSeek):Void { }
-	@:extern public function tell():Int { return 0; }
-	@:extern public override function writeByte(c:Int):Void { }
-	@:extern public override function writeBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int { return 0; }
+	extern public override function close():Void { }
+	extern public override function flush():Void { }
+	extern public function seek(p:Int, pos:FileSeek):Void { }
+	extern public function tell():Int { return 0; }
+	extern public override function writeByte(c:Int):Void { }
+	extern public override function writeBytes(bytes:haxe.io.Bytes, pos:Int, len:Int):Int { return 0; }
 }

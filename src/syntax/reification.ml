@@ -177,6 +177,7 @@ let reify in_macro =
 			| AInline -> "AInline"
 			| AMacro -> "AMacro"
 			| AFinal -> "AFinal"
+			| AExtern -> "AExtern"
 			) in
 			mk_enum "Access" n [] p
 		in

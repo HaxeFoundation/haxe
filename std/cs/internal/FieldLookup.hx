@@ -290,7 +290,7 @@ package cs.internal;
 		a[length - 1] = null;
 	}
 
-	@:extern
+	extern
 	static inline function __insert<T>(a:cs.NativeArray<T>, length:Int, pos:Int, x:T):cs.NativeArray<T>
 	{
 		var capacity = a.Length;

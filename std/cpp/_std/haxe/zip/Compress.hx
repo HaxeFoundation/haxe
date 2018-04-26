@@ -53,19 +53,19 @@ class Compress {
 		return out.sub(0,r.write);
 	}
 
-   @:extern @:native("_hx_deflate_init")
-	static function _deflate_init(level:Int) : Dynamic return null;
+    @:native("_hx_deflate_init")
+	extern static function _deflate_init(level:Int) : Dynamic return null;
 
-   @:extern @:native("_hx_deflate_bound")
-	static function _deflate_bound(handle:Dynamic,length:Int):Int return 0;
+    @:native("_hx_deflate_bound")
+	extern static function _deflate_bound(handle:Dynamic,length:Int):Int return 0;
 
-   @:extern @:native("_hx_deflate_buffer")
-	static function _deflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
+    @:native("_hx_deflate_buffer")
+	extern static function _deflate_buffer(handle:Dynamic, src:haxe.io.BytesData, srcPos:Int,  dest:haxe.io.BytesData, destPos:Int) : { done : Bool, read : Int, write : Int } return null;
 
-   @:extern @:native("_hx_deflate_end")
-	static function _deflate_end(handle:Dynamic) : Void { }
+    @:native("_hx_deflate_end")
+	extern static function _deflate_end(handle:Dynamic) : Void { }
 
-   @:extern @:native("_hx_zip_set_flush_mode")
-	static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
+    @:native("_hx_zip_set_flush_mode")
+	extern static function _set_flush_mode(handle:Dynamic, flushMode:String):Void { }
 
 }

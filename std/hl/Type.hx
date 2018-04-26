@@ -49,7 +49,7 @@ abstract TypeKind(Int) {
 
 	public var kind(get,never) : TypeKind;
 
-	@:extern inline function get_kind() : TypeKind {
+	extern inline function get_kind() : TypeKind {
 		return untyped $tkind(this);
 	}
 
@@ -57,15 +57,15 @@ abstract TypeKind(Int) {
 		return null;
 	}
 
-	@:extern public static inline function getDynamic( v : Dynamic ) : Type {
+	extern public static inline function getDynamic( v : Dynamic ) : Type {
 		return untyped $tdyntype(v);
 	}
 
-	@:extern public static inline function get<T>( v : T ) : Type {
+	extern public static inline function get<T>( v : T ) : Type {
 		return untyped $ttype(v);
 	}
 
-	@:extern public inline function getName() : String {
+	extern public inline function getName() : String {
 		var s = getNameBytes();
 		return @:privateAccess String.fromUCS2(s);
 	}

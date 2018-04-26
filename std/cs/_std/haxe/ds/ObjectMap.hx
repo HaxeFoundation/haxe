@@ -25,9 +25,9 @@ import cs.NativeArray;
 
 @:coreApi class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
-	@:extern private static inline var HASH_UPPER = 0.77;
-	@:extern private static inline var FLAG_EMPTY = 0;
-	@:extern private static inline var FLAG_DEL = 1;
+	extern private static inline var HASH_UPPER = 0.77;
+	extern private static inline var FLAG_EMPTY = 0;
+	extern private static inline var FLAG_DEL = 1;
 
 	/**
 	 * This is the most important structure here and the reason why it's so fast.
@@ -420,7 +420,7 @@ import cs.NativeArray;
 		return s.toString();
 	}
 
-	@:extern private static inline function roundUp(x:Int):Int
+	extern private static inline function roundUp(x:Int):Int
 	{
 		--x;
 		x |= (x) >>> 1;
@@ -431,20 +431,20 @@ import cs.NativeArray;
 		return ++x;
 	}
 
-	@:extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
+	extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
-	@:extern private static inline function isEither(v:HashType):Bool
+	extern private static inline function isEither(v:HashType):Bool
 		return (v & 0xFFFFFFFE) == 0;
 
-	@:extern private static inline function isEmpty(v:HashType):Bool
+	extern private static inline function isEmpty(v:HashType):Bool
 		return v == FLAG_EMPTY;
 
-	@:extern private static inline function isDel(v:HashType):Bool
+	extern private static inline function isDel(v:HashType):Bool
 		return v == FLAG_DEL;
 
 	//guarantee: Whatever this function is, it will never return 0 nor 1
-	@:extern private static inline function hash<K>(s:K):HashType
+	extern private static inline function hash<K>(s:K):HashType
 	{
 		var k:Int = untyped s.GetHashCode();
 		//k *= 357913941;
@@ -472,10 +472,10 @@ import cs.NativeArray;
 		return ret;
 	}
 
-	@:extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
 		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
-	@:extern private static inline function assert(x:Bool):Void
+	extern private static inline function assert(x:Bool):Void
 	{
 #if DEBUG_HASHTBL
 		if (!x) throw "assert failed";

@@ -27,12 +27,12 @@ class Issue2874 extends unit.Test
 
 @:arrayAccess abstract Arr<T>(Array<T>)
 {
-	@:extern inline public function new(a)
+	extern inline public function new(a)
 	{
 		this = a;
 	}
 
-	@:extern inline public function map<X>(fn:T->X):Arr<X>
+	extern inline public function map<X>(fn:T->X):Arr<X>
 	{
 		var arr2 = [];
 		for (v in this)

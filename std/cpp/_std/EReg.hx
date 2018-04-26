@@ -178,15 +178,15 @@
 	}
 	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
-   @:extern @:native("_hx_regexp_new_options")
-	static function _hx_regexp_new_options(s:String, options:String) : Dynamic return null;
+   @:native("_hx_regexp_new_options")
+	extern static function _hx_regexp_new_options(s:String, options:String) : Dynamic return null;
 
-   @:extern @:native("_hx_regexp_match")
-	static function _hx_regexp_match(handler: Dynamic, string:String, pos:Int, len:Int) : Bool return false;
+   @:native("_hx_regexp_match")
+	extern static function _hx_regexp_match(handler: Dynamic, string:String, pos:Int, len:Int) : Bool return false;
 
-   @:extern @:native("_hx_regexp_matched")
-	static function _hx_regexp_matched(handle:Dynamic, pos:Int) : String return null;
+   @:native("_hx_regexp_matched")
+	extern static function _hx_regexp_matched(handle:Dynamic, pos:Int) : String return null;
 
-   @:extern @:native("_hx_regexp_matched_pos")
-	static function _hx_regexp_matched_pos(handle:Dynamic, match:Int) : {pos:Int, len:Int} return null;
+   @:native("_hx_regexp_matched_pos")
+	extern static function _hx_regexp_matched_pos(handle:Dynamic, match:Int) : {pos:Int, len:Int} return null;
 }

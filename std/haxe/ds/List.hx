@@ -257,7 +257,7 @@ private class ListNode<T> {
 		this.item = item;
 		this.next = next;
 	}
-	@:extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
+	extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
 		return new ListNode(item, next);
 	}
 }

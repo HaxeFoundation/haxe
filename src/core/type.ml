@@ -175,6 +175,7 @@ and tclass_field = {
 	mutable cf_expr : texpr option;
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
+	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
 }
 
 and tclass_kind =
@@ -446,6 +447,7 @@ let mk_field name t p name_pos = {
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
+	cf_extern = false;
 }
 
 let null_module = {
@@ -1980,7 +1982,7 @@ let rec unify a b =
 				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
 				(match f1.cf_kind with
 				| Method MethInline ->
-					if (c.cl_extern || Meta.has Meta.Extern f1.cf_meta) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					if (c.cl_extern || f1.cf_extern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with

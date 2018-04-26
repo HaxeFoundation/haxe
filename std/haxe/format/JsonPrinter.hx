@@ -133,7 +133,7 @@ class JsonPrinter {
 		}
 	}
 
-	@:extern inline function addChar(c:Int) {
+	extern inline function addChar(c:Int) {
 		#if flash
 		buf.writeByte(c);
 		#else
@@ -141,7 +141,7 @@ class JsonPrinter {
 		#end
 	}
 
-	@:extern inline function add(v:String) {
+	extern inline function add(v:String) {
 		#if flash
 		// argument is not always a string but will be automatically casted
 		buf.writeUTFBytes(v);

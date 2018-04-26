@@ -105,7 +105,7 @@ class Gc
       cpp.NativeGc.setMinimumWorkingMemory(inBytes);
 
    #if !cppia
-   @:native("__hxcpp_set_finalizer") @:extern
+   @:native("__hxcpp_set_finalizer") extern
    static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void { }
    #end
 }

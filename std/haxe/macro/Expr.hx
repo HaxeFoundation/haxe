@@ -818,6 +818,11 @@ enum Access {
 		variables, it means they can be assigned to only once.
 	**/
 	AFinal;
+
+	/**
+		Extern access modifier.
+	**/
+	AExtern;
 }
 
 /**

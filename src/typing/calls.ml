@@ -12,7 +12,7 @@ let is_forced_inline c cf =
 	match c with
 	| Some { cl_extern = true } -> true
 	| Some { cl_kind = KAbstractImpl _ } -> true
-	| _ when Meta.has Meta.Extern cf.cf_meta -> true
+	| _ when cf.cf_extern -> true
 	| _ -> false
 
 let make_call ctx e params t p =
@@ -451,7 +451,7 @@ let rec acc_get ctx g p =
 		| None ->
 			error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = (c.cl_extern || Meta.has Meta.Extern f.cf_meta) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = (c.cl_extern || f.cf_extern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -486,7 +486,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics {cl_extern = false} when Meta.has Meta.Extern f.cf_meta ->
+						| Statics {cl_extern = false} when f.cf_extern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
