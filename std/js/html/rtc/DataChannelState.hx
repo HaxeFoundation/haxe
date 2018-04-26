@@ -24,7 +24,7 @@
 
 package js.html.rtc;
 
-@:enum abstract DataChannelState(String)
+enum abstract DataChannelState(String)
 {
 	var CONNECTING = "connecting";
 	var OPEN = "open";

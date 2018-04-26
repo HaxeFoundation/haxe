@@ -21,7 +21,7 @@
  */
 package hl;
 
-@:enum abstract PixelFormat(Int) {
+enum abstract PixelFormat(Int) {
   var RGB = 0;
   var BGR = 1;
   var RGBX = 2;

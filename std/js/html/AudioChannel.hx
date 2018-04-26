@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract AudioChannel(String)
+enum abstract AudioChannel(String)
 {
 	var NORMAL = "normal";
 	var CONTENT = "content";

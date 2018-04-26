@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract OverSampleType(String)
+enum abstract OverSampleType(String)
 {
 	var NONE = "none";
 	var _2X = "2x";

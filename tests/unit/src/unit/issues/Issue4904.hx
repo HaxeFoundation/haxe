@@ -8,7 +8,7 @@ class Issue4904 extends Test {
 	}
 }
 
-@:enum
+enum
 abstract TestAbstract(Int) to Int {
 	var A = 0;
 	var B = 1;

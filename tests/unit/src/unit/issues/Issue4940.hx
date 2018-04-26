@@ -12,8 +12,7 @@ private class Base {
 private class A extends Base {}
 private class B extends Base {}
 
-@:enum
-private abstract K(Int) {
+private enum abstract K(Int) {
 	var grav = 19;
 	var other = 2;
 }

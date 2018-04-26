@@ -21,7 +21,7 @@
  */
 package cpp;
 
-@:enum abstract XmlType(Int) {
+enum abstract XmlType(Int) {
    /**
       Represents an XML element type.
    **/
@@ -123,7 +123,7 @@ class NativeXmlState
       x._nodeValue = text.substr(1);
       cur.addChild(x);
    }
-   
+
    @:keep
    public function done()
    {

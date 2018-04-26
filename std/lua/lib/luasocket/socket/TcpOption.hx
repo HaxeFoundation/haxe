@@ -21,7 +21,7 @@
  */
 
 package lua.lib.luasocket.socket;
-@:enum abstract TcpOption(String)  {
+enum abstract TcpOption(String)  {
 	var KeepAlive    = "keepalive";
 	var Linger       = "linger";
 	var ReuseAddress = "reuseaddr";

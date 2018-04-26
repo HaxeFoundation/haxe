@@ -21,7 +21,7 @@
  */
 
 package lua.lib.luasocket.socket;
-@:enum abstract ReceivePattern(String)  {
+enum abstract ReceivePattern(String)  {
 	var All  = "*a";
 	var Line = "*l";
 }

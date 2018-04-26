@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract OscillatorType(String)
+enum abstract OscillatorType(String)
 {
 	var SINE = "sine";
 	var SQUARE = "square";

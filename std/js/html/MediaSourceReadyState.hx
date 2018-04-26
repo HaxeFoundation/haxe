@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract MediaSourceReadyState(String)
+enum abstract MediaSourceReadyState(String)
 {
 	var CLOSED = "closed";
 	var OPEN = "open";

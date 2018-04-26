@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract MediaSourceEndOfStreamError(String)
+enum abstract MediaSourceEndOfStreamError(String)
 {
 	var NETWORK = "network";
 	var DECODE = "decode";

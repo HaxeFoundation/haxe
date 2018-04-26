@@ -1,4 +1,4 @@
-@:enum abstract MyEnum(Int) {
+enum abstract MyEnum(Int) {
     var A = 1;
     var B = 2;
     var C = 3;

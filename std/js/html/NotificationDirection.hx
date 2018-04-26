@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract NotificationDirection(String)
+enum abstract NotificationDirection(String)
 {
 	var AUTO = "auto";
 	var LTR = "ltr";

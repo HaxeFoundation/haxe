@@ -1954,6 +1954,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 		| Meta.Enum,_,p -> f_build,Some (fun () ->
 				begin match mt with
 					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
+						if p <> null_pos then ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p;
 						context_init();
 						let e = build_enum_abstract ctx c a (fvars()) p in
 						fbuild e;

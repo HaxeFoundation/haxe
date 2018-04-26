@@ -1,6 +1,6 @@
 package hl.uv;
 
-@:enum abstract LoopRunMode(Int) {
+enum abstract LoopRunMode(Int) {
 	var Default = 0;
 	var Once = 1;
 	var NoWait = 2;
