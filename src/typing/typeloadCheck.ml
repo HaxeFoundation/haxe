@@ -457,3 +457,25 @@ module Inheritance = struct
 		) herits in
 		fl
 end
+
+let check_final_vars ctx e =
+	let final_vars = Hashtbl.create 0 in
+	List.iter (fun cf -> match cf.cf_kind with
+		| Var _ when Meta.has Meta.Final cf.cf_meta && cf.cf_expr = None ->
+			Hashtbl.add final_vars cf.cf_name cf
+		| _ ->
+			()
+	) ctx.curclass.cl_ordered_fields;
+	if Hashtbl.length final_vars > 0 then begin
+		let rec find_inits e = match e.eexpr with
+			| TBinop(OpAssign,{eexpr = TField({eexpr = TConst TThis},fa)},e2) ->
+				Hashtbl.remove final_vars (field_name fa);
+				find_inits e2;
+			| _ ->
+				Type.iter find_inits e
+		in
+		find_inits e;
+		Hashtbl.iter (fun _ cf ->
+			display_error ctx ("final field " ^ cf.cf_name ^ " must be initialized immediately or in the constructor") cf.cf_pos;
+		) final_vars
+	end
