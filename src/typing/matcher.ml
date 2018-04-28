@@ -1028,18 +1028,18 @@ module Compile = struct
 			let unguarded = ConTable.create 0 in
 			let null = ref [] in
 			List.iter (fun (case,bindings,patterns) ->
-				let rec loop pat = match fst pat with
+				let rec loop bindings pat = match fst pat with
 					| PatConstructor(ConConst TNull,_) ->
 						null := (case,bindings,List.tl patterns) :: !null;
 					| PatConstructor(con,_) ->
 						if case.case_guard = None then ConTable.replace unguarded con true;
 						ConTable.replace sigma con true;
-					| PatBind(_,pat) -> loop pat
+					| PatBind(v,pat) -> loop ((v,pos pat,subject) :: bindings) pat
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
 					| _ -> error ("Unexpected pattern: " ^ (Pattern.to_string pat)) case.case_pos;
 				in
-				loop (List.hd patterns)
+				loop bindings (List.hd patterns)
 			) cases;
 			let sigma = ConTable.fold (fun con _ acc -> (con,ConTable.mem unguarded con) :: acc) sigma [] in
 			sigma,List.rev !null
