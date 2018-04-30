@@ -206,6 +206,9 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 						| EConst (String s) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
+						| EDisplay _ ->
+							ignore(type_expr ctx e Value);
+							"Expr"
 						| _ -> "Expr"
 					) in
 					let c = mk_class ctx.m.curmod ([],name) p (pos e) in
