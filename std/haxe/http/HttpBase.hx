@@ -76,14 +76,16 @@ class HttpBase {
 		for (i in 0...headers.length) {
 			if (headers[i].name == name) {
 				headers[i] = { name: name, value: value };
-				return;
+				return #if hx3compat this #end;
 			}
 		}
 		headers.push({ name: name, value: value });
+		#if hx3compat return this; #end
 	}
 
 	public function addHeader(header:String, value:String) {
 		headers.push({ name:header, value:value });
+		#if hx3compat return this; #end
 	}
 
 	/**
@@ -97,14 +99,16 @@ class HttpBase {
 		for (i in 0...params.length) {
 			if (params[i].name == name) {
 				params[i] = { name: name, value: value };
-				return;
+				return #if hx3compat this #end;
 			}
 		}
 		params.push({ name: name, value: value });
+		#if hx3compat return this; #end
 	}
 
 	public function addParameter(name:String, value:String) {
 		params.push({ name: name, value: value });
+		#if hx3compat return this; #end
 	}
 
 	/**
@@ -119,6 +123,7 @@ class HttpBase {
 	**/
 	public function setPostData(data:String) {
 		postData = data;
+		#if hx3compat return this; #end
 	}
 
 	/**
