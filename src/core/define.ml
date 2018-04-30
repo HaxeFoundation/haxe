@@ -291,3 +291,5 @@ let get_signature def =
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
 		s
+
+let is_haxe3_compat def = raw_defined def "hx3compat"
