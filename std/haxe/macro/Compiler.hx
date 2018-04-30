@@ -191,7 +191,7 @@ class Compiler {
 				}else{
 					ignoreString.push(ignoreRule);
 				}
-			} 
+			}
 		}
 		var skip = if( ignore == null ) {
 			function(c) return false;
@@ -450,7 +450,7 @@ class Compiler {
 
 }
 
-@:enum abstract IncludePosition(String) from String to String {
+enum abstract IncludePosition(String) from String to String {
 	/**
 		Prepend the file content to the output file.
 	*/

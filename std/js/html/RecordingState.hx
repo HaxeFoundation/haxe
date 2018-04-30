@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract RecordingState(String)
+enum abstract RecordingState(String)
 {
 	var INACTIVE = "inactive";
 	var RECORDING = "recording";

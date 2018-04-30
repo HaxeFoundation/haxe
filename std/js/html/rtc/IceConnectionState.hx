@@ -24,7 +24,7 @@
 
 package js.html.rtc;
 
-@:enum abstract IceConnectionState(String)
+enum abstract IceConnectionState(String)
 {
 	var NEW_ = "new";
 	var CHECKING = "checking";

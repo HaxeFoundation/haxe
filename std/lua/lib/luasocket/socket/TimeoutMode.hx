@@ -22,7 +22,7 @@
 
 
 package lua.lib.luasocket.socket;
-@:enum abstract TimeoutMode(String) {
+enum abstract TimeoutMode(String) {
 	var Block = "b";
 	var Total = "t";
 }

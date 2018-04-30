@@ -1,5 +1,5 @@
 @:native("lol")
-@:enum extern abstract E(String) {
+extern enum abstract E(String) {
     var A;
     var B;
     var C;

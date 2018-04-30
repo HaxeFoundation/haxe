@@ -21,7 +21,7 @@
  */
 package cpp;
 
-@:enum abstract XmlType(Int) {
+enum abstract XmlType(Int) {
    /**
       Represents an XML element type.
    **/

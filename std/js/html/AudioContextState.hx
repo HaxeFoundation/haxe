@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract AudioContextState(String)
+enum abstract AudioContextState(String)
 {
 	var SUSPENDED = "suspended";
 	var RUNNING = "running";

@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract GamepadMappingType(String)
+enum abstract GamepadMappingType(String)
 {
 	var NONE = "";
 	var STANDARD = "standard";

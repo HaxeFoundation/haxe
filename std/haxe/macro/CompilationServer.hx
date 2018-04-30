@@ -2,7 +2,7 @@ package haxe.macro;
 
 import haxe.macro.Compiler;
 
-@:enum
+enum
 abstract ModuleCheckPolicy(Int) {
 	/**
 		Disables file modification checks, avoiding some filesystem operations.
@@ -28,7 +28,7 @@ abstract ModuleCheckPolicy(Int) {
 	var NoCheckShadowing = 3;
 }
 
-@:enum abstract ContextOptions(Int) {
+enum abstract ContextOptions(Int) {
 	/**
 		Affects only the normal context.
 	**/

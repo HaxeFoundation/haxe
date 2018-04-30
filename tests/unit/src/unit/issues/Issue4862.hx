@@ -2,7 +2,7 @@ package unit.issues;
 
 #if js
 @:native("__issue4862__http_status")
-@:enum private extern abstract HttpStatus(Int) to Int {
+private extern enum abstract HttpStatus(Int) to Int {
     var Ok;
     var NotFound;
 

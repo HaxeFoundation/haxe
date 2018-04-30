@@ -24,7 +24,7 @@
 
 package js.html.rtc;
 
-@:enum abstract IceGatheringState(String)
+enum abstract IceGatheringState(String)
 {
 	var NEW_ = "new";
 	var GATHERING = "gathering";

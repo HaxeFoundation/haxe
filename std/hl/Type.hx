@@ -21,7 +21,7 @@
  */
 package hl;
 
-@:enum
+enum
 abstract TypeKind(Int) {
 	public var HVoid = 0;
 	public var HUI8 = 1;

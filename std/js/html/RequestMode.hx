@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract RequestMode(String)
+enum abstract RequestMode(String)
 {
 	var SAME_ORIGIN = "same-origin";
 	var NO_CORS = "no-cors";

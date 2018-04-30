@@ -2,7 +2,7 @@ package cases;
 
 class Issue5166 extends DisplayTestCase {
 	/**
-		@:enum abstract E(Int) {
+		enum abstract E(Int) {
 			{-2-}var A{-1-} = 5;{-3-}
 		}
 

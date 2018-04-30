@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract BiquadFilterType(String)
+enum abstract BiquadFilterType(String)
 {
 	var LOWPASS = "lowpass";
 	var HIGHPASS = "highpass";

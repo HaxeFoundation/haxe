@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract SupportedType(String)
+enum abstract SupportedType(String)
 {
 	var TEXT_HTML = "text/html";
 	var TEXT_XML = "text/xml";

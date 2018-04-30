@@ -8,7 +8,7 @@ class InlineCtor {
 	}
 }
 
-@:enum abstract MyEnum(String) to String {
+enum abstract MyEnum(String) to String {
 	var A = "a";
 }
 

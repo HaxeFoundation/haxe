@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract OrientationLockType(String)
+enum abstract OrientationLockType(String)
 {
 	var ANY = "any";
 	var NATURAL = "natural";

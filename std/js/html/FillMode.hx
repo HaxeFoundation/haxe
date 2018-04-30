@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract FillMode(String)
+enum abstract FillMode(String)
 {
 	var NONE = "none";
 	var FORWARDS = "forwards";

@@ -24,7 +24,7 @@
 
 package js.html.idb;
 
-@:enum abstract TransactionMode(String)
+enum abstract TransactionMode(String)
 {
 	var READONLY = "readonly";
 	var READWRITE = "readwrite";

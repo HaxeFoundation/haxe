@@ -25,7 +25,7 @@
 
 	@see https://haxe.org/manual/std-Xml.html
 **/
-@:enum abstract XmlType(Int) {
+enum abstract XmlType(Int) {
 	/**
 		Represents an XML element type.
 	**/

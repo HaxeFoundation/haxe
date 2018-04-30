@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract XMLHttpRequestResponseType(String)
+enum abstract XMLHttpRequestResponseType(String)
 {
 	var NONE = "";
 	var ARRAYBUFFER = "arraybuffer";

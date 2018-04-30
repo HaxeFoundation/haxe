@@ -1,5 +1,9 @@
 XXXX-XX-XX: 4.0.0-preview.4
 
+	New features:
+
+	all : allow `enum abstract` syntax instead of `@:enum abstract` (#4282)
+
 	General improvements and optimizations:
 
 	all : implemented `for` loop unrolling (#3784)
