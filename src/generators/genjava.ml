@@ -131,7 +131,7 @@ let rec t_has_type_param_shallow last t = match follow t with
 
 let rec replace_type_param t = match follow t with
 	| TInst({ cl_kind = KTypeParameter _ }, []) -> t_dynamic
-	| TEnum(e, params) -> TEnum(e, List.map replace_type_param params)
+	| TEnum(e, params) -> t_dynamic
 	| TAbstract(a, params) -> TAbstract(a, List.map replace_type_param params)
 	| TInst(cl, params) -> TInst(cl, List.map replace_type_param params)
 	| _ -> t
