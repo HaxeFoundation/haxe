@@ -351,6 +351,7 @@ module ConstPropagation = DataFlow(struct
 		| Null of Type.t
 		| Const of tconstant
 		| EnumValue of int * t list
+		| ModuleType of module_type * Type.t
 
 	let conditional = true
 	let flag = FlagExecutable
@@ -368,6 +369,7 @@ module ConstPropagation = DataFlow(struct
 		| Const ct1,Const ct2 -> ct1 = ct2
 		| Null t1,Null t2 -> t1 == t2
 		| EnumValue(i1,_),EnumValue(i2,_) -> i1 = i2
+		| ModuleType(mt1,_),ModuleType (mt2,_) -> mt1 == mt2
 		| _ -> false
 
 	let transfer ctx bb e =
@@ -388,6 +390,8 @@ module ConstPropagation = DataFlow(struct
 				Null e.etype
 			| TConst ct ->
 				Const ct
+			| TTypeExpr mt ->
+				ModuleType(mt,e.etype)
 			| TLocal v ->
 				if (follow v.v_type) == t_dynamic || v.v_capture then
 					Bottom
@@ -476,6 +480,9 @@ module ConstPropagation = DataFlow(struct
 				let e' = Texpr.type_constant ctx.com.basic (tconst_to_const ct) e.epos in
 				if not (type_change_ok ctx.com e'.etype e.etype) then raise Not_found;
 				e'
+			| ModuleType(mt,t) ->
+				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
+				mk (TTypeExpr mt) t e.epos
 		in
 		let is_special_var v = v.v_capture || is_asvar_type v.v_type in
 		let rec commit e = match e.eexpr with
