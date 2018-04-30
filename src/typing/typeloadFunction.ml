@@ -29,10 +29,10 @@ open Error
 
 let type_function_arg ctx t e opt p =
 	if opt then
-		let e = (match e with None -> Some (EConst (Ident "null"),p) | _ -> e) in
+		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
 		ctx.t.tnull t, e
 	else
-		let t = match e with Some (EConst (Ident "null"),p) -> ctx.t.tnull t | _ -> t in
+		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
 		t, e
 
 let type_var_field ctx t e stat do_display p =
