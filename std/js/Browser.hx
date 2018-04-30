@@ -27,23 +27,23 @@ import js.html.XMLHttpRequest;
 class Browser {
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
-	inline static function get_window() return untyped __js__("window");
+	extern inline static function get_window() return untyped __js__("window");
 
 	/** Shortcut to Window.document. */
 	public static var document(get, never):js.html.HTMLDocument;
-	inline static function get_document() return untyped __js__("window.document");
+	extern inline static function get_document() return untyped __js__("window.document");
 
 	/** Shortcut to Window.location. */
 	public static var location(get, never):js.html.Location;
-	inline static function get_location() return untyped __js__("window.location");
+	extern inline static function get_location() return untyped __js__("window.location");
 
 	/** Shortcut to Window.navigator. */
 	public static var navigator(get, never):js.html.Navigator;
-	inline static function get_navigator() return untyped __js__("window.navigator");
+	extern inline static function get_navigator() return untyped __js__("window.navigator");
 
 	/** Shortcut to Window.console. */
 	public static var console(get, never):js.html.Console;
-	inline static function get_console() return untyped __js__("window.console");
+	extern inline static function get_console() return untyped __js__("window.console");
 
 	/**
 	 * True if a window object exists, false otherwise.
@@ -52,7 +52,7 @@ class Browser {
 	 * environment such as node.js.
 	 */
 	public static var supported(get, never):Bool;
-	inline static function get_supported() return js.Syntax.typeof(window) != "undefined";
+	extern inline static function get_supported() return js.Syntax.typeof(window) != "undefined";
 
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
