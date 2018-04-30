@@ -52,7 +52,7 @@ class Browser {
 	 * environment such as node.js.
 	 */
 	public static var supported(get, never):Bool;
-	inline static function get_supported() return js.Syntax.typeof(window) != "undefined";
+	inline static function get_supported() return untyped __js__("typeof window != undefined");
 
 	/**
 	 * Safely gets the browser's local storage, or returns null if localStorage is unsupported or
