@@ -55,7 +55,7 @@ class Type {
 		var e : hl.BaseType.Enum = et.allocObject();
 		e.__type__ = t;
 		e.__evalues__ = t.getEnumValues();
-		e.__ename__ = t.getName();
+		e.__ename__ = t.getTypeName();
 		e.__emap__ = new hl.types.BytesMap();
 		e.__constructs__ = new Array();
 		var cl = t.getEnumFields();

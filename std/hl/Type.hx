@@ -65,8 +65,9 @@ abstract TypeKind(Int) {
 		return untyped $ttype(v);
 	}
 
-	extern public inline function getName() : String {
+	extern public inline function getTypeName() : String {
 		var s = getNameBytes();
+		if( s == null ) return null;
 		return @:privateAccess String.fromUCS2(s);
 	}
 
