@@ -31,10 +31,6 @@ enum GcFlag {
 	**/
 	DumpMem;
 	/**
-		Enable allocation tracking
-	**/
-	Track;
-	/**
 		Disable GC locking for multithreads
 	**/
 	NoThreads;
