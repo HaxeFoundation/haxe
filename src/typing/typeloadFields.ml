@@ -324,8 +324,8 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 		| Meta.Enum,_,p -> f_build,Some (fun () ->
 				begin match mt with
 					| TClassDecl ({cl_kind = KAbstractImpl a} as c) ->
-						if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-							ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p;
+						(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+							ctx.com.warning "`@:enum abstract` is deprecated in favor of `enum abstract`" p; *)
 						context_init();
 						let e = build_enum_abstract ctx c a (fvars()) p in
 						fbuild e;
@@ -400,8 +400,8 @@ let create_field_context (ctx,cctx) c cff =
 	let is_static = List.mem AStatic cff.cff_access in
 	let is_extern = List.mem AExtern cff.cff_access in
 	let is_extern = if Meta.has Meta.Extern cff.cff_meta then begin
-		if not (Define.is_haxe3_compat ctx.com.defines) then
-			ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name);
+		(* if not (Define.is_haxe3_compat ctx.com.defines) then
+			ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
 		true
 	end else
 		is_extern
