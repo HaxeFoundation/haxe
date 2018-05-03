@@ -117,56 +117,6 @@ let emit_if exec_cond exec_then exec_else env =
 	| VTrue -> exec_then env
 	| _ -> exec_else env
 
-let emit_enum_switch_array exec cases exec_def p env = match exec env with
-	| VEnumValue ev ->
-		let i = ev.eindex in
-		if i >= Array.length cases || i < 0 then exec_def env
-		else (Array.unsafe_get cases i) env
-	| v ->
-		unexpected_value_p v "enum value" p
-
-let emit_int_switch_array exec cases exec_def p env = match exec env with
-	| VInt32 i32 ->
-		let i = Int32.to_int i32 in
-		if i >= Array.length cases || i < 0 then exec_def env
-		else (Array.unsafe_get cases i) env
-	| VNull ->
-		exec_def env
-	| v ->
-		unexpected_value_p v "int" p
-
-let emit_int_switch_array_shift shift exec cases exec_def p env = match exec env with
-	| VInt32 i32 ->
-		let i = Int32.to_int i32 + shift in
-		if i >= Array.length cases || i < 0 then exec_def env
-		else (Array.unsafe_get cases i) env
-	| VNull ->
-		exec_def env
-	| v ->
-		unexpected_value_p v "int" p
-
-let emit_int_switch_map exec cases exec_def p env = match exec env with
-	| VInt32 i32 ->
-		let i = Int32.to_int i32 in
-		begin try
-			(IntMap.find i cases) env
-		with Not_found ->
-			exec_def env
-		end
-	| v ->
-		unexpected_value_p v "int" p
-
-let emit_constant_switch exec execs constants exec_def env =
-	let v1 = exec env in
-	let rec loop v1 i =
-		if i >= Array.length constants then exec_def env
-		else if List.exists (fun v2 -> equals v1 v2) (Array.unsafe_get constants i) then
-			(Array.unsafe_get execs i) env
-		else
-			loop v1 (i + 1)
-	in
-	loop v1 0
-
 let emit_switch exec execs patterns exec_def env =
 	let v1 = exec env in
 	let rec loop v1 i =
