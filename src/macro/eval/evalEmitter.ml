@@ -347,31 +347,6 @@ let emit_try exec catches env =
 
 (* Control flow *)
 
-let emit_block1 exec1 env =
-	exec1 env
-
-let emit_block2 exec1 exec2 env =
-	ignore(exec1 env);
-	exec2 env
-
-let emit_block3 exec1 exec2 exec3 env =
-	ignore(exec1 env);
-	ignore(exec2 env);
-	exec3 env
-
-let emit_block4 exec1 exec2 exec3 exec4 env =
-	ignore(exec1 env);
-	ignore(exec2 env);
-	ignore(exec3 env);
-	exec4 env
-
-let emit_block5 exec1 exec2 exec3 exec4 exec5 env =
-	ignore(exec1 env);
-	ignore(exec2 env);
-	ignore(exec3 env);
-	ignore(exec4 env);
-	exec5 env
-
 let emit_block execs env =
 	let l = Array.length execs in
 	for i = 0 to l - 2 do

@@ -424,7 +424,7 @@ and jit_expr jit return e =
 	(* control flow *)
 	| TBlock [] ->
 		emit_null
-	| TBlock el when ctx.debug.support_debugger ->
+	| TBlock el ->
 		let e1,el = match List.rev el with
 			| e1 :: el -> e1,List.rev el
 			| [] -> assert false
@@ -434,81 +434,6 @@ and jit_expr jit return e =
 		let exec1 = jit_expr jit return e1 in
 		pop_scope jit;
 		emit_block (Array.of_list (execs @ [exec1]))
-	| TBlock [e1] ->
-		push_scope jit e.epos;
-		let f = loop e1 in
-		pop_scope jit;
-		f
-	| TBlock [e1;e2] ->
-		push_scope jit e.epos;
-		let exec1 = jit_expr jit false e1 in
-		let exec2 = jit_expr jit return e2 in
-		pop_scope jit;
-		emit_block2 exec1 exec2
-	| TBlock [e1;e2;e3] ->
-		push_scope jit e.epos;
-		let exec1 = jit_expr jit false e1 in
-		let exec2 = jit_expr jit false e2 in
-		let exec3 = jit_expr jit return e3 in
-		pop_scope jit;
-		emit_block3 exec1 exec2 exec3
-	| TBlock [e1;e2;e3;e4] ->
-		push_scope jit e.epos;
-		let exec1 = jit_expr jit false e1 in
-		let exec2 = jit_expr jit false e2 in
-		let exec3 = jit_expr jit false e3 in
-		let exec4 = jit_expr jit return e4 in
-		pop_scope jit;
-		emit_block4 exec1 exec2 exec3 exec4
-	| TBlock [e1;e2;e3;e4;e5] ->
-		push_scope jit e.epos;
-		let exec1 = jit_expr jit false e1 in
-		let exec2 = jit_expr jit false e2 in
-		let exec3 = jit_expr jit false e3 in
-		let exec4 = jit_expr jit false e4 in
-		let exec5 = jit_expr jit return e5 in
-		pop_scope jit;
-		emit_block5 exec1 exec2 exec3 exec4 exec5
-	| TBlock el ->
-		let d = DynArray.create () in
-		let add = DynArray.add d in
-		let rec loop el = match el with
-			| e1 :: e2 :: e3 :: e4 :: e5 :: el ->
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit false e2 in
-				let exec3 = jit_expr jit false e3 in
-				let exec4 = jit_expr jit false e4 in
-				let exec5 = jit_expr jit (return && el = []) e5 in
-				add (emit_block5 exec1 exec2 exec3 exec4 exec5);
-				loop el
-			| e1 :: e2 :: e3 :: e4 :: el ->
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit false e2 in
-				let exec3 = jit_expr jit false e3 in
-				let exec4 = jit_expr jit (return && el = []) e4 in
-				add (emit_block4 exec1 exec2 exec3 exec4);
-				loop el
-			| e1 :: e2 :: e3 :: el ->
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit false e2 in
-				let exec3 = jit_expr jit (return && el = []) e3 in
-				add (emit_block3 exec1 exec2 exec3);
-				loop el
-			| e1 :: e2 :: el ->
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit (return && el = []) e2 in
-				add (emit_block2 exec1 exec2);
-				loop el
-			| [e1] ->
-				let exec1 = jit_expr jit return e1 in
-				add (emit_block1 exec1);
-			| [] ->
-				()
-		in
-		push_scope jit e.epos;
-		loop el;
-		pop_scope jit;
-		emit_block (DynArray.to_array d)
 	| TReturn None ->
 		if return then emit_null
 		else begin
