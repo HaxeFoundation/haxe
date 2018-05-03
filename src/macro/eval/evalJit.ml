@@ -153,27 +153,11 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 	| _ ->
 		assert false
 
-and op_incr jit e1 prefix p = match e1.eexpr with
-	| TLocal var ->
-		begin match var.v_capture,prefix with
-			| true,true -> emit_capture_incr_prefix (get_capture_slot jit var.v_id)
-			| true,false -> emit_capture_incr_postfix (get_capture_slot jit var.v_id)
-			| false,true -> emit_local_incr_prefix (get_slot jit var.v_id e1.epos)
-			| false,false -> emit_local_incr_postfix (get_slot jit var.v_id e1.epos)
-		end
-	| _ ->
-		op_assign_op jit (get_binop_fun OpAdd p) e1 eone prefix
+and op_incr jit e1 prefix p =
+	op_assign_op jit (get_binop_fun OpAdd p) e1 eone prefix
 
-and op_decr jit e1 prefix p = match e1.eexpr with
-	| TLocal var ->
-		begin match var.v_capture,prefix with
-			| true,true -> emit_capture_decr_prefix (get_capture_slot jit var.v_id)
-			| true,false -> emit_capture_decr_postfix (get_capture_slot jit var.v_id)
-			| false,true -> emit_local_decr_prefix (get_slot jit var.v_id e1.epos)
-			| false,false -> emit_local_decr_postfix (get_slot jit var.v_id e1.epos)
-		end
-	| _ ->
-		op_assign_op jit (get_binop_fun OpSub p) e1 eone prefix
+and op_decr jit e1 prefix p =
+	op_assign_op jit (get_binop_fun OpSub p) e1 eone prefix
 
 and unop jit op flag e1 p =
 	match op with

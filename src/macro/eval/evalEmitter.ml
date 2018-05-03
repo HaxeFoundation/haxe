@@ -452,56 +452,12 @@ let emit_local_read_write slot exec fop prefix env =
 	env.env_locals.(slot) <- v;
 	if prefix then v else v1
 
-let emit_local_incr_postfix slot env =
-	let vi = env.env_locals.(slot) in
-	env.env_locals.(slot) <- vint32 (Int32.succ (decode_i32 vi));
-	vi
-
-let emit_local_incr_prefix slot env =
-	let vi = env.env_locals.(slot) in
-	let v = vint32 (Int32.succ (decode_i32 vi)) in
-	env.env_locals.(slot) <- v;
-	v
-
-let emit_local_decr_postfix slot env =
-	let vi = env.env_locals.(slot) in
-	env.env_locals.(slot) <- vint32 (Int32.pred (decode_i32 vi));
-	vi
-
-let emit_local_decr_prefix slot env =
-	let vi = env.env_locals.(slot) in
-	let v = vint32 (Int32.pred (decode_i32 vi)) in
-	env.env_locals.(slot) <- v;
-	v
-
 let emit_capture_read_write slot exec fop prefix env =
 	let v1 = !(env.env_captures.(slot)) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
 	env.env_captures.(slot) := v;
 	if prefix then v else v1
-
-let emit_capture_incr_postfix slot env =
-	let vi = !(env.env_captures.(slot)) in
-	env.env_captures.(slot) := vint32 (Int32.succ (decode_i32 vi));
-	vi
-
-let emit_capture_incr_prefix slot env =
-	let vi = !(env.env_captures.(slot)) in
-	let v = vint32 (Int32.succ (decode_i32 vi)) in
-	env.env_captures.(slot) := v;
-	v
-
-let emit_capture_decr_postfix slot env =
-	let vi = !(env.env_captures.(slot)) in
-	env.env_captures.(slot) := vint32 (Int32.pred (decode_i32 vi));
-	vi
-
-let emit_capture_decr_prefix slot env =
-	let vi = !(env.env_captures.(slot)) in
-	let v = vint32 (Int32.pred (decode_i32 vi)) in
-	env.env_captures.(slot) := v;
-	v
 
 let emit_proto_field_read_write proto i exec2 fop prefix env =
 	let vf = proto.pfields.(i) in
