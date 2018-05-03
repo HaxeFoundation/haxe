@@ -60,7 +60,6 @@ type env = {
 	env_debug : env_debug;
 	mutable env_leave_pmin : int;
 	mutable env_leave_pmax : int;
-	mutable env_in_use : bool;
 	env_locals : value array;
 	env_captures : value ref array;
 }
@@ -122,7 +121,6 @@ type eval = {
 type context = {
 	ctx_id : int;
 	is_macro : bool;
-	record_stack : bool;
 	detail_times : bool;
 	builtins : builtins;
 	debug : debug;
@@ -217,15 +215,12 @@ let proto_fields proto =
 exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
-	if not ctx.record_stack then
-		[]
-	else
-		List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
+	List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
 
 let throw v p =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	if ctx.record_stack && eval.environment_offset > 0 then begin
+	if eval.environment_offset > 0 then begin
 		let env = DynArray.get eval.environments (eval.environment_offset - 1) in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
@@ -275,7 +270,6 @@ let push_environment_debug ctx info num_locals num_captures =
 		env_info = info;
 		env_leave_pmin = 0;
 		env_leave_pmax = 0;
-		env_in_use = false;
 		env_debug = {
 			timer = timer;
 			scopes = [];
@@ -292,17 +286,6 @@ let push_environment_debug ctx info num_locals num_captures =
 	eval.environment_offset <- eval.environment_offset + 1;
 	env
 
-let create_default_environment ctx info num_locals =
-	{
-		env_info = info;
-		env_leave_pmin = 0;
-		env_leave_pmax = 0;
-		env_in_use = false;
-		env_debug = no_debug;
-		env_locals = Array.make num_locals vnull;
-		env_captures = empty_array;
-	}
-
 let pop_environment_debug ctx env =
 	let eval = get_eval ctx in
 	eval.environment_offset <- eval.environment_offset - 1;
@@ -310,21 +293,11 @@ let pop_environment_debug ctx env =
 	()
 
 let push_environment ctx info num_locals num_captures =
-	if ctx.record_stack then
-		push_environment_debug ctx info num_locals num_captures
-	else {
-		env_info = info;
-		env_leave_pmin = 0;
-		env_leave_pmax = 0;
-		env_in_use = false;
-		env_debug = no_debug;
-		env_locals = Array.make num_locals vnull;
-		env_captures = Array.make num_captures (ref vnull);
-	}
+	push_environment_debug ctx info num_locals num_captures
 [@@inline]
 
 let pop_environment ctx env =
-	if ctx.record_stack then pop_environment_debug ctx env else ()
+	pop_environment_debug ctx env
 [@@inline]
 
 (* Prototypes *)

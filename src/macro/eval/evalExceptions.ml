@@ -93,17 +93,15 @@ let get_exc_error_message ctx v stack p =
 	let pl = List.filter (fun p -> p <> null_pos) pl in
 	match pl with
 	| [] ->
-		let extra = if ctx.record_stack then "" else "\nNo stack information available, consider compiling with -D eval-stack" in
-		uncaught_exception_string v p extra
+		uncaught_exception_string v p ""
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
 		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
 
 let build_exception_stack ctx environment_offset =
 	let eval = get_eval ctx in
-	let d = if not ctx.record_stack then [] else DynArray.to_list (DynArray.sub eval.environments environment_offset (eval.environment_offset - environment_offset)) in
+	let d = DynArray.to_list (DynArray.sub eval.environments environment_offset (eval.environment_offset - environment_offset)) in
 	ctx.exception_stack <- List.map (fun env ->
-		env.env_in_use <- false;
 		env.env_debug.timer();
 		{pfile = rev_file_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d

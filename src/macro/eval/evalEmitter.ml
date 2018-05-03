@@ -1356,14 +1356,12 @@ let run_function ctx exec env =
 	with
 		| Return v -> v
 	in
-	env.env_in_use <- false;
 	pop_environment ctx env;
 	v
 [@@inline]
 
 let run_function_noret ctx exec env =
 	let v = exec env in
-	env.env_in_use <- false;
 	pop_environment ctx env;
 	v
 [@@inline]
@@ -1373,24 +1371,6 @@ let get_normal_env ctx info num_locals num_captures _ =
 
 let get_closure_env ctx info num_locals num_captures refs =
 	let env = push_environment ctx info num_locals num_captures in
-	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
-	env
-
-let get_normal_env_opt ctx default_env info num_locals num_captures _ =
-	if default_env.env_in_use then begin
-		push_environment ctx info num_locals num_captures
-	end else begin
-		default_env.env_in_use <- true;
-		default_env
-	end
-
-let get_closure_env_opt ctx default_env info num_locals num_captures refs =
-	let env = if default_env.env_in_use then begin
-		push_environment ctx info num_locals num_captures
-	end else begin
-		default_env.env_in_use <- true;
-		default_env
-	end in
 	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
 	env
 

@@ -825,16 +825,9 @@ and get_env jit static file info =
 	let num_locals = jit.max_num_locals in
 	let num_captures = Hashtbl.length jit.captures in
 	let info = create_env_info static file info jit.capture_infos in
-	if ctx.record_stack || num_captures > 0 then begin
-		match info.kind with
-		| EKLocalFunction _ -> get_closure_env ctx info num_locals num_captures
-		| _ -> get_normal_env ctx info num_locals num_captures
-	end else begin
-		let default_env = create_default_environment ctx info num_locals in
-		match info.kind with
-		| EKLocalFunction _ -> get_closure_env_opt ctx default_env info num_locals num_captures
-		| _ -> get_normal_env_opt ctx default_env info num_locals num_captures
-	end
+	match info.kind with
+	| EKLocalFunction _ -> get_closure_env ctx info num_locals num_captures
+	| _ -> get_normal_env ctx info num_locals num_captures
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
 let jit_tfunction ctx key_type key_field tf static pos =
