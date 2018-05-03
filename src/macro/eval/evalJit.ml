@@ -501,15 +501,7 @@ and jit_expr jit return e =
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
 					let pos = Some ef.ef_pos in
-					begin match execs with
-						| [] -> emit_enum_construction0 key ef.ef_index pos
-						| [exec1] -> emit_enum_construction1 key ef.ef_index exec1 pos
-						| [exec1;exec2] -> emit_enum_construction2 key ef.ef_index exec1 exec2 pos
-						| [exec1;exec2;exec3] -> emit_enum_construction3 key ef.ef_index exec1 exec2 exec3 pos
-						| [exec1;exec2;exec3;exec4] -> emit_enum_construction4 key ef.ef_index exec1 exec2 exec3 exec4 pos
-						| [exec1;exec2;exec3;exec4;exec5] -> emit_enum_construction5 key ef.ef_index exec1 exec2 exec3 exec4 exec5 pos
-						| _ -> emit_enum_construction key ef.ef_index (Array.of_list execs) pos
-					end
+					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let i = get_proto_field_index proto name in

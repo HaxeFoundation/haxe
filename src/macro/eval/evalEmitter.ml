@@ -107,39 +107,6 @@ let emit_mk_pos exec1 exec2 exec3 env =
 	let max = exec3 env in
 	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
 
-let emit_enum_construction0 key i p env =
-	encode_enum_value key i [||] p
-
-let emit_enum_construction1 key i exec1 p env =
-	let v1 = exec1 env in
-	encode_enum_value key i [|v1|] p
-
-let emit_enum_construction2 key i exec1 exec2 p env =
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	encode_enum_value key i [|v1;v2|] p
-
-let emit_enum_construction3 key i exec1 exec2 exec3 p env =
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	encode_enum_value key i [|v1;v2;v3|] p
-
-let emit_enum_construction4 key i exec1 exec2 exec3 exec4 p env =
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	encode_enum_value key i [|v1;v2;v3;v4|] p
-
-let emit_enum_construction5 key i exec1 exec2 exec3 exec4 exec5 p env =
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	let v5 = exec5 env in
-	encode_enum_value key i [|v1;v2;v3;v4;v5|] p
-
 let emit_enum_construction key i execs p env =
 	encode_enum_value key i (Array.map (fun exec -> exec env) execs) p
 
