@@ -95,7 +95,6 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let record_stack = debug.support_debugger || detail_times || Common.defined com Define.EvalStack in
 	let evals = DynArray.create () in
 	let eval = {
 		environments = DynArray.make 32;
@@ -106,7 +105,6 @@ let create com api is_macro =
 		ctx_id = !sid;
 		is_macro = is_macro;
 		debug = debug;
-		record_stack = record_stack;
 		detail_times = detail_times;
 		curapi = api;
 		builtins = builtins;
@@ -339,15 +337,7 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) -> match v with
 		| VFunction(f,b) ->
-			let v = match f with
-				| Fun0 f -> VFunction (Fun0 (fun () -> try f () with Sys_error msg | Failure msg -> exc_string msg),b)
-				| Fun1 f -> VFunction (Fun1 (fun a -> try f a with Sys_error msg | Failure msg -> exc_string msg),b)
-				| Fun2 f -> VFunction (Fun2 (fun a b -> try f a b with Sys_error msg | Failure msg -> exc_string msg),b)
-				| Fun3 f -> VFunction (Fun3 (fun a b c -> try f a b c with Sys_error msg | Failure msg -> exc_string msg),b)
-				| Fun4 f -> VFunction (Fun4 (fun a b c d -> try f a b c d with Sys_error msg | Failure msg -> exc_string msg),b)
-				| Fun5 f -> VFunction (Fun5 (fun a b c d e -> try f a b c d e with Sys_error msg | Failure msg -> exc_string msg),b)
-				| FunN f -> VFunction (FunN (fun vl -> try f vl with Sys_error msg | Failure msg -> exc_string msg),b)
-			in
+			let v = VFunction ((fun vl -> try f vl with Sys_error msg | Failure msg -> exc_string msg),b) in
 			Hashtbl.replace EvalStdLib.macro_lib n v
 		| _ -> assert false
 	) api;

@@ -25,18 +25,90 @@ open EvalHash
 
 (* Functions *)
 
-let vifun0 f = vfunction (Fun1 (fun a -> f a))
-let vifun1 f = vfunction (Fun2 (fun a b -> f a b))
-let vifun2 f = vfunction (Fun3 (fun a b c -> f a b c))
-let vifun3 f = vfunction (Fun4 (fun a b c d -> f a b c d))
-let vifun4 f = vfunction (Fun5 (fun a b c d e -> f a b c d e))
+let vifun0 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull
+	| [v0] -> f v0
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
 
-let vfun0 f = vstatic_function (Fun0 (fun vl -> f ()))
-let vfun1 f = vstatic_function (Fun1 (fun a -> f a))
-let vfun2 f = vstatic_function (Fun2 (fun a b -> f a b))
-let vfun3 f = vstatic_function (Fun3 (fun a b c -> f a b c))
-let vfun4 f = vstatic_function (Fun4 (fun a b c d -> f a b c d))
-let vfun5 f = vstatic_function (Fun5 (fun a b c d e -> f a b c d e))
+let vifun1 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull
+	| [v0] -> f v0 vnull
+	| [v0;v1] -> f v0 v1
+	| _ -> invalid_call_arg_number 2 (List.length  vl
+))
+
+let vifun2 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull
+	| [v0] -> f v0 vnull vnull
+	| [v0;v1] -> f v0 v1 vnull
+	| [v0;v1;v2] -> f v0 v1 v2
+	| _ -> invalid_call_arg_number 3 (List.length  vl
+))
+
+let vifun3 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vifun4 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vfun0 f = vstatic_function (fun vl -> match vl with
+	| [] -> f ()
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
+
+let vfun1 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull
+	| [v0] -> f v0
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
+
+let vfun2 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull
+	| [v0] -> f v0 vnull
+	| [v0;v1] -> f v0 v1
+	| _ -> invalid_call_arg_number 2 (List.length  vl
+))
+
+let vfun3 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull
+	| [v0] -> f v0 vnull vnull
+	| [v0;v1] -> f v0 v1 vnull
+	| [v0;v1;v2] -> f v0 v1 v2
+	| _ -> invalid_call_arg_number 3 (List.length  vl
+))
+
+let vfun4 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vfun5 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
 
 (* Objects *)
 

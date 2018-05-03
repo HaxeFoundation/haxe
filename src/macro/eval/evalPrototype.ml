@@ -209,15 +209,7 @@ let create_static_prototype ctx mt =
 		let pctx = PrototypeBuilder.create ctx key None (PEnum en.e_names) meta in
 		let enum_field_value ef = match follow ef.ef_type with
 			| TFun(args,_) ->
-				let f = match args with
-					| [] -> Fun0 (fun () -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos))
-					| [_] -> Fun1 (fun a -> encode_enum_value key ef.ef_index [|a|] (Some ef.ef_pos))
-					| [_;_] -> Fun2 (fun a b -> encode_enum_value key ef.ef_index [|a;b|] (Some ef.ef_pos))
-					| [_;_;_] -> Fun3 (fun a b c -> encode_enum_value key ef.ef_index [|a;b;c|] (Some ef.ef_pos))
-					| [_;_;_;_] -> Fun4 (fun a b c d -> encode_enum_value key ef.ef_index [|a;b;c;d|] (Some ef.ef_pos))
-					| [_;_;_;_;_] -> Fun5 (fun a b c d e -> encode_enum_value key ef.ef_index [|a;b;c;d;e|] (Some ef.ef_pos))
-					| _ -> FunN (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos))
-				in
+				let f = (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos)) in
 				vstatic_function f
 			| _ -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos)
 		in
