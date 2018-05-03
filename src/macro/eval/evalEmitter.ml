@@ -376,11 +376,6 @@ let emit_bytes_length_read exec env = match exec env with
 let emit_proto_field_read proto i env =
 	proto.pfields.(i)
 
-let emit_instance_local_field_read iv i env = match env.env_locals.(iv) with
-	| VInstance vi -> vi.ifields.(i)
-	| VString(_,s) -> vint (String.length (Lazy.force s))
-	| v -> unexpected_value v "instance"
-
 let emit_instance_field_read exec i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
 	| VString(_,s) -> vint (String.length (Lazy.force s))
@@ -389,14 +384,6 @@ let emit_instance_field_read exec i env = match exec env with
 let emit_field_closure exec name env =
 	let v = exec env in
 	dynamic_field v name
-
-let emit_anon_local_field_read iv proto i name p env =
-	match env.env_locals.(iv) with
-	| VObject o ->
-		if proto == o.oproto then o.ofields.(i)
-		else object_field o name
-	| VNull -> throw_string "field access on null" p
-	| v -> field v name
 
 let emit_anon_field_read exec proto i name p env =
 	match exec env with
@@ -410,26 +397,12 @@ let emit_field_read exec name p env = match exec env with
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
-let emit_array_local_read i exec2 p env =
-	let va = env.env_locals.(i) in
-	let vi = exec2 env in
-	let i = decode_int_p vi p in
-	if i < 0 then vnull
-	else EvalArray.get (decode_varray va) i
-
 let emit_array_read exec1 exec2 p env =
 	let va = exec1 env in
 	let vi = exec2 env in
 	let i = decode_int_p vi p in
 	if i < 0 then vnull
 	else EvalArray.get (decode_varray va) i
-
-let emit_vector_local_read i exec2 p env =
-	let vv = env.env_locals.(i) in
-	let vi = exec2 env in
-	let i = decode_int_p vi p in
-	if i < 0 then vnull
-	else Array.unsafe_get (decode_vector vv) i
 
 let emit_vector_read exec1 exec2 p env =
 	let vv = exec1 env in
@@ -502,15 +475,6 @@ let emit_field_write exec1 name exec2 env =
 	set_field v1 name v2;
 	v2
 
-let emit_array_local_write i exec2 exec3 p env =
-	let va = env.env_locals.(i) in
-	let vi = exec2 env in
-	let v3 = exec3 env in
-	let i = decode_int_p vi p in
-	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
-	EvalArray.set (decode_varray va) i v3;
-	v3
-
 let emit_array_write exec1 exec2 exec3 p env =
 	let va = exec1 env in
 	let vi = exec2 env in
@@ -518,15 +482,6 @@ let emit_array_write exec1 exec2 exec3 p env =
 	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
 	EvalArray.set (decode_varray va) i v3;
-	v3
-
-let emit_vector_local_write i exec2 exec3 p env =
-	let vv = env.env_locals.(i) in
-	let vi = exec2 env in
-	let v3 = exec3 env in
-	let i = decode_int_p vi p in
-	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
-	Array.unsafe_set (decode_vector vv) i v3;
 	v3
 
 let emit_vector_write exec1 exec2 exec3 p env =
@@ -638,18 +593,6 @@ let emit_field_read_write exec1 name exec2 fop prefix env =
 		set_field v1 name v;
 		if prefix then v else vf
 
-let emit_array_local_read_write i exec2 exec3 fop prefix p env =
-	let va1 = env.env_locals.(i) in
-	let va2 = exec2 env in
-	let va = decode_varray va1 in
-	let i = decode_int_p va2 p in
-	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
-	let v = EvalArray.get va i in
-	let v2 = exec3 env in
-	let v3 = fop v v2 in
-	EvalArray.set va i v3;
-	if prefix then v3 else v
-
 let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
 	let va1 = exec1 env in
 	let va2 = exec2 env in
@@ -660,18 +603,6 @@ let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
 	let v2 = exec3 env in
 	let v3 = fop v v2 in
 	EvalArray.set va i v3;
-	if prefix then v3 else v
-
-let emit_vector_local_read_write i exec2 exec3 fop prefix p env =
-	let va1 = env.env_locals.(i) in
-	let va2 = exec2 env in
-	let va = decode_vector va1 in
-	let i = decode_int_p va2 p in
-	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
-	let v = Array.unsafe_get va i in
-	let v2 = exec3 env in
-	let v3 = fop v v2 in
-	Array.unsafe_set va i v3;
 	if prefix then v3 else v
 
 let emit_vector_read_write exec1 exec2 exec3 fop prefix p env =
