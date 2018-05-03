@@ -368,10 +368,14 @@ and parse_meta_name_2 p1 acc s =
 	let acc = part :: acc in
 	match s with parser
 	| [< '(Dot,p1); part,p2 = parse_meta_name_2 p1 acc >] -> part,punion p p2
-	| [< >] -> acc,p
+	| [< >] -> acc,punion p1 p
 
 and parse_meta_name p1 = parser
-	| [< '(DblDot,p) when p.pmin = p1.pmax; name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
+	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] ->
+		begin match s with parser
+		| [< name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
+		| [< >] -> if is_resuming p then Meta.Last,p else raise Stream.Failure
+		end
 	| [< name,p2 = parse_meta_name_2 p1 [] >] -> (Meta.Custom (rev_concat "." name)),p2
 
 and parse_enum_flags = parser
