@@ -358,57 +358,12 @@ and jit_expr jit return e =
 		end
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
-	| TWhile({eexpr = TBinop(OpLt,{eexpr = TLocal v;epos=pv},eto)},e2,NormalWhile) when (Meta.has Meta.ForLoopVariable v.v_meta) ->
-		let has_break = ref false in
-		let has_continue = ref false in
-		let rec loop e = match e.eexpr with
-			| TUnop(Increment,_,({eexpr = TLocal v'} as e1)) when v == v' -> e1
-			| TWhile _ | TFor _ -> e
-			| TBreak -> has_break := true; e
-			| TContinue -> has_continue := true; e
-			| _ -> Type.map_expr loop e
-		in
-		let e2 = loop e2 in
-		let slot = get_slot jit v.v_id pv in
-		let exec1 = jit_expr jit false eto in
-		let exec2 = jit_expr jit false e2 in
-		begin match !has_break,!has_continue with
-			| false,false -> emit_int_iterator slot exec1 exec2 pv eto.epos
-			| true,false -> emit_int_iterator_break slot exec1 exec2 pv eto.epos
-			| false,true -> emit_int_iterator_continue slot exec1 exec2 pv eto.epos
-			| true,true -> emit_int_iterator_break_continue slot exec1 exec2 pv eto.epos
-		end
 	| TWhile(e1,e2,flag) ->
-		let has_break = ref false in
-		let has_continue = ref false in
-		let rec loop e = match e.eexpr with
-			| TContinue -> has_continue := true; if !has_break then raise Exit
-			| TBreak -> has_break := true; if !has_continue then raise Exit
-			| TFunction _ | TWhile _ | TFor _ -> ()
-			| _ -> Type.iter loop e
-		in
-		(try loop e2 with Exit -> ());
-		begin match e1.eexpr with
-			| TBinop(OpGte,e1,{eexpr = TConst (TFloat s)}) when not !has_break && not !has_continue && flag = NormalWhile ->
-				let f = float_of_string s in
-				let exec1 = jit_expr jit false e1 in
-				let exec2 = jit_expr jit false e2 in
-				emit_while_gte exec1 f exec2
-			| _ ->
-				let exec_cond = jit_expr jit false e1 in
-				let exec_body = jit_expr jit false e2 in
-				(* This is a bit moronic, but it does avoid run-time branching and setting up some exception
-					handlers for break/continue, so it might be worth it... *)
-				begin match flag,!has_break,!has_continue with
-					| NormalWhile,false,false -> emit_while exec_cond exec_body
-					| NormalWhile,true,false -> emit_while_break exec_cond exec_body
-					| NormalWhile,false,true -> emit_while_continue exec_cond exec_body
-					| NormalWhile,true,true -> emit_while_break_continue exec_cond exec_body
-					| DoWhile,false,false -> emit_do_while exec_cond exec_body
-					| DoWhile,true,false -> emit_do_while_break exec_cond exec_body
-					| DoWhile,false,true -> emit_do_while_continue exec_cond exec_body
-					| DoWhile,true,true -> emit_do_while_break_continue exec_cond exec_body
-				end
+		let exec_cond = jit_expr jit false e1 in
+		let exec_body = jit_expr jit false e2 in
+		begin match flag with
+			| NormalWhile -> emit_while_break_continue exec_cond exec_body
+			| DoWhile -> emit_do_while_break_continue exec_cond exec_body
 		end
 	| TTry(e1,catches) ->
 		let exec = jit_expr jit return e1 in

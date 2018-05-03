@@ -178,97 +178,14 @@ let emit_switch exec execs patterns exec_def env =
 	in
 	loop v1 0
 
-let emit_int_iterator slot exec1 exec2 p1 p2 env =
-	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
-	let i2 = decode_int_p (exec1 env) p2 in
-	for i = i1 to i2 - 1 do
-		env.env_locals.(slot) <- vint i;
-		ignore(exec2 env);
-	done;
-	vnull
-
-let emit_int_iterator_continue slot exec1 exec2 p1 p2 env =
-	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
-	let i2 = decode_int_p (exec1 env) p2 in
-	for i = i1 to i2 - 1 do
-		env.env_locals.(slot) <- vint i;
-		(try ignore(exec2 env) with Continue -> ())
-	done;
-	vnull
-
-let emit_int_iterator_break slot exec1 exec2 p1 p2 env =
-	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
-	let i2 = decode_int_p (exec1 env) p2 in
-	begin try
-		for i = i1 to i2 - 1 do
-			env.env_locals.(slot) <- vint i;
-			ignore(exec2 env);
-		done;
-	with Break ->
-		()
-	end;
-	vnull
-
-let emit_int_iterator_break_continue slot exec1 exec2 p1 p2 env =
-	let i1 = decode_int_p (env.env_locals.(slot)) p1 in
-	let i2 = decode_int_p (exec1 env) p1 in
-	begin try
-		for i = i1 to i2 - 1 do
-			env.env_locals.(slot) <- vint i;
-			(try ignore(exec2 env) with Continue -> ())
-		done;
-	with Break ->
-		()
-	end;
-	vnull
-
-let emit_while_gte exec1 f exec2 env =
-	while (num (exec1 env) >= f) do exec2 env done;
-	vnull
-
 let rec run_while_continue exec_cond exec_body env =
 	try
 		while is_true (exec_cond env) do exec_body env done;
 	with Continue ->
 		run_while_continue exec_cond exec_body env
 
-let emit_while exec_cond exec_body env =
-	while is_true (exec_cond env) do exec_body env done;
-	vnull
-
-let emit_while_break exec_cond exec_body env =
-	begin try
-		while is_true (exec_cond env) do exec_body env done;
-	with Break ->
-		()
-	end;
-	vnull
-
-let emit_while_continue exec_cond exec_body env =
-	run_while_continue exec_cond exec_body env;
-	vnull
-
 let emit_while_break_continue exec_cond exec_body env =
 	(try run_while_continue exec_cond exec_body env with Break -> ());
-	vnull
-
-let emit_do_while exec_cond exec_body env =
-	ignore(exec_body env);
-	while is_true (exec_cond env) do exec_body env done;
-	vnull
-
-let emit_do_while_break exec_cond exec_body env =
-	begin try
-		ignore(exec_body env);
-		while is_true (exec_cond env) do exec_body env done;
-	with Break ->
-		()
-	end;
-	vnull
-
-let emit_do_while_continue exec_cond exec_body env =
-	(try ignore(exec_body env) with Continue -> ());
-	run_while_continue exec_cond exec_body env;
 	vnull
 
 let emit_do_while_break_continue exec_cond exec_body env =
