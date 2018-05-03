@@ -169,29 +169,7 @@ let vstring s =
 let vstring_direct (r,s) =
 	VString(r,s)
 
-let call_function f vl = match f,vl with
-	| Fun0 f,_ -> f()
-	| Fun1 f,[] -> f vnull
-	| Fun1 f,(a :: _) -> f a
-	| Fun2 f,[] -> f vnull vnull
-	| Fun2 f,[a] -> f a vnull
-	| Fun2 f,(a :: b :: _) -> f a b
-	| Fun3 f,[] -> f vnull vnull vnull
-	| Fun3 f,[a] -> f a vnull vnull
-	| Fun3 f,[a;b] -> f a b vnull
-	| Fun3 f,(a :: b :: c :: _) -> f a b c
-	| Fun4 f,[] -> f vnull vnull vnull vnull
-	| Fun4 f,[a] -> f a vnull vnull vnull
-	| Fun4 f,[a;b] -> f a b vnull vnull
-	| Fun4 f,[a;b;c] -> f a b c vnull
-	| Fun4 f,(a :: b :: c :: d :: _) -> f a b c d
-	| Fun5 f,[] -> f vnull vnull vnull vnull vnull
-	| Fun5 f,[a] -> f a vnull vnull vnull vnull
-	| Fun5 f,[a;b] -> f a b vnull vnull vnull
-	| Fun5 f,[a;b;c] -> f a b c vnull vnull
-	| Fun5 f,[a;b;c;d] -> f a b c d vnull
-	| Fun5 f,(a :: b :: c :: d :: e :: _) -> f a b c d e
-	| FunN f,_ -> f vl
+let call_function f vl = f vl
 
 let object_fields o =
 	let fields = IntMap.fold (fun key vvalue acc -> (key,vvalue) :: acc) o.oextra [] in
@@ -242,13 +220,6 @@ let flush_core_context f =
 let no_timer = fun () -> ()
 let empty_array = [||]
 let no_expr = mk (TConst TNull) t_dynamic null_pos
-
-let no_debug = {
-	timer = no_timer;
-	scopes = [];
-	line = 0;
-	expr = no_expr
-}
 
 let create_env_info static pfile kind capture_infos =
 	let info = {

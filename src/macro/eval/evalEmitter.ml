@@ -409,134 +409,15 @@ let emit_super_field_call slot proto i execs p env =
 
 (* Type.call() - immediate *)
 
-let call0 v p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun0 f,_) -> f ()
-	| VFunction (FunN f,_) -> f []
-	| VFieldClosure(v0,f) -> call_function f [v0]
-	| VInstance {ikind = ILazyType(_,get)} -> get()
-	| _ -> cannot_call v p
-
-let call1 v v1 p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun1 f,_) -> f v1
-	| VFunction (FunN f,_) -> f [v1]
-	| VFieldClosure(v0,f) -> call_function f [v0;v1]
-	| _ -> cannot_call v p
-
-let call2 v v1 v2 p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun2 f,_) -> f v1 v2
-	| VFunction (FunN f,_) -> f [v1;v2]
-	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2]
-	| _ -> cannot_call v p
-
-let call3 v v1 v2 v3 p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun3 f,_) -> f v1 v2 v3
-	| VFunction (FunN f,_) -> f [v1;v2;v3]
-	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2;v3]
-	| _ -> cannot_call v p
-
-let call4 v v1 v2 v3 v4 p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun4 f,_) -> f v1 v2 v3 v4
-	| VFunction (FunN f,_) -> f [v1;v2;v3;v4]
-	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2;v3;v4]
-	| _ -> cannot_call v p
-
-let call5 v v1 v2 v3 v4 v5 p env =
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	match v with
-	| VFunction (Fun5 f,_) -> f v1 v2 v3 v4 v5
-	| VFunction (FunN f,_) -> f [v1;v2;v3;v4;v5]
-	| VFieldClosure(v0,f) -> call_function f [v0;v1;v2;v3;v4;v5]
-	| _ -> cannot_call v p
-
 let emit_proto_field_call proto i execs p =
-	match execs with
-		| [] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun0 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				(Lazy.force vf) ()
-			)
-		| [exec1] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let v1 = exec1 env in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f v1
-			)
-		| [exec1;exec2] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f v1 v2
-			)
-		| [exec1;exec2;exec3] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				let v3 = exec3 env in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f v1 v2 v3
-			)
-		| [exec1;exec2;exec3;exec4] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				let v3 = exec3 env in
-				let v4 = exec4 env in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f v1 v2 v3 v4
-			)
-		| [exec1;exec2;exec3;exec4;exec5] ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				let v3 = exec3 env in
-				let v4 = exec4 env in
-				let v5 = exec5 env in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f v1 v2 v3 v4 v5
-			)
-		| _ ->
-			let vf = lazy (match proto.pfields.(i) with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
-			(fun env ->
-				let f = Lazy.force vf in
-				let vl = List.map (fun exec -> exec env) execs in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				f vl
-			)
+	let vf = lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v p) in
+	(fun env ->
+		let f = Lazy.force vf in
+		let vl = List.map (fun exec -> exec env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		f vl
+	)
 
 (* instance.call() where call is overridden - dynamic dispatch *)
 
@@ -548,56 +429,14 @@ let emit_method_call exec name execs p =
 		| VVector _ -> proto_field_raise (get_ctx()).vector_prototype name
 		| _ -> unexpected_value_p vthis "instance" p
 	in
-	match execs with
-		| [] ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				call1 vf vthis p env
-			)
-		| [exec1] ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				let v1 = exec1 env in
-				call2 vf vthis v1 p env
-			)
-		| [exec1;exec2] ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				call3 vf vthis v1 v2 p env
-			)
-		| [exec1;exec2;exec3] ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				let v3 = exec3 env in
-				call4 vf vthis v1 v2 v3 p env
-			)
-		| [exec1;exec2;exec3;exec4] ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				let v1 = exec1 env in
-				let v2 = exec2 env in
-				let v3 = exec3 env in
-				let v4 = exec4 env in
-				call5 vf vthis v1 v2 v3 v4 p env
-			)
-		| _ ->
-			(fun env ->
-				let vthis = exec env in
-				let vf = vf vthis in
-				let vl = List.map (apply env) execs in
-				env.env_leave_pmin <- p.pmin;
-				env.env_leave_pmax <- p.pmax;
-				call_value_on vthis vf vl
-			)
+	(fun env ->
+		let vthis = exec env in
+		let vf = vf vthis in
+		let vl = List.map (apply env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		call_value_on vthis vf vl
+	)
 
 (* instance.call() where call is not a method - lookup + this-binding *)
 
@@ -610,55 +449,6 @@ let emit_field_call exec name execs p env =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_call0 proto vf p env =
-	let vthis = create_instance_direct proto in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore((Lazy.force vf) vthis);
-	vthis
-
-let emit_constructor_call1 proto vf exec1 p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let v1 = exec1 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1);
-	vthis
-
-let emit_constructor_call2 proto vf exec1 exec2 p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2);
-	vthis
-
-let emit_constructor_call3 proto vf exec1 exec2 exec3 p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2 v3);
-	vthis
-
-let emit_constructor_call4 proto vf exec1 exec2 exec3 exec4 p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2 v3 v4);
-	vthis
-
 let emit_constructor_callN proto vf execs p env =
 	let f = Lazy.force vf in
 	let vthis = create_instance_direct proto in
@@ -669,76 +459,10 @@ let emit_constructor_callN proto vf execs p env =
 	vthis
 
 let emit_constructor_call proto fnew execs p =
-	match execs with
-		| [] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_call0 proto vf p
-		| [exec1] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_call1 proto vf exec1 p
-		| [exec1;exec2] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_call2 proto vf exec1 exec2 p
-		| [exec1;exec2;exec3] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_call3 proto vf exec1 exec2 exec3 p
-		| [exec1;exec2;exec3;exec4] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_call4 proto vf exec1 exec2 exec3 exec4 p
-		| _ ->
-			let vf = lazy (match Lazy.force fnew with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
-			emit_constructor_callN proto vf execs p
+	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
+	emit_constructor_callN proto vf execs p
 
 (* super() - immediate + this-binding *)
-
-let emit_super_call0 vf p env =
-	let vthis = env.env_locals.(0) in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore((Lazy.force vf) vthis);
-	vthis
-
-let emit_super_call1 vf exec1 p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let v1 = exec1 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1);
-	vthis
-
-let emit_super_call2 vf exec1 exec2 p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2);
-	vthis
-
-let emit_super_call3 vf exec1 exec2 exec3 p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2 v3);
-	vthis
-
-let emit_super_call4 vf exec1 exec2 exec3 exec4 p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f vthis v1 v2 v3 v4);
-	vthis
 
 let emit_super_callN vf execs p env =
 	let f = Lazy.force vf in
@@ -761,65 +485,10 @@ let emit_special_super_call fnew execs env =
 	vnull
 
 let emit_super_call fnew execs p =
-	match execs with
-		| [] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun1 f,_) -> f | v -> cannot_call v p) in
-			emit_super_call0 vf p
-		| [exec1] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun2 f,_) -> f | v -> cannot_call v p) in
-			emit_super_call1 vf exec1 p
-		| [exec1;exec2] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun3 f,_) -> f | v -> cannot_call v p) in
-			emit_super_call2 vf exec1 exec2 p
-		| [exec1;exec2;exec3] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun4 f,_) -> f | v -> cannot_call v p) in
-			emit_super_call3 vf exec1 exec2 exec3 p
-		| [exec1;exec2;exec3;exec4] ->
-			let vf = lazy (match Lazy.force fnew with VFunction (Fun5 f,_) -> f | v -> cannot_call v p) in
-			emit_super_call4 vf exec1 exec2 exec3 exec4 p
-		| _ ->
-			let vf = lazy (match Lazy.force fnew with VFunction (FunN f,_) -> f | v -> cannot_call v p) in
-			emit_super_callN vf execs p
+	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
+	emit_super_callN vf execs p
 
 (* unknown call - full lookup *)
-
-let emit_call0 exec p env =
-	call0 (exec env) p env
-
-let emit_call1 exec exec1 p env =
-	let v0 = exec env in
-	let v1 = exec1 env in
-	call1 v0 v1 p env
-
-let emit_call2 exec exec1 exec2 p env =
-	let v0 = exec env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	call2 v0 v1 v2 p env
-
-let emit_call3 exec exec1 exec2 exec3 p env =
-	let v0 = exec env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	call3 v0 v1 v2 v3 p env
-
-let emit_call4 exec exec1 exec2 exec3 exec4 p env =
-	let v0 = exec env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	call4 v0 v1 v2 v3 v4 p env
-
-let emit_call5 exec exec1 exec2 exec3 exec4 exec5 p env =
-	let v0 = exec env in
-	let v1 = exec1 env in
-	let v2 = exec2 env in
-	let v3 = exec3 env in
-	let v4 = exec4 env in
-	let v5 = exec5 env in
-	call5 v0 v1 v2 v3 v4 v5 p env
 
 let emit_call exec execs p env =
 	let v1 = exec env in
@@ -1375,108 +1044,20 @@ let get_closure_env ctx info num_locals num_captures refs =
 	env
 
 let create_function ctx num_args get_env hasret refs exec =
-	match num_args with
-	| 0 ->
-		if hasret then Fun0 (fun () ->
-			let env = get_env refs in
-			run_function ctx exec env
-		)
-		else Fun0 (fun () ->
-			let env = get_env refs in
-			run_function_noret ctx exec env
-		)
-	| 1 ->
-		if hasret then Fun1 (fun v1 ->
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			run_function ctx exec env
-		)
-		else Fun1 (fun v1 ->
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			run_function_noret ctx exec env
-		)
-	| 2 ->
-		let run v1 v2 =
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			env.env_locals.(1) <- v2;
-			env
-		in
-		if hasret then Fun2 (fun v1 v2 ->
-			let env = run v1 v2 in
-			run_function ctx exec env
-		)
-		else Fun2 (fun v1 v2 ->
-			let env = run v1 v2 in
-			run_function_noret ctx exec env
-		)
-	| 3 ->
-		let run v1 v2 v3 =
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			env.env_locals.(1) <- v2;
-			env.env_locals.(2) <- v3;
-			env
-		in
-		if hasret then Fun3 (fun v1 v2 v3 ->
-			let env = run v1 v2 v3 in
-			run_function ctx exec env
-		)
-		else Fun3 (fun v1 v2 v3 ->
-			let env = run v1 v2 v3 in
-			run_function_noret ctx exec env
-		)
-	| 4 ->
-		let run v1 v2 v3 v4 =
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			env.env_locals.(1) <- v2;
-			env.env_locals.(2) <- v3;
-			env.env_locals.(3) <- v4;
-			env
-		in
-		if hasret then Fun4 (fun v1 v2 v3 v4 ->
-			let env = run v1 v2 v3 v4 in
-			run_function ctx exec env
-		)
-		else Fun4 (fun v1 v2 v3 v4 ->
-			let env = run v1 v2 v3 v4 in
-			run_function_noret ctx exec env
-		)
-	| 5 ->
-		let run v1 v2 v3 v4 v5 =
-			let env = get_env refs in
-			env.env_locals.(0) <- v1;
-			env.env_locals.(1) <- v2;
-			env.env_locals.(2) <- v3;
-			env.env_locals.(3) <- v4;
-			env.env_locals.(4) <- v5;
-			env
-		in
-		if hasret then Fun5 (fun v1 v2 v3 v4 v5 ->
-			let env = run v1 v2 v3 v4 v5 in
-			run_function ctx exec env
-		)
-		else Fun5 (fun v1 v2 v3 v4 v5 ->
-			let env = run v1 v2 v3 v4 v5 in
-			run_function_noret ctx exec env
-		)
-	| _ ->
-		if hasret then FunN (fun vl ->
-			let env = get_env refs in
-			List.iteri (fun i v ->
-				env.env_locals.(i) <- v
-			) vl;
-			run_function ctx exec env
-		)
-		else FunN (fun vl ->
-			let env = get_env refs in
-			List.iteri (fun i v ->
-				env.env_locals.(i) <- v
-			) vl;
-			run_function_noret ctx exec env
-		)
+	if hasret then (fun vl ->
+		let env = get_env refs in
+		List.iteri (fun i v ->
+			env.env_locals.(i) <- v
+		) vl;
+		run_function ctx exec env
+	)
+	else (fun vl ->
+		let env = get_env refs in
+		List.iteri (fun i v ->
+			env.env_locals.(i) <- v
+		) vl;
+		run_function_noret ctx exec env
+	)
 
 let emit_closure ctx num_captures num_args get_env hasret exec env =
 	let refs = Array.sub env.env_captures 0 num_captures in

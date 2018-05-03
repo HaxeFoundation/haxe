@@ -70,14 +70,7 @@ type value =
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
 
-and vfunc =
-	| Fun0 of (unit -> value)
-	| Fun1 of (value -> value)
-	| Fun2 of (value -> value -> value)
-	| Fun3 of (value -> value -> value -> value)
-	| Fun4 of (value -> value -> value -> value -> value)
-	| Fun5 of (value -> value -> value -> value -> value -> value)
-	| FunN of (value list -> value)
+and vfunc = value list -> value
 
 and vobject = {
 	(* The fields of the object known when it is created. *)
@@ -202,12 +195,3 @@ let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
-
-let num_args = function
-	| Fun0 _ -> 0
-	| Fun1 _ -> 1
-	| Fun2 _ -> 2
-	| Fun3 _ -> 3
-	| Fun4 _ -> 4
-	| Fun5 _ -> 5
-	| FunN _ -> -1

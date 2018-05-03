@@ -101,12 +101,7 @@ and s_value depth v =
 		let s = Numeric.float_repres f in
 		let len = String.length s in
 		of_string (if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s)
-	| VFunction (f,_) ->
-		let s = match num_args f with
-			| -1 -> ""
-			| i -> string_of_int i
-		in
-		concat2 rfun (Rope.of_string (s))
+	| VFunction (f,_) -> concat2 rfun (Rope.of_string (""))
 	| VFieldClosure _ -> rclosure
 	| VEnumValue ve -> s_enum_value depth ve
 	| VString(s,_) -> s

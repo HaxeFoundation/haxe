@@ -636,14 +636,7 @@ and jit_expr jit return e =
 			| _ ->
 				let exec = jit_expr jit false e1 in
 				let execs = List.map (jit_expr jit false) el in
-				begin match execs with
-					| [] -> emit_call0 exec e.epos
-					| [exec1] -> emit_call1 exec exec1 e.epos
-					| [exec1;exec2] -> emit_call2 exec exec1 exec2 e.epos
-					| [exec1;exec2;exec3] -> emit_call3 exec exec1 exec2 exec3 e.epos
-					| [exec1;exec2;exec3;exec4] -> emit_call4 exec exec1 exec2 exec3 exec4 e.epos
-					| _ -> emit_call exec execs e.epos
-				end
+				emit_call exec execs e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array

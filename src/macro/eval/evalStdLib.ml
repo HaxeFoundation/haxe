@@ -81,17 +81,9 @@ module StdEvalVector = struct
 		let this = this vthis in
 		let a = match f with
 			| VFunction(f,_) ->
-				begin match f with
-					| Fun1 f -> Array.map (fun v -> f v) this
-					| FunN f -> Array.map (fun v -> f [v]) this
-					| _ -> invalid_call_arg_number 1 (num_args f)
-				end
+				Array.map (fun v -> f [v]) this
 			| VFieldClosure(v1,f) ->
-				begin match f with
-					| Fun2 f -> Array.map (fun v -> f v1 v) this
-					| FunN f -> Array.map (fun v -> f [v1;v]) this
-					| _ -> invalid_call_arg_number 2 (num_args f)
-				end
+				Array.map (fun v -> f (v1 :: [v])) this
 			| _ -> exc_string ("Cannot call " ^ (value_string f))
 		in
 		encode_vector_instance a
@@ -167,17 +159,9 @@ module StdArray = struct
 		let this = this vthis in
 		let a = match f with
 			| VFunction(f,_) ->
-				begin match f with
-					| Fun1 f -> EvalArray.map this (fun v -> f v)
-					| FunN f -> EvalArray.map this (fun v -> f [v])
-					| _ -> invalid_call_arg_number 1 (num_args f)
-				end
+				EvalArray.map this (fun v -> f [v])
 			| VFieldClosure(v1,f) ->
-				begin match f with
-					| Fun2 f -> EvalArray.map this (fun v -> f v1 v)
-					| FunN f -> EvalArray.map this (fun v -> f [v1;v])
-					| _ -> invalid_call_arg_number 2 (num_args f)
-				end
+				EvalArray.map this (fun v -> f (v1 :: [v]))
 			| _ -> exc_string ("Cannot call " ^ (value_string f))
 		in
 		encode_array_instance a
@@ -1664,7 +1648,7 @@ module StdReflect = struct
 	)
 
 	let makeVarArgs = vfun1 (fun f ->
-		vstatic_function (FunN (fun vl -> call_value f [encode_array vl]))
+		vstatic_function ((fun vl -> call_value f [encode_array vl]))
 	)
 
 	let setField = vfun3 (fun o name v ->
