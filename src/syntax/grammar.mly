@@ -351,7 +351,7 @@ and parse_meta_params pname s = match s with parser
 and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
 		match s with parser
-		| [< name,p = meta_name p1; params = parse_meta_params p; s >] -> (name,params,p)
+		| [< name,p = parse_meta_name p1; params = parse_meta_params p; s >] -> (name,params,p)
 		| [< >] ->
 			if is_resuming p1 then (Meta.Last,[],p1) else serror()
 
@@ -360,13 +360,19 @@ and parse_meta = parser
 		entry :: parse_meta s
 	| [< >] -> []
 
-and meta_name p1 = parser
-	| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> (Meta.Custom i), p
-	| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> (Meta.Custom (s_keyword k)),p
-	| [< '(DblDot,p) when p.pmin = p1.pmax; s >] -> match s with parser
-		| [< '(Const (Ident i),p1) when p1.pmin = p.pmax >] -> (Meta.parse i),punion p p1
-		| [< '(Kwd k,p1) when p1.pmin = p.pmax >] -> (Meta.parse (s_keyword k)),punion p p1
-		| [< >] -> if is_resuming p then Meta.Last,p else raise Stream.Failure
+and parse_meta_name_2 p1 acc s =
+	let part,p = match s with parser
+		| [< '(Const (Ident i),p) when p.pmin = p1.pmax >] -> i,p
+		| [< '(Kwd k,p) when p.pmin = p1.pmax >] -> s_keyword k,p
+	in
+	let acc = part :: acc in
+	match s with parser
+	| [< '(Dot,p1); part,p2 = parse_meta_name_2 p1 acc >] -> part,punion p p2
+	| [< >] -> acc,p
+
+and parse_meta_name p1 = parser
+	| [< '(DblDot,p) when p.pmin = p1.pmax; name,p2 = parse_meta_name_2 p [] >] -> (Meta.parse (rev_concat "." name)),p2
+	| [< name,p2 = parse_meta_name_2 p1 [] >] -> (Meta.Custom (rev_concat "." name)),p2
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p

@@ -130,6 +130,8 @@ let is_dollar_ident e = match fst e with
 	| _ ->
 		false
 
+let rev_concat s sl = String.concat s (List.rev sl)
+
 let precedence op =
 	let left = true and right = false in
 	match op with
