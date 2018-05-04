@@ -320,7 +320,6 @@ type command_outcome =
 	| Run of Json.t * EvalContext.env
 	| Wait of Json.t * EvalContext.env
 
-
 let make_connection socket =
 	(* Reads input and reacts accordingly. *)
 	let rec wait ctx run env =
@@ -485,8 +484,8 @@ let make_connection socket =
 					begin try
 						let e = parse_expr ctx e env.env_debug.expr.epos in
 						begin try
-							let access,v = expr_to_value ctx env e in
-							Loop (output_inner_vars v access)
+							let v = expr_to_value ctx env e in
+							Loop (output_inner_vars v (Ast.s_expr e))
 						with Exit ->
 							error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
 						end
@@ -509,24 +508,9 @@ let make_connection socket =
 					begin try
 						let expr,value = parse expr_s,parse value in
 						begin try
-							let _,value = expr_to_value ctx env value in
-							begin match fst expr with
-								(* TODO: support setting array elements and enum values *)
-								| EField(e1,s) ->
-									let _,v1 = expr_to_value ctx env e1 in
-									set_field v1 (hash_s s) value;
-									Loop (var_to_json s value expr_s)
-								| EConst (Ident s) ->
-									begin try
-										let slot = get_var_slot_by_name env.env_debug.scopes s in
-										env.env_locals.(slot) <- value;
-										Loop (var_to_json name value s)
-									with Not_found ->
-										error ("No variable found: " ^ s);
-									end
-								| _ ->
-									raise Exit
-							end
+							let value = expr_to_value ctx env value in
+							write_expr ctx env expr value;
+							Loop (var_to_json name value expr_s)
 						with Exit ->
 							error "Don't know how to handle this expression"
 						end

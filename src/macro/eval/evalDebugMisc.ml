@@ -5,6 +5,7 @@ open EvalContext
 open EvalHash
 open EvalValue
 open EvalEncode
+open EvalMisc
 
 type debug_connection = {
 	wait : context -> (env -> value) -> env -> value;
@@ -146,40 +147,64 @@ let expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> "",encode_string s
-				| Int s -> "",VInt32 (Int32.of_string s)
-				| Float s -> "",VFloat (float_of_string s)
-				| Ident "true" -> "",VTrue
-				| Ident "false" -> "",VFalse
-				| Ident "null" -> "",VNull
+				| String s -> encode_string s
+				| Int s -> VInt32 (Int32.of_string s)
+				| Float s -> VFloat (float_of_string s)
+				| Ident "true" -> VTrue
+				| Ident "false" -> VFalse
+				| Ident "null" -> VNull
 				| Ident s ->
 					let value = resolve_ident ctx env s in
-					s,value
+					value
 				| _ -> raise Exit
 			end
 		| EArray(e1,eidx) ->
-			let n1,v1 = loop e1 in
-			let nidx,vidx = loop eidx in
+			let v1 = loop e1 in
+			let vidx = loop eidx in
 			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
-			let n = Printf.sprintf "%s[%d]" n1 idx in
 			begin match v1 with
-				| VArray va ->
-					let v = EvalArray.get va idx in
-					(n,v)
-				| VVector vv ->
-					let v = Array.get vv idx in
-					(n,v)
-				| VEnumValue ev ->
-					let v = Array.get ev.eargs idx in
-					(n,v)
-				| _ ->
-					raise Exit
+				| VArray va -> EvalArray.get va idx
+				| VVector vv -> Array.get vv idx
+				| VEnumValue ev -> Array.get ev.eargs idx
+				| _ -> raise Exit
 			end
 		| EField(e1,s) ->
-			let n1,v1 = loop e1 in
+			let v1 = loop e1 in
 			let v = EvalField.field v1 (hash_s s) in
-			(Printf.sprintf "%s.%s" n1 s),v
+			v
+		| EArrayDecl el ->
+			let vl = List.map loop el in
+			encode_array vl
+		| EObjectDecl fl ->
+			let fl = List.map (fun ((s,_,_),e) -> s,loop e) fl in
+			encode_obj_s None fl
 		| _ ->
 			raise Exit
 	in
 	loop e
+
+let write_expr ctx env expr value =
+	begin match fst expr with
+		| EField(e1,s) ->
+			let v1 = expr_to_value ctx env e1 in
+			set_field v1 (hash_s s) value;
+		| EConst (Ident s) ->
+			begin try
+				let slot = get_var_slot_by_name env.env_debug.scopes s in
+				env.env_locals.(slot) <- value;
+			with Not_found ->
+				raise Exit
+			end
+		| EArray(e1,e2) ->
+			let v1 = expr_to_value ctx env e1 in
+			let vidx = expr_to_value ctx env e2 in
+			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise Exit in
+			begin match v1 with
+				| VArray va -> EvalArray.set va idx value
+				| VVector vv -> Array.set vv idx value
+				| VEnumValue ev -> Array.set ev.eargs idx value
+				| _ -> raise Exit
+			end
+		| _ ->
+			raise Exit
+	end
