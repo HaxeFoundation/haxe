@@ -68,7 +68,6 @@ let find_breakpoint ctx sid =
 	with Exit ->
 		match !found with None -> assert false | Some breakpoint -> breakpoint
 
-
 (* Helper *)
 
 exception Parse_expr_error of string
@@ -197,7 +196,7 @@ let rec expr_to_value ctx env e =
 				let v1 = loop e1 in
 				let v2 = loop e2 in
 				let p = pos e in
-				(get_binop_fun op p) v1 v2
+				(try get_binop_fun op p with _ -> raise Exit) v1 v2
 			end
 		| EUnop(op,flag,e1) ->
 			begin match op with

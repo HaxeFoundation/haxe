@@ -517,6 +517,24 @@ let make_connection socket =
 					with Parse_expr_error e ->
 						error e
 					end
+				| "evaluate" ->
+					let s =
+						match params with
+						| Some (JObject fl) ->
+							let id = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
+							(match (snd id) with JString s -> s | _ -> invalid_params ())
+						| _ -> invalid_params ()
+					in
+					begin try
+						let e = parse_expr ctx s env.env_debug.expr.epos in
+						let v = expr_to_value ctx env e in
+						Loop (var_to_json "" v (Ast.s_expr e))
+					with
+					| Parse_expr_error e ->
+						error e
+					| Exit ->
+						error "Don't know how to handle this expression"
+					end
 				| meth ->
 					let open JsonRpc in
 					raise (JsonRpc_error (Method_not_found (id, meth)))
