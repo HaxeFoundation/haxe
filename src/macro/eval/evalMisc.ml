@@ -18,6 +18,7 @@
  *)
 
 open Globals
+open Ast
 open Type
 open EvalValue
 open EvalContext
@@ -26,6 +27,12 @@ open EvalDecode
 open EvalExceptions
 open EvalPrinting
 open EvalHash
+
+let throw_string s p =
+	throw (encode_string s) p
+
+let invalid_binop op v1 v2 p =
+	throw_string (Printf.sprintf "Invalid operation: %s %s %s" (value_string v1) (s_binop op) (value_string v2)) p
 
 (* Calls *)
 
@@ -139,3 +146,95 @@ and equals_structurally a b =
 let is_true v = match v with
 	| VTrue -> true
 	| _ -> false
+
+let op_add v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
+	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
+	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
+	| VString(s1,_),VString(s2,_) -> encode_rope (Rope.concat2 s1 s2)
+	| VString(s1,_),v2 -> encode_rope (Rope.concat2 s1 (s_value 0 v2))
+	| v1,VString(s2,_) -> encode_rope (Rope.concat2 (s_value 0 v1) s2)
+	| v1,v2 -> encode_rope (Rope.concat2 (s_value 0 v1) (s_value 0 v2))
+
+let op_mult p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
+	| VFloat f1,VFloat f2 -> vfloat (f1 *. f2)
+	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) *. f)
+	| _ -> invalid_binop OpMult v1 v2 p
+
+let op_div p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vfloat ((Int32.to_float i1) /. (Int32.to_float i2))
+	| VFloat f1,VFloat f2 -> vfloat (f1 /. f2)
+	| VInt32 i1,VFloat f2 -> vfloat ((Int32.to_float i1) /. f2)
+	| VFloat f1,VInt32 i2 -> vfloat (f1 /. (Int32.to_float i2))
+	| _ -> invalid_binop OpDiv v1 v2 p
+
+let op_sub p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.sub i1 i2)
+	| VFloat f1,VFloat f2 -> vfloat (f1 -. f2)
+	| VInt32 i1,VFloat f2 -> vfloat ((Int32.to_float i1) -. f2)
+	| VFloat f1,VInt32 i2 -> vfloat (f1 -. (Int32.to_float i2))
+	| _ -> invalid_binop OpSub v1 v2 p
+
+let op_eq v1 v2 = vbool (equals v1 v2)
+
+let op_not_eq v1 v2 = vbool (not (equals v1 v2))
+
+let op_gt v1 v2 = vbool (compare v1 v2 = CSup)
+
+let op_gte v1 v2 = vbool (match compare v1 v2 with CSup | CEq -> true | _ -> false)
+
+let op_lt v1 v2 = vbool (compare v1 v2 = CInf)
+
+let op_lte v1 v2 = vbool (match compare v1 v2 with CInf | CEq -> true | _ -> false)
+
+let op_and p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logand i1 i2)
+	| _ -> invalid_binop OpAnd v1 v2 p
+
+let op_or p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logor i1 i2)
+	| _ -> invalid_binop OpOr v1 v2 p
+
+let op_xor p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.logxor i1 i2)
+	| _ -> invalid_binop OpXor v1 v2 p
+
+let op_shl p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_left i1 (Int32.to_int i2))
+	| _ -> invalid_binop OpShl v1 v2 p
+
+let op_shr p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_right i1 (Int32.to_int i2))
+	| _ -> invalid_binop OpShr v1 v2 p
+
+let op_ushr p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.shift_right_logical i1 (Int32.to_int i2))
+	| _ -> invalid_binop OpUShr v1 v2 p
+
+let op_mod p v1 v2 = match v1,v2 with
+	| VInt32 i1,VInt32 i2 -> vint32 (Int32.rem i1 i2)
+	| VFloat f1,VFloat f2 -> vfloat (mod_float f1 f2)
+	| VInt32 i1,VFloat f2 -> vfloat (mod_float (Int32.to_float i1) f2)
+	| VFloat f1,VInt32 i2 -> vfloat (mod_float f1 (Int32.to_float i2))
+	| _ -> invalid_binop OpMod v1 v2 p
+
+let get_binop_fun op p = match op with
+	| OpAdd -> op_add
+	| OpMult -> op_mult p
+	| OpDiv -> op_div p
+	| OpSub -> op_sub p
+	| OpEq -> op_eq
+	| OpNotEq -> op_not_eq
+	| OpGt -> op_gt
+	| OpGte -> op_gte
+	| OpLt -> op_lt
+	| OpLte -> op_lte
+	| OpAnd -> op_and p
+	| OpOr -> op_or p
+	| OpXor -> op_xor p
+	| OpShl -> op_shl p
+	| OpShr -> op_shr p
+	| OpUShr -> op_ushr p
+	| OpMod -> op_mod p
+	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> assert false

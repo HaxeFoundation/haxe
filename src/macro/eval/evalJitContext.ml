@@ -137,7 +137,7 @@ let get_slot_raise jit vid =
 
 let get_slot jit vid p =
 	try get_slot_raise jit vid
-	with Not_found -> throw_string "Unbound variable" p
+	with Not_found -> EvalMisc.throw_string "Unbound variable" p
 
 (* Gets the slot of captured variable id [vid] in context [jit]. *)
 let get_capture_slot jit vid =

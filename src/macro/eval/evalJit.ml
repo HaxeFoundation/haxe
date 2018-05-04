@@ -24,6 +24,7 @@ open EvalValue
 open EvalContext
 open EvalHash
 open EvalEmitter
+open EvalMisc
 
 (* Helper *)
 
@@ -45,26 +46,6 @@ let eval_const = function
 let is_int t = match follow t with
 	| TAbstract({a_path=[],"Int"},_) -> true
 	| _ -> false
-
-let get_binop_fun op p = match op with
-	| OpAdd -> op_add
-	| OpMult -> op_mult p
-	| OpDiv -> op_div p
-	| OpSub -> op_sub p
-	| OpEq -> op_eq
-	| OpNotEq -> op_not_eq
-	| OpGt -> op_gt
-	| OpGte -> op_gte
-	| OpLt -> op_lt
-	| OpLte -> op_lte
-	| OpAnd -> op_and p
-	| OpOr -> op_or p
-	| OpXor -> op_xor p
-	| OpShl -> op_shl p
-	| OpShr -> op_shr p
-	| OpUShr -> op_ushr p
-	| OpMod -> op_mod p
-	| OpAssign | OpBoolAnd | OpBoolOr | OpAssignOp _ | OpInterval | OpArrow | OpIn -> assert false
 
 open EvalJitContext
 
