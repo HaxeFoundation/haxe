@@ -223,7 +223,7 @@ let rec wait ctx run env =
 			begin try
 				let file,line,column = parse_breakpoint_pattern pattern in
 				begin try
-					let breakpoint = add_breakpoint ctx file line column in
+					let breakpoint = add_breakpoint ctx file line column None in
 					output_breakpoint_set breakpoint;
 				with Not_found ->
 					output_error ("Could not find file " ^ file);

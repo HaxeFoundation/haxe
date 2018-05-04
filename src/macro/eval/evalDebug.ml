@@ -57,6 +57,12 @@ let debug_loop jit e f =
 		| BPAny -> true
 		| BPColumn i -> i = col1
 	in
+	let condition_holds env breakpoint = match breakpoint.bpcondition with
+		| None -> true
+		| Some e -> match expr_to_value_safe ctx env e with
+			| VTrue -> true
+			| _ -> false
+	in
 	let conn = match ctx.debug.debug_socket with
 		| Some socket -> EvalDebugSocket.make_connection socket
 		| None -> EvalDebugCLI.connection
@@ -67,7 +73,7 @@ let debug_loop jit e f =
 			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
-				| BPEnabled when column_matches breakpoint ->
+				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
 					conn.bp_stop ctx env;

@@ -78,6 +78,7 @@ type breakpoint = {
 	bpfile : int;
 	bpline : int;
 	bpcolumn : breakpoint_column;
+	bpcondition : Ast.expr option;
 	mutable bpstate : breakpoint_state;
 }
 

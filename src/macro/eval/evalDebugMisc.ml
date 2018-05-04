@@ -19,7 +19,7 @@ exception BreakHere
 
 let make_breakpoint =
 	let id = ref (-1) in
-	(fun file line state column ->
+	(fun file line state column condition ->
 		incr id;
 		{
 			bpid = !id;
@@ -27,6 +27,7 @@ let make_breakpoint =
 			bpline = line;
 			bpstate = state;
 			bpcolumn = column;
+			bpcondition = condition
 		}
 	)
 
@@ -35,7 +36,7 @@ let iter_breakpoints ctx f =
 		Hashtbl.iter (fun _ breakpoint -> f breakpoint) breakpoints
 	) ctx.debug.breakpoints
 
-let add_breakpoint ctx file line column =
+let add_breakpoint ctx file line column condition =
 	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 	let h = try
 		Hashtbl.find ctx.debug.breakpoints hash
@@ -44,7 +45,7 @@ let add_breakpoint ctx file line column =
 		Hashtbl.add ctx.debug.breakpoints hash h;
 		h
 	in
-	let breakpoint = make_breakpoint hash line BPEnabled column in
+	let breakpoint = make_breakpoint hash line BPEnabled column condition in
 	Hashtbl.replace h line breakpoint;
 	breakpoint
 
@@ -143,7 +144,7 @@ let resolve_ident ctx env s =
 	with Not_found ->
 		raise Exit
 
-let expr_to_value ctx env e =
+let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
@@ -178,12 +179,73 @@ let expr_to_value ctx env e =
 		| EObjectDecl fl ->
 			let fl = List.map (fun ((s,_,_),e) -> s,loop e) fl in
 			encode_obj_s None fl
-		| _ ->
+		| EBinop(op,e1,e2) ->
+			begin match op with
+			| OpAssign ->
+				let v2 = loop e2 in
+				write_expr ctx env e1 v2;
+				v2
+			| OpAssignOp op ->
+				raise Exit (* Nobody does that, right? *)
+			| OpBoolAnd ->
+				if is_true (loop e1) then loop e2
+				else VFalse
+			| OpBoolOr ->
+				if is_true (loop e1) then VTrue
+				else loop e2
+			| _ ->
+				let v1 = loop e1 in
+				let v2 = loop e2 in
+				let p = pos e in
+				(get_binop_fun op p) v1 v2
+			end
+		| EUnop(op,flag,e1) ->
+			begin match op with
+			| Not ->
+				begin match loop e1 with
+				| VNull | VFalse -> VTrue
+				| _ -> VFalse
+				end
+			| Neg ->
+				begin match loop e1 with
+				| VFloat f -> VFloat (-.f)
+				| VInt32 i -> vint32 (Int32.neg i)
+				| _ -> raise Exit
+				end
+			| NegBits ->
+				op_sub (pos e) (vint32 (Int32.minus_one)) (loop e1)
+			| Increment | Decrement ->
+				raise Exit
+			end
+		| ECall(e1,el) ->
+			let v1 = loop e1 in
+			let vl = List.map loop el in
+			call_value v1 vl
+		| EBlock el ->
+			let rec loop2 el = match el with
+				| [] -> VNull
+				| [e1] -> loop e1
+				| e1 :: el ->
+					ignore(loop e1);
+					loop2 el
+			in
+			loop2 el
+		| EIf(e1,e2,eo) ->
+			let v1 = loop e1 in
+			if is_true v1 then loop e2
+			else Option.map_default loop VNull eo
+		| ETernary(e1,e2,e3) ->
+			let v1 = loop e1 in
+			if is_true v1 then loop e2 else loop e3
+		| EParenthesis e1 | EMeta(_,e1) | EUntyped e1 | ECast(e1,None) | ECheckType(e1,_) ->
+			loop e1
+		| EWhile _ | ETry _ | ESwitch _ | ENew _ | EVars _ | EFunction _ | EFor _ | EDisplay _
+		| EDisplayNew _ | EReturn _ | EContinue | EBreak | EThrow _  | ECast(_,Some _) ->
 			raise Exit
 	in
 	loop e
 
-let write_expr ctx env expr value =
+and write_expr ctx env expr value =
 	begin match fst expr with
 		| EField(e1,s) ->
 			let v1 = expr_to_value ctx env e1 in
@@ -208,3 +270,7 @@ let write_expr ctx env expr value =
 		| _ ->
 			raise Exit
 	end
+
+let expr_to_value_safe ctx env e =
+	try expr_to_value ctx env e
+	with Exit -> VNull

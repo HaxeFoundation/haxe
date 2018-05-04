@@ -337,6 +337,18 @@ let make_connection socket =
 					let open JsonRpc in
 					raise (JsonRpc_error (Invalid_params id))
 				in
+				let parse_breakpoint = function
+					| JObject fl ->
+						let rec loop (line,column,condition) fl = match fl with
+							| ("line",JInt i) :: fl -> loop (i,column,condition) fl
+							| ("column",JInt i) :: fl -> loop (line,BPColumn i,condition) fl
+							| ("condition",JString s) :: fl -> loop (line,column,Some (parse_expr ctx s env.env_debug.expr.epos)) fl
+							| _ :: fl -> loop (line,column,condition) fl
+							| [] -> line,column,condition
+						in
+						loop (0,BPAny,None) fl
+					| _ -> invalid_params ()
+				in
 				let rec move_frame offset =
 					if offset < 0 || offset >= (get_eval ctx).environment_offset then begin
 						error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((get_eval ctx).environment_offset - 1))
@@ -369,15 +381,6 @@ let make_connection socket =
 						| Some (JObject fl) ->
 							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
 							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
-							let parse_breakpoint = function
-								| JObject fl ->
-									let line = try List.find (fun (n,_) -> n = "line") fl with Not_found -> invalid_params () in
-									let line = match (snd line) with JInt s -> s | _ -> invalid_params () in
-									let column = try Some (List.find (fun (n,_) -> n = "column") fl) with Not_found -> None in
-									let column = Option.map_default (fun (_,v) -> match v with JInt i -> BPColumn i | _ -> invalid_params ()) BPAny column in
-									line,column
-								| _ -> invalid_params ()
-							in
 							let bps = try List.find (fun (n,_) -> n = "breakpoints") fl with Not_found -> invalid_params () in
 							let bps = match (snd bps) with JArray jl -> jl | _ -> invalid_params () in
 							let bps = List.map parse_breakpoint bps in
@@ -396,28 +399,25 @@ let make_connection socket =
 							Hashtbl.add ctx.debug.breakpoints hash h;
 							h
 					in
-					let bps = List.map (fun (line,column) ->
-						let bp = make_breakpoint hash line BPEnabled column in
+					let bps = List.map (fun (line,column,condition) ->
+						let bp = make_breakpoint hash line BPEnabled column condition in
 						Hashtbl.add h line bp;
 						JObject ["id",JInt bp.bpid]
 					) bps in
 					Loop (JArray bps)
 				| "setBreakpoint" ->
-					let file,line,column =
+					let file,line,column,condition =
 						match params with
-						| Some (JObject fl) ->
+						| Some (JObject fl as jo) ->
 							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
 							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
-							let line = try List.find (fun (n,_) -> n = "line") fl with Not_found -> invalid_params () in
-							let line = match (snd line) with JInt s -> s | _ -> invalid_params () in
-							let column = try Some (List.find (fun (n,_) -> n = "column") fl) with Not_found -> None in
-							let column = Option.map_default (fun (_,v) -> match v with JInt i -> BPColumn i | _ -> invalid_params ()) BPAny column in
-							file,line,column
+							let line,column,condition = parse_breakpoint jo in
+							file,line,column,condition
 						| _ ->
 							invalid_params ();
 					in
 					begin try
-						let breakpoint = add_breakpoint ctx file line column in
+						let breakpoint = add_breakpoint ctx file line column condition in
 						Loop (JObject ["id",JInt breakpoint.bpid])
 					with Not_found ->
 						invalid_params ();
