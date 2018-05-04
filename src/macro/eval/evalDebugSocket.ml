@@ -535,6 +535,15 @@ let make_connection socket =
 					| Exit ->
 						error "Don't know how to handle this expression"
 					end
+				| "setExceptionOptions" ->
+					let sl = match params with
+						| Some (JArray ja) -> List.map (function JString s -> s | _ -> invalid_params()) ja
+						| _ -> invalid_params()
+					in
+					ctx.debug.exception_mode <- if List.mem "all" sl then CatchAll
+						else if List.mem "uncaught" sl then CatchUncaught
+						else CatchNone;
+					Loop(JNull)
 				| meth ->
 					let open JsonRpc in
 					raise (JsonRpc_error (Method_not_found (id, meth)))

@@ -67,6 +67,11 @@ let debug_loop jit e f =
 		| Some socket -> EvalDebugSocket.make_connection socket
 		| None -> EvalDebugCLI.connection
 	in
+	let debugger_catches v = match ctx.debug.exception_mode with
+		| CatchAll -> true
+		| CatchUncaught -> not (is_caught ctx v)
+		| CatchNone -> false
+	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try
@@ -85,7 +90,7 @@ let debug_loop jit e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when not (is_caught ctx v) ->
+		| RunTimeException(v,_,_) when debugger_catches v ->
 			conn.exc_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env

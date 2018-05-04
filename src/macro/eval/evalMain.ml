@@ -88,6 +88,7 @@ let create com api is_macro =
 				caught_types = Hashtbl.create 0;
 				environment_offset_delta = 0;
 				debug_socket = socket;
+				exception_mode = CatchUncaught;
 			} in
 			debug := Some debug';
 			debug'
