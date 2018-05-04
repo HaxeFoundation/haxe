@@ -525,13 +525,13 @@ and gen_expr ctx e =
 			print ctx ",$bind($_,$_%s))" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name)))
 	| TEnumIndex x ->
 		gen_value ctx x;
-		if Common.defined ctx.com Define.JsEnumsAsObjects then
+		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
 		print ctx "._hx_index"
 		else
 		print ctx "[1]"
 	| TEnumParameter (x,f,i) ->
 		gen_value ctx x;
-		if Common.defined ctx.com Define.JsEnumsAsObjects then
+		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
 			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
 			print ctx ".%s" (fname)
 		else
@@ -1152,7 +1152,7 @@ let generate_enum ctx e =
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
-	let as_objects = Common.defined ctx.com Define.JsEnumsAsObjects in
+	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
 	if as_objects then begin
 		newline ctx;
 		print ctx "$hxEnums[\"%s\"] = %s" p p
@@ -1459,7 +1459,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
-	let vars = if Common.defined com Define.JsEnumsAsObjects then "$hxEnums = {}" :: vars else vars in
+	let vars = if not (Common.defined com Define.JsEnumsAsArrays) then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->

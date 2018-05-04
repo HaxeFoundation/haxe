@@ -500,7 +500,7 @@ class Serializer {
 				buf.add("0");
 			}
 
-			#elseif js_enums_as_objects
+			#elseif (js && !js_enums_as_arrays)
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v._hx_index);

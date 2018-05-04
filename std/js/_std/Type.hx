@@ -41,7 +41,7 @@ enum ValueType {
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
-		#if !js_enums_as_objects
+		#if js_enums_as_arrays
 		return o.__enum__;
 		#else
 		return $hxEnums[o.__enum__];
@@ -191,7 +191,7 @@ enum ValueType {
 				return TNull;
 			var e = v.__enum__;
 			if( e != null ){
-				#if !js_enums_as_objects
+				#if js_enums_as_arrays
 				return TEnum(e);
 				#else
 				return TEnum(untyped $hxEnums[e]);
@@ -216,7 +216,7 @@ enum ValueType {
 		if( a == b )
 			return true;
 		try {
-			#if !js_enums_as_objects
+			#if js_enums_as_arrays
 			if( a[0] != b[0] )
 				return false;
 			for( i in 2...a.length )
@@ -242,7 +242,7 @@ enum ValueType {
 	}
 
 	public inline static function enumConstructor( e : EnumValue ) : String {
-		#if !js_enums_as_objects
+		#if js_enums_as_arrays
 		return untyped e[0];
 		#else
 		return untyped $hxEnums[e.__enum__].__constructs__[e._hx_index];
@@ -250,7 +250,7 @@ enum ValueType {
 	}
 
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		#if !js_enums_as_objects
+		#if js_enums_as_arrays
 		return untyped e.slice(2);
 		#else
 		var n = enumConstructor(e);
@@ -260,7 +260,7 @@ enum ValueType {
 	}
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
-		#if js_enums_as_objects
+		#if !js_enums_as_arrays
 		return untyped e._hx_index;
 		#else
 		return untyped e[1];
