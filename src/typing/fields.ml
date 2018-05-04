@@ -177,7 +177,7 @@ let field_access ctx mode f fmode t e p =
 				AKExpr (mk (TField (e,FClosure (None,f))) t p)
 			else
 				normal()
-		| AccCall when ctx.in_display ->
+		| AccCall | AccInline when ctx.in_display ->
 			normal()
 		| AccCall ->
 			let m = (match mode with MSet -> "set_" | _ -> "get_") ^ f.cf_name in
