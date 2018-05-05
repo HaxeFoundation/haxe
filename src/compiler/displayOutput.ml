@@ -686,6 +686,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
+				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
 				DMField

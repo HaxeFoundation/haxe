@@ -44,6 +44,41 @@ let rec handle_display ctx e_ast with_type =
 and handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
+	let handle_call tl el p0 =
+		let rec follow_with_callable (t,doc) = match follow t with
+			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
+			| TFun(args,ret) -> ((args,ret),doc)
+			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
+		in
+		let tl = List.map follow_with_callable tl in
+		let rec loop i p1 el = match el with
+			| (e,p2) :: el ->
+				if Display.is_display_position (punion p1 p2) then i else loop (i + 1) p2 el
+			| [] ->
+				i
+		in
+		let display_arg = loop 0 p0 el in
+		(* If our display position exceeds the argument number we add a null expression in order to make
+		unify_call_args error out. *)
+		let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
+		let rec loop acc tl = match tl with
+			| (t,doc) :: tl ->
+				let keep (args,r) =
+					begin try
+						let _ = unify_call_args' ctx el args r p false false in
+						true
+					with
+					| Error(Call_error (Not_enough_arguments _),_) -> true
+					| _ -> false
+					end
+				in
+				loop (if keep t then (t,doc) :: acc else acc) tl
+			| [] ->
+				acc
+		in
+		let overloads = match loop [] tl with [] -> tl | tl -> tl in
+		raise (Display.DisplaySignatures(overloads,display_arg))
+	in
 	let find_constructor_types t = match follow t with
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			let ct,cf = get_constructor ctx c tl p in
@@ -52,7 +87,7 @@ and handle_signature_display ctx e_ast with_type =
 		| _ ->
 			[]
 	in
-	let tl,el,p0 = match fst e_ast with
+	match fst e_ast with
 		| ECall(e1,el) ->
 			let e1 = try
 				type_expr ctx e1 Value
@@ -70,45 +105,29 @@ and handle_signature_display ctx e_ast with_type =
 					find_constructor_types e1.etype
 				| _ -> [e1.etype,None]
 			in
-			tl,el,e1.epos
+			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
 			let t = Typeload.load_instance ctx tpath true p in
-			find_constructor_types t,el,pos tpath
-		| _ -> error "Call expected" p
-	in
-	let rec follow_with_callable (t,doc) = match follow t with
-		| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
-		| TFun(args,ret) -> ((args,ret),doc)
-		| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
-	in
-	let tl = List.map follow_with_callable tl in
-	let rec loop i p1 el = match el with
-		| (e,p2) :: el ->
-			if Display.is_display_position (punion p1 p2) then i else loop (i + 1) p2 el
-		| [] ->
-			i
-	in
-	let display_arg = loop 0 p0 el in
-	(* If our display position exceeds the argument number we add a null expression in order to make
-	   unify_call_args error out. *)
-	let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
-	let rec loop acc tl = match tl with
-		| (t,doc) :: tl ->
-			let keep (args,r) =
-				begin try
-					let _ = unify_call_args' ctx el args r p false false in
-					true
-				with
-				| Error(Call_error (Not_enough_arguments _),_) -> true
-				| _ -> false
+			handle_call (find_constructor_types t) el (pos tpath)
+		| EObjectDecl fl ->
+			let fail () = error "Unexpected type or something" p in
+			begin match with_type with
+			| WithType t ->
+				begin match follow t with
+				| TAnon an ->
+					let fl = PMap.foldi (fun k cf acc ->
+						if Expr.field_mem_assoc k fl then acc
+						else ((k,false,cf.cf_type),cf.cf_name_pos) :: acc
+					) an.a_fields [] in
+					let fl = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) fl in
+					let fl = List.map fst fl in
+					let fl = [(fl,t),None] in
+					raise (Display.DisplaySignatures (fl,0))
+				| _ -> fail()
 				end
-			in
-			loop (if keep t then (t,doc) :: acc else acc) tl
-		| [] ->
-			acc
-	in
-	let overloads = match loop [] tl with [] -> tl | tl -> tl in
-	raise (Display.DisplaySignatures(overloads,display_arg))
+			| _ -> fail()
+			end
+		| _ -> error "Call expected" p
 
 and display_expr ctx e_ast e with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with

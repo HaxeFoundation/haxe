@@ -157,6 +157,11 @@ let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
 
+let s_with_type = function
+	| NoValue -> "NoValue"
+	| Value -> "Value"
+	| WithType t -> "WithType " ^ (s_type (print_context()) t)
+
 let make_static_this c p =
 	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 	mk (TTypeExpr (TClassDecl c)) ta p

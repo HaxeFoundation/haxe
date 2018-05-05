@@ -109,7 +109,7 @@ module ExprPreprocessing = struct
 	let find_display_call e =
 		let found = ref false in
 		let loop e = if !found then e else match fst e with
-			| ECall _ | ENew _ when is_display_position (pos e) ->
+			| ECall _ | ENew _ | EObjectDecl _ when is_display_position (pos e) ->
 				found := true;
 				(EDisplay(e,true),(pos e))
 			| _ ->

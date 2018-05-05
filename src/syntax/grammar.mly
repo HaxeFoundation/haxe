@@ -704,7 +704,19 @@ and block1 = parser
 
 and block2 name ident p s =
 	match s with parser
-	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
+	| [< '(DblDot,_) >] ->
+		let e = try
+			begin match s with parser
+			| [< e = expr >] -> e
+			| [< >] -> serror()
+			end
+		with Display e ->
+			let acc = [name,e] in
+			let e = EObjectDecl acc,punion p (pos e) in
+			display e
+		in
+		let fl = parse_obj_decl name e p s in
+		EObjectDecl fl
 	| [< >] ->
 		let e = expr_next (EConst ident,p) s in
 		try
@@ -741,13 +753,39 @@ and parse_block_elt = parser
 	| [< '(Kwd Inline,p1); '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
 	| [< e = expr; _ = semicolon >] -> e
 
-and parse_obj_decl = parser
-	| [< '(Comma,_); s >] ->
-		(match s with parser
-		| [< name,p = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,NoQuotes),e) :: l
-		| [< '(Const (String name),p); '(DblDot,_); e = expr; l = parse_obj_decl >] -> ((name,p,DoubleQuotes),e) :: l
-		| [< >] -> [])
-	| [< >] -> []
+and parse_obj_decl name e p0 s =
+	let rec loop acc = match s with parser
+		| [< '(Comma,p1); s >] ->
+			let next key = match s with parser
+				| [< '(DblDot,_) >] ->
+					let e = try
+						begin match s with parser
+						| [< e = expr >] -> e
+						| [< >] -> serror()
+						end
+					with Display e ->
+						let acc = (key,e) :: acc in
+						let e = EObjectDecl (List.rev acc),punion p0 (pos e) in
+						display e
+					in
+					loop ((key,e) :: acc)
+				| [< >] -> serror()
+			in
+			begin match s with parser
+				| [< name,p = ident >] -> next (name,p,NoQuotes)
+				| [< '(Const (String name),p) >] -> next (name,p,DoubleQuotes)
+				| [< >] ->
+					let p2 = pos (next_token s) in
+					if encloses_resume (punion p1 p2) then begin
+						let e = EObjectDecl (List.rev acc),punion p0 p2 in
+						let e = EDisplay(e,false),(pos e) in
+						display e
+					end else
+						acc
+			end
+		| [< >] -> acc
+	in
+	List.rev (loop [name,e])
 
 and parse_array_decl = parser
 	| [< e = expr; s >] ->
