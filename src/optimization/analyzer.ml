@@ -454,7 +454,8 @@ module ConstPropagation = DataFlow(struct
 				eval bb e1
 			| _ ->
 				let e1 = match ctx.com.platform,e.eexpr with
-					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 -> e1
+					| Js,TArray(e1,{eexpr = TConst(TInt i)}) when Int32.to_int i = 1 && Define.defined ctx.com.defines Define.JsEnumsAsArrays -> e1
+					| Js,TField(e1,FDynamic "_hx_index") when not (Define.defined ctx.com.defines Define.JsEnumsAsArrays) -> e1
 					| Cpp,TCall({eexpr = TField(e1,FDynamic "__Index")},[]) -> e1
 					| Neko,TField(e1,FDynamic "index") -> e1
 					| _ -> raise Exit

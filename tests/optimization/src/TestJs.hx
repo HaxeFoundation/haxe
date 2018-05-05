@@ -492,11 +492,19 @@ class TestJs {
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
 
+	#if js_enums_as_arrays
 	@:js('
 		var _g = Type["typeof"]("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
+	#else
+	@:js('
+		var _g = Type["typeof"]("");
+		var v = _g._hx_index == 6 && _g.c == String;
+		TestJs.use(v);
+	')
+	#end
 	static function testIssue4745() {
 		var o = "";
 		var v = Type.typeof(o).match(TClass(String));
