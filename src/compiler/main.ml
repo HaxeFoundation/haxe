@@ -532,7 +532,7 @@ try
 		("Target",["--hl"],["-hl"],Arg.String (fun file ->
 			Initialize.set_platform com Hl file;
 		),"<file>","compile HL code as target file");
-		("Target",["-x";"--execute"],[], Arg.String (fun cl ->
+		("Target",[],["-x";"--execute"], Arg.String (fun cl ->
 			let cpath = Path.parse_type_path cl in
 			(match com.main_class with
 				| Some c -> if cpath <> c then raise (Arg.Bad "Multiple --main classes specified")
@@ -542,7 +542,7 @@ try
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
 		),"<class>","interpret the program using internal macro system");
-		("Target",[],["--interp"], Arg.Unit (fun() ->
+		("Target",["--interp"],[], Arg.Unit (fun() ->
 			Common.define com Define.Interp;
 			Initialize.set_platform com (!Globals.macro_platform) "";
 			interp := true;
