@@ -661,7 +661,7 @@ let get_closure_env ctx info num_locals num_captures refs =
 	env
 
 let create_function ctx num_args get_env hasret refs exec =
-	if hasret then (fun vl ->
+	if hasret || ctx.debug.support_debugger then (fun vl ->
 		let env = get_env refs in
 		List.iteri (fun i v ->
 			env.env_locals.(i) <- v

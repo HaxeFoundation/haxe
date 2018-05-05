@@ -6,6 +6,7 @@ open EvalHash
 open EvalValue
 open EvalEncode
 open EvalMisc
+open EvalExceptions
 
 type debug_connection = {
 	wait : context -> (env -> value) -> env -> value;
@@ -260,8 +261,18 @@ let rec expr_to_value ctx env e =
 			if is_true v1 then loop e2 else loop e3
 		| EParenthesis e1 | EMeta(_,e1) | EUntyped e1 | ECast(e1,None) | ECheckType(e1,_) ->
 			loop e1
+		| EReturn e1 ->
+			let v1 = Option.map_default loop vnull e1 in
+			raise (Return v1)
+		| EContinue ->
+			raise Continue
+		| EBreak ->
+			raise Break
+		| EThrow e1 ->
+			let v1 = loop e1 in
+			throw v1 (pos e)
 		| EWhile _ | ETry _ | ESwitch _ | ENew _ | EVars _ | EFunction _ | EFor _ | EDisplay _
-		| EDisplayNew _ | EReturn _ | EContinue | EBreak | EThrow _  | ECast(_,Some _) ->
+		| EDisplayNew _ | ECast(_,Some _) ->
 			raise Exit
 	in
 	loop e
