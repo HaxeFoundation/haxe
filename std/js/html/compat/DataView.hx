@@ -104,8 +104,8 @@ class DataView {
 	public function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void {
 		var p = byteOffset + offset;
 		if( littleEndian ) {
-			buf.a[p] = value&0xFF;
-			buf.a[p++] = (value>>8) & 0xFF;
+			buf.a[p++] = value&0xFF;
+			buf.a[p] = (value>>8) & 0xFF;
 		} else {
 			buf.a[p++] = (value>>8) & 0xFF;
 			buf.a[p] = value&0xFF;
