@@ -4,6 +4,7 @@
 # -cp "C:\Program Files\The Haxe Effect\src/dev/null"
 --resource res1.txt@re/s?!%[]))("'1.txt
 --resource res2.bin@re/s?!%[]))("'1.bin
+--resource serializedValues.txt
 --dce full
 -D analyzer-optimize
 -D analyzer-user-var-fusion
