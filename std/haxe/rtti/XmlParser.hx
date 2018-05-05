@@ -220,7 +220,6 @@ class XmlParser {
 				cur = pk;
 			}
 		}
-		var prev = null;
 		for( ct in cur ) {
 			var tinf;
 			try

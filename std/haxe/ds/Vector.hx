@@ -299,7 +299,6 @@ abstract Vector<T>(VectorData<T>) {
 		return this.join(sep);
 		#else
 		var b = new StringBuf();
-		var i = 0;
 		var len = length;
 		for(i in 0...len) {
 			b.add( Std.string(get(i)) );
@@ -324,7 +323,6 @@ abstract Vector<T>(VectorData<T>) {
 		#else
 		var length = length;
 		var r = new Vector<S>(length);
-		var i = 0;
 		var len = length;
 		for(i in 0...len) {
 			var v = f(get(i));

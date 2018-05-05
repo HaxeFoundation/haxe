@@ -223,8 +223,6 @@ class Path {
 		}
 
 		var tmp = target.join(slash);
-		var regex = ~/([^:])\/+/g;
-		var result = regex.replace(tmp, "$1" +slash);
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
