@@ -18,7 +18,7 @@ class Issue2813 extends Test {
 		var f = Ext.test2;
 		eq("foo", f());
 
-		t(unit.TestType.typeError({
+		t(unit.HelperMacros.typeError({
 			var e = new Ext();
 			var f = e.test;
 		}));

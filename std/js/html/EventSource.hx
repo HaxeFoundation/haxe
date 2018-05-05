@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/EventSource.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\EventSource.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `EventSource` interface is used to receive server-sent events. It connects to a server over HTTP and receives events in `text/event-stream` format without closing the connection.
+
+	Documentation [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/EventSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventSource>
+**/
 @:native("EventSource")
 extern class EventSource extends EventTarget
 {
@@ -31,14 +38,38 @@ extern class EventSource extends EventTarget
 	static inline var OPEN : Int = 1;
 	static inline var CLOSED : Int = 2;
 	
+	
+	/**
+		A `DOMString` representing the URL of the source.
+	**/
 	var url(default,null) : String;
 	var withCredentials(default,null) : Bool;
+	
+	/**
+		An `unsigned short` representing the state of the connection. Possible values are `CONNECTING` (`0`), `OPEN` (`1`), or `CLOSED` (`2`).
+	**/
 	var readyState(default,null) : Int;
+	
+	/**
+		Is an `EventHandler` being called when an `open` event is received, that is when the connection was just opened.
+	**/
 	var onopen : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` being called when a `message` event is received, that is when a message is coming from the source.
+	**/
 	var onmessage : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` being called when an error occurs and the `error` event is dispatched on this object.
+	**/
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
 	function new( url : String, ?eventSourceInitDict : EventSourceInit ) : Void;
+	
+	/**
+		Closes the connection, if any, and sets the `readyState` attribute to `CLOSED`. If the connection is already closed, the method does nothing.
+	**/
 	function close() : Void;
 }

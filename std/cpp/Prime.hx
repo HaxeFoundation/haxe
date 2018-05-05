@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,7 +32,6 @@ class Prime {
 
    #if (!macro && cpp)
 
-   @:analyzer(no_simplification)
 	public static function _loadPrime( lib : String, prim : String, signature : String, quietFail = false ) : Dynamic {
 		var factory:Callable< ConstCharStar -> Object > =
                untyped __global__.__hxcpp_cast_get_proc_address(lib, prim + "__prime", quietFail);
@@ -50,7 +49,8 @@ class Prime {
    #if (macro)
    static function codeToType(code:String,forCpp:Bool) : String
    {
-      var isCpp = Context.defined("cpp");
+      if (code=="c" && !forCpp)
+         throw "const char * type only supported in cpp mode";
 
       switch(code)
       {
@@ -61,10 +61,7 @@ class Prime {
          case "f" : return forCpp ? "cpp.Float32" : "Float";
          case "o" : return forCpp ? "cpp.Object" : "Dynamic";
          case "v" : return forCpp ? "cpp.Void" : "Dynamic";
-         case "c" :
-             if (forCpp)
-                return "cpp.ConstCharStar";
-             throw "const char * type only supported in cpp mode";
+         case "c" : return "cpp.ConstCharStar";
          default:
             throw "Unknown signature type :" + code;
       }
@@ -76,7 +73,7 @@ class Prime {
       #if neko
       var init = neko.Lib.load(inModuleName, "neko_init", 5);
 
-      if (init != null) 
+      if (init != null)
       {
          init( function(s) return new String(s),
                function(len:Int) { var r = []; if (len > 0) r[len - 1] = null; return r; },
@@ -96,8 +93,10 @@ class Prime {
       var parts = inSig.split("");
       if (parts.length<1)
          throw "Invalid function signature " + inSig;
+      var argCount = parts.length-1;
 
-      var cppMode = Context.defined("cpp");
+      var cppiaMode = Context.defined("cppia");
+      var cppMode = Context.defined("cpp") && !cppiaMode;
 
       var typeString = parts.length==1 ? "Void" : codeToType(parts.shift(),cppMode);
       for(p in parts)
@@ -111,11 +110,11 @@ class Prime {
       }
       else
       {
-         var len = parts.length;
-         if (len>5)
-            len = -1;
+         if (argCount>5)
+            argCount = -1;
          var lazy = inAllowFail ? "loadLazy" : "load";
-         var expr = 'new cpp.Callable<$typeString>(neko.Lib.$lazy("$inModule","$inName",$len))';
+         var lib = cppiaMode ? "cpp" : "neko";
+         var expr = 'new cpp.Callable<$typeString>($lib.Lib.$lazy("$inModule","$inName",$argCount))';
          return Context.parse( expr, Context.currentPos() );
       }
    }

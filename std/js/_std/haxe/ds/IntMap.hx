@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,31 +30,26 @@ package haxe.ds;
 	}
 
 	public inline function set( key : Int, value : T ) : Void {
-		untyped h[key] = value;
+		h[key] = value;
 	}
 
 	public inline function get( key : Int ) : Null<T> {
-		return untyped h[key];
+		return h[key];
 	}
 
 	public inline function exists( key : Int ) : Bool {
-		return untyped h.hasOwnProperty(key);
+		return (cast h).hasOwnProperty(key);
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped !h.hasOwnProperty(key) ) return false;
-		untyped  __js__("delete")(h[key]);
+		if( !(cast h).hasOwnProperty(key) ) return false;
+		js.Syntax.delete(h, key);
 		return true;
 	}
 
 	public function keys() : Iterator<Int> {
 		var a = [];
-		untyped {
-			__js__("for( var key in this.h ) {");
-				if( h.hasOwnProperty(key) )
-					a.push(key|0);
-			__js__("}");
-		}
+		untyped __js__("for( var key in {0} ) {1}", h, if( h.hasOwnProperty(key) ) a.push(key|0));
 		return a.iterator();
 	}
 
@@ -65,6 +60,12 @@ package haxe.ds;
 			hasNext : function() { return __this__.it.hasNext(); },
 			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
 		};
+	}
+
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	public function toString() : String {

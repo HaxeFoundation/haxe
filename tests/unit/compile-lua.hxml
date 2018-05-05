@@ -1,0 +1,3 @@
+compile-each.hxml
+--main unit.TestMain
+-lua bin/unit.lua

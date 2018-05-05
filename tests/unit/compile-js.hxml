@@ -1,10 +1,10 @@
--cp src
--main unit.issues.Issue4138
+-p src
+--main unit.issues.Issue4138
 -js bin/Issue4138_Worker.js
 -D worker
 
 --next
 
 compile-each.hxml
-unit.Test
+unit.TestMain
 -js bin/unit.js

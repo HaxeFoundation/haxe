@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,28 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 841:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionLoseContext")
+/**
+	The WEBGL_lose_context extension is part of the WebGL API and exposes functions to simulate losing and restoring a `WebGLRenderingContext`.
+
+	Documentation [WEBGL_lose_context](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_lose_context) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_lose_context$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_lose_context>
+**/
+@:native("WEBGL_lose_context")
 extern class ExtensionLoseContext
 {
+	
+	/**
+		Simulates losing the context.
+	**/
 	function loseContext() : Void;
+	
+	/**
+		Simulates restoring the context.
+	**/
 	function restoreContext() : Void;
 }

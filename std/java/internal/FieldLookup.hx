@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -73,7 +73,7 @@ import java.lang.System;
 		a[length - 1] = null;
 	}
 
-	@:extern
+	extern
 	static inline function __insert<T>(a:java.NativeArray<T>, length:Int, pos:Int, x:T):java.NativeArray<T>
 	{
 		var capacity = a.length;

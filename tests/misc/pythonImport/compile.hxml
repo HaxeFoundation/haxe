@@ -1,2 +1,3 @@
--main Main
+--main Main
 -python test.py
+-lib utest

@@ -7,14 +7,14 @@ private abstract A<T>(Array<T>) {
 
 	#if java
 	@:impl
-	@:overload @:extern
+	@:overload extern
 	static inline public function sum(a:Array<Int>) {
 		return "sum of ints";
 	}
 
-	@:overload @:extern
+	@:overload
 	@:impl
-	static inline public function sum(a:Array<String>) {
+	extern static inline public function sum(a:Array<String>) {
 		return "sum of strings";
 	}
 	#end

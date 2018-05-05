@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -75,7 +75,7 @@ class UnitBuilder {
 		}
 	}
 
-	static function mkEq(e1, e2, p) {
+	static function mkEq(e1, e2, p:Position) {
 		function isFloat(e) {
 			try return switch(Context.follow(Context.typeof(e))) {
 				case TAbstract(tr, _):
@@ -147,7 +147,7 @@ class UnitBuilder {
 						}
 					case EThrow(e):
 						macro exc(function() $e);
-					case EIn(e1, {expr:EArrayDecl(el) }):
+					case EBinop(OpIn, e1, {expr:EArrayDecl(el) }):
 						var el2 = [];
 						for (e in el)
 							el2.push(macro $e1 == $e);

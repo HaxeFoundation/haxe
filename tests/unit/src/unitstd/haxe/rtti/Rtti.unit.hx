@@ -13,7 +13,7 @@ cl.fields.length == 1;
 cl.statics.length == 1;
 cl.tdynamic == null;
 
-var cf = cl.statics.first();
+var cf = cl.statics.shift();
 cf.name == "v";
 haxe.rtti.CType.CTypeTools.toString(cf.type) == "String";
 cf.isPublic == false;
@@ -27,7 +27,7 @@ cf.meta.length == 0;
 cf.line == null;
 cf.overloads == null;
 
-var cf = cl.fields.first();
+var cf = cl.fields.shift();
 cf.name == "f";
 haxe.rtti.CType.CTypeTools.toString(cf.type) == "Void -> Float";
 cf.isPublic == true;
@@ -65,7 +65,7 @@ cl.fields.length == 1;
 cl.statics.length == 0;
 cl.tdynamic == null;
 
-var cf = cl.fields.first();
+var cf = cl.fields.shift();
 cf.name == "f";
 haxe.rtti.CType.CTypeTools.toString(cf.type) == "Void -> Int";
 cf.isPublic == true;

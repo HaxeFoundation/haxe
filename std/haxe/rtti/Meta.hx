@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,8 +21,16 @@
  */
 package haxe.rtti;
 
+private typedef MetaObject = {
+	?fields:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
+	?statics:Dynamic<Dynamic<Null<Array<Dynamic>>>>,
+	?obj:Dynamic<Null<Array<Dynamic>>>,
+}
+
 /**
-	An api to access classes and enums metadata at runtime.
+	An API to access classes and enums metadata at runtime.
+
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Meta {
 
@@ -42,31 +50,33 @@ class Meta {
 			return cs.Lib.toNativeType(t).IsInterface;
 		#elseif (flash && as3)
 			return untyped flash.Lib.describeType(t).factory.extendsClass.length() == 0;
-		#elseif php
-			return untyped __php__("{0} instanceof _hx_interface", t);
 		#else
 			throw "Something went wrong";
 		#end
 	}
 
-	private static function getMeta(t:Dynamic):Dynamic
-	{
-#if (java || cs || php || (flash && as3))
-		var ret = Reflect.field(t, "__meta__");
-		if (ret == null && Std.is(t,Class))
-		{
-			if (isInterface(t))
+	private static function getMeta(t:Dynamic):MetaObject {
+		#if php
+			return php.Boot.getMeta(t.phpClassName);
+		#elseif (java || cs || (flash && as3))
+			var ret = Reflect.field(t, "__meta__");
+			if (ret == null && Std.is(t,Class))
 			{
-				var name = Type.getClassName(t),
-				    cls = Type.resolveClass(name + '_HxMeta');
-				if (cls != null)
-					return Reflect.field(cls, "__meta__");
+				if (isInterface(t))
+				{
+					var name = Type.getClassName(t),
+						cls = Type.resolveClass(name + '_HxMeta');
+					if (cls != null)
+						return Reflect.field(cls, "__meta__");
+				}
 			}
-		}
-		return ret;
-#else
-		return untyped t.__meta__;
-#end
+			return ret;
+		#elseif hl
+			var t : hl.BaseType = t;
+			return t.__meta__;
+		#else
+			return untyped t.__meta__;
+		#end
 	}
 
 	/**

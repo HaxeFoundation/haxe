@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLFrameSetElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\HTMLFrameSetElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLFrameSetElement` interface provides special properties (beyond those of the regular `HTMLElement` interface they also inherit) for manipulating `frameset` elements.
+
+	Documentation [HTMLFrameSetElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement>
+**/
 @:native("HTMLFrameSetElement")
 extern class FrameSetElement extends Element
 {
+	
+	/**
+		Is a `DOMString` that represents the foreground color of text.
+	**/
 	var cols : String;
+	
+	/**
+		Is a `DOMString` that represents the color of visited links.
+	**/
 	var rows : String;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;
@@ -40,7 +55,7 @@ extern class FrameSetElement extends Element
 	var onpagehide : haxe.Constraints.Function;
 	var onpageshow : haxe.Constraints.Function;
 	var onpopstate : haxe.Constraints.Function;
-	var onresize : haxe.Constraints.Function;
+	var onstorage : haxe.Constraints.Function;
 	var onunload : haxe.Constraints.Function;
 	
 }

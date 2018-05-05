@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLFieldSetElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\HTMLFieldSetElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLFieldSetElement` interface has special properties and methods (beyond the regular `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of field-set elements.
+
+	Documentation [HTMLFieldSetElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement>
+**/
 @:native("HTMLFieldSetElement")
 extern class FieldSetElement extends Element
 {

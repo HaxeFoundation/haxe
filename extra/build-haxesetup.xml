@@ -1,0 +1,16 @@
+<xml>
+
+<include name="${HXCPP}/build-tool/BuildCommon.xml"/>
+<set name="static_link" value="1" />
+<set name="no_console" value="1" />
+
+<files id="haxesetup">
+  <file name="setup.cpp" />
+</files>
+
+<target id="default" output="haxesetup" tool="linker" toolid="exe">
+  <lib name="advapi32.lib" />
+  <files id="haxesetup" />
+</target>
+
+</xml>

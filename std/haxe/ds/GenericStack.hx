@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,11 @@
  */
 package haxe.ds;
 
+/**
+	A cell of `haxe.ds.GenericStack`.
+  
+	@see https://haxe.org/manual/std-GenericStack.html
+**/
 #if (flash || cpp)
 @:generic
 #end
@@ -32,6 +37,15 @@ class GenericCell<T> {
 
 #if cpp
 @:generic
+#if cppia
+private class GenericStackIterator<T> {
+	public var current : GenericCell<T>;
+	public function hasNext():Bool { return current!=null; }
+	public function next():T { var result = current.elt; current = current.next; return result; }
+
+	public function new(head) { current = head; }
+}
+#else
 private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 	public var current : GenericCell<T>;
 	override public function hasNext():Bool { return current!=null; }
@@ -39,6 +53,8 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	public function new(head) { current = head; }
 }
+#end
+
 
 #end
 
@@ -53,6 +69,8 @@ private class GenericStackIterator<T> extends cpp.FastIterator<T> {
 
 	The generated name is an implementation detail and should not be relied
 	upon.
+
+	@see https://haxe.org/manual/std-GenericStack.html
 **/
 #if (flash || cpp)
 @:generic

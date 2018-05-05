@@ -1,6 +1,7 @@
 import sys.FileSystem;
+import utest.Assert;
 
-class TestFileSystem extends haxe.unit.TestCase {
+class TestFileSystem {
 	/**
 		Recursively remove a given directory.
 	*/
@@ -24,53 +25,55 @@ class TestFileSystem extends haxe.unit.TestCase {
 		case _: ["", "/"];
 	}
 
-	override public function setup() {
+	public function new() { }
+
+	public function setup() {
 		removeDir(dir);
 		FileSystem.createDirectory(dir);
 	}
 
-	override public function tearDown() {
+	public function tearDown() {
 		removeDir(dir);
 	}
 
 	function testReadDirectory():Void {
 		for (tailingSlash in tailingSlashes) {
-			assertEquals(0, FileSystem.readDirectory(dir).length);
+			Assert.equals(0, FileSystem.readDirectory(dir).length);
 			for (name in FileNames.names) {
 				var path = dir + name + tailingSlash;
 				FileSystem.createDirectory(path);
 				var files = FileSystem.readDirectory(path);
-				assertEquals(0, files.length);
+				Assert.equals(0, files.length);
 			}
 			var files = FileSystem.readDirectory(dir);
 			for (name in FileNames.names) {
-				assertTrue(files.indexOf(name) > -1);
+				Assert.isTrue(files.indexOf(name) > -1);
 			}
-			assertEquals(FileNames.names.length, files.length);
+			Assert.equals(FileNames.names.length, files.length);
 			for (name in FileNames.names) {
 				FileSystem.deleteDirectory(dir + name);
 			}
 
 			//read current directory
-			assertTrue(FileSystem.readDirectory("." + tailingSlash).indexOf("compile.hxml") > -1);
+			Assert.isTrue(FileSystem.readDirectory("." + tailingSlash).indexOf("compile.hxml") > -1);
 			//read parent directory
-			assertTrue(FileSystem.readDirectory(".." + tailingSlash).indexOf("sys") > -1);
+			Assert.isTrue(FileSystem.readDirectory(".." + tailingSlash).indexOf("sys") > -1);
 			//read directory with complex path
-			assertTrue(FileSystem.readDirectory("../sys/./.." + tailingSlash).indexOf("sys") > -1);
+			Assert.isTrue(FileSystem.readDirectory("../sys/./.." + tailingSlash).indexOf("sys") > -1);
 		}
 	}
 
 	function testCreateDirectory():Void {
 		for (tailingSlash in tailingSlashes) {
-			assertEquals(0, FileSystem.readDirectory(dir).length);
+			Assert.equals(0, FileSystem.readDirectory(dir).length);
 			for (name in FileNames.names) {
 				FileSystem.createDirectory(dir + name + tailingSlash);
 			}
 			var files = FileSystem.readDirectory(dir);
 			for (name in FileNames.names) {
-				assertTrue(files.indexOf(name) > -1);
+				Assert.isTrue(files.indexOf(name) > -1);
 			}
-			assertEquals(FileNames.names.length, files.length);
+			Assert.equals(FileNames.names.length, files.length);
 			for (name in FileNames.names) {
 				FileSystem.deleteDirectory(dir + name);
 			}
@@ -78,12 +81,12 @@ class TestFileSystem extends haxe.unit.TestCase {
 			//create deep directory
 			var path = dir + "1/2/3" + tailingSlash;
 			FileSystem.createDirectory(path);
-			assertTrue(FileSystem.isDirectory(path));
+			Assert.isTrue(FileSystem.isDirectory(path));
 
 			//create directory in complex path
 			var path = dir + "1/../1/./../complex" + tailingSlash;
 			FileSystem.createDirectory(path);
-			assertTrue(FileSystem.readDirectory(dir).indexOf("complex") > -1);
+			Assert.isTrue(FileSystem.readDirectory(dir).indexOf("complex") > -1);
 
 			FileSystem.deleteDirectory(dir + "1/2/3");
 			FileSystem.deleteDirectory(dir + "1/2");
@@ -94,7 +97,7 @@ class TestFileSystem extends haxe.unit.TestCase {
 
 	function testWindowsSpecialCases() {
 		if (Sys.systemName() != "Windows" #if python || true #end) {
-			assertTrue(true);
+			Assert.isTrue(true);
 			return;
 		}
 		var withSlash = "C:/";
@@ -102,10 +105,22 @@ class TestFileSystem extends haxe.unit.TestCase {
 		var without = "C:";
 
 		for (path in [withSlash, withBackslash, without]) {
-			assertTrue(FileSystem.exists(path));
-			assertTrue(FileSystem.isDirectory(path));
-			assertTrue(FileSystem.stat(path) != null);
-			assertTrue(FileSystem.readDirectory(path) != null);
+			Assert.isTrue(FileSystem.exists(path));
+			Assert.isTrue(FileSystem.isDirectory(path));
+			Assert.isTrue(FileSystem.stat(path) != null);
+			Assert.isTrue(FileSystem.readDirectory(path) != null);
 		}
+	}
+
+	function testStatDirectory() {
+		var stat = FileSystem.stat(dir);
+		Assert.isTrue(stat != null);
+	}
+
+	function testCreateExistingDirectory() {
+		var testDir = dir + "exists";
+		FileSystem.createDirectory(testDir);
+		FileSystem.createDirectory(testDir); // shouldn't throw
+		Assert.isTrue(FileSystem.isDirectory(testDir));
 	}
 }

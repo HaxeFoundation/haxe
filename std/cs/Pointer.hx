@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -85,7 +85,7 @@ import cs.StdTypes.Int64;
 	public var acc(get,never):PointerAccess<T>;
 
 	// @:analyzer(no_simplification)
-	@:extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
+	extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
 
 	// backwards compatibility
 	inline public function add(i:Int):Pointer<T>

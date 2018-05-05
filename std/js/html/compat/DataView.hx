@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ package js.html.compat;
 #if !nodejs
 import haxe.io.Error;
 
-@:ifFeature("haxe.io.Float32Array.*", "haxe.io.Float64Array.*")
+@:ifFeature("js.html.DataView.*")
 @:access(js.html.compat.ArrayBuffer)
 class DataView {
 
@@ -32,12 +32,19 @@ class DataView {
 	var offset : Int;
 	var length : Int;
 
+	public var byteLength(default,null):Int;
+	public var byteOffset(default,null):Int;
+	public var buffer(default,null):ArrayBuffer;
+
 	public function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void {
 		this.buf = buffer;
 		this.offset = byteOffset == null ? 0 : byteOffset;
 		this.length = byteLength == null ? buffer.byteLength - this.offset : byteLength;
 		if( offset < 0 || length < 0 || offset+length > buffer.byteLength )
 			throw OutsideBounds;
+		this.byteLength = length;
+		this.byteOffset = offset;
+		this.buffer = buf;
 	}
 
 	public function getInt8( byteOffset : Int ) : Int {
@@ -97,8 +104,8 @@ class DataView {
 	public function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void {
 		var p = byteOffset + offset;
 		if( littleEndian ) {
-			buf.a[p] = value&0xFF;
-			buf.a[p++] = (value>>8) & 0xFF;
+			buf.a[p++] = value&0xFF;
+			buf.a[p] = (value>>8) & 0xFF;
 		} else {
 			buf.a[p++] = (value>>8) & 0xFF;
 			buf.a[p] = value&0xFF;
@@ -132,15 +139,15 @@ class DataView {
 		var i64 = haxe.io.FPHelper.doubleToI64(value);
 		if( littleEndian ) {
 			setUint32(byteOffset, i64.low);
-			setUint32(byteOffset, i64.high);
+			setUint32(byteOffset + 4, i64.high);
 		} else {
 			setUint32(byteOffset, i64.high);
-			setUint32(byteOffset, i64.low);
+			setUint32(byteOffset + 4, i64.low);
 		}
 	}
 
 	static function __init__() {
-		var DataView = untyped js.Lib.global.DataView || js.html.compat.DataView;
+		untyped __js__("var DataView = {0} || {1}", js.Lib.global.DataView, js.html.compat.DataView);
 	}
 
 }

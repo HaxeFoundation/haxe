@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,24 +30,37 @@ import cs.internal.Exceptions;
 			return t == Dynamic;
 		if (t == null)
 			return false;
-		var clt:cs.system.Type = cast t;
+		var clt = cs.Lib.as(t, cs.system.Type);
 		if (clt == null)
 			return false;
-		var name:String = cast clt;
 
-		switch(name)
+		switch(clt.ToString())
 		{
 			case "System.Double":
-				return untyped __cs__('v is double || v is int');
+				return untyped __cs__('{0} is double || {0} is int', v);
 			case "System.Int32":
-				return untyped __cs__('haxe.lang.Runtime.isInt(v)');
+				return cs.internal.Runtime.isInt(v);
 			case "System.Boolean":
-				return untyped __cs__('v is bool');
+				return untyped __cs__('{0} is bool', v);
 			case "System.Object":
 				return true;
 		}
 
-		return clt.IsAssignableFrom(cs.Lib.getNativeType(v));
+		var vt = cs.Lib.getNativeType(v);
+
+		if (clt.IsAssignableFrom(vt))
+			return true;
+
+		#if !erase_generics
+		for (iface in clt.GetInterfaces()) {
+			var g = cs.internal.Runtime.getGenericAttr(iface);
+			if (g != null && g.generic == clt) {
+				return iface.IsAssignableFrom(vt);
+			}
+		}
+		#end
+
+		return false;
 	}
 
 	public static function string( s : Dynamic ) : String {
@@ -59,7 +72,7 @@ import cs.internal.Exceptions;
 		return s.ToString();
 	}
 
-	public static inline function int( x : Float ) : Int {
+	public static function int( x : Float ) : Int {
 		return cast x;
 	}
 
@@ -178,7 +191,7 @@ import cs.internal.Exceptions;
 			Math.NaN;
 	}
 
-	@:extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	extern inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return cs.Lib.as(value,c);
 	}
 

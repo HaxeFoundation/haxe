@@ -5,13 +5,13 @@ using unit.issues.Issue2625;
 
 class Issue2625 extends Test {
 	function test() {
-		t(unit.TestType.typeError(
+		t(unit.HelperMacros.typeError(
 			switch(1) {
 				case (_.equals(2) => true) | (_.equals(3) => false):
 			}
 		));
 
-		t(unit.TestType.typeError(
+		t(unit.HelperMacros.typeError(
 			switch(1) {
 				case (_.equals(2) => true), (_.equals(3) => false):
 			}

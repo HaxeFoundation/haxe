@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,4 +21,5 @@
  */
 package python.lib.net;
 
-typedef Address = python.Tuple.Tuple2<String,Int>;
+@:deprecated("Use python.lib.socket.Adress instead")
+typedef Address = python.lib.socket.Address;

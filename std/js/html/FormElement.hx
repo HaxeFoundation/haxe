@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,21 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLFormElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\HTMLFormElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLFormElement` interface provides methods to create and modify `form` elements.
+		document.forms - returns an array of HTMLFormElement objects referencing all forms on the page.
+		document.forms[index] - returns an HTMLFormElement object referencing the form at the specified index.
+		document.forms['id'] - returns an HTMLFormElement object referencing the form with the specified id.
+		document.forms['name'] - returns an HTMLFormElement object referencing the form with the specified name.
+
+	Documentation [HTMLFormElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement>
+**/
 @:native("HTMLFormElement")
 extern class FormElement extends Element implements ArrayAccess<Element>
 {

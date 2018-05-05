@@ -1,5 +1,6 @@
 package unit.issues;
 
+#if !java
 @:generic
 private class Node<T:Node<T>> extends Foo<T> {
 	public var node:T;
@@ -34,9 +35,13 @@ private class StringNode extends Node<StringNode> {
 	}
 }
 
+#end
+
 class Issue2086 extends Test {
 	function test() {
+		#if !java
 		var sNode = new StringNode("foo");
 		eq("StringNode_funcNode_funcFoo_super_func", sNode.s);
+		#end
 	}
 }

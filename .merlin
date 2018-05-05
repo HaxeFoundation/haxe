@@ -1,0 +1,14 @@
+S src/**
+B _build/src/**
+S libs/**
+B libs/**
+B +threads
+PKG rope
+PKG ptmap
+PKG sedlex
+PKG extlib
+PKG camlzip
+PKG xml-light
+PKG sha
+FLG -safe-string
+FLG -w -3

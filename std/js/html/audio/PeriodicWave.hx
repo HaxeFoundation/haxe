@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/PeriodicWave.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\PeriodicWave.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	`PeriodicWave` has no inputs or outputs; it is used to create custom oscillators via `OscillatorNode.setPeriodicWave`. The `PeriodicWave` itself is created/returned by `AudioContext.createPeriodicWave`.
+
+	Documentation [PeriodicWave](https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave>
+**/
 @:native("PeriodicWave")
 extern class PeriodicWave
 {

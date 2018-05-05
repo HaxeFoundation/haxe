@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,22 +22,22 @@
 package php;
 
 import haxe.io.Bytes;
+import php.Syntax.*;
+import php.Global.*;
+import php.SuperGlobal.*;
 
 /**
 	This class is used for accessing the local Web server and the current
-	client request and informations.
+	client request and information.
 **/
 class Web {
 
 	/**
 		Returns the GET and POST parameters.
 	**/
-	public static function getParams() {
+	public static function getParams() : Map<String,String> {
 		#if force_std_separator
-		var a : NativeArray = untyped __php__("$_POST");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		var h = Lib.hashOfAssociativeArray(a);
+		var h = Lib.hashOfAssociativeArray(_POST);
 		var params = getParamsString();
 		if( params == "" )
 			return h;
@@ -48,10 +48,7 @@ class Web {
 		}
 		return h;
 		#else
-		var a : NativeArray = untyped __php__("array_merge($_GET, $_POST)");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		return Lib.hashOfAssociativeArray(a);
+		return Lib.hashOfAssociativeArray(array_merge(_GET, _POST));
 		#end
 	}
 
@@ -80,16 +77,15 @@ class Web {
 		explore(StringTools.replace(getParamsString(), ";", "&"));
 		explore(getPostData());
 
-        if (res.length == 0) {
-            var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
-            var data = post.get(param);
-            var k = 0, v = "";
-            if (untyped __call__("is_array", data)) {
-                untyped __php__(" reset($data); while(list($k, $v) = each($data)) { ");
-                res[k] = v;
-                untyped __php__(" } ");
-            }
-        }
+		if (res.length == 0) {
+			var post:haxe.ds.StringMap<Dynamic> = Lib.hashOfAssociativeArray(_POST);
+			var data = post.get(param);
+			if (is_array(data)) {
+				foreach(data, function(key:Int, value:String) {
+					res[key] = value;
+				});
+			}
+		}
 
 		if (res.length == 0)
 			return null;
@@ -100,21 +96,21 @@ class Web {
 		Returns the local server host name.
 	**/
 	public static inline function getHostName() : String {
-		return untyped __php__("$_SERVER['SERVER_NAME']");
+		return _SERVER['SERVER_NAME'];
 	}
 
 	/**
 		Surprisingly returns the client IP address.
 	**/
 	public static inline function getClientIP() : String {
-		return untyped __php__("$_SERVER['REMOTE_ADDR']");
+		return _SERVER['REMOTE_ADDR'];
 	}
 
 	/**
 		Returns the original request URL (before any server internal redirections).
 	**/
 	public static function getURI() : String {
-		var s : String = untyped __php__("$_SERVER['REQUEST_URI']");
+		var s : String = _SERVER['REQUEST_URI'];
 		return s.split("?")[0];
 	}
 
@@ -122,7 +118,7 @@ class Web {
 		Tell the client to redirect to the given url ("Location" header).
 	**/
 	public static function redirect( url : String ) {
-		untyped __call__('header', "Location: " + url);
+		header("Location: " + url);
 	}
 
 	/**
@@ -130,7 +126,7 @@ class Web {
 		already been sent so this will raise an exception.
 	**/
 	public static inline function setHeader( h : String, v : String ) {
-		untyped __call__('header', h+": "+v);
+		header('$h: $v');
 	}
 
 	/**
@@ -182,49 +178,81 @@ class Web {
 			case 505: code = "505 HTTP Version Not Supported";
 			default: code = Std.string(r);
 		}
-		untyped __call__('header', "HTTP/1.1 " + code, true, r);
+		header("HTTP/1.1 " + code, true, r);
 	}
 
 	/**
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) : String {
-		//Remark : PHP puts all headers in uppercase and replaces - with _, we deal with that here
-		var k = StringTools.replace(k.toUpperCase(),"-","_");
-		for(i in getClientHeaders()) {
-			if(i.header == k)
-				return i.value;
-		}
-		return null;
+		return loadClientHeaders().get(k);
 	}
 
 
-	private static var _client_headers : List<{header : String, value : String}>;
+	private static var _clientHeaders : Map<String,String>;
+	/**
+		Based on https://github.com/ralouphie/getallheaders
+	**/
+	static function loadClientHeaders():Map<String,String> {
+		if(_clientHeaders != null) return _clientHeaders;
+
+		_clientHeaders = new Map();
+
+		if(function_exists('getallheaders')) {
+			foreach(getallheaders(), function(key:String, value:Dynamic) {
+				_clientHeaders.set(key, Std.string(value));
+			});
+			return _clientHeaders;
+		}
+
+		var copyServer = [
+			'CONTENT_TYPE'   => 'Content-Type',
+			'CONTENT_LENGTH' => 'Content-Length',
+			'CONTENT_MD5'    => 'Content-Md5'
+		];
+		foreach(_SERVER, function(key:String, value:Dynamic) {
+			if((substr(key, 0, 5):String) == 'HTTP_') {
+				key = substr(key, 5);
+				if(!copyServer.exists(key) || !isset(_SERVER[key])) {
+					key = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', key))));
+					_clientHeaders[key] = Std.string(value);
+				}
+			} else if(copyServer[key] != null) {
+				_clientHeaders[copyServer[key]] = Std.string(value);
+			}
+		});
+		if(!_clientHeaders.exists('Authorization')) {
+			if(isset(_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+				_clientHeaders['Authorization'] = Std.string(_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+			} else if(isset(_SERVER['PHP_AUTH_USER'])) {
+				var basic_pass = isset(_SERVER['PHP_AUTH_PW']) ? Std.string(_SERVER['PHP_AUTH_PW']) : '';
+				_clientHeaders['Authorization'] = 'Basic ' + base64_encode(_SERVER['PHP_AUTH_USER'] + ':' + basic_pass);
+			} else if(isset(_SERVER['PHP_AUTH_DIGEST'])) {
+				_clientHeaders['Authorization'] = Std.string(_SERVER['PHP_AUTH_DIGEST']);
+			}
+		}
+
+		return _clientHeaders;
+	}
+
 	/**
 		Retrieve all the client headers.
 	**/
-	public static function getClientHeaders() {
-		if(_client_headers == null) {
-			_client_headers = new List();
-			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
-			for(k in h.keys()) {
-				if(k.substr(0,5) == "HTTP_") {
-					_client_headers.add({ header : k.substr(5), value : h.get(k)});
-				// this is also a valid prefix (issue #1883)
-				} else if(k.substr(0,8) == "CONTENT_") {
-					_client_headers.add({ header : k, value : h.get(k)});
-				}
-			}
+	public static function getClientHeaders():List<{value:String, header:String}> {
+		var headers = loadClientHeaders();
+		var result = new List();
+		for(key in headers.keys()) {
+			result.push({value:headers.get(key), header:key});
 		}
-		return _client_headers;
+		return result;
 	}
 
 	/**
 		Returns all the GET parameters `String`
 	**/
 	public static function getParamsString() : String {
-		if(untyped __call__("isset", __var__("_SERVER", "QUERY_STRING")))
-			return untyped __var__("_SERVER", "QUERY_STRING");
+		if(isset(_SERVER['QUERY_STRING']))
+			return _SERVER['QUERY_STRING'];
 		else
 			return "";
 	}
@@ -237,27 +265,27 @@ class Web {
 		case, you will have to use `php.Web.getMultipart()` or
 		`php.Web.parseMultipart()` methods.
 	**/
-	public static function getPostData() {
-		var h = untyped __call__("fopen", "php://input", "r");
+	public static function getPostData() : Null<String> {
+		var h = fopen("php://input", "r");
 		var bsize = 8192;
 		var max = 32;
 		var data : String = null;
 		var counter = 0;
-		while (!untyped __call__("feof", h) && counter < max) {
-			data += untyped __call__("fread", h, bsize);
+		while (!feof(h) && counter < max) {
+			data = Syntax.concat(data, fread(h, bsize));
 			counter++;
 		}
-		untyped __call__("fclose", h);
+		fclose(h);
 		return data;
 	}
 
 	/**
 		Returns an hashtable of all Cookies sent by the client.
-		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()` 
+		Modifying the hashtable will not modify the cookie, use `php.Web.setCookie()`
 		instead.
 	**/
 	public static function getCookies():Map<String,String> {
-		return Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
+		return Lib.hashOfAssociativeArray(_COOKIE);
 	}
 
 
@@ -270,23 +298,23 @@ class Web {
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
 		if(httpOnly == null) httpOnly = false;
-		untyped __call__("setcookie", key, value, t, path, domain, secure, httpOnly);
+		setcookie(key, value, t, path, domain, secure, httpOnly);
 	}
 
 	/**
 		Returns an object with the authorization sent by the client (Basic scheme only).
 	**/
 	public static function getAuthorization() : { user : String, pass : String } {
-		if(!untyped __php__("isset($_SERVER['PHP_AUTH_USER'])"))
+		if(!isset(_SERVER['PHP_AUTH_USER']))
 			return null;
-		return untyped {user: __php__("$_SERVER['PHP_AUTH_USER']"), pass: __php__("$_SERVER['PHP_AUTH_PW']")};
+		return {user: _SERVER['PHP_AUTH_USER'], pass: _SERVER['PHP_AUTH_PW']};
 	}
 
 	/**
 		Get the current script directory in the local filesystem.
 	**/
 	public static inline function getCwd() : String {
-		return untyped __php__("dirname($_SERVER[\"SCRIPT_FILENAME\"])") + "/";
+		return dirname(_SERVER['SCRIPT_FILENAME']) + "/";
 	}
 
 	/**
@@ -323,50 +351,49 @@ class Web {
 		directly save the data on hard drive in the case of a file upload.
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {
-		var a : NativeArray = untyped __var__("_POST");
-		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
-		var post = Lib.hashOfAssociativeArray(a);
-
-		for (key in post.keys())
-		{
+		Syntax.foreach(_POST, function(key:String, value:Dynamic) {
 			onPart(key, "");
-			var v = post.get(key);
-			onData(Bytes.ofString(v), 0, untyped __call__("strlen", v));
-		}
+			onData(Bytes.ofString(value), 0, strlen(value));
+		});
 
-		if(!untyped __call__("isset", __php__("$_FILES"))) return;
-		var parts : Array<String> = untyped __call__("new _hx_array",__call__("array_keys", __php__("$_FILES")));
-		for(part in parts) {
-			var info : Dynamic = untyped __php__("$_FILES[$part]");
-			var tmp : String = untyped info['tmp_name'];
-			var file : String = untyped info['name'];
-			var err : Int = untyped info['error'];
-
-			if(err > 0) {
-				switch(err) {
-					case 1: throw "The uploaded file exceeds the max size of " + untyped __call__('ini_get', 'upload_max_filesize');
-					case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + untyped __call__('ini_get', 'post_max_size') + ")";
-					case 3: throw "The uploaded file was only partially uploaded";
-					case 4: continue; // No file was uploaded
-					case 6: throw "Missing a temporary folder";
-					case 7: throw "Failed to write file to disk";
-					case 8: throw "File upload stopped by extension";
+		if(!isset(_FILES)) return;
+		Syntax.foreach(_FILES, function(part:String, data:NativeAssocArray<Dynamic>) {
+			function handleFile(tmp:String, file:String, err:Int) {
+				var fileUploaded = true;
+				if(err > 0) {
+					switch(err) {
+						case 1: throw "The uploaded file exceeds the max size of " + ini_get('upload_max_filesize');
+						case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + ini_get('post_max_size') + ")";
+						case 3: throw "The uploaded file was only partially uploaded";
+						case 4: fileUploaded = false; // No file was uploaded
+						case 6: throw "Missing a temporary folder";
+						case 7: throw "Failed to write file to disk";
+						case 8: throw "File upload stopped by extension";
+					}
+				}
+				if(fileUploaded) {
+					onPart(part, file);
+					if ("" != file)
+					{
+						var h = fopen(tmp, "r");
+						var bsize = 8192;
+						while (!feof(h)) {
+							var buf : String = fread(h, bsize);
+							var size : Int = strlen(buf);
+							onData(Bytes.ofString(buf), 0, size);
+						}
+						fclose(h);
+					}
 				}
 			}
-			onPart(part, file);
-			if ("" != file)
-			{
-				var h = untyped __call__("fopen", tmp, "r");
-				var bsize = 8192;
-				while (!untyped __call__("feof", h)) {
-					var buf : String = untyped __call__("fread", h, bsize);
-					var size : Int = untyped __call__("strlen", buf);
-					onData(Bytes.ofString(buf), 0, size);
-				}
-				untyped __call__("fclose", h);
+			if(is_array(data['name'])) {
+				for(index in array_keys(data['name'])) {
+					handleFile(data['tmp_name'][index], data['name'][index], data['error'][index]);
+				};
+			} else {
+				handleFile(data['tmp_name'], data['name'], data['error']);
 			}
-		}
+		});
 	}
 
 	/**
@@ -374,15 +401,15 @@ class Web {
 		this can be useful for displaying some long operation progress.
 	**/
 	public static inline function flush() : Void {
-		untyped __call__("flush");
+		Global.flush();
 	}
 
 	/**
 		Get the HTTP method used by the client.
 	**/
 	public static function getMethod() : String {
-		if(untyped __php__("isset($_SERVER['REQUEST_METHOD'])"))
-			return untyped __php__("$_SERVER['REQUEST_METHOD']");
+		if(isset(_SERVER['REQUEST_METHOD']))
+			return _SERVER['REQUEST_METHOD'];
 		else
 			return null;
 	}
@@ -390,6 +417,6 @@ class Web {
 	public static var isModNeko(default,null) : Bool;
 
 	static function __init__() {
-		isModNeko = !php.Lib.isCli();
+		isModNeko = !Lib.isCli();
 	}
 }

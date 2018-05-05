@@ -1,0 +1,13 @@
+{
+	"files.associations": {
+		"*.mly": "ocaml",
+		"*.ml": "ocaml"
+	},
+	"[ocaml]": {
+		"editor.tabSize": 4
+	},
+	"files.exclude": {
+		"**/_build": true
+	},
+	"reason.server.languages": ["ocaml"]
+}

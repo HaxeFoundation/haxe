@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 863:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionStandardDerivatives")
+/**
+	The `OES_standard_derivatives` extension is part of the WebGL API and adds the GLSL derivative functions `dFdx`, `dFdy`, and `fwidth`.
+
+	Documentation [OES_standard_derivatives](https://developer.mozilla.org/en-US/docs/Web/API/OES_standard_derivatives) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_standard_derivatives$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_standard_derivatives>
+**/
+@:native("OES_standard_derivatives")
 extern class ExtensionStandardDerivatives
 {
 	static inline var FRAGMENT_SHADER_DERIVATIVE_HINT_OES : Int = 35723;

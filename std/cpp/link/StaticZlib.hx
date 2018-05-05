@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp.link;
+package cpp.link;
+
+#if (hxcpp_api_level>=330)
+class StaticZlib { }
+#else
 
 @:cppFileCode( 'extern "C" int zlib_register_prims();')
 @:buildXml("
@@ -34,4 +38,6 @@
      untyped __cpp__("zlib_register_prims();");
    }
 }
+
+#end
 

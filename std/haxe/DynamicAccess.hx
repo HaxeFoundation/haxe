@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -91,4 +91,9 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 		Returns an array of `keys` in a structure.
 	**/
 	public inline function keys():Array<String> return Reflect.fields(this);
+	
+	/**
+		Returns a shallow copy of the structure
+	**/
+	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
 }

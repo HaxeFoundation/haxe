@@ -46,14 +46,14 @@ Math.POSITIVE_INFINITY / one == Math.POSITIVE_INFINITY;
 Math.NEGATIVE_INFINITY / one == Math.NEGATIVE_INFINITY;
 //Math.POSITIVE_INFINITY / zero == Math.POSITIVE_INFINITY;
 //Math.NEGATIVE_INFINITY / zero == Math.NEGATIVE_INFINITY;
-Math.isNaN(Math.POSITIVE_INFINITY / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.NEGATIVE_INFINITY);
-Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN);
-Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY);
-Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN);
+Math.isNaN(Math.POSITIVE_INFINITY / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.NEGATIVE_INFINITY) == true;
+Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.POSITIVE_INFINITY / Math.NaN) == true;
+Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
+Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN) == true;
 
 // abs
 Math.abs(-1.223) == 1.223;
@@ -139,9 +139,7 @@ Math.log(Math.POSITIVE_INFINITY) == Math.POSITIVE_INFINITY;
 // exp + log
 var floats = [1.33, 12.0, -112.999992, 0.0, Math.NEGATIVE_INFINITY, Math.POSITIVE_INFINITY];
 for (f in floats) {
-	#if !php
 	feq(Math.log(Math.exp(f)), f);
-	#end
 }
 
 // sqrt
@@ -273,14 +271,14 @@ math.POSITIVE_INFINITY / one == math.POSITIVE_INFINITY;
 math.NEGATIVE_INFINITY / one == math.NEGATIVE_INFINITY;
 //math.POSITIVE_INFINITY / zero == math.POSITIVE_INFINITY;
 //math.NEGATIVE_INFINITY / zero == math.NEGATIVE_INFINITY;
-math.isNaN(math.POSITIVE_INFINITY / math.POSITIVE_INFINITY);
-math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.NEGATIVE_INFINITY);
-math.isNaN(math.NaN / math.POSITIVE_INFINITY);
-math.isNaN(math.POSITIVE_INFINITY / math.NaN);
-math.isNaN(math.NaN / math.POSITIVE_INFINITY);
-math.isNaN(math.NEGATIVE_INFINITY / math.NaN);
+math.isNaN(math.POSITIVE_INFINITY / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.NEGATIVE_INFINITY) == true;
+math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.POSITIVE_INFINITY / math.NaN) == true;
+math.isNaN(math.NaN / math.POSITIVE_INFINITY) == true;
+math.isNaN(math.NEGATIVE_INFINITY / math.NaN) == true;
 
 // abs
 math.abs(-1.223) == 1.223;
@@ -366,9 +364,7 @@ math.log(math.POSITIVE_INFINITY) == math.POSITIVE_INFINITY;
 // exp + log
 var floats = [1.33, 12.0, -112.999992, 0.0, math.NEGATIVE_INFINITY, math.POSITIVE_INFINITY];
 for (f in floats) {
-	#if !php
 	feq(math.log(math.exp(f)), f);
-	#end
 }
 
 // sqrt
@@ -435,5 +431,9 @@ math.isNaN(math.NEGATIVE_INFINITY) == false;
 math.isNaN(math.NaN) == true;
 math.isNaN(0.0) == false;
 
-
-
+// atan2
+math.atan2(0,1) == 0;
+math.atan2(0,1000) == 0;
+math.atan2(1,0) == Math.PI/2;
+math.atan2(-1,0) == -Math.PI/2;
+math.atan2(0,0) == 0;

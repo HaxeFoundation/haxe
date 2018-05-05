@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 package haxe;
 
+import php.*;
 import haxe.io.Bytes;
 import haxe.crypto.Base64;
 
@@ -32,7 +33,7 @@ class Resource {
 	}
 
 	static function getDir() : String {
-		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
+		return Global.dirname(Const.__FILE__) + "/../../res";
 	}
 
 	@:access(haxe.io.Path.escape)

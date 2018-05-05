@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,24 +20,69 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Navigator.webidl line 23:0. Do not edit!
+// This file is generated from mozilla\Navigator.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Navigator` interface represents the state and the identity of the user agent. It allows scripts to query it and to register themselves to carry on some activities.
+
+	Documentation [Navigator](https://developer.mozilla.org/en-US/docs/Web/API/Navigator) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Navigator$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator>
+**/
 @:native("Navigator")
 extern class Navigator
 {
+	
+	/**
+		Returns a `Permissions` object that can be used to query and update permission status of APIs covered by the Permissions API.
+	**/
+	var permissions(default,null) : Permissions;
 	var mimeTypes(default,null) : MimeTypeArray;
 	var plugins(default,null) : PluginArray;
+	
+	/**
+		Reports the value of the user's do-not-track preference. When this value is "yes", your web site or application should not track the user.
+	**/
 	var doNotTrack(default,null) : String;
+	
+	/**
+		Returns a `BatteryManager` object you can use to get information about the battery charging status.
+	**/
+	var battery(default,null) : BatteryManager;
 	var maxTouchPoints(default,null) : Int;
+	
+	/**
+		Returns a string that represents the current operating system.
+	**/
 	var oscpu(default,null) : String;
+	
+	/**
+		Returns the vendor name of the current browser (e.g., "Netscape6").
+	**/
 	var vendor(default,null) : String;
+	
+	/**
+		Returns the vendor version number (e.g. "6.1").
+	**/
 	var vendorSub(default,null) : String;
+	
+	/**
+		Returns the build number of the current browser (e.g., "20060909").
+	**/
 	var productSub(default,null) : String;
+	
+	/**
+		Returns a boolean indicating whether cookies are enabled in the browser or not.
+	**/
 	var cookieEnabled(default,null) : Bool;
 	var buildID(default,null) : String;
-	var battery(default,null) : BatteryManager;
+	var hardwareConcurrency(default,null) : Int;
+	
+	/**
+		Returns a `Geolocation` object allowing accessing the location of the device.
+	**/
 	var geolocation(default,null) : Geolocation;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;
@@ -49,6 +94,8 @@ extern class Navigator
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
 	
+	/** @throws DOMError */
+	function getBattery() : Promise<BatteryManager>;
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
 	/** @throws DOMError */
@@ -57,7 +104,6 @@ extern class Navigator
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
 	function sendBeacon( url : String, ?data : haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<String,FormData>>> ) : Bool;
-	function requestMediaKeySystemAccess( keySystem : String, ?supportedConfigurations : Array<MediaKeySystemOptions> ) : Promise<MediaKeySystemAccess>;
 	/** @throws DOMError */
 	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;
 	/** @throws DOMError */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,9 @@ using Lambda;
 	best used through 'using haxe.macro.TypeTools' syntax and then provides
 	additional methods on haxe.macro.Type instances.
 **/
+#if hl
+@:hlNative("macro")
+#end
 class TypeTools {
 
 	static function nullable(complexType : ComplexType) : ComplexType return macro : Null<$complexType>;
@@ -40,7 +43,7 @@ class TypeTools {
 	static function toField(cf : ClassField) : Field return {
 		function varAccessToString(va : VarAccess, getOrSet : String) : String return {
 			switch (va) {
-				case AccNormal: "default";
+				case AccNormal | AccCtor: "default";
 				case AccNo: "null";
 				case AccNever: "never";
 				case AccResolve: throw "Invalid TAnonymous";
@@ -49,10 +52,14 @@ class TypeTools {
 				case AccRequire(_, _): "default";
 			}
 		}
+		var access = cf.isPublic ? [ APublic ] : [ APrivate ];
+		if (cf.meta.has(":final")) {
+			access.push(AFinal);
+		}
 		if (cf.params.length == 0) {
 			name: cf.name,
 			doc: cf.doc,
-			access: cf.isPublic ? [ APublic ] : [ APrivate ],
+			access: access,
 			kind: switch([ cf.kind, cf.type ]) {
 				case [ FVar(read, write), ret ]:
 					FProp(
@@ -139,18 +146,25 @@ class TypeTools {
 		#end
 	}
 
+	static function toTypeParam(type : Type) : TypeParam return {
+		switch (type) {
+			case TInst(_.get() => {kind: KExpr(e)}, _): TPExpr(e);
+			case _: TPType(toComplexType(type));
+		}
+	}
+
 	static function toTypePath(baseType : BaseType, params : Array<Type>) : TypePath return {
 		var module = baseType.module;
 		{
 			pack: baseType.pack,
 			name: module.substring(module.lastIndexOf(".") + 1),
 			sub: baseType.name,
-			params: [ for (t in params) TPType(toComplexType(t)) ],
+			params: [ for (t in params) toTypeParam(t) ],
 		}
 	}
 
 
-	#if macro
+	#if (macro || display)
 
 	/**
 		Follows all typedefs of `t` to reach the actual type.
@@ -227,7 +241,7 @@ class TypeTools {
 		Applies the type parameters `typeParameters` to type `t` with the given
 		types `concreteTypes`.
 
-		This function replaces occurences of type parameters in `t` if they are
+		This function replaces occurrences of type parameters in `t` if they are
 		part of `typeParameters`. The array index of such a type parameter is
 		then used to lookup the concrete type in `concreteTypes`.
 
@@ -243,8 +257,19 @@ class TypeTools {
 			throw 'Incompatible arguments: ${typeParameters.length} type parameters and ${concreteTypes.length} concrete types';
 		else if (typeParameters.length == 0)
 			return t;
-		return Context.load("apply_params", 3)(typeParameters.map(function(tp) return {name:untyped tp.name.__s, t:tp.t}), concreteTypes, t);
+		#if (neko || eval)
+		return Context.load("apply_params", 3)(typeParameters, concreteTypes, t);
+		#else
+		return applyParams(typeParameters, concreteTypes, t);
+		#end
 	}
+
+	#if !neko
+	private static function applyParams( typeParameters:Array<TypeParameter>, concreteTypes:Array<Type>, t:Type ) : Type {
+		return null;
+	}
+	#end
+
 
 	/**
 		Transforms `t` by calling `f` on each of its subtypes.
@@ -265,7 +290,7 @@ class TypeTools {
 			case TMono(tm):
 				switch(tm.get()) {
 					case null: t;
-					case t: f(t);
+					case var t: f(t);
 				}
 			case TEnum(_, []) | TInst(_, []) | TType(_, []):
 				t;
@@ -328,7 +353,14 @@ class TypeTools {
 	/**
 		Converts type `t` to a human-readable String representation.
 	**/
-	static public function toString( t : Type ) : String return new String(Context.load("s_type", 1)(t));
+	static public function toString( t : Type ) : String {
+		#if (neko || eval)
+		return Context.load("s_type", 1)(t);
+		#else
+		return null;
+		#end
+	}
+
 	#end
 
 	/**

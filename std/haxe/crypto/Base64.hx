@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.crypto;
 
 /**
-	Allows to encode/decode String and bytes using Base64 encoding.
+	Allows one to encode/decode String and bytes using Base64 encoding.
 **/
 class Base64 {
 

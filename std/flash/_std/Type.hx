@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 enum ValueType {
 	TNull;
 	TInt;
@@ -79,7 +80,13 @@ enum ValueType {
 		#end
 		default:
 		}
-		return str.split("::").join(".");
+		var parts = str.split("::");
+		#if as3
+		if(parts[parts.length - 1] == "_Object") {
+			parts[parts.length - 1] = "Object";
+		}
+		#end
+		return parts.join(".");
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
@@ -269,7 +276,7 @@ enum ValueType {
 		return untyped if( e.params == null ) [] else e.params;
 	}
 
-	@:extern
+	extern
 	public inline static function enumIndex( e : EnumValue ) : Int {
 		return untyped e.index;
 	}

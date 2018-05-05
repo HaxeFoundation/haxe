@@ -1,5 +1,6 @@
+import haxe.ds.List;
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,8 +32,12 @@
 
 	If the first argument to any of the methods is null, the result is
 	unspecified.
+
+	@see https://haxe.org/manual/std-Lambda.html
 **/
+
 class Lambda {
+	
 
 	/**
 		Creates an Array from Iterable `it`.
@@ -86,10 +91,10 @@ class Lambda {
 			l.add(f(i++,x));
 		return l;
 	}
-	
-	/** 
+
+	/**
 		Concatenate a list of lists.
-		
+
 		The order of elements is preserved.
 	**/
 	public static function flatten<A>( it : Iterable<Iterable<A>> ) : List<A> {
@@ -99,12 +104,12 @@ class Lambda {
 				l.add(x);
 		return l;
 	}
-	
-	/** 
+
+	/**
 		A composition of map and flatten.
-		
+
 		The order of elements is preserved.
-		
+
 		If `f` is null, the result is unspecified.
 	**/
 	public static function flatMap<A,B>( it : Iterable<A>, f: A -> Iterable<B> ) : List<B> {

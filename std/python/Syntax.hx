@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,26 +27,33 @@ import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
 
+import haxe.extern.Rest;
+
 @:noPackageRestrict
-@:analyzer(no_simplification)
-extern class Syntax {
+#if !macro extern #end class Syntax {
 
 	#if macro
 	static var self = macro python.Syntax;
 	#end
 
 	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro ($self.pythonCode($v{"import " + module}):Void);
+		return macro ($self.code($v{"import " + module}):Void);
 	}
 
 	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr {
 		var n = className.split(".").join("_");
 		var e = "import " + module + " as " + n;
 
-		return macro ($self.pythonCode($v{e}):Void);
+		return macro ($self.code($v{e}):Void);
 	}
 
+	#if !macro
+	@:overload(function(className:String, args:Rest<Dynamic>):Dynamic {})
+	static function construct<T>(cls:Class<T>, args:Rest<Dynamic>):T;
+	#end
+
 	@:noUsing
+	@:deprecated("python.Syntax.newInstance() is deprecated. Use python.Syntax.construct() instead.")
 	macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr {
 		return macro $self._newInstance($c, $a{params});
 	}
@@ -65,7 +72,12 @@ extern class Syntax {
 	@:noUsing
 	public static function assign(a:Dynamic, b:Dynamic):Void { }
 
+	#if !macro
+	public static function code(code:String, args:Rest<Dynamic>):Dynamic;
+	#end
+
 	@:noUsing
+	@:deprecated("python.Syntax.pythonCode() is deprecated. Use python.Syntax.code() instead.")
 	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
 		if (rest == null) rest = [];
 		return macro @:pos(Context.currentPos()) untyped $self._pythonCode($b, $a{rest});
@@ -121,7 +133,7 @@ extern class Syntax {
 
 		var e = "from " + from + " import " + module + " as " + n;
 
-		return macro ($self.pythonCode($v{e}):Void);
+		return macro ($self.code($v{e}):Void);
 	}
 
 	@:noUsing

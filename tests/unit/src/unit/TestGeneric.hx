@@ -1,16 +1,16 @@
 package unit;
 
+private typedef MyAnon = {
+	a:Int,
+	?b:MyRandomClass,
+}
+
 @:generic
 class MyGeneric<T> {
 	public var t:T;
 	public function new(t:T) {
 		this.t = t;
 	}
-}
-
-@:generic
-class MyGeneric2<T> extends T {
-	//public function new() { } // not allowed
 }
 
 class MyRandomClass {
@@ -50,27 +50,16 @@ class TestGeneric extends Test {
 		t((mg.t is String));
 	}
 
-	function testExtends() {
-		// basic class
-		//t(unit.TestType.typeError(new MyGeneric2<String>()));
-
-		// not a class
-		//t(unit.TestType.typeError(new MyGeneric2<Int>()));
-
-		// no constructor
-		//t(unit.TestType.typeError(new MyGeneric2<MyRandomEmptyClass>()));
-
-		var mg = new MyGeneric2<MyRandomClass>("foo");
-		eq("foo", mg.s);
-
-		var mg = new MyGeneric2<MyGeneric<MyRandomClass>>(new MyRandomClass("foo"));
-		eq("foo", mg.t.s);
-	}
-
 	function testConstraints() {
 		var n = new RBTree<MyData>();
 		n.root = new MyData(1);
 		n.root.rbLeft = new MyData(2);
 		n.root.rbRight = new MyData(3);
+	}
+
+	function testGenericAnon() {
+		var a = new MyGeneric<MyAnon>({a: 1});
+		eq(a.t.a, 1);
+		eq(a.t.b, null);
 	}
 }

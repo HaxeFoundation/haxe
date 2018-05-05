@@ -1,6 +1,6 @@
 package unit.issues;
 
-@:enum
+enum
 abstract HttpStatus(Int) {
 	var NotFound = 404;
 	var MethodNotAllowed = 405;

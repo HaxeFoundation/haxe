@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,20 +27,30 @@ import python.NativeStringTools;
 
 typedef PySys = python.lib.Sys;
 
+/**
+	Platform-specific Python Library. Provides some platform-specific functions
+	for the Python target, such as conversion from Haxe types to native types
+	and vice-versa.
+**/
 class Lib {
+	/**
+		Print the specified value on the default output.
+	**/
+	public static inline function print(v:Dynamic):Void {
+		printString(Std.string(v));
+	}
 
-	public static function print(v:Dynamic):Void {
-		var str = Std.string(v);
-
+	private static function printString (str:String):Void {
 		PySys.stdout.buffer.write( NativeStringTools.encode(str, "utf-8"));
 		PySys.stdout.flush();
 	}
 
-	public static function println(v:Dynamic):Void {
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
+	public static inline function println(v:Dynamic):Void {
 		var str = Std.string(v);
-
-		PySys.stdout.buffer.write( NativeStringTools.encode('$str\n', "utf-8"));
-		PySys.stdout.flush();
+		printString('$str\n');
 	}
 
 	/**
@@ -81,10 +91,13 @@ class Lib {
 	 	Returns the Dictionary `d` as an anonymous Object.
 	 	Modifications to the object are reflected in the Dictionary too.
 	**/
-	public static function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
+	public static inline function dictAsAnon (d:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(d);
 	}
 
+	/**
+		Return Python native iterable from Haxe iterable.
+	**/
 	public static function toPythonIterable <T>(it:Iterable<T>):python.NativeIterable<T> {
 		return {
 			__iter__ : function () {
@@ -105,10 +118,16 @@ class Lib {
 		}
 	}
 
+	/**
+		Return Haxe iterable from Python native iterable.
+	**/
 	public static inline function toHaxeIterable <T>(it:NativeIterable<T>):HaxeIterable<T> {
 		return new HaxeIterable(it);
 	}
 
+	/**
+		Return Haxe iterator instance from Python native iterable.
+	**/
 	public static inline function toHaxeIterator <T>(it:NativeIterator<T>):HaxeIterator<T> {
 		return new HaxeIterator(it);
 	}

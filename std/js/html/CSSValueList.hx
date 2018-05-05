@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CSSValueList.webidl line 7:0. Do not edit!
+// This file is generated from mozilla\CSSValueList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `CSSValueList` interface derives from the `CSSValue` interface and provides the abstraction of an ordered collection of CSS values.
+
+	Documentation [CSSValueList](https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList>
+**/
 @:native("CSSValueList")
 extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>
 {
+	
+	/**
+		An `unsigned long` representing the number of `CSSValues` in the list.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		This method is used to retrieve a `CSSValue` by ordinal index. The order in this collection represents the order of the values in the CSS style property. If index is greater than or equal to the number of values in the list, this returns `null`.
+	**/
 	function item( index : Int ) : CSSValue;
 }

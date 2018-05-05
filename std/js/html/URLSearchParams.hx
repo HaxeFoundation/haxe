@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,21 +20,68 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/URLSearchParams.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\URLSearchParams.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `URLSearchParams` interface defines utility methods to work with the query string of a URL.
+
+	Documentation [URLSearchParams](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams>
+**/
 @:native("URLSearchParams")
 extern class URLSearchParams
 {
 	/** @throws DOMError */
 	@:overload( function( ?init : String = "" ) : Void {} )
 	function new( init : URLSearchParams ) : Void;
+	
+	/**
+		Appends a specified key/value pair as a new search parameter.
+	**/
 	function append( name : String, value : String ) : Void;
 	@:native("delete")
 	function delete_( name : String ) : Void;
+	
+	/**
+		Returns the first value associated to the given search parameter.
+	**/
 	function get( name : String ) : String;
+	
+	/**
+		Returns all the values association with a given search parameter.
+	**/
 	function getAll( name : String ) : Array<String>;
+	
+	/**
+		Returns a `Boolean` indicating if such a search parameter exists.
+	**/
 	function has( name : String ) : Bool;
+	
+	/**
+		Sets the value associated to a given search parameter to the given value. If there were several values, delete the others.
+	**/
 	function set( name : String, value : String ) : Void;
+	/** @throws DOMError */
+	
+	/**
+		Returns an `Iteration_protocols` allowing to go through all key/value pairs contained in this object.
+	**/
+	function entries() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	
+	/**
+		Returns an `Iteration_protocols` allowing to go through all keys of the key/value pairs contained in this object.
+	**/
+	function keys() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	
+	/**
+		Returns an `Iteration_protocols` allowing to go through all values of the key/value pairs contained in this object.
+	**/
+	function values() : URLSearchParamsIterator;
+	/** @throws DOMError */
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

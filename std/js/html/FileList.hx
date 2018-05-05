@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/FileList.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\FileList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	An object of this type is returned by the `files` property of the HTML `input` element; this lets you access the list of files selected with the `input type="file"` element. It's also used for a list of files dropped into web content when using the drag and drop API; see the `DataTransfer` object for details on this usage.
+
+	Documentation [FileList](https://developer.mozilla.org/en-US/docs/Web/API/FileList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FileList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileList>
+**/
 @:native("FileList")
 extern class FileList implements ArrayAccess<File>
 {

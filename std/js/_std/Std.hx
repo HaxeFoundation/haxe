@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,21 +25,23 @@ import js.Boot;
 @:coreApi class Std {
 
 	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped js.Boot.__instanceof(v,t);
+		return @:privateAccess js.Boot.__instanceof(v,t);
 	}
 
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return untyped __instanceof__(value, c) ? cast value : null;
+		return js.Syntax.instanceof(value, c) ? cast value : null;
 	}
 
+	@:pure
 	public static function string( s : Dynamic ) : String {
-		return untyped js.Boot.__string_rec(s,"");
+		return @:privateAccess js.Boot.__string_rec(s,"");
 	}
 
 	public static inline function int( x : Float ) : Int {
 		return (cast x) | 0;
 	}
 
+	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
 		var v = untyped __js__("parseInt")(x, 10);
 		// parse again if hexadecimal
@@ -55,7 +57,7 @@ import js.Boot;
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+		return x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 
 	static function __init__() : Void untyped {
@@ -67,31 +69,14 @@ import js.Boot;
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
 			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
 		});
-		__feature__("Int.*",{
-			var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
-		});
-		__feature__("Dynamic.*",{
-			var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
-		});
-		__feature__("Float.*",{
-			var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
-			Float.__name__ = ["Float"];
-		});
-		__feature__("Bool.*",{
-			var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
-			Bool.__ename__ = ["Bool"];
-		});
-		__feature__("Class.*",{
-			var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
-		});
-		__feature__("Enum.*",{
-			var Enum = {};
-		});
-		__feature__("Void.*",{
-			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
-		});
+		__feature__("Int.*",__js__('var Int = { };'));
+		__feature__("Dynamic.*",__js__('var Dynamic = { };'));
+		__feature__("Float.*",__js__('var Float = Number'));
+		__feature__("Bool.*",__js__('var Bool = Boolean'));
+		__feature__("Class.*",__js__('var Class = { };'));
+		__feature__("Enum.*",__js__('var Enum = { };'));
 
-#if !js_es5
+#if (js_es < 5)
 		__feature__("Array.map",
 			if( Array.prototype.map == null )
 				Array.prototype.map = function(f) {

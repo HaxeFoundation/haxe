@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DelayNode.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\DelayNode.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	Documentation [DelayNode](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DelayNode>
+**/
 @:native("DelayNode")
 extern class DelayNode extends AudioNode
 {
+	
+	/**
+		Is an a-rate `AudioParam` representing the amount of delay to apply.
+	**/
 	var delayTime(default,null) : AudioParam;
 	
 }

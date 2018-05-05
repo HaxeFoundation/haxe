@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/TouchEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla\TouchEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `TouchEvent` interface represents an event sent when the state of contacts with a touch-sensitive surface changes. This surface can be a touch screen or trackpad, for example. The event can describe one or more points of contact with the screen and includes support for detecting movement, addition and removal of contact points, and so forth.
+
+	Documentation [TouchEvent](https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent>
+**/
 @:native("TouchEvent")
 extern class TouchEvent extends UIEvent
 {
@@ -36,5 +43,6 @@ extern class TouchEvent extends UIEvent
 	var shiftKey(default,null) : Bool;
 	
 	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : TouchEventInit ) : Void;
 	function initTouchEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, touches : TouchList, targetTouches : TouchList, changedTouches : TouchList ) : Void;
 }

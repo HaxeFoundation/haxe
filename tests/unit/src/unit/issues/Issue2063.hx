@@ -14,15 +14,15 @@ class Issue2063 extends Test {
 		var y:{a:A} = {a:untyped 9};
 		var z:{a:B} = {a:untyped 9};
 		var w:{a:C} = {a:untyped 9};
-		t(unit.TestType.typeError(x = y));
-		t(unit.TestType.typeError(y = x));
-		t(unit.TestType.typeError(x = z));
+		t(unit.HelperMacros.typeError(x = y));
+		t(unit.HelperMacros.typeError(y = x));
+		t(unit.HelperMacros.typeError(x = z));
 		z = x;
 		x = w;
-		t(unit.TestType.typeError(w = x));
+		t(unit.HelperMacros.typeError(w = x));
 
 		// should fail (transitive cast)
-		t(unit.TestType.typeError(z = w));
+		t(unit.HelperMacros.typeError(z = w));
 
 		// should succeed
 		var p = {xs:[0,1,2]};
@@ -34,8 +34,8 @@ class Issue2063 extends Test {
 
 		// should fail (transitive cast)
 		var p = {xs:[0,1,2]};
-		t(unit.TestType.typeError(var q:{xs:Arr<Float>} = p));
-		t(unit.TestType.typeError(p = q));
+		t(unit.HelperMacros.typeError(var q:{xs:Arr<Float>} = p));
+		t(unit.HelperMacros.typeError(p = q));
 
 		// should succeed
 		var p = {xs:[0,1,2]};
@@ -44,7 +44,7 @@ class Issue2063 extends Test {
 
 		// should fail (wrong param)
 		var p = {xs:[0.0,1.0,2.0]};
-		t(unit.TestType.typeError(var q:{xs:Brr<String>} = p));
-		t(unit.TestType.typeError(p = q));
+		t(unit.HelperMacros.typeError(var q:{xs:Brr<String>} = p));
+		t(unit.HelperMacros.typeError(p = q));
 	}
 }

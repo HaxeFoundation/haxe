@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
 package neko;
 
+@:dox(hide)
 @:keep
 class Boot {
 
@@ -66,7 +67,7 @@ class Boot {
 	}
 
 	@:ifFeature("typed_catch")
-	private static function __instanceof(o,cl) {
+	private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		untyped {
 			if( cl == Dynamic )
 				return true;
@@ -104,7 +105,7 @@ class Boot {
 		}
 	}
 
-	private static function __tagserialize(o) untyped {
+	private static function __tagserialize(o:Dynamic) untyped {
 		var n = o.__enum__.__ename__;
 		var x = __dollar__amake(n.length + 1);
 		for( i in 0...n.length )
@@ -113,7 +114,7 @@ class Boot {
 		return x;
 	}
 
-	private static function __unserialize(v) {
+	private static function __unserialize(v:Dynamic) {
 		untyped {
 			if( __dollar__typeof(v) != __dollar__tarray )
 				throw "Invalid serialized class data";

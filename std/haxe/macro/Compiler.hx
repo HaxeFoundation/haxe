@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,9 @@ import haxe.macro.Expr;
 /**
 	All these methods can be called for compiler configuration macros.
 **/
+#if hl
+@:hlNative("macro")
+#end
 class Compiler {
 	/**
 		A conditional compiler flag can be set command line using
@@ -38,91 +41,127 @@ class Compiler {
 		If the compiler flag is not defined, `Compiler.getDefine` returns
 		`null`.
 
-		@see http://haxe.org/manual/lf-condition-compilation.html
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	macro static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
-#if neko
+#if (neko || (macro && hl) || (macro && eval))
 
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
 	public static function allowPackage( v : String ) {
-		untyped load("allow_package", 1)(v.__s);
+		#if (neko || eval)
+		load("allow_package", 1)(v);
+		#end
 	}
 
 	/**
 		Set a conditional compiler flag.
 	**/
-	public static function define( flag : String, ?value : String ) untyped {
-		var v = flag + (value == null ? "" : "=" + value);
-		load("define", 1)(v.__s);
+	public static function define( flag : String, ?value : String ) {
+		#if (neko || eval)
+		load("define", 2)(flag,value);
+		#end
 	}
+
+	#if (!neko && !eval)
+	private static function typePatch( cl : String, f : String, stat : Bool, t : String ) {
+	}
+	private static function metaPatch( meta : String, cl : String, f : String, stat : Bool ) {
+	}
+	private static function addGlobalMetadataImpl(pathFilter:String, meta:String, recursive:Bool, toTypes:Bool, toFields:Bool) {
+	}
+	#end
 
 	/**
 		Removes a (static) field from a given class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
-		if( !ident.match(field) ) throw "Invalid "+field;
-		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,null);
+		if( !ident.match(field) ) throw "Invalid " + field;
+		#if (neko || eval)
+		load("type_patch", 4)(className, field, isStatic == true, null);
+		#else
+		typePatch(className, field, isStatic == true, null);
+		#end
 	}
 
 	/**
 		Set the type of a (static) field at a given class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
-		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,type.__s);
+		#if (neko || eval)
+		load("type_patch", 4)(className, field, isStatic == true, type);
+		#else
+		typePatch(className, field, isStatic == true, type);
+		#end
 	}
 
 	/**
 		Add metadata to a (static) field or class by name.
-		An error is thrown when className or field is invalid.
+		An error is thrown when `className` or `field` is invalid.
 	**/
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
-		untyped load("meta_patch",4)(meta.__s,className.__s,(field == null)?null:field.__s,isStatic == true);
+		#if (neko || eval)
+		load("meta_patch", 4)(meta, className, field, isStatic == true);
+		#else
+		metaPatch(meta, className, field, isStatic == true);
+		#end
 	}
 
 	public static function addClassPath( path : String ) {
-		untyped load("add_class_path",1)(path.__s);
+		#if (neko || eval)
+		load("add_class_path", 1)(path);
+		#end
 	}
 
 	public static function getOutput() : String {
-		return new String(untyped load("get_output",0)());
+		#if (neko || eval)
+		return load("get_output", 0)();
+		#else
+		return null;
+		#end
 	}
 
 	public static function setOutput( fileOrDir : String ) {
-		untyped load("set_output",1)(untyped fileOrDir.__s);
+		#if (neko || eval)
+		load("set_output", 1)(fileOrDir);
+		#end
 	}
 
 	public static function getDisplayPos() : Null<{ file : String, pos : Int }> {
-		var o = untyped load("get_display_pos",0)();
-		if( o != null )
-			o.file = new String(o.file);
-		return o;
+		#if (neko || eval)
+		return load("get_display_pos", 0)();
+		#else
+		return null;
+		#end
 	}
 
 	/**
-		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash)
+		Adds a native library depending on the platform (e.g. `-swf-lib` for Flash).
 	**/
 	public static function addNativeLib( name : String ) {
-		untyped load("add_native_lib",1)(name.__s);
+		#if (neko || eval)
+		load("add_native_lib", 1)(name);
+		#end
 	}
 
 	/**
-		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java)
+		Adds an argument to be passed to the native compiler (e.g. `-javac-arg` for Java).
 	 **/
-	public static function addNativeArg( argument : String )
-	{
-		untyped load("add_native_arg",1)(argument.__s);
+	public static function addNativeArg( argument : String ) {
+		#if (neko || eval)
+		load("add_native_arg", 1)(argument);
+		#end
 	}
 
 	/**
@@ -137,14 +176,31 @@ class Compiler {
 
 		@param rec If true, recursively adds all sub-packages.
 		@param ignore Array of module names to ignore for inclusion.
+		       You can use `module*` with a * at the end for Wildcard matching
 		@param classPaths An alternative array of paths (directory names) to use to search for modules to include.
 		       Note that if you pass this argument, only the specified paths will be used for inclusion.
+		@param strict If true and given package wasn't found in any of class paths, fail with an error.
 	**/
-	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
+	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String>, strict = false ) {
+		var ignoreWildcard:Array<String> = [];
+		var ignoreString:Array<String> = [];
+		if(ignore != null) {
+			for (ignoreRule in ignore) {
+				if(StringTools.endsWith(ignoreRule, "*")) {
+					ignoreWildcard.push(ignoreRule.substr(0, ignoreRule.length-1));
+				}else{
+					ignoreString.push(ignoreRule);
+				}
+			}
+		}
 		var skip = if( ignore == null ) {
 			function(c) return false;
 		} else {
-			function(c) return Lambda.has(ignore, c);
+			function(c:String) {
+				if(Lambda.has(ignoreString, c)) return true;
+				for (ignoreRule in ignoreWildcard) if(StringTools.startsWith(c, ignoreRule)) return true;
+				return false;
+			}
 		}
 		var displayValue = Context.definedValue("display");
 		if( classPaths == null ) {
@@ -166,12 +222,14 @@ class Compiler {
 			}
 		}
 		var prefix = pack == '' ? '' : pack + '.';
+		var found = false;
 		for( cp in classPaths ) {
 			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
 			if( !sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path) )
 				continue;
+			found = true;
 			for( file in sys.FileSystem.readDirectory(path) ) {
-				if( StringTools.endsWith(file, ".hx") ) {
+				if( StringTools.endsWith(file, ".hx") && file.substr(0, file.length - 3).indexOf(".") < 0 ) {
 					var cl = prefix + file.substr(0, file.length - 3);
 					if( skip(cl) )
 						continue;
@@ -180,10 +238,12 @@ class Compiler {
 					include(prefix + file, true, ignore, classPaths);
 			}
 		}
+		if (strict && !found)
+			Context.error('Package "$pack" was not found in any of class paths', Context.currentPos());
 	}
 
 	/**
-		Exclude a class or a enum without changing it to @:nativeGen.
+		Exclude a class or an enum without changing it to `@:nativeGen`.
 	**/
 	static function excludeBaseType( baseType : Type.BaseType ) : Void {
 		if (!baseType.isExtern) {
@@ -196,7 +256,10 @@ class Compiler {
 	}
 
 	/**
-		Exclude a given class or a complete package from being generated.
+		Exclude a specific class, enum, or all classes and enums in a
+		package from being generated. Excluded types become `extern`.
+
+		@param rec If true, recursively excludes all sub-packages.
 	**/
 	public static function exclude( pack : String, ?rec = true ) {
 		Context.onGenerate(function(types) {
@@ -219,7 +282,7 @@ class Compiler {
 	}
 
 	/**
-		Exclude classes listed in an extern file (one per line) from being generated.
+		Exclude classes and enums listed in an extern file (one per line) from being generated.
 	**/
 	public static function excludeFile( fileName : String ) {
 		fileName = Context.resolvePath(fileName);
@@ -246,7 +309,7 @@ class Compiler {
 	}
 
 	/**
-		Load a type patch file that can modify declared classes fields types
+		Load a type patch file that can modify the field types within declared classes and enums.
 	**/
 	public static function patchTypes( file : String ) : Void {
 		var file = Context.resolvePath(file);
@@ -303,7 +366,7 @@ class Compiler {
 
 		In order to include module sub-types directly, their full dot path
 		including the containing module has to be used
-		(e.g. msignal.Signal.Signal0).
+		(e.g. `msignal.Signal.Signal0`).
 
 		This operation has no effect if the type has already been loaded, e.g.
 		through `Context.getType`.
@@ -337,29 +400,33 @@ class Compiler {
 		through `Context.getType`.
 	**/
 	public static function addGlobalMetadata(pathFilter:String, meta:String, ?recursive:Bool = true, ?toTypes:Bool = true, ?toFields:Bool = false) {
-		untyped load("add_global_metadata",5)(untyped pathFilter.__s, meta.__s, recursive, toTypes, toFields);
+		#if (neko || eval)
+		load("add_global_metadata_impl", 5)(pathFilter, meta, recursive, toTypes, toFields);
+		#else
+		addGlobalMetadataImpl(pathFilter, meta, recursive, toTypes, toFields);
+		#end
 	}
 
 	/**
 		Change the default JS output by using a custom generator callback
 	**/
 	public static function setCustomJSGenerator( callb : JSGenApi -> Void ) {
-		load("custom_js",1)(callb);
-	}
-
-	static function load( f, nargs ) : Dynamic {
-		#if macro
-		return neko.Lib.load("macro", f, nargs);
-		#else
-		return Reflect.makeVarArgs(function(_) return throw "Can't be called outside of macro");
+		#if (neko || eval)
+		load("set_custom_js_generator", 1)(callb);
 		#end
 	}
 
+	#if (neko || eval)
+	static inline function load( f, nargs ) : Dynamic {
+		return @:privateAccess Context.load(f, nargs);
+	}
+	#end
+
 #end
 
-	#if (js || macro)
+	#if (js || lua || macro)
 	/**
-		Embed a JavaScript file at compile time (can be called by `--macro` or within an `__init__` method).
+		Embed a JavaScript or Lua file at compile time (can be called by `--macro` or within an `__init__` method).
 	**/
 	public static #if !macro macro #end function includeFile( file : String, position:IncludePosition = Top ) {
 		return switch ((position:String).toLowerCase()) {
@@ -369,19 +436,21 @@ class Compiler {
 
 				var f = try sys.io.File.getContent(Context.resolvePath(file)) catch( e : Dynamic ) Context.error(Std.string(e), Context.currentPos());
 				var p = Context.currentPos();
-				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
+				var magic = if (Context.defined("js")) "__js__" else "__lua__";
+				{ expr : EUntyped( { expr : ECall( { expr : EConst(CIdent(magic)), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 			case Top | Closure:
-				load("include_file", 2)(untyped file.__s, untyped position.__s);
+				@:privateAccess Context.includeFile(file, position);
 				macro {};
 			case _:
 				Context.error("unknown includeFile position: " + position, Context.currentPos());
 		}
 	}
+
 	#end
 
 }
 
-@:enum abstract IncludePosition(String) from String to String {
+enum abstract IncludePosition(String) from String to String {
 	/**
 		Prepend the file content to the output file.
 	*/

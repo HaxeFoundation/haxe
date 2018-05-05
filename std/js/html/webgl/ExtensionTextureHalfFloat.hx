@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 925:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionTextureHalfFloat")
+/**
+	The `OES_texture_half_float` extension is part of the WebGL API and adds texture formats with 16- (aka half float) and 32-bit floating-point components.
+
+	Documentation [OES_texture_half_float](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_half_float) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_half_float$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_half_float>
+**/
+@:native("OES_texture_half_float")
 extern class ExtensionTextureHalfFloat
 {
 	static inline var HALF_FLOAT_OES : Int = 36193;

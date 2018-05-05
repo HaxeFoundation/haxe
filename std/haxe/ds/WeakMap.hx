@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,6 +28,8 @@ package haxe.ds;
 	The keys are considered to be weak references on static targets.
 
 	See `Map` for documentation details.
+
+	@see https://haxe.org/manual/std-Map.html
 **/
 class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 
@@ -76,6 +78,13 @@ class WeakMap<K: { },V> implements haxe.Constraints.IMap<K,V> {
 		See `Map.iterator`
 	**/
 	public function iterator():Iterator<V> {
+		return null;
+	}
+	
+	/**
+		See `Map.copy`
+	**/
+	public function copy() : WeakMap<K,V> {
 		return null;
 	}
 

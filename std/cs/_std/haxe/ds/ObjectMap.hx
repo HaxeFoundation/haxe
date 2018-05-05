@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,9 +25,9 @@ import cs.NativeArray;
 
 @:coreApi class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
 {
-	@:extern private static inline var HASH_UPPER = 0.77;
-	@:extern private static inline var FLAG_EMPTY = 0;
-	@:extern private static inline var FLAG_DEL = 1;
+	extern private static inline var HASH_UPPER = 0.77;
+	extern private static inline var FLAG_EMPTY = 0;
+	extern private static inline var FLAG_DEL = 1;
 
 	/**
 	 * This is the most important structure here and the reason why it's so fast.
@@ -170,7 +170,7 @@ import cs.NativeArray;
 		return -1;
 	}
 
-	@:final @:private function resize(newNBuckets:Int) : Void
+	@:final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
@@ -219,6 +219,8 @@ import cs.NativeArray;
 					var key = _keys[j];
 					var val = vals[j];
 
+					_keys[j] = null;
+					vals[j] = cast null;
 					hashes[j] = FLAG_DEL;
 					while (true) /* kick-out process; sort of like in Cuckoo hashing */
 					{
@@ -393,6 +395,12 @@ import cs.NativeArray;
 		return new ObjectMapValueIterator(this);
 	}
 
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap<K, V>();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
+	}
+
 	/**
 		Returns an displayable representation of the hashtable content.
 	**/
@@ -412,7 +420,7 @@ import cs.NativeArray;
 		return s.toString();
 	}
 
-	@:extern private static inline function roundUp(x:Int):Int
+	extern private static inline function roundUp(x:Int):Int
 	{
 		--x;
 		x |= (x) >>> 1;
@@ -423,20 +431,20 @@ import cs.NativeArray;
 		return ++x;
 	}
 
-	@:extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
+	extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
-	@:extern private static inline function isEither(v:HashType):Bool
+	extern private static inline function isEither(v:HashType):Bool
 		return (v & 0xFFFFFFFE) == 0;
 
-	@:extern private static inline function isEmpty(v:HashType):Bool
+	extern private static inline function isEmpty(v:HashType):Bool
 		return v == FLAG_EMPTY;
 
-	@:extern private static inline function isDel(v:HashType):Bool
+	extern private static inline function isDel(v:HashType):Bool
 		return v == FLAG_DEL;
 
 	//guarantee: Whatever this function is, it will never return 0 nor 1
-	@:extern private static inline function hash<K>(s:K):HashType
+	extern private static inline function hash<K>(s:K):HashType
 	{
 		var k:Int = untyped s.GetHashCode();
 		//k *= 357913941;
@@ -464,10 +472,10 @@ import cs.NativeArray;
 		return ret;
 	}
 
-	@:extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
 		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
-	@:extern private static inline function assert(x:Bool):Void
+	extern private static inline function assert(x:Bool):Void
 	{
 #if DEBUG_HASHTBL
 		if (!x) throw "assert failed";

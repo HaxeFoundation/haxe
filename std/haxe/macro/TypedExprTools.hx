@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,6 +24,11 @@ package haxe.macro;
 
 import haxe.macro.Type;
 
+/**
+	This class provides some utility methods to work with typed expressions.
+	It is best used through 'using haxe.macro.TypedExprTools' syntax and then
+	provides additional methods on `haxe.macro.TypedExpr` instances.
+**/
 class TypedExprTools {
 	static function with(e:TypedExpr, ?edef:TypedExprDef, ?t:Type) {
 		return {
@@ -34,7 +39,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Transforms the sub-expressions of [e] by calling [f] on each of them.
+		Transforms the sub-expressions of `e` by calling `f` on each of them.
 
 		See `haxe.macro.ExprTools.map` for details on expression mapping in
 		general. This function works the same way, but with a different data
@@ -42,13 +47,14 @@ class TypedExprTools {
 	**/
 	static public function map(e:TypedExpr, f:TypedExpr -> TypedExpr):TypedExpr {
 		return switch(e.expr) {
-			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_): e;
+			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_): e;
 			case TArray(e1, e2): with(e, TArray(f(e1), f(e2)));
 			case TBinop(op, e1, e2): with(e, TBinop(op, f(e1), f(e2)));
 			case TFor(v, e1, e2): with(e, TFor(v, f(e1), f(e2)));
 			case TWhile(e1, e2, flag): with(e, TWhile(f(e1), f(e2), flag));
 			case TThrow(e1): with(e, TThrow(f(e1)));
 			case TEnumParameter(e1, ef, i): with(e, TEnumParameter(f(e1), ef, i));
+			case TEnumIndex(e1): with(e, TEnumIndex(f(e1)));
 			case TField(e1, fa): with(e, TField(f(e1), fa));
 			case TParenthesis(e1): with(e, TParenthesis(f(e1)));
 			case TUnop(op, pre, e1): with(e, TUnop(op, pre, f(e1)));
@@ -69,7 +75,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Calls function [f] on each sub-expression of [e].
+		Calls function `f` on each sub-expression of `e`.
 
 		See `haxe.macro.ExprTools.iter` for details on iterating expressions in
 		general. This function works the same way, but with a different data
@@ -77,11 +83,11 @@ class TypedExprTools {
 	**/
 	static public function iter(e:TypedExpr, f:TypedExpr -> Void):Void {
 		switch(e.expr) {
-			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_):
+			case TConst(_) | TLocal(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_):
 			case TArray(e1, e2) | TBinop(_, e1, e2) | TFor(_, e1, e2) | TWhile(e1, e2, _):
 				f(e1);
 				f(e2);
-			case TThrow(e1) | TEnumParameter(e1, _, _) | TField(e1, _) | TParenthesis(e1) | TUnop(_, _, e1) | TCast(e1, _) | TMeta(_, e1):
+			case TThrow(e1) | TEnumParameter(e1, _, _) | TEnumIndex(e1) | TField(e1, _) | TParenthesis(e1) | TUnop(_, _, e1) | TCast(e1, _) | TMeta(_, e1):
 				f(e1);
 			case TArrayDecl(el) | TNew(_, _, el) | TBlock(el):
 				for (e in el) f(e);
@@ -112,7 +118,7 @@ class TypedExprTools {
 	}
 
 	/**
-		Transforms the sub-expressions of [e] by calling [f] on each of them.
+		Transforms the sub-expressions of `e` by calling `f` on each of them.
 		Additionally, types are mapped using `ft` and variables are mapped using
 		`fv`.
 
@@ -122,7 +128,7 @@ class TypedExprTools {
 	**/
 	static public function mapWithType(e:TypedExpr, f:TypedExpr -> TypedExpr, ft:Type -> Type, fv:TVar -> TVar):TypedExpr {
 		return switch(e.expr) {
-			case TConst(_) | TBreak | TContinue | TTypeExpr(_): with(e, ft(e.t));
+			case TConst(_) | TBreak | TContinue | TTypeExpr(_) | TIdent(_): with(e, ft(e.t));
 			case TLocal(v): with(e, TLocal(fv(v)), ft(e.t));
 			case TArray(e1, e2): with(e, TArray(f(e1), f(e2)), ft(e.t));
 			case TBinop(op, e1, e2): with(e, TBinop(op, f(e1), f(e2)), ft(e.t));
@@ -130,6 +136,7 @@ class TypedExprTools {
 			case TWhile(e1, e2, flag): with(e, TWhile(f(e1), f(e2), flag), ft(e.t));
 			case TThrow(e1): with(e, TThrow(f(e1)), ft(e.t));
 			case TEnumParameter(e1, ef, i): with(e, TEnumParameter(f(e1), ef, i), ft(e.t));
+			case TEnumIndex(e1): with(e, TEnumIndex(f(e1)), ft(e.t));
 			case TField(e1, fa): with(e, TField(f(e1), fa), ft(e.t));
 			case TParenthesis(e1): with(e, TParenthesis(e1), ft(e.t));
 			case TUnop(op, pre, e1): with(e, TUnop(op, pre, f(e1)), ft(e.t));
@@ -149,9 +156,9 @@ class TypedExprTools {
 		}
 	}
 
-	#if macro
+	#if (macro || display)
 	static public function toString(t:TypedExpr, ?pretty = false):String {
-		return new String(haxe.macro.Context.load("s_expr", 2)(t, pretty));
+		return @:privateAccess haxe.macro.Context.sExpr(t, pretty);
 	}
 	#end
 }

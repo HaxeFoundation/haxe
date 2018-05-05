@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,9 +26,9 @@ package haxe;
 **/
 abstract Ucs2(String) {
 
-	@:extern public var length(get,never) : Int;
+	extern public var length(get,never) : Int;
 
-	@:extern inline function new(str:String) : Void {
+	extern inline function new(str:String) : Void {
 		// this implementation only allows platforms which have native UCS2 String.
 		// other platforms should create a shadow class in their _std directory
 		#if !(flash || js)
@@ -37,7 +37,7 @@ abstract Ucs2(String) {
 		this = str;
 	}
 
-	@:extern inline function get_length() {
+	extern inline function get_length() {
 		return this.length;
 	}
 
@@ -46,7 +46,7 @@ abstract Ucs2(String) {
 
 		Affects the characters `a-z`. Other characters remain unchanged.
 	**/
-	@:extern public inline function toUpperCase() : Ucs2 {
+	extern public inline function toUpperCase() : Ucs2 {
 		return new Ucs2(this.toUpperCase());
 	}
 
@@ -55,7 +55,7 @@ abstract Ucs2(String) {
 
 		Affects the characters `A-Z`. Other characters remain unchanged.
 	**/
-	@:extern public inline function toLowerCase() : Ucs2 {
+	extern public inline function toLowerCase() : Ucs2 {
 		return new Ucs2(this.toLowerCase());
 	}
 
@@ -65,7 +65,7 @@ abstract Ucs2(String) {
 		If `index` is negative or exceeds `this.length`, the empty Ucs2 ""
 		is returned.
 	**/
-	@:extern public inline function charAt(index : Int) : Ucs2 {
+	extern public inline function charAt(index : Int) : Ucs2 {
 		return new Ucs2(this.charAt(index));
 	}
 
@@ -75,15 +75,15 @@ abstract Ucs2(String) {
 		If `index` is negative or exceeds `this.length`, null is returned.
 
 		To obtain the character code of a single character, "x".code can be used
-		instead to @:extern public inline the character code at compile time. Note that this
+		instead to extern public inline the character code at compile time. Note that this
 		only works on Ucs2 literals of length 1.
 	**/
-	@:extern public inline function charCodeAt( index : Int) : Null<Int> {
+	extern public inline function charCodeAt( index : Int) : Null<Int> {
 		return this.charCodeAt(index);
 	}
 
 	/**
-		Returns the position of the leftmost occurence of `str` within `this`
+		Returns the position of the leftmost occurrence of `str` within `this`
 		Ucs2.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -93,12 +93,12 @@ abstract Ucs2(String) {
 
 		If `str` cannot be found, -1 is returned.
 	**/
-	@:extern public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
+	extern public inline function indexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		return this.indexOf(str.toNativeString(),startIndex);
 	}
 
 	/**
-		Returns the position of the rightmost occurence of `str` within `this`
+		Returns the position of the rightmost occurrence of `str` within `this`
 		Ucs2.
 
 		If `startIndex` is given, the search is performed within the substring
@@ -108,12 +108,12 @@ abstract Ucs2(String) {
 
 		If `str` cannot be found, -1 is returned.
 	**/
-	@:extern public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
+	extern public inline function lastIndexOf( str : Ucs2, ?startIndex : Int ) : Int {
 		return this.lastIndexOf(str.toNativeString(),startIndex);
 	}
 
 	/**
-		Splits `this` Ucs2 at each occurence of `delimiter`.
+		Splits `this` Ucs2 at each occurrence of `delimiter`.
 
 		If `this` Ucs2 is the empty Ucs2 "", the result is not consistent
 		across targets and may either be `[]` (on Js, Cpp) or `[""]`.
@@ -127,12 +127,12 @@ abstract Ucs2(String) {
 
 		If `delimiter` is null, the result is unspecified.
 
-		Otherwise, `this` Ucs2 is split into parts at each occurence of
-		`delimiter`. If `this` Ucs2 starts (or ends) with [delimiter}, the
+		Otherwise, `this` Ucs2 is split into parts at each occurrence of
+		`delimiter`. If `this` Ucs2 starts (or ends) with `delimiter`, the
 		result Array contains a leading (or trailing) empty Ucs2 "" element.
 		Two subsequent delimiters also result in an empty Ucs2 "" element.
 	**/
-	@:extern public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
+	extern public inline function split( delimiter : Ucs2 ) : Array<Ucs2> {
 		return cast this.split(delimiter.toNativeString());
 	}
 
@@ -151,7 +151,7 @@ abstract Ucs2(String) {
 
 		If `len` is negative, the result is unspecified.
 	**/
-	@:extern public inline function substr( pos : Int, ?len : Int ) : Ucs2 {
+	extern public inline function substr( pos : Int, ?len : Int ) : Ucs2 {
 		return new Ucs2(this.substr(pos,len));
 	}
 
@@ -168,14 +168,14 @@ abstract Ucs2(String) {
 		If the (possibly swapped) `startIndex` exceeds `this.length`, the empty
 		Ucs2 "" is returned.
 	**/
-	@:extern public inline function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
+	extern public inline function substring( startIndex : Int, ?endIndex : Int ) : Ucs2 {
 		return new Ucs2(this.substring(startIndex,endIndex));
 	}
 
 	/**
 		Returns the native underlying String.
 	**/
-	@:extern public inline function toNativeString() : String {
+	extern public inline function toNativeString() : String {
 		return this;
 	}
 
@@ -185,7 +185,7 @@ abstract Ucs2(String) {
 		If `code` is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	@:extern public static inline function fromCharCode( code : Int ) : Ucs2 {
+	extern public static inline function fromCharCode( code : Int ) : Ucs2 {
 		return new Ucs2(String.fromCharCode(code));
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@ private typedef NativeString = String;
 			if ( index >= me.length() || index < 0 )
 				return null;
 			else
-				return me.codePointAt(index);
+				return (int) me.charAt(index);
 	')
 	public static function charCodeAt(me:NativeString, index:Int):Null<Int>
 	{
@@ -223,15 +223,18 @@ private typedef NativeString = String;
 		}
 	}
 
-	public static function handleCallField(str:NativeString, f:NativeString, args:Array<Dynamic>):Dynamic
+	public static function handleCallField(str:NativeString, f:NativeString, args:java.NativeArray<Dynamic>):Dynamic
 	{
-		var _args:Array<Dynamic> = [str];
-		if (args == null)
-			args = _args;
-		else
-			args = _args.concat(args);
-
-		return Runtime.slowCallField(StringExt, f, args);
+		var _args:java.NativeArray<Dynamic>;
+		if (args == null) {
+			_args = java.NativeArray.make(str);
+		} else {
+			_args = new java.NativeArray(args.length + 1);
+			_args[0] = str;
+			for (i in 0...args.length)
+				_args[i + 1] = args[i];
+		}
+		return Runtime.slowCallField(StringExt, f, _args);
 	}
 }
 

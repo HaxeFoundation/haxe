@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/AudioNode.webidl line 19:0. Do not edit!
+// This file is generated from mozilla\AudioNode.webidl. Do not edit!
 
 package js.html.audio;
 
-@:enum abstract ChannelInterpretation(String)
+enum abstract ChannelInterpretation(String)
 {
 	var SPEAKERS = "speakers";
 	var DISCRETE = "discrete";

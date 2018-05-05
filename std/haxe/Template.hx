@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package haxe;
+
+import haxe.ds.List;
 
 private enum TemplateExpr {
 	OpVar( v : String );
@@ -47,7 +49,7 @@ private typedef ExprToken = {
 	String, and to have some basic logic.
 
 	A complete documentation of the supported syntax is available at:
-	<a href="http://haxe.org/manual/std-template.html">http://haxe.org/manual/std-template.html</a>
+	<https://haxe.org/manual/std-template.html>
 **/
 class Template {
 
@@ -112,13 +114,16 @@ class Template {
 	}
 
 	function resolve( v : String ) : Dynamic {
-		if( Reflect.hasField(context,v) )
-			return Reflect.field(context,v);
-		for( ctx in stack )
-			if( Reflect.hasField(ctx,v) )
-				return Reflect.field(ctx,v);
 		if( v == "__current__" )
 			return context;
+		var value = Reflect.getProperty(context, v);
+		if( value != null || Reflect.hasField(context,v) )
+			return value;
+		for( ctx in stack ) {
+			value = Reflect.getProperty(ctx,v);
+			if( value != null || Reflect.hasField(ctx,v) )
+				return value;
+		}
 		return Reflect.field(globals,v);
 	}
 

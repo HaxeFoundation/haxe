@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,16 +21,25 @@
  */
 package php;
 
+import haxe.ds.StringMap;
+import php.*;
+import php.reflection.ReflectionClass;
+
+/**
+	Platform-specific PHP Library. Provides some platform-specific functions
+	for the PHP target, such as conversion from Haxe types to native types
+	and vice-versa.
+**/
 class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	public static function print( v : Dynamic ) : Void {
-		untyped __call__("echo", Std.string(v));
+	public static inline function print( v : Dynamic ) : Void {
+		Global.echo(Std.string(v));
 	}
 
 	/**
-		Print the specified value on the default output followed by 
+		Print the specified value on the default output followed by
 		a newline character.
 	**/
 	public static function println( v : Dynamic ) : Void {
@@ -39,156 +48,139 @@ class Lib {
 	}
 
 	/**
-		Displays structured information about one or more expressions 
-		that includes its type and value. Arrays and objects are 
+		Displays structured information about one or more expressions
+		that includes its type and value. Arrays and objects are
 		explored recursively with values indented to show structure.
 	*/
-	public static function dump(v : Dynamic) : Void {
-		untyped __call__("var_dump", v);
+	public static inline function dump(v : Dynamic) : Void {
+		Global.var_dump(v);
 	}
 
 	/**
-		Serialize using native PHP serialization. This will return a binary 
+		Serialize using native PHP serialization. This will return a binary
 		`String` that can be stored for long term usage.
 	**/
-	public static function serialize( v : Dynamic ) : String {
-		return untyped __call__("serialize", v);
+	public static inline function serialize( v : Dynamic ) : String {
+		return Global.serialize(v);
 	}
 
 	/**
 		Unserialize a `String` using native PHP serialization. See `php.Lib.serialize()`.
 	**/
-	public static function unserialize( s : String ) : Dynamic {
-		return untyped __call__("unserialize", s);
+	public static inline function unserialize( s : String ) : Dynamic {
+		return Global.unserialize(s);
 	}
 
 	/**
 		Find out whether an extension is loaded.
 	*/
-	public static function extensionLoaded(name : String) {
-		return untyped __call__("extension_loaded", name);
+	public static inline function extensionLoaded(name : String) {
+		return Global.extension_loaded(name);
 	}
 
-	public static function isCli() : Bool {
-		return untyped __php__("(0 == strncasecmp(PHP_SAPI, 'cli', 3))");
+	public static inline function isCli() : Bool {
+		return 0 == Global.strncasecmp(Const.PHP_SAPI, 'cli', 3);
 	}
 
 	/**
 		Output file content from the given file name.
 	*/
-	public static function printFile(file : String) {
-		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
+	public static inline function printFile(file : String) {
+		return Global.fpassthru(Global.fopen(file,  "r"));
 	}
 
-	public static function toPhpArray(a : Array<Dynamic>) : NativeArray {
-		return untyped __field__(a, 'a');
+	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
+		return @:privateAccess a.arr;
 	}
 
 	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
-		return untyped __call__("new _hx_array", a);
+		return @:privateAccess Array.wrap(a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Map<String,T> {
-		var h = new haxe.ds.StringMap<T>();
-		untyped h.h = arr;
-		return h;
+	public static function hashOfAssociativeArray<T>(arr : NativeAssocArray<T>) : Map<String,T> {
+		var result = new StringMap();
+		@:privateAccess result.data = arr;
+		return result;
 	}
 
-	public static function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
-		return untyped hash.h;
+	public static inline function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
+		return @:privateAccess hash.data;
 	}
 
 	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
-		untyped __php__("foreach($arr as $key => $value){
-			if(is_array($value)) $arr[$key] = php_Lib::objectOfAssociativeArray($value);
-		}");
-		return untyped __call__("_hx_anonymous", arr);
+		Syntax.foreach(arr, function(key:Scalar, value:Dynamic) {
+			if(Global.is_array(value)) {
+				arr[key] = objectOfAssociativeArray(value);
+			}
+		});
+		return Boot.createAnon(arr);
 	}
 
-	public static function associativeArrayOfObject(ob : Dynamic) : NativeArray {
-		return untyped __php__("(array) $ob");
+	public static inline function associativeArrayOfObject(ob : Dynamic) : NativeArray {
+		return Syntax.array(ob);
 	}
 
 	/**
 	 * See the documentation for the equivalent PHP function for details on usage:
-	 * http://php.net/manual/en/function.mail.php
+	 * <http://php.net/manual/en/function.mail.php>
 	 * @param	to
 	 * @param	subject
 	 * @param	message
 	 * @param	?additionalHeaders
 	 * @param	?additionalParameters
 	 */
-	public static function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool
-	{
-		if(null != additionalParameters)
-			return untyped __call__("mail", to, subject, message, additionalHeaders, additionalParameters);
-		else if(null != additionalHeaders)
-			return untyped __call__("mail", to, subject, message, additionalHeaders);
-		else
-			return untyped __call__("mail", to, subject, message);
+	public static inline function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool {
+		return Global.mail(to, subject, message, additionalHeaders, additionalParameters);
 	}
 
 	/**
 		For neko compatibility only.
 	**/
-	public static function rethrow( e : Dynamic ) {
-		if(Std.is(e, Exception)) {
-			var __rtex__ = e;
-			untyped __php__("throw $__rtex__");
-		}
-		else throw e;
-	}
-
-	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {
-		var name = path.shift();
-		if(path.length == 0)
-			untyped __php__("$o->$name = $t");
-		else {
-			var so = untyped __call__("isset", __php__("$o->$name")) ? __php__("$o->$name") : {};
-			appendType(so, path, t);
-			untyped __php__("$o->$name = $so");
-		}
-	}
-
-	public static function getClasses() {
-		var path : String = null;
-		var o = {};
-		untyped __call__('reset', php.Boot.qtypes);
-		while((path = untyped __call__('key', php.Boot.qtypes)) != null) {
-			appendType(o, path.split('.'), untyped php.Boot.qtypes[path]);
-			untyped __call__('next',php.Boot.qtypes);
-		}
-		return o;
+	public static inline function rethrow( e : Dynamic ) {
+		throw e;
 	}
 
 	/**
-	*  Loads types defined in the specified directory.
- 	*/
- 	public static function loadLib(pathToLib : String) : Void
- 	{
-		var prefix = untyped __prefix__();
-		untyped __php__("$_hx_types_array = array();
- 		$_hx_cache_content = '';
- 		//Calling this function will put all types present in the specified types in the $_hx_types_array
- 		_hx_build_paths($pathToLib, $_hx_types_array, array(), $prefix);
+		Tries to load all compiled php files and returns list of types.
+	**/
+	public static function getClasses():Dynamic {
+		if(!loaded) {
+			loaded = true;
+			var reflection = new ReflectionClass(Boot.getPhpName('php.Boot'));
+			loadLib(Global.dirname(reflection.getFileName(), 2));
+		}
 
- 		for($i=0;$i<count($_hx_types_array);$i++) {
- 			//For every type that has been found, create its description
- 			$t = null;
- 			if($_hx_types_array[$i]['type'] == 0) {
- 				$t = new _hx_class($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 1) {
- 				$t = new _hx_enum($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 2) {
- 				$t = new _hx_interface($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			} else if($_hx_types_array[$i]['type'] == 3) {
- 				$t = new _hx_class($_hx_types_array[$i]['name'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
- 			}
- 			//Register the type
- 			if(!array_key_exists($t->__qname__, php_Boot::$qtypes)) {
- 				_hx_register_type($t);
- 			}
- 		}
- ");
- 	}
+		var result:Dynamic = {};
+		Syntax.foreach(Boot.getRegisteredAliases(), function(phpName:String, haxeName:String) {
+			var parts = haxeName.split('.');
+			var obj = result;
+			while(parts.length > 1) {
+				var pack = parts.shift();
+				if(Syntax.field(obj, pack) == null) {
+					Syntax.setField(obj, pack, {});
+				}
+				obj = Syntax.field(obj, pack);
+			}
+			Syntax.setField(obj, parts[0], Boot.getClass(phpName));
+		});
+
+		return result;
+	}
+	static var loaded:Bool = false;
+
+	/**
+		Loads types defined in the specified directory.
+	**/
+	public static function loadLib(pathToLib : String) : Void {
+		var absolutePath = Global.realpath(pathToLib);
+		if(absolutePath == false) throw 'Failed to read path: $pathToLib';
+		Syntax.foreach(Global.glob('$absolutePath/*.php'), function(_, fileName) {
+			if(!Global.is_dir(fileName)) {
+				Global.require_once(fileName);
+			}
+		});
+		Syntax.foreach(Global.glob('$absolutePath/*', Const.GLOB_ONLYDIR), function(_, dirName) {
+			loadLib(dirName);
+		});
+	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl line 47:2. Do not edit!
+// This file is generated from cssrule.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`CSSPageRule` is an interface representing a single CSS `@page` rule. It implements the `CSSRule` interface with a type value of `6` (`CSSRule.PAGE_RULE`).
+
+	Documentation [CSSPageRule](https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule>
+**/
 @:native("CSSPageRule")
 extern class CSSPageRule extends CSSRule
 {
+	
+	/**
+		Represents the text of the page selector associated with the at-rule.
+	**/
 	var selectorText : String;
+	
+	/**
+		Returns the declaration block associated with the at-rule.
+	**/
 	var style(default,null) : CSSStyleDeclaration;
 	
 }

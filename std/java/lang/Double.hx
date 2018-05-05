@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,44 +22,13 @@
  package java.lang;
 
 @:native("") // make sure the generator won't see this
+@:forwardStatics
 @:forward abstract Double(DoubleClass) from DoubleClass to DoubleClass
 {
-	@:to @:extern inline public function toFloat():Float
+	@:to extern inline public function toFloat():Float
 		return this.doubleValue();
-	@:from @:extern inline public static function fromFloat(b:Float):Double
+	@:from extern inline public static function fromFloat(b:Float):Double
 		return DoubleClass.valueOf(b);
-
-	@:extern public static var MAX_EXPONENT(get,never):Int;
-	@:extern static inline function get_MAX_EXPONENT():Int return DoubleClass.MAX_EXPONENT;
-	@:extern public static var MAX_VALUE(get,never):Float;
-	@:extern static inline function get_MAX_VALUE():Float return DoubleClass.MAX_VALUE;
-	@:extern public static var MIN_EXPONENT(get,never):Int;
-	@:extern static inline function get_MIN_EXPONENT():Int return DoubleClass.MIN_EXPONENT;
-	@:extern public static var MIN_NORMAL(get,never):Float;
-	@:extern static inline function get_MIN_NORMAL():Float return DoubleClass.MIN_NORMAL;
-	@:extern public static var MIN_VALUE(get,never):Float;
-	@:extern static inline function get_MIN_VALUE():Float return DoubleClass.MIN_VALUE;
-	@:extern public static var NEGATIVE_INFINITY(get,never):Float;
-	@:extern static inline function get_NEGATIVE_INFINITY():Float return DoubleClass.NEGATIVE_INFINITY;
-	@:extern public static var NaN(get,never):Float;
-	@:extern static inline function get_NaN():Float return DoubleClass.NaN;
-	@:extern public static var POSITIVE_INFINITY(get,never):Float;
-	@:extern static inline function get_POSITIVE_INFINITY():Float return DoubleClass.POSITIVE_INFINITY;
-	@:extern public static var SIZE(get,never):Int;
-	@:extern static inline function get_SIZE():Int return DoubleClass.SIZE;
-	@:extern public static var TYPE(get,set):Class<java.lang.Double>;
-	@:extern static inline function get_TYPE():Class<java.lang.Double> return DoubleClass.TYPE;
-	@:extern static inline function set_TYPE(val:Class<java.lang.Double>):Class<java.lang.Double> return DoubleClass.TYPE = val;
-	@:extern @:overload inline public static function compare(param1:Float, param2:Float):Int return DoubleClass.compare(param1, param2);
-	@:extern @:overload inline public static function doubleToLongBits(param1:Float):haxe.Int64 return DoubleClass.doubleToLongBits(param1);
-	@:extern @:overload inline public static function doubleToRawLongBits(param1:Float):haxe.Int64 return DoubleClass.doubleToRawLongBits(param1);
-	@:extern @:overload inline public static function _isInfinite(param1:Float):Bool return DoubleClass._isInfinite(param1);
-	@:extern @:overload inline public static function _isNaN(param1:Float):Bool return DoubleClass._isNaN(param1);
-	@:extern @:overload inline public static function longBitsToDouble(param1:haxe.Int64):Float return DoubleClass.longBitsToDouble(param1);
-	@:extern @:overload inline public static function parseDouble(param1:String):Float return DoubleClass.parseDouble(param1);
-	@:extern @:overload inline public static function toHexString(param1:Float):String return DoubleClass.toHexString(param1);
-	@:extern @:overload inline public static function _toString(param1:Float):String return DoubleClass._toString(param1);
-	@:extern @:overload inline public static function valueOf(param1:String):Double return DoubleClass.valueOf(param1);
 }
 
 @:native("java.lang.Double") extern class DoubleClass extends Number implements Comparable<Double>
@@ -92,6 +61,6 @@
 	@:overload @:throws("java.lang.NumberFormatException") static function parseDouble(param1 : String) : Float;
 	@:overload static function toHexString(param1 : Float) : String;
 	@:native("toString") @:overload static function _toString(param1 : Float) : String;
-	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Double;
 	@:overload static function valueOf(param1 : Float) : Double;
+	@:overload @:throws("java.lang.NumberFormatException") static function valueOf(param1 : String) : Double;
 }

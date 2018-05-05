@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,9 @@
  */
 package neko.vm;
 
-enum ThreadHandle {
+@:callable
+@:coreType
+abstract ThreadHandle {
 }
 
 class Thread {
@@ -33,7 +35,7 @@ class Thread {
 	}
 
 	/**
-		Send a message to the thread queue. This message can be readed by using [readMessage].
+		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage( msg : Dynamic ) {
 		thread_send(handle,msg);
@@ -48,22 +50,22 @@ class Thread {
 	}
 
 	/**
-		Creates a new thread that will execute the [callb] function, then exit.
+		Creates a new thread that will execute the `callb` function, then exit.
 	**/
 	public static function create( callb : Void -> Void ) {
 		return new Thread(thread_create(function(_) { return callb(); },null));
 	}
 
 	/**
-		Reads a message from the thread queue. If [block] is true, the function
-		blocks until a message is available. If [block] is false, the function
-		returns [null] if no message is available.
+		Reads a message from the thread queue. If `block` is true, the function
+		blocks until a message is available. If `block` is false, the function
+		returns `null` if no message is available.
 	**/
 	public static function readMessage( block : Bool ) : Dynamic {
 		return thread_read_message(block);
 	}
 
-	@:keep function __compare(t) {
+	@:keep function __compare(t:Dynamic) {
 		return untyped __dollar__compare(handle,t.handle);
 	}
 
@@ -80,7 +82,7 @@ class Thread {
 
 	/**
 		The function [f] will be called by this thread if it's in [osLoop].
-		[sync] returns immediatly. See [osInitialize] remarks.
+		[sync] returns immediately. See [osInitialize] remarks.
 	**
 	public function sync( f : Void -> Void ) {
 		os_sync(handle,f);

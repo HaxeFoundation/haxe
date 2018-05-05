@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBTransaction.webidl line 11:0. Do not edit!
+// This file is generated from mozilla\IDBTransaction.webidl. Do not edit!
 
 package js.html.idb;
 
-@:enum abstract TransactionMode(String)
+enum abstract TransactionMode(String)
 {
 	var READONLY = "readonly";
 	var READWRITE = "readwrite";
+	var READWRITEFLUSH = "readwriteflush";
+	var CLEANUP = "cleanup";
 	var VERSIONCHANGE = "versionchange";
 }

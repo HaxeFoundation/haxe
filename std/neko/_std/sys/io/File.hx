@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,6 +56,13 @@ enum FileHandle {
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
 		return untyped new FileOutput(file_open(path.__s,(if( binary ) "ab" else "a").__s));
+	}
+
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
+		return untyped new FileOutput(file_open(path.__s,(if( binary ) "rb+" else "r+").__s));
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {

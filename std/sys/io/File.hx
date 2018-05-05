@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -109,6 +109,13 @@ extern class File {
 	**/
 	static function append( path : String, binary : Bool = true ) : FileOutput;
 
+	/**
+		Similar to `sys.io.File.append`. While `append` can only seek or write
+		starting from the end of the file's previous contents, `update` can
+		seek to any position, so the file's previous contents can be
+		selectively overwritten.
+	**/
+	static function update (path : String, binary : Bool = true ) : FileOutput;
 
 	/**
 		Copies the contents of the file specified by `srcPath` to the file

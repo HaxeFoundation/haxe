@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -72,6 +72,16 @@ class File {
 
 	public static function append( path : String, binary : Bool = true ) : FileOutput {
 		var mode = if (binary) "ab" else "a";
+		var f = python.lib.Builtins.open(path, mode, -1, null, null, binary ? null : "");
+
+		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);
+	}
+
+	public static function update( path : String, binary : Bool = true ) : FileOutput {
+		if (!FileSystem.exists(path)) {
+			write(path).close();
+		}
+		var mode = if (binary) "rb+" else "r+";
 		var f = python.lib.Builtins.open(path, mode, -1, null, null, binary ? null : "");
 
 		return if (binary) IoTools.createFileOutputFromBytes(cast f) else IoTools.createFileOutputFromText(cast f);

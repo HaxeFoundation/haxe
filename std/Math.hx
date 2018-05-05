@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,8 +21,11 @@
  */
 /**
 	This class defines mathematical functions and constants.
+
+	@see https://haxe.org/manual/std-math.html
 **/
 #if cpp @:include("hxMath.h") #end
+@:pure
 extern class Math
 {
 	/**
@@ -45,7 +48,7 @@ extern class Math
 	static var NEGATIVE_INFINITY(default, null) : Float;
 
 	/**
-		A special `Float` constant which denotes negative infinity.
+		A special `Float` constant which denotes positive infinity.
 
 		For example, this is the result of 1.0 / 0.0.
 
@@ -70,10 +73,6 @@ extern class Math
 		result is unspecified.
 
 		In order to test if a value is `NaN`, you should use `Math.isNaN()` function.
-
-		@php In PHP versions prior to 5.3.1 VC 9 there may be unexpected
-		results when performing arithmetic operations with `NaN` on Windows,
-		see [https://bugs.php.net/bug.php?id=42143]
 	**/
 	static var NaN(default, null) : Float;
 
@@ -203,6 +202,8 @@ extern class Math
 	/**
 		Rounds `v` to the nearest integer value.
 
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
+
 		If `v` is outside of the signed `Int32` range, or is `NaN`, `NEGATIVE_INFINITY`
 		or `POSITIVE_INFINITY`, the result is unspecified.
 	**/
@@ -230,7 +231,7 @@ extern class Math
 	**/
 	static function random() : Float;
 
-	#if ((flash && !as3) || cpp)
+	#if ((flash && !as3) || cpp || eval)
 	/**
 		Returns the largest integer value that is not greater than `v`, as a `Float`.
 
@@ -249,6 +250,8 @@ extern class Math
 
 	/**
 		Rounds `v` to the nearest integer value, as a Float.
+
+		Ties are rounded up, so that `0.5` becomes `1` and `-0.5` becomes `0`.
 
 		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
@@ -289,6 +292,7 @@ extern class Math
 	**/
 	static function isNaN( f : Float ) : Bool;
 
+	#if !eval
 	private static function __init__() : Void untyped {
 	#if flash
 		NaN = __global__["Number"].NaN;
@@ -317,5 +321,6 @@ extern class Math
 			#end
 		};
 	}
+	#end
 
 }

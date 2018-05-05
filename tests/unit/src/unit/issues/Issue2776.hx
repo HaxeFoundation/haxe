@@ -1,7 +1,6 @@
 package unit.issues;
 import unit.Test;
 
-@:analyzer(no_check_has_effect)
 class Issue2776 extends Test {
 	function test() {
 		var type = null;
@@ -9,17 +8,17 @@ class Issue2776 extends Test {
 			case String:
 			case Int:
 		}
-		unit.TestType.typedAs(type, getClassT());
+		unit.HelperMacros.typedAs(type, getClassT());
 
 		var type = null;
 		switch(type) {
 			case haxe.macro.Expr.ExprDef:
 			case haxe.macro.Expr.Constant:
 		}
-		unit.TestType.typedAs(type, getEnumT());
+		unit.HelperMacros.typedAs(type, getEnumT());
 
 		var type = null;
-		t(unit.TestType.typeError(switch(type) {
+		t(unit.HelperMacros.typeError(switch(type) {
 			case String:
 			case haxe.macro.Expr.ExprDef:
 		}));

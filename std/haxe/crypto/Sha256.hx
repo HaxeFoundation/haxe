@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,19 +27,12 @@ package haxe.crypto;
 class Sha256 {
 
 	public static function encode( s:String ) : String {
-		#if php
-		return untyped __call__("hash", "sha256", s);
-		#else
 		var sh = new Sha256();
 		var h = sh.doEncode(str2blks(s), s.length*8);
 		return sh.hex(h);
-		#end
 	}
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if php
-		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha256", b.getData().toString(), true)));
-		#else
 		var h = new Sha256().doEncode(bytes2blks(b), b.length*8);
 		var out = haxe.io.Bytes.alloc(32);
 		var p = 0;
@@ -50,7 +43,6 @@ class Sha256 {
 			out.set(p++,h[i]&0xFF);
 		}
 		return out;
-		#end
 	}
 
 	public function new() {
@@ -113,6 +105,9 @@ class Sha256 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
+#if !(neko || cpp)
+		var s = haxe.io.Bytes.ofString(s);
+#end
 		var nblk = ((s.length + 8) >> 6) + 1;
 		var blks = new Array<Int>();
 
@@ -120,7 +115,7 @@ class Sha256 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= s.charCodeAt(i) << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;
@@ -145,40 +140,48 @@ class Sha256 {
 		blks[nblk * 16 - 1] = b.length * 8;
 		return blks;
 	}
-
-	function S(X, n) {
+	extern
+	inline function S(X, n) {
 		return ( X >>> n ) | (X << (32 - n));
 	}
 
-	function R(X, n) {
+	extern
+	inline function R(X, n) {
 		return ( X >>> n );
 	}
 
-	function Ch(x, y, z) {
+	extern
+	inline function Ch(x, y, z) {
 		return ((x & y) ^ ((~x) & z));
 	}
 
-	function Maj(x, y, z) {
+	extern
+	inline function Maj(x, y, z) {
 		return ((x & y) ^ (x & z) ^ (y & z));
 	}
 
-	function Sigma0256(x) {
+	extern
+	inline function Sigma0256(x) {
 		return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
 	}
 
-	function Sigma1256(x) {
+	extern
+	inline function Sigma1256(x) {
 		return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
 	}
 
-	function Gamma0256(x) {
+	extern
+	inline function Gamma0256(x) {
 		return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
 	}
 
-	function Gamma1256(x) {
+	extern
+	inline function Gamma1256(x) {
 		return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
 	}
 
-	function safeAdd(x, y) {
+	extern
+	inline function safeAdd(x, y) {
 		var lsw = (x & 0xFFFF) + (y & 0xFFFF);
 		var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,12 +64,8 @@ class FileSystem {
 		}
 	}
 
-	public static function isDirectory( path : String ) : Bool {
-		return try {
-			kind(path) == kdir;
-		} catch(e:Dynamic) {
-			false;
-		}
+	public static inline function isDirectory( path : String ) : Bool {
+		return kind(path) == kdir;
 	}
 
 	public static function createDirectory( path : String ) : Void {

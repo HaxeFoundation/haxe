@@ -53,96 +53,51 @@ class RunSauceLabs {
 
 		// hide "Stop running this script?" dialogs
 		// https://support.saucelabs.com/customer/portal/articles/2057026-how-to-hide-%22stop-running-this-script-%22-dialogs
-		var hideLongRunningScriptWarning = "https://support.saucelabs.com/customer/portal/kb_article_attachments/59514/original.bat";
+		// https://gist.github.com/andyli/948045e8f9d7b28104c2e2751d77d04a
+		var hideLongRunningScriptWarning = "https://gist.githubusercontent.com/andyli/948045e8f9d7b28104c2e2751d77d04a/raw/bfe5af9a94175c19d87131cc9bb059872e8d170f/IEMaxScriptStatements.bat";
 
 		//https://saucelabs.com/platforms
 		var browsers:Array<Dynamic> = [
 			// {
 			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "6",
-			//  "prerun": hideLongRunningScriptWarning
+			// 	"platform": "Windows 7",
+			// 	"version": "8.0",
+			// 	"prerun": hideLongRunningScriptWarning
 			// },
 			// {
 			// 	"browserName": "internet explorer",
-			// 	"platform": "Windows XP",
-			// 	"version": "7",
-			//  "prerun": hideLongRunningScriptWarning
+			// 	"platform": "Windows 7",
+			// 	"version": "9.0",
+			// 	"prerun": hideLongRunningScriptWarning
 			// },
 			{
 				"browserName": "internet explorer",
-				"platform": "Windows XP",
-				"version": "8",
-				"prerun": hideLongRunningScriptWarning
-			},
-			{
-				"browserName": "internet explorer",
 				"platform": "Windows 7",
-				"version": "9",
-				"prerun": hideLongRunningScriptWarning
-			},
-			{
-				"browserName": "internet explorer",
-				"platform": "Windows 7",
-				"version": "10"
+				"version": "10.0"
 			},
 			{
 				"browserName": "internet explorer",
 				"platform": "Windows 8.1",
-				"version": "11"
+				"version": "11.0"
 			},
 			{
 				"browserName": "chrome",
-				"platform": "Windows XP"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "firefox",
-				"platform": "Windows XP"
-			},
-			{
-				"browserName": "safari",
-				"platform": "OS X 10.8",
-				"version": "6"
-			},
-			{
-				"browserName": "safari",
-				"platform": "OS X 10.9",
-				"version": "7"
+				"platform": "Windows 7"
 			},
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.10",
-				"version": "8"
+				"version": "8.0"
 			},
 			{
 				"browserName": "safari",
 				"platform": "OS X 10.11",
-				"version": "9"
+				"version": "9.0"
 			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.8",
-				"version": "6.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "iphone",
-				"platform": "OS X 10.9",
-				"version": "8.1",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "android",
-				"platform": "Linux",
-				"version": "4.0",
-				"device-orientation": "portrait"
-			},
-			{
-				"browserName": "android",
-				"platform": "Linux",
-				"version": "4.3",
-				"device-orientation": "portrait"
-			}
 		];
 
 		var arg, args = process.argv.slice(2);
@@ -226,7 +181,7 @@ class RunSauceLabs {
 
 			var browserSuccess = true;
 			var urls = if (!isEs5(caps)) {
-				urls.filter(function(url:String) return url.indexOf("-es5") < 0);
+				urls.filter(function(url:String) return url.indexOf("js-es=3") != -1);
 			} else {
 				urls;
 			}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,8 +28,9 @@ import haxe.macro.Expr;
 	This class provides some utility methods to work with strings in macro
 	context.
 **/
+#if hl @:hlNative("macro") #end
 class MacroStringTools {
-	#if macro
+	#if (macro || display)
 
 
 	/**
@@ -39,7 +40,9 @@ class MacroStringTools {
 		elements.
 	**/
 	static public function formatString(s:String, pos:Position) {
-		return Context.load("format_string", 2)(untyped s.__s, pos);
+		#if (neko || eval)
+		return Context.load("format_string", 2)(s, pos);
+		#end
 	}
 
 	/**
@@ -52,9 +55,19 @@ class MacroStringTools {
 
 		This operation depends on the position of `e`.
 	**/
-	static public function isFormatExpr(e:ExprOf<String>) {
+	static public function isFormatExpr(e:ExprOf<String>) : Bool {
+		#if (neko || eval)
 		return Context.load("is_fmt_string", 1)(e.pos);
+		#else
+		return isFmtString(e.pos);
+		#end
 	}
+
+	#if !neko
+	static function isFmtString(p:Position) : Bool {
+		return false;
+	}
+	#end
 
 	#end
 

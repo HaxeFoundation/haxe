@@ -1,15 +1,42 @@
 class FileNames {
 	static public var names(default, never) = [
 		"ok",
+		"ok2",
+		"ok3",
+		"ok4",
 
 		// a space inside
 		"two words",
 
-		// Chinese, Japanese
-		// "中文，にほんご",
+		// some valid seperators
+		"two-words",
+		"two_words",
+		"two,words",
+		"two.words",
+		"two;words",
+		"(two words)",
+		"[two words]",
 
-		// "aaa...a" that has 255 characters
-		// 255 bytes is the max filename length according to http://en.wikipedia.org/wiki/Comparison_of_file_systems
-		// [for (i in 0...255) "a"].join("")
-	];
+		// Chinese, Japanese
+		#if !(cs || python || php || neko || cpp || java || lua)
+		"中文，にほんご",
+		// this is a (Unicode) equivalent, but fails on OS X: "中文，にほんご",
+		#end
+
+		// "aaa...a"
+		[for (i in 0...100) "a"].join(""),
+	]
+	// long file name
+	.concat(switch (Sys.systemName()) {
+		case "Windows":
+			// http://stackoverflow.com/a/265782/267998
+			[];
+		case _:
+		[
+			// 255 bytes is the max filename length according to http://en.wikipedia.org/wiki/Comparison_of_file_systems
+			#if !(python || neko || cpp || java)
+			[for (i in 0...255) "a"].join(""),
+			#end
+		];
+	});
 }

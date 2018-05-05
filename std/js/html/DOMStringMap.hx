@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DOMStringMap.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\DOMStringMap.webidl. Do not edit!
 
 package js.html;
 
+/**
+	Used by the `dataset` HTML attribute to represent data for custom attributes added to elements.
+
+	Documentation [DOMStringMap](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap>
+**/
 @:native("DOMStringMap")
 extern class DOMStringMap implements Dynamic<String>
 {

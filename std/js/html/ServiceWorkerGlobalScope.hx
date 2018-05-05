@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,23 +20,70 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ServiceWorkerGlobalScope.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\ServiceWorkerGlobalScope.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `ServiceWorkerGlobalScope` interface of the ServiceWorker API represents the global execution context of a service worker.
+
+	Documentation [ServiceWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope>
+**/
 @:native("ServiceWorkerGlobalScope")
 extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
 {
-	var clients(default,null) : ServiceWorkerClients;
-	var scope(default,null) : String;
+	
+	/**
+		Contains the `Clients` object associated with the service worker.
+	**/
+	var clients(default,null) : Clients;
+	
+	/**
+		Contains the `ServiceWorkerRegistration` object that represents the service worker's registration.
+	**/
+	var registration(default,null) : ServiceWorkerRegistration;
+	
+	/**
+		An event handler fired whenever an `install` event occurs — when a `ServiceWorkerRegistration` acquires a new `ServiceWorkerRegistration.installing` worker.
+	**/
 	var oninstall : haxe.Constraints.Function;
+	
+	/**
+		An event handler fired whenever an `activate` event occurs — when a `ServiceWorkerRegistration` acquires a new `ServiceWorkerRegistration.active` worker.
+	**/
 	var onactivate : haxe.Constraints.Function;
+	
+	/**
+		An event handler fired whenever a `fetch` event occurs — when a `GlobalFetch.fetch` is called.
+	**/
 	var onfetch : haxe.Constraints.Function;
-	var onbeforeevicted : haxe.Constraints.Function;
-	var onevicted : haxe.Constraints.Function;
+	
+	/**
+		An event handler fired whenever a `message` event occurs — when incoming messages are received. Controlled pages can use the `MessagePort.postMessage()` method to send messages to service workers. The service worker can optionally send a response back via the `MessagePort` exposed in `event.data.port`, corresponding to the controlled page.
+	**/
 	var onmessage : haxe.Constraints.Function;
 	
-	function update() : Void;
+	/**
+		An event handler fired whenever a `push` event occurs — when a server push notification is received.
+	**/
+	var onpush : haxe.Constraints.Function;
+	
+	/**
+		An event handler fired whenever a `pushsubscriptionchange` event occurs — when a push subscription has been invalidated, or is about to be invalidated (e.g. when a push service sets an expiration time.)
+	**/
+	var onpushsubscriptionchange : haxe.Constraints.Function;
+	
+	/**
+		An event handler fired whenever a `notificationclick` event occurs — when a user clicks on a displayed notification.
+	**/
+	var onnotificationclick : haxe.Constraints.Function;
+	
 	/** @throws DOMError */
-	function unregister() : Promise<Bool>;
+	
+	/**
+		Allows the current service worker registration to progress from waiting to active state while service worker clients are using it.
+	**/
+	function skipWaiting() : Promise<Void>;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,12 @@
 package js.html.compat;
 
 #if !nodejs
-@:keep
+@:ifFeature("js.html.ArrayBuffer.*")
 class ArrayBuffer {
 
 	public var byteLength : Int;
 	var a : Array<Int>;
-	
+
 	public function new( ?a : Dynamic ) {
 		if( Std.is(a,Array) ) {
 			this.a = a;
@@ -40,22 +40,22 @@ class ArrayBuffer {
 			byteLength = len;
 		}
 	}
-	
+
 	public function slice(begin,?end) {
 		return new ArrayBuffer(a.slice(begin,end));
 	}
-	
+
 	static function sliceImpl(begin,?end) {
-		var u = new js.html.Uint8Array(untyped __js__('this'), begin, end == null ? null : end - begin);
-        var result = new js.html.ArrayBuffer(u.byteLength);
-        var resultArray = new js.html.Uint8Array(result);
+		var u = new js.html.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : end - begin);
+		var result = new js.html.ArrayBuffer(u.byteLength);
+		var resultArray = new js.html.Uint8Array(result);
 		resultArray.set(u);
-        return result;
+		return result;
 	}
 
 	static function __init__() untyped {
-		var ArrayBuffer = js.Lib.global.ArrayBuffer || js.html.compat.ArrayBuffer;
-		if( ArrayBuffer.prototype.slice == null ) ArrayBuffer.prototype.slice = sliceImpl; // IE10
+		__js__("var ArrayBuffer = {0} || {1}", js.Lib.global.ArrayBuffer, js.html.compat.ArrayBuffer);
+		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl; // IE10
 	}
 }
 #end

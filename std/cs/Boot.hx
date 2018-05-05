@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,6 @@ import cs.internal.FieldLookup;
 import cs.internal.Function;
 import cs.internal.HxObject;
 import cs.internal.Runtime;
-import cs.internal.Iterator;
 #if !erase_generics
 import cs.internal.Null;
 #end
@@ -37,6 +36,7 @@ import cs.StdTypes;
 import haxe.ds.StringMap;
 import Reflect;
 
+@:dox(hide)
 class Boot
 {
 

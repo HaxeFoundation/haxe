@@ -4,5 +4,5 @@ s == "string";
 e = 1;
 var i:Int = e;
 i == 1;
-TestType.typeError(e = false) == true;
-TestType.typeError(e = 1.5) == true;
+HelperMacros.typeError(e = false) == true;
+HelperMacros.typeError(e = 1.5) == true;

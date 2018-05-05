@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ScriptProcessorNode.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\ScriptProcessorNode.webidl. Do not edit!
 
 package js.html.audio;
 
+/**
+	Documentation [ScriptProcessorNode](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode>
+**/
 @:native("ScriptProcessorNode")
 extern class ScriptProcessorNode extends AudioNode
 {
+	
+	/**
+		Represents the `EventHandler` to be called.
+	**/
 	var onaudioprocess : haxe.Constraints.Function;
+	
+	/**
+		Returns an integer representing both the input and output buffer size. Its value can be a power of 2 value in the range `256`–`16384`.
+	**/
 	var bufferSize(default,null) : Int;
 	
 }

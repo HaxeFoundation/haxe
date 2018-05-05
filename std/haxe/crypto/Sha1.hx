@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,19 +27,12 @@ package haxe.crypto;
 class Sha1 {
 
 	public static function encode( s:String ) : String {
-		#if php
-		return untyped __call__("sha1", s);
-		#else
 		var sh = new Sha1();
 		var h = sh.doEncode(str2blks(s));
 		return sh.hex(h);
-		#end
 	}
 
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-		#if php
-		return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("sha1", b.getData().toString(), true)));
-		#else
 		var h = new Sha1().doEncode(bytes2blks(b));
 		var out = haxe.io.Bytes.alloc(20);
 		var p = 0;
@@ -50,10 +43,7 @@ class Sha1 {
 			out.set(p++,h[i]&0xFF);
 		}
 		return out;
-		#end
 	}
-
-	#if !php
 
 	function new() {
 	}
@@ -105,6 +95,9 @@ class Sha1 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
+#if !(neko || cpp)
+		var s = haxe.io.Bytes.ofString(s);
+#end
 		var nblk = ((s.length + 8) >> 6) + 1;
 		var blks = new Array<Int>();
 
@@ -112,7 +105,7 @@ class Sha1 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= s.charCodeAt(i) << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || cpp) s.get(i) #else StringTools.fastCodeAt(s,i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;
@@ -175,7 +168,4 @@ class Sha1 {
 		}
 		return str.toLowerCase();
 	}
-
-	#end
-
 }

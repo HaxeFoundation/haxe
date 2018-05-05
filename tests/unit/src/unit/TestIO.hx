@@ -8,7 +8,7 @@ class TestIO extends Test {
 		check(true);
 	}
 
-	function excv<T>( f, e : T, ?pos ) {
+	function excv<T>( f:Void -> Void, e : T, ?pos ) {
 		try {
 			f();
 			eq(null,e,pos);
@@ -57,7 +57,6 @@ class TestIO extends Test {
 
 		var str = "Héllo World !";
 		o.writeString(str);
-
 		eq(o.length, 86);
 
 		o.writeInt16(-12345);

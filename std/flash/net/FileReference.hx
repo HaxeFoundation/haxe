@@ -1,13 +1,13 @@
 package flash.net;
 
 extern class FileReference extends flash.events.EventDispatcher {
-	var creationDate(default,null) : Date;
-	var creator(default,null) : String;
-	@:require(flash10) var data(default,null) : flash.utils.ByteArray;
-	var modificationDate(default,null) : Date;
-	var name(default,null) : String;
-	var size(default,null) : Float;
-	var type(default,null) : String;
+	var creationDate(default,never) : Date;
+	var creator(default,never) : String;
+	@:require(flash10) var data(default,never) : flash.utils.ByteArray;
+	var modificationDate(default,never) : Date;
+	var name(default,never) : String;
+	var size(default,never) : Float;
+	var type(default,never) : String;
 	function new() : Void;
 	function browse(?typeFilter : Array<FileFilter>) : Bool;
 	function cancel() : Void;

@@ -36,18 +36,18 @@ class Issue3360 extends Test {
 		var q1 = new Quat(0,0,0,1);
 
 		var res = q0 * v;
-		unit.TestType.typedAs(res, (null : Vec3));
+		unit.HelperMacros.typedAs(res, (null : Vec3));
 		feq(1, res[0]);
 		feq(2, res[1]);
 		feq(3, res[2]);
 		var res = q0 * q1;
-		unit.TestType.typedAs(res, (null : Quat));
+		unit.HelperMacros.typedAs(res, (null : Quat));
 		feq(1, res[0]);
 		feq(2, res[1]);
 		feq(3, res[2]);
 		feq(1, res[3]);
 
 		var k:Kilometer = 1;
-		t(unit.TestType.typeError(var m:Meter = k));
+		t(unit.HelperMacros.typeError(var m:Meter = k));
 	}
 }

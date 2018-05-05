@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,21 @@
 
 extern class NativeArray {
 
-	public static inline function blit<T>( ioDestArray:Array<T>,
+   #if cppia
+   public static inline function create<T>(length:Int):Array<T>
+   {
+      var result = new Array<T>();
+      NativeArray.setSize(result,length);
+      return result;
+   }
+
+   #else
+
+   @:native("_hx_create_array_length")
+   public static function create<T>(length:Int):Array<T>;
+   #end
+
+   public static inline function blit<T>( ioDestArray:Array<T>,
 		inDestElement:Int, inSourceArray:Array<T>,
 		inSourceElement:Int, inElementCount:Int ): Void  {
 	untyped ioDestArray.blit(inDestElement, inSourceArray, inSourceElement, inElementCount);
@@ -33,22 +47,36 @@ extern class NativeArray {
       return untyped inArray;
    }
 
+   @:nativeStaticExtension
+	public static function reserve<T>( inArray:Array<T>,inElements:Int ) : Void { }
+
+   @:nativeStaticExtension
+	public static function capacity<T>( inArray:Array<T> ) : Int { }
+
+   @:nativeStaticExtension
+	public static function getElementSize<T>( inArray:Array<T> ) : Int { }
+
 	public static inline function address<T>( inArray:Array<T>,inIndex:Int ) : Pointer<T> {
       return Pointer.arrayElem(inArray,inIndex);
    }
 
-	public static inline function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
-      untyped inArray.setData(inData.raw,inElementCount);
-   }
-	public static inline function setUnmanagedData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void {
-      untyped inArray.setUnmanagedData(inData.raw,inElementCount);
-   }
+   @:nativeStaticExtension
+	public static function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void { }
+
+   @:nativeStaticExtension
+	public static function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void { }
+
+   @:nativeStaticExtension
+	public static function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void { };
+
+   @:nativeStaticExtension
+	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int { }
+
+   @:native("_hx_reslove_virtual_array")
+	public static function resolveVirtualArray( inArray:Array<Dynamic>) : Dynamic { }
 
 
-	public static inline function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void {
-		untyped ioDestArray.zero(inFirst, inElements);
-	};
-
+   #if cppia
 	public static inline function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T {
 		return untyped inDestArray.__unsafe_get(inIndex);
 	}
@@ -57,11 +85,21 @@ extern class NativeArray {
 		return untyped ioDestArray.__unsafe_set(inIndex,inValue);
 	}
 
-	public static inline function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int {
-		return untyped inArrayA.memcmp(inArrayB);
-	}
-
 	public static inline function setSize<T>( ioArray:Array<T>, inSize:Int) : Array<T> {
 		return untyped ioArray.__SetSizeExact(inSize);
    }
+
+   #else
+   @:native("_hx_array_unsafe_get")
+	public static function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T { return untyped null; }
+
+   @:native("_hx_array_unsafe_set")
+	public static inline function unsafeSet<T>( ioDestArray:Array<T>, inIndex:Int, inValue:T) : T {
+		return untyped ioDestArray.__unsafe_set(inIndex,inValue);
+	}
+
+   @:native("_hx_array_set_size_exact")
+	public static function setSize<T>( ioArray:Array<T>, inSize:Int) : Array<T> return null;
+   #end
+
 }

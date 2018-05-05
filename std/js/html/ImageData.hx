@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,15 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/ImageData.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\ImageData.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `ImageData` interface represents the underlying pixel data of an area of a `canvas` element. It is created using the `ImageData()` constructor or creator methods on the `CanvasRenderingContext2D` object associated with a canvas: `createImageData()` and `getImageData()`. It can also be used to set a part of the canvas by using `putImageData()`.
+
+	Documentation [ImageData](https://developer.mozilla.org/en-US/docs/Web/API/ImageData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ImageData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageData>
+**/
 @:native("ImageData")
 extern class ImageData
 {
+	
+	/**
+		Is an `unsigned` `long` representing the actual width, in pixels, of the `ImageData`.
+	**/
 	var width(default,null) : Int;
+	
+	/**
+		Is an `unsigned` `long` representing the actual height, in pixels, of the `ImageData`.
+	**/
 	var height(default,null) : Int;
+	
+	/**
+		Is a `Uint8ClampedArray` representing a one-dimensional array containing the data in the RGBA order, with integer values between `0` and `255` (included).
+	**/
 	var data(default,null) : Uint8ClampedArray;
 	
 	/** @throws DOMError */

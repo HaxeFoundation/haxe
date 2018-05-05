@@ -1,4 +1,6 @@
 package unit;
+
+import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
@@ -85,7 +87,7 @@ class TestReflect extends Test {
 
 	static var TNAMES = [
 		"null","Int","String","Bool","Float",
-		"Array",u("haxe.ds.StringMap"),u("List"),"Date","Xml","Math",
+		"Array",u("haxe.ds.StringMap"),u("haxe.ds.List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
 		#if !flash u #end("Class"), u("Enum"), u("Dynamic"),
 		u2("unit","MyInterface")
@@ -97,9 +99,9 @@ class TestReflect extends Test {
 			var name = TNAMES[i];
 			infos("type "+name);
 			f( t == null );
-			if( name == u("Enum") ) {
+			if( name == u("Enum") || name == u("Bool") || name == u("Int") || name == u("Float") || name == u("Class") || name == u("Dynamic") ) {
 				// neither an enum or a class
-			} else if( t == MyEnum || t == Bool ) {
+			} else if( t == MyEnum ) {
 				eq( Type.getEnumName(t), name );
 				eq( Type.resolveEnum(name), t );
 			} else {
@@ -129,6 +131,10 @@ class TestReflect extends Test {
 		is("false",String);
 		is("",String);
 		is([],Array);
+		is([1, 2], Array);
+		is([1.1, 2.2], Array);
+		is(["a", "b"], Array);
+		is((["a",2]:Array<Dynamic>),Array);
 		is(new List(),List);
 		is(new haxe.ds.StringMap(),haxe.ds.StringMap);
 		is(new MyClass(0),MyClass);
@@ -140,7 +146,6 @@ class TestReflect extends Test {
 		is(function() { },null);
 		is(MyClass,Class);
 		is(MyEnum,Enum);
-		is(Class,Class);
 	}
 
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
@@ -176,6 +181,10 @@ class TestReflect extends Test {
 		typeof("Hello",TClass(String));
 		typeof("",TClass(String));
 		typeof([],TClass(Array));
+		typeof([1, 2], TClass(Array));
+		typeof([1., 2.], TClass(Array));
+		typeof(["1", "2"], TClass(Array));
+		typeof((["1",2]:Array<Dynamic>),TClass(Array));
 		typeof(new List(),TClass(List));
 		typeof(new haxe.ds.StringMap(),TClass(haxe.ds.StringMap));
 		typeof(new MyClass(0),TClass(MyClass));
@@ -221,14 +230,15 @@ class TestReflect extends Test {
 	}
 
 	function testCreate() {
+		#if !java
 		var i = Type.createInstance(MyClass,[33]);
 		t( (i is MyClass) );
 		eq( i.get(), 33 );
 		eq( i.intValue, 55 );
 		var i = Type.createEmptyInstance(MyClass);
 		t( (i is MyClass) );
-		eq( i.get(), #if (flash || cpp || java || cs) 0 #else null #end );
-		eq( i.intValue, #if (flash || cpp || java || cs) 0 #else null #end );
+		eq( i.get(), #if (flash || cpp || java || cs || hl) 0 #else null #end );
+		eq( i.intValue, #if (flash || cpp || java || cs || hl) 0 #else null #end );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("A"));
 		eq( e, MyEnum.A );
 		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("C"),[55,"hello"]);
@@ -239,7 +249,10 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
 		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
+		#end
 	}
+
+	static function compareMethodsDummy() {}
 
 	function testCompareMethods() {
 		var a = new MyClass(0);
@@ -249,6 +262,8 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(a.add,a.get) );
 		f( Reflect.compareMethods(a.add,null) );
 		f( Reflect.compareMethods(null, a.add) );
+		t( Reflect.compareMethods(compareMethodsDummy, compareMethodsDummy) );
+		t( Reflect.compareMethods(String.fromCharCode, String.fromCharCode) );
 		/*
 			Comparison between a method and a closure :
 			Not widely supported atm to justify officiel support

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of h software and associated documentation files (the "Software"),
@@ -25,7 +25,12 @@ package haxe.ds;
 @:coreApi
 class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 
-	static var count = 0;
+	static var count:Int;
+
+	// initialize count through __init__ magic, because these are generated
+	// before normal static initializations for which ObjectMap should be ready to use
+	// see https://github.com/HaxeFoundation/haxe/issues/6792
+	static inline function __init__():Void count = 0;
 
 	static inline function assignId(obj: { } ):Int {
 		return untyped obj.__id__ = ++count;
@@ -81,6 +86,12 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 			hasNext : function() { return __this__.it.hasNext(); },
 			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
 		};
+	}
+
+	public function copy() : ObjectMap<K,V> {
+		var copied = new ObjectMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	public function toString() : String {

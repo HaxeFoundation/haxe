@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -52,8 +52,8 @@ class FPHelper {
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 			b;
 		}
-	#elseif php
-		static var isLittleEndian : Bool = untyped __call__('unpack','S','\x01\x00')[1] == 1;
+	#elseif js
+		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
 	#else
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 	#end
@@ -87,14 +87,15 @@ class FPHelper {
 			return helper.f;
 		#elseif java
 			return java.lang.Float.FloatClass.intBitsToFloat(i);
-		#elseif php
-			return untyped  __call__('unpack', 'f', __call__('pack', 'l', i))[1];
 		#elseif flash
 			var helper = helper;
 			helper.position = 0;
 			helper.writeUnsignedInt(i);
 			helper.position = 0;
 			return helper.readFloat();
+		#elseif js
+			helper.setInt32(0, i, true);
+			return helper.getFloat32(0, true);
 		#else
 			var sign = 1 - ((i >>> 31) << 1);
 			var exp = (i >>> 23) & 0xFF;
@@ -133,14 +134,19 @@ class FPHelper {
 			helper.writeFloat(f);
 			helper.position = 0;
 			return helper.readUnsignedInt();
-		#elseif php
-			return untyped __call__('unpack','l',__call__('pack', 'f', f))[1];
+		#elseif js
+			helper.setFloat32(0, f, true);
+			return helper.getInt32(0,true);
 		#else
 			if( f == 0 ) return 0;
 			var af = f < 0 ? -f : f;
 			var exp = Math.floor(Math.log(af) / LN2);
 			if( exp < -127 ) exp = -127 else if( exp > 128 ) exp = 128;
-			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000) & 0x7FFFFF;
+			var sig = Math.round((af / Math.pow(2, exp) - 1) * 0x800000);
+			if( sig == 0x800000 && exp < 128 ){
+				sig = 0;
+				exp++;
+			}
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | sig;
 		#end
 	}
@@ -188,9 +194,18 @@ class FPHelper {
 			helper.writeUnsignedInt(high);
 			helper.position = 0;
 			return helper.readDouble();
-		#elseif php
-			return untyped  __call__('unpack', 'd', __call__('pack', 'ii', isLittleEndian ? low : high, isLittleEndian ? high : low))[1];
+		#elseif js
+			helper.setInt32(0, low , true);
+			helper.setInt32(4, high, true);
+			return helper.getFloat64(0,true);
 		#else
+			#if python
+			if (low == 0 && high == 2146435072) {
+				return Math.POSITIVE_INFINITY;
+			} else if (low == 0 && high == -1048576 ) {
+				return Math.NEGATIVE_INFINITY;
+			}
+			#end
 			var sign = 1 - ((high >>> 31) << 1);
 			var exp = ((high >> 20) & 0x7FF) - 1023;
 			var sig = (high&0xFFFFF) * 4294967296. + (low>>>31) * 2147483648. + (low&0x7FFFFFFF);
@@ -261,12 +276,12 @@ class FPHelper {
 				i64.set_high(cast helper.readUnsignedInt());
 			}
 			return i64;
-		#elseif php
-			var a = untyped __call__('unpack',isLittleEndian ? 'V2' : 'N2',__call__('pack', 'd', v));
+		#elseif js
 			var i64 = i64tmp;
+			helper.setFloat64(0, v, true);
 			@:privateAccess {
-				i64.set_low(a[isLittleEndian ? 1 : 2]);
-				i64.set_high(a[isLittleEndian ? 2 : 1]);
+				i64.set_low(helper.getInt32(0,true));
+				i64.set_high(helper.getInt32(4,true));
 			}
 			return i64;
 		#else
@@ -275,6 +290,14 @@ class FPHelper {
 				@:privateAccess {
 					i64.set_low(0);
 					i64.set_high(0);
+				}
+			} else if (!Math.isFinite(v)) @:privateAccess {
+				if (v > 0) {
+					i64.set_low(0);
+					i64.set_high(2146435072);
+				} else {
+					i64.set_low(0);
+					i64.set_high(-1048576);
 				}
 			} else {
 				var av = v < 0 ? -v : v;

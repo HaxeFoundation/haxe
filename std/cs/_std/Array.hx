@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -426,6 +426,22 @@ import cs.NativeArray;
 	public inline function iterator() : Iterator<T>
 	{
 		return new ArrayIterator<T>(this);
+	}
+
+	public function resize( len : Int ) : Void
+	{
+		if (length < len)
+		{
+			if (__a.length < len)
+			{
+				cs.system.Array.Resize(__a, len);
+			}
+			this.length = len;
+		}
+		else if (length > len)
+		{
+			spliceVoid(len, length - len);
+		}
 	}
 
 	private function __get(idx:Int):T

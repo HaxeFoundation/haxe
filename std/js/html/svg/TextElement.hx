@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGTextElement.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\SVGTextElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGTextElement` interface corresponds to the `text` elements.
+
+	Documentation [SVGTextElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGTextElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGTextElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextElement>
+**/
 @:native("SVGTextElement")
 extern class TextElement extends TextPositioningElement
 {

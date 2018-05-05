@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/IDBOpenDBRequest.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\IDBOpenDBRequest.webidl. Do not edit!
 
 package js.html.idb;
 
+/**
+	No methods, but inherits methods from its parents `IDBRequest` and `EventTarget`.
+
+	Documentation [IDBOpenDBRequest](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBOpenDBRequest>
+**/
 @:native("IDBOpenDBRequest")
 extern class OpenDBRequest extends Request
 {
+	
+	/**
+		The event handler for the blocked event. This event is triggered when the `upgradeneeded` event should be triggered because of a version change but the database is still in use (i.e. not closed) somewhere, even after the `versionchange` event was sent.
+	**/
 	var onblocked : haxe.Constraints.Function;
+	
+	/**
+		The event handler for the `upgradeneeded` event, fired when a database of a bigger version number than the existing stored database is loaded.
+	**/
 	var onupgradeneeded : haxe.Constraints.Function;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,6 +55,12 @@ package haxe.ds;
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
+	}
+	
+	public function copy() : IntMap<T> {
+		var copied = new IntMap();
+		for(key in keys()) copied.set(key, get(key));
+		return copied;
 	}
 
 	public function toString() : String {

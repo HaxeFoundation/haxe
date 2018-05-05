@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,8 +29,6 @@ class Md5 {
 	public static function encode( s : String ) : String {
 		#if neko
 			return untyped new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
-		#elseif php
-			return untyped __call__("md5", s);
 		#else
 			var m = new Md5();
 			var h = m.doEncode(str2blks(s));
@@ -41,8 +39,6 @@ class Md5 {
 	public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
 		#if neko
 			return haxe.io.Bytes.ofData(make_md5(b.getData()));
-		#elseif php
-			return haxe.io.Bytes.ofData( haxe.io.BytesData.ofString(untyped __call__("md5", b.getData().toString(), true)));
 		#else
 			var h = new Md5().doEncode(bytes2blks(b));
 			var out = haxe.io.Bytes.alloc(16);
@@ -60,7 +56,7 @@ class Md5 {
 	#if neko
 	static var base_encode = neko.Lib.load("std","base_encode",2);
 	static var make_md5 = neko.Lib.load("std","make_md5",1);
-	#elseif !php
+	#else
 
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
@@ -113,11 +109,11 @@ class Md5 {
 
 		//preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || cs || cpp || java)
+		#if (neko || cs || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs) //C++ and C# will already initialize them with zeroes.
+		#if !(cpp || cs || hl) //C++ and C# will already initialize them with zeroes.
 		for( i in 0...blksSize ) blks[i] = 0;
 		#end
 
@@ -137,26 +133,30 @@ class Md5 {
 	}
 
 	static function str2blks( str : String ){
+#if !(neko || cpp)
+		var str = haxe.io.Bytes.ofString(str);
+#end
 		var nblk = ((str.length + 8) >> 6) + 1;
 		var blks = new Array();
 
 		//preallocate size
 		var blksSize = nblk * 16;
-		#if (neko || cs || cpp || java)
+		#if (neko || eval || cs || cpp || java || hl)
 		blks[blksSize - 1] = 0;
 		#end
 
-		#if !(cpp || cs) //C++ and C# will already initialize them with zeroes.
+		#if !(cpp || cs || hl) //C++ and C# will already initialize them with zeroes.
 		for( i in 0...blksSize ) blks[i] = 0;
 		#end
 
 		var i = 0;
-		while( i < str.length ) {
-			blks[i >> 2] |= str.charCodeAt(i) << (((str.length * 8 + i) % 4) * 8);
+		var max = str.length;
+		var l = max * 8;
+		while( i < max ) {
+			blks[i >> 2] |= #if !(neko || cpp) str.get(i) #else StringTools.fastCodeAt(str, i) #end << (((l + i) % 4) * 8);
 			i++;
 		}
-		blks[i >> 2] |= 0x80 << (((str.length * 8 + i) % 4) * 8);
-		var l = str.length * 8;
+		blks[i >> 2] |= 0x80 << (((l + i) % 4) * 8);
 		var k = nblk * 16 - 2;
 		blks[k] = (l & 0xFF);
 		blks[k] |= ((l >>> 8) & 0xFF) << 8;

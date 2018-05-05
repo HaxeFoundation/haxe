@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLTitleElement.webidl line 10:0. Do not edit!
+// This file is generated from mozilla\HTMLTitleElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLTitleElement` interface contains the title for a document. This element inherits all of the properties and methods of the `HTMLElement` interface.
+
+	Documentation [HTMLTitleElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement>
+**/
 @:native("HTMLTitleElement")
 extern class TitleElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the text of the document's title.
+	**/
 	var text : String;
 	
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGAnimateTransformElement.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\SVGAnimateTransformElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGAnimateTransformElement` interface corresponds to the `animateTransform` element.
+
+	Documentation [SVGAnimateTransformElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateTransformElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateTransformElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateTransformElement>
+**/
 @:native("SVGAnimateTransformElement")
 extern class AnimateTransformElement extends AnimationElement
 {

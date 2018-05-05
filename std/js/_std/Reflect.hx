@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,36 +21,38 @@
  */
 @:coreApi class Reflect {
 
+	@:pure
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __js__('Object').prototype.hasOwnProperty.call(o, field);
+		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
+	@:pure
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		try return untyped o[field] catch( e : Dynamic ) return null;
+		try return o[cast field] catch( e : Dynamic ) return null;
 	}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		o[field] = value;
+	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+		o[cast field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var tmp;
 		return if( o == null ) __define_feature__("Reflect.getProperty",null) else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		var tmp;
 		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = __define_feature__("Reflect.setProperty",value);
 	}
 
-	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
-		return func.apply(o,args);
+	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
+		return (cast func : js.Function).apply(o,args);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = __js__('Object').prototype.hasOwnProperty;
+			var hasOwnProperty = js.Object.prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
 			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");
@@ -58,8 +60,9 @@
 		return a;
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
+	@:access(js.Boot)
+	public static function isFunction( f : Dynamic ) : Bool {
+		return js.Syntax.typeof(f) == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -74,10 +77,11 @@
 		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool untyped {
+	@:access(js.Boot)
+	public static function isObject( v : Dynamic ) : Bool {
 		if( v == null )
 			return false;
-		var t = __js__("typeof(v)");
+		var t = js.Syntax.typeof(v);
 		return (t == "string" || (t == "object" && v.__enum__ == null)) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v)) != null);
 	}
 
@@ -85,9 +89,9 @@
 		return v != null && v.__enum__ != null;
 	}
 
-	public static function deleteField( o : Dynamic, field : String ) : Bool untyped {
+	public static function deleteField( o : Dynamic, field : String ) : Bool {
 		if( !hasField(o,field) ) return false;
-		__js__("delete")(o[field]);
+		js.Syntax.delete(o, field);
 		return true;
 	}
 

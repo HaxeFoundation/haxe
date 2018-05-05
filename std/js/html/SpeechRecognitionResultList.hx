@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,13 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SpeechRecognitionResultList.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\SpeechRecognitionResultList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `SpeechRecognitionResultList` interface of the Web Speech API represents a list of `SpeechRecognitionResult` objects, or a single one if results are being captured in `continuous` mode.
+
+	Documentation [SpeechRecognitionResultList](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList>
+**/
 @:native("SpeechRecognitionResultList")
 extern class SpeechRecognitionResultList implements ArrayAccess<SpeechRecognitionResult>
 {
+	
+	/**
+		Returns the length of the "array" — the number of `SpeechRecognitionResult` objects in the list.
+	**/
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : SpeechRecognitionResult;

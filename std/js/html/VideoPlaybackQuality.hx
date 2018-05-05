@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/VideoPlaybackQuality.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\VideoPlaybackQuality.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `VideoPlaybackQuality` interface represents the set of metrics describing the playback quality of a video.
+
+	Documentation [VideoPlaybackQuality](https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality>
+**/
 @:native("VideoPlaybackQuality")
 extern class VideoPlaybackQuality
 {
+	
+	/**
+		A `DOMHighResTimeStamp` containing the time in miliseconds since the start of the navigation and the creation of the object.
+	**/
 	var creationTime(default,null) : Float;
+	
+	/**
+		An `unsigned long` giving the number of video frames created and dropped since the creation of the associated `HTMLVideoElement`.
+	**/
 	var totalVideoFrames(default,null) : Int;
+	
+	/**
+		An `unsigned long` giving the number of video frames dropped since the creation of the associated `HTMLVideoElement`.
+	**/
 	var droppedVideoFrames(default,null) : Int;
+	
+	/**
+		An `unsigned long` giving the number of video frames corrupted since the creation of the associated `HTMLVideoElement`. A corrupted frame may be created or dropped.
+	**/
 	var corruptedVideoFrames(default,null) : Int;
 	
 }

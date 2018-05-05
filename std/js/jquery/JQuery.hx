@@ -27,6 +27,16 @@ package js.jquery;
 	**/
 	static public function ajaxTransport(dataType:String, handler:Dynamic -> Dynamic -> js.jquery.JqXHR -> Void):Void;
 	/**
+		States if the current page, in the user's browser, is being rendered using the <a href="http://www.w3.org/TR/REC-CSS2/box.html">W3C CSS Box Model</a>. <strong>This property was removed in jQuery 1.8</strong>. Please try to use feature detection instead.
+	**/
+	@:deprecated("Deprecated since jQuery 1.3")
+	static public var boxModel : Bool;
+	/**
+		Contains flags for the useragent, read from navigator.userAgent. <strong>This property was removed in jQuery 1.9</strong> and is available only through the jQuery.migrate plugin. Please try to use feature detection instead.
+	**/
+	@:deprecated("Deprecated since jQuery 1.3")
+	static public var browser : Dynamic;
+	/**
 		Check to see if a DOM element is a descendant of another DOM element.
 	**/
 	static public function contains(container:js.html.Element, contained:js.html.Element):Bool;
@@ -60,6 +70,10 @@ package js.jquery;
 	**/
 	static public function error(message:String):Void;
 	/**
+		Escapes any character that has a special meaning in a CSS selector.
+	**/
+	static public function escapeSelector(selector:String):String;
+	/**
 		Merge the contents of two or more objects together into the first object.
 	**/
 	@:overload(function(?deep:Bool, target:Dynamic, object1:Dynamic, ?objectN:Dynamic):Dynamic { })
@@ -71,6 +85,7 @@ package js.jquery;
 	static public var fx : { /**
 		The rate (in milliseconds) at which animations fire.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	var interval : Float; /**
 		Globally disable all animations.
 	**/
@@ -95,7 +110,7 @@ package js.jquery;
 	/**
 		Finds the elements of an array which satisfy a filter function. The original array is not affected.
 	**/
-	static public function grep(array:Array<Dynamic>, _function:Dynamic -> Int -> Bool, ?invert:Bool):Array<Dynamic>;
+	static public function grep(array:haxe.extern.EitherType<Array<Dynamic>, js.html.NodeList>, _function:Dynamic -> Int -> Bool, ?invert:Bool):Array<Dynamic>;
 	/**
 		Determine whether an element has any jQuery data associated with it.
 	**/
@@ -104,6 +119,10 @@ package js.jquery;
 		Holds or releases the execution of jQuery's ready event.
 	**/
 	static public function holdReady(hold:Bool):Void;
+	/**
+		Modify and filter HTML strings passed through <a href="/category/manipulation/">jQuery manipulation methods</a>.
+	**/
+	static public function htmlPrefilter(html:String):String;
 	/**
 		Search for a specified value within an array and return its index (or -1 if not found).
 	**/
@@ -121,7 +140,7 @@ package js.jquery;
 	**/
 	static public function isFunction(obj:Dynamic):Bool;
 	/**
-		Determines whether its argument is a number.
+		Determines whether its argument represents a JavaScript number.
 	**/
 	static public function isNumeric(value:Dynamic):Bool;
 	/**
@@ -173,6 +192,7 @@ package js.jquery;
 	/**
 		Takes a well-formed JSON string and returns the resulting JavaScript value.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	static public function parseJSON(json:String):Dynamic;
 	/**
 		Parses a string into an XML document.
@@ -199,12 +219,32 @@ package js.jquery;
 	@:overload(function(element:js.html.Element, queueName:String, callback:haxe.Constraints.Function):js.jquery.JQuery { })
 	static public function queue(element:js.html.Element, ?queueName:String):Array<Void -> Void>;
 	/**
+		A Promise-like object (or "thenable") that resolves when the document is ready.
+	**/
+	static public var ready : js.Promise.Thenable<Dynamic>;
+	/**
+		Handles errors thrown synchronously in functions wrapped in <code>jQuery()</code>.
+	**/
+	static public dynamic function readyException(error:js.Error):String;
+	/**
 		Remove a previously-stored piece of data.
 	**/
 	static public function removeData(element:js.html.Element, ?name:String):js.jquery.JQuery;
 	/**
+		Creates an object containing a set of properties ready to be used in the definition of custom animations.
+	**/
+	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?settings:Dynamic):Dynamic { })
+	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):Dynamic { })
+	static public function speed(settings:Dynamic):Dynamic;
+	/**
+		Creates a new copy of jQuery whose properties and methods can be modified without affecting the original jQuery object.
+	**/
+	@:deprecated("Deprecated since jQuery 1.7")
+	static public function sub():js.jquery.JQuery;
+	/**
 		A collection of properties that represent the presence of different browser features or bugs. Intended for jQuery's internal use; specific properties may be removed when they are no longer needed internally to improve page startup performance. For your own project's feature-detection needs, we strongly recommend the use of an external library such as <a href="http://modernizr.com">Modernizr</a> instead of dependency on properties in <code>jQuery.support</code>.
 	**/
+	@:deprecated("Deprecated since jQuery 1.9")
 	static public var support : Dynamic;
 	/**
 		Remove the whitespace from the beginning and end of a string.
@@ -217,11 +257,16 @@ package js.jquery;
 	/**
 		Sorts an array of DOM elements, in place, with the duplicates removed. Note that this only works on arrays of DOM elements, not strings or numbers.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	static public function unique(array:Array<js.html.Element>):Array<js.html.Element>;
 	/**
-		Provides a way to execute callback functions based on one or more objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
+		Sorts an array of DOM elements, in place, with the duplicates removed. Note that this only works on arrays of DOM elements, not strings or numbers.
 	**/
-	static public function when(deferreds:haxe.extern.Rest<js.jquery.Deferred>):js.jquery.Promise;
+	static public function uniqueSort(array:Array<js.html.Element>):Array<js.html.Element>;
+	/**
+		Provides a way to execute callback functions based on zero or more Thenable objects, usually <a href="/category/deferred-object/">Deferred</a> objects that represent asynchronous events.
+	**/
+	static public function when(deferreds:haxe.extern.EitherType<js.jquery.Promise, haxe.extern.EitherType<haxe.extern.Rest<js.jquery.Deferred>, js.Promise.Thenable<Dynamic>>>):js.jquery.Promise;
 	/**
 		Create a new jQuery object with elements added to the set of matched elements.
 	**/
@@ -272,6 +317,7 @@ package js.jquery;
 	/**
 		Add the previous set of elements on the stack to the current set.
 	**/
+	@:deprecated("Deprecated since jQuery 1.8")
 	public function andSelf():js.jquery.JQuery;
 	/**
 		Perform a custom animation of a set of CSS properties.
@@ -305,6 +351,7 @@ package js.jquery;
 	/**
 		Attach a handler to an event for the elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(eventType:String, ?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(eventType:String, ?eventData:Dynamic, ?preventBubble:Bool):js.jquery.JQuery { })
 	public function bind(events:Dynamic):js.jquery.JQuery;
@@ -341,10 +388,13 @@ package js.jquery;
 	public function clone(?withDataAndEvents:Bool):js.jquery.JQuery;
 	/**
 		For each element in the set, get the first element that matches the selector by testing the element itself and traversing up through its ancestors in the DOM tree.
+		OR
+		Get an array of all the elements and selectors matched against the current element up through the DOM tree.
 	**/
 	@:overload(function(selection:js.jquery.JQuery):js.jquery.JQuery { })
 	@:overload(function(element:js.html.Element):js.jquery.JQuery { })
 	@:overload(function(selector:String, ?context:js.html.Element):js.jquery.JQuery { })
+	@:overload(function(selectors:haxe.extern.EitherType<Array<String>, haxe.extern.EitherType<String, js.jquery.JQuery>>, ?context:js.html.Element):Array<Dynamic> { })
 	public function closest(selector:String):js.jquery.JQuery;
 	/**
 		Get the children of each element in the set of matched elements, including text and comment nodes.
@@ -353,7 +403,14 @@ package js.jquery;
 	/**
 		The DOM node context originally passed to <code>jQuery()</code>; if none was passed then context will likely be the document.
 	**/
+	@:deprecated("Deprecated since jQuery 1.10")
 	public var context : js.html.Element;
+	/**
+		Bind an event handler to the "contextmenu" JavaScript event, or trigger that event on an element.
+	**/
+	@:overload(function(handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	public function contextmenu():js.jquery.JQuery;
 	/**
 		Set one or more CSS properties for the set of matched elements.
 		OR
@@ -386,6 +443,7 @@ package js.jquery;
 	/**
 		Attach a handler to one or more events for all elements that match the selector, now or in the future, based on a specific set of root elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(selector:String, eventType:String, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	@:overload(function(selector:String, eventType:String, eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function delegate(selector:String, events:Dynamic):js.jquery.JQuery;
@@ -397,6 +455,13 @@ package js.jquery;
 		Remove the set of matched elements from the DOM.
 	**/
 	public function detach(?selector:String):js.jquery.JQuery;
+	/**
+		Remove event handlers previously attached using <code>.live()</code> from the elements.
+	**/
+	@:deprecated("Deprecated since jQuery 1.7")
+	@:overload(function(events:Dynamic):js.jquery.JQuery { })
+	@:overload(function(eventType:String, ?handler:String):js.jquery.JQuery { })
+	public function die():js.jquery.JQuery;
 	/**
 		Iterate over a jQuery object, executing a function for each matched element.
 	**/
@@ -417,6 +482,7 @@ package js.jquery;
 	/**
 		Bind an event handler to the "error" JavaScript event.
 	**/
+	@:deprecated("Deprecated since jQuery 1.8")
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function error(handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
@@ -528,9 +594,9 @@ package js.jquery;
 	/**
 		Search for a given element from among the matched elements.
 	**/
-	@:overload(function(selector:String):Float { })
-	@:overload(function(element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>):Float { })
-	public function index():Float;
+	@:overload(function(selector:String):Int { })
+	@:overload(function(element:haxe.extern.EitherType<js.html.Element, js.jquery.JQuery>):Int { })
+	public function index():Int;
 	/**
 		Set the CSS inner height of each element in the set of matched elements.
 		OR
@@ -592,6 +658,13 @@ package js.jquery;
 		The number of elements in the jQuery object.
 	**/
 	public var length(default, null) : Int;
+	/**
+		Attach an event handler for all elements which match the current selector, now and in the future.
+	**/
+	@:deprecated("Deprecated since jQuery 1.7")
+	@:overload(function(events:String, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	@:overload(function(events:String, ?data:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
+	public function live(events:Dynamic):js.jquery.JQuery;
 	/**
 		Bind an event handler to the "load" JavaScript event.
 		OR
@@ -713,19 +786,19 @@ package js.jquery;
 	@:overload(function(events:String, ?selector:String, ?data:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function one(events:String, ?data:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
-		Get the current computed height for the first element in the set of matched elements, including padding, border, and optionally margin. Returns a number (without "px") representation of the value or null if called on an empty set of elements.
+		Set the CSS outer height of each element in the set of matched elements.
 		OR
-		Set the CSS outer Height of each element in the set of matched elements.
+		Get the current computed outer height (including padding, border, and optionally margin) for the first element in the set of matched elements.
 	**/
-	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
 	public function outerHeight(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
-		Get the current computed width for the first element in the set of matched elements, including padding and border.
+		Get the current computed outer width (including padding, border, and optionally margin) for the first element in the set of matched elements.
 		OR
 		Set the CSS outer width of each element in the set of matched elements.
 	**/
-	@:overload(function(_function:haxe.Constraints.Function):js.jquery.JQuery { })
+	@:overload(function(_function:Int -> Float -> haxe.extern.EitherType<Float, String>):js.jquery.JQuery { })
 	@:overload(function(?includeMargin:Bool):Float { })
 	public function outerWidth(value:haxe.extern.EitherType<Float, String>):js.jquery.JQuery;
 	/**
@@ -755,7 +828,7 @@ package js.jquery;
 	**/
 	public function prependTo(target:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<Array<js.html.Element>, haxe.extern.EitherType<String, js.jquery.JQuery>>>):js.jquery.JQuery;
 	/**
-		Get the immediately preceding sibling of each element in the set of matched elements, optionally filtered by a selector.
+		Get the immediately preceding sibling of each element in the set of matched elements. If a selector is provided, it retrieves the previous sibling only if it matches that selector.
 	**/
 	public function prev(?selector:String):js.jquery.JQuery;
 	/**
@@ -853,7 +926,7 @@ package js.jquery;
 		Get the current vertical position of the scroll bar for the first element in the set of matched elements or set the vertical position of the scroll bar for every matched element.
 	**/
 	@:overload(function(value:Float):js.jquery.JQuery { })
-	public function scrollTop():Int;
+	public function scrollTop():Float;
 	/**
 		Bind an event handler to the "select" JavaScript event, or trigger that event on an element.
 	**/
@@ -863,6 +936,7 @@ package js.jquery;
 	/**
 		A selector representing selector passed to jQuery(), if any, when creating the original set.
 	**/
+	@:deprecated("Deprecated since jQuery 1.7")
 	public var selector : String;
 	/**
 		Encode a set of form elements as a string for submission.
@@ -886,6 +960,7 @@ package js.jquery;
 	/**
 		Return the number of elements in the jQuery object.
 	**/
+	@:deprecated("Deprecated since jQuery 1.8")
 	public function size():Int;
 	/**
 		Reduce the set of matched elements to a subset specified by a range of indices.
@@ -933,11 +1008,14 @@ package js.jquery;
 	**/
 	public function toArray():Array<js.html.Element>;
 	/**
+		Bind two or more handlers to the matched elements, to be executed on alternate clicks.
+		OR
 		Display or hide the matched elements.
 	**/
 	@:overload(function(options:Dynamic):js.jquery.JQuery { })
 	@:overload(function(?duration:haxe.extern.EitherType<Float, String>, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
 	@:overload(function(duration:haxe.extern.EitherType<Float, String>, ?easing:String, ?complete:haxe.Constraints.Function):js.jquery.JQuery { })
+	@:overload(function(handler:js.jquery.Event -> Void, handler:js.jquery.Event -> Void, ?handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function toggle(display:Bool):js.jquery.JQuery;
 	/**
 		Add or remove one or more classes from each element in the set of matched elements, depending on either the class's presence or the value of the state argument.
@@ -959,6 +1037,7 @@ package js.jquery;
 	/**
 		Remove a previously-attached event handler from the elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(event:js.jquery.Event):js.jquery.JQuery { })
 	@:overload(function(eventType:String, _false:Bool):js.jquery.JQuery { })
 	@:overload(function(eventType:String, ?handler:js.jquery.Event -> Void):js.jquery.JQuery { })
@@ -966,6 +1045,7 @@ package js.jquery;
 	/**
 		Remove a handler from the event for all elements which match the current selector, based upon a specific set of root elements.
 	**/
+	@:deprecated("Deprecated since jQuery 3.0")
 	@:overload(function(namespace:String):js.jquery.JQuery { })
 	@:overload(function(selector:String, eventType:String):js.jquery.JQuery { })
 	@:overload(function(selector:String, events:Dynamic):js.jquery.JQuery { })
@@ -974,11 +1054,13 @@ package js.jquery;
 	/**
 		Bind an event handler to the "unload" JavaScript event.
 	**/
+	@:deprecated("Deprecated since jQuery 1.8")
 	@:overload(function(?eventData:Dynamic, handler:js.jquery.Event -> Void):js.jquery.JQuery { })
 	public function unload(handler:js.jquery.Event -> Void):js.jquery.JQuery;
 	/**
 		Remove the parents of the set of matched elements from the DOM, leaving the matched elements in their place.
 	**/
+	@:overload(function(?selector:String):js.jquery.JQuery { })
 	public function unwrap():js.jquery.JQuery;
 	/**
 		Set the value of each element in the set of matched elements.
@@ -1004,7 +1086,7 @@ package js.jquery;
 	/**
 		Wrap an HTML structure around all elements in the set of matched elements.
 	**/
-	@:overload(function(_function:Int -> haxe.extern.EitherType<String, js.jquery.JQuery>):js.jquery.JQuery { })
+	@:overload(function(_function:Void -> haxe.extern.EitherType<String, js.jquery.JQuery>):js.jquery.JQuery { })
 	public function wrapAll(wrappingElement:haxe.extern.EitherType<js.html.Element, haxe.extern.EitherType<String, js.jquery.JQuery>>):js.jquery.JQuery;
 	/**
 		Wrap an HTML structure around the content of each element in the set of matched elements.
@@ -1016,14 +1098,9 @@ package js.jquery;
 	**/
 	@:runtime
 	inline public function iterator():js.jquery.JqIterator return new js.jquery.JqIterator(this);
-
 	/**
-		Iterate on JQuery elements.
+		Haxe iterator.
 	**/
 	@:runtime
 	inline public function elements():js.jquery.JqEltsIterator return new js.jquery.JqEltsIterator(this);
-
-	static function __init__():Void {
-		js.jquery.Helper.embed();
-	}
 }

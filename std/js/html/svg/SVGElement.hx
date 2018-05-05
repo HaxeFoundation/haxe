@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGSVGElement.webidl line 15:0. Do not edit!
+// This file is generated from mozilla\SVGSVGElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGSVGElement` interface provides access to the properties of `svg` elements, as well as methods to manipulate them. This interface contains also various miscellaneous commonly-used utility methods, such as matrix operations and the ability to control the time of redraw on visual rendering devices.
+
+	Documentation [SVGSVGElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSVGElement>
+**/
 @:native("SVGSVGElement")
 extern class SVGElement extends GraphicsElement
 {
@@ -49,7 +56,6 @@ extern class SVGElement extends GraphicsElement
 	function suspendRedraw( maxWaitMilliseconds : Int ) : Int;
 	function unsuspendRedraw( suspendHandleID : Int ) : Void;
 	function unsuspendRedrawAll() : Void;
-	/** @throws DOMError */
 	function forceRedraw() : Void;
 	function pauseAnimations() : Void;
 	function unpauseAnimations() : Void;

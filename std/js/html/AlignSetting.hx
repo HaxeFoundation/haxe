@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/VTTCue.webidl line 12:0. Do not edit!
+// This file is generated from mozilla\VTTCue.webidl. Do not edit!
 
 package js.html;
 
-@:enum abstract AlignSetting(String)
+enum abstract AlignSetting(String)
 {
 	var START = "start";
 	var MIDDLE = "middle";

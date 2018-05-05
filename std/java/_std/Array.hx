@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -405,6 +405,25 @@ import java.NativeArray;
 	public inline function iterator() : Iterator<T>
 	{
 		return new ArrayIterator<T>(this);
+	}
+
+	public function resize( len : Int ) : Void
+	{
+		if (length < len)
+		{
+			if (__a.length < len)
+			{
+				var newArr = new NativeArray<T>(len);
+				if (length > 0)
+					System.arraycopy(__a, 0, newArr, 0, length);
+				this.__a = __a = newArr;
+			}
+			this.length = len;
+		}
+		else if (length > len)
+		{
+			spliceVoid(len, length - len);
+		}
 	}
 
 	public function map<S>( f : T -> S ) : Array<S> {

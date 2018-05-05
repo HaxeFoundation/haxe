@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,64 +21,60 @@
  */
 package haxe.ds;
 
-@:coreApi class StringMap<T> implements php.IteratorAggregate<T> implements haxe.Constraints.IMap<String,T> {
-	@:analyzer(no_simplification)
-	private var h : ArrayAccess<T>;
+import php.Syntax;
+import php.Global;
+import php.NativeArray;
+import php.NativeAssocArray;
+import haxe.Constraints;
 
-	public function new() : Void {
-		h = untyped __call__('array');
+@:coreApi class StringMap<T> implements IMap<String,T> {
+	private var data : NativeAssocArray<T>;
+
+	public inline function new() : Void {
+		data = new NativeAssocArray();
 	}
 
-	public function set( key : String, value : T ) : Void {
-		untyped h[key] = value;
+	public inline function set( key : String, value : T ) : Void {
+		data[key] = value;
 	}
 
-	public function get( key : String ) : Null<T> {
-		if (untyped __call__("array_key_exists", key, h))
-			return untyped h[key];
-		else
-			return null;
+	public inline function get( key : String ) : Null<T> {
+		return Syntax.coalesce(data[key], null);
 	}
 
-	public function exists( key : String ) : Bool {
-		return untyped __call__("array_key_exists", key, h);
+	public inline function exists( key : String ) : Bool {
+		return Global.array_key_exists(key, data);
 	}
 
 	public function remove( key : String ) : Bool {
-		if (untyped __call__("array_key_exists", key, h)) {
-			untyped __call__("unset", h[key]);
+		if (Global.array_key_exists(key, data)) {
+			Global.unset(data[key]);
 			return true;
-		} else
+		} else {
 			return false;
+		}
 	}
 
-	public function keys() : Iterator<String> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_map", "strval", __call__("array_keys", h)));
+	public inline function keys() : Iterator<String> {
+		return Global.array_map('strval', Global.array_keys(data)).iterator();
 	}
 
-	public function iterator() : Iterator<T> {
-		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
+	public inline function iterator() : Iterator<T> {
+		return data.iterator();
+	}
+
+	public function copy() : StringMap<T> {
+		var copied = new StringMap();
+		copied.data = data;
+		return copied;
 	}
 
 	public function toString() : String {
-		var s = "{";
-		var it = keys();
-		for( i in it ) {
-			s += i;
-			s += " => ";
-			s += Std.string(get(i));
-			if( it.hasNext() )
-				s += ", ";
-		}
-		return s + "}";
-	}
+		var parts = new NativeArray();
+		Syntax.foreach(data, function(key:String, value:T) {
+			Global.array_push(parts, '$key => ' + Std.string(value));
+		});
 
-	/**
-		Implement IteratorAggregate for native php iteration
-	**/
-	#if php
-	function getIterator() : Iterator<T> {
-		return iterator();
+		return '{' + Global.implode(', ', parts) + '}';
 	}
-	#end
 }

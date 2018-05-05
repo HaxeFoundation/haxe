@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
  package java.vm;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
 
 @:native('haxe.java.vm.Mutex') class Mutex
 {
-	@:private var lock:Semaphore;
+	@:private var lock:ReentrantLock;
 
 	/**
 		Creates a mutex, which can be used to acquire a temporary lock to access some resource.
@@ -32,7 +32,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function new()
 	{
-		this.lock = new Semaphore(1);
+		this.lock = new ReentrantLock();
 	}
 
 	/**
@@ -40,7 +40,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function tryAcquire():Bool
 	{
-		return this.lock.tryAcquire();
+		return this.lock.tryLock();
 	}
 
 	/**
@@ -49,7 +49,7 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function acquire():Void
 	{
-		this.lock.acquire();
+		this.lock.lock();
 	}
 
 	/**
@@ -57,6 +57,6 @@ import java.util.concurrent.Semaphore;
 	**/
 	public function release():Void
 	{
-		this.lock.release();
+		this.lock.unlock();
 	}
 }

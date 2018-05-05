@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ import haxe.macro.Context;
 **/
 class Format {
 
-	#if macro
+	#if (macro || display)
 	public static function format( estr : Expr ) {
 		var str = switch( estr.expr ) {
 			case EConst(c): switch(c) { case CString(s): s; default: null; }

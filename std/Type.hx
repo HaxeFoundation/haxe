@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,26 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-/**
-	The diffent possible runtime types of a value.
-**/
-enum ValueType {
-	TNull;
-	TInt;
-	TFloat;
-	TBool;
-	TObject;
-	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
-	TUnknown;
-}
 
 /**
-	The haxe Reflection API allows retrieval of type information at runtime.
+	The Haxe Reflection API allows retrieval of type information at runtime.
 
 	This class complements the more lightweight Reflect class, with a focus on
 	class and enum instances.
+
+	@see https://haxe.org/manual/types.html
+	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Type {
 
@@ -82,7 +71,7 @@ extern class Type {
 		If `c` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the class name:
 		`pack1.pack2.(...).packN.ClassName`
-		If `c` is a sub-type of a haxe module, that module is not part of the
+		If `c` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
 		If `c` has no package, the class name is returned.
@@ -99,7 +88,7 @@ extern class Type {
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
 		`pack1.pack2.(...).packN.EnumName`
-		If `e` is a sub-type of a haxe module, that module is not part of the
+		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
 		If `e` has no package, the enum name is returned.
@@ -182,7 +171,7 @@ extern class Type {
 		Creates an instance of enum `e` by calling its constructor number
 		`index` with arguments `params`.
 
-		The constructor indices are preserved from haxe syntax, so the first
+		The constructor indices are preserved from Haxe syntax, so the first
 		declared is index 0, the next index 1 etc.
 
 		If `e` or `constr` is null, or if enum `e` has no constructor named
@@ -226,7 +215,7 @@ extern class Type {
 		The order of the constructor names in the returned Array is preserved
 		from the original syntax.
 
-		If `c` is null, the result is unspecified.
+		If `e` is null, the result is unspecified.
 	**/
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String>;
 
@@ -297,3 +286,18 @@ extern class Type {
 
 }
 
+
+/**
+	The different possible runtime types of a value.
+**/
+enum ValueType {
+	TNull;
+	TInt;
+	TFloat;
+	TBool;
+	TObject;
+	TFunction;
+	TClass( c : Class<Dynamic> );
+	TEnum( e : Enum<Dynamic> );
+	TUnknown;
+}

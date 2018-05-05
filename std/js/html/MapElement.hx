@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLMapElement.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\HTMLMapElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLMapElement` interface provides special properties and methods (beyond those of the regular object `HTMLElement` interface it also has available to it by inheritance) for manipulating the layout and presentation of map elements.
+
+	Documentation [HTMLMapElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMapElement>
+**/
 @:native("HTMLMapElement")
 extern class MapElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the `map` element for referencing it other context. If the `id` attribute is set, this must have the same value; and it cannot be `null` or empty.
+	**/
 	var name : String;
+	
+	/**
+		Is a live `HTMLCollection` representing the `area` elements associated to this `map`.
+	**/
 	var areas(default,null) : HTMLCollection;
 	
 }

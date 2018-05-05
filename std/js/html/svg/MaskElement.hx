@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/SVGMaskElement.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\SVGMaskElement.webidl. Do not edit!
 
 package js.html.svg;
 
+/**
+	The `SVGMaskElement` interface provides access to the properties of `mask` elements, as well as methods to manipulate them.
+
+	Documentation [SVGMaskElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement>
+**/
 @:native("SVGMaskElement")
 extern class MaskElement extends Element
 {

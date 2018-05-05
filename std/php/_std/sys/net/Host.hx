@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,9 @@
  */
 package sys.net;
 
+import php.Global.*;
+import php.SuperGlobal.*;
+
 @:coreApi
 class Host {
 
@@ -34,14 +37,14 @@ class Host {
 		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
 		  _ip = name;
 		} else {
-			_ip = untyped __call__('gethostbyname', name);
+			_ip = gethostbyname(name);
 			if(_ip == name) {
 				ip = 0;
 				return;
 			}
 		}
 		var p = _ip.split('.');
-		ip = untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
+		ip = intval(sprintf('%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16);
 	}
 
 	public function toString() : String {
@@ -49,10 +52,10 @@ class Host {
 	}
 
 	public function reverse() : String {
-		return untyped __call__('gethostbyaddr', _ip);
+		return gethostbyaddr(_ip);
 	}
 
 	public static function localhost() : String {
-		return untyped __var__('_SERVER', 'HTTP_HOST');
+		return php.Syntax.coalesce(_SERVER['HTTP_HOST'], "localhost");
 	}
 }

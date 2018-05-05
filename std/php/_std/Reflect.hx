@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,99 +19,160 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import php.Boot;
+import php.Syntax;
+import php.Closure;
+import haxe.Constraints;
+
+using php.Global;
+
 @:coreApi class Reflect {
 
-	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped __call__("_hx_has_field", o, field);
-	}
+	public static function hasField( o : Dynamic, field : String ) : Bool {
+		if (!o.is_object()) return false;
+		if (o.property_exists(field)) return true;
 
-	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return untyped __call__("_hx_field", o, field);
-	}
+		if (Boot.isClass(o)) {
+			var phpClassName = Boot.castClass(o).phpClassName;
+			return Global.property_exists(phpClassName, field) || Global.method_exists(phpClassName, field) || Global.defined('$phpClassName::$field');
+		}
 
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		untyped __setfield__(o, field, value);
-	}
-
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
-		if (null == o) return null;
-		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
-		var cls_vars : php.NativeArray = untyped __call__("get_class_vars", cls);
-		if (untyped __php__("isset($cls_vars['__properties__']) && isset($cls_vars['__properties__']['get_'.$field]) && ($field = $cls_vars['__properties__']['get_'.$field])"))
-			return untyped __php__("$o->$field()");
-		else
-			return untyped __php__("$o->$field");
-	}
-
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		if (null == o) return null;
-		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
-		var cls_vars : php.NativeArray = untyped __call__("get_class_vars", cls);
-		if (untyped __php__("isset($cls_vars['__properties__']) && isset($cls_vars['__properties__']['set_'.$field]) && ($field = $cls_vars['__properties__']['set_'.$field])"))
-			return untyped __php__("$o->$field($value)");
-		else
-			return untyped __php__("$o->$field = $value");
-	}
-
-	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic untyped {
-		return __call__("call_user_func_array", __call__("is_callable", func) ? func : __call__("array", o, func), (null == args ? __call__("array") : __field__(args, "a")));
-	}
-
-	public static function fields( o : Dynamic ) : Array<String> {
-		if( o == null ) return new Array();
-		return untyped __php__("$o instanceof _hx_array")
-				? __php__("new _hx_array(array('concat','copy','insert','iterator','length','join','pop','push','remove','reverse','shift','slice','sort','splice','toString','unshift'))")
-				: (__call__('is_string', o)
-					? __php__("new _hx_array(array('charAt','charCodeAt','indexOf','lastIndexOf','length','split','substr','toLowerCase','toString','toUpperCase'))")
-					: __php__("new _hx_array(_hx_get_object_vars($o))"));
-	}
-
-	public static function isFunction( f : Dynamic ) : Bool {
-		return untyped __php__("(is_array($f) && is_callable($f)) || _hx_is_lambda($f)") || (__php__("is_array($f)") && hasField(__php__("$f[0]"), __php__("$f[1]")) && __php__("$f[1]") != "length");
-	}
-
-	public static function compare<T>( a : T, b : T ) : Int {
-		return ( a == b ) ? 0 : untyped __php__("is_string($a)") ? untyped __php__("strcmp($a, $b)") : (((cast a) > (cast b)) ? 1 : -1);
-	}
-
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		if(untyped __call__("is_array", f1) && untyped __call__("is_array", f1))
-			return untyped __php__("$f1[0] === $f2[0] && $f1[1] == $f2[1]");
-		if(untyped __call__("is_string", f1) && untyped __call__("is_string", f2))
-			return f1 == f2;
 		return false;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool {
-		if( v == null )
-			return false;
-		if(untyped __call__("is_object", v))
-			return untyped __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
-		return untyped __php__("is_string($v) && !_hx_is_lambda($v)");
+	public static function field( o : Dynamic, field : String ) : Dynamic {
+		if (o.is_string()) {
+			return Syntax.field(Boot.dynamicString(o), field);
+		}
+		if (!o.is_object()) return null;
+
+		if (o.property_exists(field)) {
+			return Syntax.field(o, field);
+		}
+		if (o.method_exists(field)) {
+			return Boot.closure(o, field);
+		}
+
+		if (Boot.isClass(o)) {
+			var phpClassName = Boot.castClass(o).phpClassName;
+			if (Global.defined('$phpClassName::$field')) {
+				return Global.constant('$phpClassName::$field');
+			}
+			if (Global.property_exists(phpClassName, field)) {
+				return Syntax.field(o, field);
+			}
+			if (Global.method_exists(phpClassName, field)) {
+				return Boot.closure(phpClassName, field);
+			}
+		}
+
+		return null;
 	}
 
-	public static function isEnumValue( v : Dynamic ) : Bool {
-		return untyped __php__("$v instanceof _hx_enum");
+	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
+		Syntax.setField(o, field, value);
+	}
+
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
+		if (o.is_object()) {
+			if (Boot.isClass(o)) {
+				var phpClassName = Boot.castClass(o).phpClassName;
+				if (Boot.hasGetter(phpClassName, field)) {
+					return Syntax.staticCall(phpClassName, 'get_$field');
+				}
+			} else if (Boot.hasGetter(Global.get_class(o), field)) {
+				return Syntax.call(o, 'get_$field');
+			}
+		}
+
+		return Reflect.field(o, field);
+	}
+
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
+		if (o.is_object()) {
+			if (Boot.hasSetter(Global.get_class(o), field)) {
+				Syntax.call(o, 'set_$field', value);
+			} else {
+				Syntax.setField(o, field, value);
+			}
+		}
+	}
+
+	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
+		if (Std.is(func, Closure)) {
+			if (o != null) {
+				func = cast cast(func, Closure).bindTo(o);
+			}
+			return Global.call_user_func_array(func, @:privateAccess args.arr);
+		} else {
+			return Boot.castClosure(func).callWith(o, @:privateAccess args.arr);
+		}
+	}
+
+	public static function fields( o : Dynamic ) : Array<String> {
+		if (Global.is_object(o)) {
+			return @:privateAccess Array.wrap(Global.get_object_vars(o).array_keys());
+		}
+		return [];
+	}
+
+	public static inline function isFunction( f : Dynamic ) : Bool {
+		return Boot.isFunction(f);
+	}
+
+	public static function compare<T>( a : T, b : T ) : Int {
+		if (a == b) return 0;
+		if (Global.is_string(a)){
+			return Global.strcmp(cast a, cast b);
+		} else {
+			return ((cast a) > (cast b) ? 1 : -1);
+		}
+	}
+
+	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
+		if (Boot.isHxClosure(f1) && Boot.isHxClosure(f2)) {
+			return f1.equals(f2);
+		} else {
+			return f1 == f2;
+		}
+	}
+
+	public static function isObject( v : Dynamic ) : Bool {
+		if (Boot.isEnumValue(v)) {
+			return false;
+		} else {
+			return v.is_object() || v.is_string();
+		}
+	}
+
+	public static inline function isEnumValue( v : Dynamic ) : Bool {
+		return Boot.isEnumValue(v);
 	}
 
 	public static function deleteField( o : Dynamic, field : String ) : Bool {
-		if(!hasField(o,field)) return false;
-		untyped __php__("if(isset($o->__dynamics[$field])) unset($o->__dynamics[$field]); else if($o instanceof _hx_anonymous) unset($o->$field); else $o->$field = null");
-		return true;
+		if (hasField(o, field)) {
+			Global.unset(Syntax.field(o, field));
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	public static function copy<T>( o : T ) : T {
-		if (untyped __call__("is_string", o)) return o;
-		var o2 : Dynamic = {};
-		for( f in Reflect.fields(o) )
-			Reflect.setField(o2,f,Reflect.field(o,f));
-		return o2;
+		if (Global.is_object(o)) {
+			var fields = Global.get_object_vars(cast o);
+			var hxAnon = Boot.getHxAnon().phpClassName;
+			return Syntax.construct(hxAnon, fields);
+		} else {
+			return null;
+		}
 	}
 
 	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return untyped __php__("array(new _hx_lambda(array(&$f), '_hx_make_var_args'), 'execute')");
+		return function () {
+			return Global.call_user_func(f, @:privateAccess Array.wrap(Global.func_get_args()));
+		}
 	}
-
-
 }

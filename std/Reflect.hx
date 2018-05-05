@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,8 @@
 /**
 	The Reflect API is a way to manipulate values dynamically through an
 	abstract interface in an untyped manner. Use with care.
+
+	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Reflect {
 
@@ -133,11 +135,15 @@ extern class Reflect {
 
 	/**
 		Compares the functions `f1` and `f2`.
-
+		
+		If `f1` or `f2` are null, the result is false.
 		If `f1` or `f2` are not functions, the result is unspecified.
 
 		Otherwise the result is true if `f1` and the `f2` are physically equal,
 		false otherwise.
+
+		If `f1` or `f2` are member method closures, the result is true if they
+		are closures of the same method on the same object value, false otherwise.
 	**/
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool;
 

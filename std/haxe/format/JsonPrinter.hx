@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,14 +26,16 @@ package haxe.format;
 
 	This class is used by `haxe.Json` when native JSON implementation
 	is not available.
+
+	@see https://haxe.org/manual/std-Json-encoding.html
 **/
 class JsonPrinter {
 
 	/**
-		Encodes `o` value and returns the resulting JSON string.
+		Encodes `o`'s value and returns the resulting JSON string.
 
 		If `replacer` is given and is not null, it is used to retrieve
-		actual object to be encoded. The `replacer` function two parameters,
+		actual object to be encoded. The `replacer` function takes two parameters,
 		the key and the value being encoded. Initial key value is an empty string.
 
 		If `space` is given and is not null, the result will be pretty-printed.
@@ -82,7 +84,7 @@ class JsonPrinter {
 		case TObject:
 			objString(v);
 		case TInt:
-			add(v);
+			add(#if as3 Std.string(v) #else v #end);
 		case TFloat:
 			add(Math.isFinite(v) ? v : 'null');
 		case TFunction:
@@ -120,22 +122,18 @@ class JsonPrinter {
 				var v : Date = v;
 				quote(v.toString());
 			} else
-				#if flash
 				classString(v);
-				#else
-				objString(v);
-				#end
 		case TEnum(_):
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:
-			add(#if php (v ? 'true' : 'false') #else v #end);
+			add(#if (php || as3) (v ? 'true' : 'false') #else v #end);
 		case TNull:
 			add('null');
 		}
 	}
 
-	@:extern inline function addChar(c:Int) {
+	extern inline function addChar(c:Int) {
 		#if flash
 		buf.writeByte(c);
 		#else
@@ -143,7 +141,7 @@ class JsonPrinter {
 		#end
 	}
 
-	@:extern inline function add(v:String) {
+	extern inline function add(v:String) {
 		#if flash
 		// argument is not always a string but will be automatically casted
 		buf.writeUTFBytes(v);
@@ -152,11 +150,9 @@ class JsonPrinter {
 		#end
 	}
 
-	#if flash
 	function classString ( v : Dynamic ) {
 		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
 	}
-	#end
 
 	inline function objString( v : Dynamic ) {
 		fieldsString(v,Reflect.fields(v));

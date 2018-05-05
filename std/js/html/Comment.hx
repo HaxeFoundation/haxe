@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Comment.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\Comment.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Comment` interface represents textual notations within markup; although it is generally not visually shown, such comments are available to be read in the source view. Comments are represented in HTML and XML as content between '`!--`' and '`--`'. In XML, the character sequence '`--`' cannot be used within a comment.
+
+	Documentation [Comment](https://developer.mozilla.org/en-US/docs/Web/API/Comment) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Comment$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Comment>
+**/
 @:native("Comment")
 extern class Comment extends CharacterData
 {

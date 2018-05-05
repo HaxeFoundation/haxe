@@ -7,7 +7,6 @@ import cpp.link.StaticSqlite;
 import cpp.link.StaticZlib;
 #end
 
-@:expose("unit.Test")
 @:keepSub
 #if as3
 @:publicFields
@@ -66,13 +65,14 @@ class Test {
 
 	function assert( ?pos ) {
 		report("Assert",pos);
+		success = false;
 	}
 
 	function exc( f : Void -> Void, ?pos ) {
 		incrCount(pos);
 		try {
 			f();
-			report("No exception occured",pos);
+			report("No exception occurred",pos);
 			success = false;
 		} catch( e : Dynamic ) {
 		}
@@ -158,7 +158,7 @@ class Test {
 			return;
 		}
 		asyncWaits.push(pos);
-		seterror(function(e) {
+		seterror(function(_) {
 			incrCount(pos);
 			if( asyncWaits.remove(pos) )
 				checkDone();
@@ -167,10 +167,10 @@ class Test {
 				success = false;
 			}
 		});
-		f(args,function(v) {
+		f(args,function(_) {
 			incrCount(pos);
 			if( asyncWaits.remove(pos) ) {
-				report("No exception occured",pos);
+				report("No exception occurred",pos);
 				success = false;
 				checkDone();
 			} else {
@@ -180,12 +180,12 @@ class Test {
 		});
 	}
 
-	function log( msg, ?pos : haxe.PosInfos ) {
+	function log( msg : String, ?pos : haxe.PosInfos ) {
 		haxe.Log.trace(msg,pos);
 	}
 
    static function logVerbose(msg:String) {
-	  #if (cpp || neko || php)
+	  #if (cpp || neko || php || hl)
 	  Sys.println(msg);
 	  #end
    }
@@ -199,6 +199,7 @@ class Test {
 	static var AMAX = 3;
 	static var timer : haxe.Timer;
 	static var success = true;
+	static var startStamp:Float;
 
 	dynamic static function report( msg : String, ?pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
@@ -229,6 +230,9 @@ class Test {
 			}
 			#end
 
+			if (success) {
+				report("TIME: " + (haxe.Timer.stamp() - startStamp));
+			}
 			#if sys
 			Sys.exit(success ? 0 : 1);
 			#end
@@ -252,7 +256,7 @@ class Test {
 	}
 
 	static function resetTimer() {
-		#if (neko || php || cpp || java || cs || python)
+		#if (neko || php || cpp || java || cs || python || hl || lua)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(30000);
@@ -273,145 +277,8 @@ class Test {
 		success = false;
 		reportInfos = null;
 		trace("STACK :\n"+stack);
+#if lua
+		Sys.exit(1);
+#end
 	}
-
-	static function main() {
-	  var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
-
-		#if cs //"Turkey Test" - Issue #996
-		cs.system.threading.Thread.CurrentThread.CurrentCulture = new cs.system.globalization.CultureInfo('tr-TR');
-		cs.Lib.applyCultureChanges();
-		#end
-		#if neko
-		if( neko.Web.isModNeko )
-			neko.Web.setHeader("Content-Type","text/plain");
-		#elseif php
-		if( php.Web.isModNeko )
-			php.Web.setHeader("Content-Type","text/plain");
-		#end
-		resetTimer();
-		#if !macro
-		trace("Generated at: " + TestType.getCompilationDate());
-		#end
-		trace("START");
-		#if flash
-		var tf : flash.text.TextField = untyped flash.Boot.getTrace();
-		tf.selectable = true;
-		tf.mouseEnabled = true;
-		#end
-		var classes = [
-			new TestOps(),
-			new TestBasetypes(),
-			new TestBytes(),
-			new TestIO(),
-			new TestLocals(),
-			new TestEReg(),
-			new TestXML(),
-			new TestMisc(),
-			new TestJson(),
-			new TestResource(),
-			new TestInt64(),
-			new TestReflect(),
-			new TestSerialize(),
-			new TestSerializerCrossTarget(),
-			new TestMeta(),
-			new TestType(),
-			new TestOrder(),
-			new TestGADT(),
-			new TestGeneric(),
-			#if !no_pattern_matching
-			new TestMatch(),
-			#end
-			new TestSpecification(),
-			#if cs
-			new TestCSharp(),
-			#end
-			#if java
-			new TestJava(),
-			#end
-			#if python
-			new TestPython(),
-			#end
-			#if php
-			new TestPhp(),
-			#end
-			#if (java || cs)
-			new TestOverloads(),
-			#end
-			#if ((dce == "full") && !interp && !as3)
-			new TestDCE(),
-			#end
-			// #if ( (java || neko) && !macro && !interp)
-			// new TestThreads(),
-			// #end
-			//new TestUnspecified(),
-			//new TestRemoting(),
-		];
-
-
-		#if js
-		if (js.Browser.supported) {
-			classes.push(new TestJQuery());
-		}
-		#end
-
-		// SPOD tests
-		#if ( (neko || (php && (travis || php_sqlite)) || java || cpp || (cs && travis)) && !macro && !interp)
-		#if ( travis && !(cpp || cs) )
-		if (Sys.getEnv("CI") != null && Sys.systemName() == "Linux")
-		{
-			classes.push(new TestSpod(sys.db.Mysql.connect({
-				host : "localhost",
-				user : "travis",
-				pass : "",
-				port : 3306,
-				database : "haxe_test" })));
-		}
-		#end
-	  if (verbose)
-		 logVerbose("Setup sqlite");
-		classes.push(new TestSpod(sys.db.Sqlite.open("db.db3")));
-		#end
-		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
-		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
-		var current = null;
-		#if (!fail_eager)
-		try
-		#end
-		{
-			asyncWaits.push(null);
-			for( inst in classes ) {
-				current = Type.getClass(inst);
-			if (verbose)
-			   logVerbose("Class " + Std.string(current) );
-				for( f in Type.getInstanceFields(current) )
-					if( f.substr(0,4) == "test" ) {
-				  if (verbose)
-					 logVerbose("   " + f);
-						#if fail_eager
-						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						#else
-						try {
-							Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						}
-						#if !as3
-						catch( e : Dynamic ) {
-							onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
-						}
-						#end
-						#end
-						reportInfos = null;
-					}
-			}
-			asyncWaits.remove(null);
-			checkDone();
-		}
-		#if (!as3 && !(fail_eager))
-		catch( e : Dynamic ) {
-			asyncWaits.remove(null);
-			onError(e,"ABORTED",Type.getClassName(current));
-		}
-		#end
-	}
-
 }

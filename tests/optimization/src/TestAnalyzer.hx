@@ -104,38 +104,51 @@ class TestAnalyzer extends TestBase {
 		assertEqualsConst(1, a);
 	}
 
-	//function testUnop() {
-		//var a = 0;
-		//assertEqualsConst(0, a++);
-		//assertEqualsConst(1, a);
-		//assertEqualsConst(2, ++a);
-		//assertEqualsConst(2, a);
-		//if (cond1()) {
-			//a++;
-		//}
-		//assertEquals(3, a);
-	//}
+	function testUnop() {
+		var a = 0;
+		assertEqualsConst(0, a++);
+		assertEqualsConst(1, a);
+		assertEqualsConst(2, ++a);
+		assertEqualsConst(2, a);
+		if (cond1()) {
+			a++;
+		}
+		assertEquals(3, a);
+	}
 
-	//function testMultiAssign() {
-		//var a;
-		//var b;
-		//var c = a = b = 1;
-		//assertEqualsConst(1, a);
-		//assertEqualsConst(1, b);
-		//assertEqualsConst(1, c);
-		//c = a = b = 2;
-		//assertEqualsConst(2, a);
-		//assertEqualsConst(2, b);
-		//assertEqualsConst(2, c);
-	//}
+	function testOpAssignOp() {
+		var a = 0;
+		assertEqualsConst(0, a += a);
+		assertEqualsConst(0, a);
+		a += 3;
+		assertEqualsConst(6, a += a);
+		assertEqualsConst(6, a);
+		if (cond1()) {
+			a += 1;
+		}
+		assertEquals(7, a);
+	}
+
+	function testMultiAssign() {
+		var a;
+		var b;
+		var c = a = b = 1;
+		assertEqualsConst(1, a);
+		assertEqualsConst(1, b);
+		assertEqualsConst(1, c);
+		c = a = b = 2;
+		assertEqualsConst(2, a);
+		assertEqualsConst(2, b);
+		assertEqualsConst(2, c);
+	}
 
 	function testConst1() {
 		var a = 1;
 		a = 2;
 		var b = a;
 		assertEqualsConst(2, b);
-		//b++;
-		//assertEqualsConst(3, b);
+		b++;
+		assertEqualsConst(3, b);
 	}
 
 	function testConst2() {
@@ -435,18 +448,17 @@ class TestAnalyzer extends TestBase {
 		assertEquals(1, a);
 	}
 
-	function testTry1() {
-		var a = 1;
-		try {
+	// function testTry1() {
+	// 	var a = 1;
+	// 	try {
 
-		} catch(e:Dynamic) {
-			assertEqualsConst(1, a);
-			a = 2;
-			assertEqualsConst(2, a);
-		}
-		// we do not check for unreachable catch cases at the moment
-		assertEquals(1, a);
-	}
+	// 	} catch(e:Dynamic) {
+	// 		assertEqualsConst(1, a);
+	// 		a = 2;
+	// 		assertEqualsConst(2, a);
+	// 	}
+	// 	assertEqualsConst(1, a);
+	// }
 
 	function testTry2() {
 		var a = 1;
@@ -655,13 +667,13 @@ class TestAnalyzer extends TestBase {
 		assertEquals(4, a);
 	}
 
-	//function testMisc() {
-		//var a = 1;
-		//function call(a, b, c) { return a + b + c; }
-		//assertEquals(5, call(assertEqualsConst(1, a), assertEqualsConst(2, a = a + 1), assertEqualsConst(2, a)));
-		//assertEquals(22, call(assertEqualsConst(2, a++), assertEqualsConst(4, ++a), assertEqualsConst(16, a *= a)));
-		//assertEquals(50, call(a, a = a + 1, a));
-	//}
+	function testMisc() {
+		var a = 1;
+		function call(a, b, c) { return a + b + c; }
+		assertEquals(5, call(assertEqualsConst(1, a), assertEqualsConst(2, a = a + 1), assertEqualsConst(2, a)));
+		assertEquals(23, call(assertEqualsConst(3, a = a + 1), assertEqualsConst(4, a = a + 1), assertEqualsConst(16, a = a * a)));
+		assertEquals(50, call(a, a = a + 1, a));
+	}
 
 	function testEnumValues() {
 		var array = [1];
@@ -677,7 +689,9 @@ class TestAnalyzer extends TestBase {
 		var b = B(0);
 		switch (b) {
 			case B(i):
-				assertEquals(0, i);
+				// Null<Int> vs. Int, should not propagate
+				// Actually we can on dynamic targets.
+				assertEqualsConst(0, i);
 			case A(_):
 		}
 	}
@@ -724,7 +738,100 @@ class TestAnalyzer extends TestBase {
 		assertEqualsConst("A", fromCharCode);
 
 		var enumIndex = Type.enumIndex(eBreak);
-		assertEqualsConst(20, enumIndex);
+		assertEqualsConst(19, enumIndex);
+	}
+
+	function testWhilePrune1() {
+		var a = 0;
+		while (a == 1) {
+			a = 1;
+			break;
+		}
+		assertEqualsConst(0, a);
+	}
+
+	function testWhilePrune2() {
+		var a = 0;
+		while (a == 0) {
+			a = 1;
+			break;
+		}
+		assertEqualsConst(1, a);
+	}
+
+	function testIfPrune() {
+		var a = 0;
+		if (a == 1) {
+			a = 2;
+		}
+		assertEqualsConst(0, a);
+	}
+
+	function testElsePrune() {
+		var a = 1;
+		if (a == 1) {
+			a = 2;
+		} else {
+			a = 3;
+		}
+		assertEqualsConst(2, a);
+	}
+
+	function testThenPrune() {
+		var a = 2;
+		if (a == 1) {
+			a = 2;
+		} else {
+			a = 3;
+		}
+		assertEqualsConst(3, a);
+	}
+
+	function testComplexPrune1() {
+		var a = 0;
+		var b = 0;
+		while (b == 0) {
+			a = 1;
+			if (cond1()) {
+				break;
+			}
+			b = a - 1;
+		}
+		assertEqualsConst(1, a);
+		assertEqualsConst(0, b);
+	}
+
+	function testComplexPrune2() {
+		var a = 0;
+		var b = 0;
+		while (true) {
+			a = 1;
+			if (b == 1) {
+				break;
+			}
+			a = 2;
+			if (b == 2) {
+				break;
+			}
+			a = 3;
+			if (b == 0) {
+				break;
+			}
+			b = a * 0;
+		}
+		assertEqualsConst(3, a);
+		assertEqualsConst(0, b);
+	}
+
+	function testCapture1() {
+		var c = 0;
+		var a = [0, 1, 2];
+		var f = function() {
+			return a[c++];
+		}
+		assertEquals(0, f());
+		assertEquals(1, f());
+		assertEquals(2, f());
 	}
 
 	function cond1() {

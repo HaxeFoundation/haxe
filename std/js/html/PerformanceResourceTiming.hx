@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/PerformanceResourceTiming.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\PerformanceResourceTiming.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `PerformanceResourceTiming` interface enables retrieving and analyzing detailed network timing data regarding the loading of an application's resources. An application can use the timing metrics to determine, for example, the length of time it takes to fetch a specific resource, such as an `XMLHttpRequest`, `SVG`, image, or script.
+
+	Documentation [PerformanceResourceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming>
+**/
 @:native("PerformanceResourceTiming")
 extern class PerformanceResourceTiming extends PerformanceEntry
 {
 	var initiatorType(default,null) : String;
+	var nextHopProtocol(default,null) : String;
 	var redirectStart(default,null) : Float;
 	var redirectEnd(default,null) : Float;
 	var fetchStart(default,null) : Float;
@@ -39,5 +47,8 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 	var requestStart(default,null) : Float;
 	var responseStart(default,null) : Float;
 	var responseEnd(default,null) : Float;
+	var transferSize(default,null) : Int;
+	var encodedBodySize(default,null) : Int;
+	var decodedBodySize(default,null) : Int;
 	
 }

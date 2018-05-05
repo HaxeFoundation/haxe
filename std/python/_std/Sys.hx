@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,7 @@ class Sys {
 		environ;
 	}
 
-	public static function time():Float {
+	public static inline function time():Float {
 		return Time.time();
 	}
 
@@ -46,11 +46,11 @@ class Sys {
 		python.lib.Sys.exit(code);
 	}
 
-	public static function print(v:Dynamic):Void {
+	public static inline function print(v:Dynamic):Void {
 		python.Lib.print(v);
 	}
 
-	public static function println(v:Dynamic):Void {
+	public static inline function println(v:Dynamic):Void {
 		python.Lib.println(v);
 	}
 
@@ -90,7 +90,7 @@ class Sys {
 
 	public static function systemName() : String {
 		return switch (python.lib.Sys.platform) {
-			case x if (StringTools.startsWith(x, "linux")):
+			case var x if (StringTools.startsWith(x, "linux")):
 				"Linux";
 			case "darwin": "Mac";
 			case "win32" | "cygwin" : "Windows";
@@ -100,16 +100,25 @@ class Sys {
 	}
 
 	public static function command( cmd : String, ?args : Array<String> ) : Int {
-		var args = args == null ? [cmd] : [cmd].concat(args);
-		return python.lib.Subprocess.call(args);
+		return
+			if (args == null)
+				python.lib.Subprocess.call(cmd, { shell: true });
+			else
+				python.lib.Subprocess.call([cmd].concat(args));
 	}
 
-	public static function cpuTime() : Float {
-		return python.lib.Time.clock();
+	public static inline function cpuTime() : Float {
+		return python.lib.Timeit.default_timer();
 	}
 
-	public static function executablePath() : String {
+	@:deprecated("Use programPath instead") public static function executablePath() : String {
 		return python.lib.Sys.argv[0];
+	}
+
+	// It has to be initialized before any call to Sys.setCwd()...
+	static var _programPath = sys.FileSystem.fullPath(python.lib.Inspect.getsourcefile(Sys));
+	public static function programPath() : String {
+		return _programPath;
 	}
 
 	public static function getChar( echo : Bool ) : Int {
@@ -133,7 +142,7 @@ class Sys {
 
 			case "Windows":
 				python.lib.Msvcrt.getch().decode("utf-8").charCodeAt(0);
-			case x :
+			case var x :
 				throw "platform " + x + " not supported";
 		}
 		if (echo) {

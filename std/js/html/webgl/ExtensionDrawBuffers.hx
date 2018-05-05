@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 873:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionDrawBuffers")
+/**
+	The `WEBGL_draw_buffers` extension is part of the WebGL API and enables a fragment shader to write to several textures, which is useful for deferred shading, for example.
+
+	Documentation [WEBGL_draw_buffers](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers>
+**/
+@:native("WEBGL_draw_buffers")
 extern class ExtensionDrawBuffers
 {
 	static inline var COLOR_ATTACHMENT0_WEBGL : Int = 36064;
@@ -62,5 +69,11 @@ extern class ExtensionDrawBuffers
 	static inline var MAX_COLOR_ATTACHMENTS_WEBGL : Int = 36063;
 	static inline var MAX_DRAW_BUFFERS_WEBGL : Int = 34852;
 	
+	
+	/**
+		
+		 Defines the draw buffers to which all fragment colors are written. (When using `WebGL2RenderingContext`, this method is available as `WebGL2RenderingContext.drawBuffers()` by default).
+		 
+	**/
 	function drawBuffersWEBGL( buffers : Array<Int> ) : Void;
 }

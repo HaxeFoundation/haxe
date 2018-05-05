@@ -1,6 +1,5 @@
 package ;
 
-@:analyzer(no_check_has_effect)
 class TestNullChecker extends TestBase {
 
 	static function main() {

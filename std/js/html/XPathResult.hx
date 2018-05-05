@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/XPathResult.webidl line 9:0. Do not edit!
+// This file is generated from mozilla\XPathResult.webidl. Do not edit!
 
 package js.html;
 
@@ -38,16 +38,52 @@ extern class XPathResult
 	static inline var ANY_UNORDERED_NODE_TYPE : Int = 8;
 	static inline var FIRST_ORDERED_NODE_TYPE : Int = 9;
 	
+	
+	/**
+		readonly integer (short)
+	**/
 	var resultType(default,null) : Int;
+	
+	/**
+		readonly float
+	**/
 	var numberValue(default,null) : Float;
+	
+	/**
+		readonly String
+	**/
 	var stringValue(default,null) : String;
+	
+	/**
+		readonly boolean
+	**/
 	var booleanValue(default,null) : Bool;
+	
+	/**
+		readonly Node
+	**/
 	var singleNodeValue(default,null) : Node;
+	
+	/**
+		readonly boolean
+	**/
 	var invalidIteratorState(default,null) : Bool;
+	
+	/**
+		readonly Integer
+	**/
 	var snapshotLength(default,null) : Int;
 	
 	/** @throws DOMError */
+	
+	/**
+		...
+	**/
 	function iterateNext() : Node;
 	/** @throws DOMError */
+	
+	/**
+		...
+	**/
 	function snapshotItem( index : Int ) : Node;
 }

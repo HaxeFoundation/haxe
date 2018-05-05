@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,7 +31,7 @@ class Mysql {
 		user : String,
 		pass : String,
 		?socket : String,
-		database : String
+		?database : String
 	} ) : sys.db.Connection {
 		if (!init)
 		{
@@ -49,7 +49,9 @@ class Mysql {
 			if (params.port != null)
 				url.add(':${params.port}');
 		}
-		url.add('/${params.database}');
+		if (params.database != null) {
+			url.add('/${params.database}');
+		}
 		var cnx = java.sql.DriverManager.getConnection(url.toString(), params.user, params.pass);
 		return java.db.Jdbc.create(cnx);
 	}

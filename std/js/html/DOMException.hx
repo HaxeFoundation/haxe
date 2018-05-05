@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DOMException.webidl line 78:0. Do not edit!
+// This file is generated from mozilla\DOMException.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DOMException` interface represents an abnormal event (called an exception) which occurs as a result of calling a method or accessing a property of a web API. This is basically how error conditions are described in web APIs.
+
+	Documentation [DOMException](https://developer.mozilla.org/en-US/docs/Web/API/DOMException) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMException$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMException>
+**/
 @:native("DOMException")
 extern class DOMException
 {
@@ -60,8 +67,9 @@ extern class DOMException
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var inner(default,null) : Dynamic/*MISSING nsISupports*/;
 	var data(default,null) : Dynamic/*MISSING nsISupports*/;
 	var stack(default,null) : String;
 	
+	/** @throws DOMError */
+	function new( ?message : String = "", ?name : String ) : Void;
 }

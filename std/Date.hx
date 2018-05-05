@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -51,8 +51,8 @@ extern class Date
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
 
 	/**
-		Returns the timestamp of the date. It might only have a per-second
-		precision depending on the platforms.
+		Returns the timestamp (in milliseconds) of the date. It might
+		only have a per-second precision depending on the platforms.
 	**/
 	function getTime() : Float;
 
@@ -67,7 +67,7 @@ extern class Date
 	function getMinutes() : Int;
 
 	/**
-		Returns the seconds of the `this` Date (0-59 range).
+		Returns the seconds of `this` Date (0-59 range).
 	**/
 	function getSeconds() : Int;
 
@@ -87,7 +87,7 @@ extern class Date
 	function getDate() : Int;
 
 	/**
-		Returns the day of the week of `this` Date (0-6 range).
+		Returns the day of the week of `this` Date (0-6 range) where `0` is Sunday.
 	**/
 	function getDay() : Int;
 
@@ -104,12 +104,12 @@ extern class Date
 	static function now() : Date;
 
 	/**
-		Returns a Date from timestamp `t`.
+		Returns a Date from timestamp (in milliseconds) `t`.
 	**/
 	static function fromTime( t : Float ) : Date;
 
 	/**
-		Returns a Date from a formated string `s`, with the following accepted
+		Returns a Date from a formatted string `s`, with the following accepted
 		formats:
 
 		- `"YYYY-MM-DD hh:mm:ss"`

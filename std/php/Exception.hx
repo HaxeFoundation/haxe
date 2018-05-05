@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,20 +21,22 @@
  */
 package php;
 
-extern class Exception {
-  public function new(?message : String, ?code : Int) : Void;
+@:native('Exception')
+extern class Exception implements Throwable {
+	public function new(?message : String, ?code : Int, ?previous:Throwable) : Void;
 
-  private var message : String;
-  private var code : Int;
-  private var file : String;
-  private var line : Int;
+	private var message : String;
+	private var code : Int;
+	private var file : String;
+	private var line : Int;
 
-  public function getMessage() : String;       // message of the exception
-  public function getCode() : Int;             // code of the exception
-  public function getFile() : String;          // source filename
-  public function getLine() : Int;             // source line
-  public function getTrace() : Array<String>;  // an array of the backtrace()
-  public function getTraceAsString() : String; // formated string of trace
-
-  public function __toString() : String;       // formated string for display
+	@:final
+	function getPrevious() : Throwable;   // Returns previous Throwable
+    function getMessage() : String;       // message of the exception
+    function getCode() : Int;             // code of the exception
+    function getFile() : String;          // source filename
+    function getLine() : Int;             // source line
+    function getTrace() : NativeIndexedArray<NativeAssocArray<Dynamic>>;  // an array of the backtrace
+    function getTraceAsString() : String; // formatted string of trace
+	@:phpMagic function __toString() : String;       // formatted string for display
 }

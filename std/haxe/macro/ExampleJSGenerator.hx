@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,7 +54,7 @@ class ExampleJSGenerator {
 		};
 	}
 
-	inline function print(str) {
+	inline function print(str:String) {
 		buf.add(str);
 	}
 
@@ -244,7 +244,7 @@ class ExampleJSGenerator {
 		sys.io.File.saveContent(api.outputFile, buf.toString());
 	}
 
-	#if macro
+	#if (macro || display)
 	public static function use() {
 		Compiler.setCustomJSGenerator(function(api) new ExampleJSGenerator(api).generate());
 	}

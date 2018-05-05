@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Gamepad.webidl line 7:0. Do not edit!
+// This file is generated from mozilla\Gamepad.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `GamepadButton` interface defines an individual button of a gamepad or other controller, allowing access to the current state of different types of buttons available on the control device.
+
+	Documentation [GamepadButton](https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton>
+**/
 @:native("GamepadButton")
 extern class GamepadButton
 {
+	
+	/**
+		A boolean value indicating whether the button is currently pressed (`true`) or unpressed (`false`).
+	**/
 	var pressed(default,null) : Bool;
+	
+	/**
+		A double value used to represent the current state of analog buttons, such as the triggers on many modern gamepads. The values are normalized to the range 0.0 —1.0, with 0.0 representing a button that is not pressed, and 1.0 representing a button that is fully pressed.
+	**/
 	var value(default,null) : Float;
 	
 }

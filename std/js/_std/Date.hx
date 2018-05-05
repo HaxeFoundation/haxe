@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,31 +21,29 @@
  */
 @:coreApi extern class Date {
 
-	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
-	function getTime() : Float;
-	function getHours() : Int;
-	function getMinutes() : Int;
-	function getSeconds() : Int;
-	function getFullYear() : Int;
-	function getMonth() : Int;
-	function getDate() : Int;
-	function getDay() : Int;
+	@:pure function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
+	@:pure function getTime() : Float;
+	@:pure function getHours() : Int;
+	@:pure function getMinutes() : Int;
+	@:pure function getSeconds() : Int;
+	@:pure function getFullYear() : Int;
+	@:pure function getMonth() : Int;
+	@:pure function getDate() : Int;
+	@:pure function getDay() : Int;
 
-	inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+	@:pure inline function toString() : String {
+		return @:privateAccess HxOverrides.dateStr(this);
 	}
 
-	static inline function now() : Date {
-		return untyped __new__(Date);
+	@:pure static inline function now() : Date {
+		return js.Syntax.construct(Date);
 	}
 
-	static inline function fromTime( t : Float ) : Date {
-		var d : Date = untyped __new__(Date);
-		untyped d["setTime"]( t );
-		return d;
+	@:pure static inline function fromTime( t : Float ) : Date {
+		return js.Syntax.construct(Date, t);
 	}
 
-	static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+	@:pure static inline function fromString( s : String ) : Date {
+		return @:privateAccess HxOverrides.strDate(s);
 	}
 }

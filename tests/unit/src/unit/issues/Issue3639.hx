@@ -25,6 +25,7 @@ private class MyClass<T> {
 }
 
 class Issue3639 extends Test {
+	@:analyzer(no_local_dce)
 	function test() {
 		MyClass.testStatic(1);
 		MyClass.eachStatic(0...5, function(x) return x);

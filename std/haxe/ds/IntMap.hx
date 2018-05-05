@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,8 @@ package haxe.ds;
 	IntMap allows mapping of Int keys to arbitrary values.
 
 	See `Map` for documentation details.
+
+	@see https://haxe.org/manual/std-Map.html
 **/
 extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 
@@ -63,6 +65,11 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	**/
 	public function iterator() : Iterator<T>;
 
+	/**
+		See `Map.copy`
+	**/
+	public function copy() : IntMap<T>;
+	
 	/**
 		See `Map.toString`
 	**/

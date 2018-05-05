@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,9 @@
 /**
 	An Array is a storage for values. You can access it using indexes or
 	with its API.
+
+	@see https://haxe.org/manual/std-Array.html
+	@see https://haxe.org/manual/lf-array-comprehension.html
 **/
 extern class Array<T> {
 
@@ -121,11 +124,11 @@ extern class Array<T> {
 		`this` Array.
 
 		If `pos` or `end` are negative, their offsets are calculated from the
-		end	of `this` Array by `this.length + pos` and `this.length + end`
+		end of `this` Array by `this.length + pos` and `this.length + end`
 		respectively. If this yields a negative value, 0 is used instead.
 
-		If `pos` exceeds `this.length` or if `end` exceeds or equals `pos`,
-		the result is `[]`.
+		If `pos` exceeds `this.length` or if `end` is less than or equals
+		`pos`, the result is `[]`.
 	**/
 	function slice( pos : Int, ?end : Int ) : Array<T>;
 
@@ -150,8 +153,8 @@ extern class Array<T> {
 
 		This operation modifies `this` Array in place.
 
-		If `len` is < 0 or `pos` exceeds `this`.length, the result is the empty
-		Array [].
+		If `len` is < 0 or `pos` exceeds `this`.length, an empty Array [] is 
+		returned and `this` Array is unchanged.
 
 		If `pos` is negative, its value is calculated from the end	of `this`
 		Array by `this.length + pos`. If this yields a negative value, 0 is
@@ -207,12 +210,12 @@ extern class Array<T> {
 	function insert( pos : Int, x : T ) : Void;
 
 	/**
-		Removes the first occurence of `x` in `this` Array.
+		Removes the first occurrence of `x` in `this` Array.
 
 		This operation modifies `this` Array in place.
 
 		If `x` is found by checking standard equality, it is removed from `this`
-		Array and all following elements are reindexed acoordingly. The function
+		Array and all following elements are reindexed accordingly. The function
 		then returns true.
 
 		If `x` is not found, `this` Array is not changed and the function
@@ -221,7 +224,7 @@ extern class Array<T> {
 	function remove( x : T ) : Bool;
 
 	/**
-		Returns position of the first occurense of `x` in `this` Array, searching front to back.
+		Returns position of the first occurrence of `x` in `this` Array, searching front to back.
 
 		If `x` is found by checking standard equality, the function returns its index.
 
@@ -236,7 +239,7 @@ extern class Array<T> {
 	function indexOf( x : T, ?fromIndex:Int ) : Int;
 
 	/**
-		Returns position of the last occurense of `x` in `this` Array, searching back to front.
+		Returns position of the last occurrence of `x` in `this` Array, searching back to front.
 
 		If `x` is found by checking standard equality, the function returns its index.
 
@@ -282,4 +285,18 @@ extern class Array<T> {
 		If `f` is null, the result is unspecified.
 	**/
 	function filter( f : T -> Bool ) : Array<T>;
+
+	/**
+		Set the length of the Array.
+
+		If `len` is shorter than the array's current size, the last
+		`length - len` elements will be removed. If `len` is longer, the Array
+		will be extended, with new elements set to a target-specific default
+		value:
+
+		- always null on dynamic targets
+		- 0, 0.0 or false for Int, Float and Bool respectively on static targets
+		- null for other types on static targets
+	**/
+	function resize( len : Int ) : Void;
 }

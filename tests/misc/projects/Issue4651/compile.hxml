@@ -1,0 +1,1 @@
+-cmd cat Main.hx.stdin | haxe --display Main.hx@43 -D display-stdin

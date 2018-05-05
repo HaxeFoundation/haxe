@@ -1,0 +1,16 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Compile",
+			"type": "shell",
+			"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

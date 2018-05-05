@@ -1,13 +1,13 @@
 compile-each.hxml
--main Main
+--main Main
 -python bin/python/sys.py
 
 --next
 compile-each.hxml
--main TestArguments
+--main TestArguments
 -python bin/python/TestArguments.py
 
 --next
 compile-each.hxml
--main ExitCode
+--main ExitCode
 -python bin/python/ExitCode.py

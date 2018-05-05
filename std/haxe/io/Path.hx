@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -208,11 +208,9 @@ class Path {
 		If `path` is null, the result is unspecified.
 	**/
 	public static function normalize(path : String) : String {
-		var slash = '/';
-		path = path.split("\\").join("/");
-		if( path == null || path == slash ) {
-			return slash;
-		}
+		var slash = "/";
+		path = path.split("\\").join(slash);
+		if (path == slash) return slash;
 
 		var target = [];
 
@@ -225,29 +223,26 @@ class Path {
 		}
 
 		var tmp = target.join(slash);
-		var regex = ~/([^:])\/+/g;
-		var result = regex.replace(tmp, "$1" +slash);
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
 		for (i in 0...tmp.length) {
-			switch (tmp.charCodeAt(i)) {
+			switch (StringTools.fastCodeAt(tmp, i)) {
 				case ":".code:
 					acc.add(":");
 					colon = true;
-				case "/".code if (colon == false):
+				case "/".code if (!colon):
 					slashes = true;
-				case i:
+				case var i:
 					colon = false;
 					if (slashes) {
 						acc.add("/");
 						slashes = false;
 					}
-					acc.add(String.fromCharCode(i));
+					acc.addChar(i);
 			}
 		}
-		var result = acc.toString();
-		return result;
+		return acc.toString();
 	}
 
 	/**
@@ -304,6 +299,7 @@ class Path {
 	public static function isAbsolute ( path : String ) : Bool {
 		if (StringTools.startsWith(path, '/')) return true;
 		if (path.charAt(1) == ':') return true;
+		if (StringTools.startsWith(path, '\\\\')) return true;
 		return false;
 	}
 

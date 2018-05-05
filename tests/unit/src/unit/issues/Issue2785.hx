@@ -4,7 +4,7 @@ import unit.Test;
 private class Base {
 	public function new() {}
 
-	@:extern
+	extern
 	public var foo(default, never):Int;
 
 	@:getter(foo)

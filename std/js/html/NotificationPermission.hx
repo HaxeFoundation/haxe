@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Notification.webidl line 80:0. Do not edit!
+// This file is generated from mozilla\Notification.webidl. Do not edit!
 
 package js.html;
 
-@:enum abstract NotificationPermission(String)
+enum abstract NotificationPermission(String)
 {
 	var DEFAULT_ = "default";
 	var DENIED = "denied";

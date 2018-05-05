@@ -2,7 +2,7 @@ package flash.system;
 
 extern class MessageChannelState {
 	function new() : Void;
-	static var CLOSED : String;
-	static var CLOSING : String;
-	static var OPEN : String;
+	static var CLOSED(default,never) : String;
+	static var CLOSING(default,never) : String;
+	static var OPEN(default,never) : String;
 }

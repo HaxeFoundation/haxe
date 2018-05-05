@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -212,10 +212,6 @@ import python.Syntax;
 	}
 
 	public static inline function random( x : Int ) : Int {
-		if (x <= 0) {
-			return 0;
-		} else {
-			return int(Math.random()*x);
-		}
+		return if (x <= 0) 0 else python.internal.UBuiltins.int(Math.random() * x);
 	}
 }

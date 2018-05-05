@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,14 @@
 package haxe.extern;
 
 /**
-    An abstract type allowing values to be either of `T1` or `T2` type.
-    Supports implicit casts from/to either types.
+	An abstract type allowing values to be either of `T1` or `T2` type.
+	Supports implicit casts from/to either types.
 
-    It is useful for interfacing with external code on dynamic platforms
-    such as JavaScript or Python.
+	It is useful for interfacing with external code on dynamic platforms
+	such as JavaScript or Python.
 
-    Otherwise, use of this type is discouraged.
+	Otherwise, use of this type is discouraged.
+	
+	@see <https://haxe.org/manual/lf-externs.html>
 **/
 abstract EitherType<T1,T2>(Dynamic) from T1 to T1 from T2 to T2 {}

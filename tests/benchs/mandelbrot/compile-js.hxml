@@ -1,7 +1,7 @@
--main Mandelbrot
+--main Mandelbrot
 -js bin/Mandelbrot.js
 
 --next
--main Mandelbrot
+--main Mandelbrot
 -js bin/Mandelbrot-anon.js
 -D anon_objects

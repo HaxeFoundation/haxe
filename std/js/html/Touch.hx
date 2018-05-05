@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/Touch.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\Touch.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `Touch` interface represents a single contact point on a touch-sensitive device. The contact point is commonly a finger or stylus and the device may be a touchscreen or trackpad.
+
+	Documentation [Touch](https://developer.mozilla.org/en-US/docs/Web/API/Touch) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Touch$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Touch>
+**/
 @:native("Touch")
 extern class Touch
 {
@@ -40,4 +47,6 @@ extern class Touch
 	var rotationAngle(default,null) : Float;
 	var force(default,null) : Float;
 	
+	/** @throws DOMError */
+	function new( touchInitDict : TouchInit ) : Void;
 }

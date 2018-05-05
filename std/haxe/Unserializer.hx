@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.ds.List;
+
 @:noDoc
 typedef TypeResolver = {
 	function resolveClass( name : String ) : Class<Dynamic>;
@@ -28,36 +30,39 @@ typedef TypeResolver = {
 }
 
 /**
-	The Unserializer class is the complement to the Serializer class. It parses
-	a serialization String and creates objects from the contained data.
+	The `Unserializer` class is the complement to the `Serializer` class. It parses
+	a serialization `String` and creates objects from the contained data.
 
 	This class can be used in two ways:
 
-	- create a new Unserializer() instance with a given serialization
-		String, then call its unserialize() method until all values are
+	- create a `new Unserializer()` instance with a given serialization
+		String, then call its `unserialize()` method until all values are
 		extracted
-	- call Unserializer.run() to unserialize a single value from a given
+	- call `Unserializer.run()`  to unserialize a single value from a given
 		String
+
+	The specification of the serialization format can be found here:
+	<https://haxe.org/manual/serialization/format>
 **/
 class Unserializer {
 
 	/**
 		This value can be set to use custom type resolvers.
 
-		A type resolver finds a Class or Enum instance from a given String. By
-		default, the haxe Type Api is used.
+		A type resolver finds a `Class` or `Enum` instance from a given `String`.
+		By default, the Haxe `Type` Api is used.
 
 		A type resolver must provide two methods:
 
-		1. resolveClass(name:String):Class<Dynamic> is called to determine a
-				Class from a class name
-		2. resolveEnum(name:String):Enum<Dynamic> is called to determine an
-				Enum from an enum name
+		1. `resolveClass(name:String):Class<Dynamic>` is called to determine a
+				`Class` from a class name
+		2. `resolveEnum(name:String):Enum<Dynamic>` is called to determine an
+				`Enum` from an enum name
 
-		This value is applied when a new Unserializer instance is created.
+		This value is applied when a new `Unserializer` instance is created.
 		Changing it afterwards has no effect on previously created instances.
 	**/
-	public static var DEFAULT_RESOLVER : TypeResolver = Type;
+	public static var DEFAULT_RESOLVER : TypeResolver = new DefaultResolver();
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
@@ -107,10 +112,10 @@ class Unserializer {
  		cache = new Array();
 		var r = DEFAULT_RESOLVER;
 		if( r == null ) {
-			r = Type;
+			r = new DefaultResolver();
 			DEFAULT_RESOLVER = r;
 		}
- 		setResolver(r);
+		resolver = r;
  	}
 
 	/**
@@ -119,14 +124,11 @@ class Unserializer {
 		If `r` is null, a special resolver is used which returns null for all
 		input values.
 
-		See DEFAULT_RESOLVER for more information on type resolvers.
+		See `DEFAULT_RESOLVER` for more information on type resolvers.
 	**/
  	public function setResolver( r ) {
 		if( r == null )
-			resolver = {
-				resolveClass : function(_) { return null; },
-				resolveEnum : function(_) { return null; }
-			};
+			resolver = NullResolver.instance;
 		else
 			resolver = r;
 	}
@@ -134,7 +136,7 @@ class Unserializer {
 	/**
 		Gets the type resolver of `this` Unserializer instance.
 
-		See DEFAULT_RESOLVER for more information on type resolvers.
+		See `DEFAULT_RESOLVER` for more information on type resolvers.
 	**/
  	public function getResolver() {
 		return resolver;
@@ -173,6 +175,7 @@ class Unserializer {
 		var p1 = pos;
  		while( true ) {
  			var c = get(pos);
+			if( StringTools.isEof(c)) break;
  			// + - . , 0-9
  			if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
  				pos++;
@@ -182,13 +185,13 @@ class Unserializer {
  		return Std.parseFloat(buf.substr(p1,pos-p1));
 	}
 
-	function unserializeObject(o) {
+	function unserializeObject(o:{}) {
  		while( true ) {
  			if( pos >= length )
  				throw "Invalid object";
  			if( get(pos) == "g".code )
  				break;
- 			var k = unserialize();
+ 			var k : Dynamic = unserialize();
  			if( !Std.is(k,String) )
  				throw "Invalid object key";
  			var v = unserialize();
@@ -197,7 +200,7 @@ class Unserializer {
  		pos++;
 	}
 
-	function unserializeEnum( edecl, tag ) {
+	function unserializeEnum<T>( edecl:Enum<T>, tag:String ) {
 		if( get(pos++) != ":".code )
 			throw "Invalid enum format";
 		var nargs = readDigits();
@@ -222,11 +225,11 @@ class Unserializer {
 
 		This operation may fail on structurally valid data if a type cannot be
 		resolved or if a field cannot be set. This can happen when unserializing
-		Strings that were serialized on a different haxe target, in which the
+		Strings that were serialized on a different Haxe target, in which the
 		serialization side has to make sure not to include platform-specific
 		data.
 
-		Classes are created from Type.createEmptyInstance, which means their
+		Classes are created from `Type.createEmptyInstance`, which means their
 		constructors are not called.
 	**/
  	public function unserialize() : Dynamic {
@@ -261,6 +264,7 @@ class Unserializer {
  		case "a".code:
 			var buf = buf;
  			var a = new Array<Dynamic>();
+ 			#if cpp var cachePos = cache.length; #end
  			cache.push(a);
  			while( true ) {
  				var c = get(pos);
@@ -275,7 +279,11 @@ class Unserializer {
  				} else
  					a.push(unserialize());
  			}
+ 			#if cpp
+ 			return cache[cachePos] = cpp.NativeArray.resolveVirtualArray(a);
+ 			#else
  			return a;
+ 			#end
  		case "o".code:
 	 		var o = {};
 	 		cache.push(o);
@@ -464,4 +472,21 @@ class Unserializer {
 	static var base_decode = neko.Lib.load("std","base_decode",2);
 	#end
 
+}
+
+private class DefaultResolver {
+	public function new() {}
+	@:final public inline function resolveClass(name:String):Class<Dynamic> return Type.resolveClass(name);
+	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return Type.resolveEnum(name);
+}
+
+private class NullResolver {
+	function new() {}
+	@:final public inline function resolveClass(name:String):Class<Dynamic> return null;
+	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return null;
+	public static var instance(get,null):NullResolver;
+	inline static function get_instance():NullResolver {
+		if (instance == null) instance = new NullResolver();
+		return instance;
+	}
 }

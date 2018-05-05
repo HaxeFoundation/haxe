@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.macro;
 
 #if (macro && !doc_gen)
-extern enum Position {
+@:coreType abstract Position {
 }
 #else
 /**
@@ -48,7 +48,7 @@ typedef Position = {
 
 /**
 	Represents a constant.
-	@see http://haxe.org/manual/expression-constants.html
+	@see https://haxe.org/manual/expression-constants.html
 **/
 enum Constant {
 	/**
@@ -56,36 +56,36 @@ enum Constant {
 	**/
 	CInt( v : String );
 
-	/*
+	/**
 		Represents a float literal.
 	**/
 	CFloat( f : String );
 
-	/*
+	/**
 		Represents a string literal.
 	**/
 	CString( s : String );
 
-	/*
-		Represents an indentifier.
+	/**
+		Represents an identifier.
 	**/
 	CIdent( s : String );
 
-	/*
+	/**
 		Represents a regular expression literal.
 
 		Example: `~/haxe/i`
 		 * The first argument _haxe_ is a string with regular expression pattern.
 		 * The second argument _i_ is a string with regular expression flags.
 
-		@see http://haxe.org/manual/std-regex.html
+		@see https://haxe.org/manual/std-regex.html
 	**/
 	CRegexp( r : String, opt : String );
 }
 
 /**
 	A binary operator.
-	@see http://haxe.org/manual/types-numeric-operators.html
+	@see https://haxe.org/manual/types-numeric-operators.html
 **/
 enum Binop {
 	/**
@@ -212,11 +212,16 @@ enum Binop {
 		`=>`
 	**/
 	OpArrow;
+
+	/**
+		`in`
+	**/
+	OpIn;
 }
 
 /**
 	A unary operator.
-	@see http://haxe.org/manual/types-numeric-operators.html
+	@see https://haxe.org/manual/types-numeric-operators.html
 **/
 enum Unop {
 	/**
@@ -247,7 +252,7 @@ enum Unop {
 
 /**
 	Represents a node in the AST.
-	@see http://haxe.org/manual/macro-reification-expression.html
+	@see https://haxe.org/manual/macro-reification-expression.html
 **/
 typedef Expr = {
 	/**
@@ -264,13 +269,13 @@ typedef Expr = {
 /**
 	Represents a AST node identical to `Expr`, but it allows constraining the
 	type of accepted expressions.
-	@see http://haxe.org/manual/macro-ExprOf.html
+	@see https://haxe.org/manual/macro-ExprOf.html
 **/
 typedef ExprOf<T> = Expr;
 
 /**
 	Represents a switch case.
-	@see http://haxe.org/manual/expression-switch.html
+	@see https://haxe.org/manual/expression-switch.html
 **/
 typedef Case = {
 	/**
@@ -291,44 +296,79 @@ typedef Case = {
 
 /**
 	Represents a variable in the AST.
-	@see http://haxe.org/manual/expression-var.html
+	@see https://haxe.org/manual/expression-var.html
 **/
 typedef Var = {
 	/**
 		The name of the variable.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type-hint of the variable, if available.
 	**/
-	type : Null<ComplexType>,
+	var type : Null<ComplexType>;
 
 	/**
 		The expression of the variable, if available.
 	**/
-	expr : Null<Expr>
+	var expr : Null<Expr>;
 }
 
 /**
 	Represents a catch in the AST.
-	@http://haxe.org/manual/expression-try-catch.html
+	@https://haxe.org/manual/expression-try-catch.html
 **/
 typedef Catch = {
 	/**
 		The name of the catch variable.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The type of the catch.
 	**/
-	type : ComplexType,
+	var type : ComplexType;
 
 	/**
 		The expression of the catch.
 	**/
-	expr : Expr
+	var expr : Expr;
+}
+
+/**
+	Represents the way something is quoted.
+**/
+enum QuoteStatus {
+	/**
+		No quotes
+	**/
+	Unquoted;
+
+	/**
+		Double quotes `"`
+	**/
+	Quoted;
+}
+
+/**
+	Represents the field of an object declaration.
+**/
+typedef ObjectField = {
+	/**
+		The name of the field.
+	**/
+	var field : String;
+
+	/**
+		The field expression.
+	**/
+	var expr : Expr;
+
+	/**
+		How the field name is quoted.
+	**/
+	@:optional var quotes : QuoteStatus;
 }
 
 /**
@@ -363,7 +403,7 @@ enum ExprDef {
 	/**
 		An object declaration.
 	**/
-	EObjectDecl( fields : Array<{ field : String, expr : Expr }> );
+	EObjectDecl( fields : Array<ObjectField> );
 
 	/**
 		An array declaration `[el]`.
@@ -412,11 +452,6 @@ enum ExprDef {
 		A `for` expression.
 	**/
 	EFor( it : Expr, expr : Expr );
-
-	/**
-		A `(e1 in e2)` expression.
-	**/
-	EIn( e1 : Expr, e2 : Expr );
 
 	/**
 		An `if(econd) eif` or `if(econd) eif else eelse` expression.
@@ -474,7 +509,7 @@ enum ExprDef {
 	/**
 		Internally used to provide completion.
 	**/
-	EDisplay( e : Expr, isCall : Bool );
+	EDisplay( e : Expr, displayKind:DisplayKind );
 
 	/**
 		Internally used to provide completion.
@@ -497,6 +532,14 @@ enum ExprDef {
 	EMeta( s : MetadataEntry, e : Expr );
 }
 
+enum DisplayKind {
+	DKCall;
+	DKDot;
+	DKStructure;
+	DKToplevel;
+	DKMarked;
+}
+
 /**
 	Represents a type syntax in the AST.
 **/
@@ -508,13 +551,13 @@ enum ComplexType {
 
 	/**
 		Represents a function type.
-		@see http://haxe.org/manual/types-function.html
+		@see https://haxe.org/manual/types-function.html
 	**/
 	TFunction( args : Array<ComplexType>, ret : ComplexType );
 
 	/**
 		Represents an anonymous structure type.
-		@see http://haxe.org/manual/types-anonymous-structure.html
+		@see https://haxe.org/manual/types-anonymous-structure.html
 	**/
 	TAnonymous( fields : Array<Field> );
 
@@ -527,7 +570,7 @@ enum ComplexType {
 	/**
 		Represents typedef extensions `> Iterable<T>`.
 		The array `p` holds the type paths to the given types.
-		@see http://haxe.org/manual/type-system-extensions.html
+		@see https://haxe.org/manual/type-system-extensions.html
 	**/
 	TExtend( p : Array<TypePath>, fields : Array<Field> );
 
@@ -535,6 +578,11 @@ enum ComplexType {
 		Represents an optional type.
 	**/
 	TOptional( t : ComplexType );
+
+	/**
+		Represents a type with a name.
+	**/
+	TNamed( n : String, t : ComplexType );
 }
 
 /**
@@ -564,7 +612,7 @@ typedef TypePath = {
 }
 
 /**
-	Represents a concrete type parameters in the AST.
+	Represents a concrete type parameter in the AST.
 
 	Haxe allows expressions in concrete type parameters, e.g.
 	`new YourType<["hello", "world"]>`. In that case the value is `TPExpr` while
@@ -655,6 +703,11 @@ typedef FunctionArg = {
 		The optional value of the function argument, if available.
 	**/
 	@:optional var value : Null<Expr>;
+
+	/**
+		The metadata of the function argument.
+	**/
+	@:optional var meta : Metadata;
 }
 
 /**
@@ -664,17 +717,17 @@ typedef MetadataEntry = {
 	/**
 		The name of the metadata entry.
 	**/
-	name : String,
+	var name : String;
 
 	/**
 		The optional parameters of the metadata entry.
 	**/
-	?params : Array<Expr>,
+	@:optional var params : Array<Expr>;
 
 	/**
 		The position of the metadata entry.
 	**/
-	pos : Position
+	var pos : Position;
 }
 
 /**
@@ -699,7 +752,7 @@ typedef Field = {
 
 	/**
 		The access modifiers of the field. By default fields have private access.
-		@see http://haxe.org/manual/class-field-access-modifier.html
+		@see https://haxe.org/manual/class-field-access-modifier.html
 	**/
 	@:optional var access : Array<Access>;
 
@@ -721,20 +774,20 @@ typedef Field = {
 
 /**
 	Represents an access modifier.
-	@see http://haxe.org/manual/class-field-access-modifier.html
+	@see https://haxe.org/manual/class-field-access-modifier.html
 **/
 enum Access {
 
 	/**
 		Public access modifier, grants access from anywhere.
-		@see http://haxe.org/manual/class-field-visibility.html
+		@see https://haxe.org/manual/class-field-visibility.html
 	**/
 	APublic;
 
 	/**
 		Private access modifier, grants access to class and its sub-classes
 		only.
-		@see http://haxe.org/manual/class-field-visibility.html
+		@see https://haxe.org/manual/class-field-visibility.html
 	**/
 	APrivate;
 
@@ -745,20 +798,20 @@ enum Access {
 
 	/**
 		Override access modifier.
-		@see http://haxe.org/manual/class-field-override.html
+		@see https://haxe.org/manual/class-field-override.html
 	**/
 	AOverride;
 
 	/**
 		Dynamic (re-)bindable access modifier.
-		@see http://haxe.org/manual/class-field-dynamic.html
+		@see https://haxe.org/manual/class-field-dynamic.html
 	**/
 	ADynamic;
 
 	/**
 		Inline access modifier. Allows expressions to be directly inserted in
 		place of calls to them.
-		@see http://haxe.org/manual/class-field-inline.html
+		@see https://haxe.org/manual/class-field-inline.html
 	**/
 	AInline;
 
@@ -767,6 +820,17 @@ enum Access {
 		normal functions which are executed as soon as they are typed.
 	**/
 	AMacro;
+
+	/**
+		Final access modifier. For functions, they can not be overridden. For
+		variables, it means they can be assigned to only once.
+	**/
+	AFinal;
+
+	/**
+		Extern access modifier.
+	**/
+	AExtern;
 }
 
 /**
@@ -804,6 +868,12 @@ typedef TypeDefinition = {
 	var name : String;
 
 	/**
+		The documentation of the type, if available. If the type has no
+		documentation, the value is `null`.
+	**/
+	@:optional var doc : Null<String>;
+
+	/**
 		The position to the type definition.
 	**/
 	var pos : Position;
@@ -814,7 +884,7 @@ typedef TypeDefinition = {
 	@:optional var meta : Metadata;
 
 	/**
-		The paramater type declarations of the type definition.
+		The parameter type declarations of the type definition.
 	**/
 	@:optional var params : Array<TypeParamDecl>;
 
@@ -897,7 +967,7 @@ class Error {
 
 /**
 	Represents the import mode.
-	@see http://haxe.org/manual/type-system-import.html
+	@see https://haxe.org/manual/type-system-import.html
 **/
 enum ImportMode {
 	/**

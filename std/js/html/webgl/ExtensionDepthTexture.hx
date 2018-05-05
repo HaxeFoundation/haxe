@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,11 +20,18 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WebGLRenderingContext.webidl line 825:0. Do not edit!
+// This file is generated from mozilla\WebGLRenderingContext.webidl. Do not edit!
 
 package js.html.webgl;
 
-@:native("WebGLExtensionDepthTexture")
+/**
+	The `WEBGL_depth_texture` extension is part of the WebGL API and defines 2D depth and depth-stencil textures.
+
+	Documentation [WEBGL_depth_texture](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_depth_texture) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_depth_texture$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_depth_texture>
+**/
+@:native("WEBGL_depth_texture")
 extern class ExtensionDepthTexture
 {
 	static inline var UNSIGNED_INT_24_8_WEBGL : Int = 34042;

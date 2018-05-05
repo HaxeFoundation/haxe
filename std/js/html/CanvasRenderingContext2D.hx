@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/CanvasRenderingContext2D.webidl line 28:0. Do not edit!
+// This file is generated from mozilla\CanvasRenderingContext2D.webidl. Do not edit!
 
 package js.html;
 
+/**
+	To get an object of this interface, call `getContext()` on a `canvas element`, supplying "2d" as the argument:
+
+	Documentation [CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D>
+**/
 @:native("CanvasRenderingContext2D")
 extern class CanvasRenderingContext2D
 {
@@ -65,7 +72,7 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
 	/** @throws DOMError */
-	function createPattern( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, repetition : String ) : CanvasPattern;
+	function createPattern( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, repetition : String ) : CanvasPattern;
 	function clearRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function fillRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function strokeRect( x : Float, y : Float, w : Float, h : Float ) : Void;
@@ -74,6 +81,7 @@ extern class CanvasRenderingContext2D
 	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
 	@:overload( function() : Void {} )
 	function stroke( path : Path2D ) : Void;
+	/** @throws DOMError */
 	function drawFocusIfNeeded( element : Element ) : Void;
 	function drawCustomFocusRing( element : Element ) : Bool;
 	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
@@ -89,9 +97,9 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function measureText( text : String ) : TextMetrics;
 	/** @throws DOMError */
-	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float ) : Void {} )
-	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
-	function drawImage( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,VideoElement>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
+	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float ) : Void {} )
+	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
+	function drawImage( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	/** @throws DOMError */
 	function addHitRegion( ?options : HitRegionOptions ) : Void;
 	function removeHitRegion( id : String ) : Void;
@@ -104,6 +112,7 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	@:overload( function( imagedata : ImageData, dx : Float, dy : Float ) : Void {} )
 	function putImageData( imagedata : ImageData, dx : Float, dy : Float, dirtyX : Float, dirtyY : Float, dirtyWidth : Float, dirtyHeight : Float ) : Void;
+	/** @throws DOMError */
 	function setLineDash( segments : Array<Float> ) : Void;
 	function getLineDash() : Array<Float>;
 	function closePath() : Void;
@@ -116,4 +125,6 @@ extern class CanvasRenderingContext2D
 	function rect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	/** @throws DOMError */
 	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	/** @throws DOMError */
+	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
 }

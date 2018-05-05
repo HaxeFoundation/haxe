@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,15 @@
 
 package haxe;
 
+/**
+	This class provides advanced methods on enums. It is ideally used with
+	`using EnumTools` and then acts as an 
+  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
+  `enum` types.
+
+	If the first argument to any of the methods is null, the result is
+	unspecified.
+**/
 extern class EnumTools {
 	/**
 		Returns the name of enum `e`, including its path.
@@ -29,12 +38,12 @@ extern class EnumTools {
 		If `e` is inside a package, the package structure is returned dot-
 		separated, with another dot separating the enum name:
 			pack1.pack2.(...).packN.EnumName
-		If `e` is a sub-type of a haxe module, that module is not part of the
+		If `e` is a sub-type of a Haxe module, that module is not part of the
 		package structure.
 
 		If `e` has no package, the enum name is returned.
 
-		If `e` is null, the result is unspecified.
+		If `e` is `null`, the result is unspecified.
 
 		The enum name does not include any type parameters.
 	**/
@@ -46,7 +55,7 @@ extern class EnumTools {
 		Creates an instance of enum `e` by calling its constructor `constr` with
 		arguments `params`.
 
-		If `e` or `constr` is null, or if enum `e` has no constructor named
+		If `e` or `constr` is `null`, or if enum `e` has no constructor named
 		`constr`, or if the number of elements in `params` does not match the
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
@@ -59,10 +68,10 @@ extern class EnumTools {
 		Creates an instance of enum `e` by calling its constructor number
 		`index` with arguments `params`.
 
-		The constructor indices are preserved from haxe syntax, so the first
+		The constructor indices are preserved from Haxe syntax, so the first
 		declared is index 0, the next index 1 etc.
 
-		If `e` or `index` is null, or if enum `e` has no constructor
+		If `e` or `index` is `null`, or if enum `e` has no constructor
 		corresponding to index `index`, or if the number of elements in `params`
 		does not match the expected number of constructor arguments, or if any
 		argument has an invalid type, the result is unspecified.
@@ -82,7 +91,7 @@ extern class EnumTools {
 		argument constructors is returned, in the order of the constructor
 		declaration.
 
-		If `e` is null, the result is unspecified.
+		If `e` is `null`, the result is unspecified.
 	**/
 	static public inline function createAll<T>(e:Enum<T>):Array<T> {
 		return Type.allEnums(e);
@@ -94,22 +103,31 @@ extern class EnumTools {
 		The order of the constructor names in the returned Array is preserved
 		from the original syntax.
 
-		If `c` is null, the result is unspecified.
+		If `c` is `null`, the result is unspecified.
 	**/
 	static public inline function getConstructors<T>(e:Enum<T>):Array<String> {
 		return Type.getEnumConstructs(e);
 	}
 }
 
+/**
+	This class provides advanced methods on enum values. It is ideally used with
+	`using EnumValueTools` and then acts as an 
+  [extension](https://haxe.org/manual/lf-static-extension.html) to the 
+  `EnumValue` types.
+
+	If the first argument to any of the methods is null, the result is
+	unspecified.
+**/
 extern class EnumValueTools {
 
 	/**
 		Recursively compares two enum instances `a` and `b` by value.
 
 		Unlike `a == b`, this function performs a deep equality check on the
-		arguments of the constructors, if exists.
+		arguments of the constructors (if there are any).
 
-		If `a` or `b` are null, the result is unspecified.
+		If `a` or `b` are `null`, the result is unspecified.
 	**/
 	static public inline function equals<T:EnumValue>(a:T, b:T):Bool {
 		return Type.enumEq(a, b);
@@ -120,7 +138,7 @@ extern class EnumValueTools {
 
 		The result String does not contain any constructor arguments.
 
-		If `e` is null, the result is unspecified.
+		If `e` is `null`, the result is unspecified.
 	**/
 	static public inline function getName(e:EnumValue):String {
 		return Type.enumConstructor(e);
@@ -129,12 +147,12 @@ extern class EnumValueTools {
 	/**
 		Returns a list of the constructor arguments of enum instance `e`.
 
-		If `e` has no arguments, the result is [].
+		If `e` has no arguments, the result is `[]`.
 
 		Otherwise the result are the values that were used as arguments to `e`,
 		in the order of their declaration.
 
-		If `e` is null, the result is unspecified.
+		If `e` is `null`, the result is unspecified.
 	**/
 	static public inline function getParameters(e:EnumValue):Array<Dynamic> {
 		return Type.enumParameters(e);
@@ -146,19 +164,19 @@ extern class EnumValueTools {
 		This corresponds to the original syntactic position of `e`. The index of
 		the first declared constructor is 0, the next one is 1 etc.
 
-		If `e` is null, the result is unspecified.
+		If `e` is `null`, the result is unspecified.
 	**/
 	static public inline function getIndex(e:EnumValue):Int {
 		return Type.enumIndex(e);
 	}
 
 	/**
-		Matches enum instance `e` against pattern `pattern`, returning true if
-		matching succeeded and false otherwise.
+		Matches enum instance `e` against pattern `pattern`, returning `true` if
+		matching succeeded and `false` otherwise.
 
 		Example usage:
 
-		```
+		```haxe
 		if (e.match(pattern)) {
 			// codeIfTrue
 		} else {
@@ -168,7 +186,7 @@ extern class EnumValueTools {
 
 		This is equivalent to the following code:
 
-		```
+		```haxe
 		switch (e) {
 			case pattern:
 				// codeIfTrue

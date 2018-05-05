@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +22,8 @@
 package haxe;
 
 /**
-	Since all platforms does not guarantee that String always uses UTF-8 encoding, you
-	can use this crossplatform API to perform operations on such strings.
+	Since not all platforms guarantee that `String` always uses UTF-8 encoding, you
+	can use this cross-platform API to perform operations on such strings.
 **/
 class Utf8 {
 
@@ -44,7 +44,7 @@ class Utf8 {
 	}
 
 	/**
-		Returns the buffer converted to a String;
+		Returns the buffer converted to a String.
 	**/
 	public inline function toString() : String {
 		return __b;
@@ -90,7 +90,7 @@ class Utf8 {
 	/**
 		Returns the number of UTF8 chars of the String.
 	**/
-	#if js @:extern #end
+	#if js extern #end
 	public static inline function length( s : String ) : Int {
 		return s.length;
 	}

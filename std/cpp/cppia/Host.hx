@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,17 +22,33 @@
  package cpp.cppia;
 
 
-@:build(cpp.cppia.HostClasses.include())
 class Host
 {
    public static function run(source:String)
    {
-      untyped __global__.__scriptable_load_cppia(source);
+      var module = Module.fromString(source);
+      module.boot();
+      module.run();
    }
+
+
+   @:native("hx::EnableJit")
+   extern public static function enableJit(enable:Bool) : Void { }
+
+   public static function runFile(filename:String)
+   {
+      run( sys.io.File.getContent(filename) );
+   }
+
 
    public static function main()
    {
-      var script = Sys.args()[0];
+      var args = Sys.args();
+      if (args.remove("-jit"))
+         enableJit(true);
+
+      var script = args[0];
+
       #if (!scriptable && !doc_gen)
       #error "Please define scriptable to use cppia"
       #end
@@ -43,7 +59,9 @@ class Host
       else
       {
          var source = sys.io.File.getContent(script);
-         run(source);
+         var module = Module.fromString(source);
+         module.boot();
+         module.run();
       }
    }
 }

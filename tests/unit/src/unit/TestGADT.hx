@@ -28,17 +28,17 @@ class TestGADT extends Test {
 
 		var eadd = EBinop(OpAdd,e1,e2);
 		var s = eval(eadd);
-		TestType.typedAs(s, ti);
+		HelperMacros.typedAs(s, ti);
 		eq(s,20);
 
 		var eeq = EBinop(OpEq,e1,e2);
 		var s = eval(eeq);
-		TestType.typedAs(s, tb);
+		HelperMacros.typedAs(s, tb);
 		eq(s,false);
 
 		var eeq = EBinop(OpEq,e1,e3);
 		var s = eval(eeq);
-		TestType.typedAs(s, tb);
+		HelperMacros.typedAs(s, tb);
 		eq(s,true);
 	}
 

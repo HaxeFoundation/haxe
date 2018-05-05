@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,6 +26,7 @@ package python.internal;
     Fields listed here must be synchronized with genpy's KeywordHandler.kwds2 list to be properly escaped.
 **/
 extern class UBuiltins {
+    static function id(x:Dynamic):String;
     static function len(x:Dynamic):Int;
     static function isinstance(o:Dynamic, c:Dynamic):Bool;
     static function str(o:Dynamic):String;
@@ -36,7 +37,7 @@ extern class UBuiltins {
     static function min<T>(a:T, b:T):T;
     static function max<T>(a:T, b:T):T;
     static function hasattr(o:Dynamic, a:String):Bool;
-    static function getattr(o:Dynamic, a:String):Dynamic;
+    static function getattr(o:Dynamic, a:String, ?def:Dynamic):Dynamic;
     static function setattr(o:Dynamic, a:String, v:Dynamic):Void;
     static function delattr(o:Dynamic, attr:String):Void;
     static function callable(x:Dynamic):Bool;

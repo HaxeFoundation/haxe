@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of Charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,19 +27,12 @@ package haxe.crypto;
 class Sha224 {
 
     public static function encode( s:String ) : String {
-        #if php
-        return untyped __call__("hash", "sha224", s);
-        #else
         var sh = new Sha224();
         var h = sh.doEncode(s, s.length*8);
         return sh.hex(h);
-        #end
     }
 
     public static function make( b : haxe.io.Bytes ) : haxe.io.Bytes {
-        #if php
-        return haxe.io.Bytes.ofData(haxe.io.BytesData.ofString(untyped __call__("hash", "sha224", b.getData().toString(), true)));
-        #else
         var h = new Sha224().doEncode(b.toString(), b.length*8);
         var out = haxe.io.Bytes.alloc(28);
         var p = 0;
@@ -50,7 +43,6 @@ class Sha224 {
             out.set(p++,h[i]&0xFF);
         }
         return out;
-        #end
     }
 
     public function new() {
@@ -148,45 +140,54 @@ class Sha224 {
         return blks;
     }
 
-    static function safeAdd(x, y) {
+    extern
+    inline static function safeAdd(x, y) {
         var lsw = (x & 0xFFFF) + (y & 0xFFFF);
         var msw = (x >>> 16) + (y >>> 16) + (lsw >>> 16);
         return ((msw & 0xFFFF) << 16) | (lsw & 0xFFFF);
     }
 
     // ++
-    function ROTR(X, n) {
+    extern
+    inline function ROTR(X, n) {
         return ( X >>> n ) | (X << (32 - n));
     }
 
     // ++
-    function SHR(X, n) {
+    extern
+    inline function SHR(X, n) {
         return ( X >>> n );
     }
 
     // ++
-    function Ch(x, y, z) {
+    extern
+    inline function Ch(x, y, z) {
         return ((x & y) ^ ((~x) & z));
     }
 
     // ++
-    function Maj(x, y, z) {
+    extern
+    inline function Maj(x, y, z) {
         return ((x & y) ^ (x & z) ^ (y & z));
     }
 
-    function Sigma0(x) {
+    extern
+    inline function Sigma0(x) {
         return ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22);
     }
 
-    function Sigma1(x) {
+    extern
+    inline function Sigma1(x) {
         return ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25);
     }
 
-    function Gamma0(x) {
+    extern
+    inline function Gamma0(x) {
         return ROTR(x, 7) ^ ROTR(x, 18) ^ SHR(x, 3);
     }
 
-    function Gamma1(x) {
+    extern
+    inline function Gamma1(x) {
         return ROTR(x, 17) ^ ROTR(x, 19) ^ SHR(x, 10);
     }
 

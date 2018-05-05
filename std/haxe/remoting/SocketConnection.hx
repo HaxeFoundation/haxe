@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -111,7 +111,7 @@ class SocketConnection implements AsyncConnection implements Dynamic<AsyncConnec
 		if( f.onResult != null ) f.onResult(ret);
 	}
 
-	function defaultLog(path,args,e) {
+	function defaultLog(path,args,e:Dynamic) {
 		// exception inside the called method
 		var astr, estr;
 		try astr = args.join(",") catch( e : Dynamic ) astr = "???";

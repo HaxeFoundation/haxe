@@ -1,0 +1,225 @@
+package cases;
+
+import Types;
+using Lambda;
+
+class Toplevel extends DisplayTestCase {
+	/**
+	class Main {
+		static var myField;
+		static function main() {{-1-}
+			{-2-}
+	**/
+	function testToplevelResuming() {
+		eq(true, hasToplevel(toplevel(pos(1)), "static", "myField"));
+		eq(true, hasToplevel(toplevel(pos(2)), "static", "myField"));
+	}
+
+	/**
+	class Main {
+		static var myField;
+		static function main() {
+			{-1-}
+			var a = "foo";
+			{-2-}
+	**/
+	function testToplevelScoping() {
+		var toplevel1 = toplevel(pos(1));
+		var toplevel2 = toplevel(pos(2));
+		eq(true, hasToplevel(toplevel1, "static", "myField"));
+		eq(true, hasToplevel(toplevel2, "static", "myField"));
+		eq(false, hasToplevel(toplevel1, "local", "a"));
+		eq(true, hasToplevel(toplevel2, "local", "a"));
+	}
+
+	/**
+	class Main {
+		static var myField;
+		static function main() {
+			var a:{-1-}
+	**/
+	function testTypeCompletionLocal() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Main"));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+		eq(false, hasToplevel(typesCompletion, "static", "myField"));
+	}
+
+	/**
+	class Main {
+		var a:{-1-}
+	**/
+	function testTypeCompletionField() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Main"));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	class Main {
+		static function f(a:{-1-})
+	**/
+	function testTypeCompletionArgument() {
+		// TODO: this currently doesn't work if there's no closing paren for function arguments
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Main"));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	var a = function(a:{-1-}
+	**/
+	@:funcCode function testTypeCompletionArgumentLocal() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	import {-1-}
+	**/
+	function testTypeCompletionImport() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	using {-1-}
+	**/
+	function testTypeCompletionUsing() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	class C extends {-1-} {
+	**/
+	function testTypeCompletionExtends() {
+		// TODO: this currently doesn't work if there's no token after extends
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	class C implements {-1-} {
+	**/
+	function testTypeCompletionImplements() {
+		// TODO: this currently doesn't work if there's no token after implements
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	typedef T = {a:{-1-}}
+	**/
+	function testTypeCompletionStructureField() {
+		// TODO: this currently doesn't work if there's no token after the completion position
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	var a:{a:{-1-}
+	**/
+	@:funcCode function testTypeCompletionStructureFieldAsType() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	Xml.parse({-1-}
+	**/
+	@:funcCode function testIssue5969() {
+		var typesCompletion = toplevel(pos(1));
+		eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+	}
+
+	/**
+	class Main<ClassT> {
+		static var myField;
+		static function main<FieldT>() {
+			{-1-}
+		}
+
+		function field<FieldT2>() {
+			{-2-}
+		}
+	**/
+	function testTypeParameters() {
+		eq(true, hasToplevel(toplevel(pos(1)), "type", "FieldT"));
+		eq(false, hasToplevel(toplevel(pos(1)), "type", "ClassT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "ClassT"));
+		eq(false, hasToplevel(toplevel(pos(2)), "type", "FieldT"));
+		eq(true, hasToplevel(toplevel(pos(2)), "type", "FieldT2"));
+	}
+
+	/**
+	import cases.Toplevel.E.a;
+
+	enum E {
+		a;
+	}
+
+	class Main {
+		static var a:Int;
+		function new(a) {
+			{-1-}
+		}
+
+		static function main() {
+		}
+	}
+	**/
+	function testDuplicates() {
+		var toplevels = toplevel(pos(1));
+		toplevels = toplevels.filter(function(t) return t.name == "a");
+		eq(1, toplevels.length);
+		eq("local", toplevels[0].kind);
+	}
+
+	/**
+	class Main {
+		static function main() {
+			{-1-}
+		}
+		@:noCompletion static function test() { }
+	}
+	**/
+	function testIssue6407() {
+		eq(false, hasToplevel(toplevel(pos(1)), "static", "test"));
+	}
+
+	/**
+	class Parent {
+		function parent() {
+			{-1-}
+		}
+	}
+	class Child extends Parent {
+		function child() {
+			{-2-}
+		}
+	}
+	**/
+	function testThisSuper() {
+		eq(true, hasToplevel(toplevel(pos(1)), "literal", "this"));
+		eq(false, hasToplevel(toplevel(pos(1)), "literal", "super"));
+
+		eq(true, hasToplevel(toplevel(pos(2)), "literal", "this"));
+		eq(true, hasToplevel(toplevel(pos(2)), "literal", "super"));
+	}
+
+	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
+		return a.exists(function(t) return t.kind == kind && t.name == name);
+	}
+}

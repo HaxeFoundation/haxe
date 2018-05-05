@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 package haxe.io;
 
 class BytesInput extends Input {
-	var b : #if js js.html.Uint8Array #else BytesData #end;
+	var b : #if js js.html.Uint8Array #elseif hl hl.Bytes #else BytesData #end;
 	#if !flash
 	var pos : Int;
 	var len : Int;
@@ -50,7 +50,7 @@ class BytesInput extends Input {
 			this.b = ba;
 		this.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
-		this.b = #if js @:privateAccess b.b #else b.getData() #end;
+		this.b = #if (js || hl) @:privateAccess b.b #else b.getData() #end;
 		this.pos = pos;
 		this.len = len;
 		this.totlen = len;
@@ -96,8 +96,6 @@ class BytesInput extends Input {
 			len--;
 			#if neko
 			return untyped __dollar__sget(b,pos++);
-			#elseif php
-			return b.get(pos++);
 			#elseif cpp
 			return untyped b[pos++];
 			#elseif java
@@ -108,7 +106,7 @@ class BytesInput extends Input {
 		#end
 	}
 
-	public override function readBytes( buf : Bytes, pos, len ) : Int {
+	public override function readBytes( buf : Bytes, pos : Int, len : Int ) : Int {
 		#if !neko
 			if( pos < 0 || len < 0 || pos + len > buf.length )
 				throw Error.OutsideBounds;
@@ -140,8 +138,8 @@ class BytesInput extends Input {
 				len = this.len;
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
-			#elseif php
-			buf.getData().blit(pos, b, this.pos, len);
+			#elseif hl
+			@:privateAccess buf.b.blit(pos, b, this.pos, len);
 			#else
 			var b1 = b;
 			var b2 = #if js @:privateAccess buf.b #else buf.getData() #end;

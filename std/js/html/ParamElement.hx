@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,16 +20,39 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/HTMLParamElement.webidl line 16:0. Do not edit!
+// This file is generated from mozilla\HTMLParamElement.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `HTMLParamElement` interface provides special properties (beyond those of the regular `HTMLElement` object interface it inherits) for manipulating `param` elements, representing a pair of a key and a value that acts as a parameter for an `object` element.
+
+	Documentation [HTMLParamElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement>
+**/
 @:native("HTMLParamElement")
 extern class ParamElement extends Element
 {
+	
+	/**
+		Is a `DOMString` representing the name of the parameter. It reflects the `name` attribute.
+	**/
 	var name : String;
+	
+	/**
+		Is a `DOMString` representing the value associated to the parameter. It reflects the `value` attribute.
+	**/
 	var value : String;
+	
+	/**
+		Is a `DOMString` containing the type of the parameter when `valueType` has the `"ref"` value. It reflects the `type` attribute.
+	**/
 	var type : String;
+	
+	/**
+		Is a `DOMString` containing the type of the `value`. It reflects the ``valuetype`` attribute and has one of the values: `"data"`, `"ref"`, or `"object"`.
+	**/
 	var valueType : String;
 	
 }

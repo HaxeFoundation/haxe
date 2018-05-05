@@ -1,5 +1,5 @@
 /*
-* Copyright (C)2005-2015 Haxe Foundation
+* Copyright (C)2005-2018 Haxe Foundation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -41,7 +41,7 @@ private typedef ClientInfos<Client> = {
 }
 
 /**
-    The ThreadServer can be used to easily create a multithreaded server where each thread polls multiple connections. 
+    The ThreadServer can be used to easily create a multithreaded server where each thread polls multiple connections.
     To use it, at a minimum you must override or rebind clientConnected, readClientMessage, and clientMessage and you must define your Client and Message.
 **/
 class ThreadServer<Client,Message> {
@@ -178,7 +178,7 @@ class ThreadServer<Client,Message> {
                 }
         }
 
-        function doClientDisconnected(s,c) {
+        function doClientDisconnected(s:sys.net.Socket,c) {
                 try s.close() catch( e : Dynamic ) {};
                 clientDisconnected(c);
         }
@@ -288,7 +288,7 @@ class ThreadServer<Client,Message> {
         }
 
         /**
-            Send data to a client. 
+            Send data to a client.
         **/
         public function sendData( s : sys.net.Socket, data : String ) {
                 try {
@@ -333,7 +333,7 @@ class ThreadServer<Client,Message> {
 
         /**
             Called when data has been read from a socket. This method should try to extract a message from the buffer.
-            The available data resides in buf, starts at pos, and is len bytes wide. Return the new message and the number of bytes read from the buffer. 
+            The available data resides in buf, starts at pos, and is len bytes wide. Return the new message and the number of bytes read from the buffer.
             If no message could be read, return null.
         **/
         public dynamic function readClientMessage( c : Client, buf : haxe.io.Bytes, pos : Int, len : Int ) : { msg : Message, bytes : Int } {

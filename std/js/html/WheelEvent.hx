@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/WheelEvent.webidl line 14:0. Do not edit!
+// This file is generated from mozilla\WheelEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `WheelEvent` interface represents events that occur due to the user moving a mouse wheel or similar input device.
+
+	Documentation [WheelEvent](https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent>
+**/
 @:native("WheelEvent")
 extern class WheelEvent extends MouseEvent
 {
@@ -31,9 +38,50 @@ extern class WheelEvent extends MouseEvent
 	static inline var DOM_DELTA_LINE : Int = 1;
 	static inline var DOM_DELTA_PAGE : Int = 2;
 	
+	
+	/**
+		Returns a `double` representing the horizontal scroll amount.
+	**/
 	var deltaX(default,null) : Float;
+	
+	/**
+		Returns a `double` representing the vertical scroll amount.
+	**/
 	var deltaY(default,null) : Float;
+	
+	/**
+		Returns a `double` representing the scroll amount for the z-axis.
+	**/
 	var deltaZ(default,null) : Float;
+	
+	/**
+		Returns an <code>unsigned long</code> representing the unit of the delta values scroll amount. Permitted values are:
+		 <table class="standard-table">
+		  
+		   <tr>
+		    <td class="header">Constant</td>
+		    <td class="header">Value</td>
+		    <td class="header">Description</td>
+		   </tr>
+		   <tr>
+		    <td><code>DOM_DELTA_PIXEL</code></td>
+		    <td><code>0x00</code></td>
+		    <td>The delta values are specified in pixels.</td>
+		   </tr>
+		   <tr>
+		    <td><code>DOM_DELTA_LINE</code></td>
+		    <td><code>0x01</code></td>
+		    <td>The delta values are specified in lines.</td>
+		   </tr>
+		   <tr>
+		    <td><code>DOM_DELTA_PAGE</code></td>
+		    <td><code>0x02</code></td>
+		    <td>The delta values are specified in pages.</td>
+		   </tr>
+		  
+		 </table>
+		 
+	**/
 	var deltaMode(default,null) : Int;
 	
 	/** @throws DOMError */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,9 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 package sys.net;
 
+import cs.NativeArray;
+import cs.system.collections.ArrayList;
 import cs.system.net.IPEndPoint;
 import cs.system.net.sockets.AddressFamily;
 import cs.system.net.sockets.NetworkStream;
@@ -30,6 +32,7 @@ import cs.system.net.sockets.SocketFlags;
 import cs.system.net.sockets.SocketShutdown;
 import cs.system.net.sockets.SocketType;
 import cs.system.threading.Thread;
+import cs.system.net.sockets.Socket in NativeSocket;
 import haxe.io.Bytes;
 import haxe.io.Error;
 import haxe.io.Input;
@@ -40,21 +43,21 @@ import haxe.io.Output;
 **/
 @:coreapi
 class Socket {
-	private var sock : cs.system.net.sockets.Socket = null;
+	private var sock : NativeSocket = null;
 
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
-		use [setBlocking(false)] or [setTimeout] to prevent infinite waiting.
+		use `setBlocking(false)` or `setTimeout` to prevent infinite waiting.
 	**/
 	public var input(default,null) : haxe.io.Input;
 
 	/**
-		The stream on which you can send data. Please note that in case the output buffer you will block while writing the data, use [setBlocking(false)] or [setTimeout] to prevent that.
+		The stream on which you can send data. Please note that in case the output buffer you will block while writing the data, use `setBlocking(false)` or `setTimeout` to prevent that.
 	**/
 	public var output(default,null) : haxe.io.Output;
 
 	/**
-		A custom value that can be associated with the socket. Can be used to retreive your custom infos after a [select].
+		A custom value that can be associated with the socket. Can be used to retrieve your custom infos after a `select`.
 	***/
 	public var custom : Dynamic;
 
@@ -62,7 +65,7 @@ class Socket {
 		Creates a new unconnected socket.
 	**/
 	public function new() : Void {
-		sock = new cs.system.net.sockets.Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
+		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
 		sock.Blocking = true;
 	}
 
@@ -90,7 +93,7 @@ class Socket {
 	}
 
 	/**
-		Connect to the given server host/port. Throw an exception in case we couldn't sucessfully connect.
+		Connect to the given server host/port. Throw an exception in case we couldn't successfully connect.
 	**/
 	public function connect( host : Host, port : Int ) : Void {
 		sock.Connect( host.ipAddress, port );
@@ -103,7 +106,7 @@ class Socket {
 	}
 
 	/**
-		Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use [accept()] to accept incoming connections.
+		Allow the socket to listen for incoming questions. The parameter tells how many pending connections we can have until they get refused. Use `accept()` to accept incoming connections.
 	**/
 	public function listen( connections : Int ) : Void {
 		sock.Listen( connections );
@@ -130,7 +133,7 @@ class Socket {
 		Bind the socket to the given host/port so it can afterwards listen for connections there.
 	**/
 	public function bind( host : Host, port : Int ) : Void {
-		sock = new cs.system.net.sockets.Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
+		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
 		sock.Bind( new IPEndPoint(host.ipAddress, port) );
 	}
 
@@ -146,7 +149,7 @@ class Socket {
 	}
 
 	/**
-		Return the informations about the other side of a connected socket.
+		Return the information about the other side of a connected socket.
 	**/
 	public function peer() : { host : Host, port : Int } {
 		var remoteIP = cast(sock.RemoteEndPoint, IPEndPoint);
@@ -154,7 +157,7 @@ class Socket {
 	}
 
 	/**
-		Return the informations about our side of a connected socket.
+		Return the information about our side of a connected socket.
 	**/
 	public function host() : { host : Host, port : Int } {
 		var localIP = cast(sock.LocalEndPoint, IPEndPoint);
@@ -179,14 +182,14 @@ class Socket {
 	}
 
 	/**
-		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediatly by throwing a haxe.io.Error.Blocking value.
+		Change the blocking mode of the socket. A blocking socket is the default behavior. A non-blocking socket will abort blocking operations immediately by throwing a haxe.io.Error.Blocked value.
 	**/
 	public function setBlocking( b : Bool ) : Void {
 		sock.Blocking = b;
 	}
 
 	/**
-		Allows the socket to immediatly send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
+		Allows the socket to immediately send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
 	**/
 	public function setFastSend( b : Bool ) : Void {
 		sock.NoDelay = b;
@@ -194,15 +197,49 @@ class Socket {
 
 	/**
 		Wait until one of the sockets groups is ready for the given operation :
-		[read] contains sockets on which we want to wait for available data to be read,
-		[write] contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
-		[others] contains sockets on which we want to wait for exceptional conditions.
-		[select] will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-		In case a [timeout] (in seconds) is specified, select might wait at worse until the timeout expires.
+		* `read` contains sockets on which we want to wait for available data to be read,
+		* `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
+		* `others` contains sockets on which we want to wait for exceptional conditions.
+		* `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
+		In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
 	**/
 	static public function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
-		throw "Not implemented yet.";
-		return null;
+		var map:Map<Int, Socket> = new Map();
+		inline function addSockets(sockets:Array<Socket>) {
+			if (sockets != null) for (s in sockets) map[s.sock.Handle.ToInt32()] = s;
+		}
+		inline function getRaw(sockets:Array<Socket>):ArrayList {
+			var a = new ArrayList(sockets == null ? 0 : sockets.length);
+			if (sockets != null) for (s in sockets) {
+				a.Add(s.sock);
+			}
+			return a;
+		}
+		inline function getOriginal(result:ArrayList) {
+			var a:Array<Socket> = [];
+			for (i in 0 ... result.Count) {
+				var s:NativeSocket = result[i];
+				a.push(map[s.Handle.ToInt32()]);
+			}
+			return a;
+		}
+
+		addSockets(read);
+		addSockets(write);
+		addSockets(others);
+
+		// unwrap Sockets into native sockets
+		var rawRead:ArrayList = getRaw(read),
+			rawWrite:ArrayList = getRaw(write),
+			rawOthers:ArrayList = getRaw(others);
+		var microsec = timeout == null ? -1 : Std.int(timeout * 1000000);
+		NativeSocket.Select(rawRead, rawWrite, rawOthers, microsec);
+		// convert native sockets back to Socket objects
+		return {
+			read: getOriginal(rawRead),
+			write: getOriginal(rawWrite),
+			others: getOriginal(rawOthers),
+		}
 	}
 
 }

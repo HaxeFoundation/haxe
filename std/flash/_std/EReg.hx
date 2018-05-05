@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -112,4 +112,9 @@
 			buf.add(s.substr(offset));
 		return buf.toString();
 	}
+
+	public static inline function escape( s : String ) : String {
+		return (cast s).replace(escapeRe, "\\$&");
+	}
+	static var escapeRe = new flash.utils.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
 }

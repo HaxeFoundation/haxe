@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,14 @@ package neko.vm;
 /**
 	The abstract Neko module handle.
 **/
-enum ModuleHandle {
+@:callable
+@:coreType
+abstract ModuleHandle {
 }
 
 /**
-	A Neko Module represent a execution unit for the Neko Virtual Machine. Each compiled [.n] bytecode
-	file is a module once loaded by the NekoVM.
+	A Neko Module represent a execution unit for the Neko Virtual Machine.
+	Each compiled `.n` bytecode file is a module once loaded by the NekoVM.
 **/
 class Module {
 
@@ -63,7 +65,7 @@ class Module {
 
 
 	/**
-		Returns the Loader that this Module was loaded with.s
+		Returns the Loader that this Module was loaded with.
 	**/
 	public function loader() {
 		return new Loader(_module_loader(m));
@@ -178,8 +180,8 @@ class Module {
 			return i.readInt32();
 		}
 		var nglobals = readInt();
-		var nfields = readInt();
-		var codesize = readInt();
+		/*var nfields =*/ readInt();
+		/*var codesize =*/ readInt();
 		var a = new Array();
 		for( k in 0...nglobals ) {
 			switch(i.readByte()) {

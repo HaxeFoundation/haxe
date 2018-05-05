@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -51,7 +51,7 @@ package java.internal;
 		return obj.__hx_setField_f(field, value, false);
 	}
 
-	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, Array<?> args)
+	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, java.lang.Object[] args)
 	{
 		return obj.__hx_invokeField(field, args);
 	}
@@ -127,12 +127,9 @@ package java.internal;
 		return 0.0;
 	}
 
-	@:functionCode('
-		return (obj == null) ? false : ((java.lang.Boolean) obj).booleanValue();
-	')
-	public static function toBool(obj:Dynamic):Bool
+	public static function toBool(obj:java.lang.Boolean):Bool
 	{
-		return false;
+		return obj == null ? false : obj.booleanValue();
 	}
 
 	@:functionCode('
@@ -141,6 +138,11 @@ package java.internal;
 	public static function toInt(obj:Dynamic):Int
 	{
 		return 0;
+	}
+
+	public static function toLong(obj:Dynamic):haxe.Int64
+	{
+		return obj == null ? 0 : (obj : java.lang.Number).longValue();
 	}
 
 	@:functionCode('
@@ -156,18 +158,18 @@ package java.internal;
 		return false;
 	}
 
-	@:functionCode('
-		if (obj != null && obj instanceof java.lang.Number)
-		{
-			java.lang.Number n = (java.lang.Number) obj;
+	@:overload public static function isInt(obj:Dynamic):Bool
+	{
+		if (Std.is(obj, java.lang.Number)) {
+			var n:java.lang.Number = obj;
 			return n.doubleValue() == n.intValue();
 		} else {
 			return false;
 		}
-	')
-	public static function isInt(obj:Dynamic):Bool
-	{
-		return false;
+	}
+
+	@:overload public static function isInt(num:java.lang.Number):Bool {
+		return num != null && num.doubleValue() == num.intValue();
 	}
 
 	@:functionCode('
@@ -357,7 +359,7 @@ package java.internal;
 		if (obj instanceof java.lang.Class)
 		{
 			if (obj == java.lang.String.class && field.equals("fromCharCode"))
-				return haxe.lang.StringExt.fromCharCode(toInt(args.__get(0)));
+				return haxe.lang.StringExt.fromCharCode(toInt(args[0]));
 
 			cl = (java.lang.Class) obj;
 			obj = null;
@@ -367,7 +369,7 @@ package java.internal;
 			cl = obj.getClass();
 		}
 
-		if (args == null) args = new Array();
+		if (args == null) args = new java.lang.Object[0];
 
 		int len = args.length;
 		java.lang.Class[] cls = new java.lang.Class[len];
@@ -393,7 +395,7 @@ package java.internal;
 
 		for (int i = 0; i < len; i++)
 		{
-			Object o = args.__get(i);
+			Object o = args[i];
 			if (o == null)
 			{
 				continue; //can be anything
@@ -493,7 +495,7 @@ package java.internal;
 			throw haxe.lang.HaxeException.wrap(t);
 		}
 	')
-	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function slowCallField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
 	{
 		return null;
 	}
@@ -506,7 +508,7 @@ package java.internal;
 
 		return slowCallField(obj, field, args);
 	')
-	public static function callField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
+	public static function callField(obj:Dynamic, field:String, args:java.NativeArray<Dynamic>):Dynamic
 	{
 		return null;
 	}
@@ -568,8 +570,8 @@ package java.internal;
 		if (obj == null)
 			return null;
 
-		if (isInt(obj))
-			return (cast(obj, Int)) + "";
+		if (Std.is(obj, java.lang.Number) && !Std.is(obj, java.lang.Integer.IntegerClass) && isInt( (obj : java.lang.Number) ))
+			return java.lang.Integer._toString(toInt(obj));
 		return untyped obj.toString();
 	}
 
@@ -577,9 +579,45 @@ package java.internal;
 	{
 		return (v == v) && !java.lang.Double.DoubleClass._isInfinite(v);
 	}
+
+	public static function getIntFromNumber(n:java.lang.Number):Int {
+		return n == null ? 0 : n.intValue();
+	}
+
+	public static function getFloatFromNumber(n:java.lang.Number):Float {
+		return n == null ? 0.0 : n.doubleValue();
+	}
+
+	public static function getInt64FromNumber(n:java.lang.Number):java.StdTypes.Int64 {
+		return n == null ? 0.0 : n.longValue();
+	}
+
+	public static function numToInteger(num:java.lang.Number):java.lang.Integer {
+		return num == null ? null : (Std.is(num, java.lang.Integer.IntegerClass) ? cast num : java.lang.Integer.valueOf(num.intValue()));
+	}
+
+	public static function numToDouble(num:java.lang.Number):java.lang.Double {
+		return num == null ? null : (Std.is(num, java.lang.Double.DoubleClass) ? cast num : java.lang.Double.valueOf(num.doubleValue()));
+	}
+
+	public static function numToFloat(num:java.lang.Number):java.lang.Float {
+		return num == null ? null : (Std.is(num, java.lang.Float.FloatClass) ? cast num : java.lang.Float.valueOf(num.floatValue()));
+	}
+
+	public static function numToByte(num:java.lang.Number):java.lang.Byte {
+		return num == null ? null : (Std.is(num, java.lang.Byte.ByteClass) ? cast num : java.lang.Byte.valueOf(num.byteValue()));
+	}
+
+	public static function numToLong(num:java.lang.Number):java.lang.Long {
+		return num == null ? null : (Std.is(num, java.lang.Long.LongClass) ? cast num : java.lang.Long.valueOf(num.longValue()));
+	}
+
+	public static function numToShort(num:java.lang.Number):java.lang.Short {
+		return num == null ? null : (Std.is(num, java.lang.Short.ShortClass) ? cast num : java.lang.Short.valueOf(num.shortValue()));
+	}
 }
 
-@:keep @:native("haxe.lang.EmptyObject") private enum EmptyObject
+@:keep @:native("haxe.lang.EmptyObject") enum EmptyObject
 {
 	EMPTY;
 }

@@ -1,9 +1,9 @@
 package flash.globalization;
 
 @:final @:require(flash10_1) extern class DateTimeFormatter {
-	var actualLocaleIDName(default,null) : String;
-	var lastOperationStatus(default,null) : LastOperationStatus;
-	var requestedLocaleIDName(default,null) : String;
+	var actualLocaleIDName(default,never) : String;
+	var lastOperationStatus(default,never) : LastOperationStatus;
+	var requestedLocaleIDName(default,never) : String;
 	function new(requestedLocaleIDName : String, ?dateStyle : DateTimeStyle, ?timeStyle : DateTimeStyle) : Void;
 	function format(dateTime : Date) : String;
 	function formatUTC(dateTime : Date) : String;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -84,8 +84,6 @@ class Resource {
 		#if neko
 		var tmp = untyped __resources__();
 		content = untyped Array.new1(tmp,__dollar__asize(tmp));
-		#elseif php
-		content = null;
 		#elseif as3
 		null;
 		#else

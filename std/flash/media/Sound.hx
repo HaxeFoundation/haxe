@@ -1,13 +1,13 @@
 package flash.media;
 
 extern class Sound extends flash.events.EventDispatcher {
-	var bytesLoaded(default,null) : UInt;
-	var bytesTotal(default,null) : Int;
-	var id3(default,null) : ID3Info;
-	var isBuffering(default,null) : Bool;
-	@:require(flash10_1) var isURLInaccessible(default,null) : Bool;
-	var length(default,null) : Float;
-	var url(default,null) : String;
+	var bytesLoaded(default,never) : UInt;
+	var bytesTotal(default,never) : Int;
+	var id3(default,never) : ID3Info;
+	var isBuffering(default,never) : Bool;
+	@:require(flash10_1) var isURLInaccessible(default,never) : Bool;
+	var length(default,never) : Float;
+	var url(default,never) : String;
 	function new(?stream : flash.net.URLRequest, ?context : SoundLoaderContext) : Void;
 	function close() : Void;
 	@:require(flash10) function extract(target : flash.utils.ByteArray, length : Float, startPosition : Float = -1) : Float;

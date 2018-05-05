@@ -1,4 +1,5 @@
--main TestObjc
+-D source-header=''
+--main TestObjc
 -cpp bin
--debug
+--debug
 -D objc

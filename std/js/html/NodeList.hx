@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,14 +20,29 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/NodeList.webidl line 13:0. Do not edit!
+// This file is generated from mozilla\NodeList.webidl. Do not edit!
 
 package js.html;
 
+/**
+	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method.
+
+	Documentation [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList>
+**/
 @:native("NodeList")
 extern class NodeList implements ArrayAccess<Node>
 {
+	
+	/**
+		The number of nodes in the `NodeList`.
+	**/
 	var length(default,null) : Int;
 	
+	
+	/**
+		Returns an item in the list by its index, or `null` if the index is out-of-bounds; can be used as an alternative to simply accessing `nodeList[idx]` (which instead returns  `undefined` when `idx` is out-of-bounds).
+	**/
 	function item( index : Int ) : Node;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,23 +22,23 @@
 @:coreApi extern class String {
 	var length(default,null) : Int;
 
-	function new(string:String) : Void;
-	function toUpperCase() : String;
-	function toLowerCase() : String;
-	function charAt( index : Int) : String;
-	function indexOf( str : String, ?startIndex : Int ) : Int;
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	function split( delimiter : String ) : Array<String>;
-	function toString() : String;
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
+	@:pure function new(string:String) : Void;
+	@:pure function toUpperCase() : String;
+	@:pure function toLowerCase() : String;
+	@:pure function charAt( index : Int) : String;
+	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
+	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+	@:pure function split( delimiter : String ) : Array<String>;
+	@:pure function toString() : String;
+	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
 
-	inline function charCodeAt( index : Int) : Null<Int> {
-		return untyped HxOverrides.cca(this, index);
+	@:pure inline function charCodeAt( index : Int) : Null<Int> {
+		return @:privateAccess HxOverrides.cca(this, index);
 	}
 
-	inline function substr( pos : Int, ?len : Int ) : String {
-		return untyped HxOverrides.substr(this, pos, len);
+	@:pure inline function substr( pos : Int, ?len : Int ) : String {
+		return @:privateAccess HxOverrides.substr(this, pos, len);
 	}
 
-	static function fromCharCode( code : Int ) : String;
+	@:pure static function fromCharCode( code : Int ) : String;
 }

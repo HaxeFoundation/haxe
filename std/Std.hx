@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#if !(core_api || cross)
+#if !(core_api || cross || eval)
 #error "Please don't add haxe/std to your classpath, instead set HAXE_STD_PATH env var"
 #end
 
@@ -96,7 +96,8 @@ extern class Std {
 		Leading 0s that are not part of the 0x/0X hexadecimal notation are ignored, which means octal
 		notation is not supported.
 
-		If the input cannot be recognized, the result is `null`.
+		If `x` is null, the result is unspecified.
+		If `x` cannot be parsed as integer, the result is `null`.
 	**/
 	public static function parseInt( x : String ) : Null<Int>;
 

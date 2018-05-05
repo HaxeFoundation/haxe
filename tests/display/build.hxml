@@ -1,0 +1,4 @@
+-p src
+--main Main
+--interp
+-D use-rtti-doc

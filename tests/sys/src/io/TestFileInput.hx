@@ -1,5 +1,7 @@
 package io;
 
+import utest.Assert;
+import haxe.io.Bytes;
 import sys.io.FileInput;
 import sys.FileSystem;
 import sys.io.File;
@@ -10,201 +12,212 @@ import sys.io.FileSeek;
  *
  * @author        Maximilian Ruta <mr@xtain.net>
  */
-class TestFileInput extends haxe.unit.TestCase {
+class TestFileInput {
 
 	private var path = 'temp/testcase-test-file.txt';
 
-	override public function setup() {
+	public function new() { }
+
+	public function setup() {
 		File.saveContent(path, "test\n1234");
 	}
 
-	override public function tearDown() {
+	public function tearDown() {
 		FileSystem.deleteFile(path);
 	}
 
 	public function testRead() {
 		var file : FileInput = File.read(path);
-		assertEquals(0, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(1, file.tell());
-		assertEquals(101, file.readByte());
-		assertEquals(2, file.tell());
-		assertEquals(115, file.readByte());
-		assertEquals(3, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(4, file.tell());
+		Assert.equals(0, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(1, file.tell());
+		Assert.equals(101, file.readByte());
+		Assert.equals(2, file.tell());
+		Assert.equals(115, file.readByte());
+		Assert.equals(3, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(4, file.tell());
+		file.close();
+	}
+
+	public function testReadBytes() {
+		var file : FileInput = File.read(path);
+		var bytes : Bytes = Bytes.alloc (9);
+		var count = file.readBytes(bytes, 0, 9);
+		Assert.equals(9, count);
+		Assert.equals(116, bytes.get(0));
 		file.close();
 	}
 
 	public function testSeekBeginCur() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(-4, FileSeek.SeekCur);
-		assertEquals(0, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(1, file.tell());
+		Assert.equals(0, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(1, file.tell());
 		file.close();
 	}
 
 	public function testSeekBeginEnd() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(-9, FileSeek.SeekEnd);
-		assertEquals(0, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(1, file.tell());
+		Assert.equals(0, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(1, file.tell());
 		file.close();
 	}
 
 	public function testSeekBegin() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(0, FileSeek.SeekBegin);
-		assertEquals(0, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(1, file.tell());
+		Assert.equals(0, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(1, file.tell());
 		file.close();
 	}
 
 	public function testSeekPosBegin() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(1, FileSeek.SeekBegin);
-		assertEquals(1, file.tell());
-		assertEquals(101, file.readByte());
-		assertEquals(2, file.tell());
+		Assert.equals(1, file.tell());
+		Assert.equals(101, file.readByte());
+		Assert.equals(2, file.tell());
 		file.close();
 	}
 
 	public function testSeekPosBeginMulti() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(1, FileSeek.SeekBegin);
-		assertEquals(1, file.tell());
-		assertEquals(101, file.readByte());
-		assertEquals(2, file.tell());
+		Assert.equals(1, file.tell());
+		Assert.equals(101, file.readByte());
+		Assert.equals(2, file.tell());
 		file.seek(3, FileSeek.SeekBegin);
-		assertEquals(3, file.tell());
-		assertEquals(116, file.readByte());
-		assertEquals(4, file.tell());
+		Assert.equals(3, file.tell());
+		Assert.equals(116, file.readByte());
+		Assert.equals(4, file.tell());
 		file.close();
 	}
 
 	public function testSeekEnd() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(-1, FileSeek.SeekEnd);
-		assertEquals(8, file.tell());
-		assertEquals(52, file.readByte());
-		assertEquals(9, file.tell());
+		Assert.equals(8, file.tell());
+		Assert.equals(52, file.readByte());
+		Assert.equals(9, file.tell());
 		file.close();
 	}
 
 	public function testSeekEofLast() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(0, FileSeek.SeekEnd);
-		assertEquals(9, file.tell());
-		assertFalse(file.eof());
+		Assert.equals(9, file.tell());
+		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
-		assertTrue(file.eof());
+		Assert.isTrue(file.eof());
 		file.close();
 	}
 
 	public function testSeekEof() {
 		var file : FileInput = File.read(path);
-		assertEquals(116, file.readByte());
-		assertEquals(101, file.readByte());
-		assertEquals(115, file.readByte());
-		assertEquals(116, file.readByte());
+		Assert.equals(116, file.readByte());
+		Assert.equals(101, file.readByte());
+		Assert.equals(115, file.readByte());
+		Assert.equals(116, file.readByte());
 
 		file.seek(0, FileSeek.SeekEnd);
-		assertEquals(9, file.tell());
-		assertFalse(file.eof());
+		Assert.equals(9, file.tell());
+		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
-		assertTrue(file.eof());
-		assertEquals(9, file.tell());
+		Assert.isTrue(file.eof());
+		Assert.equals(9, file.tell());
 		file.seek(-1, FileSeek.SeekCur);
-		assertEquals(8, file.tell());
-		assertEquals(52, file.readByte());
-		assertEquals(9, file.tell());
-		assertFalse(file.eof());
+		Assert.equals(8, file.tell());
+		Assert.equals(52, file.readByte());
+		Assert.equals(9, file.tell());
+		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
-		assertTrue(file.eof());
-		assertEquals(9, file.tell());
+		Assert.isTrue(file.eof());
+		Assert.equals(9, file.tell());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
 
 		file.seek(5, FileSeek.SeekEnd);
-		assertFalse(file.eof());
+		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
-		assertTrue(file.eof());
+		Assert.isTrue(file.eof());
 		file.seek(1, FileSeek.SeekEnd);
-		assertFalse(file.eof());
+		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
-		assertTrue(file.eof());
+		Assert.isTrue(file.eof());
 		try {
 			file.readByte();
-			assertTrue(false);
+			Assert.isTrue(false);
 		} catch(e : haxe.io.Eof) {
-			assertTrue(true);
+			Assert.isTrue(true);
 		}
 		file.close();
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@ private class Stdin extends haxe.io.Output {
 	var p : Dynamic;
 	var buf : haxe.io.Bytes;
 
-	public function new(p) {
+	public function new(p:Dynamic) {
 		this.p = p;
 		buf = haxe.io.Bytes.alloc(1);
 	}
@@ -60,7 +60,7 @@ private class Stdout extends haxe.io.Input {
 	var out : Bool;
 	var buf : haxe.io.Bytes;
 
-	public function new(p,out) {
+	public function new(p:Dynamic,out) {
 		this.p = p;
 		this.out = out;
 		buf = haxe.io.Bytes.alloc(1);
@@ -92,8 +92,12 @@ private class Stdout extends haxe.io.Input {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) : Void {
-		p = try _run(untyped cmd.__s,neko.Lib.haxeToNeko(args)) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
+	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
+		if( detached ) throw "Detached process is not supported on this platform";
+		p = try
+			_run(untyped cmd.__s, neko.Lib.haxeToNeko(args))
+		catch( e : Dynamic )
+			throw "Process creation failure : "+cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p,true);
 		stderr = new Stdout(p,false);
@@ -103,7 +107,8 @@ private class Stdout extends haxe.io.Input {
 		return _pid(p);
 	}
 
-	public function exitCode() : Int {
+	public function exitCode( block : Bool = true ) : Null<Int> {
+		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
 		return _exit(p);
 	}
 

@@ -227,7 +227,7 @@ class TestMisc extends Test {
 		eq( bar(), 50);
 	}
 
-	function id(x) {
+	function id<T>(x:T) {
 		return x;
 	}
 
@@ -253,14 +253,14 @@ class TestMisc extends Test {
 		eq( inst.add.bind(1)(2), 103 );
 		eq( add(1,2), 103 );
 
-		// check overriden dynamic method
+		// check overridden dynamic method
 		var inst = new MyDynamicSubClass(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );
 		eq( inst.add.bind(1)(2), 206 );
 		eq( add(1,2), 206 );
 
-		// check overriden dynamic method
+		// check overridden dynamic method
 		var inst = new MyDynamicSubClass2(100);
 		var add = inst.add;
 		eq( inst.add(1,2), 206 );
@@ -289,6 +289,16 @@ class TestMisc extends Test {
 		eq( MyDynamicClass.staticDynamic(1,2), 103 );
 	}
 
+	function testMakeVarArgs () {
+		var f = function (a:Array<Dynamic>) {
+			eq(a.length, 2);
+			return a[0] + a[1];
+		}
+		var g = Reflect.makeVarArgs(f);
+		var res = g(1,2);
+		eq(3, res);
+	}
+
 	function testMD5() {
 		eq( haxe.crypto.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e" );
 		eq( haxe.crypto.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );
@@ -309,6 +319,16 @@ class TestMisc extends Test {
 	}
 
 	function testBaseCode() {
+		// base64
+		eq("SMOpbGxvdw==", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllow")));
+		eq("SMOpbGxvdw", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllow"), false));
+		eq("SMOpbGxv", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héllo")));
+		eq("SMOpbGw=", haxe.crypto.Base64.encode(haxe.io.Bytes.ofString("Héll")));
+		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw==").toString());
+		eq("Héllow", haxe.crypto.Base64.decode("SMOpbGxvdw", false).toString());
+		eq("Héllo", haxe.crypto.Base64.decode("SMOpbGxv").toString());
+		eq("Héll", haxe.crypto.Base64.decode("SMOpbGw=").toString());
+
 		// alternative base64
 		var b = new haxe.crypto.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
 		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
@@ -380,14 +400,14 @@ class TestMisc extends Test {
 		eq( opt3(7.4).y, 7.4 );
 
 		eq( opt4(), 11 );
-		#if !(flash || cpp || cs || java)
+		#if !static
 		eq( opt4(null), 11 );
 		#end
 
 		var opt4b : ?Int -> Null<Int> = opt4;
 		eq( opt4b(), 11 );
 		eq( opt4b(3), 4 );
-		#if !(flash || cpp || cs || java)
+		#if !static
 		eq( opt4b(null), 11 );
 		#end
 

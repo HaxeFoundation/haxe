@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,20 +20,42 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/DeviceOrientationEvent.webidl line 8:0. Do not edit!
+// This file is generated from mozilla\DeviceOrientationEvent.webidl. Do not edit!
 
 package js.html;
 
+/**
+	The `DeviceOrientationEvent` provides web developers with information from the physical orientation of the device running the web page.
+
+	Documentation [DeviceOrientationEvent](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent>
+**/
 @:native("DeviceOrientationEvent")
 extern class DeviceOrientationEvent extends Event
 {
+	
+	/**
+		A number representing the motion of the device around the z axis, express in degrees with values ranging from 0 to 360
+	**/
 	var alpha(default,null) : Float;
+	
+	/**
+		A number representing the motion of the device around the x axis, express in degrees with values ranging from -180 to 180. This represents a front to back motion of the device.
+	**/
 	var beta(default,null) : Float;
+	
+	/**
+		A number representing the motion of the device around the y axis, express in degrees with values ranging from -90 to 90. This represents a left to right motion of the device.
+	**/
 	var gamma(default,null) : Float;
+	
+	/**
+		A boolean that indicates whether or not the device is providing orientation data absolutely.
+	**/
 	var absolute(default,null) : Bool;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DeviceOrientationEventInit ) : Void;
-	/** @throws DOMError */
 	function initDeviceOrientationEvent( type : String, canBubble : Bool, cancelable : Bool, alpha : Float, beta : Float, gamma : Float, absolute : Bool ) : Void;
 }

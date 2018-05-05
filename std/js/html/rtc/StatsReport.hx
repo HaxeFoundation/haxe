@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,10 +20,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla/RTCStatsReport.webidl line 175:0. Do not edit!
+// This file is generated from mozilla\RTCStatsReport.webidl. Do not edit!
 
 package js.html.rtc;
 
+/**
+	WebRTC provides a method—`RTCPeerConnection.getStats()`—which returns a set of statistics about the state of the connection and the data transfers which have taken place. This status report is an object of type `RTCStatsReport`, and consists of a mapping of strings identifying objects which have had statistics recorded and a dictionary containing all of the corresponding data.
+
+	Documentation [RTCStatsReport](https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCStatsReport>
+**/
 @:native("RTCStatsReport")
 extern class StatsReport
 {

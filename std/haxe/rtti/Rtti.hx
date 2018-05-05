@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,8 @@ import haxe.rtti.CType;
 
 /**
 	Rtti is a helper class which supplements the `@:rtti` metadata.
+
+	@see <https://haxe.org/manual/cr-rtti.html>
 **/
 class Rtti {
 
@@ -45,7 +47,7 @@ class Rtti {
 		var infos = new haxe.rtti.XmlParser().processElement(x);
 		switch (infos) {
 			case TClassdecl(c): return c;
-			case t: throw 'Enum mismatch: expected TClassDecl but found $t';
+			case var t: throw 'Enum mismatch: expected TClassDecl but found $t';
 		}
 	}
 

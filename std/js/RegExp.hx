@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,24 +22,25 @@
  package js;
 
 /**
-    Native JavaScript regular expressions.
+	Native JavaScript regular expressions.
 
-    For cross-platform regular expressions, use haxe `EReg` class or regexp literals.
+	For cross-platform regular expressions, use Haxe `EReg` class or
+	[regexp literals](https://haxe.org/manual/std-regex.html).
 **/
 @:native("RegExp")
 extern class RegExp {
-    var global(default,null):Bool;
-    var ignoreCase(default,null):Bool;
-    var multiline(default,null):Bool;
-    var source(default,null):String;
-    var lastIndex:Int;
-    function new(pattern:String, ?flags:String);
-    function exec(str:String):Null<RegExpMatch>;
-    function test(str:String):Bool;
-    function toString():String;
+	var global(default,null):Bool;
+	var ignoreCase(default,null):Bool;
+	var multiline(default,null):Bool;
+	var source(default,null):String;
+	var lastIndex:Int;
+	function new(pattern:String, ?flags:String);
+	function exec(str:String):Null<RegExpMatch>;
+	function test(str:String):Bool;
+	function toString():String;
 }
 
 extern class RegExpMatch extends Array<String> {
-    var index:Int;
-    var input:String;
+	var index:Int;
+	var input:String;
 }

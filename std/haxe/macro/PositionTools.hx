@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,7 @@
  */
  package haxe.macro;
 
+import haxe.display.Position.Location;
 import haxe.macro.Expr;
 
 class PositionTools {
@@ -59,4 +60,15 @@ class PositionTools {
 		#end
 	}
 
+	#if (macro || display)
+	/**
+		Converts a `haxe.macro.Position` to a `haxe.display.Position.Location`.
+
+		This operation requires the source file the be known to the Haxe lexer in order
+		to determine line breaks. It is thus only available in macro context.
+	**/
+	public static function toLocation(p:Position):Location {
+		return Context.load("position_to_range", 1)(p);
+	}
+	#end
 }

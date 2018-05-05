@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,8 +27,6 @@ class BytesBuffer {
 	var b : Dynamic; // neko string buffer
 	#elseif flash
 	var b : flash.utils.ByteArray;
-	#elseif php
-	var b : String;
 	#elseif cpp
 	var b : BytesData;
 	#elseif cs
@@ -48,8 +46,6 @@ class BytesBuffer {
 		#elseif flash
 		b = new flash.utils.ByteArray();
 		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
-		#elseif php
-		b = "";
 		#elseif cpp
 		b = new BytesData();
 		#elseif cs
@@ -78,8 +74,6 @@ class BytesBuffer {
 		untyped StringBuf.__add_char(b,byte);
 		#elseif flash
 		b.writeByte(byte);
-		#elseif php
-		b += untyped __call__("chr", byte);
 		#elseif cpp
 		b.push(untyped byte);
 		#elseif cs
@@ -96,8 +90,6 @@ class BytesBuffer {
 		untyped StringBuf.__add(b,src.getData());
 		#elseif flash
 		b.writeBytes(src.getData());
-		#elseif php
-		b += src.getData().toString();
 		#elseif cs
 		b.Write(src.getData(), 0, src.length);
 		#elseif java
@@ -165,8 +157,6 @@ class BytesBuffer {
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash
 		if( len > 0 ) b.writeBytes(src.getData(),pos,len);
-		#elseif php
-		b += src.getData().sub(pos, len).toString() ;
 		#elseif cs
 		b.Write(src.getData(), pos, len);
 		#elseif java
@@ -195,8 +185,6 @@ class BytesBuffer {
 		#elseif flash
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
-		#elseif php
-		var bytes = new Bytes(b.length, BytesData.ofString(b));
 		#elseif cs
 		var buf = b.GetBuffer();
 		var bytes = new Bytes(cast b.Length, buf);

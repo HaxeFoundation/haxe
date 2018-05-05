@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,60 +21,29 @@
  */
 package js;
 
-private class HaxeError extends js.Error {
+import js.Syntax; // import it here so it's always available in the compiler
 
+private class HaxeError extends js.Error {
 	var val:Dynamic;
 
-	public function new(val:Dynamic) untyped {
+	@:pure
+	public function new(val:Dynamic) {
 		super();
-		this.val = __define_feature__("js.Boot.HaxeError", val);
-		this.message = String(val);
-		if (js.Error.captureStackTrace) js.Error.captureStackTrace(this, HaxeError);
+		this.val = val;
+		if ((cast js.Error).captureStackTrace) (cast js.Error).captureStackTrace(this, HaxeError);
 	}
 
-	public static function wrap(val:Dynamic):Dynamic untyped {
-		return if (__instanceof__(val, js.Error)) val else new HaxeError(val);
+	public static function wrap(val:Dynamic):js.Error {
+		return if (js.Syntax.instanceof(val, js.Error)) val else new HaxeError(val);
+	}
+
+	static function __init__() {
+		js.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
 	}
 }
 
 @:dox(hide)
 class Boot {
-
-	private static function __unhtml(s : String) {
-		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-	}
-
-	private static function __trace(v,i : haxe.PosInfos) {
-		untyped {
-			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-			#if jsfl
-			msg += __string_rec(v,"");
-			fl.trace(msg);
-			#else
-			msg += __string_rec(v, "");
-			if( i != null && i.customParams != null )
-				for( v in i.customParams )
-					msg += "," + __string_rec(v, "");
-			var d;
-			if( __js__("typeof")(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null )
-				d.innerHTML += __unhtml(msg)+"<br/>";
-			else if( __js__("typeof console") != "undefined" && __js__("console").log != null )
-				__js__("console").log(msg);
-			#end
-		}
-	}
-
-	private static function __clear_trace() {
-		untyped {
-			#if jsfl
-			fl.outputPanel.clear();
-			#else
-			var d = document.getElementById("haxe:trace");
-			if( d != null )
-				d.innerHTML = "";
-			#end
-		}
-	}
 
 	static inline function isClass(o:Dynamic) : Bool {
 		return untyped __define_feature__("js.Boot.isClass", o.__name__);
@@ -105,12 +74,27 @@ class Boot {
 			    return "null";
 			if( s.length >= 5 )
 				return "<...>"; // too much deep recursion
-			var t = __js__("typeof(o)");
+			var t = js.Syntax.typeof(o);
 			if( t == "function" && (isClass(o) || isEnum(o)) )
 				t = "object";
 			switch( t ) {
 			case "object":
-				if( __js__("o instanceof Array") ) {
+				#if !js_enums_as_arrays
+				if (o.__enum__) {
+					var e = $hxEnums[o.__enum__];
+					var n = e.__constructs__[o._hx_index];
+					var con = e[n];
+					if (con.__params__) {
+						s += "\t";
+						return n + "(" +
+							[for (p in (con.__params__:Array<String>)) __string_rec(o[p],s)].join(",") + ")";
+					} else {
+						return n;
+					}
+				}
+				#end
+				if( js.Syntax.instanceof(o, Array) ) {
+					#if js_enums_as_arrays
 					if( o.__enum__ ) {
 						if( o.length == 2 )
 							return o[0];
@@ -124,6 +108,7 @@ class Boot {
 						}
 						return str + ")";
 					}
+					#end
 					var l = o.length;
 					var i;
 					var str = "[";
@@ -140,7 +125,7 @@ class Boot {
 					// strange error on IE
 					return "???";
 				}
-				if( tostr != null && tostr != __js__("Object.toString") && __typeof__(tostr) == "function" ) {
+				if( tostr != null && tostr != __js__("Object.toString") && js.Syntax.typeof(tostr) == "function" ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
@@ -186,33 +171,33 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	@:ifFeature("typed_catch") private static function __instanceof(o : Dynamic,cl : Dynamic) {
+	@:ifFeature("typed_catch") @:pure private static function __instanceof(o : Dynamic,cl : Dynamic) {
 		if( cl == null )
 			return false;
 		switch( cl ) {
 		case Int:
-			return (untyped __js__("(o|0) === o"));
+			return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
 		case Float:
-			return (untyped __js__("typeof"))(o) == "number";
+			return js.Syntax.typeof(o) == "number";
 		case Bool:
-			return (untyped __js__("typeof"))(o) == "boolean";
+			return js.Syntax.typeof(o) == "boolean";
 		case String:
-			return (untyped __js__("typeof"))(o) == "string";
+			return js.Syntax.typeof(o) == "string";
 		case Array:
-			return (untyped __js__("(o instanceof Array)")) && o.__enum__ == null;
+			return js.Syntax.instanceof(o, Array) && o.__enum__ == null;
 		case Dynamic:
 			return true;
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
-				if( (untyped __js__("typeof"))(cl) == "function" ) {
-					if( untyped __js__("o instanceof cl") )
+				if( js.Syntax.typeof(cl) == "function" ) {
+					if( js.Syntax.instanceof(o, cl) )
 						return true;
 					if( __interfLoop(getClass(o),cl) )
 						return true;
 				}
-				else if ( (untyped __js__("typeof"))(cl) == "object" && __isNativeObj(cl) ) {
-					if( untyped __js__("o instanceof cl") )
+				else if ( js.Syntax.typeof(cl) == "object" && __isNativeObj(cl) ) {
+					if( js.Syntax.instanceof(o, cl) )
 						return true;
 				}
 			} else {
@@ -221,7 +206,11 @@ class Boot {
 			// do not use isClass/isEnum here
 			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+			#if js_enums_as_arrays
 			return o.__enum__ == cl;
+			#else
+			return (untyped $hxEnums[o.__enum__]) == cl;
+			#end
 		}
 	}
 
@@ -230,7 +219,7 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr = untyped __js__("{}.toString");
+	static var __toStr = untyped ({}).toString;
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
 		var name = untyped __toStr.call(o).slice(8, -1);
@@ -248,7 +237,7 @@ class Boot {
 
 	// resolve native JS class in the global scope:
 	static function __resolveNativeClass(name:String) {
-		return untyped js.Lib.global[name];
+		return js.Lib.global[cast name];
 	}
 
 }

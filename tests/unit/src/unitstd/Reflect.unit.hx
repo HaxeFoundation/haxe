@@ -1,4 +1,3 @@
-#if !php
 // hasField
 var x = { a: 1, b: null };
 Reflect.hasField(x, "a") == true;
@@ -36,7 +35,7 @@ c.v == "bar";
 var c = new C2();
 Reflect.getProperty(c, "v") == "var";
 Reflect.getProperty(c, "prop") == "prop";
-//Reflect.getProperty(c, "func")() == "foo";
+Reflect.getProperty(c, "func")() == "foo";
 Reflect.getProperty(c, "propAcc") == "1";
 //Reflect.getProperty(null, "a") == null;
 //Reflect.getProperty(null, null) == null;
@@ -49,10 +48,6 @@ Reflect.field(x, "c") == "foo";
 var c = new C2();
 Reflect.setProperty(c, "v", "bar");
 c.v == "bar";
-//Reflect.setProperty(c, "v2", "bar2");
-//c.v2 == "bar";
-//Reflect.setProperty(c, "func2", function() return "x");
-//Reflect.field(c, "func2")() == "x";
 Reflect.setProperty(c, "propAcc", "abc");
 #if !as3
 // not supported on AS3
@@ -107,9 +102,19 @@ Reflect.compareMethods(y,z) == false;
 Reflect.compareMethods(x,x) == true;
 Reflect.compareMethods(y,y) == true;
 Reflect.compareMethods(z,z) == true;
-//Reflect.compareMethods(x,null) == false;
-//Reflect.compareMethods(null,x) == false;
-//Reflect.compareMethods(null,null) == false; // varies
+
+Reflect.compareMethods(x,null) == false;
+Reflect.compareMethods(null,x) == false;
+
+// compareMethods with closures
+var a = [1];
+var b = [2];
+var v : Dynamic = a.push;
+Reflect.compareMethods(a.push, a.push) == true;
+Reflect.compareMethods(a.push, a.pop) == false;
+Reflect.compareMethods(a.push, b.push) == false;
+Reflect.compareMethods(a.push, v) == true;
+Reflect.compareMethods(b.push, v) == false;
 
 // isObject
 Reflect.isObject({}) == true;
@@ -154,4 +159,3 @@ Reflect.isEnumValue(true) == false;
 Reflect.isEnumValue(null) == false;
 var x:C = null;
 Reflect.isEnumValue(x) == false;
-#end

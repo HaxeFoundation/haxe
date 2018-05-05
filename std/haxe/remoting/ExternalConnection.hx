@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -50,7 +50,7 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		return s.split("\\").join("\\\\");
 	}
 	#else
-	static inline function escapeString(s) {
+	static inline function escapeString(s:String) {
 		return s;
 	}
 	#end
@@ -61,7 +61,11 @@ class ExternalConnection implements Connection implements Dynamic<Connection> {
 		var params = escapeString(s.toString());
 		var data = null;
 		#if flash
-			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#if js_unflatten
+				data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#else
+				data = flash.external.ExternalInterface.call("haxe_remoting_ExternalConnection.doCall",__data.name,__path.join("."),params);
+			#end
 		#elseif js
 			var fobj : Dynamic = (untyped js.Browser.document)[cast __data.flash]; // FIXME(bruno): Why is this necessary?
 			if( fobj == null ) fobj = js.Browser.document.getElementById(__data.flash);

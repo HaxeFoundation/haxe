@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -110,6 +110,10 @@ extern class Array<T> implements ArrayAccess<T> {
 
 	@:runtime public inline function filter( f : T -> Bool ) : Array<T> {
 		return ArrayImpl.filter(this,f);
+	}
+
+	public inline function resize ( len : Int ) : Void {
+		ArrayImpl.resize(this, len);
 	}
 
 	@:keep private inline function _get(idx:Int):T

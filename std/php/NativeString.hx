@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,11 @@
  */
 package php;
 
-extern class NativeString implements ArrayAccess<String> {
+/**
+	Native PHP string.
+**/
+@:coreType @:runtimeValue abstract NativeString from String to String {
 
+	@:arrayAccess function get(key:Int):String;
+	@:arrayAccess function set(key:Int, val:String):String;
 }

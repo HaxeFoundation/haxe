@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +22,9 @@
 package sys.net;
 import haxe.io.Error;
 
-private enum SocketHandle {
-}
+@:callable
+@:coreType
+abstract SocketHandle { }
 
 private class SocketOutput extends haxe.io.Output {
 
@@ -39,6 +40,8 @@ private class SocketOutput extends haxe.io.Output {
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;
+			else if ( e == "EOF" )
+				throw new haxe.io.Eof();
 			else
 				throw Custom(e);
 		}
@@ -122,6 +125,10 @@ class Socket {
 	public var custom : Dynamic;
 
 	public function new() : Void {
+		init();
+	}
+
+	private function init() : Void {
 		if( __s == null ) __s = socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
@@ -138,7 +145,7 @@ class Socket {
 	}
 
 	public function read() : String {
-		return socket_read(__s);
+		return new String(socket_read(__s));
 	}
 
 	public function write( content : String ) : Void {
@@ -151,6 +158,10 @@ class Socket {
 		} catch( s : String ) {
 			if( s == "std@socket_connect" )
 				throw "Failed to connect on "+host.toString()+":"+port;
+			else if ( s == "Blocking" ) {
+				// Do nothing, this is not a real error, it simply indicates
+				// that a non-blocking connect is in progress
+			}
 			else
 				neko.Lib.rethrow(s);
 		}
@@ -179,6 +190,9 @@ class Socket {
 
 	public function peer() : { host : Host, port : Int } {
 		var a : Dynamic = socket_peer(__s);
+		if (a == null) {
+			return null;
+		}
 		var h = new Host("127.0.0.1");
 		untyped h.ip = a[0];
 		return { host : h, port : a[1] };
@@ -186,6 +200,9 @@ class Socket {
 
 	public function host() : { host : Host, port : Int } {
 		var a : Dynamic = socket_host(__s);
+		if (a == null) {
+			return null;
+		}
 		var h = new Host("127.0.0.1");
 		untyped h.ip = a[0];
 		return { host : h, port : a[1] };

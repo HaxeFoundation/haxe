@@ -63,7 +63,7 @@
     <hidden path="serializedValues.txt" />
   </hiddenPaths>
   <!-- Executed before build -->
-  <preBuildCommand>"$(CompilerPath)/haxe" compile$(TargetBuild).hxml</preBuildCommand>
+  <preBuildCommand>"$(CompilerPath)/haxe.exe" compile$(TargetBuild).hxml</preBuildCommand>
   <!-- Executed after build -->
   <postBuildCommand alwaysRun="False" />
   <!-- Other project options -->

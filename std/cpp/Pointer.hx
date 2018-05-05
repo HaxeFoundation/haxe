@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,40 +21,67 @@
  */
  package cpp;
 
+import haxe.extern.AsVar;
+
 @:coreType
-@:analyzer(no_simplification)
+@:analyzer(as_var)
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
-   @:analyzer(no_simplification)
-	public var ref(get,set):T;
+   public var ref(get,set):Reference<T>;
 
-   @:analyzer(no_simplification)
-   public function get_ref() : T;
-   @:analyzer(no_simplification)
-   public function set_ref(t:T) : T;
+   public function get_ref() : Reference<T>;
+   public function set_ref(t:T) : Reference<T>;
 
+   public function setAt(inIndex:Int, value:T):Void;
 
    public static function fromRaw<T>(ptr:RawPointer<T>) : Pointer<T>;
 
-   public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>;
+   @:native("::cpp::Pointer_obj::fromHandle")
+   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):AutoCast;
+   inline public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>
+   {
+     return cast nativeFromHandle(inHandle,inKind);
+   }
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : Pointer<T>;
 
-   public static function addressOf<T>(inVariable:T) : Pointer<T>;
+   public static function addressOf<T>(inVariable:cpp.Reference<T>) : Pointer<T>;
 
-	public static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>;
+   public static function endOf<T:{}>(inVariable:T) : Pointer<cpp.Void>;
 
-   public function get_raw() : RawPointer<T>;
+   @:native("::cpp::Pointer_obj::arrayElem")
+   static function nativeArrayElem<T>(array:Array<T>, inElem:Int):AutoCast;
+   inline static function arrayElem<T>(array:Array<T>, inElem:Int):Pointer<T>
+   {
+      return cast nativeArrayElem(array,inElem);
+   }
 
-	override public function inc():Pointer<T>;
-	override public function dec():Pointer<T>;
-	override public function incBy(inT:Int):Pointer<T>;
-	override public function add(inT:Int):Pointer<T>;
+   @:native("::cpp::Pointer_obj::ofArray")
+   static function nativeOfArray<T>(array:Array<T>):AutoCast;
+   inline public static function ofArray<T>(array:Array<T>):Pointer<T>
+   {
+     return cast nativeOfArray(array);
+   }
 
-   @:analyzer(no_simplification)
-	public function postIncRef():T;
+   inline public function toUnmanagedArray(elementCount:Int) : Array<T>
+   {
+      var result = new Array<T>();
+      NativeArray.setUnmanagedData(result,this,elementCount);
+      return result;
+   }
 
-	public function destroy():Void;
-	public function destroyArray():Void;
+   inline public function toUnmanagedVector(elementCount:Int) : haxe.ds.Vector<T>
+      return cast toUnmanagedArray(elementCount);
+
+
+   override public function inc():Pointer<T>;
+   override public function dec():Pointer<T>;
+   override public function incBy(inT:Int):Pointer<T>;
+   override public function add(inT:Int):Pointer<T>;
+
+   public function postIncRef():Reference<T>;
+
+   public function destroy():Void;
+   public function destroyArray():Void;
 }
 

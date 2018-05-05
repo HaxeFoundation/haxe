@@ -4,6 +4,8 @@
 var a = [];
 a[4] = 1;
 a.length == 5;
+a[a.length] = 1;
+a.length == 6;
 
 // concat
 [].concat([]) == [];
@@ -263,8 +265,8 @@ var func = function(s) return s.toUpperCase();
 [1, 2, 3, 4].filter(function(i) return i < 3) == [1, 2];
 [1, 2, 3, 4].filter(function(i) return true) == [1, 2, 3, 4];
 [1, 2, 3, 4].filter(function(i) return false) == [];
-[].filter(function(i) return true) == [];
-[].filter(function(i) return false) == [];
+[].filter(function(_) return true) == [];
+[].filter(function(_) return false) == [];
 var arr = [{id: 1}, {id: 2}, {id: 3}, {id: 4}, {id: 5}];
 arr = arr.filter(function(i) return i.id % 2 != 0);
 var values = [];
@@ -276,6 +278,23 @@ values == [1, 3, 5];
 var a : Dynamic = [0,1,2];
 var b : Dynamic = a.filter(function(x) return x & 1 == 0).map(function(x) return x * 10);
 b.length == 2;
-b[0] = 0;
-b[1] = 20;
+b[0] == 0;
+b[1] == 20;
 #end
+
+// resize
+var a : Array<Int> = [1,2,3];
+a.resize(10);
+a.length == 10;
+a == [1,2,3];
+a.resize(2);
+a.length == 2;
+a == [1, 2];
+a.resize(3);
+a.length == 3;
+a[0] == 1;
+a[1] == 2;
+a[2] != 3;
+a.resize(0);
+a.length == 0;
+a == [];

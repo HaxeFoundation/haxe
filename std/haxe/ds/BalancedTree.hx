@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2015 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,7 +32,7 @@ package haxe.ds;
 	Iteration over keys and values, using `keys` and `iterator` respectively,
 	are in-order.
 **/
-class BalancedTree<K,V> {
+class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 	var root:TreeNode<K,V>;
 
 	/**
@@ -129,6 +129,12 @@ class BalancedTree<K,V> {
 		return ret.iterator();
 	}
 
+	public function copy():BalancedTree<K, V> {
+		var copied = new BalancedTree<K, V>();
+		copied.root = root;
+		return copied;
+	}
+
 	function setLoop(k:K, v:V, node:TreeNode<K,V>) {
 		if (node == null) return new TreeNode<K,V>(null, k, v, null);
 		var c = compare(k, node.key);
@@ -207,6 +213,9 @@ class BalancedTree<K,V> {
 	}
 }
 
+/**
+	A tree node of `haxe.ds.BalancedTree`.
+**/
 class TreeNode<K,V> {
 	public var left : TreeNode<K,V>;
 	public var right : TreeNode<K,V>;
@@ -228,7 +237,7 @@ class TreeNode<K,V> {
 			_height = h;
 	}
 
-	@:extern public inline function get_height() return this == null ? 0 : _height;
+	extern public inline function get_height() return this == null ? 0 : _height;
 
 	public function toString() {
 		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " +right.toString());

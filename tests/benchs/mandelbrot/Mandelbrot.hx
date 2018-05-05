@@ -37,7 +37,7 @@ class Complex
 
 class Mandelbrot
 {
-   static inline var SIZE = 10;
+   static inline var SIZE = 25;
    static inline var MaxIterations = 1000;
    static inline var MaxRad = 1<<16;
    static inline var width = 35*SIZE;
@@ -62,14 +62,30 @@ class Mandelbrot
             trace(y);
          for(x in 0...width)
          {
+            var iteration = 0;
+
+            #if reduce_allocs
+            var offsetI = x*scale - 2.5;
+            var offsetJ =  y*scale - 1.0;
+            var valI = 0.0;
+            var valJ = 0.0;
+            while( valI*valI+valJ*valJ<MaxRad && iteration<MaxIterations)
+            {
+               var vi = valI;
+               valI = valI*valI - valJ*valJ + offsetI;
+               valJ = 2.0*vi*valJ + offsetJ;
+               iteration++;
+            }
+            #else
             var offset = createComplex(x*scale - 2.5,y*scale - 1);
             var val = createComplex(0.0,0.0);
-            var iteration = 0;
             while( complexLength2(val)<MaxRad && iteration<MaxIterations)
             {
                val = complexAdd( complexSquare(val), offset );
                iteration++;
             }
+            #end
+
             image[outPixel++] = palette[iteration];
          }
       }
@@ -95,11 +111,7 @@ class Mandelbrot
 
    public static function now()
    {
-      #if cppia
-      return 0;
-      #else
       return haxe.Timer.stamp();
-      #end
    }
 
    public static function complexLength2(val:Complex) : Float
@@ -107,19 +119,19 @@ class Mandelbrot
       return val.i*val.i + val.j*val.j;
    }
 
-   public static function complexAdd(val0:Complex, val1:Complex)
+   public inline static function complexAdd(val0:Complex, val1:Complex)
    {
       return createComplex( val0.i + val1.i, val0.j + val1.j );
    }
 
-   public static function complexSquare(val:Complex)
+   public inline static function complexSquare(val:Complex)
    {
       return createComplex(  val.i*val.i - val.j*val.j, 2.0 * val.i * val.j );
    }
 
 
    #if anon_objects
-   inline public static function createComplex(inI:Float, inJ:Float) return { i:inI, j:inJ };
+   public static function createComplex(inI:Float, inJ:Float) return @:fixed { i:inI, j:inJ };
    #else
    inline public static function createComplex(inI:Float, inJ:Float) return new Complex(inI, inJ);
    #end
