@@ -139,10 +139,10 @@ class DataView {
 		var i64 = haxe.io.FPHelper.doubleToI64(value);
 		if( littleEndian ) {
 			setUint32(byteOffset, i64.low);
-			setUint32(byteOffset, i64.high);
+			setUint32(byteOffset + 4, i64.high);
 		} else {
 			setUint32(byteOffset, i64.high);
-			setUint32(byteOffset, i64.low);
+			setUint32(byteOffset + 4, i64.low);
 		}
 	}
 
