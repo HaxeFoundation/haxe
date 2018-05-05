@@ -180,8 +180,8 @@ class Module {
 			return i.readInt32();
 		}
 		var nglobals = readInt();
-		var nfields = readInt();
-		var codesize = readInt();
+		/*var nfields =*/ readInt();
+		/*var codesize =*/ readInt();
 		var a = new Array();
 		for( k in 0...nglobals ) {
 			switch(i.readByte()) {
