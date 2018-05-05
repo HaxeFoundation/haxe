@@ -59,8 +59,10 @@ let collect ctx e_ast e with_type p =
 		end else
 			can_access ctx c cf stat
 	in
-	let rec get_fields t =
-		match follow t with
+	let rec get_fields seen t =
+		let t = follow t in
+		if (List.exists (fast_eq t) seen) then PMap.empty
+		else match follow t with
 		| TInst (c,params) ->
 			if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
 			let merge ?(cond=(fun _ -> true)) a b =
@@ -76,7 +78,7 @@ let collect ctx e_ast e with_type p =
 				) in
 				let m = merge ~cond:(fun f -> should_access c f false) c.cl_fields m in
 				let m = (match c.cl_kind with
-					| KTypeParameter pl -> List.fold_left (fun acc t -> merge acc (get_fields t)) m pl
+					| KTypeParameter pl -> List.fold_left (fun acc t' -> merge acc (get_fields (t :: seen) t')) m pl
 					| _ -> m
 				) in
 				PMap.map (fun f -> { f with cf_type = apply_params c.cl_params params (opt_type f.cf_type); cf_public = true; }) m
@@ -90,7 +92,7 @@ let collect ctx e_ast e with_type p =
 					| EConst(Ident s) -> Some s
 					| _ -> None
 				) el in
-				let fields = get_fields (apply_params a.a_params pl a.a_this) in
+				let fields = get_fields (t :: seen) (apply_params a.a_params pl a.a_this) in
 				if sl = [] then fields else PMap.fold (fun cf acc ->
 					if List.mem cf.cf_name sl then
 						PMap.add cf.cf_name cf acc
@@ -110,7 +112,7 @@ let collect ctx e_ast e with_type p =
 			) c.cl_statics fields
 		| TAnon a when PMap.is_empty a.a_fields ->
 			begin match with_type with
-			| WithType t -> get_fields t
+			| WithType t' -> get_fields (t :: seen) t'
 			| _ -> a.a_fields
 			end
 		| TAnon a ->
@@ -133,7 +135,7 @@ let collect ctx e_ast e with_type p =
 		| _ ->
 			PMap.empty
 	in
-	let fields = get_fields e.etype in
+	let fields = get_fields [] e.etype in
 	(*
 		add 'using' methods compatible with this type
 	*)
