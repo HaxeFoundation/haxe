@@ -230,6 +230,13 @@ let no_timer = fun () -> ()
 let empty_array = [||]
 let no_expr = mk (TConst TNull) t_dynamic null_pos
 
+let no_debug = {
+	timer = no_timer;
+	scopes = [];
+	line = 0;
+	expr = no_expr;
+}
+
 let create_env_info static pfile kind capture_infos =
 	let info = {
 		static = static;
@@ -239,25 +246,35 @@ let create_env_info static pfile kind capture_infos =
 	} in
 	info
 
-let push_environment_debug ctx info num_locals num_captures =
+let push_environment ctx info num_locals num_captures =
 	let eval = get_eval ctx in
 	let timer = if ctx.detail_times then
 		Timer.timer ["macro";"execution";kind_name eval info.kind]
 	else
 		no_timer
 	in
+	let debug = if ctx.debug.support_debugger || ctx.detail_times then
+		{ no_debug with timer = timer }
+	else
+		no_debug
+	in
+	let locals = if num_locals = 0 then
+		empty_array
+	else
+		Array.make num_locals vnull
+	in
+	let captures = if num_captures = 0 then
+		empty_array
+	else
+		Array.make num_captures (ref vnull)
+	in
 	let env = {
 		env_info = info;
 		env_leave_pmin = 0;
 		env_leave_pmax = 0;
-		env_debug = {
-			timer = timer;
-			scopes = [];
-			line = 0;
-			expr = no_expr;
-		};
-		env_locals = Array.make num_locals vnull;
-		env_captures = Array.make num_captures (ref vnull);
+		env_debug = debug;
+		env_locals = locals;
+		env_captures = captures;
 		env_extra_locals = IntMap.empty;
 	} in
 	if eval.environment_offset = DynArray.length eval.environments then
@@ -267,19 +284,11 @@ let push_environment_debug ctx info num_locals num_captures =
 	eval.environment_offset <- eval.environment_offset + 1;
 	env
 
-let pop_environment_debug ctx env =
+let pop_environment ctx env =
 	let eval = get_eval ctx in
 	eval.environment_offset <- eval.environment_offset - 1;
 	env.env_debug.timer();
 	()
-
-let push_environment ctx info num_locals num_captures =
-	push_environment_debug ctx info num_locals num_captures
-[@@inline]
-
-let pop_environment ctx env =
-	pop_environment_debug ctx env
-[@@inline]
 
 (* Prototypes *)
 
