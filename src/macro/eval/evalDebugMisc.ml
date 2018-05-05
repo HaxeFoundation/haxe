@@ -217,9 +217,28 @@ let rec expr_to_value ctx env e =
 				raise Exit
 			end
 		| ECall(e1,el) ->
-			let v1 = loop e1 in
-			let vl = List.map loop el in
-			call_value v1 vl
+			let safe_call f a =
+				let old = ctx.debug.debug_state in
+				ctx.debug.debug_state <- DbgContinue;
+				try
+					let r = f a in
+					ctx.debug.debug_state <- old;
+					r
+				with exc ->
+					ctx.debug.debug_state <- old;
+					raise exc
+			in
+			begin match fst e1 with
+			| EField(ethis,s) ->
+				let vthis = loop ethis in
+				let v1 = EvalField.field vthis (hash_s s) in
+				let vl = List.map loop el in
+				safe_call (EvalPrinting.call_value_on vthis v1) vl
+			| _ ->
+				let v1 = loop e1 in
+				let vl = List.map loop el in
+				safe_call (call_value v1) vl
+			end
 		| EBlock el ->
 			let rec loop2 el = match el with
 				| [] -> VNull
