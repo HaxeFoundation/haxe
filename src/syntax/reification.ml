@@ -140,6 +140,7 @@ let reify in_macro =
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
+	and to_display_kind dk p = mk_enum "DisplayKind" (s_display_kind dk) [] p
 	and to_fun f p =
 		let p = {p with pmax = p.pmin} in
 		let farg ((n,_),o,_,t,e) p =
@@ -323,8 +324,8 @@ let reify in_macro =
 			expr "EThrow" [loop e]
 		| ECast (e,ct) ->
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
-		| EDisplay (e,flag) ->
-			expr "EDisplay" [loop e; to_bool flag p]
+		| EDisplay (e,dk) ->
+			expr "EDisplay" [loop e; to_display_kind dk p]
 		| EDisplayNew t ->
 			expr "EDisplayNew" [to_tpath t p]
 		| ETernary (e1,e2,e3) ->

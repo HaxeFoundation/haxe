@@ -174,6 +174,13 @@ and func = {
 
 and placed_name = string * pos
 
+and display_kind =
+	| DKCall
+	| DKDot
+	| DKStructure
+	| DKToplevel
+	| DKMarked
+
 and expr_def =
 	| EConst of constant
 	| EArray of expr * expr
@@ -199,7 +206,7 @@ and expr_def =
 	| EUntyped of expr
 	| EThrow of expr
 	| ECast of expr * type_hint option
-	| EDisplay of expr * bool
+	| EDisplay of expr * display_kind
 	| EDisplayNew of placed_type_path
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * type_hint
@@ -700,6 +707,13 @@ let s_object_key_name name =  function
 	| DoubleQuotes -> "\"" ^ s_escape name ^ "\""
 	| NoQuotes -> name
 
+let s_display_kind = function
+	| DKCall -> "DKCall"
+	| DKDot -> "DKDot"
+	| DKStructure -> "DKStructure"
+	| DKToplevel -> "DKToplevel"
+	| DKMarked -> "TKMarked"
+
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
 		match e with
@@ -738,7 +752,7 @@ let s_expr e =
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
-		| EDisplay (e1,iscall) -> Printf.sprintf "#DISPLAY(%s, %b)" (s_expr_inner tabs e1) iscall
+		| EDisplay (e1,dk) -> Printf.sprintf "#DISPLAY(%s, %s)" (s_expr_inner tabs e1) (s_display_kind dk)
 		| EDisplayNew tp -> Printf.sprintf "#DISPLAY_NEW(%s)" (s_complex_type_path tabs tp)
 	and s_expr_list tabs el sep =
 		(String.concat sep (List.map (s_expr_inner tabs) el))

@@ -509,7 +509,7 @@ enum ExprDef {
 	/**
 		Internally used to provide completion.
 	**/
-	EDisplay( e : Expr, isCall : Bool );
+	EDisplay( e : Expr, displayKind:DisplayKind );
 
 	/**
 		Internally used to provide completion.
@@ -530,6 +530,14 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta( s : MetadataEntry, e : Expr );
+}
+
+enum DisplayKind {
+	DKCall;
+	DKDot;
+	DKStructure;
+	DKToplevel;
+	DKMarked;
 }
 
 /**

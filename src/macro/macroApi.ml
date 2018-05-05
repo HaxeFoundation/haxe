@@ -469,6 +469,16 @@ and encode_fun f =
 		"expr", null encode_expr f.f_expr
 	]
 
+and encode_display_kind dk =
+	let tag = match dk with
+	| DKCall -> 0
+	| DKDot -> 1
+	| DKStructure -> 2
+	| DKToplevel -> 3
+	| DKMarked -> 4
+	in
+	encode_enum ~pos:None ICType tag []
+
 and encode_expr e =
 	let rec loop (e,p) =
 		let tag, pl = match e with
@@ -547,8 +557,8 @@ and encode_expr e =
 				22, [loop e]
 			| ECast (e,t) ->
 				23, [loop e; null encode_ctype t]
-			| EDisplay (e,flag) ->
-				24, [loop e; vbool flag]
+			| EDisplay (e,dk) ->
+				24, [loop e; encode_display_kind dk]
 			| EDisplayNew t ->
 				25, [encode_path t]
 			| ETernary (econd,e1,e2) ->
@@ -745,6 +755,14 @@ and decode_ctype t =
 	| _ ->
 		raise Invalid_expr),p
 
+and decode_display_kind v = match fst (decode_enum v) with
+	| 0 -> DKCall
+	| 1 -> DKDot
+	| 2 -> DKStructure
+	| 3 -> DKToplevel
+	| 4 -> DKMarked
+	| _ -> raise Invalid_expr
+
 and decode_expr v =
 	let rec loop v =
 		let p = decode_pos (field v "pos") in
@@ -817,8 +835,8 @@ and decode_expr v =
 			EThrow (loop e)
 		| 23, [e;t] ->
 			ECast (loop e,opt decode_ctype t)
-		| 24, [e;f] ->
-			EDisplay (loop e,decode_bool f)
+		| 24, [e;dk] ->
+			EDisplay (loop e,decode_display_kind dk)
 		| 25, [t] ->
 			EDisplayNew (decode_path t)
 		| 26, [e1;e2;e3] ->

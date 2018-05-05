@@ -183,7 +183,7 @@ class ExprTools {
 			case EUntyped(e): EUntyped(f(e));
 			case EThrow(e): EThrow(f(e));
 			case ECast(e, t): ECast(f(e), t);
-			case EDisplay(e, isCall): EDisplay(f(e), isCall);
+			case EDisplay(e, dk): EDisplay(f(e), dk);
 			case ETernary(econd, eif, eelse): ETernary(f(econd), f(eif), f(eelse));
 			case ECheckType(e, t): ECheckType(f(e), t);
 			case EDisplayNew(_),

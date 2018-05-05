@@ -219,17 +219,17 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 	]) ctx.t.tvoid p
 
 let type_for_loop ctx handle_display it e2 p =
-	let rec loop_ident display e1 = match e1 with
-		| EConst(Ident i),p -> i,p,display
-		| EDisplay(e1,_),_ -> loop_ident true e1
+	let rec loop_ident dko e1 = match e1 with
+		| EConst(Ident i),p -> i,p,dko
+		| EDisplay(e1,dk),_ -> loop_ident (Some dk) e1
 		| _ -> error "Identifier expected" (pos e1)
 	in
-	let rec loop display e1 = match fst e1 with
-		| EBinop(OpIn,e1,e2) -> loop_ident display e1,e2
-		| EDisplay(e1,_) -> loop true e1
+	let rec loop dko e1 = match fst e1 with
+		| EBinop(OpIn,e1,e2) -> loop_ident dko e1,e2
+		| EDisplay(e1,dk) -> loop (Some dk) e1
 		| _ -> error "For expression should be 'v in expr'" (snd it)
 	in
-	let (i, pi, display), e1 = loop false it in
+	let (i, pi, dko), e1 = loop None it in
 	let e1 = type_expr ctx e1 Value in
 	let old_loop = ctx.in_loop in
 	let old_locals = save_locals ctx in
@@ -259,13 +259,19 @@ let type_for_loop ctx handle_display it e2 p =
 					mk (TConst TNull) t_dynamic p
 			)
 		) in
-		if display then ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) (WithType i.v_type));
+		begin match dko with
+		| None -> ()
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType i.v_type))
+		end;
 		let e2 = type_expr ctx e2 NoValue in
 		(try optimize_for_loop_iterator ctx i e1 e2 p with Exit -> mk (TFor (i,e1,e2)) ctx.t.tvoid p)
 	in
 	let e = match optimize_for_loop ctx (i,pi) e1 e2 p with
 		| Some e ->
-			if display then ignore(handle_display ctx (EConst(Ident i),pi) Value);
+			begin match dko with
+			| None -> ()
+			| Some dk -> ignore(handle_display ctx (EConst(Ident i),pi) dk Value);
+			end;
 			e
 		| None -> default()
 	in

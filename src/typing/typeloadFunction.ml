@@ -116,7 +116,7 @@ let type_function ctx args ret fmode f do_display p =
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
 		| Display.DisplayType (t,_,_) when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.ExprPreprocessing.find_enclosing ctx.com e else e) NoValue
+			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.ExprPreprocessing.find_enclosing ctx.com DKToplevel e else e) NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

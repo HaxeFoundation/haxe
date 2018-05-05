@@ -439,17 +439,20 @@ module Pattern = struct
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
 			| EBinop(OpAssign,e1,e2) ->
-				let rec loop in_display e = match e with
+				let rec loop dko e = match e with
 					| (EConst (Ident s),p) ->
 						let v = add_local s p in
-						if in_display then ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) (WithType t) p);
+						begin match dko with
+						| None -> ()
+						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType t) p);
+						end;
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
-					| (EParenthesis e1,_) -> loop in_display e1
-					| (EDisplay(e1,_),_) -> loop true e1
+					| (EParenthesis e1,_) -> loop dko e1
+					| (EDisplay(e1,dk),_) -> loop (Some dk) e1
 					| _ -> fail()
 				in
-				loop false e1
+				loop None e1
 			| EBinop(OpArrow,e1,e2) ->
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
@@ -459,10 +462,9 @@ module Pattern = struct
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
-			| EDisplay(e,iscall) ->
+			| EDisplay(e,dk) ->
 				let pat = loop e in
-				let _ = if iscall then TyperDisplay.handle_signature_display ctx e (WithType t)
-				else TyperDisplay.handle_display ctx e (WithType t) in
+				ignore(TyperDisplay.handle_edisplay ctx e dk (WithType t));
 				pat
 			| _ ->
 				fail()
@@ -535,8 +537,8 @@ module Case = struct
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
 		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
-			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e with_type p)
-			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) with_type p)
+			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type p)
+			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) DKMarked with_type p)
 			| _ -> assert false
 		end;
 		{

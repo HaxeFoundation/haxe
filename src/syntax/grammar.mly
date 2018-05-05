@@ -715,8 +715,7 @@ and block2 name ident p s =
 			let e = EObjectDecl acc,punion p (pos e) in
 			display e
 		in
-		let fl = parse_obj_decl name e p s in
-		EObjectDecl fl
+		fst (parse_obj_decl name e p s)
 	| [< >] ->
 		let e = expr_next (EConst ident,p) s in
 		try
@@ -754,8 +753,13 @@ and parse_block_elt = parser
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl name e p0 s =
-	let rec loop acc = match s with parser
+	let has_resume = ref false in
+	let make_obj_decl el p1 =
+		EObjectDecl (List.rev el),punion p0 p1
+	in
+	let rec loop p_end acc = match s with parser
 		| [< '(Comma,p1); s >] ->
+			if is_resuming p1 then has_resume := true;
 			let next key = match s with parser
 				| [< '(DblDot,_) >] ->
 					let e = try
@@ -765,10 +769,10 @@ and parse_obj_decl name e p0 s =
 						end
 					with Display e ->
 						let acc = (key,e) :: acc in
-						let e = EObjectDecl (List.rev acc),punion p0 (pos e) in
+						let e = make_obj_decl acc (pos e) in
 						display e
 					in
-					loop ((key,e) :: acc)
+					loop (pos e) ((key,e) :: acc)
 				| [< >] -> serror()
 			in
 			begin match s with parser
@@ -777,15 +781,21 @@ and parse_obj_decl name e p0 s =
 				| [< >] ->
 					let p2 = pos (next_token s) in
 					if encloses_resume (punion p1 p2) then begin
-						let e = EObjectDecl (List.rev acc),punion p0 p2 in
-						let e = EDisplay(e,false),(pos e) in
+						let e = make_obj_decl acc p2 in
+						let e = EDisplay(e,DKStructure),(pos e) in
 						display e
 					end else
-						acc
+						acc,p_end
 			end
-		| [< >] -> acc
+		| [< >] -> acc,p_end
 	in
-	List.rev (loop [name,e])
+	let el,p_end = loop p0 [name,e] in
+	let e = make_obj_decl el p_end in
+	if !has_resume then begin
+		let e = EDisplay(e,DKStructure),(pos e) in
+		display e
+	end else
+		e
 
 and parse_array_decl p1 s =
 	let secure_expr acc s = try
@@ -921,11 +931,11 @@ and expr = parser
 			display (make_meta name params e p)
 		end
 	| [< '(BrOpen,p1); s >] ->
-		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),false),p1);
+		if is_resuming p1 then display (EDisplay ((EObjectDecl [],p1),DKStructure),p1);
 		(match s with parser
 		| [< '(Binop OpOr,p2) when do_resume() >] ->
 			set_resume p1;
-			display (EDisplay ((EObjectDecl [],p1),false),p1);
+			display (EDisplay ((EObjectDecl [],p1),DKStructure),p1);
 		| [< b = block1; s >] ->
 			let p2 = match s with parser
 				| [< '(BrClose,p2) >] -> p2
@@ -1055,7 +1065,7 @@ and expr_next e1 = parser
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
 	| [< '(Dot,p); s >] ->
-		if is_resuming p then display (EDisplay (e1,false),p);
+		if is_resuming p then display (EDisplay (e1,DKDot),p);
 		(match s with parser
 		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
 		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
@@ -1064,7 +1074,7 @@ and expr_next e1 = parser
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] ->
 			set_resume p;
-			display (EDisplay (e1,false),p) (* help for debug display mode *)
+			display (EDisplay (e1,DKDot),p) (* help for debug display mode *)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
@@ -1157,7 +1167,7 @@ and parse_catches etry catches pmax = parser
 and parse_call_params f p1 s =
 	let make_display_call el p2 =
 		let e = f el p2 in
-		display (EDisplay(e,true),pos e)
+		display (EDisplay(e,DKCall),pos e)
 	in
 	if is_resuming p1 then make_display_call [] p1;
 	let rec parse_next_param acc p1 =

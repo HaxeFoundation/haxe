@@ -13,7 +13,7 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testGama11() {
-		sigEq(0, [["b:String"]], signature(pos(1)));
+		eq(true, hasField(fields(pos(1)), "b", "String"));
 	}
 
 	/**
@@ -26,7 +26,7 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testGama11Intact() {
-		sigEq(0, [["b:String"]], signature(pos(1)));
+		eq(true, hasField(fields(pos(1)), "b", "String"));
 	}
 
 	/**
@@ -43,7 +43,9 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testOrder() {
-		sigEq(0, [["b:Int", "c:Bool"]], signature(pos(1)));
+		var fields = fields(pos(1));
+		eq(true, hasField(fields, "b", "Int"));
+		eq(true, hasField(fields, "c", "Bool"));
 	}
 
 	/**
@@ -64,7 +66,7 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testNested() {
-		sigEq(0, [["a:Bool"]], signature(pos(1)));
+		eq(true, hasField(fields(pos(1)), "a", "Bool"));
 	}
 
 	/**
@@ -85,7 +87,7 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testFirstArg() {
-		sigEq(0, [["a:Bool"]], signature(pos(1)));
+		eq(true, hasField(fields(pos(1)), "a", "Bool"));
 	}
 
 	/**
@@ -102,19 +104,6 @@ class Issue5767 extends DisplayTestCase {
 	}
 	**/
 	function testIntact() {
-		sigEq(0, [["c:String"]], signature(pos(1)));
-	}
-
-	function sigEq(arg:Int, params:Array<Array<String>>, sig:SignatureHelp, ?pos:haxe.PosInfos) {
-		eq(arg, sig.activeParameter, pos);
-		eq(params.length, sig.signatures.length, pos);
-		for (i in 0...params.length) {
-			var sigInf = sig.signatures[i];
-			var args = params[i];
-			eq(sigInf.parameters.length, args.length, pos);
-			for (i in 0...args.length) {
-				eq(sigInf.parameters[i].label, args[i], pos);
-			}
-		}
+		eq(true, hasField(fields(pos(1)), "c", "String"));
 	}
 }

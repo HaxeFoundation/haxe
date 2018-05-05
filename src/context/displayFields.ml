@@ -31,7 +31,7 @@ let get_submodule_fields ctx path =
 	) tl in
 	tl
 
-let collect ctx e_ast e with_type p =
+let collect ctx e_ast e dk with_type p =
 	let merge_core_doc = !merge_core_doc_ref in
 	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let e = match e.eexpr with

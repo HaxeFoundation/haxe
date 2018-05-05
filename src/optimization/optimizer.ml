@@ -1251,6 +1251,7 @@ let optimize_completion_expr e =
 		typing_side_effect := true;
 		locals.r <- PMap.add n (t,(match e with Some e when maybe_typed e -> incr iid; Some (!iid,e,{ r = locals.r }) | _ -> None)) locals.r
 	in
+	let e0 = e in
 	let rec loop e =
 		let p = snd e in
 		match fst e with
@@ -1351,6 +1352,8 @@ let optimize_completion_expr e =
 				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
+		| EDisplay(_,DKStructure) ->
+			raise (Return e0)
 		| EDisplay (s,call) ->
 			typing_side_effect := true;
 			let tmp_locals = ref [] in

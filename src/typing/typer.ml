@@ -1889,7 +1889,7 @@ and type_try ctx e1 catches with_type p =
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && Display.is_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e with_type pc);
+		if ctx.is_display_file && Display.is_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
 		if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
@@ -2311,8 +2311,8 @@ and type_call ctx e el (with_type:with_type) p =
 			mk (TCall (e_unprotect,[e])) e.etype e.epos
 		else
 			e
-	| (EDisplay((EConst (Ident "super"),_ as e1),false),_),_ ->
-		TyperDisplay.handle_display ctx (ECall(e1,el),p) with_type
+	| (EDisplay((EConst (Ident "super"),_ as e1),dk),_),_ ->
+		TyperDisplay.handle_display ctx (ECall(e1,el),p) dk with_type
 	| (EConst (Ident "super"),sp) , el ->
 		if ctx.curfun <> FunConstructor then error "Cannot call super constructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
@@ -2443,11 +2443,8 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
 		type_cast ctx e t p
-	| EDisplay (e,iscall) ->
-		begin match ctx.com.display.dms_kind with
-			| DMField | DMSignature when iscall -> TyperDisplay.handle_signature_display ctx e with_type
-			| _ -> TyperDisplay.handle_display ctx e with_type
-		end
+	| EDisplay (e,dk) ->
+		TyperDisplay.handle_edisplay ctx e dk with_type
 	| EDisplayNew t ->
 		assert false
 	| ECheckType (e,t) ->

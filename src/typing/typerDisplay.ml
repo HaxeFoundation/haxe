@@ -9,7 +9,7 @@ open Fields
 open Calls
 open Error
 
-let rec handle_display ctx e_ast with_type =
+let rec handle_display ctx e_ast dk with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -39,7 +39,7 @@ let rec handle_display ctx e_ast with_type =
 	in
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e with_type p
+	display_expr ctx e_ast e dk with_type p
 
 and handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
@@ -109,27 +109,9 @@ and handle_signature_display ctx e_ast with_type =
 		| ENew(tpath,el) ->
 			let t = Typeload.load_instance ctx tpath true p in
 			handle_call (find_constructor_types t) el (pos tpath)
-		| EObjectDecl fl ->
-			let fail () = error "Unexpected type or something" p in
-			begin match with_type with
-			| WithType t ->
-				begin match follow t with
-				| TAnon an ->
-					let fl = PMap.foldi (fun k cf acc ->
-						if Expr.field_mem_assoc k fl then acc
-						else ((k,false,cf.cf_type),cf.cf_name_pos) :: acc
-					) an.a_fields [] in
-					let fl = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) fl in
-					let fl = List.map fst fl in
-					let fl = [(fl,t),None] in
-					raise (Display.DisplaySignatures (fl,0))
-				| _ -> fail()
-				end
-			| _ -> fail()
-			end
 		| _ -> error "Call expected" p
 
-and display_expr ctx e_ast e with_type p =
+and display_expr ctx e_ast e dk with_type p =
 	let get_super_constructor () = match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -231,5 +213,34 @@ and display_expr ctx e_ast e with_type p =
 	| DMToplevel ->
 		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
 	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
-		let fields = DisplayFields.collect ctx e_ast e with_type p in
+		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		raise (Display.DisplayFields fields)
+
+let handle_structure_display ctx e with_type =
+	let p = pos e in
+	match fst e with
+	| EObjectDecl fl ->
+		let fail () = [] in
+		let fields = match with_type with
+		| WithType t ->
+			begin match follow t with
+			| TAnon an ->
+				let fields = PMap.foldi (fun k cf acc ->
+					if Expr.field_mem_assoc k fl then acc
+					else ((k,Display.FKVar cf.cf_type,cf.cf_doc)) :: acc
+				) an.a_fields [] in
+				fields
+			| _ -> fail()
+			end
+		| _ -> fail()
+		in
+		raise (Display.DisplayFields fields)
+	| _ ->
+		error "Expected object expression" p
+
+
+let handle_edisplay ctx e dk with_type =
+	match dk,ctx.com.display.dms_kind with
+	| DKCall,(DMSignature | DMField) -> handle_signature_display ctx e with_type
+	| DKStructure,DMField -> handle_structure_display ctx e with_type
+	| _ -> handle_display ctx e dk with_type

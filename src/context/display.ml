@@ -44,9 +44,9 @@ let is_display_position p =
 	encloses_position !Parser.resume_display p
 
 module ExprPreprocessing = struct
-	let find_enclosing com e =
+	let find_enclosing com dk e =
 		let display_pos = ref (!Parser.resume_display) in
-		let mk_null p = (EDisplay(((EConst(Ident "null")),p),false),p) in
+		let mk_null p = (EDisplay(((EConst(Ident "null")),p),dk),p) in
 		let encloses_display_pos p =
 			if encloses_position !display_pos p then begin
 				let p = !display_pos in
@@ -69,7 +69,7 @@ module ExprPreprocessing = struct
 							if b || p.pmax <= p2.pmin then begin
 								(b,e :: el)
 							end else begin
-								let e_d = (EDisplay(mk_null p,false)),p in
+								let e_d = (EDisplay(mk_null p,dk)),p in
 								(true,e :: e_d :: el)
 							end
 						) (false,[]) el in
@@ -86,7 +86,7 @@ module ExprPreprocessing = struct
 		in
 		loop e
 
-	let find_before_pos com e =
+	let find_before_pos com dk e =
 		let display_pos = ref (!Parser.resume_display) in
 		let is_annotated p =
 			if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
@@ -97,7 +97,7 @@ module ExprPreprocessing = struct
 		in
 		let loop e =
 			if is_annotated (pos e) then
-				(EDisplay(e,false),(pos e))
+				(EDisplay(e,dk),(pos e))
 			else
 				e
 		in
@@ -109,25 +109,25 @@ module ExprPreprocessing = struct
 	let find_display_call e =
 		let found = ref false in
 		let loop e = if !found then e else match fst e with
-			| ECall _ | ENew _ | EObjectDecl _ when is_display_position (pos e) ->
+			| ECall _ | ENew _ when is_display_position (pos e) ->
 				found := true;
-				(EDisplay(e,true),(pos e))
+				(EDisplay(e,DKCall),(pos e))
 			| _ ->
 				e
 		in
 		let rec map e = match fst e with
-			| EDisplay(_,true) ->
+			| EDisplay(_,DKCall) ->
 				found := true;
 				e
-			| EDisplay(e1,false) -> map e1
+			| EDisplay(e1,_) -> map e1
 			| _ -> loop (Ast.map_expr map e)
 		in
 		map e
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMToplevel -> find_enclosing com e
-		| DMPosition | DMUsage _ | DMType -> find_before_pos com e
+		| DMToplevel -> find_enclosing com DKToplevel e
+		| DMPosition | DMUsage _ | DMType -> find_before_pos com DKMarked e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
