@@ -144,6 +144,7 @@ type context = {
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
+	toplevel : value;
 	eval : eval;
 	mutable exception_stack : (pos * env_kind) list;
 }

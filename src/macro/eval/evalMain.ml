@@ -121,6 +121,12 @@ let create com api is_macro =
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
+		toplevel = 	vobject {
+			ofields = [||];
+			oproto = fake_proto key_eval_toplevel;
+			oextra = IntMap.empty;
+			oremoved = IntMap.empty;
+		};
 		eval = eval;
 		exception_stack = [];
 	} in

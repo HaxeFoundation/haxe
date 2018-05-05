@@ -140,6 +140,9 @@ let resolve_ident ctx env s =
 	with Not_found -> try
 		(* 4. Type *)
 		VPrototype (IntMap.find key ctx.static_prototypes)
+	with Not_found -> try
+		(* 5. Toplevel *)
+		EvalField.field_raise ctx.toplevel key
 	with Not_found ->
 		raise Exit
 
