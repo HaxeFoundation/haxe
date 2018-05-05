@@ -62,6 +62,7 @@ type env = {
 	mutable env_leave_pmax : int;
 	env_locals : value array;
 	env_captures : value ref array;
+	mutable env_extra_locals : value IntMap.t;
 }
 
 type breakpoint_state =
@@ -257,6 +258,7 @@ let push_environment_debug ctx info num_locals num_captures =
 		};
 		env_locals = Array.make num_locals vnull;
 		env_captures = Array.make num_captures (ref vnull);
+		env_extra_locals = IntMap.empty;
 	} in
 	if eval.environment_offset = DynArray.length eval.environments then
 		DynArray.add eval.environments env
