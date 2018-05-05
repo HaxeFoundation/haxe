@@ -503,7 +503,7 @@ and type_name = parser
 
 and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)
-	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> TPExpr (EArrayDecl l, punion p1 p2)
+	| [< '(BkOpen,p1); e = parse_array_decl p1 >] -> TPExpr (e)
 	| [< t = parse_complex_type >] -> TPType t
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
@@ -787,13 +787,30 @@ and parse_obj_decl name e p0 s =
 	in
 	List.rev (loop [name,e])
 
-and parse_array_decl = parser
-	| [< e = expr; s >] ->
-		(match s with parser
-		| [< '(Comma,_); l = parse_array_decl >] -> e :: l
-		| [< >] -> [e])
-	| [< >] ->
-		[]
+and parse_array_decl p1 s =
+	let secure_expr acc s = try
+		begin match s with parser
+		| [< e = expr >] -> e
+		end
+	with Display e ->
+		let acc = e :: acc in
+		let e = EArrayDecl (List.rev acc),punion p1 (pos e) in
+		display e
+	in
+	let el,p2 = match s with parser
+		| [< '(BkClose,p2) >] -> [],p2
+		| [< e0 = secure_expr [] >] ->
+			let rec loop acc = match s with parser
+				| [< '(Comma,_) >] ->
+					begin match s with parser
+					| [< e = secure_expr acc >] -> loop (e :: acc)
+					| [< '(BkClose,p2) >] -> acc,p2
+					end
+				| [< '(BkClose,p2) >] -> acc,p2
+			in
+			loop [e0]
+	in
+	EArrayDecl (List.rev el),punion p1 p2
 
 and parse_var_decl_head = parser
 	| [< name, p = dollar_ident; t = popt parse_type_hint_with_pos >] -> (name,t,p)
@@ -985,7 +1002,7 @@ and expr = parser
 			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
 			| [< >] -> serror())
 		)
-	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
+	| [< '(BkOpen,p1); e = parse_array_decl p1; s >] -> expr_next e s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] ->
