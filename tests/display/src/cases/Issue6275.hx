@@ -9,7 +9,7 @@ class Issue6275 extends DisplayTestCase {
 			{-1-}n{-2-}ew Main("foo"){-3-};
 		}
 
-		{-4-}function new(s:String) {}{-5-}
+		function {-4-}new{-5-}(s:String) {}
 	}
 	**/
 	function test() {

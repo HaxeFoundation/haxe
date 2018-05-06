@@ -3,7 +3,7 @@ package cases;
 class Issue5999 extends DisplayTestCase {
 	/**
 	class Main {
-		{-1-}static inline var value = 1;{-2-}
+		static inline var {-1-}value{-2-} = 1;
 
 		static public function main() {
 			trace(val{-3-}ue);

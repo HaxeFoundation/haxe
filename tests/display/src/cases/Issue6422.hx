@@ -7,7 +7,7 @@ class Issue6422 extends DisplayTestCase {
 			pro{-1-}perty;
 		}
 
-		{-2-}static var property(get, set):Int;{-3-}
+		static var {-2-}property{-3-}(get, set):Int;
 		static function get_property() return 0;
 		static function set_property(i) return 0;
 	}

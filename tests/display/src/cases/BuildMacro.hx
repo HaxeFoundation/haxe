@@ -9,7 +9,7 @@ class BuildMacro extends DisplayTestCase {
 		}
 	}
 
-	{-7-}typedef MyString = String{-8-};
+	typedef {-7-}MyString{-8-} = String;
 
 	#if !macro
 	@:build(cases.BuildMacro.MyMacro.build())

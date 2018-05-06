@@ -5,8 +5,8 @@ class PropertyAccessors extends DisplayTestCase {
 	class Main {
 		static var test(ge{-1-}t, se{-2-}t):String;
 
-		{-3-}static public function get_test() return "foo"{-4-};
-		{-5-}static public function set_test(s:String) return s{-6-};
+		static public function {-3-}get_test{-4-}() return "foo";
+		static public function {-5-}set_test{-6-}(s:String) return s;
 
 		static function main() { }
 	}

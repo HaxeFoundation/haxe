@@ -134,7 +134,7 @@ end
 
 module DisplayEmitter = struct
 	let display_module_type dm mt p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_pos]);
+		| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_name_pos]);
 		| DMUsage _ ->
 			let ti = t_infos mt in
 			ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
@@ -170,7 +170,7 @@ module DisplayEmitter = struct
 		| _ -> ()
 
 	let display_field dm cf p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
+		| DMPosition -> raise (DisplayPosition [cf.cf_name_pos]);
 		| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
 		| DMType ->
 			let t = if Meta.has Meta.Impl cf.cf_meta then
@@ -185,7 +185,7 @@ module DisplayEmitter = struct
 		if is_display_position p then display_field ctx.com.display cf p
 
 	let display_enum_field dm ef p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [p]);
+		| DMPosition -> raise (DisplayPosition [ef.ef_name_pos]);
 		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
 		| DMType -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 		| _ -> ()

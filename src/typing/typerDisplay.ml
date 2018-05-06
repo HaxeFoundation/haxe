@@ -180,28 +180,28 @@ and display_expr ctx e_ast e dk with_type p =
 		e
 	| DMPosition ->
 		let rec loop e = match e.eexpr with
-		| TField(_,FEnum(_,ef)) -> [ef.ef_pos]
-		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_pos]
+		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
+		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_name_pos]
 		| TLocal v | TVar(v,_) -> [v.v_pos]
 		| TTypeExpr mt -> [(t_infos mt).mt_pos]
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				[cf.cf_pos]
+				[cf.cf_name_pos]
 			with Not_found ->
 				[]
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
 				let cf = get_super_constructor() in
-				[cf.cf_pos]
+				[cf.cf_name_pos]
 			with Not_found ->
 				[]
 			end
 		| TConst TSuper ->
 			begin match ctx.curclass.cl_super with
 				| None -> []
-				| Some (c,_) -> [c.cl_pos]
+				| Some (c,_) -> [c.cl_name_pos]
 			end
 		| TCall(e1,_) ->
 			loop e1
