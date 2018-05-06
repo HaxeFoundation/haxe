@@ -30,8 +30,15 @@ let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 					| "." | ".." ->
 						()
 					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-						f_pack file;
-						if recusive then loop (dir ^ file ^ "/") (file :: pack)
+						begin try
+							begin match PMap.find file ctx.com.package_rules with
+								| Forbidden -> ()
+								| _ -> raise Not_found
+							end
+						with Not_found ->
+							f_pack file;
+							if recusive then loop (dir ^ file ^ "/") (file :: pack)
+						end
 					| _ ->
 						let l = String.length file in
 						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
@@ -130,65 +137,72 @@ let collect ctx only_types =
 
 	let module_types = ref [] in
 
-	let add_type mt =
+	let add_type rm mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
-			if not (List.exists (fun mt2 -> (t_infos mt2).mt_path = path) !module_types) then begin
+			if not (List.exists (fun (mt2,_) -> (t_infos mt2).mt_path = path) !module_types) then begin
 				(match mt with
 				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
 					!merge_core_doc_ref ctx c
 				| _ -> ());
-				module_types := mt :: !module_types
+				module_types := (mt,rm) :: !module_types
 			end
 	in
 
 	(* module types *)
-	List.iter add_type ctx.m.curmod.m_types;
+	List.iter (add_type RMLocalModule) ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter add_type (List.map fst ctx.m.module_types);
+	List.iter (add_type RMImport) (List.map fst ctx.m.module_types);
 
 	(* module using *)
 	List.iter (fun (c,_) ->
-		add_type (TClassDecl c)
+		add_type RMUsing (TClassDecl c)
 	) ctx.m.module_using;
 
-	(* TODO: wildcard packages. How? *)
+	let packages = Hashtbl.create 0 in
+	let add_package s = Hashtbl.replace packages s true in
 
-	(* packages and toplevel types *)
 	let class_paths = ctx.com.class_path in
 	let class_paths = List.filter (fun s -> s <> "") class_paths in
 
-	let packages = ref [] in
-	let add_package pack =
-		try
-			begin match PMap.find pack ctx.com.package_rules with
-				| Forbidden ->
-					()
-				| _ ->
-					raise Not_found
-			end
-		with Not_found ->
-			if not (List.mem pack !packages) then packages := pack :: !packages
-	in
+	begin match !CompilationServer.instance with
+	| None ->
+		let maybe_add_type mt = if not (t_infos mt).mt_private then add_type RMClassPath mt in
+		explore_class_paths ctx class_paths true add_package (fun _ -> ()) maybe_add_type;
+	| Some cs ->
+		(* if not (CompilationServer.is_initialized cs) then begin
+			(* CompilationServer.set_initialized cs; *)
+			explore_class_paths ctx class_paths true (fun _ -> ()) (fun _ -> ()) (fun _ -> ());
+			let cache_module m = CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m in
+			Hashtbl.iter (fun _ m -> cache_module m) ctx.g.modules;
+		end; *)
+		CompilationServer.iter_modules cs (fun m ->
+			let rm = match (fst m.m_path) with
+				| [] -> RMClassPath
+				| s :: _ ->
+					add_package s;
+					RMOtherModule m.m_path
+			in
+			List.iter (fun mt -> add_type rm mt) m.m_types
+		);
+	end;
 
-	let maybe_add_type mt = if not (t_infos mt).mt_private then add_type mt in
+	(* TODO: wildcard packages. How? *)
 
-	explore_class_paths ctx class_paths false add_package (fun _ -> ()) maybe_add_type;
-
-	List.iter (fun pack ->
-		add (ITPackage pack)
-	) !packages;
-
-	List.iter (fun mt ->
-		add (ITType mt)
+	List.iter (fun (mt,rm) ->
+		add (ITType(mt,rm))
 	) !module_types;
+
+	Hashtbl.iter (fun pack _ ->
+		add (ITPackage pack)
+	) packages;
 
 	(* type params *)
 	List.iter (fun (_,t) ->
-		add (ITType (module_type_of_type t))
+		add (ITType (module_type_of_type t,RMTypeParameter))
 	) ctx.type_params;
 
 	DynArray.to_list acc

@@ -217,6 +217,14 @@ type compiler_callback = {
 }
 
 module IdentifierType = struct
+	type resolution_mode =
+		| RMLocalModule
+		| RMImport
+		| RMUsing
+		| RMTypeParameter
+		| RMClassPath
+		| RMOtherModule of path
+
 	type t =
 		| ITLocal of tvar
 		| ITMember of tclass_field
@@ -224,7 +232,7 @@ module IdentifierType = struct
 		| ITEnum of tenum * tenum_field
 		| ITEnumAbstract of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
-		| ITType of module_type
+		| ITType of module_type * resolution_mode
 		| ITPackage of string
 		| ITLiteral of string
 		| ITTimer of string
@@ -234,10 +242,11 @@ module IdentifierType = struct
 		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
 		| ITEnum(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
-		| ITType mt -> snd (t_infos mt).mt_path
+		| ITType(mt,_) -> snd (t_infos mt).mt_path
 		| ITPackage s -> s
 		| ITLiteral s -> s
 		| ITTimer s -> s
+
 end
 
 type shared_display_information = {
@@ -324,6 +333,7 @@ module CompilationServer = struct
 	type t = {
 		cache : cache;
 		mutable signs : (string * string) list;
+		mutable initialized : bool;
 	}
 
 	type context_options =
@@ -344,6 +354,7 @@ module CompilationServer = struct
 		let cs = {
 			cache = create_cache();
 			signs = [];
+			initialized = false;
 		} in
 		instance := Some cs;
 		cs
@@ -353,6 +364,12 @@ module CompilationServer = struct
 
 	let runs () =
 		!instance <> None
+
+	let is_initialized cs =
+		cs.initialized = true
+
+	let set_initialized cs =
+		cs.initialized <- true
 
 	let get_context_files cs signs =
 		Hashtbl.fold (fun (file,sign) (_,data) acc ->
@@ -380,6 +397,9 @@ module CompilationServer = struct
 
 	let taint_modules cs file =
 		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
+
+	let iter_modules cs f =
+		Hashtbl.iter (fun _ m -> f m) cs.cache.c_modules
 
 	(* files *)
 

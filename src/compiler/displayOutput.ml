@@ -82,9 +82,13 @@ let print_toplevel il =
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| IdentifierType.ITGlobal(mt,s,t) ->
 			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-		| IdentifierType.ITType(mt) ->
+		| IdentifierType.ITType(mt,rm) ->
 			let infos = t_infos mt in
-			if check_ident (snd infos.mt_path) then Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path infos.mt_path) (s_doc infos.mt_doc) (snd infos.mt_path));
+			let import = match rm with
+				| IdentifierType.RMOtherModule path -> Printf.sprintf " import=\"%s\"" (s_type_path path)
+				| _ -> ""
+			in
+			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") (snd infos.mt_path));
 		| IdentifierType.ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		| IdentifierType.ITLiteral s ->
