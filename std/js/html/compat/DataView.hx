@@ -131,7 +131,6 @@ class DataView {
 		}
 	}
 
-	static inline var LN2 = 0.6931471805599453;
 	public function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void {
 		setUint32(byteOffset, @:privateAccess haxe.io.FPHelper._floatToI32(value), littleEndian);
 	}
