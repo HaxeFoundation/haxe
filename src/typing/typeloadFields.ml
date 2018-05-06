@@ -51,7 +51,7 @@ type field_init_ctx = {
 	is_inline : bool;
 	is_final : bool;
 	is_static : bool;
-	is_override : bool;
+	override : pos option;
 	is_extern : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
@@ -85,7 +85,6 @@ let dump_field_context fctx =
 	Printer.s_record_fields "" [
 		"is_inline",string_of_bool fctx.is_inline;
 		"is_static",string_of_bool fctx.is_static;
-		"is_override",string_of_bool fctx.is_override;
 		"is_extern",string_of_bool fctx.is_extern;
 		"is_macro",string_of_bool fctx.is_macro;
 		"is_abstract_member",string_of_bool fctx.is_abstract_member;
@@ -411,7 +410,7 @@ let create_field_context (ctx,cctx) c cff =
 		| _ -> true
 	in
 	let is_inline = allow_inline && List.mem_assoc AInline cff.cff_access in
-	let is_override = List.mem_assoc AOverride cff.cff_access in
+	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
 	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
 		| "new" -> FKConstructor
@@ -421,7 +420,7 @@ let create_field_context (ctx,cctx) c cff =
 	let fctx = {
 		is_inline = is_inline;
 		is_static = is_static;
-		is_override = is_override;
+		override = override;
 		is_macro = is_macro;
 		is_extern = is_extern;
 		is_final = List.mem_assoc AFinal cff.cff_access;
@@ -962,6 +961,17 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
+					if ctx.is_display_file && ctx.com.display.dms_kind = DMPosition then begin match fctx.override with
+						| Some p when Display.is_display_position p ->
+							begin match c.cl_super with
+							| Some(c,tl) ->
+								let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
+								Display.DisplayEmitter.display_field ctx.com.display cf p
+							| _ ->
+								()
+							end
+						| _ -> ()
+					end;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
@@ -1139,7 +1149,10 @@ let init_field (ctx,cctx,fctx) f =
 		| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) p
 		| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) p
 	) f.cff_access;
-	if fctx.is_override then (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
+	begin match fctx.override with
+		| Some _ -> (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
+		| None -> ()
+	end;
 	match f.cff_kind with
 	| FVar (t,e) ->
 		create_variable (ctx,cctx,fctx) c f t e p
@@ -1236,7 +1249,7 @@ let init_class ctx c p context_init herits fields =
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be use for both static and instance : " ^ cf.cf_name) p;
-				if fctx.is_override then c.cl_overrides <- cf :: c.cl_overrides;
+				if fctx.override <> None then c.cl_overrides <- cf :: c.cl_overrides;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then
