@@ -172,7 +172,13 @@ module DisplayEmitter = struct
 	let display_field dm cf p = match dm.dms_kind with
 		| DMPosition -> raise (DisplayPosition [cf.cf_pos]);
 		| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
-		| DMType -> raise (DisplayType (cf.cf_type,p,cf.cf_doc))
+		| DMType ->
+			let t = if Meta.has Meta.Impl cf.cf_meta then
+				(prepare_using_field cf).cf_type
+			else
+				cf.cf_type
+			in
+			raise (DisplayType (t,p,cf.cf_doc))
 		| _ -> ()
 
 	let maybe_display_field ctx p cf =
