@@ -85,7 +85,9 @@ let print_toplevel il =
 		| IdentifierType.ITType(mt,rm) ->
 			let infos = t_infos mt in
 			let import,name = match rm with
-				| IdentifierType.RMOtherModule path -> Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path infos.mt_path
+				| IdentifierType.RMOtherModule path ->
+					let label_path = if path = infos.mt_path then path else (fst path @ [snd path],snd infos.mt_path) in
+					Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path label_path
 				| _ -> "",(snd infos.mt_path)
 			in
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") name);
