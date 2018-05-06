@@ -168,10 +168,11 @@ let collect ctx only_types =
 	let class_paths = ctx.com.class_path in
 	let class_paths = List.filter (fun s -> s <> "") class_paths in
 
+	let maybe_add_type rm mt = if not (t_infos mt).mt_private then add_type rm mt in
+
 	begin match !CompilationServer.instance with
 	| None ->
-		let maybe_add_type mt = if not (t_infos mt).mt_private then add_type RMClassPath mt in
-		explore_class_paths ctx class_paths true add_package (fun _ -> ()) maybe_add_type;
+		explore_class_paths ctx class_paths true add_package (fun _ -> ()) (maybe_add_type RMClassPath);
 	| Some cs ->
 		(* if not (CompilationServer.is_initialized cs) then begin
 			(* CompilationServer.set_initialized cs; *)
@@ -186,7 +187,7 @@ let collect ctx only_types =
 					add_package s;
 					RMOtherModule m.m_path
 			in
-			List.iter (fun mt -> add_type rm mt) m.m_types
+			List.iter (fun mt -> maybe_add_type rm mt) m.m_types
 		);
 	end;
 
