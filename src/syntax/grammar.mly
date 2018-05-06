@@ -1060,7 +1060,13 @@ and expr = parser
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
-and expr_next e1 = parser
+and expr_next e1 s =
+	try
+		expr_next' e1 s
+	with Stream.Error _ when do_resume() ->
+		e1
+
+and expr_next' e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
