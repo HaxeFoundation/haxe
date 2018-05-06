@@ -627,6 +627,10 @@ and parse_class_field s =
 		| [< >] ->
 			if al = [] then raise Stream.Failure else serror()
 		) in
+		let pos = match List.rev al with
+			| [] -> pos
+			| (_,p) :: _ -> punion p pos
+		in
 		{
 			cff_name = name;
 			cff_doc = doc;
