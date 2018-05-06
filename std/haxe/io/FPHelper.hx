@@ -52,11 +52,10 @@ class FPHelper {
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 			b;
 		}
-	#elseif js
+	#else
+		#if js
 		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
-	#end
-
-	#if !(neko || cpp || cs || java || flash || (js && nodejs))
+		#end
 		static inline var LN2 = 0.6931471805599453; // Math.log(2)
 
 		static inline function _i32ToFloat(i: Int): Float {
@@ -259,13 +258,6 @@ class FPHelper {
 			helper.setInt32(4, high, true);
 			return helper.getFloat64(0,true);
 		#else
-			#if python
-			if (low == 0 && high == 2146435072) {
-				return Math.POSITIVE_INFINITY;
-			} else if (low == 0 && high == -1048576 ) {
-				return Math.NEGATIVE_INFINITY;
-			}
-			#end
 			return _i64ToDouble(low, high);
 		#end
 	}
