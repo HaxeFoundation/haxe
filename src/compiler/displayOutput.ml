@@ -84,11 +84,11 @@ let print_toplevel il =
 			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
 		| IdentifierType.ITType(mt,rm) ->
 			let infos = t_infos mt in
-			let import = match rm with
-				| IdentifierType.RMOtherModule path -> Printf.sprintf " import=\"%s\"" (s_type_path path)
-				| _ -> ""
+			let import,name = match rm with
+				| IdentifierType.RMOtherModule path -> Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path infos.mt_path
+				| _ -> "",(snd infos.mt_path)
 			in
-			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") (snd infos.mt_path));
+			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") name);
 		| IdentifierType.ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		| IdentifierType.ITLiteral s ->
