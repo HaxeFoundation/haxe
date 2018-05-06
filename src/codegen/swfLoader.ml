@@ -160,22 +160,22 @@ let build_class com c file =
 	let make_field stat acc f =
 		let meta = ref [] in
 		let flags = (match f.hlf_name with
-			| HMPath _ -> [APublic]
+			| HMPath _ -> [APublic,null_pos]
 			| HMName (_,ns) ->
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
 					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
-					[APublic]
+					[APublic,null_pos]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
-					[APublic]
+					[APublic,null_pos]
 				| HNStaticProtected _ | HNProtected _ ->
 					meta := (Meta.Protected,[]) :: !meta;
-					[APrivate])
+					[APrivate,null_pos])
 			| _ -> []
 		) in
 		if flags = [] then acc else
-		let flags = if stat then AStatic :: flags else flags in
+		let flags = if stat then (AStatic,null_pos) :: flags else flags in
 		let name = (make_tpath f.hlf_name).tname in
 		let mk_meta() =
 			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl, pos) (!meta)
@@ -288,8 +288,8 @@ let build_class com c file =
 			| Some t1, Some t2 -> true, true, (if t1 <> t2 then None else t1)
 		) in
 		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
-		let flags = [APublic] in
-		let flags = if stat then AStatic :: flags else flags in
+		let flags = [APublic,null_pos] in
+		let flags = if stat then (AStatic,null_pos) :: flags else flags in
 		{
 			cff_name = name,null_pos;
 			cff_pos = pos;
@@ -319,7 +319,7 @@ let build_class com c file =
 			| f :: l ->
 				match f.cff_kind with
 				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
-				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem AStatic f.cff_access ->
+				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem_assoc AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
 					{
 						ec_name = f.cff_name;
@@ -351,7 +351,7 @@ let build_class com c file =
 		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
+		d_meta = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
 		d_flags = flags;
 		d_data = fields;
 	} in

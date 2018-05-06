@@ -251,12 +251,12 @@ let convert_java_enum ctx p pe =
 		let readonly = ref false in
 
 		List.iter (function
-			| JPublic -> cff_access := APublic :: !cff_access
+			| JPublic -> cff_access := (APublic,null_pos) :: !cff_access
 			| JPrivate -> raise Exit (* private instances aren't useful on externs *)
 			| JProtected ->
 				cff_meta := (Meta.Protected, [], p) :: !cff_meta;
-				cff_access := APrivate :: !cff_access
-			| JStatic -> cff_access := AStatic :: !cff_access
+				cff_access := (APrivate,null_pos) :: !cff_access
+			| JStatic -> cff_access := (AStatic,null_pos) :: !cff_access
 			| JFinal ->
 				cff_meta := (Meta.Final, [], p) :: !cff_meta;
 				(match field.jf_kind, field.jf_vmsignature, field.jf_constant with
@@ -279,7 +279,7 @@ let convert_java_enum ctx p pe =
 			| AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
-						cff_access := AOverride :: !cff_access
+						cff_access := (AOverride,null_pos) :: !cff_access
 					| _ -> ()
 				) ann
 			| _ -> ()
@@ -357,7 +357,7 @@ let convert_java_enum ctx p pe =
 							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
 		in
 		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
-			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem AStatic !cff_access then "static " else "") (if List.mem AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
+			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
 			cff_name = cff_name,null_pos;

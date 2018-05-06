@@ -51,7 +51,7 @@ type field_init_ctx = {
 	is_inline : bool;
 	is_final : bool;
 	is_static : bool;
-	is_override : bool;
+	override : pos option;
 	is_extern : bool;
 	is_macro : bool;
 	is_abstract_member : bool;
@@ -85,7 +85,6 @@ let dump_field_context fctx =
 	Printer.s_record_fields "" [
 		"is_inline",string_of_bool fctx.is_inline;
 		"is_static",string_of_bool fctx.is_static;
-		"is_override",string_of_bool fctx.is_override;
 		"is_extern",string_of_bool fctx.is_extern;
 		"is_macro",string_of_bool fctx.is_macro;
 		"is_abstract_member",string_of_bool fctx.is_abstract_member;
@@ -192,13 +191,13 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		c.cl_constructor <- Some cf
 
 let transform_abstract_field com this_t a_t a f =
-	let stat = List.mem AStatic f.cff_access in
+	let stat = List.mem_assoc AStatic f.cff_access in
 	let p = f.cff_pos in
 	match f.cff_kind with
 	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
 		(* TODO: hack to avoid issues with abstract property generation on As3 *)
-		if Common.defined com Define.As3 then f.cff_access <- AExtern :: f.cff_access;
-		{ f with cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
+		if Common.defined com Define.As3 then f.cff_access <- (AExtern,null_pos) :: f.cff_access;
+		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
@@ -207,9 +206,9 @@ let transform_abstract_field com this_t a_t a f =
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],null_pos) :: f.cff_meta in
 		if Meta.has Meta.MultiType a.a_meta then begin
-			if List.mem AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
+			if List.mem_assoc AInline f.cff_access then error "MultiType constructors cannot be inline" f.cff_pos;
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
-			f.cff_access <- AExtern :: f.cff_access;
+			f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		end;
 		(* We don't want the generated expression positions to shadow the real code. *)
 		let p = { p with pmax = p.pmin } in
@@ -222,11 +221,11 @@ let transform_abstract_field com this_t a_t a f =
 			);
 			f_type = Some a_t;
 		} in
-		{ f with cff_name = "_new",pos f.cff_name; cff_access = AStatic :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
+		{ f with cff_name = "_new",pos f.cff_name; cff_access = (AStatic,null_pos) :: f.cff_access; cff_kind = FFun fu; cff_meta = meta }
 	| FFun fu when not stat ->
 		if Meta.has Meta.From f.cff_meta then error "@:from cast functions must be static" f.cff_pos;
-		let fu = { fu with f_args = (if List.mem AMacro f.cff_access then fu.f_args else (("this",null_pos),false,[],Some this_t,None) :: fu.f_args) } in
-		{ f with cff_kind = FFun fu; cff_access = AStatic :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
+		let fu = { fu with f_args = (if List.mem_assoc AMacro f.cff_access then fu.f_args else (("this",null_pos),false,[],Some this_t,None) :: fu.f_args) } in
+		{ f with cff_kind = FFun fu; cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
 	| _ ->
 		f
 
@@ -256,7 +255,7 @@ let patch_class ctx c fields =
 					f.cff_kind <- FFun { ff with f_args = List.map param ff.f_args }
 				| _ -> ());
 				(* other patches *)
-				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem AStatic f.cff_access)) with Not_found -> None) with
+				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem_assoc AStatic f.cff_access)) with Not_found -> None) with
 				| None -> loop (f :: acc) l
 				| Some { tp_remove = true } -> loop acc l
 				| Some p ->
@@ -275,8 +274,8 @@ let patch_class ctx c fields =
 let build_enum_abstract ctx c a fields p =
 	List.iter (fun field ->
 		match field.cff_kind with
-		| FVar(ct,eo) when not (List.mem AStatic field.cff_access) ->
-			field.cff_access <- [AStatic; if (List.mem APrivate field.cff_access) then APrivate else APublic];
+		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
+			field.cff_access <- [AStatic,null_pos; if (List.mem_assoc APrivate field.cff_access) then (APrivate,null_pos) else (APublic,null_pos)];
 			field.cff_meta <- (Meta.Enum,[],null_pos) :: (Meta.Impl,[],null_pos) :: field.cff_meta;
 			let ct = match ct with
 				| Some _ -> ct
@@ -287,7 +286,7 @@ let build_enum_abstract ctx c a fields p =
 					if not c.cl_extern then error "Value required" field.cff_pos
 					else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
-					field.cff_access <- AInline :: field.cff_access;
+					field.cff_access <- (AInline,null_pos) :: field.cff_access;
 					let e = (ECast(e,None),(pos e)) in
 					field.cff_kind <- FVar(ct,Some e)
 			end
@@ -397,8 +396,8 @@ let create_field_context (ctx,cctx) c cff =
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 	} in
-	let is_static = List.mem AStatic cff.cff_access in
-	let is_extern = List.mem AExtern cff.cff_access in
+	let is_static = List.mem_assoc AStatic cff.cff_access in
+	let is_extern = List.mem_assoc AExtern cff.cff_access in
 	let is_extern = if Meta.has Meta.Extern cff.cff_meta then begin
 		(* if not (Define.is_haxe3_compat ctx.com.defines) then
 			ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
@@ -410,9 +409,9 @@ let create_field_context (ctx,cctx) c cff =
 		| FFun _ -> ctx.g.doinline || is_extern || c.cl_extern
 		| _ -> true
 	in
-	let is_inline = allow_inline && List.mem AInline cff.cff_access in
-	let is_override = List.mem AOverride cff.cff_access in
-	let is_macro = List.mem AMacro cff.cff_access in
+	let is_inline = allow_inline && List.mem_assoc AInline cff.cff_access in
+	let override = try Some (List.assoc AOverride cff.cff_access) with Not_found -> None in
+	let is_macro = List.mem_assoc AMacro cff.cff_access in
 	let field_kind = match fst cff.cff_name with
 		| "new" -> FKConstructor
 		| "__init__" when is_static -> FKInit
@@ -421,10 +420,10 @@ let create_field_context (ctx,cctx) c cff =
 	let fctx = {
 		is_inline = is_inline;
 		is_static = is_static;
-		is_override = is_override;
+		override = override;
 		is_macro = is_macro;
 		is_extern = is_extern;
-		is_final = List.mem AFinal cff.cff_access;
+		is_final = List.mem_assoc AFinal cff.cff_access;
 		is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
 		is_field_debug = cctx.is_class_debug;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
@@ -436,9 +435,9 @@ let create_field_context (ctx,cctx) c cff =
 
 let is_public (ctx,cctx) access parent =
 	let c = cctx.tclass in
-	if List.mem APrivate access then
+	if List.mem_assoc APrivate access then
 		false
-	else if List.mem APublic access then
+	else if List.mem_assoc APublic access then
 		true
 	else match parent with
 		| Some { cf_public = p } -> p
@@ -491,11 +490,11 @@ let build_fields (ctx,cctx) c fields =
 					| None ->
 						f
 				in
-				if List.mem AMacro f.cff_access then
+				if List.mem_assoc AMacro f.cff_access then
 					(match ctx.g.macros with
 					| Some (_,mctx) when Hashtbl.mem mctx.g.types_module c.cl_path ->
 						(* assume that if we had already a macro with the same name, it has not been changed during the @:build operation *)
-						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem AMacro f2.cff_access) (!fields)) then
+						if not (List.exists (fun f2 -> f2.cff_name = f.cff_name && List.mem_assoc AMacro f2.cff_access) (!fields)) then
 							error "Class build macro cannot return a macro function when the class has already been compiled into the macro context" p
 					| _ -> ());
 				f
@@ -895,7 +894,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			()
 	end;
 	let parent = (if not fctx.is_static then get_parent c (fst f.cff_name) else None) in
-	let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
+	let dynamic = List.mem_assoc ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 	if fctx.is_inline && dynamic then error (fst f.cff_name ^ ": You can't have both 'inline' and 'dynamic'") p;
 	ctx.type_params <- (match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
@@ -962,6 +961,17 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
+					if ctx.is_display_file && ctx.com.display.dms_kind = DMPosition then begin match fctx.override with
+						| Some p when Display.is_display_position p ->
+							begin match c.cl_super with
+							| Some(c,tl) ->
+								let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
+								Display.DisplayEmitter.display_field ctx.com.display cf p
+							| _ ->
+								()
+							end
+						| _ -> ()
+					end;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
@@ -1133,13 +1143,16 @@ let init_field (ctx,cctx,fctx) f =
 	let p = f.cff_pos in
 	if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 	List.iter (fun acc ->
-		match (acc, f.cff_kind) with
+		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
-		| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for variable " ^ name) p
-		| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_access acc ^ "' for property " ^ name) p
+		| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) p
+		| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) p
 	) f.cff_access;
-	if fctx.is_override then (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
+	begin match fctx.override with
+		| Some _ -> (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
+		| None -> ()
+	end;
 	match f.cff_kind with
 	| FVar (t,e) ->
 		create_variable (ctx,cctx,fctx) c f t e p
@@ -1236,7 +1249,7 @@ let init_class ctx c p context_init herits fields =
 			| FKNormal ->
 				let dup = if fctx.is_static then PMap.exists cf.cf_name c.cl_fields || has_field cf.cf_name c.cl_super else PMap.exists cf.cf_name c.cl_statics in
 				if not cctx.is_native && not c.cl_extern && dup then error ("Same field name can't be use for both static and instance : " ^ cf.cf_name) p;
-				if fctx.is_override then c.cl_overrides <- cf :: c.cl_overrides;
+				if fctx.override <> None then c.cl_overrides <- cf :: c.cl_overrides;
 				let is_var cf = match cf.cf_kind with | Var _ -> true | _ -> false in
 				if PMap.mem cf.cf_name (if fctx.is_static then c.cl_statics else c.cl_fields) then
 					if ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta && not (is_var cf) then

@@ -616,8 +616,8 @@ and parse_class_field s =
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
 			| [< name = dollar_ident; t = popt parse_type_hint_with_pos; e,p2 = parse_var_field_assignment >] ->
-				name,punion p1 p2,FVar(t,e),(AFinal :: al)
-			| [< al = parse_cf_rights (not (List.mem AStatic al)) (AFinal :: al); f = parse_function_field doc meta al >] ->
+				name,punion p1 p2,FVar(t,e),((AFinal,p1) :: al)
+			| [< al = parse_cf_rights (not (List.mem_assoc AStatic al)) ((AFinal,p1) :: al); f = parse_function_field doc meta al >] ->
 				f
 			| [< >] ->
 				serror()
@@ -627,6 +627,10 @@ and parse_class_field s =
 		| [< >] ->
 			if al = [] then raise Stream.Failure else serror()
 		) in
+		let pos = match List.rev al with
+			| [] -> pos
+			| (_,p) :: _ -> punion p pos
+		in
 		{
 			cff_name = name;
 			cff_doc = doc;
@@ -637,14 +641,14 @@ and parse_class_field s =
 		}
 
 and parse_cf_rights allow_static l = parser
-	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
-	| [< '(Kwd Macro,_) when not(List.mem AMacro l); l = parse_cf_rights allow_static (AMacro :: l) >] -> l
-	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
-	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
-	| [< '(Kwd Override,_) when not (List.mem AOverride l); l = parse_cf_rights false (AOverride :: l) >] -> l
-	| [< '(Kwd Dynamic,_) when not (List.mem ADynamic l); l = parse_cf_rights allow_static (ADynamic :: l) >] -> l
-	| [< '(Kwd Inline,_); l = parse_cf_rights allow_static (AInline :: l) >] -> l
-	| [< '(Kwd Extern,_); l = parse_cf_rights allow_static (AExtern :: l) >] -> l
+	| [< '(Kwd Static,p) when allow_static; l = parse_cf_rights false ((AStatic,p) :: l) >] -> l
+	| [< '(Kwd Macro,p) when not(List.mem_assoc AMacro l); l = parse_cf_rights allow_static ((AMacro,p) :: l) >] -> l
+	| [< '(Kwd Public,p) when not(List.mem_assoc APublic l || List.mem_assoc APrivate l); l = parse_cf_rights allow_static ((APublic,p) :: l) >] -> l
+	| [< '(Kwd Private,p) when not(List.mem_assoc APublic l || List.mem_assoc APrivate l); l = parse_cf_rights allow_static ((APrivate,p) :: l) >] -> l
+	| [< '(Kwd Override,p) when not (List.mem_assoc AOverride l); l = parse_cf_rights false ((AOverride,p) :: l) >] -> l
+	| [< '(Kwd Dynamic,p) when not (List.mem_assoc ADynamic l); l = parse_cf_rights allow_static ((ADynamic,p) :: l) >] -> l
+	| [< '(Kwd Inline,p); l = parse_cf_rights allow_static ((AInline,p) :: l) >] -> l
+	| [< '(Kwd Extern,p); l = parse_cf_rights allow_static ((AExtern,p) :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser

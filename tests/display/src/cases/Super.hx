@@ -3,7 +3,7 @@ package cases;
 class Super extends DisplayTestCase {
 	/**
 	class Base<T> {
-		public {-1-}function new() { }{-2-}
+		{-1-}public function new() { }{-2-}
 	}
 	class Main extends Base<String> {
 		function new() {
@@ -19,7 +19,7 @@ class Super extends DisplayTestCase {
 
 	/**
 	{-1-}class Base<T> {
-		public {-4-}function test() { }{-5-}
+		{-4-}public function test() { }{-5-}
 	}{-2-}
 	class Main extends Base<String> {
 		override function test() {
