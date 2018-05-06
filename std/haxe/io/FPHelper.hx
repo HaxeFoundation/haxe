@@ -31,8 +31,82 @@ class FPHelper {
 	// stored in helper
 	#elseif neko
 	static var i64tmp = new neko.vm.Tls<Int64>();
-	#elseif !(java || cs)
+	#elseif !(java || cs || cpp)
 	static var i64tmp = Int64.ofInt(0);
+
+	static inline var LN2 = 0.6931471805599453; // Math.log(2)
+
+	static inline function _i32ToFloat(i: Int): Float {
+		var sign = 1 - ((i >>> 31) << 1);
+		var e = (i >> 23) & 0xff;
+		if (e == 255)
+			return i & 0x7fffff == 0
+				? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
+				: Math.NaN;
+		var m = e == 0 ? (i & 0x7fffff) << 1 : (i & 0x7fffff) | 0x800000;
+		return sign * m * Math.pow(2, e - 150);
+	}
+
+	static inline function _i64ToDouble(lo: Int, hi: Int): Float {
+		var sign = 1 - ((hi >>> 31) << 1);
+		var e = (hi >> 20) & 0x7ff;
+		if (e == 2047)
+			return lo == 0 && (hi & 0xFFFFF) == 0
+				? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
+				: Math.NaN;
+		var m = 2.220446049250313e-16 * ((hi & 0xFFFFF) * 4294967296. + (lo >>> 31) * 2147483648. + (lo & 0x7FFFFFFF));
+		m = e == 0 ? m * 2.0 : m + 1.0;
+		return sign * m * Math.pow(2, e - 1023);
+	}
+
+	static inline function _floatToI32(f: Float): Int {
+		if( f == 0 ) return 0;
+		var af = f < 0 ? -f : f;
+		var exp = Math.floor(Math.log(af) / LN2);
+		if (exp > 127) {
+			return 0x7F800000;
+		} else {
+			if (exp <= -127 ) {
+				exp = -127;
+				af *= 7.1362384635298e+44;  // af * 0.5 * 0x800000 / Math.pow(2, -127)
+			} else {
+				af = (af / Math.pow(2, exp) - 1.0) * 0x800000;
+			}
+			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | Math.round(af);
+		}
+	}
+
+	static inline function _doubleToI64(v: Float): Int64 @:privateAccess {
+		var i64 = i64tmp;
+		if( v == 0 ) {
+			i64.set_low(0);
+			i64.set_high(0);
+		} else if (!Math.isFinite(v))  {
+			i64.set_low(0);
+			i64.set_high(v > 0 ? 0x7FF00000 : 0xFFF00000);
+		} else {
+			var av = v < 0 ? -v : v;
+			var exp = Math.floor(Math.log(av) / LN2);
+			if (exp > 1023) {
+				i64.set_low(0xFFFFFFFF);
+				i64.set_high(0x7FEFFFFF);
+			} else {
+				if (exp <= -1023) {
+					exp = -1023;
+					av = av / 2.2250738585072014e-308;
+				} else {
+					av = av / Math.pow(2, exp) - 1.0;
+				}
+				var sig = Math.fround(av * 4503599627370496.); // 2^52
+				// Note: If "sig" is outside of the signed Int32 range, the result is unspecified in HL, C#, Java and Neko,
+				var sig_l = Std.int(sig);
+				var sig_h = Std.int(sig / 4294967296.0);
+				i64.set_low(sig_l);
+				i64.set_high((v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h);
+			}
+		}
+		return i64;
+	}
 	#end
 
 	#if neko
@@ -52,83 +126,8 @@ class FPHelper {
 			b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 			b;
 		}
-	#else
-		#if js
+	#elseif js
 		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
-		#end
-		static inline var LN2 = 0.6931471805599453; // Math.log(2)
-
-		static inline function _i32ToFloat(i: Int): Float {
-			var sign = 1 - ((i >>> 31) << 1);
-			var e = (i >> 23) & 0xff;
-			if (e == 255)
-				return i & 0x7fffff == 0
-					? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
-					: Math.NaN;
-			var m = e == 0 ? (i & 0x7fffff) << 1 : (i & 0x7fffff) | 0x800000;
-			return sign * m * Math.pow(2, e - 150);
-		}
-
-		static inline function _i64ToDouble(lo: Int, hi: Int): Float {
-			var sign = 1 - ((hi >>> 31) << 1);
-			var e = (hi >> 20) & 0x7ff;
-			if (e == 2047)
-				return lo == 0 && (hi & 0xFFFFF) == 0
-					? (sign > 0 ? Math.POSITIVE_INFINITY : Math.NEGATIVE_INFINITY)
-					: Math.NaN;
-			var m = 2.220446049250313e-16 * ((hi & 0xFFFFF) * 4294967296. + (lo >>> 31) * 2147483648. + (lo & 0x7FFFFFFF));
-			m = e == 0 ? m * 2.0 : m + 1.0;
-			return sign * m * Math.pow(2, e - 1023);
-		}
-
-		static inline function _floatToI32(f: Float): Int {
-			if( f == 0 ) return 0;
-			var af = f < 0 ? -f : f;
-			var exp = Math.floor(Math.log(af) / LN2);
-			if (exp > 127) {
-				return 0x7F800000;
-			} else {
-				if (exp <= -127 ) {
-					exp = -127;
-					af *= 7.1362384635298e+44;  // af * 0.5 * 0x800000 / Math.pow(2, -127)
-				} else {
-					af = (af / Math.pow(2, exp) - 1.0) * 0x800000;
-				}
-				return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | Math.round(af);
-			}
-		}
-
-		static inline function _doubleToI64(v: Float): Int64 @:privateAccess {
-			var i64 = i64tmp;
-			if( v == 0 ) {
-				i64.set_low(0);
-				i64.set_high(0);
-			} else if (!Math.isFinite(v))  {
-				i64.set_low(0);
-				i64.set_high(v > 0 ? 0x7FF00000 : 0xFFF00000);
-			} else {
-				var av = v < 0 ? -v : v;
-				var exp = Math.floor(Math.log(av) / LN2);
-				if (exp > 1023) {
-					i64.set_low(0xFFFFFFFF);
-					i64.set_high(0x7FEFFFFF);
-				} else {
-					if (exp <= -1023) {
-						exp = -1023;
-						av = av / 2.2250738585072014e-308;
-					} else {
-						av = av / Math.pow(2, exp) - 1.0;
-					}
-					var sig = Math.fround(av * 4503599627370496.); // 2^52
-					// Note: If "sig" is outside of the signed Int32 range, the result is unspecified in HL, C#, Java and Neko,
-					var sig_l = Std.int(sig);
-					var sig_h = Std.int(sig / 4294967296.0);
-					i64.set_low(sig_l);
-					i64.set_high((v < 0 ? 0x80000000 : 0) | ((exp + 1023) << 20) | sig_h);
-				}
-			}
-			return i64;
-		}
 	#end
 
 	#if neko_v21 inline #end
