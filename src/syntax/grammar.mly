@@ -717,23 +717,21 @@ and block2 name ident p s =
 		in
 		fst (parse_obj_decl name e p s)
 	| [< >] ->
-		let e = expr_next (EConst ident,p) s in
-		try
+		let f s =
+			let e = expr_next (EConst ident,p) s in
 			let _ = semicolon s in
-			let b = block [e] s in
-			EBlock b
-		with
-			| Error (err,p) ->
-				(!display_error) err p;
-				EBlock (block [e] s)
+			e
+		in
+		let el,_ = block_with_pos' [] f p s in
+		EBlock el
 
 and block acc s =
 	fst (block_with_pos acc null_pos s)
 
-and block_with_pos acc p s =
+and block_with_pos' acc f p s =
 	try
 		(* because of inner recursion, we can't put Display handling in errors below *)
-		let e = try parse_block_elt s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
+		let e = try f s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
 		block_with_pos (e :: acc) (pos e) s
 	with
 		| Stream.Failure ->
@@ -745,6 +743,9 @@ and block_with_pos acc p s =
 		| Error (e,p) ->
 			(!display_error) e p;
 			block_with_pos acc p s
+
+and block_with_pos acc p s =
+	block_with_pos' acc parse_block_elt p s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = parse_var_decls p1; p2 = semicolon >] ->
