@@ -385,7 +385,7 @@ and encode_tparam = function
 	| TPExpr e -> encode_enum ITParam 1 [encode_expr e]
 
 and encode_access a =
-	let tag = match a with
+	let tag = match fst a with
 		| APublic -> 0
 		| APrivate -> 1
 		| AStatic -> 2
@@ -396,7 +396,7 @@ and encode_access a =
 		| AFinal -> 7
 		| AExtern -> 8
 	in
-	encode_enum IAccess tag []
+	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
 and encode_meta_entry (m,ml,p) =
 	encode_obj OMetadataEntry [
@@ -698,17 +698,20 @@ and decode_fun v =
 	}
 
 and decode_access v =
-	match decode_enum v with
-	| 0, [] -> APublic
-	| 1, [] -> APrivate
-	| 2, [] -> AStatic
-	| 3, [] -> AOverride
-	| 4, [] -> ADynamic
-	| 5, [] -> AInline
-	| 6, [] -> AMacro
-	| 7, [] -> AFinal
-	| 8, [] -> AExtern
+	let (i,_),p = decode_enum_with_pos v in
+	let a = match i with
+	| 0 -> APublic
+	| 1 -> APrivate
+	| 2 -> AStatic
+	| 3 -> AOverride
+	| 4 -> ADynamic
+	| 5 -> AInline
+	| 6 -> AMacro
+	| 7 -> AFinal
+	| 8 -> AExtern
 	| _ -> raise Invalid_expr
+	in
+	a,p
 
 and decode_meta_entry v =
 	Meta.from_string (decode_string (field v "name")), decode_opt_array decode_expr (field v "params"), decode_pos (field v "pos")

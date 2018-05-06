@@ -307,7 +307,7 @@ let make_macro_api ctx p =
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
 			if not ctx.in_macro then match tdef with
-			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem AMacro cff.cff_access)) c.d_data ->
+			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem_assoc AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
 				()

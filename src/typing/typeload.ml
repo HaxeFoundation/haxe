@@ -346,12 +346,12 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let params = ref [] in
 			let final = ref false in
 			List.iter (fun a ->
-				match a with
+				match fst a with
 				| APublic -> ()
 				| APrivate -> pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
-				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern -> error ("Invalid access " ^ Ast.s_access a) p
+				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern as a -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
 			let t , access = (match f.cff_kind with
 				| FVar(t,e) when !final ->

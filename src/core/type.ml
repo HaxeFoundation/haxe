@@ -1529,7 +1529,7 @@ module Printer = struct
 			"cff_doc",s_opt (fun s -> s) cff.cff_doc;
 			"cff_pos",s_pos cff.cff_pos;
 			"cff_meta",s_metadata cff.cff_meta;
-			"cff_access",s_list ", " Ast.s_access cff.cff_access;
+			"cff_access",s_list ", " Ast.s_placed_access cff.cff_access;
 		]
 end
 

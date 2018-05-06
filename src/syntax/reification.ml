@@ -169,7 +169,7 @@ let reify in_macro =
 	and to_cfield f p =
 		let p = f.cff_pos in
 		let to_access a p =
-			let n = (match a with
+			let n = (match fst a with
 			| APublic -> "APublic"
 			| APrivate -> "APrivate"
 			| AStatic -> "AStatic"
