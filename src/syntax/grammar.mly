@@ -387,12 +387,9 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< >] -> if is_resuming p then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+	| [< s >] -> if would_skip_resume p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
 
 and parse_type_hint = parser
-	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
-
-and parse_type_hint_with_pos s = match s with parser
 	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
 
 and parse_type_opt = parser
@@ -527,7 +524,7 @@ and parse_function_type_next tl p1 = parser
 
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
-	| [< name, p1 = ident; t = parse_type_hint_with_pos; s >] ->
+	| [< name, p1 = ident; t = parse_type_hint; s >] ->
 		let p2 = pos (last_token s) in
 		let next acc =
 			{
@@ -557,7 +554,7 @@ and parse_enum s =
 		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_) >] -> l
 		| [< >] -> []
 		) in
-		let t = popt parse_type_hint_with_pos s in
+		let t = popt parse_type_hint s in
 		let p2 = (match s with parser
 			| [< p = semicolon >] -> p
 			| [< >] -> serror()
@@ -573,11 +570,11 @@ and parse_enum s =
 		}
 
 and parse_enum_param = parser
-	| [< '(Question,_); name, _ = ident; t = parse_type_hint_with_pos >] -> (name,true,t)
-	| [< name, _ = ident; t = parse_type_hint_with_pos >] -> (name,false,t)
+	| [< '(Question,_); name, _ = ident; t = parse_type_hint >] -> (name,true,t)
+	| [< name, _ = ident; t = parse_type_hint >] -> (name,false,t)
 
 and parse_function_field doc meta al = parser
-	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
+	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let e, p2 = (match s with parser
 			| [< e = toplevel_expr; s >] ->
 				(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
@@ -606,16 +603,16 @@ and parse_class_field s =
 		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
-				let t = popt parse_type_hint_with_pos s in
+				let t = popt parse_type_hint s in
 				let e,p2 = parse_var_field_assignment s in
 				name, punion p1 p2, FProp (i1,i2,t, e), al
-			| [< t = popt parse_type_hint_with_pos; s >] ->
+			| [< t = popt parse_type_hint; s >] ->
 				let e,p2 = parse_var_field_assignment s in
 				name, punion p1 p2, FVar (t,e), al
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
-			| [< name = dollar_ident; t = popt parse_type_hint_with_pos; e,p2 = parse_var_field_assignment >] ->
+			| [< name = dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
 				name,punion p1 p2,FVar(t,e),((AFinal,p1) :: al)
 			| [< al = parse_cf_rights (not (List.mem_assoc AStatic al)) ((AFinal,p1) :: al); f = parse_function_field doc meta al >] ->
 				f
@@ -658,8 +655,8 @@ and parse_fun_name = parser
 and parse_fun_param s =
 	let meta = parse_meta s in
 	match s with parser
-	| [< '(Question,_); name, pn = dollar_ident; t = popt parse_type_hint_with_pos; c = parse_fun_param_value >] -> ((name,pn),true,meta,t,c)
-	| [< name, pn = dollar_ident; t = popt parse_type_hint_with_pos; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
+	| [< '(Question,_); name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),true,meta,t,c)
+	| [< name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
 
 and parse_fun_param_value = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr >] -> Some e
@@ -828,7 +825,7 @@ and parse_array_decl p1 s =
 	EArrayDecl (List.rev el),punion p1 p2
 
 and parse_var_decl_head = parser
-	| [< name, p = dollar_ident; t = popt parse_type_hint_with_pos >] -> (name,t,p)
+	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (name,t,p)
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
@@ -881,7 +878,7 @@ and parse_macro_expr p = parser
 		reify_expr e !in_macro
 
 and parse_function p1 inl = parser
-	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint_with_pos; s >] ->
+	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let make e =
 			let f = {
 				f_params = pl;
@@ -967,7 +964,7 @@ and expr = parser
 		| [< '(POpen,pp); e = expr; s >] ->
 			(match s with parser
 			| [< '(Comma,pc); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
-			| [< t,pt = parse_type_hint_with_pos; '(PClose,p2); s >] ->
+			| [< t,pt = parse_type_hint; '(PClose,p2); s >] ->
 				let ep = EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2 in
 				expr_next (ECast (ep,None),punion p1 (pos ep)) s
 			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] ->
@@ -996,7 +993,7 @@ and expr = parser
 			| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 			| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 				arrow_function p1 ((arrow_first_param e) :: al) er
-			| [< t,pt = parse_type_hint_with_pos; s >] -> (match s with parser
+			| [< t,pt = parse_type_hint; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
 				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 					let (np,_) = arrow_ident_checktype e in
@@ -1163,7 +1160,7 @@ and parse_switch_cases eswitch cases = parser
 and parse_catch etry = parser
 	| [< '(Kwd Catch,p); '(POpen,_); name, pn = dollar_ident; s >] ->
 		match s with parser
-		| [< t,pt = parse_type_hint_with_pos; '(PClose,_); s >] ->
+		| [< t,pt = parse_type_hint; '(PClose,_); s >] ->
 			(try
 				let e = secure_expr s in
 				((name,pn),(t,pt),e,punion p (pos e)),(pos e)
