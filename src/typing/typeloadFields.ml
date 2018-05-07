@@ -1280,7 +1280,10 @@ let init_class ctx c p context_init herits fields =
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
 		let rec loop acc c tl =
-			let maybe_add acc cf = if PMap.mem cf.cf_name acc then acc else PMap.add cf.cf_name cf acc in
+			let maybe_add acc cf = match cf.cf_kind with
+				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
+				| _ -> acc
+			in
 			let acc = List.fold_left maybe_add PMap.empty c.cl_ordered_fields in
 			match c.cl_super with
 			| Some(c,tl) -> loop acc c tl
