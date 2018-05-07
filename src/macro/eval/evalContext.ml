@@ -98,12 +98,6 @@ type builtins = {
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
 }
 
-type debug_socket = {
-	addr : Unix.inet_addr;
-	port : int;
-	mutable socket : Unix.file_descr option;
-}
-
 type exception_mode =
 	| CatchAll
 	| CatchUncaught
@@ -117,7 +111,7 @@ type debug = {
 	mutable breakpoint : breakpoint;
 	caught_types : (int,bool) Hashtbl.t;
 	mutable environment_offset_delta : int;
-	mutable debug_socket : debug_socket option;
+	mutable debug_socket : Socket.t option;
 	mutable exception_mode : exception_mode;
 }
 

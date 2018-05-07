@@ -71,11 +71,8 @@ let create com api is_macro =
 					let s = Common.defined_value com Define.EvalDebugger in
 					if s = "1" then raise Exit;
 					let host,port = try ExtString.String.split s ":" with _ -> fail "Invalid host format, expected host:port" in
-					let host = try Unix.inet_addr_of_string host with exc -> fail (Printexc.to_string exc) in
 					let port = try int_of_string port with _ -> fail "Invalid port, expected int" in
-					let socket = try (Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0 with exc -> fail (Printexc.to_string exc) in
-					Unix.connect socket (Unix.ADDR_INET (host,port));
-					Some {addr = host; port = port; socket = Some socket}
+					Some (try Socket.create host port with exc -> fail (Printexc.to_string exc))
 				with _ ->
 					None
 			in
