@@ -1278,7 +1278,7 @@ let init_class ctx c p context_init herits fields =
 	| None -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
+	(* if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
 		let rec loop acc c tl =
 			let maybe_add acc cf = match cf.cf_kind with
 				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
@@ -1300,7 +1300,7 @@ let init_class ctx c p context_init herits fields =
 			else acc
 		) fields [] in
 		raise (Display.DisplayToplevel l)
-	end;
+	end; *)
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
