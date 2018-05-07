@@ -40,6 +40,9 @@ let is_display_file file =
 let encloses_position p_target p =
 	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
 
+let really_encloses_position p_target p =
+	p.pmin <= p_target.pmin && p.pmax > p_target.pmax
+
 let is_display_position p =
 	encloses_position !Parser.resume_display p
 
@@ -48,7 +51,7 @@ module ExprPreprocessing = struct
 		let display_pos = ref (!Parser.resume_display) in
 		let mk_null p = (EDisplay(((EConst(Ident "null")),p),dk),p) in
 		let encloses_display_pos p =
-			if encloses_position !display_pos p then begin
+			if really_encloses_position !display_pos p then begin
 				let p = !display_pos in
 				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 				Some p

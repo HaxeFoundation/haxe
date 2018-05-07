@@ -37,6 +37,7 @@ type class_init_ctx = {
 	extends_public : bool;
 	abstract : tabstract option;
 	context_init : unit -> unit;
+	mutable has_display_field : bool;
 	mutable delayed_expr : (typer * tlazy ref option) list;
 	mutable force_constructor : bool;
 	mutable uninitialized_final : pos option;
@@ -388,6 +389,7 @@ let create_class_context ctx c context_init p =
 		force_constructor = false;
 		uninitialized_final = None;
 		delayed_expr = [];
+		has_display_field = false;
 	} in
 	ctx,cctx
 
@@ -431,6 +433,7 @@ let create_field_context (ctx,cctx) c cff =
 		do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
 		do_add = true;
 	} in
+	if fctx.is_display_field then cctx.has_display_field <- true;
 	ctx,fctx
 
 let is_public (ctx,cctx) access parent =
@@ -1275,6 +1278,26 @@ let init_class ctx c p context_init herits fields =
 	| None -> ());
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
+	if ctx.is_display_file && not cctx.has_display_field && Display.is_display_position c.cl_pos && ctx.com.display.dms_kind = DMToplevel then begin
+		let rec loop acc c tl =
+			let maybe_add acc cf = if PMap.mem cf.cf_name acc then acc else PMap.add cf.cf_name cf acc in
+			let acc = List.fold_left maybe_add PMap.empty c.cl_ordered_fields in
+			match c.cl_super with
+			| Some(c,tl) -> loop acc c tl
+			| None -> acc
+		in
+		let fields = match c.cl_super with
+			| Some(c,tl) -> loop PMap.empty c tl
+			| None -> PMap.empty
+		in
+		let open Display in
+		let l = PMap.fold (fun cf acc ->
+			if not (List.exists (fun cf' -> cf'.cf_name = cf.cf_name) c.cl_overrides) then
+				(IdentifierType.ITMember cf) :: acc
+			else acc
+		) fields [] in
+		raise (Display.DisplayToplevel l)
+	end;
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
