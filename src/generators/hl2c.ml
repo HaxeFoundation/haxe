@@ -1217,8 +1217,8 @@ let write_c com file (code:code) =
 		end else if String.length str >= string_data_limit then
 			let s = utf8_to_utf16 str in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
-			output ctx "vbyte string$%d[] = {" i;
-			output_bytes (output ctx) str;
+			output ctx (Printf.sprintf "vbyte string$%d[] = {" i);
+			output_bytes (output ctx) s;
 			sexpr "}"
 	) code.strings;
 
