@@ -406,24 +406,6 @@ end
 
 open Json
 
-(** return a range JSON structure for given position
-    positions are 0-based and the result object looks like this:
-    {
-        start: {line: 0, character: 0},
-        end: {line: 3, character: 42},
-    }
-*)
-let pos_to_json_range p =
-	if p.pmin = -1 then
-		JNull
-	else
-		let l1, p1, l2, p2 = Lexer.get_pos_coords p in
-		let to_json l c = JObject [("line", JInt (l - 1)); ("character", JInt (c - 1))] in
-		JObject [
-			("start", to_json l1 p1);
-			("end", to_json l2 p2);
-		]
-
 let print_signature tl display_arg =
 	let st = s_type (print_context()) in
 	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
@@ -485,14 +467,14 @@ module StatisticsPrinter = struct
 				List.iter (fun (r,p) ->
 					let s = relation_to_string r in
 					let jo = JObject [
-						"range",pos_to_json_range p;
+						"range",Genjson.generate_pos_as_range p;
 						"file",JString (Path.get_real_path p.pfile);
 					] in
 					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
 					with Not_found -> Hashtbl.add h s [jo]
 				) rl;
 				let l = Hashtbl.fold (fun s js acc -> (s,JArray js) :: acc) h [] in
-				let l = ("range",pos_to_json_range p) :: l in
+				let l = ("range",Genjson.generate_pos_as_range p) :: l in
 				let l = try ("kind",JString (symbol_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
 				JObject l
 			) relations in
@@ -571,14 +553,14 @@ module DiagnosticsPrinter = struct
 			add DKCompilerError p sev (JString s)
 		) com.shared.shared_display_information.diagnostics_messages;
 		List.iter (fun (s,p,prange) ->
-			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else pos_to_json_range prange])
+			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) com.shared.shared_display_information.removable_code;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = DynArray.fold_left (fun acc (dk,p,sev,jargs) ->
 				(JObject [
 					"kind",JInt (to_int dk);
 					"severity",JInt (DiagnosticsSeverity.to_int sev);
-					"range",pos_to_json_range p;
+					"range",Genjson.generate_pos_as_range p;
 					"args",jargs
 				]) :: acc
 			) [] diag in
@@ -619,7 +601,7 @@ module ModuleSymbolsPrinter = struct
 					let l =
 						("name",JString si.name) ::
 						("kind",JInt (to_int si.kind)) ::
-						("range", pos_to_json_range si.pos) ::
+						("range", Genjson.generate_pos_as_range si.pos) ::
 						(match si.container_name with None -> [] | Some s -> ["containerName",JString s])
 					in
 					Some (JObject l)
@@ -819,3 +801,7 @@ let find_doc t =
 			None
 	in
 	doc
+
+let print_positions com pl = match com.json_out with
+	| None -> print_positions pl
+	| Some f -> f (JArray (List.map Genjson.generate_pos_as_location pl))

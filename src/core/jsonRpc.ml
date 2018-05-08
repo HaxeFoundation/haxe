@@ -36,6 +36,10 @@ type json_rpc_error =
 
 exception JsonRpc_error of json_rpc_error
 
+let raise_method_not_found id name = raise (JsonRpc_error (Method_not_found(id,name)))
+let raise_custom id code message = raise (JsonRpc_error (Custom(id,code,message)))
+let raise_invalid_params json = raise (JsonRpc_error (Invalid_params json))
+
 let handle_jsonrpc_error f output =
 	try f () with JsonRpc_error e ->
 		match e with
@@ -45,7 +49,7 @@ let handle_jsonrpc_error f output =
 		| Invalid_params id -> output (error id (-32602) "Invalid params")
 		| Custom (id,code,msg) -> output (error id code msg)
 
-let process_request input handle output =
+let parse_request input =
 	let open Json.Reader in
 	let lexbuf = Sedlexing.Utf8.from_string input in
 	let json = try read_json lexbuf with Json_error s -> raise (JsonRpc_error (Parse_error s)) in
@@ -66,5 +70,9 @@ let process_request input handle output =
 		with Not_found ->
 			None
 	in
+	id,meth,params
+
+let process_request input handle output =
+	let id,meth,params = parse_request input in
 	let res = handle id meth params in
 	output id res

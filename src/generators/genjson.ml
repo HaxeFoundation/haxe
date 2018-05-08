@@ -46,6 +46,31 @@ let generate_pos ctx p =
 		"max",jint p.pmax;
 	]
 
+(** return a range JSON structure for given position
+    positions are 0-based and the result object looks like this:
+    {
+        start: {line: 0, character: 0},
+        end: {line: 3, character: 42},
+    }
+*)
+let pos_to_range p =
+	let l1, p1, l2, p2 = Lexer.get_pos_coords p in
+	let to_json l c = jobject [("line", jint (l - 1)); ("character", jint (c - 1))] in
+	[
+		("start", to_json l1 p1);
+		("end", to_json l2 p2);
+	]
+
+let generate_pos_as_range p =
+	if p.pmin = -1 then jnull
+	else jobject (pos_to_range p)
+
+let generate_pos_as_location p =
+	if p.pmin = -1 then
+		jnull
+	else
+		jobject (("file",jstring (Path.get_real_path p.pfile)) :: (pos_to_range p))
+
 (* AST expr *)
 
 let rec generate_binop ctx op =

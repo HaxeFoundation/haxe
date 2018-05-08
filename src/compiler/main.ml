@@ -683,8 +683,12 @@ try
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
 		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
-		("Services",["--display"],[], Arg.String (fun file_pos ->
-			DisplayOutput.handle_display_argument com file_pos pre_compilation did_something;
+		("Services",["--display"],[], Arg.String (fun input ->
+			let input = String.trim input in
+			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
+				DisplayJson.parse_input com input
+			end else
+				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
 		("Services",["--xml"],["-xml"],Arg.String (fun file ->
 			Parser.use_doc := true;
@@ -919,7 +923,7 @@ with
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| Display.DisplayPosition pl ->
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
 	| Display.DisplayToplevel il ->
 		let il =
 			if !measure_times then begin

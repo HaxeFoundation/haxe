@@ -313,6 +313,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
+	mutable json_out : (Json.t -> string) option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -690,6 +691,7 @@ let create version s_version args =
 		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
+		json_out = None;
 	}
 
 let log com str =
