@@ -63,11 +63,18 @@ class Reflect {
 		if( ft.kind != HFun )
 			throw "Invalid function " + func;
 		var need = ft.getArgsCount();
-		var cval = hl.Api.getClosureValue(func);
+		var cval : Dynamic = hl.Api.getClosureValue(func);
 		var isClosure = cval != null && need >= 0;
 		if( isClosure ) {
 			if( o == null )
 				o = cval;
+			else if( isFunction(cval) ) {
+				// swap the sub object for closure wrapping
+				// see hashlink/#143
+				var subO = hl.Api.getClosureValue(cval);
+				if( subO != null )
+					o = hl.Api.makeClosure(cval, o);
+			}
 		} else {
 			if( count == need )
 				o = null;
