@@ -218,7 +218,7 @@ class ArrayDyn extends ArrayAccess {
 	}
 
 	@:keep function __compare( a : Dynamic ) : Int {
-		return a == this || a == array ? 0 : hl.Api.comparePointer(this,a);
+		return a == array ? 0 : hl.Api.comparePointer(this,a);
 	}
 
 	public static function alloc( a : ArrayBase, allowReinterpret = false ) : ArrayDyn {
