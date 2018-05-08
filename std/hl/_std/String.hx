@@ -182,7 +182,10 @@ class String {
 		return bytes;
 	}
 
-	@:keep function __compare( s : String ) : Int {
+	@:keep function __compare( v : Dynamic ) : Int {
+		var s = Std.instance(v, String);
+		if( s == null )
+			return hl.Api.comparePointer(this, v);
 		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
 		return v == 0 ? length - s.length : v;
 	}

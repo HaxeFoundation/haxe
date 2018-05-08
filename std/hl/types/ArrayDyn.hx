@@ -217,6 +217,10 @@ class ArrayDyn extends ArrayAccess {
 		return null;
 	}
 
+	@:keep function __compare( a : Dynamic ) : Int {
+		return a == this || a == array ? 0 : hl.Api.comparePointer(this,a);
+	}
+
 	public static function alloc( a : ArrayBase, allowReinterpret = false ) : ArrayDyn {
 		var arr : ArrayDyn = untyped $new(ArrayDyn);
 		arr.array = a;

@@ -37,5 +37,6 @@ extern class Api {
 	@:hlNative("std", "set_error_handler") static function setErrorHandler( v : Dynamic -> Void ) : Void;
 	@:hlNative("std", "breakpoint") static function breakPoint() : Void;
 	@:hlNative("std", "sys_is64") static function is64() : Bool;
+	@:hlNative("std", "ptr_compare") static function comparePointer( a : Dynamic, b : Dynamic ) : Int;
 
 }
