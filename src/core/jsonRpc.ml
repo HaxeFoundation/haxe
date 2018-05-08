@@ -17,14 +17,15 @@ let result id data =
 		"result", data;
 	]
 
-let error id code message =
+let error id code ?(data=None) message =
 	JObject [
 		jsonrpc_field;
 		"id", id;
-		"error", JObject [
-			"code", JInt code;
-			"message", JString message;
-		];
+		"error", JObject (
+			("code", JInt code) ::
+			("message", JString message) ::
+			(match data with None -> [] | Some data -> ["data",data])
+		)
 	]
 
 type json_rpc_error =

@@ -40,18 +40,35 @@ type server_message =
 let s_version =
 	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
 
-let default_flush ctx =
-	List.iter
-		(fun msg -> match msg with
-			| CMInfo _ -> print_endline (compiler_message_string msg)
-			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-		)
-		(List.rev ctx.messages);
-	if ctx.has_error && !prompt then begin
-		print_endline "Press enter to exit...";
-		ignore(read_line());
-	end;
-	if ctx.has_error then exit 1
+let default_flush ctx = match ctx.com.json_out with
+	| None ->
+		List.iter
+			(fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			)
+			(List.rev ctx.messages);
+		if ctx.has_error && !prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		if ctx.has_error then exit 1
+	| Some(_,f) ->
+		if ctx.has_error then begin
+			let errors = List.map (fun msg ->
+				let msg,p,i = match msg with
+					| CMInfo(msg,p) -> msg,p,3
+					| CMWarning(msg,p) -> msg,p,2
+					| CMError(msg,p) -> msg,p,1
+				in
+				JObject [
+					"severity",JInt i;
+					"location",Genjson.generate_pos_as_location p;
+					"message",JString msg;
+				]
+			) (List.rev ctx.messages) in
+			f errors
+		end
 
 let create_context params =
 	let ctx = {

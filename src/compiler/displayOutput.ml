@@ -804,4 +804,4 @@ let find_doc t =
 
 let print_positions com pl = match com.json_out with
 	| None -> print_positions pl
-	| Some f -> f (JArray (List.map Genjson.generate_pos_as_location pl))
+	| Some(f,_) -> f (JArray (List.map Genjson.generate_pos_as_location pl))

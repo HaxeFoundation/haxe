@@ -10,8 +10,8 @@ type haxe_json_error =
 	| BadParamType of string * string
 
 let raise_haxe_json_error id = function
-	| MissingParam s -> raise_custom id 0 ("Missing param: " ^ s)
-	| BadParamType(name,expected) -> raise_custom id 0 ("Unexpected value for param " ^ name ^ ", expected " ^ expected)
+	| MissingParam s -> raise_custom id 1 ("Missing param: " ^ s)
+	| BadParamType(name,expected) -> raise_custom id 2 ("Unexpected value for param " ^ name ^ ", expected " ^ expected)
 
 let parse_input com input =
 	let string_of_json json =
@@ -19,7 +19,10 @@ let parse_input com input =
 		Json.write_json (Buffer.add_string b) json;
 		Buffer.contents b;
 	in
-	let fail json = failwith (string_of_json json) in
+	let fail json =
+		prerr_endline (string_of_json json);
+		exit 1;
+	in
 	let process () =
 		let id,name,params = JsonRpc.parse_request input in
 		let params = match params with
@@ -60,10 +63,13 @@ let parse_input com input =
 				enable_display DMPosition;
 			| _ -> raise_method_not_found id name
 		end;
-		let output_json json =
+		let f_result json =
 			string_of_json (JsonRpc.result id json)
 		in
-		com.json_out <- Some output_json
+		let f_error jl =
+			fail (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
+		in
+		com.json_out <- Some(f_result,f_error)
 	in
 	JsonRpc.handle_jsonrpc_error process fail;
 	()

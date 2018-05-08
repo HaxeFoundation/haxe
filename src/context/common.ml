@@ -313,7 +313,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : (Json.t -> string) option;
+	mutable json_out : ((Json.t -> string) * (Json.t list -> unit)) option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
