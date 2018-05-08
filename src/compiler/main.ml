@@ -463,6 +463,7 @@ and init ctx =
 	let classes = ref [([],"Std")] in
 try
 	let xml_out = ref None in
+	let json_out = ref None in
 	let swf_header = ref None in
 	let cmds = ref [] in
 	let config_macros = ref [] in
@@ -689,6 +690,10 @@ try
 			Parser.use_doc := true;
 			xml_out := Some file
 		),"<file>","generate XML types description");
+		("Services",["--json"],[],Arg.String (fun file ->
+			Parser.use_doc := true;
+			json_out := Some file
+		),"<file>","generate JSON types description");
 		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
 			force_typing := true;
 			pre_compilation := (fun() ->
@@ -832,14 +837,22 @@ try
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
-		(match !xml_out with
-		| None -> ()
-		| Some "hx" ->
-			Genxml.generate_hx com
-		| Some file ->
-			Common.log com ("Generating xml: " ^ file);
-			Path.mkdir_from_path file;
-			Genxml.generate com file);
+		begin match !xml_out with
+			| None -> ()
+			| Some "hx" ->
+				Genxml.generate_hx com
+			| Some file ->
+				Common.log com ("Generating xml: " ^ file);
+				Path.mkdir_from_path file;
+				Genxml.generate com file
+		end;
+		begin match !json_out with
+			| None -> ()
+			| Some file ->
+				Common.log com ("Generating json : " ^ file);
+				Path.mkdir_from_path file;
+				Genjson.generate com file
+		end;
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
 	Sys.catch_break false;
