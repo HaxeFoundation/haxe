@@ -19,29 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi extern class String {
-	var length(default,null) : Int;
+package haxe.io;
 
-	@:pure function new(string:String) : Void;
-	@:pure function toUpperCase() : String;
-	@:pure function toLowerCase() : String;
-	@:pure function charAt( index : Int) : String;
-	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
-	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	@:pure function split( delimiter : String ) : Array<String>;
-	@:pure function toString() : String;
-	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
-
-	@:pure inline function charCodeAt( index : Int) : Null<Int> {
-		return @:privateAccess HxOverrides.cca(this, index);
-	}
-
-	@:pure inline function substr( pos : Int, ?len : Int ) : String {
-		return @:privateAccess HxOverrides.substr(this, pos, len);
-	}
-
-	@:pure static inline function fromCharCode( code : Int ) : String {
-		return js.Syntax.code("String.fromCodePoint({0})",code); 
-	}
-	
+/**
+	String binary encoding supported by Haxe I/O
+**/
+enum Encoding {
+	UTF8;
+	/**
+		Output the string the way the platform represent it in memory. This is the most efficient but is platform-specific
+	**/
+	RawNative;
 }

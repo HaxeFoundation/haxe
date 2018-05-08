@@ -119,7 +119,7 @@ class Bytes {
 		setInt32(pos, v.low);
 	}
 
-	public function getString( pos : Int, len : Int ) : String {
+	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( outRange(pos,len) ) throw Error.OutsideBounds;
 
 		var b = new hl.Bytes(len + 1);
@@ -162,10 +162,16 @@ class Bytes {
 		return new Bytes(b,length);
 	}
 
-	public static function ofString( s : String ) : Bytes @:privateAccess {
-		var size = 0;
-		var b = s.bytes.utf16ToUtf8(0, size);
-		return new Bytes(b,size);
+	public static function ofString( s : String, ?encoding : Encoding ) : Bytes @:privateAccess {
+		if( encoding == null ) encoding = UTF8;
+		return switch( encoding ) {
+		case RawNative:
+			return new Bytes(s.bytes.sub(0,s.length << 1), s.length << 1);
+		case UTF8:
+			var size = 0;
+			var b = s.bytes.utf16ToUtf8(0, size);
+			return new Bytes(b,size);
+		}
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
