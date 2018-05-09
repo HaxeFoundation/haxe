@@ -121,7 +121,7 @@ and display_expr ctx e_ast e dk with_type p =
 	match ctx.com.display.dms_kind with
 	| DMResolve _ | DMPackage | DMSignature ->
 		assert false
-	| DMType ->
+	| DMHover ->
 		let rec loop e = match e.eexpr with
 			| TVar(v,_) -> v.v_type,None
 			| TCall({eexpr = TConst TSuper; etype = t},_) -> t,None
@@ -178,7 +178,7 @@ and display_expr ctx e_ast e dk with_type p =
 		in
 		loop e;
 		e
-	| DMPosition ->
+	| DMDefinition ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_name_pos]
@@ -212,7 +212,7 @@ and display_expr ctx e_ast e dk with_type p =
 		raise (Display.DisplayPosition pl);
 	| DMToplevel ->
 		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
-	| DMField | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
+	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		raise (Display.DisplayFields fields)
 
@@ -241,6 +241,6 @@ let handle_structure_display ctx e with_type =
 
 let handle_edisplay ctx e dk with_type =
 	match dk,ctx.com.display.dms_kind with
-	| DKCall,(DMSignature | DMField) -> handle_signature_display ctx e with_type
-	| DKStructure,DMField -> handle_structure_display ctx e with_type
+	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
+	| DKStructure,DMDefault -> handle_structure_display ctx e with_type
 	| _ -> handle_display ctx e dk with_type

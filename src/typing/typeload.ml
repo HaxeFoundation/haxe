@@ -705,7 +705,7 @@ let handle_path_display ctx path p =
 	match Display.ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
 		| (IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
-		| (IDKModule(sl,s),_),DMPosition ->
+		| (IDKModule(sl,s),_),DMDefinition ->
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
@@ -714,7 +714,7 @@ let handle_path_display ctx path p =
 		| (IDKModule(sl,s),_),_ ->
 			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))
-		| (IDKSubType(sl,sm,st),p),DMPosition ->
+		| (IDKSubType(sl,sm,st),p),DMDefinition ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
 		| (IDKSubType(sl,sm,st),_),_ ->
 			raise (Parser.TypePath(sl @ [sm],Some(st,false),true))

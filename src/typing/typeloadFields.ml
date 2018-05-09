@@ -964,7 +964,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if ctx.is_display_file && ctx.com.display.dms_kind = DMPosition then begin match fctx.override with
+					if ctx.is_display_file && ctx.com.display.dms_kind = DMDefinition then begin match fctx.override with
 						| Some p when Display.is_display_position p ->
 							begin match c.cl_super with
 							| Some(c,tl) ->

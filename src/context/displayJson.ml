@@ -83,7 +83,7 @@ let parse_input com input =
 			| "textDocument/definition" ->
 				Common.define com Define.NoCOpt;
 				read_display_file();
-				enable_display DMPosition;
+				enable_display DMDefinition;
 			| _ -> raise_method_not_found id name
 		end;
 		com.json_out <- Some(f_result,f_error)

@@ -130,22 +130,22 @@ module ExprPreprocessing = struct
 
 	let process_expr com e = match com.display.dms_kind with
 		| DMToplevel -> find_enclosing com DKToplevel e
-		| DMPosition | DMUsage _ | DMType -> find_before_pos com DKMarked e
+		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com DKMarked e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
 
 module DisplayEmitter = struct
 	let display_module_type dm mt p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_name_pos]);
+		| DMDefinition -> raise (DisplayPosition [(t_infos mt).mt_name_pos]);
 		| DMUsage _ ->
 			let ti = t_infos mt in
 			ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-		| DMType -> raise (DisplayType (type_of_module_type mt,p,None))
+		| DMHover -> raise (DisplayType (type_of_module_type mt,p,None))
 		| _ -> ()
 
 	let rec display_type dm t p = match dm.dms_kind with
-		| DMType -> raise (DisplayType (t,p,None))
+		| DMHover -> raise (DisplayType (t,p,None))
 		| _ ->
 			try display_module_type dm (module_type_of_type t) p
 			with Exit -> match follow t,follow !t_dynamic_def with
@@ -167,15 +167,15 @@ module DisplayEmitter = struct
 		| _ -> maybe_display_type()
 
 	let display_variable dm v p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [v.v_pos])
+		| DMDefinition -> raise (DisplayPosition [v.v_pos])
 		| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
-		| DMType -> raise (DisplayType (v.v_type,p,None))
+		| DMHover -> raise (DisplayType (v.v_type,p,None))
 		| _ -> ()
 
 	let display_field dm cf p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [cf.cf_name_pos]);
+		| DMDefinition -> raise (DisplayPosition [cf.cf_name_pos]);
 		| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
-		| DMType ->
+		| DMHover ->
 			let t = if Meta.has Meta.Impl cf.cf_meta then
 				(prepare_using_field cf).cf_type
 			else
@@ -188,13 +188,13 @@ module DisplayEmitter = struct
 		if is_display_position p then display_field ctx.com.display cf p
 
 	let display_enum_field dm ef p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [ef.ef_name_pos]);
+		| DMDefinition -> raise (DisplayPosition [ef.ef_name_pos]);
 		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
-		| DMType -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
+		| DMHover -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 		| _ -> ()
 
 	let display_meta dm meta = match dm.dms_kind with
-		| DMType ->
+		| DMHover ->
 			begin match meta with
 			| Meta.Custom _ | Meta.Dollar _ -> ()
 			| _ -> match Meta.get_documentation meta with
@@ -203,7 +203,7 @@ module DisplayEmitter = struct
 					(* TODO: hack until we support proper output for hover display mode *)
 					raise (Metadata ("<metadata>" ^ s ^ "</metadata>"));
 			end
-		| DMField ->
+		| DMDefault ->
 			let all,_ = Meta.get_documentation_list() in
 			let all = List.map (fun (s,doc) -> (s,FKMetadata,Some doc)) all in
 			raise (DisplayFields all)
