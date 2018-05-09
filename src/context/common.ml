@@ -105,7 +105,6 @@ type compiler_callback = {
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable type_hints : (pos,Type.t) Hashtbl.t;
 	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
 	mutable removable_code : (string * pos * pos) list;
 }
@@ -498,7 +497,6 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				type_hints = Hashtbl.create 0;
 				document_symbols = [];
 				removable_code = [];
 			}

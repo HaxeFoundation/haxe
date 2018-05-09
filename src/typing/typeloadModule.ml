@@ -625,13 +625,13 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let ctx = { ctx with type_params = params @ ctx.type_params } in
 			let rt = (match c.ec_type with
 				| None -> et
-				| Some t ->
-					let t = load_complex_type ctx true p t in
+				| Some (t,pt) ->
+					let t = load_complex_type ctx true p (t,pt) in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
 					| _ ->
-						error "Explicit enum type must be of the same enum type" p);
+						error "Explicit enum type must be of the same enum type" pt);
 					t
 			) in
 			let t = (match c.ec_args with
@@ -640,13 +640,13 @@ let init_module_type ctx context_init do_init (decl,p) =
 					is_flat := false;
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,(t,tp)) ->
-						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" c.ec_pos | _ -> ());
+						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
 						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ fst c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
 						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
 					) l, rt)
 			) in
-			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) p;
+			if PMap.mem (fst c.ec_name) e.e_constrs then error ("Duplicate constructor " ^ fst c.ec_name) (pos c.ec_name);
 			let f = {
 				ef_name = fst c.ec_name;
 				ef_type = t;
@@ -666,7 +666,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_doc = f.ef_doc;
 				cf_params = f.ef_params;
 			} in
- 			if ctx.is_display_file && Display.is_display_position p then
+ 			if ctx.is_display_file && Display.is_display_position f.ef_name_pos then
  				Display.DisplayEmitter.display_enum_field ctx.com.display f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;

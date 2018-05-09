@@ -310,6 +310,7 @@ and module_def = {
 
 and module_def_display = {
 	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
+	mutable m_type_hints : (pos * t) list;
 }
 
 and module_def_extra = {
@@ -424,6 +425,7 @@ let module_extra file sign time kind policy =
 		m_sign = sign;
 		m_display = {
 			m_inline_calls = [];
+			m_type_hints = [];
 		};
 		m_dirty = None;
 		m_added = 0;

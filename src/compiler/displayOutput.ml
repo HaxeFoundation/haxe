@@ -447,6 +447,8 @@ module StatisticsPrinter = struct
 		| SKClass _ -> "class type"
 		| SKInterface _ -> "interface type"
 		| SKEnum _ -> "enum type"
+		| SKTypedef _ -> "typedef"
+		| SKAbstract _ -> "abstract"
 		| SKField _ -> "class field"
 		| SKEnumField _ -> "enum field"
 		| SKVariable _ -> "variable"
@@ -746,7 +748,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| [] -> acc
 		in
 		let usages = Hashtbl.fold (fun p sym acc ->
-			if Statistics.is_usage_symbol sym then begin
+			if p = !Display.reference_position then begin
 				let acc = if with_definition then p :: acc else acc in
 				(try loop acc (Hashtbl.find relations p)
 				with Not_found -> acc)
