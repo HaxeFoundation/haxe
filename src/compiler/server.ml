@@ -524,9 +524,7 @@ let rec wait_loop process_params verbose accept =
 				print_endline ("Error: " ^ msg);
 			);
 			if DynArray.length test_server_messages > 0 then begin
-				let b = Buffer.create 0 in
-				write_json (Buffer.add_string b) (JArray (DynArray.to_list test_server_messages));
-				write (Buffer.contents b)
+				write (string_of_json (JArray (DynArray.to_list test_server_messages)))
 			end;
 			let fl = !delays in
 			delays := [];

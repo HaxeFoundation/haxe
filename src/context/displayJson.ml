@@ -20,11 +20,6 @@ let get_capabilities () =
 	]
 
 let parse_input com input =
-	let string_of_json json =
-		let b = Buffer.create 0 in
-		Json.write_json (Buffer.add_string b) json;
-		Buffer.contents b;
-	in
 	let fail json =
 		prerr_endline (string_of_json json);
 		exit 1;
