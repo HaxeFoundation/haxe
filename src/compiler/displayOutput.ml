@@ -759,6 +759,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			let c = compare p1.pfile p2.pfile in
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages in
+		Display.reference_position := null_pos;
 		raise (DisplayPosition usages)
 	| DMDiagnostics global ->
 		Diagnostics.prepare com global;

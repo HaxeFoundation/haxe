@@ -599,13 +599,13 @@ module Statistics = struct
 		let relations = Hashtbl.create 0 in
 		let symbols = Hashtbl.create 0 in
 		let add_relation pos r =
-			try
+			if pos <> null_pos then try
 				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
 			with Not_found ->
 				Hashtbl.add relations pos [r]
 		in
 		let declare kind p =
-			begin
+			if p <> null_pos then begin
 				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
 				Hashtbl.replace symbols p kind;
 			end
