@@ -587,6 +587,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	if !cancel_inlining then
 		None
 	else
+		let md = ctx.curclass.cl_module.m_extra.m_display in
+		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
 			let etype = if has_params then map_type e.etype else e.etype in

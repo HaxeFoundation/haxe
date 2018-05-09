@@ -308,9 +308,14 @@ and module_def = {
 	m_extra : module_def_extra;
 }
 
+and module_def_display = {
+	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
+}
+
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
+	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
 	mutable m_dirty : module_def option;
@@ -417,6 +422,9 @@ let module_extra file sign time kind policy =
 	{
 		m_file = file;
 		m_sign = sign;
+		m_display = {
+			m_inline_calls = [];
+		};
 		m_dirty = None;
 		m_added = 0;
 		m_mark = 0;

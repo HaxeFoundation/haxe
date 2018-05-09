@@ -686,8 +686,18 @@ module Statistics = struct
 			in
 			loop e
 		in
+		let handled_modules = Hashtbl.create 0 in
+		let check_module m =
+			if not (Hashtbl.mem handled_modules m.m_path) then begin
+				Hashtbl.add handled_modules m.m_path true;
+				List.iter (fun (p1,p2) ->
+					add_relation p1 (Referenced,p2)
+				) m.m_extra.m_display.m_inline_calls
+			end
+		in
 		let f = function
 			| TClassDecl c ->
+				check_module c.cl_module;
 				declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
 				List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
 				begin match c.cl_super with
