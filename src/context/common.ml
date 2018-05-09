@@ -310,6 +310,17 @@ module CompilationServer = struct
 
 	let clear_directories cs key =
 		Hashtbl.remove cs.cache.c_directories key
+
+	(* context *)
+
+	let rec cache_context com cs =
+		let cache_module m =
+			cache_module cs (m.m_path,m.m_extra.m_sign) m;
+		in
+		List.iter cache_module com.modules;
+		match com.get_macros() with
+		| None -> ()
+		| Some com -> cache_context com cs
 end
 
 (* Defines *)

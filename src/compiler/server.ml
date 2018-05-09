@@ -430,19 +430,12 @@ let rec wait_loop process_params verbose accept =
 	while true do
 		let read, write, close = accept() in
 		let was_compilation = ref false in
-		let rec cache_context com =
-			let cache_module m =
-				CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m;
-				(*if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));*)
-			in
+		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
 				was_compilation := true;
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+				CompilationServer.cache_context com cs;
+				if verbose then print_endline (Printf.sprintf "%sCached %i modules" (sign_string com) (List.length com.modules));
 			end;
-			match com.get_macros() with
-			| None -> ()
-			| Some com -> cache_context com
 		in
 		let create params =
 			let ctx = create_context params in
@@ -459,7 +452,7 @@ let rec wait_loop process_params verbose accept =
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"
-				end else cache_context ctx.com;
+				end else maybe_cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
 				let sign = Define.get_signature ctx.com.defines in
