@@ -23,6 +23,8 @@ let display_field_kind_index = function
 	| FKMetadata -> 5
 	| FKTimer _ -> 6
 
+let reference_position = ref null_pos
+
 exception Diagnostics of string
 exception Statistics of string
 exception ModuleSymbols of string
@@ -138,9 +140,7 @@ end
 module DisplayEmitter = struct
 	let display_module_type dm mt p = match dm.dms_kind with
 		| DMDefinition -> raise (DisplayPosition [(t_infos mt).mt_name_pos]);
-		| DMUsage _ ->
-			let ti = t_infos mt in
-			ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
+		| DMUsage _ -> reference_position := (t_infos mt).mt_name_pos
 		| DMHover -> raise (DisplayType (type_of_module_type mt,p,None))
 		| _ -> ()
 
@@ -168,13 +168,13 @@ module DisplayEmitter = struct
 
 	let display_variable dm v p = match dm.dms_kind with
 		| DMDefinition -> raise (DisplayPosition [v.v_pos])
-		| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
+		| DMUsage _ -> reference_position := v.v_pos
 		| DMHover -> raise (DisplayType (v.v_type,p,None))
 		| _ -> ()
 
 	let display_field dm cf p = match dm.dms_kind with
 		| DMDefinition -> raise (DisplayPosition [cf.cf_name_pos]);
-		| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
+		| DMUsage _ -> reference_position := cf.cf_name_pos
 		| DMHover ->
 			let t = if Meta.has Meta.Impl cf.cf_meta then
 				(prepare_using_field cf).cf_type
@@ -189,7 +189,7 @@ module DisplayEmitter = struct
 
 	let display_enum_field dm ef p = match dm.dms_kind with
 		| DMDefinition -> raise (DisplayPosition [ef.ef_name_pos]);
-		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
+		| DMUsage _ -> reference_position := ef.ef_name_pos
 		| DMHover -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 		| _ -> ()
 
@@ -587,14 +587,14 @@ module Statistics = struct
 		| SKVariable of tvar
 
 	let is_usage_symbol symbol =
-		let meta = match symbol with
-			| SKClass c | SKInterface c -> c.cl_meta
-			| SKEnum en -> en.e_meta
-			| SKField cf -> cf.cf_meta
-			| SKEnumField ef -> ef.ef_meta
-			| SKVariable v -> v.v_meta
+		let p = match symbol with
+			| SKClass c | SKInterface c -> c.cl_name_pos
+			| SKEnum en -> en.e_name_pos
+			| SKField cf -> cf.cf_name_pos
+			| SKEnumField ef -> ef.ef_name_pos
+			| SKVariable v -> v.v_pos
 		in
-		Meta.has Meta.Usage meta
+		!reference_position = p
 
 	let collect_statistics ctx =
 		let relations = Hashtbl.create 0 in

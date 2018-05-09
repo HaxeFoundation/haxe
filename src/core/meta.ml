@@ -166,7 +166,6 @@ type strict_meta =
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
-	| Usage
 	| Used
 	| UserVariable
 	| Value
@@ -364,7 +363,6 @@ let get_info = function
 	| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
-	| Usage -> ":usage",("Internal metadata used to mark a symbol for which usage request was invoked",[UsedInternally])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
 	| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[UsedInternally])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])

@@ -159,32 +159,32 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
-			ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
+			Display.reference_position := ef.ef_name_pos;
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+			Display.reference_position := cf.cf_name_pos;
 		| TLocal v | TVar(v,_) ->
-			v.v_meta <- (Meta.Usage,[],p) :: v.v_meta;
+			Display.reference_position := v.v_pos;
 		| TTypeExpr mt ->
 			let ti = t_infos mt in
-			ti.mt_meta <- (Meta.Usage,[],p) :: ti.mt_meta;
+			Display.reference_position := ti.mt_name_pos;
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+				Display.reference_position := cf.cf_name_pos;
 			with Not_found ->
 				()
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
 				let cf = get_super_constructor() in
-				cf.cf_meta <- (Meta.Usage,[],p) :: cf.cf_meta;
+				Display.reference_position := cf.cf_name_pos;
 			with Not_found ->
 				()
 			end
 		| TConst TSuper ->
 			begin match ctx.curclass.cl_super with
 				| None -> ()
-				| Some (c,_) -> c.cl_meta <- (Meta.Usage,[],p) :: c.cl_meta;
+				| Some (c,_) -> Display.reference_position := c.cl_name_pos;
 			end
 		| TCall(e1,_) ->
 			loop e1
