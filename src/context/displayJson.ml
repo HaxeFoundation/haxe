@@ -35,7 +35,7 @@ let parse_input com input =
 		let params = match params with
 			| Some (JObject fl) -> fl
 			| Some json -> raise_invalid_params json
-			| None -> raise_invalid_params JNull
+			| None -> []
 		in
 		let get_param name =
 			try List.assoc name params with Not_found -> raise_haxe_json_error id (MissingParam name)
