@@ -951,6 +951,8 @@ with
 		ctx.flush();
 		if !measure_times then Timer.report_times prerr_endline;
 		exit i
+	| DisplayOutput.Completion _ as exc ->
+		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos
 

@@ -13,6 +13,11 @@ let raise_haxe_json_error id = function
 	| MissingParam s -> raise_custom id 1 ("Missing param: " ^ s)
 	| BadParamType(name,expected) -> raise_custom id 2 ("Unexpected value for param " ^ name ^ ", expected " ^ expected)
 
+let get_capabilities () =
+	JObject [
+		"definitionProvider",JBool true;
+	]
+
 let parse_input com input =
 	let string_of_json json =
 		let b = Buffer.create 0 in
@@ -25,6 +30,12 @@ let parse_input com input =
 	in
 	let process () =
 		let id,name,params = JsonRpc.parse_request input in
+		let f_result json =
+			(string_of_json (JsonRpc.result id json));
+		in
+		let f_error jl =
+			fail (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
+		in
 		let params = match params with
 			| Some (JObject fl) -> fl
 			| Some json -> raise_invalid_params json
@@ -41,6 +52,14 @@ let parse_input com input =
 			| JInt i -> i
 			| _ -> raise_haxe_json_error id (BadParamType(name,"Int"))
 		in
+		(* let get_bool_param name = match get_param name with
+			| JBool b -> b
+			| _ -> raise_haxe_json_error id (BadParamType(name,"Bool"))
+		in
+		let opt_param name f =
+			if not (List.mem_assoc name params) then None
+			else Some (f name)
+		in *)
 		let enable_display mode =
 			com.display <- DisplayMode.create mode;
 			Common.display_default := mode;
@@ -57,18 +76,16 @@ let parse_input com input =
 			}
 		in
 		begin match name with
-			| "definition" ->
+			| "initialize" ->
+				raise (DisplayOutput.Completion (f_result (JObject [
+					"capabilities",get_capabilities()
+				])))
+			| "textDocument/definition" ->
 				Common.define com Define.NoCOpt;
 				read_display_file();
 				enable_display DMPosition;
 			| _ -> raise_method_not_found id name
 		end;
-		let f_result json =
-			string_of_json (JsonRpc.result id json)
-		in
-		let f_error jl =
-			fail (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
-		in
 		com.json_out <- Some(f_result,f_error)
 	in
 	JsonRpc.handle_jsonrpc_error process fail;

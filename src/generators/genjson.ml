@@ -69,7 +69,7 @@ let generate_pos_as_location p =
 	if p.pmin = -1 then
 		jnull
 	else
-		jobject (("file",jstring (Path.get_real_path p.pfile)) :: (pos_to_range p))
+		jobject [("file",jstring (Path.get_real_path p.pfile));"range",generate_pos_as_range p]
 
 (* AST expr *)
 
