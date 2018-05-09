@@ -16,6 +16,7 @@ let raise_haxe_json_error id = function
 let get_capabilities () =
 	JObject [
 		"definitionProvider",JBool true;
+		"hoverProvider",JBool true;
 	]
 
 let parse_input com input =
@@ -84,6 +85,10 @@ let parse_input com input =
 				Common.define com Define.NoCOpt;
 				read_display_file();
 				enable_display DMDefinition;
+			| "textDocument/hover" ->
+				Common.define com Define.NoCOpt;
+				read_display_file();
+				enable_display DMHover;
 			| _ -> raise_method_not_found id name
 		end;
 		com.json_out <- Some(f_result,f_error)

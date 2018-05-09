@@ -16,9 +16,24 @@ let rec handle_display ctx e_ast dk with_type =
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
-		raise (Display.DisplaySignatures ([((["expression",false,mono],mono),Some "Outputs type of argument as a warning and uses argument as value")],0))
+		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
+		let arg = ["expression",false,mono] in
+		begin match ctx.com.display.dms_kind with
+		| DMSignature ->
+			raise (Display.DisplaySignatures ([((arg,mono),doc)],0))
+		| _ ->
+			raise (Display.DisplayType(TFun(arg,mono),(pos e_ast),doc))
+		end
 	| (EConst (Ident "trace"),_),_ ->
-		raise (Display.DisplaySignatures ([((["value",false,t_dynamic],ctx.com.basic.tvoid),Some "Print given arguments")],0))
+		let doc = Some "Print given arguments" in
+		let arg = ["value",false,t_dynamic] in
+		let ret = ctx.com.basic.tvoid in
+		begin match ctx.com.display.dms_kind with
+		| DMSignature ->
+			raise (Display.DisplaySignatures ([((arg,ret),doc)],0))
+		| _ ->
+			raise (Display.DisplayType(TFun(arg,ret),(pos e_ast),doc))
+		end
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| _ -> try

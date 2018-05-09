@@ -193,7 +193,7 @@ module DisplayEmitter = struct
 		| DMHover -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
 		| _ -> ()
 
-	let display_meta dm meta = match dm.dms_kind with
+	let display_meta com meta = match com.display.dms_kind with
 		| DMHover ->
 			begin match meta with
 			| Meta.Custom _ | Meta.Dollar _ -> ()
@@ -201,7 +201,10 @@ module DisplayEmitter = struct
 				| None -> ()
 				| Some (_,s) ->
 					(* TODO: hack until we support proper output for hover display mode *)
-					raise (Metadata ("<metadata>" ^ s ^ "</metadata>"));
+					if com.json_out = None then
+						raise (Metadata ("<metadata>" ^ s ^ "</metadata>"))
+					else
+						raise (DisplayType(t_dynamic,null_pos,Some s));
 			end
 		| DMDefault ->
 			let all,_ = Meta.get_documentation_list() in
@@ -212,7 +215,7 @@ module DisplayEmitter = struct
 
 	let check_display_metadata ctx meta =
 		List.iter (fun (meta,args,p) ->
-			if is_display_position p then display_meta ctx.com.display meta;
+			if is_display_position p then display_meta ctx.com meta;
 			List.iter (fun e ->
 				if is_display_position (pos e) then begin
 					let e = ExprPreprocessing.process_expr ctx.com e in

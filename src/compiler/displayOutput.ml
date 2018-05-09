@@ -802,6 +802,16 @@ let find_doc t =
 	in
 	doc
 
+open Genjson
+
 let print_positions com pl = match com.json_out with
 	| None -> print_positions pl
-	| Some(f,_) -> f (JArray (List.map Genjson.generate_pos_as_location pl))
+	| Some(f,_) -> f (JArray (List.map generate_pos_as_location pl))
+
+let print_type com t p doc = match com.json_out with
+	| None -> print_type t p doc
+	| Some(f,_) -> f (JObject [
+		"documentation",jopt jstring doc;
+		"range",generate_pos_as_range p;
+		"type",generate_type (create_context com) t;
+	])

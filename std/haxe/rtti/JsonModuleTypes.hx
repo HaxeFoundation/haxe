@@ -76,10 +76,10 @@ typedef JsonAnon = {
 
 enum abstract JsonTypeKind<T>(String) {
 	var TMono = "TMono";
-	var TInst:JsonTypeKind<JsonPath> = "TInst";
-	var TEnum:JsonTypeKind<JsonPath> = "TEnum";
-	var TType:JsonTypeKind<JsonPath> = "TType";
-	var TAbstract:JsonTypeKind<JsonPath> = "TAbstract";
+	var TInst:JsonTypeKind<JsonPathWithParams> = "TInst";
+	var TEnum:JsonTypeKind<JsonPathWithParams> = "TEnum";
+	var TType:JsonTypeKind<JsonPathWithParams> = "TType";
+	var TAbstract:JsonTypeKind<JsonPathWithParams> = "TAbstract";
 	var TFun:JsonTypeKind<JsonFunctionSignature> = "TFun";
 	var TAnonymous:JsonTypeKind<JsonAnon> = "TAnonymous";
 	var TDynamic:JsonTypeKind<Null<JsonType<Dynamic>>> = "TDynamic";
