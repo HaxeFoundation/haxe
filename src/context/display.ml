@@ -686,7 +686,7 @@ module Statistics = struct
 			in
 			loop e
 		in
-		List.iter (function
+		let f = function
 			| TClassDecl c ->
 				declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
 				List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
@@ -708,7 +708,13 @@ module Statistics = struct
 				PMap.iter (fun _ ef -> declare (SKEnumField ef) ef.ef_name_pos) en.e_constrs
 			| _ ->
 				()
-		) ctx.com.types;
+		in
+		begin match CompilationServer.get () with
+			| None -> List.iter f ctx.com.types
+			| Some cs ->
+				CompilationServer.cache_context cs ctx.com;
+				CompilationServer.iter_modules cs ctx.com (fun m -> List.iter f m.m_types);
+		end;
 		let explore_type_hint p t = match follow t with
 			| TInst(c,_) -> add_relation c.cl_name_pos (Referenced,(patch_string_pos_front p (snd c.cl_path)))
 			| _ -> ()

@@ -252,8 +252,9 @@ module CompilationServer = struct
 	let taint_modules cs file =
 		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
 
-	let iter_modules cs f =
-		Hashtbl.iter (fun _ m -> f m) cs.cache.c_modules
+	let iter_modules cs com f =
+		let sign = Define.get_signature com.defines in
+		Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules
 
 	(* files *)
 
@@ -313,14 +314,14 @@ module CompilationServer = struct
 
 	(* context *)
 
-	let rec cache_context com cs =
+	let rec cache_context cs com =
 		let cache_module m =
 			cache_module cs (m.m_path,m.m_extra.m_sign) m;
 		in
 		List.iter cache_module com.modules;
 		match com.get_macros() with
 		| None -> ()
-		| Some com -> cache_context com cs
+		| Some com -> cache_context cs com
 end
 
 (* Defines *)

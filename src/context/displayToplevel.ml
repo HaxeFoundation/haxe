@@ -181,7 +181,7 @@ let collect ctx only_types =
 			let cache_module m = CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m in
 			Hashtbl.iter (fun _ m -> cache_module m) ctx.g.modules;
 		end; *)
-		CompilationServer.iter_modules cs (fun m ->
+		CompilationServer.iter_modules cs ctx.com (fun m ->
 			let rm = match (fst m.m_path) with
 				| [] -> RMClassPath
 				| s :: _ ->

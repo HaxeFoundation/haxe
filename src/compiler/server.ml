@@ -433,7 +433,7 @@ let rec wait_loop process_params verbose accept =
 		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
 				was_compilation := true;
-				CompilationServer.cache_context com cs;
+				CompilationServer.cache_context cs com;
 				if verbose then print_endline (Printf.sprintf "%sCached %i modules" (sign_string com) (List.length com.modules));
 			end;
 		in
