@@ -51,6 +51,20 @@ class Basic extends DisplayTestCase {
 	}
 
 	/**
+	class Some {
+		function main() {
+			{-1-}te{-2-}st{-3-}();
+		}
+
+		static function te{-4-}st() { }
+	}
+	**/
+	function testUsage3() {
+		arrayEq([range(1, 3)], usage(pos(2)));
+		arrayEq([range(1, 3)], usage(pos(4)));
+	}
+
+	/**
 	function test(na{-1-}me:St{-2-}ring) { }
 	**/
 	@:funcCode function testLocalFunction() {

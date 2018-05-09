@@ -600,13 +600,13 @@ module Statistics = struct
 		let relations = Hashtbl.create 0 in
 		let symbols = Hashtbl.create 0 in
 		let add_relation pos r =
-			if is_display_file pos.pfile then try
+			try
 				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
 			with Not_found ->
 				Hashtbl.add relations pos [r]
 		in
 		let declare kind p =
-			if is_display_file p.pfile then begin
+			begin
 				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
 				Hashtbl.replace symbols p kind;
 			end
