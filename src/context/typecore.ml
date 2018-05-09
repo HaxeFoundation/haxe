@@ -22,6 +22,7 @@ open Ast
 open Common
 open Type
 open Error
+open DisplayTypes
 
 type with_type =
 	| NoValue

@@ -3,7 +3,7 @@ open Json.Reader
 open JsonRpc
 open Json
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 
 type haxe_json_error =
 	| MissingParam of string
@@ -62,7 +62,7 @@ let parse_input com input =
 			else Some (f name)
 		in *)
 		let enable_display mode =
-			com.display <- DisplayMode.create mode;
+			com.display <- create mode;
 			Common.display_default := mode;
 			Common.define_value com Define.Display "1";
 			Parser.use_doc := true;

@@ -23,6 +23,7 @@ open Type
 open Common
 open Texpr.Builder
 open Error
+open DisplayTypes
 
 exception Internal_match_failure
 

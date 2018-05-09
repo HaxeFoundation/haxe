@@ -1,9 +1,10 @@
 open Globals
 open Common
 open Timer
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Type
 open Display
+open DisplayTypes
 open Typecore
 
 (* Old XML stuff *)

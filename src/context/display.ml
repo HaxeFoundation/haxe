@@ -1,6 +1,6 @@
 open Ast
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Type
 open Typecore
 open Globals
@@ -33,7 +33,7 @@ exception DisplaySignatures of (tsignature * documentation) list * int
 exception DisplayType of t * pos * string option
 exception DisplayPosition of pos list
 exception DisplayFields of (string * display_field_kind * documentation) list
-exception DisplayToplevel of IdentifierType.t list
+exception DisplayToplevel of DisplayTypes.IdentifierType.t list
 exception DisplayPackage of string list
 
 let is_display_file file =

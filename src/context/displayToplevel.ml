@@ -16,10 +16,11 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 *)
+open Ast
 open Common
 open Type
 open Typecore
-open Common.IdentifierType
+open DisplayTypes.IdentifierType
 
 let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 	let rec loop dir pack =
@@ -211,7 +212,7 @@ let collect ctx only_types =
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx only_types in
 	let cl = List.map (fun it ->
-		let s = IdentifierType.get_name it in
+		let s = DisplayTypes.IdentifierType.get_name it in
 		(s,it),StringError.levenshtein i s
 	) l in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in

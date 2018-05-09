@@ -29,7 +29,7 @@ type context = {
 	com : Common.context; (* macro one *)
 	mutable gen : Genhl.context option;
 	interp : Hlinterp.context;
-	types : (Type.path,int) Hashtbl.t;
+	types : (Globals.path,int) Hashtbl.t;
 	cached_protos : (obj_type, (virtual_proto * vfield array)) Hashtbl.t;
 	cached_enums : (enum_type, ttype) Hashtbl.t;
 	mutable curapi : value MacroApi.compiler_api;

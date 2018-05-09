@@ -18,7 +18,7 @@
  *)
 
 open Ast
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Type
 open Typecore
@@ -503,7 +503,7 @@ let get_macro_context ctx p =
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
-		com2.display <- DisplayMode.create DMNone;
+		com2.display <- DisplayTypes.DisplayMode.create DMNone;
 		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
 		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
@@ -552,7 +552,7 @@ let load_macro ctx display cpath f p =
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 			Display.DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-		mctx.com.display <- DisplayMode.create DMNone;
+		mctx.com.display <- DisplayTypes.DisplayMode.create DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {

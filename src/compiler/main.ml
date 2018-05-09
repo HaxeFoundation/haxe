@@ -44,7 +44,7 @@
 
 open Printf
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Type
 open Server
 open Globals
@@ -928,7 +928,7 @@ with
 		let il =
 			if !measure_times then begin
 				Timer.close_times();
-				(List.map (fun (name,value) -> IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
+				(List.map (fun (name,value) -> DisplayTypes.IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
 			end else
 				il
 		in

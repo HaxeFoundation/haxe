@@ -126,7 +126,7 @@ type rcf_ctx =
 
 	rcf_hash_fields : (int, string) Hashtbl.t;
 
-	rcf_hash_paths : (path * int, string) Hashtbl.t;
+	rcf_hash_paths : (Globals.path * int, string) Hashtbl.t;
 
 	rcf_hash_conflict_ctx : rcf_hash_conflict_ctx option;
 

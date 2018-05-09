@@ -1,5 +1,5 @@
 open Globals
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Ast
 open Type

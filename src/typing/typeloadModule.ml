@@ -23,7 +23,7 @@ open Globals
 open Ast
 open Type
 open Typecore
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Typeload
 open Error

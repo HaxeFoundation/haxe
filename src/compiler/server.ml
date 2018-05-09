@@ -2,7 +2,7 @@ open Printf
 open Globals
 open Ast
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Timer
 open Type
 open DisplayOutput

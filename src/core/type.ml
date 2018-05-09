@@ -20,8 +20,6 @@
 open Ast
 open Globals
 
-type path = string list * string
-
 type field_kind =
 	| Var of var_kind
 	| Method of method_kind

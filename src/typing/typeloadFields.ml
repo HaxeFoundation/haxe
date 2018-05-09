@@ -24,7 +24,7 @@ open Ast
 open Type
 open Typecore
 open Typeload
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Error
 

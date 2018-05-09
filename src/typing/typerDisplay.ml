@@ -1,6 +1,6 @@
 open Globals
 open Ast
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Type
 open Typecore
