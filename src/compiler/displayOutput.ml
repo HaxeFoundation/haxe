@@ -778,7 +778,6 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| Some cs ->
 				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,data) ->
-					print_endline (Printf.sprintf "%s %b" file (is_display_file file));
 					if (filter <> None || is_display_file file) then
 						(file,DocumentSymbols.collect_module_symbols data) :: acc
 					else

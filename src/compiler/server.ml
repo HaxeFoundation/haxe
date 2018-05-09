@@ -115,7 +115,7 @@ let ssend sock str =
 	loop 0 (Bytes.length str)
 
 let rec wait_loop process_params verbose accept =
-	Sys.catch_break false;
+	Sys.catch_break false; (* Sys can never catch a break *)
 	let has_parse_error = ref false in
 	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
