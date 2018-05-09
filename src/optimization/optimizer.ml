@@ -907,6 +907,8 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| _ ->
 		e
 
+let inline_stack = ref []
+
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	sanitize_expr ctx.com (match e.eexpr with
@@ -924,10 +926,11 @@ let rec reduce_loop ctx e =
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
-					let inl = (try type_inline ctx cf tf ef el rt None e.epos ~self_calling_closure:true false with Error (Custom _,_) -> None) in
+					let inl = (try type_inline ctx cf tf ef el rt None e.epos false with Error (Custom _,_) -> None) in
 					(match inl with
 					| None -> reduce_expr ctx e
-					| Some e -> reduce_loop ctx e)
+					| Some e ->
+						rec_stack_default inline_stack cf (fun cf' -> cf' == cf) (fun () -> reduce_loop ctx e) e)
 				| _ ->
 					reduce_expr ctx e
 				end

@@ -1704,6 +1704,19 @@ let rec_stack stack value fcheck frun ferror =
 				raise e
 	end
 
+let rec_stack_default stack value fcheck frun def =
+	if not (List.exists fcheck !stack) then begin
+		try
+			stack := value :: !stack;
+			let v = frun() in
+			stack := List.tl !stack;
+			v
+		with
+			| e ->
+				stack := List.tl !stack;
+				raise e
+	end	else def
+
 let rec_stack_bool stack value fcheck frun =
 	if (List.exists fcheck !stack) then false else begin
 		try
