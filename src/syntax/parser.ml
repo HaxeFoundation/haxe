@@ -77,6 +77,8 @@ end
 let last_doc : (string * int) option ref = ref None
 let use_doc = ref false
 let was_auto_triggered = ref false
+let is_completion = ref false
+let legacy_display = ref false
 let resume_display = ref null_pos
 let in_macro = ref false
 
@@ -114,6 +116,8 @@ let is_resuming p =
 
 let set_resume p =
 	resume_display := { p with pfile = Path.unique_full_path p.pfile }
+
+let had_resume = ref false
 
 let encloses_resume p =
 	p.pmin <= !resume_display.pmin && p.pmax >= !resume_display.pmax
@@ -195,3 +199,10 @@ let make_is e (t,p_t) p p_is =
 let next_token s = match Stream.peek s with
 	| Some tk -> tk
 	| _ -> last_token s
+
+let mk_null_expr p = (EConst(Ident "null"),p)
+
+let mk_display_expr p = (EDisplay(mk_null_expr p,DKMarked),p)
+
+let check_resume p fyes fno =
+	if !is_completion && is_resuming p then (had_resume := true; fyes()) else fno()

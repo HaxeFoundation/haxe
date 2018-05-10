@@ -75,6 +75,8 @@ let parse_input com input =
 				pmax = pos;
 			}
 		in
+		Parser.is_completion := false;
+		Parser.legacy_display := false;
 		begin match name with
 			| "initialize" ->
 				raise (DisplayOutput.Completion (f_result (JObject [
@@ -82,6 +84,7 @@ let parse_input com input =
 				])))
 			| "textDocument/completion" ->
 				read_display_file (get_bool_param "wasAutoTriggered") true;
+				Parser.is_completion := true;
 				enable_display DMDefault;
 			| "textDocument/definition" ->
 				Common.define com Define.NoCOpt;

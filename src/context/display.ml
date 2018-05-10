@@ -32,73 +32,68 @@ let is_display_position p =
 	encloses_position !Parser.resume_display p
 
 module ExprPreprocessing = struct
-	let find_enclosing com dk e =
+	let find_before_pos com is_completion dk e =
 		let display_pos = ref (!Parser.resume_display) in
-		let mk_null p = (EDisplay(((EConst(Ident "null")),p),dk),p) in
-		let encloses_display_pos p =
-			if really_encloses_position !display_pos p then begin
-				let p = !display_pos in
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				Some p
-			end else
-				None
+		let is_annotated p = p.pmin < !display_pos.pmin && p.pmax >= !display_pos.pmax in
+		let annotate e =
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			(EDisplay(e,dk),pos e)
 		in
-		let rec loop e = match fst e with
-			| EBlock el ->
-				let p = pos e in
-				(* We want to find the innermost block which contains the display position. *)
-				let el = List.map loop el in
-				let el = match encloses_display_pos p with
-					| None ->
-						el
-					| Some p2 ->
-						let b,el = List.fold_left (fun (b,el) e ->
-							let p = pos e in
-							if b || p.pmax <= p2.pmin then begin
-								(b,e :: el)
-							end else begin
-								let e_d = (EDisplay(mk_null p,dk)),p in
-								(true,e :: e_d :: el)
-							end
-						) (false,[]) el in
-						let el = if b then
-							el
-						else begin
-							mk_null p :: el
-						end in
-						List.rev el
-				in
-				(EBlock el),(pos e)
-			| _ ->
-				Ast.map_expr loop e
+		let mk_null p = annotate ((EConst(Ident "null")),p) in
+		let loop_el el =
+			let pr = !Parser.resume_display in
+			let rec loop el = match el with
+				| [] -> [mk_null pr]
+				| e :: el ->
+					if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+					else e :: loop el
+			in
+			(* print_endline (Printf.sprintf "%i-%i: PR" pr.pmin pr.pmax);
+			List.iter (fun e ->
+				print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e));
+			) el; *)
+			match el with
+			| [] -> [mk_null pr]
+			| e :: el ->
+				if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+				else loop (e :: el)
 		in
-		loop e
-
-	let find_before_pos com dk e =
-		let display_pos = ref (!Parser.resume_display) in
-		let is_annotated p =
-			if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				true
-			end else
-				false
-		in
-		let loop e = match fst e with
+		let loop e =
+			(* print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e)); *)
+			match fst e with
 			| EVars vl ->
 				if List.exists (fun ((_,p),_,_) -> is_annotated p) vl then
-					(EDisplay(e,dk),(pos e))
+					annotate e
 				else
 					e
+			| EBlock el when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				EBlock el,(pos e)
+			| ECall(e1,el) when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				ECall(e1,el),(pos e)
+			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
+				if is_annotated pp || pp.pmax >= !Parser.resume_display.pmax then
+					annotate e
+				else begin
+					let el = loop_el el in
+					ENew((tp,pp),el),(pos e)
+				end
+			| EArrayDecl el when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				EArrayDecl el,(pos e)
+			| EDisplay _ ->
+				raise Exit
 			| _ ->
 				if is_annotated (pos e) then
-					(EDisplay(e,dk),(pos e))
+					annotate e
 				else
 					e
 		in
 		let rec map e =
 			loop (Ast.map_expr map e)
 		in
-		map e
+		try map e with Exit -> e
 
 	let find_display_call e =
 		let found = ref false in
@@ -120,8 +115,8 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMToplevel -> find_enclosing com DKToplevel e
-		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com DKMarked e
+		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false DKMarked e
+		| DMDefault -> find_before_pos com true DKMarked e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
