@@ -226,7 +226,7 @@ and display_expr ctx e_ast e dk with_type p =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMDefault when not (!Parser.had_resume)->
-		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false))
+		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false with_type))
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		raise (Display.DisplayFields fields)

@@ -58,7 +58,7 @@ let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 	in
 	List.iter (fun dir -> loop dir []) class_paths
 
-let collect ctx only_types =
+let collect ctx only_types with_type =
 	let acc = DynArray.create () in
 	let add x = DynArray.add acc x in
 
@@ -111,6 +111,12 @@ let collect ctx only_types =
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
 		List.iter enum_ctors (List.map fst ctx.m.module_types);
+
+		begin match with_type with
+			| WithType t ->
+				(try enum_ctors (module_type_of_type t) with Exit -> ())
+			| _ -> ()
+		end;
 
 		(* imported globals *)
 		PMap.iter (fun _ (mt,s,_) ->
@@ -210,7 +216,7 @@ let collect ctx only_types =
 	DynArray.to_list acc
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx only_types in
+	let l = collect ctx only_types NoValue in
 	let cl = List.map (fun it ->
 		let s = DisplayTypes.CompletionKind.get_name it in
 		(s,it),StringError.levenshtein i s
