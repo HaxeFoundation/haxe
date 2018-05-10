@@ -834,3 +834,7 @@ let print_fields com fields = match com.json_out with
 	| Some(f,_) ->
 		let j = List.map (CompletionKind.to_json (Genjson.create_context ())) fields in
 		f (jarray j)
+
+let print_package com pack = match com.json_out with
+	| None -> String.concat "." pack
+	| Some(f,_) -> f (JArray (List.map jstring pack))

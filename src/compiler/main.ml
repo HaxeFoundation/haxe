@@ -901,7 +901,7 @@ with
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
 	| Display.DisplayPackage pack ->
-		raise (DisplayOutput.Completion (String.concat "." pack))
+		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
 	| Display.DisplayFields fields ->
 		let fields =
 			if !measure_times then begin

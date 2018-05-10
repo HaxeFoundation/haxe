@@ -18,6 +18,7 @@ let get_capabilities () =
 		"definitionProvider",JBool true;
 		"hoverProvider",JBool true;
 		"completionProvider",JBool true;
+		"packageProvider",JBool true;
 	]
 
 let parse_input com input =
@@ -64,9 +65,9 @@ let parse_input com input =
 			Common.define_value com Define.Display "1";
 			Parser.use_doc := true;
 		in
-		let read_display_file was_auto_triggered =
+		let read_display_file was_auto_triggered requires_offset =
 			let file = get_string_param "file" in
-			let pos = get_int_param "offset" in
+			let pos = if requires_offset then get_int_param "offset" else 0 in
 			Parser.was_auto_triggered := was_auto_triggered;
 			Parser.resume_display := {
 				pfile = Path.unique_full_path file;
@@ -80,16 +81,19 @@ let parse_input com input =
 					"capabilities",get_capabilities()
 				])))
 			| "textDocument/completion" ->
-				read_display_file (get_bool_param "wasAutoTriggered");
+				read_display_file (get_bool_param "wasAutoTriggered") true;
 				enable_display DMDefault;
 			| "textDocument/definition" ->
 				Common.define com Define.NoCOpt;
-				read_display_file false;
+				read_display_file false true;
 				enable_display DMDefinition;
 			| "textDocument/hover" ->
 				Common.define com Define.NoCOpt;
-				read_display_file false;
+				read_display_file false true;
 				enable_display DMHover;
+			| "textDocument/package" ->
+				read_display_file false false;
+				enable_display DMPackage;
 			| _ -> raise_method_not_found id name
 		end;
 		com.json_out <- Some(f_result,f_error)
