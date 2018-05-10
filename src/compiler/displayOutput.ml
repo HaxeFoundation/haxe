@@ -660,11 +660,14 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
 		Parser.is_completion := false;
 		Parser.had_resume := false;
+		let offset = ref 0 in
 		let mode = match smode with
 			| "position" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMDefinition
 			| "usage" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMUsage false
 			(*| "rename" ->
@@ -673,6 +676,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "package" ->
 				DMPackage
 			| "type" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
@@ -713,8 +717,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.legacy_display := true;
 		Parser.resume_display := {
 			pfile = Path.unique_full_path file;
-			pmin = pos;
-			pmax = pos;
+			pmin = pos + !offset;
+			pmax = pos + !offset;
 		}
 
 let process_display_file com classes =

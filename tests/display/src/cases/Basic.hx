@@ -17,18 +17,19 @@ class Basic extends DisplayTestCase {
 	class Some {
 		function main() {
 			var {-1-}variable{-2-} = 5;
-			variable{-3-};
+			{-3-}variabl{-4-}e;
 		}
 	}
 	**/
 	function testPosition1() {
 		eq(range(1, 2), position(pos(3)));
+		eq(range(1, 2), position(pos(4)));
 	}
 
 	/**
 	class Some {
 		function main() {
-			var variable{-1-} = 5;
+			var variabl{-1-}e = 5;
 			{-2-}variable{-3-};
 		}
 	}
@@ -40,7 +41,7 @@ class Basic extends DisplayTestCase {
 	/**
 	class Some {
 		function main() {
-			var variable{-1-} = 5;
+			var variabl{-1-}e = 5;
 			{-2-}variable{-3-};
 			{-4-}variable{-5-};
 		}

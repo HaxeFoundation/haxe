@@ -28,7 +28,7 @@ class ArrowFunctions extends DisplayTestCase {
 
     /**
     var arr = [1,2,3,4,5];
-    arr.map( a{-1-} -> a{-2-} + 1 )
+    arr.map( {-1-}a -> a{-2-} + 1 )
     **/
     @:funcCode function testHover(){
         eq("Int", type(pos(1)));
