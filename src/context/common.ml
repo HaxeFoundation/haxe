@@ -218,6 +218,8 @@ module CompilationServer = struct
 	let runs () =
 		!instance <> None
 
+	let force () = match !instance with None -> assert false | Some i -> i
+
 	let is_initialized cs =
 		cs.initialized = true
 

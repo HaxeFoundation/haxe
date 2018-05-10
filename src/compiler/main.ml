@@ -737,7 +737,7 @@ try
 				| _ ->
 					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 					let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
-					init_wait_socket com.verbose host port
+					init_wait_socket host port
 			in
 			wait_loop process_params com.verbose accept
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run)");
