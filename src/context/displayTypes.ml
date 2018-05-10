@@ -2,6 +2,8 @@ open Globals
 open Path
 open Ast
 open Type
+open Json
+open Genjson
 
 module SymbolKind = struct
 	type t =
@@ -61,7 +63,7 @@ module DiagnosticsSeverity = struct
 		| Hint -> 4
 end
 
-module IdentifierType = struct
+module CompletionKind = struct
 	type resolution_mode =
 		| RMLocalModule
 		| RMImport
@@ -72,26 +74,80 @@ module IdentifierType = struct
 
 	type t =
 		| ITLocal of tvar
-		| ITMember of tclass_field
-		| ITStatic of tclass_field
-		| ITEnum of tenum * tenum_field
-		| ITEnumAbstract of tabstract * tclass_field
+		| ITClassMember of tclass_field
+		| ITClassStatic of tclass_field
+		| ITEnumField of tenum * tenum_field
+		| ITEnumAbstractField of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
 		| ITType of module_type * resolution_mode
 		| ITPackage of string
+		| ITModule of string
 		| ITLiteral of string
-		| ITTimer of string
+		| ITTimer of string * string
+		| ITMetadata of string * documentation
+
+	let legacy_sort = function
+		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) ->
+			begin match cf.cf_kind with
+			| Var _ -> 0,cf.cf_name
+			| Method _ -> 1,cf.cf_name
+			end
+		| ITEnumField(_,ef) ->
+			begin match follow ef.ef_type with
+			| TFun _ -> 1,ef.ef_name
+			| _ -> 0,ef.ef_name
+			end
+		| ITType(mt,_) ->
+			2,(snd (t_infos mt).mt_path)
+		| ITModule s -> 3,s
+		| ITPackage s -> 4,s
+		| ITMetadata(s,_) -> 5,s
+		| ITTimer(s,_) -> 6,s
+		| ITLocal v -> 7,v.v_name
+		| ITGlobal(_,s,_) -> 8,s
+		| ITLiteral s -> 9,s
 
 	let get_name = function
 		| ITLocal v -> v.v_name
-		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
-		| ITEnum(_,ef) -> ef.ef_name
+		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) -> cf.cf_name
+		| ITEnumField(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
 		| ITType(mt,_) -> snd (t_infos mt).mt_path
 		| ITPackage s -> s
+		| ITModule s -> s
 		| ITLiteral s -> s
-		| ITTimer s -> s
+		| ITTimer(s,_) -> s
+		| ITMetadata(s,_) -> s
 
+	let to_json ctx ck =
+		let kind,data = match ck with
+			| ITLocal v -> "Local",generate_tvar ctx v
+			| ITClassMember cf -> "Member",generate_class_field ctx cf
+			| ITClassStatic cf -> "Static",generate_class_field ctx cf
+			| ITEnumField(_,ef) -> "EnumField",generate_enum_field ctx ef
+			| ITEnumAbstractField(_,cf) -> "EnumAbstractField",generate_class_field ctx cf
+			| ITGlobal(mt,s,t) -> "Global",jobject [
+				"modulePath",generate_path (t_infos mt).mt_path;
+				"name",jstring s;
+				"type",generate_type ctx t
+			]
+			| ITType(mt,rm) -> "Type",jobject [
+				"modulePath",generate_path (t_infos mt).mt_path;
+				"resolutionMode",jtodo;
+			]
+			| ITPackage s -> "Package",jstring s
+			| ITModule s -> "Module",jstring s
+			| ITLiteral s -> "Literal",jstring s
+			| ITTimer(s,value) -> "Timer",jobject [
+				"name",jstring s;
+				"value",jstring value;
+			]
+			| ITMetadata(s,doc) -> "Metadata",jobject [
+				"name",jstring s;
+				"doc",jopt jstring doc;
+			]
+		in
+		generate_adt ctx None kind (Some data)
 end
 
 module DisplayMode = struct

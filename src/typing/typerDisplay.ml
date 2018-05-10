@@ -242,7 +242,7 @@ let handle_structure_display ctx e with_type =
 			| TAnon an ->
 				let fields = PMap.foldi (fun k cf acc ->
 					if Expr.field_mem_assoc k fl then acc
-					else ((k,Display.FKVar cf.cf_type,cf.cf_doc)) :: acc
+					else (DisplayTypes.CompletionKind.ITClassMember cf) :: acc
 				) an.a_fields [] in
 				fields
 			| _ -> fail()

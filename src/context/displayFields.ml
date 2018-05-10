@@ -21,14 +21,12 @@ open Globals
 open Error
 open Typecore
 open Type
+open DisplayTypes.CompletionKind
 
 let get_submodule_fields ctx path =
 	let m = Hashtbl.find ctx.g.modules path in
 	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
-	let tl = List.map (fun mt ->
-		let infos = t_infos mt in
-		(snd infos.mt_path),Display.FKType (type_of_module_type mt),infos.mt_doc
-	) tl in
+	let tl = List.map (fun mt -> ITType(mt,RMOtherModule m.m_path)) tl in
 	tl
 
 let collect ctx e_ast e dk with_type p =
@@ -183,10 +181,11 @@ let collect ctx e_ast e dk with_type p =
 			fields
 	in
 	let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
+	let open Display in
 	let get_field acc f =
 		List.fold_left (fun acc f ->
-			let kind = match f.cf_kind with Method _ -> Display.FKMethod f.cf_type | Var _ -> Display.FKVar f.cf_type in
-			if f.cf_public then (f.cf_name,kind,f.cf_doc) :: acc else acc
+			if not f.cf_public then acc
+			else (ITClassMember f) :: acc
 		) acc (f :: f.cf_overloads)
 	in
 	let fields = List.fold_left get_field [] fields in

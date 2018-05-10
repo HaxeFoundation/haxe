@@ -2,6 +2,7 @@ open Globals
 open Common
 open Timer
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionKind
 open Type
 open Display
 open DisplayTypes
@@ -39,18 +40,34 @@ let print_keywords () =
 let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,k,d) ->
-		let s_kind, t = match k with
-			| FKVar t -> "var", s_type (print_context()) t
-			| FKMethod t -> "method", s_type (print_context()) t
-			| FKType t -> "type", s_type (print_context()) t
-			| FKPackage -> "package", ""
-			| FKModule -> "type", ""
-			| FKMetadata -> "metadata", ""
-			| FKTimer s -> "timer", s
-		in
-		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (display_field_kind_index ak,a) (display_field_kind_index bk,b)) fields);
+	let convert k = match k with
+		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) ->
+			let kind = match cf.cf_kind with
+				| Method _ -> "method"
+				| Var _ -> "var"
+			in
+			kind,cf.cf_name,s_type (print_context()) cf.cf_type,cf.cf_doc
+		| ITEnumField(en,ef) ->
+			let kind = match follow ef.ef_type with
+				| TFun _ -> "method"
+				| _ -> "var"
+			in
+			kind,ef.ef_name,s_type (print_context()) ef.ef_type,ef.ef_doc
+		| ITType(mt,_) ->
+			let infos = t_infos mt in
+			"type",snd infos.mt_path,s_type_path infos.mt_path,infos.mt_doc
+		| ITPackage s -> "package",s,"",None
+		| ITModule s -> "type",s,"",None
+		| ITMetadata(s,doc) -> "metadata",s,"",doc
+		| ITTimer(name,value) -> "timer",name,"",Some value
+		| ITGlobal _ | ITLiteral _ | ITLocal _ -> assert false
+	in
+	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
+	let fields = List.map convert fields in
+	List.iter (fun(k,n,t,d) ->
+		let d = match d with None -> "" | Some d -> d in
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n k (htmlescape t) (htmlescape d))
+	) fields;
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 
@@ -71,33 +88,36 @@ let print_toplevel il =
 		end
 	in
 	List.iter (fun id -> match id with
-		| IdentifierType.ITLocal v ->
+		| ITLocal v ->
 			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-		| IdentifierType.ITMember cf ->
+		| ITClassMember cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITStatic cf ->
+		| ITClassStatic cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITEnum(en,ef) ->
+		| ITEnumField(en,ef) ->
 			if check_ident ef.ef_name then Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-		| IdentifierType.ITEnumAbstract(a,cf) ->
+		| ITEnumAbstractField(a,cf) ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITGlobal(mt,s,t) ->
+		| ITGlobal(mt,s,t) ->
 			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-		| IdentifierType.ITType(mt,rm) ->
+		| ITType(mt,rm) ->
 			let infos = t_infos mt in
 			let import,name = match rm with
-				| IdentifierType.RMOtherModule path ->
+				| RMOtherModule path ->
 					let label_path = if path = infos.mt_path then path else (fst path @ [snd path],snd infos.mt_path) in
 					Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path label_path
 				| _ -> "",(snd infos.mt_path)
 			in
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") name);
-		| IdentifierType.ITPackage s ->
+		| ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
-		| IdentifierType.ITLiteral s ->
+		| ITLiteral s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
-		| IdentifierType.ITTimer s ->
+		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
+		| ITMetadata _ | ITModule _ ->
+			(* compat: don't add *)
+			()
 	) il;
 	Buffer.add_string b "</il>";
 	Buffer.contents b
@@ -344,8 +364,8 @@ module TypePathHandler = struct
 		if packs = [] && modules = [] then
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
-			let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
-			let modules = List.map (fun n -> n,Display.FKModule,"") modules in
+			let packs = List.map (fun n -> ITPackage n) packs in
+			let modules = List.map (fun n -> ITModule n) modules in
 			Some (packs @ modules)
 
 	(** raise field completion listing module sub-types and static fields *)
@@ -385,14 +405,11 @@ module TypePathHandler = struct
 					[]
 				else
 					List.map (fun t ->
-						let infos = t_infos t in
-						(snd infos.mt_path), Display.FKModule, (Option.default "" infos.mt_doc)
+						ITType(t,RMOtherModule m.m_path)
 					) public_types
 			in
 			let make_field_doc cf =
-				cf.cf_name,
-				(match cf.cf_kind with Method _ -> Display.FKMethod cf.cf_type | Var _ -> Display.FKVar cf.cf_type),
-				(match cf.cf_doc with Some s -> s | None -> "")
+				ITClassStatic cf
 			in
 			let fields = match !statics with
 				| None -> types
@@ -808,5 +825,12 @@ let print_type com t p doc = match com.json_out with
 	| Some(f,_) -> f (JObject [
 		"documentation",jopt jstring doc;
 		"range",generate_pos_as_range p;
-		"type",generate_type (create_context com) t;
+		"type",generate_type (create_context ()) t;
 	])
+
+let print_fields com fields = match com.json_out with
+	| None ->
+		print_fields fields
+	| Some(f,_) ->
+		let j = List.map (CompletionKind.to_json (Genjson.create_context ())) fields in
+		f (jarray j)

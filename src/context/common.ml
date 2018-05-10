@@ -110,7 +110,7 @@ type shared_display_information = {
 }
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * DisplayTypes.IdentifierType.t) list) list;
+	mutable unresolved_identifiers : (string * pos * (string * DisplayTypes.CompletionKind.t) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 

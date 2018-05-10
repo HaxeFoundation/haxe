@@ -1,11 +1,10 @@
 open Ast
 open Globals
-open Common
 open Type
 open Meta
 
 type context = {
-	com : Common.context;
+	todo : unit;
 }
 
 let jnull = Json.JNull
@@ -207,6 +206,21 @@ and generate_type_parameter ctx (s,t) =
 
 (* texpr *)
 
+and generate_tvar ctx v =
+	let generate_extra (params,eo) = jobject [
+		"params",jlist (generate_type_parameter ctx) params;
+		"expr",jopt (generate_texpr ctx) eo;
+	] in
+	jobject [
+		"id",jint v.v_id;
+		"name",jstring v.v_name;
+		"type",generate_type ctx v.v_type;
+		"capture",jbool v.v_capture;
+		"extra",jopt generate_extra v.v_extra;
+		"meta",generate_metadata ctx v.v_meta;
+		"pos",generate_pos ctx v.v_pos;
+	]
+
 and generate_texpr ctx e =
 	jtodo
 
@@ -377,14 +391,14 @@ let generate_module_type ctx mt =
 	let fields1 = ("kind",jstring kind) :: fields1 @ [("args",jobject fields2)] in
 	jobject fields1
 
-let create_context com = {
-	com = com;
+let create_context () = {
+	todo = ()
 }
 
-let generate com file =
+let generate types file =
 	let t = Timer.timer ["generate";"json";"construct"] in
-	let ctx = create_context com in
-	let json = jarray (List.map (generate_module_type ctx) com.types) in
+	let ctx = create_context () in
+	let json = jarray (List.map (generate_module_type ctx) types) in
 	t();
 	let t = Timer.timer ["generate";"json";"write"] in
 	let ch = open_out_bin file in

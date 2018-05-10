@@ -855,7 +855,7 @@ try
 			| Some file ->
 				Common.log com ("Generating json : " ^ file);
 				Path.mkdir_from_path file;
-				Genjson.generate com file
+				Genjson.generate com.types file
 		end;
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
@@ -903,17 +903,16 @@ with
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| Display.DisplayFields fields ->
-		let fields = List.map (
-			fun (name,kind,doc) -> name, kind, (Option.default "" doc)
-		) fields in
 		let fields =
 			if !measure_times then begin
 				Timer.close_times();
-				(List.map (fun (name,value) -> ("@TIME " ^ name, Display.FKTimer value, "")) (DisplayOutput.get_timer_fields !start_time)) @ fields
+				(List.map (fun (name,value) ->
+					DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
+				) (DisplayOutput.get_timer_fields !start_time)) @ fields
 			end else
 				fields
 		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
+		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields))
 	| Display.DisplayType (t,p,doc) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
@@ -928,7 +927,7 @@ with
 		let il =
 			if !measure_times then begin
 				Timer.close_times();
-				(List.map (fun (name,value) -> DisplayTypes.IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
+				(List.map (fun (name,value) -> DisplayTypes.CompletionKind.ITTimer ("@TIME " ^ name,value)) (DisplayOutput.get_timer_fields !start_time)) @ il
 			end else
 				il
 		in
@@ -944,7 +943,7 @@ with
 				error ctx msg p;
 				None
 		in
-		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

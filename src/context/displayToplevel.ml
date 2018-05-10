@@ -20,7 +20,7 @@ open Ast
 open Common
 open Type
 open Typecore
-open DisplayTypes.IdentifierType
+open DisplayTypes.CompletionKind
 
 let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 	let rec loop dir pack =
@@ -73,7 +73,7 @@ let collect ctx only_types =
 		if ctx.curfun <> FunStatic then begin
 			let rec loop c =
 				List.iter (fun cf ->
-					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITMember cf)
+					if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITClassMember cf)
 				) c.cl_ordered_fields;
 				match c.cl_super with
 					| None ->
@@ -87,7 +87,7 @@ let collect ctx only_types =
 
 		(* statics *)
 		List.iter (fun cf ->
-			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITStatic cf)
+			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITClassStatic cf)
 		) ctx.curclass.cl_ordered_statics;
 
 		(* enum constructors *)
@@ -95,7 +95,7 @@ let collect ctx only_types =
 			match t with
 			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
 				List.iter (fun cf ->
-					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstract(a,cf));
+					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstractField(a,cf));
 				) c.cl_ordered_statics
 			| TClassDecl _ | TAbstractDecl _ ->
 				()
@@ -106,7 +106,7 @@ let collect ctx only_types =
 				end
 			| TEnumDecl e ->
 				PMap.iter (fun _ ef ->
-					add (ITEnum(e,ef))
+					add (ITEnumField(e,ef))
 				) e.e_constrs;
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
@@ -212,7 +212,7 @@ let collect ctx only_types =
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx only_types in
 	let cl = List.map (fun it ->
-		let s = DisplayTypes.IdentifierType.get_name it in
+		let s = DisplayTypes.CompletionKind.get_name it in
 		(s,it),StringError.levenshtein i s
 	) l in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in

@@ -29,7 +29,7 @@ STATICLINK?=0
 # Configuration
 
 # Modules in these directories should only depend on modules that are in directories to the left
-HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
+HAXE_DIRECTORIES=core core/json syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
 OPAM_LIBS=sedlex xml-light extlib rope ptmap sha

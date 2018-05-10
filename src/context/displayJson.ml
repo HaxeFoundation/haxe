@@ -17,6 +17,7 @@ let get_capabilities () =
 	JObject [
 		"definitionProvider",JBool true;
 		"hoverProvider",JBool true;
+		"completionProvider",JBool true;
 	]
 
 let parse_input com input =
@@ -48,10 +49,11 @@ let parse_input com input =
 			| JInt i -> i
 			| _ -> raise_haxe_json_error id (BadParamType(name,"Int"))
 		in
-		(* let get_bool_param name = match get_param name with
+		let get_bool_param name = match get_param name with
 			| JBool b -> b
 			| _ -> raise_haxe_json_error id (BadParamType(name,"Bool"))
 		in
+		(*
 		let opt_param name f =
 			if not (List.mem_assoc name params) then None
 			else Some (f name)
@@ -62,9 +64,10 @@ let parse_input com input =
 			Common.define_value com Define.Display "1";
 			Parser.use_doc := true;
 		in
-		let read_display_file () =
+		let read_display_file was_auto_triggered =
 			let file = get_string_param "file" in
 			let pos = get_int_param "offset" in
+			Parser.was_auto_triggered := was_auto_triggered;
 			Parser.resume_display := {
 				pfile = Path.unique_full_path file;
 				pmin = pos;
@@ -76,13 +79,16 @@ let parse_input com input =
 				raise (DisplayOutput.Completion (f_result (JObject [
 					"capabilities",get_capabilities()
 				])))
+			| "textDocument/completion" ->
+				read_display_file (get_bool_param "wasAutoTriggered");
+				enable_display DMDefault;
 			| "textDocument/definition" ->
 				Common.define com Define.NoCOpt;
-				read_display_file();
+				read_display_file false;
 				enable_display DMDefinition;
 			| "textDocument/hover" ->
 				Common.define com Define.NoCOpt;
-				read_display_file();
+				read_display_file false;
 				enable_display DMHover;
 			| _ -> raise_method_not_found id name
 		end;

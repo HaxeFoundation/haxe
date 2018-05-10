@@ -1296,7 +1296,7 @@ let init_class ctx c p context_init herits fields =
 		let open Display in
 		let l = PMap.fold (fun cf acc ->
 			if not (List.exists (fun cf' -> cf'.cf_name = cf.cf_name) c.cl_overrides) then
-				(IdentifierType.ITMember cf) :: acc
+				(IdentifierType.ITClassMember cf) :: acc
 			else acc
 		) fields [] in
 		raise (Display.DisplayToplevel l)

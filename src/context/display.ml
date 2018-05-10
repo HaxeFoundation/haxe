@@ -1,27 +1,10 @@
 open Ast
 open Common
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionKind
 open Type
 open Typecore
 open Globals
-
-type display_field_kind =
-	| FKVar of t
-	| FKMethod of t
-	| FKType of t
-	| FKModule
-	| FKPackage
-	| FKMetadata
-	| FKTimer of string
-
-let display_field_kind_index = function
-	| FKVar _ -> 0
-	| FKMethod _ -> 1
-	| FKType _ -> 2
-	| FKModule -> 3
-	| FKPackage -> 4
-	| FKMetadata -> 5
-	| FKTimer _ -> 6
 
 let reference_position = ref null_pos
 
@@ -32,8 +15,8 @@ exception Metadata of string
 exception DisplaySignatures of (tsignature * documentation) list * int
 exception DisplayType of t * pos * string option
 exception DisplayPosition of pos list
-exception DisplayFields of (string * display_field_kind * documentation) list
-exception DisplayToplevel of DisplayTypes.IdentifierType.t list
+exception DisplayFields of DisplayTypes.CompletionKind.t list
+exception DisplayToplevel of DisplayTypes.CompletionKind.t list
 exception DisplayPackage of string list
 
 let is_display_file file =
@@ -215,7 +198,9 @@ module DisplayEmitter = struct
 			end
 		| DMDefault ->
 			let all,_ = Meta.get_documentation_list() in
-			let all = List.map (fun (s,doc) -> (s,FKMetadata,Some doc)) all in
+			let all = List.map (fun (s,doc) ->
+				ITMetadata(s,Some doc)
+			) all in
 			raise (DisplayFields all)
 		| _ ->
 			()
