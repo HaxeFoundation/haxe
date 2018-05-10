@@ -41,7 +41,7 @@ class JsonModuleTypesPrinter {
         if (path.params.length == 0) {
             return s;
         } else {
-            var sparams = path.params.map(printType);
+            var sparams = path.params.map(printType).join(", ");
             return '$s<$sparams>';
         }
     }
