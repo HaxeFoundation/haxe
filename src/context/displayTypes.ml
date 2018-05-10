@@ -156,7 +156,6 @@ module DisplayMode = struct
 		| DMDefault
 		| DMUsage of bool (* true = also report definition *)
 		| DMDefinition
-		| DMToplevel
 		| DMResolve of string
 		| DMPackage
 		| DMHover
@@ -225,7 +224,6 @@ module DisplayMode = struct
 				dms_display_file_policy = DFPAlso;
 				dms_exit_during_typing = false
 			}
-		| DMToplevel -> { settings with dms_full_typing = true; }
 		| DMModuleSymbols filter -> { settings with
 				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
 				dms_exit_during_typing = false;
@@ -256,7 +254,6 @@ module DisplayMode = struct
 		| DMHover -> "type"
 		| DMUsage true -> "rename"
 		| DMUsage false -> "references"
-		| DMToplevel -> "toplevel"
 		| DMModuleSymbols None -> "module-symbols"
 		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
 		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"

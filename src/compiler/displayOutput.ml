@@ -658,6 +658,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
+		Parser.is_completion := false;
+		Parser.had_resume := false;
 		let mode = match smode with
 			| "position" ->
 				Common.define com Define.NoCOpt;
@@ -675,7 +677,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				DMHover
 			| "toplevel" ->
 				Common.define com Define.NoCOpt;
-				DMToplevel
+				DMDefault
 			| "module-symbols" ->
 				Common.define com Define.NoCOpt;
 				DMModuleSymbols None;
@@ -689,6 +691,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
+				Parser.is_completion := true;
 				DMDefault
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
@@ -699,6 +702,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
+						Parser.is_completion := true;
 						DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
@@ -706,6 +710,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Common.display_default := mode;
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
+		Parser.legacy_display := true;
 		Parser.resume_display := {
 			pfile = Path.unique_full_path file;
 			pmin = pos;
