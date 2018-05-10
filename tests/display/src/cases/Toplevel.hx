@@ -302,6 +302,19 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(fields, "enum", "TNull"));
 	}
 
+	/**
+	class Main {
+		static function main() {
+			for (foo in 0...10){-1-}
+				{-2-}
+		}
+	}
+	**/
+	function testBokenAST1() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "local", "foo"));
+	}
+
 	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
 		return a.exists(function(t) return t.kind == kind && t.name == name);
 	}
