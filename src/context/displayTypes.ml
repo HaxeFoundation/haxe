@@ -82,7 +82,7 @@ module CompletionKind = struct
 		| ITType of module_type * resolution_mode
 		| ITPackage of string
 		| ITModule of string
-		| ITLiteral of string
+		| ITLiteral of string * Type.t
 		| ITTimer of string * string
 		| ITMetadata of string * documentation
 
@@ -105,7 +105,7 @@ module CompletionKind = struct
 		| ITTimer(s,_) -> 6,s
 		| ITLocal v -> 7,v.v_name
 		| ITGlobal(_,s,_) -> 8,s
-		| ITLiteral s -> 9,s
+		| ITLiteral(s,_) -> 9,s
 
 	let get_name = function
 		| ITLocal v -> v.v_name
@@ -115,9 +115,21 @@ module CompletionKind = struct
 		| ITType(mt,_) -> snd (t_infos mt).mt_path
 		| ITPackage s -> s
 		| ITModule s -> s
-		| ITLiteral s -> s
+		| ITLiteral(s,_) -> s
 		| ITTimer(s,_) -> s
 		| ITMetadata(s,_) -> s
+
+	let get_type = function
+		| ITLocal v -> v.v_type
+		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) -> cf.cf_type
+		| ITEnumField(_,ef) -> ef.ef_type
+		| ITGlobal(_,_,t) -> t
+		| ITType(mt,_) -> t_dynamic (* TODO: hmm *)
+		| ITPackage _ -> t_dynamic
+		| ITModule _ -> t_dynamic
+		| ITLiteral(_,t) -> t
+		| ITTimer(_,_) -> t_dynamic
+		| ITMetadata(_,_) -> t_dynamic
 
 	let to_json ctx ck =
 		let kind,data = match ck with
@@ -137,7 +149,7 @@ module CompletionKind = struct
 			]
 			| ITPackage s -> "Package",jstring s
 			| ITModule s -> "Module",jstring s
-			| ITLiteral s -> "Literal",jstring s
+			| ITLiteral(s,_) -> "Literal",jstring s
 			| ITTimer(s,value) -> "Timer",jobject [
 				"name",jstring s;
 				"value",jstring value;
