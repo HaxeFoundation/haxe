@@ -67,7 +67,7 @@ let parse_input com input =
 		in
 		let read_display_file was_auto_triggered requires_offset =
 			let file = get_string_param "file" in
-			let pos = if requires_offset then get_int_param "offset" else 0 in
+			let pos = if requires_offset then get_int_param "offset" else (-1) in
 			Parser.was_auto_triggered := was_auto_triggered;
 			Parser.resume_display := {
 				pfile = Path.unique_full_path file;
