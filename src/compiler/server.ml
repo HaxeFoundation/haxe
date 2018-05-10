@@ -87,8 +87,8 @@ module ServerMessage = struct
 		print_stats = false;
 		print_message = false;
 		print_socket_message = false;
-		print_uncaught_error = true;
-		print_new_context = true;
+		print_uncaught_error = false;
+		print_new_context = false;
 	}
 
 	let test_server_messages = DynArray.create ()
@@ -232,6 +232,7 @@ module ServerMessage = struct
 		config.print_skipping_dep <- true;
 		config.print_unchanged_content <- true;
 		config.print_cached_modules <- true;
+		config.print_arguments <- true;
 		config.print_completion <- true;
 		config.print_defines <- true;
 		config.print_signature <- true;
