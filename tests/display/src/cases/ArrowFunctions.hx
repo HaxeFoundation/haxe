@@ -40,10 +40,6 @@ class ArrowFunctions extends DisplayTestCase {
     x -> { {-1-}
     **/
     @:funcCode function testTopLevel(){
-        eq(true, Toplevel.hasToplevel(toplevel(pos(1)), "local", "x"));
+        eq(true, hasToplevel(toplevel(pos(1)), "local", "x"));
     }
-
-    /*public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
-		return a.exists(function(t) return t.kind == kind && t.name == name);
-    }*/
 }

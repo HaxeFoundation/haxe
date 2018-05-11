@@ -77,7 +77,6 @@ let parse_input com input =
 			}
 		in
 		Parser.is_completion := false;
-		Parser.legacy_display := false;
 		begin match name with
 			| "initialize" ->
 				raise (DisplayOutput.Completion (f_result (JObject [

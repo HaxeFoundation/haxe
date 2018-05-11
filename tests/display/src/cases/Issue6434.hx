@@ -12,9 +12,9 @@ class Issue6434 extends DisplayTestCase {
 	**/
 	function test() {
 		var toplevel = toplevel(pos(1));
-		eq(true, Toplevel.hasToplevel(toplevel, "type", "PublicClass"));
+		eq(true, hasToplevel(toplevel, "type", "PublicClass"));
 		// This doesn't really test what I want to test, but I don't know how
 		// to test what I want to test...
-		eq(false, Toplevel.hasToplevel(toplevel, "type", "PrivateClass"));
+		eq(false, hasToplevel(toplevel, "type", "PrivateClass"));
 	}
 }

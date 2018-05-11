@@ -172,17 +172,4 @@ class Signature extends DisplayTestCase {
 	function testNested() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
 	}
-
-	function sigEq(arg:Int, params:Array<Array<String>>, sig:SignatureHelp, ?pos:haxe.PosInfos) {
-		eq(arg, sig.activeParameter, pos);
-		eq(params.length, sig.signatures.length, pos);
-		for (i in 0...params.length) {
-			var sigInf = sig.signatures[i];
-			var args = params[i];
-			eq(sigInf.parameters.length, args.length, pos);
-			for (i in 0...args.length) {
-				eq(sigInf.parameters[i].label, args[i], pos);
-			}
-		}
-	}
 }

@@ -314,8 +314,4 @@ class Toplevel extends DisplayTestCase {
 		var fields = toplevel(pos(1));
 		eq(true, hasToplevel(fields, "local", "foo"));
 	}
-
-	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
-		return a.exists(function(t) return t.kind == kind && t.name == name);
-	}
 }
