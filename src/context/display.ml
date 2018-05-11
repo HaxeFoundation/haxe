@@ -15,8 +15,7 @@ exception Metadata of string
 exception DisplaySignatures of (tsignature * documentation) list * int
 exception DisplayType of t * pos * string option
 exception DisplayPosition of pos list
-exception DisplayFields of DisplayTypes.CompletionKind.t list
-exception DisplayToplevel of DisplayTypes.CompletionKind.t list
+exception DisplayFields of DisplayTypes.CompletionKind.t list * bool (* toplevel? *)
 exception DisplayPackage of string list
 
 let is_display_file file =
@@ -196,7 +195,7 @@ module DisplayEmitter = struct
 			let all = List.map (fun (s,doc) ->
 				ITMetadata(s,Some doc)
 			) all in
-			raise (DisplayFields all)
+			raise (DisplayFields(all,false))
 		| _ ->
 			()
 
