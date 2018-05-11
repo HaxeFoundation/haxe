@@ -1241,7 +1241,7 @@ type compl_locals = {
 	mutable r : (string, (complex_type option * (int * Ast.expr * compl_locals) option)) PMap.t;
 }
 
-let optimize_completion_expr e =
+let optimize_completion_expr e args =
 	let iid = ref 0 in
 	let typing_side_effect = ref false in
 	let locals : compl_locals = { r = PMap.empty } in
@@ -1255,6 +1255,10 @@ let optimize_completion_expr e =
 	let decl n t e =
 		typing_side_effect := true;
 		locals.r <- PMap.add n (t,(match e with Some e when maybe_typed e -> incr iid; Some (!iid,e,{ r = locals.r }) | _ -> None)) locals.r
+	in
+	let rec hunt_idents e = match fst e with
+		| EConst (Ident i) -> decl i None None
+		| _ -> Ast.iter_expr hunt_idents e
 	in
 	let e0 = e in
 	let rec loop e =
@@ -1321,10 +1325,14 @@ let optimize_completion_expr e =
 			map e
 		| ESwitch (e1,cases,def) when Parser.encloses_resume p ->
 			let e1 = loop e1 in
+			hunt_idents e1;
 			(* Prune all cases that aren't our display case *)
 			let cases = List.filter (fun (_,_,_,p) -> Parser.encloses_resume p) cases in
 			(* Don't throw away the switch subject when we optimize in a case expression because we might need it *)
-			let cases = List.map (fun (el,eg,eo,p) -> el,eg,(try Option.map loop eo with Return e -> Some e),p) cases in
+			let cases = List.map (fun (el,eg,eo,p) ->
+				List.iter hunt_idents el;
+				el,eg,(try Option.map loop eo with Return e -> Some e),p
+			) cases in
 			let def = match def with
 				| None -> None
 				| Some (None,p) -> Some (None,p)
@@ -1339,16 +1347,7 @@ let optimize_completion_expr e =
 				| Some e ->
 					let el = List.map loop el in
 					let old = save() in
-					List.iter (fun e ->
-						match fst e with
-						| ECall (_,pl) ->
-							List.iter (fun p ->
-								match fst p with
-								| EConst (Ident i) -> decl i None None (* sadly *)
-								| _ -> ()
-							) pl
-						| _ -> ()
-					) el;
+					List.iter hunt_idents el;
 					let e = loop e in
 					old();
 					el, eg, Some e, p
@@ -1369,6 +1368,10 @@ let optimize_completion_expr e =
 				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
+		| ECheckType(e1,th) ->
+			typing_side_effect := true;
+			let e1 = loop e1 in
+			(ECheckType(e1,th),p)
 		| EDisplay(_,DKStructure) ->
 			raise (Return e0)
 		| EDisplay (s,call) ->
@@ -1420,6 +1423,7 @@ let optimize_completion_expr e =
 	and map e =
 		Ast.map_expr loop e
 	in
+	List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) args;
 	(try loop e with Return e -> e)
 
 (* ---------------------------------------------------------------------- *)
