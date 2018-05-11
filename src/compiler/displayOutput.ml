@@ -60,7 +60,9 @@ let print_fields fields =
 		| ITModule s -> "type",s,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
-		| ITGlobal _ | ITLiteral _ | ITLocal _ -> assert false
+		| ITGlobal(_,s,t) -> "global",s,s_type (print_context()) t,None
+		| ITLiteral(s,t) -> "literal",s,s_type (print_context()) t,None
+		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -837,9 +839,9 @@ let print_type com t p doc = match com.json_out with
 		"type",generate_type (create_context ()) t;
 	])
 
-let print_fields com fields = match com.json_out with
+let print_fields com fields is_toplevel = match com.json_out with
 	| None ->
-		print_fields fields
+		if is_toplevel then print_toplevel fields else print_fields fields
 	| Some(f,_) ->
 		let j = List.map (CompletionKind.to_json (Genjson.create_context ())) fields in
 		f (jarray j)

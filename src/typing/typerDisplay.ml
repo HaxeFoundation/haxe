@@ -42,7 +42,7 @@ let rec handle_display ctx e_ast dk with_type =
 		raise (Parser.TypePath ([n],None,false))
 	| Error (Type_not_found (path,_),_) as err ->
 		begin try
-			raise (Display.DisplayFields (DisplayFields.get_submodule_fields ctx path))
+			raise (Display.DisplayFields (DisplayFields.get_submodule_fields ctx path,false))
 		with Not_found ->
 			raise err
 		end
@@ -226,10 +226,10 @@ and display_expr ctx e_ast e dk with_type p =
 		let pl = loop e in
 		raise (Display.DisplayPosition pl);
 	| DMDefault when not (!Parser.had_resume)->
-		raise (Display.DisplayToplevel (DisplayToplevel.collect ctx false with_type))
+		raise (Display.DisplayFields (DisplayToplevel.collect ctx false with_type,true))
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
-		raise (Display.DisplayFields fields)
+		raise (Display.DisplayFields(fields,false))
 
 let handle_structure_display ctx e with_type =
 	let p = pos e in
@@ -249,7 +249,7 @@ let handle_structure_display ctx e with_type =
 			end
 		| _ -> fail()
 		in
-		raise (Display.DisplayFields fields)
+		raise (Display.DisplayFields(fields,false))
 	| _ ->
 		error "Expected object expression" p
 

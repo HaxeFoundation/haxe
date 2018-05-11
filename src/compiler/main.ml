@@ -902,7 +902,7 @@ with
 		message ctx (CMInfo(msg,null_pos))
 	| Display.DisplayPackage pack ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
-	| Display.DisplayFields fields ->
+	| Display.DisplayFields(fields,is_toplevel) ->
 		let fields =
 			if !measure_times then begin
 				Timer.close_times();
@@ -912,7 +912,7 @@ with
 			end else
 				fields
 		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields))
+		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
 	| Display.DisplayType (t,p,doc) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
@@ -923,15 +923,6 @@ with
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| Display.DisplayPosition pl ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
-	| Display.DisplayToplevel il ->
-		let il =
-			if !measure_times then begin
-				Timer.close_times();
-				(List.map (fun (name,value) -> DisplayTypes.CompletionKind.ITTimer ("@TIME " ^ name,value)) (DisplayOutput.get_timer_fields !start_time)) @ il
-			end else
-				il
-		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
 			try begin match c with
@@ -943,7 +934,7 @@ with
 				error ctx msg p;
 				None
 		in
-		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields))) fields
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields false))) fields
 	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

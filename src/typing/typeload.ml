@@ -39,7 +39,7 @@ let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then raise (Display.DisplayToplevel (DisplayToplevel.collect ctx true NoValue));
+	if tname = "" then raise (Display.DisplayFields (DisplayToplevel.collect ctx true NoValue,true));
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
