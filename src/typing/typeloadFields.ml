@@ -61,6 +61,9 @@ type field_init_ctx = {
 	field_kind : field_kind;
 	mutable do_bind : bool;
 	mutable do_add : bool;
+	(* If true, cf_expr = None makes a difference in the logic. We insert a dummy expression in
+	   display mode in order to address this. *)
+	mutable expr_presence_matters : bool;
 }
 
 let locate_macro_error = ref true
@@ -94,6 +97,7 @@ let dump_field_context fctx =
 		"field_kind",s_field_kind fctx.field_kind;
 		"do_bind",string_of_bool fctx.do_bind;
 		"do_add",string_of_bool fctx.do_add;
+		"expr_presence_matters",string_of_bool fctx.expr_presence_matters;
 	]
 
 
@@ -432,6 +436,7 @@ let create_field_context (ctx,cctx) c cff =
 		field_kind = field_kind;
 		do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
 		do_add = true;
+		expr_presence_matters = false;
 	} in
 	if fctx.is_display_field then cctx.has_display_field <- true;
 	ctx,fctx
@@ -546,7 +551,8 @@ let bind_type (ctx,cctx,fctx) cf r p =
 			if not (is_full_type cf.cf_type) then begin
 				cctx.delayed_expr <- (ctx, None) :: cctx.delayed_expr;
 				cf.cf_type <- TLazy r;
-			end;
+			end else if fctx.expr_presence_matters then
+				cf.cf_expr <- Some (mk (TConst TNull) t_dynamic null_pos)
 		end
 	end
 
@@ -770,6 +776,7 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 				| ((Meta.ArrayAccess,_,_) | (Meta.Op,[(EArrayDecl _),_],_)) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
 					a.a_array <- cf :: a.a_array;
+					fctx.expr_presence_matters <- true;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
@@ -786,12 +793,14 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if right_eq && Meta.has Meta.Commutative cf.cf_meta then error (cf.cf_name ^ ": @:commutative is only allowed if the right argument is not " ^ (s_type (print_context()) targ)) cf.cf_pos;
 					a.a_ops <- (op,cf) :: a.a_ops;
 					allows_no_expr := true;
+					fctx.expr_presence_matters <- true;
 				| (Meta.Op,[EUnop(op,flag,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					(try type_eq EqStrict t (tfun [targ] (mk_mono())) with Unify_error l -> raise (Error ((Unify l),cf.cf_pos)));
 					a.a_unops <- (op,flag,cf) :: a.a_unops;
 					allows_no_expr := true;
+					fctx.expr_presence_matters <- true;
 				| (Meta.Impl,_,_) :: ml when cf.cf_name <> "_new" && not fctx.is_macro ->
 					begin match follow t with
 						| TFun((_,_,t1) :: _, _) when type_iseq tthis t1 ->
