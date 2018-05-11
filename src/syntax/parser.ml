@@ -78,7 +78,6 @@ let last_doc : (string * int) option ref = ref None
 let use_doc = ref false
 let was_auto_triggered = ref false
 let is_completion = ref false
-let legacy_display = ref false
 let resume_display = ref null_pos
 let in_macro = ref false
 

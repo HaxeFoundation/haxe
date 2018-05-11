@@ -928,7 +928,6 @@ and expr = parser
 			display (make_meta name params e p)
 		end
 	| [< '(BrOpen,p1); s >] ->
-		check_resume p1 (fun() -> display (EDisplay ((EObjectDecl [],p1),DKStructure),p1)) (fun () -> ());
 		(match s with parser
 		| [< '(Binop OpOr,p2) when do_resume() >] ->
 			set_resume p1;
@@ -943,7 +942,10 @@ and expr = parser
 			let e = (b,punion p1 p2) in
 			(match b with
 			| EObjectDecl _ -> expr_next e s
-			| _ -> e))
+			| _ -> e)
+		| [< >] ->
+			check_resume p1 (fun() -> display (EDisplay ((EObjectDecl [],p1),DKStructure),p1)) serror;
+		)
 	| [< '(Kwd k,p) when !parsing_macro_cond; s >] ->
 		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
@@ -1172,7 +1174,6 @@ and parse_call_params f p1 s =
 		let e = f el p2 in
 		display (EDisplay(e,DKCall),pos e)
 	in
-	if !legacy_display then check_resume p1 (fun () -> make_display_call [] p1) (fun () -> ());
 	let rec parse_next_param acc p1 =
 		let e = try
 			expr s

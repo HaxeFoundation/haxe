@@ -109,7 +109,7 @@ class DisplayTestContext {
 		return StringTools.trim(xml.firstChild().nodeValue);
 	}
 
-	static function extractSignatures(result:String) {
+	static function  extractSignatures(result:String) {
 		var xml = Xml.parse('<x>$result</x>');
 		xml = xml.firstElement();
 		var ret = [];

@@ -682,7 +682,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
-				Common.define com Define.NoCOpt;
+				Parser.is_completion := true;
 				DMDefault
 			| "module-symbols" ->
 				Common.define com Define.NoCOpt;
@@ -716,7 +716,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Common.display_default := mode;
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
-		Parser.legacy_display := true;
 		Parser.resume_display := {
 			pfile = Path.unique_full_path file;
 			pmin = pos + !offset;

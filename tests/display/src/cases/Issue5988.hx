@@ -11,6 +11,6 @@ class Issue5988 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq(true, Toplevel.hasToplevel(toplevel(pos(1)), "type", "Array"));
+		eq(true, hasToplevel(toplevel(pos(1)), "type", "Array"));
 	}
 }

@@ -31,14 +31,15 @@ let is_display_position p =
 	encloses_position !Parser.resume_display p
 
 module ExprPreprocessing = struct
-	let find_before_pos com is_completion dk e =
+	let find_before_pos com is_completion e =
 		let display_pos = ref (!Parser.resume_display) in
 		let is_annotated p = p.pmin < !display_pos.pmin && p.pmax >= !display_pos.pmax in
-		let annotate e =
+		let annotate e dk =
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			(EDisplay(e,dk),pos e)
 		in
-		let mk_null p = annotate ((EConst(Ident "null")),p) in
+		let annotate_marked e = annotate e DKMarked in
+		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
 		let loop_el el =
 			let pr = !Parser.resume_display in
 			let rec loop el = match el with
@@ -62,9 +63,11 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl ->
 				if List.exists (fun ((_,p),_,_) -> is_annotated p) vl then
-					annotate e
+					annotate_marked e
 				else
 					e
+			| EBlock [] when is_annotated (pos e) ->
+				annotate e DKStructure
 			| EBlock el when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
 				EBlock el,(pos e)
@@ -73,7 +76,7 @@ module ExprPreprocessing = struct
 				ECall(e1,el),(pos e)
 			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
 				if is_annotated pp || pp.pmax >= !Parser.resume_display.pmax then
-					annotate e
+					annotate_marked e
 				else begin
 					let el = loop_el el in
 					ENew((tp,pp),el),(pos e)
@@ -85,7 +88,7 @@ module ExprPreprocessing = struct
 				raise Exit
 			| _ ->
 				if is_annotated (pos e) then
-					annotate e
+					annotate_marked e
 				else
 					e
 		in
@@ -114,8 +117,8 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false DKMarked e
-		| DMDefault -> find_before_pos com true DKMarked e
+		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false e
+		| DMDefault -> find_before_pos com true e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
