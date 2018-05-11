@@ -943,6 +943,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		cf_params = params;
 		cf_extern = fctx.is_extern;
 	} in
+	if fctx.is_macro && (ctx.com.display.dms_force_macro_typing || fctx.is_display_field) then
+		delay ctx PTypeField (fun() -> try ignore(ctx.g.do_macro ctx MDisplay c.cl_path cf.cf_name [] p) with Exit | Error _ -> ());
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p

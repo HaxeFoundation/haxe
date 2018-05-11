@@ -577,9 +577,12 @@ module Statistics = struct
 	let collect_statistics ctx =
 		let relations = Hashtbl.create 0 in
 		let symbols = Hashtbl.create 0 in
+		let handled_modules = Hashtbl.create 0 in
 		let add_relation pos r =
 			if pos <> null_pos then try
-				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
+				let l = Hashtbl.find relations pos in
+				if not (List.mem r l) then
+					Hashtbl.replace relations pos (r :: l)
 			with Not_found ->
 				Hashtbl.add relations pos [r]
 		in
@@ -675,7 +678,6 @@ module Statistics = struct
 			| TDynamic _ -> ()
 			| TFun _ | TAnon _ -> ()
 		in
-		let handled_modules = Hashtbl.create 0 in
 		let check_module m =
 			if not (Hashtbl.mem handled_modules m.m_path) then begin
 				Hashtbl.add handled_modules m.m_path true;
@@ -715,17 +717,26 @@ module Statistics = struct
 				declare (SKAbstract a) a.a_name_pos
 		in
 		begin match CompilationServer.get () with
-			| None -> List.iter f ctx.com.types
+			| None ->
+				let rec loop com =
+					List.iter f com.types;
+					Option.may loop (com.get_macros())
+				in
+				loop ctx.com
 			| Some cs ->
-				CompilationServer.cache_context cs ctx.com;
-				CompilationServer.iter_modules cs ctx.com (fun m -> List.iter f m.m_types);
+				let rec loop com =
+					CompilationServer.cache_context cs com;
+					CompilationServer.iter_modules cs com (fun m -> List.iter f m.m_types);
+					Option.may loop (com.get_macros())
+				in
+				loop ctx.com
 		end;
 		let l = List.fold_left (fun acc (_,cfi,_,cfo) -> match cfo with
 			| Some cf -> if List.mem_assoc cf.cf_name_pos acc then acc else (cf.cf_name_pos,cfi.cf_name_pos) :: acc
 			| None -> acc
 		) [] ctx.com.display_information.interface_field_implementations in
 		List.iter (fun (p,p') -> add_relation p' (Implemented,p)) l;
-		let deal_with_imports paths =
+		(* let deal_with_imports paths =
 			let check_subtype m s p =
 				try
 					let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
@@ -765,6 +776,6 @@ module Statistics = struct
 					()
 			) paths
 		in
-		if false then deal_with_imports ctx.com.shared.shared_display_information.import_positions;
+		if false then deal_with_imports ctx.com.shared.shared_display_information.import_positions; *)
 		symbols,relations
 end
