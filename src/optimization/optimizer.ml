@@ -1319,6 +1319,18 @@ let optimize_completion_expr e =
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
+		| ESwitch (e1,cases,def) when Parser.encloses_resume p ->
+			let e1 = loop e1 in
+			(* Prune all cases that aren't our display case *)
+			let cases = List.filter (fun (_,_,_,p) -> Parser.encloses_resume p) cases in
+			(* Don't throw away the switch subject when we optimize in a case expression because we might need it *)
+			let cases = List.map (fun (el,eg,eo,p) -> el,eg,(try Option.map loop eo with Return e -> Some e),p) cases in
+			let def = match def with
+				| None -> None
+				| Some (None,p) -> Some (None,p)
+				| Some (Some e,p) -> Some (Some (loop e),p)
+			in
+			(ESwitch (e1,cases,def),p)
 		| ESwitch (e,cases,def) ->
 			let e = loop e in
 			let cases = List.map (fun (el,eg,eo,p) -> match eo with
