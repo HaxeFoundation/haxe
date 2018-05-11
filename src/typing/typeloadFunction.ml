@@ -111,7 +111,7 @@ let type_function ctx args ret fmode f do_display p =
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		try
 			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
-			let e = Optimizer.optimize_completion_expr e in
+			let e = Optimizer.optimize_completion_expr e f.f_args in
 			type_expr ctx e NoValue
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
