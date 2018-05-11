@@ -908,4 +908,119 @@ module Expr = struct
 			loop fl
 		with Exit ->
 			true
+
+	let dump_with_pos e =
+		let buf = Buffer.create 0 in
+		let add = Buffer.add_string buf in
+		let rec loop' tabs (e,p) =
+			let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+			let loop e = loop' (tabs ^ "  ") e in
+			match e with
+			| EConst ct -> add (s_constant ct)
+			| EArray(e1,e2) ->
+				add "EArray";
+				loop e1;
+				loop e2;
+			| EBinop(op,e1,e2) ->
+				add ("EBinop " ^ (s_binop op));
+				loop e1;
+				loop e2;
+			| EField(e1,s) ->
+				add ("EField " ^ s);
+				loop e1
+			| EParenthesis e1 ->
+				add "EParenthesis";
+				loop e1
+			| EObjectDecl fl ->
+				add "EObjectDecl";
+				List.iter (fun ((n,p,_),e1) ->
+					loop' (Printf.sprintf "%s  %s" tabs n) e1
+				) fl;
+			| EArrayDecl el ->
+				add "EArrayDecl";
+				List.iter loop el
+			| ECall(e1,el) ->
+				add "ECall";
+				loop e1;
+				List.iter loop el
+			| ENew((tp,_),el) ->
+				add ("ENew " ^ s_type_path(tp.tpackage,tp.tname));
+				List.iter loop el
+			| EUnop(op,_,e1) ->
+				add ("EUnop " ^ (s_unop op));
+				loop e1
+			| EVars vl ->
+				add "EVars";
+				List.iter (fun ((n,p),_,eo) -> match eo with
+					| None -> ()
+					| Some e -> loop' (Printf.sprintf "%s  %s" tabs n) e
+				) vl
+			| EFunction(so,f) ->
+				add "EFunction";
+				Option.may loop f.f_expr;
+			| EBlock el ->
+				add "EBlock";
+				List.iter loop el
+			| EFor(e1,e2) ->
+				add "EFor";
+				loop e1;
+				loop e2;
+			| EIf(e1,e2,eo) ->
+				add "EIf";
+				loop e1;
+				loop e2;
+				Option.may loop eo;
+			| EWhile(e1,e2,_) ->
+				add "EWhile";
+				loop e1;
+				loop e2;
+			| ESwitch(e1,cases,def) ->
+				add "ESwitch";
+				loop e1;
+				List.iter (fun (el,eg,eo,p) ->
+					List.iter (loop' (tabs ^ "    ")) el;
+					Option.may (loop' (tabs ^ "      ")) eo;
+				) cases;
+				Option.may (fun (eo,_) -> Option.may (loop' (tabs ^ "      ")) eo) def
+			| ETry(e1,catches) ->
+				add "ETry";
+				loop e1;
+				List.iter (fun (_,_,e,_) ->
+					loop' (tabs ^ "    ") e
+				) catches
+			| EReturn eo ->
+				add "EReturn";
+				Option.may loop eo;
+			| EBreak ->
+				add "EBreak";
+			| EContinue ->
+				add "EContinue"
+			| EUntyped e1 ->
+				add "EUntyped";
+				loop e1;
+			| EThrow e1 ->
+				add "EThrow";
+				loop e1
+			| ECast(e1,_) ->
+				add "ECast";
+				loop e1;
+			| EDisplay(e1,dk) ->
+				add ("EDisplay " ^ (s_display_kind dk));
+				loop e1
+			| ETernary(e1,e2,e3) ->
+				add "ETernary";
+				loop e1;
+				loop e2;
+				loop e3;
+			| ECheckType(e1,_) ->
+				add "ECheckType";
+				loop e1;
+			| EMeta((m,_,_),e1) ->
+				add ("EMeta " ^ fst (Meta.get_info m));
+				loop e1
+			| EDisplayNew _ ->
+				assert false
+		in
+		loop' "" e;
+		Buffer.contents buf
 end

@@ -22,10 +22,7 @@ let is_display_file file =
 	file <> "?" && Path.unique_full_path file = (!Parser.resume_display).pfile
 
 let encloses_position p_target p =
-	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
-
-let really_encloses_position p_target p =
-	p.pmin <= p_target.pmin && p.pmax > p_target.pmax
+	p.pmin < p_target.pmin && p.pmax >= p_target.pmax
 
 let is_display_position p =
 	encloses_position !Parser.resume_display p
@@ -33,7 +30,7 @@ let is_display_position p =
 module ExprPreprocessing = struct
 	let find_before_pos com is_completion e =
 		let display_pos = ref (!Parser.resume_display) in
-		let is_annotated p = p.pmin < !display_pos.pmin && p.pmax >= !display_pos.pmax in
+		let is_annotated p = encloses_position !display_pos p in
 		let annotate e dk =
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			(EDisplay(e,dk),pos e)

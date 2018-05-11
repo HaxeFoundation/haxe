@@ -350,7 +350,7 @@ and parse_meta_entry = parser
 	[< '(At,p1); s >] ->
 		let meta = check_resume p1 (fun () -> Some (Meta.Last,[],p1)) (fun () -> None) in
 		match s with parser
-		| [< name,p = parse_meta_name p1; params = parse_meta_params p; s >] -> (name,params,p)
+		| [< name,p = parse_meta_name p1; params = parse_meta_params p; s >] -> (name,params,punion p1 p)
 		| [< >] -> match meta with None -> serror() | Some meta -> meta
 
 and parse_meta = parser
@@ -801,7 +801,7 @@ and parse_array_decl p1 s =
 	in
 	let resume_or_fail p1 =
 		if do_resume () then begin
-			let p = punion p1 (pos (next_token s)) in
+			let p = punion_next p1 s in
 			[mk_null_expr p],p
 		end else serror()
 	in
@@ -1179,9 +1179,7 @@ and parse_call_params f p1 s =
 			expr s
 		with
 		| Stream.Error _ | Stream.Failure as exc ->
-			let p2 = pos (next_token s) in
-			if do_resume() then
-				mk_null_expr (punion p1 p2)
+			if do_resume() then mk_null_expr (punion_next p1 s)
 			else raise exc
 		| Display e ->
 			display (f (List.rev (e :: acc)) (pos e))
@@ -1209,12 +1207,12 @@ and toplevel_expr s =
 and secure_expr s =
 	match s with parser
 	| [< e = expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion (pos (last_token s)) (pos (next_token s))) else serror()
+	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else serror()
 
 and expr_or_fail fail s =
 	match s with parser
 	| [< e = expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion (pos (last_token s)) (pos (next_token s))) else fail()
+	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else fail()
 
 let rec validate_macro_cond e = match fst e with
 	| EConst (Ident _)
