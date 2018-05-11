@@ -119,7 +119,7 @@ let set_resume p =
 let had_resume = ref false
 
 let encloses_resume p =
-	p.pmin <= !resume_display.pmin && p.pmax >= !resume_display.pmax
+	p.pmin < !resume_display.pmin && p.pmax >= !resume_display.pmax
 
 let would_skip_resume p1 s =
 	match Stream.npeek 1 s with
@@ -199,9 +199,15 @@ let next_token s = match Stream.peek s with
 	| Some tk -> tk
 	| _ -> last_token s
 
-let mk_null_expr p = (EConst(Ident "null"),p)
+let punion_next p1 s =
+	let _,p2 = next_token s in
+	{
+		pfile = p1.pfile;
+		pmin = p1.pmin;
+		pmax = p2.pmax - 1;
+	}
 
-let mk_display_expr p = (EDisplay(mk_null_expr p,DKMarked),p)
+let mk_null_expr p = (EConst(Ident "null"),p)
 
 let check_resume p fyes fno =
 	if !is_completion && is_resuming p then (had_resume := true; fyes()) else fno()
