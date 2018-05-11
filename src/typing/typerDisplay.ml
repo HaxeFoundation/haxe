@@ -104,11 +104,19 @@ and handle_signature_display ctx e_ast with_type =
 	in
 	match fst e_ast with
 		| ECall(e1,el) ->
-			let e1 = try
+			let def () = try
 				type_expr ctx e1 Value
 			with Error (Unknown_ident "trace",_) ->
 				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
 				type_expr ctx e Value
+			in
+			let e1 = match e1 with
+				| (EField (e,"bind"),p) ->
+					let e = type_expr ctx e Value in
+					(match follow e.etype with
+						| TFun signature -> e
+						| _ -> def ())
+				| _ ->	def()
 			in
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
