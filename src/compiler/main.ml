@@ -803,7 +803,7 @@ try
 		with _ ->
 			() (* ignore *)
 	end;
-	DisplayOutput.process_display_file com classes;
+	let display_file_dot_path = DisplayOutput.process_display_file com classes in
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin match com.display.dms_kind with
@@ -826,8 +826,21 @@ try
 		Finalization.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+		(* TODO: We don't want this to cause any errors. Needs proper exception handling that doesn't swallow display exceptions... *)
+		let load_display_module_in_macro () = match display_file_dot_path with
+			| Some cpath ->
+				let p = null_pos in
+				let _ = MacroContext.load_macro_module tctx cpath true p in
+				let _, mctx = MacroContext.get_macro_context tctx p in
+				Finalization.finalize mctx;
+				Some mctx
+			| None ->
+				None
+		in
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
+			(* If we didn't find a completion point, load the display file in macro mode. *)
+			ignore(load_display_module_in_macro ());
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
@@ -835,6 +848,14 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro () with
+			| None -> ()
+			| Some mctx ->
+				(* We don't need a full macro flush here because we're not going to run any macros. *)
+				let _, types, modules = Finalization.generate mctx in
+				mctx.Typecore.com.types <- types;
+				mctx.Typecore.com.Common.modules <- modules
+		end;
 		DisplayOutput.process_global_display_mode com tctx;
 		if not (Common.defined com Define.NoDeprecationWarnings) then
 			Display.DeprecationCheck.run com;
