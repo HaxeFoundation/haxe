@@ -1,3 +1,6 @@
+#if !neko // these platforms will not be made unicode-compatible
+
+
 var s = String.fromCharCode(0xE9);
 s == "é";
 s.length == 1;
@@ -108,4 +111,4 @@ input.readString(7) == "あ😂";
 input.readString(bytes.length - 9,RawNative) == "éあ😂";
 
 
-
+#end
