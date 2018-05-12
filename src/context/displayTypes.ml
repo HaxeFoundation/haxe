@@ -143,10 +143,7 @@ module CompletionKind = struct
 				"name",jstring s;
 				"type",generate_type ctx t
 			]
-			| ITType(mt,rm) -> "Type",jobject [
-				"modulePath",generate_path (t_infos mt).mt_path;
-				"resolutionMode",jtodo;
-			]
+			| ITType(mt,rm) -> "Type",generate_module_type (Genjson.create_context()) mt (* TODO: resolution mode *)
 			| ITPackage s -> "Package",jstring s
 			| ITModule s -> "Module",jstring s
 			| ITLiteral(s,_) -> "Literal",jstring s
