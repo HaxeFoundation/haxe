@@ -687,7 +687,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input
+				DisplayJson.parse_input com input measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -930,13 +930,13 @@ with
 	| DisplayException(DisplayPackage pack) ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
 	| DisplayException(DisplayFields(fields,is_toplevel)) ->
-		let fields =
-			if !measure_times then begin
+		let fields = match ctx.com.json_out with
+			| None when !measure_times ->
 				Timer.close_times();
 				(List.map (fun (name,value) ->
 					DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
 				) (DisplayOutput.get_timer_fields !start_time)) @ fields
-			end else
+			| _ ->
 				fields
 		in
 		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
