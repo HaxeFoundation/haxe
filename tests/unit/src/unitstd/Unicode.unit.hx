@@ -13,14 +13,16 @@ s.charCodeAt(0) == "あ".code;
 
 var s = String.fromCharCode(0x1f602);
 s == "😂";
-#if (hl || js || flash)
+
+#if false
+// native UTF-16 or 32
+s.length == 1;
+s.charCodeAt(0) == "😂".code;
+#else 
 // UTF-16 surrogate pairs encoding
 s.length == 2;
 s.charCodeAt(0) == 55357;
 s.charCodeAt(1) == 56834;
-#else
-s.length == 1;
-s.charCodeAt(0) == "😂".code;
 #end
 
 var s = "é" + "あ";
@@ -36,15 +38,16 @@ a[0] == "é";
 a[1] == "あ";
 
 var a = s.split('');
-#if (hl || js || flash)
-a.length == 4;
-a[0] == "é";
-a[3] == "あ";
-#else
+#if false
+// native UTF-16 or 32
 a.length == 3;
 a[0] == "é";
 a[1] == "😂";
 a[2] == "あ";
+#else
+a.length == 4;
+a[0] == "é";
+a[3] == "あ";
 #end
 
 var buf = new StringBuf();
@@ -76,11 +79,13 @@ var str = haxe.io.Bytes.ofString("éあ😂");
 str.toHex() == "c3a9e38182f09f9882";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
-#if (hl || js || flash)
-bytes.toHex() == "e90042303dd802de"; // UCS2 native
+
+#if false
+// another native encoding possible
 #else
-bytes.toHex() == ""; // todo : native encoding
+bytes.toHex() == "e90042303dd802de"; // UTF-16 native
 #end
+
 bytes.getString(0,bytes.length,RawNative) == "éあ😂";
 
 haxe.crypto.Md5.encode("éあ😂") == "d30b209e81e40d03dd474b26b77a8a18";
