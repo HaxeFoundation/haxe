@@ -24,6 +24,7 @@ open Ast
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
+open Display.DisplayException
 open Common
 open Error
 
@@ -116,7 +117,7 @@ let type_function ctx args ret fmode f do_display p =
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| Display.DisplayType (t,_,_) when (match follow t with TMono _ -> true | _ -> false) ->
+		| DisplayException (DisplayType (t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with

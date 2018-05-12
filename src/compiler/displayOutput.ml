@@ -3,6 +3,7 @@ open Common
 open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionKind
+open Display.DisplayException
 open Type
 open Display
 open DisplayTypes
@@ -754,7 +755,7 @@ let process_display_file com classes =
 			let real = Path.get_real_path (!Parser.resume_display).pfile in
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
-				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
+				if com.display.dms_kind = DMPackage then raise_package (fst path);
 				classes := path :: !classes;
 				Some path
 			| None ->
@@ -789,13 +790,13 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages in
 		Display.reference_position := null_pos;
-		raise (DisplayPosition usages)
+		raise_position usages
 	| DMDiagnostics global ->
 		Diagnostics.prepare com global;
-		raise (Diagnostics (DiagnosticsPrinter.print_diagnostics tctx global))
+		raise_diagnostics (DiagnosticsPrinter.print_diagnostics tctx global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx in
-		raise (Statistics (StatisticsPrinter.print_statistics stats))
+		raise_statistics (StatisticsPrinter.print_statistics stats)
 	| DMModuleSymbols filter ->
 		let symbols = com.shared.shared_display_information.document_symbols in
 		let symbols = match CompilationServer.get() with
@@ -809,7 +810,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 						acc
 				) symbols l
 		in
-		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
+		raise_module_symbols (ModuleSymbolsPrinter.print_module_symbols com symbols filter)
 	| _ -> ()
 
 let find_doc t =
