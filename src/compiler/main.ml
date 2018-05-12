@@ -836,8 +836,18 @@ try
 					(* Tricky stuff: We want to remove the module from our lookups and load it again in
 					   display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
 					if clear then begin
-						Hashtbl.remove mctx.g.modules cpath;
-						Hashtbl.remove mctx.g.types_module cpath;
+						begin try
+							let m = Hashtbl.find mctx.g.modules cpath in
+							Hashtbl.remove mctx.g.modules cpath;
+							Hashtbl.remove mctx.g.types_module cpath;
+							List.iter (fun mt ->
+								let ti = t_infos mt in
+								Hashtbl.remove mctx.g.modules ti.mt_path;
+								Hashtbl.remove mctx.g.types_module ti.mt_path;
+							) m.m_types
+						with Not_found ->
+							()
+						end;
 					end;
 					let _ = MacroContext.load_macro_module tctx cpath true p in
 					Finalization.finalize mctx;
