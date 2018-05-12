@@ -827,12 +827,19 @@ try
 		Finalization.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
-		let load_display_module_in_macro () = match display_file_dot_path with
+		let load_display_module_in_macro clear = match display_file_dot_path with
 			| Some cpath ->
 				let p = null_pos in
 				begin try
-					let _ = MacroContext.load_macro_module tctx cpath true p in
+					let open Typecore in
 					let _, mctx = MacroContext.get_macro_context tctx p in
+					(* Tricky stuff: We want to remove the module from our lookups and load it again in
+					   display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
+					if clear then begin
+						Hashtbl.remove mctx.g.modules cpath;
+						Hashtbl.remove mctx.g.types_module cpath;
+					end;
+					let _ = MacroContext.load_macro_module tctx cpath true p in
 					Finalization.finalize mctx;
 					Some mctx
 				with DisplayException _ | Parser.TypePath _ as exc ->
@@ -846,7 +853,7 @@ try
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
-			ignore(load_display_module_in_macro ());
+			ignore(load_display_module_in_macro true);
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
@@ -854,7 +861,7 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro () with
+		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro false with
 			| None -> ()
 			| Some mctx ->
 				(* We don't need a full macro flush here because we're not going to run any macros. *)
