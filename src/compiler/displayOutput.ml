@@ -745,26 +745,28 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			()
+			None
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
 				com.main_class <- None;
 			end;
 			let real = Path.get_real_path (!Parser.resume_display).pfile in
-			(match get_module_path_from_file_path com real with
+			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
-				classes := path :: !classes
+				classes := path :: !classes;
+				Some path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
 				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
 				failwith "Display file was not found in class path"
-			);
+			in
 			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]")
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
+			path
 
 let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMUsage with_definition ->
