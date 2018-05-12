@@ -107,13 +107,13 @@ class BytesBuffer {
 		#end
 	}
 
-	public inline function addString( v : String ) {
+	public inline function addString( v : String, ?encoding : Encoding ) {
 		#if neko
 		untyped StringBuf.__add(b, v.__s);
 		#elseif flash
 		b.writeUTFBytes(v);
 		#else
-		add(Bytes.ofString(v));
+		add(Bytes.ofString(v,encoding));
 		#end
 	}
 

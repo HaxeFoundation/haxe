@@ -125,7 +125,7 @@ class Bytes {
 		var b = new hl.Bytes(len + 1);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
-		return @:privateAccess String.fromUTF8(b);
+		return @:privateAccess (encoding == RawNative ? String.fromUCS2(b) : String.fromUTF8(b));
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")

@@ -134,29 +134,36 @@ class Bytes {
 
 	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( encoding == null ) encoding = UTF8;
 		var s = "";
 		var b = b;
-		var fcc = String.fromCharCode;
 		var i = pos;
 		var max = pos+len;
-		// utf8-decode and utf16-encode
-		while( i < max ) {
-			var c = b[i++];
-			if( c < 0x80 ) {
-				if( c == 0 ) break;
-				s += fcc(c);
-			} else if( c < 0xE0 )
-				s += fcc( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
-			else if( c < 0xF0 ) {
-				var c2 = b[i++];
-				s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
-			} else {
-				var c2 = b[i++];
-				var c3 = b[i++];
-				var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
-				// surrogate pair
-				s += fcc( (u >> 10) + 0xD7C0 );
-				s += fcc( (u & 0x3FF) | 0xDC00 );
+		switch( encoding ) {
+		case UTF8:
+			var debug = pos > 0;
+			// utf8-decode and utf16-encode
+			while( i < max ) {
+				var c = b[i++];
+				if( c < 0x80 ) {
+					if( c == 0 ) break;
+					s += String.fromCharCode(c);
+				} else if( c < 0xE0 )
+					s += String.fromCharCode( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
+				else if( c < 0xF0 ) {
+					var c2 = b[i++];
+					s += String.fromCharCode( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
+				} else {
+					var c2 = b[i++];
+					var c3 = b[i++];
+					var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
+					s += String.fromCharCode(u);
+				}
+			}
+		case RawNative:
+			while( i < max ) {
+				var c = b[i++] | (b[i++] << 8);
+				s += String.fromCharCode(c);
 			}
 		}
 		return s;
@@ -200,7 +207,7 @@ class Bytes {
 			for( i in 0...s.length ) {
 				var c : Int = StringTools.fastCodeAt(s,i);
 				buf[i << 1] = c & 0xFF;
-				buf[(i << 1)|1] = c >> 8;				
+				buf[(i << 1)|1] = c >> 8;
 			}
 			return new Bytes(buf.buffer);
 		}

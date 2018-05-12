@@ -21,6 +21,7 @@
  */
 package haxe.io;
 
+//@:coreApi
 extern class Bytes {
 	function new(length:Int,b:BytesData):Void;
 	public var length(default,null):Int;
@@ -40,13 +41,13 @@ extern class Bytes {
 	public function getInt64( pos : Int ) : haxe.Int64;
 	public function setInt32( pos : Int, v : Int ) : Void;
 	public function setInt64( pos : Int, v : haxe.Int64 ) : Void;
-	public function getString( pos : Int, len : Int ) : String;
+	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String;
 	public function toString() : String;
 	public function toHex() : String;
 	public function getData() : BytesData;
 	public static function alloc( length : Int ) : Bytes;
 	@:pure
-	public static function ofString( s : String ) : Bytes;
+	public static function ofString( s : String, ?encoding : Encoding ) : Bytes;
 	public static function ofData( b : BytesData ) : Bytes;
 	public static function fastGet( b : BytesData, pos : Int ) : Int;
 	static function __init__():Void {
