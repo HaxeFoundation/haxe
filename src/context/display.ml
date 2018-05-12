@@ -1,113 +1,115 @@
 open Ast
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionKind
 open Type
 open Typecore
 open Globals
 
-type display_field_kind =
-	| FKVar of t
-	| FKMethod of t
-	| FKType of t
-	| FKModule
-	| FKPackage
-	| FKMetadata
-	| FKTimer of string
+let reference_position = ref null_pos
 
-let display_field_kind_index = function
-	| FKVar _ -> 0
-	| FKMethod _ -> 1
-	| FKType _ -> 2
-	| FKModule -> 3
-	| FKPackage -> 4
-	| FKMetadata -> 5
-	| FKTimer _ -> 6
+module DisplayException = struct
+	type kind =
+		| Diagnostics of string
+		| Statistics of string
+		| ModuleSymbols of string
+		| Metadata of string
+		| DisplaySignatures of (tsignature * documentation) list * int
+		| DisplayType of t * pos * string option
+		| DisplayPosition of pos list
+		| DisplayFields of DisplayTypes.CompletionKind.t list * bool (* toplevel? *)
+		| DisplayPackage of string list
 
-exception Diagnostics of string
-exception Statistics of string
-exception ModuleSymbols of string
-exception Metadata of string
-exception DisplaySignatures of (tsignature * documentation) list * int
-exception DisplayType of t * pos * string option
-exception DisplayPosition of pos list
-exception DisplayFields of (string * display_field_kind * documentation) list
-exception DisplayToplevel of IdentifierType.t list
-exception DisplayPackage of string list
+	exception DisplayException of kind
+
+	let raise_diagnostics s = raise (DisplayException(Diagnostics s))
+	let raise_statistics s = raise (DisplayException(Statistics s))
+	let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
+	let raise_metadata s = raise (DisplayException(Metadata s))
+	let raise_signatures l i = raise (DisplayException(DisplaySignatures(l,i)))
+	let raise_type t p so = raise (DisplayException(DisplayType(t,p,so)))
+	let raise_position pl = raise (DisplayException(DisplayPosition pl))
+	let raise_fields ckl b = raise (DisplayException(DisplayFields(ckl,b)))
+	let raise_package sl = raise (DisplayException(DisplayPackage sl))
+end
+
+open DisplayException
 
 let is_display_file file =
 	file <> "?" && Path.unique_full_path file = (!Parser.resume_display).pfile
 
 let encloses_position p_target p =
-	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
-
-let really_encloses_position p_target p =
-	p.pmin <= p_target.pmin && p.pmax > p_target.pmax
+	p.pmin < p_target.pmin && p.pmax >= p_target.pmax
 
 let is_display_position p =
 	encloses_position !Parser.resume_display p
 
 module ExprPreprocessing = struct
-	let find_enclosing com dk e =
+	let find_before_pos com is_completion e =
 		let display_pos = ref (!Parser.resume_display) in
-		let mk_null p = (EDisplay(((EConst(Ident "null")),p),dk),p) in
-		let encloses_display_pos p =
-			if really_encloses_position !display_pos p then begin
-				let p = !display_pos in
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				Some p
-			end else
-				None
+		let is_annotated p = encloses_position !display_pos p in
+		let annotate e dk =
+			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			(EDisplay(e,dk),pos e)
 		in
-		let rec loop e = match fst e with
-			| EBlock el ->
-				let p = pos e in
-				(* We want to find the innermost block which contains the display position. *)
-				let el = List.map loop el in
-				let el = match encloses_display_pos p with
-					| None ->
-						el
-					| Some p2 ->
-						let b,el = List.fold_left (fun (b,el) e ->
-							let p = pos e in
-							if b || p.pmax <= p2.pmin then begin
-								(b,e :: el)
-							end else begin
-								let e_d = (EDisplay(mk_null p,dk)),p in
-								(true,e :: e_d :: el)
-							end
-						) (false,[]) el in
-						let el = if b then
-							el
-						else begin
-							mk_null p :: el
-						end in
-						List.rev el
-				in
-				(EBlock el),(pos e)
-			| _ ->
-				Ast.map_expr loop e
-		in
-		loop e
-
-	let find_before_pos com dk e =
-		let display_pos = ref (!Parser.resume_display) in
-		let is_annotated p =
-			if p.pmin <= !display_pos.pmin && p.pmax >= !display_pos.pmax then begin
-				display_pos := { pfile = ""; pmin = -2; pmax = -2 };
-				true
-			end else
-				false
+		let annotate_marked e = annotate e DKMarked in
+		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
+		let loop_el el =
+			let pr = !Parser.resume_display in
+			let rec loop el = match el with
+				| [] -> [mk_null pr]
+				| e :: el ->
+					if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+					else e :: loop el
+			in
+			(* print_endline (Printf.sprintf "%i-%i: PR" pr.pmin pr.pmax);
+			List.iter (fun e ->
+				print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e));
+			) el; *)
+			match el with
+			| [] -> [mk_null pr]
+			| e :: el ->
+				if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
+				else loop (e :: el)
 		in
 		let loop e =
-			if is_annotated (pos e) then
-				(EDisplay(e,dk),(pos e))
-			else
-				e
+			(* print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e)); *)
+			match fst e with
+			| EVars vl ->
+				if List.exists (fun ((_,p),_,_) -> is_annotated p) vl then
+					annotate_marked e
+				else
+					e
+			| EBlock [] when is_annotated (pos e) ->
+				annotate e DKStructure
+			| EBlock el when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				EBlock el,(pos e)
+			| ECall(e1,el) when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				ECall(e1,el),(pos e)
+			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
+				if is_annotated pp || pp.pmax >= !Parser.resume_display.pmax then
+					annotate_marked e
+				else begin
+					let el = loop_el el in
+					ENew((tp,pp),el),(pos e)
+				end
+			| EArrayDecl el when is_annotated (pos e) && is_completion ->
+				let el = loop_el el in
+				EArrayDecl el,(pos e)
+			| EDisplay _ ->
+				raise Exit
+			| _ ->
+				if is_annotated (pos e) then
+					annotate_marked e
+				else
+					e
 		in
 		let rec map e =
 			loop (Ast.map_expr map e)
 		in
-		map e
+		try map e with Exit -> e
 
 	let find_display_call e =
 		let found = ref false in
@@ -129,23 +131,21 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMToplevel -> find_enclosing com DKToplevel e
-		| DMPosition | DMUsage _ | DMType -> find_before_pos com DKMarked e
+		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false e
+		| DMDefault -> find_before_pos com true e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
 
 module DisplayEmitter = struct
 	let display_module_type dm mt p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [(t_infos mt).mt_name_pos]);
-		| DMUsage _ ->
-			let ti = t_infos mt in
-			ti.mt_meta <- (Meta.Usage,[],ti.mt_pos) :: ti.mt_meta
-		| DMType -> raise (DisplayType (type_of_module_type mt,p,None))
+		| DMDefinition -> raise_position [(t_infos mt).mt_name_pos];
+		| DMUsage _ -> reference_position := (t_infos mt).mt_name_pos
+		| DMHover -> raise_type (type_of_module_type mt) p None
 		| _ -> ()
 
 	let rec display_type dm t p = match dm.dms_kind with
-		| DMType -> raise (DisplayType (t,p,None))
+		| DMHover -> raise_type t p None
 		| _ ->
 			try display_module_type dm (module_type_of_type t) p
 			with Exit -> match follow t,follow !t_dynamic_def with
@@ -155,7 +155,8 @@ module DisplayEmitter = struct
 
 	let check_display_type ctx t p =
 		let add_type_hint () =
-			Hashtbl.replace ctx.com.shared.shared_display_information.type_hints p t;
+			let md = ctx.m.curmod.m_extra.m_display in
+			md.m_type_hints <- (p,t) :: md.m_type_hints;
 		in
 		let maybe_display_type () =
 			if ctx.is_display_file && is_display_position p then
@@ -167,52 +168,57 @@ module DisplayEmitter = struct
 		| _ -> maybe_display_type()
 
 	let display_variable dm v p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [v.v_pos])
-		| DMUsage _ -> v.v_meta <- (Meta.Usage,[],v.v_pos) :: v.v_meta;
-		| DMType -> raise (DisplayType (v.v_type,p,None))
+		| DMDefinition -> raise_position [v.v_pos]
+		| DMUsage _ -> reference_position := v.v_pos
+		| DMHover -> raise_type v.v_type p None
 		| _ -> ()
 
 	let display_field dm cf p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [cf.cf_name_pos]);
-		| DMUsage _ -> cf.cf_meta <- (Meta.Usage,[],cf.cf_pos) :: cf.cf_meta;
-		| DMType ->
+		| DMDefinition -> raise_position [cf.cf_name_pos]
+		| DMUsage _ -> reference_position := cf.cf_name_pos
+		| DMHover ->
 			let t = if Meta.has Meta.Impl cf.cf_meta then
 				(prepare_using_field cf).cf_type
 			else
 				cf.cf_type
 			in
-			raise (DisplayType (t,p,cf.cf_doc))
+			raise_type t p cf.cf_doc
 		| _ -> ()
 
 	let maybe_display_field ctx p cf =
 		if is_display_position p then display_field ctx.com.display cf p
 
 	let display_enum_field dm ef p = match dm.dms_kind with
-		| DMPosition -> raise (DisplayPosition [ef.ef_name_pos]);
-		| DMUsage _ -> ef.ef_meta <- (Meta.Usage,[],p) :: ef.ef_meta;
-		| DMType -> raise (DisplayType (ef.ef_type,p,ef.ef_doc))
+		| DMDefinition -> raise_position [ef.ef_name_pos]
+		| DMUsage _ -> reference_position := ef.ef_name_pos
+		| DMHover -> raise_type ef.ef_type p ef.ef_doc
 		| _ -> ()
 
-	let display_meta dm meta = match dm.dms_kind with
-		| DMType ->
+	let display_meta com meta = match com.display.dms_kind with
+		| DMHover ->
 			begin match meta with
 			| Meta.Custom _ | Meta.Dollar _ -> ()
 			| _ -> match Meta.get_documentation meta with
 				| None -> ()
 				| Some (_,s) ->
 					(* TODO: hack until we support proper output for hover display mode *)
-					raise (Metadata ("<metadata>" ^ s ^ "</metadata>"));
+					if com.json_out = None then
+						raise_metadata ("<metadata>" ^ s ^ "</metadata>")
+					else
+						raise_type t_dynamic null_pos (Some s)
 			end
-		| DMField ->
+		| DMDefault ->
 			let all,_ = Meta.get_documentation_list() in
-			let all = List.map (fun (s,doc) -> (s,FKMetadata,Some doc)) all in
-			raise (DisplayFields all)
+			let all = List.map (fun (s,doc) ->
+				ITMetadata(s,Some doc)
+			) all in
+			raise_fields all false
 		| _ ->
 			()
 
 	let check_display_metadata ctx meta =
 		List.iter (fun (meta,args,p) ->
-			if is_display_position p then display_meta ctx.com.display meta;
+			if is_display_position p then display_meta ctx.com meta;
 			List.iter (fun e ->
 				if is_display_position (pos e) then begin
 					let e = ExprPreprocessing.process_expr ctx.com e in
@@ -579,31 +585,26 @@ module Statistics = struct
 		| SKClass of tclass
 		| SKInterface of tclass
 		| SKEnum of tenum
+		| SKTypedef of tdef
+		| SKAbstract of tabstract
 		| SKField of tclass_field
 		| SKEnumField of tenum_field
 		| SKVariable of tvar
 
-	let is_usage_symbol symbol =
-		let meta = match symbol with
-			| SKClass c | SKInterface c -> c.cl_meta
-			| SKEnum en -> en.e_meta
-			| SKField cf -> cf.cf_meta
-			| SKEnumField ef -> ef.ef_meta
-			| SKVariable v -> v.v_meta
-		in
-		Meta.has Meta.Usage meta
-
 	let collect_statistics ctx =
 		let relations = Hashtbl.create 0 in
 		let symbols = Hashtbl.create 0 in
+		let handled_modules = Hashtbl.create 0 in
 		let add_relation pos r =
-			if is_display_file pos.pfile then try
-				Hashtbl.replace relations pos (r :: Hashtbl.find relations pos)
+			if pos <> null_pos then try
+				let l = Hashtbl.find relations pos in
+				if not (List.mem r l) then
+					Hashtbl.replace relations pos (r :: l)
 			with Not_found ->
 				Hashtbl.add relations pos [r]
 		in
 		let declare kind p =
-			if is_display_file p.pfile then begin
+			if p <> null_pos then begin
 				if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
 				Hashtbl.replace symbols p kind;
 			end
@@ -632,7 +633,6 @@ module Statistics = struct
 		in
 		let var_decl v = declare (SKVariable v) v.v_pos in
 		let patch_string_pos p s = { p with pmin = p.pmax - String.length s } in
-		let patch_string_pos_front p s  = { p with pmax = p.pmin + String.length s } in
 		let field_reference cf p =
 			add_relation cf.cf_name_pos (Referenced,patch_string_pos p cf.cf_name)
 		in
@@ -683,8 +683,30 @@ module Statistics = struct
 			in
 			loop e
 		in
-		List.iter (function
+		let rec explore_type_hint (p,t) =
+			match t with
+			| TMono r -> (match !r with None -> () | Some t -> explore_type_hint (p,t))
+			| TLazy f -> explore_type_hint (p,lazy_type f)
+			| TInst(({cl_name_pos = pn;cl_path = (_,name)}),_)
+			| TEnum(({e_name_pos = pn;e_path = (_,name)}),_)
+			| TType(({t_name_pos = pn;t_path = (_,name)}),_)
+			| TAbstract(({a_name_pos = pn;a_path = (_,name)}),_) ->
+				add_relation pn (Referenced,p)
+			| TDynamic _ -> ()
+			| TFun _ | TAnon _ -> ()
+		in
+		let check_module m =
+			if not (Hashtbl.mem handled_modules m.m_path) then begin
+				Hashtbl.add handled_modules m.m_path true;
+				List.iter (fun (p1,p2) ->
+					add_relation p1 (Referenced,p2)
+				) m.m_extra.m_display.m_inline_calls;
+				List.iter explore_type_hint m.m_extra.m_display.m_type_hints
+			end
+		in
+		let f = function
 			| TClassDecl c ->
+				check_module c.cl_module;
 				declare (if c.cl_interface then (SKInterface c) else (SKClass c)) c.cl_name_pos;
 				List.iter (fun (c',_) -> add_relation c'.cl_name_pos ((if c.cl_interface then Extended else Implemented),c.cl_name_pos)) c.cl_implements;
 				begin match c.cl_super with
@@ -701,24 +723,37 @@ module Statistics = struct
 				List.iter field c.cl_ordered_fields;
 				List.iter field c.cl_ordered_statics;
 			| TEnumDecl en ->
+				check_module en.e_module;
 				declare (SKEnum en) en.e_name_pos;
 				PMap.iter (fun _ ef -> declare (SKEnumField ef) ef.ef_name_pos) en.e_constrs
-			| _ ->
-				()
-		) ctx.com.types;
-		let explore_type_hint p t = match follow t with
-			| TInst(c,_) -> add_relation c.cl_name_pos (Referenced,(patch_string_pos_front p (snd c.cl_path)))
-			| _ -> ()
+			| TTypeDecl td ->
+				check_module td.t_module;
+				declare (SKTypedef td) td.t_name_pos
+			| TAbstractDecl a ->
+				check_module a.a_module;
+				declare (SKAbstract a) a.a_name_pos
 		in
-		Hashtbl.iter (fun p t ->
-			explore_type_hint p t
-		) ctx.com.shared.shared_display_information.type_hints;
+		begin match CompilationServer.get () with
+			| None ->
+				let rec loop com =
+					List.iter f com.types;
+					Option.may loop (com.get_macros())
+				in
+				loop ctx.com
+			| Some cs ->
+				let rec loop com =
+					CompilationServer.cache_context cs com;
+					CompilationServer.iter_modules cs com (fun m -> List.iter f m.m_types);
+					Option.may loop (com.get_macros())
+				in
+				loop ctx.com
+		end;
 		let l = List.fold_left (fun acc (_,cfi,_,cfo) -> match cfo with
 			| Some cf -> if List.mem_assoc cf.cf_name_pos acc then acc else (cf.cf_name_pos,cfi.cf_name_pos) :: acc
 			| None -> acc
 		) [] ctx.com.display_information.interface_field_implementations in
 		List.iter (fun (p,p') -> add_relation p' (Implemented,p)) l;
-		let deal_with_imports paths =
+		(* let deal_with_imports paths =
 			let check_subtype m s p =
 				try
 					let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
@@ -758,6 +793,6 @@ module Statistics = struct
 					()
 			) paths
 		in
-		if false then deal_with_imports ctx.com.shared.shared_display_information.import_positions;
+		if false then deal_with_imports ctx.com.shared.shared_display_information.import_positions; *)
 		symbols,relations
 end

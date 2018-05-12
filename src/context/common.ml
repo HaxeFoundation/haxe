@@ -96,169 +96,21 @@ type platform_config = {
 	pf_reserved_type_paths : path list;
 }
 
-module DisplayMode = struct
-	type t =
-		| DMNone
-		| DMField
-		| DMUsage of bool (* true = also report definition *)
-		| DMPosition
-		| DMToplevel
-		| DMResolve of string
-		| DMPackage
-		| DMType
-		| DMModuleSymbols of string option
-		| DMDiagnostics of bool (* true = global, false = only in display file *)
-		| DMStatistics
-		| DMSignature
-
-	type error_policy =
-		| EPIgnore
-		| EPCollect
-		| EPShow
-
-	type display_file_policy =
-		| DFPOnly
-		| DFPAlso
-		| DFPNo
-
-	type settings = {
-		dms_kind : t;
-		dms_display : bool;
-		dms_full_typing : bool;
-		dms_force_macro_typing : bool;
-		dms_error_policy : error_policy;
-		dms_collect_data : bool;
-		dms_check_core_api : bool;
-		dms_inline : bool;
-		dms_display_file_policy : display_file_policy;
-		dms_exit_during_typing : bool;
-	}
-
-	let default_display_settings = {
-		dms_kind = DMField;
-		dms_display = true;
-		dms_full_typing = false;
-		dms_force_macro_typing = false;
-		dms_error_policy = EPIgnore;
-		dms_collect_data = false;
-		dms_check_core_api = false;
-		dms_inline = false;
-		dms_display_file_policy = DFPOnly;
-		dms_exit_during_typing = true;
-	}
-
-	let default_compilation_settings = {
-		dms_kind = DMNone;
-		dms_display = false;
-		dms_full_typing = true;
-		dms_force_macro_typing = true;
-		dms_error_policy = EPShow;
-		dms_collect_data = false;
-		dms_check_core_api = true;
-		dms_inline = true;
-		dms_display_file_policy = DFPNo;
-		dms_exit_during_typing = false;
-	}
-
-	let create dm =
-		let settings = { default_display_settings with dms_kind = dm } in
-		match dm with
-		| DMNone -> default_compilation_settings
-		| DMField | DMPosition | DMResolve _ | DMPackage | DMType | DMSignature -> settings
-		| DMUsage _ -> { settings with
-				dms_full_typing = true;
-				dms_collect_data = true;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false
-			}
-		| DMToplevel -> { settings with dms_full_typing = true; }
-		| DMModuleSymbols filter -> { settings with
-				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
-				dms_exit_during_typing = false;
-				dms_force_macro_typing = false;
-			}
-		| DMDiagnostics global -> { settings with
-				dms_full_typing = true;
-				dms_error_policy = EPCollect;
-				dms_collect_data = true;
-				dms_inline = true;
-				dms_display_file_policy = if global then DFPNo else DFPAlso;
-				dms_exit_during_typing = false;
-			}
-		| DMStatistics -> { settings with
-				dms_full_typing = true;
-				dms_collect_data = true;
-				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false
-			}
-
-	let to_string = function
-		| DMNone -> "none"
-		| DMField -> "field"
-		| DMPosition -> "position"
-		| DMResolve s -> "resolve " ^ s
-		| DMPackage -> "package"
-		| DMType -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
-		| DMToplevel -> "toplevel"
-		| DMModuleSymbols None -> "module-symbols"
-		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
-		| DMStatistics -> "statistics"
-		| DMSignature -> "signature"
-end
-
 type compiler_callback = {
 	mutable after_typing : (module_type list -> unit) list;
 	mutable before_dce : (unit -> unit) list;
 	mutable after_generation : (unit -> unit) list;
 }
 
-module IdentifierType = struct
-	type resolution_mode =
-		| RMLocalModule
-		| RMImport
-		| RMUsing
-		| RMTypeParameter
-		| RMClassPath
-		| RMOtherModule of path
-
-	type t =
-		| ITLocal of tvar
-		| ITMember of tclass_field
-		| ITStatic of tclass_field
-		| ITEnum of tenum * tenum_field
-		| ITEnumAbstract of tabstract * tclass_field
-		| ITGlobal of module_type * string * Type.t
-		| ITType of module_type * resolution_mode
-		| ITPackage of string
-		| ITLiteral of string
-		| ITTimer of string
-
-	let get_name = function
-		| ITLocal v -> v.v_name
-		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
-		| ITEnum(_,ef) -> ef.ef_name
-		| ITGlobal(_,s,_) -> s
-		| ITType(mt,_) -> snd (t_infos mt).mt_path
-		| ITPackage s -> s
-		| ITLiteral s -> s
-		| ITTimer s -> s
-
-end
-
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable type_hints : (pos,Type.t) Hashtbl.t;
 	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
 	mutable removable_code : (string * pos * pos) list;
 }
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * IdentifierType.t) list) list;
+	mutable unresolved_identifiers : (string * pos * (string * DisplayTypes.CompletionKind.t) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 
@@ -274,7 +126,7 @@ type context = {
 	shared : shared_context;
 	display_information : display_information;
 	mutable sys_args : string list;
-	mutable display : DisplayMode.settings;
+	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
@@ -282,7 +134,7 @@ type context = {
 	mutable config : platform_config;
 	mutable std_path : string list;
 	mutable class_path : string list;
-	mutable main_class : Type.path option;
+	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
@@ -321,7 +173,7 @@ type context = {
 
 exception Abort of string * pos
 
-let display_default = ref DisplayMode.DMNone
+let display_default = ref DisplayTypes.DisplayMode.DMNone
 
 module CompilationServer = struct
 	type cache = {
@@ -366,6 +218,8 @@ module CompilationServer = struct
 	let runs () =
 		!instance <> None
 
+	let force () = match !instance with None -> assert false | Some i -> i
+
 	let is_initialized cs =
 		cs.initialized = true
 
@@ -399,8 +253,9 @@ module CompilationServer = struct
 	let taint_modules cs file =
 		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
 
-	let iter_modules cs f =
-		Hashtbl.iter (fun _ m -> f m) cs.cache.c_modules
+	let iter_modules cs com f =
+		let sign = Define.get_signature com.defines in
+		Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules
 
 	(* files *)
 
@@ -415,6 +270,9 @@ module CompilationServer = struct
 
 	let remove_files cs file =
 		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
+
+	let iter_files cs f =
+		Hashtbl.iter (fun _ file -> f file) cs.cache.c_files
 
 	(* haxelibs *)
 
@@ -454,6 +312,17 @@ module CompilationServer = struct
 
 	let clear_directories cs key =
 		Hashtbl.remove cs.cache.c_directories key
+
+	(* context *)
+
+	let rec cache_context cs com =
+		let cache_module m =
+			cache_module cs (m.m_path,m.m_extra.m_sign) m;
+		in
+		List.iter cache_module com.modules;
+		match com.get_macros() with
+		| None -> ()
+		| Some com -> cache_context cs com
 end
 
 (* Defines *)
@@ -621,7 +490,7 @@ let create version s_version args =
 	let defines =
 		PMap.add "true" "1" (
 		PMap.add "source-header" ("Generated by Haxe " ^ s_version) (
-		if !display_default <> DisplayMode.DMNone then PMap.add "display" "1" PMap.empty else PMap.empty))
+		if !display_default <> DisplayTypes.DisplayMode.DMNone then PMap.add "display" "1" PMap.empty else PMap.empty))
 	in
 	{
 		version = version;
@@ -630,7 +499,6 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				type_hints = Hashtbl.create 0;
 				document_symbols = [];
 				removable_code = [];
 			}
@@ -641,7 +509,7 @@ let create version s_version args =
 		};
 		sys_args = [];
 		debug = false;
-		display = DisplayMode.create !display_default;
+		display = DisplayTypes.DisplayMode.create !display_default;
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;

@@ -6109,22 +6109,37 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let generate_script_function isStatic field scriptName callName =
       match follow field.cf_type  with
       | TFun (args,return_type) when not (is_data_member field) ->
+         let isTemplated = not isStatic && not class_def.cl_interface in
+         if isTemplated then output_cpp ("\ntemplate<bool _HX_SUPER=false>");
          output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
          let ret = script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
-         if class_def.cl_interface then begin
-            output_cpp (class_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ (if (List.length args) > 0 then "," else ""));
-         end else if isStatic then
-            output_cpp (class_name ^ "::" ^ callName ^ "(")
-         else
-            output_cpp ("((" ^  class_name ^ "*)ctx->getThis())->" ^  callName ^ "(");
 
-         let (signature,_,_) = List.fold_left (fun (signature,sep,size) (_,opt,t) ->
-            output_cpp (sep ^ "ctx->get" ^ (script_type t opt) ^ "(" ^ size ^ ")");
-            (signature ^ (script_signature t opt ), ",", (size^"+sizeof(" ^ (script_size_type t opt) ^ ")") ) ) (ret,"","sizeof(void*)")  args
+         let dump_call cast =
+            if class_def.cl_interface then begin
+               output_cpp (class_name ^ "::" ^ callName ^ "(ctx->getThis()" ^ (if (List.length args) > 0 then "," else ""));
+            end else if isStatic then
+               output_cpp (class_name ^ "::" ^ callName ^ "(")
+            else
+               output_cpp ("((" ^  class_name ^ "*)ctx->getThis())->" ^ cast ^ callName ^ "(");
+
+            let (signature,_,_) = List.fold_left (fun (signature,sep,size) (_,opt,t) ->
+               output_cpp (sep ^ "ctx->get" ^ (script_type t opt) ^ "(" ^ size ^ ")");
+               (signature ^ (script_signature t opt ), ",", (size^"+sizeof(" ^ (script_size_type t opt) ^ ")") ) ) (ret,"","sizeof(void*)")  args
+            in
+            output_cpp ")";
+            signature
+         in
+         let signature =
+            if isTemplated then begin
+               output_cpp (" _HX_SUPER ? ");
+               ignore( dump_call (class_name ^ "::") );
+               output_cpp (" : ");
+               dump_call ""
+            end else
+               dump_call "";
          in
 
-         output_cpp ")";
          if (ret<>"v") then output_cpp (")");
          output_cpp (";\n}\n");
          signature;
@@ -6233,14 +6248,20 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          in
          List.iter dump_script_static class_def.cl_ordered_statics;
 
+         output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
+         output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
+         output_cpp "#endif HXCPP_CPPIA_SUPER_ARG\n";
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
          let dump_func f isStaticFlag =
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
-            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " ),\n" )
+            output_cpp ("  hx::ScriptNamedFunction(\"" ^ f.cf_name ^ "\",__s_" ^ f.cf_name ^ ",\"" ^ s ^ "\", " ^ isStaticFlag ^ " " );
+            let superCall = if (isStaticFlag="true") || class_def.cl_interface then "0" else ("__s_" ^ f.cf_name ^ "<true>") in
+            output_cpp ("HXCPP_CPPIA_SUPER_ARG(" ^ superCall ^")" );
+            output_cpp (" ),\n" )
          in
          List.iter (fun (f,_,_) -> dump_func f "false") new_sctipt_functions;
          List.iter (fun f -> dump_func f "true") static_functions;
-         output_cpp "  hx::ScriptNamedFunction(0,0,0) };\n";
+         output_cpp "  hx::ScriptNamedFunction(0,0,0 HXCPP_CPPIA_SUPER_ARG(0) ) };\n";
       end else
          output_cpp "static hx::ScriptNamedFunction *__scriptableFunctions = 0;\n";
 

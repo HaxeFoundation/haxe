@@ -13,7 +13,6 @@ class DisplayTestCase {
 	// api
 	inline function pos(name) return ctx.pos(name);
 	inline function fields(pos) return ctx.fields(pos);
-	inline function signatures(pos) return ctx.signatures(pos);
 	inline function toplevel(pos) return ctx.toplevel(pos);
 	inline function type(pos) return ctx.type(pos);
 	inline function position(pos) return ctx.position(pos);
@@ -76,8 +75,25 @@ class DisplayTestCase {
 		return a.exists(function(t) return t.type == type && t.name == name && (kind == null || t.kind == kind));
 	}
 
+	function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
+		return a.exists(function(t) return t.kind == kind && t.name == name);
+	}
+
 	function hasPath(a:Array<FieldElement>, name:String):Bool {
 		return a.exists(function(t) return t.name == name);
+	}
+
+	function sigEq(arg:Int, params:Array<Array<String>>, sig:SignatureHelp, ?pos:haxe.PosInfos) {
+		eq(arg, sig.activeParameter, pos);
+		eq(params.length, sig.signatures.length, pos);
+		for (i in 0...params.length) {
+			var sigInf = sig.signatures[i];
+			var args = params[i];
+			eq(sigInf.parameters.length, args.length, pos);
+			for (i in 0...args.length) {
+				eq(sigInf.parameters[i].label, args[i], pos);
+			}
+		}
 	}
 
 	function report(message, pos:haxe.PosInfos) {

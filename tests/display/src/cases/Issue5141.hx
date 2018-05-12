@@ -14,7 +14,7 @@ class Issue5141 extends DisplayTestCase {
 	**/
 	function testTypedef() {
 		eq("cases.MyHandler", type(pos(1)));
-		arrayEq(["Int -> String -> Void"], signatures(pos(2)));
+		sigEq(0, [[":Int", ":String"]], signature(pos(2)));
 	}
 
 	/**
@@ -31,6 +31,6 @@ class Issue5141 extends DisplayTestCase {
 	**/
 	function testAbstract() {
 		eq("cases.MyCallable", type(pos(1)));
-		arrayEq(["Int -> String -> Void"], signatures(pos(2)));
+		sigEq(0, [[":Int", ":String"]], signature(pos(2)));
 	}
 }

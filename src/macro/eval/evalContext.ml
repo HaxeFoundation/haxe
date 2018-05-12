@@ -129,7 +129,7 @@ type context = {
 	mutable had_error : bool;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
-	overrides : (Type.path * string,bool) Hashtbl.t;
+	overrides : (Globals.path * string,bool) Hashtbl.t;
 	(* prototypes *)
 	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;

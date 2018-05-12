@@ -476,7 +476,7 @@ let parse_swf com file =
 	IO.close_in ch;
 	List.iter (fun t ->
 		match t.tdata with
-		| TActionScript3 (id,as3) when not com.debug && not com.display.DisplayMode.dms_display ->
+		| TActionScript3 (id,as3) when not com.debug && not com.display.DisplayTypes.DisplayMode.dms_display ->
 			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 		| _ -> ()
 	) tags;

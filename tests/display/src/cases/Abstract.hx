@@ -4,7 +4,7 @@ class Abstract extends DisplayTestCase {
 	/**
 	abstract A(Int) {
 		public function new({-3-}i{-4-}) {
-			this = i{-1-};
+			this = {-1-}i;
 			trace("f{-2-}oo");
 		}
 	}

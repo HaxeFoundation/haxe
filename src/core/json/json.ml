@@ -103,6 +103,11 @@ and write_object w o =
 	write_iter write_el (fun() -> write_sep w) o;
 	w "}"
 
+let string_of_json json =
+	let b = Buffer.create 0 in
+	write_json (Buffer.add_string b) json;
+	Buffer.contents b;
+
 module Reader = struct
 	(*
 		The following code is basically stripped down yojson (https://github.com/mjambon/yojson),

@@ -1,9 +1,12 @@
 open Globals
 open Common
 open Timer
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionKind
+open Display.DisplayException
 open Type
 open Display
+open DisplayTypes
 open Typecore
 
 (* Old XML stuff *)
@@ -38,18 +41,36 @@ let print_keywords () =
 let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
-	List.iter (fun (n,k,d) ->
-		let s_kind, t = match k with
-			| FKVar t -> "var", s_type (print_context()) t
-			| FKMethod t -> "method", s_type (print_context()) t
-			| FKType t -> "type", s_type (print_context()) t
-			| FKPackage -> "package", ""
-			| FKModule -> "type", ""
-			| FKMetadata -> "metadata", ""
-			| FKTimer s -> "timer", s
-		in
-		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n s_kind (htmlescape t) (htmlescape d))
-	) (List.sort (fun (a,ak,_) (b,bk,_) -> compare (display_field_kind_index ak,a) (display_field_kind_index bk,b)) fields);
+	let convert k = match k with
+		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) ->
+			let kind = match cf.cf_kind with
+				| Method _ -> "method"
+				| Var _ -> "var"
+			in
+			kind,cf.cf_name,s_type (print_context()) cf.cf_type,cf.cf_doc
+		| ITEnumField(en,ef) ->
+			let kind = match follow ef.ef_type with
+				| TFun _ -> "method"
+				| _ -> "var"
+			in
+			kind,ef.ef_name,s_type (print_context()) ef.ef_type,ef.ef_doc
+		| ITType(mt,_) ->
+			let infos = t_infos mt in
+			"type",snd infos.mt_path,s_type_path infos.mt_path,infos.mt_doc
+		| ITPackage s -> "package",s,"",None
+		| ITModule s -> "type",s,"",None
+		| ITMetadata(s,doc) -> "metadata",s,"",doc
+		| ITTimer(name,value) -> "timer",name,"",Some value
+		| ITGlobal(_,s,t) -> "global",s,s_type (print_context()) t,None
+		| ITLiteral(s,t) -> "literal",s,s_type (print_context()) t,None
+		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
+	in
+	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
+	let fields = List.map convert fields in
+	List.iter (fun(k,n,t,d) ->
+		let d = match d with None -> "" | Some d -> d in
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\" k=\"%s\"><t>%s</t><d>%s</d></i>\n" n k (htmlescape t) (htmlescape d))
+	) fields;
 	Buffer.add_string b "</list>\n";
 	Buffer.contents b
 
@@ -70,33 +91,36 @@ let print_toplevel il =
 		end
 	in
 	List.iter (fun id -> match id with
-		| IdentifierType.ITLocal v ->
+		| ITLocal v ->
 			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-		| IdentifierType.ITMember cf ->
+		| ITClassMember cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITStatic cf ->
+		| ITClassStatic cf ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITEnum(en,ef) ->
+		| ITEnumField(en,ef) ->
 			if check_ident ef.ef_name then Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
-		| IdentifierType.ITEnumAbstract(a,cf) ->
+		| ITEnumAbstractField(a,cf) ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| IdentifierType.ITGlobal(mt,s,t) ->
+		| ITGlobal(mt,s,t) ->
 			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-		| IdentifierType.ITType(mt,rm) ->
+		| ITType(mt,rm) ->
 			let infos = t_infos mt in
 			let import,name = match rm with
-				| IdentifierType.RMOtherModule path ->
+				| RMOtherModule path ->
 					let label_path = if path = infos.mt_path then path else (fst path @ [snd path],snd infos.mt_path) in
 					Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path label_path
 				| _ -> "",(snd infos.mt_path)
 			in
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") name);
-		| IdentifierType.ITPackage s ->
+		| ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
-		| IdentifierType.ITLiteral s ->
+		| ITLiteral(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
-		| IdentifierType.ITTimer s ->
+		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
+		| ITMetadata _ | ITModule _ ->
+			(* compat: don't add *)
+			()
 	) il;
 	Buffer.add_string b "</il>";
 	Buffer.contents b
@@ -343,8 +367,8 @@ module TypePathHandler = struct
 		if packs = [] && modules = [] then
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
-			let packs = List.map (fun n -> n,Display.FKPackage,"") packs in
-			let modules = List.map (fun n -> n,Display.FKModule,"") modules in
+			let packs = List.map (fun n -> ITPackage n) packs in
+			let modules = List.map (fun n -> ITModule n) modules in
 			Some (packs @ modules)
 
 	(** raise field completion listing module sub-types and static fields *)
@@ -384,14 +408,11 @@ module TypePathHandler = struct
 					[]
 				else
 					List.map (fun t ->
-						let infos = t_infos t in
-						(snd infos.mt_path), Display.FKModule, (Option.default "" infos.mt_doc)
+						ITType(t,RMOtherModule m.m_path)
 					) public_types
 			in
 			let make_field_doc cf =
-				cf.cf_name,
-				(match cf.cf_kind with Method _ -> Display.FKMethod cf.cf_type | Var _ -> Display.FKVar cf.cf_type),
-				(match cf.cf_doc with Some s -> s | None -> "")
+				ITClassStatic cf
 			in
 			let fields = match !statics with
 				| None -> types
@@ -431,9 +452,7 @@ let print_signature tl display_arg =
 		"activeParameter",JInt display_arg;
 		"activeSignature",JInt 0;
 	] in
-	let b = Buffer.create 0 in
-	write_json (Buffer.add_string b) jo;
-	Buffer.contents b
+	string_of_json jo
 
 module StatisticsPrinter = struct
 	open Statistics
@@ -448,6 +467,8 @@ module StatisticsPrinter = struct
 		| SKClass _ -> "class type"
 		| SKInterface _ -> "interface type"
 		| SKEnum _ -> "enum type"
+		| SKTypedef _ -> "typedef"
+		| SKAbstract _ -> "abstract"
 		| SKField _ -> "class field"
 		| SKEnumField _ -> "enum field"
 		| SKVariable _ -> "variable"
@@ -483,9 +504,7 @@ module StatisticsPrinter = struct
 				"statistics",JArray l
 			]) :: acc
 		) files [] in
-		let b = Buffer.create 0 in
-		write_json (Buffer.add_string b) (JArray ja);
-		Buffer.contents b
+		string_of_json (JArray ja)
 end
 
 module DiagnosticsPrinter = struct
@@ -570,9 +589,7 @@ module DiagnosticsPrinter = struct
 			]) :: acc
 		) diag [] in
 		let js = JArray jl in
-		let b = Buffer.create 0 in
-		write_json (Buffer.add_string b) js;
-		Buffer.contents b
+		string_of_json js
 end
 
 module ModuleSymbolsPrinter = struct
@@ -616,9 +633,7 @@ module ModuleSymbolsPrinter = struct
 				]) :: acc
 		) [] symbols in
 		let js = JArray ja in
-		let b = Buffer.create 0 in
-		write_json (Buffer.add_string b) js;
-		Buffer.contents b
+		string_of_json js
 end
 
 (* Mode processing *)
@@ -646,11 +661,16 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
+		Parser.is_completion := false;
+		Parser.had_resume := false;
+		let offset = ref 0 in
 		let mode = match smode with
 			| "position" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
-				DMPosition
+				DMDefinition
 			| "usage" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMUsage false
 			(*| "rename" ->
@@ -659,11 +679,12 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "package" ->
 				DMPackage
 			| "type" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
-				DMType
+				DMHover
 			| "toplevel" ->
-				Common.define com Define.NoCOpt;
-				DMToplevel
+				Parser.is_completion := true;
+				DMDefault
 			| "module-symbols" ->
 				Common.define com Define.NoCOpt;
 				DMModuleSymbols None;
@@ -677,7 +698,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
-				DMField
+				Parser.is_completion := true;
+				DMDefault
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
 				match smode with
@@ -687,7 +709,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
-						DMField
+						Parser.is_completion := true;
+						DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
 		com.display <- DisplayMode.create mode;
@@ -696,8 +719,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.use_doc := true;
 		Parser.resume_display := {
 			pfile = Path.unique_full_path file;
-			pmin = pos;
-			pmax = pos;
+			pmin = pos + !offset;
+			pmax = pos + !offset;
 		}
 
 let process_display_file com classes =
@@ -723,26 +746,28 @@ let process_display_file com classes =
 	in
 	match com.display.dms_display_file_policy with
 		| DFPNo ->
-			()
+			None
 		| dfp ->
 			if dfp = DFPOnly then begin
 				classes := [];
 				com.main_class <- None;
 			end;
 			let real = Path.get_real_path (!Parser.resume_display).pfile in
-			(match get_module_path_from_file_path com real with
+			let path = match get_module_path_from_file_path com real with
 			| Some path ->
-				if com.display.dms_kind = DMPackage then raise (DisplayPackage (fst path));
-				classes := path :: !classes
+				if com.display.dms_kind = DMPackage then raise_package (fst path);
+				classes := path :: !classes;
+				Some path
 			| None ->
 				if not (Sys.file_exists real) then failwith "Display file does not exist";
 				(match List.rev (ExtString.String.nsplit real Path.path_sep) with
 				| file :: _ when file.[0] >= 'a' && file.[0] <= 'z' -> failwith ("Display file '" ^ file ^ "' should not start with a lowercase letter")
 				| _ -> ());
 				failwith "Display file was not found in class path"
-			);
+			in
 			Common.log com ("Display file : " ^ real);
-			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]")
+			Common.log com ("Classes found : ["  ^ (String.concat "," (List.map s_type_path !classes)) ^ "]");
+			path
 
 let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMUsage with_definition ->
@@ -753,7 +778,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| [] -> acc
 		in
 		let usages = Hashtbl.fold (fun p sym acc ->
-			if Statistics.is_usage_symbol sym then begin
+			if p = !Display.reference_position then begin
 				let acc = if with_definition then p :: acc else acc in
 				(try loop acc (Hashtbl.find relations p)
 				with Not_found -> acc)
@@ -764,13 +789,14 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			let c = compare p1.pfile p2.pfile in
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages in
-		raise (DisplayPosition usages)
+		Display.reference_position := null_pos;
+		raise_position usages
 	| DMDiagnostics global ->
 		Diagnostics.prepare com global;
-		raise (Diagnostics (DiagnosticsPrinter.print_diagnostics tctx global))
+		raise_diagnostics (DiagnosticsPrinter.print_diagnostics tctx global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx in
-		raise (Statistics (StatisticsPrinter.print_statistics stats))
+		raise_statistics (StatisticsPrinter.print_statistics stats)
 	| DMModuleSymbols filter ->
 		let symbols = com.shared.shared_display_information.document_symbols in
 		let symbols = match CompilationServer.get() with
@@ -778,14 +804,13 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| Some cs ->
 				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,data) ->
-					print_endline (Printf.sprintf "%s %b" file (is_display_file file));
 					if (filter <> None || is_display_file file) then
 						(file,DocumentSymbols.collect_module_symbols data) :: acc
 					else
 						acc
 				) symbols l
 		in
-		raise (ModuleSymbols(ModuleSymbolsPrinter.print_module_symbols com symbols filter))
+		raise_module_symbols (ModuleSymbolsPrinter.print_module_symbols com symbols filter)
 	| _ -> ()
 
 let find_doc t =
@@ -802,6 +827,27 @@ let find_doc t =
 	in
 	doc
 
+open Genjson
+
 let print_positions com pl = match com.json_out with
 	| None -> print_positions pl
-	| Some(f,_) -> f (JArray (List.map Genjson.generate_pos_as_location pl))
+	| Some(f,_) -> f (JArray (List.map generate_pos_as_location pl))
+
+let print_type com t p doc = match com.json_out with
+	| None -> print_type t p doc
+	| Some(f,_) -> f (JObject [
+		"documentation",jopt jstring doc;
+		"range",generate_pos_as_range p;
+		"type",generate_type (create_context ()) t;
+	])
+
+let print_fields com fields is_toplevel = match com.json_out with
+	| None ->
+		if is_toplevel then print_toplevel fields else print_fields fields
+	| Some(f,_) ->
+		let j = List.map (CompletionKind.to_json (Genjson.create_context ())) fields in
+		f (jarray j)
+
+let print_package com pack = match com.json_out with
+	| None -> String.concat "." pack
+	| Some(f,_) -> f (JArray (List.map jstring pack))

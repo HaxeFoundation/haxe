@@ -17,6 +17,11 @@ abstract ModuleCheckPolicy(Int) {
 
 	/**
 		Disables dependency checks of the module.
+
+		This should only be used for modules that don't depend on any module that
+		might change. It is effectively a promise to the compiler that the module
+		is unaffected by changes made to other modules. If that promise is broken,
+		the compiler is sad and things probably stop working.
 	**/
 	var NoCheckDependencies = 2;
 

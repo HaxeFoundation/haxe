@@ -1,4 +1,4 @@
 <list>
-<i n="MyModule" k="type"><t></t><d></d></i>
-<i n="OtherType" k="type"><t></t><d></d></i>
+<i n="MyModule" k="type"><t>MyModule</t><d></d></i>
+<i n="OtherType" k="type"><t>OtherType</t><d></d></i>
 </list>

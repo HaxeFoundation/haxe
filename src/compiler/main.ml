@@ -44,7 +44,8 @@
 
 open Printf
 open Common
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
+open Display.DisplayException
 open Type
 open Server
 open Globals
@@ -686,7 +687,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input
+				DisplayJson.parse_input com input measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -737,7 +738,7 @@ try
 				| _ ->
 					let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 					let port = try int_of_string port with _ -> raise (Arg.Bad "Invalid port") in
-					init_wait_socket com.verbose host port
+					init_wait_socket host port
 			in
 			wait_loop process_params com.verbose accept
 		),"[[host:]port]|stdio]","wait on the given port (or use standard i/o) for commands to run)");
@@ -803,11 +804,11 @@ try
 		with _ ->
 			() (* ignore *)
 	end;
-	DisplayOutput.process_display_file com classes;
+	let display_file_dot_path = DisplayOutput.process_display_file com classes in
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin match com.display.dms_kind with
-		| DMToplevel -> ()
+		| DMDefault -> ()
 		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
@@ -826,8 +827,33 @@ try
 		Finalization.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+		let load_display_module_in_macro clear = match display_file_dot_path with
+			| Some cpath ->
+				let p = null_pos in
+				begin try
+					let open Typecore in
+					let _, mctx = MacroContext.get_macro_context tctx p in
+					(* Tricky stuff: We want to remove the module from our lookups and load it again in
+					   display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
+					if clear then begin
+						Hashtbl.remove mctx.g.modules cpath;
+						Hashtbl.remove mctx.g.types_module cpath;
+					end;
+					let _ = MacroContext.load_macro_module tctx cpath true p in
+					Finalization.finalize mctx;
+					Some mctx
+				with DisplayException _ | Parser.TypePath _ as exc ->
+					raise exc
+				| _ ->
+					None
+				end
+			| None ->
+				None
+		in
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
+			(* If we didn't find a completion point, load the display file in macro mode. *)
+			ignore(load_display_module_in_macro true);
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
@@ -835,6 +861,14 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
+		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro false with
+			| None -> ()
+			| Some mctx ->
+				(* We don't need a full macro flush here because we're not going to run any macros. *)
+				let _, types, modules = Finalization.generate mctx in
+				mctx.Typecore.com.types <- types;
+				mctx.Typecore.com.Common.modules <- modules
+		end;
 		DisplayOutput.process_global_display_mode com tctx;
 		if not (Common.defined com Define.NoDeprecationWarnings) then
 			Display.DeprecationCheck.run com;
@@ -855,7 +889,7 @@ try
 			| Some file ->
 				Common.log com ("Generating json : " ^ file);
 				Path.mkdir_from_path file;
-				Genjson.generate com file
+				Genjson.generate com.types file
 		end;
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
@@ -900,39 +934,29 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
-	| Display.DisplayPackage pack ->
-		raise (DisplayOutput.Completion (String.concat "." pack))
-	| Display.DisplayFields fields ->
-		let fields = List.map (
-			fun (name,kind,doc) -> name, kind, (Option.default "" doc)
-		) fields in
-		let fields =
-			if !measure_times then begin
+	| DisplayException(DisplayPackage pack) ->
+		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
+	| DisplayException(DisplayFields(fields,is_toplevel)) ->
+		let fields = match ctx.com.json_out with
+			| None when !measure_times ->
 				Timer.close_times();
-				(List.map (fun (name,value) -> ("@TIME " ^ name, Display.FKTimer value, "")) (DisplayOutput.get_timer_fields !start_time)) @ fields
-			end else
+				(List.map (fun (name,value) ->
+					DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
+				) (DisplayOutput.get_timer_fields !start_time)) @ fields
+			| _ ->
 				fields
 		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
-	| Display.DisplayType (t,p,doc) ->
+		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
+	| DisplayException(DisplayType (t,p,doc)) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
-	| Display.DisplaySignatures(signatures,display_arg) ->
+		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
+	| DisplayException(DisplaySignatures(signatures,display_arg)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| Display.DisplayPosition pl ->
+	| DisplayException(DisplayPosition pl) ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
-	| Display.DisplayToplevel il ->
-		let il =
-			if !measure_times then begin
-				Timer.close_times();
-				(List.map (fun (name,value) -> IdentifierType.ITTimer ("@TIME " ^ name ^ ": " ^ value)) (DisplayOutput.get_timer_fields !start_time)) @ il
-			end else
-				il
-		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_toplevel il))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
 			try begin match c with
@@ -944,13 +968,15 @@ with
 				error ctx msg p;
 				None
 		in
-		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
-	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields false))) fields
+	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
 		if !measure_times then Timer.report_times prerr_endline;
 		exit i
+	| DisplayOutput.Completion _ as exc ->
+		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos
 

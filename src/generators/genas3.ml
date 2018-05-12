@@ -28,7 +28,7 @@ type context = {
 	inf : context_infos;
 	ch : out_channel;
 	buf : Buffer.t;
-	path : path;
+	path : Globals.path;
 	mutable get_sets : (string * bool,string) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable tabs : string;

@@ -14,8 +14,6 @@ class Issue5172 extends DisplayTestCase {
 		eq("Int", type(pos(1)));
 		eq("Int", type(pos(2)));
 		eq(range(3, 1), position(pos(1)));
-		eq(range(3, 1), position(pos(2)));
 		arrayEq([range(4, 2)], usage(pos(1)));
-		arrayEq([range(4, 2)], usage(pos(2)));
 	}
 }

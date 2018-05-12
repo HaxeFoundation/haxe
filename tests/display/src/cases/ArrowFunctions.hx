@@ -28,7 +28,7 @@ class ArrowFunctions extends DisplayTestCase {
 
     /**
     var arr = [1,2,3,4,5];
-    arr.map( a{-1-} -> a{-2-} + 1 )
+    arr.map( {-1-}a -> a{-2-} + 1 )
     **/
     @:funcCode function testHover(){
         eq("Int", type(pos(1)));
@@ -40,10 +40,6 @@ class ArrowFunctions extends DisplayTestCase {
     x -> { {-1-}
     **/
     @:funcCode function testTopLevel(){
-        eq(true, Toplevel.hasToplevel(toplevel(pos(1)), "local", "x"));
+        eq(true, hasToplevel(toplevel(pos(1)), "local", "x"));
     }
-
-    /*public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
-		return a.exists(function(t) return t.kind == kind && t.name == name);
-    }*/
 }

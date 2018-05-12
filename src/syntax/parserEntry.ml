@@ -124,7 +124,7 @@ let parse ctx code =
 	and enter_macro p =
 		let tk, e = parse_macro_cond sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Path.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
 			tk
 		end else

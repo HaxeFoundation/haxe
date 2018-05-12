@@ -23,7 +23,8 @@ open Globals
 open Ast
 open Type
 open Typecore
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
+open Display.DisplayException
 open Common
 open Error
 
@@ -108,15 +109,16 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
-		let e = Display.ExprPreprocessing.process_expr ctx.com e in
+		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		try
-			if Common.defined ctx.com Define.NoCOpt then raise Exit;
-			type_expr ctx (Optimizer.optimize_completion_expr e) NoValue
+			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
+			let e = Optimizer.optimize_completion_expr e f.f_args in
+			type_expr ctx e NoValue
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| Display.DisplayType (t,_,_) when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx (if ctx.com.display.dms_kind = DMToplevel then Display.ExprPreprocessing.find_enclosing ctx.com DKToplevel e else e) NoValue
+		| DisplayException (DisplayType (t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
+			type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

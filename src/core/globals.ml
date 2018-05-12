@@ -4,6 +4,8 @@ type pos = {
 	pmax : int;
 }
 
+type path = string list * string
+
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
 

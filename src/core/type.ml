@@ -20,8 +20,6 @@
 open Ast
 open Globals
 
-type path = string list * string
-
 type field_kind =
 	| Var of var_kind
 	| Method of method_kind
@@ -310,9 +308,15 @@ and module_def = {
 	m_extra : module_def_extra;
 }
 
+and module_def_display = {
+	mutable m_inline_calls : (pos * pos) list; (* calls whatever is at pos1 from pos2 *)
+	mutable m_type_hints : (pos * t) list;
+}
+
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
+	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
 	mutable m_dirty : module_def option;
@@ -419,6 +423,10 @@ let module_extra file sign time kind policy =
 	{
 		m_file = file;
 		m_sign = sign;
+		m_display = {
+			m_inline_calls = [];
+			m_type_hints = [];
+		};
 		m_dirty = None;
 		m_added = 0;
 		m_mark = 0;
@@ -1695,6 +1703,19 @@ let rec_stack stack value fcheck frun ferror =
 				stack := List.tl !stack;
 				raise e
 	end
+
+let rec_stack_default stack value fcheck frun def =
+	if not (List.exists fcheck !stack) then begin
+		try
+			stack := value :: !stack;
+			let v = frun() in
+			stack := List.tl !stack;
+			v
+		with
+			| e ->
+				stack := List.tl !stack;
+				raise e
+	end	else def
 
 let rec_stack_bool stack value fcheck frun =
 	if (List.exists fcheck !stack) then false else begin

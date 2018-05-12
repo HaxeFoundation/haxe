@@ -219,7 +219,99 @@ class Toplevel extends DisplayTestCase {
 		eq(true, hasToplevel(toplevel(pos(2)), "literal", "super"));
 	}
 
-	public static function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
-		return a.exists(function(t) return t.kind == kind && t.name == name);
+	/**
+	class Main {
+    	static function f(t:Type.ValueType) {}
+
+    	public static function main() {
+    	    f({-1-}
+	**/
+	function testExpectedType1() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType = {-1-}
+	**/
+	function testExpectedType2() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType;
+			x = {-1-}
+	**/
+	function testExpectedType3() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:{v:Type.ValueType} = {v: {-1-}};
+	**/
+	function testExpectedType4() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Array<Type.ValueType> = [{-1-}];
+	**/
+	function testExpectedType5() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Array<Type.ValueType> = [{-1-}
+	**/
+	function testExpectedType6() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Array<Type.ValueType> = [null, {-1-}
+	**/
+	function testExpectedType7() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Array<Type.ValueType> = [null, {-1-} ]
+	**/
+	function testExpectedType8() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+		static function main() {
+			for (foo in 0...10){-1-}
+				{-2-}
+		}
+	}
+	**/
+	function testBokenAST1() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "local", "foo"));
 	}
 }

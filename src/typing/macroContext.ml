@@ -18,7 +18,7 @@
  *)
 
 open Ast
-open Common.DisplayMode
+open DisplayTypes.DisplayMode
 open Common
 open Type
 open Typecore
@@ -503,7 +503,7 @@ let get_macro_context ctx p =
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
-		com2.display <- DisplayMode.create DMNone;
+		com2.display <- DisplayTypes.DisplayMode.create DMNone;
 		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
 		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
@@ -519,6 +519,23 @@ let get_macro_context ctx p =
 		create_macro_interp ctx mctx;
 		api, mctx
 
+let load_macro_module ctx cpath display p =
+	let api, mctx = get_macro_context ctx p in
+	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
+	(* Temporarily enter display mode while typing the macro. *)
+	if display then mctx.com.display <- ctx.com.display;
+	let mloaded = TypeloadModule.load_module mctx m p in
+	api.MacroApi.current_macro_module <- (fun() -> mloaded);
+	mctx.m <- {
+		curmod = mloaded;
+		module_types = [];
+		module_using = [];
+		module_globals = PMap.empty;
+		wildcard_packages = [];
+		module_imports = [];
+	};
+	mloaded
+
 let load_macro ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
 	let mint = Interp.get_ctx() in
@@ -528,20 +545,7 @@ let load_macro ctx display cpath f p =
 	) in
 	let meth = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		(* Temporarily enter display mode while typing the macro. *)
-		if display then mctx.com.display <- ctx.com.display;
-		let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-		let mloaded = TypeloadModule.load_module mctx m p in
-		api.MacroApi.current_macro_module <- (fun() -> mloaded);
-		mctx.m <- {
-			curmod = mloaded;
-			module_types = [];
-			module_using = [];
-			module_globals = PMap.empty;
-			wildcard_packages = [];
-			module_imports = [];
-		};
-		add_dependency ctx.m.curmod mloaded;
+		let mloaded = load_macro_module ctx cpath display p in
 		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
@@ -549,10 +553,11 @@ let load_macro ctx display cpath f p =
 				c, (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 			| _ -> error "Macro should be called on a class" p
 		) in
+		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 			Display.DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
-		mctx.com.display <- DisplayMode.create DMNone;
+		mctx.com.display <- DisplayTypes.DisplayMode.create DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
