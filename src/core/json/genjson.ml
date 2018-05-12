@@ -10,6 +10,7 @@ type context = {
 let jnull = Json.JNull
 let jstring s = Json.JString s
 let jint i = Json.JInt i
+let jfloat f = Json.JFloat f
 let jbool b = Json.JBool b
 let jarray l = Json.JArray l
 let jobject l = Json.JObject l

@@ -80,7 +80,7 @@ type timer_node = {
 	mutable children : timer_node list;
 }
 
-let report_times print =
+let build_times_tree () =
 	let nodes = Hashtbl.create 0 in
 	let rec root = {
 		name = "";
@@ -149,13 +149,17 @@ let report_times print =
 		if node.time > 0.0009 && l > !max_name then max_name := l;
 	in
 	loop 0 root;
-	let max_calls = String.length (string_of_int !max_calls) in
-	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" !max_name "name" "time(s)" max_calls "#");
-	let sep = String.make (!max_name + max_calls + 27) '-' in
+	!max_name,!max_calls,root
+
+let report_times print =
+	let max_name,max_calls,root = build_times_tree () in
+	let max_calls = String.length (string_of_int max_calls) in
+	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" max_name "name" "time(s)" max_calls "#");
+	let sep = String.make (max_name + max_calls + 27) '-' in
 	print sep;
 	let print_time name node =
 		if node.time > 0.0009 then
-			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" !max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
+			print (Printf.sprintf "%-*s | %7.3f | %3.0f | %3.0f | %*i | %s" max_name name node.time (node.time *. 100. /. root.time) (node.time *. 100. /. node.parent.time) max_calls node.num_calls node.info)
 	in
 	let rec loop depth node =
 		let name = (String.make (depth * 2) ' ') ^ node.name in

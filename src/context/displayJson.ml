@@ -4,6 +4,8 @@ open JsonRpc
 open Json
 open Common
 open DisplayTypes.DisplayMode
+open Timer
+open Genjson
 
 type haxe_json_error =
 	| MissingParam of string
@@ -21,7 +23,31 @@ let get_capabilities () =
 		"packageProvider",JBool true;
 	]
 
-let parse_input com input =
+(* Generate the JSON of our times. *)
+let json_of_times root =
+	let rec loop node =
+		if node.time > 0.0009 then begin
+			let children = ExtList.List.filter_map loop node.children in
+			let fl = [
+				"name",jstring node.name;
+				"path",jstring node.path;
+				"info",jstring node.info;
+				"time",jfloat node.time;
+				"calls",jint node.num_calls;
+				"percentTotal",jfloat (node.time *. 100. /. root.time);
+				"percentParent",jfloat (if node == root then 0. else node.time *. 100. /. node.parent.time);
+			] in
+			let fl = match children with
+				| [] -> fl
+				| _ -> ("children",jarray children) :: fl
+			in
+			Some (jobject fl)
+		end else
+			None
+	in
+	loop root
+
+let parse_input com input report_times =
 	let fail json =
 		prerr_endline (string_of_json json);
 		exit 1;
@@ -29,7 +55,18 @@ let parse_input com input =
 	let process () =
 		let id,name,params = JsonRpc.parse_request input in
 		let f_result json =
-			(string_of_json (JsonRpc.result id json));
+			let fl = [
+				"result",json;
+			] in
+			let fl = if !report_times then begin
+				let _,_,root = Timer.build_times_tree () in
+				begin match json_of_times root with
+				| None -> fl
+				| Some jo -> ("timers",jo) :: fl
+				end
+			end else fl in
+			let jo = jobject fl in
+			(string_of_json (JsonRpc.result id jo));
 		in
 		let f_error jl =
 			fail (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
