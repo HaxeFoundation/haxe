@@ -39,7 +39,7 @@ let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then raise (Display.DisplayFields (DisplayToplevel.collect ctx true NoValue,true));
+	if tname = "" then Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) true;
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
@@ -116,7 +116,7 @@ let rec load_type_def ctx p t =
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
-	raise (Display.DisplayPosition [p])
+	Display.DisplayException.raise_position [p]
 
 let check_param_constraints ctx types t pl c p =
 	match follow t with
@@ -710,7 +710,7 @@ let handle_path_display ctx path p =
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-			raise (Display.DisplayPosition [p])
+			Display.DisplayException.raise_position [p]
 		| (IDKModule(sl,s),_),_ ->
 			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))

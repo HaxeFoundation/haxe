@@ -45,6 +45,7 @@
 open Printf
 open Common
 open DisplayTypes.DisplayMode
+open Display.DisplayException
 open Type
 open Server
 open Globals
@@ -826,14 +827,19 @@ try
 		Finalization.finalize tctx;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
-		(* TODO: We don't want this to cause any errors. Needs proper exception handling that doesn't swallow display exceptions... *)
 		let load_display_module_in_macro () = match display_file_dot_path with
 			| Some cpath ->
 				let p = null_pos in
-				let _ = MacroContext.load_macro_module tctx cpath true p in
-				let _, mctx = MacroContext.get_macro_context tctx p in
-				Finalization.finalize mctx;
-				Some mctx
+				begin try
+					let _ = MacroContext.load_macro_module tctx cpath true p in
+					let _, mctx = MacroContext.get_macro_context tctx p in
+					Finalization.finalize mctx;
+					Some mctx
+				with DisplayException _ | Parser.TypePath _ as exc ->
+					raise exc
+				| _ ->
+					None
+				end
 			| None ->
 				None
 		in
@@ -921,9 +927,9 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
-	| Display.DisplayPackage pack ->
+	| DisplayException(DisplayPackage pack) ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
-	| Display.DisplayFields(fields,is_toplevel) ->
+	| DisplayException(DisplayFields(fields,is_toplevel)) ->
 		let fields =
 			if !measure_times then begin
 				Timer.close_times();
@@ -934,15 +940,15 @@ with
 				fields
 		in
 		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
-	| Display.DisplayType (t,p,doc) ->
+	| DisplayException(DisplayType (t,p,doc)) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
-	| Display.DisplaySignatures(signatures,display_arg) ->
+	| DisplayException(DisplaySignatures(signatures,display_arg)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| Display.DisplayPosition pl ->
+	| DisplayException(DisplayPosition pl) ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
@@ -956,7 +962,7 @@ with
 				None
 		in
 		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields false))) fields
-	| Display.ModuleSymbols s | Display.Diagnostics s | Display.Statistics s | Display.Metadata s ->
+	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();
