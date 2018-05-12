@@ -116,8 +116,11 @@ class BytesOutput extends Output {
 	}
 
 	@:dox(hide)
-	override function writeString( s : String ) {
-		b.writeUTFBytes(s);
+	override function writeString( s : String, ?encoding : Encoding ) {
+		if( encoding == RawNative )
+			b.writeMultiByte(s, "unicode");
+		else
+			b.writeUTFBytes(s);
 	}
 
 	#end

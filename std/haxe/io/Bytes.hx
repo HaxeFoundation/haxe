@@ -355,7 +355,7 @@ class Bytes {
 		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash
 		b.position = pos;
-		return b.readUTFBytes(len);
+		return encoding == RawNative ? b.readMultiByte(len, "unicode") : b.readUTFBytes(len);
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -482,7 +482,7 @@ class Bytes {
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
 		#elseif flash
 		var b = new flash.utils.ByteArray();
-		b.writeUTFBytes(s);
+		if( encoding == RawNative ) b.writeMultiByte(s,"unicode") else b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif cpp
 		var a = new BytesData();

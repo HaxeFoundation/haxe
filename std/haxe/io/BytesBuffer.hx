@@ -111,7 +111,7 @@ class BytesBuffer {
 		#if neko
 		untyped StringBuf.__add(b, v.__s);
 		#elseif flash
-		b.writeUTFBytes(v);
+		if( encoding == RawNative ) b.writeMultiByte(v, "unicode") else b.writeUTFBytes(v);
 		#else
 		add(Bytes.ofString(v,encoding));
 		#end
