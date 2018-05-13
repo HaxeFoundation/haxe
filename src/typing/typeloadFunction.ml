@@ -87,7 +87,7 @@ let type_function ctx args ret fmode f do_display p =
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
 		if do_display && Display.is_display_position pn then
-			Display.DisplayEmitter.display_variable ctx.com.display v pn;
+			Display.DisplayEmitter.display_variable ctx v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in

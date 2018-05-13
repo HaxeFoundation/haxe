@@ -190,7 +190,7 @@ and display_expr ctx e_ast e dk with_type p =
 			| _ -> e.etype,None
 		in
 		let t,doc = loop e in
-		raise_type t p doc
+		raise_type (Display.DisplayEmitter.patch_type ctx t) p doc
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->

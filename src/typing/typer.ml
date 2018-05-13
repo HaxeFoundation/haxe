@@ -1471,7 +1471,7 @@ and type_vars ctx vl p =
 			let v = add_local ctx v t pv in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && Display.is_display_position pv then
-				Display.DisplayEmitter.display_variable ctx.com.display v pv;
+				Display.DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
 			Error (e,p) ->
@@ -1651,7 +1651,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if ctx.in_display && Display.is_display_position pn then Display.DisplayEmitter.display_field ctx.com.display None cf pn;
+						if ctx.in_display && Display.is_display_position pn then Display.DisplayEmitter.display_field ctx None cf pn;
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType t) in
@@ -1689,7 +1689,7 @@ and type_object_decl ctx fl with_type p =
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
-			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display None cf pf;
+			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx None cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
@@ -1885,7 +1885,7 @@ and type_try ctx e1 catches with_type p =
 		let locals = save_locals ctx in
 		let v = add_local ctx v t pv in
 		if ctx.is_display_file && Display.is_display_position pv then
-			Display.DisplayEmitter.display_variable ctx.com.display v pv;
+			Display.DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
@@ -2482,6 +2482,7 @@ let rec create com =
 			do_create = create;
 			do_macro = MacroContext.type_macro;
 			do_load_module = TypeloadModule.load_module;
+			do_load_type_def = Typeload.load_type_def;
 			do_optimize = Optimizer.reduce_expression;
 			do_build_instance = InstanceBuilder.build_instance;
 			do_format_string = format_string;

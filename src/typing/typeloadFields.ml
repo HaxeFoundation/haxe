@@ -980,7 +980,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 							begin match c.cl_super with
 							| Some(c,tl) ->
 								let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
-								Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
+								Display.DisplayEmitter.display_field ctx (Some c) cf p
 							| _ ->
 								()
 							end
@@ -1106,7 +1106,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let display_accessor m p =
 		try
 			let cf = match find_accessor m with [_,cf] -> cf | _ -> raise Not_found in
-			Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
+			Display.DisplayEmitter.display_field ctx (Some c) cf p
 		with Not_found ->
 			()
 	in

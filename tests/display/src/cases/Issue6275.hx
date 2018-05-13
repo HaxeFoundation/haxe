@@ -13,7 +13,7 @@ class Issue6275 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq("s : String -> cases.Main", type(pos(2)));
+		eq("s : String -> Main", type(pos(2)));
 		eq(range(4, 5), position(pos(1)));
 		eq(range(1, 3), usage(pos(2))[0]);
 	}

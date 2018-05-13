@@ -22,8 +22,11 @@
 package haxe.rtti;
 
 import haxe.rtti.JsonModuleTypes;
+using Lambda;
 
 class JsonModuleTypesPrinter {
+	var indent = "";
+
     public function new() {
 
     }
@@ -54,19 +57,49 @@ class JsonModuleTypesPrinter {
                 if (t.args == null) {
                     "Dynamic";
                 } else {
-                    var s = printType(t.args);
+                    var s = printTypeRec(t.args);
                     'Dynamic<$s>';
                 }
             case TAnonymous:
                 var fields = t.args.fields;
-                var s = [for (field in fields) '${field.name}: ${printType(field.type)}'].join(", ");
+                var s = [for (field in fields) '${field.name}: ${printTypeRec(field.type)}'].join(", ");
                 '{ $s }';
             case TFun:
+                var hasNamed = false;
                 function printFunctionArgument(arg:JsonFunctionArgument) {
-                    return (arg.opt ? "?" : "") + arg.name + ":" + printType(arg.t);
+                    if (arg.name != "") {
+                        hasNamed = true;
+                    }
+                    return this.printFunctionArgument(arg);
                 }
-                var s = t.args.args.map(printFunctionArgument).join(", ");
-                '($s) -> ${printType(t.args.ret)}';
+                var args = t.args.args.map(printFunctionArgument);
+                var r = printTypeRec(t.args.ret);
+                switch (args.length) {
+                    case 0: '()->$r';
+                    case 1 if (hasNamed): '(${args[0]})->$r';
+                    case 1 : '${args[0]}->$r';
+                    case _:
+                        var busy = args.fold((args,i) -> i + args.length,0);
+                        if (busy < 50) {
+                            var s = args.join(", ");
+                            '($s)->$r';
+                        } else {
+                            var s = args.join(',\n $indent');
+                            '($s)\n$indent-> $r';
+                        }
+                }
         }
+    }
+
+    function printTypeRec<T>(t:JsonType<T>) {
+        var old = indent;
+        indent += "  ";
+        var t = printType(t);
+        indent = old;
+        return t;
+    }
+
+    public function printFunctionArgument(arg:JsonFunctionArgument) {
+        return (arg.opt ? "?" : "") + (arg.name == "" ? "" : arg.name + ":") + printTypeRec(arg.t);
     }
 }

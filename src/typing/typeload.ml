@@ -567,7 +567,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
 	if ctx.is_display_file && Display.is_display_position (pos tp.tp_name) then
-		Display.DisplayEmitter.display_type ctx.com.display t (pos tp.tp_name);
+		Display.DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	match tp.tp_constraints with
 	| [] ->
 		n, t
@@ -724,7 +724,7 @@ let handle_path_display ctx path p =
 				| TClassDecl c when snd c.cl_path = st ->
 					ignore(c.cl_build());
 					let cf = PMap.find sf c.cl_statics in
-					Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
+					Display.DisplayEmitter.display_field ctx (Some c) cf p
 				| _ ->
 					()
 			) m.m_types;

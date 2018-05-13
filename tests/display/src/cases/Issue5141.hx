@@ -13,7 +13,7 @@ class Issue5141 extends DisplayTestCase {
 	}
 	**/
 	function testTypedef() {
-		eq("cases.MyHandler", type(pos(1)));
+		eq("MyHandler", type(pos(1)));
 		sigEq(0, [[":Int", ":String"]], signature(pos(2)));
 	}
 
@@ -30,7 +30,7 @@ class Issue5141 extends DisplayTestCase {
 	}
 	**/
 	function testAbstract() {
-		eq("cases.MyCallable", type(pos(1)));
+		eq("MyCallable", type(pos(1)));
 		sigEq(0, [[":Int", ":String"]], signature(pos(2)));
 	}
 }
