@@ -1170,9 +1170,9 @@ let generate con =
 			List.rev !ret
 		in
 
-		let expr_s w e =
+		let expr_s is_in_value w e =
 			last_line := -1;
-			in_value := false;
+			in_value := is_in_value;
 			let rec expr_s w e =
 				let was_in_value = !in_value in
 				in_value := true;
@@ -1225,11 +1225,15 @@ let generate con =
 					| TCall( ({ eexpr = TField(ef,f) } as e), [] ) when String.starts_with (field_name f) "get_" ->
 						let name = field_name f in
 						let propname = String.sub name 4 (String.length name - 4) in
-						if is_extern_prop (gen.greal_type ef.etype) propname then begin
-							expr_s w ef;
-							write w ".";
-							write_field w propname
-						end else
+						if is_extern_prop (gen.greal_type ef.etype) propname then
+							if not was_in_value then
+								write w "{}"
+							else begin
+								expr_s w ef;
+								write w ".";
+								write_field w propname
+							end
+						else
 							do_call w e []
 					| TCall( ({ eexpr = TField(ef,f) } as e), [v] ) when String.starts_with (field_name f) "set_" ->
 						let name = field_name f in
@@ -2033,7 +2037,7 @@ let generate con =
 						(match cf.cf_expr with
 							| Some e ->
 								write w " = ";
-								expr_s w e;
+								expr_s true w e;
 							| None -> ()
 						);
 						write w ";"
@@ -2127,7 +2131,7 @@ let generate con =
 											let unchecked = needs_unchecked e in
 											if unchecked then (begin_block w; write w "unchecked ");
 											let t = Timer.timer ["expression to string"] in
-											expr_s w e;
+											expr_s false w e;
 											t();
 											line_reset_directive w;
 											if unchecked then end_block w
@@ -2154,7 +2158,7 @@ let generate con =
 													| Some sc ->
 														write w ": ";
 														let t = Timer.timer ["expression to string"] in
-														expr_s w sc;
+														expr_s false w sc;
 														write w " ";
 														t()
 												);
@@ -2329,7 +2333,7 @@ let generate con =
 							write w "get";
 							begin_block w;
 							write w "return ";
-							expr_s w this;
+							expr_s true w this;
 							print w ".get_%s();" f.cf_name;
 							end_block w
 						| _ -> ());
@@ -2337,7 +2341,7 @@ let generate con =
 						| AccCall ->
 							write w "set";
 							begin_block w;
-							expr_s w this;
+							expr_s false w this;
 							print w ".set_%s(value);" f.cf_name;
 							end_block w
 						| _ -> ());
@@ -2392,10 +2396,10 @@ let generate con =
 						(if Hashtbl.mem gen.gtypes (["cs"], "Boot") then write w "global::cs.Boot.init();"; newline w);
 						(match gen.gcon.main with
 							| None ->
-								expr_s w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
+								expr_s true w { eexpr = TTypeExpr(TClassDecl cl); etype = t_dynamic; epos = null_pos };
 								write w ".main();"
 							| Some expr ->
-								expr_s w (mk_block expr));
+								expr_s false w (mk_block expr));
 						end_block w;
 						end_block w;
 						newline w;
@@ -2439,7 +2443,7 @@ let generate con =
 					| None ->
 						write w "main();";
 					| Some expr ->
-							expr_s w (mk_block expr));
+							expr_s false w (mk_block expr));
 				end_block w
 			end;
 
@@ -2450,10 +2454,10 @@ let generate con =
 					if needs_unchecked init then begin
 						begin_block w;
 						write w "unchecked ";
-						expr_s w (mk_block init);
+						expr_s false w (mk_block init);
 						end_block w;
 					end else
-						expr_s w (mk_block init);
+						expr_s false w (mk_block init);
 					line_reset_directive w;
 					newline w;
 					newline w
