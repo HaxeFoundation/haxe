@@ -205,7 +205,7 @@ module DisplayEmitter = struct
 		| DMHover -> raise_type v.v_type p None
 		| _ -> ()
 
-	let display_field dm cf p = match dm.dms_kind with
+	let display_field dm c cf p = match dm.dms_kind with
 		| DMDefinition -> raise_position [cf.cf_name_pos]
 		| DMUsage _ -> reference_position := cf.cf_name_pos
 		| DMHover ->
@@ -214,11 +214,15 @@ module DisplayEmitter = struct
 			else
 				cf.cf_type
 			in
+			let t = match c,follow t with
+				| Some c,TFun(tl,_) when cf.cf_name = "new" -> TFun(tl,TInst(c,List.map snd c.cl_params))
+				| _ -> t
+			in
 			raise_type t p cf.cf_doc
 		| _ -> ()
 
-	let maybe_display_field ctx p cf =
-		if is_display_position p then display_field ctx.com.display cf p
+	let maybe_display_field ctx c cf p =
+		if is_display_position p then display_field ctx.com.display c cf p
 
 	let display_enum_field dm ef p = match dm.dms_kind with
 		| DMDefinition -> raise_position [ef.ef_name_pos]

@@ -1651,7 +1651,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if ctx.in_display && Display.is_display_position pn then Display.DisplayEmitter.display_field ctx.com.display cf pn;
+						if ctx.in_display && Display.is_display_position pn then Display.DisplayEmitter.display_field ctx.com.display None cf pn;
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType t) in
@@ -1689,7 +1689,7 @@ and type_object_decl ctx fl with_type p =
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
-			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display cf pf;
+			if ctx.in_display && Display.is_display_position pf then Display.DisplayEmitter.display_field ctx.com.display None cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc

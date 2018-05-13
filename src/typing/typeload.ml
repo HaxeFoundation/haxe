@@ -402,7 +402,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				Display.DisplayEmitter.check_display_metadata ctx cf.cf_meta;
-				Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+				Display.DisplayEmitter.maybe_display_field ctx None cf cf.cf_name_pos;
 			end;
 			PMap.add n cf acc
 		in
@@ -724,7 +724,7 @@ let handle_path_display ctx path p =
 				| TClassDecl c when snd c.cl_path = st ->
 					ignore(c.cl_build());
 					let cf = PMap.find sf c.cl_statics in
-					Display.DisplayEmitter.display_field ctx.com.display cf p
+					Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
 				| _ ->
 					()
 			) m.m_types;

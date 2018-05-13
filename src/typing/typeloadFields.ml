@@ -587,7 +587,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 
 	match e with
 	| None ->
-		if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+		if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
 	| Some e ->
 		if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -674,7 +674,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
-				if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+				if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
 			end;
 			t
 		) "bind_var" in
@@ -968,7 +968,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				| None ->
 					if fctx.field_kind = FKConstructor then FunConstructor else if fctx.is_static then FunStatic else FunMember
 			) in
-			(match ctx.com.platform with
+			begin match ctx.com.platform with
 				| Java when is_java_native_function cf.cf_meta ->
 					if fd.f_expr <> None then
 						ctx.com.warning "@:native function definitions shouldn't include an expression. This behaviour is deprecated." cf.cf_pos;
@@ -980,7 +980,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 							begin match c.cl_super with
 							| Some(c,tl) ->
 								let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
-								Display.DisplayEmitter.display_field ctx.com.display cf p
+								Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
 							| _ ->
 								()
 							end
@@ -1006,12 +1006,13 @@ let create_method (ctx,cctx,fctx) c f fd p =
 						| _ -> c.cl_init <- Some e);
 					cf.cf_expr <- Some (mk (TFunction tf) t p);
 					cf.cf_type <- t;
-				if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf);
+				if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos
+			end;
 		end;
 		t
 	) "type_fun" in
 	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
-	else if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (cf.cf_name_pos) cf;
+	else if fctx.is_display_field then Display.DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
 	cf
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
@@ -1105,7 +1106,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let display_accessor m p =
 		try
 			let cf = match find_accessor m with [_,cf] -> cf | _ -> raise Not_found in
-			Display.DisplayEmitter.display_field ctx.com.display cf p
+			Display.DisplayEmitter.display_field ctx.com.display (Some c) cf p
 		with Not_found ->
 			()
 	in
