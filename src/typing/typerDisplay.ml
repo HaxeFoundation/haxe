@@ -93,7 +93,7 @@ and handle_signature_display ctx e_ast with_type =
 				acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
-		raise_signatures overloads display_arg 0 (* ? *)
+		raise_signatures overloads 0 (* ? *) display_arg
 	in
 	let find_constructor_types t = match follow t with
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
@@ -143,8 +143,10 @@ and display_expr ctx e_ast e dk with_type p =
 			f
 	in
 	match ctx.com.display.dms_kind with
-	| DMResolve _ | DMPackage | DMSignature ->
+	| DMResolve _ | DMPackage ->
 		assert false
+	| DMSignature ->
+		handle_signature_display ctx e_ast with_type
 	| DMHover ->
 		let rec loop e = match e.eexpr with
 			| TVar(v,_) -> v.v_type,None
