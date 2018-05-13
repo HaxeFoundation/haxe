@@ -944,29 +944,33 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
+	| DisplayException(DisplayType _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
+		begin match ctx.com.json_out with
+		| Some (f,_) -> raise (DisplayOutput.Completion (f (Display.DisplayException.to_json de)))
+		| _ -> assert false
+		end
 	| DisplayException(DisplayPackage pack) ->
-		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
+		raise (DisplayOutput.Completion (String.concat "." pack))
 	| DisplayException(DisplayFields(fields,is_toplevel)) ->
-		let fields = match ctx.com.json_out with
-			| None when !measure_times ->
-				Timer.close_times();
-				(List.map (fun (name,value) ->
-					DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
-				) (DisplayOutput.get_timer_fields !start_time)) @ fields
-			| _ ->
-				fields
+		let fields = if !measure_times then begin
+			Timer.close_times();
+			(List.map (fun (name,value) ->
+				DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
+			) (DisplayOutput.get_timer_fields !start_time)) @ fields
+		end else
+			fields
 		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
+		raise (DisplayOutput.Completion (if is_toplevel then DisplayOutput.print_toplevel fields else DisplayOutput.print_fields fields))
 	| DisplayException(DisplayType (t,p,doc)) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
-	| DisplayException(DisplaySignatures(signatures,display_arg)) ->
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
+	| DisplayException(DisplaySignatures(signatures,display_arg,_)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| DisplayException(DisplayPosition pl) ->
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import) ->
 		let fields =
 			try begin match c with
@@ -978,7 +982,7 @@ with
 				error ctx msg p;
 				None
 		in
-		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields false))) fields
+		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))) fields
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

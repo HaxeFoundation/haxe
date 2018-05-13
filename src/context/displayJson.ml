@@ -21,6 +21,7 @@ let get_capabilities () =
 		"hoverProvider",JBool true;
 		"completionProvider",JBool true;
 		"packageProvider",JBool true;
+		"signatureHelpProvider",JBool true;
 	]
 
 (* Generate the JSON of our times. *)
@@ -134,6 +135,9 @@ let parse_input com input report_times =
 			| "textDocument/package" ->
 				read_display_file false false false;
 				enable_display DMPackage;
+			| "textDocument/signatureHelp" ->
+				read_display_file (get_bool_param "wasAutoTriggered") true false;
+				enable_display DMSignature
 			| _ -> raise_method_not_found id name
 		end;
 		com.json_out <- Some(f_result,f_error)

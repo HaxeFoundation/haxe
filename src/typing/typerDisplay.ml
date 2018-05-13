@@ -21,7 +21,7 @@ let rec handle_display ctx e_ast dk with_type =
 		let arg = ["expression",false,mono] in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,mono),doc)] 0
+			raise_signatures [((arg,mono),doc)] 0 0
 		| _ ->
 			raise_type (TFun(arg,mono)) (pos e_ast) doc
 		end
@@ -31,7 +31,7 @@ let rec handle_display ctx e_ast dk with_type =
 		let ret = ctx.com.basic.tvoid in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,ret),doc)] 0
+			raise_signatures [((arg,ret),doc)] 0 0
 		| _ ->
 			raise_type (TFun(arg,ret)) (pos e_ast) doc
 		end
@@ -93,7 +93,7 @@ and handle_signature_display ctx e_ast with_type =
 				acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
-		raise_signatures overloads display_arg
+		raise_signatures overloads display_arg 0 (* ? *)
 	in
 	let find_constructor_types t = match follow t with
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->

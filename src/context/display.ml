@@ -5,6 +5,7 @@ open DisplayTypes.CompletionKind
 open Type
 open Typecore
 open Globals
+open Genjson
 
 let reference_position = ref null_pos
 
@@ -14,7 +15,7 @@ module DisplayException = struct
 		| Statistics of string
 		| ModuleSymbols of string
 		| Metadata of string
-		| DisplaySignatures of (tsignature * documentation) list * int
+		| DisplaySignatures of (tsignature * documentation) list * int * int
 		| DisplayType of t * pos * string option
 		| DisplayPosition of pos list
 		| DisplayFields of DisplayTypes.CompletionKind.t list * bool (* toplevel? *)
@@ -26,11 +27,42 @@ module DisplayException = struct
 	let raise_statistics s = raise (DisplayException(Statistics s))
 	let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 	let raise_metadata s = raise (DisplayException(Metadata s))
-	let raise_signatures l i = raise (DisplayException(DisplaySignatures(l,i)))
+	let raise_signatures l isig iarg = raise (DisplayException(DisplaySignatures(l,isig,iarg)))
 	let raise_type t p so = raise (DisplayException(DisplayType(t,p,so)))
 	let raise_position pl = raise (DisplayException(DisplayPosition pl))
 	let raise_fields ckl b = raise (DisplayException(DisplayFields(ckl,b)))
 	let raise_package sl = raise (DisplayException(DisplayPackage sl))
+
+	let to_json de = match de with
+		| Diagnostics _
+		| Statistics _
+		| ModuleSymbols _
+		| Metadata _ -> assert false
+		| DisplaySignatures(sigs,isig,iarg) ->
+			let ctx = Genjson.create_context () in
+			let fsig ((tl,tr),doc) =
+				let fl = generate_function_signature ctx tl tr in
+				let fl = (match doc with None -> fl | Some s -> ("documentation",jstring s) :: fl) in
+				jobject fl
+			in
+			jobject [
+				"activeSignature",jint isig;
+				"activeParameter",jint iarg;
+				"signatures",jlist fsig sigs;
+			]
+		| DisplayType(t,p,doc) ->
+			jobject [
+				"documentation",jopt jstring doc;
+				"range",generate_pos_as_range p;
+				"type",generate_type (create_context ()) t;
+			]
+		| DisplayPosition pl ->
+			jarray (List.map generate_pos_as_location pl)
+		| DisplayFields(fields,_) ->
+			let j = List.map (DisplayTypes.CompletionKind.to_json (Genjson.create_context ())) fields in
+			jarray j
+		| DisplayPackage pack ->
+			jarray (List.map jstring pack)
 end
 
 open DisplayException

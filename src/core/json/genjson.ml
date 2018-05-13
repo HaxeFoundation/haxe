@@ -147,18 +147,7 @@ let rec generate_type ctx t =
 		| TType(td,tl) -> "TType",Some (generate_path_with_params ctx td.t_path tl)
 		| TAbstract(a,tl) -> "TAbstract",Some (generate_path_with_params ctx a.a_path tl)
 		| TAnon an -> "TAnonymous", Some(generate_anon an)
-		| TFun(tl,tr) -> "TFun", Some (generate_function_signature tl tr)
-	and generate_function_argument (name,opt,t) =
-		jobject [
-			"name",jstring name;
-			"opt",jbool opt;
-			"t",generate_type ctx t;
-		]
-	and generate_function_signature tl tr =
-		jobject [
-			"args",jlist generate_function_argument tl;
-			"ret",generate_type ctx tr;
-		]
+		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
 	and generate_anon an =
 		let generate_anon_fields () =
 			let fields = PMap.fold (fun cf acc -> generate_class_field ctx cf :: acc) an.a_fields [] in
@@ -183,6 +172,19 @@ let rec generate_type ctx t =
 	in
 	let name,args = loop t in
 	generate_adt ctx None name args
+
+and generate_function_argument ctx (name,opt,t) =
+	jobject [
+		"name",jstring name;
+		"opt",jbool opt;
+		"t",generate_type ctx t;
+	]
+
+and generate_function_signature ctx tl tr =
+	[
+		"args",jlist (generate_function_argument ctx) tl;
+		"ret",generate_type ctx tr;
+	]
 
 and generate_types ctx tl =
 	jlist (generate_type ctx) tl

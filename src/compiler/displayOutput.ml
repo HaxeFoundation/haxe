@@ -826,28 +826,3 @@ let find_doc t =
 			None
 	in
 	doc
-
-open Genjson
-
-let print_positions com pl = match com.json_out with
-	| None -> print_positions pl
-	| Some(f,_) -> f (JArray (List.map generate_pos_as_location pl))
-
-let print_type com t p doc = match com.json_out with
-	| None -> print_type t p doc
-	| Some(f,_) -> f (JObject [
-		"documentation",jopt jstring doc;
-		"range",generate_pos_as_range p;
-		"type",generate_type (create_context ()) t;
-	])
-
-let print_fields com fields is_toplevel = match com.json_out with
-	| None ->
-		if is_toplevel then print_toplevel fields else print_fields fields
-	| Some(f,_) ->
-		let j = List.map (CompletionKind.to_json (Genjson.create_context ())) fields in
-		f (jarray j)
-
-let print_package com pack = match com.json_out with
-	| None -> String.concat "." pack
-	| Some(f,_) -> f (JArray (List.map jstring pack))
