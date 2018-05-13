@@ -107,7 +107,7 @@ and parse_type_decls pack acc s =
 		) acc;
 		raise (TypePath (pack,Some(name,true),b))
 	| Stream.Error _ when do_resume() ->
-		ignore(resume true false s);
+		ignore(resume false false s);
 		parse_type_decls pack acc s
 
 and parse_abstract doc meta flags = parser
@@ -485,7 +485,13 @@ and parse_type_path2 p0 pack name p1 s =
 			| [< >] -> None,p1
 		) in
 		let params,p2 = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,p2) >] -> l,p2
+			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const >] ->
+				begin match s with parser
+				| [<'(Binop OpGt,p2) >] -> l,p2
+				| [< >] ->
+					if do_resume() then l,pos (last_token s)
+					else serror()
+				end
 			| [< >] -> [],p2
 		) in
 		{
@@ -548,7 +554,9 @@ and parse_type_anonymous opt = parser
 			| [< '(BrClose,p2) >] -> next [],p2
 			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
 			| [< >] -> serror());
-		| [< >] -> serror()
+		| [< >] ->
+			if do_resume() then next [],p2
+			else serror()
 
 and parse_enum s =
 	let doc = get_doc s in
