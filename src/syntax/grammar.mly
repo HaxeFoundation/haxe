@@ -94,7 +94,8 @@ and parse_type_decls pack acc s =
 		match s with parser
 		| [< v = parse_type_decl; l = parse_type_decls pack (v :: acc) >] -> l
 		| [< >] -> List.rev acc
-	with TypePath ([],Some (name,false),b) ->
+	with
+	| TypePath ([],Some (name,false),b) ->
 		(* resolve imports *)
 		List.iter (fun d ->
 			match fst d with
@@ -105,6 +106,9 @@ and parse_type_decls pack acc s =
 			| _ -> ()
 		) acc;
 		raise (TypePath (pack,Some(name,true),b))
+	| Stream.Error _ when do_resume() ->
+		ignore(resume true false s);
+		parse_type_decls pack acc s
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
@@ -256,6 +260,68 @@ and parse_class_fields tdecl p1 s =
 	) in
 	l, p2
 
+and resume tdecl fdecl s =
+	(* look for next variable/function or next type declaration *)
+	let rec junk k =
+		if k <= 0 then () else begin
+			Stream.junk s;
+			junk (k - 1);
+		end
+	in
+	(*
+		walk back tokens which are prefixing a type/field declaration
+	*)
+	let rec junk_tokens k =
+		if k = 0 then
+			()
+		else match List.rev_map fst (Stream.npeek k s) with
+		| Kwd Private :: _ -> junk_tokens (k - 1)
+		| (Const (Ident _) | Kwd _) :: DblDot :: At :: l
+		| (Const (Ident _) | Kwd _) :: At :: l ->
+			junk_tokens (List.length l)
+		| PClose :: l ->
+			(* count matching parenthesises for metadata call *)
+			let rec loop n = function
+				| [] -> []
+				| POpen :: l -> if n = 0 then l else loop (n - 1) l
+				| PClose :: l -> loop (n + 1) l
+				| _ :: l -> loop n l
+			in
+			(match loop 0 l with
+			| (Const (Ident _) | Kwd _) :: At :: l
+			| (Const (Ident _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
+			| _ ->
+				junk k)
+		| _ ->
+			junk k
+	in
+	let rec loop k =
+		match List.rev_map fst (Stream.npeek k s) with
+		(* metadata *)
+		| Kwd _ :: At :: _ | Kwd _ :: DblDot :: At :: _ ->
+			loop (k + 1)
+		(* field declaration *)
+		| Const _ :: Kwd Function :: _
+		| Kwd New :: Kwd Function :: _ when fdecl ->
+			junk_tokens (k - 2);
+			true
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ when fdecl ->
+			junk_tokens (k - 1);
+			true
+		| BrClose :: _ when tdecl ->
+			junk_tokens (k - 1);
+			false
+		(* type declaration *)
+		| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ | Kwd Abstract :: _->
+			junk_tokens (k - 1);
+			false
+		| [] ->
+			false
+		| _ ->
+			loop (k + 1)
+	in
+	loop 1
+
 and parse_class_field_resume tdecl s =
 	if not (do_resume()) then
 		plist parse_class_field s
@@ -263,66 +329,7 @@ and parse_class_field_resume tdecl s =
 		let c = parse_class_field s in
 		c :: parse_class_field_resume tdecl s
 	with Stream.Error _ | Stream.Failure ->
-		(* look for next variable/function or next type declaration *)
-		let rec junk k =
-			if k <= 0 then () else begin
-				Stream.junk s;
-				junk (k - 1);
-			end
-		in
-		(*
-			walk back tokens which are prefixing a type/field declaration
-		*)
-		let rec junk_tokens k =
-			if k = 0 then
-				()
-			else match List.rev_map fst (Stream.npeek k s) with
-			| Kwd Private :: _ -> junk_tokens (k - 1)
-			| (Const (Ident _) | Kwd _) :: DblDot :: At :: l
-			| (Const (Ident _) | Kwd _) :: At :: l ->
-				junk_tokens (List.length l)
-			| PClose :: l ->
-				(* count matching parenthesises for metadata call *)
-				let rec loop n = function
-					| [] -> []
-					| POpen :: l -> if n = 0 then l else loop (n - 1) l
-					| PClose :: l -> loop (n + 1) l
-					| _ :: l -> loop n l
-				in
-				(match loop 0 l with
-				| (Const (Ident _) | Kwd _) :: At :: l
-				| (Const (Ident _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
-				| _ ->
-					junk k)
-			| _ ->
-				junk k
-		in
-		let rec loop k =
-			match List.rev_map fst (Stream.npeek k s) with
-			(* metadata *)
-			| Kwd _ :: At :: _ | Kwd _ :: DblDot :: At :: _ ->
-				loop (k + 1)
-			(* field declaration *)
-			| Const _ :: Kwd Function :: _
-			| Kwd New :: Kwd Function :: _ ->
-				junk_tokens (k - 2);
-				parse_class_field_resume tdecl s
-			| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
-				junk_tokens (k - 1);
-				parse_class_field_resume tdecl s
-			| BrClose :: _ when tdecl ->
-				junk_tokens (k - 1);
-				[]
-			(* type declaration *)
-			| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ | Kwd Abstract :: _->
-				junk_tokens (k - 1);
-				[]
-			| [] ->
-				[]
-			| _ ->
-				loop (k + 1)
-		in
-		loop 1
+		if resume tdecl true s then parse_class_field_resume tdecl s else []
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> DPrivate :: l
