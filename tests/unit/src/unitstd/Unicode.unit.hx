@@ -1,4 +1,4 @@
-#if !neko // these platforms will not be made unicode-compatible
+#if !(neko || eval) // these platforms will not be made unicode-compatible
 
 
 var s = String.fromCharCode(0xE9);
@@ -18,7 +18,7 @@ s == "😂";
 // native UTF-16 or 32
 s.length == 1;
 s.charCodeAt(0) == "😂".code;
-#else 
+#else
 // UTF-16 surrogate pairs encoding
 s.length == 2;
 s.charCodeAt(0) == 55357;

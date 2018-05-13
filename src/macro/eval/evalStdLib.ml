@@ -367,7 +367,7 @@ module StdBytes = struct
 			outside_bounds()
 	)
 
-	let getString = vifun2 (fun vthis pos len ->
+	let getString = vifun3 (fun vthis pos len encoding ->
 		let this = this vthis in
 		let pos = decode_int pos in
 		let len = decode_int len in
@@ -380,7 +380,7 @@ module StdBytes = struct
 
 	let ofData = vfun1 (fun v -> v)
 
-	let ofString = vfun1 (fun v ->
+	let ofString = vfun2 (fun v encoding ->
 		encode_bytes (Bytes.of_string (decode_string v))
 	)
 
