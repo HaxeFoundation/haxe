@@ -2555,9 +2555,10 @@ let rec create com =
 			()
 	) ctx.g.std.m_types;
 	let m = TypeloadModule.load_module ctx ([],"String") null_pos in
-	(match m.m_types with
-	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
-	| _ -> assert false);
+	List.iter (fun mt -> match mt with
+		| TClassDecl c -> ctx.t.tstring <- TInst (c,[])
+		| _ -> ()
+	) m.m_types;
 	let m = TypeloadModule.load_module ctx ([],"Array") null_pos in
 	(try
 		List.iter (fun t -> (
