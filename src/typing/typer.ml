@@ -2053,7 +2053,7 @@ and type_local_function ctx name f with_type p =
 				mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
 				mk (TLocal v) ft p
 			]) ft p))) ctx.t.tvoid p
-		end else if inline then
+		end else if inline && not ctx.in_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 		else
 			mk (TVar (v,Some e)) ctx.t.tvoid p

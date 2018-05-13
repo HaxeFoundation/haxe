@@ -5,10 +5,11 @@ class Main {
 		var numFailures = 0;
 		for (test in tests) {
 			try {
-				var result = test.run();
+				Sys.print(test.name);
+				var result = test.exec.run();
 				numTests += result.numTests;
 				numFailures += result.numFailures;
-			   Sys.println('${result.testName}: ${result.numTests} tests, ${result.numFailures} failures');
+			    Sys.println(' ${result.numTests} tests, ${result.numFailures} failures');
 			} catch(e:DisplayTestContext.HaxeInvocationException) {
 				Sys.println("Error:      " + e.message);
 				Sys.println("Field name: " + e.fieldName);

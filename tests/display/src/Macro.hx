@@ -58,7 +58,7 @@ class Macro {
 				var p = new haxe.io.Path(file);
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};
-					cases.push(macro new $tp());
+					cases.push(macro { name:$v{tp.name}, exec:new $tp() });
 				} else if(Path.join([path, file]).isDirectory()) {
 					loop(pack.concat([file]));
 				}
