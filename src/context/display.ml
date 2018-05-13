@@ -191,7 +191,7 @@ module DisplayEmitter = struct
 	let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		| DMDefinition -> raise_position [(t_infos mt).mt_name_pos];
 		| DMUsage _ -> reference_position := (t_infos mt).mt_name_pos
-		| DMHover -> raise_type (patch_type ctx (type_of_module_type mt)) p None
+		| DMHover -> raise_type (patch_type ctx (type_of_module_type mt)) p (t_infos mt).mt_doc
 		| _ -> ()
 
 	let rec display_type ctx t p =
