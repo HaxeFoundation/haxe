@@ -205,10 +205,10 @@ and parse_import s p1 =
 				serror());
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
-		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName name
-		| [< '(Const (Ident "as"),_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName name
+		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName(name,pname)
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName(name,pname)
 		| [< >] ->
 			serror()
 	in

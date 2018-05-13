@@ -358,7 +358,7 @@ let encode_unop op =
 let encode_import (path,mode) =
 	let tag,pl = match mode with
 		| INormal -> 0, []
-		| IAsName s -> 1, [encode_string s]
+		| IAsName(s,_) -> 1, [encode_string s]
 		| IAll -> 2,[]
 	in
 	let mode = encode_enum IImportMode tag pl in
@@ -644,7 +644,7 @@ let decode_unop op =
 let decode_import_mode t =
 	match decode_enum t with
 	| 0, [] -> INormal
-	| 1, [alias] -> IAsName (decode_string alias)
+	| 1, [alias] -> IAsName (decode_string alias,Globals.null_pos) (* TODO: is it okay to lose the pos here? *)
 	| 2, [] -> IAll
 	| _ -> raise Invalid_expr
 

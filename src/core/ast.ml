@@ -292,7 +292,7 @@ type ('a,'b) definition = {
 
 type import_mode =
 	| INormal
-	| IAsName of string
+	| IAsName of placed_name
 	| IAll
 
 type import = placed_name list * import_mode
