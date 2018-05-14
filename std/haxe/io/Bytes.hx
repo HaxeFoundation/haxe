@@ -361,11 +361,23 @@ class Bytes {
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
 		return result;
 		#elseif cs
-		return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
+		switch (encoding) {
+			case UTF8 | null:
+				return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
+			case RawNative:
+				return cs.system.text.Encoding.Unicode.GetString(b, pos, len);
+		}
 		#elseif java
-		try
-			return new String(b, pos, len, "UTF-8")
-		catch (e:Dynamic) throw e;
+		try {
+			switch (encoding) {
+				case UTF8 | null:
+					return new String(b, pos, len, "UTF-8");
+				case RawNative:
+					return new String(b, pos, len, "UTF-16LE");
+			}
+		} catch (e:Dynamic) {
+			throw e;
+		}
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
@@ -489,15 +501,25 @@ class Bytes {
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
 		return new Bytes(a.length, a);
 		#elseif cs
-		var b = cs.system.text.Encoding.UTF8.GetBytes(s);
+		var b = switch (encoding) {
+			case UTF8 | null:
+				cs.system.text.Encoding.UTF8.GetBytes(s);
+			case RawNative:
+				cs.system.text.Encoding.Unicode.GetBytes(s);
+		};
 		return new Bytes(b.Length, b);
 		#elseif java
-		try
-		{
-			var b:BytesData = untyped s.getBytes("UTF-8");
+		try {
+			var b:BytesData = switch (encoding) {
+				case UTF8 | null:
+					@:privateAccess s.getBytes("UTF-8");
+				case RawNative:
+					@:privateAccess s.getBytes("UTF-16LE");
+			};
 			return new Bytes(b.length, b);
+		} catch (e:Dynamic) {
+			throw e;
 		}
-		catch (e:Dynamic) throw e;
 
 		#elseif python
 			var b:BytesData = new python.Bytearray(s, "UTF-8");

@@ -195,12 +195,9 @@ private typedef NativeString = String;
 		return me;
 	}
 
-	@:functionCode('
-		return java.lang.Character.toString( (char) code );
-	')
-	public static function fromCharCode(code:Int):NativeString
+	public static function fromCharCode(code:Int):String
 	{
-		return null;
+		return new String(java.lang.Character.toChars(code));
 	}
 }
 

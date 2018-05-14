@@ -1549,9 +1549,9 @@ let generate con =
 					) 0 el);
 					write w "}"
 				| TCall( ( { eexpr = TField(_, FStatic({ cl_path = ([], "String") }, { cf_name = "fromCharCode" })) } ), [cc] ) ->
-						write w "Character.toString((char) ";
+						write w "new java.lang.String( java.lang.Character.toChars((int) ";
 						expr_s w cc;
-						write w ")"
+						write w ") )"
 				| TCall ({ eexpr = TIdent "__is__" }, [ expr; { eexpr = TTypeExpr(md) } ] ) ->
 					write w "( ";
 					expr_s w expr;
