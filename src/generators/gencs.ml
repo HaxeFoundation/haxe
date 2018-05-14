@@ -599,7 +599,8 @@ let add_cast_handler gen =
 		}
 	in
 
-	Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array
+	Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
+	Hashtbl.add gen.gtparam_cast (["haxe";"lang"], "Null") (fun e to_t -> mk_cast to_t e)
 	(* end set gtparam_cast *)
 
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
