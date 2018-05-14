@@ -72,8 +72,16 @@ class StringBuf {
    }
 
    public #if !cppia inline #end function addChar( c : Int ) : Void {
-      if (charBuf==null) charBuf = new Array<cpp.Char>();
+      #if hxcpp_smart_strings
+      if (c>=127)
+         add(String.fromCharCode(c));
+      else
+      #end
+      {
+      if (charBuf==null)
+          charBuf = new Array<cpp.Char>();
       charBuf.push(c);
+      }
    }
 
    public function toString() : String {
