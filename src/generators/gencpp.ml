@@ -6253,7 +6253,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          output_cpp "#ifndef HXCPP_CPPIA_SUPER_ARG\n";
          output_cpp "#define HXCPP_CPPIA_SUPER_ARG(x)\n";
-         output_cpp "#endif HXCPP_CPPIA_SUPER_ARG\n";
+         output_cpp "#endif\n";
          output_cpp "static hx::ScriptNamedFunction __scriptableFunctions[] = {\n";
          let dump_func f isStaticFlag =
             let s = try Hashtbl.find sigs f.cf_name with Not_found -> "v" in
