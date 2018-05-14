@@ -161,7 +161,8 @@ enum ValueType {
 						case 'short' | 'java.lang.Short':
 							callArguments[argNum] = (cast arg : java.lang.Number).shortValue();
 						case _:
-							throw 'Unknown expected number subclass of type $name';
+							valid = false;
+							break;
 					}
 				} else {
 					valid = false;

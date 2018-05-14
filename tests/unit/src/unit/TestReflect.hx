@@ -230,7 +230,6 @@ class TestReflect extends Test {
 	}
 
 	function testCreate() {
-		#if !java
 		var i = Type.createInstance(MyClass,[33]);
 		t( (i is MyClass) );
 		eq( i.get(), 33 );
@@ -249,7 +248,6 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
 		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
-		#end
 	}
 
 	static function compareMethodsDummy() {}
