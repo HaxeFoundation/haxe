@@ -376,7 +376,7 @@ class Boot {
 	static var os_patterns = [
 		'Windows' => ['windows','^mingw','^cygwin'],
 		'Linux'   => ['linux'],
-		'Mac'     => ['mac','darwin'],
+		'Mac'     => ['mac','darwin','osx'],
 		'BSD'     => ['bsd$'],
 		'Solaris' => ['SunOS']
 	];
