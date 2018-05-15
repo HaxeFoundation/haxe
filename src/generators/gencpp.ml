@@ -1023,7 +1023,8 @@ let gen_qstring_hash str =
        (Int32.shift_right_logical h 24)
 ;;
 
-let gen_wqstring_hash h =
+let gen_wqstring_hash str =
+   let h = gen_hash32 0 str in
    Printf.sprintf "%04lx,%04lx"
        (Int32.shift_right_logical (Int32.shift_left h 16) 16)
        (Int32.shift_right_logical h 16)
@@ -1094,13 +1095,9 @@ let strq ctx s =
    if (Common.defined ctx Define.HxcppSmartStings) && (has_utf8_chars s) then
       let l = String.length s in
       let b = Buffer.create 0 in
-      let hash = ref (Int32.of_int 0) in
       let cycle = Int32.of_int 223 in
 
       let add ichar =
-         (* TODO - hash the same as utf8 *)
-         hash := Int32.add (Int32.mul !hash cycle) (Int32.of_int ichar);
-
          match ichar with
             | 92 (* \ *) -> Buffer.add_string b "\\\\"
             | 39 (* ' *) -> Buffer.add_string b "\\\'"
@@ -1113,7 +1110,7 @@ let strq ctx s =
             | c -> Buffer.add_char b (Char.chr c)
       in
       UTF8.iter (fun c -> add (UChar.code c) ) s;
-      "HX_W(u\"" ^ (Buffer.contents b) ^ "\"," ^ (gen_wqstring_hash !hash) ^ ")"
+      "HX_W(u\"" ^ (Buffer.contents b) ^ "\"," ^ (gen_wqstring_hash s) ^ ")"
    else
        gen_str "HX_" gen_qstring_hash s
 ;;
@@ -6601,7 +6598,7 @@ let write_resources common_ctx =
       let resource_file = new_cpp_file common_ctx common_ctx.file (["resources"],id) in
       resource_file#write "namespace hx {\n";
       resource_file#write_i ("unsigned char " ^ id ^ "[] = {\n");
-      resource_file#write_i "0xff, 0xff, 0xff, 0xff,\n";
+      resource_file#write_i "0x80, 0x00, 0x00, 0x80,\n";
       for i = 0 to String.length data - 1 do
       let code = Char.code (String.unsafe_get data i) in
          resource_file#write  (Printf.sprintf "%d," code);
