@@ -151,26 +151,6 @@ let is_array_type t =
 	| HObj p -> is_array_class p.pname
 	| _ -> false
 
-let to_utf8 str p =
-	let u8 = try
-		UTF8.validate str;
-		str;
-	with
-		UTF8.Malformed_code ->
-			(* ISO to utf8 *)
-			let b = UTF8.Buf.create 0 in
-			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
-			UTF8.Buf.contents b
-	in
-	let ccount = ref 0 in
-	UTF8.iter (fun c ->
-		let c = UChar.code c in
-		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
-		incr ccount;
-		if c > 0x10000 then incr ccount;
-	) u8;
-	u8, !ccount
-
 let tuple_type ctx tl =
 	try
 		PMap.find tl ctx.cached_tuples
