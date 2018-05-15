@@ -90,6 +90,8 @@ extern class Reflect {
 
 	/**
 		Call a method with the given object and arguments.
+
+		Notice: `o` have to be `null` in case of static method.
 	**/
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
