@@ -22,6 +22,7 @@
 open Ast
 open Common
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionResultKind
 open Type
 open Typecore
 open Error
@@ -39,7 +40,7 @@ let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) true;
+	if tname = "" then Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) CRToplevel None false;
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =

@@ -21,8 +21,9 @@ open Common
 open Type
 open Typecore
 open DisplayTypes.CompletionKind
+open DisplayTypes.CompletionItemKind
 
-let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
+let explore_class_paths ctx class_paths recusive f_pack f_module =
 	let rec loop dir pack =
 		try
 			let entries = Sys.readdir dir in
@@ -46,9 +47,7 @@ let explore_class_paths ctx class_paths recusive f_pack f_module f_type =
 							try
 								let name = String.sub file 0 (l - 3) in
 								let path = (List.rev pack,name) in
-								let md = ctx.g.do_load_module ctx path Globals.null_pos in
-								f_module md;
-								List.iter (fun mt -> f_type mt) md.m_types
+								f_module path;
 							with _ ->
 								()
 						end
@@ -91,23 +90,28 @@ let collect ctx only_types with_type =
 		) ctx.curclass.cl_ordered_statics;
 
 		(* enum constructors *)
+		let seen_paths = Hashtbl.create 0 in
+		let was_proccessed path = Hashtbl.mem seen_paths path in
+		let mark_processed path = Hashtbl.add seen_paths path true in
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta ->
+			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (was_proccessed a.a_path) ->
+				mark_processed a.a_path;
 				List.iter (fun cf ->
 					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstractField(a,cf));
 				) c.cl_ordered_statics
-			| TClassDecl _ | TAbstractDecl _ ->
-				()
 			| TTypeDecl t ->
 				begin match follow t.t_type with
 					| TEnum (e,_) -> enum_ctors (TEnumDecl e)
 					| _ -> ()
 				end
-			| TEnumDecl e ->
+			| TEnumDecl e when not (was_proccessed e.e_path) ->
+				mark_processed e.e_path;
 				PMap.iter (fun _ ef ->
 					add (ITEnumField(e,ef))
 				) e.e_constrs;
+			| _ ->
+				()
 		in
 		List.iter enum_ctors ctx.m.curmod.m_types;
 		List.iter enum_ctors (List.map fst ctx.m.module_types);
@@ -151,12 +155,16 @@ let collect ctx only_types with_type =
 
 	let module_types = ref [] in
 
+	let module_exists path =
+		List.exists (fun (mt2,_) -> (t_infos mt2).mt_path = path) !module_types
+	in
+
 	let add_type rm mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
-			if not (List.exists (fun (mt2,_) -> (t_infos mt2).mt_path = path) !module_types) then begin
+			if not (module_exists path) then begin
 				(match mt with
 				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
 					!merge_core_doc_ref ctx c
@@ -182,33 +190,55 @@ let collect ctx only_types with_type =
 	let class_paths = ctx.com.class_path in
 	let class_paths = List.filter (fun s -> s <> "") class_paths in
 
-	let maybe_add_type rm mt = if not (t_infos mt).mt_private then add_type rm mt in
+	let add_syntax_type path kind rm =
+		if not (module_exists path) then add (ITType(path,kind,rm))
+	in
+
+	let process_decls pack decls =
+		List.iter (fun (d,_) -> match d with
+			| EClass d when not (List.mem HPrivate d.d_flags) ->
+				let kind = if List.mem HInterface d.d_flags then Interface else Class in
+				add_syntax_type (pack,fst d.d_name) kind (RMOtherModule (pack,fst d.d_name)) (* TODO *)
+			| EEnum d when not (List.mem EPrivate d.d_flags) ->
+				add_syntax_type (pack,fst d.d_name) Enum (RMOtherModule (pack,fst d.d_name)) (* TODO *)
+			| EAbstract d when not (List.mem AbPrivate d.d_flags) ->
+				let kind = if Meta.has Meta.Enum d.d_meta then Enum else Class in
+				add_syntax_type (pack,fst d.d_name) kind (RMOtherModule (pack,fst d.d_name)) (* TODO *)
+			| ETypedef d when not (List.mem EPrivate d.d_flags) ->
+				let kind = match fst d.d_data with
+				| CTAnonymous _ -> Struct
+				| _ -> Interface
+				in
+				add_syntax_type (pack,fst d.d_name) kind (RMOtherModule (pack,fst d.d_name)) (* TODO *)
+			| _ -> ()
+		) decls
+	in
 
 	begin match !CompilationServer.instance with
 	| None ->
-		explore_class_paths ctx class_paths true add_package (fun _ -> ()) (maybe_add_type RMClassPath);
+		explore_class_paths ctx class_paths true add_package (fun path ->
+			if not (module_exists path) then begin
+				let _,decls = TypeloadParse.parse_module ctx path Globals.null_pos in
+				process_decls (fst path) decls
+			end
+		)
 	| Some cs ->
-		(* if not (CompilationServer.is_initialized cs) then begin
-			(* CompilationServer.set_initialized cs; *)
-			explore_class_paths ctx class_paths true (fun _ -> ()) (fun _ -> ()) (fun _ -> ());
-			let cache_module m = CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m in
-			Hashtbl.iter (fun _ m -> cache_module m) ctx.g.modules;
-		end; *)
-		CompilationServer.iter_modules cs ctx.com (fun m ->
-			let rm = match (fst m.m_path) with
-				| [] -> RMClassPath
-				| s :: _ ->
-					add_package s;
-					RMOtherModule m.m_path
-			in
-			List.iter (fun mt -> maybe_add_type rm mt) m.m_types
-		);
+		if not (CompilationServer.is_initialized cs) then begin
+			CompilationServer.set_initialized cs;
+			explore_class_paths ctx class_paths true (fun _ -> ()) (fun path ->
+				if not (module_exists path) then begin
+					ignore(TypeloadParse.parse_module ctx path Globals.null_pos)
+				end
+			);
+		end;
+		CompilationServer.iter_files cs ctx.com (fun (_,(pack,decls)) -> process_decls pack decls)
 	end;
 
 	(* TODO: wildcard packages. How? *)
 
 	List.iter (fun (mt,rm) ->
-		add (ITType(mt,rm))
+		let kind = of_module_type mt in
+		add (ITType((t_infos mt).mt_path,kind,rm))
 	) !module_types;
 
 	Hashtbl.iter (fun pack _ ->
@@ -216,8 +246,8 @@ let collect ctx only_types with_type =
 	) packages;
 
 	(* type params *)
-	List.iter (fun (_,t) ->
-		add (ITType (module_type_of_type t,RMTypeParameter))
+	List.iter (fun (s,_) ->
+		add (ITType (([],s),TypeParameter,RMTypeParameter))
 	) ctx.type_params;
 
 	let l = DynArray.to_list acc in
@@ -235,7 +265,7 @@ let collect ctx only_types with_type =
 					| _ ->
 						6 (* incompatible type - probably useless *)
 			in
-			let l = List.map (fun ck -> ck,comp (DisplayTypes.CompletionKind.get_type ck)) l in
+			let l = List.map (fun ck -> ck,(comp (get_type ck),get_name ck)) l in
 			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
 			List.map fst l
 		| _ -> l

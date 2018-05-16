@@ -394,6 +394,17 @@ let generate_module_type ctx mt =
 	let fields1 = ("kind",jstring kind) :: fields1 @ [("args",jobject fields2)] in
 	jobject fields1
 
+(* module *)
+
+let generate_module ctx m =
+	jobject [
+		"id",jint m.m_id;
+		"path",generate_path m.m_path;
+		"types",jlist (fun mt -> generate_path (t_infos mt).mt_path) m.m_types;
+		"file",jstring m.m_extra.m_file;
+		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+	]
+
 let create_context () = {
 	todo = ()
 }

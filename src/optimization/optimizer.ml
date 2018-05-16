@@ -1323,11 +1323,11 @@ let optimize_completion_expr e args =
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
-		| ESwitch (e1,cases,def) when Parser.encloses_resume p ->
+		| ESwitch (e1,cases,def) when Display.is_display_position p ->
 			let e1 = loop e1 in
 			hunt_idents e1;
 			(* Prune all cases that aren't our display case *)
-			let cases = List.filter (fun (_,_,_,p) -> Parser.encloses_resume p) cases in
+			let cases = List.filter (fun (_,_,_,p) -> Display.is_display_position p) cases in
 			(* Don't throw away the switch subject when we optimize in a case expression because we might need it *)
 			let cases = List.map (fun (el,eg,eo,p) ->
 				List.iter hunt_idents el;

@@ -45,6 +45,7 @@
 open Printf
 open Common
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionResultKind
 open Display.DisplayException
 open Type
 open Server
@@ -483,7 +484,7 @@ try
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default <> DMNone || (CompilationServer.runs());
+	Parser.use_doc := !Parser.display_mode <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -687,7 +688,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input measure_times
+				DisplayJson.parse_input com input measure_times did_something
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -923,7 +924,7 @@ with
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
-		if !Common.display_default <> DMNone && ctx.has_next then begin
+		if !Parser.display_mode <> DMNone && ctx.has_next then begin
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
@@ -946,12 +947,12 @@ with
 		message ctx (CMInfo(msg,null_pos))
 	| DisplayException(DisplayType _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin match ctx.com.json_out with
-		| Some (f,_) -> raise (DisplayOutput.Completion (f (Display.DisplayException.to_json de)))
+		| Some (f,_) -> f (Display.DisplayException.to_json de)
 		| _ -> assert false
 		end
 	| DisplayException(DisplayPackage pack) ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields(fields,is_toplevel)) ->
+	| DisplayException(DisplayFields(fields,cr,_,_)) ->
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
@@ -960,7 +961,7 @@ with
 		end else
 			fields
 		in
-		raise (DisplayOutput.Completion (if is_toplevel then DisplayOutput.print_toplevel fields else DisplayOutput.print_fields fields))
+		raise (DisplayOutput.Completion (match cr with CRToplevel -> DisplayOutput.print_toplevel fields | _ -> DisplayOutput.print_fields fields))
 	| DisplayException(DisplayType (t,p,doc)) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
@@ -986,7 +987,7 @@ with
 		| None -> ()
 		| Some fields ->
 			begin match ctx.com.json_out with
-			| Some (f,_) -> raise (DisplayOutput.Completion (f (Display.DisplayException.to_json (DisplayFields(fields,false)))))
+			| Some (f,_) -> f (Display.DisplayException.to_json (DisplayFields(fields,CRField,None,false)))
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end

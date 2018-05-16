@@ -1185,33 +1185,45 @@ and parse_catches etry catches pmax = parser
 	| [< >] -> List.rev catches,pmax
 
 and parse_call_params f p1 s =
-	let make_display_call el p2 =
-		let e = f el p2 in
-		display (EDisplay(e,DKCall),pos e)
-	in
-	let rec parse_next_param acc p1 =
-		let e = try
-			expr s
-		with
-		| Stream.Error _ | Stream.Failure as exc ->
-			if do_resume() then mk_null_expr (punion_next p1 s)
-			else raise exc
-		| Display e ->
-			display (f (List.rev (e :: acc)) (pos e))
+	if not (do_resume()) || not (is_resuming_file p1.pfile) then begin
+		let el = psep Comma expr s in
+		match s with parser
+		| [< '(PClose,p2) >] -> f el p2
+		| [< >] -> serror()
+	end else begin
+		let rec parse_next_param acc p1 =
+			let e = try
+				expr s
+			with
+			| Stream.Error _ | Stream.Failure ->
+				mk_null_expr (punion_next p1 s)
+			| Display e ->
+				display (f (List.rev (e :: acc)) (pos e))
+			in
+			let check_signature_mark e p2 =
+				if not (is_signature_display()) then e
+				else begin
+					let p = punion p1 p2 in
+					if encloses_resume p then (mk_display_expr e DKMarked)
+					else e
+				end
+			in
+			match s with parser
+			| [< '(PClose,p2) >] ->
+				let e = check_signature_mark e p2 in
+				f (List.rev (e :: acc)) p2
+			| [< '(Comma,p2) >] ->
+				let e = check_signature_mark e p2 in
+				parse_next_param (e :: acc) p2
+			| [< >] ->
+				let p2 = next_pos s in
+				let e = check_signature_mark e p2 in
+				f (List.rev (e :: acc)) p2
 		in
 		match s with parser
-		| [< '(PClose,p2) >] -> f (List.rev (e :: acc)) p2
-		| [< '(Comma,p2) >] -> parse_next_param (e :: acc) p2
-		| [< >] ->
-			if do_resume() then f (List.rev (e :: acc)) (pos e)
-			else serror()
-	in
-	match s with parser
-	| [< '(PClose,p2) >] -> f [] p2
-	| [< '(Binop OpOr,p2) when do_resume() >] ->
-		set_resume p1;
-		make_display_call [] p2
-	| [< >] -> parse_next_param [] p1
+		| [< '(PClose,p2) >] -> f [] p2
+		| [< >] -> parse_next_param [] p1
+	end
 
 and toplevel_expr s =
 	try

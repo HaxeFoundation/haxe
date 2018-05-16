@@ -178,7 +178,6 @@ and display_kind =
 	| DKCall
 	| DKDot
 	| DKStructure
-	| DKToplevel
 	| DKMarked
 
 and expr_def =
@@ -715,7 +714,6 @@ let s_display_kind = function
 	| DKCall -> "DKCall"
 	| DKDot -> "DKDot"
 	| DKStructure -> "DKStructure"
-	| DKToplevel -> "DKToplevel"
 	| DKMarked -> "TKMarked"
 
 let s_expr e =

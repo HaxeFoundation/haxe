@@ -172,4 +172,35 @@ class Signature extends DisplayTestCase {
 	function testNested() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
 	}
+
+	/**
+	class Main {
+
+		static function main() {
+			lotsOfArgs({-1-}  "f{-2-}oo" {-3-} {-4-},{-5-}  12{-6-},{-7-} {-8-}   {-9-},{-10-} {-11-} [{-12-}]{-13-},{-14-}
+
+	{-15-}
+		}
+
+		static function lotsOfArgs(a:String, b:Int, c:Bool, d:Array<Int>, e:Dynamic) { }
+	}
+	**/
+	function testBroken() {
+		var sig = [["a:String", "b:Int", "c:Bool", "d:Array<Int>", "e:Dynamic"]];
+		sigEq(0, sig, signature(pos(1)));
+		sigEq(0, sig, signature(pos(2)));
+		sigEq(0, sig, signature(pos(3)));
+		sigEq(0, sig, signature(pos(4)));
+		sigEq(1, sig, signature(pos(5)));
+		sigEq(1, sig, signature(pos(6)));
+		sigEq(2, sig, signature(pos(7)));
+		sigEq(2, sig, signature(pos(8)));
+		sigEq(2, sig, signature(pos(9)));
+		sigEq(3, sig, signature(pos(10)));
+		sigEq(3, sig, signature(pos(11)));
+		sigEq(3, sig, signature(pos(12)));
+		sigEq(3, sig, signature(pos(13)));
+		sigEq(4, sig, signature(pos(14)));
+		sigEq(4, sig, signature(pos(15)));
+	}
 }

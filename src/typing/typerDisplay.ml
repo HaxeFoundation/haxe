@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionResultKind
 open Display.DisplayException
 open Common
 open Type
@@ -10,54 +11,7 @@ open Fields
 open Calls
 open Error
 
-let rec handle_display ctx e_ast dk with_type =
-	let old = ctx.in_display,ctx.in_call_args in
-	ctx.in_display <- true;
-	ctx.in_call_args <- false;
-	let e = match e_ast,with_type with
-	| (EConst (Ident "$type"),_),_ ->
-		let mono = mk_mono() in
-		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
-		let arg = ["expression",false,mono] in
-		begin match ctx.com.display.dms_kind with
-		| DMSignature ->
-			raise_signatures [((arg,mono),doc)] 0 0
-		| _ ->
-			raise_type (TFun(arg,mono)) (pos e_ast) doc
-		end
-	| (EConst (Ident "trace"),_),_ ->
-		let doc = Some "Print given arguments" in
-		let arg = ["value",false,t_dynamic] in
-		let ret = ctx.com.basic.tvoid in
-		begin match ctx.com.display.dms_kind with
-		| DMSignature ->
-			raise_signatures [((arg,ret),doc)] 0 0
-		| _ ->
-			raise_type (TFun(arg,ret)) (pos e_ast) doc
-		end
-	| (EConst (Ident "_"),p),WithType t ->
-		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
-	| _ -> try
-		type_expr ctx e_ast with_type
-	with Error (Unknown_ident n,_) ->
-		raise (Parser.TypePath ([n],None,false))
-	| Error (Type_not_found (path,_),_) as err ->
-		begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) false
-		with Not_found ->
-			raise err
-		end
-	in
-	let p = e.epos in
-	let e = match with_type with
-		| WithType t -> (try AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
-		| _ -> e
-	in
-	ctx.in_display <- fst old;
-	ctx.in_call_args <- snd old;
-	display_expr ctx e_ast e dk with_type p
-
-and handle_signature_display ctx e_ast with_type =
+let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
 	let handle_call tl el p0 =
@@ -67,13 +21,16 @@ and handle_signature_display ctx e_ast with_type =
 			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
-		let rec loop i p1 el = match el with
-			| (e,p2) :: el ->
-				if Display.is_display_position (punion p1 p2) then i else loop (i + 1) p2 el
+		let rec loop i acc el = match el with
+			| e :: el ->
+				begin match fst e with
+				| EDisplay(e1,DKMarked) -> i,List.rev (e1 :: acc) @ el
+				| _ -> loop (i + 1) (e :: acc) el
+				end
 			| [] ->
-				i
+				0,List.rev acc
 		in
-		let display_arg = loop 0 p0 el in
+		let display_arg,el = loop 0 [] el in
 		(* If our display position exceeds the argument number we add a null expression in order to make
 		unify_call_args error out. *)
 		let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
@@ -261,10 +218,16 @@ and display_expr ctx e_ast e dk with_type p =
 		let pl = loop e in
 		raise_position pl
 	| DMDefault when not (!Parser.had_resume)->
-		raise_fields (DisplayToplevel.collect ctx false with_type) true
+		begin match fst e_ast,e.eexpr with
+			| EField(e1,s),TField(e2,_) ->
+				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
+				raise_fields fields CRField (Some {e.epos with pmin = e.epos.pmax - String.length s;}) false
+			| _ ->
+				raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel None (match with_type with WithType _ -> true | _ -> false)
+		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
-		raise_fields fields false
+		raise_fields fields CRField None false
 
 let handle_structure_display ctx e fields =
 	let p = pos e in
@@ -274,13 +237,60 @@ let handle_structure_display ctx e fields =
 			if Expr.field_mem_assoc k fl then acc
 			else (DisplayTypes.CompletionKind.ITClassMember cf) :: acc
 		) fields [] in
-		raise_fields fields false
+		raise_fields fields CRStructureField None false
 	| EBlock [] ->
 		let fields = PMap.foldi (fun _ cf acc -> DisplayTypes.CompletionKind.ITClassMember cf :: acc) fields [] in
-		raise_fields fields false
+		raise_fields fields CRStructureField None false
 	| _ ->
 		error "Expected object expression" p
 
+let handle_display ctx e_ast dk with_type =
+	let old = ctx.in_display,ctx.in_call_args in
+	ctx.in_display <- true;
+	ctx.in_call_args <- false;
+	let e = match e_ast,with_type with
+	| (EConst (Ident "$type"),_),_ ->
+		let mono = mk_mono() in
+		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
+		let arg = ["expression",false,mono] in
+		begin match ctx.com.display.dms_kind with
+		| DMSignature ->
+			raise_signatures [((arg,mono),doc)] 0 0
+		| _ ->
+			raise_type (TFun(arg,mono)) (pos e_ast) doc
+		end
+	| (EConst (Ident "trace"),_),_ ->
+		let doc = Some "Print given arguments" in
+		let arg = ["value",false,t_dynamic] in
+		let ret = ctx.com.basic.tvoid in
+		begin match ctx.com.display.dms_kind with
+		| DMSignature ->
+			raise_signatures [((arg,ret),doc)] 0 0
+		| _ ->
+			raise_type (TFun(arg,ret)) (pos e_ast) doc
+		end
+	| (EConst (Ident "_"),p),WithType t ->
+		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
+	| (_,p),_ -> try
+		type_expr ctx e_ast with_type
+	with Error (Unknown_ident n,_) ->
+		if dk = DKDot then raise (Parser.TypePath ([n],None,false))
+		else raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some {p with pmin = p.pmax - String.length n;}) (match with_type with WithType _ -> true | _ -> false)
+	| Error (Type_not_found (path,_),_) as err ->
+		begin try
+			raise_fields (DisplayFields.get_submodule_fields ctx path) CRField None false
+		with Not_found ->
+			raise err
+		end
+	in
+	let p = e.epos in
+	let e = match with_type with
+		| WithType t -> (try AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
+		| _ -> e
+	in
+	ctx.in_display <- fst old;
+	ctx.in_call_args <- snd old;
+	display_expr ctx e_ast e dk with_type p
 
 let handle_edisplay ctx e dk with_type =
 	match dk,ctx.com.display.dms_kind with

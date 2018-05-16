@@ -54,9 +54,8 @@ let print_fields fields =
 				| _ -> "var"
 			in
 			kind,ef.ef_name,s_type (print_context()) ef.ef_type,ef.ef_doc
-		| ITType(mt,_) ->
-			let infos = t_infos mt in
-			"type",snd infos.mt_path,s_type_path infos.mt_path,infos.mt_doc
+		| ITType(path,_,_) ->
+			"type",snd path,s_type_path path,None
 		| ITPackage s -> "package",s,"",None
 		| ITModule s -> "type",s,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
@@ -103,15 +102,14 @@ let print_toplevel il =
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
 		| ITGlobal(mt,s,t) ->
 			if check_ident s then Buffer.add_string b (Printf.sprintf "<i k=\"global\" p=\"%s\" t=\"%s\">%s</i>\n" (s_type_path (t_infos mt).mt_path) (s_type t) s);
-		| ITType(mt,rm) ->
-			let infos = t_infos mt in
+		| ITType(path,_,rm) ->
 			let import,name = match rm with
 				| RMOtherModule path ->
-					let label_path = if path = infos.mt_path then path else (fst path @ [snd path],snd infos.mt_path) in
+					let label_path = if path = path then path else (fst path @ [snd path],snd path) in
 					Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path label_path
-				| _ -> "",(snd infos.mt_path)
+				| _ -> "",(snd path)
 			in
-			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path infos.mt_path) import ("") name);
+			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path path) import ("") name);
 		| ITPackage s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
 		| ITLiteral(s,_) ->
@@ -392,6 +390,7 @@ module TypePathHandler = struct
 			in
 			let m = lookup sl_pack in
 			let statics = ref None in
+			let enum_statics = ref None in
 			let public_types = List.filter (fun t ->
 				let tinfos = t_infos t in
 				let is_module_type = snd tinfos.mt_path = c in
@@ -399,6 +398,8 @@ module TypePathHandler = struct
 					| TClassDecl c ->
 						ignore(c.cl_build());
 						statics := Some c.cl_ordered_statics
+					| TEnumDecl en ->
+						enum_statics := Some en
 					| _ -> ()
 				end;
 				not tinfos.mt_private
@@ -407,8 +408,8 @@ module TypePathHandler = struct
 				if c <> s_module then
 					[]
 				else
-					List.map (fun t ->
-						ITType(t,RMOtherModule m.m_path)
+					List.map (fun mt ->
+						ITType((t_infos mt).mt_path, DisplayTypes.CompletionItemKind.of_module_type mt,RMOtherModule m.m_path)
 					) public_types
 			in
 			let make_field_doc cf =
@@ -417,6 +418,10 @@ module TypePathHandler = struct
 			let fields = match !statics with
 				| None -> types
 				| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+			in
+			let fields = match !enum_statics with
+				| None -> fields
+				| Some en -> PMap.fold (fun ef acc -> ITEnumField(en,ef) :: acc) en.e_constrs fields
 			in
 			Some fields
 		with _ ->
@@ -656,12 +661,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 	| "diagnostics" ->
 		Common.define com Define.NoCOpt;
 		com.display <- DisplayMode.create (DMDiagnostics true);
-		Common.display_default := DMDiagnostics true;
+		Parser.display_mode := DMDiagnostics true;
 	| _ ->
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		Parser.is_completion := false;
 		Parser.had_resume := false;
 		let offset = ref 0 in
 		let mode = match smode with
@@ -683,7 +687,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
-				Parser.is_completion := true;
 				DMDefault
 			| "module-symbols" ->
 				Common.define com Define.NoCOpt;
@@ -695,10 +698,10 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
+				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
-				Parser.is_completion := true;
 				DMDefault
 			| _ ->
 				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
@@ -709,12 +712,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 						Common.define com Define.NoCOpt;
 						DMModuleSymbols (Some arg)
 					| _ ->
-						Parser.is_completion := true;
 						DMDefault
 		in
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
 		com.display <- DisplayMode.create mode;
-		Common.display_default := mode;
+		Parser.display_mode := mode;
 		Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
 		Parser.resume_display := {

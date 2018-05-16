@@ -1,7 +1,9 @@
 open Ast
 open Common
-open DisplayTypes.DisplayMode
-open DisplayTypes.CompletionKind
+open DisplayTypes
+open DisplayMode
+open CompletionKind
+open CompletionResultKind
 open Type
 open Typecore
 open Globals
@@ -18,7 +20,7 @@ module DisplayException = struct
 		| DisplaySignatures of (tsignature * documentation) list * int * int
 		| DisplayType of t * pos * string option
 		| DisplayPosition of pos list
-		| DisplayFields of DisplayTypes.CompletionKind.t list * bool (* toplevel? *)
+		| DisplayFields of CompletionKind.t list * CompletionResultKind.t * pos option (* insert pos *) * bool (* sorted? *)
 		| DisplayPackage of string list
 
 	exception DisplayException of kind
@@ -30,7 +32,7 @@ module DisplayException = struct
 	let raise_signatures l isig iarg = raise (DisplayException(DisplaySignatures(l,isig,iarg)))
 	let raise_type t p so = raise (DisplayException(DisplayType(t,p,so)))
 	let raise_position pl = raise (DisplayException(DisplayPosition pl))
-	let raise_fields ckl b = raise (DisplayException(DisplayFields(ckl,b)))
+	let raise_fields ckl cr po b = raise (DisplayException(DisplayFields(ckl,cr,po,b)))
 	let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 	let to_json de = match de with
@@ -58,9 +60,14 @@ module DisplayException = struct
 			]
 		| DisplayPosition pl ->
 			jarray (List.map generate_pos_as_location pl)
-		| DisplayFields(fields,_) ->
-			let j = List.map (DisplayTypes.CompletionKind.to_json (Genjson.create_context ())) fields in
-			jarray j
+		| DisplayFields(fields,kind,po,sorted) ->
+			let ja = List.map (DisplayTypes.CompletionKind.to_json (Genjson.create_context ())) fields in
+			let fl =
+				("items",jarray ja) ::
+				("kind",jint (Obj.magic kind)) ::
+				("sorted",jbool sorted) ::
+				(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range p]) in
+			jobject fl
 		| DisplayPackage pack ->
 			jarray (List.map jstring pack)
 end
@@ -144,21 +151,11 @@ module ExprPreprocessing = struct
 		try map e with Exit -> e
 
 	let find_display_call e =
-		let found = ref false in
-		let loop e = if !found then e else match fst e with
-			| ECall _ | ENew _ when is_display_position (pos e) ->
-				found := true;
-				(EDisplay(e,DKCall),(pos e))
-			| _ ->
-				e
+		let loop e = match fst e with
+			| ECall _ | ENew _ when is_display_position (pos e) -> Parser.mk_display_expr e DKCall
+			| _ -> e
 		in
-		let rec map e = match fst e with
-			| EDisplay(_,DKCall) ->
-				found := true;
-				e
-			| EDisplay(e1,_) -> map e1
-			| _ -> loop (Ast.map_expr map e)
-		in
+		let rec map e = loop (Ast.map_expr map e) in
 		map e
 
 
@@ -269,7 +266,7 @@ module DisplayEmitter = struct
 			let all = List.map (fun (s,doc) ->
 				ITMetadata(s,Some doc)
 			) all in
-			raise_fields all false
+			raise_fields all CRMetadata None false
 		| _ ->
 			()
 
@@ -799,7 +796,7 @@ module Statistics = struct
 				loop ctx.com
 			| Some cs ->
 				let rec loop com =
-					CompilationServer.cache_context cs com;
+					(* CompilationServer.cache_context cs com; *)
 					CompilationServer.iter_modules cs com (fun m -> List.iter f m.m_types);
 					Option.may loop (com.get_macros())
 				in

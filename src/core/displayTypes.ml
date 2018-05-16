@@ -63,6 +63,81 @@ module DiagnosticsSeverity = struct
 		| Hint -> 4
 end
 
+module CompletionResultKind = struct
+	type t =
+		| CRField
+		| CRStructureField
+		| CRToplevel
+		| CRMetadata
+end
+
+module CompletionItemKind = struct
+	type t =
+		| Text
+		| Method
+		| Function
+		| Constructor
+		| Field
+		| Variable
+		| Class
+		| Interface
+		| Module
+		| Property
+		| Unit
+		| Value
+		| Enum
+		| Keyword
+		| Snippet
+		| Color
+		| File
+		| Reference
+		| Folder
+		| EnumMember
+		| Constant
+		| Struct
+		| Event
+		| Operator
+		| TypeParameter
+
+	let to_int = function
+		| Text -> 1
+		| Method -> 2
+		| Function -> 3
+		| Constructor -> 4
+		| Field -> 5
+		| Variable -> 6
+		| Class -> 7
+		| Interface -> 8
+		| Module -> 9
+		| Property -> 10
+		| Unit -> 11
+		| Value -> 12
+		| Enum -> 13
+		| Keyword -> 14
+		| Snippet -> 15
+		| Color -> 16
+		| File -> 17
+		| Reference -> 18
+		| Folder -> 19
+		| EnumMember -> 20
+		| Constant -> 21
+		| Struct -> 22
+		| Event -> 23
+		| Operator -> 24
+		| TypeParameter -> 25
+
+	let of_module_type = function
+		| TClassDecl c -> if c.cl_interface then Interface else Class
+		| TAbstractDecl a when (Meta.has Meta.Enum a.a_meta) -> Enum
+		| TTypeDecl td ->
+			begin match follow td.t_type with
+				| TAnon _ -> Struct
+				| _ -> Interface
+			end
+		| TEnumDecl _ -> Enum
+		| _ -> Class
+end
+
 module CompletionKind = struct
 	type resolution_mode =
 		| RMLocalModule
@@ -79,7 +154,7 @@ module CompletionKind = struct
 		| ITEnumField of tenum * tenum_field
 		| ITEnumAbstractField of tabstract * tclass_field
 		| ITGlobal of module_type * string * Type.t
-		| ITType of module_type * resolution_mode
+		| ITType of path * CompletionItemKind.t * resolution_mode
 		| ITPackage of string
 		| ITModule of string
 		| ITLiteral of string * Type.t
@@ -97,8 +172,7 @@ module CompletionKind = struct
 			| TFun _ -> 1,ef.ef_name
 			| _ -> 0,ef.ef_name
 			end
-		| ITType(mt,_) ->
-			2,(snd (t_infos mt).mt_path)
+		| ITType((_,name),_,_) -> 2,name
 		| ITModule s -> 3,s
 		| ITPackage s -> 4,s
 		| ITMetadata(s,_) -> 5,s
@@ -112,7 +186,7 @@ module CompletionKind = struct
 		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) -> cf.cf_name
 		| ITEnumField(_,ef) -> ef.ef_name
 		| ITGlobal(_,s,_) -> s
-		| ITType(mt,_) -> snd (t_infos mt).mt_path
+		| ITType((_,name),_,_) -> name
 		| ITPackage s -> s
 		| ITModule s -> s
 		| ITLiteral(s,_) -> s
@@ -124,7 +198,7 @@ module CompletionKind = struct
 		| ITClassMember cf | ITClassStatic cf | ITEnumAbstractField(_,cf) -> cf.cf_type
 		| ITEnumField(_,ef) -> ef.ef_type
 		| ITGlobal(_,_,t) -> t
-		| ITType(mt,_) -> t_dynamic (* TODO: hmm *)
+		| ITType(_,_,_) -> t_dynamic
 		| ITPackage _ -> t_dynamic
 		| ITModule _ -> t_dynamic
 		| ITLiteral(_,t) -> t
@@ -143,7 +217,10 @@ module CompletionKind = struct
 				"name",jstring s;
 				"type",generate_type ctx t
 			]
-			| ITType(mt,rm) -> "Type",generate_module_type (Genjson.create_context()) mt (* TODO: resolution mode *)
+			| ITType(path,kind,rm) -> "Type",jobject [
+				"path",generate_path path;
+				"kind",jint (CompletionItemKind.to_int kind);
+			]
 			| ITPackage s -> "Package",jstring s
 			| ITModule s -> "Module",jstring s
 			| ITLiteral(s,_) -> "Literal",jstring s

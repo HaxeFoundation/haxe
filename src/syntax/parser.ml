@@ -20,6 +20,7 @@
 open Ast
 open Globals
 open Reification
+open DisplayTypes.DisplayMode
 
 type error_msg =
 	| Unexpected of token
@@ -77,7 +78,7 @@ end
 let last_doc : (string * int) option ref = ref None
 let use_doc = ref false
 let was_auto_triggered = ref false
-let is_completion = ref false
+let display_mode = ref DMNone
 let resume_display = ref null_pos
 let in_macro = ref false
 
@@ -199,6 +200,8 @@ let next_token s = match Stream.peek s with
 	| Some tk -> tk
 	| _ -> last_token s
 
+let next_pos s = pos (next_token s)
+
 let punion_next p1 s =
 	let _,p2 = next_token s in
 	{
@@ -209,5 +212,13 @@ let punion_next p1 s =
 
 let mk_null_expr p = (EConst(Ident "null"),p)
 
+let mk_display_expr e dk = (EDisplay(e,dk),(pos e))
+
+let is_completion () =
+	!display_mode = DMDefault
+
+let is_signature_display () =
+	!display_mode = DMSignature
+
 let check_resume p fyes fno =
-	if !is_completion && is_resuming p then (had_resume := true; fyes()) else fno()
+	if is_completion () && is_resuming p then (had_resume := true; fyes()) else fno()
