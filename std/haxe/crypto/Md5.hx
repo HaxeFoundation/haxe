@@ -133,7 +133,7 @@ class Md5 {
 	}
 
 	static function str2blks( str : String ){
-#if !(neko || cpp)
+#if !(neko || (cpp && !hxcpp_smart_strings))
 		var str = haxe.io.Bytes.ofString(str);
 #end
 		var nblk = ((str.length + 8) >> 6) + 1;
@@ -153,7 +153,7 @@ class Md5 {
 		var max = str.length;
 		var l = max * 8;
 		while( i < max ) {
-			blks[i >> 2] |= #if !(neko || cpp) str.get(i) #else StringTools.fastCodeAt(str, i) #end << (((l + i) % 4) * 8);
+			blks[i >> 2] |= #if !(neko || (cpp && !hxcpp_smart_strings)) str.get(i) #else StringTools.fastCodeAt(str, i) #end << (((l + i) % 4) * 8);
 			i++;
 		}
 		blks[i >> 2] |= 0x80 << (((l + i) % 4) * 8);
