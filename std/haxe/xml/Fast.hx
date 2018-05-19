@@ -132,15 +132,17 @@ abstract Fast(Xml) {
 	/**
 		Access to the List of elements with the given name.
 		```haxe
-		var fast = new haxe.xml.Fast(Xml.parse("<users>
+		var fast = new haxe.xml.Fast(Xml.parse("
+			<users>
 				<user name='John'/>
 				<user name='Andy'/>
 				<user name='Dan'/>
-		</users>"));
+			</users>"
+		));
 
 		var users = fast.node.users;
-		for(user in users.nodes.user) {
-				trace(user.att.name);
+		for (user in users.nodes.user) {
+			trace(user.att.name);
 		}
 		```
 	**/
