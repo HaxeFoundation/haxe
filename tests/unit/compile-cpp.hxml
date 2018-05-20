@@ -1,4 +1,5 @@
 compile-each.hxml
 --main unit.TestMain
+-D hxcpp_smart_strings
 -cpp bin/cpp
 -D HXCPP_NO_DEBUG_LINK
