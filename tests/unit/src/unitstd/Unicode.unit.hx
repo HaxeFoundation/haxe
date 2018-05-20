@@ -1,4 +1,4 @@
-#if !(neko || eval) // these platforms will not be made unicode-compatible
+#if !(neko || eval || (cpp && !cppia && !hxcpp_smart_strings)) // these platforms will not be made unicode-compatible
 
 
 var s = String.fromCharCode(0xE9);
@@ -80,8 +80,8 @@ str.toHex() == "c3a9e38182f09f9882";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if false
-// another native encoding possible
+#if cpp
+bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
 bytes.toHex() == "e90042303dd802de"; // UTF-16 native
 #end
