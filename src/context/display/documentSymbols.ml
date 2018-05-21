@@ -2,7 +2,7 @@ open Ast
 
 open DisplayTypes.SymbolKind
 
-let collect_module_symbols (pack,decls) =
+let collect_module_symbols with_locals (pack,decls) =
 	let l = DynArray.create() in
 	let add name kind location parent =
 		let si = DisplayTypes.SymbolInformation.make name kind location (if parent = "" then None else Some parent) in
@@ -46,13 +46,13 @@ let collect_module_symbols (pack,decls) =
 		match cff.cff_kind with
 		| FVar(_,eo) ->
 			add (fst cff.cff_name) Field cff.cff_pos parent;
-			expr_opt field_parent eo
+			if with_locals then expr_opt field_parent eo
 		| FFun f ->
 			add (fst cff.cff_name) (if fst cff.cff_name = "new" then Constructor else Method) cff.cff_pos parent;
-			func field_parent f
+			if with_locals then func field_parent f
 		| FProp(_,_,_,eo) ->
 			add (fst cff.cff_name) Property cff.cff_pos parent;
-			expr_opt field_parent eo
+			if with_locals then expr_opt field_parent eo
 	in
 	List.iter (fun (td,p) -> match td with
 		| EImport _ | EUsing _ ->
