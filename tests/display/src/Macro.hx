@@ -4,6 +4,7 @@ import haxe.io.Path;
 
 using sys.FileSystem;
 using Lambda;
+using StringTools;
 
 class Macro {
 	static function buildTestCase():Array<Field> {
@@ -52,9 +53,13 @@ class Macro {
 
 	macro static public function getCases(pack:String) {
 		var cases = [];
+		var singleCase = haxe.macro.Compiler.getDefine("test");
 		function loop(pack:Array<String>) {
 			var path = Context.resolvePath(Path.join(pack));
 			for (file in sys.FileSystem.readDirectory(path)) {
+				if (singleCase != null && !file.endsWith(singleCase + ".hx")) {
+					continue;
+				}
 				var p = new haxe.io.Path(file);
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};

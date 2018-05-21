@@ -2,8 +2,8 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "hxml",
-			"file": "build.hxml",
+			"type": "haxe",
+			"args": "active configuration",
 			"group": {
 				"kind": "build",
 				"isDefault": true
