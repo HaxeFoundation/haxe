@@ -21,6 +21,8 @@ class DisplayTestCase {
 	inline function signature(pos1) return ctx.signature(pos1);
 	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
 
+	inline function noCompletionPoint(f) return ctx.noCompletionPoint(f);
+
 	function assert(v:Bool) if (!v) throw "assertion failed";
 
 	function eq<T>(expected:T, actual:T, ?pos:haxe.PosInfos) {

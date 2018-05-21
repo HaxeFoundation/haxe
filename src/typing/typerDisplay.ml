@@ -1,8 +1,12 @@
 open Globals
 open Ast
-open DisplayTypes.DisplayMode
-open DisplayTypes.CompletionResultKind
-open Display.DisplayException
+open DisplayTypes
+open DisplayMode
+open CompletionResultKind
+open CompletionItem
+open CompletionModuleKind
+open CompletionModuleType
+open DisplayException
 open Common
 open Type
 open Typecore
@@ -147,7 +151,7 @@ and display_expr ctx e_ast e dk with_type p =
 			| _ -> e.etype,None
 		in
 		let t,doc = loop e in
-		raise_type (Display.DisplayEmitter.patch_type ctx t) p doc
+		raise_hover (Some (DisplayEmitter.patch_type ctx t)) p doc
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -235,11 +239,11 @@ let handle_structure_display ctx e fields =
 	| EObjectDecl fl ->
 		let fields = PMap.foldi (fun k cf acc ->
 			if Expr.field_mem_assoc k fl then acc
-			else (DisplayTypes.CompletionKind.ITClassMember cf) :: acc
+			else (CompletionItem.ITClassField(cf,CFSMember)) :: acc
 		) fields [] in
 		raise_fields fields CRStructureField None false
 	| EBlock [] ->
-		let fields = PMap.foldi (fun _ cf acc -> DisplayTypes.CompletionKind.ITClassMember cf :: acc) fields [] in
+		let fields = PMap.foldi (fun _ cf acc -> CompletionItem.ITClassField(cf,CFSMember) :: acc) fields [] in
 		raise_fields fields CRStructureField None false
 	| _ ->
 		error "Expected object expression" p
@@ -257,7 +261,7 @@ let handle_display ctx e_ast dk with_type =
 		| DMSignature ->
 			raise_signatures [((arg,mono),doc)] 0 0
 		| _ ->
-			raise_type (TFun(arg,mono)) (pos e_ast) doc
+			raise_hover (Some (TFun(arg,mono))) (pos e_ast) doc
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -267,7 +271,7 @@ let handle_display ctx e_ast dk with_type =
 		| DMSignature ->
 			raise_signatures [((arg,ret),doc)] 0 0
 		| _ ->
-			raise_type (TFun(arg,ret)) (pos e_ast) doc
+			raise_hover (Some (TFun(arg,ret))) (pos e_ast) doc
 		end
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
@@ -282,6 +286,12 @@ let handle_display ctx e_ast dk with_type =
 		with Not_found ->
 			raise err
 		end
+	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+		let l = List.filter (function
+			| ITType({kind = (Class | Abstract)},_) -> true
+			| _ -> false
+		) l in
+		raise_fields l CRNew p b
 	in
 	let p = e.epos in
 	let e = match with_type with
@@ -304,5 +314,11 @@ let handle_edisplay ctx e dk with_type =
 				end
 			| _ ->
 				handle_display ctx e dk with_type
+		end
+	| DKPattern,DMDefault ->
+		begin try
+			handle_display ctx e dk with_type
+		with DisplayException(DisplayFields(l,CRToplevel,p,b)) ->
+			raise_fields l CRPattern p b
 		end
 	| _ -> handle_display ctx e dk with_type

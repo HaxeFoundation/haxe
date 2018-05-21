@@ -21,12 +21,15 @@ open Globals
 open Error
 open Typecore
 open Type
-open DisplayTypes.CompletionKind
+open CompletionItem
 
 let get_submodule_fields ctx path =
 	let m = Hashtbl.find ctx.g.modules path in
 	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
-	let tl = List.map (fun mt -> ITType((t_infos mt).mt_path,DisplayTypes.CompletionItemKind.of_module_type mt,RMOtherModule m.m_path)) tl in
+	let tl = List.map (fun mt ->
+		let is = ImportStatus.Imported in
+		ITType(CompletionItem.CompletionModuleType.of_module_type is mt,RMOtherModule m.m_path)
+	) tl in
 	tl
 
 let collect ctx e_ast e dk with_type p =
@@ -185,7 +188,7 @@ let collect ctx e_ast e dk with_type p =
 	let get_field acc f =
 		List.fold_left (fun acc f ->
 			if not f.cf_public then acc
-			else (ITClassMember f) :: acc
+			else (ITClassField(f,CFSMember)) :: acc
 		) acc (f :: f.cf_overloads)
 	in
 	let fields = List.fold_left get_field [] fields in

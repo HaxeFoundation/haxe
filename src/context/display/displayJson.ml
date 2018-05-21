@@ -13,8 +13,8 @@ type haxe_json_error =
 	| BadType of string * string
 
 let raise_haxe_json_error id = function
-	| MissingField(name,on) -> raise_custom id 1 (Printf.sprintf "Missing param %s on %s" name on)
-	| BadType(desc,expected) -> raise_custom id 2 (Printf.sprintf "Unexpected value for %s, expected %s" desc expected)
+	| MissingField(name,on) -> raise_custom id 1 (Printf.sprintf "Missing param \"%s\" on \"%s\"" name on)
+	| BadType(desc,expected) -> raise_custom id 2 (Printf.sprintf "Unexpected value for \"%s\", expected %s" desc expected)
 
 let get_capabilities () =
 	JObject [
@@ -23,12 +23,13 @@ let get_capabilities () =
 		"completionProvider",JBool true;
 		"packageProvider",JBool true;
 		"signatureHelpProvider",JBool true;
+		"completionResolveProvider",JBool true;
 	]
 
 (* Generate the JSON of our times. *)
 let json_of_times root =
 	let rec loop node =
-		if node.time > 0.0009 then begin
+		if node == root || node.time > 0.0009 then begin
 			let children = ExtList.List.filter_map loop node.children in
 			let fl = [
 				"name",jstring node.name;
@@ -50,8 +51,12 @@ let json_of_times root =
 	loop root
 
 let debug_context_sign = ref None
+let supports_resolve = ref false
 
-let parse_input com input report_times did_something =
+let create_json_context () =
+	Genjson.create_context (if !supports_resolve then GMMinimum else GMFull)
+
+let parse_input com input report_times pre_compilation did_something =
 	let send_string j = raise (DisplayOutput.Completion j) in
 	let send_json json = send_string (string_of_json json) in
 	let process () =
@@ -59,8 +64,10 @@ let parse_input com input report_times did_something =
 		let f_result json =
 			let fl = [
 				"result",json;
+				"timestamp",jfloat (Unix.gettimeofday ());
 			] in
 			let fl = if !report_times then begin
+				close_times();
 				let _,_,root = Timer.build_times_tree () in
 				begin match json_of_times root with
 				| None -> fl
@@ -107,12 +114,12 @@ let parse_input com input report_times did_something =
 		let get_bool_field desc name fl = get_bool desc (get_field desc fl name) in
 		let get_array_field desc name fl = get_array desc (get_field desc fl name) in
 		(* let get_object_field desc name fl = get_object desc (get_field desc fl name) in *)
-		let get_string_param name = get_string_field "param" name params in
-		let get_int_param name = get_int_field "param" name params in
-		let get_bool_param name = get_bool_field "param" name params in
-		let get_array_param name = get_array_field "param" name params in
-		(* let get_object_param name = get_object_field "param" name params in *)
-
+		let get_string_param name = get_string_field "params" name params in
+		let get_int_param name = get_int_field "params" name params in
+		let get_bool_param name = get_bool_field "params" name params in
+		let get_array_param name = get_array_field "params" name params in
+		(* let get_object_param name = get_object_field "params" name params in *)
+		let get_opt_param f def = try f() with JsonRpc_error _ -> def in
 		let enable_display mode =
 			com.display <- create mode;
 			Parser.display_mode := mode;
@@ -122,6 +129,11 @@ let parse_input com input report_times did_something =
 		let read_display_file was_auto_triggered requires_offset is_completion =
 			let file = get_string_param "file" in
 			let pos = if requires_offset then get_int_param "offset" else (-1) in
+			TypeloadParse.current_stdin := get_opt_param (fun () ->
+				let s = get_string_param "contents" in
+				Common.define com Define.DisplayStdin; (* TODO: awkward *)
+				Some s
+			) None;
 			Parser.was_auto_triggered := was_auto_triggered;
 			let pos = if pos <> (-1) && not is_completion then pos + 1 else pos in
 			Parser.resume_display := {
@@ -137,27 +149,44 @@ let parse_input com input report_times did_something =
 		in
 		let f () = match name with
 			| "initialize" ->
+				supports_resolve := get_opt_param (fun () -> get_bool_param "supportsResolve") false;
 				f_result (JObject [
 					"capabilities",get_capabilities()
 				])
-			| "textDocument/completion" ->
+			| "display/completionItem/resolve" ->
+				let i = get_int_param "index" in
+				begin try
+					let item = (!DisplayException.last_completion_result).(i) in
+					let ctx = Genjson.create_context GMFull in
+					f_result (jobject ["item",CompletionItem.to_json ctx item])
+				with Invalid_argument _ ->
+					f_error [jstring (Printf.sprintf "Invalid index: %i" i)]
+				end
+			| "display/completion" ->
 				read_display_file (get_bool_param "wasAutoTriggered") true true;
 				enable_display DMDefault;
-			| "textDocument/definition" ->
+			| "display/definition" ->
 				Common.define com Define.NoCOpt;
 				read_display_file false true false;
 				enable_display DMDefinition;
-			| "textDocument/hover" ->
+			| "display/hover" ->
 				Common.define com Define.NoCOpt;
 				read_display_file false true false;
 				enable_display DMHover;
-			| "textDocument/package" ->
+			| "display/package" ->
 				read_display_file false false false;
 				enable_display DMPackage;
-			| "textDocument/signatureHelp" ->
+			| "display/signatureHelp" ->
 				read_display_file (get_bool_param "wasAutoTriggered") true false;
 				enable_display DMSignature
 			(* server *)
+			| "server/readClassPaths" ->
+				com.callbacks.after_init_macros <- (fun () ->
+					let cs = CompilationServer.force() in
+					CompilationServer.set_initialized cs;
+					DisplayToplevel.read_class_paths com ["init"];
+					f_result (jstring "class paths read");
+				) :: com.callbacks.after_init_macros;
 			| "server/contexts" ->
 				let cs = CompilationServer.force() in
 				let l = List.map (fun (sign,index) -> jobject [

@@ -42,7 +42,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match !Parser.display_mode with
 		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
-			let ds = Display.DocumentSymbols.collect_module_symbols data in
+			let ds = DocumentSymbols.collect_module_symbols data in
 			com.shared.shared_display_information.document_symbols <- (file,ds) :: com.shared.shared_display_information.document_symbols;
 		| _ ->
 			()
@@ -127,10 +127,14 @@ let resolve_module_file com m remap p =
 	end;
 	file
 
-let parse_module ctx m p =
+let parse_module' com m p =
 	let remap = ref (fst m) in
-	let file = resolve_module_file ctx.com m remap p in
-	let pack, decls = (!parse_hook) ctx.com file p in
+	let file = resolve_module_file com m remap p in
+	let pack, decls = (!parse_hook) com file p in
+	file,remap,pack,decls
+
+let parse_module ctx m p =
+	let file,remap,pack,decls = parse_module' ctx.com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == null_pos then

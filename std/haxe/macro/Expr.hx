@@ -537,6 +537,7 @@ enum DisplayKind {
 	DKDot;
 	DKStructure;
 	DKMarked;
+	DKPattern;
 }
 
 /**

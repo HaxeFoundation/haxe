@@ -174,6 +174,20 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
+	class Some {
+		static function main() {
+			test2(test({-1-}
+		}
+
+		static function test(a:String, b:Int) { }
+		static function test2(a:Int, b:String) { }
+	}
+	**/
+	function testNestedNotPointless() {
+		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
+	}
+
+	/**
 	class Main {
 
 		static function main() {

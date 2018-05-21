@@ -77,6 +77,15 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
+	public function noCompletionPoint(f:Void -> Void):Bool {
+		return try {
+			f();
+			false;
+		} catch(exc:HaxeInvocationException) {
+			return exc.message.indexOf("No completion point") != -1;
+		}
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",

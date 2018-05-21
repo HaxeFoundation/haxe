@@ -97,6 +97,7 @@ type platform_config = {
 }
 
 type compiler_callback = {
+	mutable after_init_macros : (unit -> unit) list;
 	mutable after_typing : (module_type list -> unit) list;
 	mutable before_dce : (unit -> unit) list;
 	mutable after_generation : (unit -> unit) list;
@@ -110,7 +111,7 @@ type shared_display_information = {
 }
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * DisplayTypes.CompletionKind.t) list) list;
+	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 
@@ -174,9 +175,16 @@ type context = {
 exception Abort of string * pos
 
 module CompilationServer = struct
+	type cached_file = {
+		c_time : float;
+		c_package : string list;
+		c_decls : type_decl list;
+		mutable c_module_name : string option;
+	}
+
 	type cache = {
 		c_haxelib : (string list, string list) Hashtbl.t;
-		c_files : ((string * string), float * Ast.package) Hashtbl.t;
+		c_files : ((string * string), cached_file) Hashtbl.t;
 		c_modules : (path * string, module_def) Hashtbl.t;
 		c_directories : (string, (string * float ref) list) Hashtbl.t;
 	}
@@ -225,8 +233,8 @@ module CompilationServer = struct
 		cs.initialized <- true
 
 	let get_context_files cs signs =
-		Hashtbl.fold (fun (file,sign) (_,data) acc ->
-			if (List.mem sign signs) then (file,data) :: acc
+		Hashtbl.fold (fun (file,sign) cfile acc ->
+			if (List.mem sign signs) then (file,cfile) :: acc
 			else acc
 		) cs.cache.c_files []
 
@@ -266,18 +274,18 @@ module CompilationServer = struct
 	let find_file cs key =
 		Hashtbl.find cs.cache.c_files key
 
-	let cache_file cs key value =
-		Hashtbl.replace cs.cache.c_files key value
+	let cache_file cs key time data =
+		Hashtbl.replace cs.cache.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
 
 	let remove_file cs key =
 		Hashtbl.remove cs.cache.c_files key
 
 	let remove_files cs file =
-		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
+		List.iter (fun (sign,_) -> remove_file cs (file,sign)) cs.signs
 
 	let iter_files cs com f =
 		let sign = Define.get_signature com.defines in
-		Hashtbl.iter (fun (_,sign') file -> if sign = sign' then f file) cs.cache.c_files
+		Hashtbl.iter (fun (file,sign') decls -> if sign = sign' then f file decls) cs.cache.c_files
 
 	(* haxelibs *)
 
@@ -485,6 +493,7 @@ let memory_marker = [|Unix.time()|]
 
 let create_callbacks () =
 	{
+		after_init_macros = [];
 		after_typing = [];
 		before_dce = [];
 		after_generation = [];

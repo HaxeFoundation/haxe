@@ -23,7 +23,13 @@ open Globals
 open Ast
 open Type
 open Typecore
-open DisplayTypes.DisplayMode
+open DisplayException
+open DisplayTypes
+open DisplayMode
+open CompletionItem
+open CompletionModuleKind
+open CompletionModuleType
+open CompletionResultKind
 open Common
 open Error
 
@@ -255,7 +261,7 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in
 		if add then f_add m
 	) ctx.g.global_metadata;
-	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> Display.DisplayEmitter.check_display_metadata ctx meta)
+	if ctx.is_display_file then delay ctx PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
 let check_module_types ctx m p t =
 	let t = t_infos t in
@@ -268,13 +274,13 @@ let check_module_types ctx m p t =
 			Hashtbl.add ctx.g.types_module t.mt_path m.m_path
 
 module Inheritance = struct
+	let is_basic_class_path path = match path with
+		| ([],("Array" | "String" | "Date" | "Xml")) -> true
+		| _ -> false
+
 	let check_extends ctx c t p = match follow t with
-		| TInst ({ cl_path = [],"Array"; cl_extern = basic_extern },_)
-		| TInst ({ cl_path = [],"String"; cl_extern = basic_extern },_)
-		| TInst ({ cl_path = [],"Date"; cl_extern = basic_extern },_)
-		| TInst ({ cl_path = [],"Xml"; cl_extern = basic_extern },_) when not (c.cl_extern && basic_extern) ->
-			error "Cannot extend basic class" p;
 		| TInst (csup,params) ->
+			if is_basic_class_path csup.cl_path && not (c.cl_extern && csup.cl_extern) then error "Cannot extend basic class" p;
 			if is_parent c csup then error "Recursive class" p;
 			begin match csup.cl_kind with
 				| KTypeParameter _ ->
@@ -388,7 +394,7 @@ module Inheritance = struct
 						List.find path_matches ctx.m.curmod.m_types
 					with Not_found ->
 						let t,pi = List.find (fun (lt,_) -> path_matches lt) ctx.m.module_types in
-						Display.ImportHandling.mark_import_position ctx.com pi;
+						ImportHandling.mark_import_position ctx.com pi;
 						t
 					in
 					{ t with tpackage = fst (t_path lt) },p
@@ -449,10 +455,24 @@ module Inheritance = struct
 		in
 		let fl = ExtList.List.filter_map (fun (is_extends,t) ->
 			try
-				let t = Typeload.load_instance ~allow_display:true ctx t false p in
+				let t = try
+					Typeload.load_instance ~allow_display:true ctx t false p
+				with DisplayException(DisplayFields(l,CRTypeHint,p,b)) ->
+					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
+					if not is_extends && c.cl_interface then raise_fields [] CRImplements p false;
+					let l = List.filter (function
+						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
+						| ITType({kind = Class} as cm,_) ->
+							is_extends && not c.cl_interface && CompletionModuleType.get_path cm <> c.cl_path &&
+							(not (Meta.has Meta.Final cm.meta) || Meta.has Meta.Hack c.cl_meta) &&
+							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
+						| _ -> false
+					) l in
+					raise_fields l (if is_extends then CRExtends else CRImplements) p b
+				in
 				Some (check_herit t is_extends)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_display ->
-				if Display.Diagnostics.is_diagnostics_run ctx then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in
 		fl

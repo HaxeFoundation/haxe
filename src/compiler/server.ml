@@ -2,6 +2,7 @@ open Printf
 open Globals
 open Ast
 open Common
+open Common.CompilationServer
 open DisplayTypes.DisplayMode
 open Timer
 open Type
@@ -121,10 +122,11 @@ let rec wait_loop process_params verbose accept =
 			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
-			try
-				let time, data = CompilationServer.find_file cs fkey in
-				if time <> ftime then raise Not_found;
-				data
+			let t = Timer.timer ["server";"parser cache"] in
+			let data = try
+				let cfile = CompilationServer.find_file cs fkey in
+				if cfile.c_time <> ftime then raise Not_found;
+				cfile.c_package,cfile.c_decls
 			with Not_found ->
 				has_parse_error := false;
 				let data = TypeloadParse.parse_file com2 file p in
@@ -137,11 +139,14 @@ let rec wait_loop process_params verbose accept =
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
 						Printf.sprintf "not cached, using \"%s\" define" ident,true
 					with Not_found ->
-						CompilationServer.cache_file cs fkey (ftime,data);
+						CompilationServer.cache_file cs fkey ftime data;
 						"cached",false
 				end in
 				if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
 				data
+			in
+			t();
+			data
 	);
 	let check_module_shadowing com paths m =
 		List.iter (fun (path,_) ->
@@ -235,11 +240,11 @@ let rec wait_loop process_params verbose accept =
 			let ffile = Path.unique_full_path file in
 			let fkey = (ffile,sign) in
 			try
-				let _, old_data = CompilationServer.find_file cs fkey in
+				let cfile = CompilationServer.find_file cs fkey in
 				(* We must use the module path here because the file path is absolute and would cause
 				   positions in the parsed declarations to differ. *)
 				let new_data = TypeloadParse.parse_module ctx m.m_path p in
-				snd old_data <> snd new_data
+				cfile.c_decls <> snd new_data
 			with Not_found ->
 				true
 		in
@@ -441,8 +446,7 @@ let rec wait_loop process_params verbose accept =
 			ServerMessage.arguments data;
 			(try
 				Hashtbl.clear changed_directories;
-				Parser.display_mode := DMNone;
-				Parser.resume_display := null_pos;
+				Parser.reset_state();
 				return_partial_type := false;
 				measure_times := false;
 				close_times();

@@ -46,7 +46,7 @@ open Printf
 open Common
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
-open Display.DisplayException
+open DisplayException
 open Type
 open Server
 open Globals
@@ -688,7 +688,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input measure_times did_something
+				DisplayJson.parse_input com input measure_times pre_compilation did_something
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -813,7 +813,9 @@ try
 		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
+	t();
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
@@ -824,6 +826,7 @@ try
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (fun f -> f ()) (List.rev com.callbacks.after_init_macros);
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Finalization.finalize tctx;
 		t();
@@ -882,7 +885,7 @@ try
 		end;
 		DisplayOutput.process_global_display_mode com tctx;
 		if not (Common.defined com Define.NoDeprecationWarnings) then
-			Display.DeprecationCheck.run com;
+			DeprecationCheck.run com;
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
@@ -945,9 +948,11 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
-	| DisplayException(DisplayType _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
+	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin match ctx.com.json_out with
-		| Some (f,_) -> f (Display.DisplayException.to_json de)
+		| Some (f,_) ->
+			let ctx = DisplayJson.create_json_context() in
+			f (DisplayException.to_json ctx de)
 		| _ -> assert false
 		end
 	| DisplayException(DisplayPackage pack) ->
@@ -956,13 +961,29 @@ with
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
-				DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
+				CompletionItem.ITTimer("@TIME " ^ name,value)
 			) (DisplayOutput.get_timer_fields !start_time)) @ fields
 		end else
 			fields
 		in
-		raise (DisplayOutput.Completion (match cr with CRToplevel -> DisplayOutput.print_toplevel fields | _ -> DisplayOutput.print_fields fields))
-	| DisplayException(DisplayType (t,p,doc)) ->
+		let s = match cr with
+			| CRToplevel
+			| CRTypeHint
+			| CRExtends
+			| CRImplements
+			| CRStructExtension
+			| CRImport
+			| CRUsing
+			| CRNew
+			| CRPattern ->
+				DisplayOutput.print_toplevel fields
+			| CRField
+			| CRStructureField
+			| CRMetadata ->
+				DisplayOutput.print_fields fields
+		in
+		raise (DisplayOutput.Completion s)
+	| DisplayException(DisplayHover (Some t,p,doc)) ->
 		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
 	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->
@@ -987,7 +1008,9 @@ with
 		| None -> ()
 		| Some fields ->
 			begin match ctx.com.json_out with
-			| Some (f,_) -> f (Display.DisplayException.to_json (DisplayFields(fields,CRField,None,false)))
+			| Some (f,_) ->
+				let ctx = DisplayJson.create_json_context() in
+				f (DisplayException.to_json ctx (DisplayFields(fields,CRField,None,false)))
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end

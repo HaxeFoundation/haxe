@@ -179,6 +179,7 @@ and display_kind =
 	| DKDot
 	| DKStructure
 	| DKMarked
+	| DKPattern
 
 and expr_def =
 	| EConst of constant
@@ -714,7 +715,8 @@ let s_display_kind = function
 	| DKCall -> "DKCall"
 	| DKDot -> "DKDot"
 	| DKStructure -> "DKStructure"
-	| DKMarked -> "TKMarked"
+	| DKMarked -> "DKMarked"
+	| DKPattern -> "DKPattern"
 
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
@@ -951,7 +953,9 @@ module Expr = struct
 				add "EVars";
 				List.iter (fun ((n,p),_,eo) -> match eo with
 					| None -> ()
-					| Some e -> loop' (Printf.sprintf "%s  %s" tabs n) e
+					| Some e ->
+						add n;
+						loop' (Printf.sprintf "%s  " tabs) e
 				) vl
 			| EFunction(so,f) ->
 				add "EFunction";

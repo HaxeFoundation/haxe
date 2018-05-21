@@ -125,7 +125,7 @@ let rec type_module_type ctx t tparams p =
 	| TTypeDecl s ->
 		let t = apply_params s.t_params (List.map (fun _ -> mk_mono()) s.t_params) s.t_type in
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
-			Display.DeprecationCheck.check_typedef ctx.com s p;
+			DeprecationCheck.check_typedef ctx.com s p;
 		(match follow t with
 		| TEnum (e,params) ->
 			type_module_type ctx (TEnumDecl e) (Some params) p

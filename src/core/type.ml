@@ -353,6 +353,11 @@ type basic_types = {
 	mutable tarray : t -> t;
 }
 
+type class_field_scope =
+	| CFSStatic
+	| CFSMember
+	| CFSConstructor
+
 (* ======= General utility ======= *)
 
 let alloc_var =

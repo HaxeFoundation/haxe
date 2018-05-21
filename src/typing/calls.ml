@@ -596,7 +596,7 @@ let rec build_call ctx acc el (with_type:with_type) p =
 			!ethis_f();
 			raise (Fatal_error ((error_msg m),p))
 		in
-		let e = Display.Diagnostics.secure_generated_code ctx e in
+		let e = Diagnostics.secure_generated_code ctx e in
 		ctx.on_error <- old;
 		!ethis_f();
 		e

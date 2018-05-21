@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.rtti;
+package haxe.display;
 
-import haxe.rtti.JsonModuleTypes;
+import haxe.display.JsonModuleTypes;
 using Lambda;
 
 class JsonModuleTypesPrinter {

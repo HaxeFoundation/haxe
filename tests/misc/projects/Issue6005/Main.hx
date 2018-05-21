@@ -1,6 +1,6 @@
 class Main {
 	public static function main() {
-		var foo:Struct = {|
+		var foo:Struct = {
 
 		}
 	}

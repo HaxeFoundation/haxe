@@ -81,6 +81,16 @@ let was_auto_triggered = ref false
 let display_mode = ref DMNone
 let resume_display = ref null_pos
 let in_macro = ref false
+let had_resume = ref false
+
+let reset_state () =
+	last_doc := None;
+	use_doc := false;
+	was_auto_triggered := false;
+	display_mode := DMNone;
+	resume_display := null_pos;
+	in_macro := false;
+	had_resume := false
 
 let last_token s =
 	let n = Stream.count s in
@@ -116,8 +126,6 @@ let is_resuming p =
 
 let set_resume p =
 	resume_display := { p with pfile = Path.unique_full_path p.pfile }
-
-let had_resume = ref false
 
 let encloses_resume p =
 	p.pmin < !resume_display.pmin && p.pmax >= !resume_display.pmax

@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.rtti;
+package haxe.display;
 
 typedef JsonTodo = Dynamic;
 
@@ -190,6 +190,12 @@ typedef JsonFieldKind<T> = {
 	var args: T;
 }
 
+enum abstract JsonClassFieldScope(Int) {
+    var Static = 0;
+    var Member = 1;
+    var Constructor = 2;
+}
+
 typedef JsonClassField = {
 	var name: String;
 	var type: JsonType<Dynamic>;
@@ -201,6 +207,7 @@ typedef JsonClassField = {
 	var pos: JsonPos;
 	var doc: JsonDoc;
 	var overloads: JsonClassFields;
+    var scope: JsonClassFieldScope;
 }
 
 typedef JsonClassFields = Array<JsonClassField>;
@@ -305,7 +312,7 @@ enum abstract JsonModuleTypeKind<T>(String) {
 typedef JsonModuleType<T> = {
 	var pack: Array<String>;
 	var name: String;
-	var module: String;
+	var moduleName: String;
 	var pos: JsonPos;
 	var isPrivate: Bool;
 	var params: JsonTypeParameters;

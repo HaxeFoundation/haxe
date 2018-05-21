@@ -24,7 +24,7 @@ open Ast
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
-open Display.DisplayException
+open DisplayException
 open Common
 open Error
 
@@ -87,7 +87,7 @@ let type_function ctx args ret fmode f do_display p =
 		let v,c = add_local ctx n t pn, c in
 		v.v_meta <- m;
 		if do_display && Display.is_display_position pn then
-			Display.DisplayEmitter.display_variable ctx v pn;
+			DisplayEmitter.display_variable ctx v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c
 	) args f.f_args in
@@ -109,15 +109,19 @@ let type_function ctx args ret fmode f do_display p =
 	let e = if not do_display then
 		type_expr ctx e NoValue
 	else begin
+		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
+		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
 		try
 			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
 			let e = Optimizer.optimize_completion_expr e f.f_args in
+			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
 			type_expr ctx e NoValue
 		with
 		| Parser.TypePath (_,None,_) | Exit ->
 			type_expr ctx e NoValue
-		| DisplayException (DisplayType (t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
+		| DisplayException (DisplayHover (Some t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with

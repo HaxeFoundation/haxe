@@ -190,8 +190,8 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			Display.DeprecationCheck.check_enum pctx.ctx.com en p;
-			Display.DeprecationCheck.check_ef pctx.ctx.com ef p;
+			DeprecationCheck.check_enum pctx.ctx.com en p;
+			DeprecationCheck.check_ef pctx.ctx.com ef p;
 			ConEnum(en,ef)
 		in
 		let check_expr e =
@@ -465,7 +465,7 @@ module Pattern = struct
 				PatExtractor(v,e1,pat)
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e dk (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (if toplevel then DKPattern else dk) (WithType t));
 				pat
 			| _ ->
 				fail()

@@ -475,6 +475,7 @@ and encode_display_kind dk =
 	| DKDot -> 1
 	| DKStructure -> 2
 	| DKMarked -> 3
+	| DKPattern -> 4
 	in
 	encode_enum ~pos:None ICType tag []
 
@@ -762,6 +763,7 @@ and decode_display_kind v = match fst (decode_enum v) with
 	| 1 -> DKDot
 	| 2 -> DKStructure
 	| 3 -> DKMarked
+	| 4 -> DKPattern
 	| _ -> raise Invalid_expr
 
 and decode_expr v =

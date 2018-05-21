@@ -3,8 +3,13 @@ open Globals
 open Type
 open Meta
 
+type generation_mode =
+	| GMFull
+	| GMWithoutDoc
+	| GMMinimum
+
 type context = {
-	todo : unit;
+	generation_mode : generation_mode;
 }
 
 let jnull = Json.JNull
@@ -45,6 +50,10 @@ let generate_pos ctx p =
 		"min",jint p.pmin;
 		"max",jint p.pmax;
 	]
+
+let generate_doc ctx d = match ctx.generation_mode with
+	| GMFull -> jopt jstring d
+	| GMWithoutDoc | GMMinimum -> jnull
 
 (** return a range JSON structure for given position
     positions are 0-based and the result object looks like this:
@@ -131,6 +140,15 @@ and generate_metadata ctx ml =
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
 
+(* AST.ml structures *)
+
+let rec generate_ast_type_param ctx tp = jobject [
+	"name",jstring (fst tp.tp_name);
+	"params",jlist (generate_ast_type_param ctx) tp.tp_params;
+	"constraints",jtodo;
+	"metadata",generate_metadata ctx tp.tp_meta
+]
+
 (* type instance *)
 
 let rec generate_type ctx t =
@@ -140,7 +158,11 @@ let rec generate_type ctx t =
 			| None -> "TMono",None
 			| Some t -> loop t
 			end
-		| TLazy f -> loop (lazy_type f)
+		| TLazy f ->
+			return_partial_type := true;
+			let t = lazy_type f in
+			return_partial_type := false;
+			loop t
 		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
 		| TInst(c,tl) -> "TInst",Some (generate_path_with_params ctx c.cl_path tl)
 		| TEnum(en,tl) -> "TEnum",Some (generate_path_with_params ctx en.e_path tl)
@@ -150,7 +172,7 @@ let rec generate_type ctx t =
 		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
 	and generate_anon an =
 		let generate_anon_fields () =
-			let fields = PMap.fold (fun cf acc -> generate_class_field ctx cf :: acc) an.a_fields [] in
+			let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
 			jarray fields
 		in
 		let generate_anon_status () =
@@ -229,7 +251,7 @@ and generate_texpr ctx e =
 
 (* fields *)
 
-and generate_class_field ctx cf =
+and generate_class_field ctx cfs cf =
 	let generate_class_kind () =
 		let generate_var_access va =
 			let name,args = match va with
@@ -268,8 +290,9 @@ and generate_class_field ctx cf =
 		"kind",generate_class_kind ();
 		"expr",jopt (generate_texpr ctx) cf.cf_expr;
 		"pos",generate_pos ctx cf.cf_pos;
-		"doc",jopt jstring cf.cf_doc;
+		"doc",generate_doc ctx cf.cf_doc;
 		"overloads",jlist (classfield_ref ctx) cf.cf_overloads;
+		"scope",jint (Obj.magic cfs);
 	]
 
 let generate_enum_field ctx ef =
@@ -279,7 +302,7 @@ let generate_enum_field ctx ef =
 		"pos",generate_pos ctx ef.ef_pos;
 		"meta",generate_metadata ctx ef.ef_meta;
 		"index",jint ef.ef_index;
-		"doc",jopt jstring ef.ef_doc;
+		"doc",generate_doc ctx ef.ef_doc;
 		"params",jlist (generate_type_parameter ctx) ef.ef_params;
 	]
 
@@ -289,12 +312,12 @@ let generate_module_type_fields ctx inf =
 	[
 		"pack",jlist jstring (fst inf.mt_path);
 		"name",jstring (snd inf.mt_path);
-		"module",jstring (snd inf.mt_module.m_path);
+		"moduleName",jstring (snd inf.mt_module.m_path);
 		"pos",generate_pos ctx inf.mt_pos;
 		"isPrivate",jbool inf.mt_private;
 		"params",jlist (generate_type_parameter ctx) inf.mt_params;
 		"meta",generate_metadata ctx inf.mt_meta;
-		"doc",jopt jstring inf.mt_doc;
+		"doc",generate_doc ctx inf.mt_doc;
 	]
 
 let generate_class ctx c =
@@ -322,9 +345,9 @@ let generate_class ctx c =
 		"isInterface",jbool c.cl_interface;
 		"superClass",jopt generate_class_relation c.cl_super;
 		"interfaces",jlist generate_class_relation c.cl_implements;
-		"fields",jlist (generate_class_field ctx) c.cl_ordered_fields;
-		"statics",jlist (generate_class_field ctx) c.cl_ordered_statics;
-		"constructor",jopt (generate_class_field ctx) c.cl_constructor;
+		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
+		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
+		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
 		"init",jopt (generate_texpr ctx) c.cl_init;
 		"overrides",jlist (classfield_ref ctx) c.cl_overrides;
 		"isExtern",jbool c.cl_extern;
@@ -405,13 +428,13 @@ let generate_module ctx m =
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
 	]
 
-let create_context () = {
-	todo = ()
+let create_context gm = {
+	generation_mode = gm;
 }
 
 let generate types file =
 	let t = Timer.timer ["generate";"json";"construct"] in
-	let ctx = create_context () in
+	let ctx = create_context GMFull in
 	let json = jarray (List.map (generate_module_type ctx) types) in
 	t();
 	let t = Timer.timer ["generate";"json";"write"] in

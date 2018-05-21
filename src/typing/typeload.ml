@@ -23,6 +23,10 @@ open Ast
 open Common
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
+open CompletionItem
+open CompletionItem.CompletionModuleType
+open CompletionItem.CompletionModuleKind
+open DisplayException
 open Type
 open Typecore
 open Error
@@ -32,6 +36,29 @@ let build_count = ref 0
 
 let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 
+let check_field_access ctx acc =
+	ignore(List.fold_left (fun acc (access,p1) ->
+		try
+			let _,p2 = List.find (fun (access',_) -> access = access') acc in
+			if p1 <> null_pos && p2 <> null_pos then begin
+				display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
+				display_error ctx "Previously defined here" p2;
+			end;
+			acc
+		with Not_found -> match access with
+			| APublic | APrivate ->
+				begin try
+					let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
+					display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx "Conflicts with this" p2;
+					acc
+				with Not_found ->
+					(access,p1) :: acc
+				end
+			| _ ->
+				(access,p1) :: acc
+	) [] acc)
+
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 (*
@@ -40,7 +67,7 @@ let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) CRToplevel None false;
+	if tname = "" then raise_fields (DisplayToplevel.collect ctx true NoValue) CRTypeHint None false;
 	try
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
@@ -51,7 +78,7 @@ let rec load_type_def ctx p t =
 			List.find path_matches ctx.m.curmod.m_types
 		with Not_found ->
 			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
-			Display.ImportHandling.mark_import_position ctx.com pi;
+			ImportHandling.mark_import_position ctx.com pi;
 			t
 	with
 		Not_found ->
@@ -79,7 +106,7 @@ let rec load_type_def ctx p t =
 					| (wp,pi) :: l ->
 						try
 							let t = load_type_def ctx p { t with tpackage = wp } in
-							Display.ImportHandling.mark_import_position ctx.com pi;
+							ImportHandling.mark_import_position ctx.com pi;
 							t
 						with
 							| Error (Module_not_found _,p2)
@@ -117,7 +144,7 @@ let rec load_type_def ctx p t =
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
-	Display.DisplayException.raise_position [p]
+	raise_position [p]
 
 let check_param_constraints ctx types t pl c p =
 	match follow t with
@@ -166,7 +193,7 @@ let pselect p1 p2 =
 	if p1 = null_pos then p2 else p1
 
 (* build an instance from a full type *)
-let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
+let rec load_instance' ctx (t,pn) allow_no_params p =
 	let p = pselect pn p in
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
@@ -263,8 +290,16 @@ let rec load_instance ?(allow_display=false) ctx (t,pn) allow_no_params p =
 			f params
 		end
 	in
-	if allow_display then Display.DisplayEmitter.check_display_type ctx t pn;
 	t
+
+and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params p =
+	try
+		let t = load_instance' ctx (t,pn) allow_no_params p in
+		if allow_display then DisplayEmitter.check_display_type ctx t pn;
+		t
+	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && Display.is_display_position pn ->
+		let s = s_type_path path in
+		raise_fields (DisplayToplevel.collect ctx false NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;}) false
 
 (*
 	build an instance from a complex type
@@ -277,7 +312,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTNamed _ -> error "Named type not allowed here" p
 	| CTExtend (tl,l) ->
-		(match load_complex_type ctx allow_display p (CTAnonymous l,p) with
+		begin match load_complex_type ctx allow_display p (CTAnonymous l,p) with
 		| TAnon a as ta ->
 			let is_redefined cf1 a2 =
 				try
@@ -312,7 +347,16 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| _ ->
 					error "Can only extend structures" p
 			in
-			let il = List.map (fun (t,pn) -> load_instance ctx ~allow_display (t,pn) false p) tl in
+			let il = List.map (fun (t,pn) ->
+				try
+					load_instance ctx ~allow_display (t,pn) false p
+				with DisplayException(DisplayFields(l,CRTypeHint,p,b)) ->
+					let l = List.filter (function
+						| ITType({kind = Struct},_) -> true
+						| _ -> false
+					) l in
+					raise_fields l CRStructExtension p b
+			) tl in
 			let tr = ref None in
 			let t = TMono tr in
 			let r = exc_protect ctx (fun r ->
@@ -327,7 +371,8 @@ and load_complex_type ctx allow_display p (t,pn) =
 				t
 			) "constraint" in
 			TLazy r
-		| _ -> assert false)
+		| _ -> assert false
+		end
 	| CTAnonymous l ->
 		let rec loop acc f =
 			let n = fst f.cff_name in
@@ -346,6 +391,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let dyn = ref false in
 			let params = ref [] in
 			let final = ref false in
+			check_field_access ctx f.cff_access;
 			List.iter (fun a ->
 				match fst a with
 				| APublic -> ()
@@ -402,8 +448,8 @@ and load_complex_type ctx allow_display p (t,pn) =
 			} in
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
-				Display.DisplayEmitter.check_display_metadata ctx cf.cf_meta;
-				Display.DisplayEmitter.maybe_display_field ctx None cf cf.cf_name_pos;
+				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
+				DisplayEmitter.maybe_display_field ctx None cf cf.cf_name_pos;
 			end;
 			PMap.add n cf acc
 		in
@@ -516,7 +562,7 @@ let load_type_hint ?(opt=false) ctx pcur t =
 			try
 				load_complex_type ctx true pcur (t,p)
 			with Error(Module_not_found(([],name)),p) as exc ->
-				if Display.Diagnostics.is_diagnostics_run ctx then DisplayToplevel.handle_unresolved_identifier ctx name p true;
+				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				(* Default to Dynamic in display mode *)
 				if ctx.com.display.dms_display then t_dynamic else raise exc
 	in
@@ -568,7 +614,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
 	if ctx.is_display_file && Display.is_display_position (pos tp.tp_name) then
-		Display.DisplayEmitter.display_type ctx t (pos tp.tp_name);
+		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	match tp.tp_constraints with
 	| [] ->
 		n, t
@@ -702,8 +748,8 @@ let string_list_of_expr_path (e,p) =
 	with Exit -> error "Invalid path" p
 
 let handle_path_display ctx path p =
-	let open Display.ImportHandling in
-	match Display.ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
+	let open ImportHandling in
+	match ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
 		| (IDKPackage sl,_),_ ->
 			raise (Parser.TypePath(sl,None,true))
 		| (IDKModule(sl,s),_),DMDefinition ->
@@ -711,7 +757,7 @@ let handle_path_display ctx path p =
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-			Display.DisplayException.raise_position [p]
+			DisplayException.raise_position [p]
 		| (IDKModule(sl,s),_),_ ->
 			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))
@@ -725,7 +771,7 @@ let handle_path_display ctx path p =
 				| TClassDecl c when snd c.cl_path = st ->
 					ignore(c.cl_build());
 					let cf = PMap.find sf c.cl_statics in
-					Display.DisplayEmitter.display_field ctx (Some c) cf p
+					DisplayEmitter.display_field ctx (Some c) cf p
 				| _ ->
 					()
 			) m.m_types;
