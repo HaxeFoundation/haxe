@@ -1,0 +1,12 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug",
+			"type": "haxe-eval",
+			"request": "launch",
+			"cwd": "${workspaceRoot}",
+			"hxml": "${workspaceRoot}/build.hxml"
+		}
+	]
+}
