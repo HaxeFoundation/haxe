@@ -57,7 +57,7 @@ class Macro {
 		function loop(pack:Array<String>) {
 			var path = Context.resolvePath(Path.join(pack));
 			for (file in sys.FileSystem.readDirectory(path)) {
-				if (singleCase != null && !Path.directory(file).endsWith(singleCase + ".hx")) {
+				if (singleCase != null && !file.endsWith(singleCase + ".hx")) {
 					continue;
 				}
 				var p = new haxe.io.Path(file);
