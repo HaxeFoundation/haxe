@@ -33,11 +33,11 @@ class Lua {
 	static public function installLuaVersionDependencies(lv:String){
 		if (lv == "-l5.1") installLib("luabit", "1.0.2-3");
 
-		installLib("lrexlib-pcre", "2.8.0-1");
-		installLib("luv",          "1.9.1-0");
-		installLib("luasocket",    "3.0rc1-2");
-		installLib("environ",      "3.0rc1-2");
-		installLib("luautf8",      "0.1.1-1");
+		installLib("lrexlib-pcre" , "2.8.0-1");
+		installLib("luv"          , "1.9.1-0");
+		installLib("luasocket"    , "3.0rc1-2");
+		installLib("environ"      , "0.1.0-1");
+		installLib("luautf8"      , "0.1.1-1");
 
 	}
 
