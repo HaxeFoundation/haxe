@@ -31,6 +31,16 @@ let raise_package sl = raise (DisplayException(DisplayPackage sl))
 (* global state *)
 let last_completion_result = ref (Array.make 0 (ITModule ""))
 
+let fields_to_json ctx fields kind po sorted =
+	let ja = List.map (CompletionItem.to_json ctx) fields in
+	last_completion_result := Array.of_list fields;
+	let fl =
+		("items",jarray ja) ::
+		("kind",jint (Obj.magic kind)) ::
+		("sorted",jbool sorted) ::
+		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range p]) in
+	jobject fl
+
 let to_json ctx de =
 	match de with
 	| Diagnostics _
@@ -59,13 +69,6 @@ let to_json ctx de =
 	| DisplayPosition pl ->
 		jarray (List.map generate_pos_as_location pl)
 	| DisplayFields(fields,kind,po,sorted) ->
-		let ja = List.map (CompletionItem.to_json ctx) fields in
-		last_completion_result := Array.of_list fields;
-		let fl =
-			("items",jarray ja) ::
-			("kind",jint (Obj.magic kind)) ::
-			("sorted",jbool sorted) ::
-			(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range p]) in
-		jobject fl
+		fields_to_json ctx fields kind po sorted
 	| DisplayPackage pack ->
 		jarray (List.map jstring pack)

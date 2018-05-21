@@ -157,8 +157,28 @@ and parse_type_decl s =
 					d_data = l
 				}, punion p1 p2)
 			end
-		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; >] ->
-			expect_unless_resume bropen s;
+		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
+			let rec loop had_display p0 acc = match s with parser
+				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
+					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
+						syntax_completion SCClassHerit p0;
+					loop (had_display || b) (pos t) ((HExtends t) :: acc)
+				| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
+					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
+						syntax_completion SCClassHerit p0;
+					loop (had_display || b) (pos t) ((HImplements t) :: acc)
+				| [< '(BrOpen,p1) >] ->
+					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
+						syntax_completion SCClassHerit p0;
+					List.rev acc
+				| [< >] ->
+					if not (do_resume()) then serror() else begin
+						if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax} then
+							syntax_completion SCClassHerit p0;
+						List.rev acc
+					end
+			in
+			let hl = loop false (last_pos s) [] in
 			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;
@@ -540,18 +560,34 @@ and parse_type_path_or_const = parser
 	| [< e = expr >] -> TPExpr e
 	| [< >] -> serror()
 
-and parse_complex_type_next (t : type_hint) = parser
-	| [< '(Arrow,_); t2,p2 = parse_complex_type >] ->
-		(match t2 with
+and parse_complex_type_next (t : type_hint) s =
+	let make_fun t2 p2 = match t2 with
 		| CTFunction (args,r) ->
 			CTFunction (t :: args,r),punion (pos t) p2
 		| _ ->
-			CTFunction ([t] , (t2,p2)),punion (pos t) p2)
+			CTFunction ([t] , (t2,p2)),punion (pos t) p2
+	in
+	match s with parser
+	| [< '(Arrow,pa); s >] ->
+		begin match s with parser
+		| [< t2,p2 = parse_complex_type >] -> make_fun t2 p2
+		| [< >] ->
+			if would_skip_resume pa s then begin
+				let ct = CTPath magic_type_path in
+				make_fun ct null_pos
+			end else serror()
+		end
 	| [< >] -> t
 
 and parse_function_type_next tl p1 = parser
-	| [< '(Arrow,_); tret = parse_complex_type_inner false >] ->
-		CTFunction (tl,tret), punion p1 (snd tret)
+	| [< '(Arrow,pa); s >] ->
+		begin match s with parser
+		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
+		| [< >] -> if would_skip_resume pa s then begin
+				let ct = (CTPath magic_type_path),null_pos in
+				CTFunction (tl,ct), punion p1 pa
+			end else serror()
+		end
 	| [< >] -> serror ()
 
 and parse_type_anonymous opt = parser
@@ -656,7 +692,19 @@ and parse_class_field s =
 		| [< f = parse_function_field doc meta al >] ->
 			f
 		| [< >] ->
-			if al = [] then raise Stream.Failure else serror()
+			begin match List.rev al with
+				| [] -> raise Stream.Failure
+				| (AOverride,po) :: _ when would_skip_resume po s ->
+					let f = {
+						f_params = [];
+						f_args = [];
+						f_type = None;
+						f_expr = None
+					} in
+					let _,p2 = next_token s in
+					(magic_display_field_name,p2),punion po p2,FFun f,al
+				| _ -> serror()
+			end
 		) in
 		let pos = match al with
 			| [] -> pos
@@ -724,12 +772,12 @@ and parse_constraint_param = parser
 		}
 
 and parse_type_path_or_resume p1 s = match s with parser
-	| [< t = parse_type_path >] -> t
-	| [< >] -> if would_skip_resume p1 s then { tpackage = []; tname = ""; tparams = []; tsub = None },punion_next p1 s else raise Stream.Failure
+	| [< t = parse_type_path >] -> t,false
+	| [< >] -> if would_skip_resume p1 s then (magic_type_path,punion_next p1 s),true else raise Stream.Failure
 
 and parse_class_herit = parser
-	| [< '(Kwd Extends,p1); t = parse_type_path_or_resume p1 >] -> HExtends t
-	| [< '(Kwd Implements,p1); t = parse_type_path_or_resume p1 >] -> HImplements t
+	| [< '(Kwd Extends,p1); t,_ = parse_type_path_or_resume p1 >] -> HExtends t
+	| [< '(Kwd Implements,p1); t,_ = parse_type_path_or_resume p1 >] -> HImplements t
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 (name,p,NoQuotes) (Ident name) p s
@@ -1005,7 +1053,7 @@ and expr = parser
 			| [< >] -> serror())
 		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path_or_resume p1; s >] ->
+	| [< '(Kwd New,p1); t,_ = parse_type_path_or_resume p1; s >] ->
 		begin match s with parser
 		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->

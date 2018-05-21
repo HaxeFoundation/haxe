@@ -383,7 +383,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				(* create a temp private typedef, does not register it in module *)
 				let mt = TTypeDecl {
 					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
-					t_module = md;
+					t_module = ctx.m.curmod;
 					t_pos = p;
 					t_name_pos = p;
 					t_private = true;

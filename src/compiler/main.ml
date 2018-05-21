@@ -975,11 +975,13 @@ with
 			| CRImport
 			| CRUsing
 			| CRNew
-			| CRPattern ->
+			| CRPattern
+			| CRClassHerit ->
 				DisplayOutput.print_toplevel fields
 			| CRField
 			| CRStructureField
-			| CRMetadata ->
+			| CRMetadata
+			| CROverride ->
 				DisplayOutput.print_fields fields
 		in
 		raise (DisplayOutput.Completion s)
@@ -1014,6 +1016,8 @@ with
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end
+	| Parser.SyntaxCompletion(kind,pos) ->
+		DisplayOutput.handle_syntax_completion com kind pos
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

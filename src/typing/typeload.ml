@@ -36,28 +36,46 @@ let build_count = ref 0
 
 let type_function_params_rec = ref (fun _ _ _ _ -> assert false)
 
-let check_field_access ctx acc =
-	ignore(List.fold_left (fun acc (access,p1) ->
-		try
-			let _,p2 = List.find (fun (access',_) -> access = access') acc in
-			if p1 <> null_pos && p2 <> null_pos then begin
-				display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
-				display_error ctx "Previously defined here" p2;
-			end;
-			acc
-		with Not_found -> match access with
-			| APublic | APrivate ->
-				begin try
-					let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
-					display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
-					display_error ctx "Conflicts with this" p2;
-					acc
-				with Not_found ->
-					(access,p1) :: acc
-				end
-			| _ ->
-				(access,p1) :: acc
-	) [] acc)
+let check_field_access ctx cff =
+	let display_access = ref None in
+	let rec loop p0 acc l =
+		let check_display p1 =
+			let pmid = {p0 with pmin = p0.pmax; pmax = p1.pmin} in
+			if Display.is_display_position pmid then match acc with
+			| access :: _ -> display_access := Some access;
+			| [] -> ()
+		in
+		match l with
+		| [] ->
+			(* This is a bit dodgy. Ideally we would use the position of the `function` keyword, but we don't have that...
+			   Using the name means this is going to complete within the `function` keyword too. Not sure what we
+			   can do about it. *)
+			check_display (pos (cff.cff_name))
+		| (access,p1) :: l ->
+			check_display p1;
+			try
+				let _,p2 = List.find (fun (access',_) -> access = access') acc in
+				if p1 <> null_pos && p2 <> null_pos then begin
+					display_error ctx (Printf.sprintf "Duplicate access modifier %s" (Ast.s_access access)) p1;
+					display_error ctx "Previously defined here" p2;
+				end;
+				loop p1 acc l
+			with Not_found -> match access with
+				| APublic | APrivate ->
+					begin try
+						let _,p2 = List.find (fun (access',_) -> match access' with APublic | APrivate -> true | _ -> false) acc in
+						display_error ctx (Printf.sprintf "Conflicting access modifier %s" (Ast.s_access access)) p1;
+						display_error ctx "Conflicts with this" p2;
+						loop p1 acc l
+					with Not_found ->
+						loop p1 ((access,p1) :: acc) l
+					end
+				| _ ->
+					loop p1 ((access,p1) :: acc) l
+	in
+	let pmin = {cff.cff_pos with pmax = cff.cff_pos.pmin} in
+	loop pmin [] cff.cff_access;
+	!display_access
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
@@ -391,7 +409,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			let dyn = ref false in
 			let params = ref [] in
 			let final = ref false in
-			check_field_access ctx f.cff_access;
+			ignore(check_field_access ctx f); (* TODO: do we want to do anything with this? *)
 			List.iter (fun a ->
 				match fst a with
 				| APublic -> ()
@@ -758,8 +776,15 @@ let handle_path_display ctx path p =
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
 			DisplayException.raise_position [p]
+		| (IDKModule(sl,s),_),DMHover ->
+			let m = ctx.g.do_load_module ctx (sl,s) p in
+			begin try
+				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = s) m.m_types in
+				DisplayEmitter.display_module_type ctx mt p;
+			with Not_found ->
+				()
+			end
 		| (IDKModule(sl,s),_),_ ->
-			(* TODO: wait till nadako requests @type display for these, then implement it somehow *)
 			raise (Parser.TypePath(sl,Some(s,false),true))
 		| (IDKSubType(sl,sm,st),p),DMDefinition ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p

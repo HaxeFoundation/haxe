@@ -59,6 +59,7 @@ type field_init_ctx = {
 	is_display_field : bool;
 	is_field_debug : bool;
 	field_kind : field_kind;
+	display_modifier : placed_access option;
 	mutable do_bind : bool;
 	mutable do_add : bool;
 	(* If true, cf_expr = None makes a difference in the logic. We insert a dummy expression in
@@ -413,7 +414,7 @@ let create_field_context (ctx,cctx) c cff =
 		ctx with
 		pass = PBuildClass; (* will be set later to PTypeExpr *)
 	} in
-	Typeload.check_field_access ctx cff.cff_access;
+	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
 	let is_extern = List.mem_assoc AExtern cff.cff_access in
 	let is_extern = if Meta.has Meta.Extern cff.cff_meta then begin
@@ -444,6 +445,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_final = List.mem_assoc AFinal cff.cff_access;
 		is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
 		is_field_debug = cctx.is_class_debug;
+		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
 		do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
@@ -973,17 +975,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if ctx.is_display_file && ctx.com.display.dms_kind = DMDefinition then begin match fctx.override with
-						| Some p when Display.is_display_position p ->
-							begin match c.cl_super with
-							| Some(c,tl) ->
-								let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
-								DisplayEmitter.display_field ctx (Some c) cf p
-							| _ ->
-								()
-							end
-						| _ -> ()
-					end;
+					if ctx.is_display_file then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf

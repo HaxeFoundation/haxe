@@ -321,7 +321,12 @@ let collect ctx only_types with_type =
 					| _ ->
 						6 (* incompatible type - probably useless *)
 			in
-			let l = List.map (fun ck -> ck,(comp (get_type ck),get_name ck)) l in
+			let l = List.map (fun ck ->
+				let s1 = comp (get_type ck) in
+				let s2 = get_sort_index ck in
+				let s3 = get_name ck in
+				ck,(s1,s2,s3)
+			) l in
 			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
 			List.map fst l
 		| _ -> l

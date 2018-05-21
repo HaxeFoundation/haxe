@@ -121,3 +121,20 @@ let check_display_metadata ctx meta =
 			end
 		) args
 	) meta
+
+let check_field_modifiers ctx c cf override display_modifier =
+	match override,display_modifier with
+		| Some p,_ when Display.is_display_position p && ctx.com.display.dms_kind = DMDefinition ->
+			begin match c.cl_super with
+			| Some(c,tl) ->
+				let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
+				display_field ctx (Some c) cf p
+			| _ ->
+				()
+			end
+		| _,Some (AOverride,p) when ctx.com.display.dms_kind = DMDefault ->
+			let all_fields = TClass.get_all_super_fields c in
+			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
+			let l = PMap.fold (fun cf fields -> (ITClassField(cf,CFSMember)) :: fields) missing_fields [] in
+			raise_fields l CROverride None false
+		| _ -> ()

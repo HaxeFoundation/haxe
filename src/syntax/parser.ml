@@ -31,9 +31,13 @@ type error_msg =
 	| Missing_type
 	| Custom of string
 
+type syntax_completion =
+	| SCClassHerit
+
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *)
 exception Display of expr
+exception SyntaxCompletion of syntax_completion * pos
 
 let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
@@ -43,6 +47,9 @@ let error_msg = function
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Custom s -> s
+
+let syntax_completion kind p =
+	raise (SyntaxCompletion(kind,p))
 
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
@@ -96,6 +103,8 @@ let last_token s =
 	let n = Stream.count s in
 	TokenCache.get (if n = 0 then 0 else n - 1)
 
+let last_pos s = pos (last_token s)
+
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
 	match Stream.peek s with
@@ -112,6 +121,9 @@ let serror() = raise (Stream.Error "")
 let do_resume() = !resume_display <> null_pos
 
 let display e = raise (Display e)
+
+let magic_display_field_name = " - display - "
+let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
 
 let type_path sl in_import = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import));

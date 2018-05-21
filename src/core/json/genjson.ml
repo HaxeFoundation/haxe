@@ -159,9 +159,9 @@ let rec generate_type ctx t =
 			| Some t -> loop t
 			end
 		| TLazy f ->
-			return_partial_type := true;
+			(* return_partial_type := true; *)
 			let t = lazy_type f in
-			return_partial_type := false;
+			(* return_partial_type := false; *)
 			loop t
 		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
 		| TInst(c,tl) -> "TInst",Some (generate_path_with_params ctx c.cl_path tl)

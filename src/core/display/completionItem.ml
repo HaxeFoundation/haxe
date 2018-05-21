@@ -194,6 +194,32 @@ type t =
 	| ITMetadata of string * documentation
 	| ITKeyword of keyword
 
+let get_index = function
+	| ITLocal _ -> 0
+	| ITClassField _ -> 1
+	| ITEnumField _ -> 2
+	| ITEnumAbstractField _ -> 3
+	| ITType _ -> 4
+	| ITPackage _ -> 5
+	| ITModule _ -> 6
+	| ITLiteral _ -> 7
+	| ITTimer _ -> 8
+	| ITMetadata _ -> 9
+	| ITKeyword _ -> 10
+
+let get_sort_index = function
+	| ITLocal _ -> 0
+	| ITClassField _ -> 0
+	| ITEnumField(_,ef) -> ef.ef_index
+	| ITEnumAbstractField _ -> 0
+	| ITType _ -> 0
+	| ITPackage _ -> 0
+	| ITModule _ -> 0
+	| ITLiteral _ -> 0
+	| ITTimer _ -> 0
+	| ITMetadata _ -> 0
+	| ITKeyword _ -> 0
+
 let legacy_sort = function
 	| ITClassField(cf,_) | ITEnumAbstractField(_,cf) ->
 		begin match cf.cf_kind with

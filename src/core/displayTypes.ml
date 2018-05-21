@@ -77,6 +77,8 @@ module CompletionResultKind = struct
 		| CRUsing
 		| CRNew
 		| CRPattern
+		| CROverride
+		| CRClassHerit
 end
 
 module DisplayMode = struct
