@@ -44,7 +44,9 @@ let convert_import_to_something_usable pt path =
 	loop [] None None path
 
 let add_import_position com p path =
-	com.shared.shared_display_information.import_positions <- PMap.add p (ref false,path) com.shared.shared_display_information.import_positions
+	let infos = com.shared.shared_display_information in
+	if not (PMap.mem p infos.import_positions) then
+		infos.import_positions <- PMap.add p (ref false,path) infos.import_positions
 
 let mark_import_position com p =
 	try
