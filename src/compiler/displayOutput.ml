@@ -615,8 +615,8 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		Display.reference_position := null_pos;
 		raise_position usages
 	| DMDiagnostics global ->
-		Diagnostics.prepare com global;
-		raise_diagnostics (Diagnostics.Printer.print_diagnostics tctx global)
+		let dctx = Diagnostics.prepare com global in
+		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx in
 		raise_statistics (Statistics.Printer.print_statistics stats)

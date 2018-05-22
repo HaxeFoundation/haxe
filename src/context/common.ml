@@ -107,7 +107,6 @@ type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
 	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
-	mutable removable_code : (string * pos * pos) list;
 }
 
 type display_information = {
@@ -515,7 +514,6 @@ let create version s_version args =
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
 				document_symbols = [];
-				removable_code = [];
 			}
 		};
 		display_information = {

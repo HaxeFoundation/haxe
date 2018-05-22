@@ -20,12 +20,16 @@ module DiagnosticsKind = struct
 		| DKRemovableCode -> 3
 end
 
+type diagnostics_context = {
+	com : Common.context;
+	mutable removable_code : (string * pos * pos) list;
+}
+
 open DiagnosticsKind
 open DisplayTypes
 
-let add_removable_code com s p prange =
-	let di = com.shared.shared_display_information in
-	di.removable_code <- (s,p,prange) :: di.removable_code
+let add_removable_code ctx s p prange =
+	ctx.removable_code <- (s,p,prange) :: ctx.removable_code
 
 let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
@@ -105,22 +109,27 @@ let check_other_things com e =
 	in
 	loop true e
 
-let prepare_field com cf = match cf.cf_expr with
+let prepare_field dctx cf = match cf.cf_expr with
 	| None -> ()
 	| Some e ->
-		find_unused_variables com e;
-		check_other_things com e;
-		DeprecationCheck.run_on_expr com e
+		find_unused_variables dctx e;
+		check_other_things dctx.com e;
+		DeprecationCheck.run_on_expr dctx.com e
 
 let prepare com global =
+	let dctx = {
+		removable_code = [];
+		com = com;
+	} in
 	List.iter (function
 		| TClassDecl c when global || is_display_file c.cl_pos.pfile ->
-			List.iter (prepare_field com) c.cl_ordered_fields;
-			List.iter (prepare_field com) c.cl_ordered_statics;
-			(match c.cl_constructor with None -> () | Some cf -> prepare_field com cf);
+			List.iter (prepare_field dctx) c.cl_ordered_fields;
+			List.iter (prepare_field dctx) c.cl_ordered_statics;
+			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx cf);
 		| _ ->
 			()
-	) com.types
+	) com.types;
+	dctx
 
 let is_diagnostics_run p = match (!Parser.display_mode) with
 	| DMDiagnostics true -> true
@@ -148,8 +157,8 @@ module Printer = struct
 			| UISTypo -> 1
 	end
 
-	let print_diagnostics ctx global =
-		let com = ctx.com in
+	let print_diagnostics dctx ctx global =
+		let com = dctx.com in
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
 			let file = Path.get_real_path p.pfile in
@@ -197,7 +206,7 @@ module Printer = struct
 		) com.shared.shared_display_information.diagnostics_messages;
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
-		) com.shared.shared_display_information.removable_code;
+		) dctx.removable_code;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = DynArray.fold_left (fun acc (dk,p,sev,jargs) ->
 				(JObject [
