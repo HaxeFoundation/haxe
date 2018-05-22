@@ -622,9 +622,8 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
-		let symbols = com.shared.shared_display_information.document_symbols in
 		let symbols = match CompilationServer.get() with
-			| None -> symbols
+			| None -> []
 			| Some cs ->
 				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
@@ -632,7 +631,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc
-				) symbols l
+				) [] l
 		in
 		raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
 	| _ -> ()

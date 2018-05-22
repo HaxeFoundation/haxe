@@ -106,7 +106,6 @@ type compiler_callback = {
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
 }
 
 type display_information = {
@@ -513,7 +512,6 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				document_symbols = [];
 			}
 		};
 		display_information = {
