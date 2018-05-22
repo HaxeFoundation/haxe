@@ -247,11 +247,15 @@ let collect ctx only_types with_type =
 				()
 		end;
 
+		(* keywords *)
 		let kwds = [
 			Function; Var; If; Else; While; Do; For; Break; Return; Continue; Switch;
 			Try; New; Throw; Untyped; Cast;
 		] in
-		List.iter (fun kwd -> add(ITKeyword(kwd)) (s_keyword kwd)) kwds
+		List.iter (fun kwd -> add(ITKeyword(kwd)) (s_keyword kwd)) kwds;
+
+		(* builtins *)
+		add (ITLiteral("trace", TFun(["value",false,t_dynamic],ctx.com.basic.tvoid))) "trace"
 	end;
 
 	(* type params *)
