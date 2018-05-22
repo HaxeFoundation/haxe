@@ -80,6 +80,10 @@ let parse_input com input report_times pre_compilation did_something =
 		let f_error jl =
 			send_json (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
 		in
+		let cs = match CompilationServer.get() with
+			| Some cs -> cs
+			| None -> f_error [jstring "compilation server not running for some reason"]
+		in
 		let params = match params with
 			| Some (JObject fl) -> fl
 			| Some json -> raise_invalid_params json
@@ -133,7 +137,6 @@ let parse_input com input report_times pre_compilation did_something =
 			TypeloadParse.current_stdin := get_opt_param (fun () ->
 				let s = get_string_param "contents" in
 				Common.define com Define.DisplayStdin; (* TODO: awkward *)
-				let cs = CompilationServer.force() in
 				(* Remove our current display file from the cache so the server doesn't pick it up *)
 				CompilationServer.remove_files cs file;
 				Some s
@@ -186,33 +189,28 @@ let parse_input com input report_times pre_compilation did_something =
 			(* server *)
 			| "server/readClassPaths" ->
 				com.callbacks.after_init_macros <- (fun () ->
-					let cs = CompilationServer.force() in
 					CompilationServer.set_initialized cs;
 					DisplayToplevel.read_class_paths com ["init"];
 					f_result (jstring "class paths read");
 				) :: com.callbacks.after_init_macros;
 			| "server/contexts" ->
-				let cs = CompilationServer.force() in
 				let l = List.map (fun (sign,index) -> jobject [
 					"index",jstring index;
 					"signature",jstring (Digest.to_hex sign);
 				]) (CompilationServer.get_signs cs) in
 				f_result (jarray l)
 			| "server/select" ->
-				let cs = CompilationServer.force() in
 				let i = get_int_param "index" in
 				let (ctx,_) = try CompilationServer.get_sign_by_index cs (string_of_int i) with Not_found -> f_error [jstring "No such context"] in
 				debug_context_sign := Some ctx;
 				f_result (jstring (Printf.sprintf "Context %i selected" i))
 			| "server/modules" ->
-				let cs = CompilationServer.force() in
 				let sign = get_sign () in
 				let l = Hashtbl.fold (fun (_,sign') m acc ->
 					if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
 				) cs.cache.c_modules [] in
 				f_result (jarray l)
 			| "server/module" ->
-				let cs = CompilationServer.force() in
 				let sign = get_sign() in
 				let path = Path.parse_path (get_string_param "path") in
 				let m = try CompilationServer.find_module cs (path,sign) with Not_found -> f_error [jstring "No such module"] in
