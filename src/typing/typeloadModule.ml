@@ -941,6 +941,10 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	end;
 	m
 
+(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
+	let timer = Timer.timer ["typing";"type_module"] in
+	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
+
 let type_module_hook = ref (fun _ _ _ -> None)
 
 let load_module ctx m p =
@@ -975,5 +979,9 @@ let load_module ctx m p =
 	add_dependency ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
 	m2
+
+(* let load_module ctx m p =
+	let timer = Timer.timer ["typing";"load_module"] in
+	Std.finally timer (load_module ctx m) p *)
 
 ;;

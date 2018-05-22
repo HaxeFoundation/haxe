@@ -159,6 +159,10 @@ let rec load_type_def ctx p t =
 			with
 				Exit -> next()
 
+(* let load_type_def ctx p t =
+	let timer = Timer.timer ["typing";"load_type_def"] in
+	Std.finally timer (load_type_def ctx p) t *)
+
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in

@@ -734,6 +734,9 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
+(* let find_file ctx f =
+	let timer = Timer.timer ["find_file"] in
+	Std.finally timer (find_file ctx) f *)
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
