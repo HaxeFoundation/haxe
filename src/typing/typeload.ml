@@ -77,87 +77,83 @@ let check_field_access ctx cff =
 	loop pmin [] cff.cff_access;
 	!display_access
 
+let find_type_in_module m tname =
+	List.find (fun mt ->
+		let infos = t_infos mt in
+		not infos.mt_private && snd infos.mt_path = tname
+	) m.m_types
+
+(* raises Method_not_found or Type_not_found *)
+let load_type_raise ctx mpath tname p =
+	let m = ctx.g.do_load_module ctx mpath p in
+	try
+		find_type_in_module m tname
+	with Not_found ->
+		raise_error (Type_not_found(mpath,tname)) p
+
+(* raises Not_found *)
+let load_type ctx mpath tname p = try
+	load_type_raise ctx mpath tname p
+with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
+	raise Not_found
+
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 (*
 	load a type or a subtype definition
 *)
-let rec load_type_def ctx p t =
+let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
+	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	if tname = "" then raise_fields (DisplayToplevel.collect ctx true NoValue) CRTypeHint None false;
 	try
+		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		let path_matches t2 =
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
 		in
 		try
+			(* Check the types in our own module *)
 			List.find path_matches ctx.m.curmod.m_types
 		with Not_found ->
+			(* Check the local imports *)
 			let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_types in
 			ImportHandling.mark_import_position ctx.com pi;
 			t
 	with
-		Not_found ->
-			let next() =
-				let t, m = (try
-					t, ctx.g.do_load_module ctx (t.tpackage,t.tname) p
-				with Error (Module_not_found _,p2) as e when p == p2 ->
-					match t.tpackage with
-					| "std" :: l ->
-						let t = { t with tpackage = l } in
-						t, ctx.g.do_load_module ctx (t.tpackage,t.tname) p
-					| _ -> raise e
-				) in
-				let tpath = (t.tpackage,tname) in
-				try
-					List.find (fun t -> not (t_infos t).mt_private && t_path t = tpath) m.m_types
-				with
-					Not_found -> raise (Error (Type_not_found (m.m_path,tname),p))
+	| Not_found when no_pack ->
+		(* Unqualified *)
+		begin try
+			let rec loop l = match l with
+				| [] ->
+					raise Exit
+				| (pack,ppack) :: l ->
+					(try load_type ctx (pack,t.tname) tname p with Not_found -> loop l)
 			in
-			(* lookup in wildcard imported packages *)
-			try
-				if not no_pack then raise Exit;
-				let rec loop l = match l with
-					| [] -> raise Exit
-					| (wp,pi) :: l ->
-						try
-							let t = load_type_def ctx p { t with tpackage = wp } in
-							ImportHandling.mark_import_position ctx.com pi;
-							t
-						with
-							| Error (Module_not_found _,p2)
-							| Error (Type_not_found _,p2) when p == p2 -> loop l
-				in
-				loop ctx.m.wildcard_packages
-			with Exit ->
-			(* lookup in our own package - and its upper packages *)
-			let rec loop = function
-				| [] -> raise Exit
-				| (_ :: lnext) as l ->
-					try
-						load_type_def ctx p { t with tpackage = List.rev l }
-					with
-						| Error (Module_not_found _,p2)
-						| Error (Type_not_found _,p2) when p == p2 -> loop lnext
+			(* Check wildcard packages by using their package *)
+			loop ctx.m.wildcard_packages
+		with Exit ->
+			let rec loop l = match l with
+				| [] ->
+					load_type_raise ctx ([],t.tname) tname p
+				| _ :: sl as l ->
+					(try load_type ctx (List.rev l,t.tname) tname p with Not_found -> loop sl)
 			in
-			try
-				if not no_pack then raise Exit;
-				(match fst ctx.m.curmod.m_path with
-				| [] -> raise Exit
-				| x :: _ ->
-					(* this can occur due to haxe remoting : a module can be
-						already defined in the "js" package and is not allowed
-						to access the js classes *)
-					try
-						(match PMap.find x ctx.com.package_rules with
-						| Forbidden -> raise Exit
-						| _ -> ())
-					with Not_found -> ());
-				loop (List.rev (fst ctx.m.curmod.m_path));
-			with
-				Exit -> next()
+			(* Check our current module's path and its parent paths *)
+			loop (List.rev (fst ctx.m.curmod.m_path))
+		end
+	| Not_found ->
+		(* Qualified *)
+		try
+			(* Try loading the fully qualified module *)
+			load_type_raise ctx (t.tpackage,t.tname) tname p
+		with Error((Module_not_found _ | Type_not_found _),_) as exc -> match t.tpackage with
+		| "std" :: l ->
+			load_type_raise ctx (l,t.tname) tname p
+		| _ ->
+			raise exc
 
 (* let load_type_def ctx p t =
 	let timer = Timer.timer ["typing";"load_type_def"] in
