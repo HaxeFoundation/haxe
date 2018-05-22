@@ -784,6 +784,15 @@ let handle_path_display ctx path p =
 			with Not_found ->
 				()
 			end
+		| (IDKSubType(sl,sm,st),p),DMHover ->
+			(* TODO: remove code duplication once load_type_def change is in *)
+			let m = ctx.g.do_load_module ctx (sl,sm) p in
+			begin try
+				let mt = List.find (fun mt -> snd (t_infos mt).mt_path = st) m.m_types in
+				DisplayEmitter.display_module_type ctx mt p;
+			with Not_found ->
+				()
+			end
 		| (IDKModule(sl,s),_),_ ->
 			raise (Parser.TypePath(sl,Some(s,false),true))
 		| (IDKSubType(sl,sm,st),p),DMDefinition ->
