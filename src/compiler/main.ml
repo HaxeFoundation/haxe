@@ -976,7 +976,7 @@ with
 			| CRUsing
 			| CRNew
 			| CRPattern
-			| CRClassHerit ->
+			| CRTypeRelation ->
 				DisplayOutput.print_toplevel fields
 			| CRField
 			| CRStructureField

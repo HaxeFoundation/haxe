@@ -657,7 +657,11 @@ let handle_syntax_completion com kind p = match com.json_out with
 		()
 	| Some(f,_) ->
 		match kind with
-		| Parser.SCClassHerit ->
+		| Parser.SCClassRelation ->
 			let l = [ITKeyword Extends;ITKeyword Implements] in
 			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRClassHerit None false)
+			f(fields_to_json ctx l CRTypeRelation None false)
+		| Parser.SCInterfaceRelation ->
+			let l = [ITKeyword Extends] in
+			let ctx = Genjson.create_context GMFull in
+			f(fields_to_json ctx l CRTypeRelation None false)

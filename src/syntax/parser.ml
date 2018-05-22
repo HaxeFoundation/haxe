@@ -32,7 +32,8 @@ type error_msg =
 	| Custom of string
 
 type syntax_completion =
-	| SCClassHerit
+	| SCClassRelation
+	| SCInterfaceRelation
 
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *)

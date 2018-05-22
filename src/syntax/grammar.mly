@@ -158,23 +158,23 @@ and parse_type_decl s =
 				}, punion p1 p2)
 			end
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
-			let rec loop had_display p0 acc = match s with parser
+			let rec loop had_display p0 acc =
+				let check_display p0 p1 =
+					if not had_display && encloses_resume p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
+				in
+				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
-					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
-						syntax_completion SCClassHerit p0;
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					loop (had_display || b) (pos t) ((HExtends t) :: acc)
 				| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
-					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
-						syntax_completion SCClassHerit p0;
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					loop (had_display || b) (pos t) ((HImplements t) :: acc)
 				| [< '(BrOpen,p1) >] ->
-					if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = p1.pmin} then
-						syntax_completion SCClassHerit p0;
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
 					if not (do_resume()) then serror() else begin
-						if not had_display && encloses_resume {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax} then
-							syntax_completion SCClassHerit p0;
+						check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
 						List.rev acc
 					end
 			in
