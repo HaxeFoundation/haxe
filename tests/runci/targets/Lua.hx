@@ -31,7 +31,7 @@ class Lua {
 	}
 
 	static public function installLuaVersionDependencies(lv:String){
-		if (lv == "-l5.1") installLib("luabit", "1.0.2-3");
+		if (lv == "-l5.1") installLib("luabitop", "1.0.2-3");
 
 		installLib("lrexlib-pcre" , "2.8.0-1");
 		installLib("luv"          , "1.9.1-0");
