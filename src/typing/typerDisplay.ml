@@ -293,11 +293,23 @@ let handle_display ctx e_ast dk with_type =
 		) l in
 		raise_fields l CRNew p b
 	in
+	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
+	if is_display_debug then begin
+		print_endline (Printf.sprintf "expected type: %s" (s_with_type with_type));
+		print_endline (Printf.sprintf "typed expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
+	end;
 	let p = e.epos in
-	let e = match with_type with
-		| WithType t -> (try AbstractCast.cast_or_unify_raise ctx t e e.epos with Error (Unify l,p) -> e)
-		| _ -> e
-	in
+	begin match with_type with
+		| WithType t ->
+			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
+			   It only matters that unification takes place. *)
+			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p) -> ());
+		| _ ->
+			()
+	end;
+	if is_display_debug then begin
+		print_endline (Printf.sprintf "cast expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
+	end;
 	ctx.in_display <- fst old;
 	ctx.in_call_args <- snd old;
 	display_expr ctx e_ast e dk with_type p

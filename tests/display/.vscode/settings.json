@@ -1,5 +1,6 @@
 {
 	"haxe.displayConfigurations": [
 		{"label": "IssueTemplate", "args": ["build.hxml", "-D", "test=IssueTemplate"]}
-	]
+	],
+	"haxe.enableCompilationServer": false
 }
