@@ -244,3 +244,10 @@ let is_signature_display () =
 
 let check_resume p fyes fno =
 	if is_completion () && is_resuming p then (had_resume := true; fyes()) else fno()
+
+let check_resume_range p s fyes fno =
+	if is_completion () then begin
+		let pnext = next_pos s in
+		if p.pmin < !resume_display.pmin && pnext.pmin >= !resume_display.pmax && is_resuming_file p.pfile then fyes pnext
+		else fno()
+	end else fno()

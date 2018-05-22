@@ -38,9 +38,11 @@ let rec psep sep f = parser
 		v :: loop s
 	| [< >] -> []
 
-let expect_unless_resume f = parser
-	| [< _ = f >] -> ()
-	| [< >] -> if do_resume() then () else serror()
+let pignore f =
+	try
+		ignore(f())
+	with Stream.Error _ | Stream.Failure ->
+		()
 
 let expect_unless_resume_p f = parser
 	| [< p = f >] -> p
@@ -429,7 +431,15 @@ and parse_complex_type_at p = parser
 	| [< s >] -> if would_skip_resume p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
 
 and parse_type_hint = parser
-	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
+	| [< '(DblDot,p1); s >] ->
+		let f () = parse_complex_type_at p1 s in
+		check_resume_range p1 s
+			(fun p2 ->
+				let ct = CTPath magic_type_path in
+				pignore(f);
+				ct,null_pos
+			)
+			f
 
 and parse_type_opt = parser
 	| [< t = parse_type_hint >] -> Some t
