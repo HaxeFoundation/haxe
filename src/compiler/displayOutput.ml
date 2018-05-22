@@ -665,3 +665,5 @@ let handle_syntax_completion com kind p = match com.json_out with
 			let l = [ITKeyword Extends] in
 			let ctx = Genjson.create_context GMFull in
 			f(fields_to_json ctx l CRTypeRelation None false)
+		| Parser.SCComment ->
+			()

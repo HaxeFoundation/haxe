@@ -85,6 +85,7 @@ let parse ctx code =
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
+			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let tk = next_token() in
 			if !use_doc then begin
 				let l = String.length s in
@@ -92,6 +93,7 @@ let parse ctx code =
 			end;
 			tk
 		| CommentLine s ->
+			if encloses_resume (pos tk) then syntax_completion SCComment (pos tk);
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with

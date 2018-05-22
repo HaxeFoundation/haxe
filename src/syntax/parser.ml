@@ -32,6 +32,7 @@ type error_msg =
 	| Custom of string
 
 type syntax_completion =
+	| SCComment
 	| SCClassRelation
 	| SCInterfaceRelation
 
@@ -131,7 +132,7 @@ let type_path sl in_import = match sl with
 	| _ -> raise (TypePath (List.rev sl,None,in_import))
 
 let is_resuming_file file =
-	Path.unique_full_path file = !resume_display.pfile
+	do_resume() && Path.unique_full_path file = !resume_display.pfile
 
 let is_resuming p =
 	let p2 = !resume_display in
@@ -141,7 +142,7 @@ let set_resume p =
 	resume_display := { p with pfile = Path.unique_full_path p.pfile }
 
 let encloses_resume p =
-	p.pmin < !resume_display.pmin && p.pmax >= !resume_display.pmax
+	do_resume() && p.pmin < !resume_display.pmin && p.pmax >= !resume_display.pmax
 
 let would_skip_resume p1 s =
 	match Stream.npeek 1 s with

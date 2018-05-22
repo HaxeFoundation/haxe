@@ -1017,7 +1017,8 @@ with
 			end
 		end
 	| Parser.SyntaxCompletion(kind,pos) ->
-		DisplayOutput.handle_syntax_completion com kind pos
+		DisplayOutput.handle_syntax_completion com kind pos;
+		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
