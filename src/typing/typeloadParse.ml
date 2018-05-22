@@ -40,6 +40,14 @@ let parse_file_from_lexbuf com file p lexbuf =
 			t();
 			raise e
 	in
+	begin match !Parser.display_mode with
+		| DMModuleSymbols (Some "") -> ()
+		| DMModuleSymbols filter when filter = None && Display.is_display_file file ->
+			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
+			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
+		| _ ->
+			()
+	end;
 	t();
 	Common.log com ("Parsed " ^ file);
 	data
