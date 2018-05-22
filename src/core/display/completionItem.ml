@@ -40,6 +40,11 @@ end
 module CompletionModuleType = struct
 	open CompletionModuleKind
 
+	type not_bool =
+		| Yes
+		| No
+		| Maybe
+
 	type t = {
 		pack : string list;
 		name : string;
@@ -52,10 +57,16 @@ module CompletionModuleType = struct
 		is_extern : bool;
 		kind : CompletionModuleKind.t;
 		import_status : ImportStatus.t;
+		has_constructor : not_bool;
 	}
 
 	let of_type_decl is pack module_name (td,p) = match td with
-		| EClass d -> {
+		| EClass d ->
+			let ctor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes
+				else if (List.exists (function HExtends _ -> true | _ -> false) d.d_flags) then Maybe
+				else No
+			in
+			{
 				pack = pack;
 				name = fst d.d_name;
 				module_name = module_name;
@@ -67,6 +78,7 @@ module CompletionModuleType = struct
 				is_extern = List.mem HExtern d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				import_status = is;
+				has_constructor = ctor;
 			}
 		| EEnum d -> {
 				pack = pack;
@@ -80,8 +92,11 @@ module CompletionModuleType = struct
 				is_extern = List.mem EExtern d.d_flags;
 				kind = Enum;
 				import_status = is;
+				has_constructor = No;
 			}
-		| ETypedef d -> {
+		| ETypedef d ->
+			let kind = match fst d.d_data with CTAnonymous _ -> Struct | _ -> TypeAlias in
+			{
 				pack = pack;
 				name = fst d.d_name;
 				module_name = module_name;
@@ -91,8 +106,9 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
-				kind = (match fst d.d_data with CTAnonymous _ -> Struct | _ -> TypeAlias);
+				kind = kind;
 				import_status = is;
+				has_constructor = if kind = Struct then No else Maybe;
 			}
 		| EAbstract d -> {
 				pack = pack;
@@ -106,20 +122,25 @@ module CompletionModuleType = struct
 				is_extern = List.mem AbExtern d.d_flags;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
 				import_status = is;
+				has_constructor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes else No;
 			}
 		| EImport _ | EUsing _ ->
 			raise Exit
 
 	let of_module_type is mt =
-		let is_extern,kind = match mt with
+		let is_extern,kind,has_ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,if c.cl_interface then Interface else Class
+				c.cl_extern,(if c.cl_interface then Interface else Class),has_constructor c
 			| TEnumDecl en ->
-				en.e_extern,Enum
+				en.e_extern,Enum,false
 			| TTypeDecl td ->
-				false,(match follow td.t_type with TAnon _ -> Struct | _ -> TypeAlias)
+				false,(match follow td.t_type with TAnon _ -> Struct | _ -> TypeAlias),false
 			| TAbstractDecl a ->
-				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract)
+				let has_ctor = match a.a_impl with
+					| None -> false
+					| Some c -> PMap.mem "_new" c.cl_statics
+				in
+				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
@@ -144,6 +165,7 @@ module CompletionModuleType = struct
 			is_extern = is_extern;
 			kind = kind;
 			import_status = is;
+			has_constructor = if has_ctor then Yes else No;
 		}
 
 	let get_path cm = (cm.pack,cm.name)

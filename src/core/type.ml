@@ -921,6 +921,12 @@ let rec get_constructor build_type c =
 		let t, c = get_constructor build_type csup in
 		apply_params csup.cl_params cparams t, c
 
+let has_constructor c =
+	try
+		ignore(get_constructor (fun cf -> cf.cf_type) c);
+		true
+	with Not_found -> false
+
 (* ======= Printing ======= *)
 
 let print_context() = ref []

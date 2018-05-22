@@ -287,10 +287,28 @@ let handle_display ctx e_ast dk with_type =
 			raise err
 		end
 	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
+		ctx.pass <- PBuildClass;
 		let l = List.filter (function
-			| ITType({kind = (Class | Abstract)},_) -> true
+			| ITType({kind = (Class | Abstract)} as mt,_) when not mt.is_private ->
+				begin match mt.has_constructor with
+				| Yes -> true
+				| No -> false
+				| Maybe ->
+					begin try
+						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
+						begin match mt with
+						| TClassDecl c when has_constructor c -> true
+						| TAbstractDecl {a_impl = Some c} -> PMap.mem "_new" c.cl_statics
+						| _ -> false
+						end
+					with _ ->
+						false
+					end
+				end
 			| _ -> false
 		) l in
+		timer();
 		raise_fields l CRNew p b
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in

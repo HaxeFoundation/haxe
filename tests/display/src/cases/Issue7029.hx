@@ -85,12 +85,16 @@ class Issue7029 extends DisplayTestCase {
 	interface I1 {}
 	typedef T1 = {};
 	enum E1 {}
-	class C1 {}
+	class C1 {
+		public function new() { }
+	}
 
 	class C2 {
 		static function main() {
 			new{-1-}   {-2-}
 		}
+
+		public function new() { }
 	}
 	**/
 	function test7() {
