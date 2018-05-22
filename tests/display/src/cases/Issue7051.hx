@@ -32,4 +32,12 @@ class Issue7051 extends DisplayTestCase {
 		eq(true, hasToplevel(toplevel, "type", "AWithCtor"));
 		eq(false, hasToplevel(toplevel, "type", "AWithoutCtor"));
 	}
+
+	/**
+	new {-1-}
+	call();
+	**/
+	@:funcCode function testBroken() {
+		eq(true, hasToplevel(toplevel(pos(1)), "type", "Array"));
+	}
 }

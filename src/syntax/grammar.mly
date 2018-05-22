@@ -771,9 +771,18 @@ and parse_constraint_param = parser
 			tp_meta = meta;
 		}
 
-and parse_type_path_or_resume p1 s = match s with parser
-	| [< t = parse_type_path >] -> t,false
-	| [< >] -> if would_skip_resume p1 s then (magic_type_path,punion_next p1 s),true else raise Stream.Failure
+and parse_type_path_or_resume p1 s =
+	let pnext = next_pos s in
+	let check_resume exc =
+		if do_resume() && is_resuming_file p1.pfile && encloses_resume (punion p1 pnext) then
+			(magic_type_path,punion_next p1 s),true
+		else
+			raise exc
+	in
+	try
+		let t = parse_type_path s in
+		t,false
+	with Stream.Failure | Stream.Error _ as exc -> check_resume exc
 
 and parse_class_herit = parser
 	| [< '(Kwd Extends,p1); t,_ = parse_type_path_or_resume p1 >] -> HExtends t
