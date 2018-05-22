@@ -128,16 +128,20 @@ let parse_input com input report_times pre_compilation did_something =
 		in
 		let read_display_file was_auto_triggered requires_offset is_completion =
 			let file = get_string_param "file" in
+			let file = Path.unique_full_path file in
 			let pos = if requires_offset then get_int_param "offset" else (-1) in
 			TypeloadParse.current_stdin := get_opt_param (fun () ->
 				let s = get_string_param "contents" in
 				Common.define com Define.DisplayStdin; (* TODO: awkward *)
+				let cs = CompilationServer.force() in
+				(* Remove our current display file from the cache so the server doesn't pick it up *)
+				CompilationServer.remove_files cs file;
 				Some s
 			) None;
 			Parser.was_auto_triggered := was_auto_triggered;
 			let pos = if pos <> (-1) && not is_completion then pos + 1 else pos in
 			Parser.resume_display := {
-				pfile = Path.unique_full_path file;
+				pfile = file;
 				pmin = pos;
 				pmax = pos;
 			}
