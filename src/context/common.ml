@@ -147,6 +147,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
@@ -569,6 +570,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
@@ -586,7 +588,8 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
-		parser_cache = Hashtbl.create 0 ;
+		parser_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		callbacks = create_callbacks();
 		display_information = {
 			unresolved_identifiers = [];

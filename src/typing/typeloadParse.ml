@@ -128,6 +128,14 @@ let resolve_module_file com m remap p =
 	end;
 	file
 
+let resolve_module_file com m remap p =
+	try
+		Hashtbl.find com.module_to_file m
+	with Not_found ->
+		let file = resolve_module_file com m remap p in
+		Hashtbl.add com.module_to_file m file;
+		file
+
 (* let resolve_module_file com m remap p =
 	let timer = Timer.timer ["typing";"resolve_module_file"] in
 	Std.finally timer (resolve_module_file com m remap) p *)
