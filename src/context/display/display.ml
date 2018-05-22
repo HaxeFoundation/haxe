@@ -95,7 +95,7 @@ module ExprPreprocessing = struct
 		let loop e = match fst e with
 			| ECall(_,el) | ENew(_,el) when not !found && is_display_position (pos e) ->
 				let call_arg_is_marked () =
-					List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
+					el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
 				in
 				if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
 					found := true;
