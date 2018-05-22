@@ -343,8 +343,9 @@ let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx only_types NoValue in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
-		(s,it),StringError.levenshtein i s
+		let i = StringError.levenshtein i s in
+		(s,it,i),i
 	) l in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-	let cl = StringError.filter_similar (fun (s,_) r -> r > 0 && r <= (min (String.length s) (String.length i)) / 3) cl in
+	let cl = StringError.filter_similar (fun (s,_,_) r -> r <= (min (String.length s) (String.length i)) / 3) cl in
 	ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers

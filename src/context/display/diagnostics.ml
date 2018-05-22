@@ -139,7 +139,6 @@ let is_diagnostics_run p = match (!Parser.display_mode) with
 let secure_generated_code ctx e =
 	if is_diagnostics_run e.epos then mk (TMeta((Meta.Extern,[],e.epos),e)) e.etype e.epos else e
 
-
 module Printer = struct
 	open Json
 	open DiagnosticsKind
@@ -156,6 +155,10 @@ module Printer = struct
 			| UISImport -> 0
 			| UISTypo -> 1
 	end
+
+	open UnresolvedIdentifierSuggestion
+	open CompletionItem
+	open CompletionModuleType
 
 	let print_diagnostics dctx ctx global =
 		let com = dctx.com in
@@ -174,29 +177,25 @@ module Printer = struct
 		let add dk p sev args =
 			if global || is_display_file p.pfile then add dk p sev args
 		in
-		let find_type i =
-			let types = ref [] in
-			Hashtbl.iter (fun _ m ->
-				List.iter (fun mt ->
-					let s_full_type_path (p,s) n = s_type_path (p,s) ^ if (s <> n) then "." ^ n else "" in
-					let tinfos = t_infos mt in
-					if snd tinfos.mt_path = i then
-						types := JObject [
-							"kind",JInt (UnresolvedIdentifierSuggestion.to_int UnresolvedIdentifierSuggestion.UISImport);
-							"name",JString (s_full_type_path m.m_path i)
-						] :: !types
-				) m.m_types;
-			) ctx.g.modules;
-			!types
-		in
 		List.iter (fun (s,p,suggestions) ->
-			let suggestions = List.map (fun (s,_) ->
-				JObject [
-					"kind",JInt (UnresolvedIdentifierSuggestion.to_int UnresolvedIdentifierSuggestion.UISTypo);
-					"name",JString s
-				]
+			let suggestions = ExtList.List.filter_map (fun (s,it,r) ->
+				print_endline (Printf.sprintf "%s: %i" s r);
+				match it with
+				| ITType(t,_) when r = 0 ->
+					Some (JObject [
+						"kind",JInt (to_int UISImport);
+						"name",JString (s_type_path (t.pack,t.module_name));
+					])
+				| _ when r = 0 ->
+					(* TODO !!! *)
+					None
+				| _ ->
+					Some (JObject [
+						"kind",JInt (to_int UISTypo);
+						"name",JString s;
+					])
 			) suggestions in
-			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray (suggestions @ (find_type s)));
+			add DKUnresolvedIdentifier p DiagnosticsSeverity.Error (JArray suggestions);
 		) com.display_information.unresolved_identifiers;
 		PMap.iter (fun p (r,_) ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
@@ -210,7 +209,7 @@ module Printer = struct
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = DynArray.fold_left (fun acc (dk,p,sev,jargs) ->
 				(JObject [
-					"kind",JInt (to_int dk);
+					"kind",JInt (DiagnosticsKind.to_int dk);
 					"severity",JInt (DiagnosticsSeverity.to_int sev);
 					"range",Genjson.generate_pos_as_range p;
 					"args",jargs
