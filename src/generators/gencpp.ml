@@ -1093,9 +1093,7 @@ let gen_str macro gen s =
 
 let strq ctx s =
    if (Common.defined ctx Define.HxcppSmartStings) && (has_utf8_chars s) then
-      let l = String.length s in
       let b = Buffer.create 0 in
-      let cycle = Int32.of_int 223 in
 
       let add ichar =
          match ichar with
