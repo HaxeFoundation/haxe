@@ -5,6 +5,7 @@ open Typecore
 open DisplayException
 open DisplayTypes.DisplayMode
 open CompletionItem
+open ClassFieldOrigin
 open DisplayTypes.CompletionResultKind
 open Common
 open Display
@@ -135,6 +136,9 @@ let check_field_modifiers ctx c cf override display_modifier =
 		| _,Some (AOverride,p) when ctx.com.display.dms_kind = DMDefault ->
 			let all_fields = TClass.get_all_super_fields c in
 			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
-			let l = PMap.fold (fun cf fields -> (ITClassField(cf,CFSMember)) :: fields) missing_fields [] in
+			let l = PMap.fold (fun (c,cf) fields ->
+				let origin = Parent (TClassDecl c) in
+				(ITClassField (CompletionClassField.make cf CFSMember origin true)) :: fields
+			) missing_fields [] in
 			raise_fields l CROverride None false
 		| _ -> ()

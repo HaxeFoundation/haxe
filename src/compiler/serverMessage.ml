@@ -1,5 +1,6 @@
 open Globals
 open Common
+open CompilationServer
 open Type
 open Json
 
@@ -73,7 +74,7 @@ let found_directories com tabs dirs =
 	if config.print_found_directories then print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length dirs))
 
 let changed_directories com tabs dirs =
-	if config.print_changed_directories then print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun (s,_) -> "\"" ^ s ^ "\"") dirs)))
+	if config.print_changed_directories then print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun dir -> "\"" ^ dir.c_path ^ "\"") dirs)))
 
 let module_path_changed com tabs (m,time,file) =
 	if config.print_module_path_changed then print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"

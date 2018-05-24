@@ -2766,18 +2766,25 @@ let abstract_module_type a tl = {
 }
 
 module TClass = struct
-	let get_all_super_fields c =
+	let get_member_fields' self_too c0 tl =
 		let rec loop acc c tl =
-			let maybe_add acc cf = match cf.cf_kind with
-				| Method MethNormal when not (PMap.mem cf.cf_name acc) -> PMap.add cf.cf_name cf acc
-				| _ -> acc
+			let apply = apply_params c.cl_params tl in
+			let maybe_add acc cf =
+				if not (PMap.mem cf.cf_name acc) then begin
+					let cf = if tl = [] then cf else {cf with cf_type = apply cf.cf_type} in
+					PMap.add cf.cf_name (c,cf) acc
+				end else acc
 			in
-			let acc = List.fold_left maybe_add acc c.cl_ordered_fields in
+			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
 			match c.cl_super with
-			| Some(c,tl) -> loop acc c tl
+			| Some(c,tl) -> loop acc c (List.map apply tl)
 			| None -> acc
 		in
-		match c.cl_super with
-			| Some(c,tl) -> loop PMap.empty c tl
-			| None -> PMap.empty
+		loop PMap.empty c0 tl
+
+	let get_all_super_fields c =
+		get_member_fields' false c (List.map snd c.cl_params)
+
+	let get_all_fields c tl =
+		get_member_fields' true c tl
 end

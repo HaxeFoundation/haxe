@@ -36,7 +36,7 @@ let fields_to_json ctx fields kind po sorted =
 	last_completion_result := Array.of_list fields;
 	let fl =
 		("items",jarray ja) ::
-		("kind",jint (Obj.magic kind)) ::
+		("mode",CompletionResultKind.to_json ctx kind) ::
 		("sorted",jbool sorted) ::
 		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range p]) in
 	jobject fl

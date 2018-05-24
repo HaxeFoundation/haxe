@@ -18,6 +18,8 @@
 *)
 open Ast
 open DisplayTypes.DisplayMode
+open DisplayException
+open DisplayTypes.CompletionResultKind
 open Common
 open Type
 open Typecore
@@ -1170,6 +1172,7 @@ and type_ident ctx i p mode =
 
 (* MORDOR *)
 and handle_efield ctx e p mode =
+	let p0 = p in
 	(*
 		given chain of fields as the `path` argument and an `access_mode->access_kind` getter for some starting expression as `e`,
 		return a new `access_mode->access_kind` getter for the whole field access chain.
@@ -1332,7 +1335,10 @@ and handle_efield ctx e p mode =
 							with
 								Not_found ->
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
-									if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false));
+									if ctx.in_display then begin
+										if ctx.com.json_out = None then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false,p))
+										else raise_fields (DisplayToplevel.collect ctx false NoValue) CRTypeHint (Some (Parser.cut_pos_at_display p0)) false;
+									end;
 									raise e)
 		in
 		match path with

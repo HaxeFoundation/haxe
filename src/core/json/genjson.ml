@@ -168,32 +168,33 @@ let rec generate_type ctx t =
 		| TEnum(en,tl) -> "TEnum",Some (generate_path_with_params ctx en.e_path tl)
 		| TType(td,tl) -> "TType",Some (generate_path_with_params ctx td.t_path tl)
 		| TAbstract(a,tl) -> "TAbstract",Some (generate_path_with_params ctx a.a_path tl)
-		| TAnon an -> "TAnonymous", Some(generate_anon an)
+		| TAnon an -> "TAnonymous", Some(generate_anon ctx an)
 		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
-	and generate_anon an =
-		let generate_anon_fields () =
-			let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
-			jarray fields
-		in
-		let generate_anon_status () =
-			let name,args = match !(an.a_status) with
-				| Closed -> "AClosed",None
-				| Opened -> "AOpened",None
-				| Const -> "AConst",None
-				| Extend tl -> "AExtend", Some (generate_types ctx tl)
-				| Statics c -> "AClassStatics",Some (class_ref ctx c)
-				| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
-				| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
-			in
-			generate_adt ctx None name args
-		in
-		jobject [
-			"fields",generate_anon_fields();
-			"status",generate_anon_status ();
-		]
 	in
 	let name,args = loop t in
 	generate_adt ctx None name args
+
+and generate_anon ctx an =
+	let generate_anon_fields () =
+		let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
+		jarray fields
+	in
+	let generate_anon_status () =
+		let name,args = match !(an.a_status) with
+			| Closed -> "AClosed",None
+			| Opened -> "AOpened",None
+			| Const -> "AConst",None
+			| Extend tl -> "AExtend", Some (generate_types ctx tl)
+			| Statics c -> "AClassStatics",Some (class_ref ctx c)
+			| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
+			| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
+		in
+		generate_adt ctx None name args
+	in
+	jobject [
+		"fields",generate_anon_fields();
+		"status",generate_anon_status ();
+	]
 
 and generate_function_argument ctx (name,opt,t) =
 	jobject [
@@ -291,7 +292,7 @@ and generate_class_field ctx cfs cf =
 		"expr",jopt (generate_texpr ctx) cf.cf_expr;
 		"pos",generate_pos ctx cf.cf_pos;
 		"doc",generate_doc ctx cf.cf_doc;
-		"overloads",jlist (classfield_ref ctx) cf.cf_overloads;
+		"overloads",jlist (generate_class_field ctx cfs) cf.cf_overloads;
 		"scope",jint (Obj.magic cfs);
 	]
 

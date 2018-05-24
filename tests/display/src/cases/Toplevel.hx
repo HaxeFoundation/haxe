@@ -316,4 +316,22 @@ class Toplevel extends DisplayTestCase {
 		var fields = toplevel(pos(1));
 		eq(true, hasToplevel(fields, "local", "foo"));
 	}
+
+	/**
+	class C1<T> {
+		public function f1(t:T) { }
+	}
+
+	class C2<T> extends C1<T> { }
+
+	class C3 extends C2<String> {
+		function f2() {
+			{-1-}
+		}
+	}
+	**/
+	function testTypeParameterApplication() {
+		var toplevel = toplevel(pos(1));
+		eq(true, hasToplevel(toplevel, "member", "f1", "t : String -> Void"));
+	}
 }

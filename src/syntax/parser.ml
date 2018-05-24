@@ -37,7 +37,7 @@ type syntax_completion =
 	| SCInterfaceRelation
 
 exception Error of error_msg * pos
-exception TypePath of string list * (string * bool) option * bool (* in import *)
+exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
 exception Display of expr
 exception SyntaxCompletion of syntax_completion * pos
 
@@ -127,9 +127,9 @@ let display e = raise (Display e)
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
 
-let type_path sl in_import = match sl with
-	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import));
-	| _ -> raise (TypePath (List.rev sl,None,in_import))
+let type_path sl in_import p = match sl with
+	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
+	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
 let is_resuming_file file =
 	do_resume() && Path.unique_full_path file = !resume_display.pfile
@@ -150,6 +150,8 @@ let would_skip_resume p1 s =
 		is_resuming_file p2.pfile && encloses_resume (punion p1 p2)
 	| _ ->
 		false
+
+let cut_pos_at_display p = { p with pmax = !resume_display.pmax }
 
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when n.[0] = '$' ->

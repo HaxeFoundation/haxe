@@ -22,27 +22,17 @@ open Error
 open Typecore
 open Type
 open CompletionItem
+open ClassFieldOrigin
 
 let get_submodule_fields ctx path =
 	let m = Hashtbl.find ctx.g.modules path in
 	let tl = List.filter (fun t -> path <> (t_infos t).mt_path && not (t_infos t).mt_private) m.m_types in
 	let tl = List.map (fun mt ->
-		let is = ImportStatus.Imported in
-		ITType(CompletionItem.CompletionModuleType.of_module_type is mt,RMOtherModule m.m_path)
+		ITType(CompletionItem.CompletionModuleType.of_module_type mt,ImportStatus.Imported)
 	) tl in
 	tl
 
-let collect ctx e_ast e dk with_type p =
-	let merge_core_doc = !merge_core_doc_ref in
-	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
-	let e = match e.eexpr with
-		| TField (e1,fa) when field_name fa = "bind" ->
-			(match follow e1.etype with
-			| TFun(args,ret) -> {e1 with etype = opt_args args ret}
-			| _ -> e)
-		| _ ->
-			e
-	in
+let collect_static_extensions ctx items e p =
 	let opt_type t =
 		match t with
 		| TLazy f ->
@@ -53,147 +43,163 @@ let collect ctx e_ast e dk with_type p =
 		| _ ->
 			t
 	in
+	let rec loop acc = function
+		| [] ->
+			acc
+		| (c,_) :: l ->
+			let rec dup t = Type.map dup t in
+			let acc = List.fold_left (fun acc f ->
+				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name items then
+					acc
+				else begin
+					let f = { f with cf_type = opt_type f.cf_type } in
+					let monos = List.map (fun _ -> mk_mono()) f.cf_params in
+					let map = apply_params f.cf_params monos in
+					match follow (map f.cf_type) with
+					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
+					| TFun((_,_,t) :: args, ret) ->
+						begin try
+							unify_raise ctx (dup e.etype) t e.epos;
+							List.iter2 (fun m (name,t) -> match follow t with
+								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
+									List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
+								| _ -> ()
+							) monos f.cf_params;
+							if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
+								acc
+							else begin
+								let f = prepare_using_field f in
+								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
+								let origin = StaticExtension(TClassDecl c) in
+								let item = ITClassField (CompletionClassField.make f CFSMember origin true) in
+								PMap.add f.cf_name item acc
+							end
+						with Error (Unify _,_) ->
+							acc
+						end
+					| _ ->
+						acc
+				end
+			) acc c.cl_ordered_statics in
+			loop acc l
+	in
+	match follow e.etype with
+	| TMono _ ->
+		items
+	| _ ->
+		let items = loop items ctx.m.module_using in
+		let items = loop items ctx.g.global_using in
+		items
+
+let collect ctx e_ast e dk with_type p =
+	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let should_access c cf stat =
-		if c != ctx.curclass && not cf.cf_public && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
+		if Meta.has Meta.NoCompletion cf.cf_meta then false
+		else if c != ctx.curclass && not cf.cf_public && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
 			| "get_" | "set_" -> false
 			| _ -> can_access ctx c cf stat
 		end else
+			(not stat || not (Meta.has Meta.Impl cf.cf_meta)) &&
 			can_access ctx c cf stat
 	in
-	let rec get_fields seen t =
-		let t = follow t in
-		if (List.exists (fast_eq t) seen) then PMap.empty
-		else match follow t with
-		| TInst (c,params) ->
-			if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-			let merge ?(cond=(fun _ -> true)) a b =
-				PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
-			in
-			let rec loop c params =
-				let m = List.fold_left (fun m (i,params) ->
-					merge m (loop i params)
-				) PMap.empty c.cl_implements in
-				let m = (match c.cl_super with
-					| None -> m
-					| Some (csup,cparams) -> merge m (loop csup cparams)
-				) in
-				let m = merge ~cond:(fun f -> should_access c f false) c.cl_fields m in
-				let m = (match c.cl_kind with
-					| KTypeParameter pl -> List.fold_left (fun acc t' -> merge acc (get_fields (t :: seen) t')) m pl
-					| _ -> m
-				) in
-				PMap.map (fun f -> { f with cf_type = apply_params c.cl_params params (opt_type f.cf_type); cf_public = true; }) m
-			in
-			loop c params
-		| TAbstract({a_impl = Some c} as a,pl) ->
-			if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-			let fields = try
+	let rec loop items t =
+		let is_new_item items name = not (PMap.mem name items) in
+		match follow t with
+		| TInst ({cl_kind = KTypeParameter tl},_) ->
+			(* Type parameters can access the fields of their constraints *)
+			List.fold_left (fun acc t -> loop acc t) items tl
+		| TInst(c0,tl) ->
+			(* For classes, browse the hierarchy *)
+			let fields = TClass.get_all_fields c0 tl in
+			PMap.foldi (fun k (c,cf) acc ->
+				if should_access c cf false && is_new_item acc cf.cf_name then begin
+					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
+				 	let item = ITClassField (CompletionClassField.make cf CFSMember origin true) in
+					PMap.add k item acc
+				end else
+					acc
+			) fields items
+		| TAbstract({a_impl = Some c} as a,tl) ->
+			(* Abstracts should show all their @:impl fields minus the constructor. *)
+			let items = List.fold_left (fun acc cf ->
+				if Meta.has Meta.Impl cf.cf_meta && should_access c cf false && is_new_item acc cf.cf_name then begin
+					let origin = Self(TAbstractDecl a) in
+					let cf = prepare_using_field cf in
+					let cf = if tl = [] then cf else {cf with cf_type = apply_params a.a_params tl cf.cf_type} in
+					let item = ITClassField (CompletionClassField.make cf CFSMember origin true) in
+					PMap.add cf.cf_name item acc
+				end else
+					acc
+			) items c.cl_ordered_statics in
+			begin try
+				(* If there's a @:forward, get the fields of the underlying type and filter them. *)
 				let _,el,_ = Meta.get Meta.Forward a.a_meta in
 				let sl = ExtList.List.filter_map (fun e -> match fst e with
 					| EConst(Ident s) -> Some s
 					| _ -> None
 				) el in
-				let fields = get_fields (t :: seen) (apply_params a.a_params pl a.a_this) in
-				if sl = [] then fields else PMap.fold (fun cf acc ->
-					if List.mem cf.cf_name sl then
-						PMap.add cf.cf_name cf acc
+				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
+				if sl = [] then items else PMap.foldi (fun name item acc ->
+					if List.mem name sl && is_new_item acc name then
+						PMap.add name item acc
 					else
 						acc
-				) fields PMap.empty
+				) forwarded_fields items
 			with Not_found ->
-				PMap.empty
-			in
-			PMap.fold (fun f acc ->
-				if f.cf_name <> "_new" && should_access c f true && Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then begin
-					let f = prepare_using_field f in
-					let t = apply_params a.a_params pl (follow f.cf_type) in
-					PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type t } acc
+				items
+			end
+		| TAnon an ->
+			(* Anons only have their own fields. *)
+			PMap.foldi (fun name cf acc ->
+				if is_new_item acc name then begin
+					let origin,check = match !(an.a_status) with
+						| Statics c -> Self (TClassDecl c),should_access c cf true
+						| EnumStatics en -> Self (TEnumDecl en),true
+						| AbstractStatics a ->
+							let check = match a.a_impl with
+								| None -> true
+								| Some c -> should_access c cf true
+							in
+							Self (TAbstractDecl a),check
+						| _ -> AnonymousStructure an,true
+					in
+					if check then PMap.add name (ITClassField (CompletionClassField.make cf CFSMember origin true)) acc
+					else acc
 				end else
 					acc
-			) c.cl_statics fields
-		| TAnon a when PMap.is_empty a.a_fields ->
-			begin match with_type with
-			| WithType t' -> get_fields (t :: seen) t'
-			| _ -> a.a_fields
-			end
-		| TAnon a ->
-			(match !(a.a_status) with
-			| Statics c ->
-				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-				let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
-				let pm = match c.cl_constructor with None -> PMap.empty | Some cf -> PMap.add "new" cf PMap.empty in
-				PMap.fold (fun f acc ->
-					if should_access c f true && (not is_abstract_impl || not (Meta.has Meta.Impl f.cf_meta) || Meta.has Meta.Enum f.cf_meta) then
-						PMap.add f.cf_name { f with cf_public = true; cf_type = opt_type f.cf_type } acc else acc
-				) a.a_fields pm
-			| _ ->
-				a.a_fields)
+			) an.a_fields items
 		| TFun (args,ret) ->
-			let t = opt_args args ret in
-			let cf = mk_field "bind" (tfun [t] t) p null_pos in
-			cf.cf_kind <- Method MethNormal;
-			PMap.add "bind" cf PMap.empty
+			(* A function has no field except the magic .bind one. *)
+			if is_new_item items "bind" then begin
+				let t = opt_args args ret in
+				let cf = mk_field "bind" (tfun [t] t) p null_pos in
+				cf.cf_kind <- Method MethNormal;
+				let item = ITClassField (CompletionClassField.make cf CFSStatic BuiltIn true) in
+				PMap.add "bind" item items
+			end else
+				items
 		| _ ->
-			PMap.empty
+			items
 	in
-	let fields = get_fields [] e.etype in
-	(*
-		add 'using' methods compatible with this type
-	*)
-	let rec loop acc = function
-		| [] -> acc
-		| (c,_) :: l ->
-			let acc = ref (loop acc l) in
-			let rec dup t = Type.map dup t in
-			List.iter (fun f ->
-				if not (Meta.has Meta.NoUsing f.cf_meta) && not (Meta.has Meta.Impl f.cf_meta) then
-				let f = { f with cf_type = opt_type f.cf_type } in
-				let monos = List.map (fun _ -> mk_mono()) f.cf_params in
-				let map = apply_params f.cf_params monos in
-				match follow (map f.cf_type) with
-				| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
-				| TFun((_,_,t) :: args, ret) ->
-					(try
-						unify_raise ctx (dup e.etype) t e.epos;
-						List.iter2 (fun m (name,t) -> match follow t with
-							| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
-								List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
-							| _ -> ()
-						) monos f.cf_params;
-						if not (can_access ctx c f true) || follow e.etype == t_dynamic && follow t != t_dynamic then
-							()
-						else begin
-							let f = prepare_using_field f in
-							let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
-							acc := PMap.add f.cf_name f (!acc)
-						end
-					with Error (Unify _,_) -> ())
-				| _ -> ()
-			) c.cl_ordered_statics;
-			!acc
-	in
-	let use_methods = match follow e.etype with TMono _ -> PMap.empty | _ -> loop (loop PMap.empty ctx.g.global_using) ctx.m.module_using in
-	let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
-	let fields = match fst e_ast with
+	(* Add special `.code` field if we have a string of length 1 *)
+	let items = match fst e_ast with
 		| EConst(String s) when String.length s = 1 ->
 			let cf = mk_field "code" ctx.t.tint e.epos null_pos in
 			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
-			PMap.add cf.cf_name cf fields
+			let item = ITClassField (CompletionClassField.make cf CFSStatic BuiltIn true) in
+			PMap.add cf.cf_name item PMap.empty
 		| _ ->
-			fields
+			PMap.empty
 	in
-	let fields = PMap.fold (fun f acc -> if Meta.has Meta.NoCompletion f.cf_meta then acc else f :: acc) fields [] in
-	let open Display in
-	let get_field acc f =
-		List.fold_left (fun acc f ->
-			if not f.cf_public then acc
-			else (ITClassField(f,CFSMember)) :: acc
-		) acc (f :: f.cf_overloads)
-	in
-	let fields = List.fold_left get_field [] fields in
+	(* Collect fields of the type *)
+	let items = loop items e.etype in
+	(* Add static extensions *)
+	let items = collect_static_extensions ctx items e p in
+	let items = PMap.fold (fun item acc -> item :: acc) items [] in
 	try
 		let sl = string_list_of_expr_path_raise e_ast in
-		fields @ get_submodule_fields ctx (List.tl sl,List.hd sl)
+		(* Add submodule fields *)
+		items @ get_submodule_fields ctx (List.tl sl,List.hd sl)
 	with Exit | Not_found ->
-		fields
+		items

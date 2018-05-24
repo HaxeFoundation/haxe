@@ -119,7 +119,7 @@ let type_function ctx args ret fmode f do_display p =
 			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
 			type_expr ctx e NoValue
 		with
-		| Parser.TypePath (_,None,_) | Exit ->
+		| Parser.TypePath (_,None,_,_) | Exit ->
 			type_expr ctx e NoValue
 		| DisplayException (DisplayHover (Some t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
 			type_expr ctx e NoValue

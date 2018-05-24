@@ -6,6 +6,7 @@ open CompletionResultKind
 open CompletionItem
 open CompletionModuleKind
 open CompletionModuleType
+open ClassFieldOrigin
 open DisplayException
 open Common
 open Type
@@ -14,6 +15,44 @@ open TyperBase
 open Fields
 open Calls
 open Error
+
+let completion_item_of_expr ctx e =
+	let retype e s t =
+		try
+			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType t) in
+			Texpr.equal e e'
+		with _ ->
+			false
+	in
+	let of_field e origin cf scope =
+		let is_qualified = retype e cf.cf_name cf.cf_type in
+		ITClassField (CompletionClassField.make cf scope origin is_qualified)
+	in
+	let of_enum_field e origin ef =
+		let is_qualified = retype e ef.ef_name ef.ef_type in
+		ITEnumField (CompletionEnumField.make ef origin is_qualified)
+	in
+	let rec loop e = match e.eexpr with
+		| TLocal v -> ITLocal v
+		| TField(_,FStatic(c,cf)) -> of_field e (Self (TClassDecl c)) cf CFSStatic
+		| TField(_,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) -> of_field e (Self (TClassDecl c)) cf CFSMember
+		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
+		| TField(e1,FAnon cf) ->
+			begin match follow e1.etype with
+				| TAnon an -> of_field e (AnonymousStructure an) cf CFSMember
+				| _ -> ITExpression e
+			end
+		| TTypeExpr mt -> ITType(CompletionModuleType.of_module_type mt,ImportStatus.Imported) (* TODO *)
+		| TConst(ct) -> ITLiteral(s_const ct,e.etype)
+		| TObjectDecl _ ->
+			begin match follow e.etype with
+				| TAnon an -> ITAnonymous an
+				| _ -> ITExpression e
+			end
+		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,_) -> loop e1
+		| _ -> ITExpression e
+	in
+	loop e
 
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
@@ -225,25 +264,27 @@ and display_expr ctx e_ast e dk with_type p =
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->
 				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
-				raise_fields fields CRField (Some {e.epos with pmin = e.epos.pmax - String.length s;}) false
+				let item = completion_item_of_expr ctx e2 in
+				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;}) false
 			| _ ->
 				raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel None (match with_type with WithType _ -> true | _ -> false)
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
-		raise_fields fields CRField None false
+		let item = completion_item_of_expr ctx e in
+		raise_fields fields (CRField(item,e.epos)) None false
 
-let handle_structure_display ctx e fields =
+let handle_structure_display ctx e an =
 	let p = pos e in
 	match fst e with
 	| EObjectDecl fl ->
 		let fields = PMap.foldi (fun k cf acc ->
 			if Expr.field_mem_assoc k fl then acc
-			else (CompletionItem.ITClassField(cf,CFSMember)) :: acc
-		) fields [] in
+			else (ITClassField(CompletionClassField.make cf CFSMember (AnonymousStructure an) true)) :: acc
+		) an.a_fields [] in
 		raise_fields fields CRStructureField None false
 	| EBlock [] ->
-		let fields = PMap.foldi (fun _ cf acc -> CompletionItem.ITClassField(cf,CFSMember) :: acc) fields [] in
+		let fields = PMap.foldi (fun _ cf acc -> ITClassField(CompletionClassField.make cf CFSMember (AnonymousStructure an) true) :: acc) an.a_fields [] in
 		raise_fields fields CRStructureField None false
 	| _ ->
 		error "Expected object expression" p
@@ -278,14 +319,16 @@ let handle_display ctx e_ast dk with_type =
 	| (_,p),_ -> try
 		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) ->
-		if dk = DKDot then raise (Parser.TypePath ([n],None,false))
-		else raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some {p with pmin = p.pmax - String.length n;}) (match with_type with WithType _ -> true | _ -> false)
-	| Error (Type_not_found (path,_),_) as err ->
-		begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) CRField None false
+        if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
+		else raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some (Parser.cut_pos_at_display p)) (match with_type with WithType _ -> true | _ -> false)
+	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err ->
+		if ctx.com.json_out = None then	begin try
+			let s = s_type_path path in
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((ITModule s),p)) None false
 		with Not_found ->
 			raise err
-		end
+		end else
+			raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some (Parser.cut_pos_at_display p)) (match with_type with WithType _ -> true | _ -> false)
 	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
@@ -339,7 +382,7 @@ let handle_edisplay ctx e dk with_type =
 		begin match with_type with
 			| WithType t ->
 				begin match follow t with
-					| TAnon an -> handle_structure_display ctx e an.a_fields
+					| TAnon an -> handle_structure_display ctx e an
 					| _ -> handle_display ctx e dk with_type
 				end
 			| _ ->

@@ -105,10 +105,10 @@ let parse_input com input report_times pre_compilation did_something =
 			| JBool b -> b
 			| _ -> raise_haxe_json_error id (BadType(desc,"Bool"))
 		in
-		let get_array desc j = match j with
+		(* let get_array desc j = match j with
 			| JArray a -> a
 			| _ -> raise_haxe_json_error id (BadType(desc,"Array"))
-		in
+		in *)
 		let get_object desc j = match j with
 			| JObject o -> o
 			| _ -> raise_haxe_json_error id (BadType(desc,"Object"))
@@ -116,13 +116,13 @@ let parse_input com input report_times pre_compilation did_something =
 		let get_string_field desc name fl = get_string desc (get_field desc fl name) in
 		let get_int_field desc name fl = get_int desc (get_field desc fl name) in
 		let get_bool_field desc name fl = get_bool desc (get_field desc fl name) in
-		let get_array_field desc name fl = get_array desc (get_field desc fl name) in
-		(* let get_object_field desc name fl = get_object desc (get_field desc fl name) in *)
+		(* let get_array_field desc name fl = get_array desc (get_field desc fl name) in *)
+		let get_object_field desc name fl = get_object desc (get_field desc fl name) in
 		let get_string_param name = get_string_field "params" name params in
 		let get_int_param name = get_int_field "params" name params in
 		let get_bool_param name = get_bool_field "params" name params in
-		let get_array_param name = get_array_field "params" name params in
-		(* let get_object_param name = get_object_field "params" name params in *)
+		(* let get_array_param name = get_array_field "params" name params in *)
+		let get_object_param name = get_object_field "params" name params in
 		let get_opt_param f def = try f() with JsonRpc_error _ -> def in
 		let enable_display mode =
 			com.display <- create mode;
@@ -215,18 +215,27 @@ let parse_input com input report_times pre_compilation did_something =
 				let path = Path.parse_path (get_string_param "path") in
 				let m = try CompilationServer.find_module cs (path,sign) with Not_found -> f_error [jstring "No such module"] in
 				f_result (generate_module () m)
+			| "server/invalidate" ->
+				let file = get_string_param "file" in
+				let file = Path.unique_full_path file in
+				CompilationServer.taint_modules cs file;
+				f_result jnull
 			| "server/configure" ->
-				let l = List.map (fun j ->
-					let fl = get_object "print param" j in
-					let name = get_string_field "print param" "name" fl in
-					let value = get_bool_field "print param" "value" fl in
+				let l = ref (List.map (fun (name,value) ->
+					let value = get_bool "value" value in
 					try
 						ServerMessage.set_by_name name value;
 						jstring (Printf.sprintf "Printing %s %s" name (if value then "enabled" else "disabled"))
 					with Not_found ->
 						f_error [jstring ("Invalid print parame name: " ^ name)]
-				) (get_array_param "print") in
-				f_result (jarray l)
+				) (get_opt_param (fun () -> (get_object_param "print")) [])) in
+				get_opt_param (fun () ->
+					let b = get_bool_param "noModuleChecks" in
+					ServerConfig.do_not_check_modules := b;
+					l := jstring ("Module checks " ^ (if b then "disabled" else "enabled")) :: !l;
+					()
+				) ();
+				f_result (jarray !l)
 			| _ -> raise_method_not_found id name
 		in
 		f();

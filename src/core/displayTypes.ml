@@ -65,7 +65,7 @@ end
 
 module CompletionResultKind = struct
 	type t =
-		| CRField
+		| CRField of CompletionItem.t * pos
 		| CRStructureField
 		| CRToplevel
 		| CRMetadata
@@ -79,6 +79,32 @@ module CompletionResultKind = struct
 		| CRPattern
 		| CROverride
 		| CRTypeRelation
+
+	let to_json ctx kind =
+		let i,args = match kind with
+			| CRField(item,p) -> 0,Some (jobject [
+				"item",CompletionItem.to_json ctx item;
+				"range",generate_pos_as_range p;
+				"type",generate_type ctx (CompletionItem.get_type item);
+			])
+			| CRStructureField -> 1,None
+			| CRToplevel -> 2,None
+			| CRMetadata -> 3,None
+			| CRTypeHint -> 4,None
+			| CRExtends -> 5,None
+			| CRImplements -> 6,None
+			| CRStructExtension -> 7,None
+			| CRImport -> 8,None
+			| CRUsing -> 9,None
+			| CRNew -> 10,None
+			| CRPattern -> 11,None
+			| CROverride -> 12,None
+			| CRTypeRelation -> 13,None
+		in
+		jobject (
+			("kind",jint i) :: (match args with None -> [] | Some arg -> ["args",arg])
+		)
+
 end
 
 module DisplayMode = struct
@@ -161,14 +187,11 @@ module DisplayMode = struct
 				dms_exit_during_typing = false;
 				dms_force_macro_typing = false;
 			}
-		| DMDiagnostics global -> { settings with
-				dms_full_typing = true;
+		| DMDiagnostics global -> { default_compilation_settings with
+				dms_kind = DMDiagnostics global;
 				dms_error_policy = EPCollect;
 				dms_collect_data = true;
-				dms_inline = true;
-				dms_force_macro_typing = true;
 				dms_display_file_policy = if global then DFPNo else DFPAlso;
-				dms_exit_during_typing = false;
 			}
 		| DMStatistics -> { settings with
 				dms_full_typing = true;

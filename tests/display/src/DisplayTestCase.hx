@@ -77,8 +77,8 @@ class DisplayTestCase {
 		return a.exists(function(t) return t.type == type && t.name == name && (kind == null || t.kind == kind));
 	}
 
-	function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String):Bool {
-		return a.exists(function(t) return t.kind == kind && t.name == name);
+	function hasToplevel(a:Array<ToplevelElement>, kind:String, name:String, ?type:String = null):Bool {
+		return a.exists(function(t) return t.kind == kind && t.name == name && (type == null || t.type == type));
 	}
 
 	function hasPath(a:Array<FieldElement>, name:String):Bool {

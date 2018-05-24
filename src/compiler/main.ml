@@ -955,6 +955,15 @@ with
 			f (DisplayException.to_json ctx de)
 		| _ -> assert false
 		end
+	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
+		begin match com.json_out with
+		| Some (f,_) ->
+			let tctx = Typer.create ctx.com in
+			let fields = DisplayToplevel.collect tctx true Typecore.NoValue in
+			let jctx = Genjson.create_context Genjson.GMMinimum in
+			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
+		| _ -> assert false
+		end *)
 	| DisplayException(DisplayPackage pack) ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| DisplayException(DisplayFields(fields,cr,_,_)) ->
@@ -978,7 +987,7 @@ with
 			| CRPattern
 			| CRTypeRelation ->
 				DisplayOutput.print_toplevel fields
-			| CRField
+			| CRField _
 			| CRStructureField
 			| CRMetadata
 			| CROverride ->
@@ -995,7 +1004,7 @@ with
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| DisplayException(DisplayPosition pl) ->
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
-	| Parser.TypePath (p,c,is_import) ->
+	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
 			try begin match c with
 				| None ->
@@ -1012,7 +1021,9 @@ with
 			begin match ctx.com.json_out with
 			| Some (f,_) ->
 				let ctx = DisplayJson.create_json_context() in
-				f (DisplayException.to_json ctx (DisplayFields(fields,CRField,None,false)))
+				let pos = Parser.cut_pos_at_display pos in
+				let kind = CRField ((CompletionItem.ITModule((String.concat "." p)),pos)) in
+				f (DisplayException.fields_to_json ctx fields kind None false);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end

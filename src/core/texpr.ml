@@ -4,14 +4,13 @@ open Type
 open Error
 
 let equal_fa fa1 fa2 = match fa1,fa2 with
-	| FStatic(c1,cf1),FStatic(c2,cf2) -> c1 == c2 && cf1 == cf2
-	| FInstance(c1,tl1,cf1),FInstance(c2,tl2,cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
-	(* TODO: This is technically not correct but unfortunately the compiler makes a distinct tclass_field for each anon field access. *)
+	| FStatic(c1,cf1),FStatic(c2,cf2) -> c1 == c2 && cf1.cf_name == cf2.cf_name
+	| FInstance(c1,tl1,cf1),FInstance(c2,tl2,cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1.cf_name == cf2.cf_name
 	| FAnon cf1,FAnon cf2 -> cf1.cf_name = cf2.cf_name
 	| FDynamic s1,FDynamic s2 -> s1 = s2
-	| FClosure(None,cf1),FClosure(None,cf2) -> cf1 == cf2
-	| FClosure(Some(c1,tl1),cf1),FClosure(Some(c2,tl2),cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1 == cf2
-	| FEnum(en1,ef1),FEnum(en2,ef2) -> en1 == en2 && ef1 == ef2
+	| FClosure(None,cf1),FClosure(None,cf2) -> cf1.cf_name == cf2.cf_name
+	| FClosure(Some(c1,tl1),cf1),FClosure(Some(c2,tl2),cf2) -> c1 == c2 && safe_for_all2 type_iseq tl1 tl2 && cf1.cf_name == cf2.cf_name
+	| FEnum(en1,ef1),FEnum(en2,ef2) -> en1 == en2 && ef1.ef_name == ef2.ef_name
 	| _ -> false
 
 let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
@@ -20,7 +19,11 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 	| TArray(eb1,ei1),TArray(eb2,ei2) -> equal eb1 eb2 && equal ei1 ei2
 	| TBinop(op1,lhs1,rhs1),TBinop(op2,lhs2,rhs2) -> op1 = op2 && equal lhs1 lhs2 && equal rhs1 rhs2
 	| TField(e1,fa1),TField(e2,fa2) -> equal e1 e2 && equal_fa fa1 fa2
-	| TTypeExpr mt1,TTypeExpr mt2 -> mt1 == mt2
+	| TTypeExpr (TClassDecl c1),TTypeExpr (TClassDecl c2) -> c1 == c2
+	| TTypeExpr (TEnumDecl e1),TTypeExpr (TEnumDecl e2) -> e1 == e2
+	| TTypeExpr (TTypeDecl t1),TTypeExpr (TTypeDecl t2) -> t1 == t2
+	| TTypeExpr (TAbstractDecl a1),TTypeExpr (TAbstractDecl a2) -> a1 == a2
+	| TTypeExpr _,TTypeExpr _ -> false
 	| TParenthesis e1,TParenthesis e2 -> equal e1 e2
 	| TObjectDecl fl1,TObjectDecl fl2 -> safe_for_all2 (fun (s1,e1) (s2,e2) -> s1 = s2 && equal e1 e2) fl1 fl2
 	| (TArrayDecl el1,TArrayDecl el2) | (TBlock el1,TBlock el2) -> safe_for_all2 equal el1 el2

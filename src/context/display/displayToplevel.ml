@@ -18,10 +18,11 @@
 *)
 open Ast
 open Common
-open Common.CompilationServer
+open CompilationServer
 open Type
 open Typecore
 open CompletionItem
+open ClassFieldOrigin
 open DisplayTypes
 open Genjson
 
@@ -40,7 +41,7 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 								| _ -> raise Not_found
 							end
 						with Not_found ->
-							f_pack file;
+							f_pack (List.rev pack,file);
 							if recusive then loop (dir ^ file ^ "/") (file :: pack)
 						end
 					| _ ->
@@ -77,12 +78,14 @@ module CollectionContext = struct
 	open ImportStatus
 
 	type t = {
+		ctx   : typer;
 		items : CompletionItem.t DynArray.t;
 		names : (string,CompletionItem.t) Hashtbl.t;
 		paths : (Globals.path,bool) Hashtbl.t;
 	}
 
-	let create () = {
+	let create ctx = {
+		ctx = ctx;
 		items = DynArray.create ();
 		names = Hashtbl.create 0;
 		paths = Hashtbl.create 0;
@@ -90,7 +93,9 @@ module CollectionContext = struct
 
 	let add_item ctx item name =
 		DynArray.add ctx.items item;
-		Hashtbl.replace ctx.names name item
+		match name with
+		| None -> ()
+		| Some name -> Hashtbl.replace ctx.names name item
 
 	let get_import_status ctx is_import path =
 		try
@@ -98,7 +103,13 @@ module CollectionContext = struct
 			(* TODO: do we have to check if we get the same thing? *)
 			Shadowed
 		with Not_found ->
-			if is_import || (fst path = []) then Imported else Unimported
+			let check_wildcard () =
+				List.exists (fun (sl,_) -> (sl,snd path) = path) ctx.ctx.m.wildcard_packages
+			in
+			if is_import || (fst path = []) || check_wildcard () then Imported else Unimported
+
+	let is_qualified ctx name =
+		not (Hashtbl.mem ctx.names name)
 
 	let path_exists ctx path = Hashtbl.mem ctx.paths path
 	let add_path ctx path = Hashtbl.add ctx.paths path true
@@ -108,13 +119,13 @@ open CollectionContext
 
 let collect ctx only_types with_type =
 	let t = Timer.timer ["display";"toplevel"] in
-	let cctx = CollectionContext.create () in
+	let cctx = CollectionContext.create ctx in
 	let packages = Hashtbl.create 0 in
-	let add_package s = Hashtbl.replace packages s true in
+	let add_package path = Hashtbl.replace packages path true in
 
 	let add item name = add_item cctx item name in
 
-	let add_type rm mt =
+	let add_type mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
 		| _ ->
@@ -124,8 +135,8 @@ let collect ctx only_types with_type =
 				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
 					!merge_core_doc_ref ctx c
 				| _ -> ());
-				let is = get_import_status cctx true path in
-				add (ITType(CompletionModuleType.of_module_type is mt,rm)) (snd path);
+                let is = get_import_status cctx true path in
+				add (ITType(CompletionModuleType.of_module_type mt,is)) (Some (snd path));
 				add_path cctx path;
 			end
 	in
@@ -133,19 +144,18 @@ let collect ctx only_types with_type =
 	let process_decls pack name decls =
 		let run () = List.iter (fun (d,p) ->
 			begin try
-				let tname = match d with
-					| EClass d -> fst d.d_name
-					| EEnum d -> fst d.d_name
-					| ETypedef d -> fst d.d_name
-					| EAbstract d -> fst d.d_name
+				let tname,is_private = match d with
+					| EClass d -> fst d.d_name,List.mem HPrivate d.d_flags
+					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags
+					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags
+					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags
 					| _ -> raise Exit
 				in
 				let path = (pack,tname) in
-				if not (path_exists cctx path) then begin
+				if not (path_exists cctx path) && not is_private then begin
 					add_path cctx path;
-					let rm = RMOtherModule(pack,name) in
 					let is = get_import_status cctx false path in
-					add (ITType(CompletionModuleType.of_type_decl is pack name (d,p),rm)) tname
+					add (ITType(CompletionModuleType.of_type_decl pack name (d,p),is)) None
 				end
 			with Exit ->
 				()
@@ -160,33 +170,43 @@ let collect ctx only_types with_type =
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
-				add (ITLocal v) v.v_name
+				add (ITLocal v) (Some v.v_name)
 		) ctx.locals;
 
-		(* member vars *)
+		let add_field scope origin cf =
+			let is_qualified = is_qualified cctx cf.cf_name in
+			add (ITClassField(CompletionClassField.make cf scope origin is_qualified)) (Some cf.cf_name)
+		in
+		let maybe_add_field scope origin cf =
+			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
+		in
+		(* member fields *)
 		if ctx.curfun <> FunStatic then begin
-			let seen = ref [] in
-			let rec loop c =
-				List.iter (fun cf ->
-					if not (Meta.has Meta.NoCompletion cf.cf_meta) && not (List.mem cf.cf_name !seen) then begin
-						seen := cf.cf_name :: !seen;
-						add (ITClassField(cf,CFSStatic)) cf.cf_name
-					end;
-				) c.cl_ordered_fields;
-				match c.cl_super with
-					| None ->
-						()
-					| Some (csup,tl) ->
-						loop csup; (* TODO: type parameters *)
-			in
-			loop ctx.curclass;
+			let all_fields = Type.TClass.get_all_fields ctx.curclass (List.map snd ctx.curclass.cl_params) in
+			PMap.iter (fun _ (c,cf) ->
+				let origin = if c == ctx.curclass then Self (TClassDecl c) else Parent (TClassDecl c) in
+				maybe_add_field CFSMember origin cf
+			) all_fields;
 			(* TODO: local using? *)
 		end;
 
 		(* statics *)
-		List.iter (fun cf ->
-			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITClassField(cf,CFSStatic)) cf.cf_name
-		) ctx.curclass.cl_ordered_statics;
+		begin match ctx.curclass.cl_kind with
+		| KAbstractImpl ({a_impl = Some c} as a) ->
+			let origin = Self (TAbstractDecl a) in
+			List.iter (fun cf ->
+				if Meta.has Meta.Impl cf.cf_meta then begin
+					if ctx.curfun = FunStatic then ()
+					else begin
+						let cf = prepare_using_field cf in
+						maybe_add_field CFSMember origin cf
+					end
+				end else
+					maybe_add_field CFSStatic origin cf
+			) c.cl_ordered_statics
+		| _ ->
+			List.iter (maybe_add_field CFSStatic (Self (TClassDecl ctx.curclass))) ctx.curclass.cl_ordered_statics
+		end;
 
 		(* enum constructors *)
 		let rec enum_ctors t =
@@ -194,7 +214,8 @@ let collect ctx only_types with_type =
 			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
-					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstractField(a,cf)) cf.cf_name;
+					let ccf = CompletionClassField.make cf CFSMember (Self (TClassDecl c)) true in
+					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then add (ITEnumAbstractField(a,ccf)) (Some cf.cf_name);
 				) c.cl_ordered_statics
 			| TTypeDecl t ->
 				begin match follow t.t_type with
@@ -203,8 +224,10 @@ let collect ctx only_types with_type =
 				end
 			| TEnumDecl e when not (path_exists cctx e.e_path) ->
 				add_path cctx e.e_path;
+				let origin = Self (TEnumDecl e) in
 				PMap.iter (fun _ ef ->
-					add (ITEnumField(e,ef)) ef.ef_name
+					let is_qualified = is_qualified cctx ef.ef_name in
+					add (ITEnumField(CompletionEnumField.make ef origin is_qualified)) (Some ef.ef_name)
 				) e.e_constrs;
 			| _ ->
 				()
@@ -220,27 +243,38 @@ let collect ctx only_types with_type =
 		end;
 
 		(* imported globals *)
-		PMap.iter (fun _ (mt,s,_) ->
+		PMap.iter (fun name (mt,s,_) ->
 			try
+				let is_qualified = is_qualified cctx name in
+				let class_import c =
+					let cf = PMap.find s c.cl_statics in
+					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
+					let origin = StaticImport (TClassDecl c) in
+					add (ITClassField (CompletionClassField.make cf CFSStatic origin is_qualified)) (Some name)
+				in
 				match resolve_typedef mt with
-					| TClassDecl c -> add (ITClassField ((PMap.find s c.cl_statics,CFSStatic))) s
-					| TEnumDecl en -> add (ITEnumField (en,(PMap.find s en.e_constrs))) s
-					| TAbstractDecl {a_impl = Some c} -> add (ITClassField(PMap.find s c.cl_statics,CFSStatic)) s
+					| TClassDecl c -> class_import c;
+					| TEnumDecl en ->
+						let ef = PMap.find s en.e_constrs in
+						let ef = if name = ef.ef_name then ef else {ef with ef_name = name} in
+						let origin = StaticImport (TEnumDecl en) in
+						add (ITEnumField (CompletionEnumField.make ef origin is_qualified)) (Some s)
+					| TAbstractDecl {a_impl = Some c} -> class_import c;
 					| _ -> raise Not_found
 			with Not_found ->
 				()
 		) ctx.m.module_globals;
 
 		(* literals *)
-		add (ITLiteral("null",t_dynamic)) "null";
-		add (ITLiteral("true",ctx.com.basic.tbool)) "true";
-		add (ITLiteral("false",ctx.com.basic.tbool)) "false";
+		add (ITLiteral("null",t_dynamic)) (Some "null");
+		add (ITLiteral("true",ctx.com.basic.tbool)) (Some "true");
+		add (ITLiteral("false",ctx.com.basic.tbool)) (Some "false");
 		begin match ctx.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
 				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
-				add (ITLiteral("this",t)) "this";
+				add (ITLiteral("this",t)) (Some "this");
 				begin match ctx.curclass.cl_super with
-					| Some(c,tl) -> add (ITLiteral("super",TInst(c,tl))) "super"
+					| Some(c,tl) -> add (ITLiteral("super",TInst(c,tl))) (Some "super")
 					| None -> ()
 				end
 			| _ ->
@@ -252,25 +286,25 @@ let collect ctx only_types with_type =
 			Function; Var; If; Else; While; Do; For; Break; Return; Continue; Switch;
 			Try; New; Throw; Untyped; Cast;
 		] in
-		List.iter (fun kwd -> add(ITKeyword(kwd)) (s_keyword kwd)) kwds;
+		List.iter (fun kwd -> add(ITKeyword(kwd)) (Some (s_keyword kwd))) kwds;
 
 		(* builtins *)
-		add (ITLiteral("trace", TFun(["value",false,t_dynamic],ctx.com.basic.tvoid))) "trace"
+		add (ITLiteral("trace", TFun(["value",false,t_dynamic],ctx.com.basic.tvoid))) (Some "trace")
 	end;
 
 	(* type params *)
 	List.iter (fun (s,t) -> match follow t with
 		| TInst(c,_) ->
 			(* This is weird, might want to use something else for type parameters *)
-			add (ITType (CompletionModuleType.of_module_type ImportStatus.Imported (TClassDecl c),RMTypeParameter)) s
+			add (ITType (CompletionModuleType.of_module_type (TClassDecl c),ImportStatus.Imported)) (Some s)
 		| _ -> assert false
 	) ctx.type_params;
 
 	(* module types *)
-	List.iter (add_type RMLocalModule) ctx.m.curmod.m_types;
+	List.iter add_type ctx.m.curmod.m_types;
 
 	(* module imports *)
-	List.iter (add_type RMImport) (List.rev_map fst ctx.m.module_types); (* reverse! *)
+	List.iter add_type (List.rev_map fst ctx.m.module_types); (* reverse! *)
 
 	(* types from files *)
 	begin match !CompilationServer.instance with
@@ -301,13 +335,17 @@ let collect ctx only_types with_type =
 			| Some name ->
 				name
 			in
+			begin match List.rev cfile.c_package with
+				| [] -> ()
+				| s :: sl -> add_package (List.rev sl,s)
+			end;
 			Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
 			process_decls cfile.c_package module_name cfile.c_decls
 		)
 	end;
 
-	Hashtbl.iter (fun pack _ ->
-		add (ITPackage pack) pack
+	Hashtbl.iter (fun path _ ->
+		add (ITPackage(path,[])) (Some (snd path))
 	) packages;
 
 	(* sorting *)

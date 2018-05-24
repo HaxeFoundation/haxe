@@ -2,7 +2,7 @@ open Printf
 open Globals
 open Ast
 open Common
-open Common.CompilationServer
+open CompilationServer
 open DisplayTypes.DisplayMode
 open Timer
 open Type
@@ -149,8 +149,8 @@ let rec wait_loop process_params verbose accept =
 			data
 	);
 	let check_module_shadowing com paths m =
-		List.iter (fun (path,_) ->
-			let file = (path ^ (snd m.m_path)) ^ ".hx" in
+		List.iter (fun dir ->
+			let file = (dir.c_path ^ (snd m.m_path)) ^ ".hx" in
 			if Sys.file_exists file then begin
 				let time = file_time file in
 				if time > m.m_extra.m_time then begin
@@ -177,25 +177,25 @@ let rec wait_loop process_params verbose accept =
 			let dirs = try
 				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
 				let all_dirs = CompilationServer.find_directories cs sign in
-				let dirs = List.fold_left (fun acc (dir,time) ->
+				let dirs = List.fold_left (fun acc dir ->
 					try
-						let time' = stat dir in
-						if !time < time' then begin
-							time := time';
-							let sub_dirs = Path.find_directories (platform_name com.platform) false [dir] in
+						let time' = stat dir.c_path in
+						if dir.c_mtime < time' then begin
+							dir.c_mtime <- time';
+							let sub_dirs = Path.find_directories (platform_name com.platform) false [dir.c_path] in
 							List.iter (fun dir ->
 								if not (CompilationServer.has_directory cs sign dir) then begin
 									let time = stat dir in
 									ServerMessage.added_directory com "" dir;
-									CompilationServer.add_directory cs sign (dir,ref time)
+									CompilationServer.add_directory cs sign (CompilationServer.create_directory dir time)
 								end;
 							) sub_dirs;
-							(dir,time') :: acc
+							(CompilationServer.create_directory dir.c_path time') :: acc
 						end else
 							acc
 					with Unix.Unix_error _ ->
-						CompilationServer.remove_directory cs sign dir;
-						ServerMessage.removed_directory com "" dir;
+						CompilationServer.remove_directory cs sign dir.c_path;
+						ServerMessage.removed_directory com "" dir.c_path;
 						acc
 				) [] all_dirs in
 				ServerMessage.changed_directories com "" dirs;
@@ -210,7 +210,7 @@ let rec wait_loop process_params verbose accept =
 					let add_dir path =
 						try
 							let time = stat path in
-							dirs := (path,ref time) :: !dirs
+							dirs := CompilationServer.create_directory path time :: !dirs
 						with Unix.Unix_error _ ->
 							()
 					in
@@ -283,7 +283,10 @@ let rec wait_loop process_params verbose accept =
 					let _, mctx = MacroContext.get_macro_context ctx p in
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
-			let has_policy policy = List.mem policy m.m_extra.m_check_policy in
+			let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
+				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules -> true
+				| _ -> false
+			in
 			let check_file () =
 				if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
 					if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin

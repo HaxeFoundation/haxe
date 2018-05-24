@@ -1,15 +1,19 @@
 open Globals
 open Ast
 open Common
-open Common.CompilationServer
+open CompilationServer
 open Timer
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
+open CompletionClassField
+open CompletionEnumField
+open ClassFieldOrigin
 open DisplayException
 open Type
 open Display
 open DisplayTypes
+open CompletionModuleType
 open Typecore
 open Genjson
 
@@ -46,13 +50,14 @@ let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
 	let convert k = match k with
-		| ITClassField(cf,_) | ITEnumAbstractField(_,cf) ->
+		| ITClassField({field = cf}) | ITEnumAbstractField(_,{field = cf}) ->
 			let kind = match cf.cf_kind with
 				| Method _ -> "method"
 				| Var _ -> "var"
 			in
 			kind,cf.cf_name,s_type (print_context()) cf.cf_type,cf.cf_doc
-		| ITEnumField(en,ef) ->
+		| ITEnumField ef ->
+			let ef = ef.efield in
 			let kind = match follow ef.ef_type with
 				| TFun _ -> "method"
 				| _ -> "var"
@@ -61,13 +66,14 @@ let print_fields fields =
 		| ITType(cm,_) ->
 			let path = CompletionItem.CompletionModuleType.get_path cm in
 			"type",snd path,s_type_path path,None
-		| ITPackage s -> "package",s,"",None
+		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule s -> "type",s,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral(s,t) -> "literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
+		| ITExpression _ | ITAnonymous _ -> assert false
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -97,30 +103,26 @@ let print_toplevel il =
 	List.iter (fun id -> match id with
 		| ITLocal v ->
 			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
-		| ITClassField(cf,CFSMember) ->
+		| ITClassField({field = cf;scope = CFSMember}) ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"member\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| ITClassField(cf,(CFSStatic | CFSConstructor)) ->
+		| ITClassField({field = cf;scope = (CFSStatic | CFSConstructor)}) ->
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"static\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| ITEnumField(en,ef) ->
+		| ITEnumField ef ->
+			let ef = ef.efield in
 			if check_ident ef.ef_name then Buffer.add_string b (Printf.sprintf "<i k=\"enum\" t=\"%s\"%s>%s</i>\n" (s_type ef.ef_type) (s_doc ef.ef_doc) ef.ef_name);
 		| ITEnumAbstractField(a,cf) ->
+			let cf = cf.field in
 			if check_ident cf.cf_name then Buffer.add_string b (Printf.sprintf "<i k=\"enumabstract\" t=\"%s\"%s>%s</i>\n" (s_type cf.cf_type) (s_doc cf.cf_doc) cf.cf_name);
-		| ITType(cm,rm) ->
+		| ITType(cm,_) ->
 			let path = CompletionItem.CompletionModuleType.get_path cm in
-			let import,name = match rm with
-				| RMOtherModule path ->
-					let label_path = if path = path then path else (fst path @ [snd path],snd path) in
-					Printf.sprintf " import=\"%s\"" (s_type_path path),s_type_path label_path
-				| _ -> "",(snd path)
-			in
-			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s%s>%s</i>\n" (s_type_path path) import ("") name);
-		| ITPackage s ->
-			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" s)
+			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path path) ("") cm.name);
+		| ITPackage(path,_) ->
+			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" (snd path))
 		| ITLiteral(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
 		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
-		| ITMetadata _ | ITModule _ | ITKeyword _ ->
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
 			(* compat: don't add *)
 			()
 	) il;
@@ -369,7 +371,7 @@ module TypePathHandler = struct
 		if packs = [] && modules = [] then
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
-			let packs = List.map (fun n -> ITPackage n) packs in
+			let packs = List.map (fun n -> ITPackage((p,n),[])) packs in
 			let modules = List.map (fun n -> ITModule n) modules in
 			Some (packs @ modules)
 
@@ -413,11 +415,11 @@ module TypePathHandler = struct
 					[]
 				else
 					List.map (fun mt ->
-						ITType(CompletionItem.CompletionModuleType.of_module_type ImportStatus.Imported mt,RMOtherModule m.m_path)
+						ITType(CompletionItem.CompletionModuleType.of_module_type mt,ImportStatus.Imported)
 					) public_types
 			in
 			let make_field_doc cf =
-				ITClassField(cf,CFSStatic)
+				ITClassField (CompletionClassField.make cf CFSStatic (Self (TClassDecl null_class)) true)
 			in
 			let fields = match !statics with
 				| None -> types
@@ -425,7 +427,7 @@ module TypePathHandler = struct
 			in
 			let fields = match !enum_statics with
 				| None -> fields
-				| Some en -> PMap.fold (fun ef acc -> ITEnumField(en,ef) :: acc) en.e_constrs fields
+				| Some en -> PMap.fold (fun ef acc -> ITEnumField(CompletionEnumField.make ef (Self (TEnumDecl en)) true) :: acc) en.e_constrs fields
 			in
 			Some fields
 		with _ ->
@@ -474,7 +476,7 @@ let unquote v =
 let handle_display_argument com file_pos pre_compilation did_something =
 	match file_pos with
 	| "classes" ->
-		pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true))) :: !pre_compilation;
+		pre_compilation := (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: !pre_compilation;
 	| "keywords" ->
 		raise (Completion (print_keywords ()))
 	| "memory" ->
@@ -538,7 +540,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
 		com.display <- DisplayMode.create mode;
 		Parser.display_mode := mode;
-		Common.define_value com Define.Display (if smode <> "" then smode else "1");
+		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
 		Parser.resume_display := {
 			pfile = Path.unique_full_path file;
@@ -616,6 +618,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		raise_position usages
 	| DMDiagnostics global ->
 		let dctx = Diagnostics.prepare com global in
+		Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get());
 		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx in
