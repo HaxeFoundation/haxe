@@ -79,6 +79,8 @@ module ExprPreprocessing = struct
 			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
 				(* TODO: check if this makes any sense *)
 				raise Exit
+			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
+				raise Exit
 			| _ ->
 				if is_annotated (pos e) then
 					annotate_marked e
