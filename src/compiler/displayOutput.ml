@@ -618,7 +618,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		raise_position usages
 	| DMDiagnostics global ->
 		let dctx = Diagnostics.prepare com global in
-		Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get());
+		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
 		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx in
