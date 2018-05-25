@@ -130,7 +130,13 @@ let load_type_def ctx p t =
 				| [] ->
 					raise Exit
 				| (pack,ppack) :: l ->
-					(try load_type ctx (pack,t.tname) tname p with Not_found -> loop l)
+					begin try
+						let mt = load_type ctx (pack,t.tname) tname p in
+						ImportHandling.mark_import_position ctx.com ppack;
+						mt
+					with Not_found ->
+						loop l
+					end
 			in
 			(* Check wildcard packages by using their package *)
 			loop ctx.m.wildcard_packages
