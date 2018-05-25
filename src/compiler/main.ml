@@ -976,7 +976,7 @@ with
 			fields
 		in
 		let s = match cr with
-			| CRToplevel
+			| CRToplevel _
 			| CRTypeHint
 			| CRExtends
 			| CRImplements

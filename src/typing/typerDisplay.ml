@@ -98,6 +98,13 @@ let completion_item_of_expr ctx e =
 	in
 	loop e
 
+let raise_toplevel ctx with_type po =
+	let sorted,t = match with_type with
+		| WithType t -> true,Some t
+		| _ -> false,None
+	in
+	raise_fields (DisplayToplevel.collect ctx false with_type) (CRToplevel t) po sorted
+
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
@@ -270,7 +277,7 @@ and display_expr ctx e_ast e dk with_type p =
 				let item = completion_item_of_expr ctx e2 in
 				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;}) false
 			| _ ->
-				raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel None (match with_type with WithType _ -> true | _ -> false)
+				raise_toplevel ctx with_type None
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
@@ -327,7 +334,7 @@ let handle_display ctx e_ast dk with_type =
 		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
-		else raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some (Parser.cut_pos_at_display p)) (match with_type with WithType _ -> true | _ -> false)
+		else raise_toplevel ctx with_type (Some (Parser.cut_pos_at_display p))
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err ->
 		if ctx.com.json_out = None then	begin try
 			let s = s_type_path path in
@@ -335,7 +342,7 @@ let handle_display ctx e_ast dk with_type =
 		with Not_found ->
 			raise err
 		end else
-			raise_fields (DisplayToplevel.collect ctx false with_type) CRToplevel (Some (Parser.cut_pos_at_display p)) (match with_type with WithType _ -> true | _ -> false)
+			raise_toplevel ctx with_type (Some (Parser.cut_pos_at_display p))
 	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
@@ -398,7 +405,7 @@ let handle_edisplay ctx e dk with_type =
 	| DKPattern,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields(l,CRToplevel,p,b)) ->
+		with DisplayException(DisplayFields(l,CRToplevel _,p,b)) ->
 			raise_fields l CRPattern p b
 		end
 	| _ -> handle_display ctx e dk with_type

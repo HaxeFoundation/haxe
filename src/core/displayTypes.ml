@@ -67,7 +67,7 @@ module CompletionResultKind = struct
 	type t =
 		| CRField of CompletionItem.t * pos
 		| CRStructureField
-		| CRToplevel
+		| CRToplevel of Type.t option
 		| CRMetadata
 		| CRTypeHint
 		| CRExtends
@@ -88,7 +88,15 @@ module CompletionResultKind = struct
 				"type",jopt (generate_type ctx) (CompletionItem.get_type item);
 			])
 			| CRStructureField -> 1,None
-			| CRToplevel -> 2,None
+			| CRToplevel t ->
+				let args = match t with
+					| None -> None
+					| Some t -> Some (jobject [
+						"expectedType",generate_type ctx t;
+						"expectedTypeFollowed",generate_type ctx (follow t)
+					])
+				in
+				2,args
 			| CRMetadata -> 3,None
 			| CRTypeHint -> 4,None
 			| CRExtends -> 5,None
