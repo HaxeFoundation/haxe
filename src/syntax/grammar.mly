@@ -852,46 +852,32 @@ and parse_block_elt = parser
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl name e p0 s =
-	let has_resume = ref false in
 	let make_obj_decl el p1 =
 		EObjectDecl (List.rev el),punion p0 p1
 	in
 	let rec loop p_end acc = match s with parser
 		| [< '(Comma,p1); s >] ->
-			if is_resuming p1 then has_resume := true;
+			let next_expr key =
+				let e = secure_expr s in
+				loop (pos e) ((key,e) :: acc)
+			in
 			let next key = match s with parser
 				| [< '(DblDot,_) >] ->
-					let e = try
-						secure_expr s
-					with Display e ->
-						let acc = (key,e) :: acc in
-						let e = make_obj_decl acc (pos e) in
-						display e
-					in
-					loop (pos e) ((key,e) :: acc)
-				| [< >] -> serror()
+					next_expr key
+				| [< >] ->
+					if do_resume() then next_expr key
+					else serror()
 			in
 			begin match s with parser
 				| [< name,p = ident >] -> next (name,p,NoQuotes)
 				| [< '(Const (String name),p) >] -> next (name,p,DoubleQuotes)
-				| [< >] ->
-					let p2 = pos (next_token s) in
-					if encloses_resume (punion p1 p2) then begin
-						let e = make_obj_decl acc p2 in
-						let e = EDisplay(e,DKStructure),(pos e) in
-						display e
-					end else
-						acc,p_end
+				| [< >] -> acc,p_end
 			end
 		| [< >] -> acc,p_end
 	in
 	let el,p_end = loop p0 [name,e] in
 	let e = make_obj_decl el p_end in
-	if !has_resume then begin
-		let e = EDisplay(e,DKStructure),(pos e) in
-		display e
-	end else
-		e
+	e
 
 and parse_array_decl p1 s =
 	let secure_expr acc s = try
@@ -1294,19 +1280,25 @@ and toplevel_expr s =
 	with
 		Display e -> e
 
+and secure_expr s =
+	expr_or_fail serror s
+
 (* Tries to parse a toplevel expression and defaults to a null expression when in display mode.
    This function always accepts in display mode and should only be used for expected expressions,
    not accepted ones! *)
-and secure_expr s =
-	match s with parser
-	| [< e = toplevel_expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else serror()
-
-(* Like secure_expr, but with a custom fail function *)
 and expr_or_fail fail s =
 	match s with parser
-	| [< e = expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else fail()
+	| [< e = toplevel_expr >] -> e
+	| [< >] -> if do_resume() then begin
+		let last = last_token s in
+		let plast = pos last in
+		let offset = match fst last with
+			| Const _ | Kwd _ | Dollar _ -> 0
+			| _ -> -1
+		in
+		let plast = {plast with pmin = plast.pmax + offset} in
+		mk_null_expr (punion_next plast s)
+	end else fail()
 
 let rec validate_macro_cond e = match fst e with
 	| EConst (Ident _)

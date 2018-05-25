@@ -934,7 +934,8 @@ module Expr = struct
 			| EObjectDecl fl ->
 				add "EObjectDecl";
 				List.iter (fun ((n,p,_),e1) ->
-					loop' (Printf.sprintf "%s  %s" tabs n) e1
+					Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+					loop e1
 				) fl;
 			| EArrayDecl el ->
 				add "EArrayDecl";

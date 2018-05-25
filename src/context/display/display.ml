@@ -58,6 +58,9 @@ module ExprPreprocessing = struct
 					e
 			| EBlock [] when is_annotated (pos e) ->
 				annotate e DKStructure
+			| EBlock [EDisplay((EConst(Ident s),pn),DKMarked),_] when is_completion ->
+				let e = EObjectDecl [(s,pn,NoQuotes),(EConst (Ident "null"),null_pos)],(pos e) in
+				annotate e DKStructure
 			| EBlock el when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
 				EBlock el,(pos e)
@@ -74,6 +77,8 @@ module ExprPreprocessing = struct
 			| EArrayDecl el when is_annotated (pos e) && is_completion ->
 				let el = loop_el el in
 				EArrayDecl el,(pos e)
+			| EObjectDecl fl when is_annotated (pos e) && is_completion ->
+				annotate e DKStructure
 			| EDisplay _ ->
 				raise Exit
 			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
