@@ -168,23 +168,24 @@ module Printer = struct
 			let diag = try
 				Hashtbl.find diag file
 			with Not_found ->
-				let d = DynArray.create() in
+				let d = Hashtbl.create 0 in
 				Hashtbl.add diag file d;
 				d
 			in
-			DynArray.add diag (dk,p,sev,args)
+			if not (Hashtbl.mem diag p) then
+				Hashtbl.add diag p (dk,p,sev,args)
 		in
 		let add dk p sev args =
 			if global || is_display_file p.pfile then add dk p sev args
 		in
 		List.iter (fun (s,p,suggestions) ->
-			let suggestions = ExtList.List.filter_map (fun (s,it,r) ->
-				print_endline (Printf.sprintf "%s: %i" s r);
-				match it with
+			let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
+				match item.ci_kind with
 				| ITType(t,_) when r = 0 ->
+					let path = if t.module_name = t.name then (t.pack,t.name) else (t.pack @ [t.module_name],t.name) in
 					Some (JObject [
 						"kind",JInt (to_int UISImport);
-						"name",JString (s_type_path (t.pack,t.module_name));
+						"name",JString (s_type_path path);
 					])
 				| _ when r = 0 ->
 					(* TODO !!! *)
@@ -207,14 +208,14 @@ module Printer = struct
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) dctx.removable_code;
 		let jl = Hashtbl.fold (fun file diag acc ->
-			let jl = DynArray.fold_left (fun acc (dk,p,sev,jargs) ->
+			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [
 					"kind",JInt (DiagnosticsKind.to_int dk);
 					"severity",JInt (DiagnosticsSeverity.to_int sev);
 					"range",Genjson.generate_pos_as_range p;
 					"args",jargs
 				]) :: acc
-			) [] diag in
+			) diag [] in
 			(JObject [
 				"file",JString file;
 				"diagnostics",JArray jl
