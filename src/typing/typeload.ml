@@ -775,8 +775,17 @@ let string_list_of_expr_path (e,p) =
 let handle_path_display ctx path p =
 	let open ImportHandling in
 	match ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
-		| (IDKPackage sl,p),_ ->
+		| (IDKPackage [_],p),DMDefault ->
+			let fields = DisplayToplevel.collect ctx true Typecore.NoValue in
+			raise_fields fields CRImport (Some p) false
+		| (IDKPackage sl,p),DMDefault ->
+			let sl = match List.rev sl with
+				| s :: sl -> List.rev sl
+				| [] -> assert false
+			in
 			raise (Parser.TypePath(sl,None,true,p))
+		| (IDKPackage _,_),_ ->
+			() (* ? *)
 		| (IDKModule(sl,s),_),DMDefinition ->
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
@@ -801,11 +810,13 @@ let handle_path_display ctx path p =
 				()
 			end
 		| (IDKModule(sl,s),p),_ ->
-			raise (Parser.TypePath(sl,Some(s,false),true,p))
+			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),DMDefinition ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
 		| (IDKSubType(sl,sm,st),p),_ ->
-			raise (Parser.TypePath(sl @ [sm],Some(st,false),true,p))
+			raise (Parser.TypePath(sl,Some(sm,false),true,p))
+		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),DMDefault ->
+			raise (Parser.TypePath(sl @ [sm],Some(st,false),true,p));
 		| ((IDKSubTypeField(sl,sm,st,sf) | IDKModuleField(sl,(sm as st),sf)),p),_ ->
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			List.iter (fun t -> match t with

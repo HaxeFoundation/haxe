@@ -227,7 +227,7 @@ and parse_import s p1 =
 				type_path (List.map fst acc) true (punion pn p)
 			in
 			check_resume p resume (fun () -> ());
-			(match s with parser
+			begin match s with parser
 			| [< '(Const (Ident k),p) >] ->
 				loop pn ((k,p) :: acc)
 			| [< '(Kwd Macro,p) >] ->
@@ -237,7 +237,8 @@ and parse_import s p1 =
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< >] ->
-				serror());
+				if do_resume() then p,List.rev acc,INormal else serror()
+			end
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
 		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
@@ -245,7 +246,7 @@ and parse_import s p1 =
 		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			serror()
+			if do_resume() then (last_pos s),List.rev acc,INormal else serror()
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
@@ -265,9 +266,13 @@ and parse_using s p1 =
 				loop pn (("macro",p) :: acc)
 			| [< '(Kwd Extern,p) >] ->
 				loop pn (("extern",p) :: acc)
+			| [< >] ->
+				if do_resume() then p,List.rev acc else serror()
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2,List.rev acc
+		| [< >] ->
+			if do_resume() then (last_pos s),List.rev acc else serror()
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
