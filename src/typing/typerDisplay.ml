@@ -332,10 +332,10 @@ let handle_display ctx e_ast dk with_type =
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ctx e_ast with_type
-	with Error (Unknown_ident n,_) ->
+	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx with_type (Some (Parser.cut_pos_at_display p))
-	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err ->
+	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
 			let s = s_type_path path in
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module s),p)) None false
