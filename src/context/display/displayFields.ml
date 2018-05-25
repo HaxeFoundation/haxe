@@ -161,7 +161,12 @@ let collect ctx e_ast e dk with_type p =
 								| Some c -> should_access c cf true
 							in
 							Self (TAbstractDecl a),check
-						| _ -> AnonymousStructure an,true
+						| _ ->
+							let origin = match t with
+								| TType(td,_) -> Self (TTypeDecl td)
+								| _ -> AnonymousStructure an
+							in
+							origin,true
 					in
 					if check then PMap.add name (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type) acc
 					else acc

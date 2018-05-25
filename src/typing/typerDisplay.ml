@@ -43,7 +43,12 @@ let completion_item_of_expr ctx e =
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,FAnon cf) ->
 			begin match follow e1.etype with
-				| TAnon an -> of_field e (AnonymousStructure an) cf CFSMember
+				| TAnon an ->
+					let origin = match e1.etype with
+						| TType(td,_) -> Self (TTypeDecl td)
+						| _ -> AnonymousStructure an
+					in
+					of_field e origin cf CFSMember
 				| _ -> itexpr e
 			end
 		| TTypeExpr mt -> make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some e.etype) (* TODO *)
