@@ -53,8 +53,8 @@ let json_of_times root =
 let debug_context_sign = ref None
 let supports_resolve = ref false
 
-let create_json_context () =
-	Genjson.create_context (if !supports_resolve then GMMinimum else GMFull)
+let create_json_context may_resolve =
+	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let parse_input com input report_times pre_compilation did_something =
 	let send_string j = raise (DisplayOutput.Completion j) in

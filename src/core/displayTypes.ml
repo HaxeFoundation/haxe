@@ -85,7 +85,7 @@ module CompletionResultKind = struct
 			| CRField(item,p) -> 0,Some (jobject [
 				"item",CompletionItem.to_json ctx item;
 				"range",generate_pos_as_range p;
-				"type",generate_type ctx (CompletionItem.get_type item);
+				"type",jopt (generate_type ctx) (CompletionItem.get_type item);
 			])
 			| CRStructureField -> 1,None
 			| CRToplevel -> 2,None

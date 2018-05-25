@@ -414,7 +414,9 @@ let rec wait_loop process_params verbose accept =
 				ServerMessage.signature ctx.com "" sign;
 				ServerMessage.display_position ctx.com "" (!Parser.resume_display);
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display.dms_display then begin
+				(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
+				   current file in order to run diagnostics on it again. *)
+				if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
 					let file = (!Parser.resume_display).pfile in
 					let fkey = (file,sign) in
 					(* force parsing again : if the completion point have been changed *)

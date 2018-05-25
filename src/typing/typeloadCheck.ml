@@ -460,7 +460,7 @@ module Inheritance = struct
 				with DisplayException(DisplayFields(l,CRTypeHint,p,b)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && c.cl_interface then raise_fields [] CRImplements p false;
-					let l = List.filter (function
+					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
 							is_extends && not c.cl_interface && CompletionModuleType.get_path cm <> c.cl_path &&

@@ -25,6 +25,7 @@ open Type
 open Typecore
 open Typeload
 open DisplayTypes.DisplayMode
+open CompletionItem.ClassFieldOrigin
 open Common
 open Error
 
@@ -570,6 +571,12 @@ let bind_type (ctx,cctx,fctx) cf r p =
 		end
 	end
 
+let check_field_display ctx fctx c cf =
+	if fctx.is_display_field then begin
+		let scope = if fctx.is_static then CFSStatic else if fctx.field_kind = FKConstructor then CFSConstructor else CFSMember in
+		DisplayEmitter.maybe_display_field ctx (Self (TClassDecl c)) scope cf cf.cf_name_pos
+	end
+
 let bind_var (ctx,cctx,fctx) cf e =
 	let c = cctx.tclass in
 	let p = cf.cf_pos in
@@ -601,7 +608,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 
 	match e with
 	| None ->
-		if fctx.is_display_field then DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
+		check_field_display ctx fctx c cf;
 	| Some e ->
 		if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
@@ -688,7 +695,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
-				if fctx.is_display_field then DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
+				check_field_display ctx fctx c cf;
 			end;
 			t
 		) "bind_var" in
@@ -996,13 +1003,13 @@ let create_method (ctx,cctx,fctx) c f fd p =
 						| _ -> c.cl_init <- Some e);
 					cf.cf_expr <- Some (mk (TFunction tf) t p);
 					cf.cf_type <- t;
-				if fctx.is_display_field then DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos
+				check_field_display ctx fctx c cf;
 			end;
 		end;
 		t
 	) "type_fun" in
 	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
-	else if fctx.is_display_field then DisplayEmitter.maybe_display_field ctx (Some c) cf cf.cf_name_pos;
+	else check_field_display ctx fctx c cf;
 	cf
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
@@ -1092,7 +1099,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let display_accessor m p =
 		try
 			let cf = match find_accessor m with [_,cf] -> cf | _ -> raise Not_found in
-			DisplayEmitter.display_field ctx (Some c) cf p
+			DisplayEmitter.display_field ctx (Self (TClassDecl c)) (if fctx.is_static then CFSStatic else CFSMember) cf p
 		with Not_found ->
 			()
 	in

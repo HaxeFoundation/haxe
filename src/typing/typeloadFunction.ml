@@ -121,8 +121,6 @@ let type_function ctx args ret fmode f do_display p =
 		with
 		| Parser.TypePath (_,None,_,_) | Exit ->
 			type_expr ctx e NoValue
-		| DisplayException (DisplayHover (Some t,_,_)) when (match follow t with TMono _ -> true | _ -> false) ->
-			type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

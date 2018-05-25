@@ -24,8 +24,9 @@ open Common
 open DisplayTypes.DisplayMode
 open DisplayTypes.CompletionResultKind
 open CompletionItem
-open CompletionItem.CompletionModuleType
-open CompletionItem.CompletionModuleKind
+open CompletionModuleType
+open CompletionModuleKind
+open ClassFieldOrigin
 open DisplayException
 open Type
 open Typecore
@@ -375,7 +376,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 				try
 					load_instance ctx ~allow_display (t,pn) false p
 				with DisplayException(DisplayFields(l,CRTypeHint,p,b)) ->
-					let l = List.filter (function
+					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
 					) l in
@@ -473,7 +474,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
-				DisplayEmitter.maybe_display_field ctx None cf cf.cf_name_pos;
+				DisplayEmitter.maybe_display_field ctx Unknown CFSMember cf cf.cf_name_pos;
 			end;
 			PMap.add n cf acc
 		in
@@ -811,7 +812,7 @@ let handle_path_display ctx path p =
 				| TClassDecl c when snd c.cl_path = st ->
 					ignore(c.cl_build());
 					let cf = PMap.find sf c.cl_statics in
-					DisplayEmitter.display_field ctx (Some c) cf p
+					DisplayEmitter.display_field ctx (Self (TClassDecl c)) CFSStatic cf p
 				| _ ->
 					()
 			) m.m_types;

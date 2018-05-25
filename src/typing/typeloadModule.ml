@@ -671,7 +671,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_params = f.ef_params;
 			} in
  			if ctx.is_display_file && Display.is_display_position f.ef_name_pos then
- 				DisplayEmitter.display_enum_field ctx f p;
+ 				DisplayEmitter.display_enum_field ctx e f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;

@@ -25,32 +25,65 @@ let completion_item_of_expr ctx e =
 			false
 	in
 	let of_field e origin cf scope =
-		let is_qualified = retype e cf.cf_name cf.cf_type in
-		ITClassField (CompletionClassField.make cf scope origin is_qualified)
+		let is_qualified = retype e cf.cf_name e.etype in
+		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
 	in
 	let of_enum_field e origin ef =
-		let is_qualified = retype e ef.ef_name ef.ef_type in
-		ITEnumField (CompletionEnumField.make ef origin is_qualified)
+		let is_qualified = retype e ef.ef_name e.etype in
+		make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
+	in
+	let itexpr e =
+		let t = DisplayEmitter.patch_type ctx e.etype in
+		make_ci_expr {e with etype = t}
 	in
 	let rec loop e = match e.eexpr with
-		| TLocal v -> ITLocal v
+		| TLocal v | TVar(v,_) -> make_ci_local v (DisplayEmitter.patch_type ctx v.v_type)
 		| TField(_,FStatic(c,cf)) -> of_field e (Self (TClassDecl c)) cf CFSStatic
 		| TField(_,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) -> of_field e (Self (TClassDecl c)) cf CFSMember
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,FAnon cf) ->
 			begin match follow e1.etype with
 				| TAnon an -> of_field e (AnonymousStructure an) cf CFSMember
-				| _ -> ITExpression e
+				| _ -> itexpr e
 			end
-		| TTypeExpr mt -> ITType(CompletionModuleType.of_module_type mt,ImportStatus.Imported) (* TODO *)
-		| TConst(ct) -> ITLiteral(s_const ct,e.etype)
+		| TTypeExpr mt -> make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some e.etype) (* TODO *)
+		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
+		| TConst(ct) -> make_ci_literal (s_const ct) e.etype
 		| TObjectDecl _ ->
 			begin match follow e.etype with
-				| TAnon an -> ITAnonymous an
-				| _ -> ITExpression e
+				| TAnon an -> make_ci_anon an e.etype
+				| _ -> itexpr e
 			end
+		| TNew(c,tl,_) ->
+			(* begin match fst e_ast with
+			| EConst (Regexp (r,opt)) ->
+				let present,absent = List.partition (String.contains opt) ['g';'i';'m';'s';'u'] in
+				let doc flag desc = Printf.sprintf "* %s: %s" (String.make 1 flag) desc in
+				let f c = match c with
+					| 'g' -> doc c "global split and replace"
+					| 'i' -> doc c "case insensitive matching"
+					| 'm' -> doc c "multiline matching"
+					| 's' -> doc c "dot also match newlines"
+					| 'u' -> doc c "use UTF-8 matching"
+					| _ -> assert false
+				in
+				let present = List.map f present in
+				let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
+				let absent = List.map f absent in
+				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
+				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
+			| _ -> *)
+				let t,cf = get_constructor ctx c tl e.epos in
+				let t = match follow t with
+					| TFun(args,_) -> TFun(args,TInst(c,tl))
+					| _ -> t
+				in
+				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (Self (TClassDecl c)) true) (DisplayEmitter.patch_type ctx t)
+			(* end *)
+		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
+			itexpr e1 (* TODO *)
 		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,_) -> loop e1
-		| _ -> ITExpression e
+		| _ -> itexpr e
 	in
 	loop e
 
@@ -148,49 +181,8 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMSignature ->
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->
-		let rec loop e = match e.eexpr with
-			| TVar(v,_) -> v.v_type,None
-			| TCall({eexpr = TConst TSuper; etype = t},_) -> t,None
-			| TNew({cl_kind = KAbstractImpl a},tl,_) -> TType(abstract_module_type a tl,[]),None
-			| TNew(c,tl,_) ->
-				begin match fst e_ast with
-				| EConst (Regexp (r,opt)) ->
-					let present,absent = List.partition (String.contains opt) ['g';'i';'m';'s';'u'] in
-					let doc flag desc = Printf.sprintf "* %s: %s" (String.make 1 flag) desc in
-					let f c = match c with
-						| 'g' -> doc c "global split and replace"
-						| 'i' -> doc c "case insensitive matching"
-						| 'm' -> doc c "multiline matching"
-						| 's' -> doc c "dot also match newlines"
-						| 'u' -> doc c "use UTF-8 matching"
-						| _ -> assert false
-					in
-					let present = List.map f present in
-					let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
-					let absent = List.map f absent in
-					let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
-					(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
-				| _ ->
-					let t,cf = get_constructor ctx c tl p in
-					let t = match follow t with
-						| TFun(args,_) -> TFun(args,TInst(c,tl))
-						| _ -> t
-					in
-					if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-					t,cf.cf_doc
-				end
-			| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) -> TType(abstract_module_type a (List.map snd a.a_params),[]),None
-			| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1.etype,None
-			| TReturn (Some e1) -> loop e1 (* No point in letting the internal Dynamic surface (issue #5655) *)
-			| TField(_,(FStatic(c,cf) | FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
-				if Meta.has Meta.CoreApi c.cl_meta then merge_core_doc ctx c;
-				e.etype,cf.cf_doc
-			| TField(_,FEnum(_,ef)) ->
-				e.etype,ef.ef_doc
-			| _ -> e.etype,None
-		in
-		let t,doc = loop e in
-		raise_hover (Some (DisplayEmitter.patch_type ctx t)) p doc
+		let item = completion_item_of_expr ctx e in
+		raise_hover item e.epos
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -280,11 +272,13 @@ let handle_structure_display ctx e an =
 	| EObjectDecl fl ->
 		let fields = PMap.foldi (fun k cf acc ->
 			if Expr.field_mem_assoc k fl then acc
-			else (ITClassField(CompletionClassField.make cf CFSMember (AnonymousStructure an) true)) :: acc
+			else (make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type) :: acc
 		) an.a_fields [] in
 		raise_fields fields CRStructureField None false
 	| EBlock [] ->
-		let fields = PMap.foldi (fun _ cf acc -> ITClassField(CompletionClassField.make cf CFSMember (AnonymousStructure an) true) :: acc) an.a_fields [] in
+		let fields = PMap.foldi (fun _ cf acc ->
+			make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type :: acc
+		) an.a_fields [] in
 		raise_fields fields CRStructureField None false
 	| _ ->
 		error "Expected object expression" p
@@ -302,7 +296,8 @@ let handle_display ctx e_ast dk with_type =
 		| DMSignature ->
 			raise_signatures [((arg,mono),doc)] 0 0
 		| _ ->
-			raise_hover (Some (TFun(arg,mono))) (pos e_ast) doc
+			let t = TFun(arg,mono) in
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -312,7 +307,8 @@ let handle_display ctx e_ast dk with_type =
 		| DMSignature ->
 			raise_signatures [((arg,ret),doc)] 0 0
 		| _ ->
-			raise_hover (Some (TFun(arg,ret))) (pos e_ast) doc
+			let t = TFun(arg,ret) in
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
 		end
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
@@ -324,7 +320,7 @@ let handle_display ctx e_ast dk with_type =
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err ->
 		if ctx.com.json_out = None then	begin try
 			let s = s_type_path path in
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((ITModule s),p)) None false
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module s),p)) None false
 		with Not_found ->
 			raise err
 		end else
@@ -332,7 +328,7 @@ let handle_display ctx e_ast dk with_type =
 	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
-		let l = List.filter (function
+		let l = List.filter (fun item -> match item.ci_kind with
 			| ITType({kind = (Class | Abstract)} as mt,_) when not mt.is_private ->
 				begin match mt.has_constructor with
 				| Yes -> true

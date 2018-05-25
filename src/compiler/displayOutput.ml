@@ -49,7 +49,7 @@ let print_keywords () =
 let print_fields fields =
 	let b = Buffer.create 0 in
 	Buffer.add_string b "<list>\n";
-	let convert k = match k with
+	let convert k = match k.ci_kind with
 		| ITClassField({field = cf}) | ITEnumAbstractField(_,{field = cf}) ->
 			let kind = match cf.cf_kind with
 				| Method _ -> "method"
@@ -70,7 +70,9 @@ let print_fields fields =
 		| ITModule s -> "type",s,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
-		| ITLiteral(s,t) -> "literal",s,s_type (print_context()) t,None
+		| ITLiteral s ->
+			let t = Option.default t_dynamic k.ci_type in
+			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
 		| ITExpression _ | ITAnonymous _ -> assert false
@@ -100,7 +102,7 @@ let print_toplevel il =
 			true
 		end
 	in
-	List.iter (fun id -> match id with
+	List.iter (fun id -> match id.ci_kind with
 		| ITLocal v ->
 			if check_ident v.v_name then Buffer.add_string b (Printf.sprintf "<i k=\"local\" t=\"%s\">%s</i>\n" (s_type v.v_type) v.v_name);
 		| ITClassField({field = cf;scope = CFSMember}) ->
@@ -118,7 +120,7 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path path) ("") cm.name);
 		| ITPackage(path,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"package\">%s</i>\n" (snd path))
-		| ITLiteral(s,_) ->
+		| ITLiteral s ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
 		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
@@ -371,8 +373,8 @@ module TypePathHandler = struct
 		if packs = [] && modules = [] then
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
-			let packs = List.map (fun n -> ITPackage((p,n),[])) packs in
-			let modules = List.map (fun n -> ITModule n) modules in
+			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
+			let modules = List.map (fun n -> make_ci_module n) modules in
 			Some (packs @ modules)
 
 	(** raise field completion listing module sub-types and static fields *)
@@ -403,7 +405,7 @@ module TypePathHandler = struct
 				if is_import && is_module_type then begin match t with
 					| TClassDecl c ->
 						ignore(c.cl_build());
-						statics := Some c.cl_ordered_statics
+						statics := Some c
 					| TEnumDecl en ->
 						enum_statics := Some en
 					| _ -> ()
@@ -415,19 +417,21 @@ module TypePathHandler = struct
 					[]
 				else
 					List.map (fun mt ->
-						ITType(CompletionItem.CompletionModuleType.of_module_type mt,ImportStatus.Imported)
+						make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None
 					) public_types
 			in
-			let make_field_doc cf =
-				ITClassField (CompletionClassField.make cf CFSStatic (Self (TClassDecl null_class)) true)
+			let make_field_doc c cf =
+				make_ci_class_field (CompletionClassField.make cf CFSStatic (Self (TClassDecl c)) true) cf.cf_type
 			in
 			let fields = match !statics with
 				| None -> types
-				| Some cfl -> types @ (List.map make_field_doc (List.filter (fun cf -> cf.cf_public) cfl))
+				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> cf.cf_public) c.cl_ordered_statics))
 			in
 			let fields = match !enum_statics with
 				| None -> fields
-				| Some en -> PMap.fold (fun ef acc -> ITEnumField(CompletionEnumField.make ef (Self (TEnumDecl en)) true) :: acc) en.e_constrs fields
+				| Some en -> PMap.fold (fun ef acc ->
+					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) ef.ef_type :: acc
+				) en.e_constrs fields
 			in
 			Some fields
 		with _ ->
@@ -660,11 +664,11 @@ let handle_syntax_completion com kind p = match com.json_out with
 	| Some(f,_) ->
 		match kind with
 		| Parser.SCClassRelation ->
-			let l = [ITKeyword Extends;ITKeyword Implements] in
+			let l = [make_ci_keyword Extends;make_ci_keyword Implements] in
 			let ctx = Genjson.create_context GMFull in
 			f(fields_to_json ctx l CRTypeRelation None false)
 		| Parser.SCInterfaceRelation ->
-			let l = [ITKeyword Extends] in
+			let l = [make_ci_keyword Extends] in
 			let ctx = Genjson.create_context GMFull in
 			f(fields_to_json ctx l CRTypeRelation None false)
 		| Parser.SCComment ->

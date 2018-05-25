@@ -951,7 +951,7 @@ with
 	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin match ctx.com.json_out with
 		| Some (f,_) ->
-			let ctx = DisplayJson.create_json_context() in
+			let ctx = DisplayJson.create_json_context (match de with DisplayFields _ -> true | _ -> false) in
 			f (DisplayException.to_json ctx de)
 		| _ -> assert false
 		end
@@ -970,7 +970,7 @@ with
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
-				CompletionItem.ITTimer("@TIME " ^ name,value)
+				CompletionItem.make_ci_timer ("@TIME " ^ name) value
 			) (DisplayOutput.get_timer_fields !start_time)) @ fields
 		end else
 			fields
@@ -994,9 +994,9 @@ with
 				DisplayOutput.print_fields fields
 		in
 		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover (Some t,p,doc)) ->
-		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type t p doc))
+	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some t}} as hover)) ->
+		let doc = CompletionItem.get_documentation hover.hitem in
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
 	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
@@ -1020,9 +1020,9 @@ with
 		| Some fields ->
 			begin match ctx.com.json_out with
 			| Some (f,_) ->
-				let ctx = DisplayJson.create_json_context() in
+				let ctx = DisplayJson.create_json_context false in
 				let pos = Parser.cut_pos_at_display pos in
-				let kind = CRField ((CompletionItem.ITModule((String.concat "." p)),pos)) in
+				let kind = CRField ((CompletionItem.make_ci_module (String.concat "." p),pos)) in
 				f (DisplayException.fields_to_json ctx fields kind None false);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
