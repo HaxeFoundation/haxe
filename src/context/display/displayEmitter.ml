@@ -23,6 +23,14 @@ let patch_type ctx t =
 		| TEnum(en,tl) when not (requires_import ctx en.e_path) -> TEnum({en with e_path = ([],snd en.e_path)},List.map patch tl)
 		| TType(td,tl) when not (requires_import ctx td.t_path) -> TType({td with t_path = ([],snd td.t_path)},List.map patch tl)
 		| TAbstract(a,tl) when not (requires_import ctx a.a_path) -> TAbstract({a with a_path = ([],snd a.a_path)},List.map patch tl)
+		| TAnon an ->
+			begin match !(an.a_status) with
+			| Statics {cl_kind = KAbstractImpl a} ->
+				an.a_status := AbstractStatics a
+			| _ ->
+				()
+			end;
+			Type.map patch t
 		| _ -> Type.map patch t
 	in
 	patch t

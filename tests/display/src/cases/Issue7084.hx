@@ -13,7 +13,22 @@ class Issue7084 extends DisplayTestCase {
 		}
 	}
 	**/
-	function test() {
+	function test1() {
 		eq(0, fields(pos(1)).length);
+	}
+
+	/**
+	enum abstract Foo(Int) {
+		var Value = 0;
+	}
+
+	class Main {
+		public static function main() {
+			Foo.{-1-};
+		}
+	}
+	**/
+	function test2() {
+		eq("Value", fields(pos(1))[0].name);
 	}
 }

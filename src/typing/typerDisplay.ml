@@ -51,7 +51,13 @@ let completion_item_of_expr ctx e =
 					of_field e origin cf CFSMember
 				| _ -> itexpr e
 			end
-		| TTypeExpr mt -> make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some e.etype) (* TODO *)
+		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
+			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
+			let t = DisplayEmitter.patch_type ctx t in
+			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
+		| TTypeExpr mt ->
+			let t = DisplayEmitter.patch_type ctx e.etype in
+			make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t) (* TODO *)
 		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
 		| TConst(ct) -> make_ci_literal (s_const ct) e.etype
 		| TObjectDecl _ ->

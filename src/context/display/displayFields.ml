@@ -153,6 +153,7 @@ let collect ctx e_ast e dk with_type p =
 			PMap.foldi (fun name cf acc ->
 				if is_new_item acc name then begin
 					let origin,check = match !(an.a_status) with
+						| Statics ({cl_kind = KAbstractImpl a} as c) -> Self (TAbstractDecl a),should_access c cf false
 						| Statics c -> Self (TClassDecl c),should_access c cf true
 						| EnumStatics en -> Self (TEnumDecl en),true
 						| AbstractStatics a ->
