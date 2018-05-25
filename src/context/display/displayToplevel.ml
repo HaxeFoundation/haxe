@@ -130,6 +130,8 @@ let collect ctx only_types with_type =
 		| TClassDecl {cl_kind = KAbstractImpl _} -> ()
 		| _ ->
 			let path = (t_infos mt).mt_path in
+			let mname = snd (t_infos mt).mt_module.m_path in
+			let path = if snd path = mname then path else (fst path @ [mname],snd path) in
 			if not (path_exists cctx path) then begin
 				(match mt with
 				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
@@ -152,6 +154,7 @@ let collect ctx only_types with_type =
 					| _ -> raise Exit
 				in
 				let path = (pack,tname) in
+				let path = if tname = name then path else (pack @ [name],tname) in
 				if not (path_exists cctx path) && not is_private then begin
 					add_path cctx path;
 					let is = get_import_status cctx false path in
