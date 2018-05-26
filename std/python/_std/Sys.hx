@@ -141,7 +141,8 @@ class Sys {
 				}
 
 			case "Windows":
-				python.lib.Msvcrt.getch().decode("utf-8").charCodeAt(0);
+				//python.lib.Msvcrt.getch().decode("utf-8").charCodeAt(0);
+				python.lib.Msvcrt.getwch().charCodeAt(0);
 			case var x :
 				throw "platform " + x + " not supported";
 		}
