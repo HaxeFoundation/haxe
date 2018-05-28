@@ -587,9 +587,13 @@ let load_type_hint ?(opt=false) ctx pcur t =
 			try
 				load_complex_type ctx true pcur (t,p)
 			with Error(Module_not_found(([],name)),p) as exc ->
-				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
-				(* Default to Dynamic in display mode *)
-				if ctx.com.display.dms_display then t_dynamic else raise exc
+				if Diagnostics.is_diagnostics_run p then begin
+					delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
+					t_dynamic
+				end else if ctx.com.display.dms_display then begin
+					DisplayEmitter.check_display_type ctx (mk_mono()) p;
+					t_dynamic
+				end	else raise exc
 	in
 	if opt then ctx.t.tnull t else t
 

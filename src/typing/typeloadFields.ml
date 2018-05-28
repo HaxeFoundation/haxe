@@ -716,7 +716,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		| None ->
 			mk_mono()
 		| Some t ->
-			lazy_display_type ctx (fun () -> load_complex_type ctx true p t)
+			lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
 	) in
 	let kind = if fctx.is_inline then
 		{ v_read = AccInline ; v_write = AccNever }
@@ -1018,7 +1018,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let ret = (match t, eo with
 		| None, None -> error (name ^ ": Property must either define a type or a default value") p;
 		| None, _ -> mk_mono()
-		| Some t, _ -> lazy_display_type ctx (fun () -> load_complex_type ctx true p t)
+		| Some t, _ -> lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
 	) in
 	let t_get,t_set = match cctx.abstract with
 		| Some a when fctx.is_abstract_member ->
