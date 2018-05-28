@@ -219,6 +219,11 @@ let add_local ctx n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
+let add_local_with_origin ctx n t p origin =
+	let v = add_local ctx n t p in
+	if ctx.com.display.DisplayMode.dms_kind <> DisplayMode.DMNone then v.v_meta <- (TVarOrigin.encode_in_meta origin) :: v.v_meta;
+	v
+
 let gen_local_prefix = "`"
 
 let gen_local ctx t p =

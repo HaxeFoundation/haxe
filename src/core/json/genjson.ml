@@ -237,7 +237,7 @@ and generate_tvar ctx v =
 		"params",jlist (generate_type_parameter ctx) params;
 		"expr",jopt (generate_texpr ctx) eo;
 	] in
-	jobject [
+	let fields = [
 		"id",jint v.v_id;
 		"name",jstring v.v_name;
 		"type",generate_type ctx v.v_type;
@@ -245,7 +245,14 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
-	]
+	] in
+	let fields = try
+		let origin = TVarOrigin.decode_from_meta v.v_meta in
+		("origin",jstring (TVarOrigin.to_string origin)) :: fields
+	with Not_found ->
+		fields
+	in
+	jobject fields
 
 and generate_texpr ctx e =
 	jtodo

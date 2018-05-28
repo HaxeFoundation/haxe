@@ -358,6 +358,39 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+module TVarOrigin = struct
+	type t =
+		| TVOArgument
+		| TVOLocalVariable
+		| TVOLocalFunction
+		| TVOForVariable
+		| TVOCatchVariable
+
+	let to_string = function
+		| TVOArgument -> "Argument"
+		| TVOLocalVariable -> "LocalVariable"
+		| TVOLocalFunction -> "LocalFunction"
+		| TVOForVariable -> "ForVariable"
+		| TVOCatchVariable -> "CatchVariable"
+
+	let from_string = function
+		| "Argument" -> TVOArgument
+		| "LocalVariable" -> TVOLocalVariable
+		| "LocalFunction" -> TVOLocalFunction
+		| "ForVariable" -> TVOForVariable
+		| "CatchVariable" -> TVOCatchVariable
+		| _ -> raise Not_found
+
+	let encode_in_meta tvo =
+		let name = to_string tvo in
+		(Meta.TVarOrigin,[(EConst(Ident name),null_pos)],null_pos)
+
+	let decode_from_meta meta =
+		match Meta.get Meta.TVarOrigin meta with
+		| _,[(EConst(Ident s),_)],_ -> from_string s
+		| _ -> raise Not_found
+end
+
 (* ======= General utility ======= *)
 
 let alloc_var =

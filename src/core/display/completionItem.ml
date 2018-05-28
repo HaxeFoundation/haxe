@@ -342,16 +342,16 @@ let get_sort_index item p = match item.ci_kind with
 		20,(Printf.sprintf "%04i" ef.efield.ef_index)
 	| ITEnumAbstractField(_,ccf) ->
 		21,ccf.field.cf_name
+	| ITTypeParameter c ->
+		30,snd c.cl_path
 	| ITType(cmt,is) ->
 		let open ImportStatus in
 		let i = match is with
-			| Imported -> 30
-			| Unimported -> 31
-			| Shadowed -> 32
+			| Imported -> 31
+			| Unimported -> 32
+			| Shadowed -> 33
 		in
 		i,(s_type_path (cmt.pack,cmt.name))
-	| ITTypeParameter c ->
-		33,snd c.cl_path
 	| ITPackage(path,_) ->
 		40,s_type_path path
 	| ITModule name ->

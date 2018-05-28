@@ -1475,7 +1475,7 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local ctx v t pv in
+			let v = add_local_with_origin ctx v t pv TVarOrigin.TVOLocalVariable in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && Display.is_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
@@ -1890,7 +1890,7 @@ and type_try ctx e1 catches with_type p =
 		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc t2 (pos e_ast);
 		let locals = save_locals ctx in
-		let v = add_local ctx v t pv in
+		let v = add_local_with_origin ctx v t pv (TVarOrigin.TVOCatchVariable) in
 		if ctx.is_display_file && Display.is_display_position pv then
 			DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
@@ -2025,7 +2025,7 @@ and type_local_function ctx name f with_type p =
 		| None -> None
 		| Some v ->
 			if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
-			Some (add_local ctx v ft p) (* TODO: var pos *)
+			Some (add_local_with_origin ctx v ft p (TVarOrigin.TVOLocalFunction)) (* TODO: var pos *)
 	) in
 	let curfun = match ctx.curfun with
 		| FunStatic -> FunStatic
