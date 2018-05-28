@@ -298,8 +298,7 @@ let collect ctx epos with_type =
 	(* type params *)
 	List.iter (fun (s,t) -> match follow t with
 		| TInst(c,_) ->
-			(* This is weird, might want to use something else for type parameters *)
-			add (make_ci_type (CompletionModuleType.of_module_type (TClassDecl c)) ImportStatus.Imported (Some t)) (Some s)
+			add (make_ci_type_param c) (Some (snd c.cl_path))
 		| _ -> assert false
 	) ctx.type_params;
 
@@ -378,7 +377,7 @@ let collect ctx epos with_type =
 			in
 			let l = List.map (fun (ck,i1) ->
 				let i2 = comp (get_type ck) in
-				ck,(i1,i2)
+				ck,(i2,i1)
 			) l in
 			sort l
 		| _ ->

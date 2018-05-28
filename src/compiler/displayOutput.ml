@@ -75,7 +75,7 @@ let print_fields fields =
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
-		| ITExpression _ | ITAnonymous _ -> assert false
+		| ITExpression _ | ITAnonymous _ | ITTypeParameter _ -> assert false
 	in
 	let fields = List.sort (fun k1 k2 -> compare (legacy_sort k1) (legacy_sort k2)) fields in
 	let fields = List.map convert fields in
@@ -124,7 +124,7 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
 		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
-		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ | ITTypeParameter _ ->
 			(* compat: don't add *)
 			()
 	) il;

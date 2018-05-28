@@ -279,6 +279,7 @@ type t_kind =
 	| ITKeyword of keyword
 	| ITAnonymous of tanon
 	| ITExpression of texpr
+	| ITTypeParameter of tclass
 
 type t = {
 	ci_kind : t_kind;
@@ -303,6 +304,7 @@ let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
 let make_ci_expr e = make (ITExpression e) (Some e.etype)
+let make_ci_type_param c = make (ITTypeParameter c) (Some (TInst(c,[])))
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -318,6 +320,7 @@ let get_index item = match item.ci_kind with
 	| ITKeyword _ -> 10
 	| ITAnonymous _ -> 11
 	| ITExpression _ -> 12
+	| ITTypeParameter _ -> 13
 
 let get_sort_index item p = match item.ci_kind with
 	| ITLocal v ->
@@ -347,6 +350,8 @@ let get_sort_index item p = match item.ci_kind with
 			| Shadowed -> 32
 		in
 		i,(s_type_path (cmt.pack,cmt.name))
+	| ITTypeParameter c ->
+		33,snd c.cl_path
 	| ITPackage(path,_) ->
 		40,s_type_path path
 	| ITModule name ->
@@ -360,21 +365,6 @@ let get_sort_index item p = match item.ci_kind with
 	| ITTimer _
 	| ITMetadata _ ->
 		500,""
-
-let get_sort_index_2 item = match item.ci_kind with
-	| ITLocal _ -> 0
-	| ITClassField _ -> 0
-	| ITEnumField ef -> ef.efield.ef_index
-	| ITEnumAbstractField _ -> 0
-	| ITType _ -> 0
-	| ITPackage _ -> 0
-	| ITModule _ -> 0
-	| ITLiteral _ -> 0
-	| ITTimer _ -> 0
-	| ITMetadata _ -> 0
-	| ITKeyword _ -> 0
-	| ITAnonymous _ -> 0
-	| ITExpression _ -> 0
 
 let legacy_sort item = match item.ci_kind with
 	| ITClassField(cf) | ITEnumAbstractField(_,cf) ->
@@ -398,6 +388,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITKeyword kwd -> 10,s_keyword kwd
 	| ITAnonymous _ -> 11,""
 	| ITExpression _ -> 12,""
+	| ITTypeParameter _ -> 13,""
 
 let get_name item = match item.ci_kind with
 	| ITLocal v -> v.v_name
@@ -412,6 +403,7 @@ let get_name item = match item.ci_kind with
 	| ITKeyword kwd -> s_keyword kwd
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
+	| ITTypeParameter c -> snd c.cl_path
 
 let get_type item = item.ci_type
 
@@ -471,6 +463,16 @@ let to_json ctx item =
 		]
 		| ITAnonymous an -> "AnonymousStructure",generate_anon ctx an
 		| ITExpression e -> "Expression",generate_texpr ctx e
+		| ITTypeParameter c ->
+			begin match c.cl_kind with
+			| KTypeParameter tl ->
+				"TypeParameter",jobject [
+					"name",jstring (snd c.cl_path);
+					"meta",generate_metadata ctx c.cl_meta;
+					"constraints",jlist (generate_type ctx) tl;
+				]
+			| _ -> assert false
+			end
 	in
 	jobject [
 		"kind",jstring kind;
