@@ -292,20 +292,24 @@ and display_expr ctx e_ast e dk with_type p =
 		let item = completion_item_of_expr ctx e in
 		raise_fields fields (CRField(item,e.epos)) None
 
-let handle_structure_display ctx e an =
+let handle_structure_display ctx e t an =
 	let p = pos e in
 	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) an.a_fields [] in
 	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
+	let origin = match t with
+		| TType(td,_) -> Self (TTypeDecl td)
+		| _ -> AnonymousStructure an
+	in
 	match fst e with
 	| EObjectDecl fl ->
 		let fields = List.fold_left (fun acc cf ->
 			if Expr.field_mem_assoc cf.cf_name fl then acc
-			else (make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type) :: acc
+			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| EBlock [] ->
 		let fields = List.fold_left (fun acc cf ->
-			make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type :: acc
+			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| _ ->
@@ -408,7 +412,7 @@ let handle_edisplay ctx e dk with_type =
 		begin match with_type with
 			| WithType t ->
 				begin match follow t with
-					| TAnon an -> handle_structure_display ctx e an
+					| TAnon an -> handle_structure_display ctx e t an
 					| _ -> handle_display ctx e dk with_type
 				end
 			| _ ->
