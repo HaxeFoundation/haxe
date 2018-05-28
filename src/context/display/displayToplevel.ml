@@ -353,6 +353,13 @@ let collect ctx epos with_type =
 
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
+	let l = List.map (fun ci ->
+		let i = get_sort_index ci (Option.default Globals.null_pos epos) in
+		ci,i
+	) l in
+	let sort l =
+		List.map fst (List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l)
+	in
 	let l = match with_type with
 		| WithType t ->
 			let rec comp t' = match t' with
@@ -369,21 +376,13 @@ let collect ctx epos with_type =
 					| _ ->
 						6 (* incompatible type - probably useless *)
 			in
-			let l = List.map (fun ck ->
-				let s1 = comp (get_type ck) in
-				let s2 = get_sort_index_2 ck in
-				let s3 = get_name ck in
-				ck,(s1,s2,s3)
+			let l = List.map (fun (ck,i1) ->
+				let i2 = comp (get_type ck) in
+				ck,(i1,i2)
 			) l in
-			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
-			List.map fst l
+			sort l
 		| _ ->
-			let l = List.map (fun ci ->
-				let i = get_sort_index ci (Option.default Globals.null_pos epos) in
-				ci,i
-			) l in
-			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
-			List.map fst l
+			sort l
 	in
 	t();
 	l
