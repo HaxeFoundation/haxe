@@ -363,6 +363,8 @@ let handle_display ctx e_ast dk with_type =
 						false
 					end
 				end
+			| ITTypeParameter {cl_kind = KTypeParameter tl} when has_constructible_constraint ctx tl [] null_pos ->
+				true
 			| _ -> false
 		) l in
 		timer();

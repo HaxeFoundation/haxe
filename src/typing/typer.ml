@@ -1809,19 +1809,7 @@ and type_new ctx path el with_type p =
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
 		let el = List.map (fun e -> type_expr ctx e Value) el in
-		let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-		let rec loop t = match follow t with
-			| TAnon a ->
-				(try
-					unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
-					true
-				with Not_found ->
-					 false)
-			| TAbstract({a_path = ["haxe"],"Constructible"},_) -> true
-			| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
-			| _ -> false
-		in
-		if not (List.exists loop tl) then raise_error (No_constructor (TClassDecl c)) p;
+ 		if not (has_constructible_constraint ctx tl el p) then raise_error (No_constructor (TClassDecl c)) p;
 		mk (TNew (c,params,el)) t p
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in

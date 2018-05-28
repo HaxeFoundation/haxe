@@ -157,3 +157,18 @@ let s_access_kind acc =
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
 	| AKUsing(e1,c,cf,e2) -> Printf.sprintf "AKMacro(%s, %s, %s, %s)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
+
+let has_constructible_constraint ctx tl el p =
+	let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
+	let rec loop t = match follow t with
+		| TAnon a ->
+			(try
+				unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
+				true
+			with Not_found ->
+					false)
+		| TAbstract({a_path = ["haxe"],"Constructible"},_) -> true
+		| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
+		| _ -> false
+	in
+	List.exists loop tl
