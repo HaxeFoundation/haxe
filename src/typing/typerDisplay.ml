@@ -243,7 +243,7 @@ and display_expr ctx e_ast e dk with_type p =
 		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_name_pos]
 		| TLocal v | TVar(v,_) -> [v.v_pos]
-		| TTypeExpr mt -> [(t_infos mt).mt_pos]
+		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
