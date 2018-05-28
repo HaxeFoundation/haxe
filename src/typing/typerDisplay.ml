@@ -36,10 +36,14 @@ let completion_item_of_expr ctx e =
 		let t = DisplayEmitter.patch_type ctx e.etype in
 		make_ci_expr {e with etype = t}
 	in
+	let class_origin c = match c.cl_kind with
+		| KAbstractImpl a -> TAbstractDecl a
+		| _ -> TClassDecl c
+	in
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (DisplayEmitter.patch_type ctx v.v_type)
-		| TField(_,FStatic(c,cf)) -> of_field e (Self (TClassDecl c)) cf CFSStatic
-		| TField(_,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) -> of_field e (Self (TClassDecl c)) cf CFSMember
+		| TField(_,FStatic(c,cf)) -> of_field e (Self (class_origin c)) cf CFSStatic
+		| TField(_,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) -> of_field e (Self (class_origin c)) cf CFSMember
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,FAnon cf) ->
 			begin match follow e1.etype with
@@ -89,7 +93,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (Self (TClassDecl c)) true) (DisplayEmitter.patch_type ctx t)
+				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (Self (class_origin c)) true) (DisplayEmitter.patch_type ctx t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
