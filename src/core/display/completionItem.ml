@@ -414,6 +414,7 @@ let get_documentation item = match item.ci_kind with
 	| _ -> None
 
 let to_json ctx item =
+	let open ClassFieldOrigin in
 	let kind,data = match item.ci_kind with
 		| ITLocal v -> "Local",generate_tvar ctx v
 		| ITClassField(cf) | ITEnumAbstractField(_,cf) ->
@@ -421,20 +422,41 @@ let to_json ctx item =
 				| ITClassField _ -> "ClassField"
 				| _ ->  "EnumAbstractField"
 			in
+			let qualifier = match cf.scope,cf.origin with
+				| CFSStatic,(Self mt | Parent mt | StaticExtension mt | StaticImport mt) ->
+					let infos = t_infos mt in
+					jstring (s_type_path (Path.full_dot_path (fst infos.mt_module.m_path) (snd infos.mt_module.m_path) (snd infos.mt_path)))
+				| CFSMember,Self _ ->
+					jstring "this"
+				| CFSMember,Parent _->
+					jstring "super"
+				| _ ->
+					jnull
+			in
 			name,jobject [
 			"field",generate_class_field ctx cf.scope cf.field;
 			"origin",ClassFieldOrigin.to_json ctx cf.origin;
 			"resolution",jobject [
 				"isQualified",jbool cf.is_qualified;
+				"qualifier",qualifier;
 			]
 		]
-		| ITEnumField ef -> "EnumField",jobject [
-			"field",generate_enum_field ctx ef.efield;
-			"origin",ClassFieldOrigin.to_json ctx ef.eorigin;
-			"resolution",jobject [
-				"isQualified",jbool ef.eis_qualified;
+		| ITEnumField ef ->
+			let qualifier = match ef.eorigin with
+				| Self mt | StaticImport mt ->
+					let infos = t_infos mt in
+					jstring (s_type_path (Path.full_dot_path (fst infos.mt_module.m_path) (snd infos.mt_module.m_path) (snd infos.mt_path)))
+				| _ ->
+					jnull
+			in
+			"EnumField",jobject [
+				"field",generate_enum_field ctx ef.efield;
+				"origin",ClassFieldOrigin.to_json ctx ef.eorigin;
+				"resolution",jobject [
+					"isQualified",jbool ef.eis_qualified;
+					"qualifier",qualifier;
+				]
 			]
-		]
 		| ITType(kind,is) -> "Type",CompletionModuleType.to_json ctx kind is
 		| ITPackage(path,contents) ->
 			let generate_package_content (name,kind) = jobject [
