@@ -574,7 +574,8 @@ let bind_type (ctx,cctx,fctx) cf r p =
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
 		let scope = if fctx.is_static then CFSStatic else if fctx.field_kind = FKConstructor then CFSConstructor else CFSMember in
-		DisplayEmitter.maybe_display_field ctx (Self (TClassDecl c)) scope cf cf.cf_name_pos
+		DisplayEmitter.maybe_display_field ctx (Self (TClassDecl c)) scope cf cf.cf_name_pos;
+		DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 	end
 
 let bind_var (ctx,cctx,fctx) cf e =
@@ -982,7 +983,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 					cf.cf_expr <- None;
 					cf.cf_type <- t
 				| _ ->
-					if ctx.is_display_file then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
+					if cf.cf_name = Parser.magic_display_field_name then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 					let e , fargs = TypeloadFunction.type_function ctx args ret fmode fd fctx.is_display_field p in
 					begin match fctx.field_kind with
 					| FKNormal when not fctx.is_static -> TypeloadCheck.check_overriding ctx c cf
@@ -1003,7 +1004,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 						| _ -> c.cl_init <- Some e);
 					cf.cf_expr <- Some (mk (TFunction tf) t p);
 					cf.cf_type <- t;
-				check_field_display ctx fctx c cf;
+					check_field_display ctx fctx c cf;
 			end;
 		end;
 		t
@@ -1154,8 +1155,8 @@ let init_field (ctx,cctx,fctx) f =
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()
 		| ADynamic, FFun _ | AOverride, FFun _ | AMacro, FFun _ | AInline, FFun _ | AInline, FVar _ -> ()
-		| _, FVar _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) p
-		| _, FProp _ -> error ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) p
+		| _, FVar _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for variable " ^ name) p
+		| _, FProp _ -> display_error ctx ("Invalid accessor '" ^ Ast.s_placed_access acc ^ "' for property " ^ name) p
 	) f.cff_access;
 	begin match fctx.override with
 		| Some _ -> (match c.cl_super with None -> error ("Invalid override on field '" ^ name ^ "': class has no super class") p | _ -> ());
