@@ -82,11 +82,23 @@ module CompletionResultKind = struct
 
 	let to_json ctx kind =
 		let i,args = match kind with
-			| CRField(item,p) -> 0,Some (jobject [
-				"item",CompletionItem.to_json ctx item;
-				"range",generate_pos_as_range p;
-				"type",jopt (generate_type ctx) (CompletionItem.get_type item);
-			])
+			| CRField(item,p) ->
+				let t = CompletionItem.get_type item in
+				let module_type = match t with
+					| None -> jnull
+					| Some t ->
+						try
+							let mt = module_type_of_type t in
+							generate_module_type ctx mt
+						with _ ->
+							jnull
+				in
+				0,Some (jobject [
+					"item",CompletionItem.to_json ctx item;
+					"range",generate_pos_as_range p;
+					"type",jopt (generate_type ctx) t;
+					"moduleType",module_type (* ARGH *)
+				])
 			| CRStructureField -> 1,None
 			| CRToplevel t ->
 				let args = match t with
