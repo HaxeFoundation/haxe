@@ -255,7 +255,7 @@ let rec return_flow ctx e =
 		error()
 
 let check_global_metadata ctx meta f_add mpath tpath so =
-	let sl1 = full_dot_path mpath tpath in
+	let sl1 = full_dot_path2 mpath tpath in
 	let sl1,field_mode = match so with None -> sl1,false | Some s -> sl1 @ [s],true in
 	List.iter (fun (sl2,m,(recursive,to_types,to_fields)) ->
 		let add = ((field_mode && to_fields) || (not field_mode && to_types)) && (match_path recursive sl1 sl2) in

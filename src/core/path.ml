@@ -212,3 +212,6 @@ let mkdir_from_path path =
 		| _ ->
 			let dir_list = List.rev (List.tl (List.rev parts)) in
 			mkdir_recursive "" dir_list
+
+let full_dot_path pack mname tname =
+	if tname = mname then (pack,mname) else (pack @ [mname],tname)

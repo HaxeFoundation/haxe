@@ -874,7 +874,7 @@ let match_path recursive sl sl_pattern =
 	in
 	loop sl sl_pattern
 
-let full_dot_path mpath tpath =
+let full_dot_path2 mpath tpath =
 	if mpath = tpath then
 		(fst tpath) @ [snd tpath]
 	else

@@ -107,7 +107,7 @@ let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
-	if tname = "" then raise_fields (DisplayToplevel.collect ctx true NoValue) CRTypeHint None false;
+	if tname = "" then raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint None false;
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
@@ -324,7 +324,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params p =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && Display.is_display_position pn ->
 		let s = s_type_path path in
-		raise_fields (DisplayToplevel.collect ctx false NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;}) false
+		raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;}) false
 
 (*
 	build an instance from a complex type
@@ -776,7 +776,7 @@ let handle_path_display ctx path p =
 	let open ImportHandling in
 	match ImportHandling.convert_import_to_something_usable !Parser.resume_display path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx true Typecore.NoValue in
+			let fields = DisplayToplevel.collect ctx None Typecore.NoValue in
 			raise_fields fields CRImport (Some p) false
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with

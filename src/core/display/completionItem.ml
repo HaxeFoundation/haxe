@@ -319,7 +319,49 @@ let get_index item = match item.ci_kind with
 	| ITAnonymous _ -> 11
 	| ITExpression _ -> 12
 
-let get_sort_index item = match item.ci_kind with
+let get_sort_index item p = match item.ci_kind with
+	| ITLocal v ->
+		let i = p.pmin - v.v_pos.pmin in
+		let i = if i < 0 then 0 else i in
+		0,(Printf.sprintf "%05i" i)
+	| ITClassField ccf ->
+		let open ClassFieldOrigin in
+		let i = match ccf.origin,ccf.scope with
+			| Self _,(CFSMember | CFSConstructor) -> 10
+			| Parent _,(CFSMember | CFSConstructor) -> 11
+			| StaticExtension _,_ -> 12
+			| Self _,CFSStatic -> 13
+			| StaticImport _,_ -> 14
+			| _ -> 15
+		in
+		i,ccf.field.cf_name
+	| ITEnumField ef ->
+		20,(Printf.sprintf "%04i" ef.efield.ef_index)
+	| ITEnumAbstractField(_,ccf) ->
+		21,ccf.field.cf_name
+	| ITType(cmt,is) ->
+		let open ImportStatus in
+		let i = match is with
+			| Imported -> 30
+			| Unimported -> 31
+			| Shadowed -> 32
+		in
+		i,(s_type_path (cmt.pack,cmt.name))
+	| ITPackage(path,_) ->
+		40,s_type_path path
+	| ITModule name ->
+		40,name
+	| ITLiteral name ->
+		50,name
+	| ITKeyword name ->
+		60,s_keyword name
+	| ITAnonymous _
+	| ITExpression _
+	| ITTimer _
+	| ITMetadata _ ->
+		500,""
+
+let get_sort_index_2 item = match item.ci_kind with
 	| ITLocal _ -> 0
 	| ITClassField _ -> 0
 	| ITEnumField ef -> ef.efield.ef_index

@@ -117,7 +117,7 @@ end
 
 open CollectionContext
 
-let collect ctx only_types with_type =
+let collect ctx epos with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let packages = Hashtbl.create 0 in
@@ -153,8 +153,7 @@ let collect ctx only_types with_type =
 					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags
 					| _ -> raise Exit
 				in
-				let path = (pack,tname) in
-				let path = if tname = name then path else (pack @ [name],tname) in
+				let path = Path.full_dot_path pack name tname in
 				if not (path_exists cctx path) && not is_private then begin
 					add_path cctx path;
 					let is = get_import_status cctx false path in
@@ -169,7 +168,7 @@ let collect ctx only_types with_type =
 
 	(* Collection starts here *)
 
-	if not only_types then begin
+	if epos <> None then begin
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
@@ -372,19 +371,25 @@ let collect ctx only_types with_type =
 			in
 			let l = List.map (fun ck ->
 				let s1 = comp (get_type ck) in
-				let s2 = get_sort_index ck in
+				let s2 = get_sort_index_2 ck in
 				let s3 = get_name ck in
 				ck,(s1,s2,s3)
 			) l in
 			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
 			List.map fst l
-		| _ -> l
+		| _ ->
+			let l = List.map (fun ci ->
+				let i = get_sort_index ci (Option.default Globals.null_pos epos) in
+				ci,i
+			) l in
+			let l = List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l in
+			List.map fst l
 	in
 	t();
 	l
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx only_types NoValue in
+	let l = collect ctx (if only_types then None else Some p) NoValue in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in
