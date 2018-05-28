@@ -13,7 +13,7 @@ class Issue7071 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq("Bar", toplevel(pos(1))[0].name);
-		eq("Bar", toplevel(pos(2))[0].name);
+		eq("bar", toplevel(pos(1))[0].name);
+		eq("bar", toplevel(pos(2))[0].name);
 	}
 }

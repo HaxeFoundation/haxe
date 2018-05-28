@@ -124,7 +124,9 @@ let print_toplevel il =
 			Buffer.add_string b (Printf.sprintf "<i k=\"literal\">%s</i>\n" s)
 		| ITTimer(s,_) ->
 			Buffer.add_string b (Printf.sprintf "<i k=\"timer\">%s</i>\n" s)
-		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ | ITTypeParameter _ ->
+		| ITTypeParameter c ->
+			Buffer.add_string b (Printf.sprintf "<i k=\"type\" p=\"%s\"%s>%s</i>\n" (s_type_path c.cl_path) ("") (snd c.cl_path));
+		| ITMetadata _ | ITModule _ | ITKeyword _ | ITAnonymous _ | ITExpression _ ->
 			(* compat: don't add *)
 			()
 	) il;
