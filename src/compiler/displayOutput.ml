@@ -666,10 +666,10 @@ let handle_syntax_completion com kind p = match com.json_out with
 		| Parser.SCClassRelation ->
 			let l = [make_ci_keyword Extends;make_ci_keyword Implements] in
 			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None false)
+			f(fields_to_json ctx l CRTypeRelation None)
 		| Parser.SCInterfaceRelation ->
 			let l = [make_ci_keyword Extends] in
 			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None false)
+			f(fields_to_json ctx l CRTypeRelation None)
 		| Parser.SCComment ->
 			()

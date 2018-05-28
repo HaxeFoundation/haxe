@@ -966,7 +966,7 @@ with
 		end *)
 	| DisplayException(DisplayPackage pack) ->
 		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields(fields,cr,_,_)) ->
+	| DisplayException(DisplayFields(fields,cr,_)) ->
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
@@ -1023,7 +1023,7 @@ with
 				let ctx = DisplayJson.create_json_context false in
 				let pos = Parser.cut_pos_at_display pos in
 				let kind = CRField ((CompletionItem.make_ci_module (String.concat "." p),pos)) in
-				f (DisplayException.fields_to_json ctx fields kind None false);
+				f (DisplayException.fields_to_json ctx fields kind None);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end

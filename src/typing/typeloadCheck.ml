@@ -457,9 +457,9 @@ module Inheritance = struct
 			try
 				let t = try
 					Typeload.load_instance ~allow_display:true ctx t false p
-				with DisplayException(DisplayFields(l,CRTypeHint,p,b)) ->
+				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
-					if not is_extends && c.cl_interface then raise_fields [] CRImplements p false;
+					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
@@ -468,7 +468,7 @@ module Inheritance = struct
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
 					) l in
-					raise_fields l (if is_extends then CRExtends else CRImplements) p b
+					raise_fields l (if is_extends then CRExtends else CRImplements) p
 				in
 				Some (check_herit t is_extends)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_display ->

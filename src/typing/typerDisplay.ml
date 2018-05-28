@@ -99,11 +99,11 @@ let completion_item_of_expr ctx e =
 	loop e
 
 let raise_toplevel ctx with_type po p =
-	let sorted,t = match with_type with
-		| WithType t -> true,Some t
-		| _ -> false,None
+	let t = match with_type with
+		| WithType t -> Some t
+		| _ -> None
 	in
-	raise_fields (DisplayToplevel.collect ctx (Some p) with_type) (CRToplevel t) po sorted
+	raise_fields (DisplayToplevel.collect ctx (Some p) with_type) (CRToplevel t) po
 
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
@@ -275,14 +275,14 @@ and display_expr ctx e_ast e dk with_type p =
 			| EField(e1,s),TField(e2,_) ->
 				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
 				let item = completion_item_of_expr ctx e2 in
-				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;}) false
+				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
 			| _ ->
 				raise_toplevel ctx with_type None p
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
-		raise_fields fields (CRField(item,e.epos)) None false
+		raise_fields fields (CRField(item,e.epos)) None
 
 let handle_structure_display ctx e an =
 	let p = pos e in
@@ -292,12 +292,12 @@ let handle_structure_display ctx e an =
 			if Expr.field_mem_assoc k fl then acc
 			else (make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type) :: acc
 		) an.a_fields [] in
-		raise_fields fields CRStructureField None false
+		raise_fields fields CRStructureField None
 	| EBlock [] ->
 		let fields = PMap.foldi (fun _ cf acc ->
 			make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type :: acc
 		) an.a_fields [] in
-		raise_fields fields CRStructureField None false
+		raise_fields fields CRStructureField None
 	| _ ->
 		error "Expected object expression" p
 
@@ -338,12 +338,12 @@ let handle_display ctx e_ast dk with_type =
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
 			let s = s_type_path path in
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module s),p)) None false
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module s),p)) None
 		with Not_found ->
 			raise err
 		end else
 			raise_toplevel ctx with_type (Some (Parser.cut_pos_at_display p)) p
-	| DisplayException(DisplayFields(l,CRTypeHint,p,b)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+	| DisplayException(DisplayFields(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item -> match item.ci_kind with
@@ -366,7 +366,7 @@ let handle_display ctx e_ast dk with_type =
 			| _ -> false
 		) l in
 		timer();
-		raise_fields l CRNew p b
+		raise_fields l CRNew p
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 	if is_display_debug then begin
@@ -405,7 +405,7 @@ let handle_edisplay ctx e dk with_type =
 	| DKPattern,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields(l,CRToplevel _,p,b)) ->
-			raise_fields l CRPattern p b
+		with DisplayException(DisplayFields(l,CRToplevel _,p)) ->
+			raise_fields l CRPattern p
 		end
 	| _ -> handle_display ctx e dk with_type

@@ -124,7 +124,7 @@ let display_meta com meta p = match com.display.dms_kind with
 		let all = List.map (fun (s,doc) ->
 			make_ci_metadata s (Some doc)
 		) all in
-		raise_fields all CRMetadata (Some p) false
+		raise_fields all CRMetadata (Some p)
 	| _ ->
 		()
 
@@ -156,5 +156,5 @@ let check_field_modifiers ctx c cf override display_modifier =
 				let origin = Parent (TClassDecl c) in
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type :: fields
 			) missing_fields [] in
-			raise_fields l CROverride None false
+			raise_fields l CROverride None
 		| _ -> ()
