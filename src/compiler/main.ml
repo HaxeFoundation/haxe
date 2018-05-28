@@ -751,12 +751,16 @@ try
 		),"<dir>","set current working directory");
 	] in
 	let args_callback cl =
-		let path,name = Path.parse_path cl in
-		if Path.starts_uppercase name then
-			classes := (path,name) :: !classes
-		else begin
-			force_typing := true;
-			config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
+		begin try
+			let path,name = Path.parse_path cl in
+			if Path.starts_uppercase name then
+				classes := (path,name) :: !classes
+			else begin
+				force_typing := true;
+				config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
+			end
+		with Failure _ when ctx.com.display.dms_display ->
+			()
 		end
 	in
 	let all_args = (basic_args_spec @ adv_args_spec) in
