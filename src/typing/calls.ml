@@ -445,7 +445,7 @@ let rec acc_get ctx g p =
 		(* do not create a closure for static calls *)
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
-		(match f.cf_expr with
+		begin match f.cf_expr with
 		| None when ctx.com.display.dms_display ->
 			mk (TField (e,cmode)) t p
 		| None ->
@@ -498,7 +498,10 @@ let rec acc_get ctx g p =
 			end
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
-			loop e)
+			let e = loop e in
+			let e = Optimizer.inline_metadata e f.cf_meta in
+			e
+		end
 	| AKMacro _ ->
 		assert false
 

@@ -238,6 +238,13 @@ let inline_default_config cf t =
 	let tparams = fst tparams @ cf.cf_params in
 	tparams <> [], apply_params tparams tmonos
 
+let inline_metadata e meta =
+	let inline_meta e meta = match meta with
+		| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
+		| _ -> e
+	in
+	List.fold_left inline_meta e meta
+
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
 	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
 	try
@@ -619,11 +626,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
 				mk (TBlock (el_v @ [e])) tret e.epos
 		) in
-		let inline_meta e meta = match meta with
-			| (Meta.Deprecated | Meta.Pure),_,_ -> mk (TMeta(meta,e)) e.etype e.epos
-			| _ -> e
-		in
-		let e = List.fold_left inline_meta e cf.cf_meta in
+		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
 		if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
 			let se t = s_expr_pretty true t true (s_type (print_context())) in

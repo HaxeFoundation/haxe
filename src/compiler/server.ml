@@ -454,6 +454,7 @@ let rec wait_loop process_params verbose accept =
 				Parser.reset_state();
 				return_partial_type := false;
 				measure_times := false;
+				Hashtbl.clear DeprecationCheck.warned_positions;
 				close_times();
 				stats.s_files_parsed := 0;
 				stats.s_classes_built := 0;
