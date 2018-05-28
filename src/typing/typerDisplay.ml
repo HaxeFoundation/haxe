@@ -147,6 +147,14 @@ let rec handle_signature_display ctx e_ast with_type =
 		raise_signatures overloads 0 (* ? *) display_arg
 	in
 	let find_constructor_types t = match follow t with
+		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
+			let rec loop tl = match tl with
+				| [] -> raise_error (No_constructor (TClassDecl c)) p
+				| t :: tl -> match follow t with
+					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
+					| _ -> loop tl
+			in
+			[loop tl,None]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			let ct,cf = get_constructor ctx c tl p in
 			let tl = (ct,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads in
