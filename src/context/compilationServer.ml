@@ -120,6 +120,10 @@ let iter_files cs com f =
 	let sign = Define.get_signature com.defines in
 	Hashtbl.iter (fun (file,sign') decls -> if sign = sign' then f file decls) cs.cache.c_files
 
+let get_file_list cs com =
+	let sign = Define.get_signature com.defines in
+	Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) cs.cache.c_files []
+
 (* haxelibs *)
 
 let find_haxelib cs key =

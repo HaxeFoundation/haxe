@@ -117,9 +117,19 @@ end
 
 open CollectionContext
 
+(* +1 for each matching package part. 0 = no common part *)
+let pack_similarity pack1 pack2 =
+	let rec loop count pack1 pack2 = match pack1,pack2 with
+		| [],[] -> count
+		| (s1 :: pack1),(s2 :: pack2) when s1 = s2 -> loop (count + 1) pack1 pack2
+		| _ -> count
+	in
+	loop 0 pack1 pack2
+
 let collect ctx epos with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
+	let curpack = fst ctx.curclass.cl_path in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
@@ -156,8 +166,11 @@ let collect ctx epos with_type =
 				let path = Path.full_dot_path pack name tname in
 				if not (path_exists cctx path) && not is_private then begin
 					add_path cctx path;
-					let is = get_import_status cctx false path in
-					add (make_ci_type (CompletionModuleType.of_type_decl pack name (d,p)) is None) None
+					(* If we share a package, the module's main type shadows everything with the same name. *)
+					let shadowing_name = if pack_similarity curpack pack > 0 && tname = name then (Some name) else None in
+					(* Also, this means we can access it as if it was imported (assuming it's not shadowed by something else. *)
+					let is = get_import_status cctx (shadowing_name <> None) path in
+					add (make_ci_type (CompletionModuleType.of_type_decl pack name (d,p)) is None) shadowing_name
 				end
 			with Exit ->
 				()
@@ -326,9 +339,14 @@ let collect ctx epos with_type =
 			CompilationServer.set_initialized cs;
 			read_class_paths ctx.com ["display";"toplevel"];
 		end;
-		(* TODO: sort files so that the ones in the current module's package and its parent packages
-		   are processed first. *)
-		CompilationServer.iter_files cs ctx.com (fun file cfile ->
+		let files = CompilationServer.get_file_list cs ctx.com in
+		(* Sort files by reverse distance of their package to our current package. *)
+		let files = List.map (fun (file,cfile) ->
+			let i = pack_similarity curpack cfile.c_package in
+			(file,cfile),i
+		) files in
+		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+		List.iter (fun ((file,cfile),_) ->
 			let module_name = match cfile.c_module_name with
 			| None ->
 				let name = Path.module_name_of_file file in
@@ -343,7 +361,7 @@ let collect ctx epos with_type =
 			end;
 			Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
 			process_decls cfile.c_package module_name cfile.c_decls
-		)
+		) files
 	end;
 
 	Hashtbl.iter (fun path _ ->
