@@ -1375,6 +1375,14 @@ let optimize_completion_expr e args =
 			typing_side_effect := true;
 			let e1 = loop e1 in
 			(ECheckType(e1,th),p)
+		| EMeta(m,e1) ->
+			begin try
+				let e1 = loop e1 in
+				(EMeta(m,e1),(pos e))
+			with Return e1 ->
+				let e1 = (EMeta(m,e1),(pos e)) in
+				raise (Return e1)
+			end
 		| EDisplay(_,DKStructure) ->
 			raise (Return e0)
 		| EDisplay (s,call) ->
