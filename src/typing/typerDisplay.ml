@@ -286,17 +286,19 @@ and display_expr ctx e_ast e dk with_type p =
 
 let handle_structure_display ctx e an =
 	let p = pos e in
+	let fields = PMap.foldi (fun _ cf acc -> cf :: acc) an.a_fields [] in
+	let fields = List.sort (fun cf1 cf2 -> -compare cf1.cf_pos.pmin cf2.cf_pos.pmin) fields in
 	match fst e with
 	| EObjectDecl fl ->
-		let fields = PMap.foldi (fun k cf acc ->
-			if Expr.field_mem_assoc k fl then acc
+		let fields = List.fold_left (fun acc cf ->
+			if Expr.field_mem_assoc cf.cf_name fl then acc
 			else (make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type) :: acc
-		) an.a_fields [] in
+		) [] fields in
 		raise_fields fields CRStructureField None
 	| EBlock [] ->
-		let fields = PMap.foldi (fun _ cf acc ->
+		let fields = List.fold_left (fun acc cf ->
 			make_ci_class_field (CompletionClassField.make cf CFSMember (AnonymousStructure an) true) cf.cf_type :: acc
-		) an.a_fields [] in
+		) [] fields in
 		raise_fields fields CRStructureField None
 	| _ ->
 		error "Expected object expression" p
