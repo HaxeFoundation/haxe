@@ -185,6 +185,7 @@ module Pattern = struct
 				v
 			| _ ->
 				let v = alloc_var name t p in
+				v.v_meta <- (TVarOrigin.encode_in_meta TVarOrigin.TVOPatternVariable) :: v.v_meta;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v

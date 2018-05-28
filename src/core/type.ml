@@ -360,15 +360,25 @@ type class_field_scope =
 
 module TVarOrigin = struct
 	type t =
-		| TVOArgument
 		| TVOLocalVariable
-		| TVOLocalFunction
+		| TVOArgument
 		| TVOForVariable
+		| TVOPatternVariable
 		| TVOCatchVariable
+		| TVOLocalFunction
+
+	let to_int = function
+		| TVOLocalVariable -> 0
+		| TVOArgument -> 1
+		| TVOForVariable -> 2
+		| TVOPatternVariable -> 3
+		| TVOCatchVariable -> 4
+		| TVOLocalFunction -> 5
 
 	let to_string = function
 		| TVOArgument -> "Argument"
 		| TVOLocalVariable -> "LocalVariable"
+		| TVOPatternVariable -> "PatternVariable"
 		| TVOLocalFunction -> "LocalFunction"
 		| TVOForVariable -> "ForVariable"
 		| TVOCatchVariable -> "CatchVariable"
@@ -376,6 +386,7 @@ module TVarOrigin = struct
 	let from_string = function
 		| "Argument" -> TVOArgument
 		| "LocalVariable" -> TVOLocalVariable
+		| "PatternVariable" -> TVOPatternVariable
 		| "LocalFunction" -> TVOLocalFunction
 		| "ForVariable" -> TVOForVariable
 		| "CatchVariable" -> TVOCatchVariable

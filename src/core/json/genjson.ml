@@ -248,7 +248,7 @@ and generate_tvar ctx v =
 	] in
 	let fields = try
 		let origin = TVarOrigin.decode_from_meta v.v_meta in
-		("origin",jstring (TVarOrigin.to_string origin)) :: fields
+		("origin",jint (TVarOrigin.to_int origin)) :: fields
 	with Not_found ->
 		fields
 	in
