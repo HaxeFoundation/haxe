@@ -306,6 +306,31 @@ class Toplevel extends DisplayTestCase {
 
 	/**
 	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType = {-1-}
+
+			trace("ok");
+	**/
+	function testExpectedType9() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType;
+			x = {-1-}
+
+			trace("ok");
+	**/
+	function testExpectedType10() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
 		static function main() {
 			for (foo in 0...10){-1-}
 				{-2-}

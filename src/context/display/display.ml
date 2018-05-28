@@ -51,11 +51,46 @@ module ExprPreprocessing = struct
 		let loop e =
 			(* print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e)); *)
 			match fst e with
-			| EVars vl ->
-				if List.exists (fun ((_,p),_,_) -> is_annotated p) vl then
-					annotate_marked e
-				else
-					e
+			| EVars vl when is_annotated (pos e) && is_completion ->
+				let rec loop2 acc mark vl = match vl with
+					| ((s,pn),tho,eo) as v :: vl ->
+						if mark then
+							loop2 (v :: acc) mark vl
+						else if is_annotated pn then
+							(* If the name is the display position, mark the expression *)
+							loop2 (v :: acc) true vl
+						else begin match eo with
+							| None ->
+								(* If there is no expression, we don't have to do anything.
+								   Should the display position be on the type-hint, it will
+								   be picked up while loading the type. *)
+								loop2 (v :: acc) mark vl
+							| Some e ->
+								(* Determine the area between the `|` in `var x| = | e`. This is not really
+								   correct because we don't want completion on the left side of the `=`, but
+								   we cannot determine that correctly without knowing its position.
+								   Note: We know `e` itself isn't the display position because this entire
+								   algorithm is bottom-up and it would be marked already if it was. *)
+								let p0 = match tho with
+									| Some (_,pt) -> pt
+									| None -> pn
+								in
+								let p = {p0 with pmax = (pos e).pmin} in
+								let e = if is_annotated p then annotate_marked e else e in
+								loop2 (((s,pn),tho,(Some e)) :: acc) mark vl
+						end
+					| [] ->
+						List.rev acc,mark
+				in
+				let vl,mark = loop2 [] false vl in
+				let e = EVars (List.rev vl),pos e in
+				if mark then annotate_marked e else e
+			| EBinop((OpAssign | OpAssignOp _) as op,e1,e2) when is_annotated (pos e) && is_completion ->
+				(* Special case for assign ops: If the expression is marked, but none of its operands are,
+				   we are "probably" interested in the rhs. Like with EVars, this isn't accurate because we
+				   could be on the left side of the `=`. I don't think there's a reason for requesting
+				   completion there though. *)
+				(EBinop(op,e1,annotate_marked e2)),(pos e)
 			| EBlock [] when is_annotated (pos e) ->
 				annotate e DKStructure
 			| EBlock [EDisplay((EConst(Ident s),pn),DKMarked),_] when is_completion ->
