@@ -40,6 +40,7 @@ module ExprPreprocessing = struct
 				if (pos e).pmin >= pr.pmax then (mk_null pr) :: e :: el
 				else loop (e :: el)
 		in
+		let in_pattern = ref false in
 		let loop e =
 			(* print_endline (Printf.sprintf "%i-%i: %s" (pos e).pmin (pos e).pmax (Ast.s_expr e)); *)
 			match fst e with
@@ -83,6 +84,13 @@ module ExprPreprocessing = struct
 				   could be on the left side of the `=`. I don't think there's a reason for requesting
 				   completion there though. *)
 				(EBinop(op,e1,annotate_marked e2)),(pos e)
+			| EBinop(OpOr,e1,(EIf(_,(EConst(Ident "null"),_),None),p1)) when is_annotated (pos e) && is_completion && !in_pattern ->
+				(* This HAS TO come from an attempted `case pattern | guard:` completion (issue #7068). *)
+				let p = { p1 with pmin = (pos e1).pmax; pmax = p1.pmin } in
+				EBinop(OpOr,e1,mk_null p),(pos e)
+			| EIf(_,(EConst(Ident "null"),_),None) when is_completion && !in_pattern ->
+				(* This is fine. *)
+				mk_null (pos e)
 			| EBlock [] when is_annotated (pos e) ->
 				annotate e DKStructure
 			| EBlock [EDisplay((EConst(Ident s),pn),DKMarked),_] when is_completion ->
@@ -119,8 +127,25 @@ module ExprPreprocessing = struct
 				else
 					e
 		in
-		let rec map e =
-			loop (Ast.map_expr map e)
+		let opt f o =
+			match o with None -> None | Some v -> Some (f v)
+		in
+		let rec map e = match fst e with
+			| ESwitch(e1,cases,def) when is_annotated (pos e) ->
+				let e1 = loop e1 in
+				let cases = List.map (fun (el,eg,e,p) ->
+					let old = !in_pattern in
+					in_pattern := true;
+					let el = List.map map el in
+					in_pattern := old;
+					let eg = opt map eg in
+					let e = opt map e in
+					el,eg,e,p
+				) cases in
+				let def = opt (fun (eo,p) -> opt map eo,p) def in
+				loop (ESwitch (e1, cases, def),(pos e))
+			| _ ->
+				loop (Ast.map_expr map e)
 		in
 		try map e with Exit -> e
 
