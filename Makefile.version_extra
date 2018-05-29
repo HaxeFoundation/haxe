@@ -5,7 +5,7 @@
 all: ;
 
 ifneq ($(ADD_REVISION),0)
-	$(info let version_extra = Some "(git build $(BRANCH) @ $(COMMIT_SHA))")
+	$(info let version_extra = Some ("git build $(BRANCH)","$(COMMIT_SHA)"))
 else
 	$(info let version_extra = None)
 endif

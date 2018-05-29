@@ -158,7 +158,14 @@ let parse_input com input report_times pre_compilation did_something =
 			| "initialize" ->
 				supports_resolve := get_opt_param (fun () -> get_bool_param "supportsResolve") false;
 				f_result (JObject [
-					"capabilities",get_capabilities()
+					"capabilities",get_capabilities();
+					"version",jobject [
+						"major",jint version_major;
+						"minor",jint version_minor;
+						"patch",jint version_revision;
+						"pre",(match version_pre with None -> jnull | Some pre -> jstring pre);
+						"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
+					]
 				])
 			| "display/completionItem/resolve" ->
 				let i = get_int_param "index" in
