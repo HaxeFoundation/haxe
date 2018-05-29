@@ -538,7 +538,7 @@ module Case = struct
 		ctx.ret <- old_ret;
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
-		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
+		if ctx.is_display_file && DisplayPosition.encloses_display_position p then begin match eo,eo_ast with
 			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type p)
 			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) DKMarked with_type p)
 			| _ -> assert false

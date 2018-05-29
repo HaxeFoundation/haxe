@@ -1,6 +1,6 @@
 open Globals
 open Ast
-open Display
+open DisplayPosition
 open Common
 open Typecore
 

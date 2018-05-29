@@ -548,7 +548,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
 		Parser.use_doc := true;
-		Parser.resume_display := {
+		DisplayPosition.display_position := {
 			pfile = Path.unique_full_path file;
 			pmin = pos + !offset;
 			pmax = pos + !offset;
@@ -583,7 +583,7 @@ let process_display_file com classes =
 				classes := [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (!Parser.resume_display).pfile in
+			let real = Path.get_real_path (!DisplayPosition.display_position).pfile in
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
@@ -636,7 +636,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| Some cs ->
 				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
-					if (filter <> None || is_display_file file) then
+					if (filter <> None || DisplayPosition.is_display_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc

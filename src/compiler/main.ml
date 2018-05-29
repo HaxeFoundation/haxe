@@ -799,13 +799,13 @@ try
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && Parser.do_resume () then begin
-		let p = !Parser.resume_display in
+	if !Lexer.old_format && !Parser.in_display then begin
+		let p = !DisplayPosition.display_position in
 		(* convert byte position to utf8 position *)
 		try
 			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
 			let pos = UTF8.length (String.sub content 0 p.pmin) in
-			Parser.resume_display := { p with pmin = pos; pmax = pos }
+			DisplayPosition.display_position := { p with pmin = pos; pmax = pos }
 		with _ ->
 			() (* ignore *)
 	end;

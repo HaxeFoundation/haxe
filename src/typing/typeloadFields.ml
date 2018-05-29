@@ -444,7 +444,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_macro = is_macro;
 		is_extern = is_extern;
 		is_final = List.mem_assoc AFinal cff.cff_access;
-		is_display_field = ctx.is_display_file && Display.is_display_position cff.cff_pos;
+		is_display_field = ctx.is_display_file && DisplayPosition.encloses_display_position cff.cff_pos;
 		is_field_debug = cctx.is_class_debug;
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
@@ -1112,7 +1112,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| get,pget ->
 			let get = if get = "get" then "get_" ^ name else get in
-			if fctx.is_display_field && Display.is_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
+			if fctx.is_display_field && DisplayPosition.encloses_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 			AccCall
 	) in
@@ -1128,7 +1128,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| set,pset ->
 			let set = if set = "set" then "set_" ^ name else set in
-			if fctx.is_display_field && Display.is_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
+			if fctx.is_display_field && DisplayPosition.encloses_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
 			AccCall
 	) in

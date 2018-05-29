@@ -1477,7 +1477,7 @@ and type_vars ctx vl p =
 			if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx v t pv TVarOrigin.TVOLocalVariable in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
-			if ctx.in_display && Display.is_display_position pv then
+			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
@@ -1498,7 +1498,7 @@ and format_string ctx s p =
 	let min = ref (p.pmin + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
-		let enext = if ctx.in_display && Display.is_display_position p then
+		let enext = if ctx.in_display && DisplayPosition.encloses_display_position p then
 			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
 		else
 			enext,p
@@ -1658,7 +1658,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if ctx.in_display && Display.is_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
+						if ctx.in_display && DisplayPosition.encloses_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType t) in
@@ -1696,7 +1696,7 @@ and type_object_decl ctx fl with_type p =
 			let e = type_expr ctx e Value in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
-			if ctx.in_display && Display.is_display_position pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
+			if ctx.in_display && DisplayPosition.encloses_display_position pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
 				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
@@ -1879,12 +1879,12 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx v t pv (TVarOrigin.TVOCatchVariable) in
-		if ctx.is_display_file && Display.is_display_position pv then
+		if ctx.is_display_file && DisplayPosition.encloses_display_position pv then
 			DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && Display.is_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
+		if ctx.is_display_file && DisplayPosition.encloses_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
 		if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;

@@ -8,21 +8,13 @@ open Type
 open Typecore
 open Globals
 open Genjson
+open DisplayPosition
 
 let reference_position = ref null_pos
 
-let is_display_file file =
-	file <> "?" && Path.unique_full_path file = (!Parser.resume_display).pfile
-
-let encloses_position p_target p =
-	p.pmin < p_target.pmin && p.pmax >= p_target.pmax
-
-let is_display_position p =
-	encloses_position !Parser.resume_display p
-
 module ExprPreprocessing = struct
 	let find_before_pos com is_completion e =
-		let display_pos = ref (!Parser.resume_display) in
+		let display_pos = ref (!DisplayPosition.display_position) in
 		let is_annotated p = encloses_position !display_pos p in
 		let annotate e dk =
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
@@ -31,7 +23,7 @@ module ExprPreprocessing = struct
 		let annotate_marked e = annotate e DKMarked in
 		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
 		let loop_el el =
-			let pr = !Parser.resume_display in
+			let pr = !DisplayPosition.display_position in
 			let rec loop el = match el with
 				| [] -> [mk_null pr]
 				| e :: el ->
@@ -103,7 +95,7 @@ module ExprPreprocessing = struct
 				let el = loop_el el in
 				ECall(e1,el),(pos e)
 			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
-				if is_annotated pp || pp.pmax >= !Parser.resume_display.pmax then
+				if is_annotated pp || pp.pmax >= !DisplayPosition.display_position.pmax then
 					annotate_marked e
 				else begin
 					let el = loop_el el in
@@ -135,7 +127,7 @@ module ExprPreprocessing = struct
 	let find_display_call e =
 		let found = ref false in
 		let loop e = match fst e with
-			| ECall(_,el) | ENew(_,el) when not !found && is_display_position (pos e) ->
+			| ECall(_,el) | ENew(_,el) when not !found && encloses_display_position (pos e) ->
 				let call_arg_is_marked () =
 					el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
 				in

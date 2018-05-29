@@ -86,7 +86,7 @@ let type_function ctx args ret fmode f do_display p =
 		let c = type_function_arg_value ctx t c do_display in
 		let v,c = add_local_with_origin ctx n t pn (TVarOrigin.TVOArgument), c in
 		v.v_meta <- v.v_meta @ m;
-		if do_display && Display.is_display_position pn then
+		if do_display && DisplayPosition.encloses_display_position pn then
 			DisplayEmitter.display_variable ctx v pn;
 		if n = "this" then v.v_meta <- (Meta.This,[],null_pos) :: v.v_meta;
 		v,c

@@ -21,6 +21,7 @@ open Ast
 open Globals
 open Reification
 open DisplayTypes.DisplayMode
+open DisplayPosition
 
 type error_msg =
 	| Unexpected of token
@@ -84,22 +85,28 @@ module TokenCache = struct
 		(fun () -> cache := old_cache)
 end
 
-let last_doc : (string * int) option ref = ref None
+(* Global state *)
+
+let in_display = ref false
 let use_doc = ref false
 let was_auto_triggered = ref false
 let display_mode = ref DMNone
-let resume_display = ref null_pos
 let in_macro = ref false
 let had_resume = ref false
 
 let reset_state () =
-	last_doc := None;
+	in_display := false;
 	use_doc := false;
 	was_auto_triggered := false;
 	display_mode := DMNone;
-	resume_display := null_pos;
+	display_position := null_pos;
 	in_macro := false;
 	had_resume := false
+
+(* Per-file state *)
+
+let in_display_file = ref false
+let last_doc : (string * int) option ref = ref None
 
 let last_token s =
 	let n = Stream.count s in
@@ -120,8 +127,6 @@ let get_doc s =
 
 let serror() = raise (Stream.Error "")
 
-let do_resume() = !resume_display <> null_pos
-
 let display e = raise (Display e)
 
 let magic_display_field_name = " - display - "
@@ -131,27 +136,13 @@ let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
 	| _ -> raise (TypePath (List.rev sl,None,in_import,p))
 
-let is_resuming_file file =
-	do_resume() && Path.unique_full_path file = !resume_display.pfile
+let would_skip_display_position p1 s =
+	if !in_display_file then match Stream.npeek 1 s with
+		| [ (_,p2) ] -> encloses_display_position (punion p1 p2)
+		| _ -> false
+	else false
 
-let is_resuming p =
-	let p2 = !resume_display in
-	p.pmax = p2.pmin && is_resuming_file p.pfile
-
-let set_resume p =
-	resume_display := { p with pfile = Path.unique_full_path p.pfile }
-
-let encloses_resume p =
-	do_resume() && p.pmin < !resume_display.pmin && p.pmax >= !resume_display.pmax
-
-let would_skip_resume p1 s =
-	match Stream.npeek 1 s with
-	| [ (_,p2) ] ->
-		is_resuming_file p2.pfile && encloses_resume (punion p1 p2)
-	| _ ->
-		false
-
-let cut_pos_at_display p = { p with pmax = !resume_display.pmax }
+let cut_pos_at_display p = { p with pmax = !display_position.pmax }
 
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when n.[0] = '$' ->
@@ -245,11 +236,18 @@ let is_signature_display () =
 	!display_mode = DMSignature
 
 let check_resume p fyes fno =
-	if is_completion () && is_resuming p then (had_resume := true; fyes()) else fno()
+	if is_completion () && !in_display_file && p.pmax = !display_position.pmin then begin
+		had_resume := true;
+		fyes()
+	end else
+		fno()
 
 let check_resume_range p s fyes fno =
-	if is_completion () then begin
+	if is_completion () && !in_display_file then begin
 		let pnext = next_pos s in
-		if p.pmin < !resume_display.pmin && pnext.pmin >= !resume_display.pmax && is_resuming_file p.pfile then fyes pnext
-		else fno()
-	end else fno()
+		if p.pmin < !display_position.pmin && pnext.pmin >= !display_position.pmax then
+			fyes pnext
+		else
+			fno()
+	end else
+		fno()

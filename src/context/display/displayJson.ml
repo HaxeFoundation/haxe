@@ -143,7 +143,7 @@ let parse_input com input report_times pre_compilation did_something =
 			) None;
 			Parser.was_auto_triggered := was_auto_triggered;
 			let pos = if pos <> (-1) && not is_completion then pos + 1 else pos in
-			Parser.resume_display := {
+			DisplayPosition.display_position := {
 				pfile = file;
 				pmin = pos;
 				pmax = pos;

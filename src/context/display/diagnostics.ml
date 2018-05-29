@@ -122,7 +122,7 @@ let prepare com global =
 		com = com;
 	} in
 	List.iter (function
-		| TClassDecl c when global || is_display_file c.cl_pos.pfile ->
+		| TClassDecl c when global || DisplayPosition.is_display_file c.cl_pos.pfile ->
 			List.iter (prepare_field dctx) c.cl_ordered_fields;
 			List.iter (prepare_field dctx) c.cl_ordered_statics;
 			(match c.cl_constructor with None -> () | Some cf -> prepare_field dctx cf);
@@ -133,7 +133,7 @@ let prepare com global =
 
 let is_diagnostics_run p = match (!Parser.display_mode) with
 	| DMDiagnostics true -> true
-	| DMDiagnostics false -> is_display_file p.pfile
+	| DMDiagnostics false -> DisplayPosition.is_display_file p.pfile
 	| _ -> false
 
 let secure_generated_code ctx e =
@@ -176,7 +176,7 @@ module Printer = struct
 				Hashtbl.add diag p (dk,p,sev,args)
 		in
 		let add dk p sev args =
-			if global || is_display_file p.pfile then add dk p sev args
+			if global || DisplayPosition.is_display_file p.pfile then add dk p sev args
 		in
 		List.iter (fun (s,p,suggestions) ->
 			let suggestions = ExtList.List.filter_map (fun (s,item,r) ->

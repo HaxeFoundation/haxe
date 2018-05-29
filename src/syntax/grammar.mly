@@ -20,6 +20,7 @@ open Globals
 open Ast
 open Reification
 open Parser
+open DisplayPosition
 
 let popt f = parser
 	| [< v = f >] -> Some v
@@ -46,7 +47,7 @@ let pignore f =
 
 let expect_unless_resume_p f = parser
 	| [< p = f >] -> p
-	| [< s >] -> if do_resume() then pos (next_token s) else serror()
+	| [< s >] -> if !in_display then pos (next_token s) else serror()
 
 let ident = parser
 	| [< '(Const (Ident i),p) >] -> i,p
@@ -91,7 +92,7 @@ let semicolon s =
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] ->
 			let pos = snd (last_token s) in
-			if do_resume() then pos else error Missing_semicolon pos
+			if !in_display then pos else error Missing_semicolon pos
 
 let parsing_macro_cond = ref false
 
@@ -122,7 +123,7 @@ and parse_type_decls pack acc s =
 			| _ -> ()
 		) acc;
 		raise (TypePath (pack,Some(name,true),b,p))
-	| Stream.Error _ when do_resume() ->
+	| Stream.Error _ when !in_display ->
 		ignore(resume false false s);
 		parse_type_decls pack acc s
 
@@ -162,7 +163,7 @@ and parse_type_decl s =
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
 				let check_display p0 p1 =
-					if not had_display && encloses_resume p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
+					if not had_display && encloses_display_position p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
@@ -175,7 +176,7 @@ and parse_type_decl s =
 					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
-					if not (do_resume()) then serror() else begin
+					if not (!in_display) then serror() else begin
 						check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
 						List.rev acc
 					end
@@ -237,7 +238,7 @@ and parse_import s p1 =
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< >] ->
-				if do_resume() then p,List.rev acc,INormal else serror()
+				if !in_display then p,List.rev acc,INormal else serror()
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
@@ -246,11 +247,11 @@ and parse_import s p1 =
 		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			if do_resume() then (last_pos s),List.rev acc,INormal else serror()
+			if !in_display then (last_pos s),List.rev acc,INormal else serror()
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> if would_skip_resume p1 s then p1, [], INormal else serror()
+		| [< >] -> if would_skip_display_position p1 s then p1, [], INormal else serror()
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -267,16 +268,16 @@ and parse_using s p1 =
 			| [< '(Kwd Extern,p) >] ->
 				loop pn (("extern",p) :: acc)
 			| [< >] ->
-				if do_resume() then p,List.rev acc else serror()
+				if !in_display then p,List.rev acc else serror()
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2,List.rev acc
 		| [< >] ->
-			if do_resume() then (last_pos s),List.rev acc else serror()
+			if !in_display then (last_pos s),List.rev acc else serror()
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> if would_skip_resume p1 s then p1, [] else serror()
+		| [< >] -> if would_skip_display_position p1 s then p1, [] else serror()
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -296,7 +297,7 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> if do_resume() then pos (last_token s) else serror()
+		| [< >] -> if !in_display then pos (last_token s) else serror()
 	) in
 	l, p2
 
@@ -363,7 +364,7 @@ and resume tdecl fdecl s =
 	loop 1
 
 and parse_class_field_resume tdecl s =
-	if not (do_resume()) then
+	if not (!in_display) then
 		plist parse_class_field s
 	else try
 		let c = parse_class_field s in
@@ -433,7 +434,7 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< s >] -> if would_skip_resume p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+	| [< s >] -> if would_skip_display_position p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
 
 and parse_type_hint = parser
 	| [< '(DblDot,p1); s >] ->
@@ -476,10 +477,10 @@ and parse_structural_extension = parser
 		| [< t = parse_type_path >] ->
 			begin match s with parser
 				| [< '(Comma,_) >] -> t
-				| [< >] -> if do_resume() then t else serror()
+				| [< >] -> if !in_display then t else serror()
 			end;
 		| [< >] ->
-			if would_skip_resume p1 s then begin
+			if would_skip_display_position p1 s then begin
 				begin match s with parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
@@ -545,7 +546,7 @@ and parse_type_path2 p0 pack name p1 s =
 				begin match s with parser
 				| [<'(Binop OpGt,p2) >] -> l,p2
 				| [< >] ->
-					if do_resume() then l,pos (last_token s)
+					if !in_display then l,pos (last_token s)
 					else serror()
 				end
 			| [< >] -> [],p2
@@ -587,7 +588,7 @@ and parse_complex_type_next (t : type_hint) s =
 		begin match s with parser
 		| [< t2,p2 = parse_complex_type >] -> make_fun t2 p2
 		| [< >] ->
-			if would_skip_resume pa s then begin
+			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
 				make_fun ct null_pos
 			end else serror()
@@ -598,7 +599,7 @@ and parse_function_type_next tl p1 = parser
 	| [< '(Arrow,pa); s >] ->
 		begin match s with parser
 		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
-		| [< >] -> if would_skip_resume pa s then begin
+		| [< >] -> if would_skip_display_position pa s then begin
 				let ct = (CTPath magic_type_path),null_pos in
 				CTFunction (tl,ct), punion p1 pa
 			end else serror()
@@ -627,7 +628,7 @@ and parse_type_anonymous opt = parser
 			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] ->
-			if do_resume() then next [],p2
+			if !in_display then next [],p2
 			else serror()
 
 and parse_enum s =
@@ -709,7 +710,7 @@ and parse_class_field s =
 		| [< >] ->
 			begin match List.rev al with
 				| [] -> raise Stream.Failure
-				| (AOverride,po) :: _ when would_skip_resume po s ->
+				| (AOverride,po) :: _ when would_skip_display_position po s ->
 					let f = {
 						f_params = [];
 						f_args = [];
@@ -789,7 +790,7 @@ and parse_constraint_param = parser
 and parse_type_path_or_resume p1 s =
 	let pnext = next_pos s in
 	let check_resume exc =
-		if do_resume() && is_resuming_file p1.pfile && encloses_resume (punion p1 pnext) then
+		if encloses_display_position (punion p1 pnext) then
 			(magic_type_path,punion_next p1 s),true
 		else
 			raise exc
@@ -870,7 +871,7 @@ and parse_obj_decl name e p0 s =
 				| [< '(DblDot,_) >] ->
 					next_expr key
 				| [< >] ->
-					if do_resume() then next_expr key
+					if !in_display then next_expr key
 					else serror()
 			in
 			begin match s with parser
@@ -893,7 +894,7 @@ and parse_array_decl p1 s =
 		display e
 	in
 	let resume_or_fail p1 =
-		if do_resume () then begin
+		if !in_display then begin
 			let p = punion_next p1 s in
 			[mk_null_expr p],p
 		end else serror()
@@ -1016,7 +1017,7 @@ and expr = parser
 		with
 		| Display e ->
 			display (make_meta name params e p)
-		| Stream.Failure | Stream.Error _ when Path.unique_full_path p.pfile = (!resume_display).pfile ->
+		| Stream.Failure | Stream.Error _ when !in_display_file ->
 			let e = EConst (Ident "null"),null_pos in
 			display (make_meta name params e p)
 		end
@@ -1027,7 +1028,7 @@ and expr = parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] ->
 					(* Ignore missing } if we are resuming and "guess" the last position. *)
-					if do_resume() then pos (next_token s) else serror()
+					if !in_display then pos (next_token s) else serror()
 			in
 			let e = (b,punion p1 p2) in
 			(match b with
@@ -1067,7 +1068,7 @@ and expr = parser
 		begin match s with parser
 		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->
-			if do_resume() then (ENew(t,[]),punion p1 (pos t))
+			if !in_display then (ENew(t,[]),punion p1 (pos t))
 			else serror()
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
@@ -1141,7 +1142,7 @@ and expr = parser
 and expr_next e1 s =
 	try
 		expr_next' e1 s
-	with Stream.Error _ when do_resume() ->
+	with Stream.Error _ when !in_display ->
 		e1
 
 and expr_next' e1 = parser
@@ -1238,7 +1239,7 @@ and parse_catches etry catches pmax = parser
 	| [< >] -> List.rev catches,pmax
 
 and parse_call_params f p1 s =
-	if not (do_resume()) || not (is_resuming_file p1.pfile) then begin
+	if not !in_display_file then begin
 		let el = psep Comma expr s in
 		match s with parser
 		| [< '(PClose,p2) >] -> f el p2
@@ -1257,7 +1258,7 @@ and parse_call_params f p1 s =
 				if not (is_signature_display()) then e
 				else begin
 					let p = punion p1 p2 in
-					if encloses_resume p then (mk_display_expr e DKMarked)
+					if encloses_display_position p then (mk_display_expr e DKMarked)
 					else e
 				end
 			in
@@ -1294,7 +1295,7 @@ and secure_expr s =
 and expr_or_fail fail s =
 	match s with parser
 	| [< e = toplevel_expr >] -> e
-	| [< >] -> if do_resume() then begin
+	| [< >] -> if !in_display then begin
 		let last = last_token s in
 		let plast = pos last in
 		let offset = match fst last with

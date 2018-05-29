@@ -1888,7 +1888,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_display_pos", vfun0 (fun() ->
-			let p = !Parser.resume_display in
+			let p = !DisplayPosition.display_position in
 			if p = Globals.null_pos then
 				vnull
 			else
