@@ -28,15 +28,8 @@ type context = {
 }
 
 let s_version =
-	let pre,build = match Version.version_extra with
-		| None -> "",""
-		| Some(_,build) ->
-			let pre = match version_pre with
-				| None -> ""
-				| Some pre -> "-" ^ pre
-			in
-			pre,"+" ^ build
-	in
+	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
+	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
 let default_flush ctx = match ctx.com.json_out with
