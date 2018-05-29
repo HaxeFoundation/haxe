@@ -647,8 +647,9 @@ and gen_expr ?(local=true) ctx e = begin
         gen_value ctx x;
         print ctx "[1]"
     | TField (e, ef) when is_string_expr e && field_name ef = "length"->
-        spr ctx "#";
+        spr ctx "__lua_lib_luautf8_Utf8.len(";
         gen_value ctx e;
+        spr ctx ")";
     | TField (e, ef) when is_possible_string_field e (field_name ef)  ->
         add_feature ctx "use._hx_wrap_if_string_field";
         add_feature ctx "use.string";
