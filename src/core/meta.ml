@@ -149,6 +149,7 @@ type strict_meta =
 	| Sound
 	| SourceFile
 	| StackOnly
+	| StaticExtension
 	| StoredTypedExpr
 	| Strict
 	| Struct
@@ -343,12 +344,13 @@ let get_info = function
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
 	| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
-	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
-	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; UsedInternally])
 	| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; UsedInternally])
 	| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
 	| SourceFile -> ":sourceFile",("Source code filename for external class",[Platform Cpp])
+	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
+	| StaticExtension -> "haxe.internal.static_extension",("Used internally to mark static extension fields",[UsedInternally])
+	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
 	| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
 	| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])

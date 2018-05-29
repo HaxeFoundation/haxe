@@ -411,6 +411,7 @@ let rec acc_get ctx g p =
 	| AKUsing (et,c,cf,e) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
+		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
 		let t = match follow et.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| _ -> et.etype
