@@ -636,7 +636,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 					| _ -> !analyzer_run_on_expr_ref ctx.com e
 				in
 				let require_constant_expression e msg =
-					if ctx.com.display.dms_display && ctx.com.display.dms_error_policy <> EPCollect then
+					if ctx.com.display.dms_kind <> DMNone && ctx.com.display.dms_error_policy <> EPCollect then
 						e
 					else match Optimizer.make_constant_expression ctx (maybe_run_analyzer e) with
 					| Some e -> e

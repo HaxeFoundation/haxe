@@ -1822,7 +1822,7 @@ and type_new ctx path el with_type p =
 		mk (TNew (c,params,el)) t p
 	| _ ->
 		error (s_type (print_context()) t ^ " cannot be constructed") p
-	end with Error(No_constructor _ as err,p) when ctx.com.display.dms_display ->
+	end with Error(No_constructor _ as err,p) when ctx.com.display.dms_kind <> DMNone ->
 		display_error ctx (error_msg err) p;
 		Diagnostics.secure_generated_code ctx (mk (TConst TNull) t p)
 

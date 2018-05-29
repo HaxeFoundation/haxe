@@ -851,7 +851,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_display && DisplayPosition.is_display_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.is_display_file m.m_extra.m_file);
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

@@ -790,7 +790,7 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	if com.display.dms_display then begin
+	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)

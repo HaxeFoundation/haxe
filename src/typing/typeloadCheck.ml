@@ -471,7 +471,7 @@ module Inheritance = struct
 					raise_fields l (if is_extends then CRExtends else CRImplements) p
 				in
 				Some (check_herit t is_extends)
-			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_display ->
+			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
 		) herits in

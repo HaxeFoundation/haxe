@@ -62,7 +62,7 @@ let type_function_arg_value ctx t c do_display =
 				| TConst c -> Some c
 				| TCast(e,None) -> loop e
 				| _ ->
-					if not ctx.com.display.dms_display || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
+					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
 						display_error ctx "Parameter default value should be constant" p;
 					None
 			in
