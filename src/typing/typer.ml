@@ -1894,7 +1894,11 @@ and type_try ctx e1 catches with_type p =
 		if ctx.is_display_file && DisplayPosition.encloses_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
-		if with_type <> NoValue then unify ctx e.etype e1.etype e.epos;
+		begin match with_type with
+			| NoValue -> ()
+			| Value -> unify ctx e.etype e1.etype e.epos
+			| WithType t -> unify ctx e.etype t e.epos
+		end;
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 		(v , e) :: acc
 	) [] catches in
