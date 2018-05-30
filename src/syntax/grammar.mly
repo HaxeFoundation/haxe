@@ -73,6 +73,19 @@ let property_ident = parser
 	| [< '(Kwd Default,p) >] -> "default",p
 	| [< '(Kwd Null,p) >] -> "null",p
 
+let questionable_dollar_ident s =
+	let po = match s with parser
+		| [< '(Question,p) >] -> Some p
+		| [< >] -> None
+	in
+	let name,p = dollar_ident s in
+	match po with
+		| None ->
+			false,(name,p)
+		| Some p' ->
+			if p.pmin <> p'.pmax then error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) p';
+			true,(name,p)
+
 let bropen = parser
 	| [< '(BrOpen,_) >] -> ()
 
@@ -368,9 +381,9 @@ and resume tdecl fdecl s =
 
 and parse_class_field_resume tdecl s =
 	if not (!in_display) then
-		plist parse_class_field s
+		plist (parse_class_field tdecl) s
 	else try
-		let c = parse_class_field s in
+		let c = parse_class_field tdecl s in
 		c :: parse_class_field_resume tdecl s
 	with Stream.Error _ | Stream.Failure ->
 		if resume tdecl true s then parse_class_field_resume tdecl s else []
@@ -685,32 +698,41 @@ and parse_function_field doc meta al = parser
 			f_type = t;
 			f_expr = e;
 		} in
-		name, punion p1 p2, FFun f, al
+		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
-and parse_class_field s =
+and parse_class_field tdecl s =
 	let doc = get_doc s in
 	match s with parser
 	| [< meta = parse_meta; al = plist parse_cf_rights; s >] ->
-		let name, pos, k, al = (match s with parser
-		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
+		let check_optional opt name =
+			if opt then begin
+				if not tdecl then error (Custom "?var syntax is only allowed in structures") (pos name);
+				(Meta.Optional,[],null_pos) :: meta
+			end else
+				meta
+		in
+		let name,pos,k,al,meta = (match s with parser
+		| [< '(Kwd Var,p1); opt,name = questionable_dollar_ident; s >] ->
+			let meta = check_optional opt name in
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint s in
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FProp (i1,i2,t, e), al
+				name,punion p1 p2,FProp (i1,i2,t,e),al,meta
 			| [< t = popt parse_type_hint; s >] ->
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FVar (t,e), al
+				name,punion p1 p2,FVar (t,e),al,meta
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
-			| [< name = dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1])
+			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+				let meta = check_optional opt name in
+				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
 			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
 				f
 			| [< >] ->
@@ -729,7 +751,7 @@ and parse_class_field s =
 						f_expr = None
 					} in
 					let _,p2 = next_token s in
-					(magic_display_field_name,p2),punion po p2,FFun f,al
+					(magic_display_field_name,p2),punion po p2,FFun f,al,meta
 				| _ -> serror()
 			end
 		) in
