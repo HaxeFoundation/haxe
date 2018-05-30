@@ -82,6 +82,9 @@ let comma = parser
 let colon = parser
 	| [< '(DblDot,p) >] -> p
 
+let question_mark = parser
+	| [< '(Question,p) >] -> p
+
 let semicolon s =
 	if fst (last_token s) = BrClose then
 		match s with parser
@@ -492,11 +495,11 @@ and parse_complex_type_inner allow_named = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
+		| [< l,p2 = parse_type_anonymous >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l,p2 = parse_type_anonymous false >] -> CTExtend (tl,l),punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> CTExtend (tl,l),punion p1 p2
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
@@ -606,9 +609,14 @@ and parse_function_type_next tl p1 = parser
 		end
 	| [< >] -> serror ()
 
-and parse_type_anonymous opt = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+and parse_type_anonymous s =
+	let p0 = popt question_mark s in
+	match s with parser
 	| [< name, p1 = ident; t = parse_type_hint; s >] ->
+		let opt,p1 = match p0 with
+			| Some p -> true,p
+			| None -> false,p1
+		in
 		let p2 = pos (last_token s) in
 		let next acc =
 			{
@@ -620,16 +628,19 @@ and parse_type_anonymous opt = parser
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
-		match s with parser
+		begin match s with parser
 		| [< '(BrClose,p2) >] -> next [],p2
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,p2) >] -> next [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] ->
 			if !in_display then next [],p2
 			else serror()
+		end
+	| [< >] ->
+		if p0 = None then raise Stream.Failure else serror()
 
 and parse_enum s =
 	let doc = get_doc s in
