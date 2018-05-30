@@ -225,6 +225,8 @@ module TexprKindMapper = struct
 		| KWrite        (* Expression is lhs of =. *)
 		| KReadWrite    (* Expression is lhs of += .*)
 		| KStore        (* Expression is stored (via =, += or in array/object declaration). *)
+		| KEq           (* Expression is lhs or rhs of == or != *)
+		| KEqNull       (* Expression is lhs or rhs of == null or != null *)
 		| KCalled       (* Expression is being called. *)
 		| KCallArgument (* Expression is call argument (leaves context). *)
 		| KReturn       (* Expression is returned (leaves context). *)
@@ -250,6 +252,26 @@ module TexprKindMapper = struct
 			let e1 = f KReadWrite e1 in
 			let e2 = f KStore e2 in
 			{ e with eexpr = TBinop(OpAssignOp op,e1,e2) }
+		| TBinop((OpEq | OpNotEq) as op,e1,e2) ->
+			let e1,e2 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
+				| TConst TNull,TConst TNull ->
+					let e1 = f KRead e1 in
+					let e2 = f KRead e2 in
+					e1,e2
+				| TConst TNull,_ ->
+					let e1 = f KRead e1 in
+					let e2 = f KEqNull e2 in
+					e1,e2
+				| _,TConst TNull ->
+					let e1 = f KEqNull e1 in
+					let e2 = f KRead e2 in
+					e1,e2
+				| _ ->
+					let e1 = f KEq e1 in
+					let e2 = f KEq e2 in
+					e1,e2
+			in
+			{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
 			let e1 = f KRead e1 in
 			let e2 = f KRead e2 in
@@ -1125,7 +1147,7 @@ module Cleanup = struct
 		in
 		let e = loop e in
 		let rec loop kind e = match kind,e.eexpr with
-			| KRead,TField(e1,FClosure(Some(c,tl),cf)) ->
+			| KEqNull,TField(e1,FClosure(Some(c,tl),cf)) ->
 				let e1 = loop KAccess e1 in
 				{e with eexpr = TField(e1,FInstance(c,tl,cf))}
 			| _ ->
