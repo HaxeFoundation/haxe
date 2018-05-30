@@ -420,7 +420,9 @@ and load_complex_type ctx allow_display p (t,pn) =
 			List.iter (fun a ->
 				match fst a with
 				| APublic -> ()
-				| APrivate -> pub := false;
+				| APrivate ->
+					ctx.com.warning "private structure fields are deprecated" (pos a);
+					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
 				| AStatic | AOverride | AInline | ADynamic | AMacro | AExtern as a -> error ("Invalid access " ^ Ast.s_access a) p
