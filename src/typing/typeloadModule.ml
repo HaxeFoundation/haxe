@@ -399,7 +399,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let add_static_init t name s =
 				let name = (match name with None -> s | Some (n,_) -> n) in
 				match resolve_typedef t with
-				| TClassDecl c ->
+				| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
 					ignore(c.cl_build());
 					ignore(PMap.find s c.cl_statics);
 					ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals

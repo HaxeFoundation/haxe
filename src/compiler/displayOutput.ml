@@ -405,7 +405,7 @@ module TypePathHandler = struct
 				let tinfos = t_infos t in
 				let is_module_type = snd tinfos.mt_path = c in
 				if is_import && is_module_type then begin match t with
-					| TClassDecl c ->
+					| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
 						ignore(c.cl_build());
 						statics := Some c
 					| TEnumDecl en ->
@@ -422,8 +422,12 @@ module TypePathHandler = struct
 						make_ci_type (CompletionItem.CompletionModuleType.of_module_type mt) ImportStatus.Imported None
 					) public_types
 			in
+			let class_origin c = match c.cl_kind with
+				| KAbstractImpl a -> Self (TAbstractDecl a)
+				| _ -> Self (TClassDecl c)
+			in
 			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (Self (TClassDecl c)) true) cf.cf_type
+				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) cf.cf_type
 			in
 			let fields = match !statics with
 				| None -> types
