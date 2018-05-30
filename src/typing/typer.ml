@@ -833,6 +833,13 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		with Error (Unify _,_) ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
+		if not ctx.com.config.pf_supports_function_equality then begin match e1.eexpr, e2.eexpr with
+		| TConst TNull , _ | _ , TConst TNull -> ()
+		| _ ->
+			match follow e1.etype, follow e2.etype with
+			| TFun _ , _ | _, TFun _ -> ctx.com.warning "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
+			| _ -> ()
+		end;
 		mk_op e1 e2 ctx.t.tbool
 	| OpGt
 	| OpGte
