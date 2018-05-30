@@ -546,7 +546,7 @@ private class HxClass {
 	**/
 	@:phpMagic
 	function __call( method:String, args:NativeArray ) : Dynamic {
-		var callback = (phpClassName == 'String' ? (cast HxString:HxClass).phpClassName : phpClassName) + '::' + method;
+		var callback = (phpClassName == 'String' ? Syntax.nativeClassName(HxString) : phpClassName) + '::' + method;
 		return Global.call_user_func_array(callback, args);
 	}
 
