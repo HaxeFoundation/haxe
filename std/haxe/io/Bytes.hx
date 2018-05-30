@@ -526,7 +526,7 @@ class Bytes {
 			return new Bytes(b.length, b);
 
 		#elseif lua
-			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
+			var bytes = [for (i in 0...lua.NativeStringTools.len(s)) lua.NativeStringTools.byte(s,i+1)];
 			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
