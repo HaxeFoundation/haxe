@@ -383,7 +383,8 @@ class Bytes {
 		#elseif lua
 		var begin = cast(Math.min(pos,b.length),Int);
 		var end = cast(Math.min(pos+len,b.length),Int);
-		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
+		var arr = b.slice(begin,end);
+		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped arr,0));
 		#else
 		var s = "";
 		var b = b;
@@ -437,6 +438,9 @@ class Bytes {
 			return new String(b, 0, length, "UTF-8");
 		}
 		catch (e:Dynamic) throw e;
+		#elseif lua
+		if (b.length == 0) return '';
+		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, 0));
 		#else
 		return getString(0,length);
 		#end
