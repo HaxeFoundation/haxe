@@ -2055,11 +2055,12 @@ and type_local_function ctx name f with_type p =
 		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			(mk (TBlock [
+			let e = (mk (TBlock [
 				mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p;
 				mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
 				mk (TLocal v) ft p
-			]) ft p)
+			]) ft p) in
+			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
 		end else if inline && not ctx.in_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 		else
