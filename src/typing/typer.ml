@@ -2024,7 +2024,9 @@ and type_local_function ctx name f with_type p =
 		| None -> None
 		| Some v ->
 			if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
-			Some (add_local_with_origin ctx v ft p (TVarOrigin.TVOLocalFunction)) (* TODO: var pos *)
+			let v = (add_local_with_origin ctx v ft p (TVarOrigin.TVOLocalFunction)) (* TODO: var pos *) in
+			if params <> [] then v.v_extra <- Some (params,None);
+			Some v
 	) in
 	let curfun = match ctx.curfun with
 		| FunStatic -> FunStatic
@@ -2053,12 +2055,11 @@ and type_local_function ctx name f with_type p =
 		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			let vnew = add_local ctx v.v_name ft v.v_pos in
-			mk (TVar (vnew,Some (mk (TBlock [
+			(mk (TBlock [
 				mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p;
 				mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
 				mk (TLocal v) ft p
-			]) ft p))) ctx.t.tvoid p
+			]) ft p)
 		end else if inline && not ctx.in_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 		else
