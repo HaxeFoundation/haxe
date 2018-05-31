@@ -873,7 +873,7 @@ and block_with_pos' acc f p s =
 	with
 		| Stream.Failure ->
 			List.rev acc,p
-		| Stream.Error _ ->
+		| Stream.Error _ when !in_display ->
 			let tk , pos = next_token s in
 			(!display_error) (Unexpected tk) pos;
 			block_with_pos acc pos s
