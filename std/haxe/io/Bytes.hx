@@ -381,10 +381,9 @@ class Bytes {
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
-		var begin = cast(Math.min(pos,b.length),Int);
-		var end = cast(Math.min(pos+len,b.length),Int);
-		var arr = b.slice(begin,end);
-		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped arr,0));
+		var begin = Math.min(pos,b.length);
+		var end = Math.min(pos+len,b.length);
+		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b,begin,end-1));
 		#else
 		var s = "";
 		var b = b;
