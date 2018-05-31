@@ -688,7 +688,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input measure_times pre_compilation did_something
+				DisplayJson.parse_input com input measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
