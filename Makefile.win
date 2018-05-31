@@ -60,7 +60,7 @@ package_choco:
 	mkdir -p OUTPUT
 	7z x -y out/$(PACKAGE_FILE_NAME)_bin.zip -oout > log.txt || type log.txt
 	mv out/$(PACKAGE_FILE_NAME) out/choco
-	sed -e 's/@SNAPSHOT_VERSION@/$(HAXE_VERSION)-SNAP$(COMMIT_DATE)/g' extra/choco/haxe.nuspec > out/choco/haxe.nuspec
+	sed -e 's/@SNAPSHOT_VERSION@/$(HAXE_VERSION_SHORT)-SNAP$(COMMIT_DATE)/g' extra/choco/haxe.nuspec > out/choco/haxe.nuspec
 	cd out/choco && choco pack
 	mv out/choco/haxe.*.nupkg out
 	rm -rf out/choco
