@@ -101,7 +101,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 									| _, TDynamic _ -> false
 									| r1, r2 -> try
 										unify r1 r2;
-										true
+										if like_int r1 then like_int r2 else true
 									with | Unify_error _ -> false
 								in
 								(* we only have to worry about non-covariant issues *)
