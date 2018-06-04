@@ -336,6 +336,7 @@ and load_complex_type ctx allow_display p (t,pn) =
 	| CTPath t -> load_instance ~allow_display ctx (t,pn) false p
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTNamed _ -> error "Named type not allowed here" p
+	| CTIntersection _ -> error "Intersection type not allowed here" p
 	| CTExtend (tl,l) ->
 		begin match load_complex_type ctx allow_display p (CTAnonymous l,p) with
 		| TAnon a as ta ->

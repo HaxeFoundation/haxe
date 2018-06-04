@@ -583,6 +583,11 @@ enum ComplexType {
 		Represents a type with a name.
 	**/
 	TNamed( n : String, t : ComplexType );
+
+	/**
+		Represents an intersection type `T1 & T2 & ... & TN`.
+	**/
+	TIntersection(tl:Array<ComplexType>);
 }
 
 /**

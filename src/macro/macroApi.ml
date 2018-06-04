@@ -440,6 +440,8 @@ and encode_ctype t =
 		5, [encode_ctype t]
 	| CTNamed (n,t) ->
 		6, [encode_placed_name n; encode_ctype t]
+	| CTIntersection tl ->
+		7, [(encode_array (List.map encode_ctype tl))]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -755,6 +757,8 @@ and decode_ctype t =
 		CTOptional (decode_ctype t)
 	| 6, [n;t] ->
 		CTNamed ((decode_string n,p), decode_ctype t)
+	| 7, [tl] ->
+		CTIntersection (List.map decode_ctype (decode_array tl))
 	| _ ->
 		raise Invalid_expr),p
 

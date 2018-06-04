@@ -162,6 +162,7 @@ and complex_type =
 	| CTExtend of placed_type_path list * class_field list
 	| CTOptional of type_hint
 	| CTNamed of placed_name * type_hint
+	| CTIntersection of type_hint list
 
 and type_hint = complex_type * pos
 
@@ -575,6 +576,7 @@ let map_expr loop (e,p) =
 			CTExtend (tl,fl)
 		| CTOptional t -> CTOptional (type_hint t)
 		| CTNamed (n,t) -> CTNamed (n,type_hint t)
+		| CTIntersection tl -> CTIntersection(List.map type_hint tl)
 		),p
 	and tparamdecl t =
 		let constraints = List.map type_hint t.tp_constraints in
@@ -782,6 +784,7 @@ let s_expr e =
 		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t
 		| CTNamed((n,_),(t,_)) -> n ^ ":" ^ s_complex_type tabs t
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
+		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
 		match f.cff_doc with
 		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
