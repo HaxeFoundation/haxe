@@ -11,8 +11,22 @@ s == "あ";
 s.length == 1;
 s.charCodeAt(0) == "あ".code;
 
+var s = "aa😂éé";
+s.indexOf(String.fromCharCode(0x80))<0;
+s.indexOf("é")==s.length-2;
+s.indexOf("aa")==0;
+s.indexOf("a")==0;
+s.lastIndexOf("a")==1;
+s.indexOf("😂")>0;
+s.lastIndexOf("😂")>0;
+s.lastIndexOf("é")==s.length-1;
+var s = "abc";
+s.indexOf("éé")<0;
+s.lastIndexOf("éé")<0;
+
 var s = String.fromCharCode(0x1f602);
 s == "😂";
+
 
 #if false
 // native UTF-16 or 32
