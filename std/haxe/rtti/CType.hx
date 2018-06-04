@@ -229,7 +229,7 @@ typedef TypeInfos = {
 /**
 	The runtime class definition information.
 **/
-typedef Classdef = {> TypeInfos,
+typedef Classdef = TypeInfos & {
 	/**
 		Whether or not the class is [extern](https://haxe.org/manual/lf-externs.html).
 	**/
@@ -310,7 +310,7 @@ typedef EnumField = {
 
 	@see <https://haxe.org/manual/cr-rtti-structure.html#enum-type-information>
 **/
-typedef Enumdef = {> TypeInfos,
+typedef Enumdef = TypeInfos & {
 	/**
 		Whether or not the enum is [extern](https://haxe.org/manual/lf-externs.html).
 	**/
@@ -325,7 +325,7 @@ typedef Enumdef = {> TypeInfos,
 /**
 	The typedef runtime information.
 **/
-typedef Typedef = {> TypeInfos,
+typedef Typedef = TypeInfos & {
 	/**
 		The type of the typedef.
 	**/
@@ -342,7 +342,7 @@ typedef Typedef = {> TypeInfos,
 
 	@see <https://haxe.org/manual/cr-rtti-structure.html#abstract-type-information>
 **/
-typedef Abstractdef = {> TypeInfos,
+typedef Abstractdef = TypeInfos & {
 	var to : Array<{t:CType, field:Null<String>}>;
 	var from : Array<{t:CType, field:Null<String>}>;
 	var impl : Classdef;
