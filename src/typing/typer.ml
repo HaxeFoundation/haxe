@@ -1870,7 +1870,7 @@ and type_try ctx e1 catches with_type p =
 		| x :: _ , _ -> x
 		| [] , name -> name)
 	in
-	let catches = List.fold_left (fun acc ((v,pv),t,e_ast,pc) ->
+	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
 		let t = Typeload.load_complex_type ctx true p t in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
@@ -1887,7 +1887,7 @@ and type_try ctx e1 catches with_type p =
 		in
 		let name,t2 = loop t in
 		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
-		check_unreachable acc t2 (pos e_ast);
+		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx v t pv (TVarOrigin.TVOCatchVariable) in
 		if ctx.is_display_file && DisplayPosition.encloses_display_position pv then
@@ -1898,15 +1898,18 @@ and type_try ctx e1 catches with_type p =
 		if ctx.is_display_file && DisplayPosition.encloses_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
-		begin match with_type with
-			| NoValue -> ()
-			| Value -> unify ctx e.etype e1.etype e.epos
-			| WithType t -> unify ctx e.etype t e.epos
-		end;
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
-		(v , e) :: acc
-	) [] catches in
-	mk (TTry (e1,List.rev catches)) (if with_type = NoValue then ctx.t.tvoid else e1.etype) p
+		((v,e) :: acc1),(e :: acc2)
+	) ([],[e1]) catches in
+	let t = match with_type with
+		| NoValue -> ctx.t.tvoid
+		| Value -> unify_min ctx el
+		| WithType t when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx el
+		| WithType t ->
+			List.iter (fun e -> unify ctx e.etype t e.epos) el;
+			t
+	in
+	mk (TTry (e1,List.rev catches)) t p
 
 and type_map_declaration ctx e1 el with_type p =
 	let (tkey,tval,has_type) =
