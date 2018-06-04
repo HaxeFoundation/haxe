@@ -1986,7 +1986,7 @@ and type_local_function ctx name f with_type p =
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
-	List.iter (fun tp -> if tp.tp_constraints <> [] then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
+	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
 	let inline, v = (match name with
 		| None -> false, None
 		| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))

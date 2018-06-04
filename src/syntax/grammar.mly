@@ -820,18 +820,17 @@ and parse_constraint_param = parser
 		let params = (match s with parser
 			| [< >] -> []
 		) in
-		let ctl = (match s with parser
+		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
-				| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> l
-				| [< t = parse_complex_type >] -> [t]
+				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
-			| [< >] -> []
+			| [< >] -> None
 		) in
 		{
 			tp_name = name;
 			tp_params = params;
-			tp_constraints = ctl;
+			tp_constraints = cto;
 			tp_meta = meta;
 		}
 

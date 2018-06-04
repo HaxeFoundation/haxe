@@ -469,7 +469,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			{
 				tp_name = "M" ^ string_of_int t.tnumber,null_pos;
 				tp_params = [];
-				tp_constraints = [];
+				tp_constraints = None;
 				tp_meta = [];
 			}
 		) m.mtypes in
@@ -638,7 +638,7 @@ let convert_delegate ctx p ilcls =
 		{
 			tp_name = ("T" ^ string_of_int t.tnumber),null_pos;
 			tp_params = [];
-			tp_constraints = [];
+			tp_constraints = None;
 			tp_meta = [];
 		}
 	) ilcls.ctypes in
@@ -802,7 +802,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				{
 					tp_name = "T" ^ string_of_int p.tnumber,null_pos;
 					tp_params = [];
-					tp_constraints = [];
+					tp_constraints = None;
 					tp_meta = [];
 				}) ilcls.ctypes
 			in

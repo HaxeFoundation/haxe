@@ -151,7 +151,7 @@ module CompletionModuleType = struct
 			| TInst(c,_) -> {
 				tp_name = s,null_pos;
 				tp_params = [];
-				tp_constraints = []; (* TODO? *)
+				tp_constraints = None; (* TODO? *)
 				tp_meta = c.cl_meta
 			}
 			| _ ->

@@ -677,13 +677,16 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	if ctx.is_display_file && DisplayPosition.encloses_display_position (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	match tp.tp_constraints with
-	| [] ->
+	| None ->
 		n, t
-	| _ ->
+	| Some th ->
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = List.map (load_complex_type ctx true p) tp.tp_constraints in
+			let constr = match fst th with
+				| CTIntersection tl -> List.map (load_complex_type ctx true p) tl
+				| _ -> [load_complex_type ctx true p th]
+			in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with
