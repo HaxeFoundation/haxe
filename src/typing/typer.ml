@@ -1141,42 +1141,46 @@ and type_ident ctx i p mode =
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
-		if ctx.untyped then begin
-			if i = "__this__" then
-				AKExpr (mk (TConst TThis) ctx.tthis p)
-			else
-				let t = mk_mono() in
-				AKExpr ((mk (TIdent i)) t p)
-		end else begin
-			if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
-			begin try
-				let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
-				let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
-                if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
-                    let e = type_module_type ctx (TClassDecl c) None p in
-                    AKExpr {e with etype = (snd t)}
-				end else begin
+		let resolved_to_type_parameter = ref false in
+		try
+			let t = List.find (fun (i2,_) -> i2 = i) ctx.type_params in
+			resolved_to_type_parameter := true;
+			let c = match follow (snd t) with TInst(c,_) -> c | _ -> assert false in
+			if TypeloadCheck.is_generic_parameter ctx c && Meta.has Meta.Const c.cl_meta then begin
+				let e = type_module_type ctx (TClassDecl c) None p in
+				AKExpr {e with etype = (snd t)}
+			end else
+				raise Not_found
+		with Not_found ->
+			if ctx.untyped then begin
+				if i = "__this__" then
+					AKExpr (mk (TConst TThis) ctx.tthis p)
+				else
+					let t = mk_mono() in
+					AKExpr ((mk (TIdent i)) t p)
+			end else begin
+				if ctx.curfun = FunStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
+				if !resolved_to_type_parameter then begin
 					display_error ctx ("Only @:const type parameters on @:generic classes can be used as value") p;
 					AKExpr (mk (TConst TNull) t_dynamic p)
+				end else begin
+					let err = Unknown_ident i in
+					if ctx.in_display then begin
+						raise (Error (err,p))
+					end;
+					match ctx.com.display.dms_kind with
+						| DMNone ->
+							raise (Error(err,p))
+						| DMDiagnostics b when b || ctx.is_display_file ->
+							DisplayToplevel.handle_unresolved_identifier ctx i p false;
+							let t = mk_mono() in
+							AKExpr (mk (TIdent i) t p)
+						| _ ->
+							display_error ctx (error_msg err) p;
+							let t = mk_mono() in
+							AKExpr (mk (TIdent i) t p)
 				end
-			with Not_found ->
-				let err = Unknown_ident i in
-				if ctx.in_display then begin
-					raise (Error (err,p))
-				end;
-				match ctx.com.display.dms_kind with
-					| DMNone ->
-						raise (Error(err,p))
-					| DMDiagnostics b when b || ctx.is_display_file ->
-						DisplayToplevel.handle_unresolved_identifier ctx i p false;
-						let t = mk_mono() in
-						AKExpr (mk (TIdent i) t p)
-					| _ ->
-						display_error ctx (error_msg err) p;
-						let t = mk_mono() in
-						AKExpr (mk (TIdent i) t p)
 			end
-		end
 
 (* MORDOR *)
 and handle_efield ctx e p mode =
