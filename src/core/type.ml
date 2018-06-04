@@ -2833,3 +2833,10 @@ module TClass = struct
 	let get_all_fields c tl =
 		get_member_fields' true c tl
 end
+
+let s_class_path c =
+	let path = match c.cl_kind with
+		| KAbstractImpl a -> a.a_path
+		| _ -> c.cl_path
+	in
+	s_type_path path
