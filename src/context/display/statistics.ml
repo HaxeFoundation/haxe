@@ -164,21 +164,11 @@ let collect_statistics ctx =
 			check_module a.a_module;
 			declare (SKAbstract a) a.a_name_pos
 	in
-	begin match CompilationServer.get () with
-		| None ->
-			let rec loop com =
-				List.iter f com.types;
-				Option.may loop (com.get_macros())
-			in
-			loop ctx.com
-		| Some cs ->
-			let rec loop com =
-				(* CompilationServer.cache_context cs com; *)
-				CompilationServer.iter_modules cs com (fun m -> List.iter f m.m_types);
-				Option.may loop (com.get_macros())
-			in
-			loop ctx.com
-	end;
+	let rec loop com =
+		List.iter f com.types;
+		Option.may loop (com.get_macros())
+	in
+	loop ctx.com;
 	let l = List.fold_left (fun acc (_,cfi,_,cfo) -> match cfo with
 		| Some cf -> if List.mem_assoc cf.cf_name_pos acc then acc else (cf.cf_name_pos,cfi.cf_name_pos) :: acc
 		| None -> acc

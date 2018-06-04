@@ -124,6 +124,14 @@ let get_file_list cs com =
 	let sign = Define.get_signature com.defines in
 	Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) cs.cache.c_files []
 
+let get_module_name_of_cfile file cfile = match cfile.c_module_name with
+	| None ->
+		let name = Path.module_name_of_file file in
+		cfile.c_module_name <- Some name;
+		name
+	| Some name ->
+		name
+
 (* haxelibs *)
 
 let find_haxelib cs key =

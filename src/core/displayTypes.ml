@@ -237,3 +237,12 @@ module DisplayMode = struct
 		| DMStatistics -> "statistics"
 		| DMSignature -> "signature"
 end
+
+type reference_kind =
+	| KVar
+	| KIdent
+	| KAnyField
+	| KClassField
+	| KEnumField
+	| KModuleType
+	| KConstructor

@@ -10,7 +10,7 @@ open Globals
 open Genjson
 open DisplayPosition
 
-let reference_position = ref null_pos
+let reference_position = ref ("",null_pos,KVar)
 
 module ExprPreprocessing = struct
 	let find_before_pos com is_completion e =
