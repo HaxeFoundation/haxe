@@ -36,22 +36,26 @@ let completion_item_of_expr ctx e =
 		let t = DisplayEmitter.patch_type ctx e.etype in
 		make_ci_expr {e with etype = t}
 	in
-	let class_origin static c = match c.cl_kind with
+	let class_origin c = match c.cl_kind with
 		| KAbstractImpl a -> Self (TAbstractDecl a)
-		| _ ->
-			if static then Self (TClassDecl c)
-			else if c != ctx.curclass then Parent (TClassDecl c)
-			else Self (TClassDecl c)
+		| _ -> Self (TClassDecl c)
 	in
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (DisplayEmitter.patch_type ctx v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let origin = match e1.eexpr with
 				| TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
-				| _ -> class_origin true c
+				| _ -> class_origin c
 			in
 			of_field e origin cf CFSStatic
-		| TField(_,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) -> of_field e (class_origin false c) cf CFSMember
+		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
+			let origin = match follow e1.etype with
+			| TInst(c',_) when c != c' ->
+				Parent (TClassDecl c)
+			| _ ->
+				Self (TClassDecl c)
+			in
+			of_field e origin cf CFSMember
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,FAnon cf) ->
 			begin match follow e1.etype with
@@ -101,7 +105,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (class_origin false c) true) (DisplayEmitter.patch_type ctx t)
+				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (class_origin c) true) (DisplayEmitter.patch_type ctx t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
