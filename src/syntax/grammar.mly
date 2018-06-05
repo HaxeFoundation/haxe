@@ -73,6 +73,19 @@ let property_ident = parser
 	| [< '(Kwd Default,p) >] -> "default",p
 	| [< '(Kwd Null,p) >] -> "null",p
 
+let questionable_dollar_ident s =
+	let po = match s with parser
+		| [< '(Question,p) >] -> Some p
+		| [< >] -> None
+	in
+	let name,p = dollar_ident s in
+	match po with
+		| None ->
+			false,(name,p)
+		| Some p' ->
+			if p.pmin <> p'.pmax then error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) p';
+			true,(name,p)
+
 let bropen = parser
 	| [< '(BrOpen,_) >] -> ()
 
@@ -81,6 +94,9 @@ let comma = parser
 
 let colon = parser
 	| [< '(DblDot,p) >] -> p
+
+let question_mark = parser
+	| [< '(Question,p) >] -> p
 
 let semicolon s =
 	if fst (last_token s) = BrClose then
@@ -365,9 +381,9 @@ and resume tdecl fdecl s =
 
 and parse_class_field_resume tdecl s =
 	if not (!in_display) then
-		plist parse_class_field s
+		plist (parse_class_field tdecl) s
 	else try
-		let c = parse_class_field s in
+		let c = parse_class_field tdecl s in
 		c :: parse_class_field_resume tdecl s
 	with Stream.Error _ | Stream.Failure ->
 		if resume tdecl true s then parse_class_field_resume tdecl s else []
@@ -492,11 +508,11 @@ and parse_complex_type_inner allow_named = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
+		| [< l,p2 = parse_type_anonymous >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l,p2 = parse_type_anonymous false >] -> CTExtend (tl,l),punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> CTExtend (tl,l),punion p1 p2
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
@@ -574,7 +590,7 @@ and parse_type_path_or_const = parser
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
 	| [< e = expr >] -> TPExpr e
-	| [< >] -> serror()
+	| [< >] -> if !in_display then raise Stream.Failure else serror()
 
 and parse_complex_type_next (t : type_hint) s =
 	let make_fun t2 p2 = match t2 with
@@ -606,9 +622,14 @@ and parse_function_type_next tl p1 = parser
 		end
 	| [< >] -> serror ()
 
-and parse_type_anonymous opt = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+and parse_type_anonymous s =
+	let p0 = popt question_mark s in
+	match s with parser
 	| [< name, p1 = ident; t = parse_type_hint; s >] ->
+		let opt,p1 = match p0 with
+			| Some p -> true,p
+			| None -> false,p1
+		in
 		let p2 = pos (last_token s) in
 		let next acc =
 			{
@@ -620,16 +641,19 @@ and parse_type_anonymous opt = parser
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
-		match s with parser
+		begin match s with parser
 		| [< '(BrClose,p2) >] -> next [],p2
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,p2) >] -> next [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] ->
 			if !in_display then next [],p2
 			else serror()
+		end
+	| [< >] ->
+		if p0 = None then raise Stream.Failure else serror()
 
 and parse_enum s =
 	let doc = get_doc s in
@@ -674,32 +698,41 @@ and parse_function_field doc meta al = parser
 			f_type = t;
 			f_expr = e;
 		} in
-		name, punion p1 p2, FFun f, al
+		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
-and parse_class_field s =
+and parse_class_field tdecl s =
 	let doc = get_doc s in
 	match s with parser
 	| [< meta = parse_meta; al = plist parse_cf_rights; s >] ->
-		let name, pos, k, al = (match s with parser
-		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
+		let check_optional opt name =
+			if opt then begin
+				if not tdecl then error (Custom "?var syntax is only allowed in structures") (pos name);
+				(Meta.Optional,[],null_pos) :: meta
+			end else
+				meta
+		in
+		let name,pos,k,al,meta = (match s with parser
+		| [< '(Kwd Var,p1); opt,name = questionable_dollar_ident; s >] ->
+			let meta = check_optional opt name in
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint s in
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FProp (i1,i2,t, e), al
+				name,punion p1 p2,FProp (i1,i2,t,e),al,meta
 			| [< t = popt parse_type_hint; s >] ->
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FVar (t,e), al
+				name,punion p1 p2,FVar (t,e),al,meta
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
-			| [< name = dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1])
+			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+				let meta = check_optional opt name in
+				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
 			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
 				f
 			| [< >] ->
@@ -718,7 +751,7 @@ and parse_class_field s =
 						f_expr = None
 					} in
 					let _,p2 = next_token s in
-					(magic_display_field_name,p2),punion po p2,FFun f,al
+					(magic_display_field_name,p2),punion po p2,FFun f,al,meta
 				| _ -> serror()
 			end
 		) in
@@ -840,7 +873,7 @@ and block_with_pos' acc f p s =
 	with
 		| Stream.Failure ->
 			List.rev acc,p
-		| Stream.Error _ ->
+		| Stream.Error _ when !in_display ->
 			let tk , pos = next_token s in
 			(!display_error) (Unexpected tk) pos;
 			block_with_pos acc pos s

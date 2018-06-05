@@ -71,3 +71,6 @@ let platform_list_help = function
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
+
+let starts_with s c =
+	String.length s > 0 && s.[0] = c

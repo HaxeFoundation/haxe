@@ -308,6 +308,8 @@ let rec load_instance' ctx (t,pn) allow_no_params p =
 				| t :: tl,[] ->
 					if is_rest then
 						t :: loop tl [] true
+					else if ctx.com.display.dms_error_policy = EPIgnore then
+						[]
 					else
 						error ("Too many parameters for " ^ s_type_path path) p
 			in
@@ -780,6 +782,15 @@ let string_list_of_expr_path (e,p) =
 
 let handle_path_display ctx path p =
 	let open ImportHandling in
+	let class_field c name =
+		ignore(c.cl_build());
+		let cf = PMap.find name c.cl_statics in
+		let origin = match c.cl_kind with
+			| KAbstractImpl a -> Self (TAbstractDecl a)
+			| _ -> Self (TClassDecl c)
+		in
+		DisplayEmitter.display_field ctx origin CFSStatic cf p
+	in
 	match ImportHandling.convert_import_to_something_usable !DisplayPosition.display_position path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
 			let fields = DisplayToplevel.collect ctx None Typecore.NoValue in
@@ -827,9 +838,9 @@ let handle_path_display ctx path p =
 			let m = ctx.g.do_load_module ctx (sl,sm) p in
 			List.iter (fun t -> match t with
 				| TClassDecl c when snd c.cl_path = st ->
-					ignore(c.cl_build());
-					let cf = PMap.find sf c.cl_statics in
-					DisplayEmitter.display_field ctx (Self (TClassDecl c)) CFSStatic cf p
+					class_field c sf
+				| TAbstractDecl {a_impl = Some c; a_path = (_,st')} when st' = st ->
+					class_field c sf
 				| _ ->
 					()
 			) m.m_types;

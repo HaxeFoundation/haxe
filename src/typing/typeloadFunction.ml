@@ -82,7 +82,7 @@ let save_function_state ctx =
 
 let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-		if n.[0] = '$' then error "Function argument names starting with a dollar are not allowed" p;
+		if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c do_display in
 		let v,c = add_local_with_origin ctx n t pn (TVarOrigin.TVOArgument), c in
 		v.v_meta <- v.v_meta @ m;

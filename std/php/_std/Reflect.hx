@@ -100,14 +100,15 @@ using php.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		if (Std.is(func, Closure)) {
-			if (o != null) {
-				func = cast cast(func, Closure).bindTo(o);
+		var callback:Any = func;
+		if(o != null && !Boot.isClass(o)) {
+			if (Std.is(func, Closure)) {
+				callback = (cast func:Closure).bindTo(o);
+			} else {
+				callback = Boot.castClosure(func).getCallback(o);
 			}
-			return Global.call_user_func_array(func, @:privateAccess args.arr);
-		} else {
-			return Boot.castClosure(func).callWith(o, @:privateAccess args.arr);
 		}
+		return Global.call_user_func_array(callback, @:privateAccess args.arr);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {

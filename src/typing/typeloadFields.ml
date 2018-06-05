@@ -574,7 +574,11 @@ let bind_type (ctx,cctx,fctx) cf r p =
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
 		let scope = if fctx.is_static then CFSStatic else if fctx.field_kind = FKConstructor then CFSConstructor else CFSMember in
-		DisplayEmitter.maybe_display_field ctx (Self (TClassDecl c)) scope cf cf.cf_name_pos;
+		let origin = match c.cl_kind with
+			| KAbstractImpl a -> Self (TAbstractDecl a)
+			| _ -> Self (TClassDecl c)
+		in
+		DisplayEmitter.maybe_display_field ctx origin scope cf cf.cf_name_pos;
 		DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
 	end
 
@@ -1150,7 +1154,7 @@ let init_field (ctx,cctx,fctx) f =
 	let name = fst f.cff_name in
 	TypeloadCheck.check_global_metadata ctx f.cff_meta (fun m -> f.cff_meta <- m :: f.cff_meta) c.cl_module.m_path c.cl_path (Some name);
 	let p = f.cff_pos in
-	if name.[0] = '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
+	if starts_with name '$' then display_error ctx "Field names starting with a dollar are not allowed" p;
 	List.iter (fun acc ->
 		match (fst acc, f.cff_kind) with
 		| APublic, _ | APrivate, _ | AStatic, _ | AFinal, _ | AExtern, _ -> ()

@@ -3,7 +3,8 @@ open Ast
 open Type
 open Typecore
 open DisplayException
-open DisplayTypes.DisplayMode
+open DisplayTypes
+open DisplayMode
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes.CompletionResultKind
@@ -38,7 +39,9 @@ let patch_type ctx t =
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [(t_infos mt).mt_name_pos];
-	| DMUsage _ -> reference_position := (t_infos mt).mt_name_pos
+	| DMUsage _ ->
+		let infos = t_infos mt in
+		reference_position := (snd infos.mt_path,infos.mt_name_pos,KModuleType)
 	| DMHover ->
 		let t = patch_type ctx (type_of_module_type mt) in
 		raise_hover (make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t)) p
@@ -66,14 +69,12 @@ let check_display_type ctx t p =
 		if ctx.is_display_file && encloses_display_position p then
 			display_type ctx t p
 	in
-	match ctx.com.display.dms_kind with
-	| DMStatistics -> add_type_hint()
-	| DMUsage _ -> add_type_hint(); maybe_display_type()
-	| _ -> maybe_display_type()
+	add_type_hint();
+	maybe_display_type()
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [v.v_pos]
-	| DMUsage _ -> reference_position := v.v_pos
+	| DMUsage _ -> reference_position := (v.v_name,v.v_pos,KVar)
 	| DMHover ->
 		let t = patch_type ctx v.v_type in
 		raise_hover (make_ci_local v t) p
@@ -81,7 +82,15 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [cf.cf_name_pos]
-	| DMUsage _ -> reference_position := cf.cf_name_pos
+	| DMUsage _ ->
+		let name,kind = match cf.cf_name,origin with
+			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				(* For constructors, we care about the class name so we don't end up looking for "new". *)
+				snd c.cl_path,KConstructor
+			| _ ->
+				cf.cf_name,KClassField
+		in
+		reference_position := (name,cf.cf_name_pos,kind)
 	| DMHover ->
 		let cf = if Meta.has Meta.Impl cf.cf_meta then
 			prepare_using_field cf
@@ -101,7 +110,7 @@ let maybe_display_field ctx origin scope cf p =
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [ef.ef_name_pos]
-	| DMUsage _ -> reference_position := ef.ef_name_pos
+	| DMUsage _ -> reference_position := (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->
 		let t = patch_type ctx ef.ef_type in
 		raise_hover (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) t) p
