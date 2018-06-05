@@ -501,7 +501,7 @@ and parse_structural_extension = parser
 					| [< '(Comma,_) >] -> ()
 					| [< >] -> ()
 				end;
-				{ tpackage = []; tname = ""; tparams = []; tsub = None },null_pos
+				magic_type_path,null_pos
 			end else raise Stream.Failure
 
 and parse_complex_type_inner allow_named = parser

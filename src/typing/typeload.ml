@@ -105,7 +105,7 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 *)
 let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
-	if t == Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint None;
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint None;
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
