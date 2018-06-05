@@ -450,7 +450,7 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< s >] -> if would_skip_display_position p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+	| [< s >] -> if would_skip_display_position p s then CTPath magic_type_path,p else serror()
 
 and parse_type_hint = parser
 	| [< '(DblDot,p1); s >] ->
