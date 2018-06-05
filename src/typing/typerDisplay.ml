@@ -228,32 +228,32 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
-			Display.reference_position := ef.ef_name_pos;
+			Display.reference_position := (ef.ef_name,ef.ef_name_pos,KEnumField);
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
-			Display.reference_position := cf.cf_name_pos;
+			Display.reference_position := (cf.cf_name,cf.cf_name_pos,KClassField);
 		| TLocal v | TVar(v,_) ->
-			Display.reference_position := v.v_pos;
+			Display.reference_position := (v.v_name,v.v_pos,KVar);
 		| TTypeExpr mt ->
 			let ti = t_infos mt in
-			Display.reference_position := ti.mt_name_pos;
+			Display.reference_position := (snd ti.mt_path,ti.mt_name_pos,KModuleType);
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				Display.reference_position := cf.cf_name_pos;
+				Display.reference_position := (snd c.cl_path,cf.cf_name_pos,KConstructor);
 			with Not_found ->
 				()
 			end
 		| TCall({eexpr = TConst TSuper},_) ->
 			begin try
 				let cf = get_super_constructor() in
-				Display.reference_position := cf.cf_name_pos;
+				Display.reference_position := (cf.cf_name,cf.cf_name_pos,KClassField);
 			with Not_found ->
 				()
 			end
 		| TConst TSuper ->
 			begin match ctx.curclass.cl_super with
 				| None -> ()
-				| Some (c,_) -> Display.reference_position := c.cl_name_pos;
+				| Some (c,_) -> Display.reference_position := (snd c.cl_path,c.cl_name_pos,KModuleType);
 			end
 		| TCall(e1,_) ->
 			loop e1

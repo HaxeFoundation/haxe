@@ -347,14 +347,7 @@ let collect ctx epos with_type =
 		) files in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
 		List.iter (fun ((file,cfile),_) ->
-			let module_name = match cfile.c_module_name with
-			| None ->
-				let name = Path.module_name_of_file file in
-				cfile.c_module_name <- Some name;
-				name
-			| Some name ->
-				name
-			in
+			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			begin match List.rev cfile.c_package with
 				| [] -> ()
 				| s :: sl -> add_package (List.rev sl,s)

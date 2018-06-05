@@ -308,6 +308,8 @@ let rec load_instance' ctx (t,pn) allow_no_params p =
 				| t :: tl,[] ->
 					if is_rest then
 						t :: loop tl [] true
+					else if ctx.com.display.dms_error_policy = EPIgnore then
+						[]
 					else
 						error ("Too many parameters for " ^ s_type_path path) p
 			in

@@ -606,32 +606,13 @@ let process_display_file com classes =
 
 let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMUsage with_definition ->
-		let symbols,relations = Statistics.collect_statistics tctx in
-		let rec loop acc relations = match relations with
-			| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
-			| _ :: relations -> loop acc relations
-			| [] -> acc
-		in
-		let usages = Hashtbl.fold (fun p sym acc ->
-			if p = !Display.reference_position then begin
-				let acc = if with_definition then p :: acc else acc in
-				(try loop acc (Hashtbl.find relations p)
-				with Not_found -> acc)
-			end else
-				acc
-		) symbols [] in
-		let usages = List.sort (fun p1 p2 ->
-			let c = compare p1.pfile p2.pfile in
-			if c <> 0 then c else compare p1.pmin p2.pmin
-		) usages in
-		Display.reference_position := null_pos;
-		raise_position usages
+		FindReferences.find_references tctx com with_definition
 	| DMDiagnostics global ->
 		let dctx = Diagnostics.prepare com global in
 		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
 		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx in
+		let stats = Statistics.collect_statistics tctx None in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->

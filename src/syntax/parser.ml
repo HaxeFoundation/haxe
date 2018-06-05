@@ -145,7 +145,7 @@ let would_skip_display_position p1 s =
 let cut_pos_at_display p = { p with pmax = !display_position.pmax }
 
 let is_dollar_ident e = match fst e with
-	| EConst (Ident n) when n.[0] = '$' ->
+	| EConst (Ident n) when starts_with n '$' ->
 		true
 	| _ ->
 		false

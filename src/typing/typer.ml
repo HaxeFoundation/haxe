@@ -1485,7 +1485,7 @@ and type_vars ctx vl p =
 					let e = AbstractCast.cast_or_unify ctx t e p in
 					Some e
 			) in
-			if v.[0] = '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
+			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx v t pv TVarOrigin.TVOLocalVariable in
 			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
@@ -1681,7 +1681,7 @@ and type_object_decl ctx fl with_type p =
 				type_expr ctx e Value
 			in
 			if is_valid then begin
-				if String.length n > 0 && n.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
+				if starts_with n '$' then error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
 				fields := PMap.add n cf !fields;
 			end;
@@ -1709,7 +1709,7 @@ and type_object_decl ctx fl with_type p =
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
 			if ctx.in_display && DisplayPosition.encloses_display_position pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
-				if String.length f > 0 && f.[0] = '$' then error "Field names starting with a dollar are not allowed" p;
+				if starts_with f '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
 			end else acc)
 		in
@@ -1886,7 +1886,7 @@ and type_try ctx e1 catches with_type p =
 			| _ -> error "Catch type must be a class, an enum or Dynamic" (pos e_ast)
 		in
 		let name,t2 = loop t in
-		if v.[0] = '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
+		if starts_with v '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx v t pv (TVarOrigin.TVOCatchVariable) in
@@ -2030,7 +2030,7 @@ and type_local_function ctx name f with_type p =
 	let v = (match v with
 		| None -> None
 		| Some v ->
-			if v.[0] = '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
+			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx v ft p (TVarOrigin.TVOLocalFunction)) (* TODO: var pos *) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
@@ -2353,7 +2353,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EField ((EConst (String s),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
-	| EField(_,n) when n.[0] = '$' ->
+	| EField(_,n) when starts_with n '$' ->
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> NoValue && not ctx.in_display then error "Cannot use super as value" p;
