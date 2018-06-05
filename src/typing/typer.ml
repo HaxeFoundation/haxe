@@ -421,6 +421,7 @@ let rec type_ident_raise ctx i p mode =
 				| TTypeDecl t ->
 					(match follow t.t_type with
 					| TEnum (e,_) -> loop ((TEnumDecl e,pt) :: l)
+					| TAbstract (a,_) when Meta.has Meta.Enum a.a_meta -> loop ((TAbstractDecl a,pt) :: l)
 					| _ -> loop l)
 				| TEnumDecl e ->
 					try
