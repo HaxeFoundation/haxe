@@ -186,7 +186,7 @@ let reify in_macro =
 			let n, vl = (match k with
 				| FVar (ct,e) -> "FVar", [to_opt to_type_hint ct p;to_opt to_expr e p]
 				| FFun f -> "FFun", [to_fun f p]
-				| FProp (get,set,t,e) -> "FProp", [to_placed_name get; to_placed_name set; to_opt to_type_hint t p; to_opt to_expr e p]
+				| FProp (eget,eset,t,e) -> "FProp", [to_expr eget p; to_expr eset p; to_opt to_type_hint t p; to_opt to_expr e p]
 			) in
 			mk_enum "FieldType" n vl p
 		in

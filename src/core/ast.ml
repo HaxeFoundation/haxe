@@ -242,7 +242,7 @@ and placed_access = access * pos
 and class_field_kind =
 	| FVar of type_hint option * expr option
 	| FFun of func
-	| FProp of placed_name * placed_name * type_hint option * expr option
+	| FProp of expr * expr * type_hint option * expr option
 
 and class_field = {
 	cff_name : placed_name;
@@ -790,7 +790,7 @@ let s_expr e =
 		if List.length f.cff_access > 0 then String.concat " " (List.map s_placed_access f.cff_access) else "" ^
 		match f.cff_kind with
 		| FVar (t,e) -> "var " ^ (fst f.cff_name) ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
-		| FProp ((get,_),(set,_),t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ get ^ "," ^ set ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
+		| FProp (eget,eset,t,e) -> "var " ^ (fst f.cff_name) ^ "(" ^ s_expr_inner tabs eget ^ "," ^ s_expr_inner tabs eset ^ ")" ^ s_opt_type_hint tabs t " : " ^ s_opt_expr tabs e " = "
 		| FFun func -> "function " ^ (fst f.cff_name) ^ s_func tabs func
 	and s_metadata tabs (s,e,_) =
 		"@" ^ Meta.to_string s ^ if List.length e > 0 then "(" ^ s_expr_list tabs e ", " ^ ")" else ""

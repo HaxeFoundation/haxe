@@ -201,7 +201,7 @@ let transform_abstract_field com this_t a_t a f =
 	let stat = List.mem_assoc AStatic f.cff_access in
 	let p = f.cff_pos in
 	match f.cff_kind with
-	| FProp ((("get" | "never"),_),(("set" | "never"),_),_,_) when not stat ->
+	| FProp (((EConst (Ident ("get" | "never"))),_),((EConst (Ident ("set" | "never")),_)),_,_) when not stat ->
 		(* TODO: hack to avoid issues with abstract property generation on As3 *)
 		if Common.defined com Define.As3 then f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		{ f with cff_access = (AStatic,null_pos) :: f.cff_access; cff_meta = (Meta.Impl,[],null_pos) :: f.cff_meta }
@@ -302,7 +302,7 @@ let build_enum_abstract ctx c a fields p =
 			begin match eo with
 				| None ->
 					if not c.cl_extern then error "Value required" field.cff_pos
-					else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
+					else field.cff_kind <- FProp((EConst (Ident "default"),null_pos),(EConst (Ident "never"),null_pos),ct,None)
 				| Some e ->
 					field.cff_access <- (AInline,null_pos) :: field.cff_access;
 					let e = (ECast(e,None),(pos e)) in
@@ -1017,7 +1017,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	else check_field_display ctx fctx c cf;
 	cf
 
-let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
+let create_property (ctx,cctx,fctx) c f (eget,eset,t,eo) p =
 	let name = fst f.cff_name in
 	(* TODO is_lib: lazify load_complex_type *)
 	let ret = (match t, eo with
@@ -1109,6 +1109,10 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			()
 	in
 	let delay_check = if c.cl_interface then delay_late ctx PBuildClass else delay ctx PTypeField in
+	let get = match fst eget with
+		| EConst (Ident s) -> s,pos eget
+		| _ -> error "Identifier expected" (pos eget)
+	in
 	let get = (match get with
 		| "null",_ -> AccNo
 		| "dynamic",_ -> AccCall
@@ -1120,6 +1124,10 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
 			AccCall
 	) in
+	let set = match fst eset with
+		| EConst (Ident s) -> s,pos eset
+		| _ -> error "Identifier expected" (pos eset)
+	in
 	let set = (match set with
 		| "null",_ ->
 			(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
