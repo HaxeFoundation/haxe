@@ -151,11 +151,12 @@ let find_possible_references tctx cs =
 		DisplayToplevel.read_class_paths tctx.com ["display";"references"];
 	end;
 	let files = CompilationServer.get_file_list cs tctx.com in
-	let _ = List.iter (fun (file,cfile) ->
-		try
+	let t = Timer.timer ["display";"references";"candidates"] in
+	List.iter (fun (file,cfile) ->
+		let module_name = CompilationServer.get_module_name_of_cfile file cfile in
+		if not (CompilationServer.is_cached_module cs tctx.com (cfile.c_package,module_name)) then try
 			find_possible_references kind name (cfile.c_package,cfile.c_decls);
 		with Exit ->
-			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			begin try
 				ignore(tctx.g.do_load_module tctx (cfile.c_package,module_name) null_pos);
 				(* We have to flush immediately so we catch exceptions from weird modules *)
@@ -163,17 +164,21 @@ let find_possible_references tctx cs =
 			with _ ->
 				()
 			end
-	) files in
+	) files;
+	t();
 	()
 
 let find_references tctx com with_definition =
 	let name,pos,kind = !Display.reference_position in
-	let symbols,relations = Statistics.collect_statistics tctx in
+	let t = Timer.timer ["display";"references";"collect"] in
+	let symbols,relations = Statistics.collect_statistics tctx (Some pos) in
+	t();
 	let rec loop acc relations = match relations with
 		| (Statistics.Referenced,p) :: relations -> loop (p :: acc) relations
 		| _ :: relations -> loop acc relations
 		| [] -> acc
 	in
+	let t = Timer.timer ["display";"references";"filter"] in
 	let usages = Hashtbl.fold (fun p sym acc ->
 		if p = pos then begin
 			let acc = if with_definition then p :: acc else acc in
@@ -186,5 +191,6 @@ let find_references tctx com with_definition =
 		let c = compare p1.pfile p2.pfile in
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) usages in
+	t();
 	Display.reference_position := ("",null_pos,KVar);
 	DisplayException.raise_position usages

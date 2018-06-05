@@ -612,7 +612,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
 		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx in
+		let stats = Statistics.collect_statistics tctx None in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->

@@ -102,6 +102,10 @@ let iter_modules cs com f =
 	let sign = Define.get_signature com.defines in
 	Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules
 
+let is_cached_module cs com path =
+	let sign = Define.get_signature com.defines in
+	Hashtbl.mem cs.cache.c_modules (path,sign)
+
 (* files *)
 
 let find_file cs key =

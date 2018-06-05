@@ -22,20 +22,27 @@ type symbol =
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
 
-let collect_statistics ctx =
+let collect_statistics ctx pfilter =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
-	let add_relation pos r =
-		if pos <> null_pos then try
-			let l = Hashtbl.find relations pos in
+	let check_pos p = p <> null_pos && match pfilter with
+		| None -> true
+		| Some p' ->
+			(* Heuristic, we avoid the pfile check which would have to be uniquified first anyway. It's okay
+			   because we filter in the end again anyway. *)
+			p.pmin = p'.pmin && p.pmax = p'.pmax
+	in
+	let add_relation p r =
+		if check_pos p then try
+			let l = Hashtbl.find relations p in
 			if not (List.mem r l) then
-				Hashtbl.replace relations pos (r :: l)
+				Hashtbl.replace relations p (r :: l)
 		with Not_found ->
-			Hashtbl.add relations pos [r]
+			Hashtbl.add relations p [r]
 	in
 	let declare kind p =
-		if p <> null_pos then begin
+		if check_pos p then begin
 			if not (Hashtbl.mem relations p) then Hashtbl.add relations p [];
 			Hashtbl.replace symbols p kind;
 		end

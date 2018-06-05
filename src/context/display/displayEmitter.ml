@@ -82,7 +82,15 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [cf.cf_name_pos]
-	| DMUsage _ -> reference_position := (cf.cf_name,cf.cf_name_pos,KClassField)
+	| DMUsage _ ->
+		let name,kind = match cf.cf_name,origin with
+			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
+				(* For constructors, we care about the class name so we don't end up looking for "new". *)
+				snd c.cl_path,KConstructor
+			| _ ->
+				cf.cf_name,KClassField
+		in
+		reference_position := (name,cf.cf_name_pos,kind)
 	| DMHover ->
 		let cf = if Meta.has Meta.Impl cf.cf_meta then
 			prepare_using_field cf
