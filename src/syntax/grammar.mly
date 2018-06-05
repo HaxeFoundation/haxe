@@ -67,12 +67,6 @@ let lower_ident_or_macro = parser
 	| [< '(Kwd Macro,_) >] -> "macro"
 	| [< '(Kwd Extern,_) >] -> "extern"
 
-let property_ident = parser
-	| [< i,p = ident >] -> i,p
-	| [< '(Kwd Dynamic,p) >] -> "dynamic",p
-	| [< '(Kwd Default,p) >] -> "default",p
-	| [< '(Kwd Null,p) >] -> "null",p
-
 let questionable_dollar_ident s =
 	let po = match s with parser
 		| [< '(Question,p) >] -> Some p
@@ -705,6 +699,11 @@ and parse_var_field_assignment = parser
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
+and parse_property_expr = parser
+	| [< '(Kwd Dynamic,p) >] -> (EConst (Ident "dynamic"),p)
+	| [< '(Kwd Default,p) >] -> (EConst (Ident "default"),p)
+	| [< e = expr >] -> e
+
 and parse_class_field tdecl s =
 	let doc = get_doc s in
 	match s with parser
@@ -720,7 +719,7 @@ and parse_class_field tdecl s =
 		| [< '(Kwd Var,p1); opt,name = questionable_dollar_ident; s >] ->
 			let meta = check_optional opt name in
 			begin match s with parser
-			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
+			| [< '(POpen,_); i1 = parse_property_expr; '(Comma,_); i2 = parse_property_expr; '(PClose,_) >] ->
 				let t = popt parse_type_hint s in
 				let e,p2 = parse_var_field_assignment s in
 				name,punion p1 p2,FProp (i1,i2,t,e),al,meta

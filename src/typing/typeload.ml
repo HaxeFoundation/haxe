@@ -450,8 +450,12 @@ and load_complex_type ctx allow_display p (t,pn) =
 					t
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
-					let access (m,_) get =
-						match m with
+					let access (m,pm) get =
+						let ident = match m with
+							| EConst(Ident s) -> s
+							| _ -> error "Identifier expected" pm
+						in
+						match ident with
 						| "null" -> AccNo
 						| "never" -> AccNever
 						| "default" -> AccNormal

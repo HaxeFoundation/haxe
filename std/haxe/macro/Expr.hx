@@ -850,7 +850,7 @@ enum FieldType {
 	/**
 		Represents a property with getter and setter field type.
 	**/
-	FProp( get : String, set : String, ?t : Null<ComplexType>, ?e : Null<Expr> );
+	FProp( get : Expr, set : Expr, ?t : Null<ComplexType>, ?e : Null<Expr> );
 }
 
 /**

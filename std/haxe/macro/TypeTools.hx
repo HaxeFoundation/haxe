@@ -63,8 +63,8 @@ class TypeTools {
 			kind: switch([ cf.kind, cf.type ]) {
 				case [ FVar(read, write), ret ]:
 					FProp(
-						varAccessToString(read, "get"),
-						varAccessToString(write, "set"),
+						macro $i{varAccessToString(read, "get")},
+						macro $i{varAccessToString(write, "set")},
 						toComplexType(ret),
 						null);
 				case [ FMethod(_), TFun(args, ret) ]:
