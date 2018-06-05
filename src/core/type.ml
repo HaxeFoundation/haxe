@@ -329,6 +329,7 @@ and module_def_extra = {
 	mutable m_reuse_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
+	mutable m_has_error : bool;
 }
 
 and module_kind =
@@ -488,6 +489,7 @@ let module_extra file sign time kind policy =
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
+		m_has_error = false;
 	}
 
 
