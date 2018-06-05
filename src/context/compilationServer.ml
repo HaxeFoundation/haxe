@@ -184,11 +184,9 @@ let clear_directories cs key =
 
 let rec cache_context cs com =
 	let cache_module m =
-		if not m.m_extra.m_has_error then
-			cache_module cs (m.m_path,m.m_extra.m_sign) m;
+		cache_module cs (m.m_path,m.m_extra.m_sign) m;
 	in
 	List.iter cache_module com.modules;
-	begin match com.get_macros() with
+	match com.get_macros() with
 	| None -> ()
 	| Some com -> cache_context cs com
-	end
