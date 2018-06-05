@@ -67,7 +67,7 @@ let print_fields fields =
 			let path = CompletionItem.CompletionModuleType.get_path cm in
 			"type",snd path,s_type_path path,None
 		| ITPackage(path,_) -> "package",snd path,"",None
-		| ITModule s -> "type",s,"",None
+		| ITModule path -> "type",snd path,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
