@@ -498,8 +498,8 @@ let to_json ctx item =
 			| _ -> assert false
 			end
 	in
-	jobject [
-		"kind",jstring kind;
-		"args",data;
-		"type",jopt (generate_type ctx) item.ci_type;
-	]
+	jobject (
+		("kind",jstring kind) ::
+		("args",data) ::
+		(match item.ci_type with None -> [] | Some t -> ["type",generate_type ctx t])
+	)
