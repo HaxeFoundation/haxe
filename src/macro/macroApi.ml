@@ -1732,7 +1732,7 @@ let macro_api ccom get_api =
 			let data = Bytes.unsafe_to_string data in
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
-			let m = if name.[0] = '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
+			let m = if Globals.starts_with name '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
 			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 			vnull
 		);
