@@ -151,7 +151,9 @@ let pass_name = function
 
 let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
 	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
-	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
+	| DisplayMode.EPCollect ->
+		ctx.m.curmod.m_extra.m_has_error <- true;
+		add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 

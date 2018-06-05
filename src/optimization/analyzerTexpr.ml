@@ -225,6 +225,8 @@ module TexprKindMapper = struct
 		| KWrite        (* Expression is lhs of =. *)
 		| KReadWrite    (* Expression is lhs of += .*)
 		| KStore        (* Expression is stored (via =, += or in array/object declaration). *)
+		| KEq           (* Expression is lhs or rhs of == or != *)
+		| KEqNull       (* Expression is lhs or rhs of == null or != null *)
 		| KCalled       (* Expression is being called. *)
 		| KCallArgument (* Expression is call argument (leaves context). *)
 		| KReturn       (* Expression is returned (leaves context). *)
@@ -250,6 +252,26 @@ module TexprKindMapper = struct
 			let e1 = f KReadWrite e1 in
 			let e2 = f KStore e2 in
 			{ e with eexpr = TBinop(OpAssignOp op,e1,e2) }
+		| TBinop((OpEq | OpNotEq) as op,e1,e2) ->
+			let e1,e2 = match (Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
+				| TConst TNull,TConst TNull ->
+					let e1 = f KRead e1 in
+					let e2 = f KRead e2 in
+					e1,e2
+				| TConst TNull,_ ->
+					let e1 = f KRead e1 in
+					let e2 = f KEqNull e2 in
+					e1,e2
+				| _,TConst TNull ->
+					let e1 = f KEqNull e1 in
+					let e2 = f KRead e2 in
+					e1,e2
+				| _ ->
+					let e1 = f KEq e1 in
+					let e2 = f KEq e2 in
+					e1,e2
+			in
+			{e with eexpr = TBinop(op,e1,e2)}
 		| TBinop(op,e1,e2) ->
 			let e1 = f KRead e1 in
 			let e2 = f KRead e2 in
@@ -878,6 +900,27 @@ module Fusion = struct
 						| TUnop((Increment | Decrement),_,{eexpr = TField(e1,fa)}) when has_field_read ir (field_name fa) || has_state_read ir
 							|| has_field_write ir (field_name fa) || has_state_write ir ->
 							raise Exit
+						(* array *)
+						| TArray(e1,e2) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							if not !found && has_state_write ir then raise Exit;
+							{e with eexpr = TArray(e1,e2)}
+						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ef),e3) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							let e3 = replace e3 in
+							if not !found && (has_state_read ir) then raise Exit;
+							{e with eexpr = TBinop(OpAssign,{ef with eexpr = TArray(e1,e2)},e3)}
+						| TBinop(OpAssignOp _ as op,({eexpr = TArray(e1,e2)} as ef),e3) ->
+							let e1 = replace e1 in
+							let e2 = replace e2 in
+							if not !found && has_state_write ir then raise Exit;
+							let e3 = replace e3 in
+							if not !found && has_state_read ir then raise Exit;
+							{e with eexpr = TBinop(op,{ef with eexpr = TArray(e1,e2)},e3)}
+						| TUnop((Increment | Decrement),_,{eexpr = TArray _}) when has_state_read ir || has_state_write ir ->
+							raise Exit
 						(* state *)
 						| TCall({eexpr = TIdent s},el) when not (is_unbound_call_that_might_have_side_effects s el) ->
 							e
@@ -911,12 +954,6 @@ module Fusion = struct
 							let el = handle_el el in
 							(*if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;*)
 							{e with eexpr = TArrayDecl el}
-						| TBinop(OpAssign,({eexpr = TArray(e1,e2)} as ea),e3) ->
-							let e1 = replace e1 in
-							let e2 = replace e2 in
-							let e3 = replace e3 in
-							if not !found && has_state_read ir then raise Exit;
-							{e with eexpr = TBinop(OpAssign,{ea with eexpr = TArray(e1,e2)},e3)}
 						| TBinop(op,e1,e2) when (match com.platform with Cpp -> true | _ -> false) ->
 							let e1 = replace e1 in
 							let temp_found = !found in
@@ -924,11 +961,6 @@ module Fusion = struct
 							let e2 = replace e2 in
 							found := !found || temp_found;
 							{e with eexpr = TBinop(op,e1,e2)}
-						| TArray(e1,e2) ->
-							let e1 = replace e1 in
-							let e2 = replace e2 in
-							if not !found && has_state_write ir then raise Exit;
-							{e with eexpr = TArray(e1,e2)}
 						| _ ->
 							Type.map_expr replace e
 				in
@@ -1115,7 +1147,7 @@ module Cleanup = struct
 		in
 		let e = loop e in
 		let rec loop kind e = match kind,e.eexpr with
-			| KRead,TField(e1,FClosure(Some(c,tl),cf)) ->
+			| KEqNull,TField(e1,FClosure(Some(c,tl),cf)) ->
 				let e1 = loop KAccess e1 in
 				{e with eexpr = TField(e1,FInstance(c,tl,cf))}
 			| _ ->

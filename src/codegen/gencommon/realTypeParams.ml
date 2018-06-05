@@ -201,15 +201,18 @@ let rec set_hxgeneric gen mds isfirst md =
 									let rec cfs_must_be_native cfs =
 										match cfs with
 											| [] -> false
-											| cf :: cfs ->
+											| cf :: cfs when Type.is_physical_field cf ->
 												let t = follow (gen.greal_type cf.cf_type) in
-												match t with
+												(match t with
 													| TInst( { cl_kind = KTypeParameter _ }, _ ) -> cfs_must_be_native cfs
 													| TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
 														if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then raise_or_return_true cf else cfs_must_be_native cfs
 													| TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
 														if not (Hashtbl.mem gen.gtparam_cast e.e_path) then raise_or_return_true cf else cfs_must_be_native cfs
 													| _ -> cfs_must_be_native cfs (* TAbstracts / Dynamics can't be generic *)
+												)
+											| _ :: cfs ->
+												cfs_must_be_native cfs
 									in
 									if cfs_must_be_native cl.cl_ordered_fields then begin
 										cl.cl_meta <- (Meta.NativeGeneric, [], cl.cl_pos) :: cl.cl_meta;
@@ -462,6 +465,7 @@ struct
 		let params = List.map snd cparams in
 
 		let fields = get_fields gen cl (List.map snd cl.cl_params) params [] in
+		let fields = List.filter (fun (cf,_,_) -> Type.is_physical_field cf) fields in
 
 		(* now create the contents of the function *)
 		(*

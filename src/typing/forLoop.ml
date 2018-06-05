@@ -130,13 +130,12 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 				250
 			in
 			if cost > max_cost then raise Exit;
+			let v = gen_it_local pt in
+			let e2 = type_expr ctx e2 NoValue in
 			let el = List.map (fun e ->
-				let v = gen_it_local pt in
-				let ev = mk (TVar(v, None)) ctx.t.tvoid p in
-				let typed_e2 = type_expr ctx e2 NoValue in
-				let eloc = mk (TLocal v) v.v_type p in
-				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
-				concat ev (concat e_assign typed_e2)
+				let ev = mk (TVar(v,Some e)) ctx.t.tvoid e.epos in
+				let e = concat ev e2 in
+				Texpr.duplicate_tvars e
 			) el in
 			Some (mk (TBlock el) ctx.t.tvoid p)
 		with Exit ->

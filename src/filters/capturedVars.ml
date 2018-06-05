@@ -128,6 +128,11 @@ let captured_vars com e =
 			let tmp_used = ref used in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
+				| Use ({ v_extra = Some( _ :: _, _) })
+				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+					(* Java and C# deal with functions with type parameters in a different way *)
+					(* so they do should not be wrapped *)
+					()
 				| Use v | Assign v ->
 					if PMap.mem v.v_id !tmp_used then fused := PMap.add v.v_id v !fused;
 				| Declare v ->
@@ -214,6 +219,10 @@ let captured_vars com e =
 					incr depth;
 					f (collect_vars false);
 					decr depth;
+				| Use ({ v_extra = Some( _ :: _, _) })
+				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+					(* Java/C# use a special handling for functions with type parmaters *)
+					()
 				| Declare v ->
 					if in_loop then vars := PMap.add v.v_id !depth !vars;
 				| Use v | Assign v ->
@@ -247,6 +256,9 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
+		| Use ({ v_extra = Some( _ :: _, _) })
+		| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+			()
 		| Use v ->
 			(try
 				let d = PMap.find v.v_id !vars in

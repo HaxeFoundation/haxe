@@ -94,6 +94,8 @@ type platform_config = {
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
+	(** supports function == function **)
+	pf_supports_function_equality : bool;
 }
 
 type compiler_callback = {
@@ -235,6 +237,7 @@ let default_config =
 		pf_overload = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
+		pf_supports_function_equality = true;
 	}
 
 let get_config com =

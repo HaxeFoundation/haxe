@@ -1,23 +1,25 @@
 package unit.issues;
 
-private interface InterfaceA<T> { }
+@:keep private interface InterfaceA<T> { }
 
-private abstract AbstractC<T>(ClassC<T>) {
+@:keep private abstract AbstractC<T>(ClassC<T>) {
     public function new() this = new ClassC();
 }
 
-private class ClassC<T> implements InterfaceA<T> {
+@:keep private class ClassC<T> implements InterfaceA<T> {
 
     public var foo(get, never):Null<T>;
     function get_foo():Null<T> return null;
 
+    public var bar:Null<T>;
+
     public function new() { }
 }
 
-private interface EmptyGenericInterface<T> {
+@:keep private interface EmptyGenericInterface<T> {
 }
 
-private class ClassWithNullableField<T> implements EmptyGenericInterface<T> {
+@:keep private class ClassWithNullableField<T> implements EmptyGenericInterface<T> {
 	public var nullableField:Null<T>;
 
 	public function new() {

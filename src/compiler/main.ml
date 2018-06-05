@@ -688,7 +688,7 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-				DisplayJson.parse_input com input measure_times pre_compilation did_something
+				DisplayJson.parse_input com input measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
@@ -833,6 +833,12 @@ try
 		List.iter (fun f -> f ()) (List.rev com.callbacks.after_init_macros);
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Finalization.finalize tctx;
+		(* If we are trying to find references, let's syntax-explore everything we know to check for the
+		   identifier we are interested in. We then type only those modules that contain the identifier. *)
+		begin match !CompilationServer.instance,com.display.dms_kind with
+			| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+			| _ -> ()
+		end;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
 		let load_display_module_in_macro clear = match display_file_dot_path with
