@@ -1032,7 +1032,11 @@ with
 			| Some (f,_) ->
 				let ctx = DisplayJson.create_json_context false in
 				let pos = Parser.cut_pos_at_display pos in
-				let kind = CRField ((CompletionItem.make_ci_module (String.concat "." p),pos)) in
+				let path = match List.rev p with
+					| name :: pack -> List.rev pack,name
+					| [] -> [],""
+				in
+				let kind = CRField ((CompletionItem.make_ci_module path,pos)) in
 				f (DisplayException.fields_to_json ctx fields kind None);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end

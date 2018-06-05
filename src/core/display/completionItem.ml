@@ -272,7 +272,7 @@ type t_kind =
 	| ITEnumAbstractField of tabstract * CompletionClassField.t
 	| ITType of CompletionModuleType.t * ImportStatus.t
 	| ITPackage of path * (string * PackageContentKind.t) list
-	| ITModule of string
+	| ITModule of path
 	| ITLiteral of string
 	| ITTimer of string * string
 	| ITMetadata of string * documentation
@@ -297,7 +297,7 @@ let make_ci_enum_abstract_field a ccf t = make (ITEnumAbstractField(a,ccf)) (Som
 let make_ci_enum_field cef t = make (ITEnumField cef) (Some t)
 let make_ci_type mt import_status t = make (ITType(mt,import_status)) t
 let make_ci_package path l = make (ITPackage(path,l)) None
-let make_ci_module s = make (ITModule s) None
+let make_ci_module path = make (ITModule path) None
 let make_ci_literal lit t = make (ITLiteral lit) (Some t)
 let make_ci_timer name value = make (ITTimer(name,value)) None
 let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
@@ -354,8 +354,8 @@ let get_sort_index item p = match item.ci_kind with
 		i,(s_type_path (cmt.pack,cmt.name))
 	| ITPackage(path,_) ->
 		40,s_type_path path
-	| ITModule name ->
-		40,name
+	| ITModule path ->
+		40,s_type_path path
 	| ITLiteral name ->
 		50,name
 	| ITKeyword name ->
@@ -379,7 +379,7 @@ let legacy_sort item = match item.ci_kind with
 		| _ -> 0,ef.ef_name
 		end
 	| ITType(cm,_) -> 2,cm.name
-	| ITModule s -> 3,s
+	| ITModule path -> 3,snd path
 	| ITPackage(path,_) -> 4,snd path
 	| ITMetadata(s,_) -> 5,s
 	| ITTimer(s,_) -> 6,s
@@ -396,7 +396,7 @@ let get_name item = match item.ci_kind with
 	| ITEnumField ef -> ef.efield.ef_name
 	| ITType(cm,_) -> cm.name
 	| ITPackage(path,_) -> snd path
-	| ITModule s -> s
+	| ITModule path -> snd path
 	| ITLiteral s -> s
 	| ITTimer(s,_) -> s
 	| ITMetadata(s,_) -> s
@@ -467,7 +467,9 @@ let to_json ctx item =
 				"path",generate_path path;
 				"contents",jlist generate_package_content contents;
 			]
-		| ITModule s -> "Module",jstring s
+		| ITModule path -> "Module",jobject [
+			"path",generate_path path;
+		]
 		| ITLiteral s -> "Literal",jobject [
 			"name",jstring s;
 			"type",jopt (generate_type ctx) item.ci_type; (* TODO: remove *)

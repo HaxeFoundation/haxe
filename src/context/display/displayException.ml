@@ -34,7 +34,7 @@ let raise_fields ckl cr po = raise (DisplayException(DisplayFields(ckl,cr,po)))
 let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
-let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule "") None))
+let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([],"")) None))
 
 let fields_to_json ctx fields kind po =
 	let ja = List.map (CompletionItem.to_json ctx) fields in

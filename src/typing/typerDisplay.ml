@@ -367,8 +367,7 @@ let handle_display ctx e_ast dk with_type =
 		else raise_toplevel ctx with_type (Some (Parser.cut_pos_at_display p)) p
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
-			let s = s_type_path path in
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module s),p)) None
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p)) None
 		with Not_found ->
 			raise err
 		end else

@@ -376,7 +376,7 @@ module TypePathHandler = struct
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
-			let modules = List.map (fun n -> make_ci_module n) modules in
+			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
 			Some (packs @ modules)
 
 	(** raise field completion listing module sub-types and static fields *)
