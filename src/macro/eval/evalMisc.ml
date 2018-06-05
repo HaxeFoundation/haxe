@@ -117,13 +117,13 @@ let rec compare a b =
 		else compare v1 v2
 	| _ -> CUndef
 
-let rec arrays_equal a1 a2 =
+let rec arrays_equal cmp a1 a2 =
 	if Array.length a1 <> Array.length a2 then
 		false
 	else begin
 		let rec loop i =
 			if i = Array.length a1 then true
-			else if not (equals_structurally a1.(i) a2.(i)) then false
+			else if not (cmp a1.(i) a2.(i)) then false
 			else loop (i + 1)
 		in
 		loop 0
@@ -136,10 +136,10 @@ and equals_structurally a b =
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
 	| VString(_,s1),VString(_,s2) -> Lazy.force s1 = Lazy.force s2
-	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
-	| VVector a,VVector b -> a == b || arrays_equal a b
-	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
+	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
+	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
+	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal equals_structurally a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| _ -> a == b
 

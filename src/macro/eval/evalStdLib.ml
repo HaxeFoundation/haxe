@@ -2349,7 +2349,11 @@ module StdType = struct
 	)
 
 	let enumEq = vfun2 (fun a b ->
-		vbool (equals_structurally a b)
+		let rec weird_eq a b = match a,b with
+			| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal weird_eq a.eargs b.eargs && a.epath = b.epath
+			| _ -> equals a b
+		in
+		vbool (weird_eq a b)
 	)
 
 	let enumIndex = vfun1 (fun v -> match v with
