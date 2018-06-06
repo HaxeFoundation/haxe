@@ -1001,7 +1001,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 			| [] ->
 				raise Not_found
 		in
-		loop (if left then a.a_ops else List.filter (fun (_,cf) -> not (Meta.has Meta.Impl cf.cf_meta)) a.a_ops)
+		loop a.a_ops
 	in
 	try
 		begin match follow e1.etype with
