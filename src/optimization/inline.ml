@@ -469,36 +469,28 @@ class inline_state ctx ethis params cf f p = object(self)
 		) in
 		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
-		(* we need to replace type-parameters that were used in the expression *)
-		if not has_params then
-			e
-		else
-			let mt = map_type cf.cf_type in
-			let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
-			(match follow ethis.etype with
-			| TAnon a -> (match !(a.a_status) with
-				| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
-					if cf.cf_name <> "_new" then begin
-						(* the first argument must unify with a_this for abstract implementation functions *)
-						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
-						unify_raise ctx mt tb p
-					end
-				| _ -> unify_func())
-			| _ -> unify_func());
-			(*
-				this is very expensive since we are building the substitution list for
-				every expression, but hopefully in such cases the expression size is small
-			*)
-			let vars = Hashtbl.create 0 in
-			let map_var v =
-				if not (Hashtbl.mem vars v.v_id) then begin
-					Hashtbl.add vars v.v_id ();
-					if not (self#read v).i_outside then v.v_type <- map_type v.v_type;
-				end;
-				v
-			in
-			let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
-			map_expr_type e
+		let mt = map_type cf.cf_type in
+		let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
+		(match follow ethis.etype with
+		| TAnon a -> (match !(a.a_status) with
+			| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
+				if cf.cf_name <> "_new" then begin
+					(* the first argument must unify with a_this for abstract implementation functions *)
+					let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
+					unify_raise ctx mt tb p
+				end
+			| _ -> unify_func())
+		| _ -> unify_func());
+		let vars = Hashtbl.create 0 in
+		let map_var v =
+			if not (Hashtbl.mem vars v.v_id) then begin
+				Hashtbl.add vars v.v_id ();
+				if not (self#read v).i_outside then v.v_type <- map_type v.v_type;
+			end;
+			v
+		in
+		let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
+		map_expr_type e
 end
 
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
