@@ -9,6 +9,7 @@ XXXX-XX-XX: 4.0.0-preview.4
 
 	all : implemented `for` loop unrolling (#3784)
 	all : metadata can now use `.`, e.g. `@:a.b`. This is represented as a string (#3959)
+	all : [breaking] disallow static extensions through abstract field casts (#5924)
 	js : added externs for js.Date (#6855)
 	js : respect `-D source-map` flag to generate source maps in release builds
 	js : enums are now generated as objects instead of arrays (#6350)
