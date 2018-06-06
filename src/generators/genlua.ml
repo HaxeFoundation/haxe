@@ -407,7 +407,7 @@ and gen_call ctx e el =
          let count = ref 0 in
          spr ctx "({";
          List.iter (fun e ->
-             (match e with
+             (match Texpr.skip e with
               | { eexpr = TArrayDecl arr } ->
                   if (!count > 0 && List.length(arr) > 0) then spr ctx ",";
                   concat ctx "," (gen_value ctx) arr;
