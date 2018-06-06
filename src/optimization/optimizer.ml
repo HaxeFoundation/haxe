@@ -245,57 +245,6 @@ let inline_metadata e meta =
 	in
 	List.fold_left inline_meta e meta
 
-let get_inline_substitutions vars p =
-	(*
-		if variables are not written and used with a const value, let's substitute
-		with the actual value, either create a temp var
-	*)
-	let subst = ref PMap.empty in
-	let is_constant e =
-		let rec loop e =
-			match e.eexpr with
-			| TLocal _
-			| TConst TThis (* not really, but should not be move inside a function body *)
-				-> raise Exit
-			| TObjectDecl _ | TArrayDecl _ -> raise Exit
-			| TField (_,FEnum _)
-			| TTypeExpr _
-			| TConst _ -> ()
-			| _ ->
-				Type.iter loop e
-		in
-		try loop e; true with Exit -> false
-	in
-	let is_writable e =
-		match e.eexpr with
-		| TField _ | TEnumParameter _ | TLocal _ | TArray _ -> true
-		| _  -> false
-	in
-	let vars = List.fold_left (fun acc (i,e) ->
-		let flag = not i.i_force_temp && (match e.eexpr with
-			| TLocal _ when i.i_abstract_this -> true
-			| TLocal _ | TConst _ -> not i.i_write
-			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
-			| _ -> not i.i_write && i.i_read <= 1
-		) in
-		let flag = flag && (not i.i_captured || is_constant e) in
-		(* force inlining of 'this' variable if it is written *)
-		let flag = if not flag && i.i_abstract_this && i.i_write then begin
-			if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
-			true
-		end else flag in
-		if flag then begin
-			subst := PMap.add i.i_subst.v_id e !subst;
-			acc
-		end else begin
-			(* mark the replacement local for the analyzer *)
-			if i.i_read <= 1 && not i.i_write then
-				i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
-			(i.i_subst,Some e) :: acc
-		end
-	) [] vars in
-	vars,!subst
-
 class inline_locals = object(self)
 	val locals = Hashtbl.create 0
 	val mutable in_local_fun = false
@@ -341,6 +290,57 @@ class inline_locals = object(self)
 		in
 		if in_local_fun then l.i_captured <- true;
 		l
+
+	method get_substitutions vars p =
+		(*
+			if variables are not written and used with a const value, let's substitute
+			with the actual value, either create a temp var
+		*)
+		let subst = ref PMap.empty in
+		let is_constant e =
+			let rec loop e =
+				match e.eexpr with
+				| TLocal _
+				| TConst TThis (* not really, but should not be move inside a function body *)
+					-> raise Exit
+				| TObjectDecl _ | TArrayDecl _ -> raise Exit
+				| TField (_,FEnum _)
+				| TTypeExpr _
+				| TConst _ -> ()
+				| _ ->
+					Type.iter loop e
+			in
+			try loop e; true with Exit -> false
+		in
+		let is_writable e =
+			match e.eexpr with
+			| TField _ | TEnumParameter _ | TLocal _ | TArray _ -> true
+			| _  -> false
+		in
+		let vars = List.fold_left (fun acc (i,e) ->
+			let flag = not i.i_force_temp && (match e.eexpr with
+				| TLocal _ when i.i_abstract_this -> true
+				| TLocal _ | TConst _ -> not i.i_write
+				| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
+				| _ -> not i.i_write && i.i_read <= 1
+			) in
+			let flag = flag && (not i.i_captured || is_constant e) in
+			(* force inlining of 'this' variable if it is written *)
+			let flag = if not flag && i.i_abstract_this && i.i_write then begin
+				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+				true
+			end else flag in
+			if flag then begin
+				subst := PMap.add i.i_subst.v_id e !subst;
+				acc
+			end else begin
+				(* mark the replacement local for the analyzer *)
+				if i.i_read <= 1 && not i.i_write then
+					i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
+				(i.i_subst,Some e) :: acc
+			end
+		) [] vars in
+		vars,!subst
 
 	method initialize com ethis params f p =
 		(* use default values for null/unset arguments *)
@@ -588,7 +588,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 	if !had_side_effect then List.iter (fun (l,e) ->
 		if might_be_affected e then l.i_force_temp <- true;
 	) inlined_vars;
-	let vars,subst = get_inline_substitutions inlined_vars p in
+	let vars,subst = locals#get_substitutions inlined_vars p in
 	let rec inline_params e =
 		match e.eexpr with
 		| TLocal v -> (try PMap.find v.v_id subst with Not_found -> e)
