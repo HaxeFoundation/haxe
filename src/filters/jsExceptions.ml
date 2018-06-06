@@ -147,7 +147,7 @@ let init ctx =
 					let etype = make_typeexpr (module_type_of_type t) e.epos in
 					let args = [eunwrapped;etype] in
 					let echeck =
-						match Optimizer.api_inline ctx cStd "is" args e.epos with
+						match Inline.api_inline ctx cStd "is" args e.epos with
 						| Some e -> e
 						| None ->
 							let eBoot = make_static_this cBoot e.epos in

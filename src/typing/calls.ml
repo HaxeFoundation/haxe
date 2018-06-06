@@ -56,7 +56,7 @@ let make_call ctx e params t p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some fd,_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx f fd ethis params t config p force_inline with
+			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->
 				if force_inline then error "Inline could not be done" p;
 				raise Exit;
@@ -500,7 +500,7 @@ let rec acc_get ctx g p =
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			let e = loop e in
-			let e = Optimizer.inline_metadata e f.cf_meta in
+			let e = Inline.inline_metadata e f.cf_meta in
 			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
 			else e
 		end

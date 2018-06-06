@@ -63,14 +63,14 @@ let captured_vars com e =
 					let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
 					mk (TNew (cnativearray,[t],[eone])) v.v_type p
 				| Some e ->
-					{ (Optimizer.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
+					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
 
 			method mk_ref_access e v =
 				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
 
 			method mk_init av v pos =
 				let elocal = mk (TLocal v) v.v_type pos in
-				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				let earray = { (Inline.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
 				mk (TVar (av,Some earray)) t.tvoid pos
 		end
 	(* default implementation - use haxe array *)
