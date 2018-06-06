@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue6706 extends unit.Test {
 
-	static inline function foo( d : Dynamic ) {
+	static inline function foo( d : Dynamic ):Dynamic {
 		return d;
 	}
 
