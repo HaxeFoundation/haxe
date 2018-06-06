@@ -293,6 +293,18 @@ let handler =
 			in
 			hctx.jsonrpc#send_result (generate_module () m)
 		);
+		"server/files", (fun hctx ->
+			let files = CompilationServer.get_file_list hctx.display#get_cs hctx.com in
+			let files = List.map (fun (file,cfile) ->
+				jobject [
+					"file",jstring file;
+					"time",jfloat cfile.c_time;
+					"package",jstring (String.concat "." cfile.c_package);
+					"moduleName",jopt jstring cfile.c_module_name;
+				]
+			) files in
+			hctx.jsonrpc#send_result (jarray files)
+		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
