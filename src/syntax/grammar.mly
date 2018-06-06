@@ -599,6 +599,12 @@ and parse_complex_type_next (t : type_hint) s =
 		| _ ->
 			CTFunction ([t] , (t2,p2)),punion (pos t) p2
 	in
+	let make_intersection t2 p2 = match t2 with
+		| CTIntersection tl ->
+			CTIntersection (t :: tl),punion (pos t) p2
+		| _ ->
+			CTIntersection ([t;t2,p2]),punion (pos t) p2
+	in
 	match s with parser
 	| [< '(Arrow,pa); s >] ->
 		begin match s with parser
@@ -607,6 +613,15 @@ and parse_complex_type_next (t : type_hint) s =
 			if would_skip_display_position pa s then begin
 				let ct = CTPath magic_type_path in
 				make_fun ct null_pos
+			end else serror()
+		end
+	| [< '(Binop OpAnd,pa); s >] ->
+		begin match s with parser
+		| [< t2,p2 = parse_complex_type >] -> make_intersection t2 p2
+		| [< >] ->
+			if would_skip_display_position pa s then begin
+				let ct = CTPath magic_type_path in
+				make_intersection ct null_pos
 			end else serror()
 		end
 	| [< >] -> t
@@ -805,18 +820,17 @@ and parse_constraint_param = parser
 		let params = (match s with parser
 			| [< >] -> []
 		) in
-		let ctl = (match s with parser
+		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
-				| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> l
-				| [< t = parse_complex_type >] -> [t]
+				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
-			| [< >] -> []
+			| [< >] -> None
 		) in
 		{
 			tp_name = name;
 			tp_params = params;
-			tp_constraints = ctl;
+			tp_constraints = cto;
 			tp_meta = meta;
 		}
 

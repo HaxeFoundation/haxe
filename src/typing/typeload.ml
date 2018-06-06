@@ -333,27 +333,57 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params p =
 *)
 and load_complex_type ctx allow_display p (t,pn) =
 	let p = pselect pn p in
+	let is_redefined cf1 fields =
+		try
+			let cf2 = PMap.find cf1.cf_name fields in
+			let st = s_type (print_context()) in
+			if not (type_iseq cf1.cf_type cf2.cf_type) then begin
+				display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+				display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+				error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
+			end else
+				true
+		with Not_found ->
+			false
+	in
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display p t
 	| CTPath t -> load_instance ~allow_display ctx (t,pn) false p
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTNamed _ -> error "Named type not allowed here" p
+	| CTIntersection tl ->
+		let tl = List.map (fun (t,pn) ->
+			try
+				load_complex_type ctx allow_display p (t,pn)
+			with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+				let l = List.filter (fun item -> match item.ci_kind with
+					| ITType({kind = Struct},_) -> true
+					| _ -> false
+				) l in
+				raise_fields l CRStructExtension p
+		) tl in
+		let tr = ref None in
+		let t = TMono tr in
+		let r = exc_protect ctx (fun r ->
+			r := lazy_processing (fun() -> t);
+			let mk_extension fields t = match follow t with
+				| TAnon a ->
+					PMap.fold (fun cf fields ->
+						if not (is_redefined cf fields) then PMap.add cf.cf_name cf fields
+						else fields
+					) a.a_fields fields
+				| _ ->
+					error "Can only extend structures" p
+			in
+			let fields = List.fold_left mk_extension PMap.empty tl in
+			let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+			tr := Some ta;
+			ta
+		) "constraint" in
+		TLazy r
 	| CTExtend (tl,l) ->
 		begin match load_complex_type ctx allow_display p (CTAnonymous l,p) with
 		| TAnon a as ta ->
-			let is_redefined cf1 a2 =
-				try
-					let cf2 = PMap.find cf1.cf_name a2.a_fields in
-					let st = s_type (print_context()) in
-					if not (type_iseq cf1.cf_type cf2.cf_type) then begin
-						display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
-						display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
-						error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
-					end else
-						true
-				with Not_found ->
-					false
-			in
 			let mk_extension t =
 				match follow t with
 				| TInst ({cl_kind = KTypeParameter _},_) ->
@@ -361,14 +391,14 @@ and load_complex_type ctx allow_display p (t,pn) =
 				| TMono _ ->
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
-					PMap.iter (fun _ cf -> ignore(is_redefined cf a2)) a.a_fields;
+					PMap.iter (fun _ cf -> ignore(is_redefined cf a2.a_fields)) a.a_fields;
 					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
 				| _ -> error "Can only extend structures" p
 			in
 			let loop t = match follow t with
 				| TAnon a2 ->
 					PMap.iter (fun f cf ->
-						if not (is_redefined cf a) then
+						if not (is_redefined cf a.a_fields) then
 							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
@@ -649,13 +679,16 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	if ctx.is_display_file && DisplayPosition.encloses_display_position (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	match tp.tp_constraints with
-	| [] ->
+	| None ->
 		n, t
-	| _ ->
+	| Some th ->
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
-			let constr = List.map (load_complex_type ctx true p) tp.tp_constraints in
+			let constr = match fst th with
+				| CTIntersection tl -> List.map (load_complex_type ctx true p) tl
+				| _ -> [load_complex_type ctx true p th]
+			in
 			(* check against direct recursion *)
 			let rec loop t =
 				match follow t with

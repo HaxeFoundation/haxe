@@ -162,6 +162,7 @@ and complex_type =
 	| CTExtend of placed_type_path list * class_field list
 	| CTOptional of type_hint
 	| CTNamed of placed_name * type_hint
+	| CTIntersection of type_hint list
 
 and type_hint = complex_type * pos
 
@@ -217,7 +218,7 @@ and expr = expr_def * pos
 and type_param = {
 	tp_name : placed_name;
 	tp_params :	type_param list;
-	tp_constraints : type_hint list;
+	tp_constraints : type_hint option;
 	tp_meta : metadata;
 }
 
@@ -575,9 +576,10 @@ let map_expr loop (e,p) =
 			CTExtend (tl,fl)
 		| CTOptional t -> CTOptional (type_hint t)
 		| CTNamed (n,t) -> CTNamed (n,type_hint t)
+		| CTIntersection tl -> CTIntersection(List.map type_hint tl)
 		),p
 	and tparamdecl t =
-		let constraints = List.map type_hint t.tp_constraints in
+		let constraints = opt type_hint t.tp_constraints in
 		let params = List.map tparamdecl t.tp_params in
 		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
@@ -782,6 +784,7 @@ let s_expr e =
 		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t
 		| CTNamed((n,_),(t,_)) -> n ^ ":" ^ s_complex_type tabs t
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
+		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
 		match f.cff_doc with
 		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
@@ -809,7 +812,10 @@ let s_expr e =
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
 		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
-		if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map ((fun (t,_) -> s_complex_type tabs t)) t.tp_constraints) ^ ")" else ""
+		begin match t.tp_constraints with
+			| None -> ""
+			| Some(th,_) -> ":(" ^ s_complex_type tabs th ^ ")"
+		end
 	and s_type_param_list tabs tl =
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
 	and s_func_arg tabs ((n,_),o,_,t,e) =

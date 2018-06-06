@@ -39,9 +39,11 @@ let find_possible_references kind name (pack,decls) =
 		| CTExtend(tl,cffl) ->
 			List.iter (fun (path,_) -> type_path KModuleType path) tl;
 			List.iter field cffl;
+		| CTIntersection tl ->
+			List.iter type_hint tl
 	and type_param tp =
 		List.iter type_param tp.tp_params;
-		List.iter type_hint tp.tp_constraints
+		Option.may type_hint tp.tp_constraints
 	and expr (e,p) =
 		begin match e with
 		| EConst(Ident s) ->
