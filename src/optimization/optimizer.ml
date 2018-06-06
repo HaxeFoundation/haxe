@@ -296,22 +296,14 @@ let get_inline_substitutions vars p =
 	) [] vars in
 	vars,!subst
 
-let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
-	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
-	try
-		let cl = (match follow ethis.etype with
-			| TInst (c,_) -> c
-			| TAnon a -> (match !(a.a_status) with Statics c -> c | _ -> raise Exit)
-			| _ -> raise Exit
-		) in
-		(match api_inline ctx cl cf.cf_name params p with
-		| None -> raise Exit
-		| Some e -> Some e)
-	with Exit ->
-	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
-	(* locals substitution *)
-	let locals = Hashtbl.create 0 in
-	let local v =
+class inline_locals = object(self)
+	val locals = Hashtbl.create 0
+	val mutable in_local_fun = false
+
+	method get_in_local_fun = in_local_fun
+	method set_in_local_fun b = in_local_fun <- b
+
+	method declare v =
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
@@ -331,9 +323,8 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			Hashtbl.add locals v.v_id i;
 			Hashtbl.add locals i.i_subst.v_id i;
 			i
-	in
-	let in_local_fun = ref false in
-	let read_local v =
+
+	method read v =
 		let l = try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
@@ -348,9 +339,26 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				i_read = 0;
 			}
 		in
-		if !in_local_fun then l.i_captured <- true;
+		if in_local_fun then l.i_captured <- true;
 		l
-	in
+end
+
+let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
+	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
+	try
+		let cl = (match follow ethis.etype with
+			| TInst (c,_) -> c
+			| TAnon a -> (match !(a.a_status) with Statics c -> c | _ -> raise Exit)
+			| _ -> raise Exit
+		) in
+		(match api_inline ctx cl cf.cf_name params p with
+		| None -> raise Exit
+		| Some e -> Some e)
+	with Exit ->
+	let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
+	let locals = new inline_locals in
+	let local v = locals#declare v in
+	let read_local v = locals#read v in
 	(* use default values for null/unset arguments *)
 	let rec loop pl al first =
 		match pl, al with
@@ -440,7 +448,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| TVar (v,eo) ->
 			has_vars := true;
 			{ e with eexpr = TVar ((local v).i_subst,opt (map false) eo)}
-		| TReturn eo when not !in_local_fun ->
+		| TReturn eo when not locals#get_in_local_fun ->
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
@@ -545,11 +553,11 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			end
 		| TFunction f ->
 			(match f.tf_args with [] -> () | _ -> has_vars := true);
-			let old = save_locals ctx and old_fun = !in_local_fun in
+			let old = save_locals ctx and old_fun = locals#get_in_local_fun in
 			let args = List.map (function(v,c) -> (local v).i_subst, c) f.tf_args in
-			in_local_fun := true;
+			locals#set_in_local_fun true;
 			let expr = map false f.tf_expr in
-			in_local_fun := old_fun;
+			locals#set_in_local_fun old_fun;
 			old();
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TCall({eexpr = TConst TSuper; etype = t},el) ->
