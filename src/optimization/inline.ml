@@ -370,7 +370,9 @@ class inline_state ctx ethis params cf f p = object(self)
 					if we cast from Dynamic, create a local var as well to do the cast
 					once and allow DCE to perform properly.
 				*)
-				let e = if follow v.v_type != t_dynamic && follow e.etype == t_dynamic then mk (TCast(e,None)) v.v_type e.epos else e in
+				let dynamic_v = follow v.v_type == t_dynamic in
+				let dynamic_e = follow e.etype == t_dynamic in
+				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				(match e.eexpr, opt with
 				| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 				(*
