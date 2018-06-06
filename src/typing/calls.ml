@@ -501,7 +501,8 @@ let rec acc_get ctx g p =
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			let e = loop e in
 			let e = Optimizer.inline_metadata e f.cf_meta in
-			e
+			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
+			else e
 		end
 	| AKMacro _ ->
 		assert false
