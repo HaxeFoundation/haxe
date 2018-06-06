@@ -191,6 +191,11 @@ type in_local = {
 	mutable i_force_temp : bool;
 }
 
+type var_inline_kind =
+	| VIInline
+	| VIInlineIfCalled
+	| VIDoNotInline
+
 let inline_default_config cf t =
 	(* type substitution on both class and function type parameters *)
 	let rec get_params c pl =
@@ -312,26 +317,40 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _  -> false
 		in
 		let vars = List.fold_left (fun acc (i,e) ->
-			let flag = not i.i_force_temp && (match e.eexpr with
-				| TLocal _ when i.i_abstract_this -> true
-				| TLocal _ | TConst _ -> not i.i_write
-				| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
-				| _ -> not i.i_write && i.i_read <= 1
-			) in
-			let flag = flag && (not i.i_captured || is_constant e) in
-			(* force inlining of 'this' variable if it is written *)
-			let flag = if not flag && i.i_abstract_this && i.i_write then begin
-				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
-				true
-			end else flag in
-			if flag then begin
-				subst := PMap.add i.i_subst.v_id e !subst;
+			let accept vik =
+				subst := PMap.add i.i_subst.v_id (vik,e) !subst;
 				acc
-			end else begin
+			in
+			let reject () =
 				(* mark the replacement local for the analyzer *)
 				if i.i_read <= 1 && not i.i_write then
 					i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
 				(i.i_subst,Some e) :: acc
+			in
+			if i.i_abstract_this && i.i_write then begin
+				if not (is_writable e) then error "Cannot modify the abstract value, store it into a local first" p;
+				accept VIInline
+			end else if i.i_force_temp || (i.i_captured && not (is_constant e)) then
+				reject()
+			else begin
+				let vik = match e.eexpr with
+					| TLocal _ when i.i_abstract_this -> VIInline
+					| TLocal _ | TConst _ ->
+						if not i.i_write then VIInline else VIDoNotInline
+					| TFunction _ ->
+						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
+						if i.i_read <= 1 then VIInline else VIInlineIfCalled
+					| _ ->
+						if not i.i_write && i.i_read <= 1 then VIInline else VIDoNotInline
+				in
+				match vik with
+				| VIInline -> accept vik
+				| VIDoNotInline -> reject()
+				| VIInlineIfCalled ->
+					(* "Accept" it so it is added to the substitutions. *)
+					ignore(accept vik);
+					(* But actually reject it so we get a proper variable. The analyzer will clean it up if it's unused. *)
+					reject();
 			end
 		) [] _inlined_vars in
 		vars,!subst
@@ -390,12 +409,29 @@ class inline_state ctx ethis params cf f p = object(self)
 			if self#might_be_affected e then l.i_force_temp <- true;
 		) _inlined_vars;
 		let vars,subst = self#get_substitutions p in
-		let rec inline_params e =
+		let rec inline_params in_call e =
 			match e.eexpr with
-			| TLocal v -> (try PMap.find v.v_id subst with Not_found -> e)
-			| _ -> Type.map_expr inline_params e
+			| TLocal v ->
+				begin try
+					let vik,e' = PMap.find v.v_id subst in
+					begin match vik with
+						| VIInline -> e'
+						| VIInlineIfCalled when in_call ->
+							(* We allow inlining function expressions into call-places. However, we have to substitute
+							   their locals to avoid duplicate declarations. *)
+							Texpr.duplicate_tvars e'
+						| _ -> e
+					end
+				with Not_found ->
+					e
+				end
+			| TCall(e1,el) ->
+				let e1 = inline_params true e1 in
+				let el = List.map (inline_params false) el in
+				{e with eexpr = TCall(e1,el)}
+			| _ -> Type.map_expr (inline_params false) e
 		in
-		let e = (if PMap.is_empty subst then e else inline_params e) in
+		let e = (if PMap.is_empty subst then e else inline_params false e) in
 		let init = match vars with [] -> None | l -> Some l in
 		let md = ctx.curclass.cl_module.m_extra.m_display in
 		md.m_inline_calls <- (cf.cf_name_pos,{p with pmax = p.pmin + String.length cf.cf_name}) :: md.m_inline_calls;
