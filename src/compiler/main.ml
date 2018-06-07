@@ -1004,7 +1004,7 @@ with
 				DisplayOutput.print_fields fields
 		in
 		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some t}} as hover)) ->
+	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
 	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->

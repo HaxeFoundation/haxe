@@ -24,24 +24,28 @@ let completion_item_of_expr ctx e =
 		with _ ->
 			false
 	in
+	let tpair t =
+		let ct = DisplayEmitter.completion_type_of_type ctx t in
+		(t,ct)
+	in
 	let of_field e origin cf scope =
 		let is_qualified = retype e cf.cf_name e.etype in
-		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
+		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair e.etype)
 	in
 	let of_enum_field e origin ef =
 		let is_qualified = retype e ef.ef_name e.etype in
-		make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
+		make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair e.etype)
 	in
 	let itexpr e =
-		let t = DisplayEmitter.patch_type ctx e.etype in
-		make_ci_expr {e with etype = t}
+		let t = tpair e.etype in
+		make_ci_expr e t
 	in
 	let class_origin c = match c.cl_kind with
 		| KAbstractImpl a -> Self (TAbstractDecl a)
 		| _ -> Self (TClassDecl c)
 	in
 	let rec loop e = match e.eexpr with
-		| TLocal v | TVar(v,_) -> make_ci_local v (DisplayEmitter.patch_type ctx v.v_type)
+		| TLocal v | TVar(v,_) -> make_ci_local v (tpair v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let origin = match e1.eexpr with
 				| TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
@@ -69,16 +73,16 @@ let completion_item_of_expr ctx e =
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
 			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
-			let t = DisplayEmitter.patch_type ctx t in
+			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
-			let t = DisplayEmitter.patch_type ctx e.etype in
+			let t = tpair e.etype in
 			make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t) (* TODO *)
 		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
-		| TConst(ct) -> make_ci_literal (s_const ct) e.etype
+		| TConst(ct) -> make_ci_literal (s_const ct) (tpair e.etype)
 		| TObjectDecl _ ->
 			begin match follow e.etype with
-				| TAnon an -> make_ci_anon an e.etype
+				| TAnon an -> make_ci_anon an (tpair e.etype)
 				| _ -> itexpr e
 			end
 		| TNew(c,tl,_) ->
@@ -105,7 +109,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (class_origin c) true) (DisplayEmitter.patch_type ctx t)
+				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (class_origin c) true) (tpair t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
@@ -316,16 +320,20 @@ let handle_structure_display ctx e t an =
 		| TType(td,_) -> Self (TTypeDecl td)
 		| _ -> AnonymousStructure an
 	in
+	let tpair t =
+		let ct = DisplayEmitter.completion_type_of_type ctx t in
+		(t,ct)
+	in
 	match fst e with
 	| EObjectDecl fl ->
 		let fields = List.fold_left (fun acc cf ->
 			if Expr.field_mem_assoc cf.cf_name fl then acc
-			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type) :: acc
+			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair cf.cf_type)) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| EBlock [] ->
 		let fields = List.fold_left (fun acc cf ->
-			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type :: acc
+			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair cf.cf_type) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| _ ->
@@ -335,6 +343,10 @@ let handle_display ctx e_ast dk with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
+	let tpair t =
+		let ct = DisplayEmitter.completion_type_of_type ctx t in
+		(t,ct)
+	in
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
@@ -345,7 +357,7 @@ let handle_display ctx e_ast dk with_type =
 			raise_signatures [((arg,mono),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -356,7 +368,7 @@ let handle_display ctx e_ast dk with_type =
 			raise_signatures [((arg,ret),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
 		end
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)

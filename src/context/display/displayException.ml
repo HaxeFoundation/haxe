@@ -68,7 +68,6 @@ let to_json ctx de =
 		jobject [
 			"documentation",jopt jstring (CompletionItem.get_documentation hover.hitem);
 			"range",generate_pos_as_range hover.hpos;
-			"type",jopt (generate_type ctx) hover.hitem.ci_type; (* TODO: remove *)
 			"item",CompletionItem.to_json ctx hover.hitem;
 		]
 	| DisplayPosition pl ->

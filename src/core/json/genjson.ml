@@ -180,26 +180,26 @@ let rec generate_type ctx t =
 	let name,args = loop t in
 	generate_adt ctx None name args
 
+and generate_anon_status ctx status =
+	let name,args = match status with
+		| Closed -> "AClosed",None
+		| Opened -> "AOpened",None
+		| Const -> "AConst",None
+		| Extend tl -> "AExtend", Some (generate_types ctx tl)
+		| Statics c -> "AClassStatics",Some (class_ref ctx c)
+		| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
+		| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
+	in
+	generate_adt ctx None name args
+
 and generate_anon ctx an =
 	let generate_anon_fields () =
 		let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
 		jarray fields
 	in
-	let generate_anon_status () =
-		let name,args = match !(an.a_status) with
-			| Closed -> "AClosed",None
-			| Opened -> "AOpened",None
-			| Const -> "AConst",None
-			| Extend tl -> "AExtend", Some (generate_types ctx tl)
-			| Statics c -> "AClassStatics",Some (class_ref ctx c)
-			| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
-			| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
-		in
-		generate_adt ctx None name args
-	in
 	jobject [
 		"fields",generate_anon_fields();
-		"status",generate_anon_status ();
+		"status",generate_anon_status ctx !(an.a_status);
 	]
 
 and generate_function_argument ctx (name,opt,t) =
@@ -435,7 +435,7 @@ and generate_texpr ctx e =
 
 (* fields *)
 
-and generate_class_field ctx cfs cf =
+and generate_class_field' ctx cfs cf =
 	let generate_class_kind () =
 		let generate_var_access va =
 			let name,args = match va with
@@ -469,7 +469,7 @@ and generate_class_field ctx cfs cf =
 		| GMFull | GMWithoutDoc -> jopt (generate_texpr ctx) cf.cf_expr
 		| GMMinimum -> jnull
 	in
-	jobject [
+	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
 		"isPublic",jbool cf.cf_public;
@@ -482,6 +482,9 @@ and generate_class_field ctx cfs cf =
 		"overloads",jlist (generate_class_field ctx cfs) cf.cf_overloads;
 		"scope",jint (Obj.magic cfs);
 	]
+
+and generate_class_field ctx cfs cf =
+	jobject (generate_class_field' ctx cfs cf)
 
 let generate_enum_field ctx ef =
 	jobject [

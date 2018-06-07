@@ -19,7 +19,7 @@ class Issue6405 extends DisplayTestCase {
 		eq(range(2, 3), position(pos(1)));
 		var usage = usage(pos(2));
 		arrayEq([range(1, 5)], usage);
-		eq("Expr", type(pos(1)));
+		eq("haxe.macro.Expr", type(pos(1)));
 		var fields = fields(pos(4));
 		eq(true, hasField(fields, "expr", "haxe.macro.ExprDef"));
 		eq(true, hasField(fields, "toString", "Void -> String"));

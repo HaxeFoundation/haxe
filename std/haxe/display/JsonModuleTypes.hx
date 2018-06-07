@@ -31,11 +31,34 @@ typedef JsonPos = {
 
 typedef JsonDoc = Null<String>;
 
+enum abstract ImportStatus(Int) {
+    /**
+        This type is already available with it's unqualified name for one of these reasons:
+          - it's a toplevel type
+          - it's imported with an `import` in the current module
+          - it's imported in an `import.hx` file
+    **/
+    var Imported = 0;
+
+    /**
+        The type is currently not imported. It can be accessed either
+        with its fully qualified name or by inserting an import.
+    **/
+    var Unimported = 1;
+
+    /**
+        A type with the same name is already imported in the module.
+        The fully qualified name has to be used to access it.
+    **/
+    var Shadowed = 2;
+}
+
 /* Type instance */
 
 typedef JsonPath = {
 	var pack: Array<String>;
 	var name: String;
+	var ?importStatus:ImportStatus;
 }
 
 typedef JsonPathWithParams = {
@@ -47,6 +70,7 @@ typedef JsonFunctionArgument = {
 	var name: String;
 	var opt: Bool;
 	var t: JsonType<Dynamic>;
+	var ?value: JsonTodo;
 }
 
 typedef JsonFunctionSignature = {
