@@ -90,6 +90,7 @@ module CompletionResultKind = struct
 					| Some (t,ct) ->
 						try
 							let mt = module_type_of_type t in
+							let ctx = {ctx with generate_abstract_impl = true} in
 							Some (generate_module_type ctx mt,CompletionItem.CompletionType.to_json ctx ct)
 						with _ ->
 							None

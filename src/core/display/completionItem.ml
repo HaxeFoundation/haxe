@@ -347,7 +347,7 @@ module CompletionType = struct
 			| CTMono -> "TMono",None
 			| CTInst pwp -> "TInst",Some (generate_path_with_params ctx pwp)
 			| CTEnum pwp -> "TEnum",Some (generate_path_with_params ctx pwp)
-			| CTTypedef pwp -> "TTypedef",Some (generate_path_with_params ctx pwp)
+			| CTTypedef pwp -> "TType",Some (generate_path_with_params ctx pwp)
 			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
 			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
 			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)

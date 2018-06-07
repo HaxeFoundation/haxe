@@ -10,6 +10,7 @@ type generation_mode =
 
 type context = {
 	generation_mode : generation_mode;
+	generate_abstract_impl : bool;
 }
 
 let jnull = Json.JNull
@@ -586,9 +587,15 @@ let generate_abstract ctx a =
 			"field",classfield_ref ctx cf;
 		]
 	in
+	let impl = match a.a_impl with
+		| None -> jnull
+		| Some c ->
+			if ctx.generate_abstract_impl then jobject (generate_class ctx c)
+			else class_ref ctx c
+	in
 	[
 		"type",generate_type ctx a.a_this;
-		"impl",jopt (class_ref ctx) a.a_impl;
+		"impl",impl;
 		"binops",jlist generate_binop a.a_ops;
 		"unops",jlist generate_unop a.a_unops;
 		"from",generate_casts a.a_from_field a.a_from;
@@ -621,6 +628,7 @@ let generate_module ctx m =
 
 let create_context gm = {
 	generation_mode = gm;
+	generate_abstract_impl = false;
 }
 
 let generate types file =
