@@ -4,6 +4,7 @@ XXXX-XX-XX: 4.0.0-preview.4
 
 	all : allow `enum abstract` syntax instead of `@:enum abstract` (#4282)
 	all : support signature completion on incomplete structures (#5767)
+	all : support auto-numbering and auto-stringification in enum abstracts (#7139)
 
 	General improvements and optimizations:
 

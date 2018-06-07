@@ -2325,6 +2325,13 @@ and unify_with_access t1 f2 =
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
 
+let does_unify a b =
+	try
+		unify a b;
+		true
+	with Unify_error _ ->
+		false
+
 (* ======= Mapping and iterating ======= *)
 
 let iter f e =
