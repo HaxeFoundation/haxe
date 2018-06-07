@@ -471,18 +471,20 @@ class inline_state ctx ethis params cf f p = object(self)
 		) in
 		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
-		let mt = map_type cf.cf_type in
-		let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
-		(match follow ethis.etype with
-		| TAnon a -> (match !(a.a_status) with
-			| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
-				if cf.cf_name <> "_new" then begin
-					(* the first argument must unify with a_this for abstract implementation functions *)
-					let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
-					unify_raise ctx mt tb p
-				end
-			| _ -> unify_func())
-		| _ -> unify_func());
+		if has_params then begin
+			let mt = map_type cf.cf_type in
+			let unify_func () = unify_raise ctx mt (TFun (tl,tret)) p in
+			(match follow ethis.etype with
+			| TAnon a -> (match !(a.a_status) with
+				| Statics {cl_kind = KAbstractImpl a } when Meta.has Meta.Impl cf.cf_meta ->
+					if cf.cf_name <> "_new" then begin
+						(* the first argument must unify with a_this for abstract implementation functions *)
+						let tb = (TFun(("",false,map_type a.a_this) :: (List.tl tl),tret)) in
+						unify_raise ctx mt tb p
+					end
+				| _ -> unify_func())
+			| _ -> unify_func());
+		end;
 		let vars = Hashtbl.create 0 in
 		let map_var v =
 			if not (Hashtbl.mem vars v.v_id) then begin
