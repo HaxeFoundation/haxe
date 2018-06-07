@@ -276,7 +276,7 @@ module CompletionType = struct
 		ct_name : string;
 		ct_optional : bool;
 		ct_type : t;
-		ct_value : tconstant option;
+		ct_value : Ast.expr option;
 	}
 
 	and ct_function = {
@@ -320,7 +320,9 @@ module CompletionType = struct
 			"name",jstring cfa.ct_name;
 			"opt",jbool cfa.ct_optional;
 			"t",generate_type cfa.ct_type;
-			"value",jopt (generate_tconstant ctx) cfa.ct_value;
+			"value",jopt (fun e -> jobject [
+				"string",jstring (Ast.s_expr e);
+			]) cfa.ct_value;
 		]
 		and generate_function ctf = jobject [
 			"args",jlist generate_function_argument ctf.ct_args;

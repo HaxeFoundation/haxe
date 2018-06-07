@@ -182,20 +182,20 @@ let collect ctx epos with_type =
 
 	(* Collection starts here *)
 
-	let tpair ?(tfo=None) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~tfo t in
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
 	if epos <> None then begin
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
-				add (make_ci_local v (tpair ~tfo:(get_var_tfunc v) v.v_type)) (Some v.v_name)
+				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
 		) ctx.locals;
 
 		let add_field scope origin cf =
 			let is_qualified = is_qualified cctx cf.cf_name in
-			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~tfo:(get_tfunc cf) cf.cf_type)) (Some cf.cf_name)
+			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some cf.cf_name)
 		in
 		let maybe_add_field scope origin cf =
 			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
@@ -271,7 +271,7 @@ let collect ctx epos with_type =
 					let cf = PMap.find s c.cl_statics in
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 					let origin = StaticImport (TClassDecl c) in
-					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~tfo:(get_tfunc cf) cf.cf_type)) (Some name)
+					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;

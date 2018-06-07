@@ -25,13 +25,13 @@ let completion_item_of_expr ctx e =
 		with _ ->
 			false
 	in
-	let tpair ?(tfo=None) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~tfo t in
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
 	let of_field e origin cf scope =
 		let is_qualified = retype e cf.cf_name e.etype in
-		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~tfo:(get_tfunc cf) e.etype)
+		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) e.etype)
 	in
 	let of_enum_field e origin ef =
 		let is_qualified = retype e ef.ef_name e.etype in
@@ -46,7 +46,7 @@ let completion_item_of_expr ctx e =
 		| _ -> Self (TClassDecl c)
 	in
 	let rec loop e = match e.eexpr with
-		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~tfo:(get_var_tfunc v) v.v_type)
+		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let origin = match e1.eexpr with
 				| TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
@@ -110,7 +110,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make cf CFSConstructor (class_origin c) true) (tpair ~tfo:(get_tfunc cf) t)
+				make_ci_class_field (CompletionClassField.make cf CFSConstructor (class_origin c) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
@@ -321,20 +321,20 @@ let handle_structure_display ctx e t an =
 		| TType(td,_) -> Self (TTypeDecl td)
 		| _ -> AnonymousStructure an
 	in
-	let tpair ?(tfo=None) t =
-		let ct = DisplayEmitter.completion_type_of_type ctx ~tfo t in
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
 	match fst e with
 	| EObjectDecl fl ->
 		let fields = List.fold_left (fun acc cf ->
 			if Expr.field_mem_assoc cf.cf_name fl then acc
-			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~tfo:(get_tfunc cf) cf.cf_type)) :: acc
+			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| EBlock [] ->
 		let fields = List.fold_left (fun acc cf ->
-			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~tfo:(get_tfunc cf) cf.cf_type) :: acc
+			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| _ ->

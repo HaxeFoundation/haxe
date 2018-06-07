@@ -206,12 +206,12 @@ let requires_value_meta com co =
 		| None -> false
 		| Some c -> c.cl_extern || Meta.has Meta.Rtti c.cl_meta)
 
-let generate_value_meta com co cf args =
+let generate_value_meta com co fadd args =
 	if requires_value_meta com co then begin
 		let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in
 		match values with
 			| [] -> ()
-			| _ -> cf.cf_meta <- ((Meta.Value,[EObjectDecl values,cf.cf_pos],null_pos) :: cf.cf_meta)
+			| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
 	end
 
 let pselect p1 p2 =
@@ -545,7 +545,7 @@ and init_meta_overloads ctx co cf =
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true p t in
 			let args = List.map (fun ((a,_),opt,_,t,_) -> a,opt,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
-			generate_value_meta ctx.com co cf f.f_args;
+			generate_value_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
 			ctx.type_params <- old;
 			false

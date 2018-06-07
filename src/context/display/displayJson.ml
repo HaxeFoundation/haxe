@@ -168,6 +168,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 		com.display <- create mode;
 		Parser.display_mode := mode;
 		Common.define_value com Define.Display "1";
+		Common.define com Define.DocGen;
 		Parser.use_doc := true;
 
 	method set_display_file was_auto_triggered requires_offset is_completion =

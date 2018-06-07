@@ -991,7 +991,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
 	) cf.cf_meta;
-	generate_value_meta ctx.com (Some c) cf fd.f_args;
+	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;

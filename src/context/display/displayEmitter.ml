@@ -14,18 +14,7 @@ open Common
 open Display
 open DisplayPosition
 
-let get_tfunc cf =
-	ignore(follow cf.cf_type);
-	match cf.cf_expr with
-	| Some {eexpr = TFunction tf} -> Some tf
-	| _ -> None
-
-let get_var_tfunc v =
-	match v.v_extra with
-	| Some (_,Some {eexpr = TFunction tf}) -> Some tf
-	| _ -> None
-
-let completion_type_of_type ctx ?(tfo=None) t =
+let completion_type_of_type ctx ?(values=PMap.empty) t =
 	let get_import_status path =
 		try
 			let mt' = ctx.g.do_load_type_def ctx null_pos {tpackage = []; tname = snd path; tparams = []; tsub = None} in
@@ -39,22 +28,22 @@ let completion_type_of_type ctx ?(tfo=None) t =
 	} in
 	let rec ppath path tl = {
 		ct_path = ctpath path;
-		ct_params = List.map (from_type None) tl;
+		ct_params = List.map (from_type PMap.empty) tl;
 	}
 	and funarg value (name,opt,t) = {
 		ct_name = name;
 		ct_optional = opt;
-		ct_type = from_type None t;
+		ct_type = from_type PMap.empty t;
 		ct_value = value
 	}
-	and from_type tfo t = match t with
+	and from_type values t = match t with
 		| TMono r ->
 			begin match !r with
 				| None -> CTMono
-				| Some t -> from_type tfo t
+				| Some t -> from_type values t
 			end
 		| TLazy r ->
-			from_type tfo (lazy_type r)
+			from_type values (lazy_type r)
 		| TInst({cl_kind = KTypeParameter _} as c,_) ->
 			CTInst ({
 				ct_path = {
@@ -71,40 +60,30 @@ let completion_type_of_type ctx ?(tfo=None) t =
 			CTTypedef (ppath td.t_path tl)
 		| TAbstract(a,tl) ->
 			CTAbstract (ppath a.a_path tl)
-		| TFun(tl,t) when tfo <> None ->
-			let args = (Option.get tfo).tf_args in
-			let rec loop acc tl args = match tl,args with
-				| t :: tl,(_,ct) :: args ->
-					let arg = funarg ct t in
-					loop (arg :: acc) tl args
-				| t :: tl,[] ->
-					let arg = funarg None t in
-					loop (arg :: acc) tl args
-				| _ ->
-					acc
-			in
+		| TFun(tl,t) when not (PMap.is_empty values) ->
+			let get_arg n = try Some (PMap.find n values) with Not_found -> None in
 			CTFunction {
-				ct_args = List.rev (loop [] tl args);
-				ct_return = from_type None t;
+				ct_args = List.map (fun (n,o,t) -> funarg (get_arg n) (n,o,t)) tl;
+				ct_return = from_type PMap.empty t;
 			}
 		| TFun(tl,t) ->
 			CTFunction {
 				ct_args = List.map (funarg None) tl;
-				ct_return = from_type None t;
+				ct_return = from_type PMap.empty t;
 			}
 		| TAnon an ->
 			let afield af = {
 				ctf_field = af;
-				ctf_type = from_type None af.cf_type;
+				ctf_type = from_type PMap.empty af.cf_type;
 			} in
 			CTAnonymous {
 				ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
 				ct_status = !(an.a_status);
 			}
 		| TDynamic t ->
-			CTDynamic (if t == t_dynamic then None else Some (from_type None t))
+			CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
 	in
-	from_type tfo t
+	from_type values t
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [(t_infos mt).mt_name_pos];
@@ -147,7 +126,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [v.v_pos]
 	| DMUsage _ -> reference_position := (v.v_name,v.v_pos,KVar)
 	| DMHover ->
-		let ct = completion_type_of_type ctx ~tfo:(get_var_tfunc v) v.v_type in
+		let ct = completion_type_of_type ctx ~values:(get_value_meta v.v_meta) v.v_type in
 		raise_hover (make_ci_local v (v.v_type,ct)) p
 	| _ -> ()
 
@@ -172,7 +151,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
             | Self (TClassDecl c),CFSConstructor,TFun(tl,_) -> {cf with cf_type = TFun(tl,TInst(c,List.map snd c.cl_params))}
             | _ -> cf
         in
-		let ct = completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+		let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 		raise_hover (make_ci_class_field (CompletionClassField.make cf scope origin true) (cf.cf_type,ct)) p
 	| _ -> ()
 
@@ -235,7 +214,7 @@ let check_field_modifiers ctx c cf override display_modifier =
 			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
 			let l = PMap.fold (fun (c,cf) fields ->
 				let origin = Parent (TClassDecl c) in
-				let ct = completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+				let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
 			raise_fields l CROverride None

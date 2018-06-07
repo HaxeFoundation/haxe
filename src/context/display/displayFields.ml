@@ -72,7 +72,7 @@ let collect_static_extensions ctx items e p =
 								let f = prepare_using_field f in
 								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
 								let origin = StaticExtension(TClassDecl c) in
-								let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc f) f.cf_type in
+								let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta f.cf_meta) f.cf_type in
 								let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 								PMap.add f.cf_name item acc
 							end
@@ -116,7 +116,7 @@ let collect ctx e_ast e dk with_type p =
 			PMap.foldi (fun k (c,cf) acc ->
 				if should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
-					let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+					let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 				 	let item = make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) in
 					PMap.add k item acc
 				end else
@@ -129,7 +129,7 @@ let collect ctx e_ast e dk with_type p =
 					let origin = Self(TAbstractDecl a) in
 					let cf = prepare_using_field cf in
 					let cf = if tl = [] then cf else {cf with cf_type = apply_params a.a_params tl cf.cf_type} in
-					let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+					let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 					let item = make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) in
 					PMap.add cf.cf_name item acc
 				end else
@@ -174,7 +174,7 @@ let collect ctx e_ast e dk with_type p =
 							origin,true
 					in
 					if check then begin
-						let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+						let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 						PMap.add name (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					end else acc
 				end else
@@ -186,7 +186,7 @@ let collect ctx e_ast e dk with_type p =
 				let t = opt_args args ret in
 				let cf = mk_field "bind" (tfun [t] t) p null_pos in
 				cf.cf_kind <- Method MethNormal;
-				let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc cf) t in
+				let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) t in
 				let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (t,ct) in
 				PMap.add "bind" item items
 			end else
@@ -200,7 +200,7 @@ let collect ctx e_ast e dk with_type p =
 			let cf = mk_field "code" ctx.t.tint e.epos null_pos in
 			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
-			let ct = DisplayEmitter.completion_type_of_type ctx ~tfo:(get_tfunc cf) cf.cf_type in
+			let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 			let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (cf.cf_type,ct) in
 			PMap.add cf.cf_name item PMap.empty
 		| _ ->
