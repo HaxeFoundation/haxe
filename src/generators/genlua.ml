@@ -782,7 +782,13 @@ and gen_expr ?(local=true) ctx e = begin
                     (* we have to box it in an object conforming to a multi-return extern class *)
                     let is_boxed_multireturn = Meta.has (Meta.Custom ":lua_mr_box") v.v_meta in
                     let e = if is_boxed_multireturn then mk_mr_box ctx e else e in
-                    gen_value ctx e;
+                    (match e.eexpr with
+                    | TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+                        add_feature ctx "use._hx_staticToInstance";
+                        spr ctx "_hx_staticToInstance(";
+                        gen_expr ctx e1;
+                        spr ctx ")";
+                    | _ -> gen_value ctx e);
         end
     | TNew (c,_,el) ->
         (match c.cl_constructor with
@@ -1178,13 +1184,6 @@ and gen_value ctx e =
     | TBreak
     | TContinue ->
         unsupported e.epos
-    (* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
-       	   at the moment. - Simon *)
-    | TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
-        add_feature ctx "use._hx_staticToInstance";
-        spr ctx "_hx_staticToInstance(";
-        gen_expr ctx e1;
-        spr ctx ")";
     | TCast (e1, Some t) ->
         print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
         gen_value ctx e1;
@@ -1307,6 +1306,13 @@ and gen_tbinop ctx op e1 e2 =
               add_feature ctx "use._hx_funcToField";
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
+              spr ctx ")";
+          | _, TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+              add_feature ctx "use._hx_staticToInstance";
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              spr ctx "_hx_staticToInstance(";
+              gen_expr ctx e2;
               spr ctx ")";
           | _ ->
               gen_value ctx e1;
