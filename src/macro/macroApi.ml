@@ -680,9 +680,10 @@ and decode_tparams v =
 	decode_opt_array decode_tparam_decl v
 
 and decode_tparam_decl v =
+	let vconstraints = field v "constraints" in
 	{
 		tp_name = decode_placed_name (field v "name_pos") (field v "name");
-		tp_constraints = (match decode_array(field v "constraints") with
+		tp_constraints = if vconstraints = vnull then None else (match decode_array vconstraints with
 			| [] -> None
 			| [t] -> Some (decode_ctype t)
 			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
