@@ -359,15 +359,17 @@ class inline_state ctx ethis params cf f p = object(self)
 
 	method initialize =
 		(* use default values for null/unset arguments *)
-		let rec loop pl al first =
+		let rec loop acc pl al first =
 			match pl, al with
-			| _, [] -> []
+			| _, [] ->
+				acc
 			| e :: pl, (v, opt) :: al ->
+				let l = self#declare v in
 				(*
 					if we pass a Null<T> var to an inlined method that needs a T.
 					we need to force a local var to be created on some platforms.
 				*)
-				if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then (self#declare v).i_force_temp <- true;
+				if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then l.i_force_temp <- true;
 				(*
 					if we cast from Dynamic, create a local var as well to do the cast
 					once and allow DCE to perform properly.
@@ -375,36 +377,31 @@ class inline_state ctx ethis params cf f p = object(self)
 				let dynamic_v = follow v.v_type == t_dynamic in
 				let dynamic_e = follow e.etype == t_dynamic in
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
-				(match e.eexpr, opt with
-				| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
-				(*
-					This is really weird and should be reviewed again. The problem is that we cannot insert a TCast here because
-					the abstract `this` value could be written to, which is not possible if it is wrapped in a cast.
-
-					The original problem here is that we do not generate a temporary variable and thus mute the type of the
-					`this` variable, which leads to unification errors down the line. See issues #2236 and #3713.
-				*)
-				(* | _ when first && (Meta.has Meta.Impl cf.cf_meta) -> {e with etype = v.v_type} *)
-				| _ -> e) :: loop pl al false
+				let e = match e.eexpr, opt with
+					| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
+					| _ -> e
+				in
+				if has_side_effect e then begin
+					self#collect_modified_locals e;
+					_had_side_effect <- true;
+					l.i_force_temp <- true;
+				end;
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
+				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
-				(mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p) :: loop [] al false
+				let l = self#declare v in
+				let e = mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p in
+				loop ((l,e) :: acc) [] al false
 		in
 		(*
 			Build the expr/var subst list
 		*)
 		let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 		let vthis = alloc_var "_this" ethis.etype ethis.epos in
-		let vars = List.map2 (fun e (v,_) ->
-			let l = self#declare v in
-			if has_side_effect e then begin
-				self#collect_modified_locals e;
-				_had_side_effect <- true;
-				l.i_force_temp <- true;
-			end;
-			if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
-			l, e
-		) (ethis :: loop params f.tf_args true) ((vthis,None) :: f.tf_args) in
-		_inlined_vars <- List.rev vars;
+		let args1 = (ethis :: params) in
+		let args2 = ((vthis,None) :: f.tf_args) in
+		let vars = loop [] args1 args2 true in
+		_inlined_vars <- vars; (* Order is reversed due to tail-recursion *)
 		vthis
 
 	method finalize config e tl tret p =
