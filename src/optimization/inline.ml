@@ -209,10 +209,12 @@ let inline_default_config cf t =
 			let ct, cpl = get_params csup spl in
 			c.cl_params @ ct, pl @ cpl
 	in
-	let tparams = (match follow t with
+	let rec loop t = match follow t with
+		| TInst({cl_kind = KTypeParameter tl},_) -> List.fold_left (fun (params',tl') (params,tl) -> (params @ params',tl @ tl')) ([],[]) (List.map loop tl)
 		| TInst (c,pl) -> get_params c pl
-		| _ -> ([],[]))
+		| _ -> ([],[])
 	in
+	let tparams = loop t in
 	let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
 	let tmonos = snd tparams @ pmonos in
 	let tparams = fst tparams @ cf.cf_params in
