@@ -381,9 +381,25 @@ class Bytes {
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
-		var begin = Math.min(pos,b.length);
-		var end = Math.min(pos+len,b.length);
-		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b,begin,end-1));
+		// Lua unpack will fill the function stack.  This is very efficient but
+		// can easily overflow the stack.  Check to see if the current byte
+		// length is greater than the stack size first.
+		// TODO : Find a library pattern for this.
+		if (b.length == 0) return '';
+		else if (b.length <= lua.Boot.MAXSTACKSIZE){
+			return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, 0));
+		} else {
+			var str = '';
+			var tbl : lua.Table<Int,String> = lua.Table.create();
+			var begin = 0;
+			var end = 1000;
+			for (i in 0...Math.floor(b.length/lua.Boot.MAXSTACKSIZE) + 1){
+				tbl[i+1] = lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, begin,end-1));
+				begin = end;
+				end = Math.floor(Math.min(end + lua.Boot.MAXSTACKSIZE, b.length));
+			}
+			return lua.Table.concat(tbl,'');
+		}
 		#else
 		var s = "";
 		var b = b;
@@ -437,9 +453,6 @@ class Bytes {
 			return new String(b, 0, length, "UTF-8");
 		}
 		catch (e:Dynamic) throw e;
-		#elseif lua
-		if (b.length == 0) return '';
-		return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, 0));
 		#else
 		return getString(0,length);
 		#end

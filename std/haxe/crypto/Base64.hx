@@ -46,6 +46,7 @@ class Base64 {
 		if( complement )
 			while( str.charCodeAt(str.length-1) == "=".code )
 				str = str.substr(0,-1);
+		var ofstring = haxe.io.Bytes.ofString(str);
 		return new BaseCode(BYTES).decodeBytes(haxe.io.Bytes.ofString(str));
 	}
 
