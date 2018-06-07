@@ -304,53 +304,59 @@ module CompletionType = struct
 		| CTAnonymous of ct_anonymous
 		| CTDynamic of t option
 
+	let generate_path path =
+		jobject [
+			"pack",jarray (List.map jstring (fst path.ct_dot_path));
+			"name",jstring (snd path.ct_dot_path);
+			"importStatus",jint (ImportStatus.to_int path.ct_import_status);
+		]
+
+	let rec generate_path_with_params ctx pwp = jobject [
+		"path",generate_path pwp.ct_path;
+		"params",jlist (generate_type ctx) pwp.ct_params;
+	]
+
+	and generate_function_argument ctx cfa = jobject [
+		"name",jstring cfa.ct_name;
+		"opt",jbool cfa.ct_optional;
+		"t",generate_type ctx cfa.ct_type;
+		"value",jopt (fun e -> jobject [
+			"string",jstring (Ast.s_expr e);
+		]) cfa.ct_value;
+	]
+
+	and generate_function' ctx ctf = [
+		"args",jlist (generate_function_argument ctx) ctf.ct_args;
+		"ret",generate_type ctx ctf.ct_return;
+	]
+
+	and generate_function ctx ctf = jobject (generate_function' ctx ctf)
+
+	and generate_anon_field ctx af =
+		let fields = generate_class_field' ctx CFSMember af.ctf_field in
+		let fields = List.filter (fun (n,_) -> n <> "type") fields in
+		let fields = ("type",generate_type ctx af.ctf_type) :: fields in
+		jobject fields
+
+	and generate_anon ctx cta = jobject [
+		"status",generate_anon_status ctx cta.ct_status;
+		"fields",jlist (generate_anon_field ctx) cta.ct_fields;
+	]
+	and generate_type ctx ct =
+		let name,args = match ct with
+			| CTMono -> "TMono",None
+			| CTInst pwp -> "TInst",Some (generate_path_with_params ctx pwp)
+			| CTEnum pwp -> "TEnum",Some (generate_path_with_params ctx pwp)
+			| CTTypedef pwp -> "TTypedef",Some (generate_path_with_params ctx pwp)
+			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
+			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
+			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)
+			| CTDynamic cto -> "TDynamic",Option.map (generate_type ctx) cto;
+		in
+		generate_adt ctx None name args
+
 	let to_json ctx ct =
-		let generate_path path =
-			jobject [
-				"pack",jarray (List.map jstring (fst path.ct_dot_path));
-				"name",jstring (snd path.ct_dot_path);
-				"importStatus",jint (ImportStatus.to_int path.ct_import_status);
-			]
-		in
-		let rec generate_path_with_params pwp = jobject [
-			"path",generate_path pwp.ct_path;
-			"params",jlist generate_type pwp.ct_params;
-		]
-		and generate_function_argument cfa = jobject [
-			"name",jstring cfa.ct_name;
-			"opt",jbool cfa.ct_optional;
-			"t",generate_type cfa.ct_type;
-			"value",jopt (fun e -> jobject [
-				"string",jstring (Ast.s_expr e);
-			]) cfa.ct_value;
-		]
-		and generate_function ctf = jobject [
-			"args",jlist generate_function_argument ctf.ct_args;
-			"ret",generate_type ctf.ct_return;
-		]
-		and generate_anon_field af =
-			let fields = generate_class_field' ctx CFSMember af.ctf_field in
-			let fields = List.filter (fun (n,_) -> n <> "type") fields in
-			let fields = ("type",generate_type af.ctf_type) :: fields in
-			jobject fields
-		and generate_anon cta = jobject [
-			"status",generate_anon_status ctx cta.ct_status;
-			"fields",jlist generate_anon_field cta.ct_fields;
-		]
-		and generate_type ct =
-			let name,args = match ct with
-				| CTMono -> "TMono",None
-				| CTInst pwp -> "TInst",Some (generate_path_with_params pwp)
-				| CTEnum pwp -> "TEnum",Some (generate_path_with_params pwp)
-				| CTTypedef pwp -> "TTypedef",Some (generate_path_with_params pwp)
-				| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params pwp)
-				| CTFunction ctf -> "TFun",Some (generate_function ctf)
-				| CTAnonymous cta -> "TAnonymous",Some (generate_anon cta)
-				| CTDynamic cto -> "TDynamic",Option.map generate_type cto;
-			in
-			generate_adt ctx None name args
-		in
-		generate_type ct
+		generate_type ctx ct
 end
 
 open CompletionModuleType

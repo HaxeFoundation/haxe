@@ -17,6 +17,10 @@ open Fields
 open Calls
 open Error
 
+let convert_function_signature ctx values (args,ret) = match DisplayEmitter.completion_type_of_type ctx ~values (TFun(args,ret)) with
+	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
+	| _ -> assert false
+
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
@@ -130,9 +134,9 @@ let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
 	let handle_call tl el p0 =
-		let rec follow_with_callable (t,doc) = match follow t with
-			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
-			| TFun(args,ret) -> ((args,ret),doc)
+		let rec follow_with_callable (t,doc,values) = match follow t with
+			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
+			| TFun(args,ret) -> ((args,ret),doc,values)
 			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
@@ -150,7 +154,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		unify_call_args error out. *)
 		let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
 		let rec loop acc tl = match tl with
-			| (t,doc) :: tl ->
+			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
 						let _ = unify_call_args' ctx el args r p false false in
@@ -160,11 +164,12 @@ let rec handle_signature_display ctx e_ast with_type =
 					| _ -> false
 					end
 				in
-				loop (if keep t then (t,doc) :: acc else acc) tl
+				loop (if keep t then (t,doc,values) :: acc else acc) tl
 			| [] ->
 				acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
+		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
 		raise_signatures overloads 0 (* ? *) display_arg
 	in
 	let find_constructor_types t = match follow t with
@@ -175,10 +180,10 @@ let rec handle_signature_display ctx e_ast with_type =
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
 			in
-			[loop tl,None]
+			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			let ct,cf = get_constructor ctx c tl p in
-			let tl = (ct,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads in
+			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
 			tl
 		| _ ->
 			[]
@@ -202,12 +207,14 @@ let rec handle_signature_display ctx e_ast with_type =
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
 					begin match extract_field fa with
-						| Some cf -> (e1.etype,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads
-						| None -> [e1.etype,None]
+						| Some cf -> (e1.etype,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
+						| None -> [e1.etype,None,PMap.empty]
 					end
 				| TConst TSuper ->
 					find_constructor_types e1.etype
-				| _ -> [e1.etype,None]
+				| TLocal v ->
+					[e1.etype,None,get_value_meta v.v_meta]
+				| _ -> [e1.etype,None,PMap.empty]
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
@@ -355,7 +362,7 @@ let handle_display ctx e_ast dk with_type =
 		let arg = ["expression",false,mono] in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,mono),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,mono) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
@@ -366,7 +373,7 @@ let handle_display ctx e_ast dk with_type =
 		let ret = ctx.com.basic.tvoid in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,ret),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,ret) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);

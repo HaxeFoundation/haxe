@@ -70,7 +70,9 @@ typedef JsonFunctionArgument = {
 	var name: String;
 	var opt: Bool;
 	var t: JsonType<Dynamic>;
-	var ?value: JsonTConstant<Dynamic>;
+	var ?value: {
+		var string: String;
+	};
 }
 
 typedef JsonFunctionSignature = {
