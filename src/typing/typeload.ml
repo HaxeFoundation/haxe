@@ -202,7 +202,7 @@ let check_param_constraints ctx types t pl c p =
 		) ctl
 
 let requires_value_meta com co =
-	Common.defined com Define.DocGen || com.display.dms_kind <> DMNone && (match co with
+	Common.defined com Define.DocGen || com.display.dms_kind <> DMNone || (match co with
 		| None -> false
 		| Some c -> c.cl_extern || Meta.has Meta.Rtti c.cl_meta)
 
