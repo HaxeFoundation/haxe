@@ -332,7 +332,7 @@ typedef JsonAbstractCast = {
 
 typedef JsonAbstract = {
 	var type: JsonType<Dynamic>;
-	var impl: Null<JsonPath>;
+	var impl: Null<JsonClass>;
 	var binops: Array<JsonAbstractBinop>;
 	var unops: Array<JsonAbstractUnop>;
 	var from: Array<JsonAbstractCast>;
