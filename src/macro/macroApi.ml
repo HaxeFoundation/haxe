@@ -521,7 +521,7 @@ and encode_expr e =
 					]
 				) vl)]
 			| EFunction (name,f) ->
-				11, [null encode_string name; encode_fun f]
+				11, [null encode_placed_name name; encode_fun f]
 			| EBlock el ->
 				12, [encode_array (List.map loop el)]
 			| EFor (e,eloop) ->
@@ -818,7 +818,7 @@ and decode_expr v =
 				((decode_placed_name (field v "name_pos") (field v "name")),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (decode_array vl))
 		| 11, [fname;f] ->
-			EFunction (opt decode_string fname,decode_fun f)
+			EFunction (opt (fun v -> decode_string v,Globals.null_pos) fname,decode_fun f)
 		| 12, [el] ->
 			EBlock (List.map loop (decode_array el))
 		| 13, [e1;e2] ->

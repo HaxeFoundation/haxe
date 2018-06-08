@@ -1022,7 +1022,7 @@ and parse_function p1 inl = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			EFunction ((match name with None -> None | Some (name,_) -> Some (if inl then "inline_" ^ name else name)),f), punion p1 (pos e)
+			EFunction ((match name with None -> None | Some (name,pn) -> Some ((if inl then "inline_" ^ name else name),pn)),f), punion p1 (pos e)
 		in
 		(try
 			expr_next (make (secure_expr s)) s

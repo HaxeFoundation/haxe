@@ -194,7 +194,7 @@ and expr_def =
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (placed_name * type_hint option * expr option) list
-	| EFunction of string option * func
+	| EFunction of placed_name option * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
@@ -734,7 +734,7 @@ let s_expr e =
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (Some n,f) -> "function " ^ n ^ s_func tabs f
+		| EFunction (Some (n,_),f) -> "function " ^ n ^ s_func tabs f
 		| EFunction (None,f) -> "function" ^ s_func tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"

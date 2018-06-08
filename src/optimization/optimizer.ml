@@ -1304,7 +1304,7 @@ let optimize_completion_expr e args =
 		| EFunction (v,f) ->
 			(match v with
 			| None -> ()
-			| Some name ->
+			| Some (name,_) ->
 				decl name None (Some e));
 			let old = save() in
 			List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) f.f_args;

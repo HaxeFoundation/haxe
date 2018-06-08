@@ -1976,16 +1976,16 @@ and type_map_declaration ctx e1 el with_type p =
 	mk (TBlock el) tmap p
 
 and type_local_function ctx name f with_type p =
-	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some n -> n) p in
+	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
 	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
-	let inline, v = (match name with
-		| None -> false, None
-		| Some v when ExtString.String.starts_with v "inline_" -> true, Some (String.sub v 7 (String.length v - 7))
-		| Some v -> false, Some v
+	let inline,v,pname = (match name with
+		| None -> false,None,p
+		| Some (v,pn) when ExtString.String.starts_with v "inline_" -> true,Some (String.sub v 7 (String.length v - 7)),pn
+		| Some (v,pn) -> false,Some v,pn
 	) in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
@@ -2026,7 +2026,7 @@ and type_local_function ctx name f with_type p =
 		| None -> None
 		| Some v ->
 			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
-			let v = (add_local_with_origin ctx v ft p (TVarOrigin.TVOLocalFunction)) (* TODO: var pos *) in
+			let v = (add_local_with_origin ctx v ft pname (TVarOrigin.TVOLocalFunction)) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
 	) in

@@ -284,15 +284,15 @@ let reify in_macro =
 			let name = match name with
 				| None ->
 					to_null null_pos
-				| Some name ->
+				| Some (name,pn) ->
 					if ExtString.String.starts_with name "inline_$" then begin
 						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name p in
+						let e_name = to_string real_name pn in
 						let e_inline = to_string "inline_" p in
 						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
 						e_add
 					end else
-						to_string name p
+						to_string name pn
 			in
 			expr "EFunction" [name; to_fun f p]
 		| EBlock el ->
