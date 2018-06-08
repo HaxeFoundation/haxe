@@ -248,6 +248,7 @@ let check_field_modifiers ctx c cf override display_modifier =
 			let missing_fields = List.fold_left (fun fields cf -> PMap.remove cf.cf_name fields) all_fields c.cl_ordered_fields in
 			let l = PMap.fold (fun (c,cf) fields ->
 				let origin = Parent (TClassDecl c) in
+				ignore(follow cf.cf_type);
 				let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
