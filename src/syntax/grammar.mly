@@ -756,9 +756,19 @@ and parse_class_field tdecl s =
 		| [< f = parse_function_field doc meta al >] ->
 			f
 		| [< >] ->
+			let check_override_completion po =
+				(* If there's an identifier in the stream, it must be a unfinished filter for
+				   an override completion, e.g. `override toStr|`. In that case we simply ignore
+				   the identifier. *)
+				begin match Stream.peek s with
+				| Some (Const (Ident _),_) -> Stream.junk s
+				| _ -> ()
+				end;
+				would_skip_display_position po s
+			in
 			begin match List.rev al with
 				| [] -> raise Stream.Failure
-				| (AOverride,po) :: _ when would_skip_display_position po s ->
+				| (AOverride,po) :: _ when check_override_completion po ->
 					let f = {
 						f_params = [];
 						f_args = [];
