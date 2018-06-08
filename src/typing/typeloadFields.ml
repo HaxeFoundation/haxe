@@ -289,7 +289,17 @@ let lazy_display_type ctx f =
 	end else *)
 		f ()
 
+type enum_abstract_mode =
+	| EAString
+	| EAInt of int ref
+	| EAOther
+
 let build_enum_abstract ctx c a fields p =
+	let mode =
+		if does_unify a.a_this ctx.t.tint then EAInt (ref 0)
+		else if does_unify a.a_this ctx.t.tstring then EAString
+		else EAOther
+	in
 	List.iter (fun field ->
 		match field.cff_kind with
 		| FVar(ct,eo) when not (List.mem_assoc AStatic field.cff_access) ->
@@ -299,14 +309,34 @@ let build_enum_abstract ctx c a fields p =
 				| Some _ -> ct
 				| None -> Some (TExprToExpr.convert_type (TAbstract(a,List.map snd a.a_params)),null_pos)
 			in
+			let set_field e =
+				field.cff_access <- (AInline,null_pos) :: field.cff_access;
+				let e = (ECast(e,None),(pos e)) in
+				field.cff_kind <- FVar(ct,Some e)
+			in
 			begin match eo with
 				| None ->
-					if not c.cl_extern then error "Value required" field.cff_pos
-					else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
+					if not c.cl_extern then begin match mode with
+						| EAString ->
+							set_field (EConst (String (fst field.cff_name)),null_pos)
+						| EAInt i ->
+							set_field (EConst (Int (string_of_int !i)),null_pos);
+							incr i;
+						| EAOther ->
+							error "Value required" field.cff_pos
+					end else field.cff_kind <- FProp(("default",null_pos),("never",null_pos),ct,None)
 				| Some e ->
-					field.cff_access <- (AInline,null_pos) :: field.cff_access;
-					let e = (ECast(e,None),(pos e)) in
-					field.cff_kind <- FVar(ct,Some e)
+					begin match mode,e with
+						| EAInt i,(EConst(Int s),_) ->
+							begin try
+								let i' = int_of_string s in
+								i := (i' + 1)
+							with _ ->
+								()
+							end
+						| _ -> ()
+					end;
+					set_field e
 			end
 		| _ ->
 			()
@@ -961,7 +991,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
 	) cf.cf_meta;
-	generate_value_meta ctx.com (Some c) cf fd.f_args;
+	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
 	ctx.curfield <- cf;

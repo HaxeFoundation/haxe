@@ -2038,15 +2038,16 @@ and type_local_function ctx name f with_type p =
 	let e , fargs = TypeloadFunction.type_function ctx args rt curfun f ctx.in_display p in
 	ctx.type_params <- old_tp;
 	ctx.in_loop <- old_in_loop;
-	let f = {
+	let tf = {
 		tf_args = fargs;
 		tf_type = rt;
 		tf_expr = e;
 	} in
-	let e = mk (TFunction f) ft p in
+	let e = mk (TFunction tf) ft p in
 	(match v with
 	| None -> e
 	| Some v ->
+		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
 		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
 		let rec loop = function

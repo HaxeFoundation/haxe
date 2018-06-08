@@ -71,7 +71,7 @@ let print_fields fields =
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
-			let t = Option.default t_dynamic k.ci_type in
+			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
@@ -150,7 +150,7 @@ let print_type t p doc =
 
 let print_signatures tl =
 	let b = Buffer.create 0 in
-	List.iter (fun ((args,ret),doc) ->
+	List.iter (fun (((args,ret),_),doc) ->
 		Buffer.add_string b "<type";
 		Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
 		Buffer.add_string b ">\n";
@@ -426,8 +426,11 @@ module TypePathHandler = struct
 				| KAbstractImpl a -> Self (TAbstractDecl a)
 				| _ -> Self (TClassDecl c)
 			in
+			let todo t =
+				(t,CompletionType.CTMono)
+			in
 			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) cf.cf_type
+				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (todo cf.cf_type)
 			in
 			let fields = match !statics with
 				| None -> types
@@ -436,7 +439,7 @@ module TypePathHandler = struct
 			let fields = match !enum_statics with
 				| None -> fields
 				| Some en -> PMap.fold (fun ef acc ->
-					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) ef.ef_type :: acc
+					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (todo ef.ef_type) :: acc
 				) en.e_constrs fields
 			in
 			Some fields
@@ -452,7 +455,7 @@ let print_signature tl display_arg =
 	let st = s_type (print_context()) in
 	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
 	let s_fun args ret = Printf.sprintf "(%s):%s" (String.concat ", " (List.map s_arg args)) (st ret) in
-	let siginf = List.map (fun ((args,ret),doc) ->
+	let siginf = List.map (fun (((args,ret),_),doc) ->
 		let label = s_fun args ret in
 		let parameters =
 			List.map (fun arg ->

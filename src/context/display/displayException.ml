@@ -15,7 +15,7 @@ type kind =
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
-	| DisplaySignatures of (tsignature * documentation) list * int * int
+	| DisplaySignatures of ((tsignature * CompletionType.ct_function) * documentation) list * int * int
 	| DisplayHover of hover_result
 	| DisplayPosition of pos list
 	| DisplayFields of CompletionItem.t list * CompletionResultKind.t * pos option (* insert pos *)
@@ -54,8 +54,8 @@ let to_json ctx de =
 	| DisplaySignatures(sigs,isig,iarg) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
-		let fsig ((tl,tr),doc) =
-			let fl = generate_function_signature ctx tl tr in
+		let fsig ((_,signature),doc) =
+			let fl = CompletionType.generate_function' ctx signature in
 			let fl = (match doc with None -> fl | Some s -> ("documentation",jstring s) :: fl) in
 			jobject fl
 		in
@@ -68,7 +68,6 @@ let to_json ctx de =
 		jobject [
 			"documentation",jopt jstring (CompletionItem.get_documentation hover.hitem);
 			"range",generate_pos_as_range hover.hpos;
-			"type",jopt (generate_type ctx) hover.hitem.ci_type; (* TODO: remove *)
 			"item",CompletionItem.to_json ctx hover.hitem;
 		]
 	| DisplayPosition pl ->

@@ -15,7 +15,7 @@ class Issue6381 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq("Option<String>", type(pos(2)));
+		eq("haxe.ds.Option<String>", type(pos(2)));
 		eq(range(1, 3), position(pos(2)));
 		eq(range(4, 5), usage(pos(2))[0]);
 	}

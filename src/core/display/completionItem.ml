@@ -261,6 +261,104 @@ module PackageContentKind = struct
 		| PCKPackage -> 1
 end
 
+module CompletionType = struct
+	type ct_path = {
+		ct_dot_path : path;
+		ct_import_status : ImportStatus.t;
+	}
+
+	and ct_path_with_params = {
+		ct_path : ct_path;
+		ct_params : t list;
+	}
+
+	and ct_function_argument = {
+		ct_name : string;
+		ct_optional : bool;
+		ct_type : t;
+		ct_value : Ast.expr option;
+	}
+
+	and ct_function = {
+		ct_args : ct_function_argument list;
+		ct_return : t;
+	}
+
+	and ct_anonymous_field = {
+		ctf_field : tclass_field;
+		ctf_type : t;
+	}
+
+	and ct_anonymous = {
+		ct_fields : ct_anonymous_field list;
+		ct_status : anon_status;
+	}
+
+	and t =
+		| CTMono
+		| CTInst of ct_path_with_params
+		| CTEnum of ct_path_with_params
+		| CTTypedef of ct_path_with_params
+		| CTAbstract of ct_path_with_params
+		| CTFunction of ct_function
+		| CTAnonymous of ct_anonymous
+		| CTDynamic of t option
+
+	let generate_path path =
+		jobject [
+			"pack",jarray (List.map jstring (fst path.ct_dot_path));
+			"name",jstring (snd path.ct_dot_path);
+			"importStatus",jint (ImportStatus.to_int path.ct_import_status);
+		]
+
+	let rec generate_path_with_params ctx pwp = jobject [
+		"path",generate_path pwp.ct_path;
+		"params",jlist (generate_type ctx) pwp.ct_params;
+	]
+
+	and generate_function_argument ctx cfa = jobject [
+		"name",jstring cfa.ct_name;
+		"opt",jbool cfa.ct_optional;
+		"t",generate_type ctx cfa.ct_type;
+		"value",jopt (fun e -> jobject [
+			"string",jstring (Ast.s_expr e);
+		]) cfa.ct_value;
+	]
+
+	and generate_function' ctx ctf = [
+		"args",jlist (generate_function_argument ctx) ctf.ct_args;
+		"ret",generate_type ctx ctf.ct_return;
+	]
+
+	and generate_function ctx ctf = jobject (generate_function' ctx ctf)
+
+	and generate_anon_field ctx af =
+		let fields = generate_class_field' ctx CFSMember af.ctf_field in
+		let fields = List.filter (fun (n,_) -> n <> "type") fields in
+		let fields = ("type",generate_type ctx af.ctf_type) :: fields in
+		jobject fields
+
+	and generate_anon ctx cta = jobject [
+		"status",generate_anon_status ctx cta.ct_status;
+		"fields",jlist (generate_anon_field ctx) cta.ct_fields;
+	]
+	and generate_type ctx ct =
+		let name,args = match ct with
+			| CTMono -> "TMono",None
+			| CTInst pwp -> "TInst",Some (generate_path_with_params ctx pwp)
+			| CTEnum pwp -> "TEnum",Some (generate_path_with_params ctx pwp)
+			| CTTypedef pwp -> "TType",Some (generate_path_with_params ctx pwp)
+			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
+			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
+			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)
+			| CTDynamic cto -> "TDynamic",Option.map (generate_type ctx) cto;
+		in
+		generate_adt ctx None name args
+
+	let to_json ctx ct =
+		generate_type ctx ct
+end
+
 open CompletionModuleType
 open CompletionClassField
 open CompletionEnumField
@@ -283,7 +381,7 @@ type t_kind =
 
 type t = {
 	ci_kind : t_kind;
-	ci_type : Type.t option;
+	ci_type : (Type.t * CompletionType.t) option;
 }
 
 let make kind t = {
@@ -303,8 +401,8 @@ let make_ci_timer name value = make (ITTimer(name,value)) None
 let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
-let make_ci_expr e = make (ITExpression e) (Some e.etype)
-let make_ci_type_param c = make (ITTypeParameter c) (Some (TInst(c,[])))
+let make_ci_expr e t = make (ITExpression e) (Some t)
+let make_ci_type_param c t = make (ITTypeParameter c) (Some t)
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -472,7 +570,6 @@ let to_json ctx item =
 		]
 		| ITLiteral s -> "Literal",jobject [
 			"name",jstring s;
-			"type",jopt (generate_type ctx) item.ci_type; (* TODO: remove *)
 		]
 		| ITTimer(s,value) -> "Timer",jobject [
 			"name",jstring s;
@@ -501,5 +598,5 @@ let to_json ctx item =
 	jobject (
 		("kind",jstring kind) ::
 		("args",data) ::
-		(match item.ci_type with None -> [] | Some t -> ["type",generate_type ctx t])
+		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
 	)

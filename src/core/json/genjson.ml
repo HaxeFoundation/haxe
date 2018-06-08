@@ -10,6 +10,7 @@ type generation_mode =
 
 type context = {
 	generation_mode : generation_mode;
+	generate_abstract_impl : bool;
 }
 
 let jnull = Json.JNull
@@ -42,7 +43,10 @@ let class_ref ctx c = generate_path c.cl_path
 let enum_ref ctx en = generate_path en.e_path
 let typedef_ref ctx td = generate_path td.t_path
 let abstract_ref ctx a = generate_path a.a_path
+let moduletype_ref ctx mt = generate_path (t_path mt)
 let classfield_ref ctx cf = jstring cf.cf_name
+let enumfield_ref ctx ef = jstring ef.ef_name
+let local_ref ctx v = jint v.v_id
 
 let generate_pos ctx p =
 	jobject [
@@ -50,6 +54,9 @@ let generate_pos ctx p =
 		"min",jint p.pmin;
 		"max",jint p.pmax;
 	]
+
+let generate_expr_pos ctx p =
+	jtodo
 
 let generate_doc ctx d = match ctx.generation_mode with
 	| GMFull -> jopt jstring d
@@ -174,26 +181,26 @@ let rec generate_type ctx t =
 	let name,args = loop t in
 	generate_adt ctx None name args
 
+and generate_anon_status ctx status =
+	let name,args = match status with
+		| Closed -> "AClosed",None
+		| Opened -> "AOpened",None
+		| Const -> "AConst",None
+		| Extend tl -> "AExtend", Some (generate_types ctx tl)
+		| Statics c -> "AClassStatics",Some (class_ref ctx c)
+		| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
+		| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
+	in
+	generate_adt ctx None name args
+
 and generate_anon ctx an =
 	let generate_anon_fields () =
 		let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
 		jarray fields
 	in
-	let generate_anon_status () =
-		let name,args = match !(an.a_status) with
-			| Closed -> "AClosed",None
-			| Opened -> "AOpened",None
-			| Const -> "AConst",None
-			| Extend tl -> "AExtend", Some (generate_types ctx tl)
-			| Statics c -> "AClassStatics",Some (class_ref ctx c)
-			| EnumStatics en -> "AEnumStatics",Some (enum_ref ctx en)
-			| AbstractStatics a -> "AAbstractStatics", Some (abstract_ref ctx a)
-		in
-		generate_adt ctx None name args
-	in
 	jobject [
 		"fields",generate_anon_fields();
-		"status",generate_anon_status ();
+		"status",generate_anon_status ctx !(an.a_status);
 	]
 
 and generate_function_argument ctx (name,opt,t) =
@@ -254,12 +261,182 @@ and generate_tvar ctx v =
 	in
 	jobject fields
 
+and generate_tconstant ctx ct =
+	let name,args = match ct with
+		| TInt i32 -> "TInt",Some (jstring (Int32.to_string i32))
+		| TFloat s -> "TFloat",Some (jstring s)
+		| TString s -> "TString",Some (jstring s)
+		| TBool b -> "TBool",Some (jbool b)
+		| TNull -> "TNull",None
+		| TThis -> "TThis",None
+		| TSuper -> "TSuper",None
+	in
+	generate_adt ctx None name args
+
+and generate_tfunction ctx tf =
+	let generate_arg (v,cto) = jobject [
+		"v",generate_tvar ctx v;
+		"value",jopt (generate_tconstant ctx) cto;
+	] in
+	jobject [
+		"args",jlist generate_arg tf.tf_args;
+		"ret",generate_type ctx tf.tf_type;
+		"expr",generate_expr ctx tf.tf_expr;
+	]
+
 and generate_texpr ctx e =
 	jtodo
+	(* let name,args = match e.eexpr with
+	| TConst ct ->
+		"TConst",Some (generate_tconstant ctx ct)
+	| TLocal v ->
+		"TLocal",Some (local_ref ctx v)
+	| TArray(e1,e2) ->
+		"TArray",Some (jobject [
+			"expr1",generate_texpr ctx e1;
+			"expr2",generate_texpr ctx e2;
+		])
+	| TBinop(op,e1,e2) ->
+		"TBinop",Some (jobject [
+			"op",generate_binop ctx op;
+			"expr1",generate_texpr ctx e1;
+			"expr2",generate_texpr ctx e2;
+		]);
+	| TField(e1,fa) ->
+		"TField",Some (jobject [
+			"expr",generate_texpr ctx e1;
+			"name",jstring (field_name fa);
+			(* TODO *)
+		]);
+	| TTypeExpr mt ->
+		"TTypeExpr",Some (moduletype_ref ctx mt)
+	| TParenthesis e1 ->
+		"TParenthesis",Some (generate_texpr ctx e1)
+	| TObjectDecl fl ->
+		let generate_quote_status qs =
+			let name = match qs with
+				| DoubleQuotes -> "DoubleQuotes"
+				| NoQuotes -> "NoQuotes"
+			in
+			generate_adt ctx None name None
+		in
+		let generate_key (name,pos,qs) = jobject [
+			"name",jstring name;
+			"pos",generate_expr_pos ctx pos;
+			"quoteStatus",generate_quote_status qs;
+		] in
+		let generate_entry (key,value) = jobject [
+			"key",generate_key key;
+			"value",generate_texpr ctx value;
+		] in
+		let fields = List.map generate_entry fl in
+		"TObjectDecl",Some (jarray fields)
+	| TArrayDecl el ->
+		let fields = List.map (generate_texpr ctx) el in
+		"TArrayDecl",Some (jarray fields)
+	| TCall(e1,el) ->
+		let args = List.map (generate_texpr ctx) el in
+		"TCall",Some (jobject [
+			"expr",generate_texpr ctx e1;
+			"args",jarray args;
+		]);
+	| TNew(c,tl,el) ->
+		let args = List.map (generate_texpr ctx) el in
+		"TNew",Some (jobject [
+			"path",generate_path_with_params ctx c.cl_path tl;
+			"args",jarray args;
+		]);
+	| TUnop(op,flag,e1) ->
+		"TUnop",Some (jobject [
+			"op",generate_unop ctx op;
+			"prefix",jbool (flag = Prefix);
+			"expr",generate_texpr ctx e1;
+		]);
+	| TFunction tf ->
+		"TFunction",Some (generate_tfunction ctx tf)
+	| TVar(v,eo) ->
+		"TVar",Some (jobject [
+			"v",generate_tvar ctx v;
+			"expr",jopt (generate_texpr ctx) eo;
+		])
+	| TBlock el ->
+		let el = List.map (generate_texpr ctx) el in
+		"TBlock",Some (jarray el)
+	| TFor(v,e1,e2) ->
+		"TFor",Some (jobject [
+			"v",generate_tvar ctx v;
+			"expr1",generate_texpr ctx e1;
+			"expr2",generate_texpr ctx e2;
+		]);
+	| TIf(e1,e2,eo) ->
+		"TIf",Some (jobject [
+			"eif",generate_texpr ctx e1;
+			"ethen",generate_expr ctx e1;
+			"eelse",jopt (generate_expr ctx) eo;
+		]);
+	| TWhile(e1,e2,flag) ->
+		"TWhile",Some (jobject [
+			"econd",generate_texpr ctx e1;
+			"ebody",generate_texpr ctx e2;
+			"isDoWhile",jbool (flag = DoWhile);
+		]);
+	| TSwitch(e1,cases,edef) ->
+		let generate_case (el,e) = jobject [
+			"patterns",jlist (generate_texpr ctx) el;
+			"expr",generate_texpr ctx e;
+		] in
+		"TSwitch",Some (jobject [
+			"subject",generate_texpr ctx e1;
+			"cases",jlist generate_case cases;
+			"def",jopt (generate_texpr ctx) edef;
+		])
+	| TTry(e1,catches) ->
+		let generate_catch (v,e) = jobject [
+			"v",generate_tvar ctx v;
+			"expr",generate_texpr ctx e;
+		] in
+		"TTry",Some (jobject [
+			"expr",generate_texpr ctx e1;
+			"catches",jlist generate_catch catches;
+		])
+	| TReturn eo ->
+		"TReturn",Option.map (generate_texpr ctx) eo
+	| TBreak ->
+		"TBreak",None
+	| TContinue ->
+		"TContinue",None
+	| TThrow e1 ->
+		"TThrow",Some (generate_texpr ctx e1)
+	| TCast(e1,mto) ->
+		"TCast",Some (jobject [
+			"expr",generate_texpr ctx e1;
+			"moduleType",jopt (moduletype_ref ctx) mto;
+		]);
+	| TMeta(m,e1) ->
+		"TMeta",Some (jobject [
+			"meta",generate_metadata_entry ctx m;
+			"expr",generate_texpr ctx e1;
+		])
+	| TEnumParameter(e1,ef,i) ->
+		"TEnumParameter",Some (jobject [
+			"expr",generate_texpr ctx e1;
+			"enumField",enumfield_ref ctx ef;
+			"index",jint i;
+		]);
+	| TEnumIndex e1 ->
+		"TEnumIndex",Some (generate_texpr ctx e1)
+	| TIdent s ->
+		"TIdent",Some (jstring s)
+	in
+	jobject [
+		"expr",generate_adt ctx None name args;
+		(* TODO: pos? *)
+		"type",generate_type ctx e.etype;
+	] *)
 
 (* fields *)
 
-and generate_class_field ctx cfs cf =
+and generate_class_field' ctx cfs cf =
 	let generate_class_kind () =
 		let generate_var_access va =
 			let name,args = match va with
@@ -289,19 +466,26 @@ and generate_class_field ctx cfs cf =
 		in
 		generate_adt ctx None name args
 	in
-	jobject [
+	let expr = match ctx.generation_mode with
+		| GMFull | GMWithoutDoc -> jopt (generate_texpr ctx) cf.cf_expr
+		| GMMinimum -> jnull
+	in
+	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
 		"isPublic",jbool cf.cf_public;
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
-		"expr",jopt (generate_texpr ctx) cf.cf_expr;
+		"expr",expr;
 		"pos",generate_pos ctx cf.cf_pos;
 		"doc",generate_doc ctx cf.cf_doc;
 		"overloads",jlist (generate_class_field ctx cfs) cf.cf_overloads;
 		"scope",jint (Obj.magic cfs);
 	]
+
+and generate_class_field ctx cfs cf =
+	jobject (generate_class_field' ctx cfs cf)
 
 let generate_enum_field ctx ef =
 	jobject [
@@ -403,9 +587,15 @@ let generate_abstract ctx a =
 			"field",classfield_ref ctx cf;
 		]
 	in
+	let impl = match a.a_impl with
+		| None -> jnull
+		| Some c ->
+			if ctx.generate_abstract_impl then jobject (generate_class ctx c)
+			else class_ref ctx c
+	in
 	[
 		"type",generate_type ctx a.a_this;
-		"impl",jopt (class_ref ctx) a.a_impl;
+		"impl",impl;
 		"binops",jlist generate_binop a.a_ops;
 		"unops",jlist generate_unop a.a_unops;
 		"from",generate_casts a.a_from_field a.a_from;
@@ -438,6 +628,7 @@ let generate_module ctx m =
 
 let create_context gm = {
 	generation_mode = gm;
+	generate_abstract_impl = false;
 }
 
 let generate types file =

@@ -8,6 +8,7 @@ open CompletionModuleKind
 open CompletionModuleType
 open ClassFieldOrigin
 open DisplayException
+open DisplayEmitter
 open Common
 open Type
 open Typecore
@@ -15,6 +16,10 @@ open TyperBase
 open Fields
 open Calls
 open Error
+
+let convert_function_signature ctx values (args,ret) = match DisplayEmitter.completion_type_of_type ctx ~values (TFun(args,ret)) with
+	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
+	| _ -> assert false
 
 let completion_item_of_expr ctx e =
 	let retype e s t =
@@ -24,24 +29,28 @@ let completion_item_of_expr ctx e =
 		with _ ->
 			false
 	in
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		(t,ct)
+	in
 	let of_field e origin cf scope =
 		let is_qualified = retype e cf.cf_name e.etype in
-		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
+		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) e.etype)
 	in
 	let of_enum_field e origin ef =
 		let is_qualified = retype e ef.ef_name e.etype in
-		make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (DisplayEmitter.patch_type ctx e.etype)
+		make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair e.etype)
 	in
 	let itexpr e =
-		let t = DisplayEmitter.patch_type ctx e.etype in
-		make_ci_expr {e with etype = t}
+		let t = tpair e.etype in
+		make_ci_expr e t
 	in
 	let class_origin c = match c.cl_kind with
 		| KAbstractImpl a -> Self (TAbstractDecl a)
 		| _ -> Self (TClassDecl c)
 	in
 	let rec loop e = match e.eexpr with
-		| TLocal v | TVar(v,_) -> make_ci_local v (DisplayEmitter.patch_type ctx v.v_type)
+		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
 			let origin = match e1.eexpr with
 				| TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
@@ -69,16 +78,16 @@ let completion_item_of_expr ctx e =
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
 			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
-			let t = DisplayEmitter.patch_type ctx t in
+			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
-			let t = DisplayEmitter.patch_type ctx e.etype in
+			let t = tpair e.etype in
 			make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t) (* TODO *)
 		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
-		| TConst(ct) -> make_ci_literal (s_const ct) e.etype
+		| TConst(ct) -> make_ci_literal (s_const ct) (tpair e.etype)
 		| TObjectDecl _ ->
 			begin match follow e.etype with
-				| TAnon an -> make_ci_anon an e.etype
+				| TAnon an -> make_ci_anon an (tpair e.etype)
 				| _ -> itexpr e
 			end
 		| TNew(c,tl,_) ->
@@ -105,7 +114,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make {cf with cf_type = t} CFSConstructor (class_origin c) true) (DisplayEmitter.patch_type ctx t)
+				make_ci_class_field (CompletionClassField.make cf CFSConstructor (class_origin c) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
@@ -125,9 +134,9 @@ let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
 	let handle_call tl el p0 =
-		let rec follow_with_callable (t,doc) = match follow t with
-			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc)
-			| TFun(args,ret) -> ((args,ret),doc)
+		let rec follow_with_callable (t,doc,values) = match follow t with
+			| TAbstract(a,tl) when Meta.has Meta.Callable a.a_meta -> follow_with_callable (Abstract.get_underlying_type a tl,doc,values)
+			| TFun(args,ret) -> ((args,ret),doc,values)
 			| _ -> error ("Not a callable type: " ^ (s_type (print_context()) t)) p
 		in
 		let tl = List.map follow_with_callable tl in
@@ -145,7 +154,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		unify_call_args error out. *)
 		let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
 		let rec loop acc tl = match tl with
-			| (t,doc) :: tl ->
+			| (t,doc,values) :: tl ->
 				let keep (args,r) =
 					begin try
 						let _ = unify_call_args' ctx el args r p false false in
@@ -155,11 +164,12 @@ let rec handle_signature_display ctx e_ast with_type =
 					| _ -> false
 					end
 				in
-				loop (if keep t then (t,doc) :: acc else acc) tl
+				loop (if keep t then (t,doc,values) :: acc else acc) tl
 			| [] ->
 				acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
+		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
 		raise_signatures overloads 0 (* ? *) display_arg
 	in
 	let find_constructor_types t = match follow t with
@@ -170,10 +180,10 @@ let rec handle_signature_display ctx e_ast with_type =
 					| TAbstract({a_path = ["haxe"],"Constructible"},[t]) -> t
 					| _ -> loop tl
 			in
-			[loop tl,None]
+			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
 			let ct,cf = get_constructor ctx c tl p in
-			let tl = (ct,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads in
+			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
 			tl
 		| _ ->
 			[]
@@ -197,12 +207,14 @@ let rec handle_signature_display ctx e_ast with_type =
 			let tl = match e1.eexpr with
 				| TField(_,fa) ->
 					begin match extract_field fa with
-						| Some cf -> (e1.etype,cf.cf_doc) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc) cf.cf_overloads
-						| None -> [e1.etype,None]
+						| Some cf -> (e1.etype,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads
+						| None -> [e1.etype,None,PMap.empty]
 					end
 				| TConst TSuper ->
 					find_constructor_types e1.etype
-				| _ -> [e1.etype,None]
+				| TLocal v ->
+					[e1.etype,None,get_value_meta v.v_meta]
+				| _ -> [e1.etype,None,PMap.empty]
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
@@ -316,16 +328,20 @@ let handle_structure_display ctx e t an =
 		| TType(td,_) -> Self (TTypeDecl td)
 		| _ -> AnonymousStructure an
 	in
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		(t,ct)
+	in
 	match fst e with
 	| EObjectDecl fl ->
 		let fields = List.fold_left (fun acc cf ->
 			if Expr.field_mem_assoc cf.cf_name fl then acc
-			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type) :: acc
+			else (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| EBlock [] ->
 		let fields = List.fold_left (fun acc cf ->
-			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) cf.cf_type :: acc
+			make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type) :: acc
 		) [] fields in
 		raise_fields fields CRStructureField None
 	| _ ->
@@ -335,6 +351,10 @@ let handle_display ctx e_ast dk with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
+	let tpair t =
+		let ct = DisplayEmitter.completion_type_of_type ctx t in
+		(t,ct)
+	in
 	let e = match e_ast,with_type with
 	| (EConst (Ident "$type"),_),_ ->
 		let mono = mk_mono() in
@@ -342,10 +362,10 @@ let handle_display ctx e_ast dk with_type =
 		let arg = ["expression",false,mono] in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,mono),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -353,10 +373,10 @@ let handle_display ctx e_ast dk with_type =
 		let ret = ctx.com.basic.tvoid in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [((arg,ret),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast))) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
 		end
 	| (EConst (Ident "_"),p),WithType t ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)

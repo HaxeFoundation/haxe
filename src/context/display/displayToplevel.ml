@@ -24,6 +24,7 @@ open Typecore
 open CompletionItem
 open ClassFieldOrigin
 open DisplayTypes
+open DisplayEmitter
 open Genjson
 
 let explore_class_paths com timer class_paths recusive f_pack f_module =
@@ -181,16 +182,20 @@ let collect ctx epos with_type =
 
 	(* Collection starts here *)
 
+	let tpair ?(values=PMap.empty) t =
+		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
+		(t,ct)
+	in
 	if epos <> None then begin
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
-				add (make_ci_local v v.v_type) (Some v.v_name)
+				add (make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)) (Some v.v_name)
 		) ctx.locals;
 
 		let add_field scope origin cf =
 			let is_qualified = is_qualified cctx cf.cf_name in
-			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) cf.cf_type) (Some cf.cf_name)
+			add (make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some cf.cf_name)
 		in
 		let maybe_add_field scope origin cf =
 			if not (Meta.has Meta.NoCompletion cf.cf_meta) then add_field scope origin cf
@@ -231,7 +236,7 @@ let collect ctx epos with_type =
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (TClassDecl c)) true in
 					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
-						add (make_ci_enum_abstract_field a ccf cf.cf_type) (Some cf.cf_name);
+						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
 			| TTypeDecl t ->
 				begin match follow t.t_type with
@@ -243,7 +248,7 @@ let collect ctx epos with_type =
 				let origin = Self (TEnumDecl e) in
 				PMap.iter (fun _ ef ->
 					let is_qualified = is_qualified cctx ef.ef_name in
-					add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) ef.ef_type) (Some ef.ef_name)
+					add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some ef.ef_name)
 				) e.e_constrs;
 			| _ ->
 				()
@@ -266,7 +271,7 @@ let collect ctx epos with_type =
 					let cf = PMap.find s c.cl_statics in
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
 					let origin = StaticImport (TClassDecl c) in
-					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) cf.cf_type) (Some name)
+					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;
@@ -274,7 +279,7 @@ let collect ctx epos with_type =
 						let ef = PMap.find s en.e_constrs in
 						let ef = if name = ef.ef_name then ef else {ef with ef_name = name} in
 						let origin = StaticImport (TEnumDecl en) in
-						add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) ef.ef_type) (Some s)
+						add (make_ci_enum_field (CompletionEnumField.make ef origin is_qualified) (tpair ef.ef_type)) (Some s)
 					| TAbstractDecl {a_impl = Some c} -> class_import c;
 					| _ -> raise Not_found
 			with Not_found ->
@@ -282,15 +287,15 @@ let collect ctx epos with_type =
 		) ctx.m.module_globals;
 
 		(* literals *)
-		add (make_ci_literal "null" t_dynamic) (Some "null");
-		add (make_ci_literal "true" ctx.com.basic.tbool) (Some "true");
-		add (make_ci_literal "false" ctx.com.basic.tbool) (Some "false");
+		add (make_ci_literal "null" (tpair t_dynamic)) (Some "null");
+		add (make_ci_literal "true" (tpair ctx.com.basic.tbool)) (Some "true");
+		add (make_ci_literal "false" (tpair ctx.com.basic.tbool)) (Some "false");
 		begin match ctx.curfun with
 			| FunMember | FunConstructor | FunMemberClassLocal ->
 				let t = TInst(ctx.curclass,List.map snd ctx.curclass.cl_params) in
-				add (make_ci_literal "this" t) (Some "this");
+				add (make_ci_literal "this" (tpair t)) (Some "this");
 				begin match ctx.curclass.cl_super with
-					| Some(c,tl) -> add (make_ci_literal "super" (TInst(c,tl))) (Some "super")
+					| Some(c,tl) -> add (make_ci_literal "super" (tpair (TInst(c,tl)))) (Some "super")
 					| None -> ()
 				end
 			| _ ->
@@ -305,13 +310,13 @@ let collect ctx epos with_type =
 		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
 		(* builtins *)
-		add (make_ci_literal "trace" (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid))) (Some "trace")
+		add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
 	end;
 
 	(* type params *)
 	List.iter (fun (s,t) -> match follow t with
 		| TInst(c,_) ->
-			add (make_ci_type_param c) (Some (snd c.cl_path))
+			add (make_ci_type_param c (tpair t)) (Some (snd c.cl_path))
 		| _ -> assert false
 	) ctx.type_params;
 
@@ -374,7 +379,7 @@ let collect ctx epos with_type =
 		| WithType t ->
 			let rec comp t' = match t' with
 				| None -> 9
-				| Some t' ->
+				| Some (t',_) ->
 				if type_iseq t' t then 0 (* equal types - perfect *)
 				else if t' == t_dynamic then 5 (* dynamic isn't good, but better than incompatible *)
 				else try Type.unify t' t; 1 (* assignable - great *)

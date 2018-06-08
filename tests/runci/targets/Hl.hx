@@ -23,8 +23,8 @@ class Hl {
         runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
         var hlBuild = Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
         FileSystem.createDirectory(hlBuild);
-        runCommand("cmake", [
-            "-GNinja",
+        var generator = systemName == "Windows" ? [] : ["-GNinja"];
+        runCommand("cmake", generator.concat([
             "-DBUILD_TESTING=OFF",
             "-DWITH_BULLET=OFF",
             "-DWITH_DIRECTX=OFF",
@@ -38,7 +38,7 @@ class Hl {
             "-DWITH_VIDEO=OFF",
             "-B" + hlBuild,
             "-H" + hlSrc
-        ]);
+        ]));
         runCommand("cmake", [
             "--build", hlBuild
         ]);
