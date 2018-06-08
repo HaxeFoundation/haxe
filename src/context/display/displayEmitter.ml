@@ -14,6 +14,40 @@ open Common
 open Display
 open DisplayPosition
 
+let sort_fields l with_type p =
+	let l = List.map (fun ci ->
+		let i = get_sort_index ci (Option.default Globals.null_pos p) in
+		ci,i
+	) l in
+	let sort l =
+		List.map fst (List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l)
+	in
+	let l = match with_type with
+		| WithType t ->
+			let rec comp t' = match t' with
+				| None -> 9
+				| Some (t',_) ->
+				if type_iseq t' t then 0 (* equal types - perfect *)
+				else if t' == t_dynamic then 5 (* dynamic isn't good, but better than incompatible *)
+				else try Type.unify t' t; 1 (* assignable - great *)
+				with Unify_error _ -> match follow t' with
+					| TFun(_,tr) ->
+						if type_iseq tr t then 2 (* function returns our exact type - alright *)
+						else (try Type.unify tr t; 3 (* function returns compatible type - okay *)
+						with Unify_error _ -> 7) (* incompatible function - useless *)
+					| _ ->
+						6 (* incompatible type - probably useless *)
+			in
+			let l = List.map (fun (ck,i1) ->
+				let i2 = comp (get_type ck) in
+				ck,(i2,i1)
+			) l in
+			sort l
+		| _ ->
+			sort l
+	in
+	l
+
 let completion_type_of_type ctx ?(values=PMap.empty) t =
 	let get_import_status path =
 		try
@@ -217,5 +251,6 @@ let check_field_modifiers ctx c cf override display_modifier =
 				let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
+			let l = sort_fields l NoValue None in
 			raise_fields l CROverride None
 		| _ -> ()
