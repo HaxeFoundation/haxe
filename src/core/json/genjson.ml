@@ -240,10 +240,14 @@ and generate_type_parameter ctx (s,t) =
 (* texpr *)
 
 and generate_tvar ctx v =
-	let generate_extra (params,eo) = jobject [
-		"params",jlist (generate_type_parameter ctx) params;
-		"expr",jopt (generate_texpr ctx) eo;
-	] in
+	let generate_extra (params,eo) = jobject (
+		("params",jlist (generate_type_parameter ctx) params) ::
+		(match eo with
+		| None -> []
+		| Some e ->	["expr",jobject [
+			("string",jstring (s_expr_pretty false "" false (s_type (print_context())) e))
+		]]);
+	) in
 	let fields = [
 		"id",jint v.v_id;
 		"name",jstring v.v_name;
@@ -252,6 +256,7 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
+		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
 	] in
 	let fields = try
 		let origin = TVarOrigin.decode_from_meta v.v_meta in
