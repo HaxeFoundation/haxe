@@ -244,13 +244,13 @@ typedef JsonClassField = {
 	var params: JsonTypeParameters;
 	var meta: JsonMetadata;
 	var kind: JsonFieldKind<Dynamic>;
-	var expr: {
+	var ?expr: {
 		var string: String;
 	};
 	var pos: JsonPos;
 	var doc: JsonDoc;
 	var overloads: JsonClassFields;
-    var scope: JsonClassFieldScope;
+	var scope: JsonClassFieldScope;
 }
 
 typedef JsonClassFields = Array<JsonClassField>;
