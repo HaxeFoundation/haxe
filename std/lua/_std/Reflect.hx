@@ -35,33 +35,29 @@ import lua.Boot;
 			if (field == "length"){
 				return lua.NativeStringTools.len(o);
 			} else return untyped String.prototype[field];
-		} else return try o[field] catch( e : Dynamic ) null;
+		} else {
+		   	return try o[field] catch( e : Dynamic ) null;
+		}
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		o[field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		var tmp : Dynamic;
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
 		return if( o == null ) {
-				untyped __define_feature__("Reflect.getProperty",null);
-			} else if( o.__properties__ != null && Reflect.field(o, "get_" + field) != null){
-				callMethod(o, Reflect.field(o,"get_" + field), []);
-			} else {
-				Reflect.field(o,field);
-			}
+			untyped __define_feature__("Reflect.getProperty",null);
+		} else if( o.__properties__ != null && Reflect.field(o, "get_" + field) != null){
+			callMethod(o, Reflect.field(o,"get_" + field), []);
+		} else {
+			Reflect.field(o,field);
+		}
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		var tmp : String;
-		if( o.__properties__ && o.__properties__["set_"+field]) {
-			tmp = o.__properties__["set_" + field];
-			if (o.__name__ != null){
-				callMethod(null,Reflect.field(o, tmp), [value]) ;
-			} else {
-				callMethod(o,Reflect.field(o, tmp), [value]) ;
-			}
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		if( o.__properties__ != null && o.__properties__["set_"+field]) {
+			var tmp : String = o.__properties__["set_" + field];
+			callMethod(o,Reflect.field(o, tmp), [value]) ;
 		} else {
 			o[field] = __define_feature__("Reflect.setProperty",value);
 		}
@@ -72,25 +68,13 @@ import lua.Boot;
 			return func(o);
 		} else {
 			var self_arg = false;
-			if (o != null ){
-				// if o is not null, it means we need to pass it as the "self"
-				// parameter.  However, we should also check to see if it's
-				// a valid class instance in the first place.
-				// TODO: Find a more flexible way of determining if we need
-				// self or not
+			if (o != null && o.__name__ == null){
 				self_arg = true;
 			}
-			var new_args = lua.Table.create();
-			for (i in 0...args.length){
-				// copy args to 1-indexed table
-				new_args[i + 1] = args[i];
-			}
 			return if (self_arg){
-				// call with o as leading self param
-				func(o, lua.TableTools.unpack(new_args, 1, TableTools.maxn(new_args)));
+				func(o, lua.TableTools.unpack(cast args, 0, args.length-1));
 			} else {
-				// call with no self param
-				func(lua.TableTools.unpack(new_args, 1,  TableTools.maxn(new_args)));
+				func(lua.TableTools.unpack(cast args, 0,  args.length-1));
 			}
 		}
 	}

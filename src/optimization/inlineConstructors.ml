@@ -242,7 +242,7 @@ let inline_constructors ctx e =
 				let argvs, argvdecls, pl = loop ([],[],[]) pl in
 				let _, cname = c.cl_path in
 				let v = alloc_var ("inl"^cname) e.etype e.epos in
-				match Optimizer.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
+				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
