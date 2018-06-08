@@ -467,8 +467,24 @@ and generate_class_field' ctx cfs cf =
 		generate_adt ctx None name args
 	in
 	let expr = match ctx.generation_mode with
-		| GMFull | GMWithoutDoc -> jopt (generate_texpr ctx) cf.cf_expr
-		| GMMinimum -> jnull
+		| GMFull | GMWithoutDoc ->
+			let value = match cf.cf_kind with
+				| Method _ -> None
+				| Var _ ->
+					try
+						begin match Meta.get Meta.Value cf.cf_meta with
+							| (_,[e],_) -> Some e
+							| _ -> None
+						end
+					with Not_found ->
+						None
+			in
+			begin match value with
+				| None -> jnull
+				| Some e -> jobject ["string",jstring (Ast.s_expr e)]
+			end
+		| GMMinimum ->
+			jnull
 	in
 	[
 		"name",jstring cf.cf_name;
