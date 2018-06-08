@@ -645,7 +645,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 	| None ->
 		check_field_display ctx fctx c cf;
 	| Some e ->
-		if requires_value_meta ctx.com (Some c) then cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
+		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
 			if type_iseq e.etype cf.cf_type then
