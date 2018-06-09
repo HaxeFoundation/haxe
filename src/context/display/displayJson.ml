@@ -8,16 +8,6 @@ open Timer
 open Genjson
 open Type
 
-let get_capabilities () =
-	JObject [
-		"definitionProvider",JBool true;
-		"hoverProvider",JBool true;
-		"completionProvider",JBool true;
-		"packageProvider",JBool true;
-		"signatureHelpProvider",JBool true;
-		"completionResolveProvider",JBool true;
-	]
-
 (* Generate the JSON of our times. *)
 let json_of_times root =
 	let rec loop node =
@@ -204,7 +194,6 @@ let handler =
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
 			hctx.jsonrpc#send_result (JObject [
-				"capabilities",get_capabilities();
 				"methods",jarray methods;
 				"haxeVersion",jobject [
 					"major",jint version_major;
