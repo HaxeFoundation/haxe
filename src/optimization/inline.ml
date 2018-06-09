@@ -188,6 +188,7 @@ type in_local = {
 	mutable i_captured : bool;
 	mutable i_write : bool;
 	mutable i_read : int;
+	mutable i_called : int;
 	mutable i_force_temp : bool;
 }
 
@@ -266,6 +267,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
+				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
 			} in
@@ -285,6 +287,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_abstract_this = Meta.has Meta.This v.v_meta;
 				i_captured = false;
 				i_write = false;
+				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
 			}
@@ -325,7 +328,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			in
 			let reject () =
 				(* mark the replacement local for the analyzer *)
-				if i.i_read <= 1 && not i.i_write then
+				if (i.i_read + i.i_called) <= 1 && not i.i_write then
 					i.i_subst.v_meta <- (Meta.CompilerGenerated,[],p) :: i.i_subst.v_meta;
 				(i.i_subst,Some e) :: acc
 			in
@@ -341,9 +344,9 @@ class inline_state ctx ethis params cf f p = object(self)
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
 						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
-						if i.i_read <= 1 then VIInline else VIInlineIfCalled
+						if (i.i_read + i.i_called) <= 1 then VIInline else VIInlineIfCalled
 					| _ ->
-						if not i.i_write && i.i_read <= 1 then VIInline else VIDoNotInline
+						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
 				in
 				match vik with
 				| VIInline -> accept vik
@@ -351,8 +354,12 @@ class inline_state ctx ethis params cf f p = object(self)
 				| VIInlineIfCalled ->
 					(* "Accept" it so it is added to the substitutions. *)
 					ignore(accept vik);
-					(* But actually reject it so we get a proper variable. The analyzer will clean it up if it's unused. *)
-					reject();
+					if i.i_read > 1 then
+						(* If it is read more than once, we still have to reject because we need a local. *)
+						reject()
+					else
+						(* Otherwise we don't! *)
+						acc
 			end
 		) [] _inlined_vars in
 		vars,!subst
@@ -416,7 +423,12 @@ class inline_state ctx ethis params cf f p = object(self)
 				begin try
 					let vik,e' = PMap.find v.v_id subst in
 					begin match vik with
-						| VIInline -> e'
+						| VIInline ->
+							begin match e'.eexpr with
+								(* If we inline a function expression, we have to duplicate its locals. *)
+								| TFunction _ -> Texpr.duplicate_tvars e'
+								| _ -> e'
+							end
 						| VIInlineIfCalled when in_call ->
 							(* We allow inlining function expressions into call-places. However, we have to substitute
 							   their locals to avoid duplicate declarations. *)
@@ -522,13 +534,17 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		else t
 	in
 	let map_pos = if self_calling_closure then (fun e -> e) else (fun e -> { e with epos = p }) in
-	let rec map term e =
+	let rec map term in_call e =
 		let po = e.epos in
 		let e = map_pos e in
 		match e.eexpr with
 		| TLocal v ->
 			let l = state#read v in
-			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
+			let i = if !in_loop then 2 else 1 in
+			if in_call then
+				l.i_called <- l.i_called + i
+			else
+				l.i_read <- l.i_read + i;
 			(* never inline a function which contain a delayed macro because its bound
 				to its variables and not the calling method *)
 			if v.v_name = "$__delayed_call__" then cancel_inlining := true;
@@ -539,43 +555,43 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			{ e with eexpr = TLocal l.i_subst }
 		| TVar (v,eo) ->
-			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false) eo)}
+			{ e with eexpr = TVar ((state#declare v).i_subst,opt (map false false) eo)}
 		| TReturn eo when not state#in_local_fun ->
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
 			| Some e ->
 				state#set_return_value;
-				map term e)
+				map term false e)
 		| TFor (v,e1,e2) ->
 			let i = state#declare v in
-			let e1 = map false e1 in
+			let e1 = map false false e1 in
 			let old = !in_loop in
 			in_loop := true;
-			let e2 = map false e2 in
+			let e2 = map false false e2 in
 			in_loop := old;
 			{ e with eexpr = TFor (i.i_subst,e1,e2) }
 		| TWhile (cond,eloop,flag) ->
-			let cond = map false cond in
+			let cond = map false false cond in
 			let old = !in_loop in
 			in_loop := true;
-			let eloop = map false eloop in
+			let eloop = map false false eloop in
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
 		| TSwitch (e1,cases,def) when term ->
 			let term = term && (def <> None || is_exhaustive e1) in
 			let cases = List.map (fun (el,e) ->
-				let el = List.map (map false) el in
-				el, map term e
+				let el = List.map (map false false) el in
+				el, map term false e
 			) cases in
-			let def = opt (map term) def in
+			let def = opt (map term false) def in
 			let t = return_type e.etype ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) in
-			{ e with eexpr = TSwitch (map false e1,cases,def); etype = t }
+			{ e with eexpr = TSwitch (map false false e1,cases,def); etype = t }
 		| TTry (e1,catches) ->
 			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
-			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
+			{ e with eexpr = TTry (map term false e1,List.map (fun (v,e) ->
 				let lv = (state#declare v).i_subst in
-				let e = map term e in
+				let e = map term false e in
 				lv,e
 			) catches); etype = t }
 		| TBlock l ->
@@ -603,26 +619,26 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 					[mk (TConst TNull) (!t) p]
 				| [] -> []
 				| [e] ->
-					let e = map term e in
+					let e = map term false e in
 					if term then t := e.etype;
 					[e]
 				| ({ eexpr = TIf (cond,e1,None) } as e) :: l when term && has_term_return e1 ->
 					loop [{ e with eexpr = TIf (cond,e1,Some (mk (TBlock l) e.etype e.epos)); epos = punion e.epos (match List.rev l with e :: _ -> e.epos | [] -> assert false) }]
 				| e :: l ->
-					let e = map false e in
+					let e = map false false e in
 					e :: loop l
 			in
 			let l = loop l in
 			old();
 			{ e with eexpr = TBlock l; etype = !t }
 		| TIf (econd,eif,Some eelse) when term ->
-			let econd = map false econd in
-			let eif = map term eif in
-			let eelse = map term eelse in
+			let econd = map false false econd in
+			let eif = map term false eif in
+			let eelse = map term false eelse in
 			let t = return_type e.etype [eif;eelse] in
 			{ e with eexpr = TIf(econd,eif,Some eelse); etype = t }
 		| TParenthesis e1 ->
-			let e1 = map term e1 in
+			let e1 = map term in_call e1 in
 			mk (TParenthesis e1) e1.etype e.epos
 		| TUnop ((Increment|Decrement) as op,flag,({ eexpr = TLocal v } as e1)) ->
 			state#set_side_effect;
@@ -633,10 +649,10 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			state#set_side_effect;
 			let l = state#read v in
 			l.i_write <- true;
-			let e2 = map false e2 in
+			let e2 = map false false e2 in
 			{e with eexpr = TBinop(op,{e1 with eexpr = TLocal l.i_subst},e2)}
 		| TObjectDecl fl ->
-			let fl = List.map (fun (s,e) -> s,map false e) fl in
+			let fl = List.map (fun (s,e) -> s,map false false e) fl in
 			begin match follow e.etype with
 				| TAnon an when (match !(an.a_status) with Const -> true | _ -> false) ->
 					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_status = ref Closed}}
@@ -647,7 +663,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let old = save_locals ctx in
 			let args = List.map (function(v,c) -> (state#declare v).i_subst, c) f.tf_args in
 			let restore = state#enter_local_fun in
-			let expr = map false f.tf_expr in
+			let expr = map false false f.tf_expr in
 			restore();
 			old();
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
@@ -656,23 +672,28 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			begin match follow t with
 			| TInst({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,_) ->
 				begin match type_inline_ctor ctx c cf tf ethis el po with
-				| Some e -> map term e
+				| Some e -> map term false e
 				| None -> error "Could not inline super constructor call" po
 				end
 			| _ -> error "Cannot inline function containing super" po
 			end
+		| TCall(e1,el) ->
+			state#set_side_effect;
+			let e1 = map false true e1 in
+			let el = List.map (map false false) el in
+			{e with eexpr = TCall(e1,el)}
 		| TConst TSuper ->
 			error "Cannot inline function containing super" po
 		| TMeta(m,e1) ->
-			let e1 = map term e1 in
+			let e1 = map term in_call e1 in
 			{e with eexpr = TMeta(m,e1)}
-		| TNew _ | TCall _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
+		| TNew _ | TBinop ((OpAssignOp _ | OpAssign),_,_) | TUnop ((Increment|Decrement),_,_) ->
 			state#set_side_effect;
-			Type.map_expr (map false) e
+			Type.map_expr (map false false) e
 		| _ ->
-			Type.map_expr (map false) e
+			Type.map_expr (map false false) e
 	in
-	let e = map true f.tf_expr in
+	let e = map true false f.tf_expr in
 	if !cancel_inlining then
 		None
 	else begin
