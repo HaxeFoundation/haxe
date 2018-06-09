@@ -1147,16 +1147,13 @@ let generate_enum ctx e =
 	else
 		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
+	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
+	if as_objects then print ctx "$hxEnums[\"%s\"] = " p;
 	print ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	ctx.separator <- true;
-	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
-	if as_objects then begin
-		newline ctx;
-		print ctx "$hxEnums[\"%s\"] = %s" p p
-	end;
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
