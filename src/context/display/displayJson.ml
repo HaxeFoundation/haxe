@@ -228,7 +228,7 @@ let handler =
 			hctx.display#set_display_file false true false;
 			hctx.display#enable_display DMDefinition;
 		);
-		"display/findReferences", (fun hctx ->
+		"display/references", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true false;
 			hctx.display#enable_display (DMUsage false);
