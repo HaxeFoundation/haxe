@@ -1286,12 +1286,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	in
 	let var_id v = if print_var_ids then v.v_id else 0 in
 	let const c t = tag "Const" ~t [s_const c] in
-	let local v = sprintf "[Local %s(%i):%s]" v.v_name (var_id v) (s_type v.v_type) in
+	let local v t = sprintf "[Local %s(%i):%s%s]" v.v_name (var_id v) (s_type v.v_type) (match t with None -> "" | Some t -> ":" ^ (s_type t)) in
 	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
 	match e.eexpr with
 	| TConst c -> const c (Some e.etype)
-	| TLocal v -> local v
+	| TLocal v -> local v (Some e.etype)
 	| TArray (e1,e2) -> tag "Array" [loop e1; loop e2]
 	| TBinop (op,e1,e2) -> tag "Binop" [loop e1; s_binop op; loop e2]
 	| TUnop (op,flag,e1) -> tag "Unop" [s_unop op; if flag = Postfix then "Postfix" else "Prefix"; loop e1]
@@ -1315,7 +1315,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
 	| TFunction f ->
 		let arg (v,cto) =
-			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v] | Some ct -> [local v;const ct None])
+			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v None] | Some ct -> [local v None;const ct None])
 		in
 		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
 	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
@@ -1330,10 +1330,10 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TReturn (Some e1) -> tag "Return" [loop e1]
 	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
 	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
-	| TFor (v,e1,e2) -> tag "For" [local v; loop e1; loop e2]
+	| TFor (v,e1,e2) -> tag "For" [local v None; loop e1; loop e2]
 	| TTry (e1,catches) ->
 		let sl = List.map (fun (v,e) ->
-			sprintf "Catch %s%s" (local v) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
+			sprintf "Catch %s%s" (local v None) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
 		) catches in
 		tag "Try" ((loop e1) :: sl)
 	| TSwitch (e1,cases,eo) ->
