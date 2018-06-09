@@ -206,12 +206,17 @@ let handler =
 			hctx.jsonrpc#send_result (JObject [
 				"capabilities",get_capabilities();
 				"methods",jarray methods;
-				"version",jobject [
+				"haxeVersion",jobject [
 					"major",jint version_major;
 					"minor",jint version_minor;
 					"patch",jint version_revision;
 					"pre",(match version_pre with None -> jnull | Some pre -> jstring pre);
 					"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
+				];
+				"protocolVersion",jobject [
+					"major",jint 1;
+					"minor",jint 0;
+					"patch",jint 0;
 				]
 			])
 		);
