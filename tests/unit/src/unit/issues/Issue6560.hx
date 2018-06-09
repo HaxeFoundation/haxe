@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue6560 extends unit.Test {
-    #if !hl
+
     function test() {
         function foo<F>(a:F):Array<F> {
             if (false) foo(1);
@@ -10,5 +10,5 @@ class Issue6560 extends unit.Test {
         var bar:Array<Int> = foo(1);
         eq(0, bar.length);
     }
-    #end
+
 }

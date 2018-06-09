@@ -520,6 +520,14 @@ and real_type ctx e =
 			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
+		| TArray (arr,_) ->
+			let rec loop t =
+				match follow t with
+				| TInst({ cl_path = [],"Array" },[t]) -> t
+				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
+				| _ -> t_dynamic
+			in
+			loop arr.etype
 		| _ -> e.etype
 	in
 	to_type ctx (loop e)
