@@ -34,6 +34,7 @@ private enum FileKind {
 class FileSystem {
 
 	public static inline function exists( path : String ) : Bool {
+		Global.clearstatcache(true, path);
 		return Global.file_exists(path);
 	}
 
@@ -42,6 +43,7 @@ class FileSystem {
 	}
 
 	public static function stat( path : String ) : FileStat {
+		Global.clearstatcache(true, path);
 		var info = Global.stat(path);
 		if (info == false) throw 'Unable to stat $path';
 		var info:NativeArray = info;
@@ -71,6 +73,7 @@ class FileSystem {
 	}
 
 	static function kind( path : String ) : FileKind {
+		Global.clearstatcache(true, path);
 		var kind = Global.filetype(path);
 		if (kind == false) throw 'Failed to check file type $path';
 
@@ -81,11 +84,13 @@ class FileSystem {
 		}
 	}
 
-	public static inline function isDirectory( path : String ) : Bool {
+	public static function isDirectory( path : String ) : Bool {
+		Global.clearstatcache(true, path);
 		return Global.is_dir(path);
 	}
 
-	public static inline function createDirectory( path : String ) : Void {
+	public static function createDirectory( path : String ) : Void {
+		Global.clearstatcache(true, path);
 		if (!Global.is_dir(path))
 			Global.mkdir(path, 493, true);
 	}
