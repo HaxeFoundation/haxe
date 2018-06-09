@@ -203,7 +203,7 @@ let handler =
 					"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
-					"major",jint 1;
+					"major",jint 0;
 					"minor",jint 0;
 					"patch",jint 0;
 				]
