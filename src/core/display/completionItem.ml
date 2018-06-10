@@ -302,18 +302,14 @@ module CompletionType = struct
 		| CTFunction of ct_function
 		| CTAnonymous of ct_anonymous
 		| CTDynamic of t option
-(*
-	let generate_path path =
-		jobject [
-			"pack",jarray (List.map jstring (fst path.ct_dot_path));
-			"name",jstring (snd path.ct_dot_path);
-			"importStatus",jint (ImportStatus.to_int path.ct_import_status);
-		] *)
 
 	let rec generate_path_with_params ctx pwp = jobject [
-		"pack",jlist jstring pwp.ct_pack;
-		"moduleName",jstring pwp.ct_module_name;
-		"typeName",jstring pwp.ct_type_name;
+		"path",jobject [
+			"pack",jlist jstring pwp.ct_pack;
+			"moduleName",jstring pwp.ct_module_name;
+			"typeName",jstring pwp.ct_type_name;
+			"importStatus",jint (ImportStatus.to_int pwp.ct_import_status);
+		];
 		"params",jlist (generate_type ctx) pwp.ct_params;
 	]
 
