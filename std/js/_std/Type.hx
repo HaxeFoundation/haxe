@@ -259,15 +259,18 @@ enum ValueType {
 		#end
 	}
 
+	#if js_enums_as_arrays
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		#if js_enums_as_arrays
 		return untyped e.slice(2);
-		#else
-		var n = enumConstructor(e);
-		var params:Array<String> = untyped __js__("$hxEnums[{0}.__enum__][{1}].__params__",e,n);
-		return params != null ? [for (p in params) untyped e[p]] : [];
-		#end
 	}
+	#else
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped {
+		var enm:Enum<Dynamic> = $hxEnums[e.__enum__];
+		var ctorName:String = enm.__constructs__[e._hx_index];
+		var params:Array<String> = enm[ctorName].__params__;
+		return params != null ? [for (p in params) e[p]] : [];
+	}
+	#end
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
 		#if !js_enums_as_arrays
