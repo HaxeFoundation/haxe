@@ -1141,6 +1141,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
+	let has_enum_feature = has_feature ctx "has_enum" in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	if ctx.js_flatten then
 		print ctx "var "
@@ -1161,15 +1162,18 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
-			if as_objects then
+			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				print ctx "function(%s) { var $x = {_hx_index:%d,%s,__enum__:\"%s\"};" sargs f.ef_index sfields p;
-			else
+				print ctx "function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields p;
+				if has_enum_feature then
+					spr ctx ",toString:$estr";
+				spr ctx "}; }";
+			end else begin
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
-			end;
-			if has_feature ctx "has_enum" then
-				spr ctx " $x.toString = $estr;";
-			spr ctx " return $x; }";
+				if has_enum_feature then
+					spr ctx " $x.toString = $estr;";
+				spr ctx " return $x; }";
+			end end;
 			if as_objects then begin
 				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
 				newline ctx;
@@ -1178,15 +1182,16 @@ let generate_enum ctx e =
 			ctx.separator <- true;
 		| _ ->
 			if as_objects then
-				print ctx "{_hx_index:%d};" f.ef_index
-			else
+				print ctx "{_hx_index:%d,__enum__:\"%s\"%s};" f.ef_index p (if has_enum_feature then ",toString:$estr" else "")
+			else begin
 				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
-			newline ctx;
-			if has_feature ctx "has_enum" then begin
-				print ctx "%s%s.toString = $estr" p (field f.ef_name);
 				newline ctx;
-			end;
-			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) (if as_objects then "\"" ^ p ^"\"" else p);
+				if has_feature ctx "has_enum" then begin
+					print ctx "%s%s.toString = $estr" p (field f.ef_name);
+					newline ctx;
+				end;
+				print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
+			end
 		);
 		newline ctx
 	) e.e_names;
