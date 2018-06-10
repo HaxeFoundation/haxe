@@ -1141,6 +1141,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
+	let dotp = dot_path e.e_path in
 	let has_enum_feature = has_feature ctx "has_enum" in
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	if ctx.js_flatten then
@@ -1150,7 +1151,7 @@ let generate_enum ctx e =
 	print ctx "%s = " p;
 	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
 	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
-	if as_objects then print ctx "$hxEnums[\"%s\"] = " p;
+	if as_objects then print ctx "$hxEnums[\"%s\"] = " dotp;
 	print ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1164,7 +1165,7 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				print ctx "function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields p;
+				print ctx "function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
 				if has_enum_feature then
 					spr ctx ",toString:$estr";
 				spr ctx "}; }";
@@ -1182,7 +1183,7 @@ let generate_enum ctx e =
 			ctx.separator <- true;
 		| _ ->
 			if as_objects then
-				print ctx "{_hx_index:%d,__enum__:\"%s\"%s};" f.ef_index p (if has_enum_feature then ",toString:$estr" else "")
+				print ctx "{_hx_index:%d,__enum__:\"%s\"%s};" f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
 			else begin
 				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 				newline ctx;
