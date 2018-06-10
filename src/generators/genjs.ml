@@ -1167,22 +1167,17 @@ let generate_enum ctx e =
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
 			if as_objects then begin
 				let sfields = String.concat "," (List.map (fun (n,_,_) -> (ident n) ^ ":" ^ (ident n) ) args) in
-				print ctx "function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
+				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
+				print ctx "($_=function(%s) { return {_hx_index:%d,%s,__enum__:\"%s\"" sargs f.ef_index sfields dotp;
 				if has_enum_feature then
 					spr ctx ",toString:$estr";
-				spr ctx "}; }";
+				print ctx "}; },$_.__params__ = [%s],$_)" sparams
 			end else begin
 				print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s;" sargs f.ef_name f.ef_index sargs p;
 				if has_enum_feature then
 					spr ctx " $x.toString = $estr;";
 				spr ctx " return $x; }";
 			end end;
-			if as_objects then begin
-				let sparams = String.concat "," (List.map (fun (n,_,_) -> "\"" ^ (ident n) ^ "\"" ) args) in
-				newline ctx;
-				print ctx "%s%s.__params__ = [%s];" p (field f.ef_name) sparams
-			end;
-			ctx.separator <- true;
 		| _ ->
 			if as_objects then
 				print ctx "{_hx_index:%d,__enum__:\"%s\"%s};" f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
@@ -1467,6 +1462,12 @@ let generate com =
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
 	let vars = if enums_as_objects then "$hxEnums = {}" :: vars else vars in
+	let vars,has_dollar_underscore =
+		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
+			"$_" :: vars,true
+		else
+			vars,false
+	in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
@@ -1504,7 +1505,10 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
-		print ctx "var $_, $fid = 0";
+		if has_dollar_underscore then
+			print ctx "var $fid = 0"
+		else
+			print ctx "var $_, $fid = 0";
 		newline ctx;
 		(if ctx.es_version < 5 then
 			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
