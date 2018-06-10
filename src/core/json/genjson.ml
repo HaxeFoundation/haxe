@@ -25,11 +25,23 @@ let jtodo = Json.JNull
 let jopt f o = Option.map_default f Json.JNull o
 let jlist f o = jarray (List.map f o)
 
-let generate_path path =
-	jobject [
-		"pack",jarray (List.map jstring (fst path));
-		"name",jstring (snd path)
-	]
+let generate_package_path' pack = [
+	("pack",jarray (List.map jstring pack))
+]
+
+let generate_package_path pack = jobject (generate_package_path' pack)
+
+let generate_module_path' mpath =
+	("moduleName",jstring (snd mpath)) ::
+	generate_package_path' (fst mpath)
+
+let generate_module_path mpath = jobject (generate_module_path' mpath)
+
+let generate_type_path' mpath tpath =
+	("typeName",jstring (snd tpath)) ::
+	generate_module_path' mpath
+
+let generate_type_path mpath tpath = jobject (generate_type_path' mpath tpath)
 
 let generate_adt ctx tpath name args =
 	let field = ("kind",jstring name) in
@@ -39,11 +51,11 @@ let generate_adt ctx tpath name args =
 	in
 	jobject fields
 
-let class_ref ctx c = generate_path c.cl_path
-let enum_ref ctx en = generate_path en.e_path
-let typedef_ref ctx td = generate_path td.t_path
-let abstract_ref ctx a = generate_path a.a_path
-let moduletype_ref ctx mt = generate_path (t_path mt)
+let class_ref ctx c = generate_type_path c.cl_module.m_path c.cl_path
+let enum_ref ctx en = generate_type_path en.e_module.m_path  en.e_path
+let typedef_ref ctx td = generate_type_path td.t_module.m_path td.t_path
+let abstract_ref ctx a = generate_type_path a.a_module.m_path a.a_path
+let moduletype_ref ctx mt = generate_module_path (t_path mt)
 let classfield_ref ctx cf = jstring cf.cf_name
 let enumfield_ref ctx ef = jstring ef.ef_name
 let local_ref ctx v = jint v.v_id
@@ -171,10 +183,10 @@ let rec generate_type ctx t =
 			(* return_partial_type := false; *)
 			loop t
 		| TDynamic t -> "TDynamic",Some (if t == t_dynamic then jnull else generate_type ctx t)
-		| TInst(c,tl) -> "TInst",Some (generate_path_with_params ctx c.cl_path tl)
-		| TEnum(en,tl) -> "TEnum",Some (generate_path_with_params ctx en.e_path tl)
-		| TType(td,tl) -> "TType",Some (generate_path_with_params ctx td.t_path tl)
-		| TAbstract(a,tl) -> "TAbstract",Some (generate_path_with_params ctx a.a_path tl)
+		| TInst(c,tl) -> "TInst",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl)
+		| TEnum(en,tl) -> "TEnum",Some (generate_type_path_with_params ctx en.e_module.m_path en.e_path tl)
+		| TType(td,tl) -> "TType",Some (generate_type_path_with_params ctx td.t_module.m_path td.t_path tl)
+		| TAbstract(a,tl) -> "TAbstract",Some (generate_type_path_with_params ctx a.a_module.m_path a.a_path tl)
 		| TAnon an -> "TAnonymous", Some(generate_anon ctx an)
 		| TFun(tl,tr) -> "TFun", Some (jobject (generate_function_signature ctx tl tr))
 	in
@@ -219,9 +231,9 @@ and generate_function_signature ctx tl tr =
 and generate_types ctx tl =
 	jlist (generate_type ctx) tl
 
-and generate_path_with_params ctx path tl =
+and generate_type_path_with_params ctx mpath tpath tl =
 	jobject [
-		"path",generate_path path;
+		"path",generate_type_path mpath tpath;
 		"params",generate_types ctx tl;
 	]
 
@@ -348,7 +360,7 @@ and generate_texpr ctx e =
 	| TNew(c,tl,el) ->
 		let args = List.map (generate_texpr ctx) el in
 		"TNew",Some (jobject [
-			"path",generate_path_with_params ctx c.cl_path tl;
+			"path",generate_type_path_with_params ctx c.cl_path tl;
 			"args",jarray args;
 		]);
 	| TUnop(op,flag,e1) ->
@@ -540,7 +552,7 @@ let generate_class ctx c =
 		| KTypeParameter tl -> "KTypeParameter",Some (generate_types ctx tl)
 		| KExpr e -> "KExpr",Some (generate_expr ctx e)
 		| KGeneric -> "KGeneric",None
-		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_path_with_params ctx c.cl_path tl)
+		| KGenericInstance(c,tl) -> "KGenericInstance",Some (generate_type_path_with_params ctx c.cl_module.m_path c.cl_path tl)
 		| KMacroType -> "KMacroType",None
 		| KGenericBuild _ -> "KGenericBuild",None
 		| KAbstractImpl a -> "KAbstractImpl",Some (abstract_ref ctx a)
@@ -641,8 +653,8 @@ let generate_module_type ctx mt =
 let generate_module ctx m =
 	jobject [
 		"id",jint m.m_id;
-		"path",generate_path m.m_path;
-		"types",jlist (fun mt -> generate_path (t_infos mt).mt_path) m.m_types;
+		"path",generate_module_path m.m_path;
+		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
 	]

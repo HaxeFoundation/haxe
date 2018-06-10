@@ -55,14 +55,25 @@ enum abstract ImportStatus(Int) {
 
 /* Type instance */
 
-typedef JsonPath = {
-	var pack: Array<String>;
-	var name: String;
+typedef JsonPackagePath = {
+	var pack:Array<String>;
+}
+
+typedef JsonModulePath = JsonPackagePath & {
+	var moduleName:String;
 	var ?importStatus:ImportStatus;
 }
 
-typedef JsonPathWithParams = {
-	var path: JsonPath;
+typedef JsonTypePath = JsonModulePath & {
+	var typeName:String;
+}
+
+typedef JsonStaticFieldPath = JsonTypePath & {
+	var fieldName:String;
+}
+
+typedef JsonTypePathWithParams = {
+	var path: JsonTypePath;
 	var params: JsonTypes;
 }
 
@@ -85,9 +96,9 @@ enum abstract JsonAnonStatusKind<T>(String) {
 	var AOpened;
 	var AConst;
 	var AExtend:JsonAnonStatusKind<JsonTypes>;
-	var AClassStatics:JsonAnonStatusKind<JsonPath>;
-	var AEnumStatics:JsonAnonStatusKind<JsonPath>;
-	var AAbstractStatics:JsonAnonStatusKind<JsonPath>;
+	var AClassStatics:JsonAnonStatusKind<JsonTypePath>;
+	var AEnumStatics:JsonAnonStatusKind<JsonTypePath>;
+	var AAbstractStatics:JsonAnonStatusKind<JsonTypePath>;
 }
 
 typedef JsonAnonStatus<T> = {
@@ -102,10 +113,10 @@ typedef JsonAnon = {
 
 enum abstract JsonTypeKind<T>(String) {
 	var TMono;
-	var TInst:JsonTypeKind<JsonPathWithParams>;
-	var TEnum:JsonTypeKind<JsonPathWithParams>;
-	var TType:JsonTypeKind<JsonPathWithParams>;
-	var TAbstract:JsonTypeKind<JsonPathWithParams>;
+	var TInst:JsonTypeKind<JsonTypePathWithParams>;
+	var TEnum:JsonTypeKind<JsonTypePathWithParams>;
+	var TType:JsonTypeKind<JsonTypePathWithParams>;
+	var TAbstract:JsonTypeKind<JsonTypePathWithParams>;
 	var TFun:JsonTypeKind<JsonFunctionSignature>;
 	var TAnonymous:JsonTypeKind<JsonAnon>;
 	var TDynamic:JsonTypeKind<Null<JsonType<Dynamic>>>;
@@ -274,12 +285,12 @@ typedef JsonEnumFields = Array<JsonEnumField>;
 enum abstract JsonClassKindKind<T>(String) {
 	var KNormal ;
 	var KTypeParameter:JsonClassKindKind<JsonTypes>;
-	var KExtension:JsonClassKindKind<JsonPathWithParams>;
+	var KExtension:JsonClassKindKind<JsonTypePathWithParams>;
 	var KExpr:JsonClassKindKind<JsonExpr>;
 	var KGeneric;
-	var KGenericInstance:JsonClassKindKind<JsonPathWithParams>;
+	var KGenericInstance:JsonClassKindKind<JsonTypePathWithParams>;
 	var KMacroType;
-	var KAbstractImpl:JsonClassKindKind<JsonPath>;
+	var KAbstractImpl:JsonClassKindKind<JsonTypePath>;
 	var KGenericBuild;
 }
 
@@ -292,8 +303,8 @@ typedef JsonClass = {
 	var kind: JsonClassKind<Dynamic>;
 	var isInterface: Bool;
 	var isExtern: Bool;
-	var superClass: Null<JsonPathWithParams>;
-	var interfaces: Array<JsonPathWithParams>;
+	var superClass: Null<JsonTypePathWithParams>;
+	var interfaces: Array<JsonTypePathWithParams>;
 	var fields: JsonClassFields;
 	var statics: JsonClassFields;
 	var constructor: Null<JsonClassField>;

@@ -262,14 +262,13 @@ module PackageContentKind = struct
 end
 
 module CompletionType = struct
-	type ct_path = {
-		ct_dot_path : path;
-		ct_import_status : ImportStatus.t;
-	}
 
-	and ct_path_with_params = {
-		ct_path : ct_path;
+	type ct_path_with_params = {
+		ct_pack : string list;
+		ct_type_name : string;
+		ct_module_name : string;
 		ct_params : t list;
+		ct_import_status : ImportStatus.t;
 	}
 
 	and ct_function_argument = {
@@ -303,16 +302,18 @@ module CompletionType = struct
 		| CTFunction of ct_function
 		| CTAnonymous of ct_anonymous
 		| CTDynamic of t option
-
+(*
 	let generate_path path =
 		jobject [
 			"pack",jarray (List.map jstring (fst path.ct_dot_path));
 			"name",jstring (snd path.ct_dot_path);
 			"importStatus",jint (ImportStatus.to_int path.ct_import_status);
-		]
+		] *)
 
 	let rec generate_path_with_params ctx pwp = jobject [
-		"path",generate_path pwp.ct_path;
+		"pack",jlist jstring pwp.ct_pack;
+		"moduleName",jstring pwp.ct_module_name;
+		"typeName",jstring pwp.ct_type_name;
 		"params",jlist (generate_type ctx) pwp.ct_params;
 	]
 
@@ -562,11 +563,11 @@ let to_json ctx item =
 				"kind",jint (PackageContentKind.to_int kind);
 			] in
 			"Package",jobject [
-				"path",generate_path path;
+				"path",generate_package_path (fst path @ [snd path]);
 				"contents",jlist generate_package_content contents;
 			]
 		| ITModule path -> "Module",jobject [
-			"path",generate_path path;
+			"path",generate_module_path path;
 		]
 		| ITLiteral s -> "Literal",jobject [
 			"name",jstring s;
