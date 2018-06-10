@@ -1154,14 +1154,26 @@ let generate_enum ctx e =
 		print ctx "$hxEnums[\"%s\"] = " dotp
 	else if has_feature ctx "Type.resolveEnum" then
 		print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path));
-	print ctx "{";
+	spr ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
-	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
-	ctx.separator <- true;
-	newline ctx;
+	print ctx " __constructs__ : [%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	let bend =
+		if not as_objects then begin
+			spr ctx " }";
+			ctx.separator <- true;
+			newline ctx;
+			fun () -> ()
+		end else begin
+			open_block ctx
+		end;
+	in
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
-		print ctx "%s%s = " p (field f.ef_name);
+		if as_objects then begin
+			newprop ctx;
+			print ctx "%s: " (anon_field f.ef_name)
+		end else
+			print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map (fun (n,_,_) -> ident n) args) in begin
@@ -1180,7 +1192,7 @@ let generate_enum ctx e =
 			end end;
 		| _ ->
 			if as_objects then
-				print ctx "{_hx_index:%d,__enum__:\"%s\"%s};" f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
+				print ctx "{_hx_index:%d,__enum__:\"%s\"%s}" f.ef_index dotp (if has_enum_feature then ",toString:$estr" else "")
 			else begin
 				print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 				newline ctx;
@@ -1191,8 +1203,15 @@ let generate_enum ctx e =
 				print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 			end
 		);
-		newline ctx
+		if not as_objects then
+			newline ctx
 	) e.e_names;
+	bend();
+	if as_objects then begin
+		spr ctx "\n}";
+		ctx.separator <- true;
+		newline ctx;
+	end;
 	if has_feature ctx "Type.allEnums" then begin
 		let ctors_without_args = List.filter (fun s ->
 			let ef = PMap.find s e.e_constrs in
