@@ -65,6 +65,7 @@ enum ValueType {
 		return a.join(".");
 	}
 
+	#if js_enums_as_arrays
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
@@ -80,6 +81,15 @@ enum ValueType {
 			return null;
 		return e;
 	}
+	#else
+	public static inline function resolveClass( name : String ) : Class<Dynamic> {
+		return untyped __define_feature__("Type.resolveClass", $hxClasses[name]);
+	}
+
+	public static inline function resolveEnum( name : String ) : Enum<Dynamic> {
+		return untyped $hxEnums[name];
+	}
+	#end
 
 	#if (js_es < 5)
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {

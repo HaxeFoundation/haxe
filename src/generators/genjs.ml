@@ -1150,8 +1150,10 @@ let generate_enum ctx e =
 		generate_package_create ctx e.e_path;
 	print ctx "%s = " p;
 	let as_objects = not (Common.defined ctx.com Define.JsEnumsAsArrays) in
-	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path);
-	if as_objects then print ctx "$hxEnums[\"%s\"] = " dotp;
+	(if as_objects then
+		print ctx "$hxEnums[\"%s\"] = " dotp
+	else if has_feature ctx "Type.resolveEnum" then
+		print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path));
 	print ctx "{";
 	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
 	print ctx " __constructs__ : [%s] }" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -1456,13 +1458,15 @@ let generate com =
 	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		spr ctx "var console = $global.console || {log:function(){}};\n";
 
+	let enums_as_objects = not (Common.defined com Define.JsEnumsAsArrays) in
+
 	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+	let vars = (if has_feature ctx "Type.resolveClass" || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
-	let vars = if not (Common.defined com Define.JsEnumsAsArrays) then "$hxEnums = {}" :: vars else vars in
+	let vars = if enums_as_objects then "$hxEnums = {}" :: vars else vars in
 	(match List.rev vars with
 	| [] -> ()
 	| vl ->
