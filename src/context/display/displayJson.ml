@@ -160,7 +160,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 		Common.define_value com Define.Display "1";
 		Parser.use_doc := true;
 
-	method set_display_file was_auto_triggered requires_offset is_completion =
+	method set_display_file was_auto_triggered requires_offset =
 		let file = jsonrpc#get_string_param "file" in
 		let file = Path.unique_full_path file in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
@@ -172,7 +172,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		let pos = if pos <> (-1) && not is_completion then pos + 1 else pos in
 		DisplayPosition.display_position := {
 			pfile = file;
 			pmin = pos;
@@ -220,30 +219,30 @@ let handler =
 			end
 		);
 		"display/completion", (fun hctx ->
-			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true true;
+			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMDefault;
 		);
 		"display/definition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
 		"display/findReferences", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMUsage false);
 		);
 		"display/hover", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMHover;
 		);
 		"display/package", (fun hctx ->
-			hctx.display#set_display_file false false false;
+			hctx.display#set_display_file false false;
 			hctx.display#enable_display DMPackage;
 		);
 		"display/signatureHelp", (fun hctx ->
-			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true false;
+			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature
 		);
 		"server/readClassPaths", (fun hctx ->

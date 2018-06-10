@@ -212,8 +212,12 @@ let make_is e (t,p_t) p p_is =
 	ECall(e_is,[e;e2]),p
 
 let next_token s = match Stream.peek s with
+	| Some (Eof,p) ->
+		(Eof,{p with pmax = max_int})
 	| Some tk -> tk
-	| _ -> last_token s
+	| None ->
+		let last_pos = pos (last_token s) in
+		(Eof,{last_pos with pmax = max_int})
 
 let next_pos s = pos (next_token s)
 

@@ -13,9 +13,14 @@ open DisplayPosition
 let reference_position = ref ("",null_pos,KVar)
 
 module ExprPreprocessing = struct
-	let find_before_pos com is_completion e =
+	let find_before_pos com dm e =
+
 		let display_pos = ref (!DisplayPosition.display_position) in
-		let is_annotated p = encloses_position !display_pos p in
+		let is_annotated,is_completion = match dm with
+			| DMDefault -> (fun p -> encloses_position !display_pos p),true
+			| DMHover -> (fun p -> encloses_position_gt !display_pos p),false
+			| _ -> (fun p -> encloses_position !display_pos p),false
+		in
 		let annotate e dk =
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			(EDisplay(e,dk),pos e)
@@ -157,8 +162,8 @@ module ExprPreprocessing = struct
 					el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
 				in
 				if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
-					found := true;
-					Parser.mk_display_expr e DKCall
+				found := true;
+				Parser.mk_display_expr e DKCall
 				end else
 					e
 			| _ -> e
@@ -168,8 +173,7 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false e
-		| DMDefault -> find_before_pos com true e
+		| DMDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end

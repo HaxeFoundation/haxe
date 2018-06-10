@@ -503,14 +503,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let offset = ref 0 in
 		let mode = match smode with
 			| "position" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMDefinition
 			| "usage" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMUsage false
 			(*| "rename" ->
@@ -519,7 +516,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "package" ->
 				DMPackage
 			| "type" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
@@ -534,7 +530,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
@@ -557,8 +552,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.use_doc := true;
 		DisplayPosition.display_position := {
 			pfile = Path.unique_full_path file;
-			pmin = pos + !offset;
-			pmax = pos + !offset;
+			pmin = pos;
+			pmax = pos;
 		}
 
 let process_display_file com classes =

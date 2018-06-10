@@ -1315,7 +1315,7 @@ and parse_call_params f p1 s =
 				if not (is_signature_display()) then e
 				else begin
 					let p = punion p1 p2 in
-					if encloses_display_position p then (mk_display_expr e DKMarked)
+					if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
 					else e
 				end
 			in
@@ -1356,8 +1356,8 @@ and expr_or_fail fail s =
 		let last = last_token s in
 		let plast = pos last in
 		let offset = match fst last with
-			| Const _ | Kwd _ | Dollar _ -> 0
-			| _ -> -1
+			| Const _ | Kwd _ | Dollar _ -> 1
+			| _ -> 0
 		in
 		let plast = {plast with pmin = plast.pmax + offset} in
 		mk_null_expr (punion_next plast s)
