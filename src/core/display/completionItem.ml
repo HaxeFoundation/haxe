@@ -176,12 +176,13 @@ module CompletionModuleType = struct
 
 	let to_json ctx cm is =
 		let fields =
-			("pack",jlist jstring cm.pack) ::
-			("name",jstring cm.name) ::
-			("moduleName",jstring cm.module_name) ::
-			("isPrivate",jbool cm.is_private) ::
+			("path",jobject [
+				("pack",jlist jstring cm.pack);
+				("moduleName",jstring cm.module_name);
+				("typeName",jstring cm.name);
+				("importStatus",jint (ImportStatus.to_int is));
+			]) ::
 			("kind",jint (to_int cm.kind)) ::
-			("importStatus",jint (ImportStatus.to_int is)) ::
 			(match ctx.generation_mode with
 			| GMFull | GMWithoutDoc ->
 				("pos",generate_pos ctx cm.pos) ::
