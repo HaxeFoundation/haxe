@@ -23,7 +23,7 @@ let sort_fields l with_type p =
 		List.map fst (List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l)
 	in
 	let l = match with_type with
-		| WithType t ->
+		| WithType t when (match follow t with TMono _ -> false | _ -> true) ->
 			let rec comp t' = match t' with
 				| None -> 9
 				| Some (t',_) ->
