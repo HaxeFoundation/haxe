@@ -24,7 +24,7 @@ package haxe.io;
 import php.*;
 
 class BytesBuffer {
-	var b : String;
+	var b : NativeString;
 
 	/** The length of the buffer in bytes. **/
 	public var length(get,never) : Int;
@@ -77,13 +77,13 @@ class BytesBuffer {
 		Returns either a copy or a reference of the current bytes.
 		Once called, the buffer can no longer be used.
 	**/
-	public function getBytes() : Bytes untyped {
-		var bytes = new Bytes(b.length, b);
+	public function getBytes() : Bytes {
+		var bytes = @:privateAccess new Bytes(length, b);
 		b = null;
 		return bytes;
 	}
 
 	inline function get_length() : Int {
-		return b.length;
+		return Global.strlen(b);
 	}
 }

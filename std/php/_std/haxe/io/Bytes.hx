@@ -151,6 +151,7 @@ class Bytes {
 		if( pos < 0 || len < 0 || pos + len > length ) {
 			throw Error.OutsideBounds;
 		} else {
+			//no need to handle encoding, because PHP strings are binary safe.
 			return b.getString(pos, len);
 		}
 	}
@@ -188,7 +189,7 @@ class Bytes {
 	}
 
 	public static inline function ofString( s : String, ?encoding : Encoding ) : Bytes {
-		return new Bytes(s.length, s);
+		return new Bytes(php.Global.strlen(s), s);
 	}
 
 	public static inline function ofData( b : BytesData ) : Bytes {
