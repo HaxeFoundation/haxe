@@ -47,6 +47,24 @@ let write_resource dir name data =
 	close_out ch
 
 (**
+	Copy file from `src` to `dst`.
+	If `dst` exists it will be overwritten.
+*)
+let copy_file src dst =
+	let buffer_size = 8192 in
+	let buffer = String.create buffer_size in
+	let fd_in = Unix.openfile src [O_RDONLY] 0 in
+	let fd_out = Unix.openfile dst [O_WRONLY; O_CREAT; O_TRUNC] 0o644 in
+	let rec copy_loop () =
+		match Unix.read fd_in buffer 0 buffer_size with
+			|  0 -> ()
+			| r -> ignore (Unix.write fd_out buffer 0 r); copy_loop ()
+	in
+	copy_loop ();
+	Unix.close fd_in;
+	Unix.close fd_out
+
+(**
 	Get list of keys in Hashtbl
 *)
 let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
@@ -123,9 +141,9 @@ let bool_type_path = ([], "Bool")
 let std_type_path = ([], "Std")
 
 (**
-	Stub to use when you need a `Ast.pos` instance, but don't have one
+	The name of a file with polyfills for some functions which are not available in PHP 7.0
 *)
-let dummy_pos = { pfile = ""; pmin = 0; pmax = 0 }
+let polyfills_file = "_polyfills.php"
 
 (**
 	Check if specified string is a reserved word in PHP
@@ -338,7 +356,7 @@ let get_void ctx : Type.t =
 			List.iter find ctx.types;
 			match !void with
 				| Some value -> value
-				| None -> fail dummy_pos __POS__
+				| None -> fail null_pos __POS__
 
 (**
 	@return `tclass` instance for `php.Boot`
@@ -356,7 +374,7 @@ let get_boot ctx : tclass =
 			List.iter find ctx.types;
 			match !boot with
 				| Some value -> value
-				| None -> fail dummy_pos __POS__
+				| None -> fail null_pos __POS__
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -1398,7 +1416,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method pos =
 			match expr_hierarchy with
 				| { epos = pos } :: _ -> pos
-				| _ -> dummy_pos
+				| _ -> null_pos
 		(**
 			Indicates whether current expression nesting level is a top level of a block
 		*)
@@ -1540,7 +1558,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Writes fixed amount of empty lines (E.g. between methods)
 		*)
 		method write_empty_lines =
-			self#write "\n\n"
+			self#write "\n"
 		(**
 			Writes current indentation to output buffer
 		*)
@@ -2863,8 +2881,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				writer#write_empty_lines;
 				let boot_class = writer#use boot_type_path in
 				(* Boot initialization *)
-				if boot_type_path = self#get_type_path then
-					writer#write_statement (boot_class ^ "::__hx__init()");
+				if boot_type_path = self#get_type_path then begin
+					writer#write_statement ("require_once __DIR__.'/" ^ polyfills_file ^ "'");
+					writer#write_statement (boot_class ^ "::__hx__init()")
+				end;
 				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				writer#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
 				self#write_rtti_meta;
@@ -2988,12 +3008,14 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#write_statement "$called = true";
 			writer#write "\n";
 			writer#reset;
+			writer#indent 2;
 			(match wrapper#get_magic_init with
 				| None -> ()
 				| Some expr -> writer#write_fake_block expr
 			);
 			writer#write "\n";
 			writer#reset;
+			writer#indent 2;
 			self#write_hx_init_body;
 			writer#indent 1;
 			writer#write_line "}"
@@ -3626,6 +3648,8 @@ class generator (ctx:context) =
 		val root_dir = ctx.file
 		val mutable init_types = []
 		val mutable boot : (type_builder * string) option  = None
+		val mutable polyfills_source_path : string option = None
+		val mutable polyfills_dest_path : string option = None
 		(**
 			Perform required actions before actual php files generation
 		*)
@@ -3648,7 +3672,13 @@ class generator (ctx:context) =
 				| None -> ()
 			);
 			if builder#get_type_path = boot_type_path then
-				boot <- Some (builder, filename)
+				begin
+					boot <- Some (builder, filename);
+					let source_dir = Filename.dirname builder#get_source_file in
+					polyfills_source_path <- Some (Filename.concat source_dir polyfills_file);
+					let dest_dir = Filename.dirname filename in
+					polyfills_dest_path <- Some (Filename.concat dest_dir polyfills_file)
+				end
 			else if builder#has_magic_init then
 				init_types <- (get_full_type_name (namespace, name)) :: init_types
 		(**
@@ -3657,6 +3687,9 @@ class generator (ctx:context) =
 		method finalize : unit =
 			self#generate_magic_init;
 			self#generate_entry_point;
+			match polyfills_source_path, polyfills_dest_path with
+				| Some src, Some dst -> copy_file src dst
+				| _ -> fail null_pos __POS__
 		(**
 			Generates calls to static __init__ methods in Boot.php
 		*)
@@ -3665,7 +3698,7 @@ class generator (ctx:context) =
 				| [] -> ()
 				| _ ->
 					match boot with
-						| None -> fail dummy_pos __POS__
+						| None -> fail null_pos __POS__
 						| Some (_, filename) ->
 							let channel = open_out_gen [Open_creat; Open_text; Open_append] 0o644 filename in
 							List.iter
@@ -3694,7 +3727,7 @@ class generator (ctx:context) =
 					output_string channel "	}\n";
 					output_string channel ");\n";
 					(match boot with
-						| None -> fail dummy_pos __POS__
+						| None -> fail null_pos __POS__
 						| Some (builder, filename) ->
 							let boot_class = get_full_type_name (add_php_prefix ctx builder#get_type_path) in
 							output_string channel (boot_class ^ "::__hx__init();\n")
