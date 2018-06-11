@@ -28,7 +28,7 @@ var s = String.fromCharCode(0x1f602);
 s == "😂";
 
 
-#if false
+#if php
 // native UTF-16 or 32
 s.length == 1;
 s.charCodeAt(0) == "😂".code;
@@ -52,7 +52,7 @@ a[0] == "é";
 a[1] == "あ";
 
 var a = s.split('');
-#if false
+#if php
 // native UTF-16 or 32
 a.length == 3;
 a[0] == "é";
@@ -94,7 +94,7 @@ str.toHex() == "c3a9e38182f09f9882";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if cpp
+#if (cpp || php)
 bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
 bytes.toHex() == "e90042303dd802de"; // UTF-16 native
