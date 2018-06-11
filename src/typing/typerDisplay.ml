@@ -128,7 +128,11 @@ let raise_toplevel ctx with_type po p =
 		| WithType t -> Some t
 		| _ -> None
 	in
-	raise_fields (DisplayToplevel.collect ctx (Some p) with_type) (CRToplevel t) po
+	let ct = match t with
+		| None -> None
+		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
+	in
+	raise_fields (DisplayToplevel.collect ctx (Some p) with_type) (CRToplevel ct) po
 
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;

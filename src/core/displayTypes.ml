@@ -67,7 +67,7 @@ module CompletionResultKind = struct
 	type t =
 		| CRField of CompletionItem.t * pos
 		| CRStructureField
-		| CRToplevel of Type.t option
+		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
 		| CRMetadata
 		| CRTypeHint
 		| CRExtends
@@ -108,9 +108,9 @@ module CompletionResultKind = struct
 			| CRToplevel t ->
 				let args = match t with
 					| None -> None
-					| Some t -> Some (jobject [
-						"expectedType",generate_type ctx t;
-						"expectedTypeFollowed",generate_type ctx (follow t)
+					| Some(ct1,ct2) -> Some (jobject [
+						"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
+						"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
 					])
 				in
 				2,args
