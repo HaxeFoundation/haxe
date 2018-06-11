@@ -29,28 +29,24 @@ import php.*;
 	@:pure function new(string:String) : Void;
 
 	@:pure @:runtime inline function toUpperCase() : String {
-		return Global.strtoupper(this);
+		return Global.mb_strtoupper(this, 'UTF-8');
 	}
 
 	@:pure @:runtime inline function toLowerCase() : String {
-		return Global.strtolower(this);
+		return Global.mb_strtolower(this, 'UTF-8');
 	}
 
 	@:pure @:runtime inline function charAt(index : Int) : String {
-		return (index < 0 || index >= this.length ? '' : (this:NativeString)[index]);
+		return Syntax.coalesce(Boot.utf8CharAt(this, index), '');
 	}
 
-	@:pure @:runtime inline function charCodeAt( index : Int) : Null<Int> {
-		return (index < 0 || index >= this.length ? null : Global.ord((this:NativeString)[index]));
-	}
+	@:pure function charCodeAt( index : Int) : Null<Int>;
 
 	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
 
 	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 
-	@:pure @:runtime inline function split( delimiter : String ) : Array<String> {
-		return @:privateAccess Array.wrap(delimiter == '' ? Global.str_split(this) : Global.explode(delimiter, this));
-	}
+	@:pure function split( delimiter : String ) : Array<String>;
 
 	@:pure function substr( pos : Int, ?len : Int ) : String;
 
@@ -61,6 +57,6 @@ import php.*;
 	}
 
 	@:pure @:runtime static inline function fromCharCode( code : Int ) : String {
-		return Global.chr(code);
+		return Global.mb_chr(code, 'UTF-8');
 	}
 }

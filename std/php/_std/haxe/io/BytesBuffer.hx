@@ -41,7 +41,7 @@ class BytesBuffer {
 		b = Syntax.concat(b, src.getData().toNativeString());
 	}
 
-	public inline function addString( v : String ) {
+	public inline function addString( v : String, ?encoding : Encoding ) {
 		b = Syntax.concat(b, v);
 	}
 

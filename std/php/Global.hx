@@ -958,6 +958,11 @@ extern class Global {
 	static function mb_check_encoding( str:String = null, ?encoding:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-split.php
+	**/
+	static function mb_split( pattern:String, str:String, ?limit:Int ) : NativeIndexedArray<String>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
 	static function mb_strlen( str:String, ?encoding:String ) : EitherType<Int,Bool>;
@@ -966,6 +971,43 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr( str:String, start:Int, length:Int = null, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-chr.php
+		(Polyfilled for php 7.0)
+	**/
+	static function mb_chr( cp:Int, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-ord.php
+		(Polyfilled for php 7.0)
+	**/
+	static function mb_ord( str:String, ?encoding:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.mb-regex-encoding.php
+	**/
+	static function mb_regex_encoding( ?encoding:String ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strtoupper.php
+	**/
+	static function mb_strtoupper( str:String, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strpos.php
+	**/
+	static function mb_strpos( haystack:String, needle:String, ?offset:Int, ?encoding:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strrpos.php
+	**/
+	static function mb_strrpos( haystack:String, needle:String, ?offset:Int, ?encoding:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strtolower.php
+	**/
+	static function mb_strtolower( str:String, ?encoding:String ) : String;
 
 	/**
 		@see http://php.net/manual/en/function.proc-open.php

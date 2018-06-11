@@ -147,7 +147,7 @@ class Bytes {
 		setInt32(pos + 4, v.high);
 	}
 
-	public inline function getString( pos : Int, len : Int ) : String {
+	public inline function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) {
 			throw Error.OutsideBounds;
 		} else {
@@ -187,7 +187,7 @@ class Bytes {
 		return new Bytes(length, BytesData.alloc(length));
 	}
 
-	public static inline function ofString( s : String ) : Bytes {
+	public static inline function ofString( s : String, ?encoding : Encoding ) : Bytes {
 		return new Bytes(s.length, s);
 	}
 

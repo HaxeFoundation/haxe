@@ -2213,9 +2213,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_field expr access =
 			match access with
 				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
-					self#write "strlen(";
+					self#write "mb_strlen(";
 					self#write_expr expr;
-					self#write ")"
+					self#write ", 'UTF-8')"
 				| FInstance (_, _, field) -> self#write_expr_for_field_access expr "->" (field_name field)
 				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with
@@ -2266,7 +2266,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "()"
 				end
 		(**
-			Writes field access on Dynamic expression to output buffer
+			Writes field access on Dynamic expression to output buffer.
+			Returns `true` if requested field is most likely belongs to String (and field resolution will be handled at runtime).
+			Otherwise returns `false`
 		*)
 		method write_expr_field_if_string expr field_name =
 			(* Special case for String fields *)
