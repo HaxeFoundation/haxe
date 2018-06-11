@@ -1341,7 +1341,7 @@ and toplevel_expr s =
 	try
 		expr s
 	with
-		Display e -> e
+		Display e -> expr_next e s
 
 and secure_expr s =
 	expr_or_fail serror s
