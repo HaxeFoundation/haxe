@@ -315,7 +315,11 @@ let rec wait_loop process_params verbose accept =
 					None
 				else try
 					if m.m_extra.m_mark <= start_mark then begin
-						if not (has_policy NoCheckShadowing) then check_module_path();
+						(* Workaround for preview.4 Java issue *)
+						begin match m.m_extra.m_kind with
+							| MExtern -> check_module_path()
+							| _ -> if not (has_policy NoCheckShadowing) then check_module_path();
+						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
 					m.m_extra.m_mark <- mark;
