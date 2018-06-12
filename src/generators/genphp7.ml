@@ -53,8 +53,8 @@ let write_resource dir name data =
 let copy_file src dst =
 	let buffer_size = 8192 in
 	let buffer = String.create buffer_size in
-	let fd_in = Unix.openfile src [O_RDONLY] 0 in
-	let fd_out = Unix.openfile dst [O_WRONLY; O_CREAT; O_TRUNC] 0o644 in
+	let fd_in = Unix.openfile src [Unix.O_RDONLY] 0 in
+	let fd_out = Unix.openfile dst [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o644 in
 	let rec copy_loop () =
 		match Unix.read fd_in buffer 0 buffer_size with
 			|  0 -> ()
