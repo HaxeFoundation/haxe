@@ -44,7 +44,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
 
