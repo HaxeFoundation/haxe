@@ -226,6 +226,10 @@ enum ValueType {
 		if( a == b )
 			return true;
 		try {
+			var e = a.__enum__;
+			if( e == null || e != b.__enum__ )
+				return false;
+
 			#if js_enums_as_arrays
 			if( a[0] != b[0] )
 				return false;
@@ -235,16 +239,16 @@ enum ValueType {
 			#else
 			if (a._hx_index != b._hx_index)
 				return false;
-			for (f in Reflect.fields(a)){
+
+			var enm = $hxEnums[e];
+			var ctorName = enm.__constructs__[a._hx_index];
+			var params:Array<String> = enm[ctorName].__params__;
+			for (f in params) {
 				if ( !enumEq(a[f],b[f]) ){
 					return false;
 				}
 			}
 			#end
-			var e = a.__enum__;
-			if( e != b.__enum__ || e == null )
-				return false;
-
 		} catch( e : Dynamic ) {
 			return false;
 		}
