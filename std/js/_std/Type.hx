@@ -222,7 +222,7 @@ enum ValueType {
 		}
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
+	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool untyped {
 		if( a == b )
 			return true;
 		try {
