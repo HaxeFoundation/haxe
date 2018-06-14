@@ -951,6 +951,17 @@ and gen_syntax ctx meth args pos =
 			| _ ->
 				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_expr ctx) code_pos
 		end
+	| "field" , [eobj;efield] ->
+		gen_value ctx eobj;
+		(match Texpr.skip efield with
+		| { eexpr = TConst(TString(s)) } when valid_js_ident s ->
+			spr ctx ".";
+			spr ctx s;
+		| _ ->
+			spr ctx "[";
+			gen_value ctx efield;
+			spr ctx "]";
+		)
 	| _ ->
 		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 
