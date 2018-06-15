@@ -202,37 +202,37 @@ extern class Syntax {
     /**
         Generates instance field access for reading on `object`
     **/
-    static function field<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
+    static function field<T>( object:AsVar<T>, fieldName:String ) : Dynamic;
 
     /**
         Generates instance field access for reading on `object`
     **/
     @:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
-    static function getField<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
+    static function getField<T>( object:AsVar<T>, fieldName:String ) : Dynamic;
 
     /**
         Generates instance field access for writing on `object`
     **/
-    static function setField<T>( object:AsVar<T>, fieldName:AsVar<String>, value:Dynamic ) : Void;
+    static function setField<T>( object:AsVar<T>, fieldName:String, value:Dynamic ) : Void;
 
     /**
         Generates static field access for reading on `className`
     **/
-    static function getStaticField( className:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String> ) : Dynamic;
+    static function getStaticField( className:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:String ) : Dynamic;
 
     /**
         Generates static field access for writing on `object`
     **/
-    static function setStaticField( object:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String>, value:Dynamic ) : Void;
+    static function setStaticField( object:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:String, value:Dynamic ) : Void;
 
     /**
         Generates a call to instance method: `$object->{$methodName}(<args>)`
     **/
-    static function call<T>( object:AsVar<T>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
+    static function call<T>( object:AsVar<T>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
     /**
         Generates a call to static method: `$className::{$methodName}(<args>)`
     **/
-    static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
+    static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
 
     /**
         ```
