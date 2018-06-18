@@ -357,7 +357,7 @@ let create version s_version args =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		sys_args = [];
+		sys_args = args;
 		debug = false;
 		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
 		verbose = false;
