@@ -111,7 +111,12 @@ let funct gen t = match follow (run_follow gen t) with
 
 let mk_conversion_fun gen e =
 	let args, ret = funct gen e.etype in
-	let tf_args = List.map (fun (n,o,t) -> alloc_var n t,None) args in
+	let i = ref 0 in
+	let tf_args = List.map (fun (n,o,t) ->
+		let n = if n = "" then ("arg" ^ string_of_int(!i)) else n in
+		incr i;
+		alloc_var n t,None) args
+	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
 			v.v_capture <- true;
