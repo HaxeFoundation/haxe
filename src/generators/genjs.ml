@@ -1506,13 +1506,20 @@ let generate com =
 		newline ctx
 	);
 	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
-		print ctx "function $extend(from, fields) {
-	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
-	for (var name in fields) proto[name] = fields[name];
-	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
-	return proto;
-}
-";
+		let extend_code =
+			"function $extend(from, fields) {\n" ^
+			(
+				if ctx.es_version < 5 then
+					"	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();\n"
+				else
+					"	var proto = Object.create(from);\n"
+			) ^
+			"	for (var name in fields) proto[name] = fields[name];\n" ^
+			"	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;\n" ^
+			"	return proto;\n" ^
+			"}"
+		in
+		spr ctx extend_code
 	end;
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
