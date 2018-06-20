@@ -200,7 +200,7 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		return untyped e.__empty_constructs__;
+		return ((cast e).__empty_constructs__ : Array<T>).copy();
 	}
 
 }
