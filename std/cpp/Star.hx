@@ -22,6 +22,6 @@
 package cpp;
 
 // Allows haxe to type result correctly, and hxcpp can recognise this use the correct type
-typedef Star<T> = T;
+typedef Star<T> = Null<T>;
 
 

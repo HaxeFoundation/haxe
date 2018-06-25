@@ -1856,9 +1856,9 @@ let rec cpp_type_of ctx haxe_type =
       | (["cpp"],"Struct"), [param] ->
             TCppStruct(cpp_type_of ctx param)
       | (["cpp"],"Star"), [param] ->
-            TCppStar(cpp_type_of ctx param,false)
+            TCppStar(cpp_type_of_pointer ctx param,false)
       | (["cpp"],"ConstStar"), [param] ->
-            TCppStar(cpp_type_of ctx param,true)
+            TCppStar(cpp_type_of_pointer ctx param,true)
 
       | ([],"Array"), [p] ->
          let arrayOf = cpp_type_of ctx p in
@@ -1896,7 +1896,10 @@ let rec cpp_type_of ctx haxe_type =
         TCppObject
      else
         baseType
-
+   and cpp_type_of_pointer ctx p =
+     match p with
+     | TAbstract ({ a_path = ([],"Null") },[t]) -> cpp_type_of ctx t
+     | x ->  cpp_type_of ctx x
    (* Optional types are Dynamic if they norally could not be null *)
    and cpp_fun_arg_type_of ctx tvar opt =
       match opt with
@@ -2317,8 +2320,7 @@ let cpp_enum_name_of field =
       keyword_remap field.ef_name
 ;;
 
-let is_gc_element ctx member_type =
-  Common.defined ctx.ctx_common Define.HxcppGcGenerational &&
+let is_object_element ctx member_type =
   match member_type with
    | TCppDynamic
    | TCppObject
@@ -2338,7 +2340,10 @@ let is_gc_element ctx member_type =
 
 ;;
 
-
+let is_gc_element ctx member_type =
+  Common.defined ctx.ctx_common Define.HxcppGcGenerational &&
+  (is_object_element ctx member_type)
+;;
 
 let retype_expression ctx request_type function_args function_type expression_tree forInjection =
    let rev_closures = ref [] in
@@ -3084,6 +3089,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             else (match return_type with
                | TCppObjC(k) -> CppCastObjC(baseCpp,k), return_type
                | TCppPointer(_,_)
+               | TCppStar(_)
                | TCppInst(_) -> CppCast(baseCpp,return_type), return_type
                | TCppString -> CppCastScalar(baseCpp,"::String"), return_type
                | TCppCode(t) when baseStr <> (tcpp_to_string t)  ->
@@ -3218,7 +3224,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
 
          | TCppStar(t,const), TCppInst _
-         | TCppStar(t,const), TCppStruct _ ->
+         | TCppStar(t,const), TCppStruct _
+         | TCppStar(t,const), TCppReference _ ->
              mk_cppexpr (CppDereference(cppExpr)) return_type
 
          | TCppInst _, TCppStar(p,const)
@@ -6033,12 +6040,13 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_cpp "};\n\n";
       end;
 
-      let storage field = match type_string field.cf_type with
-         | "bool" -> "hx::fsBool"
-         | "int" -> "hx::fsInt"
-         | "Float" -> "hx::fsFloat"
-         | "::String" -> "hx::fsString"
-         | str -> "hx::fsObject" ^ " /*" ^ str ^ "*/ "
+      let storage field = match (cpp_type_of ctx field.cf_type) with
+         | TCppScalar("bool") -> "hx::fsBool"
+         | TCppScalar("int") -> "hx::fsInt"
+         | TCppScalar("Float") -> "hx::fsFloat"
+         | TCppString -> "hx::fsString"
+         | o when is_object_element ctx o -> "hx::fsObject" ^ " /* " ^ (tcpp_to_string o ) ^ " */ "
+         | u -> "hx::fsUnknown" ^ " /* " ^ (tcpp_to_string u) ^ " */ "
          in
       let dump_member_storage = (fun field ->
          output_cpp ("\t{" ^ (storage field) ^ ",(int)offsetof(" ^ class_name ^"," ^ (keyword_remap field.cf_name) ^")," ^
