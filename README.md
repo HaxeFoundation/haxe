@@ -55,12 +55,7 @@ Automated development builds are available from [build.haxe.org](http://build.ha
 
 ## Building from source
 
- 1. Clone the repository using git. Be sure to initialize and fetch the submodules.
-
-        git clone --recursive git://github.com/HaxeFoundation/haxe.git
-        cd haxe
-
- 2. Follow the [documentation on building Haxe for your platform](https://haxe.org/documentation/introduction/building-haxe.html).
+See [extra/BUILDING.md](extra/BUILDING.md).
 
 ## Using Haxe
 
