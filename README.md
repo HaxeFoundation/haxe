@@ -80,14 +80,16 @@ You can get help and talk with fellow Haxers from around the world via:
 
 ## Version compatibility
 
-Haxe   | neko
-----   | -----
-2.*    | 1.*
-3.0.0  | 2.0.0
-3.1.3  | 2.0.0
-3.2.0  | 2.0.0
-3.3.0  | 2.1.0
-3.4.0  | 2.1.0
+Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  | 
+----          | ----  | ----   | ----   |  ---- | ----  | ---- |
+2.*           | 1.*   | 8-10   | -      | -     | -     | -    |
+3.0.0         | 2.0.0 |        | -      | -     | 5.1+  | -    |
+3.2.0         |       | 12-14  | 3.2+   | -     |       | -    |
+3.3.0         | 2.1.0 | 21     |        | -     |       | 5.1, 5.2, 5.3, LuaJIT 2.0, LuaJIT 2.1 |
+3.4.0         |       |        |        | 1.1   | 5.1 and 7.0 (with `-D php7`)   |      |
+4.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
+4.0 preview 3 |       |        |        | 1.3   |       |      |
+4.0 preview 4 |       |        |        | 1.6   |       |      |
 
 
 ## Contributing
