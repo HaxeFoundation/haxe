@@ -1154,7 +1154,6 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	let dotp = dot_path e.e_path in
 	let has_enum_feature = has_feature ctx "has_enum" in
-	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	if ctx.js_flatten then
 		print ctx "var "
 	else
@@ -1166,7 +1165,7 @@ let generate_enum ctx e =
 	else if has_feature ctx "Type.resolveEnum" then
 		print ctx "$hxClasses[\"%s\"] = " (dot_path e.e_path));
 	spr ctx "{";
-	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "[" ^ String.concat "," ename ^ "]" else "true");
+	if has_feature ctx "js.Boot.isEnum" then print ctx " __ename__ : %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ dotp ^ "\"" else "true");
 	print ctx " __constructs__ : [%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	let bend =
 		if not as_objects then begin
