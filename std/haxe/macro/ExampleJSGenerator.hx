@@ -137,8 +137,7 @@ class ExampleJSGenerator {
 		else
 			print("function() { }");
 		newline();
-		var name = p.split(".").map(api.quoteString).join(",");
-		print('$p.__name__ = [$name]');
+		print('$p.__name__ = "$p"');
 		newline();
 		if( c.superClass != null ) {
 			var psup = getPath(c.superClass.t.get());

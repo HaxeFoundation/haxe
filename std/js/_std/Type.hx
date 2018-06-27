@@ -53,11 +53,8 @@ enum ValueType {
 	}
 
 
-	public static function getClassName( c : Class<Dynamic> ) : String {
-		var a : Array<String> = untyped c.__name__;
-		if (a == null)
-			return null;
-		return a.join(".");
+	public static inline function getClassName( c : Class<Dynamic> ) : String {
+		return untyped __define_feature__("Type.getClassName", c.__name__);
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {

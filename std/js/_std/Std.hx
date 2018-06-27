@@ -62,12 +62,12 @@ import js.Boot;
 
 	static function __init__() : Void untyped {
 		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
-		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName","String",true));
 		__feature__("Type.resolveClass",$hxClasses["Array"] = Array);
-		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName","Array",true));
 		__feature__("Date.*", {
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
-			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
+			__feature__("js.Boot.isClass",__js__('Date').__name__ = "Date");
 		});
 		__feature__("Int.*",__js__('var Int = { };'));
 		__feature__("Dynamic.*",__js__('var Dynamic = { };'));

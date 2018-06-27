@@ -1050,7 +1050,7 @@ let generate_class___name__ ctx c =
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
 		if has_feature ctx "Type.getClassName" then
-			print ctx "[%s]" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])))
+			print ctx "\"%s\"" (dot_path c.cl_path)
 		else
 			print ctx "true";
 		newline ctx;
