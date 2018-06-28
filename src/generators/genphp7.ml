@@ -1599,7 +1599,12 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| None ->
 					self#write_expr value_expr;
 				| Some key_str ->
-					self#write ("\"" ^ (String.escaped key_str) ^ "\" => ");
+					let key_str =
+						Str.global_replace (Str.regexp "\\$")
+						"\\$"
+						(String.escaped key_str)
+					in
+					self#write ("\"" ^ key_str ^ "\" => ");
 					self#write_expr value_expr
 			);
 			if separate_line then self#write ",\n"

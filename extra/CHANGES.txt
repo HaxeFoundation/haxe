@@ -1,3 +1,9 @@
+XXXX-XX-XX:
+
+	Bugfixes:
+
+	php : Escape `$` in field names of anonymous objects (#7230)
+
 2018-06-12: 4.0.0-preview.4
 
 	New features:
