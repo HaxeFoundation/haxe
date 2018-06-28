@@ -73,7 +73,7 @@ You can get help and talk with fellow Haxers from around the world via:
 
  * [Haxe Community Forum](http://community.haxe.org)
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
- * [Haxe Gittr chatroom](https://gitter.im/HaxeFoundation/haxe/)
+ * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
  * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
 
 :+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
