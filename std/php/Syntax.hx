@@ -284,4 +284,28 @@ extern class Syntax {
     static inline function clone<T>(value:T):T {
         return Syntax.code('clone {0}', value);
     }
+
+    /**
+        Generates `yield $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yield(value:Dynamic):Dynamic {
+        return Syntax.code('yield {0}', value);
+    }
+
+    /**
+        Generates `yield $key => $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yieldPair(key:Dynamic, value:Dynamic):Dynamic {
+        return Syntax.code('yield {0} => {1}', key, value);
+    }
+
+    /**
+        Generates `yield for $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yieldFrom(value:Dynamic):Dynamic {
+        return Syntax.code('yield from {0}', value);
+    }
 }
