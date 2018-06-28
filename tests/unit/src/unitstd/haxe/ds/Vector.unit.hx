@@ -44,7 +44,9 @@ vec.set(1, 2);
 var arr = vec.toArray();
 arr[0] == vNullInt;
 arr[1] == 2;
+#if !as3
 arr[3] == vNullInt;
+#end
 
 // objects
 var tpl = new C();
