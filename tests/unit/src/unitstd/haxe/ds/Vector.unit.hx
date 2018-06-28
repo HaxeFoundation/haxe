@@ -30,13 +30,21 @@ vec.get(2) == vNullBool;
 // fromArray
 var arr = ["1", "2", "3"];
 var vec:haxe.ds.Vector<String> = haxe.ds.Vector.fromArrayCopy(arr);
-#if (!flash && !neko && !cs && !java && !lua && !eval)
+#if (!flash && !neko && !cs && !java && !lua && !eval && !php)
 arr != vec.toData();
 #end
 vec.length == 3;
 vec.get(0) == "1";
 vec.get(1) == "2";
 vec.get(2) == "3";
+
+// toArray
+var vec = new haxe.ds.Vector(3);
+vec.set(1, 2);
+var arr = vec.toArray();
+arr[0] == vNullInt;
+arr[1] == 2;
+arr[3] == vNullInt;
 
 // objects
 var tpl = new C();

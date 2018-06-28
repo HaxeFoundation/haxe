@@ -1,5 +1,9 @@
 XXXX-XX-XX:
 
+	General improvements and optimizations:
+
+	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
+
 	Bugfixes:
 
 	php : Escape `$` in field names of anonymous objects (#7230)
