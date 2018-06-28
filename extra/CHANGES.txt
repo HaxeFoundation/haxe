@@ -3,6 +3,7 @@ XXXX-XX-XX:
 	General improvements and optimizations:
 
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
+	php : Optimized `Map.copy()` and `Array.copy()`
 
 	Bugfixes:
 

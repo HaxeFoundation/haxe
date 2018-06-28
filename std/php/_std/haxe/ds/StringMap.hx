@@ -63,10 +63,8 @@ import haxe.Constraints;
 		return data.iterator();
 	}
 
-	public function copy() : StringMap<T> {
-		var copied = new StringMap();
-		copied.data = data;
-		return copied;
+	public inline function copy() : StringMap<T> {
+		return Syntax.clone(this);
 	}
 
 	public function toString() : String {
