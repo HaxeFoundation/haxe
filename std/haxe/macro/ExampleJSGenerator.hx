@@ -170,7 +170,7 @@ class ExampleJSGenerator {
 		genPackage(e.pack);
 		var p = getPath(e);
 		var constructs = e.names.map(api.quoteString).join(",");
-		print('$p = $$hxClasses[\'$p\'] = { __ename__ : '$p', __constructs__ : [$constructs] }');
+		print('$p = $$hxClasses[\'$p\'] = { __ename__ : \'$p\', __constructs__ : [$constructs] }');
 		newline();
 		for( c in e.constructs.keys() ) {
 			var c = e.constructs.get(c);
