@@ -10,7 +10,7 @@ class Issue7233 extends unit.Test {
 }
 
 private class TestClass {
-    var name : String;
+    public var name : String;
 
     public function new(data) {
         this.name = data.name;
