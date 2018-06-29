@@ -533,7 +533,7 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		if not (Common.defined ctx.com Define.JsEnumsAsArrays) then
 			let fname = (match f.ef_type with TFun((args,_)) -> let fname,_,_ = List.nth args i in  fname | _ -> assert false ) in
-			print ctx ".%s" (fname)
+			print ctx ".%s" (ident fname)
 		else
 			print ctx "[%i]" (i + 2)
 	| TField (_, FStatic ({cl_path = [],""},f)) ->
