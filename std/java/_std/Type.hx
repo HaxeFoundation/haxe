@@ -145,7 +145,10 @@ enum ValueType {
 			for (arg in args) {
 				argNum++;
 				var expectedType = argNum < ptypes.length ? ptypes[argNum] : ptypes[ptypes.length - 1]; // varags
-				if (arg == null || expectedType.isAssignableFrom(java.Lib.toNativeType(Type.getClass(arg)))) {
+				var isDynamic = Std.is(arg, DynamicObject) && expectedType.isAssignableFrom(java.Lib.getNativeType(arg));
+				var argType = Type.getClass(arg);
+
+				if (arg == null || isDynamic || (argType != null && expectedType.isAssignableFrom(java.Lib.toNativeType(argType)))) {
 					callArguments[argNum] = arg;
 				} else if (Std.is(arg, java.lang.Number)) {
 					var name = expectedType.getName();
