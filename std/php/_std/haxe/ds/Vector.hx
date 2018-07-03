@@ -24,8 +24,8 @@ package haxe.ds;
 import php.*;
 
 private class PhpVectorData<T> {
-	@:allow(haxe.ds.Vector) var length:Int;
-	@:allow(haxe.ds.Vector) var data:NativeIndexedArray<T>;
+	public var length:Int;
+	public var data:NativeIndexedArray<T>;
 
 	public inline function new(length:Int) {
 		this.length = length;
