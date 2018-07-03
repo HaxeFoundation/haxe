@@ -23,7 +23,7 @@ package haxe.ds;
 
 import php.*;
 
-private class VectorData<T> {
+private class PhpVectorData<T> {
 	@:allow(haxe.ds.Vector) var length:Int;
 	@:allow(haxe.ds.Vector) var data:NativeIndexedArray<T>;
 
@@ -32,6 +32,8 @@ private class VectorData<T> {
 		data = new NativeIndexedArray();
 	}
 }
+
+private typedef VectorData<T> = PhpVectorData<T>;
 
 abstract Vector<T>(VectorData<T>) {
 
