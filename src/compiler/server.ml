@@ -498,7 +498,7 @@ let rec wait_loop process_params verbose accept =
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		if !was_compilation then incr run_count;
 		if !run_count mod 10 = 0 then begin
-			run_count := 0;
+			run_count := 1;
 			let t0 = get_time() in
 			Gc.compact();
 			ServerMessage.gc_stats (get_time() -. t0);
