@@ -30,6 +30,7 @@ extern class UBuiltins {
     static function len(x:Dynamic):Int;
     static function isinstance(o:Dynamic, c:Dynamic):Bool;
     static function str(o:Dynamic):String;
+    static function repr(o:Dynamic):String;
     static function bool(o:Dynamic):Bool;
     static function float(o:Dynamic):Float;
     static function int(o:Dynamic, ?base:Int):Int;
