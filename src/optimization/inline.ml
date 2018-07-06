@@ -113,7 +113,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		let tint = ctx.com.basic.tint in
 
 		let esyntax =
-			let m = Hashtbl.find ctx.g.modules (["js"],"Syntax") in
+			let m = (try Hashtbl.find ctx.g.modules (["js"],"Syntax") with Not_found -> assert false) in
 			ExtList.List.find_map (function
 				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
 				| _ -> None
