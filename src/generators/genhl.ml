@@ -3250,7 +3250,22 @@ let generate_type ctx t =
 		List.iter (generate_static ctx c) c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> generate_member ctx c f);
+		| Some f ->
+			let merge_inits e =
+				match e with
+				| Some ({ eexpr = TFunction ({ tf_expr = { eexpr = TBlock el } as ef } as f) } as e) ->
+					let merge ei =
+						let rec loop ei =
+							let ei = Type.map_expr loop ei in
+							{ ei with epos = e.epos }
+						in
+						if ei.epos.pmin < e.epos.pmin || ei.epos.pmax > e.epos.pmax then loop ei else ei
+					in
+					Some { e with eexpr = TFunction({ f with tf_expr = { ef with eexpr = TBlock (List.map merge el) }}) }
+				| _ ->
+					e
+ 			in
+			generate_member ctx c { f with cf_expr = merge_inits f.cf_expr });
 		List.iter (generate_member ctx c) c.cl_ordered_fields;
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()
