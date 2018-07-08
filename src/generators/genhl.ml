@@ -960,11 +960,13 @@ let real_name v =
 	| "_gthis" -> "this"
 	| name -> name
 
-let is_gen_local v =
-	String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g'
+let is_gen_local ctx v =
+	if has_meta Meta.CompilerGenerated v.v_meta || has_meta Meta.ForLoopVariable v.v_meta then true
+	else if String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g' then true
+	else false
 
 let add_assign ctx v =
-	if is_gen_local v then () else
+	if is_gen_local ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
