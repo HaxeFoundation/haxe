@@ -507,6 +507,11 @@ let optimize dump get_str (f:fundecl) =
 	let stride = (nregs + bit_regs - 1) / bit_regs in
 	let live_bits = Array.make (Array.length f.code * stride) 0 in
 
+	let reg_moved = Hashtbl.create 0 in
+	let add_reg_moved p w r =
+		Hashtbl.add reg_moved p (r,last_write.(r))
+	in
+
 	let set_live r min max =
 		let offset = r / bit_regs in
 		let mask = 1 lsl (r - offset * bit_regs) in
@@ -617,6 +622,7 @@ let optimize dump get_str (f:fundecl) =
 			set_op i op;
 			(match op with
 			| OMov (d, v) when d = v ->
+				add_reg_moved i d v;
 				set_nop i "mov"
 			| OMov (d, v) ->
 				let sv = state.(v) in
@@ -727,6 +733,7 @@ let optimize dump get_str (f:fundecl) =
 			let n = read_counts.(r) - 1 in
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
+			add_reg_moved i d r;
 			set_nop i "unused"
 		| _ -> ());
 	done;
@@ -744,11 +751,77 @@ let optimize dump get_str (f:fundecl) =
 			reg_map.(i) <- -1;
 	done;
 	let reg_remap = !used_regs <> nregs in
+	let assigns = ref f.assigns in
+
+	(* remap assigns *)
+	if !nop_count > 0 then begin
+		let rec resolve_block p =
+			try Hashtbl.find blocks_pos p with Not_found -> resolve_block (p - 1)
+		in
+
+		let new_assigns = List.fold_left (fun acc (i,p) ->
+			let gmap = Hashtbl.create 0 in
+			(*
+				For a given assign at position p, that's been optimized out,
+				let's try to find where the last assign that maps to the same value
+				is, and remap the variable name to it
+			*)
+			let rec loop p =
+				if p < 0 || (match f.code.(p) with ONop _ -> false | _ -> true) then [(i,p)] else
+				let reg, last_w = try Hashtbl.find reg_moved p with Not_found -> (-1,-1) in
+				if reg < 0 then [] (* ? *) else
+				if reg < nargs then [(i,-reg-1)] else
+				let b = resolve_block p in
+				if last_w >= b.bstart && last_w < b.bend && last_w < p then loop last_w else
+				let wp = try PMap.find reg b.bwrite with Not_found -> -1 in
+				let rec gather b =
+					if Hashtbl.mem gmap b.bstart then [] else begin
+						Hashtbl.add gmap b.bstart ();
+						(* lookup in all parent blocks, recursively, to fetch all last writes *)
+						List.fold_left (fun acc bp ->
+							if bp.bstart > b.bstart then acc else
+							try
+								let wp = PMap.find reg bp.bwrite in
+								if wp > p then assert false;
+								loop wp @ acc
+							with Not_found ->
+								gather bp @ acc
+						) [] b.bprev;
+					end
+				in
+				if wp < 0 then
+					gather b
+				else if wp < p then
+					loop wp
+				else
+					(* lookup in writes between p-1 and block bstart *)
+					let rec find_w p =
+						if p < b.bstart then
+							gather b
+						else
+							let found = ref false in
+							opcode_fx (fun r read -> if r = reg && not read then found := true) old_code.(p);
+							if !found then loop p else find_w (p - 1)
+					in
+					find_w (p - 1)
+			in
+			loop p @ acc
+		) [] (Array.to_list !assigns) in
+		let new_assigns = List.sort (fun (_,p1) (_,p2) -> p1 - p2) new_assigns in
+		assigns := Array.of_list new_assigns;
+	end;
 
 	(* done *)
 	if dump <> None then begin
-		let assigns = Hashtbl.create 0 in
-		Array.iter (fun (var,pos) -> if pos >= 0 then Hashtbl.replace assigns pos var) f.assigns;
+		let old_assigns = Hashtbl.create 0 in
+		let new_assigns = Hashtbl.create 0 in
+		Array.iter (fun (var,pos) -> if pos >= 0 then Hashtbl.replace old_assigns pos var) f.assigns;
+		Array.iter (fun (var,pos) ->
+			if pos >= 0 then begin
+				let f = try Hashtbl.find new_assigns pos with Not_found -> let v = ref [] in Hashtbl.add new_assigns pos v; v in
+				f := var :: !f;
+			end
+		) !assigns;
 		let rec loop i block =
 			if i = Array.length f.code then () else
 			let block = try
@@ -758,7 +831,7 @@ let optimize dump get_str (f:fundecl) =
 					b.bend
 				);
 				let need = String.concat "," (List.map string_of_int (ISet.elements b.bneed)) in
-				let wr = String.concat " " (List.rev (PMap.foldi (fun r p acc -> Printf.sprintf "r%d:%X" r p :: acc) b.bwrite [])) in
+				let wr = String.concat " " (List.rev (PMap.foldi (fun r p acc -> Printf.sprintf "%d@%X" r p :: acc) b.bwrite [])) in
 				write ("\t" ^ (if b.bloop then "LOOP " else "") ^ "NEED=" ^ need ^ "\tWRITE=" ^ wr);
 				b
 			with Not_found ->
@@ -771,8 +844,9 @@ let optimize dump get_str (f:fundecl) =
 				live_loop (r + 1) (if is_live r i then r :: l else l)
 			in
 			let live = "LIVE=" ^ String.concat "," (List.map string_of_int (live_loop 0 [])) in
-			let var_set = (try let v = Hashtbl.find assigns i in "set " ^ get_str v with Not_found -> "") in
-			write (Printf.sprintf "\t@%-3X %-20s %-20s %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) var_set live);
+			let var_set = (try let v = Hashtbl.find old_assigns i in "set " ^ get_str v with Not_found -> "") in
+			let nvar_set = (try let v = Hashtbl.find new_assigns i in "set " ^ String.concat "," (List.map get_str !v) with Not_found -> "") in
+			write (Printf.sprintf "\t@%-3X %-20s %-20s %-20s %-20s %s" i (ostr string_of_int old) (if opcode_eq old op then "" else ostr string_of_int op) var_set nvar_set live);
 			loop (i + 1) block
 		in
 		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);
@@ -798,7 +872,6 @@ let optimize dump get_str (f:fundecl) =
 	let code = ref f.code in
 	let regs = ref f.regs in
 	let debug = ref f.debug in
-	let assigns = ref f.assigns in
 
 	if !nop_count > 0 || reg_remap then begin
 		let new_pos = Array.make (Array.length f.code) 0 in
@@ -846,12 +919,10 @@ let optimize dump get_str (f:fundecl) =
 			| _ -> assert false)
 		) !jumps;
 
-		let new_assigns = List.filter (fun (i,p) -> p < 0 || (match f.code.(p) with ONop _ -> false | _ -> true)) (Array.to_list !assigns) in
-		let new_assigns = List.map (fun (i,p) -> i, if p < 0 then p else new_pos.(p)) new_assigns in
+		Array.iteri (fun idx (i,p) -> if p >= 0 then (!assigns).(idx) <- (i, new_pos.(p))) !assigns;
 
 		code := out_code;
 		debug := new_debug;
-		assigns := Array.of_list new_assigns;
 		if reg_remap then begin
 			let new_regs = Array.make !used_regs HVoid in
 			for i=0 to nregs-1 do

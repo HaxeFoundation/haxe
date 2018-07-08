@@ -842,12 +842,17 @@ let alloc_var ctx v new_var =
 		Hashtbl.add ctx.m.mvars v.v_id r;
 		r
 
+
+let push_op ctx o =
+	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
+	DynArray.add ctx.m.mops o
+
 let op ctx o =
 	match o with
-	| OMov (a,b) when a = b -> ()
+	| OMov (a,b) when a = b ->
+		()
 	| _ ->
-		DynArray.add ctx.m.mdebug ctx.m.mcurpos;
-		DynArray.add ctx.m.mops o
+		push_op ctx o
 
 let set_op ctx pos o =
 	DynArray.set ctx.m.mops pos o
@@ -1519,7 +1524,7 @@ and eval_expr ctx e =
 			match captured_index ctx v with
 			| None ->
 				let r = alloc_var ctx v true in
-				op ctx (OMov (r,ri));
+				push_op ctx (OMov (r,ri));
 				add_assign ctx v;
 			| Some idx ->
 				op ctx (OSetEnumField (ctx.m.mcaptreg, idx, ri));
@@ -2307,7 +2312,7 @@ and eval_expr ctx e =
 				r
 			| ALocal (v,l) ->
 				let r = value() in
-				op ctx (OMov (l, r));
+				push_op ctx (OMov (l, r));
 				add_assign ctx v;
 				r
 			| AArray (ra,(at,vt),ridx) ->
