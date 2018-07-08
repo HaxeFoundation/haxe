@@ -9,6 +9,7 @@ XXXX-XX-XX:
 	Bugfixes:
 
 	php : Escape `$` in field names of anonymous objects (#7230)
+	php : Generate `switch` as `if...else if...else...` to avoid loose comparison (#7257)
 
 2018-06-12: 4.0.0-preview.4
 

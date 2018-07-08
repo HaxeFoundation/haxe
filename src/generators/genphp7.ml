@@ -1658,8 +1658,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
-				| TBreak -> self#write_expr_loop_flow "break"
-				| TContinue -> self#write_expr_loop_flow "continue"
+				| TBreak -> self#write "break"
+				| TContinue -> self#write "continue"
 				| TThrow expr -> self#write_expr_throw expr
 				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
@@ -1668,23 +1668,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TIdent s -> self#write s
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
-		(**
-			Writes `continue N` or `break N` with required N depending on nearest parent loop and amount of `switch` between loop and
-			`continue/break`
-		*)
-		method write_expr_loop_flow word =
-			let rec count_N parent_exprs count =
-				match parent_exprs with
-					| [] -> count
-					| { eexpr = TWhile _ } :: _ -> count
-					| { eexpr = TSwitch _ } :: rest -> count_N rest (count + 1)
-					| _ :: rest -> count_N rest count
-			in
-			let count = count_N expr_hierarchy 1 in
-			if count > 1 then
-				self#write (word ^ " " ^ (string_of_int count))
-			else
-				self#write word
 		(**
 			Writes TConst to output buffer
 		*)
@@ -2708,39 +2691,63 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Writes TSwitch to output buffer
 		*)
 		method write_expr_switch switch cases default =
-			let write_case (conditions, expr) =
-				List.iter
-					(fun condition ->
+			let write_switch =
+				match switch.eexpr with
+					| TLocal _ ->
+						(fun () -> self#write_expr switch)
+					| TParenthesis ({ eexpr = TLocal _ } as e) ->
+						(fun () -> self#write_expr e)
+					| _ ->
+						self#write "$__hx__switch = ";
+						self#write_expr switch;
+						self#write ";\n";
 						self#write_indentation;
-						self#write "case ";
-						self#write_expr condition;
-						self#write ":\n";
-					)
-					conditions;
-				self#indent_more;
-				self#write_indentation;
-				self#write_as_block ~inline:true expr;
-				self#write_statement "break";
-				self#indent_less
+						(fun () -> self#write "$__hx__switch")
 			in
-			self#write "switch ";
-			self#write_expr switch;
-			self#write " {\n";
-			self#indent_more;
-			List.iter write_case cases;
-			(match default with
+			let rec write_conditions conditions =
+				match conditions with
+					| [] -> ()
+					| condition :: rest ->
+						if need_boot_equal switch condition then
+							begin
+								self#write ((self#use boot_type_path) ^ "::equal(");
+								write_switch ();
+								self#write ", ";
+								self#write_expr condition;
+								self#write ")"
+							end
+						else
+							begin
+								write_switch ();
+								self#write " === ";
+								self#write_expr condition;
+							end;
+						match rest with
+							| [] -> ()
+							| _ ->
+								self#write " || ";
+								write_conditions rest
+			in
+			let rec write_cases cases =
+				match cases with
+					| [] -> ()
+					| (conditions, expr) :: rest ->
+						self#write "if (";
+						write_conditions conditions;
+						self#write ") ";
+						self#write_as_block expr;
+						match rest with
+							| [] -> ()
+							| _ ->
+								self#write " else ";
+								write_cases rest
+			in
+			write_cases cases;
+			match default with
 				| None -> ()
 				| Some expr ->
-					self#write_line "default:";
-					self#indent_more;
-					self#write_indentation;
-					self#write_as_block ~inline:true expr;
-					self#write_statement "break";
-					self#indent_less
-			);
-			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+					self#write " else ";
+					self#write_as_block expr;
 		(**
 			Write TEnumParameter expression to output buffer
 		*)
