@@ -2386,7 +2386,8 @@ and eval_expr ctx e =
 			(match get_access ctx e1 with
 			| ALocal (v,l) ->
 				let r = eval_to ctx { e with eexpr = TBinop (bop,e1,e2) } (to_type ctx e1.etype) in
-				op ctx (OMov (l, r));
+				push_op ctx (OMov (l, r));
+				add_assign ctx v;
 				r
 			| acc ->
 				gen_assign_op ctx acc e1 (fun r ->
