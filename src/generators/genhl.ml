@@ -114,7 +114,28 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
+	mutable cprevious : remap_context option;
+	mutable cached_remap_types : (ttype, remap_type) PMap.t;
 }
+
+
+and remap_type =
+	| RAnon of tanon
+	| RClass of tclass * t list * bool
+	| REnum of tenum
+	| REnumClass of tenum
+
+and remap_context = {
+	r_new : context;
+	r_old : context;
+	r_globals : (int, string) Hashtbl.t;
+	r_consts : (int, constval) Hashtbl.t;
+	r_functions : (int, string * path * (ttype list * ttype) option) Hashtbl.t;
+	r_types : (ttype, remap_type) PMap.t;
+	r_modules : (int, unit) Hashtbl.t;
+	r_fids : (int, fundecl) Hashtbl.t;
+}
+
 
 (* --- *)
 
@@ -132,6 +153,10 @@ type access =
 	| ADynamic of texpr * string index
 	| AEnum of tenum * field index
 	| ACaptured of field index
+
+let remap_method_ref = ref (fun _ _ _ -> assert false)
+
+let remap_method (ctx:context) (c:tclass) (f:tclass_field) : bool = !remap_method_ref ctx c f
 
 let is_to_string t =
 	match follow t with
@@ -204,6 +229,8 @@ let null_capture =
 		c_type = HVoid;
 		c_group = false;
 	}
+
+let fetch l idx = DynArray.get l.arr idx
 
 let lookup l v fb =
 	try
@@ -299,24 +326,29 @@ let unsigned_op e1 e2 =
 let set_curpos ctx p =
 	ctx.m.mcurpos <- p
 
+let alloc_debug_file ctx f =
+	lookup ctx.cdebug_files f (fun() ->
+		if ctx.is_macro then
+			f
+		else
+			match Common.defined ctx.com Common.Define.AbsolutePath with
+			| true -> if (Filename.is_relative f)
+				then Filename.concat (Sys.getcwd()) f
+				else f
+			| false -> try
+				(* lookup relative path *)
+				let len = String.length f in
+				let base = List.find (fun path ->
+					let l = String.length path in
+					len > l && String.sub f 0 l = path
+				) ctx.com.Common.class_path in
+				let l = String.length base in
+				String.sub f l (len - l)
+			with Not_found ->
+				f
+	)
+
 let make_debug ctx arr =
-	let get_relative_path p =
-		match Common.defined ctx.com Common.Define.AbsolutePath with
-		| true -> if (Filename.is_relative p.pfile)
-			then Filename.concat (Sys.getcwd()) p.pfile
-			else p.pfile
-		| false -> try
-			(* lookup relative path *)
-			let len = String.length p.pfile in
-			let base = List.find (fun path ->
-				let l = String.length path in
-				len > l && String.sub p.pfile 0 l = path
-			) ctx.com.Common.class_path in
-			let l = String.length base in
-			String.sub p.pfile l (len - l)
-		with Not_found ->
-			p.pfile
-	in
 	let pos = ref (0,0) in
 	let cur_file = ref 0 in
 	let cur_line = ref 0 in
@@ -325,7 +357,7 @@ let make_debug ctx arr =
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
-			let file = if p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> if ctx.is_macro then p.pfile else get_relative_path p) in
+			let file = if p.pfile == (!cur).pfile then !cur_file else alloc_debug_file ctx p.pfile in
 			let line = if ctx.is_macro then p.pmin lor ((p.pmax - p.pmin) lsl 20) else Lexer.get_error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
@@ -544,6 +576,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		} in
 		let t = HVirtual vp in
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
+		ctx.cached_remap_types <- PMap.add t (RClass (c,pl,statics)) ctx.cached_remap_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
 			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
@@ -574,6 +607,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
 		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		ctx.cached_remap_types <- PMap.add t (RClass (c,pl,statics)) ctx.cached_remap_types;
 		if c.cl_path = ([],"Array") then assert false;
 		if c == ctx.base_class then begin
 			if statics then assert false;
@@ -686,6 +720,7 @@ and enum_type ?(tref=None) ctx e =
 		| None -> ()
 		| Some r -> r := Some t);
 		ctx.cached_types <- PMap.add e.e_path t ctx.cached_types;
+		ctx.cached_remap_types <- PMap.add t (REnum e) ctx.cached_remap_types;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -720,6 +755,7 @@ and enum_class ctx e =
 		} in
 		let t = HObj p in
 		ctx.cached_types <- PMap.add cpath t ctx.cached_types;
+		ctx.cached_remap_types <- PMap.add t (REnumClass e) ctx.cached_remap_types;
 		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> assert false);
 		t
 
@@ -755,8 +791,7 @@ let resolve_type ctx path =
 
 let alloc_std ctx name args ret =
 	let lib = "std" in
-	(* different from :hlNative to prevent mismatch *)
-	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib) (fun() ->
+	let nid = lookup ctx.cnatives name (fun() ->
 		let fid = alloc_fun_path ctx ([],"std") name in
 		Hashtbl.add ctx.defined_funs fid ();
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
@@ -3178,11 +3213,9 @@ let generate_static ctx c f =
 		()
 	| Method m ->
 		let add_native lib name =
-			ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
-				let fid = alloc_fid ctx c f in
-				Hashtbl.add ctx.defined_funs fid ();
-				(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
-			));
+			let fid = alloc_fid ctx c f in
+			Hashtbl.add ctx.defined_funs fid ();
+			ignore(lookup_alloc ctx.cnatives (alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid))
 		in
 		let rec loop = function
 			| (Meta.HlNative,[(EConst(String(lib)),_);(EConst(String(name)),_)] ,_ ) :: _ ->
@@ -3228,7 +3261,7 @@ let rec generate_member ctx c f =
 				| _ -> ()
 			) c.cl_ordered_fields;
 		) in
-		ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
+		if not (remap_method ctx c f) then ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) (Some c) None);
 		if f.cf_name = "toString" && not (List.memq f c.cl_overrides) && not (PMap.mem "__string" c.cl_fields) && is_to_string f.cf_type then begin
 			let p = f.cf_pos in
 			(* function __string() return this.toString().bytes *)
@@ -3776,6 +3809,135 @@ let write_code ch code debug =
 	) code.constants
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
+(* REMAP *)
+
+let remap_str ctx i = alloc_string ctx.r_new (fetch ctx.r_old.cstrings i)
+
+let rec remap_type ctx t =
+	match t with
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HDynObj -> t
+	| HFun (tl,t) -> HFun (List.map (remap_type ctx) tl, remap_type ctx t)
+	| HRef t -> HRef (remap_type ctx t)
+	| HNull t -> HNull (remap_type ctx t)
+	| HAbstract (s,i) -> HAbstract (s, remap_str ctx i)
+	| HVirtual _ | HObj _ | HEnum _ ->
+		let rt = (try PMap.find t ctx.r_types with Not_found -> raise Exit) in
+		match rt with
+		| RAnon a -> to_type ctx.r_new (TAnon a)
+		| RClass (c,pl,statics) -> class_type ctx.r_new c pl statics
+		| REnum e -> enum_type ctx.r_new e
+		| REnumClass e -> enum_class ctx.r_new e
+
+let remap_op ctx op =
+	let map_global g =
+		let t = fetch ctx.r_old.cglobals g in
+		try
+			let name = Hashtbl.find ctx.r_globals g in
+			alloc_global ctx.r_new name (remap_type ctx t)
+		with Not_found -> try
+			let c = Hashtbl.find ctx.r_consts g in
+			make_const ctx.r_new c null_pos
+		with Not_found ->
+			assert false
+	in
+	let map_fun f =
+		try
+			let name, path, is_native = Hashtbl.find ctx.r_functions f in
+			match is_native with
+			| None ->
+				alloc_fun_path ctx.r_new path name
+			| Some (args, ret) ->
+				alloc_std ctx.r_new name args ret
+		with Not_found ->
+			(* todo : other funs ! *)
+			raise Exit
+	in
+	let map_str = remap_str ctx in
+	match op with
+	| OInt (r,i) -> OInt (r, alloc_i32 ctx.r_new (fetch ctx.r_old.cints i))
+	| OFloat (r,i) -> OFloat (r, alloc_float ctx.r_new (fetch ctx.r_old.cfloats i))
+	| OBytes (r,i) -> OBytes (r, map_str i)
+	| OString (r,i) -> OString (r, map_str i)
+	| OCall0 (r,f) -> OCall0 (r, map_fun f)
+	| OCall1 (r,f,a) -> OCall1 (r, map_fun f, a)
+	| OCall2 (r,f,a,b) -> OCall2 (r, map_fun f, a, b)
+	| OCall3 (r,f,a,b,c) -> OCall3 (r, map_fun f, a, b, c)
+	| OCall4 (r,f,a,b,c,d) -> OCall4 (r, map_fun f, a, b, c, d)
+	| OCallN (r,f,rl) -> OCallN (r, map_fun f, rl)
+	| OStaticClosure (r, f) -> OStaticClosure (r, map_fun f)
+	| OInstanceClosure (r,f,v) -> OInstanceClosure (r, map_fun f, v)
+	| OGetGlobal (r,g) -> OGetGlobal (r, map_global g)
+	| OSetGlobal (g,r) -> OSetGlobal (map_global g, r)
+	| ODynGet (r,o,f) -> ODynGet (r, o, map_str f)
+	| ODynSet (o,f,r) -> ODynSet (o, map_str f, r)
+	| OType (r, t) -> OType (r, remap_type ctx t)
+	| _ -> op
+
+let remap_fun ctx f fid =
+	let last_file = ref (-1) and last_index = ref (-1) in
+	let remap_debug (f,i) =
+		if f = !last_file then (!last_index,i) else
+		let f2 = alloc_debug_file ctx.r_new (fetch ctx.r_old.cdebug_files f) in
+		last_file := f;
+		last_index := f2;
+		(f2,i)
+	in
+	{
+		f with
+		findex = fid;
+		ftype = remap_type ctx f.ftype;
+		regs = Array.map (remap_type ctx) f.regs;
+		code = Array.map (remap_op ctx) f.code;
+		debug = Array.map remap_debug f.debug;
+		assigns = Array.map (fun (s,p) -> remap_str ctx s, p) f.assigns;
+	}
+
+let remap_method ctx c f =
+	match ctx.cprevious with
+	| None ->
+		false
+	| Some ctx when not (Hashtbl.mem ctx.r_modules c.cl_module.m_id) ->
+		false
+	| Some ctx ->
+		let fid = alloc_fid ctx.r_new c f in
+		let old_fid = alloc_fid ctx.r_old c f in
+		let old_f = (try Hashtbl.find ctx.r_fids old_fid with Not_found -> assert false) in
+		try
+			DynArray.add ctx.r_new.cfunctions (remap_fun ctx old_f fid);
+			true
+		with Exit ->
+			false
+
+let begin_remap ctx old =
+	let globals = Hashtbl.create 0 in
+	let functions = Hashtbl.create 0 in
+	let types = ref old.cached_remap_types in
+	let modules = Hashtbl.create 0 in
+	let fids = Hashtbl.create 0 in
+	let consts = Hashtbl.create 0 in
+	PMap.iter (fun name idx -> Hashtbl.add globals idx name) old.cglobals.map;
+	PMap.iter (fun path idx -> Hashtbl.add functions idx (fst path, snd path, None)) old.cfids.map;
+	types := List.fold_left (fun acc (a,t) -> PMap.add t (RAnon a) acc) !types old.anons_cache;
+	List.iter (fun m -> Hashtbl.add modules m.m_id ()) old.com.modules;
+	DynArray.iter (fun f -> Hashtbl.add fids f.findex f) old.cfunctions;
+	PMap.iter (fun (name:string) idx ->
+		let _,_,t,fid = DynArray.get old.cnatives.arr idx in
+		Hashtbl.add functions fid (name, ([],""), Some (match t with HFun (args,ret) -> args,ret | _ -> assert false))
+	) old.cnatives.map;
+	PMap.iter (fun c idx -> Hashtbl.add consts (fst (DynArray.get old.cconstants.arr idx)) c) old.cconstants.map;
+	{
+		r_new = ctx;
+		r_old = old;
+		r_globals = globals;
+		r_functions = functions;
+		r_types = !types;
+		r_modules = modules;
+		r_fids = fids;
+		r_consts = consts;
+	}
+
+
+(* --------------------------------------------------------------------------------------------------------------------- *)
 
 let create_context com is_macro dump =
 	let get_type name =
@@ -3837,6 +3999,8 @@ let create_context com is_macro dump =
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
+		cprevious = None;
+		cached_remap_types = PMap.empty;
 	} in
 	ignore(alloc_string ctx "");
 	ignore(class_type ctx ctx.base_class [] false);
@@ -3900,9 +4064,14 @@ let check ctx =
 		if not (Hashtbl.mem ctx.defined_funs fid) then failwith (Printf.sprintf "Unresolved method %s:%s(@%d)" (s_type_path p) s fid)
 	) ctx.cfids.map
 
+let previous_context = ref None
+
 let generate com =
 	let dump = Common.defined com Define.Dump in
 	let ctx = create_context com false dump in
+	(match !previous_context with
+	| None -> ()
+	| Some prev -> ctx.cprevious <- Some (begin_remap ctx prev));
 	add_types ctx com.types;
 	let code = build_code ctx com.types com.main in
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
@@ -3952,6 +4121,8 @@ let generate com =
 	if Common.raw_defined com "run" then begin
 		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";
 	end;
+	ctx.cprevious <- None;
+	previous_context := Some ctx;
 	if Common.defined com Define.Interp then
 		try
 			let t = Timer.timer ["generate";"hl";"interp"] in
@@ -3960,3 +4131,5 @@ let generate com =
 			t();
 		with
 			Failure msg -> abort msg null_pos
+;;
+remap_method_ref := remap_method;
