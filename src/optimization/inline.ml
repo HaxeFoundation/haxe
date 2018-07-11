@@ -112,14 +112,14 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		let tbool = ctx.com.basic.tbool in
 		let tint = ctx.com.basic.tint in
 
-		let esyntax =
+		let esyntax () =
 			let m = (try Hashtbl.find ctx.g.modules (["js"],"Syntax") with Not_found -> assert false) in
+			add_dependency ctx.m.curmod m;
 			ExtList.List.find_map (function
 				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
 				| _ -> None
 			) m.m_types
 		in
-
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -127,7 +127,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = Texpr.Builder.fcall esyntax "typeof" [o] tstring p in
+			let tof = Texpr.Builder.fcall (esyntax()) "typeof" [o] tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
@@ -139,17 +139,17 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* generate typeof(o) == "number" && (o|0) === o check *)
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			let jscheck = Texpr.Builder.fcall esyntax "strictEq" [lhs;o] tbool p in
+			let jscheck = Texpr.Builder.fcall (esyntax()) "strictEq" [lhs;o] tbool p in
 			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
-			let iof = Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p in
+			let iof = Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p in
 			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
 		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
-			Some (Texpr.Builder.fcall esyntax "instanceof" [o;t] tbool p)
+			Some (Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
