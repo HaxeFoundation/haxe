@@ -156,13 +156,13 @@ let check_display_type ctx t p =
 	maybe_display_type()
 
 let raise_position_of_type t =
-	let mt = Type.module_type_of_type (match t with
-		| TMono r ->
-			(match !r with
-			| Some t -> t
-			| _ -> raise_position [null_pos])
-		| TAbstract({a_path = [],"Null"},[t]) -> t
-		| _ -> t) in
+	let mt =
+		try
+			Type.module_type_of_type (match t with
+				| TAbstract({a_path = [],"Null"},[t]) -> t
+				| _ -> t)
+		with Exit -> raise_position [null_pos]
+	in
 	raise_position [(t_infos mt).mt_name_pos]
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
