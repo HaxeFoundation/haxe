@@ -236,7 +236,7 @@ let gen_local ctx t p =
 			nv
 	in
 	let v = add_local ctx (loop 0) t p in
-	v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta;
+	(* v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta; *)
 	v
 
 let is_gen_local v =
