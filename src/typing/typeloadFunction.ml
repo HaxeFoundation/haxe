@@ -36,6 +36,18 @@ let type_function_arg ctx t e opt p =
 		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
 		t, e
 
+let save_field_state ctx =
+	let old_ret = ctx.ret in
+	let old_fun = ctx.curfun in
+	let old_opened = ctx.opened in
+	let locals = ctx.locals in
+	(fun () ->
+		ctx.locals <- locals;
+		ctx.ret <- old_ret;
+		ctx.curfun <- old_fun;
+		ctx.opened <- old_opened;
+	)
+
 let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
@@ -44,6 +56,10 @@ let type_var_field ctx t e stat do_display p =
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
+
+let type_var_field ctx t e stat do_display p =
+	let save = save_field_state ctx in
+	Std.finally save (type_var_field ctx t e stat do_display) p
 
 let type_function_params ctx fd fname p =
 	let params = ref [] in
@@ -67,18 +83,6 @@ let type_function_arg_value ctx t c do_display =
 					None
 			in
 			loop e
-
-let save_function_state ctx =
-	let old_ret = ctx.ret in
-	let old_fun = ctx.curfun in
-	let old_opened = ctx.opened in
-	let locals = ctx.locals in
-	(fun () ->
-		ctx.locals <- locals;
-		ctx.ret <- old_ret;
-		ctx.curfun <- old_fun;
-		ctx.opened <- old_opened;
-	)
 
 let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
@@ -196,7 +200,7 @@ let type_function ctx args ret fmode f do_display p =
 	e , fargs
 
 let type_function ctx args ret fmode f do_display p =
-	let save = save_function_state ctx in
+	let save = save_field_state ctx in
 	Std.finally save (type_function ctx args ret fmode f do_display) p
 
 let add_constructor ctx c force_constructor p =
