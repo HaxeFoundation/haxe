@@ -1174,7 +1174,7 @@ and expr = parser
 	| [< '(Kwd For,p); '(POpen,_); it = secure_expr; '(PClose,_); e = secure_expr >] -> (EFor (it,e),punion p (pos e))
 	| [< '(Kwd If,p); '(POpen,_); cond = secure_expr; '(PClose,_); e1 = secure_expr; s >] ->
 		let e2 = (match s with parser
-			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2
+			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
 			| [< >] ->
 				match Stream.npeek 2 s with
 				| [(Semicolon,_); (Kwd Else,_)] ->
