@@ -160,6 +160,7 @@ let raise_position_of_type t =
 		let rec follow_null t =
 			match t with
 				| TMono r -> (match !r with None -> raise_position [null_pos] | Some t -> follow_null t)
+				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 				| _ -> t
 		in
