@@ -173,7 +173,7 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end

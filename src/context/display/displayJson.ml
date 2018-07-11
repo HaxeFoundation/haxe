@@ -227,6 +227,11 @@ let handler =
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
+		"display/typeDefinition", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display DMTypeDefinition;
+		);
 		"display/references", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
 			hctx.display#set_display_file false true;

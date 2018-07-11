@@ -829,7 +829,7 @@ let handle_path_display ctx path p =
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKPackage _,_),_ ->
 			() (* ? *)
-		| (IDKModule(sl,s),_),DMDefinition ->
+		| (IDKModule(sl,s),_),(DMDefinition | DMTypeDefinition) ->
 			(* We assume that we want to go to the module file, not a specific type
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
@@ -854,7 +854,7 @@ let handle_path_display ctx path p =
 			end
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
-		| (IDKSubType(sl,sm,st),p),DMDefinition ->
+		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->
 			resolve_position_by_path ctx { tpackage = sl; tname = sm; tparams = []; tsub = Some st} p
 		| (IDKSubType(sl,sm,st),p),_ ->
 			raise (Parser.TypePath(sl,Some(sm,false),true,p))
