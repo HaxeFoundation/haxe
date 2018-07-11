@@ -807,7 +807,7 @@ let optimize dump get_str (f:fundecl) =
 			in
 			loop p @ acc
 		) [] (Array.to_list !assigns) in
-		let new_assigns = List.sort (fun (_,p1) (_,p2) -> p1 - p2) new_assigns in
+		let new_assigns = List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev new_assigns) in
 		assigns := Array.of_list new_assigns;
 	end;
 
