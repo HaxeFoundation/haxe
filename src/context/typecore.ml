@@ -235,7 +235,9 @@ let gen_local ctx t p =
 		else
 			nv
 	in
-	add_local ctx (loop 0) t p
+	let v = add_local ctx (loop 0) t p in
+	v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta;
+	v
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
