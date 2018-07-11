@@ -119,7 +119,7 @@ let completion_type_of_type ctx ?(values=PMap.empty) t =
 	from_type values t
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [(t_infos mt).mt_name_pos];
+	| DMDefinition | DMTypeDefinition -> raise_position [(t_infos mt).mt_name_pos];
 	| DMUsage _ ->
 		let infos = t_infos mt in
 		reference_position := (snd infos.mt_path,infos.mt_name_pos,KModuleType)
@@ -155,8 +155,25 @@ let check_display_type ctx t p =
 	add_type_hint();
 	maybe_display_type()
 
+let raise_position_of_type t =
+	let mt =
+		let rec follow_null t =
+			match t with
+				| TMono r -> (match !r with None -> raise_position [null_pos] | Some t -> follow_null t)
+				| TLazy f -> follow_null (lazy_type f)
+				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
+				| _ -> t
+		in
+		try
+			Type.module_type_of_type (follow_null t)
+		with
+			Exit -> raise_position [null_pos]
+	in
+	raise_position [(t_infos mt).mt_name_pos]
+
 let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [v.v_pos]
+	| DMTypeDefinition -> raise_position_of_type v.v_type
 	| DMUsage _ -> reference_position := (v.v_name,v.v_pos,KVar)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ~values:(get_value_meta v.v_meta) v.v_type in
@@ -165,6 +182,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [cf.cf_name_pos]
+	| DMTypeDefinition -> raise_position_of_type cf.cf_type
 	| DMUsage _ ->
 		let name,kind = match cf.cf_name,origin with
 			| "new",(Self (TClassDecl c) | Parent(TClassDecl c)) ->
@@ -193,6 +211,7 @@ let maybe_display_field ctx origin scope cf p =
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [ef.ef_name_pos]
+	| DMTypeDefinition -> raise_position_of_type ef.ef_type
 	| DMUsage _ -> reference_position := (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ef.ef_type in

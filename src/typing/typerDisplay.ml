@@ -310,6 +310,8 @@ and display_expr ctx e_ast e dk with_type p =
 		in
 		let pl = loop e in
 		raise_position pl
+	| DMTypeDefinition ->
+		raise_position_of_type e.etype
 	| DMDefault when not (!Parser.had_resume)->
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->

@@ -138,6 +138,7 @@ module DisplayMode = struct
 		| DMDefault
 		| DMUsage of bool (* true = also report definition *)
 		| DMDefinition
+		| DMTypeDefinition
 		| DMResolve of string
 		| DMPackage
 		| DMHover
@@ -199,7 +200,7 @@ module DisplayMode = struct
 		let settings = { default_display_settings with dms_kind = dm } in
 		match dm with
 		| DMNone -> default_compilation_settings
-		| DMDefault | DMDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
+		| DMDefault | DMDefinition | DMTypeDefinition | DMResolve _ | DMPackage | DMHover | DMSignature -> settings
 		| DMUsage _ -> { settings with
 				dms_full_typing = true;
 				dms_force_macro_typing = true;
@@ -231,6 +232,7 @@ module DisplayMode = struct
 		| DMNone -> "none"
 		| DMDefault -> "field"
 		| DMDefinition -> "position"
+		| DMTypeDefinition -> "type-definition"
 		| DMResolve s -> "resolve " ^ s
 		| DMPackage -> "package"
 		| DMHover -> "type"
