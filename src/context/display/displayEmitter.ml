@@ -157,11 +157,16 @@ let check_display_type ctx t p =
 
 let raise_position_of_type t =
 	let mt =
+		let rec follow_null t =
+			match t with
+				| TMono r -> (match !r with None -> raise_position [null_pos] | Some t -> follow_null t)
+				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
+				| _ -> t
+		in
 		try
-			Type.module_type_of_type (match t with
-				| TAbstract({a_path = [],"Null"},[t]) -> t
-				| _ -> t)
-		with Exit -> raise_position [null_pos]
+			Type.module_type_of_type (follow_null t)
+		with
+			Exit -> raise_position [null_pos]
 	in
 	raise_position [(t_infos mt).mt_name_pos]
 
