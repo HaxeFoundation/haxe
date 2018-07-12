@@ -293,7 +293,9 @@ let handler =
 			hctx.jsonrpc#send_result (generate_module () m)
 		);
 		"server/files", (fun hctx ->
-			let files = CompilationServer.get_file_list hctx.display#get_cs hctx.com in
+			let sign = hctx.display#get_sign in
+			let files = CompilationServer.get_files hctx.display#get_cs in
+			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
 			let files = List.map (fun (file,cfile) ->
 				jobject [
 					"file",jstring file;

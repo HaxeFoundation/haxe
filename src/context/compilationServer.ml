@@ -146,6 +146,9 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 	| Some name ->
 		name
 
+let get_files cs =
+	cs.cache.c_files
+
 (* haxelibs *)
 
 let find_haxelib cs key =
