@@ -141,16 +141,17 @@ class jsonrpc_handler report_times (id,name,params) = object(self)
 		send_json (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
 end
 
+let debug_context_sign = ref None
+
 class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 	val cs = cs;
-	val mutable debug_context_sign = None
 
 	method get_cs = cs
 
 	method set_debug_context_sign sign =
-		debug_context_sign <- sign
+		debug_context_sign := sign
 
-	method get_sign = match debug_context_sign with
+	method get_sign = match !debug_context_sign with
 		| None -> Define.get_signature com.defines
 		| Some sign -> sign
 
