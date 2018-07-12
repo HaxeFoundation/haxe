@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},null_pos) true p
+	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
 
 module Constructor = struct
 	type t =
@@ -1302,7 +1302,7 @@ module TexprConverter = struct
 	let to_texpr ctx t_switch match_debug with_type dt =
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},null_pos) true p) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a

@@ -207,12 +207,8 @@ let generate_value_meta com co fadd args =
 		| [] -> ()
 		| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
 
-let pselect p1 p2 =
-	if p1 = null_pos then p2 else p1
-
 (* build an instance from a full type *)
-let rec load_instance' ctx (t,pn) allow_no_params p =
-	let p = pselect pn p in
+let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
 		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = List.assoc t.tname ctx.type_params in
@@ -312,9 +308,9 @@ let rec load_instance' ctx (t,pn) allow_no_params p =
 	in
 	t
 
-and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params p =
+and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 	try
-		let t = load_instance' ctx (t,pn) allow_no_params p in
+		let t = load_instance' ctx (t,pn) allow_no_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t pn;
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.encloses_display_position pn ->
@@ -340,7 +336,7 @@ and load_complex_type' ctx allow_display (t,p) =
 	in
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
-	| CTPath t -> load_instance ~allow_display ctx (t,p) false p
+	| CTPath t -> load_instance ~allow_display ctx (t,p) false
 	| CTOptional _ -> error "Optional type not allowed here" p
 	| CTNamed _ -> error "Named type not allowed here" p
 	| CTIntersection tl ->
@@ -398,7 +394,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			in
 			let il = List.map (fun (t,pn) ->
 				try
-					load_instance ctx ~allow_display (t,pn) false p
+					load_instance ctx ~allow_display (t,pn) false
 				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
@@ -593,7 +589,7 @@ let hide_params ctx =
 *)
 let load_core_type ctx name =
 	let show = hide_params ctx in
-	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false null_pos in
+	let t = load_instance ctx ({ tpackage = []; tname = name; tparams = []; tsub = None; },null_pos) false in
 	show();
 	add_dependency ctx.m.curmod (match t with
 	| TInst (c,_) -> c.cl_module
@@ -725,7 +721,7 @@ let load_core_class ctx c =
 		| KAbstractImpl a -> { tpackage = fst a.a_path; tname = snd a.a_path; tparams = []; tsub = None; }
 		| _ -> { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; }
 	in
-	let t = load_instance ctx2 (tpath,c.cl_pos) true c.cl_pos in
+	let t = load_instance ctx2 (tpath,c.cl_pos) true in
 	flush_pass ctx2 PFinal "core_final";
 	match t with
 	| TInst (ccore,_) | TAbstract({a_impl = Some ccore}, _) ->

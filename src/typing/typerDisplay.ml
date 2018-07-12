@@ -222,7 +222,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			handle_call tl el e1.epos
 		| ENew(tpath,el) ->
-			let t = Typeload.load_instance ctx tpath true p in
+			let t = Typeload.load_instance ctx tpath true in
 			handle_call (find_constructor_types t) el (pos tpath)
 		| _ -> error "Call expected" p
 

@@ -150,7 +150,7 @@ let make_macro_api ctx p =
 						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
 				in
 				try
-					let m = Some (Typeload.load_instance ctx (tp,null_pos) true p) in
+					let m = Some (Typeload.load_instance ctx (tp,null_pos) true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
@@ -295,7 +295,7 @@ let make_macro_api ctx p =
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
-			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode v ttype p f in
 			let add is_macro ctx =
@@ -591,7 +591,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
 	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-	let expr = Typeload.load_instance mctx (ctexpr,null_pos) false p in
+	let expr = Typeload.load_instance mctx (ctexpr,p) false in
 	(match mode with
 	| MDisplay ->
 		raise Exit (* We don't have to actually call the macro. *)
@@ -599,18 +599,18 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		unify mctx mret expr mpos;
 	| MBuild ->
 		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" },null_pos)]; tsub = None } in
-		let tfields = Typeload.load_instance mctx (ctfields,null_pos) false p in
+		let tfields = Typeload.load_instance mctx (ctfields,p) false in
 		unify mctx mret tfields mpos
 	| MMacroType ->
 		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
-		let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+		let ttype = Typeload.load_instance mctx (cttype,p) false in
 		try
 			unify_raise mctx mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("ComplexType") } in
-			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mctx mret ttype mpos;
 	);
 	(*
