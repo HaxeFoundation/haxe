@@ -3143,6 +3143,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		| TReturn _ -> false
 		| _ -> true
 	in
+	set_curpos ctx { f.tf_expr.epos with pmin = f.tf_expr.epos.pmax };
 	if tret = HVoid then
 		op ctx (ORet (alloc_tmp ctx HVoid))
 	else if has_final_jump f.tf_expr then begin
