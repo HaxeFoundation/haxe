@@ -706,6 +706,15 @@ let optimize_completion_expr e args =
 				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
+		| ECall(e1,el) when DisplayPosition.encloses_display_position p ->
+			let e1 = loop e1 in
+			let el = List.map (fun e ->
+				if DisplayPosition.encloses_display_position (pos e) then
+					(try loop e with Return e -> e)
+				else
+					(EConst (Ident "null"),(pos e))
+			) el in
+			(ECall(e1,el),p)
 		| ECheckType(e1,th) ->
 			typing_side_effect := true;
 			let e1 = loop e1 in
