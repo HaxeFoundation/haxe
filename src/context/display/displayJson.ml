@@ -259,16 +259,16 @@ let handler =
 			) :: hctx.com.callbacks.after_init_macros;
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,index) -> jobject [
-				"index",jstring index;
+			let l = List.map (fun (sign,(jo,_)) -> jobject [
 				"signature",jstring (Digest.to_hex sign);
+				"context",jo;
 			]) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.jsonrpc#send_result (jarray l)
 		);
 		"server/select", (fun hctx ->
 			let i = hctx.jsonrpc#get_int_param "index" in
 			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs (string_of_int i)
+				CompilationServer.get_sign_by_index hctx.display#get_cs i
 			with Not_found ->
 				hctx.jsonrpc#send_error [jstring "No such context"]
 			in

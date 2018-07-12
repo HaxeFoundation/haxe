@@ -1,5 +1,6 @@
 open Globals
 open Ast
+open Json
 open Type
 open Common
 
@@ -24,7 +25,7 @@ type cache = {
 
 type t = {
 	cache : cache;
-	mutable signs : (string * string) list;
+	mutable signs : (string * (Json.t * int)) list;
 	mutable initialized : bool;
 }
 
@@ -77,11 +78,20 @@ let get_sign cs sign =
 	List.assoc sign cs.signs
 
 let get_sign_by_index cs index =
-	List.find (fun (_,i) -> i = index) cs.signs
+	List.find (fun (_,(_,i)) -> i = index) cs.signs
 
-let add_sign cs sign =
-	let i = string_of_int (List.length cs.signs) in
-	cs.signs <- (sign,i) :: cs.signs;
+let add_sign cs sign com =
+	let i = List.length cs.signs in
+	let jo = JObject [
+		"index",JInt i;
+		"platform",JString (platform_name com.platform);
+		"classPaths",JArray (List.map (fun s -> JString s) com.class_path);
+		"defines",JArray (PMap.foldi (fun k v acc -> JObject [
+			"key",JString k;
+			"value",JString v;
+		] :: acc) com.defines.values []);
+	] in
+	cs.signs <- (sign,(jo,i)) :: cs.signs;
 	i
 
 let get_signs cs =
