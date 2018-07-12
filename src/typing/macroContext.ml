@@ -157,7 +157,7 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
+			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false (t,p))
 		);
 		MacroApi.get_module = (fun s ->
 			typing_timer ctx false (fun() ->
@@ -725,7 +725,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						mk_mono()
 					else try
 						let ct = Interp.decode_ctype v in
-						Typeload.load_complex_type ctx false p ct;
+						Typeload.load_complex_type ctx false ct;
 					with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
 						Interp.decode_type v
 					in

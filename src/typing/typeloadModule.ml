@@ -630,7 +630,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let rt = (match c.ec_type with
 				| None -> et
 				| Some (t,pt) ->
-					let t = load_complex_type ctx true p (t,pt) in
+					let t = load_complex_type ctx true (t,pt) in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
@@ -701,7 +701,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
-		let tt = load_complex_type ctx true p d.d_data in
+		let tt = load_complex_type ctx true d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
@@ -754,7 +754,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
-			let t = load_complex_type ctx true p t in
+			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
@@ -779,7 +779,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| AbOver t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx true p t in
+				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
 					begin match follow at with
 						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos

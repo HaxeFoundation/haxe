@@ -1866,7 +1866,7 @@ and type_try ctx e1 catches with_type p =
 		| [] , name -> name)
 	in
 	let catches,el = List.fold_left (fun (acc1,acc2) ((v,pv),t,e_ast,pc) ->
-		let t = Typeload.load_complex_type ctx true p t in
+		let t = Typeload.load_complex_type ctx true t in
 		let rec loop t = match follow t with
 			| TInst ({ cl_kind = KTypeParameter _} as c,_) when not (TypeloadCheck.is_generic_parameter ctx c) ->
 				error "Cannot catch non-generic type parameter" p
@@ -2174,7 +2174,7 @@ and type_return ctx e p =
 			mk (TReturn (Some e_null)) t_dynamic p
 
 and type_cast ctx e t p =
-	let t = Typeload.load_complex_type ctx true p t in
+	let t = Typeload.load_complex_type ctx true t in
 	let check_param pt = match follow pt with
 		| TMono _ -> () (* This probably means that Dynamic wasn't bound (issue #4675). *)
 		| t when t == t_dynamic -> ()
@@ -2459,7 +2459,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 	| EDisplayNew t ->
 		assert false
 	| ECheckType (e,t) ->
-		let t = Typeload.load_complex_type ctx true p t in
+		let t = Typeload.load_complex_type ctx true t in
 		let e = type_expr ctx e (WithType t) in
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
