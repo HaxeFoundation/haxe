@@ -397,8 +397,14 @@ let handle_display ctx e_ast dk with_type =
 	| DisplayException(DisplayFields(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
-		let l = List.filter (fun item -> match item.ci_kind with
-			| ITType({kind = (Class | Abstract)} as mt,_) when not mt.is_private ->
+		let l = List.filter (fun item ->
+			let is_private_to_current_module mt =
+				(* Remove the _Module nonsense from the package *)
+				let pack = List.rev (List.tl (List.rev mt.pack)) in
+				(pack,mt.module_name) = ctx.m.curmod.m_path
+			in
+			match item.ci_kind with
+			| ITType({kind = (Class | Abstract)} as mt,_) when not mt.is_private || is_private_to_current_module mt ->
 				begin match mt.has_constructor with
 				| Yes -> true
 				| No -> false
