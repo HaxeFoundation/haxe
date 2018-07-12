@@ -84,7 +84,7 @@ let find_type_in_module m tname =
 		not infos.mt_private && snd infos.mt_path = tname
 	) m.m_types
 
-(* raises Method_not_found or Type_not_found *)
+(* raises Module_not_found or Type_not_found *)
 let load_type_raise ctx mpath tname p =
 	let m = ctx.g.do_load_module ctx mpath p in
 	try
@@ -324,7 +324,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params p =
 (*
 	build an instance from a complex type
 *)
-and load_complex_type ctx allow_display p (t,pn) =
+and load_complex_type' ctx allow_display p (t,pn) =
 	let p = pselect pn p in
 	let is_redefined cf1 fields =
 		try
@@ -517,6 +517,18 @@ and load_complex_type ctx allow_display p (t,pn) =
 				n,opt,load_complex_type ctx allow_display p t
 			) args,load_complex_type ctx allow_display p r)
 
+and load_complex_type ctx allow_display p (t,pn) =
+	try
+		load_complex_type' ctx allow_display p (t,pn)
+	with Error(Module_not_found(([],name)),p) as exc ->
+		if Diagnostics.is_diagnostics_run p then begin
+			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
+			t_dynamic
+		end else if ctx.com.display.dms_display then
+			t_dynamic
+		else
+			raise exc
+
 and init_meta_overloads ctx co cf =
 	let overloads = ref [] in
 	let filter_meta m = match m with
@@ -610,17 +622,7 @@ let t_iterator ctx =
 let load_type_hint ?(opt=false) ctx pcur t =
 	let t = match t with
 		| None -> mk_mono()
-		| Some (t,p) ->
-			try
-				load_complex_type ctx true pcur (t,p)
-			with Error(Module_not_found(([],name)),p) as exc ->
-				if Diagnostics.is_diagnostics_run p then begin
-					delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
-					t_dynamic
-				end else if ctx.com.display.dms_display then begin
-					DisplayEmitter.check_display_type ctx (mk_mono()) p;
-					t_dynamic
-				end	else raise exc
+		| Some (t,p) ->	load_complex_type ctx true pcur (t,p)
 	in
 	if opt then ctx.t.tnull t else t
 
