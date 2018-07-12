@@ -344,7 +344,7 @@ class inline_state ctx ethis params cf f p = object(self)
 						if not i.i_write then VIInline else VIDoNotInline
 					| TFunction _ ->
 						if i.i_write then error "Cannot modify a closure parameter inside inline method" p;
-						if (i.i_read + i.i_called) <= 1 then VIInline else VIInlineIfCalled
+						if i.i_read <= 1 then VIInline else VIInlineIfCalled
 					| _ ->
 						if not i.i_write && (i.i_read + i.i_called) <= 1 then VIInline else VIDoNotInline
 				in
