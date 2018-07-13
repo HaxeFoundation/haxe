@@ -52,9 +52,10 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
-			let origin = match e1.eexpr with
-				| TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
-				| _ -> class_origin c
+			let origin = match c.cl_kind,e1.eexpr with
+				| KAbstractImpl a,_ when Meta.has Meta.Impl cf.cf_meta -> Self (TAbstractDecl a)
+				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
+				| _ -> Self (TClassDecl c)
 			in
 			of_field e origin cf CFSStatic
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
