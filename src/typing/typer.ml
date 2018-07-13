@@ -351,7 +351,7 @@ let rec type_ident_raise ctx i p mode =
 		| Some (params,e) ->
 			let t = monomorphs params v.v_type in
 			(match e with
-			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_full_typing ->
+			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
