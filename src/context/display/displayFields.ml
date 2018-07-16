@@ -156,14 +156,19 @@ let collect ctx e_ast e dk with_type p =
 			(* Anons only have their own fields. *)
 			PMap.foldi (fun name cf acc ->
 				if is_new_item acc name then begin
+					let allow_static_abstract_access c cf =
+						should_access c cf false &&
+						(not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Enum cf.cf_meta)
+					in
 					let origin,check = match !(an.a_status) with
-						| Statics ({cl_kind = KAbstractImpl a} as c) -> Self (TAbstractDecl a),should_access c cf false
+						| Statics ({cl_kind = KAbstractImpl a} as c) ->
+							Self (TAbstractDecl a),allow_static_abstract_access c cf
 						| Statics c -> Self (TClassDecl c),should_access c cf true
 						| EnumStatics en -> Self (TEnumDecl en),true
 						| AbstractStatics a ->
 							let check = match a.a_impl with
 								| None -> true
-								| Some c -> should_access c cf true
+								| Some c -> allow_static_abstract_access c cf
 							in
 							Self (TAbstractDecl a),check
 						| _ ->
