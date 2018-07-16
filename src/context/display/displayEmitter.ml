@@ -22,11 +22,23 @@ let sort_fields l with_type p =
 	let sort l =
 		List.map fst (List.sort (fun (_,i1) (_,i2) -> compare i1 i2) l)
 	in
+	(* This isn't technically accurate, but I don't think it matters. *)
+	let rec dynamify_type_params t = match follow t with
+		| TInst({cl_kind = KTypeParameter _},_) -> mk_mono()
+		| _ -> Type.map dynamify_type_params t
+	in
 	let l = match with_type with
 		| WithType t when (match follow t with TMono _ -> false | _ -> true) ->
-			let rec comp t' = match t' with
+			let rec comp item = match item.ci_type with
 				| None -> 9
 				| Some (t',_) ->
+				(* For enum constructors, we consider the return type of the constructor function
+				   so it has the same priority as argument-less constructors. *)
+				let t' = match item.ci_kind,follow t' with
+					| ITEnumField _,TFun(_,r) -> r
+					| _ -> t'
+				in
+				let t' = dynamify_type_params t' in
 				if type_iseq t' t then 0 (* equal types - perfect *)
 				else if t' == t_dynamic then 5 (* dynamic isn't good, but better than incompatible *)
 				else try Type.unify t' t; 1 (* assignable - great *)
@@ -38,9 +50,9 @@ let sort_fields l with_type p =
 					| _ ->
 						6 (* incompatible type - probably useless *)
 			in
-			let l = List.map (fun (ck,i1) ->
-				let i2 = comp (get_type ck) in
-				ck,(i2,i1)
+			let l = List.map (fun (item,i1) ->
+				let i2 = comp item in
+				item,(i2,i1)
 			) l in
 			sort l
 		| _ ->
