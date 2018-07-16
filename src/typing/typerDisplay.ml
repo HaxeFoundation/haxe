@@ -157,7 +157,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		let display_arg,el = loop 0 [] el in
 		(* If our display position exceeds the argument number we add a null expression in order to make
 		unify_call_args error out. *)
-		let el = if display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
+		let el = if el <> [] && display_arg >= List.length el then el @ [EConst (Ident "null"),null_pos] else el in
 		let rec loop acc tl = match tl with
 			| (t,doc,values) :: tl ->
 				let keep (args,r) =

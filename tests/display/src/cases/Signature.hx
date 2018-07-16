@@ -93,6 +93,25 @@ class Signature extends DisplayTestCase {
 	/**
 	class Some {
 		function main() {
+			q({-1-})
+		}
+
+		@:overload(function():Void {})
+		@:overload(function(foo:Int, bar:Int):Void {})
+		static function q(foo:Int) {}
+	}
+	**/
+	function testOverloads4() {
+		sigEq(0, [
+			[],
+			["foo:Int", "bar:Int"],
+			["foo:Int"]
+		], signature(pos(1)));
+	}
+
+	/**
+	class Some {
+		function main() {
 			test({-1-} {-2-}
 			var x = 12;
 		}
