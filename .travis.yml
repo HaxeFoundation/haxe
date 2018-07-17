@@ -133,6 +133,7 @@ install_osx: &install_osx
   - eval `opam config env`
   - opam update
   - opam pin add haxe . --no-action
+  - opam pin add ptmap https://github.com/andyli/ptmap.git#ocaml407 --no-action
   - opam install haxe --deps-only
   # Build haxe
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
