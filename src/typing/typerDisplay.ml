@@ -428,6 +428,10 @@ let handle_display ctx e_ast dk with_type =
 		timer();
 		raise_fields l CRNew p
 	in
+	let e = match e.eexpr with
+		| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
+		| _ -> e
+	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 	if is_display_debug then begin
 		print_endline (Printf.sprintf "expected type: %s" (s_with_type with_type));
