@@ -15,8 +15,8 @@ class Resuming extends DisplayTestCase {
 	typedef TUnfinished = Arr{-1-}ay<{signatures: Ar{-2-}ray<St{-3-}ring
 	**/
 	function testAutoClose1() {
-		eq("Array<{ signatures : Array<String> }>", type(pos(1)));
-		eq("Array<String>", type(pos(2)));
+		eq("Array<Array.T>", type(pos(1)));
+		eq("Array<Array.T>", type(pos(2)));
 		eq("String", type(pos(3)));
 	}
 }

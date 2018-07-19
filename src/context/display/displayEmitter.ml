@@ -143,17 +143,20 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 
 let rec display_type ctx t p =
 	let dm = ctx.com.display in
-	match dm.dms_kind with
-	| DMHover ->
-		let ct = completion_type_of_type ctx t in
-		let ci = make_ci_expr (mk (TConst TNull) t p) (t,ct) in
-		raise_hover ci p
-	| _ ->
-		try display_module_type ctx (module_type_of_type t) p
-		with Exit -> match follow t,follow !t_dynamic_def with
-			| _,TDynamic _ -> () (* sanity check in case it's still t_dynamic *)
-			| TDynamic _,_ -> display_type ctx !t_dynamic_def p
-			| _ -> ()
+	try
+		display_module_type ctx (module_type_of_type t) p
+	with Exit ->
+		match follow t,follow !t_dynamic_def with
+		| _,TDynamic _ -> () (* sanity check in case it's still t_dynamic *)
+		| TDynamic _,_ -> display_type ctx !t_dynamic_def p
+		| _ ->
+			match dm.dms_kind with
+			| DMHover ->
+				let ct = completion_type_of_type ctx t in
+				let ci = make_ci_expr (mk (TConst TNull) t p) (t,ct) in
+				raise_hover ci p
+			| _ ->
+				()
 
 let check_display_type ctx t p =
 	let add_type_hint () =
