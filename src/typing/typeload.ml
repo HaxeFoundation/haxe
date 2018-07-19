@@ -419,6 +419,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		| _ -> assert false
 		end
 	| CTAnonymous l ->
+		let displayed_field = ref None in
 		let rec loop acc f =
 			let n = fst f.cff_name in
 			let p = f.cff_pos in
@@ -496,11 +497,18 @@ and load_complex_type' ctx allow_display (t,p) =
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
-				DisplayEmitter.maybe_display_field ctx Unknown CFSMember cf cf.cf_name_pos;
+				if DisplayPosition.encloses_display_position cf.cf_name_pos then displayed_field := Some cf;
 			end;
 			PMap.add n cf acc
 		in
-		mk_anon (List.fold_left loop PMap.empty l)
+		let a = { a_fields = (List.fold_left loop PMap.empty l); a_status = ref Closed; } in
+		begin match !displayed_field with
+		| None ->
+			()
+		| Some cf ->
+			DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos;
+		end;
+		TAnon a
 	| CTFunction (args,r) ->
 		match args with
 		| [CTPath { tpackage = []; tparams = []; tname = "Void" },_] ->
