@@ -340,8 +340,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
 			ImportHandling.add_import_position ctx.com p path;
-		| DMStatistics | DMUsage _ ->
+		| DMStatistics ->
 			ImportHandling.add_import_position ctx.com p path;
+		| DMUsage _ ->
+			ImportHandling.add_import_position ctx.com p path;
+			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 		| _ ->
 			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 	in
