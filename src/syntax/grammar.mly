@@ -1185,7 +1185,13 @@ and expr = parser
 					None
 		) in
 		(EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e))
-	| [< '(Kwd Return,p); e = popt toplevel_expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
+	| [< '(Kwd Return,p); s >] ->
+		begin match s with parser
+		| [< e = toplevel_expr >] -> (EReturn (Some e),punion p (pos e))
+		| [< >] ->
+			if would_skip_display_position p s then (EReturn (Some (mk_null_expr (punion_next p s))),p)
+			else (EReturn None,p)
+		end
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
 	| [< '(Kwd While,p1); '(POpen,_); cond = secure_expr; '(PClose,_); e = secure_expr >] -> (EWhile (cond,e,NormalWhile),punion p1 (pos e))
