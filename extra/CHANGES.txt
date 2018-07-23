@@ -5,6 +5,7 @@ XXXX-XX-XX:
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
 	php : Optimized `Map.copy()` and `Array.copy()`
 	php : Support native PHP generators. See `php.Syntax.yield()` and `php.Generator`
+	js : Updated jQuery extern (js.jquery.*). Supporting jQuery up to 3.3.1.
 
 	Bugfixes:
 

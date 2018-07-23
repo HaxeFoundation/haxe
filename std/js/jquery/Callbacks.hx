@@ -24,7 +24,7 @@ package js.jquery;
 	/**
 		Call all callbacks in a list with the given context and arguments.
 	**/
-	public function fireWith(?context:Dynamic, ?args:Dynamic):js.jquery.Callbacks;
+	public function fireWith(?context:Dynamic, ?args:haxe.extern.EitherType<Array<Dynamic>, js.html.NodeList>):js.jquery.Callbacks;
 	/**
 		Determine if the callbacks have already been called at least once.
 	**/

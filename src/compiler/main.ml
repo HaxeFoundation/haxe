@@ -213,7 +213,7 @@ module Initialize = struct
 				"n"
 			| Js ->
 				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines.Define.values) then
-					Common.define_value com Define.JqueryVer "11204";
+					Common.define_value com Define.JqueryVer "30301";
 
 				let es_version =
 					try
