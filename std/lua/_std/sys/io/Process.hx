@@ -168,6 +168,9 @@ private class ProcessInput extends haxe.io.Input {
 		return total.getBytes();
 	}
 
+	override public function close() {
+		b.close();
+	}
 }
 
 private class ProcessOutput extends haxe.io.Output {
