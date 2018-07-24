@@ -20,6 +20,18 @@ class TestMain {
 
 	static function main() {
 		Test.startStamp = haxe.Timer.stamp();
+
+		#if js
+		if (js.Browser.supported) {
+			var oTrace = haxe.Log.trace;
+			var traceElement = js.Browser.document.getElementById("haxe:trace");
+			haxe.Log.trace = function(v, ?infos) {
+				oTrace(v, infos);
+				traceElement.innerHTML += StringTools.htmlEscape(v) + "<br/>";
+			}
+		}
+		#end
+
 		var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
 
 		#if cs //"Turkey Test" - Issue #996
