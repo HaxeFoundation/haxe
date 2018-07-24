@@ -27,7 +27,7 @@ class TestMain {
 			var traceElement = js.Browser.document.getElementById("haxe:trace");
 			haxe.Log.trace = function(v, ?infos) {
 				oTrace(v, infos);
-				traceElement.innerHTML += StringTools.htmlEscape(v) + "<br/>";
+				traceElement.innerHTML += infos.fileName + ":" + infos.lineNumber + ": " + StringTools.htmlEscape(v) + "<br/>";
 			}
 		}
 		#end
