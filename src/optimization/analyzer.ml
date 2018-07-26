@@ -961,20 +961,31 @@ module Run = struct
 			e
 		else begin
 			(* Get rid of the wrapping function and its return expressions. *)
-			let rec loop first e = match e.eexpr with
+			let rec loop t e = match e.eexpr with
 				| TReturn (Some e) -> e
-				| TFunction tf when first ->
-					begin match loop false tf.tf_expr with
+				| TFunction tf when t = None ->
+					begin match loop (Some tf.tf_type) tf.tf_expr with
 						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp || actx.com.platform = Hl ->
 							mk (TCall(e,[])) tf.tf_type e.epos
 						| e ->
 							{e with etype = tf.tf_type}
 					end
-				| TBlock [e] -> loop first e
+				| TBlock el ->
+					begin match List.rev el with
+					| e1 :: el ->
+						let e1 = loop t e1 in
+						let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
+						e
+					| [] ->
+						e
+					end
+				| TIf _ | TSwitch _ | TTry _ when ExtType.is_void e.etype && t <> None ->
+					let e = Type.map_expr (loop t) e in
+					{e with etype = Option.get t}
 				| TFunction _ -> e
-				| _ -> Type.map_expr (loop first) e
+				| _ -> Type.map_expr (loop t) e
 			in
-			loop true e
+			loop None e
 		end in
 		e
 
