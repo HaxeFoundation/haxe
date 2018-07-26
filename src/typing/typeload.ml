@@ -515,7 +515,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			TFun ([],load_complex_type ctx allow_display r)
 		| _ ->
 			TFun (List.map (fun t ->
-				let t, opt = (match fst t with CTOptional t -> t, true | _ -> t,false) in
+				let t, opt = (match fst t with CTOptional t | CTParent((CTOptional t,_)) -> t, true | _ -> t,false) in
 				let n,t = (match fst t with CTNamed (n,t) -> (fst n), t | _ -> "", t) in
 				n,opt,load_complex_type ctx allow_display t
 			) args,load_complex_type ctx allow_display r)
