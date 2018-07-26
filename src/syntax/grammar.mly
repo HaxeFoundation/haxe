@@ -1057,6 +1057,8 @@ and arrow_ident_checktype e = (match e with
 
 and arrow_first_param e =
 	(match fst e with
+	| EConst(Ident ("true" | "false" | "null" | "this" | "super")) ->
+		error (Custom "Invalid argument name") (pos e)
 	| EConst(Ident n) ->
 		(n,snd e),false,[],None,None
 	| EBinop(OpAssign,e1,e2)
