@@ -942,7 +942,7 @@ module Run = struct
 				let t = e.etype in
 				let e = mk (TReturn (Some e)) t_dynamic e.epos in
 				let tf = { tf_args = []; tf_type = t; tf_expr = e; } in
-				tf,tfun [] e.etype,false
+				tf,tfun [] t,false
 		in
 		with_timer actx.config.detail_times ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
 		is_real_function
