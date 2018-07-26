@@ -939,8 +939,9 @@ module Run = struct
 				tf,e.etype,true
 			| _ ->
 				(* Wrap expression in a function so we don't have to treat it as a special case throughout. *)
+				let t = e.etype in
 				let e = mk (TReturn (Some e)) t_dynamic e.epos in
-				let tf = { tf_args = []; tf_type = e.etype; tf_expr = e; } in
+				let tf = { tf_args = []; tf_type = t; tf_expr = e; } in
 				tf,tfun [] e.etype,false
 		in
 		with_timer actx.config.detail_times ["->";"from-texpr"] (fun () -> AnalyzerTexprTransformer.from_tfunction actx tf t e.epos);
@@ -967,7 +968,7 @@ module Run = struct
 						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp || actx.com.platform = Hl ->
 							mk (TCall(e,[])) tf.tf_type e.epos
 						| e ->
-							e
+							{e with etype = tf.tf_type}
 					end
 				| TBlock [e] -> loop first e
 				| TFunction _ -> e
