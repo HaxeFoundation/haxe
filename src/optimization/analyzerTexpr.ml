@@ -874,6 +874,9 @@ module Fusion = struct
 							let e2 = replace e2 in
 							if not !found && has_var_read ir v then raise Exit;
 							{e with eexpr = TBinop(OpAssign,e1,e2)}
+						(* Never fuse into write-positions (issue #7298) *)
+						| TBinop(OpAssignOp _,{eexpr = TLocal v2},_) | TUnop((Increment | Decrement),_,{eexpr = TLocal v2}) when v1 == v2 ->
+							raise Exit
 						| TBinop(OpAssignOp _ as op,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
 							if not !found && (has_var_read ir v || has_var_write ir v) then raise Exit;
