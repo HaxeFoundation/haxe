@@ -1099,7 +1099,11 @@ and expr = parser
 	| [< '(Kwd k,p) when !parsing_macro_cond; s >] ->
 		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
-		parse_macro_expr p s
+		begin match s with parser
+		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) pd >] -> e
+		| [< e = parse_macro_expr p >] -> e
+		| [< >] -> serror()
+		end
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
@@ -1215,19 +1219,7 @@ and expr_next' e1 = parser
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
-	| [< '(Dot,p); s >] ->
-		check_resume p (fun () -> display (EDisplay (e1,DKDot),p)) (fun () -> ());
-		(match s with parser
-		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
-		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
-		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
-		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
-		| [< >] ->
-			(* turn an integer followed by a dot into a float *)
-			match e1 with
-			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
-			| _ -> serror())
+	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
@@ -1256,6 +1248,21 @@ and expr_next' e1 = parser
 	| [< '(Kwd In,_); e2 = expr >] ->
 		make_binop OpIn e1 e2
 	| [< >] -> e1
+
+and parse_field e1 p s =
+	check_resume p (fun () -> display (EDisplay (e1,DKDot),p)) (fun () -> ());
+	begin match s with parser
+	| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
+	| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
+	| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
+	| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+	| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
+	| [< >] ->
+		(* turn an integer followed by a dot into a float *)
+		match e1 with
+		| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+		| _ -> serror()
+	end
 
 and parse_guard = parser
 	| [< '(Kwd If,p1); '(POpen,_); e = expr; '(PClose,_); >] ->
