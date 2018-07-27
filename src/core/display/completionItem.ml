@@ -132,19 +132,25 @@ module CompletionModuleType = struct
 			raise Exit
 
 	let of_module_type mt =
+		let has_ctor a = match a.a_impl with
+			| None -> false
+			| Some c -> PMap.mem "_new" c.cl_statics
+		in
 		let is_extern,kind,has_ctor = match mt with
 			| TClassDecl c ->
 				c.cl_extern,(if c.cl_interface then Interface else Class),has_constructor c
 			| TEnumDecl en ->
 				en.e_extern,Enum,false
 			| TTypeDecl td ->
-				false,(match follow td.t_type with TAnon _ -> Struct | _ -> TypeAlias),false
-			| TAbstractDecl a ->
-				let has_ctor = match a.a_impl with
-					| None -> false
-					| Some c -> PMap.mem "_new" c.cl_statics
+				let kind,has_ctor = match follow td.t_type with
+					| TAnon _ -> Struct,false
+					| TInst(c,_) -> TypeAlias,has_constructor c
+					| TAbstract(a,_) -> TypeAlias,has_ctor a
+					| _ -> TypeAlias,false
 				in
-				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor
+				false,kind,has_ctor
+			| TAbstractDecl a ->
+				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
