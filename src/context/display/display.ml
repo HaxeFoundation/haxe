@@ -166,10 +166,12 @@ module ExprPreprocessing = struct
 				Parser.mk_display_expr e DKCall
 				end else
 					e
+			| EDisplay(_,DKCall) ->
+				raise Exit
 			| _ -> e
 		in
 		let rec map e = loop (Ast.map_expr map e) in
-		map e
+		try map e with Exit -> e
 
 
 	let process_expr com e = match com.display.dms_kind with
