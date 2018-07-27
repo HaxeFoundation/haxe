@@ -1601,25 +1601,19 @@ and format_string ctx s p =
 	| Some e -> e
 
 and type_block ctx el with_type p =
-	let merge e = match e.eexpr with
+	let merge acc e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), {eexpr = TBlock el}) ->
-			el
-		| _ -> [e]
+			List.rev el @ acc
+		| _ ->
+			e :: acc
 	in
-	let rec loop = function
-		| [] -> []
-		| [e] ->
-			(try
-				merge (type_expr ctx e with_type)
-			with Error (e,p) -> check_error ctx e p; [])
+	let rec loop acc = function
+		| [] -> List.rev acc
 		| e :: l ->
-			try
-				let e = type_expr ctx e NoValue in
-				merge e @ loop l
-			with
-				Error (e,p) -> check_error ctx e p; loop l
+			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else NoValue)) with Error (e,p) -> check_error ctx e p; acc in
+			loop acc l
 	in
-	let l = loop el in
+	let l = loop [] el in
 	let rec loop = function
 		| [] -> ctx.t.tvoid
 		| [e] -> e.etype
