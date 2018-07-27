@@ -320,7 +320,7 @@ and display_expr ctx e_ast e dk with_type p =
 				let item = completion_item_of_expr ctx e2 in
 				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
 			| _ ->
-				raise_toplevel ctx with_type None p
+				raise_toplevel ctx with_type (Some p) p
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
