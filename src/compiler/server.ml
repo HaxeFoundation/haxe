@@ -286,7 +286,7 @@ let rec wait_loop process_params verbose accept =
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
 			let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
-				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && ctx.com.display.dms_kind <> DMNone -> true
+				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 				| _ -> false
 			in
 			let check_file () =
