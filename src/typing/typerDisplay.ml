@@ -45,17 +45,18 @@ let completion_item_of_expr ctx e =
 		let t = tpair e.etype in
 		make_ci_expr e t
 	in
-	let class_origin c = match c.cl_kind with
-		| KAbstractImpl a -> Self (TAbstractDecl a)
-		| _ -> Self (TClassDecl c)
+	let decl_of_class c = match c.cl_kind with
+		| KAbstractImpl a -> TAbstractDecl a
+		| _ -> TClassDecl c
 	in
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
+			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
-				| KAbstractImpl a,_ when Meta.has Meta.Impl cf.cf_meta -> Self (TAbstractDecl a)
-				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension (TClassDecl c)
-				| _ -> Self (TClassDecl c)
+				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
+				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension decl
+				| _ -> Self decl
 			in
 			of_field e origin cf CFSStatic
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
@@ -115,7 +116,7 @@ let completion_item_of_expr ctx e =
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
 					| _ -> t
 				in
-				make_ci_class_field (CompletionClassField.make cf CFSConstructor (class_origin c) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
+				make_ci_class_field (CompletionClassField.make cf CFSConstructor (Self (decl_of_class c)) true) (tpair ~values:(get_value_meta cf.cf_meta) t)
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
