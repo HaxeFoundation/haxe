@@ -196,13 +196,13 @@ matrix:
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
         - TEST=macro,hl,java,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
         - TEST=cpp
         - HXCPP_COMPILE_CACHE=~/hxcache
