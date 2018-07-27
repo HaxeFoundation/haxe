@@ -1857,10 +1857,7 @@ let rec type_eq param a b =
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
-					rec_stack eq_stack (a,b)
-						(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-						(fun() -> type_eq param a b)
-						(fun l -> error (invalid_field n :: l))
+					(try type_eq param a b with Unify_error l -> error (invalid_field n :: l))
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
