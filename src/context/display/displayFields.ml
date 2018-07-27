@@ -71,7 +71,11 @@ let collect_static_extensions ctx items e p =
 							else begin
 								let f = prepare_using_field f in
 								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
-								let origin = StaticExtension(TClassDecl c) in
+								let decl = match c.cl_kind with
+									| KAbstractImpl a -> TAbstractDecl a
+									| _ -> TClassDecl c
+								in
+								let origin = StaticExtension(decl) in
 								let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta f.cf_meta) f.cf_type in
 								let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 								PMap.add f.cf_name item acc
