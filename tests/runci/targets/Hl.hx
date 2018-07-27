@@ -11,16 +11,18 @@ class Hl {
             infoMsg('hl has already been installed.');
             return;
         }
+        var hlSrc = Path.join([Sys.getEnv("HOME"), "hashlink"]);
+        runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+
         switch (systemName) {
             case "Linux":
                 Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev"]);
             case "Mac":
-                runCommand("brew", ["install", "libpng", "jpeg-turbo", "libvorbis"], true);
+                runCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile'], true);
             case "Windows":
                 //pass
         }
-        var hlSrc = Path.join([Sys.getEnv("HOME"), "hashlink"]);
-        runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+
         var hlBuild = Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
         FileSystem.createDirectory(hlBuild);
         var generator = systemName == "Windows" ? [] : ["-GNinja"];
