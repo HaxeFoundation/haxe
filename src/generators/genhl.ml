@@ -151,6 +151,10 @@ let is_array_type t =
 	| HObj p -> is_array_class p.pname
 	| _ -> false
 
+let max_pos e =
+	let p = e.epos in
+	{ p with pmin = p.pmax }
+
 let to_utf8 str p =
 	let u8 = try
 		UTF8.validate str;
@@ -2184,7 +2188,9 @@ and eval_expr ctx e =
 		let t = to_type ctx e.etype in
 		let out = alloc_tmp ctx t in
 		let j = jump_expr ctx cond false in
-		if t = HVoid then ignore(eval_expr ctx eif) else op ctx (OMov (out,eval_to ctx eif t));
+		let rif = if t = HVoid then eval_expr ctx eif else eval_to ctx eif t in
+		set_curpos ctx (max_pos eif);
+		if t <> HVoid then op ctx (OMov (out,rif));
 		(match eelse with
 		| None -> j()
 		| Some e ->
@@ -2519,7 +2525,7 @@ and eval_expr ctx e =
 		let ret = jump_back ctx in
 		let j = jump_expr ctx cond false in
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx { e.epos with pmin = e.epos.pmax };
+		set_curpos ctx (max_pos e);
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -2539,7 +2545,7 @@ and eval_expr ctx e =
 		let j = jump_expr ctx cond false in
 		start();
 		ignore(eval_expr ctx eloop);
-		set_curpos ctx { e.epos with pmin = e.epos.pmax };
+		set_curpos ctx (max_pos e);
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -3141,7 +3147,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		| TReturn _ -> false
 		| _ -> true
 	in
-	set_curpos ctx { f.tf_expr.epos with pmin = f.tf_expr.epos.pmax };
+	set_curpos ctx (max_pos f.tf_expr);
 	if tret = HVoid then
 		op ctx (ORet (alloc_tmp ctx HVoid))
 	else if has_final_jump f.tf_expr then begin
