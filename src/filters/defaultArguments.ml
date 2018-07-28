@@ -52,7 +52,7 @@ let add_opt com block pos (var,opt) =
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in
-		let nullable_var = alloc_var var.v_name (basic.tnull var.v_type) pos in
+		let nullable_var = alloc_var var.v_kind var.v_name (basic.tnull var.v_type) pos in
 		(* var v = (temp_var == null) ? const : cast temp_var; *)
 		let evar = mk (TVar(var, Some(gen_check basic var.v_type nullable_var const pos))) basic.tvoid pos in
 		block := evar :: !block;

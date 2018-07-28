@@ -174,6 +174,8 @@ module Transformer = struct
 	let lift_expr1 is_value next_id blocks e =
 		lift_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
 
+	let alloc_var = Type.alloc_var VGenerated
+
 	let to_tvar ?(capture = false) n t p =
 		alloc_var n t p
 		(* { v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] } *)
@@ -1865,7 +1867,7 @@ module Generator = struct
 					| e_last :: el ->
 						let new_last = {e_last with eexpr = TReturn (Some e_last)} in
 						let new_block = {expr2 with eexpr = TBlock (List.rev (new_last :: el))} in
-						let v_name = alloc_var name (tfun [] e_last.etype) e_last.epos in
+						let v_name = alloc_var VGenerated name (tfun [] e_last.etype) e_last.epos in
 						let f_name = mk (TLocal v_name) v_name.v_type e_last.epos in
 						let call_f = mk (TCall(f_name,[])) e_last.etype e_last.epos in
 						Some new_block,call_f
@@ -1895,7 +1897,7 @@ module Generator = struct
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				let args = if add_self then
-					let v = alloc_var "self" t_dynamic p in
+					let v = alloc_var VGenerated "self" t_dynamic p in
 					v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 					(v,None) :: f.tf_args
 				else

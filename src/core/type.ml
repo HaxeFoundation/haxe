@@ -85,10 +85,18 @@ and tconstant =
 
 and tvar_extra = (type_params * texpr option) option
 
+and tvar_kind =
+	| VUser
+	| VGenerated
+	| VInlined
+	| VInlinedConstructorVariable
+	| VExtractorVariable
+
 and tvar = {
 	mutable v_id : int;
 	mutable v_name : string;
 	mutable v_type : t;
+	mutable v_kind : tvar_kind;
 	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
@@ -406,7 +414,7 @@ end
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
+	(fun kind n t p -> incr uid; { v_kind = kind; v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
 let alloc_mid =
 	let mid = ref 0 in

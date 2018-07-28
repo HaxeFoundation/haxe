@@ -206,8 +206,8 @@ let save_locals ctx =
 	let locals = ctx.locals in
 	(fun() -> ctx.locals <- locals)
 
-let add_local ctx n t p =
-	let v = alloc_var n t p in
+let add_local ctx k n t p =
+	let v = alloc_var k n t p in
 	if Define.defined ctx.com.defines Define.WarnVarShadowing then begin
 		try
 			let v' = PMap.find n ctx.locals in
@@ -219,8 +219,8 @@ let add_local ctx n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let add_local_with_origin ctx n t p origin =
-	let v = add_local ctx n t p in
+let add_local_with_origin ctx k n t p origin =
+	let v = add_local ctx k n t p in
 	if ctx.com.display.DisplayMode.dms_kind <> DisplayMode.DMNone then v.v_meta <- (TVarOrigin.encode_in_meta origin) :: v.v_meta;
 	v
 
@@ -235,7 +235,7 @@ let gen_local ctx t p =
 		else
 			nv
 	in
-	let v = add_local ctx (loop 0) t p in
+	let v = add_local ctx VGenerated (loop 0) t p in
 	(* v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta; *)
 	v
 

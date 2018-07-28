@@ -170,7 +170,7 @@ let fix_override com c f fd =
 					end;
 					cur
 				with Unify_error _ ->
-					let v2 = alloc_var (prefix ^ v.v_name) t2 v.v_pos in
+					let v2 = alloc_var VGenerated (prefix ^ v.v_name) t2 v.v_pos in
 					changed_args := (v,v2) :: !changed_args;
 					v2,ct
 			) fd.tf_args targs in
@@ -435,7 +435,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 		| TTypeDecl _ -> assert false
 	in
-	let vtmp = alloc_var vtmp e.etype e.epos in
+	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
 	let var = mk (TVar (vtmp,Some e)) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in

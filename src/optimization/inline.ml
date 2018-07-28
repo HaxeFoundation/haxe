@@ -258,7 +258,7 @@ class inline_state ctx ethis params cf f p = object(self)
 		try
 			Hashtbl.find locals v.v_id
 		with Not_found ->
-			let v' = alloc_var v.v_name v.v_type v.v_pos in
+			let v' = alloc_var VInlined v.v_name v.v_type v.v_pos in
 			v'.v_extra <- v.v_extra;
 			let i = {
 				i_var = v;
@@ -404,7 +404,7 @@ class inline_state ctx ethis params cf f p = object(self)
 			Build the expr/var subst list
 		*)
 		let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
-		let vthis = alloc_var "_this" ethis.etype ethis.epos in
+		let vthis = alloc_var VInlined "_this" ethis.etype ethis.epos in
 		let args1 = (ethis :: params) in
 		let args2 = ((vthis,None) :: f.tf_args) in
 		let vars = loop [] args1 args2 true in

@@ -141,7 +141,7 @@ module Ssa = struct
 	let rec rename_in_block ctx bb =
 		let write_var v is_phi i =
 			update_reaching_def ctx v bb;
-			let v' = alloc_var (v.v_name) v.v_type v.v_pos in
+			let v' = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 			declare_var ctx.graph v' bb;
 			v'.v_meta <- v.v_meta;
 			v'.v_capture <- v.v_capture;
