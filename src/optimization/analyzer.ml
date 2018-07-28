@@ -961,31 +961,49 @@ module Run = struct
 			e
 		else begin
 			(* Get rid of the wrapping function and its return expressions. *)
-			let rec loop t e = match e.eexpr with
-				| TReturn (Some e) -> e
-				| TFunction tf when t = None ->
-					begin match loop (Some tf.tf_type) tf.tf_expr with
-						| {eexpr = TBlock _ | TIf _ | TSwitch _ | TTry _} when actx.com.platform = Cpp || actx.com.platform = Hl ->
-							mk (TCall(e,[])) tf.tf_type e.epos
-						| e ->
-							{e with etype = tf.tf_type}
-					end
-				| TBlock el ->
-					begin match List.rev el with
-					| e1 :: el ->
-						let e1 = loop t e1 in
-						let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
+			match e.eexpr with
+			| TFunction tf ->
+				let get_t t = if ExtType.is_void t then tf.tf_type else t in
+				let rec loop e = match e.eexpr with
+					| TBlock [e1] ->
+						loop e1
+					(* If there's a complex expression, keep the function and generate a call to it. *)
+					| TBlock _ | TIf _ | TSwitch _ | TTry _ when actx.com.platform = Cpp || actx.com.platform = Hl ->
+						raise Exit
+					(* Remove generated return *)
+					| TReturn (Some e) ->
 						e
-					| [] ->
+					| TBlock el ->
+						begin match List.rev el with
+						| e1 :: el ->
+							let e1 = loop e1 in
+							let e = {e with eexpr = TBlock (List.rev (e1 :: el))} in
+							e
+						| [] ->
+							e
+						end
+					| TIf(e1,e2,Some e3) ->
+						let e2 = loop e2 in
+						let e3 = loop e3 in
+						{e with eexpr = TIf(e1,e2,Some e3); etype = get_t e.etype}
+					| TSwitch(e1,cases,edef) ->
+						let cases = List.map (fun (el,e) -> el,loop e) cases in
+						let edef = Option.map loop edef in
+						{e with eexpr = TSwitch(e1,cases,edef); etype = get_t e.etype}
+					| TTry(e1,catches) ->
+						let e1 = loop e1 in
+						let catches = List.map (fun (v,e) -> v,loop e) catches in
+						{e with eexpr = TTry(e1,catches); etype = get_t e.etype}
+					| TMeta(m,e1) ->
+						{e with eexpr = TMeta(m,loop e1)}
+					| TParenthesis e1 ->
+						{e with eexpr = TParenthesis (loop e1)}
+					| _ ->
 						e
-					end
-				| TIf _ | TSwitch _ | TTry _ when ExtType.is_void e.etype && t <> None ->
-					let e = Type.map_expr (loop t) e in
-					{e with etype = Option.get t}
-				| TFunction _ -> e
-				| _ -> Type.map_expr (loop t) e
-			in
-			loop None e
+				in
+				(try loop tf.tf_expr with Exit -> mk (TCall(e,[])) tf.tf_type e.epos)
+			| _ ->
+				assert false
 		end in
 		e
 
