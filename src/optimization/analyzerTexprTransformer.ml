@@ -239,7 +239,7 @@ let rec func ctx bb tf t p =
 				| s :: _ -> s
 				| [] -> ctx.temp_var_name
 		in
-		let v = match v with Some v -> v | None -> alloc_var (loop e) e.etype e.epos in
+		let v = match v with Some v -> v | None -> alloc_var VGenerated (loop e) e.etype e.epos in
 		begin match ctx.com.platform with
 			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
 			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
@@ -314,7 +314,7 @@ let rec func ctx bb tf t p =
 				e
 			| _ ->
 				if is_asvar_type t then begin
-					let v = alloc_var "tmp" t e.epos in
+					let v = alloc_var VGenerated "tmp" t e.epos in
 					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
 					bb := bb';
 					e

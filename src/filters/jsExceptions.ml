@@ -114,8 +114,8 @@ let init ctx =
 		| TTry (etry, catches) ->
 			let etry = loop vrethrow etry in
 
-			let catchall_name = match catches with [(v,_)] -> v.v_name | _ -> "e" in
-			let vcatchall = alloc_var catchall_name t_dynamic e.epos in
+			let catchall_name, catchall_kind = match catches with [(v,_)] -> v.v_name, VUser | _ -> "e", VGenerated in
+			let vcatchall = alloc_var catchall_kind catchall_name t_dynamic e.epos in
 			let ecatchall = make_local vcatchall e.epos in
 			let erethrow = mk (TThrow ecatchall) t_dynamic e.epos in
 
@@ -125,7 +125,7 @@ let init ctx =
 			let eVal = field { ecatchall with etype = TInst (cHaxeError,[]) } "val" t_dynamic e.epos in
 			let eunwrap = mk (TIf (eInstanceof, eVal, Some (ecatchall))) t_dynamic e.epos in
 
-			let vunwrapped = alloc_var catchall_name t_dynamic e.epos in
+			let vunwrapped = alloc_var catchall_kind catchall_name t_dynamic e.epos in
 			vunwrapped.v_meta <- (Meta.CompilerGenerated,[],Globals.null_pos) :: vunwrapped.v_meta;
 			let eunwrapped = make_local vunwrapped e.epos in
 

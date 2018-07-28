@@ -184,7 +184,7 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var name t p in
+				let v = alloc_var VUser name t p in
 				v.v_meta <- (TVarOrigin.encode_in_meta TVarOrigin.TVOPatternVariable) :: v.v_meta;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
@@ -1098,8 +1098,7 @@ module Compile = struct
 					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
 					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
-					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
-					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
+					let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
 					let ex_bindings = (v,e1.epos,e1,left,right) :: ex_bindings in
 					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
 					let ev = mk (TLocal v) v.v_type e1.epos in

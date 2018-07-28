@@ -150,7 +150,7 @@ let inline_constructors ctx e =
 		PMap.find s io.io_fields
 	in
 	let alloc_io_field_full (io:inline_object) (fname:string) (constexpr_option:texpr option) (t:t) (p:pos) : inline_var =
-		let v = alloc_var fname t p in
+		let v = alloc_var VInlined fname t p in
 		let iv = add v (IVKField (io,fname,constexpr_option)) in
 		io.io_fields <- PMap.add fname iv io.io_fields;
 		iv
@@ -229,7 +229,7 @@ let inline_constructors ctx e =
 						begin match e.eexpr with
 						| TConst _ -> loop (vs, decls, e::es) el
 						| _ ->
-							let v = alloc_var "arg" e.etype e.epos in
+							let v = alloc_var VInlined "arg" e.etype e.epos in
 							let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
 							let io_id_start = !current_io_id in
 							ignore(analyze_aliases true decle);
@@ -241,7 +241,7 @@ let inline_constructors ctx e =
 				in
 				let argvs, argvdecls, pl = loop ([],[],[]) pl in
 				let _, cname = c.cl_path in
-				let v = alloc_var ("inl"^cname) e.etype e.epos in
+				let v = alloc_var VInlined ("inl"^cname) e.etype e.epos in
 				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
@@ -273,7 +273,7 @@ let inline_constructors ctx e =
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some _} as cf)} as c,_,pl),_ when is_extern_ctor c cf ->
 			error "Extern constructor could not be inlined" e.epos;
 		| TObjectDecl fl, _ when captured && fl <> [] && List.for_all (fun((s,_,_),_) -> Lexer.is_valid_identifier s) fl ->
-			let v = alloc_var "inlobj" e.etype e.epos in
+			let v = alloc_var VInlined "inlobj" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let el = List.map (fun ((s,_,_),e) ->
 				let ef = mk (TField(ev,FDynamic s)) e.etype e.epos in
@@ -290,7 +290,7 @@ let inline_constructors ctx e =
 			Some iv
 		| TArrayDecl el, TInst(_, [elemtype]) when captured ->
 			let len = List.length el in
-			let v = alloc_var "inlarr" e.etype e.epos in
+			let v = alloc_var VInlined "inlarr" e.etype e.epos in
 			let ev = mk (TLocal v) v.v_type e.epos in
 			let el = List.mapi (fun i e ->
 				let ef = mk (TArray(ev,(mk (TConst(TInt (Int32.of_int i))) e.etype e.epos))) elemtype e.epos in

@@ -961,9 +961,7 @@ let real_name v =
 	| name -> name
 
 let is_gen_local ctx v =
-	if has_meta Meta.CompilerGenerated v.v_meta || has_meta Meta.ForLoopVariable v.v_meta then true
-	else if String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g' then true
-	else false
+	v.v_kind <> VUser
 
 let add_assign ctx v =
 	if is_gen_local ctx v then () else
@@ -2117,7 +2115,7 @@ and eval_expr ctx e =
 				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> Type.alloc_var n t en.e_pos, if o then Some TNull else None) eargs in
+				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some TNull else None) eargs in
 				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
 				let f = {
 					tf_args = eargs;

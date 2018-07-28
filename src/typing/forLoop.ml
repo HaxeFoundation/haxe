@@ -18,7 +18,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		TField (e,try quick_field e.etype n with Not_found -> assert false)
 	in
 	let gen_it_local pt =
-		add_local_with_origin ctx i pt pi (TVarOrigin.TVOForVariable)
+		add_local_with_origin ctx VUser i pt pi (TVarOrigin.TVOForVariable)
 	in
 	let gen_int_iter pt f_get f_length =
 		let i = gen_it_local pt in
@@ -239,7 +239,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let e2 = Expr.ensure_block e2 in
 	let default() =
 		let t, pt = Typeload.t_iterator ctx in
-		let i = add_local_with_origin ctx i pt pi (TVarOrigin.TVOForVariable) in
+		let i = add_local_with_origin ctx VUser i pt pi (TVarOrigin.TVOForVariable) in
 		let e1 = (match follow e1.etype with
 		| TMono _
 		| TDynamic _ ->

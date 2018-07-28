@@ -88,7 +88,7 @@ let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c do_display in
-		let v,c = add_local_with_origin ctx n t pn (TVarOrigin.TVOArgument), c in
+		let v,c = add_local_with_origin ctx VUser n t pn (TVarOrigin.TVOArgument), c in
 		v.v_meta <- v.v_meta @ m;
 		if do_display && DisplayPosition.encloses_display_position pn then
 			DisplayEmitter.display_variable ctx v pn;
@@ -243,12 +243,12 @@ let add_constructor ctx c force_constructor p =
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
 							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) false with Not_found -> if o then Some TNull else None in
-							map_arg (alloc_var n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
+							map_arg (alloc_var VUser n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false
 			) in
 			let p = c.cl_pos in
-			let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
+			let vars = List.map (fun (v,def) -> alloc_var VUser v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
 			let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 			let constr = mk (TFunction {
 				tf_args = vars;
