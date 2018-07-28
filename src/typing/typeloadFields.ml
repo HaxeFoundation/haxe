@@ -603,7 +603,20 @@ let bind_type (ctx,cctx,fctx) cf r p =
 
 let check_field_display ctx fctx c cf =
 	if fctx.is_display_field then begin
-		let scope = if fctx.is_static then CFSStatic else if fctx.field_kind = FKConstructor then CFSConstructor else CFSMember in
+		let scope = match c.cl_kind with
+			| KAbstractImpl _ ->
+				if Meta.has Meta.Impl cf.cf_meta then
+					(if cf.cf_name = "_new" then CFSConstructor else CFSMember)
+				else
+					CFSStatic;
+			| _ ->
+				if fctx.is_static then
+					CFSStatic
+				else if fctx.field_kind = FKConstructor then
+					CFSConstructor
+				else
+					CFSMember;
+		in
 		let origin = match c.cl_kind with
 			| KAbstractImpl a -> Self (TAbstractDecl a)
 			| _ -> Self (TClassDecl c)
