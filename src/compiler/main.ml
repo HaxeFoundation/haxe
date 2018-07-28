@@ -996,7 +996,7 @@ with
 			| CRTypeHint
 			| CRExtends
 			| CRImplements
-			| CRStructExtension
+			| CRStructExtension _
 			| CRImport
 			| CRUsing
 			| CRNew
