@@ -517,6 +517,12 @@ let get_macro_context ctx p =
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
+		begin match CompilationServer.get () with
+		| None -> ()
+		| Some cs ->
+			let sign = Define.get_signature com2.defines in
+			try ignore(CompilationServer.get_sign cs sign) with Not_found -> ignore(CompilationServer.add_sign cs sign com2)
+		end;
 		api, mctx
 
 let load_macro_module ctx cpath display p =
