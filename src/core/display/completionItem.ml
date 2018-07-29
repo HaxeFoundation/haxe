@@ -429,21 +429,21 @@ let get_sort_index item p = match item.ci_kind with
 		let i = p.pmin - v.v_pos.pmin in
 		let i = if i < 0 then 0 else i in
 		0,(Printf.sprintf "%05i" i)
+	| ITEnumField ef ->
+		10,(Printf.sprintf "%04i" ef.efield.ef_index)
+	| ITEnumAbstractField(_,ccf) ->
+		11,ccf.field.cf_name
 	| ITClassField ccf ->
 		let open ClassFieldOrigin in
 		let i = match ccf.origin,ccf.scope with
-			| Self _,(CFSMember | CFSConstructor) -> 10
-			| Parent _,(CFSMember | CFSConstructor) -> 11
-			| StaticExtension _,_ -> 12
-			| Self _,CFSStatic -> 13
-			| StaticImport _,_ -> 14
-			| _ -> 15
+			| Self _,(CFSMember | CFSConstructor) -> 20
+			| Parent _,(CFSMember | CFSConstructor) -> 21
+			| StaticExtension _,_ -> 22
+			| Self _,CFSStatic -> 23
+			| StaticImport _,_ -> 24
+			| _ -> 25
 		in
 		i,ccf.field.cf_name
-	| ITEnumField ef ->
-		20,(Printf.sprintf "%04i" ef.efield.ef_index)
-	| ITEnumAbstractField(_,ccf) ->
-		21,ccf.field.cf_name
 	| ITTypeParameter c ->
 		30,snd c.cl_path
 	| ITType(cmt,is) ->
