@@ -164,29 +164,37 @@ let collect ctx e_ast e dk with_type p =
 						should_access c cf false &&
 						(not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Enum cf.cf_meta)
 					in
-					let add origin =
+					let add origin make_field =
 						let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
-						PMap.add name (make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
+						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					in
 					match !(an.a_status) with
 						| Statics ({cl_kind = KAbstractImpl a} as c) ->
-							if allow_static_abstract_access c cf then add (Self (TAbstractDecl a)) else acc;
+							if allow_static_abstract_access c cf then
+								let make = if Meta.has Meta.Enum cf.cf_meta then
+										(make_ci_enum_abstract_field a)
+									else
+										make_ci_class_field
+								in
+								add (Self (TAbstractDecl a)) make
+							else
+								acc;
 						| Statics c ->
-							if should_access c cf true then add (Self (TClassDecl c)) else acc;
+							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
-							add (Self (TEnumDecl en));
+							add (Self (TEnumDecl en)) make_ci_class_field;
 						| AbstractStatics a ->
 							let check = match a.a_impl with
 								| None -> true
 								| Some c -> allow_static_abstract_access c cf
 							in
-							if check then add (Self (TAbstractDecl a)) else acc;
+							if check then add (Self (TAbstractDecl a)) make_ci_class_field else acc;
 						| _ ->
 							let origin = match t with
 								| TType(td,_) -> Self (TTypeDecl td)
 								| _ -> AnonymousStructure an
 							in
-							add origin;
+							add origin make_ci_class_field;
 				end else
 					acc
 			) an.a_fields items
