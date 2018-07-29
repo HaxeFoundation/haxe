@@ -72,7 +72,7 @@ module CompletionResultKind = struct
 		| CRTypeHint
 		| CRExtends
 		| CRImplements
-		| CRStructExtension
+		| CRStructExtension of bool
 		| CRImport
 		| CRUsing
 		| CRNew
@@ -118,7 +118,9 @@ module CompletionResultKind = struct
 			| CRTypeHint -> 4,None
 			| CRExtends -> 5,None
 			| CRImplements -> 6,None
-			| CRStructExtension -> 7,None
+			| CRStructExtension isIntersectionType -> 7,Some (jobject [
+					"isIntersectionType",jbool isIntersectionType
+				])
 			| CRImport -> 8,None
 			| CRUsing -> 9,None
 			| CRNew -> 10,None

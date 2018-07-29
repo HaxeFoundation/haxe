@@ -348,7 +348,7 @@ and load_complex_type' ctx allow_display (t,p) =
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
 				) l in
-				raise_fields l CRStructExtension p
+				raise_fields l (CRStructExtension true) p
 		) tl in
 		let tr = ref None in
 		let t = TMono tr in
@@ -400,7 +400,7 @@ and load_complex_type' ctx allow_display (t,p) =
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
 					) l in
-					raise_fields l CRStructExtension p
+					raise_fields l (CRStructExtension false) p
 			) tl in
 			let tr = ref None in
 			let t = TMono tr in
