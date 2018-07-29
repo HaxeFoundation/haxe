@@ -50,7 +50,7 @@ let collect_static_extensions ctx items e p =
 		| (c,_) :: l ->
 			let rec dup t = Type.map dup t in
 			let acc = List.fold_left (fun acc f ->
-				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name items then
+				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name items then
 					acc
 				else begin
 					let f = { f with cf_type = opt_type f.cf_type } in
