@@ -164,8 +164,8 @@ let collect ctx e_ast e dk with_type p =
 						should_access c cf false &&
 						(not (Meta.has Meta.Impl cf.cf_meta) || Meta.has Meta.Enum cf.cf_meta)
 					in
+					let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 					let add origin make_field =
-						let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 						PMap.add name (make_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)) acc
 					in
 					match !(an.a_status) with
@@ -182,7 +182,8 @@ let collect ctx e_ast e dk with_type p =
 						| Statics c ->
 							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
-							add (Self (TEnumDecl en)) make_ci_class_field;
+							let ef = PMap.find name en.e_constrs in
+							PMap.add name (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (cf.cf_type,ct)) acc
 						| AbstractStatics a ->
 							let check = match a.a_impl with
 								| None -> true
