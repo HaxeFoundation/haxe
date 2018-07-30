@@ -76,11 +76,18 @@ module CompletionResultKind = struct
 		| CRImport
 		| CRUsing
 		| CRNew
-		| CRPattern of bool
+		| CRPattern of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option * bool
 		| CROverride
 		| CRTypeRelation
 
 	let to_json ctx kind =
+		let expected_type_fields t = match t with
+			| None -> []
+			| Some(ct1,ct2) -> [
+					"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
+					"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
+				]
+		in
 		let i,args = match kind with
 			| CRField(item,p) ->
 				let t = CompletionItem.get_type item in
@@ -105,15 +112,7 @@ module CompletionResultKind = struct
 				in
 				0,Some (jobject fields)
 			| CRStructureField -> 1,None
-			| CRToplevel t ->
-				let args = match t with
-					| None -> None
-					| Some(ct1,ct2) -> Some (jobject [
-						"expectedType",CompletionItem.CompletionType.to_json ctx ct1;
-						"expectedTypeFollowed",CompletionItem.CompletionType.to_json ctx ct2;
-					])
-				in
-				2,args
+			| CRToplevel t -> 2,Some (jobject (expected_type_fields t))
 			| CRMetadata -> 3,None
 			| CRTypeHint -> 4,None
 			| CRExtends -> 5,None
@@ -124,9 +123,12 @@ module CompletionResultKind = struct
 			| CRImport -> 8,None
 			| CRUsing -> 9,None
 			| CRNew -> 10,None
-			| CRPattern isOutermostPattern -> 11,Some (jobject [
-					"isOutermostPattern",jbool isOutermostPattern
-				])
+			| CRPattern (t,isOutermostPattern) ->
+				let fields =
+					("isOutermostPattern",jbool isOutermostPattern) ::
+					(expected_type_fields t)
+				in
+				11,Some (jobject fields)
 			| CROverride -> 12,None
 			| CRTypeRelation -> 13,None
 		in
