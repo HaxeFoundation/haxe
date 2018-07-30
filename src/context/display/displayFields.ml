@@ -230,7 +230,7 @@ let collect ctx e_ast e dk with_type p =
 	(* Add static extensions *)
 	let items = collect_static_extensions ctx items e p in
 	let items = PMap.fold (fun item acc -> item :: acc) items [] in
-	let items = sort_fields items Value (Some p) in
+	let items = sort_fields items Value (TKExpr p) in
 	try
 		let sl = string_list_of_expr_path_raise e_ast in
 		(* Add submodule fields *)

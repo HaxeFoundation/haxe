@@ -1344,7 +1344,7 @@ and handle_efield ctx e p mode =
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then begin
 										if ctx.com.json_out = None then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false,p))
-										else raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint (Some (Parser.cut_pos_at_display p0));
+										else raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (Some (Parser.cut_pos_at_display p0));
 									end;
 									raise e)
 		in
@@ -2152,6 +2152,10 @@ and type_return ctx e p =
 			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
+				begin match (Texpr.skip e).eexpr with
+				| TConst TNull -> error "Cannot return `null` from Void-function" p
+				| _ -> ()
+				end;
 				(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
 				mk (TBlock [
 					e;

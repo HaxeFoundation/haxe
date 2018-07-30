@@ -3,6 +3,12 @@ open Ast
 open Type
 open Genjson
 
+type toplevel_kind =
+	| TKExpr of pos
+	| TKType
+	| TKPattern of pos
+	| TKOverride
+
 module CompletionModuleKind = struct
 	type t =
 		| Class
@@ -424,15 +430,15 @@ let get_index item = match item.ci_kind with
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
 
-let get_sort_index item p = match item.ci_kind with
+let get_sort_index tk item p = match item.ci_kind with
 	| ITLocal v ->
 		let i = p.pmin - v.v_pos.pmin in
 		let i = if i < 0 then 0 else i in
 		0,(Printf.sprintf "%05i" i)
 	| ITEnumField ef ->
-		10,(Printf.sprintf "%04i" ef.efield.ef_index)
+		(match tk with TKPattern _ -> -1 | _ -> 10),(Printf.sprintf "%04i" ef.efield.ef_index)
 	| ITEnumAbstractField(_,ccf) ->
-		11,ccf.field.cf_name
+		(match tk with TKPattern _ -> -1 | _ -> 11),ccf.field.cf_name
 	| ITClassField ccf ->
 		let open ClassFieldOrigin in
 		let i = match ccf.origin,ccf.scope with

@@ -464,6 +464,16 @@ module Pattern = struct
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
+			(* Special case for completion on a pattern local: We don't want to add the local to the context
+			   while displaying (#7319) *)
+			| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
+				let locals = ctx.locals in
+				let pat = loop e in
+				let locals' = ctx.locals in
+				ctx.locals <- locals;
+				ignore(TyperDisplay.handle_edisplay ctx e (if toplevel then DKPattern else dk) (WithType t));
+				ctx.locals <- locals';
+				pat
 			| EDisplay(e,dk) ->
 				let pat = loop e in
 				ignore(TyperDisplay.handle_edisplay ctx e (if toplevel then DKPattern else dk) (WithType t));

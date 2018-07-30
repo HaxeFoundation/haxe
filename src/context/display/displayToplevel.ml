@@ -127,7 +127,7 @@ let pack_similarity pack1 pack2 =
 	in
 	loop 0 pack1 pack2
 
-let collect ctx epos with_type =
+let collect ctx tk with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.curclass.cl_path in
@@ -186,7 +186,9 @@ let collect ctx epos with_type =
 		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
-	if epos <> None then begin
+	begin match tk with
+	| TKType | TKOverride -> ()
+	| TKExpr p | TKPattern p ->
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then
@@ -367,12 +369,12 @@ let collect ctx epos with_type =
 	) packages;
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
-	let l = sort_fields l with_type epos in
+	let l = sort_fields l with_type tk in
 	t();
 	l
 
 let handle_unresolved_identifier ctx i p only_types =
-	let l = collect ctx (if only_types then None else Some p) NoValue in
+	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
 	let cl = List.map (fun it ->
 		let s = CompletionItem.get_name it in
 		let i = StringError.levenshtein i s in
