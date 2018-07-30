@@ -8,6 +8,7 @@ type toplevel_kind =
 	| TKType
 	| TKPattern of pos
 	| TKOverride
+	| TKField of pos
 
 module CompletionModuleKind = struct
 	type t =
@@ -447,9 +448,9 @@ let get_sort_index tk item p = match item.ci_kind with
 		in
 		i,ccf.field.cf_name
 	| ITEnumField ef ->
-		(match tk with TKPattern _ -> -1 | _ -> 20),(Printf.sprintf "%04i" ef.efield.ef_index)
+		(match tk with TKPattern _ | TKField _ -> -1 | _ -> 20),(Printf.sprintf "%04i" ef.efield.ef_index)
 	| ITEnumAbstractField(_,ccf) ->
-		(match tk with TKPattern _ -> -1 | _ -> 21),ccf.field.cf_name
+		(match tk with TKPattern _ | TKField _ -> -1 | _ -> 21),ccf.field.cf_name
 	| ITTypeParameter c ->
 		30,snd c.cl_path
 	| ITType(cmt,is) ->
