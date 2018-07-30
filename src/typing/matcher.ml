@@ -474,6 +474,12 @@ module Pattern = struct
 				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
 				ctx.locals <- locals';
 				pat
+			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
+			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
+			   matter (#7326) *)
+			| EDisplay(e1,DKCall) ->
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
 				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
