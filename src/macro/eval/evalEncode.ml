@@ -275,3 +275,11 @@ let encode_ref v convert tostr =
 		iproto = ref_proto;
 		ikind = IRef (Obj.repr v);
 	}
+
+let encode_lazy f =
+	let rec r = ref (fun () ->
+		let v = f() in
+		r := (fun () -> v);
+		v
+	) in
+	VLazy r

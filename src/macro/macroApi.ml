@@ -145,6 +145,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : obj_type -> (string * value) list -> value
+	val encode_lazy : (unit -> value) -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -577,7 +578,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	loop e
+	encode_lazy (fun () -> loop e)
 
 and encode_null_expr e =
 	match e with

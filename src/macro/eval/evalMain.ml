@@ -316,6 +316,8 @@ let value_signature v =
 				add (string_of_int !function_count);
 				incr function_count
 			)
+		| VLazy f ->
+			loop (!f())
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash_s name);
@@ -391,7 +393,7 @@ let rec value_to_expr v p =
 		in
 		make_path mt
 	in
-	match v with
+	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)

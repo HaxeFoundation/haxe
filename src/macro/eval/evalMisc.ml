@@ -67,7 +67,7 @@ let set_bytes_length_field v1 v2 =
 		vi.ikind <- IBytes b'
 	| _ -> unexpected_value v1 "bytes"
 
-let set_field v1 name v2 = match v1 with
+let set_field v1 name v2 = match vresolve v1 with
 	| VObject o -> set_object_field o name v2
 	| VPrototype proto -> set_proto_field proto name v2
 	| VArray va ->
@@ -115,6 +115,10 @@ let rec compare a b =
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) ->
 		if f1 != f2 then CUndef
 		else compare v1 v2
+	| VLazy f1,_ ->
+		compare (!f1()) b
+	| _,VLazy f2 ->
+		compare a (!f2())
 	| _ -> CUndef
 
 let rec arrays_equal cmp a1 a2 =
@@ -141,6 +145,8 @@ and equals_structurally a b =
 	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal equals_structurally a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VLazy f1,_ -> equals_structurally (!f1()) b
+	| _,VLazy f2 -> equals_structurally a (!f2())
 	| _ -> a == b
 
 let is_true v = match v with
