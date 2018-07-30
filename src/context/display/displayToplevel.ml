@@ -188,7 +188,7 @@ let collect ctx tk with_type =
 	in
 	begin match tk with
 	| TKType | TKOverride -> ()
-	| TKExpr p | TKPattern p ->
+	| TKExpr p | TKPattern p | TKField p ->
 		(* locals *)
 		PMap.iter (fun _ v ->
 			if not (is_gen_local v) then

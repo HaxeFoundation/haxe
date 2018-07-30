@@ -111,6 +111,7 @@ and s_value depth v =
 	| VInstance {ikind=IPos p} -> of_string ("#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")")
 	| VInstance i -> (try call_to_string () with Not_found -> rev_hash i.iproto.ppath)
 	| VObject o -> (try call_to_string () with Not_found -> s_object (depth + 1) o)
+	| VLazy f -> s_value depth (!f())
 	| VPrototype proto ->
 		try
 			call_to_string()

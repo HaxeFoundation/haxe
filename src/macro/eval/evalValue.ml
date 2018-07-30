@@ -69,6 +69,7 @@ type value =
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
+	| VLazy of (unit -> value) ref
 
 and vfunc = value list -> value
 
@@ -153,7 +154,7 @@ and venum_value = {
 	enpos : pos option;
 }
 
-let equals a b = match a,b with
+let rec equals a b = match a,b with
 	| VTrue,VTrue
 	| VFalse,VFalse
 	| VNull,VNull -> true
@@ -169,6 +170,8 @@ let equals a b = match a,b with
 	| VVector vv1,VVector vv2 -> vv1 == vv2
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VLazy f1,_ -> equals (!f1()) b
+	| _,VLazy f2 -> equals a (!f2())
 	| _ -> a == b
 
 module ValueHashtbl = Hashtbl.Make(struct
@@ -195,3 +198,7 @@ let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
+
+let rec vresolve v = match v with
+	| VLazy f -> vresolve (!f())
+	| _ -> v

@@ -19,7 +19,7 @@ let var_to_json name value access =
 		JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
 	in
 	let string_repr s = "\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"" in
-	let level2_value_repr = function
+	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"
 		| VFalse -> "false"
@@ -37,6 +37,7 @@ let var_to_json name value access =
 		| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> Rope.to_string (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "<fun>"
+		| VLazy f -> level2_value_repr (!f())
 	in
 	let fields_string fields =
 		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
@@ -46,7 +47,7 @@ let var_to_json name value access =
 		let l = List.map level2_value_repr l in
 		Printf.sprintf "[%s]" (String.concat ", " l)
 	in
-	let value_string v = match v with
+	let rec value_string v = match v with
 		| VNull -> jv "NULL" "null" false
 		| VTrue -> jv "Bool" "true" false
 		| VFalse -> jv "Bool" "false" false
@@ -72,6 +73,7 @@ let var_to_json name value access =
 			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
 		| VPrototype proto -> jv "Anonymous" (Rope.to_string (s_proto_kind proto)) false (* TODO: show statics *)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
+		| VLazy f -> value_string (!f())
 	in
 	value_string value
 
@@ -155,7 +157,7 @@ let output_scope_vars env scope =
 	JArray vars
 
 let output_inner_vars v access =
-	let children = match v with
+	let rec loop v = match v with
 		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 		| VEnumValue ve ->
 			begin match ve.eargs with
@@ -197,7 +199,9 @@ let output_inner_vars v access =
 				n, v, a
 			) fields
 		| VPrototype proto -> [] (* TODO *)
+		| VLazy f -> loop (!f())
 	in
+	let children = loop v in
 	let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
 	JArray vars
 

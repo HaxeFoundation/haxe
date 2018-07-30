@@ -45,7 +45,7 @@ let object_field o name =
 	try object_field_raise o name with Not_found -> vnull
 
 let field_raise v f =
-	match v with
+	match vresolve v with
 	| VObject o -> object_field_raise o f
 	| VInstance {ikind = IBytes s} when f = key_length -> vint (Bytes.length s)
 	| VPrototype proto -> proto_field_raise proto f
