@@ -45,10 +45,6 @@ let completion_item_of_expr ctx e =
 		let t = tpair e.etype in
 		make_ci_expr e t
 	in
-	let decl_of_class c = match c.cl_kind with
-		| KAbstractImpl a -> TAbstractDecl a
-		| _ -> TClassDecl c
-	in
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->

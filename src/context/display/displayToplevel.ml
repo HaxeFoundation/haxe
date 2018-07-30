@@ -236,7 +236,7 @@ let collect ctx tk with_type =
 			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
-					let ccf = CompletionClassField.make cf CFSMember (Self (TClassDecl c)) true in
+					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
 					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
