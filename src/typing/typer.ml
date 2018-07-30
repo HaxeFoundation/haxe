@@ -2152,6 +2152,10 @@ and type_return ctx e p =
 			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
+				begin match (Texpr.skip e).eexpr with
+				| TConst TNull -> error "Cannot return `null` from Void-function" p
+				| _ -> ()
+				end;
 				(* if we get a Void expression (e.g. from inlining) we don't want to return it (issue #4323) *)
 				mk (TBlock [
 					e;
