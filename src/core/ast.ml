@@ -180,7 +180,7 @@ and display_kind =
 	| DKDot
 	| DKStructure
 	| DKMarked
-	| DKPattern
+	| DKPattern of bool
 
 and expr_def =
 	| EConst of constant
@@ -718,7 +718,7 @@ let s_display_kind = function
 	| DKDot -> "DKDot"
 	| DKStructure -> "DKStructure"
 	| DKMarked -> "DKMarked"
-	| DKPattern -> "DKPattern"
+	| DKPattern _ -> "DKPattern"
 
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =

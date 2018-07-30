@@ -76,7 +76,7 @@ module CompletionResultKind = struct
 		| CRImport
 		| CRUsing
 		| CRNew
-		| CRPattern
+		| CRPattern of bool
 		| CROverride
 		| CRTypeRelation
 
@@ -124,7 +124,9 @@ module CompletionResultKind = struct
 			| CRImport -> 8,None
 			| CRUsing -> 9,None
 			| CRNew -> 10,None
-			| CRPattern -> 11,None
+			| CRPattern isOutermostPattern -> 11,Some (jobject [
+					"isOutermostPattern",jbool isOutermostPattern
+				])
 			| CROverride -> 12,None
 			| CRTypeRelation -> 13,None
 		in

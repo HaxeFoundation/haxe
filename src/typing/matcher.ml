@@ -471,12 +471,12 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (if toplevel then DKPattern else dk) (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
 				ctx.locals <- locals';
 				pat
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (if toplevel then DKPattern else dk) (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
 				pat
 			| _ ->
 				fail()
