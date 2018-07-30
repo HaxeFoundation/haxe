@@ -272,8 +272,13 @@ let collect ctx tk with_type =
 				let class_import c =
 					let cf = PMap.find s c.cl_statics in
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
-					let origin = StaticImport (TClassDecl c) in
-					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+					let decl,make = match c.cl_kind with 
+						| KAbstractImpl a -> TAbstractDecl a,
+							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
+						| _ -> TClassDecl c,make_ci_class_field
+					in
+					let origin = StaticImport decl in
+					add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;
