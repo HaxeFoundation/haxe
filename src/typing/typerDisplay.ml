@@ -33,9 +33,9 @@ let completion_item_of_expr ctx e =
 		let ct = DisplayEmitter.completion_type_of_type ctx ~values t in
 		(t,ct)
 	in
-	let of_field e origin cf scope =
+	let of_field e origin cf scope make_ci =
 		let is_qualified = retype e cf.cf_name e.etype in
-		make_ci_class_field (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) e.etype)
+		make_ci (CompletionClassField.make cf scope origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) e.etype)
 	in
 	let of_enum_field e origin ef =
 		let is_qualified = retype e ef.ef_name e.etype in
@@ -44,10 +44,6 @@ let completion_item_of_expr ctx e =
 	let itexpr e =
 		let t = tpair e.etype in
 		make_ci_expr e t
-	in
-	let decl_of_class c = match c.cl_kind with
-		| KAbstractImpl a -> TAbstractDecl a
-		| _ -> TClassDecl c
 	in
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
@@ -58,7 +54,11 @@ let completion_item_of_expr ctx e =
 				| _,TMeta((Meta.StaticExtension,_,_),_) -> StaticExtension decl
 				| _ -> Self decl
 			in
-			of_field e origin cf CFSStatic
+			let make_ci = match c.cl_kind with
+				| KAbstractImpl a when Meta.has Meta.Enum cf.cf_meta -> make_ci_enum_abstract_field a
+				| _ -> make_ci_class_field
+			in
+			of_field e origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
@@ -66,7 +66,7 @@ let completion_item_of_expr ctx e =
 			| _ ->
 				Self (TClassDecl c)
 			in
-			of_field e origin cf CFSMember
+			of_field e origin cf CFSMember make_ci_class_field
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
 		| TField(e1,FAnon cf) ->
 			begin match follow e1.etype with
@@ -75,7 +75,7 @@ let completion_item_of_expr ctx e =
 						| TType(td,_) -> Self (TTypeDecl td)
 						| _ -> AnonymousStructure an
 					in
-					of_field e origin cf CFSMember
+					of_field e origin cf CFSMember make_ci_class_field
 				| _ -> itexpr e
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->

@@ -235,6 +235,10 @@ module ClassFieldOrigin = struct
 		)
 end
 
+let decl_of_class c = match c.cl_kind with
+	| KAbstractImpl a -> TAbstractDecl a
+	| _ -> TClassDecl c
+	
 module CompletionClassField = struct
 	type t = {
 		field : tclass_field;

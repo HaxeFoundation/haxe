@@ -236,7 +236,7 @@ let collect ctx tk with_type =
 			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
-					let ccf = CompletionClassField.make cf CFSMember (Self (TClassDecl c)) true in
+					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
 					if (Meta.has Meta.Enum cf.cf_meta) && not (Meta.has Meta.NoCompletion cf.cf_meta) then
 						add (make_ci_enum_abstract_field a ccf (tpair cf.cf_type)) (Some cf.cf_name);
 				) c.cl_ordered_statics
@@ -272,8 +272,13 @@ let collect ctx tk with_type =
 				let class_import c =
 					let cf = PMap.find s c.cl_statics in
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
-					let origin = StaticImport (TClassDecl c) in
-					add (make_ci_class_field (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
+					let decl,make = match c.cl_kind with 
+						| KAbstractImpl a -> TAbstractDecl a,
+							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
+						| _ -> TClassDecl c,make_ci_class_field
+					in
+					let origin = StaticImport decl in
+					add (make (CompletionClassField.make cf CFSStatic origin is_qualified) (tpair ~values:(get_value_meta cf.cf_meta) cf.cf_type)) (Some name)
 				in
 				match resolve_typedef mt with
 					| TClassDecl c -> class_import c;
