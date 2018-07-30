@@ -14,9 +14,13 @@ open Common
 open Display
 open DisplayPosition
 
-let sort_fields l with_type p =
+let sort_fields l with_type tk =
+	let p = match tk with
+		| TKExpr p -> Some p
+		| _ -> None
+	in
 	let l = List.map (fun ci ->
-		let i = get_sort_index ci (Option.default Globals.null_pos p) in
+		let i = get_sort_index tk ci (Option.default Globals.null_pos p) in
 		ci,i
 	) l in
 	let sort l =
@@ -285,6 +289,6 @@ let check_field_modifiers ctx c cf override display_modifier =
 				let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 				make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct) :: fields
 			) missing_fields [] in
-			let l = sort_fields l NoValue None in
+			let l = sort_fields l NoValue TKOverride in
 			raise_fields l CROverride None
 		| _ -> ()

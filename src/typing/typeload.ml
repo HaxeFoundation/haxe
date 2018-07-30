@@ -105,7 +105,7 @@ with Error((Module_not_found _ | Type_not_found _),p2) when p = p2 ->
 *)
 let load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
-	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint None;
+	if t = Parser.magic_type_path then raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint None;
 	(* The type name is the module name or the module sub-type name *)
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
@@ -315,7 +315,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.encloses_display_position pn ->
 		let s = s_type_path path in
-		raise_fields (DisplayToplevel.collect ctx None NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;});
+		raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;});
 
 (*
 	build an instance from a complex type
@@ -824,7 +824,7 @@ let handle_path_display ctx path p =
 	in
 	match ImportHandling.convert_import_to_something_usable !DisplayPosition.display_position path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx None Typecore.NoValue in
+			let fields = DisplayToplevel.collect ctx TKType Typecore.NoValue in
 			raise_fields fields CRImport (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
