@@ -134,7 +134,7 @@ let raise_toplevel ctx dk with_type po p =
 		| None -> None
 		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
 	in
-	raise_fields (DisplayToplevel.collect ctx (match dk with DKPattern -> TKPattern p | _ -> TKExpr p) with_type) (CRToplevel ct) po
+	raise_fields (DisplayToplevel.collect ctx (match dk with DKPattern _ -> TKPattern p | _ -> TKExpr p) with_type) (CRToplevel ct) po
 
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
@@ -475,10 +475,10 @@ let handle_edisplay ctx e dk with_type =
 			| _ ->
 				handle_display ctx e dk with_type
 		end
-	| DKPattern,DMDefault ->
+	| DKPattern outermost,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
 		with DisplayException(DisplayFields(l,CRToplevel _,p)) ->
-			raise_fields l CRPattern p
+			raise_fields l (CRPattern outermost) p
 		end
 	| _ -> handle_display ctx e dk with_type

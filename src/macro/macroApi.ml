@@ -475,14 +475,14 @@ and encode_fun f =
 	]
 
 and encode_display_kind dk =
-	let tag = match dk with
-	| DKCall -> 0
-	| DKDot -> 1
-	| DKStructure -> 2
-	| DKMarked -> 3
-	| DKPattern -> 4
+	let tag, pl = match dk with
+	| DKCall -> 0, []
+	| DKDot -> 1, []
+	| DKStructure -> 2, []
+	| DKMarked -> 3, []
+	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None ICType tag []
+	encode_enum ~pos:None ICType tag pl
 
 and encode_expr e =
 	let rec loop (e,p) =
@@ -770,12 +770,12 @@ and decode_ctype t =
 	| _ ->
 		raise Invalid_expr),p
 
-and decode_display_kind v = match fst (decode_enum v) with
-	| 0 -> DKCall
-	| 1 -> DKDot
-	| 2 -> DKStructure
-	| 3 -> DKMarked
-	| 4 -> DKPattern
+and decode_display_kind v = match (decode_enum v) with
+	| 0, [] -> DKCall
+	| 1, [] -> DKDot
+	| 2, [] -> DKStructure
+	| 3, [] -> DKMarked
+	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
 and decode_expr v =

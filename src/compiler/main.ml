@@ -1000,7 +1000,7 @@ with
 			| CRImport
 			| CRUsing
 			| CRNew
-			| CRPattern
+			| CRPattern _
 			| CRTypeRelation ->
 				DisplayOutput.print_toplevel fields
 			| CRField _
