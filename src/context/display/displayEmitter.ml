@@ -16,7 +16,7 @@ open DisplayPosition
 
 let sort_fields l with_type tk =
 	let p = match tk with
-		| TKExpr p -> Some p
+		| TKExpr p | TKField p -> Some p
 		| _ -> None
 	in
 	let l = List.map (fun ci ->
