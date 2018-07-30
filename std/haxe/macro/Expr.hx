@@ -537,7 +537,7 @@ enum DisplayKind {
 	DKDot;
 	DKStructure;
 	DKMarked;
-	DKPattern(outermost:Bool);
+	DKPattern( outermost : Bool );
 }
 
 /**
