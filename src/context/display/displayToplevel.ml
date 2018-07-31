@@ -38,7 +38,7 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
 						begin try
 							begin match PMap.find file com.package_rules with
-								| Forbidden -> ()
+								| Forbidden | Remap _ -> ()
 								| _ -> raise Not_found
 							end
 						with Not_found ->
