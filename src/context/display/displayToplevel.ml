@@ -152,8 +152,10 @@ let collect ctx tk with_type =
 					!merge_core_doc_ref ctx c
 				| _ -> ());
 				let is = get_import_status cctx true path in
-				add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
-				add_path cctx path;
+				if not (Meta.has Meta.NoCompletion (t_infos mt).mt_meta) then begin
+					add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
+					add_path cctx path;
+				end
 			end
 	in
 
