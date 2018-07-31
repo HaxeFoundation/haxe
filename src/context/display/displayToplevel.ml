@@ -127,6 +127,9 @@ let pack_similarity pack1 pack2 =
 	in
 	loop 0 pack1 pack2
 
+let is_pack_visible pack =
+	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
+
 let collect ctx tk with_type =
 	let t = Timer.timer ["display";"toplevel"] in
 	let cctx = CollectionContext.create ctx in
@@ -148,7 +151,7 @@ let collect ctx tk with_type =
 				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
 					!merge_core_doc_ref ctx c
 				| _ -> ());
-                let is = get_import_status cctx true path in
+				let is = get_import_status cctx true path in
 				add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
 				add_path cctx path;
 			end
@@ -177,7 +180,7 @@ let collect ctx tk with_type =
 				()
 			end
 		) decls in
-		if not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack) then run()
+		if is_pack_visible pack then run()
 	in
 
 	(* Collection starts here *)
@@ -369,9 +372,12 @@ let collect ctx tk with_type =
 		) files
 	end;
 
+	(* packages *)
 	Hashtbl.iter (fun path _ ->
-		add (make_ci_package path []) (Some (snd path))
+		let full_pack = fst path @ [snd path] in
+		if is_pack_visible full_pack then add (make_ci_package path []) (Some (snd path))
 	) packages;
+
 	(* sorting *)
 	let l = DynArray.to_list cctx.items in
 	let l = sort_fields l with_type tk in
