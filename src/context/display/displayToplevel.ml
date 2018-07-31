@@ -160,15 +160,15 @@ let collect ctx tk with_type =
 	let process_decls pack name decls =
 		let run () = List.iter (fun (d,p) ->
 			begin try
-				let tname,is_private = match d with
-					| EClass d -> fst d.d_name,List.mem HPrivate d.d_flags
-					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags
-					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags
-					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags
+				let tname,is_private,meta = match d with
+					| EClass d -> fst d.d_name,List.mem HPrivate d.d_flags,d.d_meta
+					| EEnum d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
+					| ETypedef d -> fst d.d_name,List.mem EPrivate d.d_flags,d.d_meta
+					| EAbstract d -> fst d.d_name,List.mem AbPrivate d.d_flags,d.d_meta
 					| _ -> raise Exit
 				in
 				let path = Path.full_dot_path pack name tname in
-				if not (path_exists cctx path) && not is_private then begin
+				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
 					add_path cctx path;
 					(* If we share a package, the module's main type shadows everything with the same name. *)
 					let shadowing_name = if pack_similarity curpack pack > 0 && tname = name then (Some name) else None in

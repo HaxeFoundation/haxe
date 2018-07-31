@@ -301,7 +301,7 @@ let get_info = function
 	| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
 	| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
-	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
+	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field or type",[UsedOn TClassField])
 	| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 	| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 	| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[UsedInternally])
