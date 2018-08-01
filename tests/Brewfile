@@ -1,6 +1,6 @@
 brew "ocaml"
 brew "camlp4"
-brew "opam", args: ["without-aspcud"]
+brew "opam"
 brew "ninja"
 brew "zlib"
 brew "pcre"
