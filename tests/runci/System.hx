@@ -91,9 +91,9 @@ class System {
 	static public function addToPATH(path:String):Void {
 		switch (systemName) {
 			case "Windows":
-				Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" + path);
+				Sys.putEnv("PATH", path + ";" + Sys.getEnv("PATH"));
 			case "Mac", "Linux":
-				Sys.putEnv("PATH", Sys.getEnv("PATH") + ":" + path);
+				Sys.putEnv("PATH", path + ":" + Sys.getEnv("PATH"));
 		}
 	}
 
