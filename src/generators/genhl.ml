@@ -2992,7 +2992,7 @@ and gen_method_wrapper ctx rt t p =
 			hold ctx r;
 			r
 		) targs in
-		let casts = List.map2 (fun r t -> let r2 = cast_to ctx r t p in hold ctx r2; free ctx r; r2) rargs iargs in
+		let casts = List.map2 (fun r t -> let r2 = cast_to ~force:true ctx r t p in hold ctx r2; free ctx r; r2) rargs iargs in
 		List.iter (free ctx) casts;
 		let rret = alloc_tmp ctx iret in
 		op ctx (OCallClosure (rret,rfun,casts));
