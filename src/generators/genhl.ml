@@ -515,8 +515,9 @@ and real_type ctx e =
 					| TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2
 					(*
 						If we have a number, it is more accurate to cast it to the type parameter before wrapping it as dynamic
+						Ignore dynamic method (#7166)
 					*)
-					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) ->
+					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) && (match f with FInstance (_,_,{ cf_kind = Method MethDynamic }) -> false | _ -> true) ->
 						(name, opt, TAbstract (fake_tnull,[t]))
 					| _ ->
 						a
