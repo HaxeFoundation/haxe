@@ -2916,14 +2916,15 @@ and gen_assign_op ctx acc e1 f =
 		r
 	| ADynamic (eobj, fid) ->
 		let robj = eval_null_check ctx eobj in
+		hold ctx robj;
 		let t = real_type ctx e1 in
 		let r = alloc_tmp ctx t in
 		op ctx (ODynGet (r,robj,fid));
-		hold ctx robj;
 		let r = cast_to ctx r (to_type ctx e1.etype) e1.epos in
 		let r = f r in
+		let r = cast_to ctx r t e1.epos in
 		free ctx robj;
-		op ctx (ODynSet (robj,fid,cast_to ctx r t e1.epos));
+		op ctx (ODynSet (robj,fid,r));
 		r
 	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
 		assert false
