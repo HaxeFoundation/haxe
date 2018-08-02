@@ -1490,7 +1490,7 @@ let generate com =
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
-	let vars = if enums_as_objects then "$hxEnums = {}" :: vars else vars in
+	let vars = if enums_as_objects then "$hxEnums = $hxEnums || {}" :: vars else vars in
 	let vars,has_dollar_underscore =
 		if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then
 			"$_" :: vars,true
