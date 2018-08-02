@@ -517,7 +517,7 @@ and real_type ctx e =
 						If we have a number, it is more accurate to cast it to the type parameter before wrapping it as dynamic
 						Ignore dynamic method (#7166)
 					*)
-					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) && (match f with FInstance (_,_,{ cf_kind = Method MethDynamic }) -> false | _ -> true) ->
+					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) && (match f with FInstance (_,_,{ cf_kind = Var _ | Method MethDynamic }) -> false | _ -> true) ->
 						(name, opt, TAbstract (fake_tnull,[t]))
 					| _ ->
 						a
@@ -2132,7 +2132,10 @@ and eval_expr ctx e =
 			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
 			abort "Invalid access" e.epos);
-		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
+		let to_t = to_type ctx e.etype in
+		(match to_t with
+		| HFun _ -> cast_to ctx r to_t e.epos
+		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
 		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
