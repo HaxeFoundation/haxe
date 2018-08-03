@@ -3107,11 +3107,11 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
+			| TInt i when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
+			| TFloat s when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
