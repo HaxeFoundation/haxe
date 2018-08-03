@@ -220,7 +220,7 @@ let collect ctx e_ast e dk with_type p =
 			cf.cf_doc <- Some "The character code of this character (inlined at compile-time).";
 			cf.cf_kind <- Var { v_read = AccNormal; v_write = AccNever };
 			let ct = DisplayEmitter.completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
-			let item = make_ci_class_field (CompletionClassField.make cf CFSStatic BuiltIn true) (cf.cf_type,ct) in
+			let item = make_ci_class_field (CompletionClassField.make cf CFSMember BuiltIn true) (cf.cf_type,ct) in
 			PMap.add cf.cf_name item PMap.empty
 		| _ ->
 			PMap.empty
