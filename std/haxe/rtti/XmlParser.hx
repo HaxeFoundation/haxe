@@ -454,7 +454,8 @@ class XmlParser {
 
 	function xenumfield( x : Fast ) : EnumField {
 		var args = null;
-		var xdoc = x.x.elementsNamed("haxe_doc").next();
+		var docElements = x.x.elementsNamed("haxe_doc");
+		var xdoc = if( docElements.hasNext() ) docElements.next() else null;
 		var meta = if( x.hasNode.meta ) xmeta(x.node.meta) else [];
 		if( x.has.a ) {
 			var names = x.att.a.split(":");
