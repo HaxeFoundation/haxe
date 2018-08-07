@@ -385,18 +385,19 @@ class Bytes {
 		// can easily overflow the stack.  Check to see if the current byte
 		// length is greater than the stack size first.
 		// TODO : Find a library pattern for this.
-		if (b.length == 0) return '';
-		else if (b.length <= lua.Boot.MAXSTACKSIZE){
-			return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, 0));
+		var adj_length = b.length - pos;
+		if (b.length <= lua.Boot.MAXSTACKSIZE){
+			var end : Int = cast Math.min(b.length, pos+len) - 1;
+			return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, pos, end));
 		} else {
 			var str = '';
 			var tbl : lua.Table<Int,String> = lua.Table.create();
-			var begin = 0;
-			var end = 1000;
+			var begin = pos;
+			var end : Int = cast Math.min(1000, pos+len) - 1;
 			for (i in 0...Math.floor(b.length/lua.Boot.MAXSTACKSIZE) + 1){
-				tbl[i+1] = lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, begin,end-1));
+				tbl[i+1] = lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, begin,end));
 				begin = end;
-				end = Math.floor(Math.min(end + lua.Boot.MAXSTACKSIZE, b.length));
+				end = cast Math.min(end + lua.Boot.MAXSTACKSIZE, b.length) -1;
 			}
 			return lua.Table.concat(tbl,'');
 		}
@@ -542,7 +543,9 @@ class Bytes {
 			return new Bytes(b.length, b);
 
 		#elseif lua
-			var bytes = [for (i in 0...lua.NativeStringTools.len(s)) lua.NativeStringTools.byte(s,i+1)];
+			var bytes = [for (i in 0...lua.NativeStringTools.len(s)) {
+					lua.NativeStringTools.byte(s,i+1);
+			}];
 			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
