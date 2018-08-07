@@ -90,8 +90,7 @@ let pos_to_range p =
 	]
 
 let generate_pos_as_range p =
-	if p.pmin = -1 then jnull
-	else jobject (pos_to_range p)
+	jobject (pos_to_range p)
 
 let generate_pos_as_location p =
 	if p.pmin = -1 then
