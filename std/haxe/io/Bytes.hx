@@ -393,7 +393,7 @@ class Bytes {
 			var str = '';
 			var tbl : lua.Table<Int,String> = lua.Table.create();
 			var begin = pos;
-			var end : Int = cast Math.min(1000, pos+len) - 1;
+			var end : Int = cast Math.min(lua.Boot.MAXSTACKSIZE, pos+len) - 1;
 			for (i in 0...Math.floor(b.length/lua.Boot.MAXSTACKSIZE) + 1){
 				tbl[i+1] = lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, begin,end));
 				begin = end;
