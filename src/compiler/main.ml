@@ -1037,7 +1037,6 @@ with
 			begin match ctx.com.json_out with
 			| Some (f,_) ->
 				let ctx = DisplayJson.create_json_context false in
-				let pos = Parser.cut_pos_at_display pos in
 				let path = match List.rev p with
 					| name :: pack -> List.rev pack,name
 					| [] -> [],""

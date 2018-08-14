@@ -390,14 +390,14 @@ let handle_display ctx e_ast dk with_type =
 		type_expr ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type (Some (Parser.cut_pos_at_display p)) p
+		else raise_toplevel ctx dk with_type (Some p) p
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p)) None
 		with Not_found ->
 			raise err
 		end else
-			raise_toplevel ctx dk with_type (Some (Parser.cut_pos_at_display p)) p
+			raise_toplevel ctx dk with_type (Some p) p
 	| DisplayException(DisplayFields(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
