@@ -34,7 +34,7 @@ package js.html;
 @:native("Notification")
 extern class Notification extends EventTarget
 {
-	static 
+	
 	/**
 		A string representing the current permission to display notifications. Possible values are:
 			
@@ -44,7 +44,7 @@ extern class Notification extends EventTarget
 			
 			
 	**/
-	var permission(default,null) : NotificationPermission;
+	static var permission(default,null) : NotificationPermission;
 	
 	
 	/**

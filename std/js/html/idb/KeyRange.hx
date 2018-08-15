@@ -34,30 +34,30 @@ package js.html.idb;
 @:native("IDBKeyRange")
 extern class KeyRange
 {
-	/** @throws DOMError */
-	static 
+	
 	/**
 		Creates a new key range containing a single value.
+		@throws DOMError
 	**/
-	function only( value : Any ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function only( value : Any ) : KeyRange;
+	
 	/**
 		Creates a new key range with only a lower bound.
+		@throws DOMError
 	**/
-	function lowerBound( lower : Any, ?open : Bool = false ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function lowerBound( lower : Any, ?open : Bool = false ) : KeyRange;
+	
 	/**
 		Creates a new upper-bound key range.
+		@throws DOMError
 	**/
-	function upperBound( upper : Any, ?open : Bool = false ) : KeyRange;
-	/** @throws DOMError */
-	static 
+	static function upperBound( upper : Any, ?open : Bool = false ) : KeyRange;
+	
 	/**
 		Creates a new key range with upper and lower bounds.
+		@throws DOMError
 	**/
-	function bound( lower : Any, upper : Any, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
+	static function bound( lower : Any, upper : Any, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
 	
 	/**
 		Lower bound of the key range.

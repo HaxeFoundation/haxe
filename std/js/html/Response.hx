@@ -34,17 +34,17 @@ package js.html;
 @:native("Response")
 extern class Response
 {
-	static 
+	
 	/**
 		Returns a new `Response` object associated with a network error.
 	**/
-	function error() : Response;
-	/** @throws DOMError */
-	static 
+	static function error() : Response;
+	
 	/**
 		Creates a new response with a different URL.
+		@throws DOMError
 	**/
-	function redirect( url : String, ?status : Int = 302 ) : Response;
+	static function redirect( url : String, ?status : Int = 302 ) : Response;
 	
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).
