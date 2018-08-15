@@ -37,5 +37,5 @@ extern class ExtendableEvent extends Event
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ExtendableEventInit ) : Void;
 	/** @throws DOMError */
-	function waitUntil( p : Promise<Dynamic> ) : Void;
+	function waitUntil( p : Promise<Any> ) : Void;
 }

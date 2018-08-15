@@ -31,19 +31,18 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Geolocation>
 **/
-@:native("Geolocation")
-extern class Geolocation
+typedef Geolocation =
 {
-	/** @throws DOMError */
 	
 	/**
 		Determines the device's current location and gives back a `Position` object with the data.
+		@throws DOMError
 	**/
 	function getCurrentPosition( successCallback : Position -> Void, ?errorCallback : PositionError -> Void, ?options : PositionOptions ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `long` value representing the newly established callback function to be invoked whenever the device location changes.
+		@throws DOMError
 	**/
 	function watchPosition( successCallback : Position -> Void, ?errorCallback : PositionError -> Void, ?options : PositionOptions ) : Int;
 	

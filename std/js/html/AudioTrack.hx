@@ -24,6 +24,13 @@
 
 package js.html;
 
+/**
+	The `AudioTrack` interface represents a single audio track from one of the HTML media elements, `audio` or `video`. 
+
+	Documentation [AudioTrack](https://developer.mozilla.org/en-US/docs/Web/API/AudioTrack) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioTrack$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioTrack>
+**/
 @:native("AudioTrack")
 extern class AudioTrack
 {

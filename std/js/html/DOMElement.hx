@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `Element` interface represents an object of a `Document`. This interface describes methods and properties common to all kinds of elements. Specific behaviors are described in interfaces which inherit from `Element` but add additional functionality.
+	`Element` is the most general base class from which all objects in a `Document` inherit. It only has methods and properties common to all kinds of elements. More specific classes inherit from `Element`.
 
 	Documentation [Element](https://developer.mozilla.org/en-US/docs/Web/API/Element) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Element$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -34,12 +34,22 @@ package js.html;
 @:native("Element")
 extern class DOMElement extends Node
 {
+	
+	/**
+		The namespace URI of the element, or `null` if it is no namespace.
+		 
+		 Note: In Firefox 3.5 and earlier, HTML elements are in no namespace. In later versions, HTML elements are in the `http://www.w3.org/1999/xhtml` namespace in both HTML and XML trees. `1.9.2`
+		 
+		 
+	**/
+	var namespaceURI(default,null) : String;
+	var prefix(default,null) : String;
+	var localName(default,null) : String;
 	var tagName(default,null) : String;
 	var id : String;
 	var className : String;
 	var classList(default,null) : DOMTokenList;
 	var attributes(default,null) : NamedNodeMap;
-	var onwheel : haxe.Constraints.Function;
 	var title : String;
 	var lang : String;
 	var dir : String;
@@ -51,7 +61,7 @@ extern class DOMElement extends Node
 	var itemRef(default,null) : DOMTokenList;
 	var itemProp(default,null) : DOMTokenList;
 	var properties(default,null) : HTMLPropertiesCollection;
-	var itemValue : Dynamic;
+	var itemValue : Any;
 	var hidden : Bool;
 	var tabIndex : Int;
 	var accessKey : String;
@@ -83,18 +93,27 @@ extern class DOMElement extends Node
 	var innerHTML : String;
 	var outerHTML : String;
 	var shadowRoot(default,null) : ShadowRoot;
+	var assignedSlot(default,null) : SlotElement;
+	
+	/**
+		Returns the name of the shadow DOM slot the element is inserted in.
+	**/
+	var slot : String;
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
 	var onfocus : haxe.Constraints.Function;
+	var onauxclick : haxe.Constraints.Function;
 	var oncanplay : haxe.Constraints.Function;
 	var oncanplaythrough : haxe.Constraints.Function;
 	var onchange : haxe.Constraints.Function;
 	var onclick : haxe.Constraints.Function;
+	var onclose : haxe.Constraints.Function;
 	var oncontextmenu : haxe.Constraints.Function;
 	var ondblclick : haxe.Constraints.Function;
 	var ondrag : haxe.Constraints.Function;
 	var ondragend : haxe.Constraints.Function;
 	var ondragenter : haxe.Constraints.Function;
+	var ondragexit : haxe.Constraints.Function;
 	var ondragleave : haxe.Constraints.Function;
 	var ondragover : haxe.Constraints.Function;
 	var ondragstart : haxe.Constraints.Function;
@@ -110,6 +129,7 @@ extern class DOMElement extends Node
 	var onload : haxe.Constraints.Function;
 	var onloadeddata : haxe.Constraints.Function;
 	var onloadedmetadata : haxe.Constraints.Function;
+	var onloadend : haxe.Constraints.Function;
 	var onloadstart : haxe.Constraints.Function;
 	var onmousedown : haxe.Constraints.Function;
 	var onmouseenter : haxe.Constraints.Function;
@@ -118,6 +138,7 @@ extern class DOMElement extends Node
 	var onmouseout : haxe.Constraints.Function;
 	var onmouseover : haxe.Constraints.Function;
 	var onmouseup : haxe.Constraints.Function;
+	var onwheel : haxe.Constraints.Function;
 	var onpause : haxe.Constraints.Function;
 	var onplay : haxe.Constraints.Function;
 	var onplaying : haxe.Constraints.Function;
@@ -136,6 +157,7 @@ extern class DOMElement extends Node
 	var ontimeupdate : haxe.Constraints.Function;
 	var onvolumechange : haxe.Constraints.Function;
 	var onwaiting : haxe.Constraints.Function;
+	var ontoggle : haxe.Constraints.Function;
 	var onpointercancel : haxe.Constraints.Function;
 	var onpointerdown : haxe.Constraints.Function;
 	var onpointerup : haxe.Constraints.Function;
@@ -146,10 +168,18 @@ extern class DOMElement extends Node
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
-	var onpointerlockchange : haxe.Constraints.Function;
-	var onpointerlockerror : haxe.Constraints.Function;
+	var onanimationcancel : haxe.Constraints.Function;
+	var onanimationend : haxe.Constraints.Function;
+	var onanimationiteration : haxe.Constraints.Function;
+	var onanimationstart : haxe.Constraints.Function;
+	var ontransitioncancel : haxe.Constraints.Function;
+	var ontransitionend : haxe.Constraints.Function;
+	var ontransitionrun : haxe.Constraints.Function;
+	var ontransitionstart : haxe.Constraints.Function;
+	var onwebkitanimationend : haxe.Constraints.Function;
+	var onwebkitanimationiteration : haxe.Constraints.Function;
+	var onwebkitanimationstart : haxe.Constraints.Function;
+	var onwebkittransitionend : haxe.Constraints.Function;
 	var previousElementSibling(default,null) : Element;
 	var nextElementSibling(default,null) : Element;
 	var onerror : haxe.Constraints.Function;
@@ -162,9 +192,15 @@ extern class DOMElement extends Node
 	var ontouchmove : haxe.Constraints.Function;
 	var ontouchcancel : haxe.Constraints.Function;
 	
-	function getAttributeNames() : Array<String>;
-	function getAttribute( name : String ) : String;
-	function getAttributeNS( namespace_ : String, localName : String ) : String;
+	@:pure function getAttributeNames() : Array<String>;
+	@:pure function getAttribute( name : String ) : String;
+	@:pure function getAttributeNS( namespace_ : String, localName : String ) : String;
+	
+	/**
+		Toggles a boolean attribute, removing it if it is present and adding it if it is not present, on the specified element.
+		@throws DOMError
+	**/
+	function toggleAttribute( name : String, ?force : Bool ) : Bool;
 	/** @throws DOMError */
 	function setAttribute( name : String, value : String ) : Void;
 	/** @throws DOMError */
@@ -173,30 +209,34 @@ extern class DOMElement extends Node
 	function removeAttribute( name : String ) : Void;
 	/** @throws DOMError */
 	function removeAttributeNS( namespace_ : String, localName : String ) : Void;
-	function hasAttribute( name : String ) : Bool;
-	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
-	function hasAttributes() : Bool;
+	@:pure function hasAttribute( name : String ) : Bool;
+	@:pure function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
+	@:pure function hasAttributes() : Bool;
 	/** @throws DOMError */
-	function closest( selector : String ) : Element;
+	@:pure function closest( selector : String ) : Element;
 	/** @throws DOMError */
-	function matches( selector : String ) : Bool;
+	@:pure function matches( selector : String ) : Bool;
 	/** @throws DOMError */
-	function webkitMatchesSelector( selector : String ) : Bool;
-	function getElementsByTagName( localName : String ) : HTMLCollection;
+	@:pure function webkitMatchesSelector( selector : String ) : Bool;
+	@:pure function getElementsByTagName( localName : String ) : HTMLCollection;
 	/** @throws DOMError */
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
-	function getElementsByClassName( classNames : String ) : HTMLCollection;
+	@:pure function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	@:pure function getElementsByClassName( classNames : String ) : HTMLCollection;
 	/** @throws DOMError */
+	@:pure function insertAdjacentElement( where : String, element : Element ) : Element;
+	/** @throws DOMError */
+	function insertAdjacentText( where : String, data : String ) : Void;
 	
 	/**
-		Designates a specific element as the capture target of future `PointerEvent`.
+		Designates a specific element as the capture target of future pointer events.
+		@throws DOMError
 	**/
 	function setPointerCapture( pointerId : Int ) : Void;
 	/** @throws DOMError */
 	function releasePointerCapture( pointerId : Int ) : Void;
+	function hasPointerCapture( pointerId : Int ) : Bool;
 	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
-	function requestPointerLock() : Void;
 	function getAttributeNode( name : String ) : Attr;
 	/** @throws DOMError */
 	function setAttributeNode( newAttr : Attr ) : Attr;
@@ -212,8 +252,7 @@ extern class DOMElement extends Node
 	function blur() : Void;
 	function getClientRects() : DOMRectList;
 	function getBoundingClientRect() : DOMRect;
-	@:overload( function( top : Bool ) : Void {} )
-	function scrollIntoView( ?options : ScrollIntoViewOptions ) : Void;
+	function scrollIntoView( ?arg : haxe.extern.EitherType<Bool,ScrollIntoViewOptions> ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
 	function scroll( ?options : ScrollToOptions ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
@@ -223,29 +262,33 @@ extern class DOMElement extends Node
 	/** @throws DOMError */
 	function insertAdjacentHTML( position : String, text : String ) : Void;
 	/** @throws DOMError */
-	function querySelector( selectors : String ) : Element;
+	@:pure function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
-	function querySelectorAll( selectors : String ) : NodeList;
-	/** @throws DOMError */
-	function createShadowRoot() : ShadowRoot;
+	@:pure function querySelectorAll( selectors : String ) : NodeList;
 	
 	/**
-		…
+		Attatches a shadow DOM tree to the specified element and returns a reference to its `ShadowRoot`.
+		@throws DOMError
 	**/
-	function getDestinationInsertionPoints() : NodeList;
-	/** @throws DOMError */
-	function requestFullscreen( ?options : Dynamic ) : Void;
-	/** @throws DOMError */
+	function attachShadow( shadowRootInitDict : ShadowRootInit ) : ShadowRoot;
+	function requestPointerLock() : Void;
 	
 	/**
 		A shortcut method to create and run an animation on an element. Returns the created Animation object instance.
+		@throws DOMError
 	**/
-	function animate( frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeAnimationOptions*/> ) : Animation;
+	function animate( keyframes : Any, ?options : haxe.extern.EitherType<Float,KeyframeAnimationOptions> ) : Animation;
 	
 	/**
 		Returns an array of Animation objects currently active on the element.
 	**/
-	function getAnimations() : Array<Animation>;
+	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
+	/** @throws DOMError */
+	function before( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	/** @throws DOMError */
+	function after( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	/** @throws DOMError */
+	function replaceWith( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
 	function remove() : Void;
 	/** @throws DOMError */
 	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
@@ -253,4 +296,8 @@ extern class DOMElement extends Node
 	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
 	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	/** @throws DOMError */
+	function prepend( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	/** @throws DOMError */
+	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
 }

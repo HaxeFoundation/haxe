@@ -201,6 +201,7 @@ extern class KeyboardEvent extends UIEvent
 	static inline var DOM_VK_ALTGR : Int = 225;
 	static inline var DOM_VK_WIN_ICO_HELP : Int = 227;
 	static inline var DOM_VK_WIN_ICO_00 : Int = 228;
+	static inline var DOM_VK_PROCESSKEY : Int = 229;
 	static inline var DOM_VK_WIN_ICO_CLEAR : Int = 230;
 	static inline var DOM_VK_WIN_OEM_RESET : Int = 233;
 	static inline var DOM_VK_WIN_OEM_JUMP : Int = 234;
@@ -227,15 +228,15 @@ extern class KeyboardEvent extends UIEvent
 	
 	/**
 		Returns a `Number` representing the Unicode reference number of the key; this attribute is used only by the `keypress` event. For keys whose `char` attribute contains multiple characters, this is the Unicode value of the first character in that attribute. In Firefox 26 this returns codes for printable characters.
-		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
-		 
+			Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+			
 	**/
 	var charCode(default,null) : Int;
 	
 	/**
 		Returns a `Number` representing a system and implementation dependent numerical code identifying the unmodified value of the pressed key.
-		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
-		 
+			Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+			
 	**/
 	var keyCode(default,null) : Int;
 	
@@ -279,6 +280,11 @@ extern class KeyboardEvent extends UIEvent
 	**/
 	var key(default,null) : String;
 	
+	/**
+		Returns a `DOMString` with the code value of the key represented by the event.
+	**/
+	var code(default,null) : String;
+	
 	/** @throws DOMError */
 	function new( typeArg : String, ?keyboardEventInitDict : KeyboardEventInit ) : Void;
 	
@@ -288,7 +294,13 @@ extern class KeyboardEvent extends UIEvent
 	function getModifierState( key : String ) : Bool;
 	
 	/**
+		Initializes a `KeyboardEvent` object. This has never been implemented by Gecko (who used `KeyboardEvent.initKeyEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
+		@throws DOMError
+	**/
+	function initKeyboardEvent( typeArg : String, ?bubblesArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?keyArg : String = "", ?locationArg : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false ) : Void;
+	
+	/**
 		Initializes a `KeyboardEvent` object. This has only been implemented by Gecko (others used `KeyboardEvent.initKeyboardEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
 	**/
-	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
+	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
 }

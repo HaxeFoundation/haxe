@@ -31,6 +31,6 @@ extern class CSSPseudoElement
 	var parentElement(default,null) : Element;
 	
 	/** @throws DOMError */
-	function animate( frames : Dynamic, ?options : haxe.extern.EitherType<Float,Dynamic/*MISSING KeyframeAnimationOptions*/> ) : Animation;
-	function getAnimations() : Array<Animation>;
+	function animate( keyframes : Any, ?options : haxe.extern.EitherType<Float,KeyframeAnimationOptions> ) : Animation;
+	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
 }

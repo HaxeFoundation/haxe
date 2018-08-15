@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceRotationRate>
 **/
-@:native("DeviceRotationRate")
-extern class DeviceRotationRate
+typedef DeviceRotationRate =
 {
 	var alpha(default,null) : Float;
 	var beta(default,null) : Float;

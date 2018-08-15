@@ -38,11 +38,14 @@ extern class PointerEvent extends MouseEvent
 	var width(default,null) : Int;
 	var height(default,null) : Int;
 	var pressure(default,null) : Float;
+	var tangentialPressure(default,null) : Float;
 	var tiltX(default,null) : Int;
 	var tiltY(default,null) : Int;
+	var twist(default,null) : Int;
 	var pointerType(default,null) : String;
 	var isPrimary(default,null) : Bool;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : PointerEventInit ) : Void;
+	function getCoalescedEvents() : Array<PointerEvent>;
 }

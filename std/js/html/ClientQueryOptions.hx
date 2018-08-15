@@ -27,5 +27,5 @@ package js.html;
 typedef ClientQueryOptions =
 {
 	@:optional var includeUncontrolled : Bool;
-	@:optional var type : Dynamic/*MISSING ClientType*/;
+	@:optional var type : ClientType;
 }

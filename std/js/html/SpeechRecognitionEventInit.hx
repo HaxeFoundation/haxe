@@ -28,7 +28,7 @@ typedef SpeechRecognitionEventInit =
 {
 	> EventInit,
 	@:optional var emma : HTMLDocument;
-	@:optional var interpretation : Dynamic;
+	@:optional var interpretation : Any;
 	@:optional var resultIndex : Int;
 	@:optional var results : SpeechRecognitionResultList;
 }

@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Coordinates>
 **/
-@:native("Coordinates")
-extern class Coordinates
+typedef Coordinates =
 {
 	
 	/**
@@ -46,7 +45,7 @@ extern class Coordinates
 	var longitude(default,null) : Float;
 	
 	/**
-		Returns a `double` representing the position's altitude in metres, relative to sea level. This value can be `null` if the implementation cannot provide the data.
+		Returns a `double` representing the position's altitude in meters, relative to sea level. This value can be `null` if the implementation cannot provide the data.
 	**/
 	var altitude(default,null) : Float;
 	

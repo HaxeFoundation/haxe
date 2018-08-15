@@ -39,35 +39,35 @@ extern class KeyRange
 	/**
 		Creates a new key range containing a single value.
 	**/
-	function only( value : Dynamic ) : KeyRange;
+	function only( value : Any ) : KeyRange;
 	/** @throws DOMError */
 	static 
 	/**
 		Creates a new key range with only a lower bound.
 	**/
-	function lowerBound( lower : Dynamic, ?open : Bool = false ) : KeyRange;
+	function lowerBound( lower : Any, ?open : Bool = false ) : KeyRange;
 	/** @throws DOMError */
 	static 
 	/**
 		Creates a new upper-bound key range.
 	**/
-	function upperBound( upper : Dynamic, ?open : Bool = false ) : KeyRange;
+	function upperBound( upper : Any, ?open : Bool = false ) : KeyRange;
 	/** @throws DOMError */
 	static 
 	/**
 		Creates a new key range with upper and lower bounds.
 	**/
-	function bound( lower : Dynamic, upper : Dynamic, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
+	function bound( lower : Any, upper : Any, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
 	
 	/**
 		Lower bound of the key range.
 	**/
-	var lower(default,null) : Dynamic;
+	var lower(default,null) : Any;
 	
 	/**
 		Upper bound of the key range.
 	**/
-	var upper(default,null) : Dynamic;
+	var upper(default,null) : Any;
 	
 	/**
 		Returns false if the lower-bound value is included in the key range.
@@ -79,10 +79,10 @@ extern class KeyRange
 	**/
 	var upperOpen(default,null) : Bool;
 	
-	/** @throws DOMError */
 	
 	/**
 		Returns a boolean indicating whether a specified key is inside the key range.
+		@throws DOMError
 	**/
-	function includes( key : Dynamic ) : Bool;
+	function includes( key : Any ) : Bool;
 }

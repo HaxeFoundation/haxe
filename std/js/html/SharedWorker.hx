@@ -42,5 +42,5 @@ extern class SharedWorker extends EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( scriptURL : String, ?name : String ) : Void;
+	function new( scriptURL : String, ?options : haxe.extern.EitherType<String,WorkerOptions> ) : Void;
 }

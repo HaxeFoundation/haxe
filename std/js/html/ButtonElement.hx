@@ -56,6 +56,10 @@ extern class ButtonElement extends Element
 		Is a `DOMString` reflecting the URI of a resource that processes information submitted by the button. If specified, this attribute overrides the `action` attribute of the `form` element that owns this element.
 	**/
 	var formAction : String;
+	
+	/**
+		Is a `DOMString` reflecting the type of content that is used to submit the form to the server. If specified, this attribute overrides the `enctype` attribute of the `form` element that owns this element.
+	**/
 	var formEnctype : String;
 	
 	/**
@@ -110,6 +114,12 @@ extern class ButtonElement extends Element
 	**/
 	var validationMessage(default,null) : String;
 	
+	/**
+		Is a `NodeList` that represents a list of `label` elements that are labels for this button.
+	**/
+	var labels(default,null) : NodeList;
+	
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
 }

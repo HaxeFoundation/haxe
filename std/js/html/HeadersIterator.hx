@@ -24,9 +24,8 @@
 
 package js.html;
 
-@:native("HeadersIterator")
-extern class HeadersIterator
+typedef HeadersIterator =
 {
 	/** @throws DOMError */
-	function next() : Dynamic;
+	function next() : Any;
 }

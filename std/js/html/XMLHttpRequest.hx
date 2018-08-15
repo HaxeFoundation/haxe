@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`XMLHttpRequest` is an API that provides client functionality for transferring data between a client and a server. It provides an easy way to retrieve data from a URL without having to do a full page refresh. This enables a Web page to update just a part of the page without disrupting what the user is doing.
+	Use `XMLHttpRequest` (XHR) objects to interact with servers. You can retrieve data from a URL without having to do a full page refresh. This enables a Web page to update just part of a page without disrupting what the user is doing.
 
 	Documentation [XMLHttpRequest](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -53,7 +53,7 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	/**
 		Returns an `ArrayBuffer`, `Blob`, `Document`, JavaScript object, or a `DOMString`, depending on the value of `XMLHttpRequest.responseType`. that contains the response entity body.
 	**/
-	var response(default,null) : Dynamic;
+	var response(default,null) : Any;
 	var responseText(default,null) : String;
 	var responseXML(default,null) : HTMLDocument;
 	
@@ -67,47 +67,40 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 		Initializes a request. This method is to be used from JavaScript code; to initialize a request from native code, use `openRequest()` instead.
 	**/
 	function open( method : String, url : String, async : Bool, ?user : String, ?password : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sets the value of an HTTP request header. You must call `setRequestHeader()`after `open()`, but before `send()`.
+		@throws DOMError
 	**/
 	function setRequestHeader( header : String, value : String ) : Void;
-	/** @throws DOMError */
-	@:overload( function() : Void {} )
-	@:overload( function( data : ArrayBuffer ) : Void {} )
-	@:overload( function( data : ArrayBufferView ) : Void {} )
-	@:overload( function( data : Blob ) : Void {} )
-	@:overload( function( data : HTMLDocument ) : Void {} )
-	@:overload( function( data : String ) : Void {} )
-	@:overload( function( data : FormData ) : Void {} )
 	
 	/**
 		Sends the request. If the request is asynchronous (which is the default), this method returns as soon as the request is sent.
+		@throws DOMError
 	**/
-	function send( data : Dynamic/*MISSING InputStream*/ ) : Void;
-	/** @throws DOMError */
+	function send( ?body : haxe.extern.EitherType<HTMLDocument,haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>> ) : Void;
 	
 	/**
 		Aborts the request if it has already been sent.
+		@throws DOMError
 	**/
 	function abort() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns the string containing the text of the specified header, or `null` if either the response has not yet been received or the header doesn't exist in the response.
+		@throws DOMError
 	**/
 	function getResponseHeader( header : String ) : String;
-	/** @throws DOMError */
 	
 	/**
-		Returns all the response headers, separated by CRLF, as a string, or `null` if no response has been received. 
+		Returns all the response headers, separated by CRLF, as a string, or `null` if no response has been received.
+		@throws DOMError
 	**/
 	function getAllResponseHeaders() : String;
-	/** @throws DOMError */
 	
 	/**
 		Overrides the MIME type returned by the server.
+		@throws DOMError
 	**/
 	function overrideMimeType( mime : String ) : Void;
 }

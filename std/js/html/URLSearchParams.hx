@@ -35,8 +35,7 @@ package js.html;
 extern class URLSearchParams
 {
 	/** @throws DOMError */
-	@:overload( function( ?init : String = "" ) : Void {} )
-	function new( init : URLSearchParams ) : Void;
+	function new( ?init : haxe.extern.EitherType<Array<Array<String>>,haxe.extern.EitherType<haxe.DynamicAccess<String>,String>> = "" ) : Void;
 	
 	/**
 		Appends a specified key/value pair as a new search parameter.
@@ -51,7 +50,7 @@ extern class URLSearchParams
 	function get( name : String ) : String;
 	
 	/**
-		Returns all the values association with a given search parameter.
+		Returns all the values associated with a given search parameter.
 	**/
 	function getAll( name : String ) : Array<String>;
 	
@@ -64,24 +63,30 @@ extern class URLSearchParams
 		Sets the value associated to a given search parameter to the given value. If there were several values, delete the others.
 	**/
 	function set( name : String, value : String ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sorts all key/value pairs, if any, by their keys.
+		@throws DOMError
+	**/
+	function sort() : Void;
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function entries() : URLSearchParamsIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all keys of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function keys() : URLSearchParamsIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all values of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function values() : URLSearchParamsIterator;
 	/** @throws DOMError */
-	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
+	function forEach( callback : Any, ?thisArg : Any ) : Void;
 }

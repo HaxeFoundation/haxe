@@ -712,8 +712,6 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	function item( index : Int ) : String;
 	/** @throws DOMError */
 	function getPropertyValue( property : String ) : String;
-	/** @throws DOMError */
-	function getPropertyCSSValue( property : String ) : CSSValue;
 	function getPropertyPriority( property : String ) : String;
 	/** @throws DOMError */
 	function setProperty( property : String, value : String, ?priority : String = "" ) : Void;

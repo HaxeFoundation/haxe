@@ -43,9 +43,9 @@ extern class XSLTProcessor
 	/** @throws DOMError */
 	function transformToDocument( source : Node ) : HTMLDocument;
 	/** @throws DOMError */
-	function setParameter( namespaceURI : String, localName : String, value : Dynamic ) : Void;
+	function setParameter( namespaceURI : String, localName : String, value : Any ) : Void;
 	/** @throws DOMError */
-	function getParameter( namespaceURI : String, localName : String ) : Dynamic/*MISSING nsIVariant*/;
+	function getParameter( namespaceURI : String, localName : String ) : Any;
 	/** @throws DOMError */
 	function removeParameter( namespaceURI : String, localName : String ) : Void;
 	function clearParameters() : Void;

@@ -34,8 +34,11 @@ package js.html;
 @:native("Attr")
 extern class Attr extends Node
 {
+	var localName(default,null) : String;
 	var value : String;
 	var name(default,null) : String;
+	var namespaceURI(default,null) : String;
+	var prefix(default,null) : String;
 	var specified(default,null) : Bool;
 	var ownerElement(default,null) : Element;
 	

@@ -36,7 +36,13 @@ extern class Notification extends EventTarget
 {
 	static 
 	/**
-		A string representing the current permission to display notifications. Possible value are: `denied` (the user refuses to have notifications displayed), `granted` (the user accepts having notifications displayed), or `default` (the user choice is unknown and therefore the browser will act as if the value were denied).
+		A string representing the current permission to display notifications. Possible values are:
+			
+				`denied` — The user refuses to have notifications displayed.
+				`granted` — The user accepts having notifications displayed.
+				`default` — The user choice is unknown and therefore the browser will act as if the value were denied.
+			
+			
 	**/
 	var permission(default,null) : NotificationPermission;
 	
@@ -94,7 +100,7 @@ extern class Notification extends EventTarget
 	/**
 		Returns a structured clone of the notification’s data.
 	**/
-	var data(default,null) : Dynamic;
+	var data(default,null) : Any;
 	
 	/** @throws DOMError */
 	function new( title : String, ?options : NotificationOptions ) : Void;

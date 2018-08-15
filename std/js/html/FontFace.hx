@@ -36,37 +36,37 @@ extern class FontFace
 {
 	
 	/**
-		Is a `DOMString` that contains the family of the font. It is equivalent to the `@font-face/family` descriptor.
+		Is a `CSSOMString` that contains the family of the font. It is equivalent to the `@font-face/font-family` descriptor.
 	**/
 	var family : String;
 	
 	/**
-		Is a `DOMString` that contains the style of the font. It is equivalent to the `@font-face/style` descriptor.
+		Is a `CSSOMString` that contains the style of the font. It is equivalent to the `@font-face/font-style` descriptor.
 	**/
 	var style : String;
 	
 	/**
-		Is a `DOMString` that contains the weight of the font. It is equivalent to the `@font-face/weight` descriptor.
+		Is a `CSSOMString` that contains the weight of the font. It is equivalent to the `@font-face/font-weight` descriptor.
 	**/
 	var weight : String;
 	
 	/**
-		Is a `DOMString` that contains how the font stretches. It is equivalent to the `@font-face/stretch` descriptor.
+		Is a `CSSOMString` that contains how the font stretches. It is equivalent to the `@font-face/font-stretch` descriptor.
 	**/
 	var stretch : String;
 	
 	/**
-		Is a `DOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
+		Is a `CSSOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
 	**/
 	var unicodeRange : String;
 	
 	/**
-		Is a `DOMString` that contains the variant of the font. It is equivalent to the `@font-face/range` descriptor.
+		Is a `CSSOMString` that contains the variant of the font. It is equivalent to the `@font-face/font-variant` descriptor.
 	**/
 	var variant : String;
 	
 	/**
-		Is a `DOMString` that contains the features of the font. It is equivalent to the `@font-face/feature-settings` descriptor.
+		Is a `CSSOMString` that contains the features of the font. It is equivalent to the `@font-face/font-feature-settings`descriptor.
 	**/
 	var featureSettings : String;
 	
@@ -82,10 +82,10 @@ extern class FontFace
 	
 	/** @throws DOMError */
 	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Loads the font, returning a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
+		@throws DOMError
 	**/
 	function load() : Promise<FontFace>;
 }

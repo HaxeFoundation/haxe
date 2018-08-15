@@ -155,6 +155,7 @@ extern class ObjectElement extends Element
 		Retuns a `Boolean` that always is `true`, because `object` objects are never candidates for constraint validation.
 	**/
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
 	
 	/**
 		Sets a custom validity message for the element. If this message is not the empty string, then the element is suffering from a custom validity error, and does not validate.

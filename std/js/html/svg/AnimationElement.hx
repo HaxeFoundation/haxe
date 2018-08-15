@@ -34,23 +34,61 @@ package js.html.svg;
 @:native("SVGAnimationElement")
 extern class AnimationElement extends Element
 {
+	
+	/**
+		An `SVGElement` representing the element which is being animated. If no target element is being animated (for example, because the `href` specifies an unknown element) the value returned is `null`.
+	**/
 	var targetElement(default,null) : Element;
 	var requiredFeatures(default,null) : StringList;
 	var requiredExtensions(default,null) : StringList;
 	var systemLanguage(default,null) : StringList;
 	
-	/** @throws DOMError */
+	
+	/**
+		Returns a float representing the begin time, in seconds, for this animation element's current interval, if it exists, regardless of whether the interval has begun yet. If there is no current interval, then a `DOMException` with code `INVALID_STATE_ERR` is thrown.
+		@throws DOMError
+	**/
 	function getStartTime() : Float;
+	
+	/**
+		Returns a float representing the current time in seconds relative to time zero for the given time container.
+	**/
 	function getCurrentTime() : Float;
-	/** @throws DOMError */
+	
+	/**
+		Returns a float representing the number of seconds for the simple duration for this animation. If the simple duration is undefined (e.g., the end time is indefinite), then a `DOMException` with code `NOT_SUPPORTED_ERR` is raised.
+		@throws DOMError
+	**/
 	function getSimpleDuration() : Float;
-	/** @throws DOMError */
+	
+	/**
+		Creates a begin instance time for the current time. The new instance time is added to the begin instance times list. The behavior of this method is equivalent to `beginElementAt(0)`.
+		@throws DOMError
+	**/
 	function beginElement() : Void;
-	/** @throws DOMError */
+	
+	/**
+		
+		 Creates a begin instance time for the current time plus the specified offset. The new instance time is added to the begin instance times list.
+		 
+		@throws DOMError
+	**/
 	function beginElementAt( offset : Float ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		
+		 Creates an end instance time for the current time. The new instance time is added to the end instance times list. The behavior of this method is equivalent to `endElementAt(0)`.
+		 
+		@throws DOMError
+	**/
 	function endElement() : Void;
-	/** @throws DOMError */
+	
+	/**
+		
+		 Creates a end instance time for the current time plus the specified offset. The new instance time is added to the end instance times list.
+		 
+		@throws DOMError
+	**/
 	function endElementAt( offset : Float ) : Void;
 	function hasExtension( extension : String ) : Bool;
 }

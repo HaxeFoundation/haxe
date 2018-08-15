@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `PerformanceResourceTiming` interface enables retrieving and analyzing detailed network timing data regarding the loading of an application's resources. An application can use the timing metrics to determine, for example, the length of time it takes to fetch a specific resource, such as an `XMLHttpRequest`, `SVG`, image, or script.
+	The `PerformanceResourceTiming` interface enables retrieval and analysis of detailed network timing data regarding the loading of an application's resources. An application can use the timing metrics to determine, for example, the length of time it takes to fetch a specific resource, such as an `XMLHttpRequest`, `SVG`, image, or script.
 
 	Documentation [PerformanceResourceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -36,6 +36,7 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 {
 	var initiatorType(default,null) : String;
 	var nextHopProtocol(default,null) : String;
+	var workerStart(default,null) : Float;
 	var redirectStart(default,null) : Float;
 	var redirectEnd(default,null) : Float;
 	var fetchStart(default,null) : Float;
@@ -50,5 +51,6 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 	var transferSize(default,null) : Int;
 	var encodedBodySize(default,null) : Int;
 	var decodedBodySize(default,null) : Int;
+	var serverTiming(default,null) : Array<PerformanceServerTiming>;
 	
 }

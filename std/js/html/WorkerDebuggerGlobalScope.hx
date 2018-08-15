@@ -27,18 +27,22 @@ package js.html;
 @:native("WorkerDebuggerGlobalScope")
 extern class WorkerDebuggerGlobalScope extends EventTarget
 {
-	var global(default,null) : Dynamic;
+	var global(default,null) : Any;
 	var onmessage : haxe.Constraints.Function;
-	var console(default,null) : Console;
 	
-	function createSandbox( name : String, prototype : Dynamic ) : Dynamic;
 	/** @throws DOMError */
-	function loadSubScript( url : String, ?sandbox : Dynamic ) : Void;
+	function createSandbox( name : String, prototype : Any ) : Any;
+	/** @throws DOMError */
+	function loadSubScript( url : String, ?sandbox : Any ) : Void;
 	function enterEventLoop() : Void;
 	function leaveEventLoop() : Void;
 	function postMessage( message : String ) : Void;
 	/** @throws DOMError */
 	function setImmediate( handler : haxe.Constraints.Function ) : Void;
 	function reportError( message : String ) : Void;
+	/** @throws DOMError */
+	function retrieveConsoleEvents() : Array<Any>;
+	/** @throws DOMError */
+	function setConsoleEventHandler( handler : haxe.Constraints.Function ) : Void;
 	function dump( ?string : String ) : Void;
 }

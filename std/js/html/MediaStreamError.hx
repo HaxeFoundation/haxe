@@ -24,8 +24,7 @@
 
 package js.html;
 
-@:native("MediaStreamError")
-extern class MediaStreamError
+typedef MediaStreamError =
 {
 	var name(default,null) : String;
 	var message(default,null) : String;

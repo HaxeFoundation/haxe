@@ -24,15 +24,20 @@
 
 package js.html;
 
+/**
+	The `MutationObserverInit` dictionary describes the configuration of a mutation observer. As such, it's primarily used as the type of the `options` parameter on the `MutationObserver.observe()` method.
+
+	Documentation [MutationObserverInit](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserverInit) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserverInit$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationObserverInit>
+**/
 typedef MutationObserverInit =
 {
-	@:optional var animations : Bool;
 	@:optional var attributeFilter : Array<String>;
 	@:optional var attributeOldValue : Bool;
 	@:optional var attributes : Bool;
 	@:optional var characterData : Bool;
 	@:optional var characterDataOldValue : Bool;
 	@:optional var childList : Bool;
-	@:optional var nativeAnonymousChildList : Bool;
 	@:optional var subtree : Bool;
 }

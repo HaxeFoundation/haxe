@@ -24,9 +24,8 @@
 
 package js.html;
 
-@:native("MediaKeyStatusMapIterator")
-extern class MediaKeyStatusMapIterator
+typedef MediaKeyStatusMapIterator =
 {
 	/** @throws DOMError */
-	function next() : Dynamic;
+	function next() : Any;
 }

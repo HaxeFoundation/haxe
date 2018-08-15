@@ -48,7 +48,7 @@ extern class CryptoKey
 	/**
 		Returns an opaque object representing a particular cipher the key has to be used with.
 	**/
-	var algorithm(default,null) : Dynamic;
+	var algorithm(default,null) : Any;
 	
 	/**
 		Returns an array of enumerated values indicating what the key can be used for.

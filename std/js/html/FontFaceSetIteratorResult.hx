@@ -27,5 +27,5 @@ package js.html;
 typedef FontFaceSetIteratorResult =
 {
 	var done : Bool;
-	var value : Dynamic;
+	var value : Any;
 }

@@ -28,7 +28,7 @@ typedef ErrorEventInit =
 {
 	> EventInit,
 	@:optional var colno : Int;
-	@:optional var error : Dynamic;
+	@:optional var error : Any;
 	@:optional var filename : String;
 	@:optional var lineno : Int;
 	@:optional var message : String;

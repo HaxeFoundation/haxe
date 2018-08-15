@@ -57,6 +57,11 @@ extern class Response
 	var url(default,null) : String;
 	
 	/**
+		Indicates whether or not the response is the result of a redirect; that is, its URL list has more than one entry.
+	**/
+	var redirected(default,null) : Bool;
+	
+	/**
 		Contains the status code of the response (e.g., `200` for a success).
 	**/
 	var status(default,null) : Int;
@@ -78,11 +83,11 @@ extern class Response
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>, ?init : ResponseInit ) : Void;
-	/** @throws DOMError */
+	function new( ?body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,haxe.extern.EitherType<Dynamic/*MISSING ReadableStream*/,String>>>>>, ?init : ResponseInit ) : Void;
 	
 	/**
 		Creates a clone of a `Response` object.
+		@throws DOMError
 	**/
 	function clone() : Response;
 	/** @throws DOMError */
@@ -92,7 +97,7 @@ extern class Response
 	/** @throws DOMError */
 	function formData() : Promise<FormData>;
 	/** @throws DOMError */
-	function json() : Promise<Dynamic>;
+	function json() : Promise<Any>;
 	/** @throws DOMError */
 	function text() : Promise<String>;
 }

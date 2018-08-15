@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLPropertiesCollection.webidl. Do not edit!
+// This file is generated from HTMLPropertiesCollection.webidl. Do not edit!
 
 package js.html;
 
@@ -28,5 +28,5 @@ package js.html;
 extern class PropertyNodeList extends NodeList
 {
 	/** @throws DOMError */
-	function getValues() : Array<Dynamic>;
+	function getValues() : Array<Any>;
 }

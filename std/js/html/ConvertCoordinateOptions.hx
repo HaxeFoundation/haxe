@@ -26,6 +26,6 @@ package js.html;
 
 typedef ConvertCoordinateOptions =
 {
-	@:optional var fromBox : Dynamic/*MISSING CSSBoxType*/;
-	@:optional var toBox : Dynamic/*MISSING CSSBoxType*/;
+	@:optional var fromBox : CSSBoxType;
+	@:optional var toBox : CSSBoxType;
 }

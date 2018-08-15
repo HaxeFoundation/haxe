@@ -57,6 +57,11 @@ extern class IFrameElement extends Element
 	var allowFullscreen : Bool;
 	
 	/**
+		Is a `Boolean` indicating whether the Payment Request API may be invoked inside a cross-origin iframe.
+	**/
+	var allowPaymentRequest : Bool;
+	
+	/**
 		Is a `DOMString` that reflects the `width` HTML attribute, indicating the width of the frame.
 	**/
 	var width : String;
@@ -65,6 +70,11 @@ extern class IFrameElement extends Element
 		Is a `DOMString` that reflects the `height` HTML attribute, indicating the height of the frame.
 	**/
 	var height : String;
+	
+	/**
+		Is a `DOMString` that reflects the `referrerPolicy` HTML attribute indicating which referrer to use when fetching the linked resource.
+	**/
+	var referrerPolicy : String;
 	
 	/**
 		Returns a `Document`, the active document in the inline frame's nested browsing context.

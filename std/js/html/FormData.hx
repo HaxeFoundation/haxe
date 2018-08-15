@@ -49,12 +49,12 @@ extern class FormData
 	/**
 		Returns the first value associated with a given key from within a `FormData` object.
 	**/
-	function get( name : String ) : haxe.extern.EitherType<Blob,String>;
+	function get( name : String ) : haxe.extern.EitherType<Blob,haxe.extern.EitherType<Directory,String>>;
 	
 	/**
 		Returns an array of all the values associated with a given key from within a `FormData`.
 	**/
-	function getAll( name : String ) : Array<haxe.extern.EitherType<Blob,String>>;
+	function getAll( name : String ) : Array<haxe.extern.EitherType<Blob,haxe.extern.EitherType<Directory,String>>>;
 	
 	/**
 		Returns a boolean stating whether a `FormData` object contains a certain key/value pair.
@@ -67,24 +67,24 @@ extern class FormData
 		Sets a new value for an existing key inside a `FormData `object, or adds the key/value if it does not already exist.
 	**/
 	function set( name : String, value : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function entries() : FormDataIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all keys of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function keys() : FormDataIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all values of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function values() : FormDataIterator;
 	/** @throws DOMError */
-	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
+	function forEach( callback : Any, ?thisArg : Any ) : Void;
 }

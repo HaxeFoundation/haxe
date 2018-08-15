@@ -104,6 +104,7 @@ extern class Window extends EventTarget
 		This property indicates whether the current window is closed or not.
 	**/
 	var closed(default,null) : Bool;
+	var event(default,null) : Any;
 	
 	/**
 		Returns an array of the subframes in the current window.
@@ -123,7 +124,7 @@ extern class Window extends EventTarget
 	/**
 		Returns a reference to the window that opened this current window.
 	**/
-	var opener : Dynamic;
+	var opener : Any;
 	
 	/**
 		Returns a reference to the parent of the current window or subframe.
@@ -154,47 +155,47 @@ extern class Window extends EventTarget
 	/**
 		Gets the width of the content area of the browser window including, if rendered, the vertical scrollbar.
 	**/
-	var innerWidth : Dynamic;
+	var innerWidth : Any;
 	
 	/**
 		Gets the height of the content area of the browser window including, if rendered, the horizontal scrollbar.
 	**/
-	var innerHeight : Dynamic;
+	var innerHeight : Any;
 	
 	/**
 		Returns the number of pixels that the document has already been scrolled horizontally.
 	**/
-	var scrollX(default,null) : Int;
-	var pageXOffset(default,null) : Int;
+	var scrollX(default,null) : Float;
+	var pageXOffset(default,null) : Float;
 	
 	/**
 		Returns the number of pixels that the document has already been scrolled vertically.
 	**/
-	var scrollY(default,null) : Int;
-	var pageYOffset(default,null) : Int;
+	var scrollY(default,null) : Float;
+	var pageYOffset(default,null) : Float;
 	
 	/**
 		Returns the horizontal distance of the left border of the user's browser from the left side of the screen.
 	**/
-	var screenX : Dynamic;
+	var screenX : Any;
 	
 	/**
 		Returns the vertical distance of the top border of the user's browser from the top side of the screen.
 	**/
-	var screenY : Dynamic;
+	var screenY : Any;
 	
 	/**
 		Gets the width of the outside of the browser window.
 	**/
-	var outerWidth : Dynamic;
+	var outerWidth : Any;
 	
 	/**
 		Gets the height of the outside of the browser window.
 	**/
-	var outerHeight : Dynamic;
+	var outerHeight : Any;
 	
 	/**
-		Provides a hosting area for performance related attributes.
+		Returns a `Performance` object, which includes the `Performance.timing` and `Performance.navigation` attributes, each of which is an object providing performance-related data. See also Using Navigation Timing for additional information and examples.
 	**/
 	var performance(default,null) : Performance;
 	
@@ -217,7 +218,6 @@ extern class Window extends EventTarget
 		This property indicates whether the window is displayed in full screen or not.
 	**/
 	var fullScreen : Bool;
-	var onwheel : haxe.Constraints.Function;
 	var ondevicemotion : haxe.Constraints.Function;
 	var ondeviceorientation : haxe.Constraints.Function;
 	var onabsolutedeviceorientation : haxe.Constraints.Function;
@@ -226,14 +226,9 @@ extern class Window extends EventTarget
 	var ondevicelight : haxe.Constraints.Function;
 	
 	/**
-		Returns a reference to the content element in the current window. The obsolete variant with underscore is no longer available from Web content.
+		Returns a reference to the content element in the current window. Since Firefox 57 (initially Nightly-only), both versions are only available from chrome (privileged) code, and not available to the web anymore.
 	**/
-	var content(default,null) : Dynamic;
-	
-	/**
-		Returns a reference to the console object which provides access to the browser's debugging console.
-	**/
-	var console(default,null) : Console;
+	var content(default,null) : Any;
 	
 	/**
 		Returns the browser crypto object.
@@ -242,15 +237,18 @@ extern class Window extends EventTarget
 	var onabort : haxe.Constraints.Function;
 	var onblur : haxe.Constraints.Function;
 	var onfocus : haxe.Constraints.Function;
+	var onauxclick : haxe.Constraints.Function;
 	var oncanplay : haxe.Constraints.Function;
 	var oncanplaythrough : haxe.Constraints.Function;
 	var onchange : haxe.Constraints.Function;
 	var onclick : haxe.Constraints.Function;
+	var onclose : haxe.Constraints.Function;
 	var oncontextmenu : haxe.Constraints.Function;
 	var ondblclick : haxe.Constraints.Function;
 	var ondrag : haxe.Constraints.Function;
 	var ondragend : haxe.Constraints.Function;
 	var ondragenter : haxe.Constraints.Function;
+	var ondragexit : haxe.Constraints.Function;
 	var ondragleave : haxe.Constraints.Function;
 	var ondragover : haxe.Constraints.Function;
 	var ondragstart : haxe.Constraints.Function;
@@ -266,6 +264,7 @@ extern class Window extends EventTarget
 	var onload : haxe.Constraints.Function;
 	var onloadeddata : haxe.Constraints.Function;
 	var onloadedmetadata : haxe.Constraints.Function;
+	var onloadend : haxe.Constraints.Function;
 	var onloadstart : haxe.Constraints.Function;
 	var onmousedown : haxe.Constraints.Function;
 	var onmouseenter : haxe.Constraints.Function;
@@ -274,6 +273,7 @@ extern class Window extends EventTarget
 	var onmouseout : haxe.Constraints.Function;
 	var onmouseover : haxe.Constraints.Function;
 	var onmouseup : haxe.Constraints.Function;
+	var onwheel : haxe.Constraints.Function;
 	var onpause : haxe.Constraints.Function;
 	var onplay : haxe.Constraints.Function;
 	var onplaying : haxe.Constraints.Function;
@@ -292,6 +292,7 @@ extern class Window extends EventTarget
 	var ontimeupdate : haxe.Constraints.Function;
 	var onvolumechange : haxe.Constraints.Function;
 	var onwaiting : haxe.Constraints.Function;
+	var ontoggle : haxe.Constraints.Function;
 	var onpointercancel : haxe.Constraints.Function;
 	var onpointerdown : haxe.Constraints.Function;
 	var onpointerup : haxe.Constraints.Function;
@@ -302,12 +303,19 @@ extern class Window extends EventTarget
 	var onpointerleave : haxe.Constraints.Function;
 	var ongotpointercapture : haxe.Constraints.Function;
 	var onlostpointercapture : haxe.Constraints.Function;
-	var onfullscreenchange : haxe.Constraints.Function;
-	var onfullscreenerror : haxe.Constraints.Function;
-	var onpointerlockchange : haxe.Constraints.Function;
-	var onpointerlockerror : haxe.Constraints.Function;
-	var indexedDB(default,null) : js.html.idb.Factory;
-	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Bool;
+	var onanimationcancel : haxe.Constraints.Function;
+	var onanimationend : haxe.Constraints.Function;
+	var onanimationiteration : haxe.Constraints.Function;
+	var onanimationstart : haxe.Constraints.Function;
+	var ontransitioncancel : haxe.Constraints.Function;
+	var ontransitionend : haxe.Constraints.Function;
+	var ontransitionrun : haxe.Constraints.Function;
+	var ontransitionstart : haxe.Constraints.Function;
+	var onwebkitanimationend : haxe.Constraints.Function;
+	var onwebkitanimationiteration : haxe.Constraints.Function;
+	var onwebkitanimationstart : haxe.Constraints.Function;
+	var onwebkittransitionend : haxe.Constraints.Function;
+	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Any -> Any;
 	
 	/**
 		Returns a `SpeechSynthesis` object, which is the entry point into using Web Speech API speech synthesis functionality.
@@ -323,6 +331,7 @@ extern class Window extends EventTarget
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var onpagehide : haxe.Constraints.Function;
@@ -335,40 +344,47 @@ extern class Window extends EventTarget
 		Returns a reference to the local storage object used to store data that may only be accessed by the origin that created it.
 	**/
 	var localStorage(default,null) : Storage;
+	var origin(default,null) : String;
 	
 	/**
-		Returns a storage object for storing data within a single page session.
+		Indicates whether a context is capable of using features that require secure contexts.
+	**/
+	var isSecureContext(default,null) : Bool;
+	var indexedDB(default,null) : js.html.idb.Factory;
+	
+	/**
+		Returns a reference to the session storage object used to store data that may only be accessed by the origin that created it.
 	**/
 	var sessionStorage(default,null) : Storage;
 	
-	/** @throws DOMError */
 	
 	/**
 		Closes the current window.
+		@throws DOMError
 	**/
 	function close() : Void;
-	/** @throws DOMError */
 	
 	/**
 		This method stops window loading.
+		@throws DOMError
 	**/
 	function stop() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sets focus on the current window.
+		@throws DOMError
 	**/
 	function focus() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sets focus away from the window.
+		@throws DOMError
 	**/
 	function blur() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Opens a new window.
+		@throws DOMError
 	**/
 	function open( ?url : String = "", ?target : String = "", ?features : String = "" ) : Window;
 	/** @throws DOMError */
@@ -378,30 +394,24 @@ extern class Window extends EventTarget
 		Displays an alert dialog.
 	**/
 	function alert( message : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Displays a dialog with a message that the user needs to respond to.
+		@throws DOMError
 	**/
 	function confirm( ?message : String = "" ) : Bool;
-	/** @throws DOMError */
 	
 	/**
 		Returns the text entered by the user in a prompt dialog.
+		@throws DOMError
 	**/
 	function prompt( ?message : String = "", ?default_ : String = "" ) : String;
-	/** @throws DOMError */
-	
-	/**
-		Opens the Print Dialog to print the current document.
-	**/
-	function print() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first.
+		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, targetOrigin : String, ?transfer : Array<Dynamic> ) : Void;
+	function postMessage( message : Any, targetOrigin : String, ?transfer : Array<Any> = [] ) : Void;
 	
 	/**
 		Registers the window to capture all events of the specified type.
@@ -412,46 +422,46 @@ extern class Window extends EventTarget
 		Releases the window from trapping events of a specific type.
 	**/
 	function releaseEvents() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns the selection object representing the selected item(s).
+		@throws DOMError
 	**/
 	function getSelection() : Selection;
-	/** @throws DOMError */
 	
 	/**
 		Gets computed style for the specified element. Computed style indicates the computed values of all CSS properties of the element.
+		@throws DOMError
 	**/
 	function getComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `MediaQueryList` object representing the specified media query string.
+		@throws DOMError
 	**/
 	function matchMedia( query : String ) : MediaQueryList;
-	/** @throws DOMError */
 	
 	/**
 		Moves the window to the specified coordinates.
+		@throws DOMError
 	**/
 	function moveTo( x : Int, y : Int ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Moves the current window by a specified amount.
+		@throws DOMError
 	**/
 	function moveBy( x : Int, y : Int ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Dynamically resizes window.
+		@throws DOMError
 	**/
 	function resizeTo( x : Int, y : Int ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Resizes the current window by a certain amount.
+		@throws DOMError
 	**/
 	function resizeBy( x : Int, y : Int ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
@@ -472,14 +482,22 @@ extern class Window extends EventTarget
 		Scrolls the document in the window by the given amount.
 	**/
 	function scrollBy( ?options : ScrollToOptions ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Tells the browser that an animation is in progress, requesting that the browser schedule a repaint of the window for the next animation frame.
+		@throws DOMError
+	**/
 	function requestAnimationFrame( callback : Float -> Void ) : Int;
-	/** @throws DOMError */
+	
+	/**
+		Enables you to cancel a callback previously scheduled with `Window.requestAnimationFrame`.
+		@throws DOMError
+	**/
 	function cancelAnimationFrame( handle : Int ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Gets default computed style for the specified element, ignoring author stylesheets.
+		@throws DOMError
 	**/
 	function getDefaultComputedStyle( elt : Element, ?pseudoElt : String = "" ) : CSSStyleDeclaration;
 	
@@ -492,10 +510,10 @@ extern class Window extends EventTarget
 		Scrolls the current document by the specified number of pages.
 	**/
 	function scrollByPages( numPages : Int, ?options : ScrollOptions ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sizes the window according to its content.
+		@throws DOMError
 	**/
 	function sizeToContent() : Void;
 	
@@ -503,10 +521,10 @@ extern class Window extends EventTarget
 		Updates the state of commands of the current chrome window (UI).
 	**/
 	function updateCommands( action : String, ?sel : Selection, ?reason : Int = 0 ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Searches for a given string in a window.
+		@throws DOMError
 	**/
 	function find( ?str : String = "", ?caseSensitive : Bool = false, ?backwards : Bool = false, ?wrapAround : Bool = false, ?wholeWord : Bool = false, ?searchInFrames : Bool = false, ?showDialog : Bool = false ) : Bool;
 	
@@ -520,20 +538,20 @@ extern class Window extends EventTarget
 	**/
 	function setResizable( resizable : Bool ) : Void;
 	/** @throws DOMError */
-	function fetch( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Promise<Response>;
-	/** @throws DOMError */
-	@:overload( function( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>> ) : Promise<ImageBitmap> {} )
-	function createImageBitmap( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,ImageBitmap>>>>>>, aSx : Int, aSy : Int, aSw : Int, aSh : Int ) : Promise<ImageBitmap>;
-	/** @throws DOMError */
 	function btoa( btoa : String ) : String;
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
-	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
+	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
-	function setInterval( handler : String, ?timeout : Int, unused : haxe.extern.Rest<Dynamic> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
+	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
 	function clearInterval( ?handle : Int = 0 ) : Void;
+	/** @throws DOMError */
+	@:overload( function( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,haxe.extern.EitherType<ImageBitmap,haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>>>>>>>> ) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,haxe.extern.EitherType<ImageBitmap,haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>>>>>>>>, aSx : Int, aSy : Int, aSw : Int, aSh : Int ) : Promise<ImageBitmap> {} )
+	function createImageBitmap( aImage : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<VideoElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<Blob,haxe.extern.EitherType<ImageData,haxe.extern.EitherType<CanvasRenderingContext2D,haxe.extern.EitherType<ImageBitmap,haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>>>>>>>>, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout> ) : Promise<ImageBitmap>;
+	function fetch( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Promise<Response>;
 }

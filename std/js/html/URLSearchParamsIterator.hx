@@ -24,9 +24,8 @@
 
 package js.html;
 
-@:native("URLSearchParamsIterator")
-extern class URLSearchParamsIterator
+typedef URLSearchParamsIterator =
 {
 	/** @throws DOMError */
-	function next() : Dynamic;
+	function next() : Any;
 }

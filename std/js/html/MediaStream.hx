@@ -39,6 +39,21 @@ extern class MediaStream extends EventTarget
 		A `DOMString` containing 36 characters denoting a universally unique identifier (UUID) for the object.
 	**/
 	var id(default,null) : String;
+	
+	/**
+		A Boolean value that returns `true` if the `MediaStream` is active, or `false` otherwise.
+	**/
+	var active(default,null) : Bool;
+	
+	/**
+		An `EventHandler` containing the action to perform when an `addtrack` event is fired when a new `MediaStreamTrack` object is added.
+	**/
+	var onaddtrack : haxe.Constraints.Function;
+	
+	/**
+		An `EventHandler` containing the action to perform when a `removetrack` event is fired when a  `MediaStreamTrack` object is removed from it.
+	**/
+	var onremovetrack : haxe.Constraints.Function;
 	var currentTime(default,null) : Float;
 	
 	/** @throws DOMError */
@@ -58,6 +73,11 @@ extern class MediaStream extends EventTarget
 	function getTracks() : Array<MediaStreamTrack>;
 	
 	/**
+		Returns the track whose ID corresponds to the one given in parameters, trackid`. If no parameter is given, or if no track with that ID does exist, it returns null`. If several tracks have the same ID, it returns the first one.
+	**/
+	function getTrackById( trackId : String ) : MediaStreamTrack;
+	
+	/**
 		Stores a copy of the `MediaStreamTrack` given as argument. If the track has already been added to the `MediaStream` object, nothing happens.
 	**/
 	function addTrack( track : MediaStreamTrack ) : Void;
@@ -66,4 +86,9 @@ extern class MediaStream extends EventTarget
 		Removes the `MediaStreamTrack` given as argument. If the track is not part of the MediaStream` object, nothing happens.
 	**/
 	function removeTrack( track : MediaStreamTrack ) : Void;
+	
+	/**
+		Returns a clone of the `MediaStream` object. The clone will, however, have a unique value for `MediaStream.id`.
+	**/
+	function clone() : MediaStream;
 }

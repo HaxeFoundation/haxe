@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	A `DOMPoint` represents a 2D or 3D point in a coordinate system.
+	A `DOMPoint` object represents a 2D or 3D point in a coordinate system; it includes values for the coordinates in up to three dimensions, as well as an optional perspective value.
 
 	Documentation [DOMPoint](https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMPoint$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -35,6 +35,5 @@ package js.html;
 extern class DOMPoint extends DOMPointReadOnly
 {
 	/** @throws DOMError */
-	@:overload( function( ?point : DOMPointInit ) : Void {} )
-	function new( x : Float, y : Float, ?z : Float = 0.0, ?w : Float = 1.0 ) : Void;
+	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?z : Float = 0.0, ?w : Float = 1.0 ) : Void;
 }

@@ -37,8 +37,9 @@ extern class ImageBitmapRenderingContext
 	
 	/**
 		
-		 Displays the given `ImageBitmap` in the canvas associated with this rendering context. Ownership of the `ImageBitmap` is transferred to the canvas.
+		 Displays the given `ImageBitmap` in the canvas associated with this rendering context. Ownership of the `ImageBitmap` is transferred to the canvas. This was previously named `transferImageBitmap()`, but was renamed in a spec change. The old name is being kept as an alias to avoid code breakage.
 		 
 	**/
+	function transferFromImageBitmap( bitmap : ImageBitmap ) : Void;
 	function transferImageBitmap( bitmap : ImageBitmap ) : Void;
 }

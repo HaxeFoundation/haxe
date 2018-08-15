@@ -34,7 +34,7 @@ package js.html;
 @:native("PopStateEvent")
 extern class PopStateEvent extends Event
 {
-	var state(default,null) : Dynamic;
+	var state(default,null) : Any;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : PopStateEventInit ) : Void;

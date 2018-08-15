@@ -26,7 +26,7 @@ package js.html;
 
 typedef ResponseInit =
 {
-	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>>;
+	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
 	@:optional var status : Int;
 	@:optional var statusText : String;
 }

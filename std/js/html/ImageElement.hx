@@ -61,6 +61,11 @@ extern class ImageElement extends Element
 	var useMap : String;
 	
 	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use in order to fetch the image.
+	**/
+	var referrerPolicy : String;
+	
+	/**
 		Is a `Boolean` that reflects the `ismap` HTML attribute, indicating that the image is part of a server-side image map.
 	**/
 	var isMap : Bool;
@@ -74,6 +79,7 @@ extern class ImageElement extends Element
 		Is a `unsigned long` that reflects the `height` HTML attribute, indicating the rendered height of the image in CSS pixels.
 	**/
 	var height : Int;
+	var decoding : String;
 	
 	/**
 		Returns a `unsigned long` representing the intrinsic width of the image in CSS pixels, if it is available; otherwise, it will show `0`.
@@ -96,7 +102,7 @@ extern class ImageElement extends Element
 	var name : String;
 	
 	/**
-		Is a `DOMString` indicating the alignment of the image with respect to the surrounding context.
+		Is a `DOMString` indicating the alignment of the image with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
 	**/
 	var align : String;
 	
