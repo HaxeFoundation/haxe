@@ -4,6 +4,8 @@
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Backers on Open Collective](https://opencollective.com/haxe/backers/badge.svg)](#backers)
+[![Sponsors on Open Collective](https://opencollective.com/haxe/sponsors/badge.svg)](#sponsors) 
 
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
@@ -92,6 +94,25 @@ Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  |
 4.0 preview 4 |       |        |        | 1.6   |       |      |
 
 
-## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more. Thank you!
+## Credits
+
+### Contributors
+
+This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)]. Thank you!
+
+<a href="graphs/contributors"><img src="https://opencollective.com/haxe/contributors.svg?width=890&button=false" /></a>
+
+### Backers
+
+Thank you to all our backers! 🙏 [[Become a backer](https://opencollective.com/haxe#backer)]
+
+<a href="https://opencollective.com/haxe#backers" target="_blank"><img src="https://opencollective.com/haxe/backers.svg?width=890”></a>
+
+### Sponsors
+
+Support this project by becoming a sponsor. Your logo will show up here with a link to your website. [[Become a sponsor](https://opencollective.com/haxe#sponsor)]
+
+<a href="https://opencollective.com/haxe/sponsor/0/website" target="_blank"><img src="https://opencollective.com/haxe/sponsor/0/avatar.svg"></a>
+
+
