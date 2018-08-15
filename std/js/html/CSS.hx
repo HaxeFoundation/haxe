@@ -36,6 +36,14 @@ extern class CSS
 {
 	/** @throws DOMError */
 	@:overload( function( property : String, value : String ) : Bool {} )
+	
+	/**
+		Returns a `Boolean` indicating if the pair property-value, or the condition, given in parameter is supported.
+	**/
 	static function supports( conditionText : String ) : Bool;
+	
+	/**
+		Can be used to escape a string mostly for use as part of a CSS selector.
+	**/
 	static function escape( ident : String ) : String;
 }
