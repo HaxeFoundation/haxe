@@ -25,11 +25,18 @@
 package js.html;
 
 @:native("Uint8ClampedArray")
-extern class Uint8ClampedArray extends ArrayBufferView implements ArrayAccess<Int>
+extern class Uint8ClampedArray implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
 	
+	@:pure static function of( items : haxe.extern.Rest<Array<Any>> ) : Uint8ClampedArray;
+	@:pure static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Uint8ClampedArray;
+	@:native("BYTES_PER_ELEMENT")
+	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
+	var buffer(default,null) : ArrayBuffer;
+	var byteOffset(default,null) : Int;
+	var byteLength(default,null) : Int;
 	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
@@ -38,5 +45,24 @@ extern class Uint8ClampedArray extends ArrayBufferView implements ArrayAccess<In
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
 	@:overload( function( array : Uint8ClampedArray, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
-	function subarray( start : Int, ?end : Int ) : Uint8ClampedArray;
+	function copyWithin( target : Int, start : Int, ?end : Int ) : Uint8ClampedArray;
+	function every( callback : Int -> Int -> Uint8ClampedArray -> Bool, ?thisArg : Any ) : Bool;
+	function fill( value : Int, ?start : Int, ?end : Int ) : Uint8ClampedArray;
+	function filter( callbackfn : Int -> Int -> Uint8ClampedArray -> Any, ?thisArg : Any ) : Uint8ClampedArray;
+	function find( predicate : Int -> Int -> Uint8ClampedArray -> Bool, ?thisArg : Any ) : Any;
+	function findIndex( predicate : Int -> Int -> Uint8ClampedArray -> Bool, ?thisArg : Any ) : Int;
+	function forEach( callbackfn : Int -> Int -> Uint8ClampedArray -> Void, ?thisArg : Any ) : Void;
+	function indexOf( searchElement : Int, ?fromIndex : Int ) : Int;
+	function join( ?separator : String ) : String;
+	function lastIndexOf( searchElement : Int, ?fromIndex : Int ) : Int;
+	function map( callbackfn : Int -> Int -> Uint8ClampedArray -> Int, ?thisArg : Any ) : Uint8ClampedArray;
+	@:overload( function( callbackfn : Int -> Int -> Int -> Uint8ClampedArray -> Int ) : Int {} )
+	function reduce( callbackfn : Any -> Int -> Int -> Uint8ClampedArray -> Any, initialValue : Any ) : Any;
+	@:overload( function( callbackfn : Int -> Int -> Int -> Uint8ClampedArray -> Int ) : Int {} )
+	function reduceRight( callbackfn : Any -> Int -> Int -> Uint8ClampedArray -> Any, initialValue : Any ) : Any;
+	function reverse() : Uint8ClampedArray;
+	function slice( ?start : Int, ?end : Int ) : Uint8ClampedArray;
+	function some( callbackfn : Int -> Int -> Uint8ClampedArray -> Bool, ?thisArg : Any ) : Bool;
+	function sort( ?compareFn : Int -> Int -> Int ) : Uint8ClampedArray;
+	function subarray( begin : Int, ?end : Int ) : Uint8ClampedArray;
 }

@@ -30,7 +30,7 @@ import js.html.compat.ArrayBuffer;
 @:native("ArrayBuffer")
 extern class ArrayBuffer
 {
-	static function isView( value : Dynamic ) : Bool;
+	static function isView( value : Any ) : Bool;
 	var byteLength(default,null) : Int;
 	
 	/** @throws DOMError */

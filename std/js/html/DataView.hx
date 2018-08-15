@@ -28,8 +28,12 @@ package js.html;
 import js.html.compat.DataView;
 
 @:native("DataView")
-extern class DataView extends ArrayBufferView
+extern class DataView
 {
+	var buffer(default,null) : ArrayBuffer;
+	var byteOffset(default,null) : Int;
+	var byteLength(default,null) : Int;
+	
 	/** @throws DOMError */
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;
 	@:pure function getInt8( byteOffset : Int ) : Int;
