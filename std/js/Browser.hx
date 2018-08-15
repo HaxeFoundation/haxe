@@ -42,7 +42,7 @@ class Browser {
 	extern inline static function get_navigator() return untyped __js__("window.navigator");
 
 	/** Shortcut to Window.console. */
-	public static var console(get, never):js.html.Console;
+	public static var console(get, never):js.html.ConsoleInstance;
 	extern inline static function get_console() return untyped __js__("window.console");
 
 	/**

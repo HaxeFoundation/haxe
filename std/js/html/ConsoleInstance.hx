@@ -27,130 +27,129 @@ package js.html;
 /**
 	The `Console` object provides access to the browser's debugging console (e.g. the Web Console in Firefox). The specifics of how it works varies from browser to browser, but there is a de facto set of features that are typically provided.
 
-	Documentation [console](https://developer.mozilla.org/en-US/docs/Web/API/console) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/console$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [Console](https://developer.mozilla.org/en-US/docs/Web/API/Console) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Console$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/console>
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/Console>
 **/
-@:native("console")
-extern class Console
+extern interface ConsoleInstance
 {
 	
 	/**
 		Log a message and stack trace to console if the first argument is `false`.
 	**/
-	static function assert( ?condition : Bool = false, data : haxe.extern.Rest<Any> ) : Void;
+	function assert( ?condition : Bool = false, data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Clear the console.
 	**/
-	static function clear() : Void;
+	function clear() : Void;
 	
 	/**
 		Log the number of times this line has been called with the given label.
 	**/
-	static function count( ?label : String = "default" ) : Void;
+	function count( ?label : String = "default" ) : Void;
 	
 	/**
 		Resets the value of the counter with the given label.
 	**/
-	static function countReset( ?label : String = "default" ) : Void;
+	function countReset( ?label : String = "default" ) : Void;
 	
 	/**
 		Outputs a message to the console with the log level `"debug"`.
 		 Note: Starting with Chromium 58 this method only appears in Chromium browser consoles when level "Verbose" is selected.
 		 
 	**/
-	static function debug( data : haxe.extern.Rest<Any> ) : Void;
+	function debug( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Outputs an error message. You may use string substitution and additional arguments with this method.
 	**/
-	static function error( data : haxe.extern.Rest<Any> ) : Void;
+	function error( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Informative logging of information. You may use string substitution and additional arguments with this method.
 	**/
-	static function info( data : haxe.extern.Rest<Any> ) : Void;
+	function info( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		For general output of logging information. You may use string substitution and additional arguments with this method.
 	**/
-	static function log( data : haxe.extern.Rest<Any> ) : Void;
+	function log( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Displays tabular data as a table.
 	**/
-	static function table( data : haxe.extern.Rest<Any> ) : Void;
+	function table( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Outputs a stack trace.
 	**/
-	static function trace( data : haxe.extern.Rest<Any> ) : Void;
+	function trace( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Outputs a warning message. You may use string substitution and additional arguments with this method.
 	**/
-	static function warn( data : haxe.extern.Rest<Any> ) : Void;
+	function warn( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Displays an interactive listing of the properties of a specified JavaScript object. This listing lets you use disclosure triangles to examine the contents of child objects.
 	**/
-	static function dir( data : haxe.extern.Rest<Any> ) : Void;
+	function dir( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		
 		 Displays an XML/HTML Element representation of the specified object if possible or the JavaScript Object view if it is not possible.
 		 
 	**/
-	static function dirxml( data : haxe.extern.Rest<Any> ) : Void;
+	function dirxml( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. To move back out a level, call `groupEnd()`.
 	**/
-	static function group( data : haxe.extern.Rest<Any> ) : Void;
+	function group( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. However, unlike `group()` this starts with the inline group collapsed requiring the use of a disclosure button to expand it. To move back out a level, call `groupEnd()`.
 	**/
-	static function groupCollapsed( data : haxe.extern.Rest<Any> ) : Void;
+	function groupCollapsed( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Exits the current inline group.
 	**/
-	static function groupEnd() : Void;
+	function groupEnd() : Void;
 	
 	/**
 		Starts a timer with a name specified as an input parameter. Up to 10,000 simultaneous timers can run on a given page.
 	**/
-	static function time( ?label : String = "default" ) : Void;
+	function time( ?label : String = "default" ) : Void;
 	
 	/**
 		Logs the value of the specified timer to the console.
 	**/
-	static function timeLog( ?label : String = "default", data : haxe.extern.Rest<Any> ) : Void;
+	function timeLog( ?label : String = "default", data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Stops the specified timer and logs the elapsed time in seconds since it started.
 	**/
-	static function timeEnd( ?label : String = "default" ) : Void;
+	function timeEnd( ?label : String = "default" ) : Void;
 	
 	/**
 		An alias for `error()`.
 	**/
-	static function exception( data : haxe.extern.Rest<Any> ) : Void;
+	function exception( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Adds a marker to the browser's Timeline or Waterfall tool.
 	**/
-	static function timeStamp( ?data : Any ) : Void;
+	function timeStamp( ?data : Any ) : Void;
 	
 	/**
 		Starts the browser's built-in profiler (for example, the Firefox performance tool). You can specify an optional name for the profile.
 	**/
-	static function profile( data : haxe.extern.Rest<Any> ) : Void;
+	function profile( data : haxe.extern.Rest<Any> ) : Void;
 	
 	/**
 		Stops the profiler. You can see the resulting profile in the browser's performance tool (for example, the Firefox performance tool).
 	**/
-	static function profileEnd( data : haxe.extern.Rest<Any> ) : Void;
+	function profileEnd( data : haxe.extern.Rest<Any> ) : Void;
 }
