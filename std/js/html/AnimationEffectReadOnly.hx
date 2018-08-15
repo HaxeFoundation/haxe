@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectReadOnly>
 **/
 @:native("AnimationEffectReadOnly")
+@:deprecated("AnimationEffectReadOnly is deprecated")
 extern class AnimationEffectReadOnly
 {
 	

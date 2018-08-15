@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("CSSCharsetRule")
+@:deprecated("CSSCharsetRule is deprecated")
 extern class CSSCharsetRule extends CSSRule
 {
 	var encoding : String;

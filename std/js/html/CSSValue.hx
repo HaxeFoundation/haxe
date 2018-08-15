@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValue>
 **/
 @:native("CSSValue")
+@:deprecated("CSSValue is deprecated")
 extern class CSSValue
 {
 	static inline var CSS_INHERIT : Int = 0;

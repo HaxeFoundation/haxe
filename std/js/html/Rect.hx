@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("Rect")
+@:deprecated("Rect is deprecated")
 extern class Rect
 {
 	var top(default,null) : CSSPrimitiveValue;

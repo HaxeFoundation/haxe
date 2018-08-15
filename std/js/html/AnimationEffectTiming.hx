@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationEffectTiming>
 **/
 @:native("AnimationEffectTiming")
+@:deprecated("AnimationEffectTiming is deprecated")
 extern class AnimationEffectTiming extends AnimationEffectTimingReadOnly
 {
 }

@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ANGLE_instanced_arrays>
 **/
 @:native("ANGLE_instanced_arrays")
+@:deprecated("ExtensionInstancedArrays is deprecated, use js.html.webgl.extension.ANGLEInstancedArrays instead")
 extern class ExtensionInstancedArrays
 {
 	static inline var VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE : Int = 35070;

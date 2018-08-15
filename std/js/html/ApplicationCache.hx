@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("ApplicationCache")
+@:deprecated("ApplicationCache is deprecated, consider using service workers instead")
 extern class ApplicationCache extends EventTarget implements ArrayAccess<String>
 {
 	static inline var UNCACHED : Int = 0;

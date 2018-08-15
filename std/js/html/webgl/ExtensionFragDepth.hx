@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_frag_depth>
 **/
 @:native("EXT_frag_depth")
+@:deprecated("ExtensionFragDepth is deprecated, use js.html.webgl.extension.EXTFragDepth instead")
 extern class ExtensionFragDepth
 {
 }

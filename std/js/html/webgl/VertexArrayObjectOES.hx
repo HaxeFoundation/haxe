@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLVertexArrayObjectOES>
 **/
 @:native("WebGLVertexArrayObjectOES")
+@:deprecated("VertexArrayObjectOES is deprecated, use js.html.webgl.VertexArrayObject instead")
 extern class VertexArrayObjectOES
 {
 }

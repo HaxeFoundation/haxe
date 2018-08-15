@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_color_buffer_half_float>
 **/
 @:native("EXT_color_buffer_half_float")
+@:deprecated("ExtensionColorBufferHalfFloat is deprecated, use js.html.webgl.extension.WEBGLColorBufferHalfFloat instead")
 extern class ExtensionColorBufferHalfFloat
 {
 	static inline var RGBA16F_EXT : Int = 34842;

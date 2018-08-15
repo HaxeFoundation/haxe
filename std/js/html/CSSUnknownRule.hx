@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("CSSUnknownRule")
+@:deprecated("CSSUnknownRule is deprecated")
 extern class CSSUnknownRule extends CSSRule
 {
 }

@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_standard_derivatives>
 **/
 @:native("OES_standard_derivatives")
+@:deprecated("ExtensionStandardDerivatives is deprecated, use js.html.webgl.extension.OESStandardDerivatives instead")
 extern class ExtensionStandardDerivatives
 {
 	static inline var FRAGMENT_SHADER_DERIVATIVE_HINT_OES : Int = 35723;

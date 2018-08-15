@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSValueList>
 **/
 @:native("CSSValueList")
+@:deprecated("CSSValueList is deprecated")
 extern class CSSValueList extends CSSValue implements ArrayAccess<CSSValue>
 {
 	

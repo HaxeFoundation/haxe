@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("AudioContextState is deprecated, use js.html.audio.AudioContextState instead")
 enum abstract AudioContextState(String)
 {
 	var SUSPENDED = "suspended";

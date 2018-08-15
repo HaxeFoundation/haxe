@@ -32,6 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAltGlyphElement>
 **/
 @:native("SVGAltGlyphElement")
+@:deprecated("AltGlyphElement is deprecated")
 extern class AltGlyphElement extends TextPositioningElement
 {
 	

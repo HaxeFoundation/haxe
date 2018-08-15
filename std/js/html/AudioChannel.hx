@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("AudioChannel is deprecated")
 enum abstract AudioChannel(String)
 {
 	var NORMAL = "normal";

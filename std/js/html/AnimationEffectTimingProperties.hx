@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("AnimationEffectTimingProperties is deprecated")
 typedef AnimationEffectTimingProperties =
 {
 	@:optional var delay : Float;

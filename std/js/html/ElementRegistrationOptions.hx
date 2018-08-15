@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("ElementRegistrationOptions is deprecated")
 typedef ElementRegistrationOptions =
 {
 	@:native("extends")

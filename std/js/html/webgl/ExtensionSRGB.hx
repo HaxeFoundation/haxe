@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_sRGB>
 **/
 @:native("EXT_sRGB")
+@:deprecated("ExtensionSRGB is deprecated, use js.html.webgl.extension.EXT_Srgb instead")
 extern class ExtensionSRGB
 {
 	static inline var SRGB_EXT : Int = 35904;

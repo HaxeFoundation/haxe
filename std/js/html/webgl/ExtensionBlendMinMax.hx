@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_blend_minmax>
 **/
 @:native("EXT_blend_minmax")
+@:deprecated("ExtensionBlendMinMax is deprecated, use js.html.webgl.extension.EXTBlendMinmax instead")
 extern class ExtensionBlendMinMax
 {
 	static inline var MIN_EXT : Int = 32775;

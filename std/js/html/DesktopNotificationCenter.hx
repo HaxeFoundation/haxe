@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("DesktopNotificationCenter")
+@:deprecated("DesktopNotificationCenter is deprecated")
 extern class DesktopNotificationCenter
 {
 	function createNotification( title : String, description : String, ?iconURL : String = "" ) : DesktopNotification;

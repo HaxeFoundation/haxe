@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("RecordErrorEvent")
+@:deprecated("RecordErrorEvent is deprecated")
 extern class RecordErrorEvent extends Event
 {
 	var name(default,null) : String;

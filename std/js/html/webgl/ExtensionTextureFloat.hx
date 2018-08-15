@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_float>
 **/
 @:native("OES_texture_float")
+@:deprecated("ExtensionTextureFloat is deprecated, use js.html.webgl.extension.OESTextureFloat instead")
 extern class ExtensionTextureFloat
 {
 }

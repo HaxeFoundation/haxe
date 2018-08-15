@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLShadowElement>
 **/
 @:native("HTMLShadowElement")
+@:deprecated("ShadowElement is deprecated")
 extern class ShadowElement extends Element
 {
 	var olderShadowRoot(default,null) : ShadowRoot;

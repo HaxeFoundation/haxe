@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_texture_filter_anisotropic>
 **/
 @:native("EXT_texture_filter_anisotropic")
+@:deprecated("ExtensionTextureFilterAnisotropic is deprecated, use js.html.webgl.extension.EXTTextureFilterAnisotropic instead")
 extern class ExtensionTextureFilterAnisotropic
 {
 	static inline var TEXTURE_MAX_ANISOTROPY_EXT : Int = 34046;

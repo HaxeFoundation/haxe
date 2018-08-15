@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("RGBColor")
+@:deprecated("RGBColor is deprecated")
 extern class RGBColor
 {
 	var red(default,null) : CSSPrimitiveValue;

@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("DOMTransactionEventInit is deprecated")
 typedef DOMTransactionEventInit =
 {
 	> EventInit,

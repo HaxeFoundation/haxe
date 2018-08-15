@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_pvrtc>
 **/
 @:native("WEBGL_compressed_texture_pvrtc")
+@:deprecated("ExtensionCompressedTexturePVRTC is deprecated, use js.html.webgl.extension.WEBGLCompressedTexturePvrtc instead")
 extern class ExtensionCompressedTexturePVRTC
 {
 	static inline var COMPRESSED_RGB_PVRTC_4BPPV1_IMG : Int = 35840;

@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_color_buffer_float>
 **/
 @:native("WEBGL_color_buffer_float")
+@:deprecated("ExtensionColorBufferFloat is deprecated, use js.html.webgl.extension.WEBGLColorBufferFloat instead")
 extern class ExtensionColorBufferFloat
 {
 	static inline var RGBA32F_EXT : Int = 34836;

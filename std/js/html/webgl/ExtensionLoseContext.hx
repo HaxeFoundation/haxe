@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_lose_context>
 **/
 @:native("WEBGL_lose_context")
+@:deprecated("ExtensionLoseContext is deprecated, use js.html.webgl.extension.WEBGLLoseContext instead")
 extern class ExtensionLoseContext
 {
 	

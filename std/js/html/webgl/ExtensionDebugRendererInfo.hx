@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_debug_renderer_info>
 **/
 @:native("WEBGL_debug_renderer_info")
+@:deprecated("ExtensionDebugRendererInfo is deprecated, use js.html.webgl.extension.WEBGLDebugRenderInfo instead")
 extern class ExtensionDebugRendererInfo
 {
 	static inline var UNMASKED_VENDOR_WEBGL : Int = 37445;

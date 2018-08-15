@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("DOMTransactionEvent")
+@:deprecated("DOMTransactionEvent is deprecated")
 extern class DOMTransactionEvent extends Event
 {
 	var transactions(default,null) : Dynamic;

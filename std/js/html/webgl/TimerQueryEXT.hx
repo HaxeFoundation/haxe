@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLTimerQueryEXT>
 **/
 @:native("WebGLTimerQueryEXT")
+@:deprecated("TimerQueryEXT is deprecated, use js.html.webgl.Query instead")
 extern class TimerQueryEXT
 {
 }

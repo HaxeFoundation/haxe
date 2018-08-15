@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPrimitiveValue>
 **/
 @:native("CSSPrimitiveValue")
+@:deprecated("CSSPrimitiveValue is deprecated")
 extern class CSSPrimitiveValue extends CSSValue
 {
 	static inline var CSS_UNKNOWN : Int = 0;

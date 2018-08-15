@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc>
 **/
 @:native("WEBGL_compressed_texture_s3tc")
+@:deprecated("ExtensionCompressedTextureS3TC is deprecated, use js.html.webgl.extension.WEBGLCompressedTextureS3tc instead")
 extern class ExtensionCompressedTextureS3TC
 {
 	static inline var COMPRESSED_RGB_S3TC_DXT1_EXT : Int = 33776;

@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("HTMLAppletElement")
+@:deprecated("AppletElement is deprecated")
 extern class AppletElement extends Element
 {
 	var align : String;

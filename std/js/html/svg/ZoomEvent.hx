@@ -25,6 +25,7 @@
 package js.html.svg;
 
 @:native("SVGZoomEvent")
+@:deprecated("ZoomEvent is deprecated")
 extern class ZoomEvent extends js.html.UIEvent
 {
 	var previousScale(default,null) : Float;

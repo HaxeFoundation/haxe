@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("DOMCursor")
+@:deprecated("DOMCursor is deprecated")
 extern class DOMCursor extends EventTarget
 {
 	var done(default,null) : Bool;

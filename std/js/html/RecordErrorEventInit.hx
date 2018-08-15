@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("RecordErrorEventInit is deprecated")
 typedef RecordErrorEventInit =
 {
 	> EventInit,

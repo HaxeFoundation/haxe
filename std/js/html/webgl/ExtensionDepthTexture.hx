@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_depth_texture>
 **/
 @:native("WEBGL_depth_texture")
+@:deprecated("ExtensionDepthTexture is deprecated, use js.html.webgl.extension.WEBGLDepthTexture instead")
 extern class ExtensionDepthTexture
 {
 	static inline var UNSIGNED_INT_24_8_WEBGL : Int = 34042;

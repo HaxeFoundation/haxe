@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("NotifyPaintEvent")
+@:deprecated("NotifyPaintEvent is deprecated")
 extern class NotifyPaintEvent extends Event
 {
 	var clientRects(default,null) : DOMRectList;

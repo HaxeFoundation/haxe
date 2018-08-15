@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object>
 **/
 @:native("OES_vertex_array_object")
+@:deprecated("ExtensionVertexArrayObject is deprecated, use js.html.webgl.extension.OESVertexArrayObject instead")
 extern class ExtensionVertexArrayObject
 {
 	static inline var VERTEX_ARRAY_BINDING_OES : Int = 34229;

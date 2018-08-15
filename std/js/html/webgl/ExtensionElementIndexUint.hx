@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_element_index_uint>
 **/
 @:native("OES_element_index_uint")
+@:deprecated("ExtensionElementIndexUint is deprecated, use js.html.webgl.extension.OESElementIndexUint instead")
 extern class ExtensionElementIndexUint
 {
 }

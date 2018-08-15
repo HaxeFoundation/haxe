@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_disjoint_timer_query>
 **/
 @:native("EXT_disjoint_timer_query")
+@:deprecated("ExtensionDisjointTimerQuery is deprecated, use js.html.webgl.extension.EXTDisjointTimerQuery instead")
 extern class ExtensionDisjointTimerQuery
 {
 	static inline var QUERY_COUNTER_BITS_EXT : Int = 34916;

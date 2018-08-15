@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_atc>
 **/
 @:native("WEBGL_compressed_texture_atc")
+@:deprecated("ExtensionCompressedTextureATC is deprecated, use js.html.webgl.extension.WEBGLCompressedTextureAtc instead")
 extern class ExtensionCompressedTextureATC
 {
 	static inline var COMPRESSED_RGB_ATC_WEBGL : Int = 35986;

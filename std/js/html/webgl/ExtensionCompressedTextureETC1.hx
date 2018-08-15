@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc1>
 **/
 @:native("WEBGL_compressed_texture_etc1")
+@:deprecated("ExtensionCompressedTextureETC1 is deprecated, use js.html.webgl.extension.WEBGLCompressedTextureEtc1 instead")
 extern class ExtensionCompressedTextureETC1
 {
 	static inline var COMPRESSED_RGB_ETC1_WEBGL : Int = 36196;

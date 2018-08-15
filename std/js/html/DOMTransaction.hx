@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("DOMTransaction")
+@:deprecated("DOMTransaction is deprecated")
 extern class DOMTransaction
 {
 	var label(default,null) : String;

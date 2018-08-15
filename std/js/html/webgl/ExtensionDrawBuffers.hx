@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers>
 **/
 @:native("WEBGL_draw_buffers")
+@:deprecated("ExtensionDrawBuffers is deprecated, use js.html.webgl.extension.WEBGLDrawBuffers instead")
 extern class ExtensionDrawBuffers
 {
 	static inline var COLOR_ATTACHMENT0_WEBGL : Int = 36064;

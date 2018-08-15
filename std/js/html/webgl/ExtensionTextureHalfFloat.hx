@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_texture_half_float>
 **/
 @:native("OES_texture_half_float")
+@:deprecated("ExtensionTextureHalfFloat is deprecated, use js.html.webgl.extension.OESTextureHalfFloat instead")
 extern class ExtensionTextureHalfFloat
 {
 	static inline var HALF_FLOAT_OES : Int = 36193;

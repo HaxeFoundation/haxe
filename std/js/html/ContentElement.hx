@@ -32,6 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLContentElement>
 **/
 @:native("HTMLContentElement")
+@:deprecated("ContentElement is deprecated")
 extern class ContentElement extends Element
 {
 	

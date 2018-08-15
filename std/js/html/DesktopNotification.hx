@@ -25,6 +25,7 @@
 package js.html;
 
 @:native("DesktopNotification")
+@:deprecated("DesktopNotification is deprecated")
 extern class DesktopNotification extends EventTarget
 {
 	var onclick : haxe.Constraints.Function;

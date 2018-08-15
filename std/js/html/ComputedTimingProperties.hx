@@ -24,6 +24,7 @@
 
 package js.html;
 
+@:deprecated("ComputedTimingProperties is deprecated")
 typedef ComputedTimingProperties =
 {
 	> AnimationEffectTimingProperties,

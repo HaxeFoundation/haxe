@@ -32,6 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_shader_texture_lod>
 **/
 @:native("EXT_shader_texture_lod")
+@:deprecated("ExtensionLoseContext is deprecated, use js.html.webgl.extension.EXTShaderTextureLod instead")
 extern class ExtensionShaderTextureLod
 {
 }
