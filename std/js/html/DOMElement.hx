@@ -192,9 +192,12 @@ extern class DOMElement extends Node
 	var ontouchmove : haxe.Constraints.Function;
 	var ontouchcancel : haxe.Constraints.Function;
 	
-	@:pure function getAttributeNames() : Array<String>;
-	@:pure function getAttribute( name : String ) : String;
-	@:pure function getAttributeNS( namespace_ : String, localName : String ) : String;
+	@:pure
+	function getAttributeNames() : Array<String>;
+	@:pure
+	function getAttribute( name : String ) : String;
+	@:pure
+	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	
 	/**
 		Toggles a boolean attribute, removing it if it is present and adding it if it is not present, on the specified element.
@@ -209,21 +212,31 @@ extern class DOMElement extends Node
 	function removeAttribute( name : String ) : Void;
 	/** @throws DOMError */
 	function removeAttributeNS( namespace_ : String, localName : String ) : Void;
-	@:pure function hasAttribute( name : String ) : Bool;
-	@:pure function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
-	@:pure function hasAttributes() : Bool;
+	@:pure
+	function hasAttribute( name : String ) : Bool;
+	@:pure
+	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
+	@:pure
+	function hasAttributes() : Bool;
 	/** @throws DOMError */
-	@:pure function closest( selector : String ) : Element;
+	@:pure
+	function closest( selector : String ) : Element;
 	/** @throws DOMError */
-	@:pure function matches( selector : String ) : Bool;
+	@:pure
+	function matches( selector : String ) : Bool;
 	/** @throws DOMError */
-	@:pure function webkitMatchesSelector( selector : String ) : Bool;
-	@:pure function getElementsByTagName( localName : String ) : HTMLCollection;
+	@:pure
+	function webkitMatchesSelector( selector : String ) : Bool;
+	@:pure
+	function getElementsByTagName( localName : String ) : HTMLCollection;
 	/** @throws DOMError */
-	@:pure function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
-	@:pure function getElementsByClassName( classNames : String ) : HTMLCollection;
+	@:pure
+	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	@:pure
+	function getElementsByClassName( classNames : String ) : HTMLCollection;
 	/** @throws DOMError */
-	@:pure function insertAdjacentElement( where : String, element : Element ) : Element;
+	@:pure
+	function insertAdjacentElement( where : String, element : Element ) : Element;
 	/** @throws DOMError */
 	function insertAdjacentText( where : String, data : String ) : Void;
 	
@@ -262,9 +275,11 @@ extern class DOMElement extends Node
 	/** @throws DOMError */
 	function insertAdjacentHTML( position : String, text : String ) : Void;
 	/** @throws DOMError */
-	@:pure function querySelector( selectors : String ) : Element;
+	@:pure
+	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
-	@:pure function querySelectorAll( selectors : String ) : NodeList;
+	@:pure
+	function querySelectorAll( selectors : String ) : NodeList;
 	
 	/**
 		Attatches a shadow DOM tree to the specified element and returns a reference to its `ShadowRoot`.

@@ -29,8 +29,10 @@ extern class Int8Array implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
 	
-	@:pure static function of( items : haxe.extern.Rest<Array<Any>> ) : Int8Array;
-	@:pure static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Int8Array;
+	@:pure
+	static function of( items : haxe.extern.Rest<Array<Any>> ) : Int8Array;
+	@:pure
+	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Int8Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;

@@ -185,12 +185,14 @@ extern class Node extends EventTarget
 	/**
 		Returns the context object's root which optionally includes the shadow root if it is available. 
 	**/
-	@:pure function getRootNode( ?options : GetRootNodeOptions ) : Node;
+	@:pure
+	function getRootNode( ?options : GetRootNodeOptions ) : Node;
 	
 	/**
 		Returns a `Boolean` indicating if the element has any child nodes, or not.
 	**/
-	@:pure function hasChildNodes() : Bool;
+	@:pure
+	function hasChildNodes() : Bool;
 	
 	/**
 		Inserts a `Node` before the reference node as a child of a specified parent node.
@@ -232,35 +234,42 @@ extern class Node extends EventTarget
 	/**
 		Returns a `Boolean` value indicating whether or not the two nodes are the same (that is, they reference the same object).
 	**/
-	@:pure function isSameNode( node : Node ) : Bool;
+	@:pure
+	function isSameNode( node : Node ) : Bool;
 	
 	/**
 		Returns a `Boolean` which indicates whether or not two nodes are of the same type and all their defining data points match.
 	**/
-	@:pure function isEqualNode( node : Node ) : Bool;
+	@:pure
+	function isEqualNode( node : Node ) : Bool;
 	
 	/**
 		Compares the position of the current node against another node in any other document.
 	**/
-	@:pure function compareDocumentPosition( other : Node ) : Int;
+	@:pure
+	function compareDocumentPosition( other : Node ) : Int;
 	
 	/**
 		Returns a `Boolean` value indicating whether a node is a descendant of a given node or not.
 	**/
-	@:pure function contains( other : Node ) : Bool;
+	@:pure
+	function contains( other : Node ) : Bool;
 	
 	/**
 		Returns a `DOMString` containing the prefix for a given namespace URI, if present, and `null` if not. When multiple prefixes are possible, the result is implementation-dependent.
 	**/
-	@:pure function lookupPrefix( namespace_ : String ) : String;
+	@:pure
+	function lookupPrefix( namespace_ : String ) : String;
 	
 	/**
 		Accepts a prefix and returns the namespace URI associated with it on the given node if found (and `null` if not). Supplying `null` for the prefix will return the default namespace.
 	**/
-	@:pure function lookupNamespaceURI( prefix : String ) : String;
+	@:pure
+	function lookupNamespaceURI( prefix : String ) : String;
 	
 	/**
 		Accepts a namespace URI as an argument and returns a `Boolean` with a value of `true` if the namespace is the default namespace on the given node or `false` if not.
 	**/
-	@:pure function isDefaultNamespace( namespace_ : String ) : Bool;
+	@:pure
+	function isDefaultNamespace( namespace_ : String ) : Bool;
 }

@@ -36,14 +36,22 @@ extern class DataView
 	
 	/** @throws DOMError */
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;
-	@:pure function getInt8( byteOffset : Int ) : Int;
-	@:pure function getUint8( byteOffset : Int ) : Int;
-	@:pure function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	@:pure function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
+	@:pure
+	function getInt8( byteOffset : Int ) : Int;
+	@:pure
+	function getUint8( byteOffset : Int ) : Int;
+	@:pure
+	function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	@:pure
+	function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	@:pure
+	function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	@:pure
+	function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
+	@:pure
+	function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
+	@:pure
+	function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
 	function setInt8( byteOffset : Int, value : Int ) : Void;
 	function setUint8( byteOffset : Int, value : Int ) : Void;
 	function setInt16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;

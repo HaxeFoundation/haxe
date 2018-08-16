@@ -347,18 +347,18 @@ extern class RenderingContext
 	**/
 	var drawingBufferHeight(default,null) : Int;
 	
-	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
-	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
 	
 	/**
 		Updates buffer data.
 	**/
+	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
+	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
 	function bufferData( target : Int, data : js.html.ArrayBufferView, usage : Int ) : Void;
-	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
 	
 	/**
 		Updates buffer data starting at a passed offset.
 	**/
+	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
 	function bufferSubData( target : Int, offset : Int, data : js.html.ArrayBufferView ) : Void;
 	
 	/**
@@ -376,27 +376,27 @@ extern class RenderingContext
 		@throws DOMError
 	**/
 	function readPixels( x : Int, y : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Specifies a 2D texture image.
+		@throws DOMError
+	**/
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
+	function texImage2D( target : Int, level : Int, internalformat : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
 	
 	/**
-		Specifies a 2D texture image.
+		Updates a sub-rectangle of the current `WebGLTexture`.
+		@throws DOMError
 	**/
-	function texImage2D( target : Int, level : Int, internalformat : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
-	/** @throws DOMError */
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
-	
-	/**
-		Updates a sub-rectangle of the current `WebGLTexture`.
-	**/
 	function texSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
 	function uniform1fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
 	function uniform2fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;

@@ -363,19 +363,23 @@ extern class Document extends Node
 	/**
 		Returns a list of elements with the given tag name.
 	**/
-	@:pure function getElementsByTagName( localName : String ) : HTMLCollection;
+	@:pure
+	function getElementsByTagName( localName : String ) : HTMLCollection;
 	
 	/**
 		Returns a list of elements with the given tag name and namespace.
 		@throws DOMError
 	**/
-	@:pure function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	@:pure
+	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
 	
 	/**
 		Returns a list of elements with the given class name.
 	**/
-	@:pure function getElementsByClassName( classNames : String ) : HTMLCollection;
-	@:pure function getElementById( elementId : String ) : Element;
+	@:pure
+	function getElementsByClassName( classNames : String ) : HTMLCollection;
+	@:pure
+	function getElementById( elementId : String ) : Element;
 	
 	/**
 		Creates a new element with the given tag name.
@@ -433,21 +437,21 @@ extern class Document extends Node
 		@throws DOMError
 	**/
 	function createRange() : Range;
-	/** @throws DOMError */
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : NodeIterator {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : NodeIterator {} )
 	
 	/**
 		Creates a `NodeIterator` object.
+		@throws DOMError
 	**/
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : NodeIterator {} )
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : NodeIterator {} )
 	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
-	/** @throws DOMError */
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : TreeWalker {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : TreeWalker {} )
 	
 	/**
 		Creates a `TreeWalker` object.
+		@throws DOMError
 	**/
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : TreeWalker {} )
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : TreeWalker {} )
 	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
 	
 	/**
@@ -467,7 +471,8 @@ extern class Document extends Node
 		@throws DOMError
 	**/
 	function createAttributeNS( namespace_ : String, name : String ) : Attr;
-	@:pure function getElementsByName( elementName : String ) : NodeList;
+	@:pure
+	function getElementsByName( elementName : String ) : NodeList;
 	/** @throws DOMError */
 	function hasFocus() : Bool;
 	
@@ -487,9 +492,11 @@ extern class Document extends Node
 	function enableStyleSheetsForSet( name : String ) : Void;
 	function caretPositionFromPoint( x : Float, y : Float ) : CaretPosition;
 	/** @throws DOMError */
-	@:pure function querySelector( selectors : String ) : Element;
+	@:pure
+	function querySelector( selectors : String ) : Element;
 	/** @throws DOMError */
-	@:pure function querySelectorAll( selectors : String ) : NodeList;
+	@:pure
+	function querySelectorAll( selectors : String ) : NodeList;
 	
 	/**
 		Returns an array of all `Animation` objects currently in effect, whose target elements are descendants of the `document`.
@@ -500,12 +507,12 @@ extern class Document extends Node
 		Creates a `Touch` object.
 	**/
 	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
-	@:overload( function( touch : Touch, touches : haxe.extern.Rest<Touch> ) : TouchList {} )
-	@:overload( function() : TouchList {} )
 	
 	/**
 		Creates a `TouchList` object.
 	**/
+	@:overload( function( touch : Touch, touches : haxe.extern.Rest<Touch> ) : TouchList {} )
+	@:overload( function() : TouchList {} )
 	function createTouchList( touches : Array<Touch> ) : TouchList;
 	/** @throws DOMError */
 	function getSelection() : Selection;
@@ -525,7 +532,8 @@ extern class Document extends Node
 	@:overload( function( expression : String, resolver : haxe.Constraints.Function) : XPathExpression {} )
 	@:overload( function( expression : String, resolver : XPathNSResolver) : XPathExpression {} )
 	function createExpression( expression : String, ?resolver : String -> String ) : XPathExpression;
-	@:pure function createNSResolver( nodeResolver : Node ) : Node;
+	@:pure
+	function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
 	@:overload( function( expression : String, contextNode : Node, resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Any) : XPathResult {} )
 	@:overload( function( expression : String, contextNode : Node, resolver : XPathNSResolver, ?type : Int = 0, ?result : Any) : XPathResult {} )

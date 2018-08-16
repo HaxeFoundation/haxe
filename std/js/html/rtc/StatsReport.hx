@@ -45,7 +45,9 @@ extern class StatsReport
 	/** @throws DOMError */
 	function forEach( callback : Any, ?thisArg : Any ) : Void;
 	/** @throws DOMError */
-	@:pure function has( key : String ) : Bool;
+	@:pure
+	function has( key : String ) : Bool;
 	/** @throws DOMError */
-	@:pure function get( key : String ) : Any;
+	@:pure
+	function get( key : String ) : Any;
 }

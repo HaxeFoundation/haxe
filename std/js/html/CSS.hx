@@ -34,12 +34,12 @@ package js.html;
 @:native("CSS")
 extern class CSS
 {
-	/** @throws DOMError */
-	@:overload( function( property : String, value : String ) : Bool {} )
 	
 	/**
 		Returns a `Boolean` indicating if the pair property-value, or the condition, given in parameter is supported.
+		@throws DOMError
 	**/
+	@:overload( function( property : String, value : String ) : Bool {} )
 	static function supports( conditionText : String ) : Bool;
 	
 	/**

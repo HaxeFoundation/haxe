@@ -50,20 +50,20 @@ extern class MediaQueryList extends EventTarget
 	**/
 	var onchange : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
-	@:overload( function( listener : haxe.Constraints.Function) : Void {} )
-	@:overload( function( listener : EventListener) : Void {} )
 	
 	/**
 		 Adds a listener to the `MediaQueryListener` that will run a custom callback function in response to the media query status changing. This is basically an alias for `EventTarget.addEventListener()`, for backwards compatibility purposes.
+		@throws DOMError
 	**/
-	function addListener( listener : Event -> Void ) : Void;
-	/** @throws DOMError */
 	@:overload( function( listener : haxe.Constraints.Function) : Void {} )
 	@:overload( function( listener : EventListener) : Void {} )
+	function addListener( listener : Event -> Void ) : Void;
 	
 	/**
 		 Removes a listener from the `MediaQueryListener`. This is basically an alias for `EventTarget.removeEventListener()`, for backwards compatibility purposes.
+		@throws DOMError
 	**/
+	@:overload( function( listener : haxe.Constraints.Function) : Void {} )
+	@:overload( function( listener : EventListener) : Void {} )
 	function removeListener( listener : Event -> Void ) : Void;
 }

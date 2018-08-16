@@ -60,12 +60,12 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	/** @throws DOMError */
 	@:overload( function( ?params : Dynamic/*MISSING MozXMLHttpRequestParameters*/ ) : Void {} )
 	function new( ignored : String ) : Void;
-	/** @throws DOMError */
-	@:overload( function( method : String, url : String ) : Void {} )
 	
 	/**
 		Initializes a request. This method is to be used from JavaScript code; to initialize a request from native code, use `openRequest()` instead.
+		@throws DOMError
 	**/
+	@:overload( function( method : String, url : String ) : Void {} )
 	function open( method : String, url : String, async : Bool, ?user : String, ?password : String ) : Void;
 	
 	/**

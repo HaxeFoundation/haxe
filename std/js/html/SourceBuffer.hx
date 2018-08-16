@@ -90,12 +90,12 @@ extern class SourceBuffer extends EventTarget
 	**/
 	var onabort : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
-	@:overload( function( data : ArrayBuffer ) : Void {} )
 	
 	/**
 		Appends media segment data from an `ArrayBuffer` or `ArrayBufferView` object to the `SourceBuffer`.
+		@throws DOMError
 	**/
+	@:overload( function( data : ArrayBuffer ) : Void {} )
 	function appendBuffer( data : ArrayBufferView ) : Void;
 	
 	/**

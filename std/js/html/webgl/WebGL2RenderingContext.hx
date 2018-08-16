@@ -598,20 +598,20 @@ extern class WebGL2RenderingContext
 	var drawingBufferWidth(default,null) : Int;
 	var drawingBufferHeight(default,null) : Int;
 	
-	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
-	@:overload( function( target : Int, srcData : js.html.ArrayBuffer, usage : Int ) : Void {} )
-	@:overload( function( target : Int, srcData : js.html.ArrayBufferView, usage : Int ) : Void {} )
 	
 	/**
 		Initializes and creates the buffer object's data store.
 	**/
+	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
+	@:overload( function( target : Int, srcData : js.html.ArrayBuffer, usage : Int ) : Void {} )
+	@:overload( function( target : Int, srcData : js.html.ArrayBufferView, usage : Int ) : Void {} )
 	function bufferData( target : Int, srcData : js.html.ArrayBufferView, usage : Int, srcOffset : Int, ?length : Int = 0 ) : Void;
-	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBuffer ) : Void {} )
-	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBufferView ) : Void {} )
 	
 	/**
 		Updates a subset of a buffer object's data store.
 	**/
+	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBuffer ) : Void {} )
+	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBufferView ) : Void {} )
 	function bufferSubData( target : Int, dstByteOffset : Int, srcData : js.html.ArrayBufferView, srcOffset : Int, ?length : Int = 0 ) : Void;
 	
 	/**
@@ -699,7 +699,11 @@ extern class WebGL2RenderingContext
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, source : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, source : js.html.ImageData ) : Void {} )
 	function texSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, srcOffset : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Specifies a three-dimensional texture image.
+		@throws DOMError
+	**/
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, pboOffset : Int ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, source : js.html.CanvasElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, source : js.html.ImageElement ) : Void {} )
@@ -707,22 +711,18 @@ extern class WebGL2RenderingContext
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, source : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, source : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView ) : Void {} )
+	function texImage3D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, srcOffset : Int ) : Void;
 	
 	/**
-		Specifies a three-dimensional texture image.
+		Specifies a sub-rectangle of the current 3D texture.
+		@throws DOMError
 	**/
-	function texImage3D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, srcOffset : Int ) : Void;
-	/** @throws DOMError */
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, pboOffset : Int ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.CanvasElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.VideoElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.ImageData ) : Void {} )
-	
-	/**
-		Specifies a sub-rectangle of the current 3D texture.
-	**/
 	function texSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0 ) : Void;
 	
 	/**
@@ -731,19 +731,19 @@ extern class WebGL2RenderingContext
 	function copyTexSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, x : Int, y : Int, width : Int, height : Int ) : Void;
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, imageSize : Int, offset : Int ) : Void {} )
 	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
-	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, imageSize : Int, offset : Int ) : Void {} )
 	
 	/**
 		Specifies a three-dimensional texture image in a compressed format.
 	**/
+	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, imageSize : Int, offset : Int ) : Void {} )
 	function compressedTexImage3D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, imageSize : Int, offset : Int ) : Void {} )
 	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
-	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, imageSize : Int, offset : Int ) : Void {} )
 	
 	/**
 		Specifies a three-dimensional sub-rectangle for a texture image in a compressed format.
 	**/
+	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, imageSize : Int, offset : Int ) : Void {} )
 	function compressedTexSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
 	
 	/**

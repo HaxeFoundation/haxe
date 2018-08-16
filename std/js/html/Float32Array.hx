@@ -32,8 +32,10 @@ extern class Float32Array implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
 	
-	@:pure static function of( items : haxe.extern.Rest<Array<Any>> ) : Float32Array;
-	@:pure static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Any ) : Float32Array;
+	@:pure
+	static function of( items : haxe.extern.Rest<Array<Any>> ) : Float32Array;
+	@:pure
+	static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Any ) : Float32Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;

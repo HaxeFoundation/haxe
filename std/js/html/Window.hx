@@ -387,12 +387,12 @@ extern class Window extends EventTarget
 		@throws DOMError
 	**/
 	function open( ?url : String = "", ?target : String = "", ?features : String = "" ) : Window;
-	/** @throws DOMError */
-	@:overload( function() : Void {} )
 	
 	/**
 		Displays an alert dialog.
+		@throws DOMError
 	**/
+	@:overload( function() : Void {} )
 	function alert( message : String ) : Void;
 	
 	/**
@@ -464,23 +464,23 @@ extern class Window extends EventTarget
 		@throws DOMError
 	**/
 	function resizeBy( x : Int, y : Int ) : Void;
-	@:overload( function( x : Float, y : Float ) : Void {} )
 	
 	/**
 		Scrolls the window to a particular place in the document.
 	**/
-	function scroll( ?options : ScrollToOptions ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
+	function scroll( ?options : ScrollToOptions ) : Void;
 	
 	/**
 		Scrolls to a particular set of coordinates in the document.
 	**/
-	function scrollTo( ?options : ScrollToOptions ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
+	function scrollTo( ?options : ScrollToOptions ) : Void;
 	
 	/**
 		Scrolls the document in the window by the given amount.
 	**/
+	@:overload( function( x : Float, y : Float ) : Void {} )
 	function scrollBy( ?options : ScrollToOptions ) : Void;
 	
 	/**

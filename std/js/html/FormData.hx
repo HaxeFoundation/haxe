@@ -36,12 +36,12 @@ extern class FormData
 {
 	/** @throws DOMError */
 	function new( ?form : FormElement ) : Void;
-	/** @throws DOMError */
-	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	
 	/**
 		Appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist.
+		@throws DOMError
 	**/
+	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function append( name : String, value : String ) : Void;
 	@:native("delete")
 	function delete_( name : String ) : Void;
@@ -60,12 +60,12 @@ extern class FormData
 		Returns a boolean stating whether a `FormData` object contains a certain key/value pair.
 	**/
 	function has( name : String ) : Bool;
-	/** @throws DOMError */
-	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	
 	/**
 		Sets a new value for an existing key inside a `FormData `object, or adds the key/value if it does not already exist.
+		@throws DOMError
 	**/
+	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function set( name : String, value : String ) : Void;
 	
 	/**

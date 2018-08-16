@@ -29,8 +29,10 @@ extern class Uint16Array implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 2;
 	
-	@:pure static function of( items : haxe.extern.Rest<Array<Any>> ) : Uint16Array;
-	@:pure static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Uint16Array;
+	@:pure
+	static function of( items : haxe.extern.Rest<Array<Any>> ) : Uint16Array;
+	@:pure
+	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Uint16Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
