@@ -35,6 +35,10 @@ package js.html;
 extern class FileSystemDirectoryEntry extends FileSystemEntry
 {
 	function createReader() : FileSystemDirectoryReader;
-	function getFile( ?path : String, ?options : FileSystemFlags, ?successCallback : haxe.extern.EitherType<FileSystemEntry -> Void, FileSystemEntryCallback>, ?errorCallback : haxe.extern.EitherType<DOMException -> Void, ErrorCallback> ) : Void;
-	function getDirectory( ?path : String, ?options : FileSystemFlags, ?successCallback : haxe.extern.EitherType<FileSystemEntry -> Void, FileSystemEntryCallback>, ?errorCallback : haxe.extern.EitherType<DOMException -> Void, ErrorCallback> ) : Void;
+	@:overload( function( ?path : String, ?options : FileSystemFlags, successCallback : haxe.Constraints.Function, errorCallback : haxe.Constraints.Function) : Void {} )
+	@:overload( function( ?path : String, ?options : FileSystemFlags, successCallback : FileSystemEntryCallback, errorCallback : ErrorCallback) : Void {} )
+	function getFile( ?path : String, ?options : FileSystemFlags, ?successCallback : FileSystemEntry -> Void, ?errorCallback : DOMException -> Void ) : Void;
+	@:overload( function( ?path : String, ?options : FileSystemFlags, successCallback : haxe.Constraints.Function, errorCallback : haxe.Constraints.Function) : Void {} )
+	@:overload( function( ?path : String, ?options : FileSystemFlags, successCallback : FileSystemEntryCallback, errorCallback : ErrorCallback) : Void {} )
+	function getDirectory( ?path : String, ?options : FileSystemFlags, ?successCallback : FileSystemEntry -> Void, ?errorCallback : DOMException -> Void ) : Void;
 }

@@ -433,18 +433,22 @@ extern class Document extends Node
 		@throws DOMError
 	**/
 	function createRange() : Range;
+	/** @throws DOMError */
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : NodeIterator {} )
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : NodeIterator {} )
 	
 	/**
 		Creates a `NodeIterator` object.
-		@throws DOMError
 	**/
-	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.extern.EitherType<Node -> Int, NodeFilter> ) : NodeIterator;
+	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
+	/** @throws DOMError */
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : haxe.Constraints.Function) : TreeWalker {} )
+	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, filter : NodeFilter) : TreeWalker {} )
 	
 	/**
 		Creates a `TreeWalker` object.
-		@throws DOMError
 	**/
-	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.extern.EitherType<Node -> Int, NodeFilter> ) : TreeWalker;
+	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
 	
 	/**
 		Creates a new CDATA node and returns it.
@@ -518,8 +522,12 @@ extern class Document extends Node
 	/** @throws DOMError */
 	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
 	/** @throws DOMError */
-	function createExpression( expression : String, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver> ) : XPathExpression;
+	@:overload( function( expression : String, resolver : haxe.Constraints.Function) : XPathExpression {} )
+	@:overload( function( expression : String, resolver : XPathNSResolver) : XPathExpression {} )
+	function createExpression( expression : String, ?resolver : String -> String ) : XPathExpression;
 	@:pure function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	function evaluate( expression : String, contextNode : Node, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver>, ?type : Int = 0, ?result : Any ) : XPathResult;
+	@:overload( function( expression : String, contextNode : Node, resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Any) : XPathResult {} )
+	@:overload( function( expression : String, contextNode : Node, resolver : XPathNSResolver, ?type : Int = 0, ?result : Any) : XPathResult {} )
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> String, ?type : Int = 0, ?result : Any ) : XPathResult;
 }

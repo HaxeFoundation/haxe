@@ -30,8 +30,12 @@ extern class XPathEvaluator
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
-	function createExpression( expression : String, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver> ) : XPathExpression;
+	@:overload( function( expression : String, resolver : haxe.Constraints.Function) : XPathExpression {} )
+	@:overload( function( expression : String, resolver : XPathNSResolver) : XPathExpression {} )
+	function createExpression( expression : String, ?resolver : String -> String ) : XPathExpression;
 	@:pure function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	function evaluate( expression : String, contextNode : Node, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver>, ?type : Int = 0, ?result : Any ) : XPathResult;
+	@:overload( function( expression : String, contextNode : Node, resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Any) : XPathResult {} )
+	@:overload( function( expression : String, contextNode : Node, resolver : XPathNSResolver, ?type : Int = 0, ?result : Any) : XPathResult {} )
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> String, ?type : Int = 0, ?result : Any ) : XPathResult;
 }

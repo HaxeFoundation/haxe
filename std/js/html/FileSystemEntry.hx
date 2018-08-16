@@ -40,5 +40,7 @@ extern class FileSystemEntry
 	var fullPath(default,null) : String;
 	var filesystem(default,null) : FileSystem;
 	
-	function getParent( ?successCallback : haxe.extern.EitherType<FileSystemEntry -> Void, FileSystemEntryCallback>, ?errorCallback : haxe.extern.EitherType<DOMException -> Void, ErrorCallback> ) : Void;
+	@:overload( function( successCallback : haxe.Constraints.Function, errorCallback : haxe.Constraints.Function) : Void {} )
+	@:overload( function( successCallback : FileSystemEntryCallback, errorCallback : ErrorCallback) : Void {} )
+	function getParent( ?successCallback : FileSystemEntry -> Void, ?errorCallback : DOMException -> Void ) : Void;
 }
