@@ -33,7 +33,7 @@ typedef RequestInit =
 	@:optional var integrity : String;
 	@:optional var method : String;
 	@:optional var mode : RequestMode;
-	@:optional var observe : ObserverCallback;
+	@:optional var observe : haxe.extern.EitherType<FetchObserver -> Void, ObserverCallback>;
 	@:optional var redirect : RequestRedirect;
 	@:optional var referrer : String;
 	@:optional var referrerPolicy : ReferrerPolicy;

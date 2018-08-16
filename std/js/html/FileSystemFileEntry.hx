@@ -34,5 +34,5 @@ package js.html;
 @:native("FileSystemFileEntry")
 extern class FileSystemFileEntry extends FileSystemEntry
 {
-	function file( successCallback : FileCallback, ?errorCallback : ErrorCallback ) : Void;
+	function file( successCallback : haxe.extern.EitherType<File -> Void, FileCallback>, ?errorCallback : haxe.extern.EitherType<DOMException -> Void, ErrorCallback> ) : Void;
 }

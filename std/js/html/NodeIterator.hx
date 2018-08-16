@@ -133,7 +133,7 @@ extern class NodeIterator
 	/**
 		Returns a `NodeFilter` used to select the relevant nodes.
 	**/
-	var filter(default,null) : NodeFilter;
+	var filter(default,null) : haxe.extern.EitherType<Node -> Int, NodeFilter>;
 	
 	
 	/**

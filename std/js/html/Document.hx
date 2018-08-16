@@ -438,13 +438,13 @@ extern class Document extends Node
 		Creates a `NodeIterator` object.
 		@throws DOMError
 	**/
-	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter ) : NodeIterator;
+	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.extern.EitherType<Node -> Int, NodeFilter> ) : NodeIterator;
 	
 	/**
 		Creates a `TreeWalker` object.
 		@throws DOMError
 	**/
-	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter ) : TreeWalker;
+	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.extern.EitherType<Node -> Int, NodeFilter> ) : TreeWalker;
 	
 	/**
 		Creates a new CDATA node and returns it.
@@ -518,8 +518,8 @@ extern class Document extends Node
 	/** @throws DOMError */
 	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
 	/** @throws DOMError */
-	function createExpression( expression : String, ?resolver : XPathNSResolver ) : XPathExpression;
+	function createExpression( expression : String, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver> ) : XPathExpression;
 	@:pure function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	function evaluate( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Any ) : XPathResult;
+	function evaluate( expression : String, contextNode : Node, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver>, ?type : Int = 0, ?result : Any ) : XPathResult;
 }

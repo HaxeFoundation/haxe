@@ -55,11 +55,11 @@ extern class MediaQueryList extends EventTarget
 		 Adds a listener to the `MediaQueryListener` that will run a custom callback function in response to the media query status changing. This is basically an alias for `EventTarget.addEventListener()`, for backwards compatibility purposes.
 		@throws DOMError
 	**/
-	function addListener( listener : EventListener ) : Void;
+	function addListener( listener : haxe.extern.EitherType<Event -> Void, EventListener> ) : Void;
 	
 	/**
 		 Removes a listener from the `MediaQueryListener`. This is basically an alias for `EventTarget.removeEventListener()`, for backwards compatibility purposes.
 		@throws DOMError
 	**/
-	function removeListener( listener : EventListener ) : Void;
+	function removeListener( listener : haxe.extern.EitherType<Event -> Void, EventListener> ) : Void;
 }

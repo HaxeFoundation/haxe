@@ -30,8 +30,8 @@ extern class XPathEvaluator
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
-	function createExpression( expression : String, ?resolver : XPathNSResolver ) : XPathExpression;
+	function createExpression( expression : String, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver> ) : XPathExpression;
 	@:pure function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	function evaluate( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Any ) : XPathResult;
+	function evaluate( expression : String, contextNode : Node, ?resolver : haxe.extern.EitherType<String -> String, XPathNSResolver>, ?type : Int = 0, ?result : Any ) : XPathResult;
 }
