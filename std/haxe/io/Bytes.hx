@@ -386,7 +386,7 @@ class Bytes {
 		// length is greater than the stack size first.
 		// TODO : Find a library pattern for this.
 		var adj_length = b.length - pos;
-		if (b.length <= lua.Boot.MAXSTACKSIZE){
+		if (adj_length <= lua.Boot.MAXSTACKSIZE){
 			var end : Int = cast Math.min(b.length, pos+len) - 1;
 			return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, pos, end));
 		} else {

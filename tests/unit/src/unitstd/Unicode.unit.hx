@@ -28,7 +28,7 @@ var s = String.fromCharCode(0x1f602);
 s == "😂";
 
 
-#if php
+#if (php || lua)
 // native UTF-16 or 32
 s.length == 1;
 s.charCodeAt(0) == "😂".code;
@@ -52,7 +52,7 @@ a[0] == "é";
 a[1] == "あ";
 
 var a = s.split('');
-#if php
+#if ( php || lua )
 // native UTF-16 or 32
 a.length == 3;
 a[0] == "é";
@@ -94,7 +94,7 @@ str.toHex() == "c3a9e38182f09f9882";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if (cpp || php)
+#if (cpp || php || lua)
 bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
 bytes.toHex() == "e90042303dd802de"; // UTF-16 native
@@ -104,7 +104,7 @@ bytes.getString(0,bytes.length,RawNative) == "éあ😂";
 
 haxe.crypto.Md5.encode("éあ😂") == "d30b209e81e40d03dd474b26b77a8a18";
 haxe.crypto.Sha1.encode("éあ😂") == "ec79856a75c98572210430aeb7fe6300b6c4e20c";
-#if php //utf-8
+#if (php || lua) //utf-8
 haxe.crypto.Sha224.encode("éあ😂") == "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90";
 haxe.crypto.Sha256.encode("éあ😂") == "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676";
 #else //utf-16
