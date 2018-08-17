@@ -191,7 +191,14 @@ class Boot {
 			}
 			case "boolean" : untyped tostring(o);
 			case "string"  : o;
-			case "userdata": "<userdata>";
+			case "userdata": {
+				var mt = lua.Lua.getmetatable(o);
+				if (mt != null && mt.__tostring != null){
+					lua.Lua.tostring(o);
+				} else {
+					"<userdata>";
+				}
+			}
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {
