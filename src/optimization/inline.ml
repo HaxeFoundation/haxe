@@ -690,6 +690,11 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			{e with eexpr = TCall(e1,el)}
 		| TConst TSuper ->
 			error "Cannot inline function containing super" po
+		| TMeta((Meta.Ast,_,_) as m,e1) when term ->
+			(* Special case for @:ast-wrapped TSwitch nodes: If the recursion alters the type of the TSwitch node, we also want
+			   to alter the type of the TMeta node. *)
+			let e1 = map term in_call e1 in
+			{e with eexpr = TMeta(m,e1); etype = e1.etype}
 		| TMeta(m,e1) ->
 			let e1 = map term in_call e1 in
 			{e with eexpr = TMeta(m,e1)}
