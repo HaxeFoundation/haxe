@@ -185,7 +185,7 @@ class Bytes {
 			b.setI32(i, ( (high << 4) | low)  & 0xff );
 		}
 
-		return b;
+		return new Bytes(b.bytes,b.length);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
