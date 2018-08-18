@@ -175,7 +175,8 @@ class Bytes {
 	public static function ofHex( s : String ) : Bytes {
 		var len = s.length;
 		if ( (len & 1) != 0 ) throw Error.OutsideBounds;
-		var b = new hl.Bytes(len >> 1);
+		var l = len >> 1;
+		var b = new hl.Bytes(l);
 		for (i in  0...len)
 		{
 			var high = s.charCodeAt(i*2);
@@ -185,7 +186,7 @@ class Bytes {
 			b.setI32(i, ( (high << 4) | low)  & 0xff );
 		}
 
-		return new Bytes(b.bytes,b.length);
+		return new Bytes(b,l);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
