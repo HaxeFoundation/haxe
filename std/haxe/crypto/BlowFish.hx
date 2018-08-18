@@ -144,7 +144,8 @@ class BlowFish
 
     public var iv(default, set):Bytes;
 
-    function set_iv(vector) {
+    function set_iv(vector)
+    {
         iv = vector;
         if (iv == null) 
         {
@@ -188,12 +189,12 @@ class BlowFish
                 ECB.encrypt(out,BLOCK_SIZE,EncryptBlock);
             case Mode.PCBC:
                 PCBC.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
-            //case Mode.CTR:
-            //    CTR.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
-            //case Mode.CFB:
-            //    CFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
-            //case Mode.OFB:
-            //    OFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+            case Mode.CTR:
+                CTR.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+            case Mode.CFB:
+                CFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+            case Mode.OFB:
+                OFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
         }
 
         return out;
@@ -210,12 +211,12 @@ class BlowFish
                 ECB.decrypt(out,BLOCK_SIZE,DecryptBlock);
             case Mode.PCBC:
                 PCBC.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
-            //case Mode.CTR:
-            //    CTR.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
-            //case Mode.CFB:
-            //    CFB.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
-            //case Mode.OFB:
-            //    OFB.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
+            case Mode.CTR:
+                CTR.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+            case Mode.CFB:
+               CFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+            case Mode.OFB:
+                OFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
         }
 
         if ( cipherMode == Mode.CBC || cipherMode == Mode.CTR || cipherMode == Mode.ECB ||  cipherMode == Mode.PCBC  ) {
@@ -332,20 +333,19 @@ class BlowFish
     }
 
     private function Int32ToBytes(n:Int32, bs:Bytes, off:Int):Void
-	{
-		bs.set( off , (n >> 24));
-		bs.set(++off, (n >> 16));
-		bs.set(++off, (n >>  8));
-		bs.set(++off, (n      ));
-	}
+    {
+	bs.set( off , (n >> 24));
+	bs.set(++off, (n >> 16));
+	bs.set(++off, (n >>  8));
+	bs.set(++off, (n      ));
+    }
 
     private function BytesToInt32(bs:Bytes, off:Int):Int32
-	{
-		var n:Int32 = ( bs.get(off) & 0xff ) << 24;
-		n |= ( bs.get(++off) & 0xff) << 16;
-		n |= ( bs.get(++off) & 0xff) << 8;
-		n |= bs.get(++off) & 0xff ;
-		return n;
-	}
-
+    {
+	var n:Int32 = ( bs.get(off) & 0xff ) << 24;
+	n |= ( bs.get(++off) & 0xff) << 16;
+	n |= ( bs.get(++off) & 0xff) << 8;
+	n |= bs.get(++off) & 0xff ;
+	return n;
+    }
 }
