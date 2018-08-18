@@ -9,21 +9,20 @@ class CBC
         var vector = iv.sub(0,iv.length);
         var i : Int = 0;
         var len : Int = src.length;
-		while (i < len)
+	while (i < len)
+	{
+		for (j in 0...blockSize)
 		{
-			for (j in 0...blockSize)
-			{
-				src.set(i + j, src.get(i + j) ^ vector.get(j) );
-			}
-
-			encryptBlock(src, i, src , i);
-
-			vector = src.sub(i,blockSize);
-			i += blockSize;
+			src.set(i + j, src.get(i + j) ^ vector.get(j) );
 		}
-	}
+		encryptBlock(src, i, src , i);
 
-	public static function decrypt( src : Bytes, iv : Bytes, blockSize : Int, decryptBlock : Bytes->Int->Bytes->Int->Void) : Void
+		vector = src.sub(i,blockSize);
+		i += blockSize;
+	}
+    }
+
+    public static function decrypt( src : Bytes, iv : Bytes, blockSize : Int, decryptBlock : Bytes->Int->Bytes->Int->Void) : Void
     {
         var vpos : Int = src.length - blockSize;
         var i : Int = src.length;
