@@ -172,7 +172,7 @@ class BlowFish
         return BLOCK_SIZE;
     }
 
-    public function encrypt(cipherMode:String, data:Bytes):Bytes
+    public function encrypt(cipherMode:Mode, data:Bytes):Bytes
     { 
         var out:Bytes;
         
@@ -200,7 +200,7 @@ class BlowFish
         return out;
     }
 
-    public function decrypt(cipherMode:String, data:Bytes):Bytes 
+    public function decrypt(cipherMode:Mode, data:Bytes):Bytes 
     {
         var out:Bytes = data;
 
