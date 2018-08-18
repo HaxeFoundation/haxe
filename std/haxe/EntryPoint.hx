@@ -37,7 +37,7 @@ private class Thread {
 #end
 
 /**
-	If haxe.MainLoop is kept from DCE, then we will insert an haxe.EntryPoint.run() call just at then end of main().
+	If haxe.MainLoop is kept from DCE, then we will insert an haxe.EntryPoint.run() call just at the end of main().
 	This class can be redefined by custom frameworks so they can handle their own main loop logic.
 **/
 class EntryPoint {
