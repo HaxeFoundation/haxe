@@ -17,8 +17,11 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 	let mk_field e n =
 		TField (e,try quick_field e.etype n with Not_found -> assert false)
 	in
+	let gen_it_local pt =
+		add_local_with_origin ctx VUser i pt pi (TVarOrigin.TVOForVariable)
+	in
 	let gen_int_iter pt f_get f_length =
-		let i = add_local ctx i pt pi in
+		let i = gen_it_local pt in
 		let index = gen_local ctx t_int pi in
 		index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
 		let arr, avars = (match e1.eexpr with
@@ -62,7 +65,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		) in
 		let tmp = gen_local ctx t_int pi in
 		tmp.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: tmp.v_meta;
-		let i = add_local ctx i t_int pi in
+		let i = gen_it_local t_int in
 		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
@@ -127,13 +130,12 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 				250
 			in
 			if cost > max_cost then raise Exit;
+			let v = gen_it_local pt in
+			let e2 = type_expr ctx e2 NoValue in
 			let el = List.map (fun e ->
-				let v = add_local ctx i pt p in
-				let ev = mk (TVar(v, None)) ctx.t.tvoid p in
-				let typed_e2 = type_expr ctx e2 NoValue in
-				let eloc = mk (TLocal v) v.v_type p in
-				let e_assign = mk (TBinop(OpAssign,eloc,e)) e.etype e.epos in
-				concat ev (concat e_assign typed_e2)
+				let ev = mk (TVar(v,Some e)) ctx.t.tvoid e.epos in
+				let e = concat ev e2 in
+				Texpr.duplicate_tvars e
 			) el in
 			Some (mk (TBlock el) ctx.t.tvoid p)
 		with Exit ->
@@ -180,7 +182,7 @@ let rec optimize_for_loop ctx (i,pi) e1 e2 p =
 		end
 	| _ , TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[t]) } as c,[]) ->
 		let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
-		let i = add_local ctx i t p in
+		let i = gen_it_local t in
 		let cell = gen_local ctx tcell p in
 		let cexpr = mk (TLocal cell) tcell p in
 		let e2 = type_expr ctx e2 NoValue in
@@ -237,7 +239,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let e2 = Expr.ensure_block e2 in
 	let default() =
 		let t, pt = Typeload.t_iterator ctx in
-		let i = add_local ctx i pt pi in
+		let i = add_local_with_origin ctx VUser i pt pi (TVarOrigin.TVOForVariable) in
 		let e1 = (match follow e1.etype with
 		| TMono _
 		| TDynamic _ ->

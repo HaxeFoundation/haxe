@@ -41,19 +41,19 @@ class JsonPrinter {
 		If `space` is given and is not null, the result will be pretty-printed.
 		Successive levels will be indented by this string.
 	**/
-	static public function print(o:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String) : String {
+	static public function print(o:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String) : String {
 		var printer = new JsonPrinter(replacer, space);
 		printer.write("", o);
 		return printer.buf.toString();
 	}
 
 	var buf : #if flash flash.utils.ByteArray #else StringBuf #end;
-	var replacer : Dynamic -> Dynamic -> Dynamic;
+	var replacer:(key:Dynamic, value:Dynamic) -> Dynamic;
 	var indent:String;
 	var pretty:Bool;
 	var nind:Int;
 
-	function new(replacer:Dynamic -> Dynamic -> Dynamic, space:String) {
+	function new(replacer:(key:Dynamic, value:Dynamic) -> Dynamic, space:String) {
 		this.replacer = replacer;
 		this.indent = space;
 		this.pretty = space != null;

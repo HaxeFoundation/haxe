@@ -51,6 +51,7 @@ let value_string value =
 		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
 		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "Function","fun"
+		| VLazy f -> value_string depth (!f())
 	in
 	let s_type,s_value = value_string 0 value in
 	Printf.sprintf "%s = %s" s_type s_value

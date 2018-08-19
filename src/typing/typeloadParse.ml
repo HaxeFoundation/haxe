@@ -31,7 +31,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Lexer.init file true;
 	incr stats.s_files_parsed;
 	let data = try
-		ParserEntry.parse com.defines lexbuf
+		ParserEntry.parse com.defines lexbuf file
 	with
 		| Sedlexing.MalFormed ->
 			t();
@@ -40,10 +40,11 @@ let parse_file_from_lexbuf com file p lexbuf =
 			t();
 			raise e
 	in
-	begin match !display_default with
-		| DMModuleSymbols filter when filter <> None || Display.is_display_file file ->
-			let ds = Display.DocumentSymbols.collect_module_symbols data in
-			com.shared.shared_display_information.document_symbols <- (file,ds) :: com.shared.shared_display_information.document_symbols;
+	begin match !Parser.display_mode with
+		| DMModuleSymbols (Some "") -> ()
+		| DMModuleSymbols filter when filter = None && DisplayPosition.is_display_file file ->
+			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
+			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
 			()
 	end;
@@ -57,7 +58,7 @@ let parse_file_from_string com file p string =
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && Display.is_display_file file in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.is_display_file file in
 	if use_stdin then
 		let s =
 			match !current_stdin with
@@ -127,10 +128,26 @@ let resolve_module_file com m remap p =
 	end;
 	file
 
-let parse_module ctx m p =
+let resolve_module_file com m remap p =
+	try
+		Hashtbl.find com.module_to_file m
+	with Not_found ->
+		let file = resolve_module_file com m remap p in
+		Hashtbl.add com.module_to_file m file;
+		file
+
+(* let resolve_module_file com m remap p =
+	let timer = Timer.timer ["typing";"resolve_module_file"] in
+	Std.finally timer (resolve_module_file com m remap) p *)
+
+let parse_module' com m p =
 	let remap = ref (fst m) in
-	let file = resolve_module_file ctx.com m remap p in
-	let pack, decls = (!parse_hook) ctx.com file p in
+	let file = resolve_module_file com m remap p in
+	let pack, decls = (!parse_hook) com file p in
+	file,remap,pack,decls
+
+let parse_module ctx m p =
+	let file,remap,pack,decls = parse_module' ctx.com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == null_pos then
@@ -169,3 +186,7 @@ let parse_module ctx m p =
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else
 		decls
+
+(* let parse_module ctx m p =
+	let timer = Timer.timer ["typing";"parse_module"] in
+	Std.finally timer (parse_module ctx m) p *)

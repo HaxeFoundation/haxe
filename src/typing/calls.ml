@@ -56,7 +56,7 @@ let make_call ctx e params t p =
 		(match f.cf_expr_unoptimized,f.cf_expr with
 		| Some fd,_
 		| None,Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx f fd ethis params t config p force_inline with
+			(match Inline.type_inline ctx f fd ethis params t config p force_inline with
 			| None ->
 				if force_inline then error "Inline could not be done" p;
 				raise Exit;
@@ -411,6 +411,7 @@ let rec acc_get ctx g p =
 	| AKUsing (et,c,cf,e) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
+		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
 		let t = match follow et.etype with
 			| TFun (_ :: args,ret) -> TFun(args,ret)
 			| _ -> et.etype
@@ -425,9 +426,9 @@ let rec acc_get ctx g p =
 			(* arguments might not have names in case of variable fields of function types, so we generate one (issue #2495) *)
 			let args = List.map (fun (n,o,t) ->
 				let t = if o then ctx.t.tnull t else t in
-				o,if n = "" then gen_local ctx t e.epos else alloc_var n t e.epos (* TODO: var pos *)
+				o,if n = "" then gen_local ctx t e.epos else alloc_var VGenerated n t e.epos (* TODO: var pos *)
 			) args in
-			let ve = alloc_var "_e" e.etype e.epos in
+			let ve = alloc_var VGenerated "_e" e.etype e.epos in
 			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (o,v) -> v,if o then Some TNull else None) args;
@@ -445,11 +446,13 @@ let rec acc_get ctx g p =
 		(* do not create a closure for static calls *)
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
-		(match f.cf_expr with
+		begin match f.cf_expr with
 		| None when ctx.com.display.dms_display ->
 			mk (TField (e,cmode)) t p
 		| None ->
 			error "Recursive inline is not supported" p
+		| Some _ when not (ctx.com.display.dms_inline) ->
+			mk (TField (e,cmode)) t p
 		| Some { eexpr = TFunction _ } ->
 			let chk_class c = (c.cl_extern || f.cf_extern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
@@ -496,7 +499,11 @@ let rec acc_get ctx g p =
 			end
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
-			loop e)
+			let e = loop e in
+			let e = Inline.inline_metadata e f.cf_meta in
+			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
+			else e
+		end
 	| AKMacro _ ->
 		assert false
 
@@ -596,7 +603,7 @@ let rec build_call ctx acc el (with_type:with_type) p =
 			!ethis_f();
 			raise (Fatal_error ((error_msg m),p))
 		in
-		let e = Display.Diagnostics.secure_generated_code ctx e in
+		let e = Diagnostics.secure_generated_code ctx e in
 		ctx.on_error <- old;
 		!ethis_f();
 		e
@@ -667,12 +674,12 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			error "Usage of _ is not supported for optional non-nullable arguments" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var (alloc_name n) (if o then ctx.t.tnull t else t) p in
+			let v = alloc_var VGenerated (alloc_name n) (if o then ctx.t.tnull t else t) p in
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param (WithType t) in
 			let e = AbstractCast.cast_or_unify ctx t e p in
-			let v = alloc_var (alloc_name n) t (pos param) in
+			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
@@ -680,7 +687,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		let name = if n = 0 then "f" else "f" ^ (string_of_int n) in
 		if List.exists (fun (n,_,_) -> name = n) args then gen_loc_name (n + 1) else name
 	in
-	let loc = alloc_var (gen_loc_name 0) e.etype e.epos in
+	let loc = alloc_var VGenerated (gen_loc_name 0) e.etype e.epos in
 	let given_args = (loc,false,Some e) :: given_args in
 	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(inner_fun_args missing_args, ret) in

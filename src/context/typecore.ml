@@ -87,6 +87,7 @@ type typer_globals = {
 	do_create : Common.context -> typer;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> expr option;
 	do_load_module : typer -> path -> pos -> module_def;
+	do_load_type_def : typer -> pos -> type_path -> module_type;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
 	do_format_string : typer -> string -> pos -> Ast.expr;
@@ -205,8 +206,8 @@ let save_locals ctx =
 	let locals = ctx.locals in
 	(fun() -> ctx.locals <- locals)
 
-let add_local ctx n t p =
-	let v = alloc_var n t p in
+let add_local ctx k n t p =
+	let v = alloc_var k n t p in
 	if Define.defined ctx.com.defines Define.WarnVarShadowing then begin
 		try
 			let v' = PMap.find n ctx.locals in
@@ -216,6 +217,11 @@ let add_local ctx n t p =
 			()
 	end;
 	ctx.locals <- PMap.add n v ctx.locals;
+	v
+
+let add_local_with_origin ctx k n t p origin =
+	let v = add_local ctx k n t p in
+	if ctx.com.display.DisplayMode.dms_kind <> DisplayMode.DMNone then v.v_meta <- (TVarOrigin.encode_in_meta origin) :: v.v_meta;
 	v
 
 let gen_local_prefix = "`"
@@ -229,7 +235,9 @@ let gen_local ctx t p =
 		else
 			nv
 	in
-	add_local ctx (loop 0) t p
+	let v = add_local ctx VGenerated (loop 0) t p in
+	(* v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta; *)
+	v
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0

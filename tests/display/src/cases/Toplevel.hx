@@ -97,13 +97,14 @@ class Toplevel extends DisplayTestCase {
 	}
 
 	/**
+	class C0 { }
 	class C extends {-1-} {
 	**/
 	function testTypeCompletionExtends() {
 		// TODO: this currently doesn't work if there's no token after extends
 		var typesCompletion = toplevel(pos(1));
-		eq(true, hasToplevel(typesCompletion, "type", "Array"));
-		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+		eq(true, hasToplevel(typesCompletion, "type", "C0"));
+		// eq(true, hasToplevel(typesCompletion, "package", "haxe"));
 	}
 
 	/**
@@ -111,9 +112,10 @@ class Toplevel extends DisplayTestCase {
 	**/
 	function testTypeCompletionImplements() {
 		// TODO: this currently doesn't work if there's no token after implements
-		var typesCompletion = toplevel(pos(1));
-		eq(true, hasToplevel(typesCompletion, "type", "Array"));
-		eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+		// NOTE: This test is invalid, we only show interfaces after `implements`
+		// var typesCompletion = toplevel(pos(1));
+		// eq(true, hasToplevel(typesCompletion, "type", "Array"));
+		// eq(true, hasToplevel(typesCompletion, "package", "haxe"));
 	}
 
 	/**
@@ -304,6 +306,31 @@ class Toplevel extends DisplayTestCase {
 
 	/**
 	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType = {-1-}
+
+			trace("ok");
+	**/
+	function testExpectedType9() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
+    	public static function main() {
+    	    var x:Type.ValueType;
+			x = {-1-}
+
+			trace("ok");
+	**/
+	function testExpectedType10() {
+		var fields = toplevel(pos(1));
+		eq(true, hasToplevel(fields, "enum", "TNull"));
+	}
+
+	/**
+	class Main {
 		static function main() {
 			for (foo in 0...10){-1-}
 				{-2-}
@@ -313,5 +340,23 @@ class Toplevel extends DisplayTestCase {
 	function testBokenAST1() {
 		var fields = toplevel(pos(1));
 		eq(true, hasToplevel(fields, "local", "foo"));
+	}
+
+	/**
+	class C1<T> {
+		public function f1(t:T) { }
+	}
+
+	class C2<T> extends C1<T> { }
+
+	class C3 extends C2<String> {
+		function f2() {
+			{-1-}
+		}
+	}
+	**/
+	function testTypeParameterApplication() {
+		var toplevel = toplevel(pos(1));
+		eq(true, hasToplevel(toplevel, "member", "f1", "t : String -> Void"));
 	}
 }

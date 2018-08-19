@@ -35,6 +35,16 @@ class TestPhp extends Test
 		t(true);
 	}
 
+	var switchVal = "1";
+	function testIssue7257_looseSwitchComparison() {
+		var result = switch (switchVal) {
+			case "01": false;
+			case "1": true;
+			default: false;
+		}
+		t(result);
+	}
+
 	function testIssue1828() {
 		var x = try {
 			throw "foo";

@@ -201,16 +201,18 @@ let handle_class com cl =
 						| TBlock(hd :: tl) ->
 							(match hd.eexpr with
 							| TCall ({ eexpr = TConst TSuper }, _) ->
+								let tl_block = { e with eexpr = TBlock(tl) } in
 								if not (OverloadingConstructor.descends_from_native_or_skipctor cl) then
-									{ e with eexpr = TBlock (vars @ (hd :: (funs @ tl))) }
+									{ e with eexpr = TBlock (vars @ (hd :: (funs @ [tl_block]))) }
 								else
-									{ e with eexpr = TBlock (hd :: (vars @ funs @ tl)) }
+									{ e with eexpr = TBlock (hd :: (vars @ funs @ [tl_block])) }
 							| TBlock _ ->
-								{ e with eexpr = TBlock ((add_fn hd) :: tl) }
+								let tl_block = { e with eexpr = TBlock(tl) } in
+								{ e with eexpr = TBlock ((add_fn hd) :: [tl_block]) }
 							| _ ->
-								{ e with eexpr = TBlock (vars @ funs @ (hd :: tl)) })
+								{ e with eexpr = TBlock (vars @ funs @ [{ e with eexpr = TBlock(hd :: tl) }]) })
 						| _ ->
-							Type.concat { e with eexpr = TBlock (vars @ funs) } e
+							Type.concat { e with eexpr = TBlock (vars @ funs) } { e with eexpr = TBlock([e]) }
 					in
 					let tf_expr = add_fn (mk_block tf.tf_expr) in
 					{ e with eexpr = TFunction { tf with tf_expr = tf_expr } }

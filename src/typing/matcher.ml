@@ -58,7 +58,7 @@ let get_general_module_type ctx mt p =
 			end
 		| _ -> error "Cannot use this type as a value" p
 	in
-	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},null_pos) true p
+	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
 
 module Constructor = struct
 	type t =
@@ -184,14 +184,15 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var name t p in
+				let v = alloc_var VUser name t p in
+				v.v_meta <- (TVarOrigin.encode_in_meta TVarOrigin.TVOPatternVariable) :: v.v_meta;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
 		in
 		let con_enum en ef p =
-			Display.DeprecationCheck.check_enum pctx.ctx.com en p;
-			Display.DeprecationCheck.check_ef pctx.ctx.com ef p;
+			DeprecationCheck.check_enum pctx.ctx.com en p;
+			DeprecationCheck.check_ef pctx.ctx.com ef p;
 			ConEnum(en,ef)
 		in
 		let check_expr e =
@@ -463,9 +464,25 @@ module Pattern = struct
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
 				PatExtractor(v,e1,pat)
+			(* Special case for completion on a pattern local: We don't want to add the local to the context
+			   while displaying (#7319) *)
+			| EDisplay((EConst (Ident _),_ as e),dk) when pctx.ctx.com.display.dms_kind = DMDefault ->
+				let locals = ctx.locals in
+				let pat = loop e in
+				let locals' = ctx.locals in
+				ctx.locals <- locals;
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				ctx.locals <- locals';
+				pat
+			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
+			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
+			   matter (#7326) *)
+			| EDisplay(e1,DKCall) ->
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e dk (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
 				pat
 			| _ ->
 				fail()
@@ -537,7 +554,7 @@ module Case = struct
 		ctx.ret <- old_ret;
 		List.iter (fun (v,t) -> v.v_type <- t) old_types;
 		save();
-		if ctx.is_display_file && Display.is_display_position p then begin match eo,eo_ast with
+		if ctx.is_display_file && DisplayPosition.encloses_display_position p then begin match eo,eo_ast with
 			| Some e,Some e_ast -> ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type p)
 			| None,None -> ignore(TyperDisplay.display_expr ctx (EBlock [],p) (mk (TBlock []) ctx.t.tvoid p) DKMarked with_type p)
 			| _ -> assert false
@@ -1097,8 +1114,7 @@ module Compile = struct
 					let patterns = make_offset_list (left2 + 1) (right2 - 1) pat pat_any @ patterns in
 					(left + 1, right - 1,ev :: subjects,((case,bindings,patterns) :: cases),ex_bindings)
 				with Not_found ->
-					let v = alloc_var "_hx_tmp" e1.etype e1.epos in
-					v.v_meta <- (Meta.Custom ":extractorVariable",[],v.v_pos) :: v.v_meta;
+					let v = alloc_var VExtractorVariable "_hx_tmp" e1.etype e1.epos in
 					let ex_bindings = (v,e1.epos,e1,left,right) :: ex_bindings in
 					let patterns = make_offset_list (left + 1) (right - 1) pat pat_any @ patterns in
 					let ev = mk (TLocal v) v.v_type e1.epos in
@@ -1301,7 +1317,7 @@ module TexprConverter = struct
 	let to_texpr ctx t_switch match_debug with_type dt =
 		let com = ctx.com in
 		let p = dt.dt_pos in
-		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},null_pos) true p) with TInst(c,_) -> c | t -> assert false in
+		let c_type = match follow (Typeload.load_instance ctx ({ tpackage = ["std"]; tname="Type"; tparams=[]; tsub = None},p) true) with TInst(c,_) -> c | t -> assert false in
 		let mk_index_call e =
 			if not ctx.in_macro && not ctx.com.display.DisplayMode.dms_full_typing then
 				(* If we are in display mode there's a chance that these fields don't exist. Let's just use a
@@ -1457,7 +1473,7 @@ module Match = struct
 		) cases in
 		let infer_switch_type () =
 			match with_type with
-				| NoValue -> mk_mono()
+				| NoValue -> ctx.t.tvoid
 				| Value ->
 					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
 					unify_min ctx el

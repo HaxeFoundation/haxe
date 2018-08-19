@@ -45,7 +45,8 @@
 open Printf
 open Common
 open DisplayTypes.DisplayMode
-open Display.DisplayException
+open DisplayTypes.CompletionResultKind
+open DisplayException
 open Type
 open Server
 open Globals
@@ -212,7 +213,7 @@ module Initialize = struct
 				"n"
 			| Js ->
 				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines.Define.values) then
-					Common.define_value com Define.JqueryVer "11204";
+					Common.define_value com Define.JqueryVer "30301";
 
 				let es_version =
 					try
@@ -483,7 +484,7 @@ try
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default <> DMNone || (CompilationServer.runs());
+	Parser.use_doc := !Parser.display_mode <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -750,12 +751,16 @@ try
 		),"<dir>","set current working directory");
 	] in
 	let args_callback cl =
-		let path,name = Path.parse_path cl in
-		if Path.starts_uppercase name then
-			classes := (path,name) :: !classes
-		else begin
-			force_typing := true;
-			config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
+		begin try
+			let path,name = Path.parse_path cl in
+			if Path.starts_uppercase name then
+				classes := (path,name) :: !classes
+			else begin
+				force_typing := true;
+				config_macros := (Printf.sprintf "include('%s', true, null, null, true)" cl) :: !config_macros;
+			end
+		with Failure _ when ctx.com.display.dms_display ->
+			()
 		end
 	in
 	let all_args = (basic_args_spec @ adv_args_spec) in
@@ -785,7 +790,7 @@ try
 	process_ref := process;
 	process ctx.com.args;
 	process_libs();
-	if com.display.dms_display then begin
+	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)
@@ -794,13 +799,13 @@ try
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && Parser.do_resume () then begin
-		let p = !Parser.resume_display in
+	if !Lexer.old_format && !Parser.in_display then begin
+		let p = !DisplayPosition.display_position in
 		(* convert byte position to utf8 position *)
 		try
 			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
 			let pos = UTF8.length (String.sub content 0 p.pmin) in
-			Parser.resume_display := { p with pmin = pos; pmax = pos }
+			DisplayPosition.display_position := { p with pmin = pos; pmax = pos }
 		with _ ->
 			() (* ignore *)
 	end;
@@ -812,7 +817,9 @@ try
 		| _ -> if not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 	end;
 	com.config <- get_config com; (* make sure to adapt all flags changes defined after platform *)
+	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
+	t();
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
@@ -823,8 +830,21 @@ try
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (fun f -> f ()) (List.rev com.callbacks.after_init_macros);
+		begin match CompilationServer.get () with
+		| None -> ()
+		| Some cs ->
+			let sign = Define.get_signature com.defines in
+			try ignore(CompilationServer.get_sign cs sign) with Not_found -> ignore(CompilationServer.add_sign cs sign com)
+		end;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Finalization.finalize tctx;
+		(* If we are trying to find references, let's syntax-explore everything we know to check for the
+		   identifier we are interested in. We then type only those modules that contain the identifier. *)
+		begin match !CompilationServer.instance,com.display.dms_kind with
+			| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+			| _ -> ()
+		end;
 		t();
 		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
 		let load_display_module_in_macro clear = match display_file_dot_path with
@@ -836,8 +856,18 @@ try
 					(* Tricky stuff: We want to remove the module from our lookups and load it again in
 					   display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
 					if clear then begin
-						Hashtbl.remove mctx.g.modules cpath;
-						Hashtbl.remove mctx.g.types_module cpath;
+						begin try
+							let m = Hashtbl.find mctx.g.modules cpath in
+							Hashtbl.remove mctx.g.modules cpath;
+							Hashtbl.remove mctx.g.types_module cpath;
+							List.iter (fun mt ->
+								let ti = t_infos mt in
+								Hashtbl.remove mctx.g.modules ti.mt_path;
+								Hashtbl.remove mctx.g.types_module ti.mt_path;
+							) m.m_types
+						with Not_found ->
+							()
+						end;
 					end;
 					let _ = MacroContext.load_macro_module tctx cpath true p in
 					Finalization.finalize mctx;
@@ -871,7 +901,7 @@ try
 		end;
 		DisplayOutput.process_global_display_mode com tctx;
 		if not (Common.defined com Define.NoDeprecationWarnings) then
-			Display.DeprecationCheck.run com;
+			DeprecationCheck.run com;
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
@@ -913,7 +943,7 @@ with
 	| Parser.Error (m,p) ->
 		error ctx (Parser.error_msg m) p
 	| Typecore.Forbid_package ((pack,m,p),pl,pf)  ->
-		if !Common.display_default <> DMNone && ctx.has_next then begin
+		if !Parser.display_mode <> DMNone && ctx.has_next then begin
 			ctx.has_error <- false;
 			ctx.messages <- [];
 		end else begin
@@ -934,30 +964,63 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
+	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
+		begin match ctx.com.json_out with
+		| Some (f,_) ->
+			let ctx = DisplayJson.create_json_context (match de with DisplayFields _ -> true | _ -> false) in
+			f (DisplayException.to_json ctx de)
+		| _ -> assert false
+		end
+	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
+		begin match com.json_out with
+		| Some (f,_) ->
+			let tctx = Typer.create ctx.com in
+			let fields = DisplayToplevel.collect tctx true Typecore.NoValue in
+			let jctx = Genjson.create_context Genjson.GMMinimum in
+			f (DisplayException.fields_to_json jctx fields CRImport (Some (Parser.cut_pos_at_display p)) false)
+		| _ -> assert false
+		end *)
 	| DisplayException(DisplayPackage pack) ->
-		raise (DisplayOutput.Completion (DisplayOutput.print_package ctx.com pack))
-	| DisplayException(DisplayFields(fields,is_toplevel)) ->
-		let fields = match ctx.com.json_out with
-			| None when !measure_times ->
-				Timer.close_times();
-				(List.map (fun (name,value) ->
-					DisplayTypes.CompletionKind.ITTimer("@TIME " ^ name,value)
-				) (DisplayOutput.get_timer_fields !start_time)) @ fields
-			| _ ->
-				fields
+		raise (DisplayOutput.Completion (String.concat "." pack))
+	| DisplayException(DisplayFields(fields,cr,_)) ->
+		let fields = if !measure_times then begin
+			Timer.close_times();
+			(List.map (fun (name,value) ->
+				CompletionItem.make_ci_timer ("@TIME " ^ name) value
+			) (DisplayOutput.get_timer_fields !start_time)) @ fields
+		end else
+			fields
 		in
-		raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields is_toplevel))
-	| DisplayException(DisplayType (t,p,doc)) ->
-		let doc = match doc with Some _ -> doc | None -> DisplayOutput.find_doc t in
-		raise (DisplayOutput.Completion (DisplayOutput.print_type ctx.com t p doc))
-	| DisplayException(DisplaySignatures(signatures,display_arg)) ->
+		let s = match cr with
+			| CRToplevel _
+			| CRTypeHint
+			| CRExtends
+			| CRImplements
+			| CRStructExtension _
+			| CRImport
+			| CRUsing
+			| CRNew
+			| CRPattern _
+			| CRTypeRelation ->
+				DisplayOutput.print_toplevel fields
+			| CRField _
+			| CRStructureField
+			| CRMetadata
+			| CROverride ->
+				DisplayOutput.print_fields fields
+		in
+		raise (DisplayOutput.Completion s)
+	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
+		let doc = CompletionItem.get_documentation hover.hitem in
+		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
+	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| DisplayException(DisplayPosition pl) ->
-		raise (DisplayOutput.Completion (DisplayOutput.print_positions ctx.com pl))
-	| Parser.TypePath (p,c,is_import) ->
+		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
+	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
 			try begin match c with
 				| None ->
@@ -968,7 +1031,24 @@ with
 				error ctx msg p;
 				None
 		in
-		Option.may (fun fields -> raise (DisplayOutput.Completion (DisplayOutput.print_fields ctx.com fields false))) fields
+		begin match fields with
+		| None -> ()
+		| Some fields ->
+			begin match ctx.com.json_out with
+			| Some (f,_) ->
+				let ctx = DisplayJson.create_json_context false in
+				let path = match List.rev p with
+					| name :: pack -> List.rev pack,name
+					| [] -> [],""
+				in
+				let kind = CRField ((CompletionItem.make_ci_module path,pos)) in
+				f (DisplayException.fields_to_json ctx fields kind None);
+			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
+			end
+		end
+	| Parser.SyntaxCompletion(kind,pos) ->
+		DisplayOutput.handle_syntax_completion com kind pos;
+		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->

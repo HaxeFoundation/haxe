@@ -44,7 +44,7 @@ class Process {
 	public var  stdin(default,null) : haxe.io.Output;
 
 	static var argQuote = Sys.systemName() == "Windows" ? function(x) return StringTools.quoteWinArg(x,true) : StringTools.quoteUnixArg;
-	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/bash';
+	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/sh';
 
 	/**
 	  Sets the args for the shell, which will include the cmd to be executed
@@ -168,6 +168,9 @@ private class ProcessInput extends haxe.io.Input {
 		return total.getBytes();
 	}
 
+	override public function close() {
+		b.close();
+	}
 }
 
 private class ProcessOutput extends haxe.io.Output {

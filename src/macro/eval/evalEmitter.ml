@@ -329,7 +329,7 @@ let emit_field_closure exec name env =
 	dynamic_field v name
 
 let emit_anon_field_read exec proto i name p env =
-	match exec env with
+	match vresolve (exec env) with
 	| VObject o ->
 		if proto == o.oproto then o.ofields.(i)
 		else object_field o name
@@ -401,7 +401,7 @@ let emit_instance_field_write exec1 i exec2 env = match exec1 env with
 let emit_anon_field_write exec1 proto i name exec2 env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	begin match v1 with
+	begin match vresolve v1 with
 		| VObject o ->
 			if proto == o.oproto then begin
 				o.ofields.(i) <- v2;
@@ -472,7 +472,7 @@ let emit_instance_field_read_write exec1 i exec2 fop prefix env = match exec1 en
 
 let emit_field_read_write exec1 name exec2 fop prefix env =
 	let v1 = exec1 env in
-	match v1 with
+	match vresolve v1 with
 	| VObject o ->
 		let vf = object_field o name in
 		let v2 = exec2 env in

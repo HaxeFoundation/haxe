@@ -31,14 +31,14 @@ extern class Promise<T>
 	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
 	static function resolve<T>( ?value : T ) : Promise<T>;
 
-	static function reject<T>( ?value : Dynamic ) : Promise<T>;
+	static function reject<T>( ?reason : Dynamic ) : Promise<T>;
 
 	static function all( iterable : Array<Dynamic> ) : Promise<Array<Dynamic>>;
 
 	static function race( iterable : Array<Dynamic> ) : Promise<Dynamic>;
 
 	/** @throws DOMError */
-	function new( init : (T -> Void) -> (Dynamic -> Void) -> Void ) : Void;
+	function new( init : (resolve : (value : T) -> Void, reject: (reason : Dynamic) -> Void) -> Void ) : Void;
 
 	function then<TOut>( fulfillCallback : Null<PromiseCallback<T, TOut>>, ?rejectCallback : EitherType<Dynamic -> Void, PromiseCallback<Dynamic, TOut>> ) : Promise<TOut>;
 

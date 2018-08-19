@@ -118,7 +118,7 @@ let follow_once t =
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
-let alloc_var n t = Type.alloc_var n t null_pos
+let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
 let mk_local = Texpr.Builder.make_local
 
@@ -550,7 +550,12 @@ let new_ctx con =
 			| TClassDecl cl -> Hashtbl.add types cl.cl_path mt
 			| TEnumDecl e -> Hashtbl.add types e.e_path mt
 			| TTypeDecl t -> Hashtbl.add types t.t_path mt
-			| TAbstractDecl a -> Hashtbl.add types a.a_path mt
+			| TAbstractDecl a ->
+				(* There are some cases where both an abstract and a class
+				   have the same name (e.g. java.lang.Double/Integer/etc)
+				   in this case we generally want the class to have priority *)
+				if not (Hashtbl.mem types a.a_path) then
+					Hashtbl.add types a.a_path mt
 	) con.types;
 
 	let get_type path =

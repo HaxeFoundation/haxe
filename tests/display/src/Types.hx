@@ -1,6 +1,7 @@
 typedef ToplevelElement = {
 	kind: String,
-	name: String
+	name: String,
+	type: String
 }
 
 typedef FieldElement = {

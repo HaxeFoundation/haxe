@@ -145,6 +145,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : obj_type -> (string * value) list -> value
+	val encode_lazy : (unit -> value) -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -358,7 +359,7 @@ let encode_unop op =
 let encode_import (path,mode) =
 	let tag,pl = match mode with
 		| INormal -> 0, []
-		| IAsName s -> 1, [encode_string s]
+		| IAsName(s,_) -> 1, [encode_string s]
 		| IAll -> 2,[]
 	in
 	let mode = encode_enum IImportMode tag pl in
@@ -440,6 +441,8 @@ and encode_ctype t =
 		5, [encode_ctype t]
 	| CTNamed (n,t) ->
 		6, [encode_placed_name n; encode_ctype t]
+	| CTIntersection tl ->
+		7, [(encode_array (List.map encode_ctype tl))]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -448,7 +451,9 @@ and encode_tparam_decl tp =
 		"name", encode_placed_name tp.tp_name;
 		"name_pos", encode_pos (pos tp.tp_name);
 		"params", encode_array (List.map encode_tparam_decl tp.tp_params);
-		"constraints", encode_array (List.map encode_ctype tp.tp_constraints);
+		"constraints", (match tp.tp_constraints with
+			| None -> encode_array []
+			| Some th -> encode_array [encode_ctype th]);
 		"meta", encode_meta_content tp.tp_meta;
 	]
 
@@ -470,14 +475,14 @@ and encode_fun f =
 	]
 
 and encode_display_kind dk =
-	let tag = match dk with
-	| DKCall -> 0
-	| DKDot -> 1
-	| DKStructure -> 2
-	| DKToplevel -> 3
-	| DKMarked -> 4
+	let tag, pl = match dk with
+	| DKCall -> 0, []
+	| DKDot -> 1, []
+	| DKStructure -> 2, []
+	| DKMarked -> 3, []
+	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None ICType tag []
+	encode_enum ~pos:None ICType tag pl
 
 and encode_expr e =
 	let rec loop (e,p) =
@@ -517,7 +522,7 @@ and encode_expr e =
 					]
 				) vl)]
 			| EFunction (name,f) ->
-				11, [null encode_string name; encode_fun f]
+				11, [null encode_placed_name name; encode_fun f]
 			| EBlock el ->
 				12, [encode_array (List.map loop el)]
 			| EFor (e,eloop) ->
@@ -573,7 +578,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	loop e
+	encode_lazy (fun () -> loop e)
 
 and encode_null_expr e =
 	match e with
@@ -644,7 +649,7 @@ let decode_unop op =
 let decode_import_mode t =
 	match decode_enum t with
 	| 0, [] -> INormal
-	| 1, [alias] -> IAsName (decode_string alias)
+	| 1, [alias] -> IAsName (decode_string alias,Globals.null_pos) (* TODO: is it okay to lose the pos here? *)
 	| 2, [] -> IAll
 	| _ -> raise Invalid_expr
 
@@ -676,9 +681,14 @@ and decode_tparams v =
 	decode_opt_array decode_tparam_decl v
 
 and decode_tparam_decl v =
+	let vconstraints = field v "constraints" in
 	{
 		tp_name = decode_placed_name (field v "name_pos") (field v "name");
-		tp_constraints = decode_opt_array decode_ctype (field v "constraints");
+		tp_constraints = if vconstraints = vnull then None else (match decode_array vconstraints with
+			| [] -> None
+			| [t] -> Some (decode_ctype t)
+			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
+		);
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
 	}
@@ -755,15 +765,17 @@ and decode_ctype t =
 		CTOptional (decode_ctype t)
 	| 6, [n;t] ->
 		CTNamed ((decode_string n,p), decode_ctype t)
+	| 7, [tl] ->
+		CTIntersection (List.map decode_ctype (decode_array tl))
 	| _ ->
 		raise Invalid_expr),p
 
-and decode_display_kind v = match fst (decode_enum v) with
-	| 0 -> DKCall
-	| 1 -> DKDot
-	| 2 -> DKStructure
-	| 3 -> DKToplevel
-	| 4 -> DKMarked
+and decode_display_kind v = match (decode_enum v) with
+	| 0, [] -> DKCall
+	| 1, [] -> DKDot
+	| 2, [] -> DKStructure
+	| 3, [] -> DKMarked
+	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
 and decode_expr v =
@@ -807,7 +819,7 @@ and decode_expr v =
 				((decode_placed_name (field v "name_pos") (field v "name")),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (decode_array vl))
 		| 11, [fname;f] ->
-			EFunction (opt decode_string fname,decode_fun f)
+			EFunction (opt (fun v -> decode_string v,Globals.null_pos) fname,decode_fun f)
 		| 12, [el] ->
 			EBlock (List.map loop (decode_array el))
 		| 13, [e1;e2] ->
@@ -1732,7 +1744,7 @@ let macro_api ccom get_api =
 			let data = Bytes.unsafe_to_string data in
 			if name = "" then failwith "Empty resource name";
 			Hashtbl.replace (ccom()).resources name data;
-			let m = if name.[0] = '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
+			let m = if Globals.starts_with name '$' then (get_api()).current_macro_module() else (get_api()).current_module() in
 			m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
 			vnull
 		);
@@ -1888,7 +1900,7 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"get_display_pos", vfun0 (fun() ->
-			let p = !Parser.resume_display in
+			let p = !DisplayPosition.display_position in
 			if p = Globals.null_pos then
 				vnull
 			else

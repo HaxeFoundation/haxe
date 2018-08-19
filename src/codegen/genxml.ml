@@ -317,7 +317,7 @@ let rec create_dir acc = function
 
 let conv_path p =
 	match List.rev (fst p) with
-	| x :: l when x.[0] = '_' -> List.rev (("priv" ^ x) :: l), snd p
+	| x :: l when starts_with x '_' -> List.rev (("priv" ^ x) :: l), snd p
 	| _ -> p
 
 let get_real_path meta path =

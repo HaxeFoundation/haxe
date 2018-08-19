@@ -94,9 +94,12 @@ type platform_config = {
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
+	(** supports function == function **)
+	pf_supports_function_equality : bool;
 }
 
 type compiler_callback = {
+	mutable after_init_macros : (unit -> unit) list;
 	mutable after_typing : (module_type list -> unit) list;
 	mutable before_dce : (unit -> unit) list;
 	mutable after_generation : (unit -> unit) list;
@@ -105,12 +108,10 @@ type compiler_callback = {
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
-	mutable removable_code : (string * pos * pos) list;
 }
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * DisplayTypes.CompletionKind.t) list) list;
+	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 
@@ -146,6 +147,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
@@ -165,165 +167,13 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> string) * (Json.t list -> unit)) option;
+	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit)) option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
 }
 
 exception Abort of string * pos
-
-let display_default = ref DisplayTypes.DisplayMode.DMNone
-
-module CompilationServer = struct
-	type cache = {
-		c_haxelib : (string list, string list) Hashtbl.t;
-		c_files : ((string * string), float * Ast.package) Hashtbl.t;
-		c_modules : (path * string, module_def) Hashtbl.t;
-		c_directories : (string, (string * float ref) list) Hashtbl.t;
-	}
-
-	type t = {
-		cache : cache;
-		mutable signs : (string * string) list;
-		mutable initialized : bool;
-	}
-
-	type context_options =
-		| NormalContext
-		| MacroContext
-		| NormalAndMacroContext
-
-	let instance : t option ref = ref None
-
-	let create_cache () = {
-		c_haxelib = Hashtbl.create 0;
-		c_files = Hashtbl.create 0;
-		c_modules = Hashtbl.create 0;
-		c_directories = Hashtbl.create 0;
-	}
-
-	let create () =
-		let cs = {
-			cache = create_cache();
-			signs = [];
-			initialized = false;
-		} in
-		instance := Some cs;
-		cs
-
-	let get () =
-		!instance
-
-	let runs () =
-		!instance <> None
-
-	let force () = match !instance with None -> assert false | Some i -> i
-
-	let is_initialized cs =
-		cs.initialized = true
-
-	let set_initialized cs =
-		cs.initialized <- true
-
-	let get_context_files cs signs =
-		Hashtbl.fold (fun (file,sign) (_,data) acc ->
-			if (List.mem sign signs) then (file,data) :: acc
-			else acc
-		) cs.cache.c_files []
-
-	(* signatures *)
-
-	let get_sign cs sign =
-		List.assoc sign cs.signs
-
-	let add_sign cs sign =
-		let i = string_of_int (List.length cs.signs) in
-		cs.signs <- (sign,i) :: cs.signs;
-		i
-
-	(* modules *)
-
-	let find_module cs key =
-		Hashtbl.find cs.cache.c_modules key
-
-	let cache_module cs key value =
-		Hashtbl.replace cs.cache.c_modules key value
-
-	let taint_modules cs file =
-		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
-
-	let iter_modules cs com f =
-		let sign = Define.get_signature com.defines in
-		Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules
-
-	(* files *)
-
-	let find_file cs key =
-		Hashtbl.find cs.cache.c_files key
-
-	let cache_file cs key value =
-		Hashtbl.replace cs.cache.c_files key value
-
-	let remove_file cs key =
-		Hashtbl.remove cs.cache.c_files key
-
-	let remove_files cs file =
-		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
-
-	let iter_files cs f =
-		Hashtbl.iter (fun _ file -> f file) cs.cache.c_files
-
-	(* haxelibs *)
-
-	let find_haxelib cs key =
-		Hashtbl.find cs.cache.c_haxelib key
-
-	let cache_haxelib cs key value =
-		Hashtbl.replace cs.cache.c_haxelib key value
-
-	(* directories *)
-
-	let find_directories cs key =
-		Hashtbl.find cs.cache.c_directories key
-
-	let add_directories cs key value =
-		Hashtbl.replace cs.cache.c_directories key value
-
-	let remove_directory cs key value =
-		try
-			let current = find_directories cs key in
-			Hashtbl.replace cs.cache.c_directories key (List.filter (fun (s,_) -> s <> value) current);
-		with Not_found ->
-			()
-
-	let has_directory cs key value =
-		try
-			List.mem_assoc value (find_directories cs key)
-		with Not_found ->
-			false
-
-	let add_directory cs key value =
-		try
-			let current = find_directories cs key in
-			add_directories cs key (value :: current)
-		with Not_found ->
-			add_directories cs key [value]
-
-	let clear_directories cs key =
-		Hashtbl.remove cs.cache.c_directories key
-
-	(* context *)
-
-	let rec cache_context cs com =
-		let cache_module m =
-			cache_module cs (m.m_path,m.m_extra.m_sign) m;
-		in
-		List.iter cache_module com.modules;
-		match com.get_macros() with
-		| None -> ()
-		| Some com -> cache_context cs com
-end
 
 (* Defines *)
 
@@ -387,6 +237,7 @@ let default_config =
 		pf_overload = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
+		pf_supports_function_equality = true;
 	}
 
 let get_config com =
@@ -480,6 +331,7 @@ let memory_marker = [|Unix.time()|]
 
 let create_callbacks () =
 	{
+		after_init_macros = [];
 		after_typing = [];
 		before_dce = [];
 		after_generation = [];
@@ -489,8 +341,8 @@ let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
 		PMap.add "true" "1" (
-		PMap.add "source-header" ("Generated by Haxe " ^ s_version) (
-		if !display_default <> DisplayTypes.DisplayMode.DMNone then PMap.add "display" "1" PMap.empty else PMap.empty))
+			PMap.add "source-header" ("Generated by Haxe " ^ s_version) PMap.empty
+		)
 	in
 	{
 		version = version;
@@ -499,17 +351,15 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				document_symbols = [];
-				removable_code = [];
 			}
 		};
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		sys_args = [];
+		sys_args = args;
 		debug = false;
-		display = DisplayTypes.DisplayMode.create !display_default;
+		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
@@ -555,6 +405,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
@@ -572,7 +423,8 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
-		parser_cache = Hashtbl.create 0 ;
+		parser_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		callbacks = create_callbacks();
 		display_information = {
 			unresolved_identifiers = [];
@@ -720,6 +572,9 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
+(* let find_file ctx f =
+	let timer = Timer.timer ["find_file"] in
+	Std.finally timer (find_file ctx) f *)
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])

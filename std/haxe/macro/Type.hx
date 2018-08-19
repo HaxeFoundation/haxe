@@ -393,7 +393,7 @@ typedef BaseType = {
 /**
 	Represents a class type.
 */
-typedef ClassType = {> BaseType,
+typedef ClassType = BaseType & {
 	/**
 		The kind of the class.
 	**/
@@ -446,7 +446,7 @@ typedef ClassType = {> BaseType,
 /**
 	Represents an enum type.
 */
-typedef EnumType = {> BaseType,
+typedef EnumType = BaseType & {
 	/**
 		The available enum constructors.
 	**/
@@ -461,7 +461,7 @@ typedef EnumType = {> BaseType,
 /**
 	Represents a typedef.
 */
-typedef DefType = {> BaseType,
+typedef DefType = BaseType & {
 	/**
 		The target type of the typedef.
 	**/
@@ -471,7 +471,7 @@ typedef DefType = {> BaseType,
 /**
 	Represents an abstract type.
 */
-typedef AbstractType = {>BaseType,
+typedef AbstractType = BaseType & {
 	/**
 		The underlying type of the abstract.
 	**/

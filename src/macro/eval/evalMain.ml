@@ -316,6 +316,8 @@ let value_signature v =
 				add (string_of_int !function_count);
 				incr function_count
 			)
+		| VLazy f ->
+			loop (!f())
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash_s name);
@@ -341,7 +343,15 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) -> match v with
 		| VFunction(f,b) ->
-			let v = VFunction ((fun vl -> try f vl with Sys_error msg | Failure msg -> exc_string msg),b) in
+			let f vl = try
+				f vl
+			with
+			| Sys_error msg | Failure msg ->
+				exc_string msg
+			| MacroApi.Invalid_expr ->
+				exc_string "Invalid expression"
+			in
+			let v = VFunction (f,b) in
 			Hashtbl.replace EvalStdLib.macro_lib n v
 		| _ -> assert false
 	) api;
@@ -383,7 +393,7 @@ let rec value_to_expr v p =
 		in
 		make_path mt
 	in
-	match v with
+	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)

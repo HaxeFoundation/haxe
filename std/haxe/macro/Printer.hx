@@ -122,6 +122,7 @@ class Printer {
 		case TOptional(ct): "?" + printComplexType(ct);
 		case TNamed(n,ct): n + ":" + printComplexType(ct);
 		case TExtend(tpl, fields): '{> ${tpl.map(printTypePath).join(" >, ")}, ${fields.map(printField).join(", ")} }';
+		case TIntersection(tl): tl.map(printComplexType).join(" & ");
 	}
 
 	public function printMetadata(meta:MetadataEntry) return

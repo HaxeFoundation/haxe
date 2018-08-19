@@ -29,7 +29,7 @@ STATICLINK?=0
 # Configuration
 
 # Modules in these directories should only depend on modules that are in directories to the left
-HAXE_DIRECTORIES=core core/json syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
+HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
 OPAM_LIBS=sedlex xml-light extlib rope ptmap sha
@@ -44,7 +44,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
 
@@ -83,6 +83,7 @@ COMMIT_DATE=$(shell \
 )
 PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(OUTPUT) -version 2>&1 | awk '{print $$1;}')
+HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT

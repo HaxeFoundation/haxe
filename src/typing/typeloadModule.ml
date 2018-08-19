@@ -24,12 +24,13 @@ open Ast
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
+open DisplayTypes.CompletionResultKind
 open Common
 open Typeload
 open Error
 
 let get_policy ctx mpath =
-	let sl1 = full_dot_path mpath mpath in
+	let sl1 = full_dot_path2 mpath mpath in
 	List.fold_left (fun acc (sl2,policy,recursive) -> if match_path recursive sl1 sl2 then policy @ acc else acc) [] ctx.g.module_check_policies
 
 let make_module ctx mpath file loadp =
@@ -201,7 +202,7 @@ let module_pass_1 ctx m tdecls loadp =
 			| Some _ -> error "import and using may not appear after a type declaration" p)
 		| EClass d ->
 			let name = fst d.d_name in
-			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path name priv in
@@ -216,7 +217,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| EEnum d ->
 			let name = fst d.d_name in
-			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -238,7 +239,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		| ETypedef d ->
 			let name = fst d.d_name in
-			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -263,7 +264,7 @@ let module_pass_1 ctx m tdecls loadp =
 			acc
 		 | EAbstract d ->
 		 	let name = fst d.d_name in
-			if String.length name > 0 && name.[0] = '$' then error "Type names starting with a dollar are not allowed" p;
+			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
 			let priv = List.mem AbPrivate d.d_flags in
 			let path = make_path name priv in
 			let a = {
@@ -337,12 +338,15 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || Display.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
-			Display.ImportHandling.add_import_position ctx.com p path;
-		| DMStatistics | DMUsage _ ->
-			Display.ImportHandling.add_import_position ctx.com p path;
+		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
+			ImportHandling.add_import_position ctx.com p path;
+		| DMStatistics ->
+			ImportHandling.add_import_position ctx.com p path;
+		| DMUsage _ ->
+			ImportHandling.add_import_position ctx.com p path;
+			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 		| _ ->
-			if Display.is_display_file p.pfile then handle_path_display ctx path p
+			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 	in
 	match decl with
 	| EImport (path,mode) ->
@@ -360,7 +364,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) true;
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport None;
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -375,27 +379,30 @@ let init_module_type ctx context_init do_init (decl,p) =
 				chk_private t p_type;
 				t
 			in
-			let rebind t name =
+			let rebind t name p =
 				if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 					error "Type aliases must start with an uppercase letter" p;
 				let _, _, f = ctx.g.do_build_instance ctx t p_type in
 				(* create a temp private typedef, does not register it in module *)
-				TTypeDecl {
+				let mt = TTypeDecl {
 					t_path = (fst md.m_path @ ["_" ^ snd md.m_path],name);
-					t_module = md;
+					t_module = ctx.m.curmod;
 					t_pos = p;
-					t_name_pos = null_pos;
+					t_name_pos = p;
 					t_private = true;
 					t_doc = None;
 					t_meta = [];
 					t_params = (t_infos t).mt_params;
 					t_type = f (List.map snd (t_infos t).mt_params);
-				}
+				} in
+				if ctx.is_display_file && DisplayPosition.encloses_display_position p then
+					DisplayEmitter.display_module_type ctx mt p;
+				mt
 			in
 			let add_static_init t name s =
-				let name = (match name with None -> s | Some n -> n) in
+				let name = (match name with None -> s | Some (n,_) -> n) in
 				match resolve_typedef t with
-				| TClassDecl c ->
+				| TClassDecl c | TAbstractDecl {a_impl = Some c} ->
 					ignore(c.cl_build());
 					ignore(PMap.find s c.cl_statics);
 					ctx.m.module_globals <- PMap.add name (TClassDecl c,s,p) ctx.m.module_globals
@@ -413,14 +420,14 @@ let init_module_type ctx context_init do_init (decl,p) =
 					(match name with
 					| None ->
 						ctx.m.module_types <- List.filter no_private (List.map (fun t -> t,p) types) @ ctx.m.module_types
-					| Some newname ->
-						ctx.m.module_types <- (rebind (get_type tname) newname,p) :: ctx.m.module_types);
+					| Some(newname,pname) ->
+						ctx.m.module_types <- (rebind (get_type tname) newname pname,p) :: ctx.m.module_types);
 				| [tsub,p2] ->
 					let pu = punion p1 p2 in
 					(try
 						let tsub = List.find (has_name tsub) types in
 						chk_private tsub pu;
-						ctx.m.module_types <- ((match name with None -> tsub | Some n -> rebind tsub n),p) :: ctx.m.module_types
+						ctx.m.module_types <- ((match name with None -> tsub | Some(n,pname) -> rebind tsub n pname),p) :: ctx.m.module_types
 					with Not_found ->
 						(* this might be a static property, wait later to check *)
 						let tmain = get_type tname in
@@ -469,7 +476,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| (s1,_) :: sl ->
 				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 			| [] ->
-				Display.DisplayException.raise_fields (DisplayToplevel.collect ctx true NoValue) true;
+				DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
 		in
 		(* do the import first *)
 		let types = (match t.tsub with
@@ -500,8 +507,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
-		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.DisplayEmitter.display_module_type ctx.com.display (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
+		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
 		c.cl_extern <- List.mem HExtern herits;
@@ -562,8 +569,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EEnum d ->
 		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
-		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.DisplayEmitter.display_module_type ctx.com.display (TEnumDecl e) (pos d.d_name);
+		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
 		TypeloadCheck.check_global_metadata ctx e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
@@ -626,7 +633,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let rt = (match c.ec_type with
 				| None -> et
 				| Some (t,pt) ->
-					let t = load_complex_type ctx true p (t,pt) in
+					let t = load_complex_type ctx true (t,pt) in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
@@ -666,8 +673,8 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_doc = f.ef_doc;
 				cf_params = f.ef_params;
 			} in
- 			if ctx.is_display_file && Display.is_display_position f.ef_name_pos then
- 				Display.DisplayEmitter.display_enum_field ctx.com.display f p;
+ 			if ctx.is_display_file && DisplayPosition.encloses_display_position f.ef_name_pos then
+ 				DisplayEmitter.display_enum_field ctx e f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
 			incr index;
@@ -693,11 +700,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| ETypedef d ->
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
-		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.DisplayEmitter.display_module_type ctx.com.display (TTypeDecl t) (pos d.d_name);
+		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
-		let tt = load_complex_type ctx true p d.d_data in
+		let tt = load_complex_type ctx true d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
@@ -744,13 +751,13 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EAbstract d ->
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
-		if ctx.is_display_file && Display.is_display_position (pos d.d_name) then
-			Display.DisplayEmitter.display_module_type ctx.com.display (TAbstractDecl a) (pos d.d_name);
+		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
-			let t = load_complex_type ctx true p t in
+			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
@@ -775,7 +782,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| AbOver t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx true p t in
+				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
 					begin match follow at with
 						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
@@ -847,7 +854,7 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_display && Display.is_display_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.is_display_file m.m_extra.m_file);
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
@@ -937,6 +944,10 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 	end;
 	m
 
+(* let type_module ctx mpath file ?(is_extern=false) tdecls p =
+	let timer = Timer.timer ["typing";"type_module"] in
+	Std.finally timer (type_module ctx mpath file ~is_extern tdecls) p *)
+
 let type_module_hook = ref (fun _ _ _ -> None)
 
 let load_module ctx m p =
@@ -971,5 +982,9 @@ let load_module ctx m p =
 	add_dependency ctx.m.curmod m2;
 	if ctx.pass = PTypeField then flush_pass ctx PBuildClass "load_module";
 	m2
+
+(* let load_module ctx m p =
+	let timer = Timer.timer ["typing";"load_module"] in
+	Std.finally timer (load_module ctx m) p *)
 
 ;;

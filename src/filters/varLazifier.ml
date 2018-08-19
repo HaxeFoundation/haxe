@@ -3,7 +3,7 @@ open Type
 
 let apply com e =
 	let rec loop var_inits e = match e.eexpr with
-		| TVar(v,Some e1) when (Meta.has (Meta.Custom ":extractorVariable") v.v_meta) ->
+		| TVar(v,Some e1) when v.v_kind = VExtractorVariable ->
 			let var_inits,e1 = loop var_inits e1 in
 			let var_inits = PMap.add v.v_id e1 var_inits in
 			var_inits,{e with eexpr = TVar(v,None)}

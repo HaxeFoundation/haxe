@@ -45,4 +45,15 @@ class Completion extends DisplayTestCase {
 	@:funcCode function testHaxeUnitPort5() {
 		eq(true, hasPath(fields(pos(1)), "ExprDef"));
 	}
+
+	/**
+	var s = { foo: 1 };
+	s.{-1-}f{-2-}o{-3-}o{-4-}
+	**/
+	@:funcCode function testNonDotCompletion1() {
+		eq(true, hasField(fields(pos(1)), "foo", "Int"));
+		eq(true, hasField(fields(pos(2)), "foo", "Int"));
+		eq(true, hasField(fields(pos(3)), "foo", "Int"));
+		eq(true, hasField(fields(pos(4)), "foo", "Int"));
+	}
 }

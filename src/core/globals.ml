@@ -27,6 +27,7 @@ let version = 4000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
+let version_pre = Some "preview.4"
 
 let macro_platform = ref Neko
 
@@ -70,3 +71,6 @@ let platform_list_help = function
 let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
+
+let starts_with s c =
+	String.length s > 0 && s.[0] = c

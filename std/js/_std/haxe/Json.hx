@@ -33,7 +33,7 @@ class Json {
 	}
 
 	#if haxeJSON inline #end
-	public static function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
+	public static function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
 

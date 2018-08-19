@@ -85,10 +85,18 @@ and tconstant =
 
 and tvar_extra = (type_params * texpr option) option
 
+and tvar_kind =
+	| VUser
+	| VGenerated
+	| VInlined
+	| VInlinedConstructorVariable
+	| VExtractorVariable
+
 and tvar = {
 	mutable v_id : int;
 	mutable v_name : string;
 	mutable v_type : t;
+	mutable v_kind : tvar_kind;
 	mutable v_capture : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
@@ -353,11 +361,60 @@ type basic_types = {
 	mutable tarray : t -> t;
 }
 
+type class_field_scope =
+	| CFSStatic
+	| CFSMember
+	| CFSConstructor
+
+module TVarOrigin = struct
+	type t =
+		| TVOLocalVariable
+		| TVOArgument
+		| TVOForVariable
+		| TVOPatternVariable
+		| TVOCatchVariable
+		| TVOLocalFunction
+
+	let to_int = function
+		| TVOLocalVariable -> 0
+		| TVOArgument -> 1
+		| TVOForVariable -> 2
+		| TVOPatternVariable -> 3
+		| TVOCatchVariable -> 4
+		| TVOLocalFunction -> 5
+
+	let to_string = function
+		| TVOArgument -> "Argument"
+		| TVOLocalVariable -> "LocalVariable"
+		| TVOPatternVariable -> "PatternVariable"
+		| TVOLocalFunction -> "LocalFunction"
+		| TVOForVariable -> "ForVariable"
+		| TVOCatchVariable -> "CatchVariable"
+
+	let from_string = function
+		| "Argument" -> TVOArgument
+		| "LocalVariable" -> TVOLocalVariable
+		| "PatternVariable" -> TVOPatternVariable
+		| "LocalFunction" -> TVOLocalFunction
+		| "ForVariable" -> TVOForVariable
+		| "CatchVariable" -> TVOCatchVariable
+		| _ -> raise Not_found
+
+	let encode_in_meta tvo =
+		let name = to_string tvo in
+		(Meta.TVarOrigin,[(EConst(Ident name),null_pos)],null_pos)
+
+	let decode_from_meta meta =
+		match Meta.get Meta.TVarOrigin meta with
+		| _,[(EConst(Ident s),_)],_ -> from_string s
+		| _ -> raise Not_found
+end
+
 (* ======= General utility ======= *)
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t p -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
+	(fun kind n t p -> incr uid; { v_kind = kind; v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
 
 let alloc_mid =
 	let mid = ref 0 in
@@ -916,6 +973,12 @@ let rec get_constructor build_type c =
 		let t, c = get_constructor build_type csup in
 		apply_params csup.cl_params cparams t, c
 
+let has_constructor c =
+	try
+		ignore(get_constructor (fun cf -> cf.cf_type) c);
+		true
+	with Not_found -> false
+
 (* ======= Printing ======= *)
 
 let print_context() = ref []
@@ -1060,6 +1123,14 @@ let s_const = function
 	| TThis -> "this"
 	| TSuper -> "super"
 
+let s_field_access s_type fa = match fa with
+	| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
+	| FInstance (c,_,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
+	| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some (c,_) -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
+	| FAnon f -> "anon(" ^ f.cf_name ^ ")"
+	| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
+	| FDynamic f -> "dynamic(" ^ f ^ ")"
+
 let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
 	let slist f l = String.concat "," (List.map f l) in
@@ -1079,14 +1150,7 @@ let rec s_expr s_type e =
 	| TEnumParameter (e1,_,i) ->
 		sprintf "%s[%i]" (loop e1) i
 	| TField (e,f) ->
-		let fstr = (match f with
-			| FStatic (c,f) -> "static(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ ")"
-			| FInstance (c,_,f) -> "inst(" ^ s_type_path c.cl_path ^ "." ^ f.cf_name ^ " : " ^ s_type f.cf_type ^ ")"
-			| FClosure (c,f) -> "closure(" ^ (match c with None -> f.cf_name | Some (c,_) -> s_type_path c.cl_path ^ "." ^ f.cf_name)  ^ ")"
-			| FAnon f -> "anon(" ^ f.cf_name ^ ")"
-			| FEnum (en,f) -> "enum(" ^ s_type_path en.e_path ^ "." ^ f.ef_name ^ ")"
-			| FDynamic f -> "dynamic(" ^ f ^ ")"
-		) in
+		let fstr = s_field_access s_type f in
 		sprintf "%s.%s" (loop e) fstr
 	| TTypeExpr m ->
 		sprintf "TypeExpr %s" (s_type_path (t_path m))
@@ -1230,12 +1294,12 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	in
 	let var_id v = if print_var_ids then v.v_id else 0 in
 	let const c t = tag "Const" ~t [s_const c] in
-	let local v = sprintf "[Local %s(%i):%s]" v.v_name (var_id v) (s_type v.v_type) in
+	let local v t = sprintf "[Local %s(%i):%s%s]" v.v_name (var_id v) (s_type v.v_type) (match t with None -> "" | Some t -> ":" ^ (s_type t)) in
 	let var v sl = sprintf "[Var %s(%i):%s]%s" v.v_name (var_id v) (s_type v.v_type) (tag_args tabs sl) in
 	let module_type mt = sprintf "[TypeExpr %s:%s]" (s_type_path (t_path mt)) (s_type e.etype) in
 	match e.eexpr with
 	| TConst c -> const c (Some e.etype)
-	| TLocal v -> local v
+	| TLocal v -> local v (Some e.etype)
 	| TArray (e1,e2) -> tag "Array" [loop e1; loop e2]
 	| TBinop (op,e1,e2) -> tag "Binop" [loop e1; s_binop op; loop e2]
 	| TUnop (op,flag,e1) -> tag "Unop" [s_unop op; if flag = Postfix then "Postfix" else "Prefix"; loop e1]
@@ -1259,7 +1323,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
 	| TFunction f ->
 		let arg (v,cto) =
-			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v] | Some ct -> [local v;const ct None])
+			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v None] | Some ct -> [local v None;const ct None])
 		in
 		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
 	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
@@ -1274,10 +1338,10 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TReturn (Some e1) -> tag "Return" [loop e1]
 	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
 	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
-	| TFor (v,e1,e2) -> tag "For" [local v; loop e1; loop e2]
+	| TFor (v,e1,e2) -> tag "For" [local v None; loop e1; loop e2]
 	| TTry (e1,catches) ->
 		let sl = List.map (fun (v,e) ->
-			sprintf "Catch %s%s" (local v) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
+			sprintf "Catch %s%s" (local v None) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
 		) catches in
 		tag "Try" ((loop e1) :: sl)
 	| TSwitch (e1,cases,eo) ->
@@ -1801,10 +1865,7 @@ let rec type_eq param a b =
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
-					rec_stack eq_stack (a,b)
-						(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
-						(fun() -> type_eq param a b)
-						(fun l -> error (invalid_field n :: l))
+					(try type_eq param a b with Unify_error l -> error (invalid_field n :: l))
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -2268,6 +2329,13 @@ and unify_with_access t1 f2 =
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
+
+let does_unify a b =
+	try
+		unify a b;
+		true
+	with Unify_error _ ->
+		false
 
 (* ======= Mapping and iterating ======= *)
 
@@ -2753,3 +2821,34 @@ let abstract_module_type a tl = {
 	t_params = [];
 	t_meta = no_meta;
 }
+
+module TClass = struct
+	let get_member_fields' self_too c0 tl =
+		let rec loop acc c tl =
+			let apply = apply_params c.cl_params tl in
+			let maybe_add acc cf =
+				if not (PMap.mem cf.cf_name acc) then begin
+					let cf = if tl = [] then cf else {cf with cf_type = apply cf.cf_type} in
+					PMap.add cf.cf_name (c,cf) acc
+				end else acc
+			in
+			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
+			match c.cl_super with
+			| Some(c,tl) -> loop acc c (List.map apply tl)
+			| None -> acc
+		in
+		loop PMap.empty c0 tl
+
+	let get_all_super_fields c =
+		get_member_fields' false c (List.map snd c.cl_params)
+
+	let get_all_fields c tl =
+		get_member_fields' true c tl
+end
+
+let s_class_path c =
+	let path = match c.cl_kind with
+		| KAbstractImpl a -> a.a_path
+		| _ -> c.cl_path
+	in
+	s_type_path path

@@ -21,7 +21,7 @@ open Globals
 open EvalValue
 open EvalExceptions
 
-let decode_object v = match v with
+let decode_object v = match vresolve v with
 	| VObject o -> o
 	| _ -> unexpected_value v "object"
 

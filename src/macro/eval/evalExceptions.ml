@@ -73,6 +73,7 @@ let s_value_kind = function
 	| VPrototype _ -> "VPrototype"
 	| VFunction _ -> "VFunction"
 	| VFieldClosure _ -> "VFieldClosure"
+	| VLazy _ -> "VLazy"
 
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
 	let str = Printf.sprintf "Unexpected value %s(%s), expected %s" (s_value_kind v) (value_string v) s in

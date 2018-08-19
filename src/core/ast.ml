@@ -162,6 +162,7 @@ and complex_type =
 	| CTExtend of placed_type_path list * class_field list
 	| CTOptional of type_hint
 	| CTNamed of placed_name * type_hint
+	| CTIntersection of type_hint list
 
 and type_hint = complex_type * pos
 
@@ -178,8 +179,8 @@ and display_kind =
 	| DKCall
 	| DKDot
 	| DKStructure
-	| DKToplevel
 	| DKMarked
+	| DKPattern of bool
 
 and expr_def =
 	| EConst of constant
@@ -193,7 +194,7 @@ and expr_def =
 	| ENew of placed_type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (placed_name * type_hint option * expr option) list
-	| EFunction of string option * func
+	| EFunction of placed_name option * func
 	| EBlock of expr list
 	| EFor of expr * expr
 	| EIf of expr * expr * expr option
@@ -217,7 +218,7 @@ and expr = expr_def * pos
 and type_param = {
 	tp_name : placed_name;
 	tp_params :	type_param list;
-	tp_constraints : type_hint list;
+	tp_constraints : type_hint option;
 	tp_meta : metadata;
 }
 
@@ -292,7 +293,7 @@ type ('a,'b) definition = {
 
 type import_mode =
 	| INormal
-	| IAsName of string
+	| IAsName of placed_name
 	| IAll
 
 type import = placed_name list * import_mode
@@ -575,9 +576,10 @@ let map_expr loop (e,p) =
 			CTExtend (tl,fl)
 		| CTOptional t -> CTOptional (type_hint t)
 		| CTNamed (n,t) -> CTNamed (n,type_hint t)
+		| CTIntersection tl -> CTIntersection(List.map type_hint tl)
 		),p
 	and tparamdecl t =
-		let constraints = List.map type_hint t.tp_constraints in
+		let constraints = opt type_hint t.tp_constraints in
 		let params = List.map tparamdecl t.tp_params in
 		{ tp_name = t.tp_name; tp_constraints = constraints; tp_params = params; tp_meta = t.tp_meta }
 	and func f =
@@ -715,8 +717,8 @@ let s_display_kind = function
 	| DKCall -> "DKCall"
 	| DKDot -> "DKDot"
 	| DKStructure -> "DKStructure"
-	| DKToplevel -> "DKToplevel"
-	| DKMarked -> "TKMarked"
+	| DKMarked -> "DKMarked"
+	| DKPattern _ -> "DKPattern"
 
 let s_expr e =
 	let rec s_expr_inner tabs (e,_) =
@@ -732,7 +734,7 @@ let s_expr e =
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (Some n,f) -> "function " ^ n ^ s_func tabs f
+		| EFunction (Some (n,_),f) -> "function " ^ n ^ s_func tabs f
 		| EFunction (None,f) -> "function" ^ s_func tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
 		| EBlock [] -> "{ }"
@@ -782,6 +784,7 @@ let s_expr e =
 		| CTOptional(t,_) -> "?" ^ s_complex_type tabs t
 		| CTNamed((n,_),(t,_)) -> n ^ ":" ^ s_complex_type tabs t
 		| CTExtend (tl, fl) -> "{> " ^ String.concat " >, " (List.map (s_complex_type_path tabs) tl) ^ ", " ^ String.concat ", " (List.map (s_class_field tabs) fl) ^ " }"
+		| CTIntersection tl -> String.concat "&" (List.map (fun (t,_) -> s_complex_type tabs t) tl)
 	and s_class_field tabs f =
 		match f.cff_doc with
 		| Some s -> "/**\n\t" ^ tabs ^ s ^ "\n**/\n"
@@ -809,7 +812,10 @@ let s_expr e =
 		s_opt_expr tabs f.f_expr " "
 	and s_type_param tabs t =
 		fst (t.tp_name) ^ s_type_param_list tabs t.tp_params ^
-		if List.length t.tp_constraints > 0 then ":(" ^ String.concat ", " (List.map ((fun (t,_) -> s_complex_type tabs t)) t.tp_constraints) ^ ")" else ""
+		begin match t.tp_constraints with
+			| None -> ""
+			| Some(th,_) -> ":(" ^ s_complex_type tabs th ^ ")"
+		end
 	and s_type_param_list tabs tl =
 		if List.length tl > 0 then "<" ^ String.concat ", " (List.map (s_type_param tabs) tl) ^ ">" else ""
 	and s_func_arg tabs ((n,_),o,_,t,e) =
@@ -874,7 +880,7 @@ let match_path recursive sl sl_pattern =
 	in
 	loop sl sl_pattern
 
-let full_dot_path mpath tpath =
+let full_dot_path2 mpath tpath =
 	if mpath = tpath then
 		(fst tpath) @ [snd tpath]
 	else
@@ -934,7 +940,8 @@ module Expr = struct
 			| EObjectDecl fl ->
 				add "EObjectDecl";
 				List.iter (fun ((n,p,_),e1) ->
-					loop' (Printf.sprintf "%s  %s" tabs n) e1
+					Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+					loop e1
 				) fl;
 			| EArrayDecl el ->
 				add "EArrayDecl";
@@ -953,7 +960,9 @@ module Expr = struct
 				add "EVars";
 				List.iter (fun ((n,p),_,eo) -> match eo with
 					| None -> ()
-					| Some e -> loop' (Printf.sprintf "%s  %s" tabs n) e
+					| Some e ->
+						add n;
+						loop' (Printf.sprintf "%s  " tabs) e
 				) vl
 			| EFunction(so,f) ->
 				add "EFunction";

@@ -137,6 +137,7 @@ let reify in_macro =
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
 		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
+		| CTIntersection tl -> ct "TIntersection" (List.map (fun t -> to_ctype t p) tl)
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
@@ -154,7 +155,7 @@ let reify in_macro =
 		let rec fparam t p =
 			let fields = [
 				"name", to_placed_name t.tp_name;
-				"constraints", to_array to_ctype t.tp_constraints p;
+				"constraints", to_opt to_ctype t.tp_constraints p;
 				"params", to_array fparam t.tp_params p;
 			] in
 			to_obj fields p
@@ -283,15 +284,15 @@ let reify in_macro =
 			let name = match name with
 				| None ->
 					to_null null_pos
-				| Some name ->
+				| Some (name,pn) ->
 					if ExtString.String.starts_with name "inline_$" then begin
 						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name p in
+						let e_name = to_string real_name pn in
 						let e_inline = to_string "inline_" p in
 						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
 						e_add
 					end else
-						to_string name p
+						to_string name pn
 			in
 			expr "EFunction" [name; to_fun f p]
 		| EBlock el ->
@@ -364,7 +365,7 @@ let reify in_macro =
 		to_obj [
 			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
-			"constraints", (EArrayDecl (List.map (fun t -> to_ctype t p) t.tp_constraints),p)
+			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p)
 		] p
 	and to_type_def (t,p) =
 		match t with

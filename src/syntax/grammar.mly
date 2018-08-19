@@ -20,6 +20,7 @@ open Globals
 open Ast
 open Reification
 open Parser
+open DisplayPosition
 
 let popt f = parser
 	| [< v = f >] -> Some v
@@ -37,6 +38,16 @@ let rec psep sep f = parser
 		in
 		v :: loop s
 	| [< >] -> []
+
+let pignore f =
+	try
+		ignore(f())
+	with Stream.Error _ | Stream.Failure ->
+		()
+
+let expect_unless_resume_p f = parser
+	| [< p = f >] -> p
+	| [< s >] -> if !in_display then pos (next_token s) else serror()
 
 let ident = parser
 	| [< '(Const (Ident i),p) >] -> i,p
@@ -62,8 +73,30 @@ let property_ident = parser
 	| [< '(Kwd Default,p) >] -> "default",p
 	| [< '(Kwd Null,p) >] -> "null",p
 
+let questionable_dollar_ident s =
+	let po = match s with parser
+		| [< '(Question,p) >] -> Some p
+		| [< >] -> None
+	in
+	let name,p = dollar_ident s in
+	match po with
+		| None ->
+			false,(name,p)
+		| Some p' ->
+			if p.pmin <> p'.pmax then error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) p';
+			true,(name,p)
+
+let bropen = parser
+	| [< '(BrOpen,_) >] -> ()
+
 let comma = parser
 	| [< '(Comma,_) >] -> ()
+
+let colon = parser
+	| [< '(DblDot,p) >] -> p
+
+let question_mark = parser
+	| [< '(Question,p) >] -> p
 
 let semicolon s =
 	if fst (last_token s) = BrClose then
@@ -75,7 +108,7 @@ let semicolon s =
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] ->
 			let pos = snd (last_token s) in
-			if do_resume() then pos else error Missing_semicolon pos
+			if !in_display then pos else error Missing_semicolon pos
 
 let parsing_macro_cond = ref false
 
@@ -94,17 +127,21 @@ and parse_type_decls pack acc s =
 		match s with parser
 		| [< v = parse_type_decl; l = parse_type_decls pack (v :: acc) >] -> l
 		| [< >] -> List.rev acc
-	with TypePath ([],Some (name,false),b) ->
+	with
+	| TypePath ([],Some (name,false),b,p) ->
 		(* resolve imports *)
 		List.iter (fun d ->
 			match fst d with
 			| EImport (t,_) ->
 				(match List.rev t with
-				| (n,_) :: path when n = name && List.for_all (fun (i,_) -> is_lower_ident i) path -> raise (TypePath (List.map fst (List.rev path),Some (name,false),b))
+				| (n,_) :: path when n = name && List.for_all (fun (i,_) -> is_lower_ident i) path -> raise (TypePath (List.map fst (List.rev path),Some (name,false),b,p))
 				| _ -> ())
 			| _ -> ()
 		) acc;
-		raise (TypePath (pack,Some(name,true),b))
+		raise (TypePath (pack,Some(name,true),b,p))
+	| Stream.Error _ when !in_display ->
+		ignore(resume false false s);
+		parse_type_decls pack acc s
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
@@ -139,7 +176,29 @@ and parse_type_decl s =
 					d_data = l
 				}, punion p1 p2)
 			end
-		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
+			let rec loop had_display p0 acc =
+				let check_display p0 p1 =
+					if not had_display && !in_display_file && encloses_display_position p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
+				in
+				match s with parser
+				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					loop (had_display || b) (pos t) ((HExtends t) :: acc)
+				| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					loop (had_display || b) (pos t) ((HImplements t) :: acc)
+				| [< '(BrOpen,p1) >] ->
+					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					List.rev acc
+				| [< >] ->
+					if not (!in_display) then serror() else begin
+						check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+						List.rev acc
+					end
+			in
+			let hl = loop false (last_pos s) [] in
+			let fl, p2 = parse_class_fields false p1 s in
 			(EClass {
 				d_name = name;
 				d_doc = doc;
@@ -178,61 +237,63 @@ and parse_class doc meta cflags need_name s =
 		}, punion p1 p2)
 
 and parse_import s p1 =
-	let rec loop acc =
+	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
 			let resume() =
-				type_path (List.map fst acc) true
+				type_path (List.map fst acc) true (punion pn p)
 			in
 			check_resume p resume (fun () -> ());
-			(match s with parser
+			begin match s with parser
 			| [< '(Const (Ident k),p) >] ->
-				loop ((k,p) :: acc)
+				loop pn ((k,p) :: acc)
 			| [< '(Kwd Macro,p) >] ->
-				loop (("macro",p) :: acc)
+				loop pn (("macro",p) :: acc)
 			| [< '(Kwd Extern,p) >] ->
-				loop (("extern",p) :: acc)
+				loop pn (("extern",p) :: acc)
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
-			| [< '(Binop OpOr,_) when do_resume() >] ->
-				set_resume p;
-				resume()
 			| [< >] ->
-				serror());
+				if !in_display then p,List.rev acc,INormal else serror()
+			end
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
-		| [< '(Kwd In,_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName name
-		| [< '(Const (Ident "as"),_); '(Const (Ident name),_); '(Semicolon,p2) >] ->
-			p2, List.rev acc, IAsName name
+		| [< '(Kwd In,_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName(name,pname)
+		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
+			p2, List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			serror()
+			if !in_display then (last_pos s),List.rev acc,INormal else serror()
 	in
 	let p2, path, mode = (match s with parser
-		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> if would_skip_resume p1 s then p1, [], INormal else serror()
+		| [< '(Const (Ident name),p) >] -> loop p [name,p]
+		| [< >] -> if would_skip_display_position p1 s then p1, [], INormal else serror()
 	) in
 	(EImport (path,mode),punion p1 p2)
 
 and parse_using s p1 =
-	let rec loop acc =
+	let rec loop pn acc =
 		match s with parser
 		| [< '(Dot,p) >] ->
-			check_resume p (fun () -> type_path (List.map fst acc) false) (fun () -> ());
+			check_resume p (fun () -> type_path (List.map fst acc) false (punion pn p)) (fun () -> ());
 			begin match s with parser
 			| [< '(Const (Ident k),p) >] ->
-				loop ((k,p) :: acc)
+				loop pn ((k,p) :: acc)
 			| [< '(Kwd Macro,p) >] ->
-				loop (("macro",p) :: acc)
+				loop pn (("macro",p) :: acc)
 			| [< '(Kwd Extern,p) >] ->
-				loop (("extern",p) :: acc)
+				loop pn (("extern",p) :: acc)
+			| [< >] ->
+				if !in_display then p,List.rev acc else serror()
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2,List.rev acc
+		| [< >] ->
+			if !in_display then (last_pos s),List.rev acc else serror()
 	in
 	let p2, path = (match s with parser
-		| [< '(Const (Ident name),p) >] -> loop [name,p]
-		| [< >] -> if would_skip_resume p1 s then p1, [] else serror()
+		| [< '(Const (Ident name),p) >] -> loop p [name,p]
+		| [< >] -> if would_skip_display_position p1 s then p1, [] else serror()
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -252,77 +313,80 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> if do_resume() then pos (last_token s) else serror()
+		| [< >] -> if !in_display then pos (last_token s) else serror()
 	) in
 	l, p2
 
+and resume tdecl fdecl s =
+	(* look for next variable/function or next type declaration *)
+	let rec junk k =
+		if k <= 0 then () else begin
+			Stream.junk s;
+			junk (k - 1);
+		end
+	in
+	(*
+		walk back tokens which are prefixing a type/field declaration
+	*)
+	let rec junk_tokens k =
+		if k = 0 then
+			()
+		else match List.rev_map fst (Stream.npeek k s) with
+		| Kwd Private :: _ -> junk_tokens (k - 1)
+		| (Const (Ident _) | Kwd _) :: DblDot :: At :: l
+		| (Const (Ident _) | Kwd _) :: At :: l ->
+			junk_tokens (List.length l)
+		| PClose :: l ->
+			(* count matching parenthesises for metadata call *)
+			let rec loop n = function
+				| [] -> []
+				| POpen :: l -> if n = 0 then l else loop (n - 1) l
+				| PClose :: l -> loop (n + 1) l
+				| _ :: l -> loop n l
+			in
+			(match loop 0 l with
+			| (Const (Ident _) | Kwd _) :: At :: l
+			| (Const (Ident _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
+			| _ ->
+				junk k)
+		| _ ->
+			junk k
+	in
+	let rec loop k =
+		match List.rev_map fst (Stream.npeek k s) with
+		(* metadata *)
+		| Kwd _ :: At :: _ | Kwd _ :: DblDot :: At :: _ ->
+			loop (k + 1)
+		(* field declaration *)
+		| Const _ :: Kwd Function :: _
+		| Kwd New :: Kwd Function :: _ when fdecl ->
+			junk_tokens (k - 2);
+			true
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ when fdecl ->
+			junk_tokens (k - 1);
+			true
+		| BrClose :: _ when tdecl ->
+			junk_tokens (k - 1);
+			false
+		(* type declaration *)
+		| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ | Kwd Abstract :: _->
+			junk_tokens (k - 1);
+			false
+		| [] ->
+			false
+		| _ ->
+			loop (k + 1)
+	in
+	loop 1
+
 and parse_class_field_resume tdecl s =
-	if not (do_resume()) then
-		plist parse_class_field s
+	if not (!in_display) then
+		plist (parse_class_field tdecl) s
 	else try
-		let c = parse_class_field s in
+		let c = parse_class_field tdecl s in
 		c :: parse_class_field_resume tdecl s
 	with Stream.Error _ | Stream.Failure ->
-		(* look for next variable/function or next type declaration *)
-		let rec junk k =
-			if k <= 0 then () else begin
-				Stream.junk s;
-				junk (k - 1);
-			end
-		in
-		(*
-			walk back tokens which are prefixing a type/field declaration
-		*)
-		let rec junk_tokens k =
-			if k = 0 then
-				()
-			else match List.rev_map fst (Stream.npeek k s) with
-			| Kwd Private :: _ -> junk_tokens (k - 1)
-			| (Const (Ident _) | Kwd _) :: DblDot :: At :: l
-			| (Const (Ident _) | Kwd _) :: At :: l ->
-				junk_tokens (List.length l)
-			| PClose :: l ->
-				(* count matching parenthesises for metadata call *)
-				let rec loop n = function
-					| [] -> []
-					| POpen :: l -> if n = 0 then l else loop (n - 1) l
-					| PClose :: l -> loop (n + 1) l
-					| _ :: l -> loop n l
-				in
-				(match loop 0 l with
-				| (Const (Ident _) | Kwd _) :: At :: l
-				| (Const (Ident _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
-				| _ ->
-					junk k)
-			| _ ->
-				junk k
-		in
-		let rec loop k =
-			match List.rev_map fst (Stream.npeek k s) with
-			(* metadata *)
-			| Kwd _ :: At :: _ | Kwd _ :: DblDot :: At :: _ ->
-				loop (k + 1)
-			(* field declaration *)
-			| Const _ :: Kwd Function :: _
-			| Kwd New :: Kwd Function :: _ ->
-				junk_tokens (k - 2);
-				parse_class_field_resume tdecl s
-			| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
-				junk_tokens (k - 1);
-				parse_class_field_resume tdecl s
-			| BrClose :: _ when tdecl ->
-				junk_tokens (k - 1);
-				[]
-			(* type declaration *)
-			| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ | Kwd Abstract :: _->
-				junk_tokens (k - 1);
-				[]
-			| [] ->
-				[]
-			| _ ->
-				loop (k + 1)
-		in
-		loop 1
+		if resume tdecl true s then parse_class_field_resume tdecl s else []
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> DPrivate :: l
@@ -335,7 +399,7 @@ and parse_meta_argument_expr s =
 	with Display e -> match fst e with
 		| EDisplay(e,_) ->
 			begin try
-				type_path (string_list_of_expr_path_raise e) false
+				type_path (string_list_of_expr_path_raise e) false (pos e)
 			with Exit ->
 				e
 			end
@@ -386,10 +450,18 @@ and parse_class_flags = parser
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
-	| [< s >] -> if would_skip_resume p s then CTPath { tpackage = []; tname = ""; tparams = []; tsub = None },p else serror()
+	| [< s >] -> if would_skip_display_position p s then CTPath magic_type_path,p else serror()
 
 and parse_type_hint = parser
-	| [< '(DblDot,p1); t = parse_complex_type_at p1 >] -> t
+	| [< '(DblDot,p1); s >] ->
+		let f () = parse_complex_type_at p1 s in
+		check_resume_range p1 s
+			(fun p2 ->
+				let ct = CTPath magic_type_path in
+				pignore(f);
+				ct,null_pos
+			)
+			f
 
 and parse_type_opt = parser
 	| [< t = parse_type_hint >] -> Some t
@@ -416,18 +488,31 @@ and parse_complex_type_maybe_named allow_named = parser
 		parse_complex_type_next t s
 
 and parse_structural_extension = parser
-	| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
-		t
+	| [< '(Binop OpGt,p1); s >] ->
+		match s with parser
+		| [< t = parse_type_path >] ->
+			begin match s with parser
+				| [< '(Comma,_) >] -> t
+				| [< >] -> if !in_display then t else serror()
+			end;
+		| [< >] ->
+			if would_skip_display_position p1 s then begin
+				begin match s with parser
+					| [< '(Comma,_) >] -> ()
+					| [< >] -> ()
+				end;
+				magic_type_path,null_pos
+			end else raise Stream.Failure
 
 and parse_complex_type_inner allow_named = parser
 	| [< '(POpen,p1); t = parse_complex_type; '(PClose,p2) >] -> CTParent t,punion p1 p2
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< l,p2 = parse_type_anonymous false >] -> CTAnonymous l,punion p1 p2
+		| [< l,p2 = parse_type_anonymous >] -> CTAnonymous l,punion p1 p2
 		| [< t = parse_structural_extension; s>] ->
 			let tl = t :: plist parse_structural_extension s in
 			(match s with parser
-			| [< l,p2 = parse_type_anonymous false >] -> CTExtend (tl,l),punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> CTExtend (tl,l),punion p1 p2
 			| [< l,p2 = parse_class_fields true p1 >] -> CTExtend (tl,l),punion p1 p2)
 		| [< l,p2 = parse_class_fields true p1 >] -> CTAnonymous l,punion p1 p2
 		| [< >] -> serror())
@@ -451,15 +536,13 @@ and parse_type_path s = parse_type_path1 None [] s
 and parse_type_path1 p0 pack = parser
 	| [< name, p1 = dollar_ident_macro pack; s >] ->
 		parse_type_path2 p0 pack name p1 s
-	| [< '(Binop OpOr,_) when do_resume() >] ->
-		raise (TypePath (List.rev pack,None,false))
 
 and parse_type_path2 p0 pack name p1 s =
 	if is_lower_ident name then
 		(match s with parser
 		| [< '(Dot,p) >] ->
 			check_resume p
-				(fun () -> raise (TypePath (List.rev (name :: pack),None,false)))
+				(fun () -> raise (TypePath (List.rev (name :: pack),None,false,punion (match p0 with None -> p1 | Some p0 -> p0) p)))
 				(fun () -> parse_type_path1 (match p0 with None -> Some p1 | Some _ -> p0) (name :: pack) s)
 		| [< '(Semicolon,_) >] ->
 			error (Custom "Type name should start with an uppercase letter") p1
@@ -468,17 +551,20 @@ and parse_type_path2 p0 pack name p1 s =
 		let sub,p2 = (match s with parser
 			| [< '(Dot,p); s >] ->
 				(check_resume p
-					(fun () -> raise (TypePath (List.rev pack,Some (name,false),false)))
+					(fun () -> raise (TypePath (List.rev pack,Some (name,false),false,punion (match p0 with None -> p1 | Some p0 -> p0) p)))
 					(fun () -> match s with parser
 					| [< '(Const (Ident name),p2) when not (is_lower_ident name) >] -> Some name,p2
-					| [< '(Binop OpOr,_) when do_resume() >] ->
-						set_resume p;
-						raise (TypePath (List.rev pack,Some (name,false),false))
 					| [< >] -> serror()))
 			| [< >] -> None,p1
 		) in
 		let params,p2 = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,p2) >] -> l,p2
+			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const >] ->
+				begin match s with parser
+				| [<'(Binop OpGt,p2) >] -> l,p2
+				| [< >] ->
+					if !in_display then l,pos (last_token s)
+					else serror()
+				end
 			| [< >] -> [],p2
 		) in
 		{
@@ -504,25 +590,61 @@ and parse_type_path_or_const = parser
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
 	| [< e = expr >] -> TPExpr e
-	| [< >] -> serror()
+	| [< >] -> if !in_display then raise Stream.Failure else serror()
 
-and parse_complex_type_next (t : type_hint) = parser
-	| [< '(Arrow,_); t2,p2 = parse_complex_type >] ->
-		(match t2 with
+and parse_complex_type_next (t : type_hint) s =
+	let make_fun t2 p2 = match t2 with
 		| CTFunction (args,r) ->
 			CTFunction (t :: args,r),punion (pos t) p2
 		| _ ->
-			CTFunction ([t] , (t2,p2)),punion (pos t) p2)
+			CTFunction ([t] , (t2,p2)),punion (pos t) p2
+	in
+	let make_intersection t2 p2 = match t2 with
+		| CTIntersection tl ->
+			CTIntersection (t :: tl),punion (pos t) p2
+		| _ ->
+			CTIntersection ([t;t2,p2]),punion (pos t) p2
+	in
+	match s with parser
+	| [< '(Arrow,pa); s >] ->
+		begin match s with parser
+		| [< t2,p2 = parse_complex_type >] -> make_fun t2 p2
+		| [< >] ->
+			if would_skip_display_position pa s then begin
+				let ct = CTPath magic_type_path in
+				make_fun ct null_pos
+			end else serror()
+		end
+	| [< '(Binop OpAnd,pa); s >] ->
+		begin match s with parser
+		| [< t2,p2 = parse_complex_type >] -> make_intersection t2 p2
+		| [< >] ->
+			if would_skip_display_position pa s then begin
+				let ct = CTPath magic_type_path in
+				make_intersection ct null_pos
+			end else serror()
+		end
 	| [< >] -> t
 
 and parse_function_type_next tl p1 = parser
-	| [< '(Arrow,_); tret = parse_complex_type_inner false >] ->
-		CTFunction (tl,tret), punion p1 (snd tret)
+	| [< '(Arrow,pa); s >] ->
+		begin match s with parser
+		| [< tret = parse_complex_type_inner false >] -> CTFunction (tl,tret), punion p1 (snd tret)
+		| [< >] -> if would_skip_display_position pa s then begin
+				let ct = (CTPath magic_type_path),null_pos in
+				CTFunction (tl,ct), punion p1 pa
+			end else serror()
+		end
 	| [< >] -> serror ()
 
-and parse_type_anonymous opt = parser
-	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+and parse_type_anonymous s =
+	let p0 = popt question_mark s in
+	match s with parser
 	| [< name, p1 = ident; t = parse_type_hint; s >] ->
+		let opt,p1 = match p0 with
+			| Some p -> true,p
+			| None -> false,p1
+		in
 		let p2 = pos (last_token s) in
 		let next acc =
 			{
@@ -534,14 +656,19 @@ and parse_type_anonymous opt = parser
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
-		match s with parser
+		begin match s with parser
 		| [< '(BrClose,p2) >] -> next [],p2
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,p2) >] -> next [],p2
-			| [< l,p2 = parse_type_anonymous false >] -> next l,punion p1 p2
+			| [< l,p2 = parse_type_anonymous >] -> next l,punion p1 p2
 			| [< >] -> serror());
-		| [< >] -> serror()
+		| [< >] ->
+			if !in_display then next [],p2
+			else serror()
+		end
+	| [< >] ->
+		if p0 = None then raise Stream.Failure else serror()
 
 and parse_enum s =
 	let doc = get_doc s in
@@ -586,33 +713,42 @@ and parse_function_field doc meta al = parser
 			f_type = t;
 			f_expr = e;
 		} in
-		name, punion p1 p2, FFun f, al
+		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
-and parse_class_field s =
+and parse_class_field tdecl s =
 	let doc = get_doc s in
 	match s with parser
-	| [< meta = parse_meta; al = parse_cf_rights true []; s >] ->
-		let name, pos, k, al = (match s with parser
-		| [< '(Kwd Var,p1); name = dollar_ident; s >] ->
+	| [< meta = parse_meta; al = plist parse_cf_rights; s >] ->
+		let check_optional opt name =
+			if opt then begin
+				if not tdecl then error (Custom "?var syntax is only allowed in structures") (pos name);
+				(Meta.Optional,[],null_pos) :: meta
+			end else
+				meta
+		in
+		let name,pos,k,al,meta = (match s with parser
+		| [< '(Kwd Var,p1); opt,name = questionable_dollar_ident; s >] ->
+			let meta = check_optional opt name in
 			begin match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_) >] ->
 				let t = popt parse_type_hint s in
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FProp (i1,i2,t, e), al
+				name,punion p1 p2,FProp (i1,i2,t,e),al,meta
 			| [< t = popt parse_type_hint; s >] ->
 				let e,p2 = parse_var_field_assignment s in
-				name, punion p1 p2, FVar (t,e), al
+				name,punion p1 p2,FVar (t,e),al,meta
 			end
 		| [< '(Kwd Final,p1) >] ->
 			begin match s with parser
-			| [< name = dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
-				name,punion p1 p2,FVar(t,e),((AFinal,p1) :: al)
-			| [< al = parse_cf_rights (not (List.mem_assoc AStatic al)) ((AFinal,p1) :: al); f = parse_function_field doc meta al >] ->
+			| [< opt,name = questionable_dollar_ident; t = popt parse_type_hint; e,p2 = parse_var_field_assignment >] ->
+				let meta = check_optional opt name in
+				name,punion p1 p2,FVar(t,e),(al @ [AFinal,p1]),meta
+			| [< al2 = plist parse_cf_rights; f = parse_function_field doc meta (al @ ((AFinal,p1) :: al2)) >] ->
 				f
 			| [< >] ->
 				serror()
@@ -620,9 +756,31 @@ and parse_class_field s =
 		| [< f = parse_function_field doc meta al >] ->
 			f
 		| [< >] ->
-			if al = [] then raise Stream.Failure else serror()
+			let check_override_completion po =
+				(* If there's an identifier in the stream, it must be a unfinished filter for
+				   an override completion, e.g. `override toStr|`. In that case we simply ignore
+				   the identifier. *)
+				begin match Stream.peek s with
+				| Some (Const (Ident _),_) -> Stream.junk s
+				| _ -> ()
+				end;
+				would_skip_display_position po s
+			in
+			begin match List.rev al with
+				| [] -> raise Stream.Failure
+				| (AOverride,po) :: _ when check_override_completion po ->
+					let f = {
+						f_params = [];
+						f_args = [];
+						f_type = None;
+						f_expr = None
+					} in
+					let _,p2 = next_token s in
+					(magic_display_field_name,p2),punion po p2,FFun f,al,meta
+				| _ -> serror()
+			end
 		) in
-		let pos = match List.rev al with
+		let pos = match al with
 			| [] -> pos
 			| (_,p) :: _ -> punion p pos
 		in
@@ -635,16 +793,15 @@ and parse_class_field s =
 			cff_kind = k;
 		}
 
-and parse_cf_rights allow_static l = parser
-	| [< '(Kwd Static,p) when allow_static; l = parse_cf_rights false ((AStatic,p) :: l) >] -> l
-	| [< '(Kwd Macro,p) when not(List.mem_assoc AMacro l); l = parse_cf_rights allow_static ((AMacro,p) :: l) >] -> l
-	| [< '(Kwd Public,p) when not(List.mem_assoc APublic l || List.mem_assoc APrivate l); l = parse_cf_rights allow_static ((APublic,p) :: l) >] -> l
-	| [< '(Kwd Private,p) when not(List.mem_assoc APublic l || List.mem_assoc APrivate l); l = parse_cf_rights allow_static ((APrivate,p) :: l) >] -> l
-	| [< '(Kwd Override,p) when not (List.mem_assoc AOverride l); l = parse_cf_rights false ((AOverride,p) :: l) >] -> l
-	| [< '(Kwd Dynamic,p) when not (List.mem_assoc ADynamic l); l = parse_cf_rights allow_static ((ADynamic,p) :: l) >] -> l
-	| [< '(Kwd Inline,p); l = parse_cf_rights allow_static ((AInline,p) :: l) >] -> l
-	| [< '(Kwd Extern,p); l = parse_cf_rights allow_static ((AExtern,p) :: l) >] -> l
-	| [< >] -> l
+and parse_cf_rights = parser
+	| [< '(Kwd Static,p) >] -> AStatic,p
+	| [< '(Kwd Macro,p) >] -> AMacro,p
+	| [< '(Kwd Public,p) >] -> APublic,p
+	| [< '(Kwd Private,p) >] -> APrivate,p
+	| [< '(Kwd Override,p) >] -> AOverride,p
+	| [< '(Kwd Dynamic,p) >] -> ADynamic,p
+	| [< '(Kwd Inline,p) >] -> AInline,p
+	| [< '(Kwd Extern,p) >] -> AExtern,p
 
 and parse_fun_name = parser
 	| [< name,p = dollar_ident >] -> name,p
@@ -673,28 +830,36 @@ and parse_constraint_param = parser
 		let params = (match s with parser
 			| [< >] -> []
 		) in
-		let ctl = (match s with parser
+		let cto = (match s with parser
 			| [< '(DblDot,_); s >] ->
 				(match s with parser
-				| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> l
-				| [< t = parse_complex_type >] -> [t]
+				| [< t = parse_complex_type >] -> Some t
 				| [< >] -> serror())
-			| [< >] -> []
+			| [< >] -> None
 		) in
 		{
 			tp_name = name;
 			tp_params = params;
-			tp_constraints = ctl;
+			tp_constraints = cto;
 			tp_meta = meta;
 		}
 
-and parse_type_path_or_resume p1 s = match s with parser
-	| [< t = parse_type_path >] -> t
-	| [< >] -> if would_skip_resume p1 s then { tpackage = []; tname = ""; tparams = []; tsub = None },null_pos else raise Stream.Failure
+and parse_type_path_or_resume p1 s =
+	let pnext = next_pos s in
+	let check_resume exc =
+		if !in_display_file && encloses_display_position (punion p1 pnext) then
+			(magic_type_path,punion_next p1 s),true
+		else
+			raise exc
+	in
+	try
+		let t = parse_type_path s in
+		t,false
+	with Stream.Failure | Stream.Error _ as exc -> check_resume exc
 
 and parse_class_herit = parser
-	| [< '(Kwd Extends,p1); t = parse_type_path_or_resume p1 >] -> HExtends t
-	| [< '(Kwd Implements,p1); t = parse_type_path_or_resume p1 >] -> HImplements t
+	| [< '(Kwd Extends,p1); t,_ = parse_type_path_or_resume p1 >] -> HExtends t
+	| [< '(Kwd Implements,p1); t,_ = parse_type_path_or_resume p1 >] -> HImplements t
 
 and block1 = parser
 	| [< name,p = dollar_ident; s >] -> block2 (name,p,NoQuotes) (Ident name) p s
@@ -732,7 +897,7 @@ and block_with_pos' acc f p s =
 	with
 		| Stream.Failure ->
 			List.rev acc,p
-		| Stream.Error _ ->
+		| Stream.Error _ when !in_display ->
 			let tk , pos = next_token s in
 			(!display_error) (Unexpected tk) pos;
 			block_with_pos acc pos s
@@ -750,46 +915,32 @@ and parse_block_elt = parser
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl name e p0 s =
-	let has_resume = ref false in
 	let make_obj_decl el p1 =
 		EObjectDecl (List.rev el),punion p0 p1
 	in
 	let rec loop p_end acc = match s with parser
 		| [< '(Comma,p1); s >] ->
-			if is_resuming p1 then has_resume := true;
+			let next_expr key =
+				let e = secure_expr s in
+				loop (pos e) ((key,e) :: acc)
+			in
 			let next key = match s with parser
 				| [< '(DblDot,_) >] ->
-					let e = try
-						secure_expr s
-					with Display e ->
-						let acc = (key,e) :: acc in
-						let e = make_obj_decl acc (pos e) in
-						display e
-					in
-					loop (pos e) ((key,e) :: acc)
-				| [< >] -> serror()
+					next_expr key
+				| [< >] ->
+					if !in_display then next_expr key
+					else serror()
 			in
 			begin match s with parser
 				| [< name,p = ident >] -> next (name,p,NoQuotes)
 				| [< '(Const (String name),p) >] -> next (name,p,DoubleQuotes)
-				| [< >] ->
-					let p2 = pos (next_token s) in
-					if encloses_resume (punion p1 p2) then begin
-						let e = make_obj_decl acc p2 in
-						let e = EDisplay(e,DKStructure),(pos e) in
-						display e
-					end else
-						acc,p_end
+				| [< >] -> acc,p_end
 			end
 		| [< >] -> acc,p_end
 	in
 	let el,p_end = loop p0 [name,e] in
 	let e = make_obj_decl el p_end in
-	if !has_resume then begin
-		let e = EDisplay(e,DKStructure),(pos e) in
-		display e
-	end else
-		e
+	e
 
 and parse_array_decl p1 s =
 	let secure_expr acc s = try
@@ -800,7 +951,7 @@ and parse_array_decl p1 s =
 		display e
 	in
 	let resume_or_fail p1 =
-		if do_resume () then begin
+		if !in_display then begin
 			let p = punion_next p1 s in
 			[mk_null_expr p],p
 		end else serror()
@@ -881,7 +1032,7 @@ and parse_function p1 inl = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			EFunction ((match name with None -> None | Some (name,_) -> Some (if inl then "inline_" ^ name else name)),f), punion p1 (pos e)
+			EFunction ((match name with None -> None | Some (name,pn) -> Some ((if inl then "inline_" ^ name else name),pn)),f), punion p1 (pos e)
 		in
 		(try
 			expr_next (make (secure_expr s)) s
@@ -906,6 +1057,8 @@ and arrow_ident_checktype e = (match e with
 
 and arrow_first_param e =
 	(match fst e with
+	| EConst(Ident ("true" | "false" | "null" | "this" | "super")) ->
+		error (Custom "Invalid argument name") (pos e)
 	| EConst(Ident n) ->
 		(n,snd e),false,[],None,None
 	| EBinop(OpAssign,e1,e2)
@@ -923,21 +1076,18 @@ and expr = parser
 		with
 		| Display e ->
 			display (make_meta name params e p)
-		| Stream.Failure | Stream.Error _ when Path.unique_full_path p.pfile = (!resume_display).pfile ->
+		| Stream.Failure | Stream.Error _ when !in_display_file ->
 			let e = EConst (Ident "null"),null_pos in
 			display (make_meta name params e p)
 		end
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< '(Binop OpOr,p2) when do_resume() >] ->
-			set_resume p1;
-			display (EDisplay ((EObjectDecl [],p1),DKStructure),p1);
 		| [< b = block1; s >] ->
 			let p2 = match s with parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] ->
 					(* Ignore missing } if we are resuming and "guess" the last position. *)
-					if do_resume() then pos (next_token s) else serror()
+					if !in_display then pos (next_token s) else serror()
 			in
 			let e = (b,punion p1 p2) in
 			(match b with
@@ -949,7 +1099,11 @@ and expr = parser
 	| [< '(Kwd k,p) when !parsing_macro_cond; s >] ->
 		expr_next (EConst (Ident (s_keyword k)), p) s
 	| [< '(Kwd Macro,p); s >] ->
-		parse_macro_expr p s
+		begin match s with parser
+		| [< '(Dot,pd); e = parse_field (EConst (Ident "macro"),p) pd >] -> e
+		| [< e = parse_macro_expr p >] -> e
+		| [< >] -> serror()
+		end
 	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
@@ -973,11 +1127,11 @@ and expr = parser
 			| [< >] -> serror())
 		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path; s >] ->
+	| [< '(Kwd New,p1); t,_ = parse_type_path_or_resume p1; s >] ->
 		begin match s with parser
 		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->
-			if do_resume() then (ENew(t,[]),punion p1 (pos t))
+			if !in_display then (ENew(t,[]),punion p1 (pos t))
 			else serror()
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
@@ -1023,15 +1177,10 @@ and expr = parser
 		| [< '(Const (Int i),p); e = expr_next (EConst (Int i),p) >] -> e
 		| [< '(Const (Float f),p); e = expr_next (EConst (Float f),p) >] -> e
 		| [< >] -> serror()) */*)
-	| [< '(Kwd For,p); '(POpen,_); it = expr; '(PClose,_); s >] ->
-		(try
-			let e = secure_expr s in
-			(EFor (it,e),punion p (pos e))
-		with
-			Display e -> display (EFor (it,e),punion p (pos e)))
-	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
+	| [< '(Kwd For,p); '(POpen,_); it = secure_expr; '(PClose,_); e = secure_expr >] -> (EFor (it,e),punion p (pos e))
+	| [< '(Kwd If,p); '(POpen,_); cond = secure_expr; '(PClose,_); e1 = secure_expr; s >] ->
 		let e2 = (match s with parser
-			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2
+			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
 			| [< >] ->
 				match Stream.npeek 2 s with
 				| [(Semicolon,_); (Kwd Else,_)] ->
@@ -1042,26 +1191,27 @@ and expr = parser
 					None
 		) in
 		(EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e))
-	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
+	| [< '(Kwd Return,p); s >] ->
+		begin match s with parser
+		| [< e = toplevel_expr >] -> (EReturn (Some e),punion p (pos e))
+		| [< >] ->
+			if would_skip_display_position p s then (EReturn (Some (mk_null_expr (punion_next p s))),p)
+			else (EReturn None,p)
+		end
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
-	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); s >] ->
-		(try
-			let e = secure_expr s in
-			(EWhile (cond,e,NormalWhile),punion p1 (pos e))
-		with
-			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
-	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
-	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
-	| [< '(Kwd Try,p1); e = expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
+	| [< '(Kwd While,p1); '(POpen,_); cond = secure_expr; '(PClose,_); e = secure_expr >] -> (EWhile (cond,e,NormalWhile),punion p1 (pos e))
+	| [< '(Kwd Do,p1); e = secure_expr; '(Kwd While,_); '(POpen,_); cond = secure_expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
+	| [< '(Kwd Switch,p1); e = secure_expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
+	| [< '(Kwd Try,p1); e = secure_expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
-	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
+	| [< '(Kwd Untyped,p1); e = secure_expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
 
 and expr_next e1 s =
 	try
 		expr_next' e1 s
-	with Stream.Error _ when do_resume() ->
+	with Stream.Error _ when !in_display ->
 		e1
 
 and expr_next' e1 = parser
@@ -1069,22 +1219,7 @@ and expr_next' e1 = parser
 		(match fst e1 with
 		| EConst(Ident n) -> expr_next (EMeta((Meta.from_string n,[],snd e1),eparam), punion p1 p2) s
 		| _ -> assert false)
-	| [< '(Dot,p); s >] ->
-		check_resume p (fun () -> display (EDisplay (e1,DKDot),p)) (fun () -> ());
-		(match s with parser
-		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
-		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
-		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
-		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
-		| [< '(Binop OpOr,p2) when do_resume() >] ->
-			set_resume p;
-			display (EDisplay (e1,DKDot),p) (* help for debug display mode *)
-		| [< >] ->
-			(* turn an integer followed by a dot into a float *)
-			match e1 with
-			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
-			| _ -> serror())
+	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
@@ -1105,12 +1240,7 @@ and expr_next' e1 = parser
 			make_binop OpGte e1 (secure_expr s)
 		| [< e2 = secure_expr >] ->
 			make_binop OpGt e1 e2)
-	| [< '(Binop op,_); s >] ->
-		(try
-			let e2 = secure_expr s in
-			make_binop op e1 e2
-		with Display e2 ->
-			raise (Display (make_binop op e1 e2)))
+	| [< '(Binop op,_); e2 = secure_expr >] -> make_binop op e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
@@ -1119,13 +1249,28 @@ and expr_next' e1 = parser
 		make_binop OpIn e1 e2
 	| [< >] -> e1
 
+and parse_field e1 p s =
+	check_resume p (fun () -> display (EDisplay (e1,DKDot),p)) (fun () -> ());
+	begin match s with parser
+	| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
+	| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
+	| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
+	| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+	| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
+	| [< >] ->
+		(* turn an integer followed by a dot into a float *)
+		match e1 with
+		| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+		| _ -> serror()
+	end
+
 and parse_guard = parser
 	| [< '(Kwd If,p1); '(POpen,_); e = expr; '(PClose,_); >] ->
 		e
 
 and expr_or_var = parser
 	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),None,None],punion p1 p2
-	| [< e = expr >] -> e
+	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
@@ -1137,7 +1282,8 @@ and parse_switch_cases eswitch cases = parser
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
 		l , Some b
-	| [< '(Kwd Case,p1); el = psep Comma expr_or_var; eg = popt parse_guard; '(DblDot,pdot); s >] ->
+	| [< '(Kwd Case,p1); el = psep Comma expr_or_var; eg = popt parse_guard; s >] ->
+		let pdot = expect_unless_resume_p colon s in
 		if !was_auto_triggered then check_resume pdot (fun () -> ()) (fun () -> ());
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
@@ -1157,12 +1303,7 @@ and parse_switch_cases eswitch cases = parser
 and parse_catch etry = parser
 	| [< '(Kwd Catch,p); '(POpen,_); name, pn = dollar_ident; s >] ->
 		match s with parser
-		| [< t,pt = parse_type_hint; '(PClose,_); s >] ->
-			(try
-				let e = secure_expr s in
-				((name,pn),(t,pt),e,punion p (pos e)),(pos e)
-			with
-				Display e -> display (ETry (etry,[(name,pn),(t,pt),e,(pos e)]),punion (pos etry) (pos e)))
+		| [< t,pt = parse_type_hint; '(PClose,_); e = secure_expr >] -> ((name,pn),(t,pt),e,punion p (pos e)),(pos e)
 		| [< '(_,p) >] -> error Missing_type p
 
 and parse_catches etry catches pmax = parser
@@ -1170,49 +1311,72 @@ and parse_catches etry catches pmax = parser
 	| [< >] -> List.rev catches,pmax
 
 and parse_call_params f p1 s =
-	let make_display_call el p2 =
-		let e = f el p2 in
-		display (EDisplay(e,DKCall),pos e)
-	in
-	let rec parse_next_param acc p1 =
-		let e = try
-			expr s
-		with
-		| Stream.Error _ | Stream.Failure as exc ->
-			if do_resume() then mk_null_expr (punion_next p1 s)
-			else raise exc
-		| Display e ->
-			display (f (List.rev (e :: acc)) (pos e))
+	if not !in_display_file then begin
+		let el = psep Comma expr s in
+		match s with parser
+		| [< '(PClose,p2) >] -> f el p2
+		| [< >] -> serror()
+	end else begin
+		let rec parse_next_param acc p1 =
+			let e = try
+				expr s
+			with
+			| Stream.Error _ | Stream.Failure ->
+				mk_null_expr (punion_next p1 s)
+			| Display e ->
+				display (f (List.rev (e :: acc)) (pos e))
+			in
+			let check_signature_mark e p2 =
+				if not (is_signature_display()) then e
+				else begin
+					let p = punion p1 p2 in
+					if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
+					else e
+				end
+			in
+			match s with parser
+			| [< '(PClose,p2) >] ->
+				let e = check_signature_mark e p2 in
+				f (List.rev (e :: acc)) p2
+			| [< '(Comma,p2) >] ->
+				let e = check_signature_mark e p2 in
+				parse_next_param (e :: acc) p2
+			| [< >] ->
+				let p2 = next_pos s in
+				let e = check_signature_mark e p2 in
+				f (List.rev (e :: acc)) p2
 		in
 		match s with parser
-		| [< '(PClose,p2) >] -> f (List.rev (e :: acc)) p2
-		| [< '(Comma,p2) >] -> parse_next_param (e :: acc) p2
-		| [< >] ->
-			if do_resume() then f (List.rev (e :: acc)) (pos e)
-			else serror()
-	in
-	match s with parser
-	| [< '(PClose,p2) >] -> f [] p2
-	| [< '(Binop OpOr,p2) when do_resume() >] ->
-		set_resume p1;
-		make_display_call [] p2
-	| [< >] -> parse_next_param [] p1
+		| [< '(PClose,p2) >] -> f [] p2
+		| [< >] -> parse_next_param [] p1
+	end
 
+(* Parses an expression and catches Display exceptions. *)
 and toplevel_expr s =
 	try
 		expr s
 	with
-		Display e -> e
+		Display e -> expr_next e s
 
 and secure_expr s =
-	match s with parser
-	| [< e = expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else serror()
+	expr_or_fail serror s
 
+(* Tries to parse a toplevel expression and defaults to a null expression when in display mode.
+   This function always accepts in display mode and should only be used for expected expressions,
+   not accepted ones! *)
 and expr_or_fail fail s =
 	match s with parser
-	| [< e = expr >] -> e
-	| [< >] -> if do_resume() then mk_null_expr (punion_next (pos (last_token s)) s) else fail()
+	| [< e = toplevel_expr >] -> e
+	| [< >] -> if !in_display then begin
+		let last = last_token s in
+		let plast = pos last in
+		let offset = match fst last with
+			| Const _ | Kwd _ | Dollar _ -> 1
+			| _ -> 0
+		in
+		let plast = {plast with pmin = plast.pmax + offset} in
+		mk_null_expr (punion_next plast s)
+	end else fail()
 
 let rec validate_macro_cond e = match fst e with
 	| EConst (Ident _)

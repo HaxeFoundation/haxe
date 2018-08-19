@@ -111,7 +111,7 @@ let check_local_vars_init e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
-				| None when Meta.has Meta.InlineConstructorVariable v.v_meta ->
+				| None when v.v_kind = VInlinedConstructorVariable ->
 					()
 				| None ->
 					declared := v.v_id :: !declared;
@@ -518,7 +518,7 @@ let add_field_inits reserved ctx t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
-		let v = alloc_var "_g" ethis.etype ethis.epos in
+		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with

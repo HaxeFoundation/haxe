@@ -77,6 +77,15 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
+	public function noCompletionPoint(f:Void -> Void):Bool {
+		return try {
+			f();
+			false;
+		} catch(exc:HaxeInvocationException) {
+			return exc.message.indexOf("No completion point") != -1;
+		}
+	}
+
 	function callHaxe(displayPart:String):String {
 		var args = [
 			"-cp", "src",
@@ -140,7 +149,7 @@ class DisplayTestContext {
 		}
 		var ret = [];
 		for (xml in xml.elementsNamed("i")) {
-			ret.push({kind: xml.get("k"), name: xml.firstChild().nodeValue});
+			ret.push({kind: xml.get("k"), type: xml.get("t"), name: xml.firstChild().nodeValue});
 		}
 		return ret;
 	}
