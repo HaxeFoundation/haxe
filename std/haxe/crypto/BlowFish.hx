@@ -161,8 +161,9 @@ class BlowFish
         iv = null;
     }
 
-    public function init(key:String):Void
+    public function init(key:String, ?iv:Bytes):Void
     {
+	this.iv = iv;
         workingKey = Bytes.ofString(key);
         SetKey(workingKey);
     }
