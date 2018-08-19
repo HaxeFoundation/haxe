@@ -4,11 +4,11 @@ package haxe.io;
 **/
 @:enum abstract Scheme(String) from String to String  {
 
-    var HTTP = 'http';
-    var HTTPS = 'https';
-    var FTP = 'ftp';
-    var MAIL_TO = 'mailto';
-    var FILE = 'file';
-    var DATA = 'data';
+    var Http = 'http';
+    var Https = 'https';
+    var Ftp = 'ftp';
+    var MailTo = 'mailto';
+    var File = 'file';
+    var Data = 'data';
 
 }
