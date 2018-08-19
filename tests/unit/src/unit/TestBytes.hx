@@ -137,4 +137,13 @@ class TestBytes extends Test {
 		eq(b1.getString(0,2), b2.getString(0,2));
 
 	}
+	
+	function testHex() {
+		var strings = ["Increasing","impression","interested","expression","companions","instrument","Her"];
+		for(s in strings) {
+			var b = Bytes.ofString(s);
+			var bhx = Bytes.ofHex(b.toHex());
+			eq(b.toHex(),bhx.toHex());
+		}
+	}
 }
