@@ -156,9 +156,9 @@ class BlowFish
         return iv;
     }
 
-    public function new()
+    public function new(?key:String, ?iv:Bytes)
     {
-        iv = null;
+        if ( key != null ) init(key,iv);
     }
 
     public function init(key:String, ?iv:Bytes):Void
