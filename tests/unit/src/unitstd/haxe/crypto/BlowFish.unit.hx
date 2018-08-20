@@ -1,7 +1,7 @@
-var blowfish = new haxe.crypto.BlowFish("password",haxe.io.Bytes.ofString("someIVec"));
-blowfish.init("password");
-blowfish.iv = haxe.io.Bytes.ofString("someIVec");
-blowfish.getBlockSize();
+var blowFish = new haxe.crypto.BlowFish("password",haxe.io.Bytes.ofString("someIVec"));
+blowFish.init("password");
+blowFish.iv = haxe.io.Bytes.ofString("someIVec");
+blowFish.getBlockSize();
 
 blowFish.encrypt(Mode.CBC,haxe.io.Bytes.ofString("Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor")).toHex() == "e532f49e13e401b0fe15482207417daeed4cb14bb9910fe9a7ade06bf4d152de8e2add697f56dd0204a3426a3a4ba458b1432db500e842b5844b89d92c78cbc24c976818777fcd00bc5370a5d5a1e57b98a2009e440656df1e5f9c0e63d155df";
 blowFish.encrypt(Mode.CFB,haxe.io.Bytes.ofString("Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor")).toHex() == "0f6905dac7e17ad4e74992edc0c45568352b203ee9217040174eecc5cb1aa0572dfbfea42176762ac25789cb1632eba1c0eb284907bf7b2f8fdd669e139b3e679364add461c4d0270d83c63dd6e6f29ba6b96fa2fb0c430733ef";
