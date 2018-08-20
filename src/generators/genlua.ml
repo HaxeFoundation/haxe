@@ -48,6 +48,7 @@ type ctx = {
     mutable found_expose : bool;
     mutable lua_jit : bool;
     mutable lua_ver : float;
+    mutable lua_global : string;
 }
 
 type object_store = {
@@ -1029,8 +1030,9 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx ")"
     | TCast (e1,None) ->
         gen_value ctx e1;
-    | TIdent s ->
+    | TIdent s ->  begin
         spr ctx s
+      end
 end;
 
     (* gen_block_element handles expressions that map to "statements" in lua. *)
@@ -1840,9 +1842,12 @@ let alloc_ctx com =
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
-        lua_ver = try
+        lua_ver = (try
                 float_of_string (PMap.find "lua_ver" com.defines.Define.values)
-            with | Not_found -> 5.2;
+            with | Not_found -> 5.2);
+        lua_global = (try
+                (PMap.find "lua_global" com.defines.Define.values)
+            with | Not_found -> "_G");
     } in
     ctx.type_accessor <- (fun t ->
         let p = t_path t in
@@ -1929,6 +1934,8 @@ let generate com =
     let ctx = alloc_ctx com in
 
     Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
+    println ctx "local _HXG = %s;" ctx.lua_global;
+
 
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
@@ -2189,4 +2196,6 @@ let generate com =
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
     close_out ch
+
+
 
