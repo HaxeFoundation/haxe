@@ -141,8 +141,8 @@ class TestBytes extends Test {
 	function testHex() {
 		var strings = ["Increasing","impression","interested","expression","companions","instrument","Her"];
 		for(s in strings) {
-			var b = Bytes.ofString(s);
-			var bhx = Bytes.ofHex(b.toHex());
+			var b = haxe.io.Bytes.ofString(s);
+			var bhx = haxe.io.Bytes.ofHex(b.toHex());
 			eq(b.toHex(),bhx.toHex());
 		}
 	}
