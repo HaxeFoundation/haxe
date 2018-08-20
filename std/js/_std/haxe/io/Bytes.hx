@@ -232,7 +232,8 @@ class Bytes {
 		if ( (s.length & 1) != 0 ) throw Error.OutsideBounds;
 		var a = new Array();
 		var i = 0;
-		while( i < s.length ) {
+		var len = s.length >> 1;
+		while( i < len ) {
 			var high = StringTools.fastCodeAt(s, i*2);
 			var low = StringTools.fastCodeAt(s, i*2 + 1);
 			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
