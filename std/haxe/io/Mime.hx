@@ -5,7 +5,7 @@ package haxe.io;
     @see : http://www.sitepoint.com/web-foundations/mime-types-complete-list/
  **/
 
-@:enum abstract MIME(String) from String to String {
+@:enum abstract Mime(String) from String to String {
     var XWorldX3dmf = 'x-world/x-3dmf';
     var ApplicationOctetStream = 'application/octet-stream';
     var ApplicationXAuthorwareBin = 'application/x-authorware-bin';
