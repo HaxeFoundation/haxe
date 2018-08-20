@@ -1,4 +1,4 @@
-var blowfish = new haxe.crypto.Blowfish("password",haxe.io.Bytes.ofString("someIVec"));
+var blowfish = new haxe.crypto.BlowFish("password",haxe.io.Bytes.ofString("someIVec"));
 blowfish.init("password");
 blowfish.iv = haxe.io.Bytes.ofString("someIVec");
 blowfish.getBlockSize();
