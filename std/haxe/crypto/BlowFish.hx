@@ -228,7 +228,7 @@ class BlowFish
 
         switch(padding)  {
             case Padding.NoPadding:
-                out = PKCS5.unpad(out);
+                out = NoPadding.unpad(out);
             case Padding.PKCS5:
                 out = PKCS5.unpad(out);
              case Padding.BitPadding:
