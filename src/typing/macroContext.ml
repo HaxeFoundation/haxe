@@ -813,5 +813,9 @@ let interpret ctx =
 let setup() =
 	Interp.setup Interp.macro_api
 
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
+	get_stored_typed_expr ctx.com id
+
 ;;
 load_macro_ref := load_macro;

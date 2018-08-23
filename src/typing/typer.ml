@@ -2250,8 +2250,7 @@ and type_meta ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.StoredTypedExpr,_,_) ->
-			let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
-			MacroContext.get_stored_typed_expr ctx.com id
+			MacroContext.type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
