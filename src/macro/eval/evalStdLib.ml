@@ -383,6 +383,14 @@ module StdBytes = struct
 	let ofString = vfun1 (fun v ->
 		encode_bytes (Bytes.of_string (decode_string v))
 	)
+	
+	let ofHex = vfun1 (fun v ->
+		encode_bytes (Bytes.of_string (decode_string v))
+	)
+	
+	let ofHex = vfun1 (fun v ->
+		encode_bytes (Bytes.of_string (decode_string v))
+	)
 
 	let set = vifun2 (fun vthis pos v ->
 		let this = this vthis in
