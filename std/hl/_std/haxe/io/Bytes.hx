@@ -171,23 +171,6 @@ class Bytes {
 	public static function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.bytes,b.length);
 	}
-	
-	public static function ofHex( s : String ) : Bytes {
-		var len = s.length;
-		if ( (len & 1) != 0 ) throw Error.OutsideBounds;
-		var l = len >> 1;
-		var b = new hl.Bytes(l);
-		for (i in  0...len)
-		{
-			var high = s.charCodeAt(i*2);
-			var low = s.charCodeAt(i*2 + 1);
-			high = (high & 0xf) + ( (high & 0x40) >> 6 ) * 9;
-			low = (low & 0xf) + ( (low & 0x40) >> 6 ) * 9;
-			b.setI32(i, ( (high << 4) | low)  & 0xff );
-		}
-
-		return new Bytes(b,l);
-	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
 		return b[pos];

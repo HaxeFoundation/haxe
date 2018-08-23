@@ -2758,7 +2758,6 @@ let init_standard_library builtins =
 		"fastGet",StdBytes.fastGet;
 		"ofData",StdBytes.ofData;
 		"ofString",StdBytes.ofString;
-		"ofHex",StdBytes.ofHex;
 	] [
 		"blit",StdBytes.blit;
 		"compare",StdBytes.compare;
