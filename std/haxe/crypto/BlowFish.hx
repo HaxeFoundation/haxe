@@ -4,7 +4,7 @@ import haxe.io.Bytes;
 import haxe.Int32;
 
 import haxe.crypto.mode.*;
-import haxe.crypto.padding.PKCS5;
+import haxe.crypto.padding.*;
 
 class BlowFish
 {
@@ -173,14 +173,20 @@ class BlowFish
         return BLOCK_SIZE;
     }
 
-    public function encrypt(cipherMode:Mode, data:Bytes):Bytes
+    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes
     { 
         var out:Bytes;
-        
-        if ( cipherMode == Mode.CBC || cipherMode == Mode.CTR || cipherMode == Mode.ECB ||  cipherMode == Mode.PCBC  ) {
-             out = PKCS5.pad(data,BLOCK_SIZE);
-        } else {
-           out = data.sub(0,data.length);
+	
+	switch(padding)  {
+           //CBC, ECB  and PCBC requires padding
+           case Padding.NoPadding:
+                out = NoPadding.pad(data,BLOCK_SIZE); 
+           case Padding.PKCS5:
+                out = PKCS5.pad(data,BLOCK_SIZE);
+           case Padding.BitPadding:
+                out = BitPadding.pad(data,BLOCK_SIZE);
+           case Padding.AnsiX923:
+                out = AnsiX923.pad(data,BLOCK_SIZE);
         }
 
         switch (cipherMode) {
@@ -201,7 +207,7 @@ class BlowFish
         return out;
     }
 
-    public function decrypt(cipherMode:Mode, data:Bytes):Bytes 
+    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes 
     {
         var out:Bytes = data;
 
@@ -220,8 +226,15 @@ class BlowFish
                 OFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
         }
 
-        if ( cipherMode == Mode.CBC || cipherMode == Mode.CTR || cipherMode == Mode.ECB ||  cipherMode == Mode.PCBC  ) {
-            out = PKCS5.unpad(out);
+        switch(padding)  {
+            case Padding.NoPadding:
+                out = PKCS5.unpad(out);
+            case Padding.PKCS5:
+                out = PKCS5.unpad(out);
+             case Padding.BitPadding:
+                out = BitPadding.unpad(out);
+            case Padding.AnsiX923:
+                out = AnsiX923.unpad(out);
         }
 
         return out;
