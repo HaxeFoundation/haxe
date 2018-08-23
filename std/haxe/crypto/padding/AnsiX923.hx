@@ -13,7 +13,7 @@ class AnsiX923
         for(i in 0...padding) {
           buffer.addByte(0x00); 
         }
-        buffer.addByte(padding);
+        buffer.addByte(padding+1);
         return buffer.getBytes();
     }
 
