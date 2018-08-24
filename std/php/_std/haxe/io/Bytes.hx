@@ -195,9 +195,8 @@ class Bytes {
 		return new Bytes(b.length, b);
 	}
 	
-	public static inline function ofHex( s : String ) : Bytes {
-		var b:BytesData = untyped __call__("hex2bin", s); 
-		return new Bytes(b.length, b);
+	public inline function toHex() : String {
+		return php.Global.bin2hex(b.toString());
 	}
 
 	/**
