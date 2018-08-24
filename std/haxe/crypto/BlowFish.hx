@@ -187,6 +187,14 @@ class BlowFish
                 out = BitPadding.pad(data,BLOCK_SIZE);
            case Padding.AnsiX923:
                 out = AnsiX923.pad(data,BLOCK_SIZE);
+           case Padding.ISO10126:
+                out = ISO10126.pad(data,BLOCK_SIZE);
+           case Padding.NullPadding:
+                out = NullPadding.pad(data,BLOCK_SIZE);
+           case Padding.SpacePadding:
+                out = SpacePadding.pad(data,BLOCK_SIZE);
+           case Padding.TBC:
+                out = TBC.pad(data,BLOCK_SIZE);
         }
 
         switch (cipherMode) {
@@ -231,10 +239,18 @@ class BlowFish
                 out = NoPadding.unpad(out);
             case Padding.PKCS5:
                 out = PKCS5.unpad(out);
-             case Padding.BitPadding:
+            case Padding.BitPadding:
                 out = BitPadding.unpad(out);
             case Padding.AnsiX923:
                 out = AnsiX923.unpad(out);
+	    case Padding.ISO10126:
+                out = ISO10126.unpad(out);
+            case Padding.NullPadding:
+                out = NullPadding.unpad(out);
+            case Padding.SpacePadding:
+                out = SpacePadding.unpad(out);
+            case Padding.TBC:
+                out = TBC.unpad(out);
         }
 
         return out;
