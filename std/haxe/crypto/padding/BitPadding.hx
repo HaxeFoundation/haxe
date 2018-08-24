@@ -25,6 +25,6 @@ class BitPadding
           padding = encrypt.get(pos);
           pos--;
         }
-        return encrypt.sub(0,pos);
+        return encrypt.sub(0,pos+1);
     }
 }
