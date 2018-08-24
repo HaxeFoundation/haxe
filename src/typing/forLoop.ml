@@ -107,8 +107,8 @@ module IterationKind = struct
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
-			let it = if is_cheap_enough ctx e2 (List.length el) then IteratorArray
-			else IteratorArrayDecl el in
+			let it = if is_cheap_enough ctx e2 (List.length el) then IteratorArrayDecl el
+			else IteratorArray in
 			(it,e,pt)
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
