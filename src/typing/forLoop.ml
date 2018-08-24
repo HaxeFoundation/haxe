@@ -35,6 +35,7 @@ module IterationKind = struct
 		| IteratorGenericStack of tclass
 		| IteratorIterator
 		| IteratorCustom of (texpr -> texpr -> Type.t -> pos -> texpr) * (texpr -> pos -> texpr)
+		| IteratorAbstract of tvar * texpr * texpr
 		| IteratorDynamic
 
 	type t = {
@@ -42,17 +43,6 @@ module IterationKind = struct
 		it_type : Type.t;
 		it_expr : texpr;
 	}
-
-	let to_string = function
-		| IteratorIntConst _ -> "IteratorIntConst"
-		| IteratorInt _ -> "IteratorInt"
-		| IteratorArrayDecl _ -> "IteratorArrayDecl"
-		| IteratorArray -> "IteratorArray"
-		| IteratorArrayAccess -> "IteratorArrayAccess"
-		| IteratorGenericStack _ -> "IteratorGenericStack"
-		| IteratorIterator -> "IteratorIterator"
-		| IteratorCustom _ -> "IteratorCustom"
-		| IteratorDynamic -> "IteratorDynamic"
 
 	let is_cheap_enough ctx e2 i =
 		let num_expr = ref 0 in
@@ -146,7 +136,15 @@ module IterationKind = struct
 					(* in which case we assume that a singular type parameter is the element type *)
 					let t = match tl with [t] -> t | _ -> raise Not_found in
 					IteratorCustom(get_next_array_element,get_length),e,t
-			end with Not_found ->
+			end with Not_found -> try
+				let v_tmp = gen_local ctx e.etype e.epos in
+				let e_tmp = make_local v_tmp v_tmp.v_pos in
+				let acc_next = type_field ~resume:true ctx e_tmp "next" p MCall in
+				let acc_hasNext = type_field ~resume:true ctx e_tmp "hasNext" p MCall in
+				let e_next = !build_call_ref ctx acc_next [] Value e.epos in
+				let e_hasNext = !build_call_ref ctx acc_hasNext [] Value e.epos in
+				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
+			with Not_found ->
 				check_iterator()
 			end
 			(* IteratorAbstract(e,a,c,tl) *)
@@ -276,6 +274,14 @@ module IterationKind = struct
 					block,
 					NormalWhile
 				)) t_void p
+			]) t_void p
+		| IteratorAbstract(v_tmp,e_next,e_hasNext) ->
+			let evar = mk (TVar(v,Some e_next)) t_void p in
+			let e2 = concat evar e2 in
+			let ewhile = mk (TWhile(e_hasNext,e2,NormalWhile)) t_void p in
+			mk (TBlock [
+				mk (TVar(v_tmp,Some e1)) t_void p;
+				ewhile;
 			]) t_void p
 		| IteratorDynamic ->
 			mk (TFor(v,e1,e2)) t_void p
