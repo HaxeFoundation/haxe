@@ -179,7 +179,7 @@ class TestType extends Test {
 		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
 
 		#if flash
-		typedAs(function() { return 0; var v:UInt = 0; return v; } (), 1);
+		typedAs((function() { return 0; var v:UInt = 0; return v; }) (), 1);
 		#end
 	}
 
