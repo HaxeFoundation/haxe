@@ -73,7 +73,12 @@ module IterationKind = struct
 					let unroll = unroll (abs diff) in
 					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff < 0)
 					else IteratorIntConst(efrom,eto,diff < 0)
-				| _ -> IteratorInt(efrom,eto)
+				| _ ->
+					let eto = match follow eto.etype with
+						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
+						| _ -> { eto with eexpr = TCast(eto, None); etype = ctx.t.tint }
+					in
+					IteratorInt(efrom,eto)
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
