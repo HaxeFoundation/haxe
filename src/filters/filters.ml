@@ -767,7 +767,10 @@ module ForRemap = struct
 			let e1 = loop e1 in
 			let e2 = loop e2 in
 			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in
-			ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos
+			let restore = save_locals ctx in
+			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
+			restore();
+			e
 		| _ ->
 			Type.map_expr loop e
 		in
