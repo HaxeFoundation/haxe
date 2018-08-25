@@ -27,7 +27,8 @@ let optimize_for_loop_iterator ctx v e1 e2 p =
 
 module IterationKind = struct
 	type t_kind =
-		| IteratorIntConst of texpr * texpr * bool (* ascending? *) * (int * int) option
+		| IteratorIntConst of texpr * texpr * bool (* ascending? *)
+		| IteratorIntUnroll of int * int * bool
 		| IteratorInt of texpr * texpr
 		| IteratorArrayDecl of texpr list
 		| IteratorArray
@@ -70,7 +71,8 @@ module IterationKind = struct
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
 					let unroll = unroll (abs diff) in
-					IteratorIntConst(efrom,eto,diff < 0,if unroll then Some (Int32.to_int a,abs(diff)) else None)
+					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff < 0)
+					else IteratorIntConst(efrom,eto,diff < 0)
 				| _ -> IteratorInt(efrom,eto)
 			in
 			it,e,ctx.t.tint
@@ -179,7 +181,7 @@ module IterationKind = struct
 			mk (TBlock el) t_void p
 		in
 		match iterator.it_kind with
-		| IteratorIntConst(a,b,ascending,Some(offset,length)) ->
+		| IteratorIntUnroll(offset,length,ascending) ->
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
@@ -190,7 +192,7 @@ module IterationKind = struct
 				Texpr.duplicate_tvars e2
 			) in
 			mk (TBlock el) t_void p
-		| IteratorIntConst(a,b,ascending,_) ->
+		| IteratorIntConst(a,b,ascending) ->
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
