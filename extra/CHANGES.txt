@@ -9,6 +9,7 @@ XXXX-XX-XX:
 
 	Bugfixes:
 
+	all : [breaking] `function () { }(e)` is no longer parsed as a call (#5854)
 	php : Escape `$` in field names of anonymous objects (#7230)
 	php : Generate `switch` as `if...else if...else...` to avoid loose comparison (#7257)
 

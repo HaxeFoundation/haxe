@@ -1035,7 +1035,7 @@ and parse_function p1 inl = parser
 			EFunction ((match name with None -> None | Some (name,pn) -> Some ((if inl then "inline_" ^ name else name),pn)),f), punion p1 (pos e)
 		in
 		(try
-			expr_next (make (secure_expr s)) s
+			make (secure_expr s)
 		with
 			Display e -> display (make e))
 
