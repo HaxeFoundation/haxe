@@ -184,10 +184,6 @@ class Bytes {
 	public static inline function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.length, b);
 	}
-	
-	public inline function toHex() : String {
-		return php.Global.bin2hex(b.toString());
-	}
 
 	/**
 		Read the most efficiently possible the n-th byte of the data.
