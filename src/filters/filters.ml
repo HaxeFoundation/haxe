@@ -760,6 +760,20 @@ let iter_expressions fl mt =
 let filter_timer detailed s =
 	Timer.timer (if detailed then "filters" :: s else ["filters"])
 
+module ForRemap = struct
+	let apply ctx e =
+		let rec loop e = match e.eexpr with
+		| TFor(v,e1,e2) ->
+			let e1 = loop e1 in
+			let e2 = loop e2 in
+			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in
+			ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos
+		| _ ->
+			Type.map_expr loop e
+		in
+		loop e
+end
+
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in
 	let new_types = List.filter (fun t ->
@@ -774,6 +788,7 @@ let run com tctx main =
 	) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
+		ForRemap.apply tctx;
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
 		check_local_vars_init;

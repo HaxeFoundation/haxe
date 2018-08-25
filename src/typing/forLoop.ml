@@ -287,6 +287,28 @@ let is_cheap_enough ctx e2 i =
 	with Exit ->
 		false
 
+let is_cheap_enough_t ctx e2 i =
+	let num_expr = ref 0 in
+	let rec loop e = match e.eexpr with
+		| TContinue | TBreak ->
+			raise Exit
+		| _ ->
+			incr num_expr;
+			Type.map_expr loop e
+	in
+	try
+		if ctx.com.display.dms_kind <> DMNone then raise Exit;
+		ignore(loop e2);
+		let cost = i * !num_expr in
+		let max_cost = try
+			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
+		with Not_found ->
+			250
+		in
+		cost <= max_cost
+	with Exit ->
+		false
+
 let type_for_loop ctx handle_display it e2 p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
@@ -313,7 +335,4 @@ let type_for_loop ctx handle_display it e2 p =
 	end;
 	ctx.in_loop <- old_loop;
 	old_locals();
-	try
-		IterationKind.to_texpr ctx i iterator e2 p
-	with Exit ->
-		mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
+	mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
