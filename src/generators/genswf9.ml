@@ -2007,7 +2007,7 @@ let generate_field_kind ctx f c stat =
 			) args;
 			let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
 			Some (HFMethod {
-				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var VUser a t f.cf_pos, (if opt then Some TNull else None)) args) dparams tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var (VUser TVOArgument) a t f.cf_pos, (if opt then Some TNull else None)) args) dparams tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = snd (method_kind());

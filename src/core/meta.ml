@@ -161,14 +161,12 @@ type strict_meta =
 	| ToString
 	| Transient
 	| TemplatedCall
-	| TVarOrigin
 	| ValueUsed
 	| Volatile
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
 	| Used
-	| UserVariable
 	| Value
 	| Void
 	| Last
@@ -355,7 +353,6 @@ let get_info = function
 	| StructInit -> ":structInit",("Allows one to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 	| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
 	| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template argument",[Platform Cpp; UsedOn TClassField])
-	| TVarOrigin -> ":haxe.internal.tvar_origin",("Used internally to mark the origin of a variable",[UsedInternally;UsedOn TVariable])
 	| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 	| This -> ":this",("Internally used to pass a 'this' expression to macros",[UsedInternally; UsedOn TExpr])
 	| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
@@ -367,7 +364,6 @@ let get_info = function
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
-	| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[UsedInternally])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 	| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 	| Last -> assert false

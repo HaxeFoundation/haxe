@@ -329,7 +329,7 @@ let type_for_loop ctx handle_display it e2 p =
 	ctx.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let iterator = IterationKind.of_texpr ctx e1 (is_cheap_enough ctx e2) p in
-	let i = add_local_with_origin ctx VUser i iterator.it_type pi (TVarOrigin.TVOForVariable) in
+	let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
 	let e2 = type_expr ctx e2 NoValue in
 	begin match dko with
 	| None -> ()

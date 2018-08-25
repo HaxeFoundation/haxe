@@ -240,10 +240,6 @@ let rec func ctx bb tf t p =
 				| [] -> ctx.temp_var_name
 		in
 		let v = match v with Some v -> v | None -> alloc_var VGenerated (loop e) e.etype e.epos in
-		begin match ctx.com.platform with
-			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
-			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
-		end;
 		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
 		let e = List.fold_left (fun e f -> f e) e fl in

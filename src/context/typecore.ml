@@ -219,10 +219,8 @@ let add_local ctx k n t p =
 	ctx.locals <- PMap.add n v ctx.locals;
 	v
 
-let add_local_with_origin ctx k n t p origin =
-	let v = add_local ctx k n t p in
-	if ctx.com.display.DisplayMode.dms_kind <> DisplayMode.DMNone then v.v_meta <- (TVarOrigin.encode_in_meta origin) :: v.v_meta;
-	v
+let add_local_with_origin ctx origin n t p =
+	add_local ctx (VUser origin) n t p
 
 let gen_local_prefix = "`"
 
@@ -235,9 +233,7 @@ let gen_local ctx t p =
 		else
 			nv
 	in
-	let v = add_local ctx VGenerated (loop 0) t p in
-	(* v.v_meta <- (Meta.CompilerGenerated,[],null_pos) :: v.v_meta; *)
-	v
+	add_local ctx VGenerated (loop 0) t p
 
 let is_gen_local v =
 	String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0
