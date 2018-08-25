@@ -337,4 +337,7 @@ let type_for_loop ctx handle_display it e2 p =
 	end;
 	ctx.in_loop <- old_loop;
 	old_locals();
-	mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p
+    try
+        IterationKind.to_texpr ctx i iterator e2 p
+    with Exit ->
+		mk (TFor (i,iterator.it_expr,e2)) ctx.t.tvoid p

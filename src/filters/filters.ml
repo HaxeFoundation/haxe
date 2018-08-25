@@ -791,7 +791,7 @@ let run com tctx main =
 	) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
-		ForRemap.apply tctx;
+		(* ForRemap.apply tctx; *)
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
 		check_local_vars_init;
