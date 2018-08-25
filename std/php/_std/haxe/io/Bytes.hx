@@ -186,7 +186,7 @@ class Bytes {
 	}
 	
 	public inline function ofHex( s : String ) : Bytes {
-		var b = php.Global.hex2bin(s);
+		var b : String = php.Global.hex2bin(s);
 		return new Bytes(b.length, b);
 	}
 
