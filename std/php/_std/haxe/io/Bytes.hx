@@ -165,7 +165,7 @@ class Bytes {
 		return b;
 	}
 
-	public inline function ofHex() : String {
+	public inline function toHex() : String {
 		return php.Global.bin2hex(b.toString());
 	}
 
@@ -182,6 +182,11 @@ class Bytes {
 	}
 
 	public static inline function ofData( b : BytesData ) : Bytes {
+		return new Bytes(b.length, b);
+	}
+	
+	public inline function ofHex( s : String ) : Bytes {
+		var b = php.Global.hex2bin(s);
 		return new Bytes(b.length, b);
 	}
 
