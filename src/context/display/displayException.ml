@@ -42,7 +42,7 @@ let fields_to_json ctx fields kind po =
 	let fl =
 		("items",jarray ja) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
-		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range p]) in
+		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range (Parser.cut_pos_at_display p)]) in
 	jobject fl
 
 let to_json ctx de =

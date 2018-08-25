@@ -85,8 +85,16 @@ and tconstant =
 
 and tvar_extra = (type_params * texpr option) option
 
+and tvar_origin =
+	| TVOLocalVariable
+	| TVOArgument
+	| TVOForVariable
+	| TVOPatternVariable
+	| TVOCatchVariable
+	| TVOLocalFunction
+
 and tvar_kind =
-	| VUser
+	| VUser of tvar_origin
 	| VGenerated
 	| VInlined
 	| VInlinedConstructorVariable
@@ -365,50 +373,6 @@ type class_field_scope =
 	| CFSStatic
 	| CFSMember
 	| CFSConstructor
-
-module TVarOrigin = struct
-	type t =
-		| TVOLocalVariable
-		| TVOArgument
-		| TVOForVariable
-		| TVOPatternVariable
-		| TVOCatchVariable
-		| TVOLocalFunction
-
-	let to_int = function
-		| TVOLocalVariable -> 0
-		| TVOArgument -> 1
-		| TVOForVariable -> 2
-		| TVOPatternVariable -> 3
-		| TVOCatchVariable -> 4
-		| TVOLocalFunction -> 5
-
-	let to_string = function
-		| TVOArgument -> "Argument"
-		| TVOLocalVariable -> "LocalVariable"
-		| TVOPatternVariable -> "PatternVariable"
-		| TVOLocalFunction -> "LocalFunction"
-		| TVOForVariable -> "ForVariable"
-		| TVOCatchVariable -> "CatchVariable"
-
-	let from_string = function
-		| "Argument" -> TVOArgument
-		| "LocalVariable" -> TVOLocalVariable
-		| "PatternVariable" -> TVOPatternVariable
-		| "LocalFunction" -> TVOLocalFunction
-		| "ForVariable" -> TVOForVariable
-		| "CatchVariable" -> TVOCatchVariable
-		| _ -> raise Not_found
-
-	let encode_in_meta tvo =
-		let name = to_string tvo in
-		(Meta.TVarOrigin,[(EConst(Ident name),null_pos)],null_pos)
-
-	let decode_from_meta meta =
-		match Meta.get Meta.TVarOrigin meta with
-		| _,[(EConst(Ident s),_)],_ -> from_string s
-		| _ -> raise Not_found
-end
 
 (* ======= General utility ======= *)
 

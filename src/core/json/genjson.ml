@@ -270,11 +270,17 @@ and generate_tvar ctx v =
 		"pos",generate_pos ctx v.v_pos;
 		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
 	] in
-	let fields = try
-		let origin = TVarOrigin.decode_from_meta v.v_meta in
-		("origin",jint (TVarOrigin.to_int origin)) :: fields
-	with Not_found ->
-		fields
+	let origin_to_int = function
+		| TVOLocalVariable -> 0
+		| TVOArgument -> 1
+		| TVOForVariable -> 2
+		| TVOPatternVariable -> 3
+		| TVOCatchVariable -> 4
+		| TVOLocalFunction -> 5
+	in
+	let fields = match v.v_kind with
+			| VUser origin -> ("origin",jint (origin_to_int origin)) :: fields
+			| _ -> fields
 	in
 	jobject fields
 

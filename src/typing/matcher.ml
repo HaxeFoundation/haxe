@@ -184,8 +184,7 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var VUser name t p in
-				v.v_meta <- (TVarOrigin.encode_in_meta TVarOrigin.TVOPatternVariable) :: v.v_meta;
+				let v = alloc_var (VUser TVOPatternVariable) name t p in
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
@@ -484,6 +483,9 @@ module Pattern = struct
 				let pat = loop e in
 				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
 				pat
+			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
+				let e1 = MacroContext.type_stored_expr ctx e1 in
+				loop (TExprToExpr.convert_expr e1)
 			| _ ->
 				fail()
 		in
@@ -1473,7 +1475,7 @@ module Match = struct
 		) cases in
 		let infer_switch_type () =
 			match with_type with
-				| NoValue -> mk_mono()
+				| NoValue -> ctx.t.tvoid
 				| Value ->
 					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
 					unify_min ctx el

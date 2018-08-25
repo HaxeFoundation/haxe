@@ -426,11 +426,11 @@ module TypePathHandler = struct
 				| KAbstractImpl a -> Self (TAbstractDecl a)
 				| _ -> Self (TClassDecl c)
 			in
-			let todo t =
-				(t,CompletionType.CTMono)
+			let tpair t =
+				(t,DisplayEmitter.completion_type_of_type ctx t)
 			in
 			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (todo cf.cf_type)
+				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
 			in
 			let fields = match !statics with
 				| None -> types
@@ -439,7 +439,7 @@ module TypePathHandler = struct
 			let fields = match !enum_statics with
 				| None -> fields
 				| Some en -> PMap.fold (fun ef acc ->
-					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (todo ef.ef_type) :: acc
+					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (tpair ef.ef_type) :: acc
 				) en.e_constrs fields
 			in
 			Some fields

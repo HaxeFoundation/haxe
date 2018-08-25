@@ -965,8 +965,9 @@ let real_name v =
 	| "_gthis" -> "this"
 	| name -> name
 
-let is_gen_local ctx v =
-	v.v_kind <> VUser
+let is_gen_local ctx v = match v.v_kind with
+	| VUser _ -> false
+	| _ -> true
 
 let add_assign ctx v =
 	if is_gen_local ctx v then () else
