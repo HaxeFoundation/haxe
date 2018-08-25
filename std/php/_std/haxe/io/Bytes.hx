@@ -185,18 +185,8 @@ class Bytes {
 		return new Bytes(b.length, b);
 	}
 	
-	public static inline function ofHex( s : String ) : Bytes {
-		var len = s.length;
-		if ( (len & 1) != 0 ) throw Error.OutsideBounds;
-		var ret : BytesData = BytesData.alloc(len >> 1);
-		for (i in  0...ret.length) {
-			var high = s.charCodeAt(i*2);
-			var low = s.charCodeAt(i*2 + 1);
-			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
-			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
-			ret.set( i ,( (high << 4) | low)  & 0xFF );
-		} 
-		return new Bytes(ret.length, ret);
+	public inline function toHex() : String {
+		return php.Global.bin2hex(b.toString());
 	}
 
 	/**
