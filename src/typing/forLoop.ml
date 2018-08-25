@@ -44,32 +44,10 @@ module IterationKind = struct
 		it_expr : texpr;
 	}
 
-	let is_cheap_enough ctx e2 i =
-		let num_expr = ref 0 in
-		let rec loop e = match fst e with
-			| EContinue | EBreak ->
-				raise Exit
-			| _ ->
-				incr num_expr;
-				Ast.map_expr loop e
-		in
-		try
-			if ctx.com.display.dms_kind <> DMNone then raise Exit;
-			ignore(loop e2);
-			let cost = i * !num_expr in
-			let max_cost = try
-				int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
-			with Not_found ->
-				250
-			in
-			cost <= max_cost
-		with Exit ->
-			false
-
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
-	let of_texpr ctx e e2 p =
+	let of_texpr ctx e unroll p =
 		let check_iterator () =
 			let t,pt = Typeload.t_iterator ctx in
 			let e1 = try
@@ -91,13 +69,13 @@ module IterationKind = struct
 			let it = match efrom.eexpr,eto.eexpr with
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
-					let unroll = is_cheap_enough ctx e2 (abs diff) in
+					let unroll = unroll (abs diff) in
 					IteratorIntConst(efrom,eto,diff < 0,if unroll then Some (Int32.to_int a,abs(diff)) else None)
 				| _ -> IteratorInt(efrom,eto)
 			in
 			it,e,ctx.t.tint
 		| TArrayDecl el,TInst({ cl_path = [],"Array" },[pt]) ->
-			let it = if is_cheap_enough ctx e2 (List.length el) then IteratorArrayDecl el
+			let it = if unroll (List.length el) then IteratorArrayDecl el
 			else IteratorArray in
 			(it,e,pt)
 		| _,TInst({ cl_path = [],"Array" },[pt])
@@ -287,6 +265,28 @@ module IterationKind = struct
 			mk (TFor(v,e1,e2)) t_void p
 end
 
+let is_cheap_enough ctx e2 i =
+	let num_expr = ref 0 in
+	let rec loop e = match fst e with
+		| EContinue | EBreak ->
+			raise Exit
+		| _ ->
+			incr num_expr;
+			Ast.map_expr loop e
+	in
+	try
+		if ctx.com.display.dms_kind <> DMNone then raise Exit;
+		ignore(loop e2);
+		let cost = i * !num_expr in
+		let max_cost = try
+			int_of_string (Common.defined_value ctx.com Define.LoopUnrollMaxCost)
+		with Not_found ->
+			250
+		in
+		cost <= max_cost
+	with Exit ->
+		false
+
 let type_for_loop ctx handle_display it e2 p =
 	let rec loop_ident dko e1 = match e1 with
 		| EConst(Ident i),p -> i,p,dko
@@ -304,7 +304,7 @@ let type_for_loop ctx handle_display it e2 p =
 	let old_locals = save_locals ctx in
 	ctx.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
-	let iterator = IterationKind.of_texpr ctx e1 e2 p in
+	let iterator = IterationKind.of_texpr ctx e1 (is_cheap_enough ctx e2) p in
 	let i = add_local_with_origin ctx VUser i iterator.it_type pi (TVarOrigin.TVOForVariable) in
 	let e2 = type_expr ctx e2 NoValue in
 	begin match dko with
