@@ -356,8 +356,14 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		let rec loop = function
 			| (m2,el,_) :: l when m = m2 ->
 				List.exists (fun e ->
-					let p = expr_path [] e in
-					(p <> [] && chk_path p path)
+					match fst e with
+					| EConst (Ident "std") ->
+						(* If we have `@:allow(std)`, check if our path has exactly two elements
+						   (type name + field name) *)
+						(match path with [_;_] -> true | _ -> false)
+					| _ ->
+						let p = expr_path [] e in
+						(p <> [] && chk_path p path)
 				) el
 				|| loop l
 			| _ :: l -> loop l
