@@ -1415,12 +1415,22 @@ module TexprConverter = struct
 				end
 			| GuardNull(e,dt1,dt2) ->
 				let e_null = make_null e.etype e.epos in
+				let f_op e = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
 				let f = try
+					let rec loop2 acc dt = match dt.dt_t with
+						| GuardNull(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
+							loop2 ((f_op e) :: acc) dt1
+						| Guard(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
+							loop2 (e :: acc) dt1
+						| _ ->
+							List.rev acc,dt
+					in
+					let conds,dt1 = loop2 [] dt1 in
 					let e_then = loop false params dt1 in
 					(fun () ->
 						let e_else = loop false params dt2 in
-						let e_op = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
-						mk (TIf(e_op,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
+						let e_cond = List.fold_left (fun e1 e2 -> binop OpBoolAnd e1 e2 ctx.t.tbool (punion e1.epos e2.epos)) (f_op e) conds in
+						mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 					)
 				with Not_exhaustive ->
 					if toplevel then (fun () -> loop false params dt2)
