@@ -1455,7 +1455,7 @@ let write_c com file (code:code) =
 	block ctx;
 	sline "\"version\" : %d," ctx.version;
 	sline "\"libs\" : [%s]," (String.concat "," (Hashtbl.fold (fun k _ acc -> sprintf "\"%s\"" k :: acc) native_libs []));
-	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" k v :: acc) com.Common.defines.Define.values []));
+	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" (String.escaped k) (String.escaped v) :: acc) com.Common.defines.Define.values []));
 	sline "\"files\" : [%s\n\t]" (String.concat "," (List.map (sprintf "\n\t\t\"%s\"") ctx.cfiles));
 	unblock ctx;
 	line "}";
