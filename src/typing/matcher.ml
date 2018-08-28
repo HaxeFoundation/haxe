@@ -591,6 +591,7 @@ module Decision_tree = struct
 		dt_i : int;
 		dt_pos : pos;
 		mutable dt_goto_target : bool;
+		mutable dt_texpr : texpr option;
 	}
 
 	let s_case_expr tabs case = match case.case_expr with
@@ -602,18 +603,18 @@ module Decision_tree = struct
 			s_case_expr tabs case
 		| Switch(e,cases,dt) ->
 			let s_case (con,b,dt) =
-				Printf.sprintf "\n\t%scase %s%s: %s" tabs (Constructor.to_string con) (if b then "(unguarded) " else "") (to_string (tabs ^ "\t") dt)
+				Printf.sprintf "\n%2i\t%scase %s%s: %s" dt.dt_i tabs (Constructor.to_string con) (if b then "(unguarded) " else "") (to_string (tabs ^ "\t") dt)
 			in
 			let s_cases = String.concat "" (List.map s_case cases) in
 			let s_default = to_string (tabs ^ "\t") dt in
-			Printf.sprintf "switch (%s) {%s\n%s\tdefault: %s\n%s}" (Type.s_expr_pretty false tabs false s_type e) s_cases tabs s_default tabs
+			Printf.sprintf "switch (%s) {%s\n%2i%s\tdefault: %s\n%s}" (Type.s_expr_pretty false tabs false s_type e) s_cases dt.dt_i tabs s_default tabs
 		| Bind(bl,dt) ->
 			(String.concat "" (List.map (fun (v,_,e) -> if v.v_name = "_" then "" else Printf.sprintf "%s<%i> = %s; " v.v_name v.v_id (s_expr_pretty e)) bl)) ^
 			to_string tabs dt
 		| Guard(e,dt1,dt2) ->
-			Printf.sprintf "if (%s) {\n\t%s%s\n%s} else {\n\t%s%s\n%s}" (s_expr_pretty e) tabs (to_string (tabs ^ "\t") dt1) tabs tabs (to_string (tabs ^ "\t") dt2) tabs
+			Printf.sprintf "if (%s) {\n%2i\t%s%s\n%s} else {\n%2i\t%s%s\n%s}" (s_expr_pretty e) dt1.dt_i tabs (to_string (tabs ^ "\t") dt1) tabs dt2.dt_i tabs (to_string (tabs ^ "\t") dt2) tabs
 		| GuardNull(e,dt1,dt2) ->
-			Printf.sprintf "if (%s == null) {\n\t%s%s\n%s} else {\n\t%s%s\n%s}" (s_expr_pretty e) tabs (to_string (tabs ^ "\t") dt1) tabs tabs (to_string (tabs ^ "\t") dt2) tabs
+			Printf.sprintf "if (%s == null) {\n%2i\t%s%s\n%s} else {\n%2i\t%s%s\n%s}" (s_expr_pretty e) dt1.dt_i tabs (to_string (tabs ^ "\t") dt1) tabs dt2.dt_i tabs (to_string (tabs ^ "\t") dt2) tabs
 		| Fail ->
 			"<fail>"
 
@@ -623,11 +624,11 @@ module Decision_tree = struct
 		| Leaf case1,Leaf case2 ->
 			case1 == case2
 		| Switch(subject1,cases1,dt1),Switch(subject2,cases2,dt2) ->
-			subject1 == subject2 &&
+			Texpr.equal subject1 subject2 &&
 			safe_for_all2 (fun (con1,b1,dt1) (con2,b2,dt2) -> Constructor.equal con1 con2 && b1 = b2 && equal_dt dt1 dt2) cases1 cases2 &&
 			equal_dt dt1 dt2
 		| Bind(l1,dt1),Bind(l2,dt2) ->
-			safe_for_all2 (fun (v1,_,e1) (v2,_,e2) -> v1 == v2 && e1 == e2) l1 l2 &&
+			safe_for_all2 (fun (v1,_,e1) (v2,_,e2) -> v1 == v2 && Texpr.equal e1 e2) l1 l2 &&
 			equal_dt dt1 dt2
 		| Fail,Fail ->
 			true
@@ -857,7 +858,7 @@ module Compile = struct
 		try
 			DtTable.find mctx.dt_table dt
 		with Not_found ->
-			let dti = {dt_t = dt; dt_i = mctx.dt_count; dt_pos = p; dt_goto_target = false } in
+			let dti = {dt_t = dt; dt_i = mctx.dt_count; dt_pos = p; dt_goto_target = false; dt_texpr = None } in
 			DtTable.add mctx.dt_table dt dti;
 			mctx.dt_count <- mctx.dt_count + 1;
 			dti
@@ -1335,117 +1336,130 @@ module TexprConverter = struct
 				let cf = PMap.find "enumConstructor" c_type.cl_statics in
 				make_static_call ctx c_type cf (fun t -> t) [e] com.basic.tstring e.epos
 		in
-		let rec loop toplevel params dt = match dt.dt_t with
-			| Leaf case ->
-				begin match case.case_expr with
-					| Some e -> e
-					| None -> mk (TBlock []) ctx.t.tvoid case.case_pos
-				end
-			| Switch(_,[ConFields _,_,dt],_) -> (* TODO: Can we improve this by making it more general? *)
-				loop false params dt
-			| Switch(e_subject,cases,default) ->
-				let e_subject,unmatched,kind,finiteness = all_ctors ctx e_subject cases in
-				let unmatched = ExtList.List.filter_map (unify_constructor ctx params e_subject.etype) unmatched in
-				let loop toplevel params dt =
-					try Some (loop toplevel params dt)
-					with Not_exhaustive -> match with_type,finiteness with
-						| NoValue,Infinite -> None
-						| _,CompileTimeFinite when unmatched = [] -> None
-						| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
-						| _ -> report_not_exhaustive e_subject unmatched
-				in
-				let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
-					| Some(_,params) -> Some (con,dt,params)
-					| None -> None
-				) cases in
-				let group cases =
-					let h = DtTable.create 0 in
-					List.iter (fun (con,dt,params) ->
-						let l,_,_ = try DtTable.find h dt.dt_t with Not_found -> [],dt,params in
-						DtTable.replace h dt.dt_t (con :: l,dt,params)
-					) cases;
-					DtTable.fold (fun _ (cons,dt,params) acc -> (cons,dt,params) :: acc) h []
-				in
-				let cases = group cases in
-				let cases = List.sort (fun (cons1,_,_) (cons2,_,_) -> match cons1,cons2 with
-					| (con1 :: _),con2 :: _ -> Constructor.compare con1 con2
-					| _ -> -1
-				) cases in
-				let e_default = match unmatched,finiteness with
-					| [],RunTimeFinite ->
-						None
-					| _ ->
-						loop false params default
-				in
-				let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
-					let eo = loop false params dt in
-					begin match eo with
-						| None -> None
-						| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug dt.dt_pos) (List.sort Constructor.compare cons),e)
-					end
-				) cases in
-				let e_subject = match kind with
-					| SKValue | SKFakeEnum -> e_subject
-					| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
-					| SKLength -> type_field_access ctx e_subject "length"
-				in
-				begin match cases with
-					| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
-						{e2 with etype = t_switch}
-					| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
-						let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
-						mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
-					| _ ->
-						let e_subject = match finiteness with
-							| RunTimeFinite | CompileTimeFinite when e_default = None ->
-								let meta = (Meta.Exhaustive,[],dt.dt_pos) in
-								mk (TMeta(meta,e_subject)) e_subject.etype e_subject.epos
-							| _ ->
-								e_subject
+		let rec loop toplevel params dt = match dt.dt_texpr with
+			| Some e ->
+				e
+			| None ->
+				let e = match dt.dt_t with
+					| Leaf case ->
+						begin match case.case_expr with
+							| Some e -> e
+							| None -> mk (TBlock []) ctx.t.tvoid case.case_pos
+						end
+					| Switch(_,[ConFields _,_,dt],_) -> (* TODO: Can we improve this by making it more general? *)
+						loop false params dt
+					| Switch(e_subject,cases,default) ->
+						let e_subject,unmatched,kind,finiteness = all_ctors ctx e_subject cases in
+						let unmatched = ExtList.List.filter_map (unify_constructor ctx params e_subject.etype) unmatched in
+						let loop toplevel params dt =
+							try Some (loop toplevel params dt)
+							with Not_exhaustive -> match with_type,finiteness with
+								| NoValue,Infinite -> None
+								| _,CompileTimeFinite when unmatched = [] -> None
+								| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
+								| _ -> report_not_exhaustive e_subject unmatched
 						in
-						mk (TSwitch(e_subject,cases,e_default)) t_switch dt.dt_pos
-				end
-			| Guard(e,dt1,dt2) ->
-				let e_then = loop false params dt1 in
-				begin try
-					let e_else = loop false params dt2 in
-					mk (TIf(e,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
-				with Not_exhaustive when with_type = NoValue ->
-					mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
-				end
-			| GuardNull(e,dt1,dt2) ->
-				let e_null = make_null e.etype e.epos in
-				let f_op e = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
-				let f = try
-					let rec loop2 acc dt = match dt.dt_t with
-						| GuardNull(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
-							loop2 ((f_op e) :: acc) dt1
-						| Guard(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
-							loop2 (e :: acc) dt1
-						| _ ->
-							List.rev acc,dt
-					in
-					let conds,dt1 = loop2 [] dt1 in
-					let e_then = loop false params dt1 in
-					(fun () ->
-						let e_else = loop false params dt2 in
-						let e_cond = List.fold_left (fun e1 e2 -> binop OpBoolAnd e1 e2 ctx.t.tbool (punion e1.epos e2.epos)) (f_op e) conds in
-						mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
-					)
-				with Not_exhaustive ->
-					if toplevel then (fun () -> loop false params dt2)
-					else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
-					else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
+						let cases = ExtList.List.filter_map (fun (con,_,dt) -> match unify_constructor ctx params e_subject.etype con with
+							| Some(_,params) -> Some (con,dt,params)
+							| None -> None
+						) cases in
+						let group cases =
+							let h = DtTable.create 0 in
+							List.iter (fun (con,dt,params) ->
+								let l,_,_ = try DtTable.find h dt.dt_t with Not_found -> [],dt,params in
+								DtTable.replace h dt.dt_t (con :: l,dt,params)
+							) cases;
+							DtTable.fold (fun _ (cons,dt,params) acc -> (cons,dt,params) :: acc) h []
+						in
+						let cases = group cases in
+						let cases = List.sort (fun (cons1,_,_) (cons2,_,_) -> match cons1,cons2 with
+							| (con1 :: _),con2 :: _ -> Constructor.compare con1 con2
+							| _ -> -1
+						) cases in
+						let e_default = match unmatched,finiteness with
+							| [],RunTimeFinite ->
+								None
+							| _ ->
+								loop false params default
+						in
+						let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
+							let eo = loop false params dt in
+							begin match eo with
+								| None -> None
+								| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug dt.dt_pos) (List.sort Constructor.compare cons),e)
+							end
+						) cases in
+						let e_subject = match kind with
+							| SKValue | SKFakeEnum -> e_subject
+							| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
+							| SKLength -> type_field_access ctx e_subject "length"
+						in
+						begin match cases with
+							| [_,e2] when e_default = None && (match finiteness with RunTimeFinite -> true | _ -> false) ->
+								{e2 with etype = t_switch}
+							| [[e1],e2] when (with_type = NoValue || e_default <> None) && ctx.com.platform <> Java (* TODO: problem with TestJava.hx:285 *) ->
+								let e_op = mk (TBinop(OpEq,e_subject,e1)) ctx.t.tbool e_subject.epos in
+								begin match e2.eexpr with
+									| TIf(e_op2,e3,e_default2) when (match e_default,e_default2 with Some(e1),Some(e2) when e1 == e2 -> true | _ -> false) ->
+										let eand = binop OpBoolAnd e_op e_op2 ctx.t.tbool (punion e_op.epos e_op2.epos) in
+										mk (TIf(eand,e3,e_default)) t_switch dt.dt_pos
+									| _ ->
+										mk (TIf(e_op,e2,e_default)) t_switch dt.dt_pos
+								end
+							| _ ->
+								let e_subject = match finiteness with
+									| RunTimeFinite | CompileTimeFinite when e_default = None ->
+										let meta = (Meta.Exhaustive,[],dt.dt_pos) in
+										mk (TMeta(meta,e_subject)) e_subject.etype e_subject.epos
+									| _ ->
+										e_subject
+								in
+								mk (TSwitch(e_subject,cases,e_default)) t_switch dt.dt_pos
+						end
+					| Guard(e,dt1,dt2) ->
+						let e_then = loop false params dt1 in
+						begin try
+							let e_else = loop false params dt2 in
+							mk (TIf(e,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
+						with Not_exhaustive when with_type = NoValue ->
+							mk (TIf(e,e_then,None)) ctx.t.tvoid (punion e.epos e_then.epos)
+						end
+					| GuardNull(e,dt1,dt2) ->
+						let e_null = make_null e.etype e.epos in
+						let f_op e = mk (TBinop(OpEq,e,e_null)) ctx.t.tbool e.epos in
+						let f = try
+							let rec loop2 acc dt = match dt.dt_t with
+								| GuardNull(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
+									loop2 ((f_op e) :: acc) dt1
+								| Guard(e,dt1,dt3) when Decision_tree.equal_dt dt2 dt3 ->
+									loop2 (e :: acc) dt1
+								| _ ->
+									List.rev acc,dt
+							in
+							let conds,dt1 = loop2 [] dt1 in
+							let e_then = loop false params dt1 in
+							(fun () ->
+								let e_else = loop false params dt2 in
+								let e_cond = List.fold_left (fun e1 e2 -> binop OpBoolAnd e1 e2 ctx.t.tbool (punion e1.epos e2.epos)) (f_op e) conds in
+								mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
+							)
+						with Not_exhaustive ->
+							if toplevel then (fun () -> loop false params dt2)
+							else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
+							else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
+						in
+						f()
+					| Bind(bl,dt) ->
+						let el = List.rev_map (fun (v,p,e) ->
+							mk (TVar(v,Some e)) com.basic.tvoid p
+						) bl in
+						let e = loop toplevel params dt in
+						mk (TBlock (el @ [e])) e.etype dt.dt_pos
+					| Fail ->
+						raise Not_exhaustive
 				in
-				f()
-			| Bind(bl,dt) ->
-				let el = List.rev_map (fun (v,p,e) ->
-					mk (TVar(v,Some e)) com.basic.tvoid p
-				) bl in
-				let e = loop toplevel params dt in
-				mk (TBlock (el @ [e])) e.etype dt.dt_pos
-			| Fail ->
-				raise Not_exhaustive
+				dt.dt_texpr <- Some e;
+				e
 		in
 		let params = List.map snd ctx.type_params in
 		let e = loop true params dt in
