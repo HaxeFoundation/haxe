@@ -1395,7 +1395,7 @@ and type_access ctx e p mode =
 			| TTypeExpr (TClassDecl c) ->
 				if mode = MSet then error "Cannot set constructor" p;
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
-				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
+				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
