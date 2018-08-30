@@ -1145,6 +1145,8 @@ module Cleanup = struct
 			| TTypeExpr (TClassDecl c) ->
 				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 				e
+			| TMeta((Meta.Ast,_,_),e1) when (match e1.eexpr with TSwitch _ -> false | _ -> true) ->
+				loop e1
 			| _ ->
 				Type.map_expr loop e
 		in
