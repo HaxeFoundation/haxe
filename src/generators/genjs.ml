@@ -744,7 +744,7 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" }));
-		gen_expr ctx e1;
+		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
 		spr ctx ")"

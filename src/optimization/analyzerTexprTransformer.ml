@@ -573,7 +573,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb {e with eexpr = TNew(c,tl,el)};
 			bb
 		| TCast(e1,Some mt) ->
-			let b,e1 = value bb e1 in
+			let bb,e1 = value bb e1 in
 			add_texpr bb {e with eexpr = TCast(e1,Some mt)};
 			bb
 		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->
