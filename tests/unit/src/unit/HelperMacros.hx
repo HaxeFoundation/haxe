@@ -26,7 +26,9 @@ class HelperMacros {
 		function isNullable(t:haxe.macro.Type) {
 			return switch (t) {
 				case TMono(null): false;
-				case TMono(t): isNullable(t.get());
+				case TMono(t):
+					var t = t.get();
+					t == null ? false : isNullable(t);
 				case TAbstract(_.get() => {pack: [], name: "Null"}, _): true;
 				case TLazy(f): isNullable(f());
 				case TType(_.get() => td, tl): isNullable(applyTypeParameters(td.type, td.params, tl));
