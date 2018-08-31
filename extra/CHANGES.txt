@@ -10,6 +10,7 @@ XXXX-XX-XX:
 	Removals :
 
 	all : disallowed get_x/set_x property syntax (#4699)
+	all : disallowed default values on interface variables (#4087)
 
 	Bugfixes:
 

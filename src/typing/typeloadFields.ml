@@ -661,6 +661,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 	| None ->
 		check_field_display ctx fctx c cf;
 	| Some e ->
+		if c.cl_interface then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
