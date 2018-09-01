@@ -177,7 +177,7 @@ class Bytes {
 		if ( (len & 1) != 0 ) throw Error.OutsideBounds;
 		var l = len >> 1;
 		var b = new hl.Bytes(l);
-		for (i in  0...len)
+		for (i in  0...l)
 		{
 			var high = s.charCodeAt(i*2);
 			var low = s.charCodeAt(i*2 + 1);
