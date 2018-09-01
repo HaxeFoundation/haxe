@@ -8,7 +8,7 @@ import haxe.crypto.padding.*;
 class AES
 {
 	var sBox:Array<Int> =  [
-			0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+	    0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
             0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
             0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
             0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
@@ -129,7 +129,7 @@ class AES
         return BLOCK_SIZE;
     }
 
-    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes
+    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes
     { 
         var out:Bytes;
         
@@ -137,8 +137,8 @@ class AES
             //CBC, ECB  and PCBC requires padding
             case Padding.NoPadding:
                 out = NoPadding.pad(data,BLOCK_SIZE); 
-            case Padding.PKCS5:
-                out = PKCS5.pad(data,BLOCK_SIZE);
+            case Padding.PKCS7:
+                out = PKCS7.pad(data,BLOCK_SIZE);
             case Padding.BitPadding:
                 out = BitPadding.pad(data,BLOCK_SIZE);
             case Padding.AnsiX923:
@@ -171,7 +171,7 @@ class AES
         return out;
     }
 
-    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes 
+    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes 
     {
         var out:Bytes = data;
 
@@ -193,8 +193,8 @@ class AES
         switch(padding)  {
             case Padding.NoPadding:
                 out = NoPadding.unpad(out);
-            case Padding.PKCS5:
-                out = PKCS5.unpad(out);
+            case Padding.PKCS7:
+                out = PKCS7.unpad(out);
             case Padding.BitPadding:
                 out = BitPadding.unpad(out);
             case Padding.AnsiX923:
