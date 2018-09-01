@@ -41,7 +41,7 @@ class TripleDes extends Des
         keys[2] = keygen(key,16);
     }
 
-    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes
+    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes
     { 
         var out:Bytes;
         
@@ -49,8 +49,8 @@ class TripleDes extends Des
             //CBC, ECB  and PCBC requires padding
             case Padding.NoPadding:
                 out = NoPadding.pad(data,BLOCK_SIZE); 
-            case Padding.PKCS5:
-                out = PKCS5.pad(data,BLOCK_SIZE);
+            case Padding.PKCS7:
+                out = PKCS7.pad(data,BLOCK_SIZE);
             case Padding.BitPadding:
                 out = BitPadding.pad(data,BLOCK_SIZE);
             case Padding.AnsiX923:
@@ -83,7 +83,7 @@ class TripleDes extends Des
         return out;
     }
 
-    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes 
+    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes 
     {
         var out:Bytes = data;
 
@@ -105,8 +105,8 @@ class TripleDes extends Des
         switch(padding)  {
             case Padding.NoPadding:
                 out = NoPadding.unpad(out);
-            case Padding.PKCS5:
-                out = PKCS5.unpad(out);
+            case Padding.PKCS7:
+                out = PKCS7.unpad(out);
             case Padding.BitPadding:
                 out = BitPadding.unpad(out);
             case Padding.AnsiX923:
