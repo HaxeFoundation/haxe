@@ -183,7 +183,7 @@ class Bytes {
 			var low = s.charCodeAt(i*2 + 1);
 			high = (high & 0xf) + ( (high & 0x40) >> 6 ) * 9;
 			low = (low & 0xf) + ( (low & 0x40) >> 6 ) * 9;
-			b.setI32(i, ( (high << 4) | low)  & 0xff );
+			b.setUI8(i, ( (high << 4) | low)  & 0xff );
 		}
 
 		return new Bytes(b,l);
