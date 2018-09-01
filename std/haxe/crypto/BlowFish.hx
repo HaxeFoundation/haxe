@@ -173,7 +173,7 @@ class BlowFish
         return BLOCK_SIZE;
     }
 
-    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes
+    public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes
     { 
         var out:Bytes;
 	
@@ -181,8 +181,8 @@ class BlowFish
            //CBC, ECB  and PCBC requires padding
            case Padding.NoPadding:
                 out = NoPadding.pad(data,BLOCK_SIZE); 
-           case Padding.PKCS5:
-                out = PKCS5.pad(data,BLOCK_SIZE);
+           case Padding.PKCS7:
+                out = PKCS7.pad(data,BLOCK_SIZE);
            case Padding.BitPadding:
                 out = BitPadding.pad(data,BLOCK_SIZE);
            case Padding.AnsiX923:
@@ -215,7 +215,7 @@ class BlowFish
         return out;
     }
 
-    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS5):Bytes 
+    public function decrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes 
     {
         var out:Bytes = data;
 
@@ -237,8 +237,8 @@ class BlowFish
         switch(padding)  {
             case Padding.NoPadding:
                 out = NoPadding.unpad(out);
-            case Padding.PKCS5:
-                out = PKCS5.unpad(out);
+            case Padding.PKCS7:
+                out = PKCS7.unpad(out);
             case Padding.BitPadding:
                 out = BitPadding.unpad(out);
             case Padding.AnsiX923:
