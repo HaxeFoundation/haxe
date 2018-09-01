@@ -137,8 +137,8 @@ class Des
     ];
 
     public function new(?key:Bytes, ?iv:Bytes) 
-	{
-	}
+    {
+    }
 
     public function desEncrypt(data:Bytes,keys:Array<Int64>):Int64
     {
@@ -158,7 +158,7 @@ class Des
         var key:Int64 = bytesToInt64(data,offset);
         var subKeys:Array<Int64> = new Array<Int64>();
     	key = pch1(key);
-    	var highB:Int32 = (key.high << 4 ) | ( ((key.low & 0xF0000000 ) >> 28) & 0x0f ) ;
+	var highB:Int32 = (key.high << 4 ) | ( (key.low  >> 28) & 0x0f );
     	var lowB:Int32 = (key.low & 0x0FFFFFFF);
 
     	for (i in 0...16)
@@ -271,28 +271,28 @@ class Des
     }
 
     private function bytesToInt64(bs:Bytes, off:Int):Int64
-	{
-		var high:Int32 = bs.get(off) << 24;
-		high |= bs.get(++off) << 16;
-		high |= bs.get(++off) << 8;
-		high |= bs.get(++off) ;
+    {
+	var high:Int32 = bs.get(off) << 24;
+	high |= bs.get(++off) << 16;
+	high |= bs.get(++off) << 8;
+	high |= bs.get(++off) ;
     	var low:Int32 = bs.get(++off) << 24;
-		low |= bs.get(++off) << 16;
-		low |= bs.get(++off) << 8;
-		low |= bs.get(++off);
+	low |= bs.get(++off) << 16;
+	low |= bs.get(++off) << 8;
+	low |= bs.get(++off);
 
-		return Int64.make(high,low);
-	}
+	return Int64.make(high,low);
+    }
 
     private function int64ToBytes(n:Int64, bs:Bytes, off:Int):Void
-	{
+    {
     	bs.set( off , (n >> 56).low);
-		bs.set(++off, (n >> 48).low);
-		bs.set(++off, (n >> 40).low);
-		bs.set(++off, (n >> 32).low);
-		bs.set(++off, (n >> 24).low);
-		bs.set(++off, (n >> 16).low);
-		bs.set(++off, (n >>  8).low);
-		bs.set(++off, (n      ).low);
-	}
+	bs.set(++off, (n >> 48).low);
+	bs.set(++off, (n >> 40).low);
+	bs.set(++off, (n >> 32).low);
+	bs.set(++off, (n >> 24).low);
+	bs.set(++off, (n >> 16).low);
+	bs.set(++off, (n >>  8).low);
+	bs.set(++off, (n      ).low);
+    }
 }
