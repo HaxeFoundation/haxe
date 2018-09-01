@@ -910,8 +910,22 @@ module StdEReg = struct
 		if String.length s = 0 then encode_array [encode_string ""]
 		else begin
 			let max = if this.r_global then -1 else 2 in
-			let l = Pcre.split ~max ~rex:this.r s in
-			encode_array (List.map encode_string l)
+			let l = Pcre.full_split ~max ~rex:this.r s in
+			let rec loop split cur acc l = match l with
+				| Text s :: l ->
+					loop split (cur ^ s) acc l
+				| Delim s :: l ->
+					if split then
+						loop this.r_global "" ((encode_string cur) :: acc) l
+					else
+						loop false (cur ^ s) acc l
+				| _ :: l ->
+					loop split cur acc l
+				| [] ->
+					List.rev ((encode_string cur) :: acc)
+			in
+			let l = loop true "" [] l in
+			encode_array l
 		end
 	)
 end

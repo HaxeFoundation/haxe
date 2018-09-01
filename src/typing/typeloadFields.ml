@@ -163,7 +163,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let has_default_expr = field_has_default_expr cf.cf_name in
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
-				let v = alloc_var VUser cf.cf_name t p in
+				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
 				let ev = mk (TLocal v) v.v_type p in
 				(* this.field = <constructor_argument> *)
@@ -606,7 +606,7 @@ let check_field_display ctx fctx c cf =
 		let scope, cf = match c.cl_kind with
 			| KAbstractImpl _ ->
 				if Meta.has Meta.Impl cf.cf_meta then
-					(if cf.cf_name = "_new" then 
+					(if cf.cf_name = "_new" then
 						CFSConstructor, {cf with cf_name = "new"}
 					else
 						CFSMember, cf)
@@ -661,6 +661,7 @@ let bind_var (ctx,cctx,fctx) cf e =
 	| None ->
 		check_field_display ctx fctx c cf;
 	| Some e ->
+		if c.cl_interface then display_error ctx "Default values on interfaces are not allowed" (pos e);
 		cf.cf_meta <- ((Meta.Value,[e],null_pos) :: cf.cf_meta);
 		let check_cast e =
 			(* insert cast to keep explicit field type (issue #1901) *)
@@ -1093,7 +1094,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			else match class_field c (List.map snd c.cl_params) m with
 				| _, t,f -> t,f ]
 	in
-	let check_method m t req_name =
+	let check_method m t =
 		if ctx.com.display.dms_error_policy = EPIgnore then () else
 		try
 			let overloads = find_accessor m in
@@ -1124,7 +1125,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			unify_raise ctx t2 t f2.cf_pos;
 			if (fctx.is_abstract_member && not (Meta.has Meta.Impl f2.cf_meta)) || (Meta.has Meta.Impl f2.cf_meta && not (fctx.is_abstract_member)) then
 				display_error ctx "Mixing abstract implementation and static properties/accessors is not allowed" f2.cf_pos;
-			(match req_name with None -> () | Some n -> display_error ctx ("Please use " ^ n ^ " to name your property access method") f2.cf_pos);
 			f2.cf_meta <- List.fold_left (fun acc ((m,_,_) as meta) -> match m with
 				| Meta.Deprecated -> meta :: acc
 				| _ -> acc
@@ -1132,7 +1132,6 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with
 			| Error (Unify l,p) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 			| Not_found ->
-				if req_name <> None then display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get/set") p else
 				if c.cl_interface then begin
 					let cf = mk_field m t p null_pos in
 					cf.cf_meta <- [Meta.CompilerGenerated,[],null_pos];
@@ -1160,10 +1159,13 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "dynamic",_ -> AccCall
 		| "never",_ -> AccNever
 		| "default",_ -> AccNormal
-		| get,pget ->
-			let get = if get = "get" then "get_" ^ name else get in
+		| "get",pget ->
+			let get = "get_" ^ name in
 			if fctx.is_display_field && DisplayPosition.encloses_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
-			if not cctx.is_lib then delay_check (fun() -> check_method get t_get (if get <> "get" && get <> "get_" ^ name then Some ("get_" ^ name) else None));
+			if not cctx.is_lib then delay_check (fun() -> check_method get t_get);
+			AccCall
+		| _,pget ->
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get") p;
 			AccCall
 	) in
 	let set = (match set with
@@ -1176,10 +1178,13 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "never",_ -> AccNever
 		| "dynamic",_ -> AccCall
 		| "default",_ -> AccNormal
-		| set,pset ->
-			let set = if set = "set" then "set_" ^ name else set in
+		| "set",pset ->
+			let set = "set_" ^ name in
 			if fctx.is_display_field && DisplayPosition.encloses_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
-			if not cctx.is_lib then delay_check (fun() -> check_method set t_set (if set <> "set" && set <> "set_" ^ name then Some ("set_" ^ name) else None));
+			if not cctx.is_lib then delay_check (fun() -> check_method set t_set);
+			AccCall
+		| _,pset ->
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use set") p;
 			AccCall
 	) in
 	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;

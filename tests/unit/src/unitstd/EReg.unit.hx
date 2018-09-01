@@ -110,3 +110,6 @@ pos.len == 2;
 
 // escape
 new EReg("^" + EReg.escape("\\ ^ $ * + ? . ( ) | { } [ ]") + "$", "").match("\\ ^ $ * + ? . ( ) | { } [ ]") == true;
+
+// #6641
+~/(b)/.split("abc") == ["a","c"];

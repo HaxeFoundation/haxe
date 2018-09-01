@@ -28,13 +28,18 @@ open DisplayException
 open Common
 open Error
 
-let type_function_arg ctx t e opt p =
-	if opt then
-		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
-		ctx.t.tnull t, e
-	else
-		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
-		t, e
+let type_function_arg ctx t eo opt p =
+	if not opt then begin match eo with
+		| Some (EConst(Ident "null"),_) -> ctx.t.tnull t,eo
+		| _ -> t,eo
+	end else begin
+		let t,eo = match eo with
+		| Some (EConst(Ident "null"),_) -> ctx.t.tnull t,eo
+		| Some _ -> t,eo
+		| None -> ctx.t.tnull t,Some (EConst(Ident "null"),null_pos)
+		in
+		t, eo
+	end
 
 let save_field_state ctx =
 	let old_ret = ctx.ret in
@@ -88,7 +93,7 @@ let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
 		if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
 		let c = type_function_arg_value ctx t c do_display in
-		let v,c = add_local_with_origin ctx VUser n t pn (TVarOrigin.TVOArgument), c in
+		let v,c = add_local_with_origin ctx TVOArgument n t pn , c in
 		v.v_meta <- v.v_meta @ m;
 		if do_display && DisplayPosition.encloses_display_position pn then
 			DisplayEmitter.display_variable ctx v pn;
@@ -243,12 +248,12 @@ let add_constructor ctx c force_constructor p =
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
 							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) false with Not_found -> if o then Some TNull else None in
-							map_arg (alloc_var VUser n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
+							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false
 			) in
 			let p = c.cl_pos in
-			let vars = List.map (fun (v,def) -> alloc_var VUser v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
+			let vars = List.map (fun (v,def) -> alloc_var (VUser TVOArgument) v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
 			let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 			let constr = mk (TFunction {
 				tf_args = vars;

@@ -210,6 +210,12 @@ let rec sanitize com e =
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
 
+let check_enum_construction_args el i =
+	let b,_ = List.fold_left (fun (b,i') e ->
+		(b && (i' = i || not (has_side_effect e))),i' + 1
+	) (true,0) el in
+	b
+
 let reduce_control_flow ctx e = match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -242,6 +248,10 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| TCall ({ eexpr = TField (o,FClosure (c,cf)) } as f,el) ->
 		let fmode = (match c with None -> FAnon cf | Some (c,tl) -> FInstance (c,tl,cf)) in
 		{ e with eexpr = TCall ({ f with eexpr = TField (o,fmode) },el) }
+	| TEnumParameter({eexpr = TCall({eexpr = TField(_,FEnum(_,ef1))},el)},ef2,i)
+	| TEnumParameter({eexpr = TParenthesis {eexpr = TCall({eexpr = TField(_,FEnum(_,ef1))},el)}},ef2,i)
+		when ef1 == ef2 && check_enum_construction_args el i ->
+		(try List.nth el i with Failure _ -> e)
 	| _ ->
 		e
 

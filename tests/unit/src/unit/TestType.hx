@@ -179,7 +179,7 @@ class TestType extends Test {
 		typedAs([ { x : new Child1() }, { x : new Child2() } ], [{ x: new Base() }]);
 
 		#if flash
-		typedAs(function() { return 0; var v:UInt = 0; return v; } (), 1);
+		typedAs((function() { return 0; var v:UInt = 0; return v; }) (), 1);
 		#end
 	}
 
@@ -249,7 +249,7 @@ class TestType extends Test {
 		func = function(a,b,c):Int return throw "error";
 		eq(5, cb(b, 0));
 
-		var optfunc = function(a:Int, b:Int, ?c:Int = 2) return a + b + c;
+		var optfunc = function(a:Int, b:Int, ?c:Null<Int> = 2) return a + b + c;
 		eq(6, optfunc.bind(1)(3));
 		eq(6, optfunc.bind(1, 3)());
 

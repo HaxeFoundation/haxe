@@ -143,7 +143,7 @@ class InitWithoutCtor {
 class InitProperties {
 	public var accNull(default, null):Int = 3;
 	public var accDefault(default, default):Int = 3;
-	public var accFunc(default, set_accFunc):Int = 3;
+	public var accFunc(default, set):Int = 3;
 	public var accNever(default, never):Int = 3;
 	public var accDynamic(default, dynamic):Int = 3;
 

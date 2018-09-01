@@ -2,13 +2,20 @@ XXXX-XX-XX:
 
 	General improvements and optimizations:
 
+	all : cleaned up function argument type handling when `?` is used (#6972)
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
 	php : Optimized `Map.copy()` and `Array.copy()`
 	php : Support native PHP generators. See `php.Syntax.yield()` and `php.Generator`
 	js : Updated jQuery extern (js.jquery.*). Supporting jQuery up to 3.3.1.
 
+	Removals :
+
+	all : disallowed get_x/set_x property syntax (#4699)
+	all : disallowed default values on interface variables (#4087)
+
 	Bugfixes:
 
+	all : [breaking] `function () { }(e)` is no longer parsed as a call (#5854)
 	php : Escape `$` in field names of anonymous objects (#7230)
 	php : Generate `switch` as `if...else if...else...` to avoid loose comparison (#7257)
 

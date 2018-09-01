@@ -1395,7 +1395,7 @@ and type_access ctx e p mode =
 			| TTypeExpr (TClassDecl c) ->
 				if mode = MSet then error "Cannot set constructor" p;
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
-				let monos = List.map (fun _ -> mk_mono()) c.cl_params in
+				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
@@ -1481,15 +1481,14 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local_with_origin ctx VUser v t pv TVarOrigin.TVOLocalVariable in
-			v.v_meta <- (Meta.UserVariable,[],pv) :: v.v_meta;
+			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
 			Error (e,p) ->
 				check_error ctx e p;
-				add_local ctx VUser v t_dynamic pv, None (* TODO: What to do with this... *)
+				add_local ctx VGenerated v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
 	match vl with
 	| [v,eo] ->
@@ -1878,7 +1877,7 @@ and type_try ctx e1 catches with_type p =
 		if starts_with v '$' then display_error ctx "Catch variable names starting with a dollar are not allowed" p;
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
-		let v = add_local_with_origin ctx VUser v t pv (TVarOrigin.TVOCatchVariable) in
+		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
 		if ctx.is_display_file && DisplayPosition.encloses_display_position pv then
 			DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
@@ -2020,7 +2019,7 @@ and type_local_function ctx name f with_type p =
 		| None -> None
 		| Some v ->
 			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
-			let v = (add_local_with_origin ctx VUser v ft pname (TVarOrigin.TVOLocalFunction)) in
+			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
 			if params <> [] then v.v_extra <- Some (params,None);
 			Some v
 	) in
@@ -2250,8 +2249,7 @@ and type_meta ctx m e1 with_type p =
 			| _ -> e()
 			end
 		| (Meta.StoredTypedExpr,_,_) ->
-			let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
-			MacroContext.get_stored_typed_expr ctx.com id
+			MacroContext.type_stored_expr ctx e1
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()

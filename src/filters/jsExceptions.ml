@@ -114,7 +114,7 @@ let init ctx =
 		| TTry (etry, catches) ->
 			let etry = loop vrethrow etry in
 
-			let catchall_name, catchall_kind = match catches with [(v,_)] -> v.v_name, VUser | _ -> "e", VGenerated in
+			let catchall_name, catchall_kind = match catches with [(v,_)] -> v.v_name, (VUser TVOCatchVariable) | _ -> "e", VGenerated in
 			let vcatchall = alloc_var catchall_kind catchall_name t_dynamic e.epos in
 			let ecatchall = make_local vcatchall e.epos in
 			let erethrow = mk (TThrow ecatchall) t_dynamic e.epos in
@@ -126,14 +126,14 @@ let init ctx =
 			let eunwrap = mk (TIf (eInstanceof, eVal, Some (ecatchall))) t_dynamic e.epos in
 
 			let vunwrapped = alloc_var catchall_kind catchall_name t_dynamic e.epos in
-			vunwrapped.v_meta <- (Meta.CompilerGenerated,[],Globals.null_pos) :: vunwrapped.v_meta;
+			vunwrapped.v_kind <- VGenerated;
 			let eunwrapped = make_local vunwrapped e.epos in
 
 			let ecatch = List.fold_left (fun acc (v,ecatch) ->
 				let ecatch = loop (Some ecatchall) ecatch in
 
 				(* it's not really compiler-generated, but it kind of is, since it was used as catch identifier and we add a TVar for it *)
-				v.v_meta <- (Meta.CompilerGenerated,[],Globals.null_pos) :: v.v_meta;
+				v.v_kind <- VGenerated;
 
 				match follow v.v_type with
 				| TDynamic _ ->

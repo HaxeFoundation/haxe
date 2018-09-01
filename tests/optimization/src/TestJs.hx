@@ -91,7 +91,7 @@ class TestJs {
 		forEach(function(x) use(x + 2));
 	}
 
-	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
+	@:js('var a = "";var e;if(a.toLowerCase() == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
