@@ -27,6 +27,7 @@ open EvalPrinting
 open EvalMisc
 open EvalField
 open EvalHash
+open EvalString
 
 let macro_lib = Hashtbl.create 0
 
@@ -74,7 +75,7 @@ module StdEvalVector = struct
 	let join = vifun1 (fun vthis sep ->
 		let this = this vthis in
 		let sep = decode_vstring sep in
-		EvalString.vstring ((EvalArray.array_join this (s_value 0) sep))
+		vstring ((EvalArray.array_join this (s_value 0) sep))
 	)
 
 	let map = vifun1 (fun vthis f ->
@@ -143,7 +144,7 @@ module StdArray = struct
 	let join = vifun1 (fun vthis sep ->
 		let sep = decode_vstring sep in
 		let s = EvalArray.join (this vthis) (s_value 0) sep in
-		EvalString.vstring s
+		vstring s
 	)
 
 	let lastIndexOf = vifun2 (fun vthis x fromIndex ->
@@ -230,7 +231,7 @@ module StdArray = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		EvalString.vstring (s_array 0 (this vthis))
+		vstring (s_array 0 (this vthis))
 	)
 
 	let unshift = vifun1 (fun vthis v ->
@@ -252,53 +253,11 @@ let outside_bounds () =
 	exc (proto_field_direct haxe_io_Error key_OutsideBounds)
 
 module StdBytes = struct
+	open EvalBytes
+
 	let this vthis = match vthis with
 		| VInstance {ikind = IBytes o} -> o
 		| v -> unexpected_value v "bytes"
-
-	let read_byte this i = int_of_char (Bytes.get this i)
-
-	let read_ui16 this i =
-		let ch1 = read_byte this i in
-		let ch2 = read_byte this (i + 1) in
-		ch1 lor (ch2 lsl 8)
-
-	let read_i32 this i =
-		let ch1 = read_byte this i in
-		let ch2 = read_byte this (i + 1) in
-		let ch3 = read_byte this (i + 2) in
-		let base = Int32.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
-		let big = Int32.shift_left (Int32.of_int (read_byte this (i + 3))) 24 in
-		Int32.logor base big
-
-	let read_i64 this i =
-		let ch1 = read_byte this i in
-		let ch2 = read_byte this (i + 1) in
-		let ch3 = read_byte this (i + 2) in
-		let ch4 = read_byte this (i + 3) in
-		let base = Int64.of_int (ch1 lor (ch2 lsl 8) lor (ch3 lsl 16)) in
-		let small = Int64.logor base (Int64.shift_left (Int64.of_int ch4) 24) in
-		let big = Int64.of_int32 (read_i32 this (i + 4)) in
-		Int64.logor (Int64.shift_left big 32) small
-
-	let write_byte this i v =
-		Bytes.set this i (Char.unsafe_chr v)
-
-	let write_ui16 this i v =
-		write_byte this i v;
-		write_byte this (i + 1) (v lsr 8)
-
-	let write_i32 this i v =
-		let base = Int32.to_int v in
-		let big = Int32.to_int (Int32.shift_right_logical v 24) in
-		write_byte this i base;
-		write_byte this (i + 1) (base lsr 8);
-		write_byte this (i + 2) (base lsr 16);
-		write_byte this (i + 3) big
-
-	let write_i64 this i v =
-		write_i32 this i (Int64.to_int32 v);
-		write_i32 this (i + 4) (Int64.to_int32 (Int64.shift_right_logical v 32))
 
 	let alloc = vfun1 (fun length ->
 		let length = decode_int length in
@@ -372,7 +331,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		EvalString.bytes_to_utf8 s
+		bytes_to_utf8 s
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -386,7 +345,7 @@ module StdBytes = struct
 		if s.sascii then
 			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
 		else begin
-			let s = EvalString.utf16_to_utf8 (Lazy.force s.sstring) in
+			let s = utf16_to_utf8 (Lazy.force s.sstring) in
 			encode_bytes (Bytes.of_string s)
 		end
 	)
@@ -459,7 +418,7 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		EvalString.bytes_to_utf8 (this vthis)
+		bytes_to_utf8 (this vthis)
 	)
 end
 
@@ -753,7 +712,7 @@ module StdDate = struct
 	let getSeconds = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_sec)
 	let getTime = vifun0 (fun vthis -> vfloat ((this vthis) *. 1000.))
 	let now = vfun0 (fun () -> encode_date (time()))
-	let toString = vifun0 (fun vthis -> EvalString.vstring (s_date (this vthis)))
+	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
 module StdEReg = struct
@@ -1125,9 +1084,9 @@ module StdFPHelper = struct
 		let low = decode_i32 low in
 		let high = decode_i32 high in
 		let b = Bytes.make 8 '0' in
-		StdBytes.write_i32 b 0 low;
-		StdBytes.write_i32 b 4 high;
-		let i64 = StdBytes.read_i64 b 0 in
+		EvalBytes.write_i32 b 0 low;
+		EvalBytes.write_i32 b 4 high;
+		let i64 = EvalBytes.read_i64 b 0 in
 		vfloat (Int64.float_of_bits i64)
 	)
 end
@@ -1422,10 +1381,10 @@ module StdMap (Hashtbl : Hashtbl.S) = struct
 		);
 		"toString",vifun0 (fun vthis ->
 			let open Rope in
-			let l = Hashtbl.fold (fun key vvalue acc -> (EvalString.join rempty [str key; EvalString.create_ascii " => "; s_value 0 vvalue]) :: acc) (this vthis) [] in
-			let s = EvalString.join rcomma l in
-			let s = EvalString.join rempty [rbropen;s;rbrclose] in
-			EvalString.vstring s
+			let l = Hashtbl.fold (fun key vvalue acc -> (join rempty [str key; create_ascii " => "; s_value 0 vvalue]) :: acc) (this vthis) [] in
+			let s = join rcomma l in
+			let s = join rempty [rbropen;s;rbrclose] in
+			vstring s
 		);
 	]
 end
@@ -1692,7 +1651,7 @@ module StdResource = struct
 	)
 
 	let getString = vfun1 (fun name ->
-		try EvalString.bytes_to_utf8 (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
+		try bytes_to_utf8 (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
 	)
 
 	let getBytes = vfun1 (fun name ->
@@ -1877,7 +1836,7 @@ module StdStd = struct
 	)
 
 	let string = vfun1 (fun v ->
-		EvalString.vstring (s_value 0 v)
+		vstring (s_value 0 v)
 	)
 
 	let int = vfun1 (fun v ->
@@ -1899,8 +1858,6 @@ module StdStd = struct
 end
 
 module StdString = struct
-	open EvalString
-
 	let this vthis = match vthis with
 		| VString s -> s
 		| v -> unexpected_value v "string"
@@ -1914,7 +1871,7 @@ module StdString = struct
 			if this.sascii then encode_rope (Rope.of_char (String.get s i))
 			else begin
 				let b = Bytes.create 2 in
-				StdBytes.write_ui16 b 0 (read_ui16 this i);
+				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
 				vstring (create_ucs2 (Bytes.unsafe_to_string b) 1)
 			end
 		end
@@ -1925,7 +1882,7 @@ module StdString = struct
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
 		else if this.sascii then vint (int_of_char (String.get (Lazy.force this.sstring) i))
-		else vint (read_ui16 this (i lsl 1))
+		else vint (read_char this (i lsl 1))
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -1947,7 +1904,7 @@ module StdString = struct
 			if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
-				let pat = Str.regexp (extend_ascii str) in
+				let pat = Str.regexp (maybe_extend_ascii str) in
 				let s = Lazy.force this.sstring in
 				vint ((Str.search_forward pat s (i lsl 1)) lsr 1);
 			end
@@ -1965,7 +1922,7 @@ module StdString = struct
 			if this.sascii then
 				vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
 			else begin
-				let pat = Str.regexp (extend_ascii str) in
+				let pat = Str.regexp (maybe_extend_ascii str) in
 				vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
 			end
 		with Not_found ->
@@ -2105,7 +2062,6 @@ end
 
 module StdStringBuf = struct
 	module Buffer = Rope.Buffer
-	open EvalString
 
 	let this vthis = match vthis with
 		| VInstance {ikind = IBuffer sb} -> sb
@@ -2115,7 +2071,7 @@ module StdStringBuf = struct
 		let this = this vthis in
 		let s = match x with
 			| VString s -> s
-			| _ -> EvalString.create_ascii (value_string x)
+			| _ -> create_ascii (value_string x)
 		in
 		AwareBuffer.add_string this s;
 		vnull;
@@ -2162,8 +2118,8 @@ module StdStringBuf = struct
 			| _ -> unexpected_value len "int"
 		in
 		let s' = Rope.sub s.srope i len in
-		let s' = if s.sascii then EvalString.create_ascii_of_rope s'
-		else EvalString.create_ucs2_of_rope s' len in
+		let s' = if s.sascii then create_ascii_of_rope s'
+		else create_ucs2_of_rope s' len in
 		AwareBuffer.add_string this s';
 		vnull
 	)
@@ -2176,7 +2132,7 @@ module StdStringBuf = struct
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
 		let s = AwareBuffer.contents this in
-		EvalString.vstring s
+		vstring s
 	)
 end
 
@@ -2195,9 +2151,9 @@ module StdStringTools = struct
 
 	let urlDecode = vfun1 (fun s ->
 		let s = decode_string s in
-		let b = EvalString.AwareBuffer.create () in
+		let b = AwareBuffer.create () in
 		let add s =
-			EvalString.AwareBuffer.add_string b s
+			AwareBuffer.add_string b s
 		in
 		let len = String.length s in
 		let decode c =
@@ -2233,36 +2189,36 @@ module StdStringTools = struct
 				begin match decode_hex (i + 1) with
 				| Some c ->
 					if c < 0x80 then begin
-						add (EvalString.create_ascii (String.make 1 (char_of_int c)));
+						add (create_ascii (String.make 1 (char_of_int c)));
 						loop (i + 3)
 					end else if c < 0xE0 then begin
 						let c2 = expect_hex (i + 3) in
-						add (EvalString.from_char_code (((c land 0x3F) lsl 6) lor (c2 land 0x7F)));
+						add (from_char_code (((c land 0x3F) lsl 6) lor (c2 land 0x7F)));
 						loop (i + 6)
 					end else if c < 0xF0 then begin
 						let c2 = expect_hex (i + 3) in
 						let c3 = expect_hex (i + 6) in
-						add (EvalString.from_char_code (((c land 0x1F) lsl 12) lor ((c2 land 0x7F) lsl 6) lor (c3 land 0x7F)));
+						add (from_char_code (((c land 0x1F) lsl 12) lor ((c2 land 0x7F) lsl 6) lor (c3 land 0x7F)));
 						loop (i + 9)
 					end else
 						let c2 = expect_hex (i + 3) in
 						let c3 = expect_hex (i + 6) in
 						let c4 = expect_hex (i + 9) in
 						let k = ((c land 0x0F) lsl 18) lor ((c2 land 0x7F) lsl 12) lor ((c3 land 0x7F) lsl 6) lor (c4 land 0x7F) in
-						add (EvalString.from_char_code k);
+						add (from_char_code k);
 						loop (i + 12)
 				| None ->
 					loop (i + 1)
 				end;
 			| '+' ->
-				add (EvalString.create_ascii (String.make 1 ' '));
+				add (create_ascii (String.make 1 ' '));
 				loop (i + 1)
 			| c ->
-				add (EvalString.create_ascii (String.make 1 c));
+				add (create_ascii (String.make 1 c));
 				loop (i + 1)
 		in
 		loop 0;
-		EvalString.vstring (EvalString.AwareBuffer.contents b)
+		vstring (AwareBuffer.contents b)
 	)
 end
 
@@ -2286,7 +2242,7 @@ module StdSys = struct
 		let h = StringHashtbl.create 0 in
 		Array.iter(fun s ->
 			let k, v = ExtString.String.split s "=" in
-			StringHashtbl.replace h (EvalString.create_ascii k) (encode_string v)
+			StringHashtbl.replace h (create_ascii k) (encode_string v)
 		) env;
 		encode_string_map_direct h
 	)
@@ -2673,13 +2629,19 @@ module StdUtf8 = struct
 
 	let decode = vfun1 (fun s ->
 		let s = decode_string s in
-		let s = EvalString.decode_utf8 s in
+		let buf = Bytes.create (UTF8.length s) in
+		let i = ref 0 in
+		UTF8.iter (fun uc ->
+			Bytes.unsafe_set buf !i (UChar.char_of uc);
+			incr i
+		) s;
+		let s = Bytes.unsafe_to_string buf in
 		encode_string s
 	)
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		encode_string (EvalString.encode_utf8 s)
+		encode_string (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->
@@ -2697,7 +2659,7 @@ module StdUtf8 = struct
 
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
-		EvalString.bytes_to_utf8 (Bytes.unsafe_of_string (UTF8.Buf.contents this))
+		bytes_to_utf8 (Bytes.unsafe_of_string (UTF8.Buf.contents this))
 	)
 
 	let validate = vfun1 (fun s ->
@@ -2721,12 +2683,12 @@ let init_maps builtins =
 		| VInstance {ikind = IIntMap h} -> h
 		| v -> unexpected_value v "int map"
 	in
-	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> EvalString.create_ascii (string_of_int i)) encode_int_map_direct this);
+	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> create_ascii (string_of_int i)) encode_int_map_direct this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IStringMap h} -> h
 		| v -> unexpected_value v "string map"
 	in
-	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields EvalString.vstring decode_vstring (fun s -> s) encode_string_map_direct this);
+	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring decode_vstring (fun s -> s) encode_string_map_direct this);
 	let this vthis = match vthis with
 		| VInstance {ikind = IObjectMap h} -> Obj.magic h
 		| v -> unexpected_value v "object map"
@@ -2764,7 +2726,7 @@ let init_constructors builtins =
 			| [s] -> s
 			| _ -> assert false
 		);
-	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (EvalString.AwareBuffer.create())));
+	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (AwareBuffer.create())));
 	add key_haxe_Utf8
 		(fun vl -> match vl with
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))

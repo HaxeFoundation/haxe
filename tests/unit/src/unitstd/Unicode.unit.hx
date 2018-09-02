@@ -140,5 +140,28 @@ input.readString(2) == "é";
 input.readString(7) == "あ😂";
 input.readString(bytes.length - 9,RawNative) == "éあ😂";
 
+// Mixed encoding tests... mostly relevant for Eval which has both ASCII and UCS2 at run-time
+
+var s = "ée";
+var s1 = s.charAt(1);
+s1 == "e";
+#if eval
+// We currently don't asciify anything we extract from UCS2 strings... not sure if this would
+// be worth it or not.
+(untyped s1.isAscii()) == false;
+#end
+
+var s1 = s.substr(1, 1);
+s1 == "e";
+#if eval
+(untyped s1.isAscii()) == false;
+#end
+
+// TODO: this wasn't tested at all...
+// var s1 = s.substring(1, 2);
+// s1 == "e";
+// #if eval
+// (untyped s1.isAscii()) == false;
+// #end
 
 #end

@@ -19,6 +19,7 @@
 
 open Globals
 open EvalValue
+open EvalBytes
 
 let create_ascii s = {
 	srope = Rope.of_string s;
@@ -61,7 +62,7 @@ module AwareBuffer = struct
 
 	let promote_to_ucs this =
 		let current = Rope.to_string (Rope.Buffer.contents this.bbuffer) in
-		let current = extend_ascii' current in
+		let current = extend_ascii current in
 		Rope.Buffer.clear this.bbuffer;
 		this.bascii <- false;
 		Rope.Buffer.add_string this.bbuffer current
@@ -72,15 +73,12 @@ module AwareBuffer = struct
 		| false,false ->
 			Rope.Buffer.add_rope this.bbuffer s.srope
 		| true,false ->
-			Rope.Buffer.add_string this.bbuffer (extend_ascii' (Lazy.force s.sstring))
+			Rope.Buffer.add_string this.bbuffer (extend_ascii (Lazy.force s.sstring))
 		| false,true ->
 			promote_to_ucs this;
 			Rope.Buffer.add_rope this.bbuffer s.srope
 		end;
 		this.blength <- this.blength + s.slength
-
-	let add_char this c =
-		Rope.Buffer.add_char this.bbuffer c
 
 	let contents this =
 		if this.bascii then
@@ -89,17 +87,8 @@ module AwareBuffer = struct
 			create_ucs2_of_rope (Rope.Buffer.contents this.bbuffer) this.blength
 end
 
-let decode_utf8 s =
-	let buf = Bytes.create (UTF8.length s) in
-	let i = ref 0 in
-	UTF8.iter (fun uc ->
-		Bytes.unsafe_set buf !i (UChar.char_of uc);
-		incr i
-	) s;
-	Bytes.unsafe_to_string buf
-
-let encode_utf8 s =
-	UTF8.init (String.length s) (fun i -> UChar.of_char s.[i])
+let read_char s =
+	read_ui16 (Bytes.unsafe_of_string (Lazy.force s.sstring))
 
 let utf8_to_utf16 s =
 	let only_ascii = ref true in
@@ -138,8 +127,6 @@ let utf8_to_utf16 s =
 		end
 	done;
 	Buffer.contents buf,!only_ascii,!l
-
-let read_byte this i = int_of_char (Bytes.get this i)
 
 let utf16_to_utf8 s =
 	let buf = Buffer.create 0 in
@@ -181,23 +168,10 @@ let utf16_to_utf8 s =
 	done;
 	Buffer.contents buf
 
-let read_ui16 s i =
-	let s = Bytes.unsafe_of_string (Lazy.force s.sstring) in
-	let ch1 = read_byte s i in
-	let ch2 = read_byte s (i + 1) in
-	ch1 lor (ch2 lsl 8)
-
-let write_byte this i v =
-	Bytes.set this i (Char.unsafe_chr v)
-
-let write_ui16 this i v =
-	write_byte this i v;
-	write_byte this (i + 1) (v lsr 8)
-
-let extend_ascii s =
+let maybe_extend_ascii s =
 	let s' = Lazy.force s.sstring in
 	if s.sascii then begin
-		extend_ascii' s'
+		extend_ascii s'
 	end else
 		s'
 
@@ -208,9 +182,9 @@ let concat s1 s2 =
 	| false,false ->
 		create_ucs2_of_rope (Rope.concat2 s1.srope s2.srope) (s1.slength + s2.slength)
 	| true,false ->
-		create_ucs2 ((extend_ascii' (Lazy.force s1.sstring)) ^ (Lazy.force s2.sstring)) (s1.slength + s2.slength)
+		create_ucs2 ((extend_ascii (Lazy.force s1.sstring)) ^ (Lazy.force s2.sstring)) (s1.slength + s2.slength)
 	| false,true ->
-		create_ucs2 ((Lazy.force s1.sstring) ^ (extend_ascii' (Lazy.force s2.sstring))) (s1.slength + s2.slength)
+		create_ucs2 ((Lazy.force s1.sstring) ^ (extend_ascii (Lazy.force s2.sstring))) (s1.slength + s2.slength)
 
 let join sep sl =
 	let buf = AwareBuffer.create () in

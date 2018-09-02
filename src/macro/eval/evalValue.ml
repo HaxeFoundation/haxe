@@ -45,7 +45,7 @@ type vstring_buffer = {
 	mutable bascii  : bool;
 }
 
-let extend_ascii' s =
+let extend_ascii s =
 	let length = String.length s in
 	let b = Bytes.make (length lsl 1) '\000' in
 	for i = 0 to length - 1 do
@@ -56,12 +56,10 @@ let extend_ascii' s =
 let vstring_equal s1 s2 =
 	if s1.sascii = s2.sascii then
 		s1.srope == s2.srope || Lazy.force s1.sstring = Lazy.force s2.sstring
-	else if not s1.sascii then begin
-		let s1 = extend_ascii' (Lazy.force s1.sstring) in
-		print_endline (Printf.sprintf "%s %s" s1 (Lazy.force s2.sstring));
-		s1 = Lazy.force s2.sstring
-	end else
-		Lazy.force s1.sstring = extend_ascii' (Lazy.force s2.sstring)
+	else if not s2.sascii then
+		(Lazy.force s1.sstring) = Lazy.force s2.sstring
+	else
+		Lazy.force s1.sstring = extend_ascii (Lazy.force s2.sstring)
 
 module StringHashtbl = Hashtbl.Make(struct
 	type t = vstring

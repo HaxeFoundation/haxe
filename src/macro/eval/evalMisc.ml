@@ -27,6 +27,7 @@ open EvalDecode
 open EvalExceptions
 open EvalPrinting
 open EvalHash
+open EvalString
 
 let throw_string s p =
 	throw (encode_string s) p
@@ -157,10 +158,10 @@ let op_add v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
-	| VString s1,VString s2 -> EvalString.vstring (EvalString.concat s1 s2)
-	| VString s1,v2 -> EvalString.vstring (EvalString.concat s1 (s_value 0 v2))
-	| v1,VString s2 -> EvalString.vstring (EvalString.concat (s_value 0 v1) s2)
-	| v1,v2 -> EvalString.vstring (EvalString.concat (s_value 0 v1) (s_value 0 v2))
+	| VString s1,VString s2 -> vstring (concat s1 s2)
+	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
+	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
+	| v1,v2 -> vstring (concat (s_value 0 v1) (s_value 0 v2))
 
 let op_mult p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
