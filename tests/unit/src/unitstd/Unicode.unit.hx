@@ -94,7 +94,7 @@ var str = haxe.io.Bytes.ofString("éあ😂");
 str.toHex() == "c3a9e38182f09f9882";
 
 ["é", "e"].join("é") == "éée";
-["é", "e"].join("e") == "éeé";
+["é", "e"].join("e") == "éee";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
