@@ -146,22 +146,40 @@ var s = "ée";
 var s1 = s.charAt(1);
 s1 == "e";
 #if eval
-// We currently don't asciify anything we extract from UCS2 strings... not sure if this would
-// be worth it or not.
-(untyped s1.isAscii()) == false;
+(untyped s1.isAscii()) == true;
+(untyped s.charAt(0).isAscii()) == false;
 #end
 
 var s1 = s.substr(1, 1);
+var s2 = s.substr(1);
+var s3 = s.substr(-1);
+var s4 = s.substr(-1, 1);
 s1 == "e";
+s2 == "e";
+s3 == "e";
+s4 == "e";
 #if eval
+// We currently don't asciify anything we extract from UCS2 strings... not sure if this would
+// be worth it or not.
 (untyped s1.isAscii()) == false;
+(untyped s2.isAscii()) == false;
+(untyped s3.isAscii()) == false;
+(untyped s4.isAscii()) == false;
 #end
 
-// TODO: this wasn't tested at all...
-// var s1 = s.substring(1, 2);
-// s1 == "e";
-// #if eval
-// (untyped s1.isAscii()) == false;
-// #end
+var s1 = s.substring(1, 2);
+var s2 = s.substring(1);
+var s3 = s.substring(2, 1);
+var s4 = s.substring(1, 20);
+s1 == "e";
+s2 == "e";
+s3 == "e";
+s4 == "e";
+#if eval
+(untyped s1.isAscii()) == false;
+(untyped s2.isAscii()) == false;
+(untyped s3.isAscii()) == false;
+(untyped s4.isAscii()) == false;
+#end
 
 #end

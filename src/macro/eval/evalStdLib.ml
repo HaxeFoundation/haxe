@@ -1872,7 +1872,10 @@ module StdString = struct
 			else begin
 				let b = Bytes.create 2 in
 				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
-				vstring (create_ucs2 (Bytes.unsafe_to_string b) 1)
+				let c = Bytes.unsafe_get b 0 in
+				let s = if (int_of_char c) < 0x80 then create_ascii (String.make 1 c)
+				else create_ucs2 (Bytes.unsafe_to_string b) 1 in
+				vstring s
 			end
 		end
 	)
@@ -1994,13 +1997,13 @@ module StdString = struct
 
 	let substr = vifun2 (fun vthis pos len ->
 		let this = this vthis in
-		let pos = (decode_int pos) in
+		let pos = decode_int pos in
 		let r = this.srope in
-		if pos >= Rope.length r then
+		if pos >= this.slength then
 			encode_rope Rope.empty
 		else begin
 			let pos = if pos < 0 then begin
-				let pos = Rope.length r + pos in
+				let pos = this.slength + pos in
 				if pos < 0 then 0 else pos
 			end else pos in
 			if this.sascii then begin
@@ -2031,20 +2034,27 @@ module StdString = struct
 	)
 
 	let substring = vifun2 (fun vthis startIndex endIndex ->
-		let this = (this vthis).srope in
+		let this = this vthis in
 		let first = decode_int startIndex in
-		let l = Rope.length this in
+		let l = this.slength in
 		let last = default_int endIndex l in
 		let first = if first < 0 then 0 else first in
 		let last = if last < 0 then 0 else last in
 		let first,last = if first > last then last,first else first,last in
 		let last = if last > l then l else last in
-		let s = if first > l then
-			Rope.empty
-		else
-			Rope.sub this first (last - first)
-		in
-		encode_rope s
+		if first > l then
+			encode_rope Rope.empty
+		else begin
+			if this.sascii then
+				encode_rope (Rope.sub this.srope first (last - first))
+			else begin
+				let first = first lsl 1 in
+				let last = last lsl 1 in
+				let length = last - first in
+				let r = Rope.sub this.srope first length in
+				vstring (create_ucs2_of_rope r length)
+			end
+		end
 	)
 
 	let toLowerCase = vifun0 (fun vthis -> encode_rope (Rope.lowercase (this vthis).srope))
