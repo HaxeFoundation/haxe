@@ -182,4 +182,10 @@ s4 == "e";
 (untyped s4.isAscii()) == false;
 #end
 
+Reflect.compare("ed", "éee".substr(1)) < 0;
+Reflect.compare("éed".substr(1), "éee".substr(1)) < 0;
+Reflect.compare("éed".substr(1), "ee") < 0;
+Reflect.compare("ee", "éed".substr(1)) > 0;
+Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
+Reflect.compare("éee".substr(1), "ed") > 0;
 #end
