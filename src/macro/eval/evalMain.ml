@@ -226,13 +226,13 @@ let value_signature v =
 		| VInstance {ikind = IDate f} ->
 			cache v (fun () ->
 				addc 'v';
-				add (Rope.to_string (s_date f))
+				add (EvalString.get (s_date f))
 			)
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun (_,s) value ->
-					adds (Lazy.force s);
+				StringHashtbl.iter (fun s value ->
+					adds (Lazy.force s.sstring);
 					loop value
 				) map;
 				addc 'h'
@@ -278,8 +278,8 @@ let value_signature v =
 				loop_fields fields;
 				addc 'g';
 			)
-		| VString(_,s) ->
-			adds (Lazy.force s)
+		| VString s ->
+			adds (Lazy.force s.sstring)
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -399,7 +399,7 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString(r,s) -> (EConst (String (Lazy.force s)),p)
+	| VString s -> (EConst (String (Lazy.force s.sstring)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
 			let n = rev_hash_s k in

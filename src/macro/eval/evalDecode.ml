@@ -50,15 +50,15 @@ let decode_varray v = match v with
 	| _ -> unexpected_value v "array"
 
 let decode_string v = match v with
-	| VString(r,s) -> Lazy.force s
+	| VString s -> EvalString.get s
 	| _ -> unexpected_value v "string"
 
 let decode_rope v = match v with
-	| VString(s,_) -> s
+	| VString s -> s.srope
 	| _ -> unexpected_value v "string"
 
-let decode_rope_string v = match v with
-	| VString(r,s) -> r,s
+let decode_vstring v = match v with
+	| VString s -> s
 	| _ -> unexpected_value v "string"
 
 let decode_bytes v = match v with

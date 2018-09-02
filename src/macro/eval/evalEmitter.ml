@@ -321,7 +321,7 @@ let emit_proto_field_read proto i env =
 
 let emit_instance_field_read exec i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
-	| VString(_,s) -> vint (String.length (Lazy.force s))
+	| VString s -> vint (s.slength)
 	| v -> unexpected_value v "instance"
 
 let emit_field_closure exec name env =
@@ -363,10 +363,11 @@ let emit_enum_parameter_read exec i env = match exec env with
 	| v1 -> unexpected_value v1 "enum value"
 
 let emit_string_cca exec1 exec2 p env =
-	let s = decode_string (exec1 env) in
+	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
-	if index >= String.length s then vnull
-	else vint (int_of_char s.[index])
+	if index < 0 || index >= s.slength then vnull
+	else if s.sascii then vint (int_of_char (String.get (Lazy.force s.sstring) index))
+	else vint (EvalString.read_ui16 s (index lsl 1))
 
 (* Write *)
 

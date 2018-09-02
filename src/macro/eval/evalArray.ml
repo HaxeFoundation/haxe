@@ -19,6 +19,7 @@
 
 open Globals
 open EvalValue
+open EvalString
 
 let create values = {
 	avalues = values;
@@ -26,13 +27,9 @@ let create values = {
 }
 
 let array_join a f sep =
-	let buf = Rope.Buffer.create 0 in
-	let last = Array.length a - 1 in
-	Array.iteri (fun i v ->
-		Rope.Buffer.add_rope buf (f v);
-		if i <> last then Rope.Buffer.add_rope buf sep;
-	) a;
-	Rope.Buffer.contents buf
+	let l = Array.map f a in
+	let l = Array.to_list l in
+	join sep l
 
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 
