@@ -50,6 +50,7 @@ var a = s.split('😂');
 a.length == 2;
 a[0] == "é";
 a[1] == "あ";
+a.join('😂') == s;
 
 var a = s.split('');
 #if ( php || lua )
@@ -91,6 +92,9 @@ str == "😂";
 
 var str = haxe.io.Bytes.ofString("éあ😂");
 str.toHex() == "c3a9e38182f09f9882";
+
+["é", "e"].join("é") == "éée";
+["é", "e"].join("e") == "éeé";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
