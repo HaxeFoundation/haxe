@@ -10,7 +10,11 @@ open Globals
 open Genjson
 open DisplayPosition
 
-let reference_position = ref ("",null_pos,KVar)
+module ReferencePosition = struct
+	let reference_position = ref ("",null_pos,KVar)
+	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let get () = !reference_position
+end
 
 module ExprPreprocessing = struct
 	let find_before_pos com dm e =

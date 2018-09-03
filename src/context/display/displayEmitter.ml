@@ -138,7 +138,7 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 	| DMDefinition | DMTypeDefinition -> raise_position [(t_infos mt).mt_name_pos];
 	| DMUsage _ ->
 		let infos = t_infos mt in
-		reference_position := (snd infos.mt_path,infos.mt_name_pos,KModuleType)
+		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,KModuleType)
 	| DMHover ->
 		let t = type_of_module_type mt in
 		let ct = completion_type_of_type ctx t in
@@ -194,7 +194,7 @@ let raise_position_of_type t =
 let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [v.v_pos]
 	| DMTypeDefinition -> raise_position_of_type v.v_type
-	| DMUsage _ -> reference_position := (v.v_name,v.v_pos,KVar)
+	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,KVar)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ~values:(get_value_meta v.v_meta) v.v_type in
 		raise_hover (make_ci_local v (v.v_type,ct)) p
@@ -211,7 +211,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 			| _ ->
 				cf.cf_name,KClassField
 		in
-		reference_position := (name,cf.cf_name_pos,kind)
+		ReferencePosition.set (name,cf.cf_name_pos,kind)
 	| DMHover ->
 		let cf = if Meta.has Meta.Impl cf.cf_meta then
 			prepare_using_field cf
@@ -232,7 +232,7 @@ let maybe_display_field ctx origin scope cf p =
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [ef.ef_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ef.ef_type
-	| DMUsage _ -> reference_position := (ef.ef_name,ef.ef_name_pos,KEnumField)
+	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ef.ef_type in
 		raise_hover (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (ef.ef_type,ct)) p

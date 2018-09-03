@@ -147,7 +147,7 @@ let find_possible_references kind name (pack,decls) =
 	) decls
 
 let find_possible_references tctx cs =
-	let name,pos,kind = !Display.reference_position in
+	let name,pos,kind = Display.ReferencePosition.get () in
 	if not (CompilationServer.is_initialized cs) then begin
 		CompilationServer.set_initialized cs;
 		DisplayToplevel.read_class_paths tctx.com ["display";"references"];
@@ -171,7 +171,7 @@ let find_possible_references tctx cs =
 	()
 
 let find_references tctx com with_definition =
-	let name,pos,kind = !Display.reference_position in
+	let name,pos,kind = Display.ReferencePosition.get () in
 	let t = Timer.timer ["display";"references";"collect"] in
 	let symbols,relations = Statistics.collect_statistics tctx (SFPos pos) in
 	t();
@@ -182,17 +182,14 @@ let find_references tctx com with_definition =
 	in
 	let t = Timer.timer ["display";"references";"filter"] in
 	let usages = Hashtbl.fold (fun p sym acc ->
-		if p = pos then begin
-			let acc = if with_definition then p :: acc else acc in
-			(try loop acc (Hashtbl.find relations p)
-			with Not_found -> acc)
-		end else
-			acc
+		let acc = if with_definition then p :: acc else acc in
+		(try loop acc (Hashtbl.find relations p)
+		with Not_found -> acc)
 	) symbols [] in
 	let usages = List.sort (fun p1 p2 ->
 		let c = compare p1.pfile p2.pfile in
 		if c <> 0 then c else compare p1.pmin p2.pmin
 	) usages in
 	t();
-	Display.reference_position := ("",null_pos,KVar);
+	Display.ReferencePosition.set ("",null_pos,KVar);
 	DisplayException.raise_position usages
