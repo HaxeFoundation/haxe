@@ -211,8 +211,8 @@ class Boot extends flash.display.MovieClip {
 		}
 		return new String(v);
 	}
-	
-	static function fromCodePoint( code : Int ) {
+
+	static public function fromCodePoint( code : Int ) {
 		var o = new flash.utils.ByteArray();
 		o.endian = LITTLE_ENDIAN;
 		o.writeShort((code>>10) + 0xD7C0);
