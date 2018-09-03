@@ -1904,7 +1904,9 @@ module StdString = struct
 		let this = this vthis in
 		let i = default_int startIndex 0 in
 		try
-			if this.sascii then
+			if Rope.length str.srope = 0 then
+				vint (max 0 (min i this.slength))
+			else if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
 				let pat = Str.regexp (maybe_extend_ascii str) in
@@ -1918,15 +1920,20 @@ module StdString = struct
 	let lastIndexOf = vifun2 (fun vthis str startIndex ->
 		let str = this str in
 		let this = this vthis in
-		let i = default_int startIndex (this.slength - 1) in
 		try
-			if i >= this.slength || i < 0 then raise Not_found;
-			let s = Lazy.force this.sstring in
-			if this.sascii then
-				vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
-			else begin
-				let pat = Str.regexp (maybe_extend_ascii str) in
-				vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
+			if Rope.length str.srope = 0 then begin
+				let i = default_int startIndex this.slength in
+				vint (max 0 (min i this.slength))
+			end else begin
+				let i = default_int startIndex (this.slength - 1) in
+				if i >= this.slength || i < 0 then raise Not_found;
+				let s = Lazy.force this.sstring in
+				if this.sascii then
+					vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
+				else begin
+					let pat = Str.regexp (maybe_extend_ascii str) in
+					vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
+				end
 			end
 		with Not_found ->
 			vint (-1)
