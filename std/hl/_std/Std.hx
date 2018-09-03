@@ -64,9 +64,8 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public inline static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		var t : hl.BaseType = cast c;
-		return t.check(value) ? cast value : null;
+	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return null;
 	}
 
 	extern public static inline function int( x : Float ) : Int {

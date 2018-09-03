@@ -1203,7 +1203,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		else
 			abort ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
-and unsafe_cast_to ctx (r:reg) (t:ttype) p =
+and unsafe_cast_to ?(debugchk=true) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then
 		r
@@ -1223,7 +1223,7 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
 			op ctx (OUnsafeCast (r2,r));
-			if ctx.com.debug then begin
+			if ctx.com.debug && debugchk then begin
 				hold ctx r2;
 				let r3 = cast_to ~force:true ctx r t p in
 				let j = jump ctx (fun n -> OJEq (r2,r3,n)) in
@@ -2005,6 +2005,23 @@ and eval_expr ctx e =
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt]) ->
+		let r = eval_expr ctx v in
+		hold ctx r;
+		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in
+		hold ctx c;
+		let rv = alloc_tmp ctx (to_type ctx e.etype) in
+		let rb = alloc_tmp ctx HBool in
+		op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,r));
+		let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
+		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx r (to_type ctx e.etype) e.epos));
+		let jend = jump ctx (fun n -> OJAlways n) in
+		jnext();
+		op ctx (ONull rv);
+		jend();
+		free ctx r;
+		free ctx c;
+		rv
 	| TCall (ec,args) ->
 		let tfun = real_type ctx ec in
 		let el() = eval_args ctx args tfun e.epos in
@@ -2799,7 +2816,7 @@ and eval_expr ctx e =
 					let rb = alloc_tmp ctx HBool in
 					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-					op ctx (OMov (rv, unsafe_cast_to ctx rtrap (to_type ctx v.v_type) ec.epos));
+					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
 					jnext
 				in
 				let r = eval_expr ctx ec in
