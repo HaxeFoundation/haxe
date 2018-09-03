@@ -22,16 +22,30 @@ type symbol =
 	| SKEnumField of tenum_field
 	| SKVariable of tvar
 
+type statistics_filter =
+	| SFNone
+	| SFPos of pos
+	| SFFile of string
+
 let collect_statistics ctx pfilter =
 	let relations = Hashtbl.create 0 in
 	let symbols = Hashtbl.create 0 in
 	let handled_modules = Hashtbl.create 0 in
-	let check_pos p = p <> null_pos && match pfilter with
-		| None -> true
-		| Some p' ->
-			(* Heuristic, we avoid the pfile check which would have to be uniquified first anyway. It's okay
-			   because we filter in the end again anyway. *)
-			p.pmin = p'.pmin && p.pmax = p'.pmax
+	let full_path =
+		let paths = Hashtbl.create 0 in
+		(fun path ->
+			try
+				Hashtbl.find paths path
+			with Not_found ->
+				let unique = Path.unique_full_path path in
+				Hashtbl.add paths path unique;
+				unique
+		)
+	in
+	let check_pos = match pfilter with
+		| SFNone -> (fun p -> p <> null_pos)
+		| SFPos p -> (fun p' -> p.pmin = p'.pmin && p.pmax = p'.pmax && p.pfile = full_path p'.pfile)
+		| SFFile s -> (fun p -> full_path p.pfile = s)
 	in
 	let add_relation p r =
 		if check_pos p then try
