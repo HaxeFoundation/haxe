@@ -36,7 +36,6 @@ class Lua {
 		installLib("lrexlib-pcre" , "2.8.0-1");
 		installLib("luv"          , "1.22.0-1");
 		installLib("luasocket"    , "3.0rc1-2");
-		installLib("environ"      , "0.1.0-1");
 		installLib("luautf8"      , "0.1.1-1");
 
 	}
