@@ -94,11 +94,11 @@ module EnumToClass2Modf = struct
 			let pos = ef.ef_pos in
 
 			let cl_ctor = mk_class en.e_module (e_pack, e_name ^ "_" ^ name) pos in
+			cl_ctor.cl_final <- true;
 			cl_ctor.cl_super <- Some (cl_enum, []);
 			cl_ctor.cl_meta <- [
 				(Meta.Enum,[],pos);
 				(Meta.NativeGen,[],pos);
-				(Meta.Final,[],pos);
 			] @ cl_ctor.cl_meta;
 			ctors_map := PMap.add name cl_ctor !ctors_map;
 

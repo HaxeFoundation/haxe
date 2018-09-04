@@ -405,6 +405,11 @@ typedef ClassType = BaseType & {
 	var isInterface : Bool;
 
 	/**
+		If true the class is final and cannot be extended.
+	**/
+	var isFinal : Bool;
+
+	/**
 		The parent class and its type parameters, if available.
 	**/
 	var superClass : Null<{ t : Ref<ClassType>, params : Array<Type> }>;

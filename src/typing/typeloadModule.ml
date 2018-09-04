@@ -317,7 +317,7 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_meta <- (Meta.Final,[],null_pos) :: c.cl_meta
+					c.cl_final <- true;
 				| _ -> assert false);
 				acc
 		) in
@@ -511,8 +511,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		c.cl_extern <- List.mem HExtern herits;
-		c.cl_interface <- List.mem HInterface herits;
+		List.iter (function
+			| HExtern -> c.cl_extern <- true
+			| HInterface -> c.cl_interface <- true
+			| HFinal -> c.cl_final <- true
+			| _ -> ()
+		) herits;
+		List.iter (fun (m,_,p) ->
+			if m = Meta.Final then begin
+				c.cl_final <- true;
+				if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p;
+			end
+		) d.d_meta;
 		let prev_build_count = ref (!build_count - 1) in
 		let build() =
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in

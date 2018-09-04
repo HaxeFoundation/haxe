@@ -1034,6 +1034,7 @@ and encode_tclass c =
 		"isExtern", vbool c.cl_extern;
 		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
 		"isInterface", vbool c.cl_interface;
+		"isFinal", vbool c.cl_final;
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj OClassType_superClass ["t",encode_clref c;"params",encode_tparams pl]
@@ -1487,9 +1488,10 @@ let decode_type_def v =
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
-	| 2, [ext;impl;interf] ->
+	| 2, [ext;impl;interf;final] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
+		let is_final = decode_opt_bool final in
 		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
@@ -1499,6 +1501,7 @@ let decode_type_def v =
 				List.map (fun t -> HImplements t) interfaces @ flags
 			end
 		in
+		let flags = if is_final then HFinal :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))

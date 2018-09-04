@@ -347,11 +347,12 @@ let build_class com c file =
 		} in
 		(path.tpackage, [(EEnum enum_data,pos)])
 	with Exit ->
+	let flags = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then HFinal :: flags else flags in
 	let class_data = {
 		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then [Meta.Final,[],pos] else [];
+		d_meta = [];
 		d_flags = flags;
 		d_data = fields;
 	} in

@@ -630,7 +630,6 @@ let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 		| (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
 		(* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
 		| (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-		| (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
 		| (Meta.Unsafe,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
 		| _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
@@ -1847,7 +1846,7 @@ let generate con =
 													acc
 
 												(* non-sealed class *)
-												| TInst ({ cl_interface = false; cl_meta = meta},_) when not (Meta.has Meta.Final meta) ->
+												| TInst ({ cl_interface = false; cl_final = false},_) ->
 													base_class_constraints := (t_s t) :: !base_class_constraints;
 													acc;
 
@@ -2085,7 +2084,7 @@ let generate con =
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
-					let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
+					let is_virtual = is_virtual && not cl.cl_final && not (is_interface) in
 					let visibility = if is_interface then "" else "public" in
 
 					let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
@@ -2410,7 +2409,8 @@ let generate con =
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-			let is_final = clt = "struct" || Meta.has Meta.Final cl.cl_meta in
+			let modifiers = if cl.cl_final then "sealed" :: modifiers else modifiers in
+			let is_final = clt = "struct" || cl.cl_final in
 
 			let modifiers = [access] @ modifiers in
 			print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));

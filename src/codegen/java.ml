@@ -414,7 +414,7 @@ let convert_java_enum ctx p pe =
 
 			let is_interface = ref false in
 			List.iter (fun f -> match f with
-				| JFinal -> meta := (Meta.Final, [], p) :: !meta
+				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags

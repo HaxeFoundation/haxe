@@ -3219,7 +3219,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if type should be declared as `final`
 		*)
 		method is_final =
-			if not (Meta.has Meta.Final cls.cl_meta) then
+			if not cls.cl_final then
 				false
 			else begin
 				let hacked = ref false in

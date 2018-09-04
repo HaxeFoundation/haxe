@@ -725,7 +725,8 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 
 		let is_interface = ref false in
 		List.iter (fun f -> match f with
-			| SSealed -> meta := (Meta.Final, [], p) :: !meta
+			| SSealed ->
+				flags := HFinal :: !flags
 			| SInterface ->
 				is_interface := true;
 				flags := HInterface :: !flags

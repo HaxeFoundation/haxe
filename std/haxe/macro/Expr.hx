@@ -926,7 +926,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool );
+	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool, ?isFinal : Bool );
 
 	/**
 		Represents an alias/typedef kind.

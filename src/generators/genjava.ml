@@ -940,7 +940,6 @@ let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 		| (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "" cl_modifiers
 		(* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
 		| (Meta.Static,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-		| (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("final" :: cl_modifiers)
 		| _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
 let rec get_fun_modifiers meta access modifiers =
@@ -2094,7 +2093,8 @@ let generate con =
 		gen_annotations w cl.cl_meta;
 
 		let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-		let is_final = Meta.has Meta.Final cl.cl_meta in
+		let modifiers = if cl.cl_final then "final" :: modifiers else modifiers in
+		let is_final = cl.cl_final in
 
 		write_parts w (access :: modifiers @ [clt; (change_clname (snd cl.cl_path))]);
 
