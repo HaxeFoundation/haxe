@@ -765,7 +765,7 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	if not fctx.is_static && cctx.abstract <> None then error (fst f.cff_name ^ ": Cannot declare member variable in abstract") p;
 	if fctx.is_inline && not fctx.is_static then error (fst f.cff_name ^ ": Inline variable must be static") p;
 	if fctx.is_inline && eo = None then error (fst f.cff_name ^ ": Inline variable must be initialized") p;
-	if fctx.is_final && not (fctx.is_extern || c.cl_extern)  && eo = None then begin
+	if fctx.is_final && not (fctx.is_extern || c.cl_extern || c.cl_interface)  && eo = None then begin
 		if fctx.is_static then error (fst f.cff_name ^ ": Static final variable must be initialized") p
 		else cctx.uninitialized_final <- Some f.cff_pos;
 	end;
