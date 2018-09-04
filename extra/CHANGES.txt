@@ -2,6 +2,7 @@ XXXX-XX-XX:
 
 	General improvements and optimizations:
 
+	all : made `final` on structure fields invariant (#7039)
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
 	php : Optimized `Map.copy()` and `Array.copy()`
 	php : Support native PHP generators. See `php.Syntax.yield()` and `php.Generator`

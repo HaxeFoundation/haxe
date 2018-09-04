@@ -1,0 +1,3 @@
+Main.hx:4: characters 3-33 : { foo : Int } should be { foo : Int }
+Main.hx:4: characters 3-33 : Invalid type for field foo :
+Main.hx:4: characters 3-33 : Cannot unify final and non-final fields

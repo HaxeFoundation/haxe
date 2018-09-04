@@ -1670,6 +1670,7 @@ type unify_error =
 	| Invariant_parameter of t * t
 	| Constraint_failure of string
 	| Missing_overload of tclass_field * t
+	| FinalInvariance (* nice band name *)
 	| Unify_custom of string
 
 exception Unify_error of unify_error list
@@ -2006,7 +2007,7 @@ let rec unify a b =
 					unify_new_monos := !monos @ !unify_new_monos;
 					rec_stack unify_stack (ft,f2.cf_type)
 						(fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2)
-						(fun() -> try unify_with_access ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos := old_monos; raise e)
 						(fun l -> error (invalid_field n :: l));
 					unify_new_monos := old_monos;
 				| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
@@ -2015,13 +2016,13 @@ let rec unify a b =
 					unify_new_monos := !monos @ !unify_new_monos;
 					rec_stack unify_stack (f2.cf_type,ft)
 						(fun(a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2)
-						(fun() -> try unify_with_access ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos := old_monos; raise e)
 						(fun l -> error (invalid_field n :: l));
 					unify_new_monos := old_monos;
 				| _ ->
 					(* will use fast_eq, which have its own stack *)
 					try
-						unify_with_access ft f2
+						unify_with_access f1 ft f2
 					with
 						Unify_error l ->
 							error (invalid_field n :: l));
@@ -2152,7 +2153,7 @@ and unify_anons a b a1 a2 =
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 			try
-				unify_with_access (field_type f1) f2;
+				unify_with_access f1 (field_type f1) f2;
 				(match !(a1.a_status) with
 				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
@@ -2291,12 +2292,14 @@ and with_variance f t1 t2 =
 	with Unify_error _ ->
 		raise (Unify_error l)
 
-and unify_with_access t1 f2 =
+and unify_with_access f1 t1 f2 =
 	match f2.cf_kind with
 	(* write only *)
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify f2.cf_type t1
 	(* read only *)
-	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
+	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
+		if f1.cf_final <> f2.cf_final then raise (Unify_error [FinalInvariance]);
+		unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
 

@@ -66,6 +66,8 @@ let unify_error_msg ctx = function
 		"Constraint check failure for " ^ name
 	| Missing_overload (cf, t) ->
 		cf.cf_name ^ " has no overload for " ^ s_type ctx t
+	| FinalInvariance ->
+		"Cannot unify final and non-final fields"
 	| Unify_custom msg ->
 		msg
 
