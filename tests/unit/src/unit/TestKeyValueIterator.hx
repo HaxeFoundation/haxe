@@ -19,6 +19,7 @@ private class MyStringMap<T> {
 		for (key in map.keys()) {
 			a.push({key: key, value: map.get(key)});
 		}
+		a.sort((a, b) -> Reflect.compare(a.key, b.key));
 		return a.iterator();
 	}
 }
