@@ -185,7 +185,7 @@ class Bytes {
 		return new Bytes(b.length, b);
 	}
 	
-	public static inline function ofHex( s : String ) : Bytes {
+	public static function ofHex( s : String ) : Bytes {
 		var len = s.length;
 		if ( (len & 1) != 0 ) throw "Hex string has odd number of digits";
 		var b : String = php.Global.hex2bin(s);
