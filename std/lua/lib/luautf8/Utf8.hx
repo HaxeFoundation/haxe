@@ -1,12 +1,12 @@
-package lua;
+package lua.lib.luautf8;
 /**
-	These are all externs for the base Lua "string" class, which functions
+	These are all externs for the lua-utf8 library, which functions
 	as an additional set of string tools.
 
 	Note that all relevant indexes are "1" based.
 **/
-@:native("_G.string")
-extern class NativeStringTools {
+@:luaRequire('lua-utf8')
+extern class Utf8 {
 	/**
 		Receives a string and returns its length. The empty string `""` has
 		length `0`. Embedded zeros are counted, so `"a\000bc\000"` has length `5`.
@@ -22,7 +22,6 @@ extern class NativeStringTools {
 	public static function char(codes: haxe.extern.Rest<Int>): String;
 
 
-	// TODO: make a note about handling matched groups with multireturn
 	/**
 		Returns the substring of `str` that starts at `start` and continues until `end`;
 		`start` and `end` can be negative. If `end` is absent, then it is assumed to be
@@ -32,6 +31,11 @@ extern class NativeStringTools {
 		length `start`.
 	**/
 	public static function sub(str : String, start : Int, ?end : Int): StringSub;
+
+	/**
+		Returns the character code at position `index` of `str`.
+	**/
+	public static function charCodeAt(str : String, index : Int): Int;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -53,30 +57,6 @@ extern class NativeStringTools {
 		Note that numerical codes are not necessarily portable across platforms.
 	**/
 	public static function byte(str : String, ?index : Int) : Int;
-
-	/**
-		Returns a formatted version of its variable number of arguments following
-		the description given in its first argument (which must be a string).
-		The format string follows the same rules as the printf family of standard C
-		functions. The only differences are that the options/modifiers
-		`*`, `l`, `L`, `n`, `p`, and `h` are not supported and that there is an
-		extra option, `q`. The `q` option formats a string in a form suitable to be
-		safely read back by the Lua interpreter: the string is written between
-		double quotes, and all double quotes, newlines, embedded zeros,
-		and backslashes in the string are correctly escaped when written.
-		For instance, the call
-   `string.format('%q', 'a string with "quotes" and \n new line')`
-		will produce the string:
-		`"a string with \"quotes\" and \
-      new line"`
-
-		The options `c`, `d` `E`, `e`, `f`, `g`, `G`, `i`, `o`, `u, `X-, and `x` all
-		expect a number as argument, whereas `q` and `s` expect a string.
-
-		This function does not accept string values containing embedded zeros,
-		except as arguments to the `q` option.
-	**/
-	public static function format(str : String, ?e1 : Dynamic, ?e2 : Dynamic, ?e3 : Dynamic, ?e4 : Dynamic): String;
 
 	/**
 
@@ -116,12 +96,9 @@ extern class NativeStringTools {
 	**/
 	public static function lower(str:String) : String;
 
-	/**
-		Returns a string containing a binary representation of the given function,
-		so that a later loadstring on this string returns a copy of the function.
-		function must be a Lua function without upvalues.
-	**/
-	public static function dump(d:Dynamic) : Dynamic;
+
+	public static function codes(str : String) : Void->StringCodePoint;
+
 }
 
 @:multiReturn extern class StringFind {
@@ -132,4 +109,9 @@ extern class NativeStringTools {
 @:multiReturn extern class StringSub {
 	var match : String;
 	var count : Int;
+}
+
+@:multiReturn extern class StringCodePoint {
+	var position : Int;
+	var codepoint : Int;
 }

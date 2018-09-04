@@ -19,46 +19,25 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.io;
 
-import haxe.io.Bytes;
-import haxe.io.Encoding;
+@:coreApi
+extern class String {
 
-interface IInput
-{
-	public var bigEndian(default,set) : Bool;
+	var length(default,null) : Int;
+	function new(string:String) : Void;
+	function toUpperCase() : String;
+	function toLowerCase() : String;
+	function charAt(index : Int) : String;
+	function charCodeAt( index : Int) : Null<Int>;
+	function indexOf( str : String, ?startIndex : Int ) : Int;
+	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+	function split( delimiter : String ) : Array<String>;
+	function substr( pos : Int, ?len : Int ) : String;
+	function substring( startIndex : Int, ?endIndex : Int ) : String;
+	function toString() : String;
 
-	public function readByte() : Int;
-
-	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int;
-
-	public function close():Void;
-
-	public function readAll( ?bufsize : Int ) : Bytes;
-
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ):Void;
-
-	public function read( nbytes : Int ) : Bytes;
-
-	public function readUntil( end : Int ) : String;
-
-	public function readLine() : String;
-
-	public function readFloat() : Float;
-
-	public function readDouble() : Float;
-
-	public function readInt8():Int;
-
-	public function readInt16():Int;
-
-	public function readUInt16():Int;
-
-	public function readInt24():Int;
-
-	public function readUInt24():Int;
-
-	public function readInt32():Int;
-
-	public function readString( len : Int, ?encoding : Encoding ) : String;
+	@:pure static inline function fromCharCode( code : Int ) : String untyped {
+		return code < 0x10000 ? String["fromCharCode"](code) : flash.Boot.fromCodePoint(code);
+	}
+	
 }

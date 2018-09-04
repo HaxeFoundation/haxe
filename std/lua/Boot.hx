@@ -32,6 +32,9 @@ class Boot {
 	static var _;
 	static var _fid = 0;
 
+	// A max stack size to respect for unpack operations
+	public static var MAXSTACKSIZE (default, null) = 1000;
+
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
 	static var hiddenFields : Table<String,Bool> = untyped __lua__("{__id__=true, hx__closures=true, super=true, prototype=true, __fields__=true, __ifields__=true, __class__=true, __properties__=true}");
@@ -188,7 +191,14 @@ class Boot {
 			}
 			case "boolean" : untyped tostring(o);
 			case "string"  : o;
-			case "userdata": "<userdata>";
+			case "userdata": {
+				var mt = lua.Lua.getmetatable(o);
+				if (mt != null && mt.__tostring != null){
+					lua.Lua.tostring(o);
+				} else {
+					"<userdata>";
+				}
+			}
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {

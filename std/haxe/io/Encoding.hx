@@ -19,46 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.io;
+package haxe.io;
 
-import haxe.io.Bytes;
-import haxe.io.Encoding;
-
-interface IInput
-{
-	public var bigEndian(default,set) : Bool;
-
-	public function readByte() : Int;
-
-	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int;
-
-	public function close():Void;
-
-	public function readAll( ?bufsize : Int ) : Bytes;
-
-	public function readFullBytes( s : Bytes, pos : Int, len : Int ):Void;
-
-	public function read( nbytes : Int ) : Bytes;
-
-	public function readUntil( end : Int ) : String;
-
-	public function readLine() : String;
-
-	public function readFloat() : Float;
-
-	public function readDouble() : Float;
-
-	public function readInt8():Int;
-
-	public function readInt16():Int;
-
-	public function readUInt16():Int;
-
-	public function readInt24():Int;
-
-	public function readUInt24():Int;
-
-	public function readInt32():Int;
-
-	public function readString( len : Int, ?encoding : Encoding ) : String;
+/**
+	String binary encoding supported by Haxe I/O
+**/
+enum Encoding {
+	UTF8;
+	/**
+		Output the string the way the platform represent it in memory. This is the most efficient but is platform-specific
+	**/
+	RawNative;
 }

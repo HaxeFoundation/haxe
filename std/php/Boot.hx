@@ -525,6 +525,15 @@ class Boot {
 	public static function dynamicString( str:String ) : HxDynamicStr {
 		return @:privateAccess new HxDynamicStr(str);
 	}
+
+	static public function utf8CharAt(str:String, index:Int):Null<String> {
+		if (index < 0 || index >= str.length) {
+			return null;
+		}
+		//preg_split() is faster than mb_substr()
+		var chars = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
+		return chars == false ? null : (chars:NativeArray)[index];
+	}
 }
 
 
@@ -626,27 +635,21 @@ private class HxEnum {
 private class HxString {
 
 	public static function toUpperCase( str:String ) : String {
-		return Global.strtoupper(str);
+		return Global.mb_strtoupper(str, 'UTF-8');
 	}
 
 	public static function toLowerCase( str:String ) : String {
-		return Global.strtolower(str);
+		return Global.mb_strtolower(str, 'UTF-8');
 	}
 
 	public static function charAt( str:String, index:Int) : String {
-		if (index < 0 || index >= str.length) {
-			return '';
-		} else {
-			return (str:NativeString)[index];
-		}
+		return Syntax.coalesce(Boot.utf8CharAt(str, index), '');
 	}
 
 	public static function charCodeAt( str:String, index:Int) : Null<Int> {
-		if (index < 0 || index >= str.length) {
-			return null;
-		} else {
-			return Global.ord((str:NativeString)[index]);
-		}
+		var char = Boot.utf8CharAt(str, index);
+		if(char == null) return null;
+		return Global.mb_ord(char, 'UTF-8');
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
@@ -655,12 +658,17 @@ private class HxString {
 		} else if (startIndex < 0) {
 			startIndex += str.length;
 		}
-		var index = Global.strpos(str, search, startIndex);
+		var index = Global.mb_strpos(str, search, startIndex, 'UTF-8');
 		return (index == false ? -1 : index);
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
-		var index = Global.strrpos(str, search, (startIndex == null ? 0 : startIndex - str.length));
+		if(startIndex == null) {
+			startIndex = 0;
+		} else {
+			startIndex = startIndex - str.length;
+		}
+		var index = Global.mb_strrpos(str, search, startIndex, 'UTF-8');
 		if (index == false) {
 			return -1;
 		} else {
@@ -670,9 +678,14 @@ private class HxString {
 
 	public static function split( str:String, delimiter:String ) : Array<String> {
 		if (delimiter == '') {
-			return @:privateAccess Array.wrap(Global.str_split(str));
+			var arr:NativeArray = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
+			return @:privateAccess Array.wrap(arr);
 		} else {
-			return @:privateAccess Array.wrap(Global.explode(delimiter, str));
+			//don't mess with user-defined encoding
+			var prev = Global.mb_regex_encoding();
+			Global.mb_regex_encoding('UTF-8');
+			return @:privateAccess Array.wrap(Global.mb_split(Global.preg_quote(delimiter), str));
+			Global.mb_regex_encoding(prev);
 		}
 	}
 
@@ -682,12 +695,7 @@ private class HxString {
 		} else if (pos >= str.length) {
 			return '';
 		}
-		if (len == null) {
-			return Global.substr(str, pos);
-		} else {
-			var result = Global.substr(str, pos, len);
-			return (result == false ? '' : result);
-		}
+		return Global.mb_substr(str, pos, len, 'UTF-8');
 	}
 
 	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
@@ -696,14 +704,15 @@ private class HxString {
 		} else if (endIndex < 0) {
 			endIndex = 0;
 		}
-		if (startIndex < 0) startIndex = 0;
+		if (startIndex < 0) {
+			startIndex = 0;
+		}
 		if (startIndex > endIndex) {
 			var tmp = endIndex;
 			endIndex = startIndex;
 			startIndex = tmp;
 		}
-		var result = Global.substr(str, startIndex, endIndex - startIndex);
-		return (result == false ? '' : result);
+		return Global.mb_substr(str, startIndex, endIndex - startIndex, 'UTF-8');
 	}
 
 	public static function toString( str:String ) : String {
@@ -711,7 +720,7 @@ private class HxString {
 	}
 
 	public static function fromCharCode( code:Int ) : String {
-		return Global.chr(code);
+		return Global.mb_chr(code, 'UTF-8');
 	}
 }
 

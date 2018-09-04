@@ -55,8 +55,8 @@ let field_raise v f =
 	| VVector vv ->
 		if f = key_length then vint (Array.length vv)
 		else proto_field_direct (get_ctx()).vector_prototype f
-	| VString (_,s) ->
-		if f = key_length then vint (String.length (Lazy.force s))
+	| VString s ->
+		if f = key_length then vint (s.slength)
 		else proto_field_direct (get_ctx()).string_prototype f
 	| VInstance vi -> (try instance_field vi f with Not_found -> proto_field_raise vi.iproto f)
 	| _ -> raise Not_found

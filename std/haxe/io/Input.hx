@@ -300,13 +300,13 @@ class Input {
 	/**
 		Read and `len` bytes as a string.
 	**/
-	public function readString( len : Int ) : String {
+	public function readString( len : Int, ?encoding : Encoding ) : String {
 		var b = Bytes.alloc(len);
 		readFullBytes(b,0,len);
 		#if neko
 		return neko.Lib.stringReference(b);
 		#else
-		return b.toString();
+		return b.getString(0, len, encoding);
 		#end
 	}
 

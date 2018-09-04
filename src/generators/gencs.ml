@@ -382,7 +382,7 @@ struct
 					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
-					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); make_int gen.gcon.basic 1 cc.epos]) }
+					{ e with eexpr = TCall(mk_static_field_access_infer string_ext "fromCharCode" e.epos [], [run cc]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )

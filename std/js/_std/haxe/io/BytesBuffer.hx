@@ -21,6 +21,7 @@
  */
 package haxe.io;
 
+@:coreApi
 class BytesBuffer {
 
 	var buffer : js.html.ArrayBuffer;
@@ -40,12 +41,12 @@ class BytesBuffer {
 		return pos;
 	}
 
-	public function addByte( byte : Int ) {
+	public function addByte( byte : Int ) : Void {
 		if( pos == size ) grow(1);
 		view.setUint8(pos++, byte);
 	}
 
-	public function add( src : Bytes ) {
+	public function add( src : Bytes ) : Void {
 		if( pos + src.length > size ) grow(src.length);
 		if( size == 0 ) return;
 		var sub = new js.html.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset, src.length);
@@ -53,36 +54,36 @@ class BytesBuffer {
 		pos += src.length;
 	}
 
-	public function addString( v : String ) {
-		add(Bytes.ofString(v));
+	public function addString( v : String, ?encoding : Encoding ) : Void {
+		add(Bytes.ofString(v,encoding));
 	}
 
-	public function addInt32( v : Int ) {
+	public function addInt32( v : Int ) : Void {
 		if( pos + 4 > size ) grow(4);
 		view.setInt32(pos, v, true);
 		pos += 4;
 	}
 
-	public function addInt64( v : haxe.Int64 ) {
+	public function addInt64( v : haxe.Int64 ) : Void {
 		if( pos + 8 > size ) grow(8);
 		view.setInt32(pos, v.low, true);
 		view.setInt32(pos + 4, v.high, true);
 		pos += 8;
 	}
 
-	public function addFloat( v : Float ) {
+	public function addFloat( v : Float ) : Void {
 		if( pos + 4 > size ) grow(4);
 		view.setFloat32(pos, v, true);
 		pos += 4;
 	}
 
-	public function addDouble( v : Float ) {
+	public function addDouble( v : Float ) : Void {
 		if( pos + 8 > size ) grow(8);
 		view.setFloat64(pos, v, true);
 		pos += 8;
 	}
 
-	public function addBytes( src : Bytes, pos : Int, len : Int ) {
+	public function addBytes( src : Bytes, pos : Int, len : Int ) : Void {
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
 		if( this.pos + len > size ) grow(len);
 		if( size == 0 ) return;
@@ -91,7 +92,7 @@ class BytesBuffer {
 		this.pos += len;
 	}
 
-	function grow( delta : Int ) {
+	function grow( delta : Int ) : Void {
 		var req = pos + delta;
 		var nsize = size == 0 ? 16 : size;
 		while( nsize < req )

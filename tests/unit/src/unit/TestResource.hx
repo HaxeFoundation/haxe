@@ -16,7 +16,7 @@ class TestResource extends Test {
 			eq( names[1], "re/s?!%[]))(\"'1.txt" );
 		}
 		eq( haxe.Resource.getString("re/s?!%[]))(\"'1.txt"), STR );
-		#if (neko || php)
+		#if (neko || php ||  eval)
 		// allow binary strings
 		eq( haxe.Resource.getBytes("re/s?!%[]))(\"'1.bin").sub(0,9).toString(), "MZ\x90\x00\x03\x00\x00\x00\x04" );
 		#else

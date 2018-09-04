@@ -26,12 +26,45 @@ type cmp =
 	| CInf
 	| CUndef
 
-type vstring = Rope.t * string Lazy.t
+type vstring = {
+	(* The rope representation of the string. This is what we mainly use. *)
+	srope   : Rope.t;
+	(* The bytes representation of the string. This is only evaluated if we
+	   need it for something like random access. *)
+	sstring : string Lazy.t;
+	(* The length of the string. *)
+	slength : int;
+	(* If true, the string is one-byte-per-character ASCII. Otherwise, it is
+	   encoded as UCS2. *)
+	sascii  : bool;
+}
+
+type vstring_buffer = {
+	        bbuffer : Rope.Buffer.t;
+	mutable blength : int;
+	mutable bascii  : bool;
+}
+
+let extend_ascii s =
+	let length = String.length s in
+	let b = Bytes.make (length lsl 1) '\000' in
+	for i = 0 to length - 1 do
+		Bytes.unsafe_set b (i lsl 1) (String.unsafe_get s i)
+	done;
+	Bytes.unsafe_to_string b
+
+let vstring_equal s1 s2 =
+	if s1.sascii = s2.sascii then
+		s1.srope == s2.srope || Lazy.force s1.sstring = Lazy.force s2.sstring
+	else if not s2.sascii then
+		(Lazy.force s1.sstring) = Lazy.force s2.sstring
+	else
+		Lazy.force s1.sstring = extend_ascii (Lazy.force s2.sstring)
 
 module StringHashtbl = Hashtbl.Make(struct
 	type t = vstring
-	let equal (r1,s1) (r2,s2) = r1 == r2 || Lazy.force s1 = Lazy.force s2
-	let hash (_,s) = Hashtbl.hash (Lazy.force s)
+	let equal = vstring_equal
+	let hash s = Hashtbl.hash (Lazy.force s.sstring)
 end)
 
 module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
@@ -114,7 +147,7 @@ and vinstance_kind =
 	| IIntMap of value IntHashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
-	| IBuffer of Rope.Buffer.t (* StringBuf *)
+	| IBuffer of vstring_buffer(* StringBuf *)
 	| IPos of pos
 	| IUtf8 of UTF8.Buf.buf
 	| IProcess of Process.process
@@ -165,7 +198,7 @@ let rec equals a b = match a,b with
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
 	| VObject vo1,VObject vo2 -> vo1 == vo2
 	| VInstance vi1,VInstance vi2 -> vi1 == vi2
-	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
+	| VString s1,VString s2 -> vstring_equal s1 s2
 	| VArray va1,VArray va2 -> va1 == va2
 	| VVector vv1,VVector vv2 -> vv1 == vv2
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2

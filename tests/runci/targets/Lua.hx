@@ -23,24 +23,22 @@ class Lua {
 		}
 	}
 
+	static function installLib(lib : String, version : String, server = "https://luarocks.org/dev"){
+		var server_arg = '--server=$server';
+		if (!commandSucceed("luarocks", ["show", lib])) {
+			runCommand("luarocks", ["install",lib, version, server_arg]);
+		}
+	}
+
 	static public function installLuaVersionDependencies(lv:String){
-		if (lv == "-l5.1"){
-			if (!commandSucceed("luarocks", ["show", "luabit"])) {
-				runCommand("luarocks", ["install", "luabitop", "1.0.2-3", "--server=https://luarocks.org/dev"]);
-			}
-		}
-		if (!commandSucceed("luarocks", ["show", "lrexlib-pcre"])) {
-			runCommand("luarocks", ["install", "lrexlib-pcre", "2.8.0-1", "--server=https://luarocks.org/dev"]);
-		}
-		if (!commandSucceed("luarocks", ["show", "luv"])) {
-			runCommand("luarocks", ["install", "luv", "1.9.1-0", "--server=https://luarocks.org/dev"]);
-		}
-		if (!commandSucceed("luarocks", ["show", "luasocket"])) {
-			runCommand("luarocks", ["install", "luasocket", "3.0rc1-2", "--server=https://luarocks.org/dev"]);
-		}
-		if (!commandSucceed("luarocks", ["show", "environ"])) {
-			runCommand("luarocks", ["install", "environ", "0.1.0-1", "--server=https://luarocks.org/dev"]);
-		}
+		if (lv == "-l5.1") installLib("luabitop", "1.0.2-3");
+
+		installLib("lrexlib-pcre" , "2.8.0-1");
+		installLib("luv"          , "1.9.1-0");
+		installLib("luasocket"    , "3.0rc1-2");
+		installLib("environ"      , "0.1.0-1");
+		installLib("luautf8"      , "0.1.1-1");
+
 	}
 
 	static public function run(args:Array<String>) {
