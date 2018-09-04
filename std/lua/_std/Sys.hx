@@ -21,15 +21,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-using lua.NativeStringTools;
-import lua.Package;
-import lua.Lua;
-import lua.Table;
-import lua.TableTools;
-import lua.Os;
-import lua.FileHandle;
-import lua.Io;
 import lua.Boot;
+import lua.Io;
+import lua.Lua;
+import lua.Os;
+import lua.lib.luautf8.Utf8;
+import lua.lib.luv.Misc;
 import sys.io.FileInput;
 import sys.io.FileOutput;
 
@@ -43,7 +40,7 @@ class Sys {
 		return lua.Lib.println(v);
 	}
 	public inline static function args() : Array<String> {
-		var targs = lua.PairTools.copy(lua.Lua.arg);
+		var targs = lua.PairTools.copy(Lua.arg);
 		var args = lua.Lib.tableToArray(targs);
 		return args;
 	}
@@ -64,7 +61,7 @@ class Sys {
 	}
 
 	public inline static function getChar(echo : Bool) : Int {
-		return lua.Io.read(1).byte();
+		return lua.Io.read().charCodeAt(0);
 	}
 
 	static function getSystemName() : String {
@@ -78,13 +75,24 @@ class Sys {
 
 	public static function environment() : Map<String,String>  {
 		var map = new Map<String,String>();
-		var f = function(k,v) map.set(k,v);
-		untyped __lua__("for k,v in lua.lib.environ.Environ.enum() do f(k,v) end");
-		return map;
+		var cmd = switch(Sys.systemName()){
+			case "Windows" : 'SET';
+			default : 'printenv';
+		}
+		var p = new sys.io.Process(cmd,[]);
+		var code = p.exitCode(true);
+		var out = p.stdout.readAll().toString();
+		var lines = out.split("\n");
+		var m = new Map<String,String>();
+		for (l in lines){
+			var parts = l.split("=");
+			m.set(parts.shift(), parts.join("="));
+		}
+		return m;
 	}
 
 	@:deprecated("Use programPath instead") public static function executablePath() : String {
-		return lua.lib.luv.Misc.exepath();
+		return Misc.exepath();
 	}
 
 	public inline static function programPath() : String {
@@ -92,16 +100,17 @@ class Sys {
 	}
 
 	public inline static function getCwd() : String
-		return lua.lib.luv.Misc.cwd();
+		return Misc.cwd();
 
 	public inline static function setCwd(s : String) : Void
-		lua.lib.luv.Misc.chdir(s);
+		Misc.chdir(s);
 
 	public inline static function getEnv(s : String) : String {
-		return lua.Os.getenv(s);
+		return Misc.os_getenv(s);
 	}
+
 	public inline static function putEnv(s : String, v : String ) : Void {
-		lua.lib.environ.Environ.setenv(s,v);
+		Misc.os_setenv(s,v);
 	}
 
 	public inline static function setTimeLocale(loc : String) : Bool  {
