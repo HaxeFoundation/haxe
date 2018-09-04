@@ -110,6 +110,7 @@ class TestMain {
 			#end
 			new TestMapComprehension(),
 			new TestMacro(),
+			new TestKeyValueIterator(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end
