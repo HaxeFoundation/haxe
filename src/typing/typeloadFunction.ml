@@ -28,18 +28,13 @@ open DisplayException
 open Common
 open Error
 
-let type_function_arg ctx t eo opt p =
-	if not opt then begin match eo with
-		| Some (EConst(Ident "null"),_) -> ctx.t.tnull t,eo
-		| _ -> t,eo
-	end else begin
-		let t,eo = match eo with
-		| Some (EConst(Ident "null"),_) -> ctx.t.tnull t,eo
-		| Some _ -> t,eo
-		| None -> ctx.t.tnull t,Some (EConst(Ident "null"),null_pos)
-		in
-		t, eo
-	end
+let type_function_arg ctx t e opt p =
+	if opt then
+		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
+		ctx.t.tnull t, e
+	else
+		let t = match e with Some (EConst (Ident "null"),null_pos) -> ctx.t.tnull t | _ -> t in
+		t, e
 
 let save_field_state ctx =
 	let old_ret = ctx.ret in

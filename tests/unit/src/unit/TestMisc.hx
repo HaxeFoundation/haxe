@@ -377,7 +377,7 @@ class TestMisc extends Test {
 		eq( opt2().x, 5 );
 		eq( opt2().y, "hello" );
 
-		#if !(flash || cpp || cs || java || hl)
+		#if !(flash || cpp || cs || java)
 		eq( opt2(null, null).x, 5 );
 		#end
 		eq( opt2(0, null).y, "hello" );
@@ -415,7 +415,7 @@ class TestMisc extends Test {
 		// var opt4c : ?Null<Int> -> Null<Int> = opt4;
 		// var opt4c : ?Int -> Int = opt4;
 
-		var opt5 = function(a:Int, ?b:Null<Int> = 2) return a + b;
+		var opt5 = function(a:Int, ?b = 2) return a + b;
 		eq(3, opt5(1));
 		eq(3, opt5(1, 2));
 		eq(3, opt5(1, null));
