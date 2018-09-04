@@ -412,11 +412,11 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
-	let meta = match is_final with
+	let acc = match is_final with
 		| None | Some true when not force_check ->
-			(Meta.Final,[],p) :: meta
+			(AFinal,null_pos) :: acc
 		| _ ->
-			meta
+			acc
 	in
 	let meta = if is_explicit_impl then
 			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
@@ -725,7 +725,8 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 
 		let is_interface = ref false in
 		List.iter (fun f -> match f with
-			| SSealed -> meta := (Meta.Final, [], p) :: !meta
+			| SSealed ->
+				flags := HFinal :: !flags
 			| SInterface ->
 				is_interface := true;
 				flags := HInterface :: !flags

@@ -967,9 +967,6 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
-let final m =
-	if Meta.has Meta.Final m then " final " else ""
-
 let generate_field ctx static f =
 	newline ctx;
 	ctx.in_static <- static;
@@ -1006,7 +1003,7 @@ let generate_field ctx static f =
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s%s " rights (if static then "" else final f.cf_meta);
+		print ctx "%s%s " rights (if static || not f.cf_final then "" else " final ");
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -1099,7 +1096,7 @@ let generate_class ctx c =
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_params;
 	let pack = open_block ctx in
-	print ctx "\tpublic %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
+	print ctx "\tpublic %s%s%s %s " (if c.cl_final then " final " else "") (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));

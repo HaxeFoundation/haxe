@@ -201,6 +201,16 @@ typedef ClassField = {
 	var isPublic : Bool;
 
 	/**
+		Whether or not the class field is extern.
+	**/
+	var isExtern : Bool;
+
+	/**
+		Whether or not the class field is final.
+	**/
+	var isFinal : Bool;
+
+	/**
 		The type parameters of the class field.
 	**/
 	var params : Array<TypeParameter>;
@@ -403,6 +413,11 @@ typedef ClassType = BaseType & {
 		If true the type is an interface, otherwise it is a class.
 	**/
 	var isInterface : Bool;
+
+	/**
+		If true the class is final and cannot be extended.
+	**/
+	var isFinal : Bool;
 
 	/**
 		The parent class and its type parameters, if available.

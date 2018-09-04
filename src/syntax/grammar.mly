@@ -389,8 +389,9 @@ and parse_class_field_resume tdecl s =
 		if resume tdecl true s then parse_class_field_resume tdecl s else []
 
 and parse_common_flags = parser
-	| [< '(Kwd Private,_); l = parse_common_flags >] -> DPrivate :: l
-	| [< '(Kwd Extern,_); l = parse_common_flags >] -> DExtern :: l
+	| [< '(Kwd Private,p); l = parse_common_flags >] -> (DPrivate,p) :: l
+	| [< '(Kwd Extern,p); l = parse_common_flags >] -> (DExtern,p) :: l
+	| [< '(Kwd Final,p); l = parse_common_flags >] -> (DFinal,p) :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =

@@ -190,6 +190,7 @@ and tclass_field = {
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
+	mutable cf_final : bool;
 }
 
 and tclass_kind =
@@ -227,6 +228,7 @@ and tclass = {
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
+	mutable cl_final : bool;
 	mutable cl_interface : bool;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
@@ -422,6 +424,7 @@ let mk_class m path pos name_pos =
 		cl_private = false;
 		cl_kind = KNormal;
 		cl_extern = false;
+		cl_final = false;
 		cl_interface = false;
 		cl_params = [];
 		cl_super = None;
@@ -477,6 +480,7 @@ let mk_field name t p name_pos = {
 	cf_params = [];
 	cf_overloads = [];
 	cf_extern = false;
+	cf_final = false;
 }
 
 let null_module = {
@@ -1422,6 +1426,7 @@ module Printer = struct
 			"cl_params",s_type_params c.cl_params;
 			"cl_kind",s_class_kind c.cl_kind;
 			"cl_extern",string_of_bool c.cl_extern;
+			"cl_final",string_of_bool c.cl_final;
 			"cl_interface",string_of_bool c.cl_interface;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
@@ -1555,6 +1560,7 @@ module Printer = struct
 		| HPrivate -> "HPrivate"
 		| HExtends tp -> "HExtends " ^ (s_type_path (fst tp))
 		| HImplements tp -> "HImplements " ^ (s_type_path (fst tp))
+		| HFinal -> "HFinal"
 
 	let s_placed f (x,p) =
 		s_pair (f x) (s_pos p)

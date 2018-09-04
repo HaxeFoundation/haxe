@@ -263,7 +263,7 @@ let convert_java_enum ctx p pe =
 				cff_access := (APrivate,null_pos) :: !cff_access
 			| JStatic -> cff_access := (AStatic,null_pos) :: !cff_access
 			| JFinal ->
-				cff_meta := (Meta.Final, [], p) :: !cff_meta;
+				cff_access := (AFinal, p) :: !cff_access;
 				(match field.jf_kind, field.jf_vmsignature, field.jf_constant with
 				| JKField, TObject _, _ ->
 					jf_constant := None
@@ -414,7 +414,7 @@ let convert_java_enum ctx p pe =
 
 			let is_interface = ref false in
 			List.iter (fun f -> match f with
-				| JFinal -> meta := (Meta.Final, [], p) :: !meta
+				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags

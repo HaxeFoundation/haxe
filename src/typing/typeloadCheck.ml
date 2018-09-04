@@ -154,7 +154,7 @@ let check_overriding ctx c f =
 				() (* allow to redefine a method as inlined *)
 			| _ ->
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
+			if f2.cf_final then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
 				valid_redefinition ctx f f.cf_type f2 t
@@ -365,10 +365,11 @@ module Inheritance = struct
 		let process_meta csup =
 			List.iter (fun m ->
 				match m with
-				| Meta.Final, _, _ -> if not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then error ("Cannot extend a final " ^ if c.cl_interface then "interface" else "class") p;
 				| Meta.AutoBuild, el, p -> c.cl_meta <- (Meta.Build,el,{ c.cl_pos with pmax = c.cl_pos.pmin }(* prevent display metadata *)) :: m :: c.cl_meta
 				| _ -> ()
-			) csup.cl_meta
+			) csup.cl_meta;
+			if csup.cl_final && not (Meta.has Meta.Hack c.cl_meta || (match c.cl_kind with KTypeParameter _ -> true | _ -> false)) then
+				error ("Cannot extend a final " ^ if c.cl_interface then "interface" else "class") p;
 		in
 		let check_cancel_build csup =
 			match csup.cl_build() with
@@ -464,7 +465,7 @@ module Inheritance = struct
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
 							is_extends && not c.cl_interface && CompletionModuleType.get_path cm <> c.cl_path &&
-							(not (Meta.has Meta.Final cm.meta) || Meta.has Meta.Hack c.cl_meta) &&
+							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
 					) l in
@@ -481,7 +482,7 @@ end
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
 	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when Meta.has Meta.Final cf.cf_meta && cf.cf_expr = None ->
+		| Var _ when cf.cf_final && cf.cf_expr = None ->
 			Hashtbl.add final_vars cf.cf_name cf
 		| _ ->
 			()

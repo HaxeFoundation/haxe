@@ -264,6 +264,7 @@ type class_flag =
 	| HPrivate
 	| HExtends of placed_type_path
 	| HImplements of placed_type_path
+	| HFinal
 
 type abstract_flag =
 	| AbPrivate
