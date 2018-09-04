@@ -465,7 +465,7 @@ module Inheritance = struct
 						| ITType({kind = Interface} as cm,_) -> (not is_extends || c.cl_interface) && CompletionModuleType.get_path cm <> c.cl_path
 						| ITType({kind = Class} as cm,_) ->
 							is_extends && not c.cl_interface && CompletionModuleType.get_path cm <> c.cl_path &&
-							(not c.cl_final || Meta.has Meta.Hack c.cl_meta) &&
+							(not cm.is_final || Meta.has Meta.Hack c.cl_meta) &&
 							(not (is_basic_class_path (cm.pack,cm.name)) || (c.cl_extern && cm.is_extern))
 						| _ -> false
 					) l in
