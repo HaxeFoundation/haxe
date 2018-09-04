@@ -176,7 +176,7 @@ and parse_type_decl s =
 					d_data = l
 				}, punion p1 p2)
 			end
-		| [< n , p1 = parse_class_flags false; name = type_name; tl = parse_constraint_params >] ->
+		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
 				let check_display p0 p1 =
 					if not had_display && !in_display_file && encloses_display_position p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
@@ -226,7 +226,7 @@ and parse_type_decl s =
 and parse_class doc meta cflags need_name s =
 	let opt_name = if need_name then type_name else (fun s -> match popt type_name s with None -> "",null_pos | Some n -> n) in
 	match s with parser
-	| [< n , p1 = parse_class_flags false; name = opt_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
+	| [< n , p1 = parse_class_flags; name = opt_name; tl = parse_constraint_params; hl = plist parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields (not need_name) p1 >] ->
 		(EClass {
 			d_name = name;
 			d_doc = doc;
@@ -389,8 +389,9 @@ and parse_class_field_resume tdecl s =
 		if resume tdecl true s then parse_class_field_resume tdecl s else []
 
 and parse_common_flags = parser
-	| [< '(Kwd Private,_); l = parse_common_flags >] -> DPrivate :: l
-	| [< '(Kwd Extern,_); l = parse_common_flags >] -> DExtern :: l
+	| [< '(Kwd Private,p); l = parse_common_flags >] -> (DPrivate,p) :: l
+	| [< '(Kwd Extern,p); l = parse_common_flags >] -> (DExtern,p) :: l
+	| [< '(Kwd Final,p); l = parse_common_flags >] -> (DFinal,p) :: l
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
@@ -444,10 +445,9 @@ and parse_meta_name p1 = parser
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
 
-and parse_class_flags had_final = parser
-	| [< '(Kwd Class,p) >] -> (if had_final then [HFinal] else []) , p
-	| [< '(Kwd Interface,p) >] -> HInterface :: (if had_final then [HFinal] else []) , p
-	| [< '(Kwd Final,p) when not had_final; s >] -> parse_class_flags true s
+and parse_class_flags = parser
+	| [< '(Kwd Class,p) >] -> [] , p
+	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
 and parse_complex_type_at p = parser
 	| [< t = parse_complex_type >] -> t
