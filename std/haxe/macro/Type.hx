@@ -201,6 +201,11 @@ typedef ClassField = {
 	var isPublic : Bool;
 
 	/**
+		Whether or not the class field is extern.
+	**/
+	var isExtern : Bool;
+
+	/**
 		Whether or not the class field is final.
 	**/
 	var isFinal : Bool;
