@@ -453,8 +453,8 @@ let create_field_context (ctx,cctx) c cff =
 		match m with
 		| Meta.Final ->
 			is_final := true;
-			if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
-				ctx.com.warning "`@:final` is deprecated in favor of `final`" p;
+			(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+				ctx.com.warning "`@:final` is deprecated in favor of `final`" p; *)
 		| Meta.Extern ->
 			(* if not (Define.is_haxe3_compat ctx.com.defines) then
 				ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
