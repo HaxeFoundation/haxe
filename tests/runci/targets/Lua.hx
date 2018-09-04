@@ -25,7 +25,7 @@ class Lua {
 
 	static function installLib(lib : String, version : String, server = "https://luarocks.org/dev"){
 		var server_arg = '--server=$server';
-		if (!commandSucceed("luarocks", ["show", lib])) {
+		if (!commandSucceed("luarocks", ["show", lib, version])) {
 			runCommand("luarocks", ["install",lib, version, server_arg]);
 		}
 	}
