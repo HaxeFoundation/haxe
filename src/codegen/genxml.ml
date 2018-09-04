@@ -172,7 +172,7 @@ and gen_field att f =
 			cf.cf_name
 	in
 	let att = if f.cf_public then ("public","1") :: att else att in
-	let att = if (Meta.has Meta.Final) f.cf_meta then ("final","1") :: att else att in
+	let att = if f.cf_final then ("final","1") :: att else att in
 	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =

@@ -1906,10 +1906,10 @@ let generate con =
 			let fn_is_final = function
 				| None -> true
 				| Some ({ cf_kind = Method mkind } as m) ->
-					(match mkind with | MethInline -> true | _ -> false) || Meta.has Meta.Final m.cf_meta
+					(match mkind with | MethInline -> true | _ -> false) || m.cf_final
 				| _ -> assert false
 			in
-			let is_virtual = not (is_interface || is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
+			let is_virtual = not (is_interface || is_final || prop.cf_final || fn_is_final get || fn_is_final set) in
 
 			let fn_is_override = function
 				| Some cf -> List.memq cf cl.cl_overrides
@@ -2044,7 +2044,7 @@ let generate con =
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
-						gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+						gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 					) cf.cf_overloads
 				| Var _ | Method MethDynamic -> ()
 				| Method _ when is_new && Meta.has Meta.Struct cl.cl_meta && fst (get_fun cf.cf_type) = [] ->
@@ -2064,15 +2064,15 @@ let generate con =
 							| _ -> ());
 						List.iter (fun cf ->
 							if cl.cl_interface || cf.cf_expr <> None then
-								gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+								gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 						) cf.cf_overloads;
 				| Method mkind ->
 					List.iter (fun cf ->
 						if cl.cl_interface || cf.cf_expr <> None then
-							gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+							gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 					) cf.cf_overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
-					let is_virtual = if not is_virtual || Meta.has Meta.Final cf.cf_meta then false else is_virtual in
+					let is_virtual = if not is_virtual || cf.cf_final then false else is_virtual in
 					let is_override = List.memq cf cl.cl_overrides in
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
 						| "Equals", TFun([_,_,targ], tret) ->

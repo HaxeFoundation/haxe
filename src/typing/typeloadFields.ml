@@ -447,16 +447,23 @@ let create_field_context (ctx,cctx) c cff =
 	} in
 	let display_modifier = Typeload.check_field_access ctx cff in
 	let is_static = List.mem_assoc AStatic cff.cff_access in
-	let is_extern = List.mem_assoc AExtern cff.cff_access in
-	let is_extern = if Meta.has Meta.Extern cff.cff_meta then begin
-		(* if not (Define.is_haxe3_compat ctx.com.defines) then
-			ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
-		true
-	end else
-		is_extern
-	in
+	let is_extern = ref (List.mem_assoc AExtern cff.cff_access) in
+	let is_final = ref (List.mem_assoc AFinal cff.cff_access) in
+	List.iter (fun (m,_,p) ->
+		match m with
+		| Meta.Final ->
+			is_final := true;
+			if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+				ctx.com.warning "`@:final` is deprecated in favor of `final`" p;
+		| Meta.Extern ->
+			(* if not (Define.is_haxe3_compat ctx.com.defines) then
+				ctx.com.warning "`@:extern` on fields is deprecated in favor of `extern`" (pos cff.cff_name); *)
+			is_extern := true;
+		| _ ->
+			()
+	) cff.cff_meta;
 	let allow_inline = cctx.abstract <> None || match cff.cff_kind with
-		| FFun _ -> ctx.g.doinline || is_extern || c.cl_extern
+		| FFun _ -> ctx.g.doinline || !is_extern || c.cl_extern
 		| _ -> true
 	in
 	let is_inline = allow_inline && List.mem_assoc AInline cff.cff_access in
@@ -472,8 +479,8 @@ let create_field_context (ctx,cctx) c cff =
 		is_static = is_static;
 		override = override;
 		is_macro = is_macro;
-		is_extern = is_extern;
-		is_final = List.mem_assoc AFinal cff.cff_access;
+		is_extern = !is_extern;
+		is_final = !is_final;
 		is_display_field = ctx.is_display_file && DisplayPosition.encloses_display_position cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
@@ -780,10 +787,11 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 	let cf = {
 		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
-		cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
+		cf_meta = f.cff_meta;
 		cf_kind = Var kind;
 		cf_public = is_public (ctx,cctx) f.cff_access None;
 		cf_extern = fctx.is_extern;
+		cf_final = fctx.is_final;
 	} in
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
@@ -998,11 +1006,12 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let cf = {
 		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
-		cf_meta = (if fctx.is_final && not (Meta.has Meta.Final f.cff_meta) then (Meta.Final,[],null_pos) :: f.cff_meta else f.cff_meta);
+		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
 		cf_public = is_public (ctx,cctx) f.cff_access parent;
 		cf_params = params;
 		cf_extern = fctx.is_extern;
+		cf_final = fctx.is_final;
 	} in
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)

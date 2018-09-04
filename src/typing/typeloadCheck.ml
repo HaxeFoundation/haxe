@@ -154,7 +154,7 @@ let check_overriding ctx c f =
 				() (* allow to redefine a method as inlined *)
 			| _ ->
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if has_meta Meta.Final f2.cf_meta then display_error ctx ("Cannot override final method " ^ i) p;
+			if f2.cf_final then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
 				valid_redefinition ctx f f.cf_type f2 t
@@ -482,7 +482,7 @@ end
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
 	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when Meta.has Meta.Final cf.cf_meta && cf.cf_expr = None ->
+		| Var _ when cf.cf_final && cf.cf_expr = None ->
 			Hashtbl.add final_vars cf.cf_name cf
 		| _ ->
 			()

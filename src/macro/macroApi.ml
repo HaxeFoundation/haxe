@@ -982,6 +982,7 @@ and encode_cfield f =
 		"doc", null encode_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool f.cf_extern;
+		"isFinal", vbool f.cf_final;
 	]
 
 and encode_field_kind k =
@@ -1357,6 +1358,7 @@ let decode_cfield v =
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
 		cf_extern = decode_bool (field v "isExtern");
+		cf_final = decode_bool (field v "isFinal");
 	}
 
 let decode_efield v =

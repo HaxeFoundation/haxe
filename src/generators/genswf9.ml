@@ -1991,7 +1991,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || (Meta.has Meta.Final f.cf_meta);
+				hlm_final = stat || f.cf_final;
 				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})

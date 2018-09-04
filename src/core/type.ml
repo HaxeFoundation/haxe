@@ -190,6 +190,7 @@ and tclass_field = {
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
+	mutable cf_final : bool;
 }
 
 and tclass_kind =
@@ -479,6 +480,7 @@ let mk_field name t p name_pos = {
 	cf_params = [];
 	cf_overloads = [];
 	cf_extern = false;
+	cf_final = false;
 }
 
 let null_module = {

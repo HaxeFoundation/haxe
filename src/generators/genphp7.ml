@@ -3238,7 +3238,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if `field` should be declared as `final`
 		*)
 		method is_final_field (field:tclass_field) : bool =
-			Meta.has Meta.Final field.cf_meta
+			field.cf_final
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.

@@ -201,6 +201,11 @@ typedef ClassField = {
 	var isPublic : Bool;
 
 	/**
+		Whether or not the class field is final.
+	**/
+	var isFinal : Bool;
+
+	/**
 		The type parameters of the class field.
 	**/
 	var params : Array<TypeParameter>;
