@@ -66,6 +66,7 @@ module CompletionModuleType = struct
 		meta: metadata;
 		doc : documentation;
 		is_extern : bool;
+		is_final : bool;
 		kind : CompletionModuleKind.t;
 		has_constructor : not_bool;
 		source : module_type_source;
@@ -87,6 +88,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem HExtern d.d_flags;
+				is_final = List.mem HFinal d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				has_constructor = ctor;
 				source = Syntax td;
@@ -101,6 +103,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
+				is_final = false;
 				kind = Enum;
 				has_constructor = No;
 				source = Syntax td;
@@ -117,6 +120,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
+				is_final = false;
 				kind = kind;
 				has_constructor = if kind = Struct then No else Maybe;
 				source = Syntax td;
@@ -131,6 +135,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem AbExtern d.d_flags;
+				is_final = false;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
 				has_constructor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes else No;
 				source = Syntax td;
@@ -143,11 +148,11 @@ module CompletionModuleType = struct
 			| None -> false
 			| Some c -> PMap.mem "_new" c.cl_statics
 		in
-		let is_extern,kind,has_ctor = match mt with
+		let is_extern,is_final,kind,has_ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,(if c.cl_interface then Interface else Class),has_constructor c
+				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),has_constructor c
 			| TEnumDecl en ->
-				en.e_extern,Enum,false
+				en.e_extern,false,Enum,false
 			| TTypeDecl td ->
 				let kind,has_ctor = match follow td.t_type with
 					| TAnon _ -> Struct,false
@@ -155,9 +160,9 @@ module CompletionModuleType = struct
 					| TAbstract(a,_) -> TypeAlias,has_ctor a
 					| _ -> TypeAlias,false
 				in
-				false,kind,has_ctor
+				false,false,kind,has_ctor
 			| TAbstractDecl a ->
-				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
+				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
@@ -180,6 +185,7 @@ module CompletionModuleType = struct
 			meta = infos.mt_meta;
 			doc = infos.mt_doc;
 			is_extern = is_extern;
+			is_final = is_final;
 			kind = kind;
 			has_constructor = if has_ctor then Yes else No;
 			source = Typed mt;
@@ -238,7 +244,7 @@ end
 let decl_of_class c = match c.cl_kind with
 	| KAbstractImpl a -> TAbstractDecl a
 	| _ -> TClassDecl c
-	
+
 module CompletionClassField = struct
 	type t = {
 		field : tclass_field;
