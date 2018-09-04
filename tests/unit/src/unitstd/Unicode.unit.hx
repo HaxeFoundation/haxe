@@ -28,7 +28,7 @@ var s = String.fromCharCode(0x1f602);
 s == "😂";
 
 
-#if (php || lua)
+#if (php || lua || python)
 // native UTF-16 or 32
 s.length == 1;
 s.charCodeAt(0) == "😂".code;
@@ -53,7 +53,7 @@ a[1] == "あ";
 a.join('😂') == s;
 
 var a = s.split('');
-#if ( php || lua )
+#if ( php || lua || python )
 // native UTF-16 or 32
 a.length == 3;
 a[0] == "é";
@@ -98,7 +98,7 @@ str.toHex() == "c3a9e38182f09f9882";
 
 var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if (cpp || php || lua || eval)
+#if (cpp || php || lua || eval || python )
 bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
 bytes.toHex() == "e90042303dd802de"; // UTF-16 native
@@ -111,7 +111,7 @@ haxe.crypto.Sha1.encode("éあ😂") == "ec79856a75c98572210430aeb7fe6300b6c4e20
 #if php //utf-8
 haxe.crypto.Sha224.encode("éあ😂") == "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90";
 haxe.crypto.Sha256.encode("éあ😂") == "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676";
-#elseif lua
+#elseif (lua || python)
 null; // skip these until str2blk is updated
 #else //utf-16
 haxe.crypto.Sha224.encode("éあ😂") == "5132a98e08a503350384c765388a1a3b8b0b532f038eca94c881537e";
@@ -157,7 +157,9 @@ var s4 = s.substr(-1, 1);
 s1 == "e";
 s2 == "e";
 s3 == "e";
+#if !python
 s4 == "e";
+#end
 #if eval
 // We currently don't asciify anything we extract from UCS2 strings... not sure if this would
 // be worth it or not.
