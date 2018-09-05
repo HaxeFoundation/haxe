@@ -219,6 +219,39 @@ module Transformer = struct
 			e_set_field;
 		]) e_set_field.etype e_set_field.epos
 
+	let dynamic_field_inc_dec next_id e1 s unop unop_flag t p =
+		let is_post_fix = match unop_flag with
+		| Postfix -> true
+		| Prefix -> false
+		in
+		let op = match unop with
+		| Increment -> OpAdd
+		| Decrement -> OpSub
+		| _ -> assert false
+		in
+		let one = mk (TConst(TInt(Int32.of_int(1)))) t p in
+
+		let temp_var = to_tvar (next_id()) e1.etype e1.epos in
+		let temp_var_def = mk (TVar(temp_var,Some e1)) e1.etype e1.epos in
+		let temp_local = mk (TLocal temp_var) e1.etype e1.epos in
+
+		let e_field = dynamic_field_read temp_local s t in
+
+		let prior_val_var = to_tvar (next_id()) t p in
+		let prior_val_var_def = mk (TVar(prior_val_var, Some e_field )) t p in
+		let prior_val_local = mk (TLocal prior_val_var) t p in
+
+		let e_value = mk (TBinop(op, prior_val_local, one)) t e1.epos in
+		let e_ret = if is_post_fix then prior_val_local else e_value in
+
+		let e_set_field = dynamic_field_write temp_local s e_value in
+		mk (TBlock [
+			temp_var_def;
+			prior_val_var_def;
+			e_set_field;
+			e_ret;
+		]) e_set_field.etype e_set_field.epos
+
 	let add_non_locals_to_func e = match e.eexpr with
 		| TFunction tf ->
 			let cur = ref PMap.empty in
@@ -816,15 +849,13 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf); etype = t},e2)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 t in
 			transform_expr ~is_value:is_value e
-		(* TODO we need to deal with Increment, Decrement too!
 
-		| (_, TUnop( (Increment | Decrement) as unop, op,{eexpr = TField(e1,FAnon cf)})) when Meta.has Meta.Optional cf.cf_meta  ->
-			let  = dynamic_field_read e cf.cf_name in
-
-			let e = dynamic_field_read_write_unop ae.a_next_id e1 cf.cf_name unop op in
-			Printf.printf "dyn read write\n";
-			transform_expr e
-		*)
+		| (is_value, TUnop( (Increment | Decrement) as unop, unop_flag,{eexpr = TField(e1, FAnon cf); etype = t; epos = p})) when Meta.has Meta.Optional cf.cf_meta  ->
+			let e = dynamic_field_inc_dec ae.a_next_id e1 cf.cf_name unop unop_flag t p in
+			transform_expr ~is_value:is_value e
+		| (is_value, TUnop( (Increment | Decrement) as unop, unop_flag,{eexpr = TField(e1, FDynamic field_name); etype = t; epos = p})) ->
+			let e = dynamic_field_inc_dec ae.a_next_id e1 field_name unop unop_flag t p in
+			transform_expr ~is_value:is_value e
 		(*
 			anon field access with non optional members like iterator, length, split must be handled too, we need to Reflect on them too when it's a runtime method
 		*)
@@ -1263,6 +1294,10 @@ module Printer = struct
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| x, _ when is_underlying_array x ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
+				| TInst({ cl_kind = KTypeParameter(_) }, _), _ ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| _, TInst({ cl_kind = KTypeParameter(_) }, _) ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| TDynamic _, x when is_list_or_anon x ->
