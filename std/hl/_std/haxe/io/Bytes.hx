@@ -122,9 +122,10 @@ class Bytes {
 	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( outRange(pos,len) ) throw Error.OutsideBounds;
 
-		var b = new hl.Bytes(len + 1);
+		var b = new hl.Bytes(len + 2);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
+		b[len+1] = 0;
 		return @:privateAccess (encoding == RawNative ? String.fromUCS2(b) : String.fromUTF8(b));
 	}
 
