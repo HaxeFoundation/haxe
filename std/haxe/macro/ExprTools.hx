@@ -173,7 +173,7 @@ class ExprTools {
 			case EVars(vars):
 				var ret = [];
 				for (v in vars)
-					ret.push( { name: v.name, type:v.type, expr: opt(v.expr, f) } );
+					ret.push( { name: v.name, type:v.type, expr: opt(v.expr, f), isFinal: v.isFinal } );
 				EVars(ret);
 			case EBlock(el): EBlock(ExprArrayTools.map(el, f));
 			case EFor(it, expr): EFor(f(it), f(expr));

@@ -271,10 +271,11 @@ let reify in_macro =
 			) [] p in
 			expr "EUnop" [op;to_bool (flag = Postfix) p;loop e]
 		| EVars vl ->
-			expr "EVars" [to_array (fun ((n,pn),th,e) p ->
+			expr "EVars" [to_array (fun ((n,pn),final,th,e) p ->
 				let fields = [
 					(* "name", to_obj ["name",to_string n pn;"pos",to_pos pn] p; *)
 					"name", to_string n pn;
+					"isFinal",to_bool final p;
 					"type", to_opt to_type_hint th p;
 					"expr", to_opt to_expr e p;
 				] in

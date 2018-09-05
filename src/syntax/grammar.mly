@@ -975,7 +975,7 @@ and parse_array_decl p1 s =
 	EArrayDecl (List.rev el),punion p1 p2
 
 and parse_var_decl_head = parser
-	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (name,t,p)
+	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (name,false,t,p)
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
@@ -985,27 +985,27 @@ and parse_var_assignment = parser
 and parse_var_assignment_resume vl name pn t s =
 	try
 		let eo = parse_var_assignment s in
-		((name,pn),t,eo)
+		((name,pn),false,t,eo)
 	with Display e ->
-		let v = ((name,pn),t,Some e) in
+		let v = ((name,pn),false,t,Some e) in
 		let e = (EVars(List.rev (v :: vl)),punion pn (pos e)) in
 		display e
 
 and parse_var_decls_next vl = parser
-	| [< '(Comma,p1); name,t,pn = parse_var_decl_head; s >] ->
+	| [< '(Comma,p1); name,final,t,pn = parse_var_decl_head; s >] ->
 		let v_decl = parse_var_assignment_resume vl name pn t s in
 		parse_var_decls_next (v_decl :: vl) s
 	| [< >] ->
 		vl
 
 and parse_var_decls p1 = parser
-	| [< name,t,pn = parse_var_decl_head; s >] ->
+	| [< name,final,t,pn = parse_var_decl_head; s >] ->
 		let v_decl = parse_var_assignment_resume [] name pn t s in
 		List.rev (parse_var_decls_next [v_decl] s)
 	| [< s >] -> error (Custom "Missing variable identifier") p1
 
 and parse_var_decl = parser
-	| [< name,t,pn = parse_var_decl_head; v_decl = parse_var_assignment_resume [] name pn t >] -> v_decl
+	| [< name,final,t,pn = parse_var_decl_head; v_decl = parse_var_assignment_resume [] name pn t >] -> v_decl
 
 and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
@@ -1270,7 +1270,7 @@ and parse_guard = parser
 		e
 
 and expr_or_var = parser
-	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),None,None],punion p1 p2
+	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),false,None,None],punion p1 p2
 	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser

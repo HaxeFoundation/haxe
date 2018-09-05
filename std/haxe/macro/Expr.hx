@@ -313,6 +313,11 @@ typedef Var = {
 		The expression of the variable, if available.
 	**/
 	var expr : Null<Expr>;
+
+	/**
+		Whether or not the variable can be assigned to.
+	**/
+	var ?isFinal : Bool;
 }
 
 /**

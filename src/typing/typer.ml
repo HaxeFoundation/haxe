@@ -1470,7 +1470,7 @@ and type_array_access ctx e1 e2 p mode =
 		AKExpr (mk (TArray (e1,e2)) pt p)
 
 and type_vars ctx vl p =
-	let vl = List.map (fun ((v,pv),t,e) ->
+	let vl = List.map (fun ((v,pv),final,t,e) ->
 		try
 			let t = Typeload.load_type_hint ctx p t in
 			let e = (match e with

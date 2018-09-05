@@ -55,7 +55,7 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
-					| ((s,pn),tho,eo) as v :: vl ->
+					| ((s,pn),final,tho,eo) as v :: vl ->
 						if mark then
 							loop2 (v :: acc) mark vl
 						else if is_annotated pn then
@@ -79,7 +79,7 @@ module ExprPreprocessing = struct
 								in
 								let p = {p0 with pmax = (pos e).pmin} in
 								let e = if is_annotated p then annotate_marked e else e in
-								loop2 (((s,pn),tho,(Some e)) :: acc) mark vl
+								loop2 (((s,pn),final,tho,(Some e)) :: acc) mark vl
 						end
 					| [] ->
 						List.rev acc,mark

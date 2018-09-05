@@ -513,10 +513,11 @@ and encode_expr e =
 			| EUnop (op,flag,e) ->
 				9, [encode_unop op; vbool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
-				10, [encode_array (List.map (fun (v,t,eo) ->
+				10, [encode_array (List.map (fun (v,final,t,eo) ->
 					encode_obj OVar [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
+						"isFinal",vbool final;
 						"type",null encode_ctype t;
 						"expr",null loop eo;
 					]
@@ -816,7 +817,9 @@ and decode_expr v =
 			EUnop (decode_unop op,(if decode_bool f then Postfix else Prefix),loop e)
 		| 10, [vl] ->
 			EVars (List.map (fun v ->
-				((decode_placed_name (field v "name_pos") (field v "name")),opt decode_ctype (field v "type"),opt loop (field v "expr"))
+				let vfinal = field v "isFinal" in
+				let final = if vfinal == vnull then false else decode_bool vfinal in
+				((decode_placed_name (field v "name_pos") (field v "name")),final,opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (decode_array vl))
 		| 11, [fname;f] ->
 			EFunction (opt (fun v -> decode_string v,Globals.null_pos) fname,decode_fun f)
