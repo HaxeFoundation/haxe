@@ -2800,7 +2800,7 @@ and eval_expr ctx e =
 				[]
 			| (v,ec) :: next ->
 				let rv = alloc_var ctx v true in
-				let jnext = if v.v_type == t_dynamic then begin
+				let jnext = if follow v.v_type == t_dynamic then begin
 					op ctx (OMov (rv, rtrap));
 					(fun() -> ())
 				end else
@@ -2821,7 +2821,7 @@ and eval_expr ctx e =
 				in
 				let r = eval_expr ctx ec in
 				if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret ec.epos));
-				if v.v_type == t_dynamic then [] else
+				if follow v.v_type == t_dynamic then [] else
 				let jend = jump ctx (fun n -> OJAlways n) in
 				jnext();
 				jend :: loop next
