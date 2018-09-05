@@ -35,9 +35,13 @@ s.charCodeAt(0) == "😂".code;
 #else
 // UTF-16 surrogate pairs encoding
 s.length == 2;
-s.charCodeAt(0) == 55357;
-s.charCodeAt(1) == 56834;
+s.charCodeAt(0) == 0xD83D;
+s.charCodeAt(1) == 0xDE02;
 #end
+
+"\u00E9\u3042" == "éあ";
+// "\uD83D\uDE02" == "😂" // gives Invalid Unicode char, that's correct
+// maybe later we can add support for \U******** for out of BMP escape sequence
 
 var s = "é" + "あ";
 s == "éあ";
