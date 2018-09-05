@@ -484,7 +484,7 @@ let init_platform com pf =
 	com.config <- get_config com;
 	if com.config.pf_static then define com Define.Static;
 	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
-	if com.config.pf_utf16 then define com Define.Utf16;
+	if com.config.pf_uses_utf16 then define com Define.Utf16;
 	raw_define com name
 
 let add_feature com f =
