@@ -96,15 +96,15 @@ str.toHex() == "c3a9e38182f09f9882";
 ["é", "e"].join("é") == "éée";
 ["é", "e"].join("e") == "éee";
 
-var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
+var rawBytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
 #if !utf16
-bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
+rawBytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
-bytes.toHex() == "e90042303dd802de"; // UTF-16 native
+rawBytes.toHex() == "e90042303dd802de"; // UTF-16 native
 #end
 
-bytes.getString(0,bytes.length,RawNative) == "éあ😂";
+rawBytes.getString(0,rawBytes.length,RawNative) == "éあ😂";
 
 haxe.crypto.Md5.encode("éあ😂") == "d30b209e81e40d03dd474b26b77a8a18";
 haxe.crypto.Sha1.encode("éあ😂") == "ec79856a75c98572210430aeb7fe6300b6c4e20c";
@@ -121,6 +121,7 @@ bytes.getString(2,3) == "あ";
 bytes.getString(5,4) == "😂";
 bytes.getString(2,7) == "あ😂";
 bytes.getString(9,bytes.length - 9,RawNative) == "éあ😂";
+bytes.sub(9,bytes.length - 9).compare(rawBytes) == 0;
 
 var o = new haxe.io.BytesOutput();
 o.writeString("éあ😂");
