@@ -131,7 +131,7 @@ extern class Builtins {
 	//public static function classmethod():Void;
 
 	public static function map<A,B>(fn:A->B, it:NativeIterable<A>):NativeIterator<B>;
-	//public static function repr():Void;
+	public static function repr(o:Dynamic):String;
 	//public static function xrange():Void;
 	//public static function cmp():Void;
 	//public static function globals():Void;
