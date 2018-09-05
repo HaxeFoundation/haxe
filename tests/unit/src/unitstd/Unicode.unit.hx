@@ -157,9 +157,7 @@ var s4 = s.substr(-1, 1);
 s1 == "e";
 s2 == "e";
 s3 == "e";
-#if !python
 s4 == "e";
-#end
 #if eval
 // We currently don't asciify anything we extract from UCS2 strings... not sure if this would
 // be worth it or not.

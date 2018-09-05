@@ -114,6 +114,10 @@ class StringImpl {
 			return Syntax.arrayAccessWithTrailingColon(s, startIndex);
 		} else {
 			if (len == 0) return "";
+			if (startIndex < 0) {
+				startIndex = s.length + startIndex;
+				if (startIndex < 0) startIndex = 0;
+			}
 			return Syntax.arrayAccess(s, startIndex, startIndex+len);
 		}
 
