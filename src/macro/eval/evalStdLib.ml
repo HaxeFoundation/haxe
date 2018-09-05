@@ -264,6 +264,10 @@ module StdBytes = struct
 		encode_bytes (Bytes.make length (Char.chr 0))
 	)
 
+	let encode_native v = match v with
+		| VEnumValue {eindex = 1} -> true (* haxe.io.Encoding.RawNative *)
+		| _ -> false
+
 	let blit = vifun4 (fun vthis pos src srcpos len ->
 		let s = this vthis in
 		let pos = decode_int pos in
@@ -331,7 +335,10 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		bytes_to_utf8 s
+		if encode_native encoding then
+			vstring (create_ucs2 (Bytes.unsafe_to_string s) len)
+		else
+			bytes_to_utf8 s
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -342,7 +349,7 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if s.sascii then
+		if s.sascii || encode_native encoding then
 			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
 		else begin
 			let s = utf16_to_utf8 (Lazy.force s.sstring) in
