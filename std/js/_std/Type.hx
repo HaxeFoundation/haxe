@@ -135,7 +135,7 @@ enum ValueType {
 	}
 
 	public static inline function createEmptyInstance<T>( cl : Class<T> ) : T {
-		return js.Object.create((cast cl).prototype);
+		return js.lib.Object.create((cast cl).prototype);
 	}
 	#end
 

@@ -22,32 +22,6 @@
 
 package js;
 
-import haxe.extern.EitherType;
-
-@:native("Promise")
-extern class Promise<T>
-{
-	@:overload(function<T>(promise : Promise<T>) : Promise<T> {})
-	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
-	static function resolve<T>( ?value : T ) : Promise<T>;
-
-	static function reject<T>( ?reason : Dynamic ) : Promise<T>;
-
-	static function all( iterable : Array<Dynamic> ) : Promise<Array<Dynamic>>;
-
-	static function race( iterable : Array<Dynamic> ) : Promise<Dynamic>;
-
-	/** @throws DOMError */
-	function new( init : (resolve : (value : T) -> Void, reject: (reason : Dynamic) -> Void) -> Void ) : Void;
-
-	function then<TOut>( fulfillCallback : Null<PromiseCallback<T, TOut>>, ?rejectCallback : EitherType<Dynamic -> Void, PromiseCallback<Dynamic, TOut>> ) : Promise<TOut>;
-
-	@:native("catch")
-	function catchError<TOut>( rejectCallback : EitherType<Dynamic -> Void, PromiseCallback<Dynamic, TOut>> ) : Promise<TOut>;
-}
-
-typedef PromiseCallback<T, TOut> = EitherType<T -> TOut, T -> Promise<TOut>>;
-
-typedef Thenable<T> = {
-	function then(resolve:T->Void, ?reject:Dynamic->Void):Void;
-}
+@:deprecated typedef Promise<T> = js.lib.Promise<T>;
+@:deprecated typedef PromiseCallback<T, TOut> = js.lib.Promise.PromiseCallback<T, TOut>;
+@:deprecated typedef Thenable<T> = js.lib.Promise.Thenable<T>;

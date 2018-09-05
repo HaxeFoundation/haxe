@@ -23,7 +23,7 @@
 
 	@:pure
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
-		return js.Object.prototype.hasOwnProperty.call(o, field);
+		return js.lib.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
 	@:pure
@@ -46,13 +46,13 @@
 	}
 
 	public inline static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
-		return (cast func : js.Function).apply(o,args);
+		return (cast func : js.lib.Function).apply(o,args);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {
 		var a = [];
 		if (o != null) untyped {
-			var hasOwnProperty = js.Object.prototype.hasOwnProperty;
+			var hasOwnProperty = js.lib.Object.prototype.hasOwnProperty;
 			__js__("for( var f in o ) {");
 			if( f != "__id__" && f != "hx__closures__" && hasOwnProperty.call(o, f) ) a.push(f);
 			__js__("}");

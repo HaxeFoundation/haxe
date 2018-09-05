@@ -37,9 +37,9 @@ enum StackItem {
 **/
 class CallStack {
 	#if js
-	static var lastException:js.Error;
+	static var lastException:js.lib.Error;
 
-	static function getStack(e:js.Error):Array<StackItem> {
+	static function getStack(e:js.lib.Error):Array<StackItem> {
 		if (e == null) return [];
 		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
 		var oldValue = (untyped Error).prepareStackTrace;
@@ -97,7 +97,7 @@ class CallStack {
 			return makeStack(s);
 		#elseif js
 			try {
-				throw new js.Error();
+				throw new js.lib.Error();
 			} catch( e : Dynamic ) {
 				var a = getStack(js.Lib.getOriginalException());
 				a.shift(); // remove Stack.callStack()

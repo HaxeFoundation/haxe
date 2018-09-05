@@ -1,12 +1,4 @@
 package js;
 
-// prefixed with Js to avoid name clashes with standard Iterator structure
-
-typedef JsIterator<T> = {
-	function next():JsIteratorStep<T>;
-}
-
-typedef JsIteratorStep<T> = {
-	done:Bool,
-	?value:T
-}
+@:deprecated typedef JsIterator<T> = js.lib.Iterator<T>;
+@:deprecated typedef JsIteratorStep<T> = js.lib.Iterator.JsIteratorStep<T>;

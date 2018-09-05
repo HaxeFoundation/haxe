@@ -19,7 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package js;
+package js.lib;
 
-@:deprecated typedef RegExp = js.lib.RegExp;
-@:deprecated typedef RegExpMatch = js.lib.RegExp.RegExpMatch;
+import js.lib.Iterator;
+
+@:native("Map")
+extern class Map<K,V> {
+	var size(default,null):Int;
+	@:pure function new(?iterable:Any);
+	@:pure function has(key:K):Bool;
+	@:pure function get(key:K):Null<V>;
+	function set(key:K, value:V):Map<K,V>;
+	function delete(key:K):Bool;
+	function clear():Void;
+	function forEach(callback:(value:V, key:K, map:Map<K,V>)->Void, ?thisArg:Any):Void;
+	function keys():Iterator<K>;
+	function values():Iterator<V>;
+	function entries():Iterator<MapEntry<K,V>>;
+}
+
+abstract MapEntry<K,V>(Array<Any>) {
+	public var key(get,never):K;
+	public var value(get,never):V;
+	inline function get_key():K return this[0];
+	inline function get_value():V return this[1];
+}
