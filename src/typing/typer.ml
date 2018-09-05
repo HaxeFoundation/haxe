@@ -35,6 +35,8 @@ open Calls
 
 let check_assign ctx e =
 	match e.eexpr with
+	| TLocal {v_kind = VUser (TVOLocalFinal | TVOPatternFinal)} ->
+		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
@@ -1481,7 +1483,7 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
+			let v = add_local_with_origin ctx (if final then TVOLocalFinal else TVOLocalVariable) v t pv in
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e

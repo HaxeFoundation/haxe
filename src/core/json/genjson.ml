@@ -277,6 +277,8 @@ and generate_tvar ctx v =
 		| TVOPatternVariable -> 3
 		| TVOCatchVariable -> 4
 		| TVOLocalFunction -> 5
+		| TVOLocalFinal -> 6
+		| TVOPatternFinal -> 7
 	in
 	let fields = match v.v_kind with
 			| VUser origin -> ("origin",jint (origin_to_int origin)) :: fields
