@@ -28,16 +28,20 @@ var s = String.fromCharCode(0x1f602);
 s == "😂";
 
 
-#if (php || lua || python)
+#if !utf16
 // native UTF-16 or 32
 s.length == 1;
 s.charCodeAt(0) == "😂".code;
 #else
 // UTF-16 surrogate pairs encoding
 s.length == 2;
-s.charCodeAt(0) == 55357;
-s.charCodeAt(1) == 56834;
+s.charCodeAt(0) == 0xD83D;
+s.charCodeAt(1) == 0xDE02;
 #end
+
+"\u00E9\u3042" == "éあ";
+// "\uD83D\uDE02" == "😂" // gives Invalid Unicode char, that's correct
+// maybe later we can add support for \U******** for out of BMP escape sequence
 
 var s = "é" + "あ";
 s == "éあ";
@@ -53,7 +57,7 @@ a[1] == "あ";
 a.join('😂') == s;
 
 var a = s.split('');
-#if ( php || lua || python )
+#if !utf16
 // native UTF-16 or 32
 a.length == 3;
 a[0] == "é";
@@ -96,27 +100,20 @@ str.toHex() == "c3a9e38182f09f9882";
 ["é", "e"].join("é") == "éée";
 ["é", "e"].join("e") == "éee";
 
-var bytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
+var rawBytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if (cpp || php || lua || eval || python )
-bytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
+#if !utf16
+rawBytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
-bytes.toHex() == "e90042303dd802de"; // UTF-16 native
+rawBytes.toHex() == "e90042303dd802de"; // UTF-16 native
 #end
 
-bytes.getString(0,bytes.length,RawNative) == "éあ😂";
+rawBytes.getString(0,rawBytes.length,RawNative) == "éあ😂";
 
 haxe.crypto.Md5.encode("éあ😂") == "d30b209e81e40d03dd474b26b77a8a18";
 haxe.crypto.Sha1.encode("éあ😂") == "ec79856a75c98572210430aeb7fe6300b6c4e20c";
-#if php //utf-8
-haxe.crypto.Sha224.encode("éあ😂") == "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90";
-haxe.crypto.Sha256.encode("éあ😂") == "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676";
-#elseif (lua || python)
-null; // skip these until str2blk is updated
-#else //utf-16
-haxe.crypto.Sha224.encode("éあ😂") == "5132a98e08a503350384c765388a1a3b8b0b532f038eca94c881537e";
-haxe.crypto.Sha256.encode("éあ😂") == "e662834bdc1a099b9f7b8d97975a1b1d9b6730c991268bba0e7fe7427e68be74";
-#end
+//haxe.crypto.Sha224.encode("éあ😂") == "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90";
+//haxe.crypto.Sha256.encode("éあ😂") == "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676";
 haxe.crypto.BaseCode.encode("éあ😂","0123456789abcdef") == "c3a9e38182f09f9882";
 
 var buf = new haxe.io.BytesBuffer();
@@ -128,6 +125,7 @@ bytes.getString(2,3) == "あ";
 bytes.getString(5,4) == "😂";
 bytes.getString(2,7) == "あ😂";
 bytes.getString(9,bytes.length - 9,RawNative) == "éあ😂";
+bytes.sub(9,bytes.length - 9).compare(rawBytes) == 0;
 
 var o = new haxe.io.BytesOutput();
 o.writeString("éあ😂");

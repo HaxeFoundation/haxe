@@ -466,8 +466,13 @@ module StdBytesBuffer = struct
 
 	let addString = vifun2 (fun vthis src encoding ->
 		let this = this vthis in
-		let src = decode_string src in
-		Buffer.add_string this src;
+		let src = decode_vstring src in
+		let s = if src.sascii || StdBytes.encode_native encoding then
+			Lazy.force src.sstring
+		else
+			utf16_to_utf8 (Lazy.force src.sstring)
+		in
+		Buffer.add_string this s;
 		vnull
 	)
 

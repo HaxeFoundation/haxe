@@ -96,6 +96,8 @@ type platform_config = {
 	pf_reserved_type_paths : path list;
 	(** supports function == function **)
 	pf_supports_function_equality : bool;
+	(** uses utf16 encoding with ucs2 api **)
+	pf_uses_utf16 : bool;
 }
 
 type compiler_callback = {
@@ -238,6 +240,7 @@ let default_config =
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
+		pf_uses_utf16 = true;
 	}
 
 let get_config com =
@@ -258,6 +261,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Neko ->
 		{
@@ -285,6 +289,7 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
+			pf_uses_utf16 = false;
 		}
 	| Cpp ->
 		{
@@ -312,6 +317,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Hl ->
 		{
@@ -478,6 +484,7 @@ let init_platform com pf =
 	com.config <- get_config com;
 	if com.config.pf_static then define com Define.Static;
 	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then define com Define.Utf16;
 	raw_define com name
 
 let add_feature com f =

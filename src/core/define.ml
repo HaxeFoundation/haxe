@@ -108,6 +108,7 @@ type strict_defined =
 	| Unsafe
 	| UseNekoc
 	| UseRttiDoc
+	| Utf16
 	| Vcproj
 	| WarnVarShadowing
 	| NoMacroCache
@@ -223,6 +224,7 @@ let infos = function
 	| Unsafe -> "unsafe",("Allow unsafe code when targeting C#",[Platform Cs])
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
 	| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
+	| Utf16 -> "utf16",("Defined for all platforms that have utf16 encoding with ucs2 api",[])
 	| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
 	| WarnVarShadowing -> "warn_var_shadowing",("Warn about shadowing variable declarations",[])
 	| Last -> assert false
