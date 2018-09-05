@@ -1,8 +1,8 @@
-package tests.unit.src.unit.issues;
+package unit.issues;
 
 private typedef Throwable = Dynamic;
 
-class Issue7389 {
+class Issue7389 extends unit.Test {
 	static function main () {
 		var x = try {
 			1;
