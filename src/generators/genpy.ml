@@ -1490,7 +1490,7 @@ module Printer = struct
 				do_default()
 
 	and print_try pctx e1 catches =
-		let has_catch_all = List.exists (fun (v,_) -> match v.v_type with
+		let has_catch_all = List.exists (fun (v,_) -> match follow v.v_type with
 			| TDynamic _ -> true
 			| _ -> false
 		) catches in
