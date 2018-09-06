@@ -121,8 +121,6 @@ let create com api is_macro =
 		toplevel = 	vobject {
 			ofields = [||];
 			oproto = fake_proto key_eval_toplevel;
-			oextra = IntMap.empty;
-			oremoved = IntMap.empty;
 		};
 		eval = eval;
 		exception_stack = [];

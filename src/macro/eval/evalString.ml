@@ -135,6 +135,7 @@ let utf16_to_utf8 s =
 		Buffer.add_char buf (Char.unsafe_chr i)
 	in
 	let b = Bytes.unsafe_of_string s in
+	let read_byte b i = try read_byte b i with _ -> 0 in
 	let get () =
 		let ch1 = read_byte b !i in
 		let ch2 = read_byte b (!i + 1) in

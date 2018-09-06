@@ -170,11 +170,9 @@ let rec kind_name ctx kind =
 let call_function f vl = f vl
 
 let object_fields o =
-	let fields = IntMap.fold (fun key vvalue acc -> (key,vvalue) :: acc) o.oextra [] in
 	IntMap.fold (fun key index acc ->
-		if IntMap.mem key o.oremoved then acc
-		else (key,(o.ofields.(index))) :: acc
-	) o.oproto.pinstance_names fields
+		(key,(o.ofields.(index))) :: acc
+	) o.oproto.pinstance_names []
 
 let instance_fields i =
 	IntMap.fold (fun name key acc ->

@@ -1399,6 +1399,7 @@ and type_access ctx e p mode =
 				if mode = MCall then error ("Cannot call constructor like this, use 'new " ^ (s_type_path c.cl_path) ^ "()' instead") p;
 				let monos = List.map (fun _ -> mk_mono()) (match c.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.cl_params) in
 				let ct, cf = get_constructor ctx c monos p in
+				check_constructor_access ctx c cf p;
 				let args = match follow ct with TFun(args,ret) -> args | _ -> assert false in
 				let vl = List.map (fun (n,_,t) -> alloc_var VGenerated n t c.cl_pos) args in
 				let vexpr v = mk (TLocal v) v.v_type p in
@@ -1626,11 +1627,11 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType t ->
-		let rec loop in_abstract_from t =
+		let rec loop t =
 			match follow t with
-			| TAnon a when not (PMap.is_empty a.a_fields) && not in_abstract_from -> ODKWithStructure a
+			| TAnon a -> ODKWithStructure a
 			| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				(match List.fold_left (fun acc t -> match loop true t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+				(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -1644,7 +1645,7 @@ and type_object_decl ctx fl with_type p =
 			| _ ->
 				ODKPlain
 		in
-		loop false t
+		loop t
 	| _ ->
 		ODKPlain
 	) in
@@ -1666,6 +1667,7 @@ and type_object_decl ctx fl with_type p =
 				in
 				let e = type_expr ctx e (WithType t) in
 				let e = AbstractCast.cast_or_unify ctx t e e.epos in
+				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
@@ -1692,8 +1694,7 @@ and type_object_decl ctx fl with_type p =
 		end;
 		t, fl
 	in
-	(match a with
-	| ODKPlain ->
+	let type_plain_fields () =
 		let rec loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
@@ -1710,6 +1711,10 @@ and type_object_decl ctx fl with_type p =
 		let x = ref Const in
 		ctx.opened <- x :: ctx.opened;
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
+	in
+	(match a with
+	| ODKPlain -> type_plain_fields()
+	| ODKWithStructure a when PMap.is_empty a.a_fields && !dynamic_parameter = None -> type_plain_fields()
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
 		if !(a.a_status) = Opened then a.a_status := Closed;
@@ -1801,8 +1806,7 @@ and type_new ctx path el with_type p =
 	DisplayEmitter.check_display_type ctx t (pos path);
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
-		if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
-		if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p;
+		check_constructor_access ctx c f p;
 		(match f.cf_kind with
 		| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> error msg p | None -> error_require r p)
 		| _ -> ());

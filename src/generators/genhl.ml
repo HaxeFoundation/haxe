@@ -400,10 +400,8 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
-					(*
-						if it's another virtual or a method, it might not match our own (might be larger, or class)
-					*)
+				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
+					(* allowing functions will crash unit tests *)
 					acc
 				| Method _ ->
 					acc
@@ -2800,7 +2798,7 @@ and eval_expr ctx e =
 				[]
 			| (v,ec) :: next ->
 				let rv = alloc_var ctx v true in
-				let jnext = if v.v_type == t_dynamic then begin
+				let jnext = if follow v.v_type == t_dynamic then begin
 					op ctx (OMov (rv, rtrap));
 					(fun() -> ())
 				end else
@@ -2821,7 +2819,7 @@ and eval_expr ctx e =
 				in
 				let r = eval_expr ctx ec in
 				if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret ec.epos));
-				if v.v_type == t_dynamic then [] else
+				if follow v.v_type == t_dynamic then [] else
 				let jend = jump ctx (fun n -> OJAlways n) in
 				jnext();
 				jend :: loop next

@@ -109,6 +109,10 @@ let get_constructor ctx c params p =
 		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
 		apply_params c.cl_params params ct, f
 
+let check_constructor_access ctx c f p =
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
+	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+
 let field_access ctx mode f fmode t e p =
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =

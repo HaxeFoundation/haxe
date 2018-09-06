@@ -38,8 +38,7 @@ let instance_field vi name =
 	vi.ifields.(get_instance_field_index_raise vi.iproto name)
 
 let object_field_raise o name =
-	try o.ofields.(get_instance_field_index_raise o.oproto name)
-	with Not_found -> IntMap.find name o.oextra
+	o.ofields.(get_instance_field_index_raise o.oproto name)
 
 let object_field o name =
 	try object_field_raise o name with Not_found -> vnull

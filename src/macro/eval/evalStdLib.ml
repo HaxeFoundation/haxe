@@ -264,6 +264,10 @@ module StdBytes = struct
 		encode_bytes (Bytes.make length (Char.chr 0))
 	)
 
+	let encode_native v = match v with
+		| VEnumValue {eindex = 1} -> true (* haxe.io.Encoding.RawNative *)
+		| _ -> false
+
 	let blit = vifun4 (fun vthis pos src srcpos len ->
 		let s = this vthis in
 		let pos = decode_int pos in
@@ -331,7 +335,10 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		bytes_to_utf8 s
+		if encode_native encoding then
+			vstring (create_ucs2 (Bytes.unsafe_to_string s) len)
+		else
+			bytes_to_utf8 s
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -342,7 +349,7 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if s.sascii then
+		if s.sascii || encode_native encoding then
 			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
 		else begin
 			let s = utf16_to_utf8 (Lazy.force s.sstring) in
@@ -459,8 +466,13 @@ module StdBytesBuffer = struct
 
 	let addString = vifun2 (fun vthis src encoding ->
 		let this = this vthis in
-		let src = decode_string src in
-		Buffer.add_string this src;
+		let src = decode_vstring src in
+		let s = if src.sascii || StdBytes.encode_native encoding then
+			Lazy.force src.sstring
+		else
+			utf16_to_utf8 (Lazy.force src.sstring)
+		in
+		Buffer.add_string this s;
 		vnull
 	)
 
@@ -1558,13 +1570,16 @@ module StdReflect = struct
 		let name = hash (decode_rope name) in
 		match vresolve o with
 		| VObject o ->
-			if IntMap.mem name o.oextra then begin
-				o.oextra <- IntMap.remove name o.oextra;
-				vtrue
-			end else if IntMap.mem name o.oproto.pinstance_names then begin
-				let i = IntMap.find name o.oproto.pinstance_names in
-				o.oremoved <- IntMap.add name true o.oremoved;
-				o.ofields.(i) <- vnull;
+			let found = ref false in
+			let fields = IntMap.fold (fun name' i acc ->
+				if name = name' then begin
+					found := true;
+					acc
+				end else
+					(name',o.ofields.(i)) :: acc
+			) o.oproto.pinstance_names [] in
+			if !found then begin
+				update_object_prototype o fields;
 				vtrue
 			end else
 				vfalse
@@ -1599,7 +1614,7 @@ module StdReflect = struct
 	let hasField = vfun2 (fun o field ->
 		let name = hash (decode_rope field) in
 		let b = match vresolve o with
-			| VObject o -> (IntMap.mem name o.oproto.pinstance_names && not (IntMap.mem name o.oremoved)) || IntMap.mem name o.oextra
+			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
 			| _ -> unexpected_value o "object"

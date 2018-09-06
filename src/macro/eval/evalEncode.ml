@@ -119,8 +119,6 @@ let encode_obj _ l =
 	vobject {
 		ofields = Array.of_list (List.map snd sorted);
 		oproto = proto;
-		oextra = IntMap.empty;
-		oremoved = IntMap.empty;
 	}
 
 let encode_obj_s k l =
