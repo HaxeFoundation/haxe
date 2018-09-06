@@ -31,6 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceTiming>
 **/
+@:deprecated("PerformanceTiming is deprecated, use the PerformanceNavigationTiming interface instead")
 @:native("PerformanceTiming")
 extern class PerformanceTiming
 {
