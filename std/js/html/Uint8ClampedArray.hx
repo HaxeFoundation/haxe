@@ -25,7 +25,7 @@
 package js.html;
 
 @:native("Uint8ClampedArray")
-extern class Uint8ClampedArray implements ArrayAccess<Int>
+extern class Uint8ClampedArray implements ArrayBufferView implements ArrayAccess<Int>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
 	

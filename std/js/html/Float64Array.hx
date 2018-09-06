@@ -28,7 +28,7 @@ package js.html;
 import js.html.compat.Float64Array;
 
 @:native("Float64Array")
-extern class Float64Array implements ArrayAccess<Float>
+extern class Float64Array implements ArrayBufferView implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 8;
 	
