@@ -57,7 +57,7 @@ extern class AudioParam
 	
 	
 	/**
-		Schedules an instant change to the value of the `AudioParam` at a precise time, as measured against `AudioContext.currentTime`. The new value is given in the `value` parameter.
+		Schedules an instant change to the value of the `AudioParam` at a precise time, as measured against `AudioContext.currentTime`. The new value is given by the `value` parameter.
 		@throws DOMError
 	**/
 	function setValueAtTime( value : Float, startTime : Float ) : AudioParam;
@@ -81,7 +81,7 @@ extern class AudioParam
 	function setTargetAtTime( target : Float, startTime : Float, timeConstant : Float ) : AudioParam;
 	
 	/**
-		Schedules the values of the `AudioParam` to follow a set of values, defined by the `values` `Float32Array` scaled to fit into the given interval, starting at `startTime`, and having a specific `duration`.
+		Schedules the values of the `AudioParam` to follow a set of values, defined by an array of floating-point numbers scaled to fit into the given interval, starting at a given start time and spanning a given duration of time.
 		@throws DOMError
 	**/
 	function setValueCurveAtTime( values : Array<Float>, startTime : Float, duration : Float ) : AudioParam;

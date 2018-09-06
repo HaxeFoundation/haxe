@@ -37,10 +37,10 @@ extern class DOMElement extends Node
 	
 	/**
 		The namespace URI of the element, or `null` if it is no namespace.
-		 
-		 Note: In Firefox 3.5 and earlier, HTML elements are in no namespace. In later versions, HTML elements are in the `http://www.w3.org/1999/xhtml` namespace in both HTML and XML trees. `1.9.2`
-		 
-		 
+			
+			Note: In Firefox 3.5 and earlier, HTML elements are in no namespace. In later versions, HTML elements are in the `http://www.w3.org/1999/xhtml` namespace in both HTML and XML trees. `1.9.2`
+			
+			
 	**/
 	var namespaceURI(default,null) : String;
 	var prefix(default,null) : String;

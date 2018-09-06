@@ -37,12 +37,12 @@ extern class Notification extends EventTarget
 	
 	/**
 		A string representing the current permission to display notifications. Possible values are:
-			
-				`denied` — The user refuses to have notifications displayed.
-				`granted` — The user accepts having notifications displayed.
-				`default` — The user choice is unknown and therefore the browser will act as if the value were denied.
-			
-			
+		 
+		  `denied` — The user refuses to have notifications displayed.
+		  `granted` — The user accepts having notifications displayed.
+		  `default` — The user choice is unknown and therefore the browser will act as if the value were denied.
+		 
+		 
 	**/
 	static var permission(default,null) : NotificationPermission;
 	

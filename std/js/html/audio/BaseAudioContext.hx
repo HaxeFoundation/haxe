@@ -121,7 +121,7 @@ extern class BaseAudioContext extends js.html.EventTarget
 	function createDelay( ?maxDelayTime : Float = 1.0 ) : DelayNode;
 	
 	/**
-		Creates a `BiquadFilterNode`, which represents a second order filter configurable as several different common filter types: high-pass, low-pass, band-pass, etc.
+		Creates a `BiquadFilterNode`, which represents a second order filter configurable as several different common filter types: high-pass, low-pass, band-pass, etc
 		@throws DOMError
 	**/
 	function createBiquadFilter() : BiquadFilterNode;
