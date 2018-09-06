@@ -49,5 +49,5 @@ extern class PerformanceNavigationTiming extends PerformanceResourceTiming
 	/**
 		Returns a `DOMString` that is the JSON representation of the `PerformanceNavigationTiming` object.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

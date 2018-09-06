@@ -31,7 +31,7 @@ extern class CSSPseudoElement
 	var parentElement(default,null) : Element;
 	
 	/** @throws DOMError */
-	@:overload( function( keyframes : Any, ?options : KeyframeAnimationOptions) : Animation {} )
-	function animate( keyframes : Any, ?options : Float ) : Animation;
+	@:overload( function( keyframes : Dynamic, ?options : KeyframeAnimationOptions) : Animation {} )
+	function animate( keyframes : Dynamic, ?options : Float ) : Animation;
 	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
 }

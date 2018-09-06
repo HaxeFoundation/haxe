@@ -38,7 +38,7 @@ extern class Clients
 	/**
 		Returns a `Promise` for a `Client` matching a given `Client.id`.
 	**/
-	function get( id : String ) : Promise<Any>;
+	function get( id : String ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` for an array of `Client` objects. An options argument allows you to control the types of clients returned. 

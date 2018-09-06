@@ -86,5 +86,5 @@ extern class FormData
 	**/
 	function values() : FormDataIterator;
 	/** @throws DOMError */
-	function forEach( callback : Any, ?thisArg : Any ) : Void;
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

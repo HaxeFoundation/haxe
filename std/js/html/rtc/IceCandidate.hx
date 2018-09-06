@@ -40,5 +40,5 @@ extern class IceCandidate
 	
 	/** @throws DOMError */
 	function new( candidateInitDict : IceCandidateInit ) : Void;
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

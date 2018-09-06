@@ -100,7 +100,7 @@ extern class Notification extends EventTarget
 	/**
 		Returns a structured clone of the notification’s data.
 	**/
-	var data(default,null) : Any;
+	var data(default,null) : Dynamic;
 	
 	/** @throws DOMError */
 	function new( title : String, ?options : NotificationOptions ) : Void;

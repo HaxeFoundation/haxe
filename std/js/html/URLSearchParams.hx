@@ -90,5 +90,5 @@ extern class URLSearchParams
 	**/
 	function values() : URLSearchParamsIterator;
 	/** @throws DOMError */
-	function forEach( callback : Any, ?thisArg : Any ) : Void;
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

@@ -56,5 +56,5 @@ extern class PerformanceTiming
 	var loadEventStart(default,null) : Int;
 	var loadEventEnd(default,null) : Int;
 	
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

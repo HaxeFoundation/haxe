@@ -199,5 +199,5 @@ extern class DOMMatrixReadOnly
 	/**
 		Returns a JSON representation of the `DOMMatrixReadOnly` object.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

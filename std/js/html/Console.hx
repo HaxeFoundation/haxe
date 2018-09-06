@@ -38,7 +38,7 @@ extern class Console
 	/**
 		Log a message and stack trace to console if the first argument is `false`.
 	**/
-	static function assert( ?condition : Bool = false, data : haxe.extern.Rest<Any> ) : Void;
+	static function assert( ?condition : Bool = false, data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Clear the console.
@@ -60,59 +60,59 @@ extern class Console
 		 Note: Starting with Chromium 58 this method only appears in Chromium browser consoles when level "Verbose" is selected.
 		 
 	**/
-	static function debug( data : haxe.extern.Rest<Any> ) : Void;
+	static function debug( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs an error message. You may use string substitution and additional arguments with this method.
 	**/
-	static function error( data : haxe.extern.Rest<Any> ) : Void;
+	static function error( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Informative logging of information. You may use string substitution and additional arguments with this method.
 	**/
-	static function info( data : haxe.extern.Rest<Any> ) : Void;
+	static function info( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		For general output of logging information. You may use string substitution and additional arguments with this method.
 	**/
-	static function log( data : haxe.extern.Rest<Any> ) : Void;
+	static function log( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Displays tabular data as a table.
 	**/
-	static function table( data : haxe.extern.Rest<Any> ) : Void;
+	static function table( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs a stack trace.
 	**/
-	static function trace( data : haxe.extern.Rest<Any> ) : Void;
+	static function trace( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs a warning message. You may use string substitution and additional arguments with this method.
 	**/
-	static function warn( data : haxe.extern.Rest<Any> ) : Void;
+	static function warn( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Displays an interactive listing of the properties of a specified JavaScript object. This listing lets you use disclosure triangles to examine the contents of child objects.
 	**/
-	static function dir( data : haxe.extern.Rest<Any> ) : Void;
+	static function dir( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		
 		 Displays an XML/HTML Element representation of the specified object if possible or the JavaScript Object view if it is not possible.
 		 
 	**/
-	static function dirxml( data : haxe.extern.Rest<Any> ) : Void;
+	static function dirxml( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. To move back out a level, call `groupEnd()`.
 	**/
-	static function group( data : haxe.extern.Rest<Any> ) : Void;
+	static function group( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. However, unlike `group()` this starts with the inline group collapsed requiring the use of a disclosure button to expand it. To move back out a level, call `groupEnd()`.
 	**/
-	static function groupCollapsed( data : haxe.extern.Rest<Any> ) : Void;
+	static function groupCollapsed( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Exits the current inline group.
@@ -127,7 +127,7 @@ extern class Console
 	/**
 		Logs the value of the specified timer to the console.
 	**/
-	static function timeLog( ?label : String = "default", data : haxe.extern.Rest<Any> ) : Void;
+	static function timeLog( ?label : String = "default", data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Stops the specified timer and logs the elapsed time in seconds since it started.
@@ -137,20 +137,20 @@ extern class Console
 	/**
 		An alias for `error()`.
 	**/
-	static function exception( data : haxe.extern.Rest<Any> ) : Void;
+	static function exception( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Adds a marker to the browser's Timeline or Waterfall tool.
 	**/
-	static function timeStamp( ?data : Any ) : Void;
+	static function timeStamp( ?data : Dynamic ) : Void;
 	
 	/**
 		Starts the browser's built-in profiler (for example, the Firefox performance tool). You can specify an optional name for the profile.
 	**/
-	static function profile( data : haxe.extern.Rest<Any> ) : Void;
+	static function profile( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Stops the profiler. You can see the resulting profile in the browser's performance tool (for example, the Firefox performance tool).
 	**/
-	static function profileEnd( data : haxe.extern.Rest<Any> ) : Void;
+	static function profileEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
 }

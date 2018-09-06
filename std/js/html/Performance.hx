@@ -56,7 +56,7 @@ extern class Performance extends EventTarget
 	/**
 		Is a jsonizer returning a json object representing the `Performance` object.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 	
 	/**
 		Returns a list of `PerformanceEntry` objects based on the given filter.

@@ -41,6 +41,6 @@ extern class EXTDisjointTimerQuery
 	function beginQueryEXT( target : Int, query : js.html.webgl.Query ) : Void;
 	function endQueryEXT( target : Int ) : Void;
 	function queryCounterEXT( query : js.html.webgl.Query, target : Int ) : Void;
-	function getQueryEXT( target : Int, pname : Int ) : Any;
-	function getQueryObjectEXT( query : js.html.webgl.Query, pname : Int ) : Any;
+	function getQueryEXT( target : Int, pname : Int ) : Dynamic;
+	function getQueryObjectEXT( query : js.html.webgl.Query, pname : Int ) : Dynamic;
 }

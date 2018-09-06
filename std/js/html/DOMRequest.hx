@@ -28,11 +28,11 @@ package js.html;
 extern class DOMRequest extends EventTarget
 {
 	var readyState(default,null) : DOMRequestReadyState;
-	var result(default,null) : Any;
+	var result(default,null) : Dynamic;
 	var error(default,null) : DOMException;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function then( ?fulfillCallback : haxe.Constraints.Function, ?rejectCallback : haxe.Constraints.Function ) : Any;
+	function then( ?fulfillCallback : haxe.Constraints.Function, ?rejectCallback : haxe.Constraints.Function ) : Dynamic;
 }

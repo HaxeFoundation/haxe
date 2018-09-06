@@ -55,5 +55,5 @@ extern class PerformanceEntry
 	**/
 	var duration(default,null) : Float;
 	
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

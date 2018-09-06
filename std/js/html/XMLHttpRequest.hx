@@ -53,7 +53,7 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	/**
 		Returns an `ArrayBuffer`, `Blob`, `Document`, JavaScript object, or a `DOMString`, depending on the value of `XMLHttpRequest.responseType`. that contains the response entity body.
 	**/
-	var response(default,null) : Any;
+	var response(default,null) : Dynamic;
 	var responseText(default,null) : String;
 	var responseXML(default,null) : HTMLDocument;
 	

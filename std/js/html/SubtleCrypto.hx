@@ -39,75 +39,75 @@ extern class SubtleCrypto
 		Returns a `Promise` of the encrypted data corresponding to the clear text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function encrypt( algorithm : haxe.extern.EitherType<Any,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Any>;
+	function encrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of the clear data corresponding to the encrypted text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function decrypt( algorithm : haxe.extern.EitherType<Any,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Any>;
+	function decrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of the signature corresponding to the text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function sign( algorithm : haxe.extern.EitherType<Any,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Any>;
+	function sign( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a `Boolean` value indicating if the signature given as parameter matches the text, algorithm and key also given as parameters.
 		@throws DOMError
 	**/
-	function verify( algorithm : haxe.extern.EitherType<Any,String>, key : CryptoKey, signature : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Any>;
+	function verify( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, signature : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a digest generated from the algorithm and text given as parameters.
 		@throws DOMError
 	**/
-	function digest( algorithm : haxe.extern.EitherType<Any,String>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Any>;
+	function digest( algorithm : haxe.extern.EitherType<Dynamic,String>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a newly generated `CryptoKey`, for symmetrical algorithms, or a `CryptoKeyPair`, containing two newly generated keys, for asymmetrical algorithm, that matches the algorithm, the usages and the extractability given as parameters.
 		@throws DOMError
 	**/
-	@:overload( function( algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Any> {} )
-	function generateKey( algorithm : Any, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	@:overload( function( algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Dynamic> {} )
+	function generateKey( algorithm : Dynamic, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a newly generated `CryptoKey` derived from a master key and a specific algorithm given as parameters.
 		@throws DOMError
 	**/
-	function deriveKey( algorithm : haxe.extern.EitherType<Any,String>, baseKey : CryptoKey, derivedKeyType : haxe.extern.EitherType<Any,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	function deriveKey( algorithm : haxe.extern.EitherType<Dynamic,String>, baseKey : CryptoKey, derivedKeyType : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a newly generated buffer of pseudo-random bits derived from a master key and a specific algorithm given as parameters.
 		@throws DOMError
 	**/
-	@:overload( function( algorithm : String, baseKey : CryptoKey, length : Int) : Promise<Any> {} )
-	function deriveBits( algorithm : Any, baseKey : CryptoKey, length : Int ) : Promise<Any>;
+	@:overload( function( algorithm : String, baseKey : CryptoKey, length : Int) : Promise<Dynamic> {} )
+	function deriveBits( algorithm : Dynamic, baseKey : CryptoKey, length : Int ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a `CryptoKey` corresponding to the format, the algorithm, the raw key data, the usages and the extractability given as parameters.
 		@throws DOMError
 	**/
-	@:overload( function( format : String, keyData : Any, algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Any> {} )
-	function importKey( format : String, keyData : Any, algorithm : Any, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	@:overload( function( format : String, keyData : Dynamic, algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Dynamic> {} )
+	function importKey( format : String, keyData : Dynamic, algorithm : Dynamic, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a buffer containing the key in the format requested.
 		@throws DOMError
 	**/
-	function exportKey( format : String, key : CryptoKey ) : Promise<Any>;
+	function exportKey( format : String, key : CryptoKey ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a wrapped symmetric key for usage (transfer, storage) in insecure environments. The wrapped buffer returned is in the format given in parameters, and contains the key wrapped by the given wrapping key with the given algorithm.
 		@throws DOMError
 	**/
-	@:overload( function( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : String) : Promise<Any> {} )
-	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : Any ) : Promise<Any>;
+	@:overload( function( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : String) : Promise<Dynamic> {} )
+	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : Dynamic ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a `CryptoKey` corresponding to the wrapped key given in parameter.
 		@throws DOMError
 	**/
-	function unwrapKey( format : String, wrappedKey : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.extern.EitherType<Any,String>, unwrappedKeyAlgorithm : haxe.extern.EitherType<Any,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	function unwrapKey( format : String, wrappedKey : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.extern.EitherType<Dynamic,String>, unwrappedKeyAlgorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
 }

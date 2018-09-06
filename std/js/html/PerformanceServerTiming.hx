@@ -38,5 +38,5 @@ extern class PerformanceServerTiming
 	var duration(default,null) : Float;
 	var description(default,null) : String;
 	
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

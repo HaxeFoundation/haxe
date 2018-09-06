@@ -38,7 +38,7 @@ extern class ExtendableMessageEvent extends ExtendableEvent
 	/**
 		Returns the event's data. It can be any data type.
 	**/
-	var data(default,null) : Any;
+	var data(default,null) : Dynamic;
 	
 	/**
 		Returns the origin of the `ServiceWorkerClient` that sent the message

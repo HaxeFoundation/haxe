@@ -48,7 +48,7 @@ extern class SpeechRecognitionEvent extends Event
 	/**
 		Returns the semantic meaning of what the user said.
 	**/
-	var interpretation(default,null) : Any;
+	var interpretation(default,null) : Dynamic;
 	
 	/**
 		Returns an Extensible MultiModal Annotation markup language (EMMA) — XML — representation of the result.

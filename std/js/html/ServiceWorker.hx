@@ -52,5 +52,5 @@ extern class ServiceWorker extends EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function postMessage( message : Any, ?transferable : Array<Any> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transferable : Array<Dynamic> = [] ) : Void;
 }

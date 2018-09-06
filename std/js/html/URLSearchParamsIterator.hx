@@ -27,5 +27,5 @@ package js.html;
 typedef URLSearchParamsIterator =
 {
 	/** @throws DOMError */
-	function next() : Any;
+	function next() : Dynamic;
 }

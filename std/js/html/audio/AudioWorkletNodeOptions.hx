@@ -31,5 +31,5 @@ typedef AudioWorkletNodeOptions =
 	@:optional var numberOfOutputs : Int;
 	@:optional var outputChannelCount : Array<Int>;
 	@:optional var parameterData : haxe.DynamicAccess<Float>;
-	@:optional var processorOptions : Any;
+	@:optional var processorOptions : Dynamic;
 }

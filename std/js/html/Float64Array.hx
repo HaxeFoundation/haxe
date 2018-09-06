@@ -33,9 +33,9 @@ extern class Float64Array implements ArrayBufferView implements ArrayAccess<Floa
 	static inline var BYTES_PER_ELEMENT : Int = 8;
 	
 	@:pure
-	static function of( items : haxe.extern.Rest<Array<Any>> ) : Float64Array;
+	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Float64Array;
 	@:pure
-	static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Any ) : Float64Array;
+	static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Dynamic ) : Float64Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
@@ -51,23 +51,23 @@ extern class Float64Array implements ArrayBufferView implements ArrayAccess<Floa
 	@:overload( function( array : Float64Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Float>, ?offset : Int ) : Void;
 	function copyWithin( target : Int, start : Int, ?end : Int ) : Float64Array;
-	function every( callback : Float -> Int -> Float64Array -> Bool, ?thisArg : Any ) : Bool;
+	function every( callback : Float -> Int -> Float64Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function fill( value : Float, ?start : Int, ?end : Int ) : Float64Array;
-	function filter( callbackfn : Float -> Int -> Float64Array -> Any, ?thisArg : Any ) : Float64Array;
-	function find( predicate : Float -> Int -> Float64Array -> Bool, ?thisArg : Any ) : Any;
-	function findIndex( predicate : Float -> Int -> Float64Array -> Bool, ?thisArg : Any ) : Int;
-	function forEach( callbackfn : Float -> Int -> Float64Array -> Void, ?thisArg : Any ) : Void;
+	function filter( callbackfn : Float -> Int -> Float64Array -> Dynamic, ?thisArg : Dynamic ) : Float64Array;
+	function find( predicate : Float -> Int -> Float64Array -> Bool, ?thisArg : Dynamic ) : Dynamic;
+	function findIndex( predicate : Float -> Int -> Float64Array -> Bool, ?thisArg : Dynamic ) : Int;
+	function forEach( callbackfn : Float -> Int -> Float64Array -> Void, ?thisArg : Dynamic ) : Void;
 	function indexOf( searchElement : Float, ?fromIndex : Int ) : Int;
 	function join( ?separator : String ) : String;
 	function lastIndexOf( searchElement : Float, ?fromIndex : Int ) : Int;
-	function map( callbackfn : Float -> Int -> Float64Array -> Float, ?thisArg : Any ) : Float64Array;
+	function map( callbackfn : Float -> Int -> Float64Array -> Float, ?thisArg : Dynamic ) : Float64Array;
 	@:overload( function( callbackfn : Float -> Float -> Int -> Float64Array -> Float ) : Int {} )
-	function reduce( callbackfn : Any -> Float -> Int -> Float64Array -> Any, initialValue : Any ) : Any;
+	function reduce( callbackfn : Dynamic -> Float -> Int -> Float64Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	@:overload( function( callbackfn : Float -> Float -> Int -> Float64Array -> Float ) : Int {} )
-	function reduceRight( callbackfn : Any -> Float -> Int -> Float64Array -> Any, initialValue : Any ) : Any;
+	function reduceRight( callbackfn : Dynamic -> Float -> Int -> Float64Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	function reverse() : Float64Array;
 	function slice( ?start : Int, ?end : Int ) : Float64Array;
-	function some( callbackfn : Float -> Int -> Float64Array -> Bool, ?thisArg : Any ) : Bool;
+	function some( callbackfn : Float -> Int -> Float64Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function sort( ?compareFn : Float -> Float -> Int ) : Float64Array;
 	function subarray( begin : Int, ?end : Int ) : Float64Array;
 }

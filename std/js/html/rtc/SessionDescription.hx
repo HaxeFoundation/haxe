@@ -51,5 +51,5 @@ extern class SessionDescription
 	/**
 		Returns a `JSON` description of the object. The values of both properties, `RTCSessionDescription.type` and `RTCSessionDescription.sdp`, are contained in the generated JSON.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

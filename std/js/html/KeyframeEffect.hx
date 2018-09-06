@@ -41,18 +41,18 @@ extern class KeyframeEffect extends AnimationEffect
 	var target : haxe.extern.EitherType<Element,CSSPseudoElement>;
 	
 	/** @throws DOMError */
-	@:overload( function( target : haxe.extern.EitherType<Element,CSSPseudoElement>, keyframes : Any, ?options : haxe.extern.EitherType<Float,KeyframeEffectOptions> ) : Void {} )
+	@:overload( function( target : haxe.extern.EitherType<Element,CSSPseudoElement>, keyframes : Dynamic, ?options : haxe.extern.EitherType<Float,KeyframeEffectOptions> ) : Void {} )
 	function new( source : KeyframeEffect ) : Void;
 	
 	/**
 		Returns the computed keyframes that make up this effect along with their computed keyframe offsets.
 		@throws DOMError
 	**/
-	function getKeyframes() : Array<Any>;
+	function getKeyframes() : Array<Dynamic>;
 	
 	/**
 		Replaces the set of keyframes that make up this effect.
 		@throws DOMError
 	**/
-	function setKeyframes( keyframes : Any ) : Void;
+	function setKeyframes( keyframes : Dynamic ) : Void;
 }

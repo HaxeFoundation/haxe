@@ -27,7 +27,7 @@ package js.html;
 typedef MessageEventInit =
 {
 	> EventInit,
-	@:optional var data : Any;
+	@:optional var data : Dynamic;
 	@:optional var lastEventId : String;
 	@:optional var origin : String;
 	@:optional var ports : Array<MessagePort>;

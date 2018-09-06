@@ -104,7 +104,7 @@ extern class Window extends EventTarget
 		This property indicates whether the current window is closed or not.
 	**/
 	var closed(default,null) : Bool;
-	var event(default,null) : Any;
+	var event(default,null) : Dynamic;
 	
 	/**
 		Returns an array of the subframes in the current window.
@@ -124,7 +124,7 @@ extern class Window extends EventTarget
 	/**
 		Returns a reference to the window that opened this current window.
 	**/
-	var opener : Any;
+	var opener : Dynamic;
 	
 	/**
 		Returns a reference to the parent of the current window or subframe.
@@ -154,12 +154,12 @@ extern class Window extends EventTarget
 	/**
 		Gets the width of the content area of the browser window including, if rendered, the vertical scrollbar.
 	**/
-	var innerWidth : Any;
+	var innerWidth : Dynamic;
 	
 	/**
 		Gets the height of the content area of the browser window including, if rendered, the horizontal scrollbar.
 	**/
-	var innerHeight : Any;
+	var innerHeight : Dynamic;
 	
 	/**
 		Returns the number of pixels that the document has already been scrolled horizontally.
@@ -176,22 +176,22 @@ extern class Window extends EventTarget
 	/**
 		Returns the horizontal distance of the left border of the user's browser from the left side of the screen.
 	**/
-	var screenX : Any;
+	var screenX : Dynamic;
 	
 	/**
 		Returns the vertical distance of the top border of the user's browser from the top side of the screen.
 	**/
-	var screenY : Any;
+	var screenY : Dynamic;
 	
 	/**
 		Gets the width of the outside of the browser window.
 	**/
-	var outerWidth : Any;
+	var outerWidth : Dynamic;
 	
 	/**
 		Gets the height of the outside of the browser window.
 	**/
-	var outerHeight : Any;
+	var outerHeight : Dynamic;
 	
 	/**
 		Returns a `Performance` object, which includes the `Performance.timing` and `Performance.navigation` attributes, each of which is an object providing performance-related data. See also Using Navigation Timing for additional information and examples.
@@ -227,7 +227,7 @@ extern class Window extends EventTarget
 	/**
 		Returns a reference to the content element in the current window. Since Firefox 57 (initially Nightly-only), both versions are only available from chrome (privileged) code, and not available to the web anymore.
 	**/
-	var content(default,null) : Any;
+	var content(default,null) : Dynamic;
 	
 	/**
 		Returns the orientation in degrees (in 90 degree increments) of the viewport relative to the device's natural orientation.
@@ -320,7 +320,7 @@ extern class Window extends EventTarget
 	var onwebkitanimationiteration : haxe.Constraints.Function;
 	var onwebkitanimationstart : haxe.Constraints.Function;
 	var onwebkittransitionend : haxe.Constraints.Function;
-	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Any -> Any;
+	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Dynamic;
 	
 	/**
 		Returns a `SpeechSynthesis` object, which is the entry point into using Web Speech API speech synthesis functionality.
@@ -416,7 +416,7 @@ extern class Window extends EventTarget
 		Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first.
 		@throws DOMError
 	**/
-	function postMessage( message : Any, targetOrigin : String, ?transfer : Array<Any> = [] ) : Void;
+	function postMessage( message : Dynamic, targetOrigin : String, ?transfer : Array<Dynamic> = [] ) : Void;
 	
 	/**
 		Registers the window to capture all events of the specified type.
@@ -547,12 +547,12 @@ extern class Window extends EventTarget
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
-	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
-	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	function clearInterval( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
 	@:overload( function( aImage : VideoElement) : Promise<ImageBitmap> {} )

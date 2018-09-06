@@ -30,9 +30,9 @@ extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int>
 	static inline var BYTES_PER_ELEMENT : Int = 2;
 	
 	@:pure
-	static function of( items : haxe.extern.Rest<Array<Any>> ) : Uint16Array;
+	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Uint16Array;
 	@:pure
-	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Uint16Array;
+	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Dynamic ) : Uint16Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
@@ -48,23 +48,23 @@ extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( array : Uint16Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
 	function copyWithin( target : Int, start : Int, ?end : Int ) : Uint16Array;
-	function every( callback : Int -> Int -> Uint16Array -> Bool, ?thisArg : Any ) : Bool;
+	function every( callback : Int -> Int -> Uint16Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function fill( value : Int, ?start : Int, ?end : Int ) : Uint16Array;
-	function filter( callbackfn : Int -> Int -> Uint16Array -> Any, ?thisArg : Any ) : Uint16Array;
-	function find( predicate : Int -> Int -> Uint16Array -> Bool, ?thisArg : Any ) : Any;
-	function findIndex( predicate : Int -> Int -> Uint16Array -> Bool, ?thisArg : Any ) : Int;
-	function forEach( callbackfn : Int -> Int -> Uint16Array -> Void, ?thisArg : Any ) : Void;
+	function filter( callbackfn : Int -> Int -> Uint16Array -> Dynamic, ?thisArg : Dynamic ) : Uint16Array;
+	function find( predicate : Int -> Int -> Uint16Array -> Bool, ?thisArg : Dynamic ) : Dynamic;
+	function findIndex( predicate : Int -> Int -> Uint16Array -> Bool, ?thisArg : Dynamic ) : Int;
+	function forEach( callbackfn : Int -> Int -> Uint16Array -> Void, ?thisArg : Dynamic ) : Void;
 	function indexOf( searchElement : Int, ?fromIndex : Int ) : Int;
 	function join( ?separator : String ) : String;
 	function lastIndexOf( searchElement : Int, ?fromIndex : Int ) : Int;
-	function map( callbackfn : Int -> Int -> Uint16Array -> Int, ?thisArg : Any ) : Uint16Array;
+	function map( callbackfn : Int -> Int -> Uint16Array -> Int, ?thisArg : Dynamic ) : Uint16Array;
 	@:overload( function( callbackfn : Int -> Int -> Int -> Uint16Array -> Int ) : Int {} )
-	function reduce( callbackfn : Any -> Int -> Int -> Uint16Array -> Any, initialValue : Any ) : Any;
+	function reduce( callbackfn : Dynamic -> Int -> Int -> Uint16Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	@:overload( function( callbackfn : Int -> Int -> Int -> Uint16Array -> Int ) : Int {} )
-	function reduceRight( callbackfn : Any -> Int -> Int -> Uint16Array -> Any, initialValue : Any ) : Any;
+	function reduceRight( callbackfn : Dynamic -> Int -> Int -> Uint16Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	function reverse() : Uint16Array;
 	function slice( ?start : Int, ?end : Int ) : Uint16Array;
-	function some( callbackfn : Int -> Int -> Uint16Array -> Bool, ?thisArg : Any ) : Bool;
+	function some( callbackfn : Int -> Int -> Uint16Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function sort( ?compareFn : Int -> Int -> Int ) : Uint16Array;
 	function subarray( begin : Int, ?end : Int ) : Uint16Array;
 }

@@ -43,7 +43,7 @@ extern class ObjectStore
 	/**
 		The key path of this object store. If this attribute is `null`, the application must provide a key for each modification operation.
 	**/
-	var keyPath(default,null) : Any;
+	var keyPath(default,null) : Dynamic;
 	
 	/**
 		A list of the names of indexes on objects in this object store.
@@ -65,28 +65,28 @@ extern class ObjectStore
 		Returns an `IDBRequest` object, and, in a separate thread, creates a structured clone of the `value`, and stores the cloned value in the object store. This is for updating existing records in an object store when the transaction's mode is `readwrite`.
 		@throws DOMError
 	**/
-	function put( value : Any, ?key : Any ) : Request;
+	function put( value : Dynamic, ?key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a structured clone of the `value`, and stores the cloned value in the object store. This is for adding new records to an object store.
 		@throws DOMError
 	**/
-	function add( value : Any, ?key : Any ) : Request;
+	function add( value : Dynamic, ?key : Dynamic ) : Request;
 	/** @throws DOMError */
 	@:native("delete")
-	function delete_( key : Any ) : Request;
+	function delete_( key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, returns the store object store selected by the specified key. This is for retrieving specific records from an object store.
 		@throws DOMError
 	**/
-	function get( key : Any ) : Request;
+	function get( key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread retrieves and returns the record key for the object in the object stored matching the specified parameter.
 		@throws DOMError
 	**/
-	function getKey( key : Any ) : Request;
+	function getKey( key : Dynamic ) : Request;
 	
 	/**
 		Creates and immediately returns an `IDBRequest` object, and clears this object store in a separate thread. This is for deleting all current records out of an object store.
@@ -98,7 +98,7 @@ extern class ObjectStore
 		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursorWithValue` object. Used for iterating through an object store by primary key with a cursor.
 		@throws DOMError
 	**/
-	function openCursor( ?range : Any, ?direction : CursorDirection = "next" ) : Request;
+	function openCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
 	
 	/**
 		Creates a new index during a version upgrade, returning a new `IDBIndex` object in the connected database.
@@ -123,23 +123,23 @@ extern class ObjectStore
 		Returns an `IDBRequest` object, and, in a separate thread, returns the total number of records that match the provided key or `IDBKeyRange`. If no arguments are provided, it returns the total number of records in the store.
 		@throws DOMError
 	**/
-	function count( ?key : Any ) : Request;
+	function count( ?key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object retrieves all objects in the object store matching the specified parameter or all objects in the store if no parameters are given.
 		@throws DOMError
 	**/
-	function getAll( ?key : Any, ?limit : Int ) : Request;
+	function getAll( ?key : Dynamic, ?limit : Int ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object retrieves record keys for all objects in the object store matching the specified parameter or all objects in the store if no parameters are given.
 		@throws DOMError
 	**/
-	function getAllKeys( ?key : Any, ?limit : Int ) : Request;
+	function getAllKeys( ?key : Dynamic, ?limit : Int ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursor`. Used for iterating through an object store with a key.
 		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Any, ?direction : CursorDirection = "next" ) : Request;
+	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
 }

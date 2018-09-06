@@ -61,7 +61,7 @@ extern class DOMElement extends Node
 	var itemRef(default,null) : DOMTokenList;
 	var itemProp(default,null) : DOMTokenList;
 	var properties(default,null) : HTMLPropertiesCollection;
-	var itemValue : Any;
+	var itemValue : Dynamic;
 	var hidden : Bool;
 	var tabIndex : Int;
 	var accessKey : String;
@@ -293,8 +293,8 @@ extern class DOMElement extends Node
 		A shortcut method to create and run an animation on an element. Returns the created Animation object instance.
 		@throws DOMError
 	**/
-	@:overload( function( keyframes : Any, ?options : KeyframeAnimationOptions) : Animation {} )
-	function animate( keyframes : Any, ?options : Float ) : Animation;
+	@:overload( function( keyframes : Dynamic, ?options : KeyframeAnimationOptions) : Animation {} )
+	function animate( keyframes : Dynamic, ?options : Float ) : Animation;
 	
 	/**
 		Returns an array of Animation objects currently active on the element.

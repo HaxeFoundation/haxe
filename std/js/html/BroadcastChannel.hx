@@ -57,7 +57,7 @@ extern class BroadcastChannel extends EventTarget
 		Sends the message, of any type of object, to each `BroadcastChannel` object listening to the same channel.
 		@throws DOMError
 	**/
-	function postMessage( message : Any ) : Void;
+	function postMessage( message : Dynamic ) : Void;
 	
 	/**
 		Closes the channel object, indicating it won't get any new messages, and allowing it to be, eventually, garbage collected.

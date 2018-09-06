@@ -37,7 +37,7 @@ extern interface ConsoleInstance
 	/**
 		Log a message and stack trace to console if the first argument is `false`.
 	**/
-	function assert( ?condition : Bool = false, data : haxe.extern.Rest<Any> ) : Void;
+	function assert( ?condition : Bool = false, data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Clear the console.
@@ -59,59 +59,59 @@ extern interface ConsoleInstance
 		 Note: Starting with Chromium 58 this method only appears in Chromium browser consoles when level "Verbose" is selected.
 		 
 	**/
-	function debug( data : haxe.extern.Rest<Any> ) : Void;
+	function debug( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs an error message. You may use string substitution and additional arguments with this method.
 	**/
-	function error( data : haxe.extern.Rest<Any> ) : Void;
+	function error( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Informative logging of information. You may use string substitution and additional arguments with this method.
 	**/
-	function info( data : haxe.extern.Rest<Any> ) : Void;
+	function info( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		For general output of logging information. You may use string substitution and additional arguments with this method.
 	**/
-	function log( data : haxe.extern.Rest<Any> ) : Void;
+	function log( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Displays tabular data as a table.
 	**/
-	function table( data : haxe.extern.Rest<Any> ) : Void;
+	function table( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs a stack trace.
 	**/
-	function trace( data : haxe.extern.Rest<Any> ) : Void;
+	function trace( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Outputs a warning message. You may use string substitution and additional arguments with this method.
 	**/
-	function warn( data : haxe.extern.Rest<Any> ) : Void;
+	function warn( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Displays an interactive listing of the properties of a specified JavaScript object. This listing lets you use disclosure triangles to examine the contents of child objects.
 	**/
-	function dir( data : haxe.extern.Rest<Any> ) : Void;
+	function dir( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		
 		 Displays an XML/HTML Element representation of the specified object if possible or the JavaScript Object view if it is not possible.
 		 
 	**/
-	function dirxml( data : haxe.extern.Rest<Any> ) : Void;
+	function dirxml( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. To move back out a level, call `groupEnd()`.
 	**/
-	function group( data : haxe.extern.Rest<Any> ) : Void;
+	function group( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Creates a new inline group, indenting all following output by another level. However, unlike `group()` this starts with the inline group collapsed requiring the use of a disclosure button to expand it. To move back out a level, call `groupEnd()`.
 	**/
-	function groupCollapsed( data : haxe.extern.Rest<Any> ) : Void;
+	function groupCollapsed( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Exits the current inline group.
@@ -126,7 +126,7 @@ extern interface ConsoleInstance
 	/**
 		Logs the value of the specified timer to the console.
 	**/
-	function timeLog( ?label : String = "default", data : haxe.extern.Rest<Any> ) : Void;
+	function timeLog( ?label : String = "default", data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Stops the specified timer and logs the elapsed time in seconds since it started.
@@ -136,20 +136,20 @@ extern interface ConsoleInstance
 	/**
 		An alias for `error()`.
 	**/
-	function exception( data : haxe.extern.Rest<Any> ) : Void;
+	function exception( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Adds a marker to the browser's Timeline or Waterfall tool.
 	**/
-	function timeStamp( ?data : Any ) : Void;
+	function timeStamp( ?data : Dynamic ) : Void;
 	
 	/**
 		Starts the browser's built-in profiler (for example, the Firefox performance tool). You can specify an optional name for the profile.
 	**/
-	function profile( data : haxe.extern.Rest<Any> ) : Void;
+	function profile( data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Stops the profiler. You can see the resulting profile in the browser's performance tool (for example, the Firefox performance tool).
 	**/
-	function profileEnd( data : haxe.extern.Rest<Any> ) : Void;
+	function profileEnd( data : haxe.extern.Rest<Dynamic> ) : Void;
 }

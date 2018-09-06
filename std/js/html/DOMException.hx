@@ -79,7 +79,7 @@ extern class DOMException
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var data(default,null) : Any;
+	var data(default,null) : Dynamic;
 	var stack(default,null) : String;
 	
 	/** @throws DOMError */

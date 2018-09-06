@@ -36,6 +36,6 @@ extern class CursorWithValue extends Cursor
 	/**
 		Returns the value of the current cursor.
 	**/
-	var value(default,null) : Any;
+	var value(default,null) : Dynamic;
 	
 }

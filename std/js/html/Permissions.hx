@@ -37,5 +37,5 @@ extern class Permissions
 		Returns the user permission status for a given API.
 		@throws DOMError
 	**/
-	function query( permission : Any ) : Promise<PermissionStatus>;
+	function query( permission : Dynamic ) : Promise<PermissionStatus>;
 }

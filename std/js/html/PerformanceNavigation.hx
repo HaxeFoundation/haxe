@@ -58,5 +58,5 @@ extern class PerformanceNavigation
 	var type(default,null) : Int;
 	var redirectCount(default,null) : Int;
 	
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

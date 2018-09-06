@@ -88,5 +88,5 @@ extern class Headers
 		Executes a provided function once for each array element.
 		@throws DOMError
 	**/
-	function forEach( callback : Any, ?thisArg : Any ) : Void;
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

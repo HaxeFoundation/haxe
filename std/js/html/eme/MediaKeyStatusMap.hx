@@ -32,8 +32,8 @@ extern class MediaKeyStatusMap
 	@:overload( function( keyId : js.html.ArrayBuffer) : Bool {} )
 	function has( keyId : js.html.ArrayBufferView ) : Bool;
 	/** @throws DOMError */
-	@:overload( function( keyId : js.html.ArrayBuffer) : Any {} )
-	function get( keyId : js.html.ArrayBufferView ) : Any;
+	@:overload( function( keyId : js.html.ArrayBuffer) : Dynamic {} )
+	function get( keyId : js.html.ArrayBufferView ) : Dynamic;
 	/** @throws DOMError */
 	function entries() : js.html.MediaKeyStatusMapIterator;
 	/** @throws DOMError */
@@ -41,5 +41,5 @@ extern class MediaKeyStatusMap
 	/** @throws DOMError */
 	function values() : js.html.MediaKeyStatusMapIterator;
 	/** @throws DOMError */
-	function forEach( callback : Any, ?thisArg : Any ) : Void;
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

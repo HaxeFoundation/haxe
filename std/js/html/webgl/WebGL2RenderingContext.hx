@@ -655,7 +655,7 @@ extern class WebGL2RenderingContext
 		Returns information about implementation-dependent support for internal formats.
 		@throws DOMError
 	**/
-	function getInternalformatParameter( target : Int, internalformat : Int, pname : Int ) : Any;
+	function getInternalformatParameter( target : Int, internalformat : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Creates and initializes a renderbuffer object's data store and allows specifying the number of samples to be used.
@@ -872,12 +872,12 @@ extern class WebGL2RenderingContext
 	/**
 		Returns a `WebGLQuery` object for a given target.
 	**/
-	function getQuery( target : Int, pname : Int ) : Any;
+	function getQuery( target : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns information about a query.
 	**/
-	function getQueryParameter( query : Query, pname : Int ) : Any;
+	function getQueryParameter( query : Query, pname : Int ) : Dynamic;
 	
 	/**
 		Creates a new `WebGLSampler` object.
@@ -904,7 +904,7 @@ extern class WebGL2RenderingContext
 	/**
 		Returns sampler parameter information.
 	**/
-	function getSamplerParameter( sampler : Sampler, pname : Int ) : Any;
+	function getSamplerParameter( sampler : Sampler, pname : Int ) : Dynamic;
 	
 	/**
 		Creates a new `WebGLSync` object and inserts it into the GL command stream.
@@ -936,7 +936,7 @@ extern class WebGL2RenderingContext
 	/**
 		Returns parameter information of a `WebGLSync` object.
 	**/
-	function getSyncParameter( sync : Sync, pname : Int ) : Any;
+	function getSyncParameter( sync : Sync, pname : Int ) : Dynamic;
 	
 	/**
 		Creates and initializes `WebGLTransformFeedback` objects.
@@ -1002,7 +1002,7 @@ extern class WebGL2RenderingContext
 		Returns the indexed value for the given `target`.
 		@throws DOMError
 	**/
-	function getIndexedParameter( target : Int, index : Int ) : Any;
+	function getIndexedParameter( target : Int, index : Int ) : Dynamic;
 	
 	/**
 		
@@ -1014,7 +1014,7 @@ extern class WebGL2RenderingContext
 	/**
 		Retrieves information about active uniforms within a `WebGLProgram`.
 	**/
-	function getActiveUniforms( program : Program, uniformIndices : Array<Int>, pname : Int ) : Any;
+	function getActiveUniforms( program : Program, uniformIndices : Array<Int>, pname : Int ) : Dynamic;
 	
 	/**
 		Retrieves the index of a uniform block within a `WebGLProgram`.
@@ -1025,7 +1025,7 @@ extern class WebGL2RenderingContext
 		Retrieves information about an active uniform block within a `WebGLProgram`.
 		@throws DOMError
 	**/
-	function getActiveUniformBlockParameter( program : Program, uniformBlockIndex : Int, pname : Int ) : Any;
+	function getActiveUniformBlockParameter( program : Program, uniformBlockIndex : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Retrieves the name of the active uniform block at a given index within a `WebGLProgram`.
@@ -1060,7 +1060,7 @@ extern class WebGL2RenderingContext
 	function isContextLost() : Bool;
 	function getSupportedExtensions() : Array<String>;
 	/** @throws DOMError */
-	function getExtension( name : String ) : Any;
+	function getExtension( name : String ) : Dynamic;
 	function activeTexture( texture : Int ) : Void;
 	function attachShader( program : Program, shader : Shader ) : Void;
 	function bindAttribLocation( program : Program, index : Int, name : String ) : Void;
@@ -1115,24 +1115,24 @@ extern class WebGL2RenderingContext
 	function getActiveUniform( program : Program, index : Int ) : ActiveInfo;
 	function getAttachedShaders( program : Program ) : Array<Shader>;
 	function getAttribLocation( program : Program, name : String ) : Int;
-	function getBufferParameter( target : Int, pname : Int ) : Any;
+	function getBufferParameter( target : Int, pname : Int ) : Dynamic;
 	/** @throws DOMError */
-	function getParameter( pname : Int ) : Any;
+	function getParameter( pname : Int ) : Dynamic;
 	function getError() : Int;
 	/** @throws DOMError */
-	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Any;
-	function getProgramParameter( program : Program, pname : Int ) : Any;
+	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Dynamic;
+	function getProgramParameter( program : Program, pname : Int ) : Dynamic;
 	function getProgramInfoLog( program : Program ) : String;
-	function getRenderbufferParameter( target : Int, pname : Int ) : Any;
-	function getShaderParameter( shader : Shader, pname : Int ) : Any;
+	function getRenderbufferParameter( target : Int, pname : Int ) : Dynamic;
+	function getShaderParameter( shader : Shader, pname : Int ) : Dynamic;
 	function getShaderPrecisionFormat( shadertype : Int, precisiontype : Int ) : ShaderPrecisionFormat;
 	function getShaderInfoLog( shader : Shader ) : String;
 	function getShaderSource( shader : Shader ) : String;
-	function getTexParameter( target : Int, pname : Int ) : Any;
-	function getUniform( program : Program, location : UniformLocation ) : Any;
+	function getTexParameter( target : Int, pname : Int ) : Dynamic;
+	function getUniform( program : Program, location : UniformLocation ) : Dynamic;
 	function getUniformLocation( program : Program, name : String ) : UniformLocation;
 	/** @throws DOMError */
-	function getVertexAttrib( index : Int, pname : Int ) : Any;
+	function getVertexAttrib( index : Int, pname : Int ) : Dynamic;
 	function getVertexAttribOffset( index : Int, pname : Int ) : Int;
 	function hint( target : Int, mode : Int ) : Void;
 	function isBuffer( buffer : Buffer ) : Bool;

@@ -440,7 +440,7 @@ extern class RenderingContext
 		Returns an extension object.
 		@throws DOMError
 	**/
-	function getExtension( name : String ) : Any;
+	function getExtension( name : String ) : Dynamic;
 	
 	/**
 		Selects the active texture unit.
@@ -715,13 +715,13 @@ extern class RenderingContext
 	/**
 		Returns information about the buffer.
 	**/
-	function getBufferParameter( target : Int, pname : Int ) : Any;
+	function getBufferParameter( target : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns a value for the passed parameter name.
 		@throws DOMError
 	**/
-	function getParameter( pname : Int ) : Any;
+	function getParameter( pname : Int ) : Dynamic;
 	
 	/**
 		Returns error information.
@@ -732,12 +732,12 @@ extern class RenderingContext
 		Returns information about the framebuffer.
 		@throws DOMError
 	**/
-	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Any;
+	function getFramebufferAttachmentParameter( target : Int, attachment : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns information about the program.
 	**/
-	function getProgramParameter( program : Program, pname : Int ) : Any;
+	function getProgramParameter( program : Program, pname : Int ) : Dynamic;
 	
 	/**
 		Returns the information log for a `WebGLProgram` object.
@@ -747,12 +747,12 @@ extern class RenderingContext
 	/**
 		Returns information about the renderbuffer.
 	**/
-	function getRenderbufferParameter( target : Int, pname : Int ) : Any;
+	function getRenderbufferParameter( target : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns information about the shader.
 	**/
-	function getShaderParameter( shader : Shader, pname : Int ) : Any;
+	function getShaderParameter( shader : Shader, pname : Int ) : Dynamic;
 	
 	/**
 		Returns a `WebGLShaderPrecisionFormat` object describing the precision for the numeric format of the shader.
@@ -772,12 +772,12 @@ extern class RenderingContext
 	/**
 		Returns information about the texture.
 	**/
-	function getTexParameter( target : Int, pname : Int ) : Any;
+	function getTexParameter( target : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns the value of a uniform variable at a given location.
 	**/
-	function getUniform( program : Program, location : UniformLocation ) : Any;
+	function getUniform( program : Program, location : UniformLocation ) : Dynamic;
 	
 	/**
 		Returns the location of a uniform variable.
@@ -788,7 +788,7 @@ extern class RenderingContext
 		Returns information about a vertex attribute at a given position.
 		@throws DOMError
 	**/
-	function getVertexAttrib( index : Int, pname : Int ) : Any;
+	function getVertexAttrib( index : Int, pname : Int ) : Dynamic;
 	
 	/**
 		Returns the address of a given vertex attribute.

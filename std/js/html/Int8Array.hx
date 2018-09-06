@@ -30,9 +30,9 @@ extern class Int8Array implements ArrayBufferView implements ArrayAccess<Int>
 	static inline var BYTES_PER_ELEMENT : Int = 1;
 	
 	@:pure
-	static function of( items : haxe.extern.Rest<Array<Any>> ) : Int8Array;
+	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Int8Array;
 	@:pure
-	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Any ) : Int8Array;
+	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Dynamic ) : Int8Array;
 	@:native("BYTES_PER_ELEMENT")
 	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
@@ -48,23 +48,23 @@ extern class Int8Array implements ArrayBufferView implements ArrayAccess<Int>
 	@:overload( function( array : Int8Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Int>, ?offset : Int ) : Void;
 	function copyWithin( target : Int, start : Int, ?end : Int ) : Int8Array;
-	function every( callback : Int -> Int -> Int8Array -> Bool, ?thisArg : Any ) : Bool;
+	function every( callback : Int -> Int -> Int8Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function fill( value : Int, ?start : Int, ?end : Int ) : Int8Array;
-	function filter( callbackfn : Int -> Int -> Int8Array -> Any, ?thisArg : Any ) : Int8Array;
-	function find( predicate : Int -> Int -> Int8Array -> Bool, ?thisArg : Any ) : Any;
-	function findIndex( predicate : Int -> Int -> Int8Array -> Bool, ?thisArg : Any ) : Int;
-	function forEach( callbackfn : Int -> Int -> Int8Array -> Void, ?thisArg : Any ) : Void;
+	function filter( callbackfn : Int -> Int -> Int8Array -> Dynamic, ?thisArg : Dynamic ) : Int8Array;
+	function find( predicate : Int -> Int -> Int8Array -> Bool, ?thisArg : Dynamic ) : Dynamic;
+	function findIndex( predicate : Int -> Int -> Int8Array -> Bool, ?thisArg : Dynamic ) : Int;
+	function forEach( callbackfn : Int -> Int -> Int8Array -> Void, ?thisArg : Dynamic ) : Void;
 	function indexOf( searchElement : Int, ?fromIndex : Int ) : Int;
 	function join( ?separator : String ) : String;
 	function lastIndexOf( searchElement : Int, ?fromIndex : Int ) : Int;
-	function map( callbackfn : Int -> Int -> Int8Array -> Int, ?thisArg : Any ) : Int8Array;
+	function map( callbackfn : Int -> Int -> Int8Array -> Int, ?thisArg : Dynamic ) : Int8Array;
 	@:overload( function( callbackfn : Int -> Int -> Int -> Int8Array -> Int ) : Int {} )
-	function reduce( callbackfn : Any -> Int -> Int -> Int8Array -> Any, initialValue : Any ) : Any;
+	function reduce( callbackfn : Dynamic -> Int -> Int -> Int8Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	@:overload( function( callbackfn : Int -> Int -> Int -> Int8Array -> Int ) : Int {} )
-	function reduceRight( callbackfn : Any -> Int -> Int -> Int8Array -> Any, initialValue : Any ) : Any;
+	function reduceRight( callbackfn : Dynamic -> Int -> Int -> Int8Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
 	function reverse() : Int8Array;
 	function slice( ?start : Int, ?end : Int ) : Int8Array;
-	function some( callbackfn : Int -> Int -> Int8Array -> Bool, ?thisArg : Any ) : Bool;
+	function some( callbackfn : Int -> Int -> Int8Array -> Bool, ?thisArg : Dynamic ) : Bool;
 	function sort( ?compareFn : Int -> Int -> Int ) : Int8Array;
 	function subarray( begin : Int, ?end : Int ) : Int8Array;
 }

@@ -37,17 +37,17 @@ extern class StatsReport
 	var size(default,null) : Int;
 	
 	/** @throws DOMError */
-	function entries() : Any;
+	function entries() : Dynamic;
 	/** @throws DOMError */
-	function keys() : Any;
+	function keys() : Dynamic;
 	/** @throws DOMError */
-	function values() : Any;
+	function values() : Dynamic;
 	/** @throws DOMError */
-	function forEach( callback : Any, ?thisArg : Any ) : Void;
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 	/** @throws DOMError */
 	@:pure
 	function has( key : String ) : Bool;
 	/** @throws DOMError */
 	@:pure
-	function get( key : String ) : Any;
+	function get( key : String ) : Dynamic;
 }

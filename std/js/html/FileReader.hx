@@ -67,7 +67,7 @@ extern class FileReader extends EventTarget
 	/**
 		The file's contents. This property is only valid after the read operation is complete, and the format of the data depends on which of the methods was used to initiate the read operation.
 	**/
-	var result(default,null) : Any;
+	var result(default,null) : Dynamic;
 	
 	/**
 		A `DOMException` representing the error that occurred while reading the file.

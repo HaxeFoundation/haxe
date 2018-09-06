@@ -48,19 +48,19 @@ extern class Cursor
 	/**
 		Returns the key for the record at the cursor's position. If the cursor is outside its range, this is set to `undefined`. The cursor's key can be any data type.
 	**/
-	var key(default,null) : Any;
+	var key(default,null) : Dynamic;
 	
 	/**
 		Returns the cursor's current effective primary key. If the cursor is currently being iterated or has iterated outside its range, this is set to `undefined`. The cursor's primary key can be any data type.
 	**/
-	var primaryKey(default,null) : Any;
+	var primaryKey(default,null) : Dynamic;
 	
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, updates the value at the current position of the cursor in the object store. This can be used to update specific records.
 		@throws DOMError
 	**/
-	function update( value : Any ) : Request;
+	function update( value : Dynamic ) : Request;
 	
 	/**
 		Sets the number times a cursor should move its position forward.
@@ -69,13 +69,13 @@ extern class Cursor
 	function advance( count : Int ) : Void;
 	/** @throws DOMError */
 	@:native("continue")
-	function continue_( ?key : Any ) : Void;
+	function continue_( ?key : Dynamic ) : Void;
 	
 	/**
 		Sets the cursor to the given index key and primary key given as arguments.
 		@throws DOMError
 	**/
-	function continuePrimaryKey( key : Any, primaryKey : Any ) : Void;
+	function continuePrimaryKey( key : Dynamic, primaryKey : Dynamic ) : Void;
 	/** @throws DOMError */
 	@:native("delete")
 	function delete_() : Request;

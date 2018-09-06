@@ -58,7 +58,7 @@ extern class ErrorEvent extends Event
 	/**
 		Is a JavaScript `Object` that is concerned by the event.
 	**/
-	var error(default,null) : Any;
+	var error(default,null) : Dynamic;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ErrorEventInit ) : Void;

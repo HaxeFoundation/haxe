@@ -38,7 +38,7 @@ extern class MessageEvent extends Event
 	/**
 		The data sent by the message emitter.
 	**/
-	var data(default,null) : Any;
+	var data(default,null) : Dynamic;
 	
 	/**
 		A `USVString` representing the origin of the message emitter.
@@ -66,7 +66,7 @@ extern class MessageEvent extends Event
 	/**
 		Initializes a message event. Do not use this anymore — use the `MessageEvent.MessageEvent` constructor instead.
 	**/
-	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort> = []) : Void {} )
-	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort> = []) : Void {} )
-	function initMessageEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> = [] ) : Void;
+	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort> = []) : Void {} )
+	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort> = []) : Void {} )
+	function initMessageEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> = [] ) : Void;
 }

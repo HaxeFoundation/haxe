@@ -27,5 +27,5 @@ package js.html;
 typedef FormDataIterator =
 {
 	/** @throws DOMError */
-	function next() : Any;
+	function next() : Dynamic;
 }

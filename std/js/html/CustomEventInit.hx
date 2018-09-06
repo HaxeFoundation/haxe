@@ -27,5 +27,5 @@ package js.html;
 typedef CustomEventInit =
 {
 	> EventInit,
-	@:optional var detail : Any;
+	@:optional var detail : Dynamic;
 }

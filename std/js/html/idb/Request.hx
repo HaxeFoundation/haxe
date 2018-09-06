@@ -40,7 +40,7 @@ extern class Request extends js.html.EventTarget
 		 Returns the result of the request. If the the request failed and the result is not available, an InvalidStateError exception is thrown.
 		 
 	**/
-	var result(default,null) : Any;
+	var result(default,null) : Dynamic;
 	
 	/**
 		Returns a `DOMException` in the event of an unsuccessful request, indicating what went wrong.

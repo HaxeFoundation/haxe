@@ -50,19 +50,19 @@ extern class CanvasElement extends Element
 		Returns a drawing context on the canvas, or null if the context ID is not supported. A drawing context lets you draw on the canvas. Calling getContext with `"2d"` returns a `CanvasRenderingContext2D` object, whereas calling it with `"webgl"` (or `"experimental-webgl"`) returns a `WebGLRenderingContext` object. This context is only available on browsers that implement WebGL.
 		@throws DOMError
 	**/
-	function getContext( contextId : String, ?contextOptions : Any ) : Any;
+	function getContext( contextId : String, ?contextOptions : Dynamic ) : Dynamic;
 	
 	/**
 		Returns a data-URL containing a representation of the image in the format specified by the `type` parameter (defaults to `png`). The returned image is in a resolution of 96dpi.
 		@throws DOMError
 	**/
-	function toDataURL( ?type : String = "", ?encoderOptions : Any ) : String;
+	function toDataURL( ?type : String = "", ?encoderOptions : Dynamic ) : String;
 	
 	/**
 		Creates a `Blob` object representing the image contained in the canvas; this file may be cached on the disk or stored in memory at the discretion of the user agent.
 		@throws DOMError
 	**/
-	function toBlob( callback : Blob -> Void, ?type : String = "", ?encoderOptions : Any ) : Void;
+	function toBlob( callback : Blob -> Void, ?type : String = "", ?encoderOptions : Dynamic ) : Void;
 	
 	/**
 		Returns a `CanvasCaptureMediaStream` that is a real-time video capture of the surface of the canvas.

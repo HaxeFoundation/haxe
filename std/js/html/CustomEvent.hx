@@ -38,7 +38,7 @@ extern class CustomEvent extends Event
 	/**
 		Any data passed when initializing the event.
 	**/
-	var detail(default,null) : Any;
+	var detail(default,null) : Dynamic;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : CustomEventInit ) : Void;
@@ -48,5 +48,5 @@ extern class CustomEvent extends Event
 		 Initializes a `CustomEvent` object. If the event has already being dispatched, this method does nothing.
 		 
 	**/
-	function initCustomEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?detail : Any ) : Void;
+	function initCustomEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?detail : Dynamic ) : Void;
 }

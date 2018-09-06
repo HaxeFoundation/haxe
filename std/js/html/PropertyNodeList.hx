@@ -28,5 +28,5 @@ package js.html;
 extern class PropertyNodeList extends NodeList
 {
 	/** @throws DOMError */
-	function getValues() : Array<Any>;
+	function getValues() : Array<Dynamic>;
 }

@@ -62,5 +62,5 @@ extern class DOMPointReadOnly
 	/**
 		Returns a JSON representation of the `DOMPointReadOnly` object.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

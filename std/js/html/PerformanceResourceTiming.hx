@@ -57,5 +57,5 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 	/**
 		Returns a `DOMString` that is the JSON representation of the `PerformanceResourceTiming` object.
 	**/
-	function toJSON() : Any;
+	function toJSON() : Dynamic;
 }

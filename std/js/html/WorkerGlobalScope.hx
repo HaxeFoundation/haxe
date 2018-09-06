@@ -49,7 +49,7 @@ extern class WorkerGlobalScope extends EventTarget
 	/**
 		Is an `EventHandler` representing the code to be called when the `error` event is raised.
 	**/
-	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Any -> Any;
+	var onerror : haxe.extern.EitherType<Event,String> -> String -> Int -> Int -> Dynamic -> Dynamic;
 	
 	/**
 		Is an `EventHandler` representing the code to be called when the `offline` event is raised.
@@ -86,12 +86,12 @@ extern class WorkerGlobalScope extends EventTarget
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
-	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	function clearTimeout( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Any> ) : Int {} )
-	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Any> ) : Int;
+	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
 	function clearInterval( ?handle : Int = 0 ) : Void;
 	/** @throws DOMError */
 	@:overload( function( aImage : VideoElement) : Promise<ImageBitmap> {} )

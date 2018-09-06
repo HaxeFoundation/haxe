@@ -103,7 +103,7 @@ extern class Response
 	/** @throws DOMError */
 	function formData() : Promise<FormData>;
 	/** @throws DOMError */
-	function json() : Promise<Any>;
+	function json() : Promise<Dynamic>;
 	/** @throws DOMError */
 	function text() : Promise<String>;
 }

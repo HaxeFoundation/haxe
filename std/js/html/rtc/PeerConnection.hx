@@ -36,7 +36,7 @@ extern class PeerConnection extends js.html.EventTarget
 {
 	/** @throws DOMError */
 	@:overload( function( keygenAlgorithm : String) : Promise<Certificate> {} )
-	static function generateCertificate( keygenAlgorithm : Any ) : Promise<Certificate>;
+	static function generateCertificate( keygenAlgorithm : Dynamic ) : Promise<Certificate>;
 	var localDescription(default,null) : SessionDescription;
 	var currentLocalDescription(default,null) : SessionDescription;
 	var pendingLocalDescription(default,null) : SessionDescription;
@@ -61,7 +61,7 @@ extern class PeerConnection extends js.html.EventTarget
 	var ondatachannel : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( ?configuration : Configuration, ?constraints : Any ) : Void;
+	function new( ?configuration : Configuration, ?constraints : Dynamic ) : Void;
 	function setIdentityProvider( provider : String, ?options : IdentityProviderOptions ) : Void;
 	function getIdentityAssertion() : Promise<String>;
 	@:overload( function( ?options : OfferOptions ) : Promise<SessionDescriptionInit> {} )

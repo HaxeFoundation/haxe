@@ -48,7 +48,7 @@ extern class Index
 	/**
 		The key path of this index. If null, this index is not auto-populated.
 	**/
-	var keyPath(default,null) : Any;
+	var keyPath(default,null) : Dynamic;
 	
 	/**
 		Affects how the index behaves when the result of evaluating the index's key path yields an array. If `true`, there is one record in the index for each item in an array of keys. If `false`, then there is one record for each key that is an array.
@@ -65,41 +65,41 @@ extern class Index
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range.
 		@throws DOMError
 	**/
-	function openCursor( ?range : Any, ?direction : CursorDirection = "next" ) : Request;
+	function openCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range, as arranged by this index.
 		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Any, ?direction : CursorDirection = "next" ) : Request;
+	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, finds either the value in the referenced object store that corresponds to the given key or the first corresponding value, if `key` is an `IDBKeyRange`.
 		@throws DOMError
 	**/
-	function get( key : Any ) : Request;
+	function get( key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, finds either the given key or the primary key, if `key` is an `IDBKeyRange`.
 		@throws DOMError
 	**/
-	function getKey( key : Any ) : Request;
+	function getKey( key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and in a separate thread, returns the number of records within a key range.
 		@throws DOMError
 	**/
-	function count( ?key : Any ) : Request;
+	function count( ?key : Dynamic ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, in a separate thread, finds all matching values in the referenced object store that correspond to the given key or are in range, if `key` is an `IDBKeyRange`.
 		@throws DOMError
 	**/
-	function getAll( ?key : Any, ?limit : Int ) : Request;
+	function getAll( ?key : Dynamic, ?limit : Int ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, in a separate thread, finds all matching keys in the referenced object store that correspond to the given key or are in range, if `key` is an `IDBKeyRange`.
 		@throws DOMError
 	**/
-	function getAllKeys( ?key : Any, ?limit : Int ) : Request;
+	function getAllKeys( ?key : Dynamic, ?limit : Int ) : Request;
 }

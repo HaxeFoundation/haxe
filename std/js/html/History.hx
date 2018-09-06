@@ -48,7 +48,7 @@ extern class History
 	/**
 		Returns an `any` value representing the state at the top of the history stack. This is a way to look at the state without having to wait for a `popstate` event.
 	**/
-	var state(default,null) : Any;
+	var state(default,null) : Dynamic;
 	
 	
 	/**
@@ -77,11 +77,11 @@ extern class History
 		Pushes the given data onto the session history stack with the specified title and, if provided, URL. The data is treated as opaque by the DOM; you may specify any JavaScript object that can be serialized.  Note that Firefox currently ignores the title parameter; for more information, see manipulating the browser history.
 		@throws DOMError
 	**/
-	function pushState( data : Any, title : String, ?url : String ) : Void;
+	function pushState( data : Dynamic, title : String, ?url : String ) : Void;
 	
 	/**
 		Updates the most recent entry on the history stack to have the specified data, title, and, if provided, URL. The data is treated as opaque by the DOM; you may specify any JavaScript object that can be serialized.  Note that Firefox currently ignores the title parameter; for more information, see manipulating the browser history.
 		@throws DOMError
 	**/
-	function replaceState( data : Any, title : String, ?url : String ) : Void;
+	function replaceState( data : Dynamic, title : String, ?url : String ) : Void;
 }

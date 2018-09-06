@@ -40,5 +40,5 @@ extern class Factory
 	/** @throws DOMError */
 	function deleteDatabase( name : String, ?options : OpenDBOptions ) : OpenDBRequest;
 	/** @throws DOMError */
-	function cmp( first : Any, second : Any ) : Int;
+	function cmp( first : Dynamic, second : Dynamic ) : Int;
 }
