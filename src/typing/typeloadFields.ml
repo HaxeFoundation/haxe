@@ -208,7 +208,7 @@ let transform_abstract_field com this_t a_t a f =
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
-		let init p = (EVars [("this",null_pos),Some this_t,None],p) in
+		let init p = (EVars [("this",null_pos),false,Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],null_pos) :: (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
@@ -341,7 +341,7 @@ let build_enum_abstract ctx c a fields p =
 		| _ ->
 			()
 	) fields;
-	EVars [("",null_pos),Some (CTAnonymous fields,p),None],p
+	EVars [("",null_pos),false,Some (CTAnonymous fields,p),None],p
 
 let apply_macro ctx mode path el p =
 	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
@@ -540,7 +540,7 @@ let build_fields (ctx,cctx) c fields =
 	c.cl_build <- (fun() -> BuildMacro pending);
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
-		| EVars [_,Some (CTAnonymous f,p),None] ->
+		| EVars [_,_,Some (CTAnonymous f,p),None] ->
 			let f = List.map (fun f ->
 				let f = match cctx.abstract with
 					| Some a ->

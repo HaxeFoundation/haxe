@@ -910,7 +910,9 @@ and block_with_pos acc p s =
 	block_with_pos' acc parse_block_elt p s
 
 and parse_block_elt = parser
-	| [< '(Kwd Var,p1); vl = parse_var_decls p1; p2 = semicolon >] ->
+	| [< '(Kwd Var,p1); vl = parse_var_decls false p1; p2 = semicolon >] ->
+		(EVars vl,punion p1 p2)
+	| [< '(Kwd Final,p1); vl = parse_var_decls true p1; p2 = semicolon >] ->
 		(EVars vl,punion p1 p2)
 	| [< '(Kwd Inline,p1); '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
 	| [< e = expr; _ = semicolon >] -> e
@@ -974,38 +976,38 @@ and parse_array_decl p1 s =
 	in
 	EArrayDecl (List.rev el),punion p1 p2
 
-and parse_var_decl_head = parser
-	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (name,t,p)
+and parse_var_decl_head final = parser
+	| [< name, p = dollar_ident; t = popt parse_type_hint >] -> (name,final,t,p)
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
 		Some (expr_or_fail (fun () -> error (Custom "expression expected after =") p1) s)
 	| [< >] -> None
 
-and parse_var_assignment_resume vl name pn t s =
+and parse_var_assignment_resume final vl name pn t s =
 	try
 		let eo = parse_var_assignment s in
-		((name,pn),t,eo)
+		((name,pn),final,t,eo)
 	with Display e ->
-		let v = ((name,pn),t,Some e) in
+		let v = ((name,pn),final,t,Some e) in
 		let e = (EVars(List.rev (v :: vl)),punion pn (pos e)) in
 		display e
 
-and parse_var_decls_next vl = parser
-	| [< '(Comma,p1); name,t,pn = parse_var_decl_head; s >] ->
-		let v_decl = parse_var_assignment_resume vl name pn t s in
-		parse_var_decls_next (v_decl :: vl) s
+and parse_var_decls_next final vl = parser
+	| [< '(Comma,p1); name,final,t,pn = parse_var_decl_head final; s >] ->
+		let v_decl = parse_var_assignment_resume final vl name pn t s in
+		parse_var_decls_next final (v_decl :: vl) s
 	| [< >] ->
 		vl
 
-and parse_var_decls p1 = parser
-	| [< name,t,pn = parse_var_decl_head; s >] ->
-		let v_decl = parse_var_assignment_resume [] name pn t s in
-		List.rev (parse_var_decls_next [v_decl] s)
+and parse_var_decls final p1 = parser
+	| [< name,final,t,pn = parse_var_decl_head final; s >] ->
+		let v_decl = parse_var_assignment_resume final [] name pn t s in
+		List.rev (parse_var_decls_next final [v_decl] s)
 	| [< s >] -> error (Custom "Missing variable identifier") p1
 
-and parse_var_decl = parser
-	| [< name,t,pn = parse_var_decl_head; v_decl = parse_var_assignment_resume [] name pn t >] -> v_decl
+and parse_var_decl final = parser
+	| [< name,final,t,pn = parse_var_decl_head final; v_decl = parse_var_assignment_resume final [] name pn t >] -> v_decl
 
 and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
@@ -1016,7 +1018,9 @@ and parse_macro_expr p = parser
 		let _, to_type, _  = reify !in_macro in
 		let t = to_type t p in
 		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
-	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl >] ->
+	| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
+		reify_expr (EVars vl,p1) !in_macro
+	| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
 		reify_expr (EVars vl,p1) !in_macro
 	| [< d = parse_class None [] [] false >] ->
 		let _,_,to_type = reify !in_macro in
@@ -1105,7 +1109,8 @@ and expr = parser
 		| [< e = parse_macro_expr p >] -> e
 		| [< >] -> serror()
 		end
-	| [< '(Kwd Var,p1); v = parse_var_decl >] -> (EVars [v],p1)
+	| [< '(Kwd Var,p1); v = parse_var_decl false >] -> (EVars [v],p1)
+	| [< '(Kwd Final,p1); v = parse_var_decl true >] -> (EVars [v],p1)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
@@ -1270,7 +1275,8 @@ and parse_guard = parser
 		e
 
 and expr_or_var = parser
-	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),None,None],punion p1 p2
+	| [< '(Kwd Var,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),false,None,None],punion p1 p2
+	| [< '(Kwd Final,p1); name,p2 = dollar_ident; >] -> EVars [(name,p2),true,None,None],punion p1 p2
 	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser

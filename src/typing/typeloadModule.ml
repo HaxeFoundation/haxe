@@ -608,7 +608,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let init () = List.iter (fun f -> f()) !context_init in
 		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
 			match e with
-			| EVars [_,Some (CTAnonymous fields,p),None] ->
+			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t

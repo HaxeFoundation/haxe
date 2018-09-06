@@ -174,7 +174,7 @@ module Pattern = struct
 		let verror name p =
 			error (Printf.sprintf "Variable %s must appear exactly once in each sub-pattern" name) p
 		in
-		let add_local name p =
+		let add_local final name p =
 			let is_wildcard_local = name = "_" in
 			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
 			match pctx.or_locals with
@@ -184,7 +184,7 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var (VUser TVOPatternVariable) name t p in
+				let v = alloc_var (VUser (if final then TVOPatternFinal else TVOPatternVariable)) name t p in
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
@@ -278,7 +278,7 @@ module Pattern = struct
 								pctx.ctx.com.warning (Printf.sprintf "`case %s` has been deprecated, use `case var %s` instead" s s) p *)
 						| l -> pctx.ctx.com.warning ("Potential typo detected (expected similar values are " ^ (String.concat ", " l) ^ "). Consider using `var " ^ s ^ "` instead") p
 					end;
-					let v = add_local s p in
+					let v = add_local false s p in
 					PatVariable v
 				end
 			| exc ->
@@ -308,8 +308,8 @@ module Pattern = struct
 						if i = "_" then PatAny
 						else handle_ident i (pos e)
 				end
-			| EVars([(s,p),None,None]) ->
-				let v = add_local s p in
+			| EVars([(s,p),final,None,None]) ->
+				let v = add_local final s p in
 				PatVariable v
 			| ECall(e1,el) ->
 				let e1 = type_expr ctx e1 (WithType t) in
@@ -442,7 +442,7 @@ module Pattern = struct
 			| EBinop(OpAssign,e1,e2) ->
 				let rec loop dko e = match e with
 					| (EConst (Ident s),p) ->
-						let v = add_local s p in
+						let v = add_local false s p in
 						begin match dko with
 						| None -> ()
 						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType t) p);
@@ -457,7 +457,7 @@ module Pattern = struct
 			| EBinop(OpArrow,e1,e2) ->
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
-				let v = add_local "_" null_pos in
+				let v = add_local false "_" null_pos in
 				let e1 = type_expr ctx e1 Value in
 				v.v_name <- "tmp";
 				restore();

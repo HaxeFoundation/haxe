@@ -628,10 +628,10 @@ let optimize_completion_expr e args =
 				());
 			map e
 		| EVars vl ->
-			let vl = List.map (fun ((v,pv),t,e) ->
+			let vl = List.map (fun ((v,pv),final,t,e) ->
 				let e = (match e with None -> None | Some e -> Some (loop e)) in
 				decl v (Option.map fst t) e;
-				((v,pv),t,e)
+				((v,pv),final,t,e)
 			) vl in
 			(EVars vl,p)
 		| EBlock el ->
@@ -660,7 +660,7 @@ let optimize_completion_expr e args =
 			let old = save() in
 			let etmp = (EConst (Ident "$tmp"),p) in
 			decl n None (Some (EBlock [
-				(EVars [("$tmp",null_pos),None,None],p);
+				(EVars [("$tmp",null_pos),false,None,None],p);
 				(EFor ((EBinop (OpIn,id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
 				etmp
 			],p));
@@ -755,7 +755,7 @@ let optimize_completion_expr e args =
 							with Not_found ->
 								let e = subst_locals lc e in
 								let name = "$tmp_" ^ string_of_int id in
-								tmp_locals := ((name,null_pos),None,Some e) :: !tmp_locals;
+								tmp_locals := ((name,null_pos),false,None,Some e) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name
 							) in
