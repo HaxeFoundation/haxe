@@ -1060,7 +1060,7 @@ extern class WebGL2RenderingContext
 	function isContextLost() : Bool;
 	function getSupportedExtensions() : Array<String>;
 	/** @throws DOMError */
-	function getExtension( name : String ) : Dynamic;
+	function getExtension<T>( name : Extension<T> ) : T;
 	function activeTexture( texture : Int ) : Void;
 	function attachShader( program : Program, shader : Shader ) : Void;
 	function bindAttribLocation( program : Program, index : Int, name : String ) : Void;

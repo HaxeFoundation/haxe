@@ -440,7 +440,7 @@ extern class RenderingContext
 		Returns an extension object.
 		@throws DOMError
 	**/
-	function getExtension( name : String ) : Dynamic;
+	function getExtension<T>( name : Extension<T> ) : T;
 	
 	/**
 		Selects the active texture unit.
