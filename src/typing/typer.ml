@@ -1624,11 +1624,11 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType t ->
-		let rec loop in_abstract_from t =
+		let rec loop t =
 			match follow t with
-			| TAnon a when not (PMap.is_empty a.a_fields) && not in_abstract_from -> ODKWithStructure a
+			| TAnon a -> ODKWithStructure a
 			| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				(match List.fold_left (fun acc t -> match loop true t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+				(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -1642,7 +1642,7 @@ and type_object_decl ctx fl with_type p =
 			| _ ->
 				ODKPlain
 		in
-		loop false t
+		loop t
 	| _ ->
 		ODKPlain
 	) in
@@ -1690,8 +1690,7 @@ and type_object_decl ctx fl with_type p =
 		end;
 		t, fl
 	in
-	(match a with
-	| ODKPlain ->
+	let type_plain_fields () =
 		let rec loop (l,acc) ((f,pf,qs),e) =
 			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
@@ -1708,6 +1707,10 @@ and type_object_decl ctx fl with_type p =
 		let x = ref Const in
 		ctx.opened <- x :: ctx.opened;
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
+	in
+	(match a with
+	| ODKPlain -> type_plain_fields()
+	| ODKWithStructure a when PMap.is_empty a.a_fields && !dynamic_parameter = None -> type_plain_fields()
 	| ODKWithStructure a ->
 		let t, fl = type_fields a.a_fields in
 		if !(a.a_status) = Opened then a.a_status := Closed;

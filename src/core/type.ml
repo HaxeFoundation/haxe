@@ -1406,6 +1406,7 @@ module Printer = struct
 			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
 			"cf_public",string_of_bool cf.cf_public;
+			"cf_final",string_of_bool cf.cf_final;
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
