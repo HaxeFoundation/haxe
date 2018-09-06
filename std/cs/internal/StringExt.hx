@@ -180,9 +180,10 @@ private typedef NativeString = cs.system.String;
 		return me;
 	}
 
-	public static function fromCharCode(code:Int):NativeString
+	public static function fromCharCode(code:Int):String
 	{
-		return new NativeString( cast(code,cs.StdTypes.Char16), 1 );
+		return cs.system.Char.ConvertFromUtf32(code);
+		// return new NativeString( cast(code,cs.StdTypes.Char16), 1 );
 	}
 }
 

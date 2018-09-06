@@ -12,3 +12,4 @@ PKG xml-light
 PKG sha
 FLG -safe-string
 FLG -w -3
+FLG -w -40

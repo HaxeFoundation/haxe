@@ -28,9 +28,8 @@ type context = {
 }
 
 let s_version =
-	(* let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
-	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in *)
-	let pre,build = "","" in
+	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
+	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
 let default_flush ctx = match ctx.com.json_out with
@@ -287,7 +286,7 @@ let rec wait_loop process_params verbose accept =
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
 			let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
-				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules -> true
+				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
 				| _ -> false
 			in
 			let check_file () =
@@ -315,7 +314,11 @@ let rec wait_loop process_params verbose accept =
 					None
 				else try
 					if m.m_extra.m_mark <= start_mark then begin
-						if not (has_policy NoCheckShadowing) then check_module_path();
+						(* Workaround for preview.4 Java issue *)
+						begin match m.m_extra.m_kind with
+							| MExtern -> check_module_path()
+							| _ -> if not (has_policy NoCheckShadowing) then check_module_path();
+						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
 					m.m_extra.m_mark <- mark;
@@ -357,8 +360,7 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
-						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
+					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
 					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_reuse_macro_calls
 				)
 			end
@@ -495,6 +497,7 @@ let rec wait_loop process_params verbose accept =
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		if !was_compilation then incr run_count;
 		if !run_count mod 10 = 0 then begin
+			run_count := 1;
 			let t0 = get_time() in
 			Gc.compact();
 			ServerMessage.gc_stats (get_time() -. t0);

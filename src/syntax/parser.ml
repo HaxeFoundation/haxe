@@ -62,18 +62,22 @@ let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
 type decl_flag =
 	| DPrivate
 	| DExtern
+	| DFinal
 
-let decl_flag_to_class_flag = function
+let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> HPrivate
 	| DExtern -> HExtern
+	| DFinal -> HFinal
 
-let decl_flag_to_enum_flag = function
+let decl_flag_to_enum_flag (flag,p) = match flag with
 	| DPrivate -> EPrivate
 	| DExtern -> EExtern
+	| DFinal -> error (Custom "final on enums is not allowed") p
 
-let decl_flag_to_abstract_flag = function
+let decl_flag_to_abstract_flag (flag,p) = match flag with
 	| DPrivate -> AbPrivate
 	| DExtern -> AbExtern
+	| DFinal -> error (Custom "final on abstracts is not allowed") p
 
 module TokenCache = struct
 	let cache = ref (DynArray.create ())
@@ -212,8 +216,12 @@ let make_is e (t,p_t) p p_is =
 	ECall(e_is,[e;e2]),p
 
 let next_token s = match Stream.peek s with
+	| Some (Eof,p) ->
+		(Eof,{p with pmax = max_int})
 	| Some tk -> tk
-	| _ -> last_token s
+	| None ->
+		let last_pos = pos (last_token s) in
+		(Eof,{last_pos with pmax = max_int})
 
 let next_pos s = pos (next_token s)
 

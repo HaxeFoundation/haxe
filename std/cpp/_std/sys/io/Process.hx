@@ -115,7 +115,7 @@ class Process {
 	}
 
 	public function kill() : Void {
-		throw "Not implemented";
+		NativeProcess.process_kill(p);
 	}
 
 }

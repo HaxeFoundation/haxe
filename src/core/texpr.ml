@@ -55,7 +55,7 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 let duplicate_tvars e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
-		let v2 = alloc_var v.v_name v.v_type v.v_pos in
+		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2.v_extra <- v.v_extra;
 		Hashtbl.add vars v.v_id v2;
@@ -335,7 +335,7 @@ let rec type_constant_value basic (e,p) =
 		error "Constant value expected" p
 
 let for_remap basic v e1 e2 p =
-	let v' = alloc_var v.v_name e1.etype e1.epos in
+	let v' = alloc_var v.v_kind v.v_name e1.etype e1.epos in
 	let ev' = mk (TLocal v') e1.etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts e1.etype) in
 	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> error (s_type (print_context()) t1 ^ "has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in

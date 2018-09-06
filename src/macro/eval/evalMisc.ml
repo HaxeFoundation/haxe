@@ -27,12 +27,19 @@ open EvalDecode
 open EvalExceptions
 open EvalPrinting
 open EvalHash
+open EvalString
 
 let throw_string s p =
 	throw (encode_string s) p
 
 let invalid_binop op v1 v2 p =
 	throw_string (Printf.sprintf "Invalid operation: %s %s %s" (value_string v1) (s_binop op) (value_string v2)) p
+
+let update_object_prototype o fields =
+	let ctx = get_ctx() in
+	let proto,fields = ctx.get_object_prototype (get_ctx()) fields in
+	o.ofields <- Array.of_list (List.map snd fields);
+	o.oproto <- proto
 
 (* Calls *)
 
@@ -54,9 +61,10 @@ let set_instance_field vi name v2 =
 let set_object_field o name v2 =
 	try
 		o.ofields.(get_instance_field_index_raise o.oproto name) <- v2;
-		o.oremoved <- IntMap.remove name o.oremoved;
 	with Not_found ->
-		o.oextra <- IntMap.add name v2 o.oextra
+		let fields = IntMap.fold (fun name i acc -> (name,o.ofields.(i)) :: acc) o.oproto.pinstance_names [] in
+		let fields = (name,v2) :: fields in
+		update_object_prototype o fields
 
 let set_bytes_length_field v1 v2 =
 	match v1 with
@@ -67,7 +75,7 @@ let set_bytes_length_field v1 v2 =
 		vi.ikind <- IBytes b'
 	| _ -> unexpected_value v1 "bytes"
 
-let set_field v1 name v2 = match v1 with
+let set_field v1 name v2 = match vresolve v1 with
 	| VObject o -> set_object_field o name v2
 	| VPrototype proto -> set_proto_field proto name v2
 	| VArray va ->
@@ -96,8 +104,16 @@ let rec compare a b =
 	| VTrue,VTrue | VFalse,VFalse -> CEq
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
-	| VString(_,s1),VString(_,s2) ->
-		let r = String.compare (Lazy.force s1) (Lazy.force s2) in
+	| VString s1,VString s2 ->
+		let s1' = Lazy.force s1.sstring in
+		let s2' = Lazy.force s2.sstring in
+		let s1,s2 = match s1.sascii,s2.sascii with
+		| true,true
+		| false,false -> s1',s2'
+		| true,false -> extend_ascii s1',s2'
+		| false,true -> s1',extend_ascii s2'
+		in
+		let r = String.compare s1 s2 in
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
 	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
@@ -115,15 +131,19 @@ let rec compare a b =
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) ->
 		if f1 != f2 then CUndef
 		else compare v1 v2
+	| VLazy f1,_ ->
+		compare (!f1()) b
+	| _,VLazy f2 ->
+		compare a (!f2())
 	| _ -> CUndef
 
-let rec arrays_equal a1 a2 =
+let rec arrays_equal cmp a1 a2 =
 	if Array.length a1 <> Array.length a2 then
 		false
 	else begin
 		let rec loop i =
 			if i = Array.length a1 then true
-			else if not (equals_structurally a1.(i) a2.(i)) then false
+			else if not (cmp a1.(i) a2.(i)) then false
 			else loop (i + 1)
 		in
 		loop 0
@@ -135,12 +155,14 @@ and equals_structurally a b =
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VString(_,s1),VString(_,s2) -> Lazy.force s1 = Lazy.force s2
-	| VArray a,VArray b -> a == b || arrays_equal a.avalues b.avalues
-	| VVector a,VVector b -> a == b || arrays_equal a b
-	| VObject a,VObject b -> a == b || arrays_equal a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
-	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal a.eargs b.eargs && a.epath = b.epath
+	| VString s1,VString s2 -> Lazy.force s1.sstring = Lazy.force s2.sstring (* STODO *)
+	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
+	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
+	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields
+	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal equals_structurally a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VLazy f1,_ -> equals_structurally (!f1()) b
+	| _,VLazy f2 -> equals_structurally a (!f2())
 	| _ -> a == b
 
 let is_true v = match v with
@@ -151,10 +173,10 @@ let op_add v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
-	| VString(s1,_),VString(s2,_) -> encode_rope (Rope.concat2 s1 s2)
-	| VString(s1,_),v2 -> encode_rope (Rope.concat2 s1 (s_value 0 v2))
-	| v1,VString(s2,_) -> encode_rope (Rope.concat2 (s_value 0 v1) s2)
-	| v1,v2 -> encode_rope (Rope.concat2 (s_value 0 v1) (s_value 0 v2))
+	| VString s1,VString s2 -> vstring (concat s1 s2)
+	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
+	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
+	| v1,v2 -> vstring (concat (s_value 0 v1) (s_value 0 v2))
 
 let op_mult p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)

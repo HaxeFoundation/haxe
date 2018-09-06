@@ -71,7 +71,7 @@ class Uint8Array {
 		return arr;
 	}
 
-	static function _set( ?arg : Dynamic, ?offset : Int ) {
+	static function _set( ?arg : Dynamic, offset = 0 ) {
 		if( Std.is(arg.buffer,ArrayBuffer) ) {
 			var a : Array<Int> = arg;
 			if( arg.byteLength + offset > nativeThis.byteLength )

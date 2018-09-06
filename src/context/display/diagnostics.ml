@@ -35,7 +35,7 @@ let find_unused_variables com e =
 	let vars = Hashtbl.create 0 in
 	let pmin_map = Hashtbl.create 0 in
 	let rec loop e = match e.eexpr with
-		| TVar(v,eo) when Meta.has Meta.UserVariable v.v_meta ->
+		| TVar({v_kind = VUser _} as v,eo) ->
 			Hashtbl.add pmin_map e.epos.pmin v;
 			let p = match eo with
 				| None -> e.epos
@@ -44,7 +44,7 @@ let find_unused_variables com e =
 					{ e.epos with pmax = e1.epos.pmin }
 			in
 			Hashtbl.replace vars v.v_id (v,p);
-		| TLocal v when Meta.has Meta.UserVariable v.v_meta ->
+		| TLocal ({v_kind = VUser _} as v) ->
 			Hashtbl.remove vars v.v_id;
 		| _ ->
 			Type.iter loop e
@@ -80,9 +80,7 @@ let check_other_things com e =
 		| TMeta((Meta.Extern,_,_),_) ->
 			(* This is so something like `[inlineFunc()]` is not reported. *)
 			had_effect := true;
-		| TLocal v when not (Meta.has Meta.UserVariable v.v_meta) ->
-			()
-		| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ | TIdent _ when not in_value ->
+		| TConst _ | TLocal {v_kind = VUser _} | TTypeExpr _ | TFunction _ | TIdent _ when not in_value ->
 			no_effect e.epos;
 		| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ | TIdent _ ->
 			()

@@ -67,11 +67,11 @@ let print_fields fields =
 			let path = CompletionItem.CompletionModuleType.get_path cm in
 			"type",snd path,s_type_path path,None
 		| ITPackage(path,_) -> "package",snd path,"",None
-		| ITModule s -> "type",s,"",None
+		| ITModule path -> "type",snd path,"",None
 		| ITMetadata(s,doc) -> "metadata",s,"",doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
-			let t = Option.default t_dynamic k.ci_type in
+			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
 			"literal",s,s_type (print_context()) t,None
 		| ITLocal v -> "local",v.v_name,s_type (print_context()) v.v_type,None
 		| ITKeyword kwd -> "keyword",Ast.s_keyword kwd,"",None
@@ -150,7 +150,7 @@ let print_type t p doc =
 
 let print_signatures tl =
 	let b = Buffer.create 0 in
-	List.iter (fun ((args,ret),doc) ->
+	List.iter (fun (((args,ret),_),doc) ->
 		Buffer.add_string b "<type";
 		Option.may (fun s -> Buffer.add_string b (Printf.sprintf " d=\"%s\"" (htmlescape s))) doc;
 		Buffer.add_string b ">\n";
@@ -376,7 +376,7 @@ module TypePathHandler = struct
 			(abort ("No classes found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
-			let modules = List.map (fun n -> make_ci_module n) modules in
+			let modules = List.map (fun n -> make_ci_module (p,n)) modules in
 			Some (packs @ modules)
 
 	(** raise field completion listing module sub-types and static fields *)
@@ -426,8 +426,11 @@ module TypePathHandler = struct
 				| KAbstractImpl a -> Self (TAbstractDecl a)
 				| _ -> Self (TClassDecl c)
 			in
+			let tpair t =
+				(t,DisplayEmitter.completion_type_of_type ctx t)
+			in
 			let make_field_doc c cf =
-				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) cf.cf_type
+				make_ci_class_field (CompletionClassField.make cf CFSStatic (class_origin c) true) (tpair cf.cf_type)
 			in
 			let fields = match !statics with
 				| None -> types
@@ -436,7 +439,7 @@ module TypePathHandler = struct
 			let fields = match !enum_statics with
 				| None -> fields
 				| Some en -> PMap.fold (fun ef acc ->
-					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) ef.ef_type :: acc
+					make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (tpair ef.ef_type) :: acc
 				) en.e_constrs fields
 			in
 			Some fields
@@ -452,7 +455,7 @@ let print_signature tl display_arg =
 	let st = s_type (print_context()) in
 	let s_arg (n,o,t) = Printf.sprintf "%s%s:%s" (if o then "?" else "") n (st t) in
 	let s_fun args ret = Printf.sprintf "(%s):%s" (String.concat ", " (List.map s_arg args)) (st ret) in
-	let siginf = List.map (fun ((args,ret),doc) ->
+	let siginf = List.map (fun (((args,ret),_),doc) ->
 		let label = s_fun args ret in
 		let parameters =
 			List.map (fun arg ->
@@ -500,14 +503,11 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
 		let file = unquote file in
 		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let offset = ref 0 in
 		let mode = match smode with
 			| "position" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMDefinition
 			| "usage" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMUsage false
 			(*| "rename" ->
@@ -516,7 +516,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 			| "package" ->
 				DMPackage
 			| "type" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMHover
 			| "toplevel" ->
@@ -531,7 +530,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 				Common.define com Define.NoCOpt;
 				DMStatistics
 			| "signature" ->
-				offset := 1;
 				Common.define com Define.NoCOpt;
 				DMSignature
 			| "" ->
@@ -554,8 +552,8 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		Parser.use_doc := true;
 		DisplayPosition.display_position := {
 			pfile = Path.unique_full_path file;
-			pmin = pos + !offset;
-			pmax = pos + !offset;
+			pmin = pos;
+			pmax = pos;
 		}
 
 let process_display_file com classes =
@@ -609,10 +607,10 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 		FindReferences.find_references tctx com with_definition
 	| DMDiagnostics global ->
 		let dctx = Diagnostics.prepare com global in
-		Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get());
+		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
 		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx None in
+		let stats = Statistics.collect_statistics tctx (SFFile !DisplayPosition.display_position.pfile) in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->

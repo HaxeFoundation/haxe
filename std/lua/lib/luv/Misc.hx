@@ -38,6 +38,9 @@ extern class Misc {
   public static function get_free_memory() : Int;
   public static function getpid() : Int;
 
+  public static function os_getenv(env : String) : String;
+  public static function os_setenv(env : String, value : String) : Void;
+
   // TODO Windows only?
   public static function getuid() : Int;
   public static function setuid(from : Int, to : Int) : String;

@@ -8,7 +8,7 @@ class Issue5166 extends DisplayTestCase {
 
 	**/
 	function test() {
-		eq("E", type(pos(2)));
+		eq("cases.E", type(pos(2)));
 		eq(range(2, 1), position(pos(2)));
 	}
 }

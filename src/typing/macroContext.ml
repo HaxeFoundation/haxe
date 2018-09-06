@@ -150,14 +150,14 @@ let make_macro_api ctx p =
 						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
 				in
 				try
-					let m = Some (Typeload.load_instance ctx (tp,null_pos) true p) in
+					let m = Some (Typeload.load_instance ctx (tp,null_pos) true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
-			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false p (t,null_pos))
+			typing_timer ctx false (fun() -> Typeload.load_complex_type ctx false (t,p))
 		);
 		MacroApi.get_module = (fun s ->
 			typing_timer ctx false (fun() ->
@@ -295,7 +295,7 @@ let make_macro_api ctx p =
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
-			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
 			let m, tdef, pos = safe_decode v ttype p f in
 			let add is_macro ctx =
@@ -517,6 +517,12 @@ let get_macro_context ctx p =
 		let mctx = ctx.g.do_create com2 in
 		mctx.is_display_file <- false;
 		create_macro_interp ctx mctx;
+		begin match CompilationServer.get () with
+		| None -> ()
+		| Some cs ->
+			let sign = Define.get_signature com2.defines in
+			try ignore(CompilationServer.get_sign cs sign) with Not_found -> ignore(CompilationServer.add_sign cs sign com2)
+		end;
 		api, mctx
 
 let load_macro_module ctx cpath display p =
@@ -591,7 +597,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx (mode = MDisplay) cpath f p in
 	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-	let expr = Typeload.load_instance mctx (ctexpr,null_pos) false p in
+	let expr = Typeload.load_instance mctx (ctexpr,p) false in
 	(match mode with
 	| MDisplay ->
 		raise Exit (* We don't have to actually call the macro. *)
@@ -599,18 +605,18 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		unify mctx mret expr mpos;
 	| MBuild ->
 		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" },null_pos)]; tsub = None } in
-		let tfields = Typeload.load_instance mctx (ctfields,null_pos) false p in
+		let tfields = Typeload.load_instance mctx (ctfields,p) false in
 		unify mctx mret tfields mpos
 	| MMacroType ->
 		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
-		let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+		let ttype = Typeload.load_instance mctx (cttype,p) false in
 		try
 			unify_raise mctx mret ttype mpos;
 			(* TODO: enable this again in the future *)
 			(* ctx.com.warning "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
 		with Error (Unify _,_) ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("ComplexType") } in
-			let ttype = Typeload.load_instance mctx (cttype,null_pos) false p in
+			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			unify_raise mctx mret ttype mpos;
 	);
 	(*
@@ -725,7 +731,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						mk_mono()
 					else try
 						let ct = Interp.decode_ctype v in
-						Typeload.load_complex_type ctx false p ct;
+						Typeload.load_complex_type ctx false ct;
 					with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
 						Interp.decode_type v
 					in
@@ -806,6 +812,10 @@ let interpret ctx =
 
 let setup() =
 	Interp.setup Interp.macro_api
+
+let type_stored_expr ctx e1 =
+	let id = match e1 with (EConst (Int s),_) -> int_of_string s | _ -> assert false in
+	get_stored_typed_expr ctx.com id
 
 ;;
 load_macro_ref := load_macro;

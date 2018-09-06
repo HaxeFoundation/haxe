@@ -239,11 +239,7 @@ let rec func ctx bb tf t p =
 				| s :: _ -> s
 				| [] -> ctx.temp_var_name
 		in
-		let v = match v with Some v -> v | None -> alloc_var (loop e) e.etype e.epos in
-		begin match ctx.com.platform with
-			| Globals.Cpp when sequential && not (Common.defined ctx.com Define.Cppia) -> ()
-			| _ -> v.v_meta <- [Meta.CompilerGenerated,[],e.epos];
-		end;
+		let v = match v with Some v -> v | None -> alloc_var VGenerated (loop e) e.etype e.epos in
 		let bb = declare_var_and_assign bb v e e.epos in
 		let e = {e with eexpr = TLocal v} in
 		let e = List.fold_left (fun e f -> f e) e fl in
@@ -314,7 +310,7 @@ let rec func ctx bb tf t p =
 				e
 			| _ ->
 				if is_asvar_type t then begin
-					let v = alloc_var "tmp" t e.epos in
+					let v = alloc_var VGenerated "tmp" t e.epos in
 					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
 					bb := bb';
 					e
@@ -577,7 +573,7 @@ let rec func ctx bb tf t p =
 			add_texpr bb {e with eexpr = TNew(c,tl,el)};
 			bb
 		| TCast(e1,Some mt) ->
-			let b,e1 = value bb e1 in
+			let bb,e1 = value bb e1 in
 			add_texpr bb {e with eexpr = TCast(e1,Some mt)};
 			bb
 		| TBinop(OpAssignOp op,({eexpr = TArray(e1,e2)} as ea),e3) ->

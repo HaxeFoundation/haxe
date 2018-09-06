@@ -151,6 +151,10 @@ let is_array_type t =
 	| HObj p -> is_array_class p.pname
 	| _ -> false
 
+let max_pos e =
+	let p = e.epos in
+	{ p with pmin = p.pmax }
+
 let to_utf8 str p =
 	let u8 = try
 		UTF8.validate str;
@@ -396,10 +400,8 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
-					(*
-						if it's another virtual or a method, it might not match our own (might be larger, or class)
-					*)
+				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
+					(* allowing functions will crash unit tests *)
 					acc
 				| Method _ ->
 					acc
@@ -511,8 +513,9 @@ and real_type ctx e =
 					| TInst ({cl_kind=KTypeParameter _},_), TFun _ -> a2
 					(*
 						If we have a number, it is more accurate to cast it to the type parameter before wrapping it as dynamic
+						Ignore dynamic method (#7166)
 					*)
-					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) ->
+					| TInst ({cl_kind=KTypeParameter _},_), t when is_number (to_type ctx t) && (match f with FInstance (_,_,{ cf_kind = Var _ | Method MethDynamic }) -> false | _ -> true) ->
 						(name, opt, TAbstract (fake_tnull,[t]))
 					| _ ->
 						a
@@ -520,6 +523,14 @@ and real_type ctx e =
 			| _ -> ft)
 		| TLocal v -> v.v_type
 		| TParenthesis e -> loop e
+		| TArray (arr,_) ->
+			let rec loop t =
+				match follow t with
+				| TInst({ cl_path = [],"Array" },[t]) -> t
+				| TAbstract (a,pl) -> loop (Abstract.get_underlying_type a pl)
+				| _ -> t_dynamic
+			in
+			loop arr.etype
 		| _ -> e.etype
 	in
 	to_type ctx (loop e)
@@ -834,12 +845,17 @@ let alloc_var ctx v new_var =
 		Hashtbl.add ctx.m.mvars v.v_id r;
 		r
 
+
+let push_op ctx o =
+	DynArray.add ctx.m.mdebug ctx.m.mcurpos;
+	DynArray.add ctx.m.mops o
+
 let op ctx o =
 	match o with
-	| OMov (a,b) when a = b -> ()
+	| OMov (a,b) when a = b ->
+		()
 	| _ ->
-		DynArray.add ctx.m.mdebug ctx.m.mcurpos;
-		DynArray.add ctx.m.mops o
+		push_op ctx o
 
 let set_op ctx pos o =
 	DynArray.set ctx.m.mops pos o
@@ -947,11 +963,12 @@ let real_name v =
 	| "_gthis" -> "this"
 	| name -> name
 
-let is_gen_local v =
-	String.length v.v_name >= 2 && String.unsafe_get v.v_name 0 = '_' && String.unsafe_get v.v_name 1 = 'g'
+let is_gen_local ctx v = match v.v_kind with
+	| VUser _ -> false
+	| _ -> true
 
 let add_assign ctx v =
-	if is_gen_local v then () else
+	if is_gen_local ctx v then () else
 	let name = real_name v in
 	ctx.m.massign <- (alloc_string ctx name, current_pos ctx - 1) :: ctx.m.massign
 
@@ -1184,7 +1201,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		else
 			abort ("Don't know how to cast " ^ tstr rt ^ " to " ^ tstr t) p
 
-and unsafe_cast_to ctx (r:reg) (t:ttype) p =
+and unsafe_cast_to ?(debugchk=true) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
 	if safe_cast rt t then
 		r
@@ -1204,7 +1221,7 @@ and unsafe_cast_to ctx (r:reg) (t:ttype) p =
 		if is_dynamic (rtype ctx r) && is_dynamic t then
 			let r2 = alloc_tmp ctx t in
 			op ctx (OUnsafeCast (r2,r));
-			if ctx.com.debug then begin
+			if ctx.com.debug && debugchk then begin
 				hold ctx r2;
 				let r3 = cast_to ~force:true ctx r t p in
 				let j = jump ctx (fun n -> OJEq (r2,r3,n)) in
@@ -1511,7 +1528,7 @@ and eval_expr ctx e =
 			match captured_index ctx v with
 			| None ->
 				let r = alloc_var ctx v true in
-				op ctx (OMov (r,ri));
+				push_op ctx (OMov (r,ri));
 				add_assign ctx v;
 			| Some idx ->
 				op ctx (OSetEnumField (ctx.m.mcaptreg, idx, ri));
@@ -1986,6 +2003,23 @@ and eval_expr ctx e =
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt]) ->
+		let r = eval_expr ctx v in
+		hold ctx r;
+		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in
+		hold ctx c;
+		let rv = alloc_tmp ctx (to_type ctx e.etype) in
+		let rb = alloc_tmp ctx HBool in
+		op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,r));
+		let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
+		op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx r (to_type ctx e.etype) e.epos));
+		let jend = jump ctx (fun n -> OJAlways n) in
+		jnext();
+		op ctx (ONull rv);
+		jend();
+		free ctx r;
+		free ctx c;
+		rv
 	| TCall (ec,args) ->
 		let tfun = real_type ctx ec in
 		let el() = eval_args ctx args tfun e.epos in
@@ -2102,7 +2136,7 @@ and eval_expr ctx e =
 				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> Type.alloc_var n t en.e_pos, if o then Some TNull else None) eargs in
+				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some TNull else None) eargs in
 				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
 				let f = {
 					tf_args = eargs;
@@ -2114,7 +2148,10 @@ and eval_expr ctx e =
 			op ctx (OStaticClosure (r,fid));
 		| ANone | ALocal _ | AArray _ | ACaptured _ ->
 			abort "Invalid access" e.epos);
-		unsafe_cast_to ctx r (to_type ctx e.etype) e.epos
+		let to_t = to_type ctx e.etype in
+		(match to_t with
+		| HFun _ -> cast_to ctx r to_t e.epos
+		| _ -> unsafe_cast_to ctx r to_t e.epos)
 	| TObjectDecl fl ->
 		(match to_type ctx e.etype with
 		| HVirtual vp as t when Array.length vp.vfields = List.length fl && not (List.exists (fun ((s,_,_),e) -> s = "toString" && is_to_string e.etype) fl)  ->
@@ -2171,7 +2208,9 @@ and eval_expr ctx e =
 		let t = to_type ctx e.etype in
 		let out = alloc_tmp ctx t in
 		let j = jump_expr ctx cond false in
-		if t = HVoid then ignore(eval_expr ctx eif) else op ctx (OMov (out,eval_to ctx eif t));
+		let rif = if t = HVoid then eval_expr ctx eif else eval_to ctx eif t in
+		set_curpos ctx (max_pos eif);
+		if t <> HVoid then op ctx (OMov (out,rif));
 		(match eelse with
 		| None -> j()
 		| Some e ->
@@ -2299,7 +2338,7 @@ and eval_expr ctx e =
 				r
 			| ALocal (v,l) ->
 				let r = value() in
-				op ctx (OMov (l, r));
+				push_op ctx (OMov (l, r));
 				add_assign ctx v;
 				r
 			| AArray (ra,(at,vt),ridx) ->
@@ -2371,7 +2410,8 @@ and eval_expr ctx e =
 			(match get_access ctx e1 with
 			| ALocal (v,l) ->
 				let r = eval_to ctx { e with eexpr = TBinop (bop,e1,e2) } (to_type ctx e1.etype) in
-				op ctx (OMov (l, r));
+				push_op ctx (OMov (l, r));
+				add_assign ctx v;
 				r
 			| acc ->
 				gen_assign_op ctx acc e1 (fun r ->
@@ -2505,6 +2545,7 @@ and eval_expr ctx e =
 		let ret = jump_back ctx in
 		let j = jump_expr ctx cond false in
 		ignore(eval_expr ctx eloop);
+		set_curpos ctx (max_pos e);
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -2524,6 +2565,7 @@ and eval_expr ctx e =
 		let j = jump_expr ctx cond false in
 		start();
 		ignore(eval_expr ctx eloop);
+		set_curpos ctx (max_pos e);
 		ret();
 		j();
 		List.iter (fun f -> f (current_pos ctx)) ctx.m.mbreaks;
@@ -2756,7 +2798,7 @@ and eval_expr ctx e =
 				[]
 			| (v,ec) :: next ->
 				let rv = alloc_var ctx v true in
-				let jnext = if v.v_type == t_dynamic then begin
+				let jnext = if follow v.v_type == t_dynamic then begin
 					op ctx (OMov (rv, rtrap));
 					(fun() -> ())
 				end else
@@ -2772,12 +2814,12 @@ and eval_expr ctx e =
 					let rb = alloc_tmp ctx HBool in
 					op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",r,rtrap));
 					let jnext = jump ctx (fun n -> OJFalse (rb,n)) in
-					op ctx (OMov (rv, unsafe_cast_to ctx rtrap (to_type ctx v.v_type) ec.epos));
+					op ctx (OMov (rv, unsafe_cast_to ~debugchk:false ctx rtrap (to_type ctx v.v_type) ec.epos));
 					jnext
 				in
 				let r = eval_expr ctx ec in
 				if tret <> HVoid then op ctx (OMov (result,cast_to ctx r tret ec.epos));
-				if v.v_type == t_dynamic then [] else
+				if follow v.v_type == t_dynamic then [] else
 				let jend = jump ctx (fun n -> OJAlways n) in
 				jnext();
 				jend :: loop next
@@ -2894,14 +2936,15 @@ and gen_assign_op ctx acc e1 f =
 		r
 	| ADynamic (eobj, fid) ->
 		let robj = eval_null_check ctx eobj in
+		hold ctx robj;
 		let t = real_type ctx e1 in
 		let r = alloc_tmp ctx t in
 		op ctx (ODynGet (r,robj,fid));
-		hold ctx robj;
 		let r = cast_to ctx r (to_type ctx e1.etype) e1.epos in
 		let r = f r in
+		let r = cast_to ctx r t e1.epos in
 		free ctx robj;
-		op ctx (ODynSet (robj,fid,cast_to ctx r t e1.epos));
+		op ctx (ODynSet (robj,fid,r));
 		r
 	| ANone | ALocal _ | AStaticFun _ | AInstanceFun _ | AInstanceProto _ | AVirtualMethod _ | AEnum _ ->
 		assert false
@@ -2969,7 +3012,7 @@ and gen_method_wrapper ctx rt t p =
 			hold ctx r;
 			r
 		) targs in
-		let casts = List.map2 (fun r t -> let r2 = cast_to ctx r t p in hold ctx r2; free ctx r; r2) rargs iargs in
+		let casts = List.map2 (fun r t -> let r2 = cast_to ~force:true ctx r t p in hold ctx r2; free ctx r; r2) rargs iargs in
 		List.iter (free ctx) casts;
 		let rret = alloc_tmp ctx iret in
 		op ctx (OCallClosure (rret,rfun,casts));
@@ -3080,11 +3123,11 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			(match c with
 			| TNull | TThis | TSuper -> assert false
-			| TInt i when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
+			| TInt i when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s when (match to_type ctx (follow v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
+			| TFloat s when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
@@ -3125,6 +3168,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		| TReturn _ -> false
 		| _ -> true
 	in
+	set_curpos ctx (max_pos f.tf_expr);
 	if tret = HVoid then
 		op ctx (ORet (alloc_tmp ctx HVoid))
 	else if has_final_jump f.tf_expr then begin
@@ -3237,7 +3281,22 @@ let generate_type ctx t =
 		List.iter (generate_static ctx c) c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> generate_member ctx c f);
+		| Some f ->
+			let merge_inits e =
+				match e with
+				| Some ({ eexpr = TFunction ({ tf_expr = { eexpr = TBlock el } as ef } as f) } as e) ->
+					let merge ei =
+						let rec loop ei =
+							let ei = Type.map_expr loop ei in
+							{ ei with epos = e.epos }
+						in
+						if ei.epos.pmin < e.epos.pmin || ei.epos.pmax > e.epos.pmax then loop ei else ei
+					in
+					Some { e with eexpr = TFunction({ f with tf_expr = { ef with eexpr = TBlock (List.map merge el) }}) }
+				| _ ->
+					e
+ 			in
+			generate_member ctx c { f with cf_expr = merge_inits f.cf_expr });
 		List.iter (generate_member ctx c) c.cl_ordered_fields;
 	| TEnumDecl _ | TTypeDecl _ | TAbstractDecl _ ->
 		()

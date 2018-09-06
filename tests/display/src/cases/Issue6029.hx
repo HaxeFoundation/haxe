@@ -11,7 +11,7 @@ class Issue6029 extends DisplayTestCase {
 		}
 	**/
 	function test() {
-		eq("A", type(pos(1)));
-		eq("B", type(pos(2)));
+		eq("cases.A", type(pos(1)));
+		eq("cases.B", type(pos(2)));
 	}
 }

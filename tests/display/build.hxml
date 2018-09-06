@@ -2,4 +2,4 @@
 --main Main
 --interp
 -D use-rtti-doc
-#-D test=Issue7046
+# -D test=Issue7326

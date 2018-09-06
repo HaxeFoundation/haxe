@@ -23,9 +23,9 @@ class BuildMacro extends DisplayTestCase {
 	}
 	**/
 	function test1() {
-		eq("MyString", type(pos(2)));
-		eq("MyString", type(pos(3)));
-		eq("MyString", type(pos(4)));
+		eq("cases.MyString", type(pos(2)));
+		eq("cases.MyString", type(pos(3)));
+		eq("cases.MyString", type(pos(4)));
 		eq(range(7, 8), position(pos(3)));
 		eq(range(7, 8), position(pos(4)));
 		eq(range(5, 6), position(pos(2)));

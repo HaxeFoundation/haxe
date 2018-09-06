@@ -143,7 +143,7 @@ class InitWithoutCtor {
 class InitProperties {
 	public var accNull(default, null):Int = 3;
 	public var accDefault(default, default):Int = 3;
-	public var accFunc(default, set_accFunc):Int = 3;
+	public var accFunc(default, set):Int = 3;
 	public var accNever(default, never):Int = 3;
 	public var accDynamic(default, dynamic):Int = 3;
 
@@ -156,11 +156,11 @@ class ParamConstraintsClass {
 	public function new() { }
 	static public function staticSingle< A:Base > (a:A):A { return a; }
 	public function memberSingle< A:Base > (a:A):A { return a; }
-	public function memberMultiple < A:(Base, I1) > (a:A):A { return a; }
+	public function memberMultiple < A:Base & I1 > (a:A):A { return a; }
 	public function memberComplex < A:I1, B:List<A> > (a:A, b:B) { return b; }
 	public function memberBasic < A:String, B:Array<A> > (a:A, b:B) { return b[0]; }
 
-	public function memberAnon < A:( { x : Int }, { y : Float } ) > (v:A) { return v.x + v.y; }
+	public function memberAnon < A:{ x : Int } & { y : Float }> (v:A) { return v.x + v.y; }
 
 #if !(java || cs)  //this is a known bug caused by issue #915
 	@:overload(function< A, B:Array<A> > (a:A, b:B):Void { } )

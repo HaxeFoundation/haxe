@@ -208,7 +208,7 @@ class UnusedImplements implements UsedInterface {
 }
 
 interface PropertyInterface {
-	public var x(get_x, set_x):String;
+	public var x(get, set):String;
 }
 
 class PropertyAccessorsFromBaseClass {
@@ -217,7 +217,7 @@ class PropertyAccessorsFromBaseClass {
 }
 
 class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass implements PropertyInterface {
-	public var x(get_x, set_x):String;
+	public var x(get, set):String;
 	public function new() { }
 }
 

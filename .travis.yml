@@ -100,7 +100,6 @@ install_osx: &install_osx
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew tap Homebrew/bundle
   - travis_retry brew bundle --file=tests/Brewfile
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
@@ -167,7 +166,7 @@ matrix:
 
     - os: linux
       env:
-        - TEST=macro,js,php,flash9,as3,java,cs,python,lua
+        - TEST=macro,hl,js,php,flash9,as3,java,cs,python,lua
         - SAUCE=1
       addons:
         sauce_connect: true
@@ -196,13 +195,13 @@ matrix:
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
-        - TEST=macro,java,cs,lua,js,php,flash9,python
+        - TEST=macro,hl,java,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
         - TEST=cpp
         - HXCPP_COMPILE_CACHE=~/hxcache

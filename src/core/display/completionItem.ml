@@ -3,6 +3,13 @@ open Ast
 open Type
 open Genjson
 
+type toplevel_kind =
+	| TKExpr of pos
+	| TKType
+	| TKPattern of pos
+	| TKOverride
+	| TKField of pos
+
 module CompletionModuleKind = struct
 	type t =
 		| Class
@@ -59,6 +66,7 @@ module CompletionModuleType = struct
 		meta: metadata;
 		doc : documentation;
 		is_extern : bool;
+		is_final : bool;
 		kind : CompletionModuleKind.t;
 		has_constructor : not_bool;
 		source : module_type_source;
@@ -80,6 +88,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem HExtern d.d_flags;
+				is_final = List.mem HFinal d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				has_constructor = ctor;
 				source = Syntax td;
@@ -94,6 +103,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
+				is_final = false;
 				kind = Enum;
 				has_constructor = No;
 				source = Syntax td;
@@ -110,6 +120,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem EExtern d.d_flags;
+				is_final = false;
 				kind = kind;
 				has_constructor = if kind = Struct then No else Maybe;
 				source = Syntax td;
@@ -124,6 +135,7 @@ module CompletionModuleType = struct
 				meta = d.d_meta;
 				doc = d.d_doc;
 				is_extern = List.mem AbExtern d.d_flags;
+				is_final = false;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
 				has_constructor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes else No;
 				source = Syntax td;
@@ -132,26 +144,32 @@ module CompletionModuleType = struct
 			raise Exit
 
 	let of_module_type mt =
-		let is_extern,kind,has_ctor = match mt with
+		let has_ctor a = match a.a_impl with
+			| None -> false
+			| Some c -> PMap.mem "_new" c.cl_statics
+		in
+		let is_extern,is_final,kind,has_ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,(if c.cl_interface then Interface else Class),has_constructor c
+				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),has_constructor c
 			| TEnumDecl en ->
-				en.e_extern,Enum,false
+				en.e_extern,false,Enum,false
 			| TTypeDecl td ->
-				false,(match follow td.t_type with TAnon _ -> Struct | _ -> TypeAlias),false
-			| TAbstractDecl a ->
-				let has_ctor = match a.a_impl with
-					| None -> false
-					| Some c -> PMap.mem "_new" c.cl_statics
+				let kind,has_ctor = match follow td.t_type with
+					| TAnon _ -> Struct,false
+					| TInst(c,_) -> TypeAlias,has_constructor c
+					| TAbstract(a,_) -> TypeAlias,has_ctor a
+					| _ -> TypeAlias,false
 				in
-				false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor
+				false,false,kind,has_ctor
+			| TAbstractDecl a ->
+				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
 			| TInst(c,_) -> {
 				tp_name = s,null_pos;
 				tp_params = [];
-				tp_constraints = []; (* TODO? *)
+				tp_constraints = None; (* TODO? *)
 				tp_meta = c.cl_meta
 			}
 			| _ ->
@@ -167,6 +185,7 @@ module CompletionModuleType = struct
 			meta = infos.mt_meta;
 			doc = infos.mt_doc;
 			is_extern = is_extern;
+			is_final = is_final;
 			kind = kind;
 			has_constructor = if has_ctor then Yes else No;
 			source = Typed mt;
@@ -176,12 +195,13 @@ module CompletionModuleType = struct
 
 	let to_json ctx cm is =
 		let fields =
-			("pack",jlist jstring cm.pack) ::
-			("name",jstring cm.name) ::
-			("moduleName",jstring cm.module_name) ::
-			("isPrivate",jbool cm.is_private) ::
+			("path",jobject [
+				("pack",jlist jstring cm.pack);
+				("moduleName",jstring cm.module_name);
+				("typeName",jstring cm.name);
+				("importStatus",jint (ImportStatus.to_int is));
+			]) ::
 			("kind",jint (to_int cm.kind)) ::
-			("importStatus",jint (ImportStatus.to_int is)) ::
 			(match ctx.generation_mode with
 			| GMFull | GMWithoutDoc ->
 				("pos",generate_pos ctx cm.pos) ::
@@ -220,6 +240,10 @@ module ClassFieldOrigin = struct
 			("kind",jint i) :: (match args with None -> [] | Some arg -> ["args",arg])
 		)
 end
+
+let decl_of_class c = match c.cl_kind with
+	| KAbstractImpl a -> TAbstractDecl a
+	| _ -> TClassDecl c
 
 module CompletionClassField = struct
 	type t = {
@@ -261,6 +285,101 @@ module PackageContentKind = struct
 		| PCKPackage -> 1
 end
 
+module CompletionType = struct
+
+	type ct_path_with_params = {
+		ct_pack : string list;
+		ct_type_name : string;
+		ct_module_name : string;
+		ct_params : t list;
+		ct_import_status : ImportStatus.t;
+	}
+
+	and ct_function_argument = {
+		ct_name : string;
+		ct_optional : bool;
+		ct_type : t;
+		ct_value : Ast.expr option;
+	}
+
+	and ct_function = {
+		ct_args : ct_function_argument list;
+		ct_return : t;
+	}
+
+	and ct_anonymous_field = {
+		ctf_field : tclass_field;
+		ctf_type : t;
+	}
+
+	and ct_anonymous = {
+		ct_fields : ct_anonymous_field list;
+		ct_status : anon_status;
+	}
+
+	and t =
+		| CTMono
+		| CTInst of ct_path_with_params
+		| CTEnum of ct_path_with_params
+		| CTTypedef of ct_path_with_params
+		| CTAbstract of ct_path_with_params
+		| CTFunction of ct_function
+		| CTAnonymous of ct_anonymous
+		| CTDynamic of t option
+
+	let rec generate_path_with_params ctx pwp = jobject [
+		"path",jobject [
+			"pack",jlist jstring pwp.ct_pack;
+			"moduleName",jstring pwp.ct_module_name;
+			"typeName",jstring pwp.ct_type_name;
+			"importStatus",jint (ImportStatus.to_int pwp.ct_import_status);
+		];
+		"params",jlist (generate_type ctx) pwp.ct_params;
+	]
+
+	and generate_function_argument ctx cfa = jobject [
+		"name",jstring cfa.ct_name;
+		"opt",jbool cfa.ct_optional;
+		"t",generate_type ctx cfa.ct_type;
+		"value",jopt (fun e -> jobject [
+			"string",jstring (Ast.s_expr e);
+		]) cfa.ct_value;
+	]
+
+	and generate_function' ctx ctf = [
+		"args",jlist (generate_function_argument ctx) ctf.ct_args;
+		"ret",generate_type ctx ctf.ct_return;
+	]
+
+	and generate_function ctx ctf = jobject (generate_function' ctx ctf)
+
+	and generate_anon_field ctx af =
+		let fields = generate_class_field' ctx CFSMember af.ctf_field in
+		let fields = List.filter (fun (n,_) -> n <> "type") fields in
+		let fields = ("type",generate_type ctx af.ctf_type) :: fields in
+		jobject fields
+
+	and generate_anon ctx cta = jobject [
+		"status",generate_anon_status ctx cta.ct_status;
+		"fields",jlist (generate_anon_field ctx) cta.ct_fields;
+	]
+	and generate_type ctx ct =
+		let name,args = match ct with
+			| CTMono -> "TMono",None
+			| CTInst pwp -> "TInst",Some (generate_path_with_params ctx pwp)
+			| CTEnum pwp -> "TEnum",Some (generate_path_with_params ctx pwp)
+			| CTTypedef pwp -> "TType",Some (generate_path_with_params ctx pwp)
+			| CTAbstract pwp -> "TAbstract",Some (generate_path_with_params ctx pwp)
+			| CTFunction ctf -> "TFun",Some (generate_function ctx ctf)
+			| CTAnonymous cta -> "TAnonymous",Some (generate_anon ctx cta)
+			| CTDynamic cto -> "TDynamic",Option.map (generate_type ctx) cto;
+		in
+		generate_adt ctx None name args
+
+	let to_json ctx ct =
+		generate_type ctx ct
+end
+
 open CompletionModuleType
 open CompletionClassField
 open CompletionEnumField
@@ -272,7 +391,7 @@ type t_kind =
 	| ITEnumAbstractField of tabstract * CompletionClassField.t
 	| ITType of CompletionModuleType.t * ImportStatus.t
 	| ITPackage of path * (string * PackageContentKind.t) list
-	| ITModule of string
+	| ITModule of path
 	| ITLiteral of string
 	| ITTimer of string * string
 	| ITMetadata of string * documentation
@@ -283,7 +402,7 @@ type t_kind =
 
 type t = {
 	ci_kind : t_kind;
-	ci_type : Type.t option;
+	ci_type : (Type.t * CompletionType.t) option;
 }
 
 let make kind t = {
@@ -297,14 +416,14 @@ let make_ci_enum_abstract_field a ccf t = make (ITEnumAbstractField(a,ccf)) (Som
 let make_ci_enum_field cef t = make (ITEnumField cef) (Some t)
 let make_ci_type mt import_status t = make (ITType(mt,import_status)) t
 let make_ci_package path l = make (ITPackage(path,l)) None
-let make_ci_module s = make (ITModule s) None
+let make_ci_module path = make (ITModule path) None
 let make_ci_literal lit t = make (ITLiteral lit) (Some t)
 let make_ci_timer name value = make (ITTimer(name,value)) None
 let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
-let make_ci_expr e = make (ITExpression e) (Some e.etype)
-let make_ci_type_param c = make (ITTypeParameter c) (Some (TInst(c,[])))
+let make_ci_expr e t = make (ITExpression e) (Some t)
+let make_ci_type_param c t = make (ITTypeParameter c) (Some t)
 
 let get_index item = match item.ci_kind with
 	| ITLocal _ -> 0
@@ -322,7 +441,7 @@ let get_index item = match item.ci_kind with
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
 
-let get_sort_index item p = match item.ci_kind with
+let get_sort_index tk item p = match item.ci_kind with
 	| ITLocal v ->
 		let i = p.pmin - v.v_pos.pmin in
 		let i = if i < 0 then 0 else i in
@@ -339,9 +458,9 @@ let get_sort_index item p = match item.ci_kind with
 		in
 		i,ccf.field.cf_name
 	| ITEnumField ef ->
-		20,(Printf.sprintf "%04i" ef.efield.ef_index)
+		(match tk with TKPattern _ | TKField _ -> -1 | _ -> 20),(Printf.sprintf "%04i" ef.efield.ef_index)
 	| ITEnumAbstractField(_,ccf) ->
-		21,ccf.field.cf_name
+		(match tk with TKPattern _ | TKField _ -> -1 | _ -> 21),ccf.field.cf_name
 	| ITTypeParameter c ->
 		30,snd c.cl_path
 	| ITType(cmt,is) ->
@@ -354,8 +473,8 @@ let get_sort_index item p = match item.ci_kind with
 		i,(s_type_path (cmt.pack,cmt.name))
 	| ITPackage(path,_) ->
 		40,s_type_path path
-	| ITModule name ->
-		40,name
+	| ITModule path ->
+		40,s_type_path path
 	| ITLiteral name ->
 		50,name
 	| ITKeyword name ->
@@ -379,7 +498,7 @@ let legacy_sort item = match item.ci_kind with
 		| _ -> 0,ef.ef_name
 		end
 	| ITType(cm,_) -> 2,cm.name
-	| ITModule s -> 3,s
+	| ITModule path -> 3,snd path
 	| ITPackage(path,_) -> 4,snd path
 	| ITMetadata(s,_) -> 5,s
 	| ITTimer(s,_) -> 6,s
@@ -396,7 +515,7 @@ let get_name item = match item.ci_kind with
 	| ITEnumField ef -> ef.efield.ef_name
 	| ITType(cm,_) -> cm.name
 	| ITPackage(path,_) -> snd path
-	| ITModule s -> s
+	| ITModule path -> snd path
 	| ITLiteral s -> s
 	| ITTimer(s,_) -> s
 	| ITMetadata(s,_) -> s
@@ -464,13 +583,14 @@ let to_json ctx item =
 				"kind",jint (PackageContentKind.to_int kind);
 			] in
 			"Package",jobject [
-				"path",generate_path path;
+				"path",generate_package_path (fst path @ [snd path]);
 				"contents",jlist generate_package_content contents;
 			]
-		| ITModule s -> "Module",jstring s
+		| ITModule path -> "Module",jobject [
+			"path",generate_module_path path;
+		]
 		| ITLiteral s -> "Literal",jobject [
 			"name",jstring s;
-			"type",jopt (generate_type ctx) item.ci_type; (* TODO: remove *)
 		]
 		| ITTimer(s,value) -> "Timer",jobject [
 			"name",jstring s;
@@ -496,8 +616,8 @@ let to_json ctx item =
 			| _ -> assert false
 			end
 	in
-	jobject [
-		"kind",jstring kind;
-		"args",data;
-		"type",jopt (generate_type ctx) item.ci_type;
-	]
+	jobject (
+		("kind",jstring kind) ::
+		("args",data) ::
+		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
+	)

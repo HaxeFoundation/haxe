@@ -84,8 +84,6 @@ let emit_object_declaration proto fa env =
 	vobject {
 		ofields = a;
 		oproto = proto;
-		oextra = IntMap.empty;
-		oremoved = IntMap.empty;
 	}
 
 let emit_array_declaration execs env =
@@ -321,7 +319,7 @@ let emit_proto_field_read proto i env =
 
 let emit_instance_field_read exec i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
-	| VString(_,s) -> vint (String.length (Lazy.force s))
+	| VString s -> vint (s.slength)
 	| v -> unexpected_value v "instance"
 
 let emit_field_closure exec name env =
@@ -329,7 +327,7 @@ let emit_field_closure exec name env =
 	dynamic_field v name
 
 let emit_anon_field_read exec proto i name p env =
-	match exec env with
+	match vresolve (exec env) with
 	| VObject o ->
 		if proto == o.oproto then o.ofields.(i)
 		else object_field o name
@@ -363,10 +361,11 @@ let emit_enum_parameter_read exec i env = match exec env with
 	| v1 -> unexpected_value v1 "enum value"
 
 let emit_string_cca exec1 exec2 p env =
-	let s = decode_string (exec1 env) in
+	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
-	if index >= String.length s then vnull
-	else vint (int_of_char s.[index])
+	if index < 0 || index >= s.slength then vnull
+	else if s.sascii then vint (int_of_char (String.get (Lazy.force s.sstring) index))
+	else vint (EvalString.read_char s (index lsl 1))
 
 (* Write *)
 
@@ -401,11 +400,10 @@ let emit_instance_field_write exec1 i exec2 env = match exec1 env with
 let emit_anon_field_write exec1 proto i name exec2 env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	begin match v1 with
+	begin match vresolve v1 with
 		| VObject o ->
 			if proto == o.oproto then begin
 				o.ofields.(i) <- v2;
-				o.oremoved <- IntMap.remove name o.oremoved;
 			end else set_object_field o name v2
 		| _ ->
 			set_field v1 name v2;
@@ -472,7 +470,7 @@ let emit_instance_field_read_write exec1 i exec2 fop prefix env = match exec1 en
 
 let emit_field_read_write exec1 name exec2 fop prefix env =
 	let v1 = exec1 env in
-	match v1 with
+	match vresolve v1 with
 	| VObject o ->
 		let vf = object_field o name in
 		let v2 = exec2 env in

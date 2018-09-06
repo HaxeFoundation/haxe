@@ -116,3 +116,4 @@ dev-display.hxml
 
 .DS_Store
 tests/sourcemaps/bin
+/*_plugin.ml

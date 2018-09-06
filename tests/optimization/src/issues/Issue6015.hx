@@ -4,7 +4,7 @@ class Issue6015 {
 	@:js('
 		var a = null;
 		var tmp = a.a();
-		String.fromCharCode.apply(null,tmp);
+		_$String_String_$Impl_$.fromCharCode.apply(null,tmp);
 	')
 	static public function main() {
 		var a:Dynamic = null;

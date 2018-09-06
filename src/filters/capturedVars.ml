@@ -63,14 +63,14 @@ let captured_vars com e =
 					let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
 					mk (TNew (cnativearray,[t],[eone])) v.v_type p
 				| Some e ->
-					{ (Optimizer.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
+					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
 
 			method mk_ref_access e v =
 				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
 
 			method mk_init av v pos =
 				let elocal = mk (TLocal v) v.v_type pos in
-				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				let earray = { (Inline.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
 				mk (TVar (av,Some earray)) t.tvoid pos
 		end
 	(* default implementation - use haxe array *)
@@ -87,7 +87,7 @@ let captured_vars com e =
 	in
 
 	let mk_var v used =
-		let v2 = alloc_var v.v_name (PMap.find v.v_id used) v.v_pos in
+		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2
 	in
@@ -158,7 +158,7 @@ let captured_vars com e =
 			*)
 			if com.config.pf_capture_policy = CPLoopVars then
 				(* We don't want to duplicate any variable declarations, so let's make copies (issue #3902). *)
-				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_name v.v_type v.v_pos) vars in
+				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_kind v.v_name v.v_type v.v_pos) vars in
 				let rec loop e = match e.eexpr with
 					| TLocal v ->
 						begin try

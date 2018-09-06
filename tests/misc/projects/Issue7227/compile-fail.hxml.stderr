@@ -1,0 +1,6 @@
+Main.hx:4: characters 9-81 : Generic<{ url : Struct, method : String }> should be Generic<Struct>
+Main.hx:4: characters 9-81 : Type parameters are invariant
+Main.hx:4: characters 9-81 : { url : Struct, method : String } should be Struct
+Main.hx:4: characters 9-81 : { url : Struct, method : String } should be { url : String, method : String }
+Main.hx:4: characters 9-81 : Invalid type for field url :
+Main.hx:4: characters 9-81 : { url : String, method : String } should be String

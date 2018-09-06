@@ -145,6 +145,19 @@ typedef Iterable<T> = {
 }
 
 /**
+	A `KeyValueIterator` is an `Iterator` that has a key and a value.
+**/
+typedef KeyValueIterator<K,V> = Iterator<{key:K, value:V}>;
+
+/**
+	A `KeyValueIterable` is a data structure which has an `iterator()` method
+	to iterate over key-value-pairs.
+**/
+typedef KeyValueIterable<K,V> = {
+    function keyValueIterator():KeyValueIterator<K,V>;
+}
+
+/**
 	`ArrayAccess` is used to indicate a class that can be accessed using brackets.
 	The type parameter represents the type of the elements stored.
 

@@ -33,6 +33,9 @@ extern class NativeProcess
    @:native("_hx_std_process_pid")
    public static function process_pid(handle:Dynamic) : Int return 0;
 
+   @:native("_hx_std_process_kill")
+   public static function process_kill(handle:Dynamic) : Void { };
+
 
    @:native("_hx_std_process_close")
    public static function process_close(handle:Dynamic) : Void { };

@@ -25,5 +25,5 @@ package python.lib;
 extern class Msvcrt {
 
 	public static function getch ():python.Bytes;
-
+	public static function getwch ():String;
 }
