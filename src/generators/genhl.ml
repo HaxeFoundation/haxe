@@ -400,10 +400,8 @@ let rec to_type ?tref ctx t =
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc ->
 				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TAnon _ | TFun _ -> true | _ -> false) ->
-					(*
-						if it's another virtual or a method, it might not match our own (might be larger, or class)
-					*)
+				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
+					(* allowing functions will crash unit tests *)
 					acc
 				| Method _ ->
 					acc
