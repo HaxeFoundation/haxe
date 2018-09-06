@@ -337,11 +337,11 @@ struct
 
 	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
-		let tchar = match ( get_type gen (["cs"], "Char16") ) with
+		(* let tchar = match ( get_type gen (["cs"], "Char16") ) with
 			| TTypeDecl t -> TType(t,[])
 			| TAbstractDecl a -> TAbstract(a,[])
 			| _ -> assert false
-		in
+		in *)
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 		let boxed_ptr =
