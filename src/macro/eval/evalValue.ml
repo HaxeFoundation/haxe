@@ -108,13 +108,9 @@ and vfunc = value list -> value
 
 and vobject = {
 	(* The fields of the object known when it is created. *)
-	ofields : value array;
+	mutable ofields : value array;
 	(* The prototype of the object. *)
-	oproto : vprototype;
-	(* Extra fields that were added after the object was created. *)
-	mutable oextra : value IntMap.t;
-	(* Map of fields (in ofields) that were deleted via Reflect.deleteField *)
-	mutable oremoved : bool IntMap.t;
+	mutable oproto : vprototype;
 }
 
 and vprototype = {
