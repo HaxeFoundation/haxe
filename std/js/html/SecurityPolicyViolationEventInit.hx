@@ -20,18 +20,23 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\BeforeUnloadEvent.webidl. Do not edit!
+// This file is generated from mozilla\SecurityPolicyViolationEvent.webidl. Do not edit!
 
 package js.html;
 
-/**
-	The `beforeunload` event is fired when the window, the document and its resources are about to be unloaded.
-
-	Documentation [BeforeUnloadEvent](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
-
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent>
-**/
-@:native("BeforeUnloadEvent")
-extern class BeforeUnloadEvent extends Event
+typedef SecurityPolicyViolationEventInit =
 {
+	> EventInit,
+	@:optional var blockedURI : String;
+	@:optional var columnNumber : Int;
+	@:optional var disposition : SecurityPolicyViolationEventDisposition;
+	@:optional var documentURI : String;
+	@:optional var effectiveDirective : String;
+	@:optional var lineNumber : Int;
+	@:optional var originalPolicy : String;
+	@:optional var referrer : String;
+	@:optional var sample : String;
+	@:optional var sourceFile : String;
+	@:optional var statusCode : Int;
+	@:optional var violatedDirective : String;
 }

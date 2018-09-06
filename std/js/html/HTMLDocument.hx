@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`HTMLDocument` is an abstract interface of the DOM which provides access to special properties and methods not present by default on a regular (XML) document. It adds functionality which relates specifically to HTML documents and elements.
+	`HTMLDocument` is an abstract interface which extends the `Document` interface to add HTML-specific features to the document object. It represents the root of the HTML document, within which its entire DOM hierarchy resides.
 
 	Documentation [HTMLDocument](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDocument) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLDocument$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 

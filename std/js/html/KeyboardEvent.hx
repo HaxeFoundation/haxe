@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`KeyboardEvent` objects describe a user interaction with the keyboard. Each event describes a key; the event type (`keydown`, `keypress`, or `keyup`) identifies what kind of activity was performed.
+	`KeyboardEvent` objects describe a user interaction with the keyboard; each event describes a single interaction between the user and a key (or combination of a key with modifier keys) on the keyboard.
 
 	Documentation [KeyboardEvent](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -228,15 +228,15 @@ extern class KeyboardEvent extends UIEvent
 	
 	/**
 		Returns a `Number` representing the Unicode reference number of the key; this attribute is used only by the `keypress` event. For keys whose `char` attribute contains multiple characters, this is the Unicode value of the first character in that attribute. In Firefox 26 this returns codes for printable characters.
-			Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
-			
+		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+		 
 	**/
 	var charCode(default,null) : Int;
 	
 	/**
 		Returns a `Number` representing a system and implementation dependent numerical code identifying the unmodified value of the pressed key.
-			Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
-			
+		 Warning: This attribute is deprecated; you should use `KeyboardEvent.key` instead, if available.
+		 
 	**/
 	var keyCode(default,null) : Int;
 	
@@ -289,18 +289,18 @@ extern class KeyboardEvent extends UIEvent
 	function new( typeArg : String, ?keyboardEventInitDict : KeyboardEventInit ) : Void;
 	
 	/**
-		Returns a `Boolean` indicating if the modifier key, like Alt, Shift, Ctrl, or Meta, was pressed when the event was created.
+		Returns a `Boolean` indicating if a modifier key such as Alt, Shift, Ctrl, or Meta, was pressed when the event was created.
 	**/
 	function getModifierState( key : String ) : Bool;
 	
 	/**
-		Initializes a `KeyboardEvent` object. This has never been implemented by Gecko (who used `KeyboardEvent.initKeyEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
+		Initializes a `KeyboardEvent` object. This is now deprecated. You should instead use the `KeyboardEvent.KeyboardEvent` constructor.
 		@throws DOMError
 	**/
 	function initKeyboardEvent( typeArg : String, ?bubblesArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?keyArg : String = "", ?locationArg : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false ) : Void;
 	
 	/**
-		Initializes a `KeyboardEvent` object. This has only been implemented by Gecko (others used `KeyboardEvent.initKeyboardEvent()`) and should not be used any more. The standard modern way is to use the `KeyboardEvent.KeyboardEvent` constructor.
+		Initializes a `KeyboardEvent` object. This was implemented only by Firefox, and is no longer supported even there; instead, you should use the `KeyboardEvent.KeyboardEvent` constructor.
 	**/
 	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
 }

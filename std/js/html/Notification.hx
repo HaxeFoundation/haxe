@@ -73,27 +73,27 @@ extern class Notification extends EventTarget
 	var title(default,null) : String;
 	
 	/**
-		The text direction of the notification as specified in the options parameter of the constructor.
+		The text direction of the notification as specified in the constructor's `options` parameter.
 	**/
 	var dir(default,null) : NotificationDirection;
 	
 	/**
-		The language code of the notification as specified in the options parameter of the constructor.
+		The language code of the notification as specified in the constructor's `options` parameter.
 	**/
 	var lang(default,null) : String;
 	
 	/**
-		The body string of the notification as specified in the options parameter of the constructor.
+		The body string of the notification as specified in the constructor's `options` parameter.
 	**/
 	var body(default,null) : String;
 	
 	/**
-		The ID of the notification (if any) as specified in the options parameter of the constructor.
+		The ID of the notification (if any) as specified in the constructor's `options` parameter.
 	**/
 	var tag(default,null) : String;
 	
 	/**
-		The URL of the image used as an icon of the notification as specified in the options parameter of the constructor.
+		The URL of the image used as an icon of the notification as specified in the constructor's `options` parameter.
 	**/
 	var icon(default,null) : String;
 	

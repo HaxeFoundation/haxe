@@ -48,7 +48,7 @@ extern class ButtonElement extends Element
 	/**
 		Is a `HTMLFormElement` reflecting the form that this button is associated with. If the button is a descendant of a form element, then this attribute is the ID of that form element.
 		
-		 If the button is not a descendant of a form element, then the attribute can be the ID of any form element in the same document it is related to, or the `null` value if none matches.
+			If the button is not a descendant of a form element, then the attribute can be the ID of any form element in the same document it is related to, or the `null` value if none matches.
 	**/
 	var form(default,null) : FormElement;
 	
@@ -84,13 +84,13 @@ extern class ButtonElement extends Element
 	
 	/**
 		Is a `DOMString` indicating the behavior of the button. This is an enumerated attribute with the following possible values:
-		 
-		  `"submit"`: The button submits the form. This is the default value if the attribute is not specified, {{HTMLVersionInline(5)}} or if it is dynamically changed to an empty or invalid value.
-		  `"reset"`: The button resets the form.
-		  `"button"`: The button does nothing.
-		  `"menu"`: The button displays a menu. <em>(experimental)</em>
-		 
-		 
+			
+				`"submit"`: The button submits the form. This is the default value if the attribute is not specified, {{HTMLVersionInline(5)}} or if it is dynamically changed to an empty or invalid value.
+				`"reset"`: The button resets the form.
+				`"button"`: The button does nothing.
+				`"menu"`: The button displays a menu. <em>(experimental)</em>
+			
+			
 	**/
 	var type : String;
 	

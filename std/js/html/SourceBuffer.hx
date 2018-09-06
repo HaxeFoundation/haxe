@@ -109,6 +109,10 @@ extern class SourceBuffer extends EventTarget
 		@throws DOMError
 	**/
 	function remove( start : Float, end : Float ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Changes the `MIME type` that future calls to `SourceBuffer.appendBuffer` will expect the new data to conform to.
+		@throws DOMError
+	**/
 	function changeType( type : String ) : Void;
 }

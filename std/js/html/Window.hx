@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `window` object represents a window containing a DOM document; the `document` property points to the DOM document loaded in that window.
+	The `Window` interface represents a window containing a DOM document; the `document` property points to the DOM document loaded in that window.
 
 	Documentation [Window](https://developer.mozilla.org/en-US/docs/Web/API/Window) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Window$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -104,6 +104,10 @@ extern class Window extends EventTarget
 		This property indicates whether the current window is closed or not.
 	**/
 	var closed(default,null) : Bool;
+	
+	/**
+		Returns the current event, which is the event currently being handled by the JavaScript code's context, or `undefined` if no event is currently being handled. The `Event` object passed directly to event handlers should be used instead whenever possible.
+	**/
 	var event(default,null) : Dynamic;
 	
 	/**

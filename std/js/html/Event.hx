@@ -75,6 +75,11 @@ extern class Event
 	var cancelable(default,null) : Bool;
 	
 	/**
+		A historical property introduced by Internet Explorer and eventually adopted into the DOM specification in order to ensure existing sites continue to work. Ideally, you should try to use `Event.preventDefault()` and `Event.defaultPrevented` instead, but you can use `returnValue` if you choose to do so.
+	**/
+	var returnValue : Bool;
+	
+	/**
 		Indicates whether or not `event.preventDefault()` has been called on the event.
 	**/
 	var defaultPrevented(default,null) : Bool;

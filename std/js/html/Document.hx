@@ -202,9 +202,7 @@ extern class Document extends Node
 	var hidden(default,null) : Bool;
 	
 	/**
-		
-		 Returns a `string` denoting the visibility state of the document. Possible values are `visible`,  `hidden`,  `prerender`, and `unloaded`.
-		 
+		Returns a `string` denoting the visibility state of the document. Possible values are `visible`,  `hidden`,  `prerender`, and `unloaded`.
 	**/
 	var visibilityState(default,null) : VisibilityState;
 	

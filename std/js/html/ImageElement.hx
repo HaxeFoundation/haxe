@@ -79,6 +79,10 @@ extern class ImageElement extends Element
 		Is a `unsigned long` that reflects the `height` HTML attribute, indicating the rendered height of the image in CSS pixels.
 	**/
 	var height : Int;
+	
+	/**
+		Returns a `DOMString` representing a hint given to the browser on how it should decode the image.
+	**/
 	var decoding : String;
 	
 	/**
