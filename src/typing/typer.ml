@@ -1665,6 +1665,7 @@ and type_object_decl ctx fl with_type p =
 				in
 				let e = type_expr ctx e (WithType t) in
 				let e = AbstractCast.cast_or_unify ctx t e e.epos in
+				let e = if is_null t && not (is_null e.etype) then mk (TCast(e,None)) (ctx.t.tnull e.etype) e.epos else e in
 				(try type_eq EqStrict e.etype t; e with Unify_error _ -> mk (TCast (e,None)) t e.epos)
 			with Not_found ->
 				if is_valid then
