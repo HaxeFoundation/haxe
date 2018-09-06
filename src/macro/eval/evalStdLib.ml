@@ -1570,13 +1570,16 @@ module StdReflect = struct
 		let name = hash (decode_rope name) in
 		match vresolve o with
 		| VObject o ->
-			if IntMap.mem name o.oextra then begin
-				o.oextra <- IntMap.remove name o.oextra;
-				vtrue
-			end else if IntMap.mem name o.oproto.pinstance_names then begin
-				let i = IntMap.find name o.oproto.pinstance_names in
-				o.oremoved <- IntMap.add name true o.oremoved;
-				o.ofields.(i) <- vnull;
+			let found = ref false in
+			let fields = IntMap.fold (fun name' i acc ->
+				if name = name' then begin
+					found := true;
+					acc
+				end else
+					(name',o.ofields.(i)) :: acc
+			) o.oproto.pinstance_names [] in
+			if !found then begin
+				update_object_prototype o fields;
 				vtrue
 			end else
 				vfalse
@@ -1611,7 +1614,7 @@ module StdReflect = struct
 	let hasField = vfun2 (fun o field ->
 		let name = hash (decode_rope field) in
 		let b = match vresolve o with
-			| VObject o -> (IntMap.mem name o.oproto.pinstance_names && not (IntMap.mem name o.oremoved)) || IntMap.mem name o.oextra
+			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
 			| VPrototype proto -> IntMap.mem name proto.pnames
 			| _ -> unexpected_value o "object"

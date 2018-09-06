@@ -84,8 +84,6 @@ let emit_object_declaration proto fa env =
 	vobject {
 		ofields = a;
 		oproto = proto;
-		oextra = IntMap.empty;
-		oremoved = IntMap.empty;
 	}
 
 let emit_array_declaration execs env =
@@ -406,7 +404,6 @@ let emit_anon_field_write exec1 proto i name exec2 env =
 		| VObject o ->
 			if proto == o.oproto then begin
 				o.ofields.(i) <- v2;
-				o.oremoved <- IntMap.remove name o.oremoved;
 			end else set_object_field o name v2
 		| _ ->
 			set_field v1 name v2;

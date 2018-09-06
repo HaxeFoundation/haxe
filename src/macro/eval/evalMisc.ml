@@ -35,6 +35,12 @@ let throw_string s p =
 let invalid_binop op v1 v2 p =
 	throw_string (Printf.sprintf "Invalid operation: %s %s %s" (value_string v1) (s_binop op) (value_string v2)) p
 
+let update_object_prototype o fields =
+	let ctx = get_ctx() in
+	let proto,fields = ctx.get_object_prototype (get_ctx()) fields in
+	o.ofields <- Array.of_list (List.map snd fields);
+	o.oproto <- proto
+
 (* Calls *)
 
 let call_value v vl =
@@ -55,9 +61,10 @@ let set_instance_field vi name v2 =
 let set_object_field o name v2 =
 	try
 		o.ofields.(get_instance_field_index_raise o.oproto name) <- v2;
-		o.oremoved <- IntMap.remove name o.oremoved;
 	with Not_found ->
-		o.oextra <- IntMap.add name v2 o.oextra
+		let fields = IntMap.fold (fun name i acc -> (name,o.ofields.(i)) :: acc) o.oproto.pinstance_names [] in
+		let fields = (name,v2) :: fields in
+		update_object_prototype o fields
 
 let set_bytes_length_field v1 v2 =
 	match v1 with
@@ -151,7 +158,7 @@ and equals_structurally a b =
 	| VString s1,VString s2 -> Lazy.force s1.sstring = Lazy.force s2.sstring (* STODO *)
 	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
 	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
-	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields && IntMap.equal equals_structurally a.oextra b.oextra
+	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && arrays_equal equals_structurally a.eargs b.eargs && a.epath = b.epath
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
 	| VLazy f1,_ -> equals_structurally (!f1()) b
