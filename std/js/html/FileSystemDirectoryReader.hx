@@ -35,7 +35,7 @@ package js.html;
 extern class FileSystemDirectoryReader
 {
 	/** @throws DOMError */
-	@:overload( function( successCallback : haxe.Constraints.Function, errorCallback : haxe.Constraints.Function) : Void {} )
-	@:overload( function( successCallback : FileSystemEntriesCallback, errorCallback : ErrorCallback) : Void {} )
+	@:overload( function( successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
+	@:overload( function( successCallback : FileSystemEntriesCallback, ?errorCallback : ErrorCallback) : Void {} )
 	function readEntries( successCallback : Array<FileSystemEntry> -> Void, ?errorCallback : DOMException -> Void ) : Void;
 }

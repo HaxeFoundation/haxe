@@ -34,7 +34,7 @@ package js.html;
 @:native("FileSystemFileEntry")
 extern class FileSystemFileEntry extends FileSystemEntry
 {
-	@:overload( function( successCallback : haxe.Constraints.Function, errorCallback : haxe.Constraints.Function) : Void {} )
-	@:overload( function( successCallback : FileCallback, errorCallback : ErrorCallback) : Void {} )
+	@:overload( function( successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
+	@:overload( function( successCallback : FileCallback, ?errorCallback : ErrorCallback) : Void {} )
 	function file( successCallback : File -> Void, ?errorCallback : DOMException -> Void ) : Void;
 }
