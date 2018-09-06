@@ -252,6 +252,7 @@ typedef JsonClassField = {
 	var name: String;
 	var type: JsonType<Dynamic>;
 	var isPublic: Bool;
+	var isFinal: Bool;
 	var params: JsonTypeParameters;
 	var meta: JsonMetadata;
 	var kind: JsonFieldKind<Dynamic>;
