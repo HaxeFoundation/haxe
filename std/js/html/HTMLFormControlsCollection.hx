@@ -34,4 +34,9 @@ package js.html;
 @:native("HTMLFormControlsCollection")
 extern class HTMLFormControlsCollection extends HTMLCollection
 {
+	
+	/**
+		Returns the `RadioNodeList` or the `Element` in the collection whose `name` or `id` match the specified name, or `null` if no nodes match. Note that this version of `namedItem()` hide the one inherited from `HTMLCollection`. Like that one, in JavaScript, using the array bracket syntax with a `String`, like `collection["value"]` is equivalent to `collection.namedItem("value")`.
+	**/
+	function namedItem( name : String ) : haxe.extern.EitherType<RadioNodeList,Element>;
 }

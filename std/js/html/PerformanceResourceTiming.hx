@@ -53,4 +53,9 @@ extern class PerformanceResourceTiming extends PerformanceEntry
 	var decodedBodySize(default,null) : Int;
 	var serverTiming(default,null) : Array<PerformanceServerTiming>;
 	
+	
+	/**
+		Returns a `DOMString` that is the JSON representation of the `PerformanceResourceTiming` object.
+	**/
+	function toJSON() : Any;
 }

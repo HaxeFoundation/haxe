@@ -45,4 +45,8 @@ extern class Element extends js.html.DOMElement
 	**/
 	var viewportElement(default,null) : Element;
 	
+	/** @throws DOMError */
+	function focus() : Void;
+	/** @throws DOMError */
+	function blur() : Void;
 }

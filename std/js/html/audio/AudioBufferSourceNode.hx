@@ -67,4 +67,10 @@ extern class AudioBufferSourceNode extends AudioScheduledSourceNode
 	
 	/** @throws DOMError */
 	function new( context : BaseAudioContext, ?options : AudioBufferSourceOptions ) : Void;
+	
+	/**
+		Used to schedule playback of the audio data contained in the buffer, or to begin playback immediately.
+		@throws DOMError
+	**/
+	function start( ?when : Float = 0.0, ?grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
 }

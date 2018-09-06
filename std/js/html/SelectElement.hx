@@ -139,6 +139,12 @@ extern class SelectElement extends Element implements ArrayAccess<Element>
 	function add( element : haxe.extern.EitherType<OptionElement,OptGroupElement>, ?before : haxe.extern.EitherType<Element,Int> ) : Void;
 	
 	/**
+		Removes the element at the specified index from the options collection for this select element.
+	**/
+	@:overload( function( index : Int ) : Void {} )
+	function remove() : Void;
+	
+	/**
 		Checks whether the element has any constraints and whether it satisfies them. If the element fails its constraints, the browser fires a cancelable `invalid` event at the element (and returns `false`).
 	**/
 	function checkValidity() : Bool;

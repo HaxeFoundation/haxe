@@ -45,4 +45,9 @@ extern class PerformanceNavigationTiming extends PerformanceResourceTiming
 	var type(default,null) : NavigationType;
 	var redirectCount(default,null) : Int;
 	
+	
+	/**
+		Returns a `DOMString` that is the JSON representation of the `PerformanceNavigationTiming` object.
+	**/
+	function toJSON() : Any;
 }
