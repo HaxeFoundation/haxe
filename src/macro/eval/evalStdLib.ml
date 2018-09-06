@@ -945,7 +945,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try encode_string (Std.input_file ~bin:true path) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try bytes_to_utf8 (Bytes.unsafe_of_string ((Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
