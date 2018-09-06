@@ -57,5 +57,6 @@ extern class TextDecoder
 		Returns a `DOMString` containing the text decoded with the method of the specific `TextDecoder` object.
 		@throws DOMError
 	**/
-	function decode( ?input : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, ?options : TextDecodeOptions ) : String;
+	@:overload( function( ?input : ArrayBuffer, ?options : TextDecodeOptions) : String {} )
+	function decode( ?input : ArrayBufferView, ?options : TextDecodeOptions ) : String;
 }

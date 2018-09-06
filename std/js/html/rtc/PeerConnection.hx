@@ -35,7 +35,8 @@ package js.html.rtc;
 extern class PeerConnection extends js.html.EventTarget
 {
 	/** @throws DOMError */
-	static function generateCertificate( keygenAlgorithm : haxe.extern.EitherType<Any,String> ) : Promise<Certificate>;
+	@:overload( function( keygenAlgorithm : String) : Promise<Certificate> {} )
+	static function generateCertificate( keygenAlgorithm : Any ) : Promise<Certificate>;
 	var localDescription(default,null) : SessionDescription;
 	var currentLocalDescription(default,null) : SessionDescription;
 	var pendingLocalDescription(default,null) : SessionDescription;
@@ -71,7 +72,8 @@ extern class PeerConnection extends js.html.EventTarget
 	function setLocalDescription( description : SessionDescriptionInit, successCallback : Void -> Void, failureCallback : js.html.DOMException -> Void ) : Promise<Void>;
 	@:overload( function( description : SessionDescriptionInit ) : Promise<Void> {} )
 	function setRemoteDescription( description : SessionDescriptionInit, successCallback : Void -> Void, failureCallback : js.html.DOMException -> Void ) : Promise<Void>;
-	@:overload( function( candidate : haxe.extern.EitherType<IceCandidateInit,IceCandidate> ) : Promise<Void> {} )
+	@:overload( function( candidate : IceCandidate) : Promise<Void> {} )
+	@:overload( function( candidate : IceCandidateInit ) : Promise<Void> {} )
 	function addIceCandidate( candidate : IceCandidate, successCallback : Void -> Void, failureCallback : js.html.DOMException -> Void ) : Promise<Void>;
 	function getConfiguration() : Configuration;
 	function getLocalStreams() : Array<js.html.MediaStream>;
@@ -79,7 +81,8 @@ extern class PeerConnection extends js.html.EventTarget
 	function addStream( stream : js.html.MediaStream ) : Void;
 	function addTrack( track : js.html.MediaStreamTrack, stream : js.html.MediaStream, moreStreams : haxe.extern.Rest<js.html.MediaStream> ) : RtpSender;
 	function removeTrack( sender : RtpSender ) : Void;
-	function addTransceiver( trackOrKind : haxe.extern.EitherType<js.html.MediaStreamTrack,String>, ?init : RtpTransceiverInit ) : RtpTransceiver;
+	@:overload( function( trackOrKind : String, ?init : RtpTransceiverInit) : RtpTransceiver {} )
+	function addTransceiver( trackOrKind : js.html.MediaStreamTrack, ?init : RtpTransceiverInit ) : RtpTransceiver;
 	function getSenders() : Array<RtpSender>;
 	function getReceivers() : Array<RtpReceiver>;
 	function getTransceivers() : Array<RtpTransceiver>;

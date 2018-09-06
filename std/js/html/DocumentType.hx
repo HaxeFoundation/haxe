@@ -51,10 +51,13 @@ extern class DocumentType extends Node
 	var systemId(default,null) : String;
 	
 	/** @throws DOMError */
-	function before( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function before( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function after( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function after( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function replaceWith( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function replaceWith( nodes : haxe.extern.Rest<Node> ) : Void;
 	function remove() : Void;
 }

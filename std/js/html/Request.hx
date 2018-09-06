@@ -93,7 +93,8 @@ extern class Request
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( input : haxe.extern.EitherType<Request,String>, ?init : RequestInit ) : Void;
+	@:overload( function( input : String, ?init : RequestInit) : Request {} )
+	function new( input : Request, ?init : RequestInit ) : Void;
 	
 	/**
 		Creates a copy of the current `Request` object.

@@ -69,7 +69,8 @@ extern class SubtleCrypto
 		Returns a `Promise` of a newly generated `CryptoKey`, for symmetrical algorithms, or a `CryptoKeyPair`, containing two newly generated keys, for asymmetrical algorithm, that matches the algorithm, the usages and the extractability given as parameters.
 		@throws DOMError
 	**/
-	function generateKey( algorithm : haxe.extern.EitherType<Any,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	@:overload( function( algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Any> {} )
+	function generateKey( algorithm : Any, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
 	
 	/**
 		Returns a `Promise` of a newly generated `CryptoKey` derived from a master key and a specific algorithm given as parameters.
@@ -81,13 +82,15 @@ extern class SubtleCrypto
 		Returns a `Promise` of a newly generated buffer of pseudo-random bits derived from a master key and a specific algorithm given as parameters.
 		@throws DOMError
 	**/
-	function deriveBits( algorithm : haxe.extern.EitherType<Any,String>, baseKey : CryptoKey, length : Int ) : Promise<Any>;
+	@:overload( function( algorithm : String, baseKey : CryptoKey, length : Int) : Promise<Any> {} )
+	function deriveBits( algorithm : Any, baseKey : CryptoKey, length : Int ) : Promise<Any>;
 	
 	/**
 		Returns a `Promise` of a `CryptoKey` corresponding to the format, the algorithm, the raw key data, the usages and the extractability given as parameters.
 		@throws DOMError
 	**/
-	function importKey( format : String, keyData : Any, algorithm : haxe.extern.EitherType<Any,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
+	@:overload( function( format : String, keyData : Any, algorithm : String, extractable : Bool, keyUsages : Array<String>) : Promise<Any> {} )
+	function importKey( format : String, keyData : Any, algorithm : Any, extractable : Bool, keyUsages : Array<String> ) : Promise<Any>;
 	
 	/**
 		Returns a `Promise` of a buffer containing the key in the format requested.
@@ -99,7 +102,8 @@ extern class SubtleCrypto
 		Returns a `Promise` of a wrapped symmetric key for usage (transfer, storage) in insecure environments. The wrapped buffer returned is in the format given in parameters, and contains the key wrapped by the given wrapping key with the given algorithm.
 		@throws DOMError
 	**/
-	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : haxe.extern.EitherType<Any,String> ) : Promise<Any>;
+	@:overload( function( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : String) : Promise<Any> {} )
+	function wrapKey( format : String, key : CryptoKey, wrappingKey : CryptoKey, wrapAlgorithm : Any ) : Promise<Any>;
 	
 	/**
 		Returns a `Promise` of a `CryptoKey` corresponding to the wrapped key given in parameter.

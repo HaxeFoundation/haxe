@@ -35,7 +35,9 @@ package js.html;
 extern class Headers
 {
 	/** @throws DOMError */
-	function new( ?init : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>> ) : Void;
+	@:overload( function( ?init : Array<Array<String>>) : Headers {} )
+	@:overload( function( ?init : haxe.DynamicAccess<String>) : Headers {} )
+	function new( ?init : Headers ) : Void;
 	
 	/**
 		Appends a new value onto an existing header inside a `Headers` object, or adds the header if it does not already exist.

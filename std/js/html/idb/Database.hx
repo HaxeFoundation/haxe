@@ -89,7 +89,8 @@ extern class Database extends js.html.EventTarget
 		Immediately returns a transaction object (`IDBTransaction`) containing the `IDBTransaction.objectStore` method, which you can use to access your object store. Runs in a separate thread.
 		@throws DOMError
 	**/
-	function transaction( storeNames : haxe.extern.EitherType<String,Array<String>>, ?mode : TransactionMode = "readonly" ) : Transaction;
+	@:overload( function( storeNames : Array<String>, ?mode : TransactionMode = "readonly") : Transaction {} )
+	function transaction( storeNames : String, ?mode : TransactionMode = "readonly" ) : Transaction;
 	
 	/**
 		Returns immediately and closes the connection to a database in a separate thread.

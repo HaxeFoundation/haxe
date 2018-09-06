@@ -78,7 +78,13 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 		Sends the request. If the request is asynchronous (which is the default), this method returns as soon as the request is sent.
 		@throws DOMError
 	**/
-	function send( ?body : haxe.extern.EitherType<HTMLDocument,haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>> ) : Void;
+	@:overload( function( ?body : Blob) : Void {} )
+	@:overload( function( ?body : ArrayBufferView) : Void {} )
+	@:overload( function( ?body : ArrayBuffer) : Void {} )
+	@:overload( function( ?body : FormData) : Void {} )
+	@:overload( function( ?body : URLSearchParams) : Void {} )
+	@:overload( function( ?body : String) : Void {} )
+	function send( ?body : HTMLDocument ) : Void;
 	
 	/**
 		Aborts the request if it has already been sent.

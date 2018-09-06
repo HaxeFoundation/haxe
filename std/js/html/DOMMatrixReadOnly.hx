@@ -111,7 +111,8 @@ extern class DOMMatrixReadOnly
 	var isIdentity(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?init : haxe.extern.EitherType<String,Array<Float>> ) : Void;
+	@:overload( function( ?init : Array<Float>) : DOMMatrixReadOnly {} )
+	function new( ?init : String ) : Void;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix being translated by the given vector. The original matrix is not modified.

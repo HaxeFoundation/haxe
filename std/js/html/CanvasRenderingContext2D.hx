@@ -55,9 +55,21 @@ extern class CanvasRenderingContext2D
 	var textBaseline : String;
 	
 	/** @throws DOMError */
-	@:overload( function( image : haxe.extern.EitherType<haxe.extern.EitherType<ImageElement,js.html.svg.ImageElement>,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float ) : Void {} )
-	@:overload( function( image : haxe.extern.EitherType<haxe.extern.EitherType<ImageElement,js.html.svg.ImageElement>,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
-	function drawImage( image : haxe.extern.EitherType<haxe.extern.EitherType<ImageElement,js.html.svg.ImageElement>,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
+	@:overload( function( image : js.html.svg.ImageElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : CanvasElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : VideoElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : js.html.svg.ImageElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : CanvasElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : VideoElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : js.html.svg.ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : CanvasElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : VideoElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageElement, dx : Float, dy : Float ) : Void {} )
+	@:overload( function( image : ImageElement, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
+	function drawImage( image : ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	function beginPath() : Void;
 	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
 	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
@@ -73,7 +85,11 @@ extern class CanvasRenderingContext2D
 	/** @throws DOMError */
 	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
 	/** @throws DOMError */
-	function createPattern( image : haxe.extern.EitherType<haxe.extern.EitherType<ImageElement,js.html.svg.ImageElement>,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, repetition : String ) : CanvasPattern;
+	@:overload( function( image : js.html.svg.ImageElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : CanvasElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : VideoElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : ImageBitmap, repetition : String) : CanvasPattern {} )
+	function createPattern( image : ImageElement, repetition : String ) : CanvasPattern;
 	/** @throws DOMError */
 	function addHitRegion( ?options : HitRegionOptions ) : Void;
 	function removeHitRegion( id : String ) : Void;

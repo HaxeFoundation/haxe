@@ -398,17 +398,28 @@ extern class RenderingContext
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
 	function texSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
-	function uniform1fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniform2fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniform3fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniform4fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniform1iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>> ) : Void;
-	function uniform2iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>> ) : Void;
-	function uniform3iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>> ) : Void;
-	function uniform4iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>> ) : Void;
-	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
-	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform1fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform2fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform3fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
+	function uniform4fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform1iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform2iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform3iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
+	function uniform4iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
+	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
 	
 	/**
 		Returns a `WebGLContextAttributes` object that contains the actual context parameters. Might return `null`, if the context is lost.
@@ -914,13 +925,17 @@ extern class RenderingContext
 	**/
 	function validateProgram( program : Program ) : Void;
 	function vertexAttrib1f( indx : Int, x : Float ) : Void;
-	function vertexAttrib1fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib1fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib2f( indx : Int, x : Float, y : Float ) : Void;
-	function vertexAttrib2fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib2fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib3f( indx : Int, x : Float, y : Float, z : Float ) : Void;
-	function vertexAttrib3fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib3fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib4f( indx : Int, x : Float, y : Float, z : Float, w : Float ) : Void;
-	function vertexAttrib4fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib4fv( indx : Int, values : js.html.Float32Array ) : Void;
 	
 	/**
 		Specifies the data formats and locations of vertex attributes in a vertex attributes array.

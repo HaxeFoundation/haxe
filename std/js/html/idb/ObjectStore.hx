@@ -104,7 +104,8 @@ extern class ObjectStore
 		Creates a new index during a version upgrade, returning a new `IDBIndex` object in the connected database.
 		@throws DOMError
 	**/
-	function createIndex( name : String, keyPath : haxe.extern.EitherType<String,Array<String>>, ?optionalParameters : IndexParameters ) : Index;
+	@:overload( function( name : String, keyPath : Array<String>, ?optionalParameters : IndexParameters) : Index {} )
+	function createIndex( name : String, keyPath : String, ?optionalParameters : IndexParameters ) : Index;
 	
 	/**
 		Opens an index from this object store after which it can, for example, be used to return a sequence of records sorted by that index using a cursor.

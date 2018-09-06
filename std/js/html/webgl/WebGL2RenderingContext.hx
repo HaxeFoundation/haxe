@@ -754,31 +754,54 @@ extern class WebGL2RenderingContext
 	function uniform2ui( location : UniformLocation, v0 : Int, v1 : Int ) : Void;
 	function uniform3ui( location : UniformLocation, v0 : Int, v1 : Int, v2 : Int ) : Void;
 	function uniform4ui( location : UniformLocation, v0 : Int, v1 : Int, v2 : Int, v3 : Int ) : Void;
-	function uniform1fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform2fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform3fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform4fv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform1iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform2iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform3iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform4iv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Int32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform1uiv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform2uiv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform3uiv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniform4uiv( location : UniformLocation, data : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix3x2fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix4x2fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix2x3fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix4x3fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix2x4fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix3x4fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform1fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform2fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform3fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform4fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform1iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform2iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform3iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform4iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform1uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform2uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform3uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniform4uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix3x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix4x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix2x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix4x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix2x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix3x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
+	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
 	function vertexAttribI4i( index : Int, x : Int, y : Int, z : Int, w : Int ) : Void;
-	function vertexAttribI4iv( index : Int, values : haxe.extern.EitherType<js.html.Int32Array,Array<Int>> ) : Void;
+	@:overload( function( index : Int, values : Array<Int>) : Void {} )
+	function vertexAttribI4iv( index : Int, values : js.html.Int32Array ) : Void;
 	function vertexAttribI4ui( index : Int, x : Int, y : Int, z : Int, w : Int ) : Void;
-	function vertexAttribI4uiv( index : Int, values : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>> ) : Void;
+	@:overload( function( index : Int, values : Array<Int>) : Void {} )
+	function vertexAttribI4uiv( index : Int, values : js.html.Uint32Array ) : Void;
 	
 	/**
 		Specifies integer data formats and locations of vertex attributes in a vertex attributes array.
@@ -813,9 +836,12 @@ extern class WebGL2RenderingContext
 		Specifies a list of color buffers to be drawn into.
 	**/
 	function drawBuffers( buffers : Array<Int> ) : Void;
-	function clearBufferfv( buffer : Int, drawbuffer : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>>, ?srcOffset : Int = 0 ) : Void;
-	function clearBufferiv( buffer : Int, drawbuffer : Int, values : haxe.extern.EitherType<js.html.Int32Array,Array<Int>>, ?srcOffset : Int = 0 ) : Void;
-	function clearBufferuiv( buffer : Int, drawbuffer : Int, values : haxe.extern.EitherType<js.html.Uint32Array,Array<Int>>, ?srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Float>, ?srcOffset : Int = 0) : Void {} )
+	function clearBufferfv( buffer : Int, drawbuffer : Int, values : js.html.Float32Array, ?srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, ?srcOffset : Int = 0) : Void {} )
+	function clearBufferiv( buffer : Int, drawbuffer : Int, values : js.html.Int32Array, ?srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, ?srcOffset : Int = 0) : Void {} )
+	function clearBufferuiv( buffer : Int, drawbuffer : Int, values : js.html.Uint32Array, ?srcOffset : Int = 0 ) : Void;
 	function clearBufferfi( buffer : Int, drawbuffer : Int, depth : Float, stencil : Int ) : Void;
 	
 	/**
@@ -1143,13 +1169,17 @@ extern class WebGL2RenderingContext
 	function useProgram( program : Program ) : Void;
 	function validateProgram( program : Program ) : Void;
 	function vertexAttrib1f( indx : Int, x : Float ) : Void;
-	function vertexAttrib1fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib1fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib2f( indx : Int, x : Float, y : Float ) : Void;
-	function vertexAttrib2fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib2fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib3f( indx : Int, x : Float, y : Float, z : Float ) : Void;
-	function vertexAttrib3fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib3fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttrib4f( indx : Int, x : Float, y : Float, z : Float, w : Float ) : Void;
-	function vertexAttrib4fv( indx : Int, values : haxe.extern.EitherType<js.html.Float32Array,Array<Float>> ) : Void;
+	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
+	function vertexAttrib4fv( indx : Int, values : js.html.Float32Array ) : Void;
 	function vertexAttribPointer( indx : Int, size : Int, type : Int, normalized : Bool, stride : Int, offset : Int ) : Void;
 	function viewport( x : Int, y : Int, width : Int, height : Int ) : Void;
 }

@@ -83,7 +83,13 @@ extern class Response
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,haxe.extern.EitherType<Dynamic/*MISSING ReadableStream*/,String>>>>>, ?init : ResponseInit ) : Void;
+	@:overload( function( ?body : ArrayBufferView, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : ArrayBuffer, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : FormData, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : URLSearchParams, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : Dynamic/*MISSING ReadableStream*/, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : String, ?init : ResponseInit) : Response {} )
+	function new( ?body : Blob, ?init : ResponseInit ) : Void;
 	
 	/**
 		Creates a clone of a `Response` object.

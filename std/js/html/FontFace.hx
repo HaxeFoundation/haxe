@@ -81,7 +81,9 @@ extern class FontFace
 	var loaded(default,null) : Promise<FontFace>;
 	
 	/** @throws DOMError */
-	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
+	@:overload( function( family : String, source : ArrayBuffer, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	@:overload( function( family : String, source : ArrayBufferView, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	function new( family : String, source : String, ?descriptors : FontFaceDescriptors ) : Void;
 	
 	/**
 		Loads the font, returning a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.

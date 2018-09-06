@@ -29,9 +29,11 @@ extern class MediaKeyStatusMap
 {
 	var size(default,null) : Int;
 	
-	function has( keyId : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer> ) : Bool;
+	@:overload( function( keyId : js.html.ArrayBuffer) : Bool {} )
+	function has( keyId : js.html.ArrayBufferView ) : Bool;
 	/** @throws DOMError */
-	function get( keyId : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer> ) : Any;
+	@:overload( function( keyId : js.html.ArrayBuffer) : Any {} )
+	function get( keyId : js.html.ArrayBufferView ) : Any;
 	/** @throws DOMError */
 	function entries() : js.html.MediaKeyStatusMapIterator;
 	/** @throws DOMError */

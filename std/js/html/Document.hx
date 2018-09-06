@@ -385,13 +385,15 @@ extern class Document extends Node
 		Creates a new element with the given tag name.
 		@throws DOMError
 	**/
-	function createElement( localName : String, ?options : haxe.extern.EitherType<ElementCreationOptions,String> ) : Element;
+	@:overload( function( localName : String, ?options : String) : Element {} )
+	function createElement( localName : String, ?options : ElementCreationOptions ) : Element;
 	
 	/**
 		Creates a new element with the given tag name and namespace URI.
 		@throws DOMError
 	**/
-	function createElementNS( namespace_ : String, qualifiedName : String, ?options : haxe.extern.EitherType<ElementCreationOptions,String> ) : Element;
+	@:overload( function( namespace_ : String, qualifiedName : String, ?options : String) : Element {} )
+	function createElementNS( namespace_ : String, qualifiedName : String, ?options : ElementCreationOptions ) : Element;
 	
 	/**
 		Creates a new document fragment.
@@ -519,15 +521,23 @@ extern class Document extends Node
 	function elementFromPoint( x : Float, y : Float ) : Element;
 	function elementsFromPoint( x : Float, y : Float ) : Array<Element>;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( quad : DOMQuad, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( quad : DOMQuad, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertQuadFromNode( quad : DOMQuad, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( rect : DOMRectReadOnly, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( rect : DOMRectReadOnly, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertRectFromNode( rect : DOMRectReadOnly, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	@:overload( function( point : DOMPointInit, from : Element, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	@:overload( function( point : DOMPointInit, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	function convertPointFromNode( point : DOMPointInit, from : Text, ?options : ConvertCoordinateOptions ) : DOMPoint;
 	/** @throws DOMError */
-	function prepend( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function prepend( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function append( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
 	@:overload( function( expression : String, ?resolver : haxe.Constraints.Function) : XPathExpression {} )
 	@:overload( function( expression : String, ?resolver : XPathNSResolver) : XPathExpression {} )

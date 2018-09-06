@@ -99,7 +99,12 @@ extern class Navigator
 	/** @throws DOMError */
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
-	function sendBeacon( url : String, ?data : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>> ) : Bool;
+	@:overload( function( url : String, ?data : ArrayBufferView) : Bool {} )
+	@:overload( function( url : String, ?data : ArrayBuffer) : Bool {} )
+	@:overload( function( url : String, ?data : FormData) : Bool {} )
+	@:overload( function( url : String, ?data : URLSearchParams) : Bool {} )
+	@:overload( function( url : String, ?data : String) : Bool {} )
+	function sendBeacon( url : String, ?data : Blob ) : Bool;
 	function requestMediaKeySystemAccess( keySystem : String, supportedConfigurations : Array<js.html.eme.MediaKeySystemConfiguration> ) : Promise<js.html.eme.MediaKeySystemAccess>;
 	function taintEnabled() : Bool;
 }

@@ -31,6 +31,7 @@ extern class CSSPseudoElement
 	var parentElement(default,null) : Element;
 	
 	/** @throws DOMError */
-	function animate( keyframes : Any, ?options : haxe.extern.EitherType<Float,KeyframeAnimationOptions> ) : Animation;
+	@:overload( function( keyframes : Any, ?options : KeyframeAnimationOptions) : Animation {} )
+	function animate( keyframes : Any, ?options : Float ) : Animation;
 	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
 }

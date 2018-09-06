@@ -59,7 +59,9 @@ extern class DocumentFragment extends Node
 	**/
 	function querySelectorAll( selectors : String ) : NodeList;
 	/** @throws DOMError */
-	function prepend( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function prepend( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function append( nodes : haxe.extern.Rest<Node> ) : Void;
 }

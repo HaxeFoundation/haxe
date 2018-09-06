@@ -265,7 +265,8 @@ extern class DOMElement extends Node
 	function blur() : Void;
 	function getClientRects() : DOMRectList;
 	function getBoundingClientRect() : DOMRect;
-	function scrollIntoView( ?arg : haxe.extern.EitherType<Bool,ScrollIntoViewOptions> ) : Void;
+	@:overload( function( ?arg : ScrollIntoViewOptions) : Void {} )
+	function scrollIntoView( ?arg : Bool ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
 	function scroll( ?options : ScrollToOptions ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
@@ -292,27 +293,39 @@ extern class DOMElement extends Node
 		A shortcut method to create and run an animation on an element. Returns the created Animation object instance.
 		@throws DOMError
 	**/
-	function animate( keyframes : Any, ?options : haxe.extern.EitherType<Float,KeyframeAnimationOptions> ) : Animation;
+	@:overload( function( keyframes : Any, ?options : KeyframeAnimationOptions) : Animation {} )
+	function animate( keyframes : Any, ?options : Float ) : Animation;
 	
 	/**
 		Returns an array of Animation objects currently active on the element.
 	**/
 	function getAnimations( ?filter : AnimationFilter ) : Array<Animation>;
 	/** @throws DOMError */
-	function before( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function before( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function after( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function after( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function replaceWith( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function replaceWith( nodes : haxe.extern.Rest<Node> ) : Void;
 	function remove() : Void;
 	/** @throws DOMError */
-	function convertQuadFromNode( quad : DOMQuad, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( quad : DOMQuad, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( quad : DOMQuad, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertQuadFromNode( quad : DOMQuad, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertRectFromNode( rect : DOMRectReadOnly, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMQuad;
+	@:overload( function( rect : DOMRectReadOnly, from : Element, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	@:overload( function( rect : DOMRectReadOnly, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMQuad {} )
+	function convertRectFromNode( rect : DOMRectReadOnly, from : Text, ?options : ConvertCoordinateOptions ) : DOMQuad;
 	/** @throws DOMError */
-	function convertPointFromNode( point : DOMPointInit, from : haxe.extern.EitherType<Text,haxe.extern.EitherType<Element,HTMLDocument>>, ?options : ConvertCoordinateOptions ) : DOMPoint;
+	@:overload( function( point : DOMPointInit, from : Element, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	@:overload( function( point : DOMPointInit, from : HTMLDocument, ?options : ConvertCoordinateOptions) : DOMPoint {} )
+	function convertPointFromNode( point : DOMPointInit, from : Text, ?options : ConvertCoordinateOptions ) : DOMPoint;
 	/** @throws DOMError */
-	function prepend( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function prepend( nodes : haxe.extern.Rest<Node> ) : Void;
 	/** @throws DOMError */
-	function append( nodes : haxe.extern.Rest<haxe.extern.EitherType<Node,String>> ) : Void;
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function append( nodes : haxe.extern.Rest<Node> ) : Void;
 }

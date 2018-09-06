@@ -66,5 +66,7 @@ extern class MessageEvent extends Event
 	/**
 		Initializes a message event. Do not use this anymore — use the `MessageEvent.MessageEvent` constructor instead.
 	**/
-	function initMessageEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : haxe.extern.EitherType<Window,haxe.extern.EitherType<MessagePort,ServiceWorker>>, ?ports : Array<MessagePort> = [] ) : Void;
+	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort> = []) : Void {} )
+	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort> = []) : Void {} )
+	function initMessageEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Any, ?origin : String = "", ?lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> = [] ) : Void;
 }

@@ -31,5 +31,6 @@ extern class MediaKeys
 	
 	/** @throws DOMError */
 	function createSession( ?sessionType : MediaKeySessionType = "temporary" ) : MediaKeySession;
-	function setServerCertificate( serverCertificate : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer> ) : Promise<Void>;
+	@:overload( function( serverCertificate : js.html.ArrayBuffer) : Promise<Void> {} )
+	function setServerCertificate( serverCertificate : js.html.ArrayBufferView ) : Promise<Void>;
 }

@@ -35,7 +35,9 @@ package js.html;
 extern class URLSearchParams
 {
 	/** @throws DOMError */
-	function new( ?init : haxe.extern.EitherType<Array<Array<String>>,haxe.extern.EitherType<haxe.DynamicAccess<String>,String>> = "" ) : Void;
+	@:overload( function( ?init : haxe.DynamicAccess<String> = "") : URLSearchParams {} )
+	@:overload( function( ?init : String = "") : URLSearchParams {} )
+	function new( ?init : Array<Array<String>> = "" ) : Void;
 	
 	/**
 		Appends a specified key/value pair as a new search parameter.

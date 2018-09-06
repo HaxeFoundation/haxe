@@ -35,9 +35,11 @@ extern class MediaKeySession extends js.html.EventTarget
 	var onkeystatuseschange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
 	
-	function generateRequest( initDataType : String, initData : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer> ) : Promise<Void>;
+	@:overload( function( initDataType : String, initData : js.html.ArrayBuffer) : Promise<Void> {} )
+	function generateRequest( initDataType : String, initData : js.html.ArrayBufferView ) : Promise<Void>;
 	function load( sessionId : String ) : Promise<Bool>;
-	function update( response : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer> ) : Promise<Void>;
+	@:overload( function( response : js.html.ArrayBuffer) : Promise<Void> {} )
+	function update( response : js.html.ArrayBufferView ) : Promise<Void>;
 	function close() : Promise<Void>;
 	function remove() : Promise<Void>;
 }
