@@ -23,7 +23,7 @@ class TripleDes extends Des
         return iv;
     }
 
-	public function new(?key:Bytes, ?iv:Bytes)
+    public function new(?key:Bytes, ?iv:Bytes)
     {
         super(key,iv);
         if ( key != null ) init(key,iv);         // Key size 168 bits
@@ -32,7 +32,7 @@ class TripleDes extends Des
 
     public function init(key:Bytes, ?iv:Bytes):Void
     {
-		var keyLength = key.length;
+	var keyLength = key.length;
         if ( keyLength < 24 ) throw "Specified key is not a valid size for 3Des algorithm";
 		
         this.iv = iv;
