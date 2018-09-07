@@ -540,9 +540,13 @@ class Bytes {
 		#end
 	}
 	
+	/**
+		Convert hexadecimal string to Bytes.
+		Support only straight hex string ( Example: "0FDA14058916052309" )
+	**/
 	public static function ofHex( s : String ) : Bytes {
 		var len:Int = s.length;
-		if ( (len & 1) != 0 ) throw "Hex string have a odd number of digits";
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
 		var ret : Bytes = Bytes.alloc(len >> 1);
 		for (i in  0...ret.length)
 		{
