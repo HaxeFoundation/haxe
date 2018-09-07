@@ -134,13 +134,11 @@ class BlowFish
     static inline var SBOX_SK : Int = 256;
     static inline var P_SZ : Int = ROUNDS+2;
 
-    var S0:Array<Int32>;
-    var S1:Array<Int32>;
-    var S2:Array<Int32>;
-    var S3:Array<Int32>;
-    var P:Array<Int32>;
-
-    var workingKey : Bytes;
+    var s0:Array<Int32>;
+    var s1:Array<Int32>;
+    var s2:Array<Int32>;
+    var s3:Array<Int32>;
+    var p:Array<Int32>;
 
     public var iv(default, set):Bytes;
 
@@ -156,16 +154,15 @@ class BlowFish
         return iv;
     }
 
-    public function new(?key:String, ?iv:Bytes)
+    public function new(?key:Bytes, ?iv:Bytes)
     {
         if ( key != null ) init(key,iv);
     }
 
-    public function init(key:String, ?iv:Bytes):Void
+    public function init(key:Bytes, ?iv:Bytes):Void
     {
 	this.iv = iv;
-        workingKey = Bytes.ofString(key);
-        SetKey(workingKey);
+        SetKey(key);
     }
 
     public function  getBlockSize():Int
@@ -199,17 +196,17 @@ class BlowFish
 
         switch (cipherMode) {
             case Mode.CBC:
-                CBC.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CBC.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.ECB:
-                ECB.encrypt(out,BLOCK_SIZE,EncryptBlock);
+                ECB.encrypt(out,BLOCK_SIZE,encryptBlock);
             case Mode.PCBC:
-                PCBC.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                PCBC.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CTR:
-                CTR.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CTR.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CFB:
-                CFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CFB.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.OFB:
-                OFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                OFB.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
         }
 
         return out;
@@ -221,17 +218,17 @@ class BlowFish
 
         switch (cipherMode) {
             case Mode.CBC:
-                CBC.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
+                CBC.decrypt(out,iv,BLOCK_SIZE,decryptBlock);
             case Mode.ECB:
-                ECB.decrypt(out,BLOCK_SIZE,DecryptBlock);
+                ECB.decrypt(out,BLOCK_SIZE,decryptBlock);
             case Mode.PCBC:
-                PCBC.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
+                PCBC.decrypt(out,iv,BLOCK_SIZE,decryptBlock);
             case Mode.CTR:
-                CTR.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CTR.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CFB:
-               CFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+               CFB.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.OFB:
-                OFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                OFB.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
         }
 
         switch(padding)  {
@@ -257,27 +254,27 @@ class BlowFish
     }
 
 
-    private function F(x:Int32):Int32 {
-        return (((S0[(x >>> 24)] + S1[(x >>> 16) & 0xff]) ^ S2[(x >>> 8) & 0xff]) + S3[x & 0xff]);
+    private function f(x:Int32):Int32 {
+        return (((s0[(x >>> 24)] + s1[(x >>> 16) & 0xff]) ^ s2[(x >>> 8) & 0xff]) + s3[x & 0xff]);
     }
 
-    private function ProcessTable( xl:Int32, xr:Int32, table:Array<Int32>):Void
+    private function processTable( xl:Int32, xr:Int32, table:Array<Int32>):Void
     {
         var size:Int = table.length;
         var s:Int = 0;
         while( s < size )
         {
-            xl ^= P[0];
+            xl ^= p[0];
 
             var i:Int = 1;
             while ( i < ROUNDS )
             {
-                xr ^= F(xl) ^ P[i];
-                xl ^= F(xr) ^ P[i + 1];
+                xr ^= f(xl) ^ p[i];
+                xl ^= f(xr) ^ p[i + 1];
                 i += 2;
             }
 
-            xr ^= P[ROUNDS + 1];
+            xr ^= p[ROUNDS + 1];
 
             table[s] = xr;
             table[s + 1] = xl;
@@ -289,14 +286,14 @@ class BlowFish
         }
     }
 
-    private function SetKey(key:Bytes):Void
+    private function setKey(key:Bytes):Void
     {
-        S0 = KS0.copy();
-        S1 = KS1.copy();
-        S2 = KS2.copy();
-        S3 = KS3.copy();
+        s0 = KS0.copy();
+        s1 = KS1.copy();
+        s2 = KS2.copy();
+        s3 = KS3.copy();
 
-        P = KP.copy();
+        p = KP.copy();
 
         var keyLength = key.length;
         var keyIndex = 0;
@@ -312,57 +309,57 @@ class BlowFish
                     keyIndex = 0;
                 }
             }
-            P[i] ^= data;
+            p[i] ^= data;
         }
 
-        ProcessTable(0, 0, P);
-        ProcessTable(P[P_SZ - 2], P[P_SZ - 1], S0);
-        ProcessTable(S0[SBOX_SK - 2], S0[SBOX_SK - 1], S1);
-        ProcessTable(S1[SBOX_SK - 2], S1[SBOX_SK - 1], S2);
-        ProcessTable(S2[SBOX_SK - 2], S2[SBOX_SK - 1], S3);
+        processTable(0, 0, p);
+        processTable(p[P_SZ - 2], p[P_SZ - 1], s0);
+        processTable(s0[SBOX_SK - 2], s0[SBOX_SK - 1], s1);
+        processTable(s1[SBOX_SK - 2], s1[SBOX_SK - 1], s2);
+        processTable(s2[SBOX_SK - 2], s2[SBOX_SK - 1], s3);
     }
 
-    private function  EncryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
+    private function  encryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
     {
-        var xl:Int32 = BytesToInt32(src, srcIndex);
-        var xr:Int32 = BytesToInt32(src, srcIndex+4);
-        xl ^= P[0];
+        var xl:Int32 = bytesToInt32(src, srcIndex);
+        var xr:Int32 = bytesToInt32(src, srcIndex+4);
+        xl ^= p[0];
         var i:Int = 1;
         while (i < ROUNDS)
         {
-            xr ^= F(xl) ^ P[i];
-            xl ^= F(xr) ^ P[i + 1];
+            xr ^= f(xl) ^ p[i];
+            xl ^= f(xr) ^ p[i + 1];
             
             i += 2;
         }
 
-        xr ^= P[ROUNDS + 1];
-        Int32ToBytes(xr, dst, dstIndex);
-        Int32ToBytes(xl, dst, dstIndex + 4);
+        xr ^= p[ROUNDS + 1];
+        int32ToBytes(xr, dst, dstIndex);
+        int32ToBytes(xl, dst, dstIndex + 4);
     }
 
-    private function DecryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
+    private function decryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
     {
-        var xl:Int32 = BytesToInt32(src, srcIndex);
-        var xr:Int32 = BytesToInt32(src, srcIndex + 4);
+        var xl:Int32 = bytesToInt32(src, srcIndex);
+        var xr:Int32 = bytesToInt32(src, srcIndex + 4);
 
-        xl ^= P[ROUNDS + 1];
+        xl ^= p[ROUNDS + 1];
 
         var i:Int = ROUNDS;
         while ( i > 0 )
         {
-            xr ^= F(xl) ^ P[i];
-            xl ^= F(xr) ^ P[i - 1];
+            xr ^= f(xl) ^ p[i];
+            xl ^= f(xr) ^ p[i - 1];
             i -= 2;
         }
 
-        xr ^= P[0];
+        xr ^= p[0];
 
-        Int32ToBytes(xr, dst, dstIndex);
-        Int32ToBytes(xl, dst, dstIndex + 4);
+        int32ToBytes(xr, dst, dstIndex);
+        int32ToBytes(xl, dst, dstIndex + 4);
     }
 
-    private function Int32ToBytes(n:Int32, bs:Bytes, off:Int):Void
+    private function int32ToBytes(n:Int32, bs:Bytes, off:Int):Void
     {
 	bs.set( off , (n >> 24));
 	bs.set(++off, (n >> 16));
@@ -370,7 +367,7 @@ class BlowFish
 	bs.set(++off, (n      ));
     }
 
-    private function BytesToInt32(bs:Bytes, off:Int):Int32
+    private function bytesToInt32(bs:Bytes, off:Int):Int32
     {
 	var n:Int32 = ( bs.get(off) & 0xff ) << 24;
 	n |= ( bs.get(++off) & 0xff) << 16;
