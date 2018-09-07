@@ -3341,6 +3341,24 @@ let gen_type ctx haxe_type =
 ;;
 
 
+
+
+
+let rec implements_native_interface class_def =
+   List.exists (fun (intf_def,_) ->
+        is_native_gen_class intf_def ||
+           implements_native_interface intf_def
+    ) class_def.cl_implements ||
+        (match class_def.cl_super with
+           | Some (i,_) -> implements_native_interface i
+           | _ -> false )
+;;
+
+let can_quick_alloc klass =
+   not (implements_native_interface klass)
+;;
+
+
 let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_type injection tree =
    let writer = ctx.ctx_writer in
    let out = ctx.ctx_output in
@@ -3495,7 +3513,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
            expr.cpppos);
          out " ]"
 
-      | CppCall(FuncNew( TCppInst klass), args) ->
+      | CppCall(FuncNew( TCppInst klass), args) when can_quick_alloc klass ->
          out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_CTX ");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
@@ -5585,6 +5603,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
 
+   let can_quick_alloc = can_quick_alloc class_def in
+
    let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
       out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
@@ -5593,35 +5613,38 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       out ("\treturn __this;\n");
       out ("}\n\n");
 
-      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
-      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
-      out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
-      let rec dump_dynamic class_def =
-         if has_dynamic_member_functions class_def then
-            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_ctx,__this);\n")
-         else match class_def.cl_super with
-         | Some super -> dump_dynamic (fst super)
-         | _ -> ()
-      in
-      dump_dynamic class_def;
+      if can_quick_alloc then begin
+         out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
+            (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+         out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
+         out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
+         let rec dump_dynamic class_def =
+            if has_dynamic_member_functions class_def then
+               out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_ctx,__this);\n")
+            else match class_def.cl_super with
+            | Some super -> dump_dynamic (fst super)
+            | _ -> ()
+         in
+         dump_dynamic class_def;
 
-      if isHeader then begin
-        match class_def.cl_constructor with
-         | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
-            let old_debug = ctx.ctx_debug_level in
-            if has_meta_key definition.cf_meta Meta.NoDebug then
-               ctx.ctx_debug_level <- 0;
-            ctx.ctx_real_this_ptr <- false;
-            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
-            out "\n";
+         if isHeader then begin
+           match class_def.cl_constructor with
+            | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
+               let old_debug = ctx.ctx_debug_level in
+               if has_meta_key definition.cf_meta Meta.NoDebug then
+                  ctx.ctx_debug_level <- 0;
+               ctx.ctx_real_this_ptr <- false;
+               gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
+               out "\n";
 
-            ctx.ctx_debug_level <- old_debug;
-         | _ -> ()
-      end else
-         out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
+               ctx.ctx_debug_level <- old_debug;
+            | _ -> ()
+         end else
+            out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
 
-      out ("\treturn __this;\n");
-      out ("}\n\n");
+         out ("\treturn __this;\n");
+         out ("}\n\n");
+      end;
    in
 
    (* State *)
@@ -6493,7 +6516,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
-         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
+         if can_quick_alloc then
+             output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::Ctx *_hx_ctx" ^
+                 (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
       output_h ("\t\tstatic void * _hx_vtable;\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
