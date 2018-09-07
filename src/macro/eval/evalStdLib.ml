@@ -356,7 +356,7 @@ module StdBytes = struct
 			encode_bytes (Bytes.of_string s)
 		end
 	)
-	
+
 	let ofHex = vfun1 (fun v ->
 		let s = decode_string v in
 		let len = String.length s in
@@ -2178,7 +2178,7 @@ module StdStringBuf = struct
 		in
 		let s' = Rope.sub s.srope i len in
 		let s' = if s.sascii then create_ascii_of_rope s'
-		else create_ucs2_of_rope s' len in
+		else create_ucs2_of_rope s' (len lsr 1) in
 		AwareBuffer.add_string this s';
 		vnull
 	)

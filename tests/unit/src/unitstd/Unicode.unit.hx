@@ -214,4 +214,11 @@ var map = new haxe.ds.StringMap();
 map.set("path", 1);
 map.get("äpath".substr(1)) == 1;
 
+var data =  "<haxe><s>Hello World!</s><s2>π</s2></haxe>";
+var buf = new StringBuf();
+buf.addSub(data, 9, 12);
+var s = buf.toString();
+s == "Hello World!";
+s.length == 12;
+
 #end
