@@ -387,7 +387,7 @@ module StdBytes = struct
 	let ofHex = vfun1 (fun v ->
 		let s = decode_string v in
 		let len = String.length s in
-		if (len land 1) <> 0 then exc_string "Hex string has odd number of digits";
+		if (len land 1) <> 0 then exc_string "Not a hex string (odd number of digits)";
 		let ret = (Bytes.make (len lsr 1) (Char.chr 0)) in
 		for i = 0 to Bytes.length ret - 1 do
 			let high = int_of_char s.[i * 2] in
