@@ -46,6 +46,10 @@ private typedef NativeString = cs.system.String;
 	public static function indexOf(me:NativeString, str:String, ?startIndex:Int):Int
 	{
 		var sIndex:Int = startIndex != null ? startIndex : 0;
+		if (str.length == 0) {
+			var min = sIndex > me.Length ? me.Length : sIndex;
+			return min < 0 ? 0 : min;
+		}
 		if (sIndex >= me.Length)
 			return -1;
 		return @:privateAccess me.IndexOf(str, sIndex, cs.system.StringComparison.Ordinal);
@@ -53,6 +57,11 @@ private typedef NativeString = cs.system.String;
 
 	public static function lastIndexOf(me:NativeString, str:NativeString, ?startIndex:Int):Int
 	{
+		if (str.Length == 0) {
+			var sIndex:Int = startIndex == null ? me.Length : startIndex;
+			var min = sIndex > me.Length ? me.Length : sIndex;
+			return min < 0 ? 0 : min;
+		}
 		var sIndex:Int = startIndex == null ? me.Length - 1 : startIndex;
 		if (sIndex >= me.Length)
 			sIndex = me.Length - 1;
