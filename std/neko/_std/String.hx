@@ -58,6 +58,11 @@
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
+		if (str.length == 0) {
+			var startIndex = startIndex == null ? 0 : startIndex;
+			var min = startIndex > length ? length : startIndex;
+			return min < 0 ? 0 : min;
+		}
 		untyped {
 			var p = try __dollar__sfind(this.__s,if( startIndex == null ) 0 else startIndex,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
@@ -67,6 +72,11 @@
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
+		if (str.length == 0) {
+			var startIndex = startIndex == null ? length : startIndex;
+			var min = startIndex > length ? length : startIndex;
+			return min < 0 ? 0 : min;
+		}
 		untyped {
 			var last = -1;
 			if( startIndex == null )
