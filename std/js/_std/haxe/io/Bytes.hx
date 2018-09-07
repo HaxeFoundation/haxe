@@ -229,7 +229,7 @@ class Bytes {
 	}
 	
 	public static function ofHex( s : String ) : Bytes {		
-		if ( (s.length & 1) != 0 ) throw Error.OutsideBounds;
+		if ( (s.length & 1) != 0 ) throw "Not a hex string (odd number of digits)";
 		var a = new Array();
 		var i = 0;
 		var len = s.length >> 1;
