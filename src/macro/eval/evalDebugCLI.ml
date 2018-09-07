@@ -45,7 +45,7 @@ let value_string value =
 		| VFloat f -> "Float",string_of_float f
 		| VEnumValue ev -> rev_hash_s ev.epath,EvalString.get (s_enum_value 0 ev)
 		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
-		| VString s -> "String","\"" ^ (Ast.s_escape (Lazy.force s.sstring)) ^ "\""
+		| VString s -> "String","\"" ^ (Ast.s_escape (EvalString.get s)) ^ "\""
 		| VArray va -> "Array",EvalString.get (s_array (depth + 1) va)
 		| VVector vv -> "Vector",EvalString.get (s_vector (depth + 1) vv)
 		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi

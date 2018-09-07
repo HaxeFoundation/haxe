@@ -186,4 +186,28 @@ Reflect.compare("éed".substr(1), "ee") < 0;
 Reflect.compare("ee", "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "ed") > 0;
+
+var s = "ä😂";
+s.toUpperCase() == "Ä😂";
+s.toLowerCase() == s;
+
+var s = "Ä😂";
+s.toUpperCase() == s;
+s.toLowerCase() == "ä😂";
+
+var s = "a😂";
+s.toUpperCase() == "A😂";
+s.toLowerCase() == s;
+
+var s = "A😂";
+s.toUpperCase() == s;
+s.toLowerCase() == "a😂";
+
+"σ".toUpperCase() == "Σ";
+"Σ".toLowerCase() == "σ";
+
+var map = new haxe.ds.StringMap();
+map.set("path", 1);
+map.get("äpath".substr(1)) == 1;
+
 #end
