@@ -3294,10 +3294,11 @@ let cpp_gen_default_values ctx args prefix =
    ) args;
 ;;
 
-let is_constant_zero expr =
+let rec is_constant_zero expr =
   match expr.cppexpr with
   | CppFloat x when (float_of_string x) = 0.0 -> true
   | CppInt i when i = Int32.of_int 0 -> true
+  | CppCastScalar(expr,_) -> is_constant_zero(expr)
   | _ -> false
 ;;
 
