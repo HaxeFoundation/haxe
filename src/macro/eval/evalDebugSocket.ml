@@ -18,7 +18,7 @@ let var_to_json name value access =
 	let jv t v structured =
 		JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
 	in
-	let string_repr s = "\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\"" in
+	let string_repr s = "\"" ^ (Ast.s_escape (EvalString.get s)) ^ "\"" in
 	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"
@@ -32,7 +32,7 @@ let var_to_json name value access =
 				| vl -> name ^ "(...)"
 			end
 		| VObject o -> "{...}"
-		| VString s -> string_repr s.sstring
+		| VString s -> string_repr s
 		| VArray _ | VVector _ -> "[...]"
 		| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> EvalString.get (s_proto_kind proto)
@@ -65,7 +65,7 @@ let var_to_json name value access =
 			in
 			jv type_s value_s is_structured
 		| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
-		| VString s -> jv "String" (string_repr s.sstring) false
+		| VString s -> jv "String" (string_repr s) false
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
 		| VInstance vi ->
