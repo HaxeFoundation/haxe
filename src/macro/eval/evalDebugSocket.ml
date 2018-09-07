@@ -191,6 +191,13 @@ let output_inner_vars v access =
 				let a = access ^ n in
 				n, v, a
 			) l
+		| VInstance {ikind = IStringMap h} ->
+			StringHashtbl.fold (fun k v acc ->
+				let s = EvalString.get k in
+				let n = Printf.sprintf "[%s]" s in
+				let a = access ^ n in
+				(s,v,a) :: acc
+			) h []
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->

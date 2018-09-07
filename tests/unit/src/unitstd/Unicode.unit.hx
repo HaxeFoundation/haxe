@@ -203,4 +203,8 @@ var s = "A😂";
 s.toUpperCase() == s;
 s.toLowerCase() == "a😂";
 
+var map = new haxe.ds.StringMap();
+map.set("path", 1);
+map.get("äpath".substr(1)) == 1;
+
 #end

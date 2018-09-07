@@ -64,7 +64,10 @@ let vstring_equal s1 s2 =
 module StringHashtbl = Hashtbl.Make(struct
 	type t = vstring
 	let equal = vstring_equal
-	let hash s = Hashtbl.hash (Lazy.force s.sstring)
+	let hash s =
+		let s = if s.sascii then extend_ascii (Lazy.force s.sstring)
+		else Lazy.force s.sstring in
+		Hashtbl.hash s
 end)
 
 module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
