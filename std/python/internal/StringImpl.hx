@@ -45,7 +45,11 @@ class StringImpl {
 
 	@:ifFeature("dynamic_read.lastIndexOf", "anon_optional_read.lastIndexOf", "python.internal.StringImpl.lastIndexOf")
 	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
-		if (startIndex == null) {
+		if (str == "") {
+			var i = startIndex == null ? s.length : startIndex;
+			return UBuiltins.max(0, UBuiltins.min(i,  s.length));
+		}
+		else if (startIndex == null) {
 			return Syntax.callField(s, "rfind", str, 0, s.length);
 		} else {
 
@@ -70,7 +74,11 @@ class StringImpl {
 	}
 	@:ifFeature("dynamic_read.indexOf", "anon_optional_read.indexOf", "python.internal.StringImpl.indexOf")
 	public static inline function indexOf (s:String, str:String, ?startIndex:Int) {
-		if (startIndex == null)
+		if (str == "") {
+			var i = startIndex == null ? 0 : startIndex;
+			return UBuiltins.max(0, UBuiltins.min(i,  s.length));
+		}
+		else if (startIndex == null)
 			return Syntax.callField(s, "find", str);
 		else
 			return Syntax.callField(s, "find", str, startIndex);
