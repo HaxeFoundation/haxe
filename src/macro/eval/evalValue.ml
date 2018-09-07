@@ -57,7 +57,7 @@ let vstring_equal s1 s2 =
 	if s1.sascii = s2.sascii then
 		s1.srope == s2.srope || Lazy.force s1.sstring = Lazy.force s2.sstring
 	else if not s2.sascii then
-		(Lazy.force s1.sstring) = Lazy.force s2.sstring
+		extend_ascii (Lazy.force s1.sstring) = Lazy.force s2.sstring
 	else
 		Lazy.force s1.sstring = extend_ascii (Lazy.force s2.sstring)
 

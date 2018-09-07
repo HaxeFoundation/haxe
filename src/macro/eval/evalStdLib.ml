@@ -2079,11 +2079,23 @@ module StdString = struct
 		end
 	)
 
-	let toLowerCase = vifun0 (fun vthis -> encode_rope (Rope.lowercase (this vthis).srope))
+	let toLowerCase = vifun0 (fun vthis ->
+		let this = this vthis in
+		if this.sascii then
+			encode_rope (Rope.lowercase this.srope)
+		else
+			vstring (case_map this false)
+	)
 
 	let toString = vifun0 (fun vthis -> vthis)
 
-	let toUpperCase = vifun0 (fun vthis -> encode_rope (Rope.uppercase (this vthis).srope))
+	let toUpperCase = vifun0 (fun vthis ->
+		let this = this vthis in
+		if this.sascii then
+			encode_rope (Rope.uppercase this.srope)
+		else
+			vstring (case_map this true)
+	)
 
 	let cca = charCodeAt
 

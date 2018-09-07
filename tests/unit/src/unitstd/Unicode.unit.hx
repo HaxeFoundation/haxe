@@ -186,7 +186,6 @@ Reflect.compare("éed".substr(1), "ee") < 0;
 Reflect.compare("ee", "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "ed") > 0;
-#end
 
 var s = "ä😂";
 s.toUpperCase() == "Ä😂";
@@ -203,3 +202,5 @@ s.toLowerCase() == s;
 var s = "A😂";
 s.toUpperCase() == s;
 s.toLowerCase() == "a😂";
+
+#end
