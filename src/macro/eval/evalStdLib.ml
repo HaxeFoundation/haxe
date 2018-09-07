@@ -2023,7 +2023,7 @@ module StdString = struct
 					if i = l_this then raise Not_found;
 					let index = String.index_from s i chr in
 					DynArray.add acc (encode_range i (index - i));
-					loop1 (index + l_delimiter)
+					loop1 (index + (l_delimiter lsl (if ascii then 0 else 1)))
 				with Not_found ->
 					DynArray.add acc (encode_range i (l_this - i))
 			in

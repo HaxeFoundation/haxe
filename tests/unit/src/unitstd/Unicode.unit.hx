@@ -221,4 +221,6 @@ var s = buf.toString();
 s == "Hello World!";
 s.length == 12;
 
+"äabc:def".substr(1).split(":") == ["abc","def"];
+
 #end
