@@ -2896,6 +2896,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | OpBoolAnd | OpBoolOr -> TCppScalar("bool")
             | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> TCppScalar("int")
             | OpAssign -> (retype TCppUnchanged left).cpptype
+            | OpMult | OpSub -> cpp_type_of expr.etype
             | _ -> TCppUnchanged
             in
             let e1 = retype binOpType left in
@@ -2938,7 +2939,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                | _ -> CppBinop(op,e1,e2)
             in
-            reference, cpp_type_of expr.etype
+            (match op,e1.cpptype,e2.cpptype  with
+            (* Variant + Variant = Variant *)
+            | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _
+                -> reference, TCppVariant
+            | _,_,_ -> reference, cpp_type_of expr.etype
+            )
 
          | TUnop (op,pre,e1) ->
             let targetType = match op with
