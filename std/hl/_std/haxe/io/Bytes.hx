@@ -174,7 +174,7 @@ class Bytes {
 	
 	public static function ofHex( s : String ) : Bytes {
 		var len = s.length;
-		if ( (len & 1) != 0 ) throw Error.OutsideBounds;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
 		var l = len >> 1;
 		var b = new hl.Bytes(l);
 		for (i in  0...l)
