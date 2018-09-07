@@ -7,9 +7,9 @@ class CTR
     public static function encrypt( src : Bytes, iv : Bytes, blockSize : Int, encryptBlock : Bytes->Int->Bytes->Int->Void) : Void
     {
 	var vector:Bytes;
-        var vkey : Bytes = iv.sub(0,iv.length); 
-        var i : Int = 0;
-        var len : Int = src.length;
+	var vkey : Bytes = iv.sub(0,iv.length); 
+	var i : Int = 0;
+	var len : Int = src.length;
 	while (i < len)
 	{
             vector = vkey.sub(0,vkey.length);
