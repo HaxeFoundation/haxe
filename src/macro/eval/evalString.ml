@@ -211,6 +211,29 @@ let bytes_to_utf8 s =
 
 exception InvalidUnicodeChar
 
+let case_map this upper =
+	let dest = Bytes.of_string (Lazy.force this.sstring) in
+	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
+	let f i c =
+		let up = c lsr 6 in
+		if up < m then begin
+			let c' = a.(up).(c land ((1 lsl 6) - 1)) in
+			if c' <> 0 then EvalBytes.write_ui16 dest i c'
+		end
+	in
+	let l = Bytes.length dest in
+	let rec loop i =
+		if i = l then
+			()
+		else begin
+			let c = EvalBytes.read_ui16 dest i in
+			f i c;
+			loop (i + 2)
+		end
+	in
+	loop 0;
+	(create_ucs2 (Bytes.unsafe_to_string dest) this.slength)
+
 let from_char_code i =
 	if i < 0 then
 		raise Not_found
