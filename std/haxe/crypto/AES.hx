@@ -7,8 +7,8 @@ import haxe.crypto.padding.*;
 
 class AES
 {
-	var sBox:Array<Int> =  [
-	    0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+	static var SBOX:Array<Int> =  [
+			0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
             0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
             0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
             0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
@@ -26,7 +26,7 @@ class AES
             0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 		];
 
-	var rsBox:Array<Int> =  [
+	static var RSBOX:Array<Int> =  [
 			0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
   			0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
   			0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -45,7 +45,7 @@ class AES
   			0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 		];
 	
-	var power3:Array<Int>=[
+	static var POWER3:Array<Int>=[
 			0x01, 0x03, 0x05, 0x0f, 0x11, 0x33, 0x55, 0xff, 0x1a, 0x2e, 0x72, 0x96, 0xa1, 0xf8, 0x13, 0x35,
 			0x5f, 0xe1, 0x38, 0x48, 0xd8, 0x73, 0x95, 0xa4, 0xf7, 0x02, 0x06, 0x0a, 0x1e, 0x22, 0x66, 0xaa,
 			0xe5, 0x34, 0x5c, 0xe4, 0x37, 0x59, 0xeb, 0x26, 0x6a, 0xbe, 0xd9, 0x70, 0x90, 0xab, 0xe6, 0x31,
@@ -64,7 +64,7 @@ class AES
 			0x39, 0x4b, 0xdd, 0x7c, 0x84, 0x97, 0xa2, 0xfd, 0x1c, 0x24, 0x6c, 0xb4, 0xc7, 0x52, 0xf6
 		];
 
-	var log3:Array<Int> =		[
+	static var LOG3:Array<Int> = [
 			  0,   0,  25,   1,  50,   2,  26, 198,  75, 199,  27, 104,  51, 238, 223,   3,
 			100,   4, 224,  14,  52, 141, 129, 239,  76, 113,   8, 200, 248, 105,  28, 193,
 			125, 194,  29, 181, 249, 185,  39, 106,  77, 228, 166, 114, 154, 201,   9, 120,
@@ -81,11 +81,11 @@ class AES
  			 83,  57, 132,  60,  65, 162, 109,  71,  20,  42, 158,  93,  86, 242, 211, 171,
  			 68,  17, 146, 217,  35,  32,  46, 137, 180, 124, 184,  38, 119, 153, 227, 165,
 			103,  74, 237, 222, 197,  49, 254,  24,  13,  99, 140, 128, 192, 247, 112,   7
-	];
+		];
 
-    var rCon:Array<Int> = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 ]; 
+	static var RCON:Array<Int> = [0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 ]; 
 
-	static inline var Nb:Int = 4;
+	static inline var NB:Int = 4;
 	static inline var BLOCK_SIZE : Int = 16;
 
 	private var roundKey:Array<Int>;
@@ -95,22 +95,22 @@ class AES
 	public var Nr(default, null):Int;
 
 	public var iv(default, set):Bytes;
-
-    function set_iv(vector) {
+	
+	function set_iv(vector) 
+	{
         iv = vector;
         if (iv == null) 
         {
-            iv = Bytes.alloc(BLOCK_SIZE);
-            iv.fill(0,BLOCK_SIZE,0x00);
+        	iv = Bytes.alloc(BLOCK_SIZE);
+           	iv.fill(0,BLOCK_SIZE,0x00);
         }
-        
         return iv;
-    }
+	}
 
 	public function new(?key:Bytes, ?iv:Bytes)
     {
 		state = new Array<Array<Int>>();
-        if ( key != null ) init(key,iv);
+       	if ( key != null ) init(key,iv);
     }
 
 	public function init(key:Bytes, ?iv:Bytes):Void
@@ -126,19 +126,19 @@ class AES
 
 	public function getBlockSize():Int
     {
-        return BLOCK_SIZE;
+       	return BLOCK_SIZE;
     }
 
     public function encrypt(cipherMode:Mode, data:Bytes, ?padding:Padding=Padding.PKCS7):Bytes
     { 
-        var out:Bytes;
+       	var out:Bytes;
         
-        switch(padding)  {
-            //CBC, ECB  and PCBC requires padding
-            case Padding.NoPadding:
-                out = NoPadding.pad(data,BLOCK_SIZE); 
+       	switch(padding)  {
+			//CBC, ECB  and PCBC requires padding
+           	case Padding.NoPadding:
+            	out = NoPadding.pad(data,BLOCK_SIZE); 
             case Padding.PKCS7:
-                out = PKCS7.pad(data,BLOCK_SIZE);
+            	out = PKCS7.pad(data,BLOCK_SIZE);
             case Padding.BitPadding:
                 out = BitPadding.pad(data,BLOCK_SIZE);
             case Padding.AnsiX923:
@@ -155,17 +155,17 @@ class AES
 
         switch (cipherMode) {
             case Mode.CBC:
-                CBC.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CBC.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.ECB:
-                ECB.encrypt(out,BLOCK_SIZE,EncryptBlock);
+                ECB.encrypt(out,BLOCK_SIZE,encryptBlock);
             case Mode.PCBC:
-                PCBC.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                PCBC.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CTR:
-                CTR.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CTR.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CFB:
-                CFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CFB.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.OFB:
-                OFB.encrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                OFB.encrypt(out,iv,BLOCK_SIZE,encryptBlock);
         }
 
         return out;
@@ -177,17 +177,17 @@ class AES
 
         switch (cipherMode) {
             case Mode.CBC:
-                CBC.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
+                CBC.decrypt(out,iv,BLOCK_SIZE,decryptBlock);
             case Mode.ECB:
-                ECB.decrypt(out,BLOCK_SIZE,DecryptBlock);
+                ECB.decrypt(out,BLOCK_SIZE,decryptBlock);
             case Mode.PCBC:
-                PCBC.decrypt(out,iv,BLOCK_SIZE,DecryptBlock);
+                PCBC.decrypt(out,iv,BLOCK_SIZE,decryptBlock);
             case Mode.CTR:
-                CTR.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                CTR.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.CFB:
-               CFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+               CFB.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
             case Mode.OFB:
-                OFB.decrypt(out,iv,BLOCK_SIZE,EncryptBlock);
+                OFB.decrypt(out,iv,BLOCK_SIZE,encryptBlock);
         }
 
         switch(padding)  {
@@ -212,25 +212,25 @@ class AES
         return out;
     }
 
-	private function  EncryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
+	private function encryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
     {
 		for(i in 0...4) {
       		state[i] = [ src.get(4*i+srcIndex) , src.get(4*i+srcIndex+1) , src.get(4*i+srcIndex+2) , src.get(4*i+srcIndex+3) ];
     	}
 
-		AddRoundKey(0); 
+		addRoundKey(0); 
 
   		for (round  in 1...Nr)
   		{
-    		SubBytes();
-    		ShiftRows();
-    		MixColumns();
-    		AddRoundKey(round);
+    		subBytes();
+    		shiftRows();
+    		mixColumns();
+    		addRoundKey(round);
   		}
   
-  		SubBytes();
-  		ShiftRows();
-  		AddRoundKey(Nr);
+  		subBytes();
+  		shiftRows();
+  		addRoundKey(Nr);
 
 		for(i in 0...4) {
 			for(j in 0...4) {
@@ -239,27 +239,27 @@ class AES
 		}
     }
 
-	private function DecryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
+	private function decryptBlock( src:Bytes, srcIndex:Int, dst:Bytes, dstIndex:Int):Void
     {
 		for(i in 0...4) {
       		state[i] = [ src.get(4*i+srcIndex) , src.get(4*i+srcIndex+1) , src.get(4*i+srcIndex+2) , src.get(4*i+srcIndex+3) ];
     	}
 
-        AddRoundKey(Nr);
+        addRoundKey(Nr);
 
   		var round : Int = Nr -1;
 		while ( round > 0)
   		{
-    		InvShiftRows();
-    		InvSubBytes();
-    		AddRoundKey(round);
-    		InvMixColumns();
+    		invShiftRows();
+    		invSubBytes();
+    		addRoundKey(round);
+    		invMixColumns();
 			round--;
   		}
   
-  		InvShiftRows();
-  		InvSubBytes();
-  		AddRoundKey(0);
+  		invShiftRows();
+  		invSubBytes();
+  		addRoundKey(0);
 
 		for(i in 0...4) {
 			for(j in 0...4) {
@@ -268,7 +268,7 @@ class AES
 		}
     }
 			 
-	private function RotWord(w:Array<Int>):Array<Int>
+	private function rotWord(w:Array<Int>):Array<Int>
 	{
 		var tmp:Int = w[0];
 		for(i in 0...3)  w[i] = w[i+1];
@@ -276,9 +276,9 @@ class AES
 		return w;
 	};
 	
-	private function SubWord(w:Array<Int>):Array<Int> 
+	private function subWord(w:Array<Int>):Array<Int> 
 	{
-		for(i in 0...4) w[i] = sBox[w[i]];
+		for(i in 0...4) w[i] = SBOX[w[i]];
 		return w;
 	};
 
@@ -294,43 +294,43 @@ class AES
 			}
 		}
 
-		for (i in Nk...(Nb*(Nr+1))) {
-			for ( j in 0...Nb) temp[j] = roundKey[4*(i-1)+j];
+		for (i in Nk...(NB*(Nr+1))) {
+			for ( j in 0...NB) temp[j] = roundKey[4*(i-1)+j];
 			if (i % Nk == 0) {
-				temp = SubWord(RotWord(temp));
+				temp = subWord(rotWord(temp));
 				var k = Std.int(i/Nk);
-				temp[0]  ^= rCon[k];
+				temp[0]  ^= RCON[k];
 			} else if (Nk > 6 && (i % Nk == 4) ) {
-				temp = SubWord(temp);
+				temp = subWord(temp);
 			}
 			var k = i * 4;
 			var m = (i - Nk) * 4;
-			for (j in 0...Nb) roundKey[k + j] = roundKey[m + j] ^ temp[j];
+			for (j in 0...NB) roundKey[k + j] = roundKey[m + j] ^ temp[j];
 		}
 
 		return roundKey;
 	};
 
-	private function AddRoundKey(round:Int):Void
+	private function addRoundKey(round:Int):Void
 	{
 		round <<= 2;
 		for (i in 0...4)
 		{
-			for(j in 0...Nb) state[i][j] ^= roundKey[ round*4 + i*Nb +j ];
+			for(j in 0...NB) state[i][j] ^= roundKey[ round*4 + i*NB +j ];
 		}
 	};
 
-	private function SubBytes():Void
+	private function subBytes():Void
 	{
 		for (i in 0...4)
 		{
 			for (j in 0...4) {
-				state[i][j] = sBox[state[i][j]];
+				state[i][j] = SBOX[state[i][j]];
 			}
 		}
 	};
 
-	private  function ShiftRows():Void
+	private  function shiftRows():Void
 	{
 		var t:Array<Int> = new Array<Int>();
 		for (i in 1...4) {
@@ -341,51 +341,51 @@ class AES
 		}
 	};
 
-	private function MixColumns():Void 
+	private function mixColumns():Void 
 	{
-	 var t:Array<Int> = new Array<Int>();
-	 for (i in 0...4) {
-		for (j in 0...4) {
-		  t[j] = state[i][j];
-		}
-		for (j in 0...4) {
-			state[i][j] = Mul(0x02, t[j])
-						^ Mul(0x03, t[(j+1)%4])
-						^ Mul(0x01, t[(j+2)%4])
-						^ Mul(0x01, t[(j+3)%4]);
-		}
-  	 }
+		var t:Array<Int> = new Array<Int>();
+	 	for (i in 0...4) {
+			for (j in 0...4) {
+		  		t[j] = state[i][j];
+			}
+			for (j in 0...4) {
+				state[i][j] = mul(0x02, t[j])
+							^ mul(0x03, t[(j+1)%4])
+							^ mul(0x01, t[(j+2)%4])
+							^ mul(0x01, t[(j+3)%4]);
+			}
+  	 	}
 	}
 
-	private function Mul(a:Int, b:Int):Int
+	private function mul(a:Int, b:Int):Int
 	{
-		return (a != 0 && b != 0)?power3[(log3[a]+log3[b])%255]:0;
+		return (a != 0 && b != 0)?POWER3[(LOG3[a]+LOG3[b])%255]:0;
 	}
 	
-	private function InvMixColumns():Void
+	private function invMixColumns():Void
 	{
 		var t:Array<Int> = new Array<Int>();
 		for (i in 0...4) {
 			for (j in 0...4)
 				t[j] = state[i][j];
 			for (j in 0...4) {
-				state[i][j] = Mul(0x0e, t[j])
-								^ Mul(0x0b, t[(j+1)%4])
-								^ Mul(0x0d, t[(j+2)%4])
-								^ Mul(0x09, t[(j+3)%4]);
+				state[i][j] = mul(0x0e, t[j])
+							^ mul(0x0b, t[(j+1)%4])
+							^ mul(0x0d, t[(j+2)%4])
+							^ mul(0x09, t[(j+3)%4]);
 			}
 		}
 	}
 
-	private function InvSubBytes():Void
+	private function invSubBytes():Void
 	{
 		for(i in 0...4) {
 			for(j in 0...4) 
-				state[j][i] = rsBox[state[j][i]];
+				state[j][i] = RSBOX[state[j][i]];
 		}
 	}
 
-	private function InvShiftRows():Void
+	private function invShiftRows():Void
 	{
 		var t:Array<Int> = new Array<Int>();
 		for (i in 1...4) {
