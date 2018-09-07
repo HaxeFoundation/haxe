@@ -653,6 +653,9 @@ private class HxString {
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
+        if (search.length == 0) {
+            return Global.max(0, Global.min(startIndex == null ? 0 : startIndex, str.length));
+        }
 		if (startIndex == null) {
 			startIndex = 0;
 		} else if (startIndex < 0) {
@@ -663,6 +666,9 @@ private class HxString {
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
+        if (search.length == 0) {
+            return Global.max(0, Global.min(startIndex == null ? str.length : startIndex, str.length));
+		}
 		if(startIndex == null) {
 			startIndex = 0;
 		} else {
