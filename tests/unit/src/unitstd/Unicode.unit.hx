@@ -203,6 +203,9 @@ var s = "A😂";
 s.toUpperCase() == s;
 s.toLowerCase() == "a😂";
 
+"σ".toUpperCase() == "Σ";
+"Σ".toLowerCase() == "σ";
+
 var map = new haxe.ds.StringMap();
 map.set("path", 1);
 map.get("äpath".substr(1)) == 1;
