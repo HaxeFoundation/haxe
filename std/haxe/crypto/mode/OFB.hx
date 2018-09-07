@@ -7,9 +7,9 @@ class OFB
     public static function encrypt( src : Bytes, iv : Bytes, blockSize : Int, encryptBlock : Bytes->Int->Bytes->Int->Void) : Void
     {
 	var vector = iv.sub(0,iv.length);
-        var i : Int = 0;
-        var len : Int = src.length;
-        var chiperText : Bytes;
+	var i : Int = 0;
+	var len : Int = src.length;
+	var chiperText : Bytes;
 	while (i < len)
 	{
             encryptBlock(vector, 0, vector , 0);
@@ -27,6 +27,6 @@ class OFB
 
     public static function decrypt( src : Bytes, iv : Bytes, blockSize : Int, decryptBlock : Bytes->Int->Bytes->Int->Void) : Void
     {
-        encrypt(src,iv,blockSize,decryptBlock);
+	encrypt(src,iv,blockSize,decryptBlock);
     }
 }
