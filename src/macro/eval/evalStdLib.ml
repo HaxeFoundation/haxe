@@ -349,10 +349,12 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if s.sascii || encode_native encoding then
-			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
-		else begin
-			let s = utf16_to_utf8 (Lazy.force s.sstring) in
+		if encode_native encoding then begin
+			let s = maybe_extend_ascii s in
+			encode_bytes (Bytes.of_string s)
+		end else begin
+			let s' = Lazy.force s.sstring in
+			let s = if s.sascii then s' else utf16_to_utf8 s' in
 			encode_bytes (Bytes.of_string s)
 		end
 	)
