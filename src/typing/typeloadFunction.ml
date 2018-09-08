@@ -76,6 +76,7 @@ let type_function_arg_value ctx t c do_display =
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
+				| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
