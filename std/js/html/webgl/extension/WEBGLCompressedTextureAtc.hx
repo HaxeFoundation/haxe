@@ -27,8 +27,20 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_atc")
 extern class WEBGLCompressedTextureAtc
 {
+	
+	/**
+		Compresses RGB textures with no alpha channel.
+	**/
 	static inline var COMPRESSED_RGB_ATC_WEBGL : Int = 35986;
+	
+	/**
+		Compresses RGBA textures using explicit alpha encoding (useful when alpha transitions are sharp).
+	**/
 	static inline var COMPRESSED_RGBA_ATC_EXPLICIT_ALPHA_WEBGL : Int = 35987;
+	
+	/**
+		Compresses RGBA textures using interpolated alpha encoding (useful when alpha transitions are gradient).
+	**/
 	static inline var COMPRESSED_RGBA_ATC_INTERPOLATED_ALPHA_WEBGL : Int = 34798;
 	
 }

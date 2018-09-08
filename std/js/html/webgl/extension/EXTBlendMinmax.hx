@@ -27,7 +27,15 @@ package js.html.webgl.extension;
 @:native("EXT_blend_minmax")
 extern class EXTBlendMinmax
 {
+	
+	/**
+		Produces the minimum color components of the source and destination colors.
+	**/
 	static inline var MIN_EXT : Int = 32775;
+	
+	/**
+		Produces the maximum color components of the source and destination colors.
+	**/
 	static inline var MAX_EXT : Int = 32776;
 	
 }

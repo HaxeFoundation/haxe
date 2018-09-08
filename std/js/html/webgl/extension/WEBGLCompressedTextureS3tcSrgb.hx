@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_s3tc_srgb")
 extern class WEBGLCompressedTextureS3tcSrgb
 {
+	
+	/**
+		A DXT1-compressed image in an sRGB image format.
+	**/
 	static inline var COMPRESSED_SRGB_S3TC_DXT1_EXT : Int = 35916;
+	
+	/**
+		A DXT1-compressed image in an sRGB image format with a simple on/off alpha value.
+	**/
 	static inline var COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT : Int = 35917;
+	
+	/**
+		A DXT3-compressed image in an sRGBA image format.
+	**/
 	static inline var COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT : Int = 35918;
+	
+	/**
+		A DXT5-compressed image in an sRGBA image format.
+	**/
 	static inline var COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT : Int = 35919;
 	
 }

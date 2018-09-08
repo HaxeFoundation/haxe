@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_s3tc")
 extern class WEBGLCompressedTextureS3tc
 {
+	
+	/**
+		A DXT1-compressed image in an RGB image format.
+	**/
 	static inline var COMPRESSED_RGB_S3TC_DXT1_EXT : Int = 33776;
+	
+	/**
+		A DXT1-compressed image in an RGB image format with a simple on/off alpha value.
+	**/
 	static inline var COMPRESSED_RGBA_S3TC_DXT1_EXT : Int = 33777;
+	
+	/**
+		A DXT3-compressed image in an RGBA image format. Compared to a 32-bit RGBA texture, it offers 4:1 compression.
+	**/
 	static inline var COMPRESSED_RGBA_S3TC_DXT3_EXT : Int = 33778;
+	
+	/**
+		A DXT5-compressed image in an RGBA image format. It also provides a 4:1 compression, but differs to the DXT3 compression in how the alpha compression is done.
+	**/
 	static inline var COMPRESSED_RGBA_S3TC_DXT5_EXT : Int = 33779;
 	
 }

@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("OES_standard_derivatives")
 extern class OESStandardDerivatives
 {
+	
+	/**
+		A `Glenum` indicating the accuracy of the derivative calculation for the GLSL built-in functions: `dFdx`, `dFdy`, and `fwidth`.
+	**/
 	static inline var FRAGMENT_SHADER_DERIVATIVE_HINT_OES : Int = 35723;
 	
 }

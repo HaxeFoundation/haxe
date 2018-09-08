@@ -27,7 +27,15 @@ package js.html.webgl.extension;
 @:native("EXT_texture_filter_anisotropic")
 extern class EXTTextureFilterAnisotropic
 {
+	
+	/**
+		This is the `pname` argument to the `WebGLRenderingContext.getTexParameter` and `WebGLRenderingContext.texParameterf` / `WebGLRenderingContext.texParameteri` calls and sets the desired maximum anisotropy for a texture.
+	**/
 	static inline var TEXTURE_MAX_ANISOTROPY_EXT : Int = 34046;
+	
+	/**
+		This is the `pname` argument to the `WebGLRenderingContext.getParameter` call, and it returns the maximum available anisotropy.
+	**/
 	static inline var MAX_TEXTURE_MAX_ANISOTROPY_EXT : Int = 34047;
 	
 }

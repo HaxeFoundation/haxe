@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("WEBGL_depth_texture")
 extern class WEBGLDepthTexture
 {
+	
+	/**
+		Unsigned integer type for 24-bit depth texture data.
+	**/
 	static inline var UNSIGNED_INT_24_8_WEBGL : Int = 34042;
 	
 }

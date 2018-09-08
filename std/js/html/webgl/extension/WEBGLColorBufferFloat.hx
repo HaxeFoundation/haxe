@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("WEBGL_color_buffer_float")
 extern class WEBGLColorBufferFloat
 {
+	
+	/**
+		RGBA 32-bit floating-point color-renderable format.
+	**/
 	static inline var RGBA32F_EXT : Int = 34836;
+	
+	/**
+		RGB 32-bit floating-point color-renderable format.
+	**/
 	static inline var RGB32F_EXT : Int = 34837;
+	
+	/**
+		?
+	**/
 	static inline var FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT : Int = 33297;
+	
+	/**
+		?
+	**/
 	static inline var UNSIGNED_NORMALIZED_EXT : Int = 35863;
 	
 }

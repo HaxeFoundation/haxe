@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("OES_vertex_array_object")
 extern class OESVertexArrayObject
 {
+	
+	/**
+		Returns a `WebGLVertexArrayObject` object when used in the `WebGLRenderingContext.getParameter()` method as the `pname` parameter.
+	**/
 	static inline var VERTEX_ARRAY_BINDING_OES : Int = 34229;
 	
 	

@@ -34,10 +34,30 @@ package js.html.svg;
 @:native("SVGAngle")
 extern class Angle
 {
+	
+	/**
+		Some unknown type of value.
+	**/
 	static inline var SVG_ANGLETYPE_UNKNOWN : Int = 0;
+	
+	/**
+		A unitless `number` interpreted as a value in degrees.
+	**/
 	static inline var SVG_ANGLETYPE_UNSPECIFIED : Int = 1;
+	
+	/**
+		An `angle` with a `deg` unit.
+	**/
 	static inline var SVG_ANGLETYPE_DEG : Int = 2;
+	
+	/**
+		An `angle` with a `rad` unit.
+	**/
 	static inline var SVG_ANGLETYPE_RAD : Int = 3;
+	
+	/**
+		An `angle` with a `grad` unit.
+	**/
 	static inline var SVG_ANGLETYPE_GRAD : Int = 4;
 	
 	

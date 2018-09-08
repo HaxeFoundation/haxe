@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("WEBGL_draw_buffers")
 extern class WEBGLDrawBuffers
 {
+	
+	/**
+		A `GLenum` specifying a color buffer.
+	**/
 	static inline var COLOR_ATTACHMENT0_WEBGL : Int = 36064;
 	static inline var COLOR_ATTACHMENT1_WEBGL : Int = 36065;
 	static inline var COLOR_ATTACHMENT2_WEBGL : Int = 36066;
@@ -43,6 +47,10 @@ extern class WEBGLDrawBuffers
 	static inline var COLOR_ATTACHMENT13_WEBGL : Int = 36077;
 	static inline var COLOR_ATTACHMENT14_WEBGL : Int = 36078;
 	static inline var COLOR_ATTACHMENT15_WEBGL : Int = 36079;
+	
+	/**
+		A `GLenum` returning a draw buffer.
+	**/
 	static inline var DRAW_BUFFER0_WEBGL : Int = 34853;
 	static inline var DRAW_BUFFER1_WEBGL : Int = 34854;
 	static inline var DRAW_BUFFER2_WEBGL : Int = 34855;
@@ -59,7 +67,15 @@ extern class WEBGLDrawBuffers
 	static inline var DRAW_BUFFER13_WEBGL : Int = 34866;
 	static inline var DRAW_BUFFER14_WEBGL : Int = 34867;
 	static inline var DRAW_BUFFER15_WEBGL : Int = 34868;
+	
+	/**
+		A `GLint` indicating the maximum number of framebuffer color attachment points.
+	**/
 	static inline var MAX_COLOR_ATTACHMENTS_WEBGL : Int = 36063;
+	
+	/**
+		A `GLint` indicating the maximum number of draw buffers.
+	**/
 	static inline var MAX_DRAW_BUFFERS_WEBGL : Int = 34852;
 	
 	

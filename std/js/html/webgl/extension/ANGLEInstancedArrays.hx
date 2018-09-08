@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("ANGLE_instanced_arrays")
 extern class ANGLEInstancedArrays
 {
+	
+	/**
+		Returns a `GLint` describing the frequency divisor used for instanced rendering when used in the `WebGLRenderingContext.getVertexAttrib()` as the `pname` parameter.
+	**/
 	static inline var VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE : Int = 35070;
 	
 	

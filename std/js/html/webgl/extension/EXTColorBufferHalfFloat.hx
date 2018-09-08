@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("EXT_color_buffer_half_float")
 extern class EXTColorBufferHalfFloat
 {
+	
+	/**
+		RGBA 16-bit floating-point color-renderable format.
+	**/
 	static inline var RGBA16F_EXT : Int = 34842;
+	
+	/**
+		RGB 16-bit floating-point color-renderable format.
+	**/
 	static inline var RGB16F_EXT : Int = 34843;
+	
+	/**
+		?
+	**/
 	static inline var FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE_EXT : Int = 33297;
+	
+	/**
+		?
+	**/
 	static inline var UNSIGNED_NORMALIZED_EXT : Int = 35863;
 	
 }

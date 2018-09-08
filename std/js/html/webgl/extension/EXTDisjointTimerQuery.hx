@@ -27,12 +27,40 @@ package js.html.webgl.extension;
 @:native("EXT_disjoint_timer_query")
 extern class EXTDisjointTimerQuery
 {
+	
+	/**
+		A `GLint` indicating the number of bits used to hold the query result for the given target.
+	**/
 	static inline var QUERY_COUNTER_BITS_EXT : Int = 34916;
+	
+	/**
+		A `WebGLQuery` object, which is the currently active query for the given target.
+	**/
 	static inline var CURRENT_QUERY_EXT : Int = 34917;
+	
+	/**
+		A `GLuint64EXT` containing the query result.
+	**/
 	static inline var QUERY_RESULT_EXT : Int = 34918;
+	
+	/**
+		A `GLboolean` indicating whether or not a query result is available.
+	**/
 	static inline var QUERY_RESULT_AVAILABLE_EXT : Int = 34919;
+	
+	/**
+		Elapsed time (in nanoseconds).
+	**/
 	static inline var TIME_ELAPSED_EXT : Int = 35007;
+	
+	/**
+		The current time.
+	**/
 	static inline var TIMESTAMP_EXT : Int = 36392;
+	
+	/**
+		A `GLboolean` indicating whether or not the GPU performed any disjoint operation.
+	**/
 	static inline var GPU_DISJOINT_EXT : Int = 36795;
 	
 	

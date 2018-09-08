@@ -27,15 +27,55 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_etc")
 extern class WEBGLCompressedTextureEtc
 {
+	
+	/**
+		One-channel (red) unsigned format compression.
+	**/
 	static inline var COMPRESSED_R11_EAC : Int = 37488;
+	
+	/**
+		One-channel (red) signed format compression.
+	**/
 	static inline var COMPRESSED_SIGNED_R11_EAC : Int = 37489;
+	
+	/**
+		Two-channel (red and green) unsigned format compression.
+	**/
 	static inline var COMPRESSED_RG11_EAC : Int = 37490;
+	
+	/**
+		Two-channel (red and green) signed format compression.
+	**/
 	static inline var COMPRESSED_SIGNED_RG11_EAC : Int = 37491;
+	
+	/**
+		Compresses RGB8 data with no alpha channel.
+	**/
 	static inline var COMPRESSED_RGB8_ETC2 : Int = 37492;
+	
+	/**
+		Compresses sRGB8 data with no alpha channel.
+	**/
 	static inline var COMPRESSED_SRGB8_ETC2 : Int = 37493;
+	
+	/**
+		Similar to `RGB8_ETC`, but with ability to punch through the alpha channel, which means to make it completely opaque or transparent.
+	**/
 	static inline var COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2 : Int = 37494;
+	
+	/**
+		Similar to `SRGB8_ETC`, but with ability to punch through the alpha channel, which means to make it completely opaque or transparent.
+	**/
 	static inline var COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2 : Int = 37495;
+	
+	/**
+		Compresses RGBA8 data. The RGB part is encoded the same as `RGB_ETC2`, but the alpha part is encoded separately.
+	**/
 	static inline var COMPRESSED_RGBA8_ETC2_EAC : Int = 37496;
+	
+	/**
+		Compresses sRGBA8 data. The sRGB part is encoded the same as `SRGB_ETC2`, but the alpha part is encoded separately.
+	**/
 	static inline var COMPRESSED_SRGB8_ALPHA8_ETC2_EAC : Int = 37497;
 	
 }

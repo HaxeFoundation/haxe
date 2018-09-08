@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_pvrtc")
 extern class WEBGLCompressedTexturePvrtc
 {
+	
+	/**
+		RGB compression in 4-bit mode. One block for each 4×4 pixels.
+	**/
 	static inline var COMPRESSED_RGB_PVRTC_4BPPV1_IMG : Int = 35840;
+	
+	/**
+		RGB compression in 2-bit mode. One block for each 8×4 pixels.
+	**/
 	static inline var COMPRESSED_RGB_PVRTC_2BPPV1_IMG : Int = 35841;
+	
+	/**
+		RGBA compression in 4-bit mode. One block for each 4×4 pixels.
+	**/
 	static inline var COMPRESSED_RGBA_PVRTC_4BPPV1_IMG : Int = 35842;
+	
+	/**
+		RGBA compression in 2-bit mode. One block for each 8×4 pixels.
+	**/
 	static inline var COMPRESSED_RGBA_PVRTC_2BPPV1_IMG : Int = 35843;
 	
 }

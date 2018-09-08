@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("OES_texture_half_float")
 extern class OESTextureHalfFloat
 {
+	
+	/**
+		Half floating-point type (16-bit).
+	**/
 	static inline var HALF_FLOAT_OES : Int = 36193;
 	
 }

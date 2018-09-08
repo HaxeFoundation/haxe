@@ -27,9 +27,25 @@ package js.html.webgl.extension;
 @:native("EXT_sRGB")
 extern class EXTSrgb
 {
+	
+	/**
+		Unsized sRGB format that leaves the precision up to the driver.
+	**/
 	static inline var SRGB_EXT : Int = 35904;
+	
+	/**
+		Unsized sRGB format with unsized alpha component.
+	**/
 	static inline var SRGB_ALPHA_EXT : Int = 35906;
+	
+	/**
+		Sized (8-bit) sRGB and alpha formats.
+	**/
 	static inline var SRGB8_ALPHA8_EXT : Int = 35907;
+	
+	/**
+		Returns the framebuffer color encoding (`gl.LINEAR` or `ext.SRGB_EXT`).
+	**/
 	static inline var FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING_EXT : Int = 33296;
 	
 }

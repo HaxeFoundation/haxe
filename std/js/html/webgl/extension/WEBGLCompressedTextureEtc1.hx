@@ -27,6 +27,10 @@ package js.html.webgl.extension;
 @:native("WEBGL_compressed_texture_etc1")
 extern class WEBGLCompressedTextureEtc1
 {
+	
+	/**
+		Compresses 24-bit RGB data with no alpha channel.
+	**/
 	static inline var COMPRESSED_RGB_ETC1_WEBGL : Int = 36196;
 	
 }
