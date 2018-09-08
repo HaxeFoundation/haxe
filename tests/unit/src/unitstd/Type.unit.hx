@@ -107,7 +107,7 @@ var requiredFields = ["func", "v", "prop"];
 for (f in fields)
 	t(requiredFields.remove(f));
 requiredFields == [];
-#if (!hl && !eval) // no support for implements Dynamic yet
+#if (!cs && !java && !hl && !eval) // no support for implements Dynamic yet
 var cdyn = new CDyn();
 cdyn.foo = "1";
 Reflect.setField(cdyn, "bar", 1);
