@@ -770,8 +770,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		else cctx.uninitialized_final <- Some f.cff_pos;
 	end;
 	let t = (match t with
-		| None when not fctx.is_static && eo = None ->
-			error ("Type required for member variable " ^ fst f.cff_name) p;
+		| None when eo = None ->
+			error ("Variable requires type-hint or initialization") (pos f.cff_name);
 		| None ->
 			mk_mono()
 		| Some t ->
@@ -1080,7 +1080,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let name = fst f.cff_name in
 	(* TODO is_lib: lazify load_complex_type *)
 	let ret = (match t, eo with
-		| None, None -> error (name ^ ": Property must either define a type or a default value") p;
+		| None, None -> error (name ^ ": Property requires type-hint or initialization") p;
 		| None, _ -> mk_mono()
 		| Some t, _ -> lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
 	) in

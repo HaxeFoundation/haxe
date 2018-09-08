@@ -6,8 +6,8 @@ using StringTools;
 
 class Macro {
 	static var classes = [];
-	static var output;
-	static var lines;
+	static var output:String;
+	static var lines:Array<String>;
 	static var tests = 0;
 	static var failures = 0;
 
