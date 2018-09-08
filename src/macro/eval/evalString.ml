@@ -253,6 +253,37 @@ let from_char_code i =
 	end else
 		raise InvalidUnicodeChar
 
+let find_substring this sub reverse =
+	let l_this = Rope.length this.srope in
+	let s_this = Lazy.force this.sstring in
+	let s_sub = if not this.sascii then maybe_extend_ascii sub else Lazy.force sub.sstring in
+	let l_sub = String.length s_sub in
+	let rec scan i k =
+		if k = l_sub then true
+		else if String.unsafe_get s_this (i + k) = String.unsafe_get s_sub k then scan i (k + 1)
+		else false
+	in
+	let inc = if this.sascii then 1 else 2 in
+	if reverse then begin
+		let rec loop i =
+			if i < 0 then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i - inc)
+		in
+		loop
+	end else begin
+		let rec loop i =
+			if i > l_this - l_sub then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i + inc)
+		in
+		loop
+	end
+
 let get s =
 	let s' = Lazy.force s.sstring in
 	if s.sascii then s'

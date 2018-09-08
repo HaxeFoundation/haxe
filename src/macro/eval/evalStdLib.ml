@@ -1941,9 +1941,7 @@ module StdString = struct
 			else if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
-				let pat = Str.regexp (maybe_extend_ascii str) in
-				let s = Lazy.force this.sstring in
-				vint ((Str.search_forward pat s (i lsl 1)) lsr 1);
+				vint ((fst (find_substring this str false i)) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
@@ -1962,20 +1960,19 @@ module StdString = struct
 				let s = Lazy.force this.sstring in
 				if this.sascii then
 					vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
-				else begin
-					let pat = Str.regexp (maybe_extend_ascii str) in
-					vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
-				end
+				else
+					vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
 	)
 
 	let split = vifun1 (fun vthis delimiter ->
-		let this = this vthis in
-		let ascii = this.sascii in
-		let this,s = this.srope,Lazy.force this.sstring in
-		let delimiter = Lazy.force (decode_vstring delimiter).sstring in
+		let this' = this vthis in
+		let ascii = this'.sascii in
+		let this,s = this'.srope,Lazy.force this'.sstring in
+		let delimiter' = (decode_vstring delimiter) in
+		let delimiter = Lazy.force delimiter'.sstring in
 		let l_delimiter = String.length delimiter in
 		let l_this = Rope.length this in
 		let encode_range pos length =
@@ -2000,36 +1997,17 @@ module StdString = struct
 		end else if l_delimiter > l_this then
 			encode_array [encode_range 0 (Rope.length this)]
 		else begin
-			let chr = delimiter.[0] in
 			let acc = DynArray.create () in
-			let rec loop k i =
+			let f = find_substring this' delimiter' false in
+			let rec loop i =
 				try
-					if i > l_this - l_delimiter then raise Not_found;
-					let index = String.index_from s i chr in
-					let rec loop2 i2 =
-						if i2 = l_delimiter then true
-						else if String.unsafe_get s (index + i2) = String.unsafe_get delimiter i2 then loop2 (i2 + 1)
-						else false
-					in
-					if not (loop2 1) then
-						loop k (index + 1)
-					else begin
-						DynArray.add acc (encode_range k (index - k));
-						loop (index + l_delimiter) (index + l_delimiter)
-					end
-				with Not_found ->
-					DynArray.add acc (encode_range k (l_this - k))
-			in
-			let rec loop1 i =
-				try
-					if i = l_this then raise Not_found;
-					let index = String.index_from s i chr in
-					DynArray.add acc (encode_range i (index - i));
-					loop1 (index + (l_delimiter lsl (if ascii then 0 else 1)))
+					let offset,next = f i in
+					DynArray.add acc (encode_range i (offset - i));
+					loop next;
 				with Not_found ->
 					DynArray.add acc (encode_range i (l_this - i))
 			in
-			if l_delimiter = 1 then loop1 0 else loop 0 0;
+			loop 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))
 		end
 	)
