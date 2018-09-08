@@ -3,6 +3,8 @@ import unit.Test;
 
 class Issue7247 extends Test {
 
+	#if !neko
+
 	var str = "将一";
 	var str2 = "将一\\";
 
@@ -18,4 +20,5 @@ class Issue7247 extends Test {
 		t( ~/\\/.match(str2) );
 	}
 
+	#end
 }
