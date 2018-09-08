@@ -26,18 +26,18 @@ package cpp;
 extern class Native
 {
    @:native("malloc")
-   public static function nativeMalloc(bytes:Int) : cpp.Star<cpp.Void> return null;
+   public static function nativeMalloc(bytes:Int) : cpp.Star<cpp.Void>;
    @:native("calloc")
-   public static function nativeCalloc(bytes:Int) : cpp.Star<cpp.Void> return null;
+   public static function nativeCalloc(bytes:Int) : cpp.Star<cpp.Void>;
    @:native("realloc")
-   public static function nativeRealloc(inPtr:cpp.Star<cpp.Void>,bytes:Int) : cpp.RawPointer<cpp.Void> return null;
+   public static function nativeRealloc(inPtr:cpp.Star<cpp.Void>,bytes:Int) : cpp.RawPointer<cpp.Void>;
    @:native("free")
-   public static function nativeFree(ptr:cpp.Star<cpp.Void>) : Void { }
+   public static function nativeFree(ptr:cpp.Star<cpp.Void>) : Void;
    @:native("memcpy")
-   public static function nativeMemcpy(dest:cpp.Star<cpp.Void>, src:cpp.Star<cpp.Void>, bytes:Int) : Void { }
+   public static function nativeMemcpy(dest:cpp.Star<cpp.Void>, src:cpp.Star<cpp.Void>, bytes:Int) : Void;
 
    @:native("hx::ClassSizeOf") @:templatedCall
-   public static function sizeof<T>(t:T) : Int { }
+   public static function sizeof<T>(t:T) : Int;
 
    #if !cppia
    @:generic
@@ -88,11 +88,11 @@ extern class Native
       return d;
    }
 
-   public static function memcpy<DEST,SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int) : Void { }
-   public static function malloc<T>(bytes:Int) : cpp.Star<T> return null;
-   public static function calloc<T>(bytes:Int) : cpp.Star<T> return null;
-   public static function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int) : cpp.Star<T> return null;
-   public static function free<T>(ptr:cpp.Star<T>) : Void { }
+   public static function memcpy<DEST,SRC>(dest:cpp.Star<DEST>, src:cpp.Star<SRC>, bytes:Int) : Void;
+   public static function malloc<T>(bytes:Int) : cpp.Star<T>;
+   public static function calloc<T>(bytes:Int) : cpp.Star<T>;
+   public static function realloc<T>(ioPtr:cpp.Star<T>, bytes:Int) : cpp.Star<T>;
+   public static function free<T>(ptr:cpp.Star<T>) : Void;
    #end
 
 }

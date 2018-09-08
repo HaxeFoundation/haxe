@@ -82,7 +82,7 @@ class Lib {
 	}
 
 	@:noDebug @:native("HX_STACK_DO_RETHROW")
-	extern static function do_rethrow(inExp:Dynamic) { throw inExp; }
+	extern static function do_rethrow(inExp:Dynamic);
 
 	@:noDebug #if(!cppia) inline #end
 	public static function rethrow(inExp:Dynamic) { do_rethrow(inExp); }

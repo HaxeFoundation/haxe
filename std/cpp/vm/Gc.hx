@@ -106,7 +106,7 @@ class Gc
 
    #if !cppia
    @:native("__hxcpp_set_finalizer") extern
-   static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void { }
+   static public function setFinalizer<T>(inObject:T, inFinalizer:cpp.Callable<T->Void> ) : Void;
    #end
 }
 

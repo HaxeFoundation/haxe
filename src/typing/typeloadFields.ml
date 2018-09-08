@@ -222,7 +222,7 @@ let transform_abstract_field com this_t a_t a f =
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with
-			| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
+			| None -> None
 			| Some (EBlock el,_) -> Some (EBlock (init p :: el @ [ret p]),p)
 			| Some e -> Some (EBlock [init p;e;ret p],p)
 			);
@@ -486,7 +486,7 @@ let create_field_context (ctx,cctx) c cff =
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
+		do_bind = (((not (c.cl_extern || !is_extern) || is_inline) && not c.cl_interface) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -1070,7 +1070,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		t
 	) "type_fun" in
 	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
-	else check_field_display ctx fctx c cf;
+	else begin
+		check_field_display ctx fctx c cf;
+		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+	end;
 	cf
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
