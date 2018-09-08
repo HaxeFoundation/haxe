@@ -39,6 +39,10 @@ extern class ModElement extends Element
 		Is a `DOMString` reflecting the `cite` HTML attribute, containing a URI of a resource explaining the change.
 	**/
 	var cite : String;
+	
+	/**
+		Is a `DOMString` reflecting the `datetime` HTML attribute, containing a date-and-time string representing a timestamp for the change.
+	**/
 	var dateTime : String;
 	
 }

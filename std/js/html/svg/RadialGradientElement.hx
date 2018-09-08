@@ -36,7 +36,7 @@ extern class RadialGradientElement extends GradientElement
 {
 	
 	/**
-		An `SVGAnimatedLength` corresponding to the `cy` attribute of the given `RadialGradient` element.
+		An `SVGAnimatedLength` corresponding to the `cx` attribute of the given `RadialGradient` element.
 	**/
 	var cx(default,null) : AnimatedLength;
 	var cy(default,null) : AnimatedLength;

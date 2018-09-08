@@ -24,13 +24,40 @@
 
 package js.html.eme;
 
+/**
+	The `MediaKeySystemConfiguration` interface Encrypted Media Extensions API provides configuration information about the media key system.
+
+	Documentation [MediaKeySystemConfiguration](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration>
+**/
 typedef MediaKeySystemConfiguration =
 {
+	
+	/**
+		Returns a list of supported audio type and capability pairs.
+	**/
 	@:optional var audioCapabilities : Array<MediaKeySystemMediaCapability>;
+	
+	/**
+		Indicates whether a persistent distinctive identifier is required.
+	**/
 	@:optional var distinctiveIdentifier : MediaKeysRequirement;
+	
+	/**
+		Returns a list of supported initialization data type names. An initialization data type is a string indicating the format of the initialization data.
+	**/
 	@:optional var initDataTypes : Array<String>;
 	@:optional var label : String;
+	
+	/**
+		Indicates whether the ability to persist state is required.
+	**/
 	@:optional var persistentState : MediaKeysRequirement;
 	@:optional var sessionTypes : Array<String>;
+	
+	/**
+		Returns a list of supported video type and capability pairs.
+	**/
 	@:optional var videoCapabilities : Array<MediaKeySystemMediaCapability>;
 }

@@ -34,6 +34,10 @@ package js.html;
 @:native("VisualViewport")
 extern class VisualViewport extends EventTarget
 {
+	
+	/**
+		Returns the offset of the left edge of the visual viewport from the left edge of the layout viewport in CSS pixels.
+	**/
 	var offsetLeft(default,null) : Float;
 	
 	/**

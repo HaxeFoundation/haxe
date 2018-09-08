@@ -54,6 +54,10 @@ extern class IFrameElement extends Element
 		Is a `DOMSettableTokenList` that reflects the `sandbox` HTML attribute, indicating extra restrictions on the behavior of the nested content.
 	**/
 	var sandbox(default,null) : DOMTokenList;
+	
+	/**
+		Is a `Boolean` indicating whether the inline frame is willing to be placed into full screen mode. See Using full-screen mode for details.
+	**/
 	var allowFullscreen : Bool;
 	
 	/**

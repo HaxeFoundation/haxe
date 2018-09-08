@@ -24,10 +24,25 @@
 
 package js.html.eme;
 
+/**
+	The `MediaKeyMessageEvent` interface of the EncryptedMediaExtensions API contains the content and related data when the content decryption module generates a message for the session.
+
+	Documentation [MediaKeyMessageEvent](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeyMessageEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeyMessageEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeyMessageEvent>
+**/
 @:native("MediaKeyMessageEvent")
 extern class MediaKeyMessageEvent extends js.html.Event
 {
+	
+	/**
+		Indicates the type of message. May be one of `license-request`, `license-renewal`, `license-renewal`, or `individualization-request`.
+	**/
 	var messageType(default,null) : MediaKeyMessageType;
+	
+	/**
+		Returns an `ArrayBuffer` with a message from the content decryption module. Messages vary by key system.
+	**/
 	var message(default,null) : js.html.ArrayBuffer;
 	
 	/** @throws DOMError */

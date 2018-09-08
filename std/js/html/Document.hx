@@ -473,7 +473,11 @@ extern class Document extends Node
 	function createAttributeNS( namespace_ : String, name : String ) : Attr;
 	@:pure
 	function getElementsByName( elementName : String ) : NodeList;
-	/** @throws DOMError */
+	
+	/**
+		Returns `true` if the focus is currently located anywhere inside the specified document.
+		@throws DOMError
+	**/
 	function hasFocus() : Bool;
 	
 	/**

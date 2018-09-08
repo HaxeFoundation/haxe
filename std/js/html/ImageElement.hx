@@ -139,6 +139,10 @@ extern class ImageElement extends Element
 		Returns a `DOMString` representing the URL to the currently displayed image (which may change, for example in response to media queries).
 	**/
 	var currentSrc(default,null) : String;
+	
+	/**
+		Is a `DOMString` that refers to a low-quality (but faster to load) copy of the image.
+	**/
 	var lowsrc : String;
 	
 	/**

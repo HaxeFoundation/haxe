@@ -24,13 +24,28 @@
 
 package js.html.eme;
 
+/**
+	The `MediaKeys` interface of EncryptedMediaExtensions API the represents a set of keys that an associated `HTMLMediaElement` can use for decryption of media data during playback.
+
+	Documentation [MediaKeys](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeys) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaKeys$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeys>
+**/
 @:native("MediaKeys")
 extern class MediaKeys
 {
 	var keySystem(default,null) : String;
 	
-	/** @throws DOMError */
+	
+	/**
+		Returns a new `MediaKeySession` object, which represents a context for message exchange with a content decryption module (CDM).
+		@throws DOMError
+	**/
 	function createSession( ?sessionType : MediaKeySessionType = "temporary" ) : MediaKeySession;
+	
+	/**
+		Returns a `Promise` to a server certificate to be used to encrypt messages to the license server.
+	**/
 	@:overload( function( serverCertificate : js.html.ArrayBuffer) : Promise<Void> {} )
 	function setServerCertificate( serverCertificate : js.html.ArrayBufferView ) : Promise<Void>;
 }
