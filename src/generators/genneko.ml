@@ -295,7 +295,7 @@ and gen_expr ctx e =
 				acc
 			in
 			match c with
-			| None | Some TNull -> acc
+			| None | Some {eexpr = TConst TNull} -> acc
 			| Some c ->	gen_expr ctx (Texpr.set_default ctx.com.basic a c e.epos) :: acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in

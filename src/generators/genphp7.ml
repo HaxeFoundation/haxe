@@ -641,7 +641,7 @@ let inject_defaults (ctx:Common.context) (func:tfunc) =
 		match args with
 			| [] -> body_exprs
 			| (_, None) :: rest -> inject rest body_exprs
-			| (_, Some TNull) :: rest -> inject rest body_exprs
+			| (_, Some {eexpr = TConst TNull}) :: rest -> inject rest body_exprs
 			| (var, Some const) :: rest ->
 				let expr = Texpr.set_default ctx.basic var const func.tf_expr.epos in
 			 	expr :: (inject rest body_exprs)
@@ -2786,7 +2786,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						| None -> ()
 						| Some const ->
 							self#write " = ";
-							self#write_expr_const const
+							self#write_expr const
 		(**
 			Write an access to a field of dynamic value
 		*)

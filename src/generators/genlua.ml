@@ -189,7 +189,7 @@ let rec concat ctx s f = function
 let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
-        | None | Some TNull -> e
+        | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e

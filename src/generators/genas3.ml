@@ -374,7 +374,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> spr ctx "super"
 
-let gen_function_header ctx name f params p =
+let rec gen_function_header ctx name f params p =
 	let old = ctx.in_value in
 	let old_t = ctx.local_types in
 	let old_bi = ctx.block_inits in
@@ -382,10 +382,10 @@ let gen_function_header ctx name f params p =
 	ctx.local_types <- List.map snd params @ ctx.local_types;
 	let init () =
  		List.iter (fun (v,o) -> match o with
-			| Some c when is_nullable v.v_type && c <> TNull ->
+			| Some c when is_nullable v.v_type && c.eexpr <> TConst TNull ->
 				newline ctx;
 				print ctx "if(%s==null) %s=" v.v_name v.v_name;
-				gen_constant ctx p c;
+				gen_expr ctx c;
 			| _ -> ()
 		) f.tf_args;
 		ctx.block_inits <- None;
@@ -412,7 +412,7 @@ let gen_function_header ctx name f params p =
 					if ctx.constructor_block then print ctx " = %s" (default_value tstr);
 				| Some c ->
 					spr ctx " = ";
-					gen_constant ctx p c
+					gen_expr ctx c
 	) f.tf_args;
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
@@ -421,7 +421,7 @@ let gen_function_header ctx name f params p =
 		ctx.block_inits <- old_bi;
 	)
 
-let rec gen_call ctx e el r =
+and gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
 		spr ctx "(";

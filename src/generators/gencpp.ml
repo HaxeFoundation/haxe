@@ -1273,12 +1273,12 @@ let is_matching_interface_type t0 t1 =
 
 
 let default_value_string ctx value =
-match value with
-   | TInt i -> Printf.sprintf "%ld" i
-   | TFloat float_as_string -> "((Float)" ^ float_as_string ^ ")"
-   | TString s -> strq ctx s
-   | TBool b -> (if b then "true" else "false")
-   | TNull -> "null()"
+match value.eexpr with
+   | TConst (TInt i) -> Printf.sprintf "%ld" i
+   | TConst (TFloat float_as_string) -> "((Float)" ^ float_as_string ^ ")"
+   | TConst (TString s) -> strq ctx s
+   | TConst (TBool b) -> (if b then "true" else "false")
+   | TConst TNull -> "null()"
    | _ -> "/* Hmmm */"
 ;;
 
@@ -1401,7 +1401,7 @@ and tcppexpr = {
 
 and tcpp_closure = {
    close_type : tcpp;
-   close_args : (tvar * tconstant option) list;
+   close_args : (tvar * texpr option) list;
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t;
@@ -2105,7 +2105,7 @@ let ctx_arg_type_name ctx name default_val arg_type prefix =
    let remap_name = keyword_remap name in
    let type_str = (ctx_type_string ctx arg_type) in
    match default_val with
-   | Some TNull  -> (type_str,remap_name)
+   | Some {eexpr = TConst TNull}  -> (type_str,remap_name)
    | Some constant when (ctx_cant_be_null ctx arg_type) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
@@ -3282,7 +3282,7 @@ let cpp_arg_type_name ctx tvar default_val prefix =
    let remap_name = (cpp_var_name_of tvar) in
    let type_str = (cpp_var_type_of ctx tvar) in
    match default_val with
-   | Some TNull  -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),remap_name
+   | Some {eexpr = TConst TNull}  -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),remap_name
    | Some constant -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),prefix ^ remap_name
    | _ -> type_str,remap_name
 ;;
@@ -3291,7 +3291,7 @@ let cpp_arg_type_name ctx tvar default_val prefix =
 let cpp_gen_default_values ctx args prefix =
    List.iter ( fun (tvar,o) ->
       match o with
-      | Some TNull -> ()
+      | Some {eexpr = TConst TNull} -> ()
       | Some const ->
          let name = cpp_var_name_of tvar in
          ctx.ctx_output ((cpp_var_type_of ctx tvar) ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
@@ -7306,7 +7306,10 @@ class script_writer ctx filename asciiOut =
                   this#write (indent ^ indent_str );
                   this#writeVar arg;
                   match init with
-                  | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+                  | Some const ->
+					  this#write ("1 ");
+					  this#gen_expression const;
+					  this #write "\n";
                   | _ -> this#write "0\n";
                ) function_def.tf_args;
                this#gen_expression_tree cppExpr;
@@ -7416,7 +7419,10 @@ class script_writer ctx filename asciiOut =
             this#write (indent ^ indent_str );
             this#writeVar arg;
             match init with
-            | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+            | Some const ->
+				this#write ("1 ");
+				this#gen_expression const;
+				this#write "\n";
             | _ -> this#write "0\n";
          ) function_def.tf_args;
          let pop = this#pushReturn function_def.tf_type in
@@ -7852,7 +7858,10 @@ class script_writer ctx filename asciiOut =
                this#write (indent ^ indent_str );
                this#writeVar arg;
                match init with
-               | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
+               | Some const ->
+			      this#write ("1 ");
+				  this#gen_expression const;
+				  this#write "\n";
                | _ -> this#write "0\n";
             ) closure.close_args;
             gen_expression closure.close_expr;

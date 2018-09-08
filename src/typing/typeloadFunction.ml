@@ -75,7 +75,7 @@ let type_function_arg_value ctx t c do_display =
 			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
-				| TConst c -> Some c
+				| TConst _ -> Some e
 				| TCast(e,None) -> loop e
 				| _ ->
 					if ctx.com.display.dms_kind = DMNone || ctx.com.display.dms_inline && ctx.com.display.dms_error_policy = EPCollect then
@@ -227,11 +227,12 @@ let add_constructor ctx c force_constructor p =
 					let's optimize a bit the output by not always copying the default value
 					into the inherited constructor when it's not necessary for the platform
 				*)
+				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
-				| _, Some _ when not ctx.com.config.pf_static -> v, (Some TNull)
-				| Flash, Some (TString _) -> v, (Some TNull)
-				| Cpp, Some (TString _) -> v, def
-				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
+				| _, Some _ when not ctx.com.config.pf_static -> v, null()
+				| Flash, Some ({eexpr = TConst (TString _)}) -> v, null()
+				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
+				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
 				| _ -> v, def
 			in
 			let args = (match cfsup.cf_expr with
@@ -242,7 +243,11 @@ let add_constructor ctx c force_constructor p =
 					match follow cfsup.cf_type with
 					| TFun (args,_) ->
 						List.map (fun (n,o,t) ->
-							let def = try type_function_arg_value ctx t (Some (PMap.find n values)) false with Not_found -> if o then Some TNull else None in
+							let def = try
+								type_function_arg_value ctx t (Some (PMap.find n values)) false
+							with Not_found ->
+								if o then Some (Texpr.Builder.make_null t null_pos) else None
+							in
 							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
 					| _ -> assert false

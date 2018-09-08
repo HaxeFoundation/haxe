@@ -431,7 +431,7 @@ let rec acc_get ctx g p =
 			let ve = alloc_var VGenerated "_e" e.etype e.epos in
 			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: List.map snd args)) ret p in
 			let ecallb = mk (TFunction {
-				tf_args = List.map (fun (o,v) -> v,if o then Some TNull else None) args;
+				tf_args = List.map (fun (o,v) -> v,if o then Some (Texpr.Builder.make_null v.v_type v.v_pos) else None) args;
 				tf_type = ret;
 				tf_expr = (match follow ret with | TAbstract ({a_path = [],"Void"},_) -> ecall | _ -> mk (TReturn (Some ecall)) t_dynamic p);
 			}) tcallb p in
@@ -701,7 +701,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			mk (TReturn (Some call)) t_dynamic p;
 	in
 	let func = mk (TFunction {
-		tf_args = List.map (fun (v,o) -> v, if o then Some TNull else None) missing_args;
+		tf_args = List.map (fun (v,o) -> v, if o then Some (Texpr.Builder.make_null v.v_type null_pos) else None) missing_args;
 		tf_type = ret;
 		tf_expr = e_ret;
 	}) t_inner p in

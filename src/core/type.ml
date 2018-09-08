@@ -114,7 +114,7 @@ and tvar = {
 }
 
 and tfunc = {
-	tf_args : (tvar * tconstant option) list;
+	tf_args : (tvar * texpr option) list;
 	tf_type : t;
 	tf_expr : texpr;
 }
@@ -1139,7 +1139,7 @@ let rec s_expr s_type e =
 		| Prefix -> sprintf "(%s %s)" (s_unop op) (loop e)
 		| Postfix -> sprintf "(%s %s)" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (v,o) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = slist (fun (v,o) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ loop c)) f.tf_args in
 		sprintf "Function(%s) : %s = %s" args (s_type f.tf_type) (loop f.tf_expr)
 	| TVar (v,eo) ->
 		sprintf "Vars %s" (sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match eo with None -> "" | Some e -> " = " ^ loop e))
@@ -1202,7 +1202,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 		| Prefix -> sprintf "%s %s" (s_unop op) (loop e)
 		| Postfix -> sprintf "%s %s" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = clist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = clist (fun (v,o) -> sprintf "%s:%s%s" (local v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ loop c)) f.tf_args in
 		sprintf "%s(%s) %s" (if top_level then "" else "function") args (loop f.tf_expr)
 	| TVar (v,eo) ->
 		sprintf "var %s" (sprintf "%s%s" (local v) (match eo with None -> "" | Some e -> " = " ^ loop e))
@@ -1293,7 +1293,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TNew (c,tl,el) -> tag "New" ((s_type (TInst(c,tl))) :: (List.map loop el))
 	| TFunction f ->
 		let arg (v,cto) =
-			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v None] | Some ct -> [local v None;const ct None])
+			tag "Arg" ~t:(Some v.v_type) ~extra_tabs:"\t" (match cto with None -> [local v None] | Some ct -> [local v None;loop ct])
 		in
 		tag "Function" ((List.map arg f.tf_args) @ [loop f.tf_expr])
 	| TVar (v,eo) -> var v (match eo with None -> [] | Some e -> [loop e])
@@ -2646,7 +2646,7 @@ module TExprToExpr = struct
 		| TNew (c,pl,el) -> ENew ((match (try convert_type (TInst (c,pl)) with Exit -> convert_type (TInst (c,[]))) with CTPath p -> p,null_pos | _ -> assert false),List.map convert_expr el)
 		| TUnop (op,p,e) -> EUnop (op,p,convert_expr e)
 		| TFunction f ->
-			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
+			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
 			EVars ([(v.v_name,v.v_pos), (match v.v_kind with VUser TVOLocalFinal -> true | _ -> false), mk_type_hint v.v_type v.v_pos, eopt eo])
