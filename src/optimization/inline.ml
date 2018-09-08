@@ -378,6 +378,13 @@ class inline_state ctx ethis params cf f p = object(self)
 					we need to force a local var to be created on some platforms.
 				*)
 				if ctx.com.config.pf_static && not (is_nullable v.v_type) && is_null e.etype then l.i_force_temp <- true;
+				(*
+					if we cast from Dynamic, create a local var as well to do the cast
+					once and allow DCE to perform properly.
+				*)
+				let dynamic_v = follow v.v_type == t_dynamic in
+				let dynamic_e = follow e.etype == t_dynamic in
+				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
 					| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 					| _ -> e
@@ -422,8 +429,7 @@ class inline_state ctx ethis params cf f p = object(self)
 								(* If we inline a function expression, we have to duplicate its locals. *)
 								| TFunction _ -> Texpr.duplicate_tvars e'
 								| TCast(e1,None) when in_assignment -> e1
-								| _ when in_assignment -> e'
-								| _ -> if not (type_iseq_strict e'.etype v.v_type) then mk (TCast(e',None)) v.v_type e'.epos else e'
+								| _ -> e'
 							end
 						| VIInlineIfCalled when in_call ->
 							(* We allow inlining function expressions into call-places. However, we have to substitute
@@ -442,9 +448,6 @@ class inline_state ctx ethis params cf f p = object(self)
 				let e1 = inline_params false true e1 in
 				let e2 = inline_params false false e2 in
 				{e with eexpr = TBinop(op,e1,e2)}
-			| TUnop((Increment | Decrement) as op,flag,e1) ->
-				let e1 = inline_params false true e1 in
-				{e with eexpr = TUnop(op,flag,e1)}
 			| _ -> Type.map_expr (inline_params false false) e
 		in
 		let e = (if PMap.is_empty subst then e else inline_params false false e) in
