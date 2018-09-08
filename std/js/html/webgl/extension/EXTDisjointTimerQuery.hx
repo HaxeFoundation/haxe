@@ -35,12 +35,52 @@ extern class EXTDisjointTimerQuery
 	static inline var TIMESTAMP_EXT : Int = 36392;
 	static inline var GPU_DISJOINT_EXT : Int = 36795;
 	
+	
+	/**
+		
+		 Creates a new `WebGLQuery`.
+		 
+	**/
 	function createQueryEXT() : js.html.webgl.Query;
+	
+	/**
+		
+		 Deletes a given `WebGLQuery`.
+		 
+	**/
 	function deleteQueryEXT( query : js.html.webgl.Query ) : Void;
+	
+	/**
+		
+		 Returns `true` if a given object is a `WebGLQuery`.
+		 
+	**/
 	function isQueryEXT( query : js.html.webgl.Query ) : Bool;
+	
+	/**
+		The timer starts when all commands prior to `beginQueryEXT` have been fully executed.
+	**/
 	function beginQueryEXT( target : Int, query : js.html.webgl.Query ) : Void;
+	
+	/**
+		The timer stops when all commands prior to `endQueryEXT` have been fully executed.
+	**/
 	function endQueryEXT( target : Int ) : Void;
+	
+	/**
+		
+		 Records the current time into the corresponding query object.
+		 
+	**/
 	function queryCounterEXT( query : js.html.webgl.Query, target : Int ) : Void;
+	
+	/**
+		Returns information about a query target.
+	**/
 	function getQueryEXT( target : Int, pname : Int ) : Dynamic;
+	
+	/**
+		Return the state of a query object.
+	**/
 	function getQueryObjectEXT( query : js.html.webgl.Query, pname : Int ) : Dynamic;
 }

@@ -29,7 +29,25 @@ extern class ANGLEInstancedArrays
 {
 	static inline var VERTEX_ATTRIB_ARRAY_DIVISOR_ANGLE : Int = 35070;
 	
+	
+	/**
+		
+		 Behaves identically to `WebGLRenderingContext.drawArrays()` except that multiple instances of the range of elements are executed, and the instance advances for each iteration.
+		 
+	**/
 	function drawArraysInstancedANGLE( mode : Int, first : Int, count : Int, primcount : Int ) : Void;
+	
+	/**
+		
+		 Behaves identically to `WebGLRenderingContext.drawElements()` except that multiple instances of the set of elements are executed and the instance advances between each set.
+		 
+	**/
 	function drawElementsInstancedANGLE( mode : Int, count : Int, type : Int, offset : Int, primcount : Int ) : Void;
+	
+	/**
+		
+		 Modifies the rate at which generic vertex attributes advance when rendering multiple instances of primitives with `ANGLE_instanced_arrays.drawArraysInstancedANGLE()` and `ANGLE_instanced_arrays.drawElementsInstancedANGLE()`.
+		 
+	**/
 	function vertexAttribDivisorANGLE( index : Int, divisor : Int ) : Void;
 }

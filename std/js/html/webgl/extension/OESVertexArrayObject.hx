@@ -29,8 +29,32 @@ extern class OESVertexArrayObject
 {
 	static inline var VERTEX_ARRAY_BINDING_OES : Int = 34229;
 	
+	
+	/**
+		
+			Creates a new `WebGLVertexArrayObject`.
+			
+	**/
 	function createVertexArrayOES() : js.html.webgl.VertexArrayObject;
+	
+	/**
+		
+			Deletes a given `WebGLVertexArrayObject`.
+			
+	**/
 	function deleteVertexArrayOES( arrayObject : js.html.webgl.VertexArrayObject ) : Void;
+	
+	/**
+		
+			Returns `true` if a given object is a `WebGLVertexArrayObject`.
+			
+	**/
 	function isVertexArrayOES( arrayObject : js.html.webgl.VertexArrayObject ) : Bool;
+	
+	/**
+		
+			Binds a given `WebGLVertexArrayObject` to the buffer.
+			
+	**/
 	function bindVertexArrayOES( arrayObject : js.html.webgl.VertexArrayObject ) : Void;
 }

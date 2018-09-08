@@ -62,5 +62,11 @@ extern class WEBGLDrawBuffers
 	static inline var MAX_COLOR_ATTACHMENTS_WEBGL : Int = 36063;
 	static inline var MAX_DRAW_BUFFERS_WEBGL : Int = 34852;
 	
+	
+	/**
+		
+		 Defines the draw buffers to which all fragment colors are written. (When using `WebGL2RenderingContext`, this method is available as `WebGL2RenderingContext.drawBuffers()` by default).
+		 
+	**/
 	function drawBuffersWEBGL( buffers : Array<Int> ) : Void;
 }
