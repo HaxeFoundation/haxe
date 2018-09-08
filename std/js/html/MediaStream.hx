@@ -60,6 +60,10 @@ extern class MediaStream extends EventTarget
 	@:overload( function() : Void {} )
 	@:overload( function( stream : MediaStream ) : Void {} )
 	function new( tracks : Array<MediaStreamTrack> ) : Void;
+	
+	/**
+		Returns a list of the `MediaStreamTrack` objects stored in the MediaStream` object that have their kind` attribute set to "audio"`. The order is not defined, and may not only vary from one browser to another, but also from one call to another.
+	**/
 	function getAudioTracks() : Array<AudioStreamTrack>;
 	
 	/**

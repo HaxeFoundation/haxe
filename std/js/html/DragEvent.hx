@@ -34,6 +34,10 @@ package js.html;
 @:native("DragEvent")
 extern class DragEvent extends MouseEvent
 {
+	
+	/**
+		The data that is transferred during a drag and drop interaction.
+	**/
 	var dataTransfer(default,null) : DataTransfer;
 	
 	/** @throws DOMError */

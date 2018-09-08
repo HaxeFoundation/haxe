@@ -43,7 +43,23 @@ extern class CircleElement extends GeometryElement
 		 
 	**/
 	var cx(default,null) : AnimatedLength;
+	
+	/**
+		
+		 This property defines the y-coordinate of the center of the circle element. It is denoted by the `cy` attribute of the `circle` element. If unspecified, the value of this attribute is assumed to be `0`.
+		
+		 It can be animated by SVG's animation elements.
+		 
+	**/
 	var cy(default,null) : AnimatedLength;
+	
+	/**
+		
+		 This property defines the radius of the circle element. It is denoted by the `r` of the `circle` element. A negative value gives an error, while `0` disables the rendering of the element.
+		
+		 It can be animated by SVG's animation elements.
+		 
+	**/
 	var r(default,null) : AnimatedLength;
 	
 }

@@ -34,6 +34,10 @@ package js.html.audio;
 @:native("ConstantSourceNode")
 extern class ConstantSourceNode extends AudioScheduledSourceNode
 {
+	
+	/**
+		An `AudioParam` which specifies the value that this source continuously outputs. The default value is 1.0.
+	**/
 	var offset(default,null) : AudioParam;
 	
 	/** @throws DOMError */

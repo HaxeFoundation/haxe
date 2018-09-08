@@ -33,5 +33,9 @@ package js.html.audio;
 **/
 typedef AudioContextOptions =
 {
+	
+	/**
+		The `BaseAudioContext.sampleRate` to be used by the `AudioContext`, specified in samples per second. The value may be any value supported by `AudioBuffer`. If not specified, the preferred sample rate for the context's output device is used by default.
+	**/
 	@:optional var sampleRate : Float;
 }

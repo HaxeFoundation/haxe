@@ -34,6 +34,10 @@ package js.html;
 @:native("PluginArray")
 extern class PluginArray implements ArrayAccess<Plugin>
 {
+	
+	/**
+		The number of plugins in the array.
+	**/
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : Plugin;

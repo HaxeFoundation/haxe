@@ -34,6 +34,10 @@ package js.html;
 @:native("GamepadEvent")
 extern class GamepadEvent extends Event
 {
+	
+	/**
+		Returns a `Gamepad` object, providing access to the associated gamepad data for the event fired.
+	**/
 	var gamepad(default,null) : Gamepad;
 	
 	/** @throws DOMError */

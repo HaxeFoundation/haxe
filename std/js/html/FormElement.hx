@@ -49,6 +49,10 @@ extern class FormElement extends Element implements ArrayAccess<Element>
 		A `DOMString` reflecting the value of the form's `autocomplete` HTML attribute, indicating whether the controls in this form can have their values automatically populated by the browser.
 	**/
 	var autocomplete : String;
+	
+	/**
+		A `DOMString` reflecting the value of the form's `enctype` HTML attribute, indicating the type of content that is used to transmit the form to the server. Only specified values can be set. The two properties are synonyms.
+	**/
 	var enctype : String;
 	
 	/**

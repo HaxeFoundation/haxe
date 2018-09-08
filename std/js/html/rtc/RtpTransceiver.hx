@@ -34,11 +34,35 @@ package js.html.rtc;
 @:native("RTCRtpTransceiver")
 extern class RtpTransceiver
 {
+	
+	/**
+		The media ID of the m-line associated with this transceiver. This association is established, when possible, whenever either a local or remote description is applied. This field is `null` if neither a local or remote description has been applied, or if its associated m-line is rejected by either a remote offer or any answer.
+	**/
 	var mid(default,null) : String;
+	
+	/**
+		The `RTCRtpSender` object responsible for encoding and sending data to the remote peer.
+	**/
 	var sender(default,null) : RtpSender;
+	
+	/**
+		The `RTCRtpReceiver` object that handles receiving and decoding incoming media.
+	**/
 	var receiver(default,null) : RtpReceiver;
+	
+	/**
+		Indicates whether or not sending and receiving using the paired `RTCRtpSender` and `RTCRtpReceiver` has been permanently disabled, either due to SDP offer/answer, or due to a call to `RTCRtpTransceiver.stop`.
+	**/
 	var stopped(default,null) : Bool;
+	
+	/**
+		A string from the enum `RTCRtpTransceiverDirection` which is used to set the transceiver's desired direction.
+	**/
 	var direction : RtpTransceiverDirection;
+	
+	/**
+		A string from the enum `RTCRtpTransceiverDirection` which indicates the transceiver's current directionality, or `null` if the transceiver is stopped or has never participated in an exchange of offers and answers.
+	**/
 	var currentDirection(default,null) : RtpTransceiverDirection;
 	
 	function stop() : Void;

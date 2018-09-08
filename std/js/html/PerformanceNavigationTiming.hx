@@ -34,15 +34,55 @@ package js.html;
 @:native("PerformanceNavigationTiming")
 extern class PerformanceNavigationTiming extends PerformanceResourceTiming
 {
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time value equal to the time immediately before the user agent starts the unload event of the previous document.
+	**/
 	var unloadEventStart(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time value equal to the time immediately after the user agent finishes the unload event of the previous document.
+	**/
 	var unloadEventEnd(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing a `DOMHighResTimeStamp` representing the time value equal to the time immediately before the user agent sets the current document readiness of the current document to interactive.
+	**/
 	var domInteractive(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time value equal to the time immediately before the user agent fires the DOMContentLoaded event at the current document.
+	**/
 	var domContentLoadedEventStart(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time value equal to the time immediately after the current document's DOMContentLoaded event completes.
+	**/
 	var domContentLoadedEventEnd(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing a time value equal to the time immediately before the browser sets the current document readiness of the current document to complete.
+	**/
 	var domComplete(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time value equal to the time immediately before the load event of the current document is fired.
+	**/
 	var loadEventStart(default,null) : Float;
+	
+	/**
+		A `DOMHighResTimeStamp` representing the time when the load event of the current document is completed.
+	**/
 	var loadEventEnd(default,null) : Float;
+	
+	/**
+		A `DOMString` representing the navigation type. Must be: "`navigate`", "`reload`", "`back_forward`" or "`prerender`".
+	**/
 	var type(default,null) : NavigationType;
+	
+	/**
+		A number representing the number of redirects since the last non-redirect navigation under the current browsing context.
+	**/
 	var redirectCount(default,null) : Int;
 	
 	

@@ -34,8 +34,20 @@ package js.html;
 @:native("PerformanceServerTiming")
 extern class PerformanceServerTiming
 {
+	
+	/**
+		A `DOMString` value of the server-specified metric name.
+	**/
 	var name(default,null) : String;
+	
+	/**
+		A double that contains the server-specified metric duration, or value `0.0`.
+	**/
 	var duration(default,null) : Float;
+	
+	/**
+		A `DOMString` value of the server-specified metric description, or an empty string.
+	**/
 	var description(default,null) : String;
 	
 	function toJSON() : Dynamic;

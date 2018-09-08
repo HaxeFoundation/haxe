@@ -34,7 +34,15 @@ package js.html;
 @:native("CSSStyleRule")
 extern class CSSStyleRule extends CSSRule
 {
+	
+	/**
+		Gets the textual representation of the selector for this rule, e.g. `"h1,h2"`.
+	**/
 	var selectorText : String;
+	
+	/**
+		Returns the `CSSStyleDeclaration` object for the rule.
+	**/
 	var style(default,null) : CSSStyleDeclaration;
 	
 }

@@ -34,6 +34,10 @@ package js.html;
 @:native("AudioTrackList")
 extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack>
 {
+	
+	/**
+		The number of tracks in the list.
+	**/
 	var length(default,null) : Int;
 	var onchange : haxe.Constraints.Function;
 	var onaddtrack : haxe.Constraints.Function;

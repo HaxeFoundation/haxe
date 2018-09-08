@@ -61,7 +61,7 @@ extern class TableCellElement extends Element
 	var abbr : String;
 	
 	/**
-		The header cell applies to the following cells in the same column (or columns, if `colspan` is used as well), until either the end of the column or another `th` in the column establishes a new scope.
+		
 	**/
 	var scope : String;
 	var align : String;

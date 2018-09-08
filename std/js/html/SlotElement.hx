@@ -34,7 +34,15 @@ package js.html;
 @:native("HTMLSlotElement")
 extern class SlotElement extends Element
 {
+	
+	/**
+		`DOMString`: Can be used to get and set the slot's name.
+	**/
 	var name : String;
 	
+	
+	/**
+		Returns the sequence of elements assigned to this slot, or alternatively the slot's fallback content.
+	**/
 	function assignedNodes( ?options : AssignedNodesOptions ) : Array<Node>;
 }

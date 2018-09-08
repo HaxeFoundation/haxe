@@ -39,7 +39,15 @@ extern class Performance extends EventTarget
 		Returns the high resolution timestamp of the start time of the performance measurement.
 	**/
 	var timeOrigin(default,null) : Float;
+	
+	/**
+		A `PerformanceTiming` object containing latency-related performance information
+	**/
 	var timing(default,null) : PerformanceTiming;
+	
+	/**
+		A `PerformanceNavigation` object that provides useful context about the operations included in the times listed in `timing`, including whether the page was a load or a refresh, how many redirections occurred, and so forth.
+	**/
 	var navigation(default,null) : PerformanceNavigation;
 	
 	/**

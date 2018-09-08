@@ -39,9 +39,21 @@ extern class CSSKeyframesRule extends CSSRule
 		Represents the name of the animation, used by the `animation-name` property.
 	**/
 	var name : String;
+	
+	/**
+		Returns a `CSSRuleList` of the CSS rules in the media rule.
+	**/
 	var cssRules(default,null) : CSSRuleList;
 	
+	
+	/**
+		Inserts a new keyframe rule into the current CSSKeyframesRule. The parameter is a `DOMString` containing a keyframe in the same format as an entry of a `@keyframes` at-rule. If it contains more than one keyframe rule, a `DOMException` with a `SYNTAX_ERR` is thrown.
+	**/
 	function appendRule( rule : String ) : Void;
+	
+	/**
+		Deletes a keyframe rule from the current CSSKeyframesRule. The parameter is the index of the keyframe to be deleted, expressed as a `DOMString` resolving as a number between `0%` and `100%`.
+	**/
 	function deleteRule( select : String ) : Void;
 	
 	/**

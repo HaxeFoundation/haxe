@@ -34,6 +34,10 @@ package js.html;
 @:native("DOMQuad")
 extern class DOMQuad
 {
+	
+	/**
+		are `DOMPoint` objects for each of the `DOMQuad` object's four corners.
+	**/
 	var p1(default,null) : DOMPoint;
 	var p2(default,null) : DOMPoint;
 	var p3(default,null) : DOMPoint;

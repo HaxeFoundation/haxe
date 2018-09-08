@@ -43,12 +43,40 @@ extern class DOMElement extends Node
 		 
 	**/
 	var namespaceURI(default,null) : String;
+	
+	/**
+		A `DOMString` representing the namespace prefix of the element, or `null` if no prefix is specified.
+	**/
 	var prefix(default,null) : String;
+	
+	/**
+		A `DOMString` representing the local part of the qualified name of the element.
+	**/
 	var localName(default,null) : String;
+	
+	/**
+		Returns a `String` with the name of the tag for the given element.
+	**/
 	var tagName(default,null) : String;
+	
+	/**
+		Is a `DOMString` representing the id of the element.
+	**/
 	var id : String;
+	
+	/**
+		Is a `DOMString` representing the class of the element.
+	**/
 	var className : String;
+	
+	/**
+		Returns a `DOMTokenList` containing the list of class attributes.
+	**/
 	var classList(default,null) : DOMTokenList;
+	
+	/**
+		Returns a `NamedNodeMap` object containing the assigned attributes of the corresponding HTML element.
+	**/
 	var attributes(default,null) : NamedNodeMap;
 	var title : String;
 	var lang : String;
@@ -80,18 +108,70 @@ extern class DOMElement extends Node
 	var offsetLeft(default,null) : Int;
 	var offsetWidth(default,null) : Int;
 	var offsetHeight(default,null) : Int;
+	
+	/**
+		A `Number` representing number of pixels the top of the document is scrolled vertically.
+	**/
 	var scrollTop : Int;
+	
+	/**
+		Is a `Number` representing the left scroll offset of the element.
+	**/
 	var scrollLeft : Int;
+	
+	/**
+		Returns a `Number` representing the scroll view width of the element.
+	**/
 	var scrollWidth(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the scroll view height of an element.
+	**/
 	var scrollHeight(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the width of the top border of the element.
+	**/
 	var clientTop(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the width of the left border of the element.
+	**/
 	var clientLeft(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the inner width of the element.
+	**/
 	var clientWidth(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the inner height of the element.
+	**/
 	var clientHeight(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the maximum top scroll offset possible for the element.
+	**/
 	var scrollTopMax(default,null) : Int;
+	
+	/**
+		Returns a `Number` representing the maximum left scroll offset possible for the element.
+	**/
 	var scrollLeftMax(default,null) : Int;
+	
+	/**
+		Is a `DOMString` representing the markup of the element's content.
+	**/
 	var innerHTML : String;
+	
+	/**
+		Is a `DOMString` representing the markup of the element including its content. When used as a setter, replaces the element with nodes parsed from the given string.
+	**/
 	var outerHTML : String;
+	
+	/**
+		Returns the open shadow root that is hosted by the element, or null if no open shadow root is present.
+	**/
 	var shadowRoot(default,null) : ShadowRoot;
 	var assignedSlot(default,null) : SlotElement;
 	
@@ -138,6 +218,10 @@ extern class DOMElement extends Node
 	var onmouseout : haxe.Constraints.Function;
 	var onmouseover : haxe.Constraints.Function;
 	var onmouseup : haxe.Constraints.Function;
+	
+	/**
+		Returns the event handling code for the `wheel` event. This is now implemented on `GlobalEventHandlers.onwheel`.
+	**/
 	var onwheel : haxe.Constraints.Function;
 	var onpause : haxe.Constraints.Function;
 	var onplay : haxe.Constraints.Function;
@@ -166,7 +250,15 @@ extern class DOMElement extends Node
 	var onpointerover : haxe.Constraints.Function;
 	var onpointerenter : haxe.Constraints.Function;
 	var onpointerleave : haxe.Constraints.Function;
+	
+	/**
+		Returns the event handler for the `gotpointercapture` event type.
+	**/
 	var ongotpointercapture : haxe.Constraints.Function;
+	
+	/**
+		Returns the event handler for the `lostpointercapture` event type.
+	**/
 	var onlostpointercapture : haxe.Constraints.Function;
 	var onanimationcancel : haxe.Constraints.Function;
 	var onanimationend : haxe.Constraints.Function;
@@ -192,10 +284,22 @@ extern class DOMElement extends Node
 	var ontouchmove : haxe.Constraints.Function;
 	var ontouchcancel : haxe.Constraints.Function;
 	
+	
+	/**
+		Returns an array of attribute names from the current element.
+	**/
 	@:pure
 	function getAttributeNames() : Array<String>;
+	
+	/**
+		Retrieves the value of the named attribute from the current node and returns it as an `Object`.
+	**/
 	@:pure
 	function getAttribute( name : String ) : String;
+	
+	/**
+		Retrieves the value of the attribute with the specified name and namespace, from the current node and returns it as an `Object`.
+	**/
 	@:pure
 	function getAttributeNS( namespace_ : String, localName : String ) : String;
 	
@@ -204,40 +308,96 @@ extern class DOMElement extends Node
 		@throws DOMError
 	**/
 	function toggleAttribute( name : String, ?force : Bool ) : Bool;
-	/** @throws DOMError */
+	
+	/**
+		Sets the value of a named attribute of the current node.
+		@throws DOMError
+	**/
 	function setAttribute( name : String, value : String ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the value of the attribute with the specified name and namespace, from the current node.
+		@throws DOMError
+	**/
 	function setAttributeNS( namespace_ : String, name : String, value : String ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Removes the named attribute from the current node.
+		@throws DOMError
+	**/
 	function removeAttribute( name : String ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Removes the attribute with the specified name and namespace, from the current node.
+		@throws DOMError
+	**/
 	function removeAttributeNS( namespace_ : String, localName : String ) : Void;
+	
+	/**
+		Returns a `Boolean` indicating if the element has the specified attribute or not.
+	**/
 	@:pure
 	function hasAttribute( name : String ) : Bool;
+	
+	/**
+		Returns a `Boolean` indicating if the element has the specified attribute, in the specified namespace, or not.
+	**/
 	@:pure
 	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
+	
+	/**
+		Returns a `Boolean` indicating if the element has one or more HTML attributes present.
+	**/
 	@:pure
 	function hasAttributes() : Bool;
-	/** @throws DOMError */
+	
+	/**
+		Returns the `Element` which is the closest ancestor of the current element (or the current element itself) which matches the selectors given in parameter.
+		@throws DOMError
+	**/
 	@:pure
 	function closest( selector : String ) : Element;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `Boolean` indicating whether or not the element would be selected by the specified selector string.
+		@throws DOMError
+	**/
 	@:pure
 	function matches( selector : String ) : Bool;
 	/** @throws DOMError */
 	@:pure
 	function webkitMatchesSelector( selector : String ) : Bool;
+	
+	/**
+		Returns a live `HTMLCollection` containing all descendant elements, of a particular tag name, from the current element.
+	**/
 	@:pure
 	function getElementsByTagName( localName : String ) : HTMLCollection;
-	/** @throws DOMError */
+	
+	/**
+		Returns a live `HTMLCollection` containing all descendant elements, of a particular tag name and namespace, from the current element.
+		@throws DOMError
+	**/
 	@:pure
 	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	
+	/**
+		Returns a live `HTMLCollection` that contains all descendants of the current element that possess the list of classes given in the parameter.
+	**/
 	@:pure
 	function getElementsByClassName( classNames : String ) : HTMLCollection;
-	/** @throws DOMError */
+	
+	/**
+		Inserts a given element node at a given position relative to the element it is invoked upon.
+		@throws DOMError
+	**/
 	@:pure
 	function insertAdjacentElement( where : String, element : Element ) : Element;
-	/** @throws DOMError */
+	
+	/**
+		Inserts a given text node at a given position relative to the element it is invoked upon.
+		@throws DOMError
+	**/
 	function insertAdjacentText( where : String, data : String ) : Void;
 	
 	/**
@@ -245,26 +405,66 @@ extern class DOMElement extends Node
 		@throws DOMError
 	**/
 	function setPointerCapture( pointerId : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Releases (stops) pointer capture that was previously set for a specific `PointerEvent`.
+		@throws DOMError
+	**/
 	function releasePointerCapture( pointerId : Int ) : Void;
 	function hasPointerCapture( pointerId : Int ) : Bool;
+	
+	/**
+		Sets up mouse event capture, redirecting all mouse events to this element.
+	**/
 	function setCapture( ?retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
+	
+	/**
+		Retrieves the node representation of the named attribute from the current node and returns it as an `Attr`.
+	**/
 	function getAttributeNode( name : String ) : Attr;
-	/** @throws DOMError */
+	
+	/**
+		Sets the node representation of the named attribute from the current node.
+		@throws DOMError
+	**/
 	function setAttributeNode( newAttr : Attr ) : Attr;
-	/** @throws DOMError */
+	
+	/**
+		Removes the node representation of the named attribute from the current node.
+		@throws DOMError
+	**/
 	function removeAttributeNode( oldAttr : Attr ) : Attr;
+	
+	/**
+		Retrieves the node representation of the attribute with the specified name and namespace, from the current node and returns it as an `Attr`.
+	**/
 	function getAttributeNodeNS( namespaceURI : String, localName : String ) : Attr;
-	/** @throws DOMError */
+	
+	/**
+		Sets the node representation of the attribute with the specified name and namespace, from the current node.
+		@throws DOMError
+	**/
 	function setAttributeNodeNS( newAttr : Attr ) : Attr;
 	function click() : Void;
 	/** @throws DOMError */
 	function focus() : Void;
 	/** @throws DOMError */
 	function blur() : Void;
+	
+	/**
+		Returns a collection of rectangles that indicate the bounding rectangles for each line of text in a client.
+	**/
 	function getClientRects() : DOMRectList;
+	
+	/**
+		Returns the size of an element and its position relative to the viewport.
+	**/
 	function getBoundingClientRect() : DOMRect;
+	
+	/**
+		Scrolls the page until the element gets into the view.
+	**/
 	@:overload( function( ?arg : ScrollIntoViewOptions) : Void {} )
 	function scrollIntoView( ?arg : Bool ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
@@ -273,12 +473,24 @@ extern class DOMElement extends Node
 	function scrollTo( ?options : ScrollToOptions ) : Void;
 	@:overload( function( x : Float, y : Float ) : Void {} )
 	function scrollBy( ?options : ScrollToOptions ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Parses the text as HTML or XML and inserts the resulting nodes into the tree in the position given.
+		@throws DOMError
+	**/
 	function insertAdjacentHTML( position : String, text : String ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Returns the first `Node` which matches the specified selector string relative to the element.
+		@throws DOMError
+	**/
 	@:pure
 	function querySelector( selectors : String ) : Element;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `NodeList` of nodes which match the specified selector string relative to the element.
+		@throws DOMError
+	**/
 	@:pure
 	function querySelectorAll( selectors : String ) : NodeList;
 	
@@ -287,6 +499,10 @@ extern class DOMElement extends Node
 		@throws DOMError
 	**/
 	function attachShadow( shadowRootInitDict : ShadowRootInit ) : ShadowRoot;
+	
+	/**
+		Allows to asynchronously ask for the pointer to be locked on the given element.
+	**/
 	function requestPointerLock() : Void;
 	
 	/**

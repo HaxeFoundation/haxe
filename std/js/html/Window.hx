@@ -169,12 +169,20 @@ extern class Window extends EventTarget
 		Returns the number of pixels that the document has already been scrolled horizontally.
 	**/
 	var scrollX(default,null) : Float;
+	
+	/**
+		An alias for `window.scrollX`.
+	**/
 	var pageXOffset(default,null) : Float;
 	
 	/**
 		Returns the number of pixels that the document has already been scrolled vertically.
 	**/
 	var scrollY(default,null) : Float;
+	
+	/**
+		An alias for `window.scrollY`
+	**/
 	var pageYOffset(default,null) : Float;
 	
 	/**

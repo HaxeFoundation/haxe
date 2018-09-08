@@ -34,6 +34,10 @@ package js.html.audio;
 @:native("AudioScheduledSourceNode")
 extern class AudioScheduledSourceNode extends AudioNode
 {
+	
+	/**
+		A function to be called when the `ended` event is fired, indicating that the node has finished playing.
+	**/
 	var onended : haxe.Constraints.Function;
 	
 	/** @throws DOMError */

@@ -36,27 +36,50 @@ extern class PerformanceNavigation
 {
 	static inline 
 	/**
-		The page was accessed by following a link, a bookmark, a form submission, or a script, or by typing the URL in the address bar.
+		
 	**/
 	var TYPE_NAVIGATE : Int = 0;
 	static inline 
 	/**
-		The page was accessed by clicking the Reload button or via the `Location.reload()` method.
+		
 	**/
 	var TYPE_RELOAD : Int = 1;
 	static inline 
 	/**
-		The page was accessed by navigating into the history.
+		
 	**/
 	var TYPE_BACK_FORWARD : Int = 2;
 	static inline 
 	/**
-		Any other way.
+		An `unsigned short` which indicates how the navigation to this page was done. Possible values are:
+		 
+		  `TYPE_NAVIGATE` (0)
+		  The page was accessed by following a link, a bookmark, a form submission, or a script, or by typing the URL in the address bar.
+		  `TYPE_RELOAD` (1)
+		  The page was accessed by clicking the Reload button or via the `Location.reload()` method.
+		  `TYPE_BACK_FORWARD` (2)
+		  The page was accessed by navigating into the history.
+		  `TYPE_RESERVED` (255)
+		  Any other way.
+		 
+		 
 	**/
 	var TYPE_RESERVED : Int = 255;
 	
+	
+	/**
+		
+	**/
 	var type(default,null) : Int;
+	
+	/**
+		An `unsigned short` representing the number of REDIRECTs done before reaching the page.
+	**/
 	var redirectCount(default,null) : Int;
 	
+	
+	/**
+		Is a jsonizer returning a json object representing the `PerformanceNavigation` object.
+	**/
 	function toJSON() : Dynamic;
 }

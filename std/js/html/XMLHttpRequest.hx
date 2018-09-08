@@ -40,21 +40,65 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget
 	static inline var LOADING : Int = 3;
 	static inline var DONE : Int = 4;
 	
+	
+	/**
+		An `EventHandler` that is called whenever the `readyState` attribute changes.
+	**/
 	var onreadystatechange : haxe.Constraints.Function;
+	
+	/**
+		Returns an `unsigned short`, the state of the request.
+	**/
 	var readyState(default,null) : Int;
+	
+	/**
+		Is an `unsigned long` representing the number of milliseconds a request can take before automatically being terminated.
+	**/
 	var timeout : Int;
+	
+	/**
+		Is a `Boolean` that indicates whether or not cross-site `Access-Control` requests should be made using credentials such as cookies or authorization headers.
+	**/
 	var withCredentials : Bool;
+	
+	/**
+		Is an `XMLHttpRequestUpload`, representing the upload process.
+	**/
 	var upload(default,null) : XMLHttpRequestUpload;
+	
+	/**
+		Returns the serialized URL of the response or the empty string if the URL is null.
+	**/
 	var responseURL(default,null) : String;
+	
+	/**
+		Returns an `unsigned short` with the status of the response of the request.
+	**/
 	var status(default,null) : Int;
+	
+	/**
+		Returns a `DOMString` containing the response string returned by the HTTP server. Unlike `XMLHTTPRequest.status`, this includes the entire text of the response message ("`200 OK`", for example).
+	**/
 	var statusText(default,null) : String;
+	
+	/**
+		Is an enumerated value that defines the response type.
+	**/
 	var responseType : XMLHttpRequestResponseType;
 	
 	/**
 		Returns an `ArrayBuffer`, `Blob`, `Document`, JavaScript object, or a `DOMString`, depending on the value of `XMLHttpRequest.responseType`. that contains the response entity body.
 	**/
 	var response(default,null) : Dynamic;
+	
+	/**
+		Returns a `DOMString` that contains the response to the request as text, or `null` if the request was unsuccessful or has not yet been sent.
+	**/
 	var responseText(default,null) : String;
+	
+	/**
+		Returns a `Document` containing the response to the request, or `null` if the request was unsuccessful, has not yet been sent, or cannot be parsed as XML or HTML.
+	**/
 	var responseXML(default,null) : HTMLDocument;
 	
 	/** @throws DOMError */

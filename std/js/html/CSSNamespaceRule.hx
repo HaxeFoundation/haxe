@@ -34,6 +34,10 @@ package js.html;
 @:native("CSSNamespaceRule")
 extern class CSSNamespaceRule extends CSSRule
 {
+	
+	/**
+		Returns a `DOMString` containing the text of the URI of the given namespace.
+	**/
 	var namespaceURI(default,null) : String;
 	
 	/**

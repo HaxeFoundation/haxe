@@ -34,12 +34,40 @@ package js.html;
 @:native("TouchEvent")
 extern class TouchEvent extends UIEvent
 {
+	
+	/**
+		A `TouchList` of all the `Touch` objects representing all current points of contact with the surface, regardless of target or changed status.
+	**/
 	var touches(default,null) : TouchList;
+	
+	/**
+		A `TouchList` of all the `Touch` objects that are both currently in contact with the touch surface and were also started on the same element that is the target of the event.
+	**/
 	var targetTouches(default,null) : TouchList;
+	
+	/**
+		A `TouchList` of all the `Touch` objects representing individual points of contact whose states changed between the previous touch event and this one.
+	**/
 	var changedTouches(default,null) : TouchList;
+	
+	/**
+		A Boolean value indicating whether or not the alt key was down when the touch event was fired.
+	**/
 	var altKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the meta key was down when the touch event was fired.
+	**/
 	var metaKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the control key was down when the touch event was fired.
+	**/
 	var ctrlKey(default,null) : Bool;
+	
+	/**
+		A Boolean value indicating whether or not the shift key was down when the touch event was fired.
+	**/
 	var shiftKey(default,null) : Bool;
 	
 	/** @throws DOMError */

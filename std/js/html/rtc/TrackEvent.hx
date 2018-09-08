@@ -34,9 +34,25 @@ package js.html.rtc;
 @:native("RTCTrackEvent")
 extern class TrackEvent extends js.html.Event
 {
+	
+	/**
+		The `RTCRtpReceiver` used by the track that's been added to the `RTCPeerConnection`.
+	**/
 	var receiver(default,null) : RtpReceiver;
+	
+	/**
+		The `MediaStreamTrack` which has been added to the connection.
+	**/
 	var track(default,null) : js.html.MediaStreamTrack;
+	
+	/**
+		An array of `MediaStream` objects, each representing one of the media streams which comprise the `RTCTrackEvent.track` that was added to the connection. By default, the array is empty.
+	**/
 	var streams(default,null) : Array<js.html.MediaStream>;
+	
+	/**
+		The `RTCRtpTransceiver` being used by the new track.
+	**/
 	var transceiver(default,null) : RtpTransceiver;
 	
 	/** @throws DOMError */

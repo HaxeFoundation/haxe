@@ -34,10 +34,30 @@ package js.html;
 @:native("FileSystemEntry")
 extern class FileSystemEntry
 {
+	
+	/**
+		A Boolean which is `true` if the entry represents a file. If it's not a file, this value is `false`.
+	**/
 	var isFile(default,null) : Bool;
+	
+	/**
+		A `Boolean` which is `true` if the entry represents a directory; otherwise, it's `false`.
+	**/
 	var isDirectory(default,null) : Bool;
+	
+	/**
+		A `USVString` containing the name of the entry (the final part of the path, after the last "/" character).
+	**/
 	var name(default,null) : String;
+	
+	/**
+		A `USVString` object which provides the full, absolute path from the file system's root to the entry; it can also be thought of as a path which is relative to the root directory, prepended with a "/" character.
+	**/
 	var fullPath(default,null) : String;
+	
+	/**
+		A `FileSystem` object representing the file system in which the entry is located.
+	**/
 	var filesystem(default,null) : FileSystem;
 	
 	@:overload( function( ?successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )

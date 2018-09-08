@@ -33,8 +33,20 @@ package js.html;
 **/
 typedef DeviceRotationRate =
 {
+	
+	/**
+		The amount of rotation around the Z axis, in degrees per second.
+	**/
 	var alpha(default,null) : Float;
+	
+	/**
+		The amount of rotation around the X axis, in degrees per second.
+	**/
 	var beta(default,null) : Float;
+	
+	/**
+		The amount of rotation around the Y axis, in degrees per second.
+	**/
 	var gamma(default,null) : Float;
 	
 }

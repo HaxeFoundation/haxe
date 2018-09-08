@@ -34,6 +34,10 @@ package js.html;
 @:native("MediaRecorderErrorEvent")
 extern class MediaRecorderErrorEvent extends Event
 {
+	
+	/**
+		A `DOMException` containing information about the error that occurred. Read only.
+	**/
 	var error(default,null) : DOMException;
 	
 	/** @throws DOMError */
