@@ -24,16 +24,43 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFESpotLightElement` interface corresponds to the `feSpotLight` element.
+
+	Documentation [SVGFESpotLightElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFESpotLightElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFESpotLightElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFESpotLightElement>
+**/
 @:native("SVGFESpotLightElement")
 extern class FESpotLightElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `x` attribute of the given element.
+	**/
 	var x(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `y` attribute of the given element.
+	**/
 	var y(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `z` attribute of the given element.
+	**/
 	var z(default,null) : AnimatedNumber;
 	var pointsAtX(default,null) : AnimatedNumber;
 	var pointsAtY(default,null) : AnimatedNumber;
 	var pointsAtZ(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `specularExponent` attribute of the given element.
+	**/
 	var specularExponent(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `limitingConeAngle` attribute of the given element.
+	**/
 	var limitingConeAngle(default,null) : AnimatedNumber;
 	
 }

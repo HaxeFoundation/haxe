@@ -96,6 +96,8 @@ type platform_config = {
 	pf_reserved_type_paths : path list;
 	(** supports function == function **)
 	pf_supports_function_equality : bool;
+	(** uses utf16 encoding with ucs2 api **)
+	pf_uses_utf16 : bool;
 }
 
 type compiler_callback = {
@@ -238,6 +240,7 @@ let default_config =
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
+		pf_uses_utf16 = true;
 	}
 
 let get_config com =
@@ -258,6 +261,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Neko ->
 		{
@@ -285,6 +289,7 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
+			pf_uses_utf16 = false;
 		}
 	| Cpp ->
 		{
@@ -312,6 +317,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Hl ->
 		{
@@ -357,7 +363,7 @@ let create version s_version args =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		sys_args = [];
+		sys_args = args;
 		debug = false;
 		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
 		verbose = false;
@@ -478,6 +484,7 @@ let init_platform com pf =
 	com.config <- get_config com;
 	if com.config.pf_static then define com Define.Static;
 	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then define com Define.Utf16;
 	raw_define com name
 
 let add_feature com f =
@@ -602,6 +609,72 @@ let url_encode s add_char =
 let url_encode_s s =
 	let b = Buffer.create 0 in
 	url_encode s (Buffer.add_char b);
+	Buffer.contents b
+
+(* UTF8 *)
+
+let to_utf8 str p =
+	let u8 = try
+		UTF8.validate str;
+		str;
+	with
+		UTF8.Malformed_code ->
+			(* ISO to utf8 *)
+			let b = UTF8.Buf.create 0 in
+			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			UTF8.Buf.contents b
+	in
+	let ccount = ref 0 in
+	UTF8.iter (fun c ->
+		let c = UChar.code c in
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		incr ccount;
+		if c > 0x10000 then incr ccount;
+	) u8;
+	u8, !ccount
+
+let utf16_add buf c =
+	let add c =
+		Buffer.add_char buf (char_of_int (c land 0xFF));
+		Buffer.add_char buf (char_of_int (c lsr 8));
+	in
+	if c >= 0 && c < 0x10000 then begin
+		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
+		add c;
+	end else if c < 0x110000 then begin
+		let c = c - 0x10000 in
+		add ((c asr 10) + 0xD800);
+		add ((c land 1023) + 0xDC00);
+	end else
+		failwith ("Invalid unicode char " ^ string_of_int c)
+
+let utf8_to_utf16 str zt =
+	let b = Buffer.create (String.length str * 2) in
+	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	if zt then utf16_add b 0;
+	Buffer.contents b
+
+let utf16_to_utf8 str =
+	let b = Buffer.create 0 in
+	let add c = Buffer.add_char b (char_of_int (c land 0xFF)) in
+	let get i = int_of_char (String.unsafe_get str i) in
+	let rec loop i =
+		if i >= String.length str then ()
+		else begin
+			let c = get i in
+			if c < 0x80 then begin
+				add c;
+				loop (i + 2);
+			end else if c < 0x800 then begin
+				let c = c lor ((get (i + 1)) lsl 8) in
+				add c;
+				add (c lsr 8);
+				loop (i + 2);
+			end else
+				assert false;
+		end
+	in
+	loop 0;
 	Buffer.contents b
 
 let add_diagnostics_message com s p sev =

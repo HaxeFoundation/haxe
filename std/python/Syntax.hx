@@ -30,7 +30,7 @@ import haxe.macro.ExprTools;
 import haxe.extern.Rest;
 
 @:noPackageRestrict
-#if !macro extern #end class Syntax {
+extern class Syntax {
 
 	#if macro
 	static var self = macro python.Syntax;
@@ -58,19 +58,19 @@ import haxe.extern.Rest;
 		return macro $self._newInstance($c, $a{params});
 	}
 
-	static function _newInstance(c:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
+	extern static function _newInstance(c:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	public static function isIn(a:Dynamic, b:Dynamic):Bool { return false; }
+	extern public static function isIn(a:Dynamic, b:Dynamic):Bool;
 
 	@:noUsing
-	public static function delete(a:Dynamic):Void { }
+	extern public static function delete(a:Dynamic):Void;
 
 	@:noUsing
-	public static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic { return null; }
+	extern public static function binop(a:Dynamic, op:String, b:Dynamic):Dynamic;
 
 	@:noUsing
-	public static function assign(a:Dynamic, b:Dynamic):Void { }
+	extern public static function assign(a:Dynamic, b:Dynamic):Void;
 
 	#if !macro
 	public static function code(code:String, args:Rest<Dynamic>):Dynamic;
@@ -85,7 +85,7 @@ import haxe.extern.Rest;
 
 	#if !macro
 	@:noUsing
-	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T { return null; };
+	public static function _pythonCode<T>(b:String, args:Array<Dynamic>):T;
 	#end
 	@:noUsing
 	macro public static function arrayAccess(x:Expr, rest:Array<Expr>):ExprOf<Dynamic> {
@@ -97,13 +97,13 @@ import haxe.extern.Rest;
 		return macro $self._arrayAccess($x, $a{rest}, true);
 	}
 
-	static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic { return null; }
+	extern static function _arrayAccess(a:Dynamic, args:Array<Dynamic>, ?trailingColon:Bool = false):Dynamic;
 
 	@:noUsing
-	public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic { return null; }
+	extern public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
 
 
-	static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic { return null; }
+	extern static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic;
 
 
 	@:noUsing
@@ -141,10 +141,10 @@ import haxe.extern.Rest;
 		return macro @:pos(o.pos) $self.call($self.field($o, $field), $a{params});
 	}
 
-	static function call(e:Dynamic, args:Array<Dynamic>):Dynamic { return null; }
+	extern static function call(e:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	public static function field (o:Dynamic, field:String):Dynamic { return null; }
+	extern public static function field (o:Dynamic, field:String):Dynamic;
 
 	@:noUsing
 	macro public static function tuple(args:Array<Expr>):Dynamic {
@@ -152,16 +152,16 @@ import haxe.extern.Rest;
 		return macro $self._tuple($args);
 	}
 
-	static function _tuple(args:Array<Dynamic>):Dynamic { return null; }
+	extern static function _tuple(args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	public static function varArgs(args:Array<Dynamic>):Dynamic { return null; }
+	extern public static function varArgs(args:Array<Dynamic>):Dynamic;
 
 	macro public static function callNamedUntyped (e:Expr, args:Expr):Expr {
 		return macro @:pos(e.pos) $self._callNamedUntyped($e, $args);
 	}
 
-	static function _callNamedUntyped(e:Dynamic, args:Dynamic):Dynamic { return null; }
+	extern static function _callNamedUntyped(e:Dynamic, args:Dynamic):Dynamic;
 
-	public static function opPow(a:Int, b:Int):Int { return 0; }
+	extern public static function opPow(a:Int, b:Int):Int;
 }

@@ -36,9 +36,9 @@ class FileSystem {
 		return {
 			gid : s.st_gid,
 			uid : s.st_uid,
-			atime : Date.fromTime(s.st_atime),
-			mtime : Date.fromTime(s.st_mtime),
-			ctime : Date.fromTime(s.st_ctime),
+			atime : Date.fromTime(1000 * s.st_atime),
+			mtime : Date.fromTime(1000 * s.st_mtime),
+			ctime : Date.fromTime(1000 * s.st_ctime),
 			size : s.st_size,
 			dev : s.st_dev,
 			ino : s.st_ino,

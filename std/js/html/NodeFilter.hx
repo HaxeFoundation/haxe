@@ -54,27 +54,27 @@ extern class NodeFilter
 	
 	/**
 		Returns an <code>unsigned short</code> that will be used to tell if a given <code>Node</code> must be accepted or not by the <code>NodeIterator</code> or <code>TreeWalker</code> iteration algorithm. This method is expected to be written by the user of a <code>NodeFilter</code>. Possible return values are:
-		 <table class="standard-table">
-		  
-		   <tr>
-		    <td class="header">Constant</td>
-		    <td class="header">Description</td>
-		   </tr>
-		   <tr>
-		    <td><code>FILTER_ACCEPT</code></td>
-		    <td>Value returned by the <code>NodeFilter.acceptNode()</code> method when a node should be accepted.</td>
-		   </tr>
-		   <tr>
-		    <td><code>FILTER_REJECT</code></td>
-		    <td>Value to be returned by the <code>NodeFilter.acceptNode()</code> method when a node should be rejected. For <code>TreeWalker</code>, child nodes are also rejected. For <code>NodeIterator</code>, this flag is synonymous with FILTER_SKIP.</td>
-		   </tr>
-		   <tr>
-		    <td><code>FILTER_SKIP</code></td>
-		    <td>Value to be returned by <code>NodeFilter.acceptNode()</code> for nodes to be skipped by the <code>NodeIterator</code> or <code>TreeWalker</code> object. The children of skipped nodes are still considered. This is treated as "skip this node but not its children".</td>
-		   </tr>
-		  
-		 </table>
-		 
+			<table class="standard-table">
+				
+					<tr>
+						<td class="header">Constant</td>
+						<td class="header">Description</td>
+					</tr>
+					<tr>
+						<td><code>FILTER_ACCEPT</code></td>
+						<td>Value returned by the <code>NodeFilter.acceptNode()</code> method when a node should be accepted.</td>
+					</tr>
+					<tr>
+						<td><code>FILTER_REJECT</code></td>
+						<td>Value to be returned by the <code>NodeFilter.acceptNode()</code> method when a node should be rejected. For <code>TreeWalker</code>, child nodes are also rejected. For <code>NodeIterator</code>, this flag is synonymous with FILTER_SKIP.</td>
+					</tr>
+					<tr>
+						<td><code>FILTER_SKIP</code></td>
+						<td>Value to be returned by <code>NodeFilter.acceptNode()</code> for nodes to be skipped by the <code>NodeIterator</code> or <code>TreeWalker</code> object. The children of skipped nodes are still considered. This is treated as "skip this node but not its children".</td>
+					</tr>
+				
+			</table>
+			
 	**/
 	function acceptNode( node : Node ) : Int;
 }

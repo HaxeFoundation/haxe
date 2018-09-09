@@ -93,10 +93,10 @@ extern class DOMMatrix extends DOMMatrixReadOnly
 		Returns itself,  a `DOMMatrix`, with its new content being the result of the original matrix being inverted. If the matrix cannot be inverted, all its components are set to `NaN` and `is2D()` returns `false`.
 	**/
 	function invertSelf() : DOMMatrix;
-	/** @throws DOMError */
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its describing the matrix representing the same transformation as the CSS `transform` functions given in parameter.
+		@throws DOMError
 	**/
 	function setMatrixValue( transformList : String ) : DOMMatrix;
 }

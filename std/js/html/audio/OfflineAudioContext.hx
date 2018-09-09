@@ -32,8 +32,13 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext>
 **/
 @:native("OfflineAudioContext")
-extern class OfflineAudioContext extends AudioContext
+extern class OfflineAudioContext extends BaseAudioContext
 {
+	
+	/**
+		An integer representing the size of the buffer in sample-frames.
+	**/
+	var length(default,null) : Int;
 	
 	/**
 		Is an `EventHandler` called when processing is terminated, that is when the `complete` event (of type `OfflineAudioCompletionEvent`) is raised, after the event-based version of `OfflineAudioContext.startRendering()` is used.
@@ -41,11 +46,12 @@ extern class OfflineAudioContext extends AudioContext
 	var oncomplete : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
+	@:overload( function( contextOptions : OfflineAudioContextOptions ) : Void {} )
 	function new( numberOfChannels : Int, length : Int, sampleRate : Float ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Starts rendering the audio, taking into account the current connections and the current scheduled changes. This page covers both the event-based version and the promise-based version.
+		@throws DOMError
 	**/
 	function startRendering() : Promise<AudioBuffer>;
 }

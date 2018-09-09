@@ -45,22 +45,30 @@ class Lib {
 		Io.flush();
 	}
 
+	/**
+	  Copies the table argument and converts it to an Array
+	**/
 	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
-		return Boot.defArray(t, length);
+		return Boot.defArray(PairTools.copy(t), length);
 	}
 
+	/**
+	  Copies the table argument and converts it to an Object.
+	**/
 	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
-		return Boot.tableToObject(t);
+		return Boot.tableToObject(PairTools.copy(t));
 	}
 
+	/**
+	  Perform Lua-style pattern quoting on a given string.
+	**/
 	public inline static function patternQuote(str:String) : String {
 		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
 	}
 
-	public inline static function defArray<T>(tab: Table<Int,T>, length : Int) : Array<T> {
-		return Boot.defArray(tab, length);
-	}
-
+	/**
+	  Fills an array with the result of a simple iterator.
+	**/
 	public static function fillArray<T>(itr:Void->T) : Array<T> {
 		var i: T = null;
 		var ret : Array<T> = [];
@@ -70,6 +78,9 @@ class Lib {
 		return ret;
 	}
 
+	/**
+	  Simple test for the presence of an available shell.
+	**/
 	public static function isShellAvailable() : Bool {
 		var ret : Dynamic = Os.execute();
 		if (Lua.type(ret) == "bool"){

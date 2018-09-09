@@ -33,10 +33,21 @@ package js.html;
 **/
 typedef MediaStreamConstraints =
 {
+	
+	/**
+		Either a Boolean (which indicates whether or not an audio track is requested) or a `MediaTrackConstraints` object providing the constraints which must be met by the audio track included in the returned `MediaStream`. If constraints are specified, an audio track is inherently requested.
+	**/
 	@:optional var audio : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
 	@:optional var fake : Bool;
-	@:optional var fakeTracks : Bool;
+	
+	/**
+		A `DOMString` identifying the peer who has sole access to the stream. If this property is specified, only the indicated peer can receive and use the stream. Streams isolated in this way can only be displayed in a media element (`audio` or `video`) where the content is protected just as if `CORS` cross-origin rules were in effect. When a peer identity is set, `MediaStreamTrack`s from that peer have their `MediaStreamTrack.isolated` flag set to `true`.
+	**/
 	@:optional var peerIdentity : String;
 	@:optional var picture : Bool;
+	
+	/**
+		Either a Boolean (which indicates whether or not a video track is requested) or a `MediaTrackConstraints` object providing the constraints which must be met by the video track included in the returned `MediaStream`. If constraints are specified, a video track is inherently requested.
+	**/
 	@:optional var video : haxe.extern.EitherType<Bool,MediaTrackConstraints>;
 }

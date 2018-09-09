@@ -8,16 +8,6 @@ open Timer
 open Genjson
 open Type
 
-let get_capabilities () =
-	JObject [
-		"definitionProvider",JBool true;
-		"hoverProvider",JBool true;
-		"completionProvider",JBool true;
-		"packageProvider",JBool true;
-		"signatureHelpProvider",JBool true;
-		"completionResolveProvider",JBool true;
-	]
-
 (* Generate the JSON of our times. *)
 let json_of_times root =
 	let rec loop node =
@@ -151,16 +141,17 @@ class jsonrpc_handler report_times (id,name,params) = object(self)
 		send_json (JsonRpc.error id 0 ~data:(Some (JArray jl)) "Compiler error")
 end
 
+let debug_context_sign = ref None
+
 class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 	val cs = cs;
-	val mutable debug_context_sign = None
 
 	method get_cs = cs
 
 	method set_debug_context_sign sign =
-		debug_context_sign <- sign
+		debug_context_sign := sign
 
-	method get_sign = match debug_context_sign with
+	method get_sign = match !debug_context_sign with
 		| None -> Define.get_signature com.defines
 		| Some sign -> sign
 
@@ -170,7 +161,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 		Common.define_value com Define.Display "1";
 		Parser.use_doc := true;
 
-	method set_display_file was_auto_triggered requires_offset is_completion =
+	method set_display_file was_auto_triggered requires_offset =
 		let file = jsonrpc#get_string_param "file" in
 		let file = Path.unique_full_path file in
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
@@ -182,7 +173,6 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		let pos = if pos <> (-1) && not is_completion then pos + 1 else pos in
 		DisplayPosition.display_position := {
 			pfile = file;
 			pmin = pos;
@@ -204,14 +194,18 @@ let handler =
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
 			hctx.jsonrpc#send_result (JObject [
-				"capabilities",get_capabilities();
 				"methods",jarray methods;
-				"version",jobject [
+				"haxeVersion",jobject [
 					"major",jint version_major;
 					"minor",jint version_minor;
 					"patch",jint version_revision;
 					"pre",(match version_pre with None -> jnull | Some pre -> jstring pre);
 					"build",(match Version.version_extra with None -> jnull | Some(_,build) -> jstring build);
+				];
+				"protocolVersion",jobject [
+					"major",jint 0;
+					"minor",jint 1;
+					"patch",jint 0;
 				]
 			])
 		);
@@ -226,30 +220,35 @@ let handler =
 			end
 		);
 		"display/completion", (fun hctx ->
-			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true true;
+			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMDefault;
 		);
 		"display/definition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
 		);
-		"display/findReferences", (fun hctx ->
+		"display/typeDefinition", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
+			hctx.display#enable_display DMTypeDefinition;
+		);
+		"display/references", (fun hctx ->
+			Common.define hctx.com Define.NoCOpt;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMUsage false);
 		);
 		"display/hover", (fun hctx ->
 			Common.define hctx.com Define.NoCOpt;
-			hctx.display#set_display_file false true false;
+			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMHover;
 		);
 		"display/package", (fun hctx ->
-			hctx.display#set_display_file false false false;
+			hctx.display#set_display_file false false;
 			hctx.display#enable_display DMPackage;
 		);
 		"display/signatureHelp", (fun hctx ->
-			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true false;
+			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMSignature
 		);
 		"server/readClassPaths", (fun hctx ->
@@ -260,16 +259,16 @@ let handler =
 			) :: hctx.com.callbacks.after_init_macros;
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,index) -> jobject [
-				"index",jstring index;
+			let l = List.map (fun (sign,(jo,_)) -> jobject [
 				"signature",jstring (Digest.to_hex sign);
+				"context",jo;
 			]) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.jsonrpc#send_result (jarray l)
 		);
 		"server/select", (fun hctx ->
 			let i = hctx.jsonrpc#get_int_param "index" in
 			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs (string_of_int i)
+				CompilationServer.get_sign_by_index hctx.display#get_cs i
 			with Not_found ->
 				hctx.jsonrpc#send_error [jstring "No such context"]
 			in
@@ -292,6 +291,20 @@ let handler =
 				hctx.jsonrpc#send_error [jstring "No such module"]
 			in
 			hctx.jsonrpc#send_result (generate_module () m)
+		);
+		"server/files", (fun hctx ->
+			let sign = hctx.display#get_sign in
+			let files = CompilationServer.get_files hctx.display#get_cs in
+			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
+			let files = List.map (fun (file,cfile) ->
+				jobject [
+					"file",jstring file;
+					"time",jfloat cfile.c_time;
+					"package",jstring (String.concat "." cfile.c_package);
+					"moduleName",jopt jstring cfile.c_module_name;
+				]
+			) files in
+			hctx.jsonrpc#send_result (jarray files)
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in

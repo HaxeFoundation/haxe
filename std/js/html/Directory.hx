@@ -30,5 +30,10 @@ extern class Directory
 	var name(default,null) : String;
 	var path(default,null) : String;
 	
+	/** @throws DOMError */
+	function new( path : String ) : Void;
+	/** @throws DOMError */
 	function getFilesAndDirectories() : Promise<Array<haxe.extern.EitherType<File,Directory>>>;
+	/** @throws DOMError */
+	function getFiles( ?recursiveFlag : Bool = false ) : Promise<Array<File>>;
 }

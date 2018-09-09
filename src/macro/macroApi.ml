@@ -145,6 +145,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : obj_type -> (string * value) list -> value
+	val encode_lazy : (unit -> value) -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -440,6 +441,8 @@ and encode_ctype t =
 		5, [encode_ctype t]
 	| CTNamed (n,t) ->
 		6, [encode_placed_name n; encode_ctype t]
+	| CTIntersection tl ->
+		7, [(encode_array (List.map encode_ctype tl))]
 	in
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
@@ -448,7 +451,9 @@ and encode_tparam_decl tp =
 		"name", encode_placed_name tp.tp_name;
 		"name_pos", encode_pos (pos tp.tp_name);
 		"params", encode_array (List.map encode_tparam_decl tp.tp_params);
-		"constraints", encode_array (List.map encode_ctype tp.tp_constraints);
+		"constraints", (match tp.tp_constraints with
+			| None -> encode_array []
+			| Some th -> encode_array [encode_ctype th]);
 		"meta", encode_meta_content tp.tp_meta;
 	]
 
@@ -470,14 +475,14 @@ and encode_fun f =
 	]
 
 and encode_display_kind dk =
-	let tag = match dk with
-	| DKCall -> 0
-	| DKDot -> 1
-	| DKStructure -> 2
-	| DKMarked -> 3
-	| DKPattern -> 4
+	let tag, pl = match dk with
+	| DKCall -> 0, []
+	| DKDot -> 1, []
+	| DKStructure -> 2, []
+	| DKMarked -> 3, []
+	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None ICType tag []
+	encode_enum ~pos:None ICType tag pl
 
 and encode_expr e =
 	let rec loop (e,p) =
@@ -508,16 +513,17 @@ and encode_expr e =
 			| EUnop (op,flag,e) ->
 				9, [encode_unop op; vbool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
-				10, [encode_array (List.map (fun (v,t,eo) ->
+				10, [encode_array (List.map (fun (v,final,t,eo) ->
 					encode_obj OVar [
 						"name",encode_placed_name v;
 						"name_pos",encode_pos (pos v);
+						"isFinal",vbool final;
 						"type",null encode_ctype t;
 						"expr",null loop eo;
 					]
 				) vl)]
 			| EFunction (name,f) ->
-				11, [null encode_string name; encode_fun f]
+				11, [null encode_placed_name name; encode_fun f]
 			| EBlock el ->
 				12, [encode_array (List.map loop el)]
 			| EFor (e,eloop) ->
@@ -573,7 +579,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	loop e
+	encode_lazy (fun () -> loop e)
 
 and encode_null_expr e =
 	match e with
@@ -676,9 +682,14 @@ and decode_tparams v =
 	decode_opt_array decode_tparam_decl v
 
 and decode_tparam_decl v =
+	let vconstraints = field v "constraints" in
 	{
 		tp_name = decode_placed_name (field v "name_pos") (field v "name");
-		tp_constraints = decode_opt_array decode_ctype (field v "constraints");
+		tp_constraints = if vconstraints = vnull then None else (match decode_array vconstraints with
+			| [] -> None
+			| [t] -> Some (decode_ctype t)
+			| tl -> Some (CTIntersection (List.map decode_ctype tl),Globals.null_pos)
+		);
 		tp_params = decode_tparams (field v "params");
 		tp_meta = decode_meta_content (field v "meta");
 	}
@@ -755,15 +766,17 @@ and decode_ctype t =
 		CTOptional (decode_ctype t)
 	| 6, [n;t] ->
 		CTNamed ((decode_string n,p), decode_ctype t)
+	| 7, [tl] ->
+		CTIntersection (List.map decode_ctype (decode_array tl))
 	| _ ->
 		raise Invalid_expr),p
 
-and decode_display_kind v = match fst (decode_enum v) with
-	| 0 -> DKCall
-	| 1 -> DKDot
-	| 2 -> DKStructure
-	| 3 -> DKMarked
-	| 4 -> DKPattern
+and decode_display_kind v = match (decode_enum v) with
+	| 0, [] -> DKCall
+	| 1, [] -> DKDot
+	| 2, [] -> DKStructure
+	| 3, [] -> DKMarked
+	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
 and decode_expr v =
@@ -804,10 +817,12 @@ and decode_expr v =
 			EUnop (decode_unop op,(if decode_bool f then Postfix else Prefix),loop e)
 		| 10, [vl] ->
 			EVars (List.map (fun v ->
-				((decode_placed_name (field v "name_pos") (field v "name")),opt decode_ctype (field v "type"),opt loop (field v "expr"))
+				let vfinal = field v "isFinal" in
+				let final = if vfinal == vnull then false else decode_bool vfinal in
+				((decode_placed_name (field v "name_pos") (field v "name")),final,opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (decode_array vl))
 		| 11, [fname;f] ->
-			EFunction (opt decode_string fname,decode_fun f)
+			EFunction (opt (fun v -> decode_string v,Globals.null_pos) fname,decode_fun f)
 		| 12, [el] ->
 			EBlock (List.map loop (decode_array el))
 		| 13, [e1;e2] ->
@@ -970,6 +985,7 @@ and encode_cfield f =
 		"doc", null encode_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool f.cf_extern;
+		"isFinal", vbool f.cf_final;
 	]
 
 and encode_field_kind k =
@@ -1022,6 +1038,7 @@ and encode_tclass c =
 		"isExtern", vbool c.cl_extern;
 		"exclude", vfun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; vnull);
 		"isInterface", vbool c.cl_interface;
+		"isFinal", vbool c.cl_final;
 		"superClass", (match c.cl_super with
 			| None -> vnull
 			| Some (c,pl) -> encode_obj OClassType_superClass ["t",encode_clref c;"params",encode_tparams pl]
@@ -1344,6 +1361,7 @@ let decode_cfield v =
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
 		cf_extern = decode_bool (field v "isExtern");
+		cf_final = decode_bool (field v "isFinal");
 	}
 
 let decode_efield v =
@@ -1475,9 +1493,10 @@ let decode_type_def v =
 		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
 	| 1, [] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields,Globals.null_pos))
-	| 2, [ext;impl;interf] ->
+	| 2, [ext;impl;interf;final] ->
 		let flags = if isExtern then [HExtern] else [] in
 		let is_interface = decode_opt_bool interf in
+		let is_final = decode_opt_bool final in
 		let interfaces = (match opt (fun v -> List.map decode_path (decode_array v)) impl with Some l -> l | _ -> [] ) in
 		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
 		let flags = if is_interface then begin
@@ -1487,6 +1506,7 @@ let decode_type_def v =
 				List.map (fun t -> HImplements t) interfaces @ flags
 			end
 		in
+		let flags = if is_final then HFinal :: flags else flags in
 		EClass (mk flags fields)
 	| 3, [t] ->
 		ETypedef (mk (if isExtern then [EExtern] else []) (decode_ctype t))

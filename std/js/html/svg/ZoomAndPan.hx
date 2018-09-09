@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGZoomAndPan` interfaceis used to reflect the `zoomAndPan` attribute, and is mixed in to other interfaces for elements that support this attribute.
+
+	Documentation [SVGZoomAndPan](https://developer.mozilla.org/en-US/docs/Web/API/SVGZoomAndPan) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGZoomAndPan$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGZoomAndPan>
+**/
 @:native("SVGZoomAndPan")
 extern class ZoomAndPan
 {
@@ -31,6 +38,10 @@ extern class ZoomAndPan
 	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
 	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;
 	
+	
+	/**
+		An unsigned short representing the value of the `zoomAndPan` attribute.
+	**/
 	var zoomAndPan : Int;
 	
 }

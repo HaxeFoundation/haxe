@@ -45,4 +45,6 @@ extern class WaveShaperNode extends AudioNode
 	**/
 	var oversample : OverSampleType;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : WaveShaperOptions ) : Void;
 }

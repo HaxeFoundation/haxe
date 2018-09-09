@@ -26,8 +26,8 @@ package js.html.rtc;
 
 typedef RtpParameters =
 {
-	@:optional var codecs : Array<Dynamic/*MISSING RTCRtpCodecParameters*/>;
-	@:optional var encodings : Array<Dynamic/*MISSING RTCRtpEncodingParameters*/>;
-	@:optional var headerExtensions : Array<Dynamic/*MISSING RTCRtpHeaderExtensionParameters*/>;
-	@:optional var rtcp : Dynamic/*MISSING RTCRtcpParameters*/;
+	@:optional var codecs : Array<RtpCodecParameters>;
+	@:optional var encodings : Array<RtpEncodingParameters>;
+	@:optional var headerExtensions : Array<RtpHeaderExtensionParameters>;
+	@:optional var rtcp : RtcpParameters;
 }

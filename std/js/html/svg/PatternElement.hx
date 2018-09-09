@@ -34,16 +34,40 @@ package js.html.svg;
 @:native("SVGPatternElement")
 extern class PatternElement extends Element
 {
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
 	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `patternUnits` attribute of the given `pattern` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var patternUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `patternContentUnits` attribute of the given `pattern` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var patternContentUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedTransformList` corresponding to the `patternTransform` attribute of the given `pattern` element.
+	**/
 	var patternTransform(default,null) : AnimatedTransformList;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `x` attribute of the given `pattern` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `y` attribute of the given `pattern` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `width` attribute of the given `pattern` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `height` attribute of the given `pattern` element.
+	**/
 	var height(default,null) : AnimatedLength;
 	var viewBox(default,null) : AnimatedRect;
 	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;

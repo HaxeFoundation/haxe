@@ -51,11 +51,68 @@ extern class MediaStreamTrack extends EventTarget
 	var label(default,null) : String;
 	
 	/**
-		A Boolean value with a value of `true` if the track is enabled, that is allowed to render the media source stream; or `false` if it is disabled, that is not rendering the media source stream but silence and blackness. If the track has been disconnected, this value can be changed but has no more effect.
+		A Boolean whose value of `true` if the track is enabled, that is allowed to render the media source stream; or `false` if it is disabled, that is not rendering the media source stream but silence and blackness. If the track has been disconnected, this value can be changed but has no more effect.
+		 Note: You can implement standard "mute" functionality by setting `enabled` to `false`. The `muted` property refers to a condition in which there's no media because of a technical issue.
+		 
 	**/
 	var enabled : Bool;
 	
+	/**
+		Returns a Boolean value indicating whether the track is unable to provide media data due to a technical issue.
+		 Note: You can implement standard "mute" functionality by setting `enabled` to `false`, and unmute the media by setting it back to `true` again.
+		 
+	**/
+	var muted(default,null) : Bool;
+	
+	/**
+		An `EventHandler` containing the action to perform when an `mute` event is fired on the object, that is when the streaming is terminating.
+	**/
+	var onmute : haxe.Constraints.Function;
+	
+	/**
+		An `EventHandler` containing the action to perform when an `unmute` event is fired on the object, that is when a  `MediaStreamTrack` object is removed from it.
+	**/
+	var onunmute : haxe.Constraints.Function;
+	
+	/**
+		Returns an enumerated value giving the status of the track. This will be one of the following values:
+		 
+		  `"live"` which indicates that an input is connected and does its best-effort in providing real-time data. In that case, the output of data can be switched on or off using the `MediaStreamTrack.enabled` attribute.
+		  `"ended"` which indicates that the input is not giving any more data and will never provide new data.
+		 
+		 
+	**/
+	var readyState(default,null) : MediaStreamTrackState;
+	
+	/**
+		An `EventHandler` containing the action to perform when an `ended_(MediaStream)` event is fired on the object, that is when a  `MediaStreamTrack` object is removed from it.
+	**/
+	var onended : haxe.Constraints.Function;
+	
+	
+	/**
+		Returns a duplicate of the `MediaStreamTrack`.
+	**/
+	function clone() : MediaStreamTrack;
+	
+	/**
+		Stops playing the source associated to the track, both the source and the track are deassociated. The track state is set to `ended`.
+	**/
 	function stop() : Void;
-	/** @throws DOMError */
+	
+	/**
+		Returns a `MediaTrackConstraints` object containing the currently set constraints for the track; the returned value matches the constraints last set using `MediaStreamTrack.applyConstraints`.
+	**/
+	function getConstraints() : MediaTrackConstraints;
+	
+	/**
+		Returns a `MediaTrackSettings` object containing the current values of each of the `MediaStreamTrack`'s constrainable properties.
+	**/
+	function getSettings() : MediaTrackSettings;
+	
+	/**
+		Lets the application specify the ideal and/or ranges of acceptable values for any number of the available constrainable properties of the `MediaStreamTrack`.
+		@throws DOMError
+	**/
 	function applyConstraints( ?constraints : MediaTrackConstraints ) : Promise<Void>;
 }

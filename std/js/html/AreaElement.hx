@@ -67,6 +67,11 @@ extern class AreaElement extends Element
 	var rel : String;
 	
 	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use when fetching the linked resource.
+	**/
+	var referrerPolicy : String;
+	
+	/**
 		Returns a `DOMTokenList` that reflects the `rel` HTML attribute, indicating relationships of the current document to the linked resource, as a list of tokens.
 	**/
 	var relList(default,null) : DOMTokenList;

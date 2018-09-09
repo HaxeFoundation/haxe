@@ -34,7 +34,19 @@ package js.html.svg;
 @:native("SVGElement")
 extern class Element extends js.html.DOMElement
 {
+	
+	/**
+		An `SVGSVGElement` referring to the nearest ancestor `svg` element. `null` if the given element is the outermost `svg` element.
+	**/
 	var ownerSVGElement(default,null) : SVGElement;
+	
+	/**
+		The `SVGElement`, which established the current viewport. Often, the nearest ancestor `svg` element. `null` if the given element is the outermost `svg` element.
+	**/
 	var viewportElement(default,null) : Element;
 	
+	/** @throws DOMError */
+	function focus() : Void;
+	/** @throws DOMError */
+	function blur() : Void;
 }

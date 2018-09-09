@@ -55,12 +55,7 @@ Automated development builds are available from [build.haxe.org](http://build.ha
 
 ## Building from source
 
- 1. Clone the repository using git. Be sure to initialize and fetch the submodules.
-
-        git clone --recursive git://github.com/HaxeFoundation/haxe.git
-        cd haxe
-
- 2. Follow the [documentation on building Haxe for your platform](https://haxe.org/documentation/introduction/building-haxe.html).
+See [extra/BUILDING.md](extra/BUILDING.md).
 
 ## Using Haxe
 
@@ -78,21 +73,23 @@ You can get help and talk with fellow Haxers from around the world via:
 
  * [Haxe Community Forum](http://community.haxe.org)
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
- * [Haxe Gittr chatroom](https://gitter.im/HaxeFoundation/haxe/)
+ * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
  * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
 
 :+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
 
 ## Version compatibility
 
-Haxe   | neko
-----   | -----
-2.*    | 1.*
-3.0.0  | 2.0.0
-3.1.3  | 2.0.0
-3.2.0  | 2.0.0
-3.3.0  | 2.1.0
-3.4.0  | 2.1.0
+Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  | 
+----          | ----  | ----   | ----   |  ---- | ----  | ---- |
+2.*           | 1.*   | 8-10   | -      | -     | -     | -    |
+3.0.0         | 2.0.0 |        | -      | -     | 5.1+  | -    |
+3.2.0         |       | 12-14  | 3.2+   | -     |       | -    |
+3.3.0         | 2.1.0 | 21     |        | -     |       | 5.1, 5.2, 5.3, LuaJIT 2.0, LuaJIT 2.1 |
+3.4.0         |       |        |        | 1.1   | 5.1 and 7.0 (with `-D php7`)   |      |
+4.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
+4.0 preview 3 |       |        |        | 1.3   |       |      |
+4.0 preview 4 |       |        |        | 1.6   |       |      |
 
 
 ## Contributing

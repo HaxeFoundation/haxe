@@ -78,7 +78,6 @@ type strict_meta =
 	| Include
 	| InitPackage
 	| InlineConstructorArgument of int * int
-	| InlineConstructorVariable
 	| Internal
 	| IsVar
 	| JavaCanonical
@@ -162,14 +161,12 @@ type strict_meta =
 	| ToString
 	| Transient
 	| TemplatedCall
-	| TVarOrigin
 	| ValueUsed
 	| Volatile
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
 	| Used
-	| UserVariable
 	| Value
 	| Void
 	| Last
@@ -278,7 +275,6 @@ let get_info = function
 	| Include -> ":include",("",[Platform Cpp])
 	| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[UsedInternally; Platform Js])
 	| InlineConstructorArgument _ -> ":inlineConstructorArgument",("Internally used to mark expressions that were passed as arguments of an inlined constructor",[UsedInternally])
-	| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[UsedInternally])
 	| Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 	| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
 	| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
@@ -303,7 +299,7 @@ let get_info = function
 	| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
 	| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
-	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
+	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field or type",[UsedOn TClassField])
 	| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 	| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 	| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[UsedInternally])
@@ -357,7 +353,6 @@ let get_info = function
 	| StructInit -> ":structInit",("Allows one to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 	| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
 	| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template argument",[Platform Cpp; UsedOn TClassField])
-	| TVarOrigin -> ":haxe.internal.tvar_origin",("Used internally to mark the origin of a variable",[UsedInternally;UsedOn TVariable])
 	| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
 	| This -> ":this",("Internally used to pass a 'this' expression to macros",[UsedInternally; UsedOn TExpr])
 	| To -> ":to",("Specifies that the field of the abstract is a cast operation to the type identified in the function",[UsedOn TAbstractField])
@@ -369,7 +364,6 @@ let get_info = function
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
-	| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[UsedInternally])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 	| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 	| Last -> assert false

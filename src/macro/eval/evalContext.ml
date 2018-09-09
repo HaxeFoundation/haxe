@@ -21,6 +21,7 @@ open Globals
 open Type
 open EvalValue
 open EvalHash
+open EvalString
 
 type var_info = string
 
@@ -166,20 +167,12 @@ let rec kind_name ctx kind =
 	in
 	loop kind ctx.environment_offset
 
-let vstring s =
-	VString (s,lazy (Rope.to_string s))
-
-let vstring_direct (r,s) =
-	VString(r,s)
-
 let call_function f vl = f vl
 
 let object_fields o =
-	let fields = IntMap.fold (fun key vvalue acc -> (key,vvalue) :: acc) o.oextra [] in
 	IntMap.fold (fun key index acc ->
-		if IntMap.mem key o.oremoved then acc
-		else (key,(o.ofields.(index))) :: acc
-	) o.oproto.pinstance_names fields
+		(key,(o.ofields.(index))) :: acc
+	) o.oproto.pinstance_names []
 
 let instance_fields i =
 	IntMap.fold (fun name key acc ->
@@ -210,7 +203,7 @@ let throw v p =
 
 let exc v = throw v null_pos
 
-let exc_string str = exc (vstring (Rope.of_string str))
+let exc_string str = exc (vstring (EvalString.create_ascii str))
 
 let error_message = exc_string
 

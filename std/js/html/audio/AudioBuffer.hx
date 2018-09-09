@@ -56,21 +56,23 @@ extern class AudioBuffer
 	var numberOfChannels(default,null) : Int;
 	
 	/** @throws DOMError */
+	function new( options : AudioBufferOptions ) : Void;
 	
 	/**
 		Returns a `Float32Array` containing the PCM data associated with the channel, defined by the `channel` parameter (with `0` representing the first channel).
+		@throws DOMError
 	**/
 	function getChannelData( channel : Int ) : js.html.Float32Array;
-	/** @throws DOMError */
 	
 	/**
 		Copies the samples from the specified channel of the `AudioBuffer` to the `destination` array.
+		@throws DOMError
 	**/
 	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Copies the samples to the specified channel of the `AudioBuffer`, from the `source` array.
+		@throws DOMError
 	**/
 	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
 }

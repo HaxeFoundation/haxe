@@ -10,12 +10,21 @@ open Globals
 open Genjson
 open DisplayPosition
 
-let reference_position = ref ("",null_pos,KVar)
+module ReferencePosition = struct
+	let reference_position = ref ("",null_pos,KVar)
+	let set (s,p,k) = reference_position := (s,{p with pfile = Path.unique_full_path p.pfile},k)
+	let get () = !reference_position
+end
 
 module ExprPreprocessing = struct
-	let find_before_pos com is_completion e =
+	let find_before_pos com dm e =
+
 		let display_pos = ref (!DisplayPosition.display_position) in
-		let is_annotated p = encloses_position !display_pos p in
+		let is_annotated,is_completion = match dm with
+			| DMDefault -> (fun p -> encloses_position !display_pos p),true
+			| DMHover -> (fun p -> encloses_position_gt !display_pos p),false
+			| _ -> (fun p -> encloses_position !display_pos p),false
+		in
 		let annotate e dk =
 			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
 			(EDisplay(e,dk),pos e)
@@ -46,7 +55,7 @@ module ExprPreprocessing = struct
 			match fst e with
 			| EVars vl when is_annotated (pos e) && is_completion ->
 				let rec loop2 acc mark vl = match vl with
-					| ((s,pn),tho,eo) as v :: vl ->
+					| ((s,pn),final,tho,eo) as v :: vl ->
 						if mark then
 							loop2 (v :: acc) mark vl
 						else if is_annotated pn then
@@ -70,7 +79,7 @@ module ExprPreprocessing = struct
 								in
 								let p = {p0 with pmax = (pos e).pmin} in
 								let e = if is_annotated p then annotate_marked e else e in
-								loop2 (((s,pn),tho,(Some e)) :: acc) mark vl
+								loop2 (((s,pn),final,tho,(Some e)) :: acc) mark vl
 						end
 					| [] ->
 						List.rev acc,mark
@@ -157,19 +166,20 @@ module ExprPreprocessing = struct
 					el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
 				in
 				if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
-					found := true;
-					Parser.mk_display_expr e DKCall
+				found := true;
+				Parser.mk_display_expr e DKCall
 				end else
 					e
+			| EDisplay(_,DKCall) ->
+				raise Exit
 			| _ -> e
 		in
 		let rec map e = loop (Ast.map_expr map e) in
-		map e
+		try map e with Exit -> e
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMUsage _ | DMHover -> find_before_pos com false e
-		| DMDefault -> find_before_pos com true e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end

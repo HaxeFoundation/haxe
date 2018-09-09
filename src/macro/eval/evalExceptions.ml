@@ -73,6 +73,7 @@ let s_value_kind = function
 	| VPrototype _ -> "VPrototype"
 	| VFunction _ -> "VFunction"
 	| VFieldClosure _ -> "VFieldClosure"
+	| VLazy _ -> "VLazy"
 
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
 	let str = Printf.sprintf "Unexpected value %s(%s), expected %s" (s_value_kind v) (value_string v) s in
@@ -126,8 +127,8 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			get_ctx_ref := prev;
 			final();
 			match v1,v2 with
-				| VString(_,s),VInstance {ikind = IPos p} ->
-					raise (Error.Error (Error.Custom (Lazy.force s),p))
+				| VString s,VInstance {ikind = IPos p} ->
+					raise (Error.Error (Error.Custom (EvalString.get s),p))
 				| _ ->
 					Error.error "Something went wrong" null_pos
 		end else begin

@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The parameter passed into the `ServiceWorkerGlobalScope.onfetch` handler, `FetchEvent` represents a fetch action that is dispatched on the `ServiceWorkerGlobalScope` of a `ServiceWorker`. It contains information about the request and resulting response, and provides the `FetchEvent.respondWith()` method, which allows us to provide an arbitrary response back to the controlled page.
+	This is the event type for `fetch` events dispatched on the service worker global scope. It contains information about the fetch, including the request and how the receiver will treat the response. It provides the `event.respondWith()` method, which allows us to provide a response to this fetch.
 
 	Documentation [FetchEvent](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -36,26 +36,22 @@ extern class FetchEvent extends ExtendableEvent
 {
 	
 	/**
-		Returns the `Request` that triggered the event handler.
+		The `Request` the browser intends to make.
 	**/
 	var request(default,null) : Request;
 	
 	/**
-		Returns the id of the client that the current service worker is controlling.
+		The `Client.id` of the same-origin `Client` that initiated the fetch.
 	**/
 	var clientId(default,null) : String;
-	
-	/**
-		Returns a `Boolean` that is `true` if the event was dispatched with the user's intention for the page to reload, and `false` otherwise. Typically, pressing the refresh button in a browser is a reload, while clicking a link and pressing the back button is not.
-	**/
 	var isReload(default,null) : Bool;
 	
 	/** @throws DOMError */
 	function new( type : String, eventInitDict : FetchEventInit ) : Void;
-	/** @throws DOMError */
 	
 	/**
-		Resolves by returning a `Response` or a network error  to Fetch`.
+		Prevent the browser's default fetch handling, and provide (a promise for) a response yourself.
+		@throws DOMError
 	**/
 	function respondWith( r : Promise<Response> ) : Void;
 }

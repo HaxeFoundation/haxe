@@ -45,10 +45,16 @@ extern class WindowClient extends Client
 	**/
 	var focused(default,null) : Bool;
 	
-	/** @throws DOMError */
 	
 	/**
 		Gives user input focus to the current client. 
+		@throws DOMError
 	**/
 	function focus() : Promise<WindowClient>;
+	
+	/**
+		Loads a specified URL into a controlled client page.
+		@throws DOMError
+	**/
+	function navigate( url : String ) : Promise<WindowClient>;
 }

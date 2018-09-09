@@ -27,13 +27,14 @@ package js.html;
 @:native("VTTRegion")
 extern class VTTRegion
 {
+	var id : String;
 	var width : Float;
 	var lines : Int;
 	var regionAnchorX : Float;
 	var regionAnchorY : Float;
 	var viewportAnchorX : Float;
 	var viewportAnchorY : Float;
-	var scroll : String;
+	var scroll : ScrollSetting;
 	
 	/** @throws DOMError */
 	function new() : Void;

@@ -118,7 +118,7 @@ let follow_once t =
 
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref Closed })
 
-let alloc_var n t = Type.alloc_var n t null_pos
+let alloc_var n t = Type.alloc_var VGenerated n t null_pos
 
 let mk_local = Texpr.Builder.make_local
 

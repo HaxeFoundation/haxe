@@ -31,5 +31,6 @@ typedef NotificationOptions =
 	@:optional var dir : NotificationDirection;
 	@:optional var icon : String;
 	@:optional var lang : String;
+	@:optional var requireInteraction : Bool;
 	@:optional var tag : String;
 }

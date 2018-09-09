@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\HTMLPropertiesCollection.webidl. Do not edit!
+// This file is generated from HTMLPropertiesCollection.webidl. Do not edit!
 
 package js.html;
 
@@ -29,4 +29,5 @@ extern class HTMLPropertiesCollection extends HTMLCollection
 {
 	var names(default,null) : DOMStringList;
 	
+	function namedItem( name : String ) : PropertyNodeList;
 }

@@ -141,7 +141,7 @@ enum ValueType {
 	}
 
     @:native("_hx_getEnumValueIndex")
-	extern private static function getEnumValueIndex( e : EnumValue ) : Int return 0;
+	extern private static function getEnumValueIndex( e : EnumValue ) : Int;
 
 	#if !cppia inline #end public static function enumIndex( e : EnumValue ) : Int {
 			return getEnumValueIndex(e);

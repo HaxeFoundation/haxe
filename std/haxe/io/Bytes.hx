@@ -346,7 +346,8 @@ class Bytes {
 		setInt32(pos + 4, v.high);
 	}
 
-	public function getString( pos : Int, len : Int ) : String {
+	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
+		if( encoding == null ) encoding == UTF8;
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		#end
@@ -354,23 +355,43 @@ class Bytes {
 		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash
 		b.position = pos;
-		return b.readUTFBytes(len);
+		return encoding == RawNative ? b.readMultiByte(len, "unicode") : b.readUTFBytes(len);
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
 		return result;
 		#elseif cs
-		return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
+		switch (encoding) {
+			case UTF8 | null:
+				return cs.system.text.Encoding.UTF8.GetString(b, pos, len);
+			case RawNative:
+				return cs.system.text.Encoding.Unicode.GetString(b, pos, len);
+		}
 		#elseif java
-		try
-			return new String(b, pos, len, "UTF-8")
-		catch (e:Dynamic) throw e;
+		try {
+			switch (encoding) {
+				case UTF8 | null:
+					return new String(b, pos, len, "UTF-8");
+				case RawNative:
+					return new String(b, pos, len, "UTF-16LE");
+			}
+		} catch (e:Dynamic) {
+			throw e;
+		}
 		#elseif python
 		return python.Syntax.code("self.b[{0}:{0}+{1}].decode('UTF-8','replace')", pos, len);
 		#elseif lua
-		var begin = cast(Math.min(pos,b.length),Int);
-		var end = cast(Math.min(pos+len,b.length),Int);
-		return [for (i in begin...end) String.fromCharCode(b[i])].join("");
+
+		if (b.length - pos <= lua.Boot.MAXSTACKSIZE){
+			var end : Int = cast Math.min(b.length, pos+len) - 1;
+			return lua.NativeStringTools.char(lua.TableTools.unpack(untyped b, pos, end));
+		} else {
+			var tbl : lua.Table<Int,String> = lua.Table.create();
+			for (idx in pos...pos+len){
+				lua.Table.insert(tbl, lua.NativeStringTools.char(b[idx]));
+			}
+			return lua.Table.concat(tbl, '');
+		}
 		#else
 		var s = "";
 		var b = b;
@@ -407,6 +428,9 @@ class Bytes {
 		return getString(pos, len);
 	}
 
+	/**
+		Returns string representation of the bytes as UTF8
+	**/
 	public function toString() : String {
 		#if neko
 		return new String(untyped __dollar__ssub(b,0,length));
@@ -469,35 +493,50 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns bytes representation of the given String, using specific encoding (UTF-8 by default)
+	**/
 	@:pure
-	public static function ofString( s : String ) : Bytes {
+	public static function ofString( s : String, ?encoding : Encoding ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
 		#elseif flash
 		var b = new flash.utils.ByteArray();
-		b.writeUTFBytes(s);
+		if( encoding == RawNative ) b.writeMultiByte(s,"unicode") else b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif cpp
 		var a = new BytesData();
 		untyped __global__.__hxcpp_bytes_of_string(a,s);
 		return new Bytes(a.length, a);
 		#elseif cs
-		var b = cs.system.text.Encoding.UTF8.GetBytes(s);
+		var b = switch (encoding) {
+			case UTF8 | null:
+				cs.system.text.Encoding.UTF8.GetBytes(s);
+			case RawNative:
+				cs.system.text.Encoding.Unicode.GetBytes(s);
+		};
 		return new Bytes(b.Length, b);
 		#elseif java
-		try
-		{
-			var b:BytesData = untyped s.getBytes("UTF-8");
+		try {
+			var b:BytesData = switch (encoding) {
+				case UTF8 | null:
+					@:privateAccess s.getBytes("UTF-8");
+				case RawNative:
+					@:privateAccess s.getBytes("UTF-16LE");
+			};
 			return new Bytes(b.length, b);
+		} catch (e:Dynamic) {
+			throw e;
 		}
-		catch (e:Dynamic) throw e;
 
 		#elseif python
 			var b:BytesData = new python.Bytearray(s, "UTF-8");
 			return new Bytes(b.length, b);
 
 		#elseif lua
-			var bytes = [for (c in 0...s.length) StringTools.fastCodeAt(s,c)];
+			var bytes = [for (i in 0...lua.NativeStringTools.len(s)) {
+					lua.NativeStringTools.byte(s,i+1);
+			}];
 			return new Bytes(bytes.length, bytes);
 		#else
 		var a = new Array();
@@ -538,6 +577,26 @@ class Bytes {
 		#else
 		return new Bytes(b.length,b);
 		#end
+	}
+	
+	/**
+		Convert hexadecimal string to Bytes.
+		Support only straight hex string ( Example: "0FDA14058916052309" )
+	**/
+	public static function ofHex( s : String ) : Bytes {
+		var len:Int = s.length;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var ret : Bytes = Bytes.alloc(len >> 1);
+		for (i in  0...ret.length)
+		{
+			var high = StringTools.fastCodeAt(s, i*2);
+			var low = StringTools.fastCodeAt(s, i*2 + 1);
+			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
+			ret.set( i ,( (high << 4) | low)  & 0xFF );
+		}  
+
+		return ret;
 	}
 
 	/**

@@ -33,6 +33,7 @@ package js.html;
 **/
 enum abstract ServiceWorkerState(String)
 {
+	var PARSED = "parsed";
 	var INSTALLING = "installing";
 	var INSTALLED = "installed";
 	var ACTIVATING = "activating";

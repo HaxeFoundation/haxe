@@ -337,11 +337,11 @@ struct
 
 	let configure gen runtime_cl =
 		let basic = gen.gcon.basic in
-		let tchar = match ( get_type gen (["cs"], "Char16") ) with
+		(* let tchar = match ( get_type gen (["cs"], "Char16") ) with
 			| TTypeDecl t -> TType(t,[])
 			| TAbstractDecl a -> TAbstract(a,[])
 			| _ -> assert false
-		in
+		in *)
 		let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
 		let ti64 = match ( get_type gen (["cs"], "Int64") ) with | TTypeDecl t -> TType(t,[]) | TAbstractDecl a -> TAbstract(a,[]) | _ -> assert false in
 		let boxed_ptr =
@@ -382,7 +382,7 @@ struct
 					{ e with eexpr = TField(run ef, FDynamic "ToUpperInvariant") }
 
 				| TCall( { eexpr = TField(_, FStatic({ cl_path = [], "String" }, { cf_name = "fromCharCode" })) }, [cc] ) ->
-					{ e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); make_int gen.gcon.basic 1 cc.epos]) }
+					{ e with eexpr = TCall(mk_static_field_access_infer string_ext "fromCharCode" e.epos [], [run cc]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
@@ -630,7 +630,6 @@ let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 		| (Meta.Internal,[],_) :: meta -> get_class_modifiers meta cl_type "internal" cl_modifiers
 		(* no abstract for now | (":abstract",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("abstract" :: cl_modifiers)
 		| (":static",[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("static" :: cl_modifiers) TODO: support those types *)
-		| (Meta.Final,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("sealed" :: cl_modifiers)
 		| (Meta.Unsafe,[],_) :: meta -> get_class_modifiers meta cl_type cl_access ("unsafe" :: cl_modifiers)
 		| _ :: meta -> get_class_modifiers meta cl_type cl_access cl_modifiers
 
@@ -1847,7 +1846,7 @@ let generate con =
 													acc
 
 												(* non-sealed class *)
-												| TInst ({ cl_interface = false; cl_meta = meta},_) when not (Meta.has Meta.Final meta) ->
+												| TInst ({ cl_interface = false; cl_final = false},_) ->
 													base_class_constraints := (t_s t) :: !base_class_constraints;
 													acc;
 
@@ -1907,10 +1906,10 @@ let generate con =
 			let fn_is_final = function
 				| None -> true
 				| Some ({ cf_kind = Method mkind } as m) ->
-					(match mkind with | MethInline -> true | _ -> false) || Meta.has Meta.Final m.cf_meta
+					(match mkind with | MethInline -> true | _ -> false) || m.cf_final
 				| _ -> assert false
 			in
-			let is_virtual = not (is_interface || is_final || Meta.has Meta.Final prop.cf_meta || fn_is_final get || fn_is_final set) in
+			let is_virtual = not (is_interface || is_final || prop.cf_final || fn_is_final get || fn_is_final set) in
 
 			let fn_is_override = function
 				| Some cf -> List.memq cf cl.cl_overrides
@@ -2045,7 +2044,7 @@ let generate con =
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
-						gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+						gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 					) cf.cf_overloads
 				| Var _ | Method MethDynamic -> ()
 				| Method _ when is_new && Meta.has Meta.Struct cl.cl_meta && fst (get_fun cf.cf_type) = [] ->
@@ -2065,15 +2064,15 @@ let generate con =
 							| _ -> ());
 						List.iter (fun cf ->
 							if cl.cl_interface || cf.cf_expr <> None then
-								gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+								gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 						) cf.cf_overloads;
 				| Method mkind ->
 					List.iter (fun cf ->
 						if cl.cl_interface || cf.cf_expr <> None then
-							gen_class_field w ~is_overload:true is_static cl (Meta.has Meta.Final cf.cf_meta) cf
+							gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
 					) cf.cf_overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
-					let is_virtual = if not is_virtual || Meta.has Meta.Final cf.cf_meta then false else is_virtual in
+					let is_virtual = if not is_virtual || cf.cf_final then false else is_virtual in
 					let is_override = List.memq cf cl.cl_overrides in
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
 						| "Equals", TFun([_,_,targ], tret) ->
@@ -2085,7 +2084,7 @@ let generate con =
 					in
 					let is_override = if Meta.has (Meta.Custom "?prop_impl") cf.cf_meta then false else is_override in
 
-					let is_virtual = is_virtual && not (Meta.has Meta.Final cl.cl_meta) && not (is_interface) in
+					let is_virtual = is_virtual && not cl.cl_final && not (is_interface) in
 					let visibility = if is_interface then "" else "public" in
 
 					let visibility, modifiers = get_fun_modifiers cf.cf_meta visibility [] in
@@ -2410,7 +2409,8 @@ let generate con =
 			in
 
 			let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
-			let is_final = clt = "struct" || Meta.has Meta.Final cl.cl_meta in
+			let modifiers = if cl.cl_final then "sealed" :: modifiers else modifiers in
+			let is_final = clt = "struct" || cl.cl_final in
 
 			let modifiers = [access] @ modifiers in
 			print w "%s %s %s" (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
@@ -2773,17 +2773,13 @@ let generate con =
 		let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" null_pos [] in
 
 		let rcf_static_insert, rcf_static_remove =
-			if erase_generics then begin
-				let get_specialized_postfix t = match t with
-					| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
-					| TAnon _ | TDynamic _ -> "Dynamic"
-					| _ -> print_endline (debug_type t); assert false
-				in
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
-			end else
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "insert" null_pos [t]),
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "remove" null_pos [t])
+			let get_specialized_postfix t = match t with
+				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
+				| TAnon _ | TDynamic _ -> "Dynamic"
+				| _ -> print_endline (debug_type t); assert false
+			in
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
 		in
 
 		let can_be_float = like_float in

@@ -313,6 +313,11 @@ typedef Var = {
 		The expression of the variable, if available.
 	**/
 	var expr : Null<Expr>;
+
+	/**
+		Whether or not the variable can be assigned to.
+	**/
+	var ?isFinal : Bool;
 }
 
 /**
@@ -537,7 +542,7 @@ enum DisplayKind {
 	DKDot;
 	DKStructure;
 	DKMarked;
-	DKPattern;
+	DKPattern( outermost : Bool );
 }
 
 /**
@@ -583,6 +588,11 @@ enum ComplexType {
 		Represents a type with a name.
 	**/
 	TNamed( n : String, t : ComplexType );
+
+	/**
+		Represents an intersection type `T1 & T2 & ... & TN`.
+	**/
+	TIntersection(tl:Array<ComplexType>);
 }
 
 /**
@@ -921,7 +931,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool );
+	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool, ?isFinal : Bool );
 
 	/**
 		Represents an alias/typedef kind.

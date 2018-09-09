@@ -43,14 +43,15 @@ let value_string value =
 		| VFalse -> "Bool","false"
 		| VInt32 i -> "Int",Int32.to_string i
 		| VFloat f -> "Float",string_of_float f
-		| VEnumValue ev -> rev_hash_s ev.epath,Rope.to_string (s_enum_value 0 ev)
+		| VEnumValue ev -> rev_hash_s ev.epath,EvalString.get (s_enum_value 0 ev)
 		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
-		| VString(_,s) -> "String","\"" ^ (Ast.s_escape (Lazy.force s)) ^ "\""
-		| VArray va -> "Array",Rope.to_string (s_array (depth + 1) va)
-		| VVector vv -> "Vector",Rope.to_string (s_vector (depth + 1) vv)
+		| VString s -> "String","\"" ^ (Ast.s_escape (EvalString.get s)) ^ "\""
+		| VArray va -> "Array",EvalString.get (s_array (depth + 1) va)
+		| VVector vv -> "Vector",EvalString.get (s_vector (depth + 1) vv)
 		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
-		| VPrototype proto -> "Anonymous",Rope.to_string (s_proto_kind proto)
+		| VPrototype proto -> "Anonymous",EvalString.get (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "Function","fun"
+		| VLazy f -> value_string depth (!f())
 	in
 	let s_type,s_value = value_string 0 value in
 	Printf.sprintf "%s = %s" s_type s_value

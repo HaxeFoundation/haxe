@@ -47,6 +47,24 @@ let write_resource dir name data =
 	close_out ch
 
 (**
+	Copy file from `src` to `dst`.
+	If `dst` exists it will be overwritten.
+*)
+let copy_file src dst =
+	let buffer_size = 8192 in
+	let buffer = String.create buffer_size in
+	let fd_in = Unix.openfile src [O_RDONLY] 0 in
+	let fd_out = Unix.openfile dst [O_WRONLY; O_CREAT; O_TRUNC] 0o644 in
+	let rec copy_loop () =
+		match Unix.read fd_in buffer 0 buffer_size with
+			|  0 -> ()
+			| r -> ignore (Unix.write fd_out buffer 0 r); copy_loop ()
+	in
+	copy_loop ();
+	Unix.close fd_in;
+	Unix.close fd_out
+
+(**
 	Get list of keys in Hashtbl
 *)
 let hashtbl_keys tbl = Hashtbl.fold (fun key _ lst -> key :: lst) tbl []
@@ -123,9 +141,9 @@ let bool_type_path = ([], "Bool")
 let std_type_path = ([], "Std")
 
 (**
-	Stub to use when you need a `Ast.pos` instance, but don't have one
+	The name of a file with polyfills for some functions which are not available in PHP 7.0
 *)
-let dummy_pos = { pfile = ""; pmin = 0; pmax = 0 }
+let polyfills_file = "_polyfills.php"
 
 (**
 	Check if specified string is a reserved word in PHP
@@ -338,7 +356,7 @@ let get_void ctx : Type.t =
 			List.iter find ctx.types;
 			match !void with
 				| Some value -> value
-				| None -> fail dummy_pos __POS__
+				| None -> fail null_pos __POS__
 
 (**
 	@return `tclass` instance for `php.Boot`
@@ -356,7 +374,7 @@ let get_boot ctx : tclass =
 			List.iter find ctx.types;
 			match !boot with
 				| Some value -> value
-				| None -> fail dummy_pos __POS__
+				| None -> fail null_pos __POS__
 
 (**
 	@return `expr` wrapped in parenthesis
@@ -1398,7 +1416,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method pos =
 			match expr_hierarchy with
 				| { epos = pos } :: _ -> pos
-				| _ -> dummy_pos
+				| _ -> null_pos
 		(**
 			Indicates whether current expression nesting level is a top level of a block
 		*)
@@ -1540,7 +1558,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Writes fixed amount of empty lines (E.g. between methods)
 		*)
 		method write_empty_lines =
-			self#write "\n\n"
+			self#write "\n"
 		(**
 			Writes current indentation to output buffer
 		*)
@@ -1581,7 +1599,12 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| None ->
 					self#write_expr value_expr;
 				| Some key_str ->
-					self#write ("\"" ^ (String.escaped key_str) ^ "\" => ");
+					let key_str =
+						Str.global_replace (Str.regexp "\\$")
+						"\\$"
+						(String.escaped key_str)
+					in
+					self#write ("\"" ^ key_str ^ "\" => ");
 					self#write_expr value_expr
 			);
 			if separate_line then self#write ",\n"
@@ -1635,8 +1658,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TSwitch (switch, cases, default ) -> self#write_expr_switch switch cases default
 				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
-				| TBreak -> self#write_expr_loop_flow "break"
-				| TContinue -> self#write_expr_loop_flow "continue"
+				| TBreak -> self#write "break"
+				| TContinue -> self#write "continue"
 				| TThrow expr -> self#write_expr_throw expr
 				| TCast (expr, mtype) -> self#write_expr_cast expr mtype
 				| TMeta (_, expr) -> self#write_expr expr
@@ -1645,23 +1668,6 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| TIdent s -> self#write s
 			);
 			expr_hierarchy <- List.tl expr_hierarchy
-		(**
-			Writes `continue N` or `break N` with required N depending on nearest parent loop and amount of `switch` between loop and
-			`continue/break`
-		*)
-		method write_expr_loop_flow word =
-			let rec count_N parent_exprs count =
-				match parent_exprs with
-					| [] -> count
-					| { eexpr = TWhile _ } :: _ -> count
-					| { eexpr = TSwitch _ } :: rest -> count_N rest (count + 1)
-					| _ :: rest -> count_N rest count
-			in
-			let count = count_N expr_hierarchy 1 in
-			if count > 1 then
-				self#write (word ^ " " ^ (string_of_int count))
-			else
-				self#write word
 		(**
 			Writes TConst to output buffer
 		*)
@@ -2195,9 +2201,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_expr_field expr access =
 			match access with
 				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
-					self#write "strlen(";
+					self#write "mb_strlen(";
 					self#write_expr expr;
-					self#write ")"
+					self#write ", 'UTF-8')"
 				| FInstance (_, _, field) -> self#write_expr_for_field_access expr "->" (field_name field)
 				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with
@@ -2248,7 +2254,9 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write "()"
 				end
 		(**
-			Writes field access on Dynamic expression to output buffer
+			Writes field access on Dynamic expression to output buffer.
+			Returns `true` if requested field is most likely belongs to String (and field resolution will be handled at runtime).
+			Otherwise returns `false`
 		*)
 		method write_expr_field_if_string expr field_name =
 			(* Special case for String fields *)
@@ -2685,39 +2693,63 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Writes TSwitch to output buffer
 		*)
 		method write_expr_switch switch cases default =
-			let write_case (conditions, expr) =
-				List.iter
-					(fun condition ->
+			let write_switch =
+				match switch.eexpr with
+					| TLocal _ ->
+						(fun () -> self#write_expr switch)
+					| TParenthesis ({ eexpr = TLocal _ } as e) ->
+						(fun () -> self#write_expr e)
+					| _ ->
+						self#write "$__hx__switch = ";
+						self#write_expr switch;
+						self#write ";\n";
 						self#write_indentation;
-						self#write "case ";
-						self#write_expr condition;
-						self#write ":\n";
-					)
-					conditions;
-				self#indent_more;
-				self#write_indentation;
-				self#write_as_block ~inline:true expr;
-				self#write_statement "break";
-				self#indent_less
+						(fun () -> self#write "$__hx__switch")
 			in
-			self#write "switch ";
-			self#write_expr switch;
-			self#write " {\n";
-			self#indent_more;
-			List.iter write_case cases;
-			(match default with
+			let rec write_conditions conditions =
+				match conditions with
+					| [] -> ()
+					| condition :: rest ->
+						if need_boot_equal switch condition then
+							begin
+								self#write ((self#use boot_type_path) ^ "::equal(");
+								write_switch ();
+								self#write ", ";
+								self#write_expr condition;
+								self#write ")"
+							end
+						else
+							begin
+								write_switch ();
+								self#write " === ";
+								self#write_expr condition;
+							end;
+						match rest with
+							| [] -> ()
+							| _ ->
+								self#write " || ";
+								write_conditions rest
+			in
+			let rec write_cases cases =
+				match cases with
+					| [] -> ()
+					| (conditions, expr) :: rest ->
+						self#write "if (";
+						write_conditions conditions;
+						self#write ") ";
+						self#write_as_block expr;
+						match rest with
+							| [] -> ()
+							| _ ->
+								self#write " else ";
+								write_cases rest
+			in
+			write_cases cases;
+			match default with
 				| None -> ()
 				| Some expr ->
-					self#write_line "default:";
-					self#indent_more;
-					self#write_indentation;
-					self#write_as_block ~inline:true expr;
-					self#write_statement "break";
-					self#indent_less
-			);
-			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+					self#write " else ";
+					self#write_as_block expr;
 		(**
 			Write TEnumParameter expression to output buffer
 		*)
@@ -2863,8 +2895,10 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 				writer#write_empty_lines;
 				let boot_class = writer#use boot_type_path in
 				(* Boot initialization *)
-				if boot_type_path = self#get_type_path then
-					writer#write_statement (boot_class ^ "::__hx__init()");
+				if boot_type_path = self#get_type_path then begin
+					writer#write_statement ("require_once __DIR__.'/" ^ polyfills_file ^ "'");
+					writer#write_statement (boot_class ^ "::__hx__init()")
+				end;
 				let haxe_class = match wrapper#get_type_path with (path, name) -> String.concat "." (path @ [name]) in
 				writer#write_statement (boot_class ^ "::registerClass(" ^ (self#get_name) ^ "::class, '" ^ haxe_class ^ "')");
 				self#write_rtti_meta;
@@ -2988,12 +3022,14 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#write_statement "$called = true";
 			writer#write "\n";
 			writer#reset;
+			writer#indent 2;
 			(match wrapper#get_magic_init with
 				| None -> ()
 				| Some expr -> writer#write_fake_block expr
 			);
 			writer#write "\n";
 			writer#reset;
+			writer#indent 2;
 			self#write_hx_init_body;
 			writer#indent 1;
 			writer#write_line "}"
@@ -3185,7 +3221,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if type should be declared as `final`
 		*)
 		method is_final =
-			if not (Meta.has Meta.Final cls.cl_meta) then
+			if not cls.cl_final then
 				false
 			else begin
 				let hacked = ref false in
@@ -3204,7 +3240,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if `field` should be declared as `final`
 		*)
 		method is_final_field (field:tclass_field) : bool =
-			Meta.has Meta.Final field.cf_meta
+			field.cf_final
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
@@ -3626,6 +3662,8 @@ class generator (ctx:context) =
 		val root_dir = ctx.file
 		val mutable init_types = []
 		val mutable boot : (type_builder * string) option  = None
+		val mutable polyfills_source_path : string option = None
+		val mutable polyfills_dest_path : string option = None
 		(**
 			Perform required actions before actual php files generation
 		*)
@@ -3648,7 +3686,13 @@ class generator (ctx:context) =
 				| None -> ()
 			);
 			if builder#get_type_path = boot_type_path then
-				boot <- Some (builder, filename)
+				begin
+					boot <- Some (builder, filename);
+					let source_dir = Filename.dirname builder#get_source_file in
+					polyfills_source_path <- Some (Filename.concat source_dir polyfills_file);
+					let dest_dir = Filename.dirname filename in
+					polyfills_dest_path <- Some (Filename.concat dest_dir polyfills_file)
+				end
 			else if builder#has_magic_init then
 				init_types <- (get_full_type_name (namespace, name)) :: init_types
 		(**
@@ -3657,6 +3701,9 @@ class generator (ctx:context) =
 		method finalize : unit =
 			self#generate_magic_init;
 			self#generate_entry_point;
+			match polyfills_source_path, polyfills_dest_path with
+				| Some src, Some dst -> copy_file src dst
+				| _ -> fail null_pos __POS__
 		(**
 			Generates calls to static __init__ methods in Boot.php
 		*)
@@ -3665,7 +3712,7 @@ class generator (ctx:context) =
 				| [] -> ()
 				| _ ->
 					match boot with
-						| None -> fail dummy_pos __POS__
+						| None -> fail null_pos __POS__
 						| Some (_, filename) ->
 							let channel = open_out_gen [Open_creat; Open_text; Open_append] 0o644 filename in
 							List.iter
@@ -3694,7 +3741,7 @@ class generator (ctx:context) =
 					output_string channel "	}\n";
 					output_string channel ");\n";
 					(match boot with
-						| None -> fail dummy_pos __POS__
+						| None -> fail null_pos __POS__
 						| Some (builder, filename) ->
 							let boot_class = get_full_type_name (add_php_prefix ctx builder#get_type_path) in
 							output_string channel (boot_class ^ "::__hx__init();\n")

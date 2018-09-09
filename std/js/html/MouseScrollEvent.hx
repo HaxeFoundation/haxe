@@ -39,5 +39,5 @@ extern class MouseScrollEvent extends MouseEvent
 	
 	var axis(default,null) : Int;
 	
-	function initMouseScrollEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, screenX : Int, screenY : Int, clientX : Int, clientY : Int, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, button : Int, relatedTarget : EventTarget, axis : Int ) : Void;
+	function initMouseScrollEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?detail : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?button : Int = 0, ?relatedTarget : EventTarget, ?axis : Int = 0 ) : Void;
 }

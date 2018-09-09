@@ -52,6 +52,16 @@ class String {
 			return null;
 		return bytes.getUI16(index << 1);
 	}
+	
+	inline function findChar(start:Int,len:Int,src:hl.Bytes,srcLen:Int) : Int {
+		var p = 0;
+		while( true ) {
+			p = bytes.find(start,len-start,src,0,srcLen);
+			if( p < 0 || p & 1 == 0 ) break;
+			start = p + 1;
+		}
+		return p;
+	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		var startByte = 0;
@@ -60,7 +70,7 @@ class String {
 				return -1;
 			startByte = startIndex << 1;
 		}
-		var p = bytes.find(startByte, (length << 1) - startByte, str.bytes, 0, str.length << 1);
+		var p = findChar(startByte, length << 1, str.bytes, str.length << 1);
 		if( p > 0 ) p >>= 1;
 		return p;
 	}
@@ -72,7 +82,7 @@ class String {
 			start = startIndex;
 		start <<= 1;
 		while( true ) {
-			var p = bytes.find(last, (length << 1) - last, str.bytes, 0, str.length << 1);
+			var p = findChar(last, length << 1, str.bytes, str.length << 1);
 			if( p < 0 || p > start )
 				return (last >> 1) - 1;
 			last = p + 2;
@@ -94,7 +104,7 @@ class String {
 		var pos = 0;
 		var dlen = delimiter.length;
 		while( true ) {
-			var p = bytes.find(pos << 1, (length - pos) << 1, delimiter.bytes, 0, dlen << 1);
+			var p = findChar(pos << 1, length << 1, delimiter.bytes, dlen << 1);
 			if( p < 0 ) {
 				out.push(substr(pos, length-pos));
 				break;

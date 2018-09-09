@@ -314,7 +314,7 @@ class TestPython extends Test {
 	var _s:String;
 
 	var s(get, null):String;
-	var s2(null, set_s2):String;
+	var s2(null, set):String;
 	var s3(get, set):String;
 
 	function get_s() return s;

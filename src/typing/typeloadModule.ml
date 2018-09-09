@@ -317,7 +317,7 @@ let module_pass_1 ctx m tdecls loadp =
 					) a.a_meta;
 					a.a_impl <- Some c;
 					c.cl_kind <- KAbstractImpl a;
-					c.cl_meta <- (Meta.Final,[],null_pos) :: c.cl_meta
+					c.cl_final <- true;
 				| _ -> assert false);
 				acc
 		) in
@@ -340,8 +340,11 @@ let init_module_type ctx context_init do_init (decl,p) =
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
 		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
 			ImportHandling.add_import_position ctx.com p path;
-		| DMStatistics | DMUsage _ ->
+		| DMStatistics ->
 			ImportHandling.add_import_position ctx.com p path;
+		| DMUsage _ ->
+			ImportHandling.add_import_position ctx.com p path;
+			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 		| _ ->
 			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
 	in
@@ -361,7 +364,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				ctx.m.wildcard_packages <- (List.map fst pack,p) :: ctx.m.wildcard_packages
 			| _ ->
 				(match List.rev path with
-				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx None NoValue) CRImport None;
+				| [] -> DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRImport None;
 				| (_,p) :: _ -> error "Module name must start with an uppercase letter" p))
 		| (tname,p2) :: rest ->
 			let p1 = (match pack with [] -> p2 | (_,p1) :: _ -> p1) in
@@ -473,7 +476,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| (s1,_) :: sl ->
 				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
 			| [] ->
-				DisplayException.raise_fields (DisplayToplevel.collect ctx None NoValue) CRUsing None;
+				DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
 		in
 		(* do the import first *)
 		let types = (match t.tsub with
@@ -508,8 +511,19 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		c.cl_extern <- List.mem HExtern herits;
-		c.cl_interface <- List.mem HInterface herits;
+		List.iter (function
+			| HExtern -> c.cl_extern <- true
+			| HInterface -> c.cl_interface <- true
+			| HFinal -> c.cl_final <- true
+			| _ -> ()
+		) herits;
+		List.iter (fun (m,_,p) ->
+			if m = Meta.Final then begin
+				c.cl_final <- true;
+				(* if p <> null_pos && not (Define.is_haxe3_compat ctx.com.defines) then
+					ctx.com.warning "`@:final class` is deprecated in favor of `final class`" p; *)
+			end
+		) d.d_meta;
 		let prev_build_count = ref (!build_count - 1) in
 		let build() =
 			let fl = TypeloadCheck.Inheritance.set_heritance ctx c herits p in
@@ -594,7 +608,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let init () = List.iter (fun f -> f()) !context_init in
 		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
 			match e with
-			| EVars [_,Some (CTAnonymous fields,p),None] ->
+			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t
@@ -630,7 +644,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			let rt = (match c.ec_type with
 				| None -> et
 				| Some (t,pt) ->
-					let t = load_complex_type ctx true p (t,pt) in
+					let t = load_complex_type ctx true (t,pt) in
 					(match follow t with
 					| TEnum (te,_) when te == e ->
 						()
@@ -701,7 +715,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
-		let tt = load_complex_type ctx true p d.d_data in
+		let tt = load_complex_type ctx true d.d_data in
 		let tt = (match fst d.d_data with
 		| CTExtend _ -> tt
 		| CTPath { tpackage = ["haxe";"macro"]; tname = "MacroType" } ->
@@ -754,7 +768,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let ctx = { ctx with type_params = a.a_params } in
 		let is_type = ref false in
 		let load_type t from =
-			let t = load_complex_type ctx true p t in
+			let t = load_complex_type ctx true t in
 			let t = if not (Meta.has Meta.CoreType a.a_meta) then begin
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
@@ -779,7 +793,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			| AbOver t ->
 				if a.a_impl = None then error "Abstracts with underlying type must have an implementation" a.a_pos;
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
-				let at = load_complex_type ctx true p t in
+				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
 					begin match follow at with
 						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos

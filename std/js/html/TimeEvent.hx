@@ -37,5 +37,5 @@ extern class TimeEvent extends Event
 	var detail(default,null) : Int;
 	var view(default,null) : Window;
 	
-	function initTimeEvent( aType : String, aView : Window, aDetail : Int ) : Void;
+	function initTimeEvent( aType : String, ?aView : Window, ?aDetail : Int = 0 ) : Void;
 }

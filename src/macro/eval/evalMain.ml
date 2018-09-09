@@ -121,8 +121,6 @@ let create com api is_macro =
 		toplevel = 	vobject {
 			ofields = [||];
 			oproto = fake_proto key_eval_toplevel;
-			oextra = IntMap.empty;
-			oremoved = IntMap.empty;
 		};
 		eval = eval;
 		exception_stack = [];
@@ -226,13 +224,13 @@ let value_signature v =
 		| VInstance {ikind = IDate f} ->
 			cache v (fun () ->
 				addc 'v';
-				add (Rope.to_string (s_date f))
+				add (EvalString.get (s_date f))
 			)
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun (_,s) value ->
-					adds (Lazy.force s);
+				StringHashtbl.iter (fun s value ->
+					adds (Lazy.force s.sstring);
 					loop value
 				) map;
 				addc 'h'
@@ -278,8 +276,8 @@ let value_signature v =
 				loop_fields fields;
 				addc 'g';
 			)
-		| VString(_,s) ->
-			adds (Lazy.force s)
+		| VString s ->
+			adds (Lazy.force s.sstring)
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -316,6 +314,8 @@ let value_signature v =
 				add (string_of_int !function_count);
 				incr function_count
 			)
+		| VLazy f ->
+			loop (!f())
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash_s name);
@@ -341,7 +341,15 @@ let setup get_api =
 	let api = get_api (fun() -> (get_ctx()).curapi.get_com()) (fun() -> (get_ctx()).curapi) in
 	List.iter (fun (n,v) -> match v with
 		| VFunction(f,b) ->
-			let v = VFunction ((fun vl -> try f vl with Sys_error msg | Failure msg -> exc_string msg),b) in
+			let f vl = try
+				f vl
+			with
+			| Sys_error msg | Failure msg ->
+				exc_string msg
+			| MacroApi.Invalid_expr ->
+				exc_string "Invalid expression"
+			in
+			let v = VFunction (f,b) in
 			Hashtbl.replace EvalStdLib.macro_lib n v
 		| _ -> assert false
 	) api;
@@ -383,13 +391,13 @@ let rec value_to_expr v p =
 		in
 		make_path mt
 	in
-	match v with
+	match vresolve v with
 	| VNull -> (EConst (Ident "null"),p)
 	| VTrue -> (EConst (Ident "true"),p)
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString(r,s) -> (EConst (String (Lazy.force s)),p)
+	| VString s -> (EConst (String (Lazy.force s.sstring)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
 			let n = rev_hash_s k in

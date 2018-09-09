@@ -23,7 +23,7 @@
 import lua.Lua;
 import lua.Table;
 import lua.Boot;
-import lua.NativeStringTools;
+import lua.lib.luautf8.Utf8;
 
 @:coreApi
 @:extern
@@ -35,7 +35,7 @@ class String {
 
 	@:keep
 	static function __index(s:Dynamic, k:Dynamic) : Dynamic {
-		if (k == "length") return NativeStringTools.len(s);
+		if (k == "length") return Utf8.len(s);
 		else if (Reflect.hasField(untyped String.prototype, k)) return untyped String.prototype[k];
 		else if (__oldindex != null) {
 			if (Lua.type(__oldindex) == "function"){
@@ -48,12 +48,12 @@ class String {
 		else return null;
 	}
 
-	public inline function toUpperCase() : String return NativeStringTools.upper(this);
-	public inline function toLowerCase() : String return NativeStringTools.lower(this);
+	public inline function toUpperCase() : String return Utf8.upper(this);
+	public inline function toLowerCase() : String return Utf8.lower(this);
 	public inline function indexOf( str : String, ?startIndex : Int ) : Int {
 		if (startIndex == null) startIndex = 1;
 		else startIndex += 1;
-		var r = NativeStringTools.find(this, str, startIndex, true).begin;
+		var r = Utf8.find(this, str, startIndex, true).begin;
 		if (r != null && r > 0) return r-1;
 		else return -1;
 	}
@@ -77,7 +77,7 @@ class String {
 		while (idx != null){
 			var newidx = 0;
 			if (delimiter.length > 0){
-				newidx = NativeStringTools.find(this, delimiter, idx, true).begin;
+				newidx = Utf8.find(this, delimiter, idx, true).begin;
 			} else if (idx >= this.length){
 				newidx = null;
 			} else {
@@ -85,11 +85,11 @@ class String {
 			}
 
 			if (newidx != null){
-				var match = NativeStringTools.sub(this, idx, newidx-1).match;
+				var match = Utf8.sub(this, idx, newidx-1).match;
 				ret.push(match);
 				idx = newidx + delimiter.length;
 			} else {
-				ret.push(NativeStringTools.sub(this,idx,this.length).match);
+				ret.push(Utf8.sub(this,idx,this.length).match);
 				idx = null;
 			}
 		}
@@ -105,20 +105,17 @@ class String {
 		if (startIndex < 0) startIndex = 0;
 		if (endIndex < startIndex) {
 			// swap the index positions
-			return NativeStringTools.sub(this, endIndex+1, startIndex).match;
+			return Utf8.sub(this, endIndex+1, startIndex).match;
 		} else {
-			return NativeStringTools.sub(this, startIndex+1, endIndex).match;
+			return Utf8.sub(this, startIndex+1, endIndex).match;
 		}
 	}
 
-	function get_length() : Int {
-		return NativeStringTools.len(this);
-	}
 	public inline function charAt( index : Int) : String {
-		return NativeStringTools.sub(this,index+1, index+1).match;
+		return Utf8.sub(this,index+1, index+1).match;
 	}
 	public inline function charCodeAt( index : Int) : Null<Int> {
-		return NativeStringTools.byte(this,index+1);
+		return Utf8.byte(this,index+1);
 	}
 
 	public inline function substr( pos : Int, ?len : Int ) : String {
@@ -126,11 +123,11 @@ class String {
 		else if (len < 0) len = length + len;
 		if (pos < 0) pos = length + pos;
 		if (pos < 0) pos = 0;
-		return NativeStringTools.sub(this, pos + 1, pos+len).match;
+		return Utf8.sub(this, pos + 1, pos+len).match;
 	}
 
 	public inline static function fromCharCode( code : Int ) : String {
-		return NativeStringTools.char(code);
+		return Utf8.char(code);
 	}
 
 }

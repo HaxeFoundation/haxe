@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `Client` interface of the ServiceWorker API represents the scope of a service worker client. A service worker client is either a document in a browser context or a `SharedWorker`, which is controlled by an active worker. A client object acts as a snapshot representation of its associated service worker client in the scope of a service worker.
+	The `Client` interface represents an executable context such as a `Worker`, or a `SharedWorker`. `Window` clients are represented by the more-specific `WindowClient`. You can get `Client`/`WindowClient` objects from methods such as `Clients.matchAll()` and `Clients.get()`.
 
 	Documentation [Client](https://developer.mozilla.org/en-US/docs/Web/API/Client) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Client$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -36,24 +36,25 @@ extern class Client
 {
 	
 	/**
-		The URL of the current service worker client.
+		The URL of the client as a string.
 	**/
 	var url(default,null) : String;
-	
-	/**
-		Indicates the type of browsing context of the current client. This value can be one of `auxiliary`, `top-level`, `nested`, or `none`.
-	**/
 	var frameType(default,null) : FrameType;
 	
 	/**
-		Returns the universally unique identifier of the `Client` object.
+		The client's type as a string. It can be "`window"`, "`worker"`, or "`sharedworker"`.
+	**/
+	var type(default,null) : ClientType;
+	
+	/**
+		The universally unique identifier of the client as a string.
 	**/
 	var id(default,null) : String;
 	
-	/** @throws DOMError */
 	
 	/**
-		Allows a service worker to send a message to a `ServiceWorkerClient`.
+		Sends a message to the client.
+		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
 }

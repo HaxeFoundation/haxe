@@ -38,8 +38,8 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return wrap(Global.array_merge(arr, a.arr));
 	}
 
-	public function copy():Array<T> {
-		return wrap(arr);
+	public inline function copy():Array<T> {
+		return Syntax.clone(this);
 	}
 
 	public inline function filter(f:T->Bool):Array<T> {

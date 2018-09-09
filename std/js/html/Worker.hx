@@ -39,19 +39,24 @@ extern class Worker extends EventTarget
 		An `EventListener` called whenever a `MessageEvent` of type `message` bubbles through the worker — i.e. when a message is sent to the parent document from the worker via `DedicatedWorkerGlobalScope.postMessage`. The message is stored in the event's `MessageEvent.data` property.
 	**/
 	var onmessage : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `messageerror` event is raised.
+	**/
+	var onmessageerror : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( scriptURL : String ) : Void;
+	function new( scriptURL : String, ?options : WorkerOptions ) : Void;
 	
 	/**
 		Immediately terminates the worker. This does not offer the worker an opportunity to finish its operations; it is simply stopped at once. ServiceWorker instances do not support this method.
 	**/
 	function terminate() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sends a message — which can consist of `any` JavaScript object — to the worker's inner scope.
+		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
 }

@@ -129,7 +129,6 @@ package cs.internal;
 
 	public static function lookupHash(key:Int):String
 	{
-		//start of binary search algorithm
 		var ids = fieldIds;
 		var min = 0;
 		var max = length;
@@ -157,7 +156,6 @@ package cs.internal;
 
 		var key = doHash(s);
 
-		//start of binary search algorithm
 		var ids = fieldIds,
 		    fld = fields;
 		var min = 0;
@@ -188,15 +186,8 @@ package cs.internal;
 			if (len != length) //race condition which will very rarely happen - other thread modified sooner.
 				return hash(s); //since we already own the lock, this second try will always succeed
 
-#if erase_generics
 			fieldIds = insertInt(fieldIds, length, min, key);
 			fields = insertString(fields, length, min, s);
-#else
-			insert(fieldIds, length, min, key);
-			insert(fields, length, min, s);
-			// ids.insert(min, key);
-			// fields.insert(min, s);
-#end
 			++length;
 		});
 		return key;
@@ -209,7 +200,7 @@ package cs.internal;
 
 		while (min < max)
 		{
-			var mid = Std.int((max + min) / 2); //overflow safe
+			var mid = Std.int((max + min) / 2);
 			var imid = hashs[mid];
 			if (hash < imid)
 			{
@@ -224,67 +215,17 @@ package cs.internal;
 		return ~min;
 	}
 
-	#if !erase_generics
-	static function remove<T>(a:cs.NativeArray<T>, length:Int, pos:Int)
-	{
-		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
-		a[length - 1] = null;
-	}
-
-	static function insert<T>(a:cs.Ref<cs.NativeArray<T>>, length:Int, pos:Int, x:T)
-	{
-		var capacity = a.Length;
-		if (pos == length)
-		{
-			if (capacity == length)
-			{
-				var newarr = new NativeArray((length << 1) + 1);
-				a.CopyTo(newarr, 0);
-				a = newarr;
-			}
-		}
-		else if (pos == 0)
-		{
-			if (capacity == length)
-			{
-				var newarr = new NativeArray((length << 1) + 1);
-				cs.system.Array.Copy(a, 0, newarr, 1, length);
-				a = newarr;
-			}
-			else
-			{
-				cs.system.Array.Copy(a, 0, a, 1, length);
-			}
-		}
-		else
-		{
-			if (capacity == length)
-			{
-				var newarr = new NativeArray((length << 1) + 1);
-				cs.system.Array.Copy(a, 0, newarr, 0, pos);
-				cs.system.Array.Copy(a, pos, newarr, pos + 1, length - pos);
-				a = newarr;
-			}
-			else
-			{
-				cs.system.Array.Copy(a, pos, a, pos + 1, length - pos);
-				cs.system.Array.Copy(a, 0, a, 0, pos);
-			}
-		}
-		a[pos] = x;
-	}
-	#else
-	static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int)
+	public static function removeInt(a:cs.NativeArray<Int>, length:Int, pos:Int)
 	{
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = 0;
 	}
-	static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int)
+	public static function removeFloat(a:cs.NativeArray<Float>, length:Int, pos:Int)
 	{
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = 0;
 	}
-	static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int)
+	public static function removeDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int)
 	{
 		cs.system.Array.Copy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = null;
@@ -335,13 +276,12 @@ package cs.internal;
 		return a;
 	}
 
-	static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
-	static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
-	static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
-	static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<String> return __insert(a, length, pos, x);
-	#end
+	public static function insertInt(a:cs.NativeArray<Int>, length:Int, pos:Int, x:Int):cs.NativeArray<Int> return __insert(a, length, pos, x);
+	public static function insertFloat(a:cs.NativeArray<Float>, length:Int, pos:Int, x:Float):cs.NativeArray<Float> return __insert(a, length, pos, x);
+	public static function insertDynamic(a:cs.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):cs.NativeArray<Dynamic> return __insert(a, length, pos, x);
+	public static function insertString(a:cs.NativeArray<String>, length:Int, pos:Int, x:String):cs.NativeArray<String> return __insert(a, length, pos, x);
 
-	static function getHashConflict(head:FieldHashConflict, hash:Int, name:String):FieldHashConflict {
+	public static function getHashConflict(head:FieldHashConflict, hash:Int, name:String):FieldHashConflict {
 		while (head != null) {
 			if (head.hash == hash && head.name == name) {
 				return head;
@@ -351,7 +291,7 @@ package cs.internal;
 		return null;
 	}
 
-	static function setHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String, value:Dynamic):Void {
+	public static function setHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String, value:Dynamic):Void {
 		var node = head;
 		while (node != null) {
 			if (node.hash == hash && node.name == name) {
@@ -363,7 +303,7 @@ package cs.internal;
 		head = new FieldHashConflict(hash, name, value, head);
 	}
 
-	static function deleteHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String):Bool {
+	public static function deleteHashConflict(head:cs.Ref<FieldHashConflict>, hash:Int, name:String):Bool {
 		// no conflicting fields at all
 		if (head == null) {
 			return false;
@@ -389,7 +329,7 @@ package cs.internal;
 		return false;
 	}
 
-	static function addHashConflictNames(head:FieldHashConflict, arr:Array<String>):Void {
+	public static function addHashConflictNames(head:FieldHashConflict, arr:Array<String>):Void {
 		while (head != null) {
 			arr.push(head.name);
 			head = head.next;

@@ -335,27 +335,6 @@ let hl_hash b =
 	in
 	loop 0
 
-let utf16_add buf c =
-	let add c =
-		Buffer.add_char buf (char_of_int (c land 0xFF));
-		Buffer.add_char buf (char_of_int (c lsr 8));
-	in
-	if c >= 0 && c < 0x10000 then begin
-		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
-		add c;
-	end else if c < 0x110000 then begin
-		let c = c - 0x10000 in
-		add ((c asr 10) + 0xD800);
-		add ((c land 1023) + 0xDC00);
-	end else
-		failwith ("Invalid unicode char " ^ string_of_int c)
-
-let utf8_to_utf16 str =
-	let b = Buffer.create (String.length str * 2) in
-	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
-	utf16_add b 0;
-	Buffer.contents b
-
 let rec get_index name p =
 	try
 		PMap.find name p.pindex

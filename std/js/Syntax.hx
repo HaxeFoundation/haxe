@@ -56,9 +56,8 @@ extern class Syntax {
 	static function delete(o:Dynamic, f:String):Bool;
 
 	/**
-		Generate `o[f]` expression
+		Generate `o.f` expression, if `f` is a constant string,
+		or `o[f]` if it's any other expression.
 	*/
-	static inline function field(o:Dynamic, f:String):Dynamic {
-		return code('{0}[{1}]', o, f);
-	}
+	static function field(o:Dynamic, f:String):Dynamic;
 }

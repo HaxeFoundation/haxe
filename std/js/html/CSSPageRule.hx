@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl. Do not edit!
+// This file is generated from mozilla\CSSPageRule.webidl. Do not edit!
 
 package js.html;
 
@@ -34,11 +34,6 @@ package js.html;
 @:native("CSSPageRule")
 extern class CSSPageRule extends CSSRule
 {
-	
-	/**
-		Represents the text of the page selector associated with the at-rule.
-	**/
-	var selectorText : String;
 	
 	/**
 		Returns the declaration block associated with the at-rule.

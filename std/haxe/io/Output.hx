@@ -275,11 +275,11 @@ class Output {
 	/**
 		Write `s` string.
 	**/
-	public function writeString( s : String ) {
+	public function writeString( s : String, ?encoding : Encoding ) {
 		#if neko
 		var b = untyped new Bytes(s.length,s.__s);
 		#else
-		var b = Bytes.ofString(s);
+		var b = Bytes.ofString(s, encoding);
 		#end
 		writeFullBytes(b,0,b.length);
 	}

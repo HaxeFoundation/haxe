@@ -34,15 +34,58 @@ package js.html;
 @:native("HTMLFieldSetElement")
 extern class FieldSetElement extends Element
 {
+	
+	/**
+		A `Boolean` reflecting the `disabled` HTML attribute, indicating whether the user can interact with the control.
+	**/
 	var disabled : Bool;
+	
+	/**
+		An `HTMLFormControlsCollection` or `HTMLCollection` referencing the containing form element, if this element is in a form.
+		
+		 If the field set is not a descendant of a form element, then the attribute can be the ID of any form element in the same document it is related to, or the `null` value if none matches.
+	**/
 	var form(default,null) : FormElement;
+	
+	/**
+		A `DOMString` reflecting the `name` HTML attribute, containing the name of the field set, used for submitting the form.
+	**/
 	var name : String;
+	
+	/**
+		The `DOMString` `"fieldset"`.
+	**/
 	var type(default,null) : String;
+	
+	/**
+		The elements belonging to this field set. The type of this property depends on the version of the spec that is implemented by the browser.
+	**/
 	var elements(default,null) : HTMLCollection;
+	
+	/**
+		A `Boolean` `false`, because `fieldset` objects are never candidates for constraint validation.
+	**/
 	var willValidate(default,null) : Bool;
+	
+	/**
+		A `ValidityState` representing the validity states that this element is in.
+	**/
 	var validity(default,null) : ValidityState;
+	
+	/**
+		A `DOMString` representing a localized message that describes the validation constraints that the element does not satisfy (if any). This is the empty string if the element is not a candidate for constraint validation (`willValidate` is `false`), or it satisfies its constraints.
+	**/
 	var validationMessage(default,null) : String;
 	
+	
+	/**
+		Always returns `true` because `fieldset` objects are never candidates for constraint validation.
+	**/
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
+	
+	/**
+		Sets a custom validity message for the field set. If this message is not the empty string, then the field set is suffering from a custom validity error, and does not validate.
+	**/
 	function setCustomValidity( error : String ) : Void;
 }

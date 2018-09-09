@@ -66,7 +66,7 @@ extern class Gamepad
 	var axes(default,null) : Array<Float>;
 	
 	/**
-		A `DOMHighResTimeStamp` representing the last time the data for this gamepad was updated. Note that this property is not currently supported anywhere.
+		A `DOMHighResTimeStamp` representing the last time the data for this gamepad was updated.
 	**/
 	var timestamp(default,null) : Float;
 	

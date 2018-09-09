@@ -22,6 +22,7 @@ open EvalValue
 open EvalExceptions
 open EvalContext
 open EvalHash
+open EvalString
 
 (* Functions *)
 
@@ -118,8 +119,6 @@ let encode_obj _ l =
 	vobject {
 		ofields = Array.of_list (List.map snd sorted);
 		oproto = proto;
-		oextra = IntMap.empty;
-		oremoved = IntMap.empty;
 	}
 
 let encode_obj_s k l =
@@ -191,10 +190,13 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	VString(Rope.of_string s,lazy s)
+	vstring (create_ascii s)
 
-let encode_rope s =
-	vstring s
+let encode_rope r =
+	vstring (create_ascii_of_rope r)
+
+let encode_rope_ucs2 r length =
+	vstring (create_ucs2_of_rope r length)
 
 let encode_bytes s =
 	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)
@@ -210,7 +212,7 @@ let encode_object_map_direct h =
 
 let encode_string_map convert m =
 	let h = StringHashtbl.create 0 in
-	PMap.iter (fun key value -> StringHashtbl.add h (Rope.of_string key,lazy key) (convert value)) m;
+	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
 let fake_proto path =
@@ -275,3 +277,11 @@ let encode_ref v convert tostr =
 		iproto = ref_proto;
 		ikind = IRef (Obj.repr v);
 	}
+
+let encode_lazy f =
+	let rec r = ref (fun () ->
+		let v = f() in
+		r := (fun () -> v);
+		v
+	) in
+	VLazy r

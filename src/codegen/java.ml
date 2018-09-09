@@ -183,6 +183,11 @@ let rec same_sig parent jsig =
 	| TArray(s,_) -> same_sig parent s
 	| _ -> false
 
+let convert_constraints ctx p tl = match tl with
+	| [] -> None
+	| [t] -> Some (convert_signature ctx p t,null_pos)
+	| tl -> Some (CTIntersection(List.map (fun t -> convert_signature ctx p t,null_pos) tl),null_pos)
+
 let convert_param ctx p parent param =
 	let name, constraints = match param with
 		| (name, Some extends_sig, implem_sig) ->
@@ -194,7 +199,7 @@ let convert_param ctx p parent param =
 		{
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
-			tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) constraints;
+			tp_constraints = convert_constraints ctx p constraints;
 			tp_meta = [];
 		}
 
@@ -258,7 +263,7 @@ let convert_java_enum ctx p pe =
 				cff_access := (APrivate,null_pos) :: !cff_access
 			| JStatic -> cff_access := (AStatic,null_pos) :: !cff_access
 			| JFinal ->
-				cff_meta := (Meta.Final, [], p) :: !cff_meta;
+				cff_access := (AFinal, p) :: !cff_access;
 				(match field.jf_kind, field.jf_vmsignature, field.jf_constant with
 				| JKField, TObject _, _ ->
 					jf_constant := None
@@ -311,20 +316,19 @@ let convert_java_enum ctx p pe =
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
-
 					let types = List.map (function
 						| (name, Some ext, impl) ->
 							{
 								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (ext :: impl);
+								tp_constraints = convert_constraints ctx p (ext :: impl);
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
 							{
 								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (impl);
+								tp_constraints = convert_constraints ctx p impl;
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -410,7 +414,7 @@ let convert_java_enum ctx p pe =
 
 			let is_interface = ref false in
 			List.iter (fun f -> match f with
-				| JFinal -> meta := (Meta.Final, [], p) :: !meta
+				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags

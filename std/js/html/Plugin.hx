@@ -34,9 +34,25 @@ package js.html;
 @:native("Plugin")
 extern class Plugin implements ArrayAccess<MimeType>
 {
+	
+	/**
+		A human readable description of the plugin.
+	**/
 	var description(default,null) : String;
+	
+	/**
+		The filename of the plugin file.
+	**/
 	var filename(default,null) : String;
+	
+	/**
+		The plugin's version number string.
+	**/
 	var version(default,null) : String;
+	
+	/**
+		The name of the plugin.
+	**/
 	var name(default,null) : String;
 	var length(default,null) : Int;
 	

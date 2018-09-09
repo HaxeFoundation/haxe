@@ -443,7 +443,11 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
+		let save = contents() in
+		reset();
 		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
+		reset();
+		Buffer.add_string buf save;
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces

@@ -36,7 +36,7 @@ let rope_path t = match follow t with
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos
 
 let eval_const = function
-	| TString s -> vstring (Rope.of_string s)
+	| TString s -> EvalString.bytes_to_utf8 (Bytes.unsafe_of_string s)
 	| TInt i32 -> vint32 i32
 	| TFloat f -> vfloat (float_of_string f)
 	| TBool b -> vbool b
@@ -54,32 +54,32 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		let exec = jit_expr jit false e2 in
 		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
 		else emit_local_write (get_slot jit var.v_id e1.epos) exec
-	| TField(e1,fa) ->
+	| TField(ef,fa) ->
 		let name = hash_s (field_name fa) in
-		let exec1 = jit_expr jit false e1 in
+		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
 			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) ->
 				emit_bytes_length_write exec1 exec2
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
-				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
+				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				emit_proto_field_write proto (get_proto_field_index proto name) exec2
 			| FInstance(c,_,_) when not c.cl_interface ->
-				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) e1.epos in
-				let i = get_instance_field_index proto name e1.epos in
+				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
+				let i = get_instance_field_index proto name ef.epos in
 				emit_instance_field_write exec1 i exec2
 			| FAnon cf ->
-				begin match follow e1.etype with
+				begin match follow ef.etype with
 					| TAnon an ->
 						let l = PMap.foldi (fun k _ acc -> (hash_s k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
-						let i = get_instance_field_index proto name e1.epos in
+						let i = get_instance_field_index proto name ef.epos in
 						emit_anon_field_write exec1 proto i name exec2
 					| _ ->
-						emit_field_write exec1 name exec2
+						emit_field_write exec1 name exec2 e1.epos
 				end
 			| _ ->
-				emit_field_write exec1 name exec2
+				emit_field_write exec1 name exec2 e1.epos
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with
@@ -103,20 +103,20 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 		let exec = jit_expr jit false e2 in
 		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
-	| TField(e1,fa) ->
+	| TField(ef,fa) ->
 		let name = hash_s (field_name fa) in
-		let exec1 = jit_expr jit false e1 in
+		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
 			| FStatic({cl_path=path},_) ->
-				let proto = get_static_prototype jit.ctx (path_hash path) e1.epos in
+				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				emit_proto_field_read_write proto (get_proto_field_index proto name) exec2 op prefix
 			| FInstance(c,_,_) when not c.cl_interface ->
-				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) e1.epos in
-				let i = get_instance_field_index proto name e1.epos in
+				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
+				let i = get_instance_field_index proto name ef.epos in
 				emit_instance_field_read_write exec1 i exec2 op prefix
 			| _ ->
-				emit_field_read_write exec1 name exec2 op prefix
+				emit_field_read_write exec1 name exec2 op prefix e1.epos
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with

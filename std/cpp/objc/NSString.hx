@@ -27,10 +27,10 @@ package cpp.objc;
 extern abstract NSString( NSStringData )
 {
    inline function new(s:NSStringData) this = s;
-   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject return null;
+   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject;
 
-   @:native("(NSString *)") extern static function castFromString(s:String) : NSString return null;
-   @:native("String") extern static function castToString(s:NSStringData) : String return null;
+   @:native("(NSString *)") extern static function castFromString(s:String) : NSString;
+   @:native("String") extern static function castToString(s:NSStringData) : String;
 
 
    @:from extern

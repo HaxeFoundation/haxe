@@ -40,16 +40,16 @@ extern class TimeRanges
 	**/
 	var length(default,null) : Int;
 	
-	/** @throws DOMError */
 	
 	/**
 		Returns the time for the start of the range with the specified index.
+		@throws DOMError
 	**/
 	function start( index : Int ) : Float;
-	/** @throws DOMError */
 	
 	/**
 		Returns the time for the end of the specified range.
+		@throws DOMError
 	**/
 	function end( index : Int ) : Float;
 }

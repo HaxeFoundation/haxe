@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `HTMLAnchorElement` interface represents hyperlink elements and provides special properties and methods (beyond those of the regular `HTMLElement` object interface they also have available to them by inheritance) for manipulating the layout and presentation of such elements.
+	The `HTMLAnchorElement` interface represents hyperlink elements and provides special properties and methods (beyond those of the regular `HTMLElement` object interface that they inherit from) for manipulating the layout and presentation of such elements.
 
 	Documentation [HTMLAnchorElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -41,7 +41,7 @@ extern class AnchorElement extends Element
 	var target : String;
 	
 	/**
-		Is a `DOMString` indicating that the linked resource is intended to be downloaded rather than displayed in the browser. The value represent the proposed name of the file. If the name is not a valid filename of the underlying OS, browser will adapt it. The value is a URL with a scheme like `http:`, `file:`, `data:` or even `blob:` (created with `URL.createObjectURL`).
+		Is a `DOMString` indicating that the linked resource is intended to be downloaded rather than displayed in the browser. The value represent the proposed name of the file. If the name is not a valid filename of the underlying OS, browser will adapt it.
 	**/
 	var download : String;
 	var ping : String;
@@ -50,6 +50,11 @@ extern class AnchorElement extends Element
 		Is a `DOMString` that reflects the `rel` HTML attribute, specifying the relationship of the target object to the linked object.
 	**/
 	var rel : String;
+	
+	/**
+		Is a `DOMString` that reflects the `referrerpolicy` HTML attribute indicating which referrer to use.
+	**/
+	var referrerPolicy : String;
 	
 	/**
 		Returns a `DOMTokenList` that reflects the `rel` HTML attribute, as a list of tokens.
@@ -88,6 +93,8 @@ extern class AnchorElement extends Element
 	
 	/**
 		Is a `DOMString` representing that the `rev` HTML attribute, specifying the relationship of the link object to the target object.
+		 Note: Currently the W3C HTML 5.2 spec states that `rev` is no longer obsolete, whereas the WHATWG living standard still has it labeled obsolete. Until this discrepancy is resolved, you should still assume it is obsolete.
+		 
 	**/
 	var rev : String;
 	

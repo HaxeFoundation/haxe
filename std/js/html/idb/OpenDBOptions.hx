@@ -26,6 +26,6 @@ package js.html.idb;
 
 typedef OpenDBOptions =
 {
-	@:optional var storage : Dynamic/*MISSING StorageType*/;
+	@:optional var storage : js.html.StorageType;
 	@:optional var version : Int;
 }

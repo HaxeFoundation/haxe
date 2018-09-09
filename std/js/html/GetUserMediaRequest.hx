@@ -24,13 +24,15 @@
 
 package js.html;
 
-@:native("GetUserMediaRequest")
-extern class GetUserMediaRequest
+typedef GetUserMediaRequest =
 {
 	var windowID(default,null) : Int;
 	var innerWindowID(default,null) : Int;
 	var callID(default,null) : String;
+	var rawID(default,null) : String;
+	var mediaSource(default,null) : String;
 	var isSecure(default,null) : Bool;
+	var isHandlingUserInput(default,null) : Bool;
 	
 	function getConstraints() : MediaStreamConstraints;
 }

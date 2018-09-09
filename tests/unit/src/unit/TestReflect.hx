@@ -4,11 +4,11 @@ import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 }
 
 class ClassWithProp implements InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 	var _x : Int;
 
 	public function new() {
@@ -23,7 +23,7 @@ class ClassWithProp implements InterfWithProp {
 		return v;
 	}
 
-	public static var STAT_X(default, set_STAT_X) : Int;
+	public static var STAT_X(default, set) : Int;
 
 	static function set_STAT_X(v) {
 		STAT_X = v * 2;

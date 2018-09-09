@@ -711,7 +711,7 @@ module Fusion = struct
 			let num_uses = state#get_reads v in
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
-			let is_compiler_generated = Meta.has Meta.CompilerGenerated v.v_meta in
+			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
 			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
@@ -874,6 +874,9 @@ module Fusion = struct
 							let e2 = replace e2 in
 							if not !found && has_var_read ir v then raise Exit;
 							{e with eexpr = TBinop(OpAssign,e1,e2)}
+						(* Never fuse into write-positions (issue #7298) *)
+						| TBinop(OpAssignOp _,{eexpr = TLocal v2},_) | TUnop((Increment | Decrement),_,{eexpr = TLocal v2}) when v1 == v2 ->
+							raise Exit
 						| TBinop(OpAssignOp _ as op,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
 							if not !found && (has_var_read ir v || has_var_write ir v) then raise Exit;
@@ -1142,6 +1145,8 @@ module Cleanup = struct
 			| TTypeExpr (TClassDecl c) ->
 				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 				e
+			| TMeta((Meta.Ast,_,_),e1) when (match e1.eexpr with TSwitch _ -> false | _ -> true) ->
+				loop e1
 			| _ ->
 				Type.map_expr loop e
 		in

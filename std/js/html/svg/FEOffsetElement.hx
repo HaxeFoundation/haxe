@@ -24,11 +24,30 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEOffsetElement` interface corresponds to the `feOffset` element.
+
+	Documentation [SVGFEOffsetElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEOffsetElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEOffsetElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEOffsetElement>
+**/
 @:native("SVGFEOffsetElement")
 extern class FEOffsetElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `dx` attribute of the given element.
+	**/
 	var dx(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `dy` attribute of the given element.
+	**/
 	var dy(default,null) : AnimatedNumber;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

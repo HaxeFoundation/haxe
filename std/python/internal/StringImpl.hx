@@ -62,7 +62,6 @@ class StringImpl {
 
 	@:ifFeature("dynamic_read.toUpperCase", "anon_optional_read.toUpperCase", "python.internal.StringImpl.toUpperCase")
 	public static inline function toUpperCase (s:String) {
-		
 		return Syntax.callField(s, "upper");
 	}
 	@:ifFeature("dynamic_read.toLowerCase", "anon_optional_read.toLowerCase", "python.internal.StringImpl.toLowerCase")
@@ -114,6 +113,10 @@ class StringImpl {
 			return Syntax.arrayAccessWithTrailingColon(s, startIndex);
 		} else {
 			if (len == 0) return "";
+			if (startIndex < 0) {
+				startIndex = s.length + startIndex;
+				if (startIndex < 0) startIndex = 0;
+			}
 			return Syntax.arrayAccess(s, startIndex, startIndex+len);
 		}
 

@@ -111,7 +111,12 @@ let funct gen t = match follow (run_follow gen t) with
 
 let mk_conversion_fun gen e =
 	let args, ret = funct gen e.etype in
-	let tf_args = List.map (fun (n,o,t) -> alloc_var n t,None) args in
+	let i = ref 0 in
+	let tf_args = List.map (fun (n,o,t) ->
+		let n = if n = "" then ("arg" ^ string_of_int(!i)) else n in
+		incr i;
+		alloc_var n t,None) args
+	in
 	let block, local = match e.eexpr with
 		| TLocal v ->
 			v.v_capture <- true;
@@ -458,7 +463,7 @@ let configure gen ft =
 				let pos = cls.cl_pos in
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
-				cf.cf_meta <- (Meta.Final,[],pos) :: cf.cf_meta;
+				cf.cf_final <- true;
 				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
 				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
 				(* invoke function body: call Delegate function *)

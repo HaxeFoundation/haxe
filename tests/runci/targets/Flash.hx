@@ -25,17 +25,29 @@ class Flash {
 				Linux.requireAptPackages([
 					"libglib2.0", "libfreetype6"
 				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/25/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
+				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/30/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
 				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
-				runCommand("brew", ["tap", "caskroom/versions"]);
+				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
+					return;
+				}
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
+
+				// Disable the "application downloaded from Internet" warning
+				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
+
 				var dir = Path.directory(mmcfgPath);
-				runCommand("sudo", ["mkdir", "-p", dir]);
-				runCommand("sudo", ["chmod", "a+w", dir]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				if (!FileSystem.exists(dir)) {
+					runCommand("sudo", ["mkdir", "-p", dir]);
+					runCommand("sudo", ["chmod", "a+w", dir]);
+				}
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
 		}
 	}
 

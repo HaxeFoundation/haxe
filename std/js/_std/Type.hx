@@ -53,18 +53,15 @@ enum ValueType {
 	}
 
 
-	public static function getClassName( c : Class<Dynamic> ) : String {
-		var a : Array<String> = untyped c.__name__;
-		if (a == null)
-			return null;
-		return a.join(".");
+	public static inline function getClassName( c : Class<Dynamic> ) : String {
+		return untyped __define_feature__("Type.getClassName", c.__name__);
 	}
 
-	public static function getEnumName( e : Enum<Dynamic> ) : String {
-		var a : Array<String> = untyped e.__ename__;
-		return a.join(".");
+	public static inline function getEnumName( e : Enum<Dynamic> ) : String {
+		return untyped __define_feature__("Type.getEnumName", e.__ename__);
 	}
 
+	#if js_enums_as_arrays
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
@@ -80,6 +77,15 @@ enum ValueType {
 			return null;
 		return e;
 	}
+	#else
+	public static inline function resolveClass( name : String ) : Class<Dynamic> {
+		return untyped __define_feature__("Type.resolveClass", $hxClasses[name]);
+	}
+
+	public static inline function resolveEnum( name : String ) : Enum<Dynamic> {
+		return untyped $hxEnums[name];
+	}
+	#end
 
 	#if (js_es < 5)
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T {
@@ -212,10 +218,14 @@ enum ValueType {
 		}
 	}
 
-	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
+	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool untyped {
 		if( a == b )
 			return true;
 		try {
+			var e = a.__enum__;
+			if( e == null || e != b.__enum__ )
+				return false;
+
 			#if js_enums_as_arrays
 			if( a[0] != b[0] )
 				return false;
@@ -225,16 +235,16 @@ enum ValueType {
 			#else
 			if (a._hx_index != b._hx_index)
 				return false;
-			for (f in Reflect.fields(a)){
+
+			var enm = $hxEnums[e];
+			var ctorName = enm.__constructs__[a._hx_index];
+			var params:Array<String> = enm[ctorName].__params__;
+			for (f in params) {
 				if ( !enumEq(a[f],b[f]) ){
 					return false;
 				}
 			}
 			#end
-			var e = a.__enum__;
-			if( e != b.__enum__ || e == null )
-				return false;
-
 		} catch( e : Dynamic ) {
 			return false;
 		}
@@ -249,15 +259,18 @@ enum ValueType {
 		#end
 	}
 
+	#if js_enums_as_arrays
 	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
-		#if js_enums_as_arrays
 		return untyped e.slice(2);
-		#else
-		var n = enumConstructor(e);
-		var params:Array<String> = untyped __js__("$hxEnums[{0}.__enum__][{1}].__params__",e,n);
-		return params != null ? [for (p in params) untyped e[p]] : [];
-		#end
 	}
+	#else
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped {
+		var enm:Enum<Dynamic> = $hxEnums[e.__enum__];
+		var ctorName:String = enm.__constructs__[e._hx_index];
+		var params:Array<String> = enm[ctorName].__params__;
+		return params != null ? [for (p in params) e[p]] : [];
+	}
+	#end
 
 	public inline static function enumIndex( e : EnumValue ) : Int {
 		#if !js_enums_as_arrays
@@ -268,7 +281,7 @@ enum ValueType {
 	}
 
 	public inline static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		return untyped __define_feature__("Type.allEnums", e.__empty_constructs__);
+		return untyped __define_feature__("Type.allEnums", e.__empty_constructs__.slice());
 	}
 
 }
