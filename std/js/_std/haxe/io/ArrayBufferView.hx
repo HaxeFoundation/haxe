@@ -27,11 +27,7 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 
 	public static var EMULATED(get,never) : Bool;
 	static inline function get_EMULATED() {
-		#if nodejs
 		return false;
-		#else
-		return (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer;
-		#end
 	}
 
 	public var buffer(get,never) : haxe.io.Bytes;
