@@ -425,6 +425,12 @@ extern class Window extends EventTarget
 	function prompt( ?message : String = "", ?default_ : String = "" ) : String;
 	
 	/**
+		Opens the Print Dialog to print the current document.
+		@throws DOMError
+	**/
+	function print() : Void;
+	
+	/**
 		Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first.
 		@throws DOMError
 	**/
