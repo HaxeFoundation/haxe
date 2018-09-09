@@ -21,6 +21,6 @@ class Issue6740 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq(true, hasField(fields(pos(1)), "concat", "a : Array<String> -> Array<String>"));
+		eq(true, hasField(fields(pos(1)), "concat", "(a : Array<String>) -> Array<String>"));
 	}
 }
