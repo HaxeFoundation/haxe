@@ -24,9 +24,6 @@
 
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.Float64Array;
-
 @:native("Float64Array")
 extern class Float64Array implements ArrayBufferView implements ArrayAccess<Float>
 {

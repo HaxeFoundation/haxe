@@ -24,9 +24,6 @@
 
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.ArrayBuffer;
-
 @:native("ArrayBuffer")
 extern class ArrayBuffer
 {
