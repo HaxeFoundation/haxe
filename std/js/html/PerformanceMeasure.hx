@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`PerformanceMeasure` is an abstract interface for `performance entries` with an `entry type` of "`measure`". Entries of this type are created by calling `performance.measure()` to add a named `DOMHighResTimeStamp` (the measure) between two marks to the browser's performance timeline.
+	`PerformanceMeasure` is an abstract interface for `PerformanceEntry` objects with an `entryType` of "`measure`". Entries of this type are created by calling `performance.measure()` to add a named `DOMHighResTimeStamp` (the measure) between two marks to the browser's performance timeline.
 
 	Documentation [PerformanceMeasure](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMeasure) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMeasure$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 

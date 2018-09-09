@@ -48,32 +48,32 @@ extern class NativeArray {
    }
 
    @:nativeStaticExtension
-	public static function reserve<T>( inArray:Array<T>,inElements:Int ) : Void { }
+	public static function reserve<T>( inArray:Array<T>,inElements:Int ) : Void;
 
    @:nativeStaticExtension
-	public static function capacity<T>( inArray:Array<T> ) : Int { }
+	public static function capacity<T>( inArray:Array<T> ) : Int;
 
    @:nativeStaticExtension
-	public static function getElementSize<T>( inArray:Array<T> ) : Int { }
+	public static function getElementSize<T>( inArray:Array<T> ) : Int;
 
 	public static inline function address<T>( inArray:Array<T>,inIndex:Int ) : Pointer<T> {
       return Pointer.arrayElem(inArray,inIndex);
    }
 
    @:nativeStaticExtension
-	public static function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void { }
+	public static function setData<T>( inArray:Array<T>,inData:Pointer<T>,inElementCount:Int ) : Void;
 
    @:nativeStaticExtension
-	public static function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void { }
+	public static function setUnmanagedData<T>( inArray:Array<T>,inData:ConstPointer<T>,inElementCount:Int ) : Void;
 
    @:nativeStaticExtension
-	public static function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void { };
+	public static function zero<T>( ioDestArray:Array<T>, ?inFirst:Int, ?inElements:Int ) : Void;
 
    @:nativeStaticExtension
-	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int { }
+	public static function memcmp<T>( inArrayA:Array<T>, inArrayB:Array<T>) : Int;
 
    @:native("_hx_reslove_virtual_array")
-	public static function resolveVirtualArray( inArray:Array<Dynamic>) : Dynamic { }
+	public static function resolveVirtualArray( inArray:Array<Dynamic>) : Dynamic;
 
 
    #if cppia
@@ -91,7 +91,7 @@ extern class NativeArray {
 
    #else
    @:native("_hx_array_unsafe_get")
-	public static function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T { return untyped null; }
+	public static function unsafeGet<T>( inDestArray:Array<T>, inIndex:Int) : T;
 
    @:native("_hx_array_unsafe_set")
 	public static inline function unsafeSet<T>( ioDestArray:Array<T>, inIndex:Int, inValue:T) : T {
@@ -99,7 +99,7 @@ extern class NativeArray {
 	}
 
    @:native("_hx_array_set_size_exact")
-	public static function setSize<T>( ioArray:Array<T>, inSize:Int) : Array<T> return null;
+	public static function setSize<T>( ioArray:Array<T>, inSize:Int) : Array<T>;
    #end
 
 }

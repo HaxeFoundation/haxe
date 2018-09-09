@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`PerformanceMark` is an abstract interface for `performance entries` with an `entry type` of "`mark`". Entries of this type are created by calling `performance.mark()` to add a named `DOMHighResTimeStamp` (the mark) to the browser's performance timeline.
+	`PerformanceMark` is an abstract interface for `PerformanceEntry` objects with an `entryType` of "`mark`". Entries of this type are created by calling `performance.mark()` to add a named `DOMHighResTimeStamp` (the mark) to the browser's performance timeline.
 
 	Documentation [PerformanceMark](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 

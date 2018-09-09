@@ -30,6 +30,7 @@ typedef ContextAttributes =
 	@:optional var antialias : Bool;
 	@:optional var depth : Bool;
 	@:optional var failIfMajorPerformanceCaveat : Bool;
+	@:optional var powerPreference : PowerPreference;
 	@:optional var premultipliedAlpha : Bool;
 	@:optional var preserveDrawingBuffer : Bool;
 	@:optional var stencil : Bool;

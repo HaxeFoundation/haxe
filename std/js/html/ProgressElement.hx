@@ -50,4 +50,9 @@ extern class ProgressElement extends Element
 	**/
 	var position(default,null) : Float;
 	
+	/**
+		Returns `NodeList` containing the list of `label` elements that are labels for this element.
+	**/
+	var labels(default,null) : NodeList;
+	
 }

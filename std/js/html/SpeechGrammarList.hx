@@ -42,22 +42,22 @@ extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
 	
 	/** @throws DOMError */
 	function new() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Standard getter — allows individual `SpeechGrammar` objects to be retrieved from the `SpeechGrammarList` using array syntax.
+		@throws DOMError
 	**/
 	function item( index : Int ) : SpeechGrammar;
-	/** @throws DOMError */
 	
 	/**
 		Takes a grammar present at a specific URI and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+		@throws DOMError
 	**/
 	function addFromURI( src : String, ?weight : Float ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Takes a grammar present in a specific `DOMString` within the code base (e.g. stored in a variable) and adds it to the `SpeechGrammarList` as a new `SpeechGrammar` object.
+		@throws DOMError
 	**/
 	function addFromString( string : String, ?weight : Float ) : Void;
 }

@@ -24,8 +24,7 @@
 
 package js.html;
 
-@:native("FontFaceSetIterator")
-extern class FontFaceSetIterator
+typedef FontFaceSetIterator =
 {
 	/** @throws DOMError */
 	function next() : FontFaceSetIteratorResult;

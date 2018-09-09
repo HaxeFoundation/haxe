@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `hashchange` event is fired when the fragment identifier of the URL has changed (the part of the URL that follows the # symbol, including the # symbol).
+	The `HashChangeEvent` event is fired when the fragment identifier of the URL has changed (the part of the URL that follows the # symbol, including the # symbol).
 
 	Documentation [HashChangeEvent](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -34,10 +34,18 @@ package js.html;
 @:native("HashChangeEvent")
 extern class HashChangeEvent extends Event
 {
+	
+	/**
+		The previous URL from which the window was navigated.
+	**/
 	var oldURL(default,null) : String;
+	
+	/**
+		The new URL to which the window is navigating.
+	**/
 	var newURL(default,null) : String;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool, cancelableArg : Bool, oldURLArg : String, newURLArg : String ) : Void;
+	function initHashChangeEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?oldURLArg : String = "", ?newURLArg : String = "" ) : Void;
 }

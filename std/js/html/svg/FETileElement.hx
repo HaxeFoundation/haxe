@@ -24,9 +24,20 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFETileElement` interface corresponds to the `feTile` element.
+
+	Documentation [SVGFETileElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFETileElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFETileElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFETileElement>
+**/
 @:native("SVGFETileElement")
 extern class FETileElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

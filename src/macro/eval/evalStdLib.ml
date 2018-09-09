@@ -349,12 +349,29 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if s.sascii || encode_native encoding then
-			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
-		else begin
-			let s = utf16_to_utf8 (Lazy.force s.sstring) in
+		if encode_native encoding then begin
+			let s = maybe_extend_ascii s in
+			encode_bytes (Bytes.of_string s)
+		end else begin
+			let s' = Lazy.force s.sstring in
+			let s = if s.sascii then s' else utf16_to_utf8 s' in
 			encode_bytes (Bytes.of_string s)
 		end
+	)
+
+	let ofHex = vfun1 (fun v ->
+		let s = decode_string v in
+		let len = String.length s in
+		if (len land 1) <> 0 then exc_string "Not a hex string (odd number of digits)";
+		let ret = (Bytes.make (len lsr 1) (Char.chr 0)) in
+		for i = 0 to Bytes.length ret - 1 do
+			let high = int_of_char s.[i * 2] in
+			let low = int_of_char s.[i * 2 + 1] in
+			let high = (high land 0xF) + ((high land 0x40) lsr 6) * 9 in
+			let low = (low land 0xF) + ((low land 0x40) lsr 6) * 9 in
+			Bytes.set ret i (char_of_int (((high lsl 4) lor low) land 0xFF));
+		done;
+		encode_bytes ret
 	)
 
 	let set = vifun2 (fun vthis pos v ->
@@ -945,7 +962,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try encode_string (Std.input_file ~bin:true path) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try bytes_to_utf8 (Bytes.unsafe_of_string ((Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
@@ -1932,9 +1949,7 @@ module StdString = struct
 			else if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
-				let pat = Str.regexp (maybe_extend_ascii str) in
-				let s = Lazy.force this.sstring in
-				vint ((Str.search_forward pat s (i lsl 1)) lsr 1);
+				vint ((fst (find_substring this str false i)) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
@@ -1953,20 +1968,19 @@ module StdString = struct
 				let s = Lazy.force this.sstring in
 				if this.sascii then
 					vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
-				else begin
-					let pat = Str.regexp (maybe_extend_ascii str) in
-					vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
-				end
+				else
+					vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
 	)
 
 	let split = vifun1 (fun vthis delimiter ->
-		let this = this vthis in
-		let ascii = this.sascii in
-		let this,s = this.srope,Lazy.force this.sstring in
-		let delimiter = Lazy.force (decode_vstring delimiter).sstring in
+		let this' = this vthis in
+		let ascii = this'.sascii in
+		let this,s = this'.srope,Lazy.force this'.sstring in
+		let delimiter' = (decode_vstring delimiter) in
+		let delimiter = Lazy.force delimiter'.sstring in
 		let l_delimiter = String.length delimiter in
 		let l_this = Rope.length this in
 		let encode_range pos length =
@@ -1991,36 +2005,17 @@ module StdString = struct
 		end else if l_delimiter > l_this then
 			encode_array [encode_range 0 (Rope.length this)]
 		else begin
-			let chr = delimiter.[0] in
 			let acc = DynArray.create () in
-			let rec loop k i =
+			let f = find_substring this' delimiter' false in
+			let rec loop i =
 				try
-					if i > l_this - l_delimiter then raise Not_found;
-					let index = String.index_from s i chr in
-					let rec loop2 i2 =
-						if i2 = l_delimiter then true
-						else if String.unsafe_get s (index + i2) = String.unsafe_get delimiter i2 then loop2 (i2 + 1)
-						else false
-					in
-					if not (loop2 1) then
-						loop k (index + 1)
-					else begin
-						DynArray.add acc (encode_range k (index - k));
-						loop (index + l_delimiter) (index + l_delimiter)
-					end
-				with Not_found ->
-					DynArray.add acc (encode_range k (l_this - k))
-			in
-			let rec loop1 i =
-				try
-					if i = l_this then raise Not_found;
-					let index = String.index_from s i chr in
-					DynArray.add acc (encode_range i (index - i));
-					loop1 (index + l_delimiter)
+					let offset,next = f i in
+					DynArray.add acc (encode_range i (offset - i));
+					loop next;
 				with Not_found ->
 					DynArray.add acc (encode_range i (l_this - i))
 			in
-			if l_delimiter = 1 then loop1 0 else loop 0 0;
+			loop 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))
 		end
 	)
@@ -2087,11 +2082,23 @@ module StdString = struct
 		end
 	)
 
-	let toLowerCase = vifun0 (fun vthis -> encode_rope (Rope.lowercase (this vthis).srope))
+	let toLowerCase = vifun0 (fun vthis ->
+		let this = this vthis in
+		if this.sascii then
+			encode_rope (Rope.lowercase this.srope)
+		else
+			vstring (case_map this false)
+	)
 
 	let toString = vifun0 (fun vthis -> vthis)
 
-	let toUpperCase = vifun0 (fun vthis -> encode_rope (Rope.uppercase (this vthis).srope))
+	let toUpperCase = vifun0 (fun vthis ->
+		let this = this vthis in
+		if this.sascii then
+			encode_rope (Rope.uppercase this.srope)
+		else
+			vstring (case_map this true)
+	)
 
 	let cca = charCodeAt
 
@@ -2159,7 +2166,7 @@ module StdStringBuf = struct
 		in
 		let s' = Rope.sub s.srope i len in
 		let s' = if s.sascii then create_ascii_of_rope s'
-		else create_ucs2_of_rope s' len in
+		else create_ucs2_of_rope s' (len lsr 1) in
 		AwareBuffer.add_string this s';
 		vnull
 	)
@@ -2874,6 +2881,7 @@ let init_standard_library builtins =
 		"fastGet",StdBytes.fastGet;
 		"ofData",StdBytes.ofData;
 		"ofString",StdBytes.ofString;
+		"ofHex",StdBytes.ofHex;
 	] [
 		"blit",StdBytes.blit;
 		"compare",StdBytes.compare;

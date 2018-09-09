@@ -27,12 +27,15 @@ package js.html;
 typedef PointerEventInit =
 {
 	> MouseEventInit,
+	@:optional var coalescedEvents : Array<PointerEvent>;
 	@:optional var height : Int;
 	@:optional var isPrimary : Bool;
 	@:optional var pointerId : Int;
 	@:optional var pointerType : String;
 	@:optional var pressure : Float;
+	@:optional var tangentialPressure : Float;
 	@:optional var tiltX : Int;
 	@:optional var tiltY : Int;
+	@:optional var twist : Int;
 	@:optional var width : Int;
 }

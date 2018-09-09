@@ -29,7 +29,7 @@ extern class DOMRequest extends EventTarget
 {
 	var readyState(default,null) : DOMRequestReadyState;
 	var result(default,null) : Dynamic;
-	var error(default,null) : DOMError;
+	var error(default,null) : DOMException;
 	var onsuccess : haxe.Constraints.Function;
 	var onerror : haxe.Constraints.Function;
 	

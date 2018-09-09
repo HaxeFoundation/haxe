@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `MediaError` interface represents an error associated to a media, like a `HTMLMediaElement`.
+	The `MediaError` interface represents an error which occurred while handling media in an HTML media element based on `HTMLMediaElement`, such as `audio` or `video`.
 
 	Documentation [MediaError](https://developer.mozilla.org/en-US/docs/Web/API/MediaError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MediaError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -41,40 +41,13 @@ extern class MediaError
 	
 	
 	/**
-		An <code>unsigned short </code> that represents the error:
-		 <table class="standard-table">
-		  
-		   <tr>
-		    Name
-		    Value
-		    Description
-		   </tr>
-		  
-		  
-		   <tr>
-		    <td><code>MEDIA_ERR_ABORTED</code></td>
-		    <td><code>1</code></td>
-		    <td>The fetching of the associated ressource has been aborted by the user</td>
-		   </tr>
-		   <tr>
-		    <td><code>MEDIA_ERR_NETWORK</code></td>
-		    <td><code>2</code></td>
-		    <td>A network error caused the ressource to stop being fetched.</td>
-		   </tr>
-		   <tr>
-		    <td><code>MEDIA_ERR_DECODE</code></td>
-		    <td><code>3</code></td>
-		    <td>A decoding error caused the ressource to stop being fetched.</td>
-		   </tr>
-		   <tr>
-		    <td><code>MEDIA_ERR_SRC_NOT_SUPPORTED</code></td>
-		    <td><code>4</code></td>
-		    <td>The associated ressource has been detected to be not suitable.</td>
-		   </tr>
-		  
-		 </table>
-		 
+		A number which represents the general type of error that occurred, as follows: `/en-US/docs/Web/API/MediaError/code`
 	**/
 	var code(default,null) : Int;
+	
+	/**
+		A `DOMString` object containing a human-readable string which provides specific diagnostic information to help the reader understand the error condition which occurred; specifically, it isn't simply a summary of what the error code means, but actual diagnostic information to help in understanding what exactly went wrong. This text and its format is not defined by the specification and will vary from one `user agent` to another. If no diagnostics are available, or no explanation can be provided, this value is an empty string (`""`).
+	**/
+	var message(default,null) : String;
 	
 }

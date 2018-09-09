@@ -36,15 +36,36 @@ extern class MaskElement extends Element
 {
 	static inline var SVG_MASKTYPE_LUMINANCE : Int = 0;
 	static inline var SVG_MASKTYPE_ALPHA : Int = 1;
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
 	
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `maskUnits` attribute of the given `mask` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var maskUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `maskContentUnits` attribute of the given `mask` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var maskContentUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `mask` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y` attribute of the given `mask` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `width` attribute of the given `mask` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `height` attribute of the given `mask` element.
+	**/
 	var height(default,null) : AnimatedLength;
 	
 }

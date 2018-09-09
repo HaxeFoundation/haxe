@@ -58,7 +58,7 @@ extern class ExtendableMessageEvent extends ExtendableEvent
 	/**
 		Returns the array containing the `MessagePort` objects representing the ports of the associated message channel.
 	**/
-	var ports(default,null) : MessagePortList;
+	var ports(default,null) : Array<MessagePort>;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ExtendableMessageEventInit ) : Void;

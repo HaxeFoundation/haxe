@@ -25,34 +25,34 @@ package sys.db;
 private class D {
 
    @:native("_hx_mysql_connect")
-	extern public static function connect(params:Dynamic):Dynamic return null;
+	extern public static function connect(params:Dynamic):Dynamic;
    @:native("_hx_mysql_select_db")
-	extern public static function select_db(handle:Dynamic, db:String):Void { }
+	extern public static function select_db(handle:Dynamic, db:String):Void;
    @:native("_hx_mysql_request")
-	extern public static function request(handle:Dynamic,req:String):Dynamic return null;
+	extern public static function request(handle:Dynamic,req:String):Dynamic;
    @:native("_hx_mysql_close")
-	extern public static function close(handle:Dynamic):Dynamic return null;
+	extern public static function close(handle:Dynamic):Dynamic;
    @:native("_hx_mysql_escape")
-	extern public static function escape(handle:Dynamic,str:String):String return null;
+	extern public static function escape(handle:Dynamic,str:String):String;
    @:native("_hx_mysql_result_get_length")
-	extern public static function result_get_length(handle:Dynamic):Int return 0;
+	extern public static function result_get_length(handle:Dynamic):Int;
    @:native("_hx_mysql_result_get_nfields")
-	extern public static function result_get_nfields(handle:Dynamic):Int return 0;
+	extern public static function result_get_nfields(handle:Dynamic):Int;
    @:native("_hx_mysql_result_next")
-	extern public static function result_next(handle:Dynamic):Dynamic return null;
+	extern public static function result_next(handle:Dynamic):Dynamic;
    @:native("_hx_mysql_result_get")
-	extern public static function result_get(handle:Dynamic,i:Int) : String return null;
+	extern public static function result_get(handle:Dynamic,i:Int) : String;
    @:native("_hx_mysql_result_get_int")
-	extern public static function result_get_int(handle:Dynamic,i:Int) : Int return 0;
+	extern public static function result_get_int(handle:Dynamic,i:Int) : Int;
    @:native("_hx_mysql_result_get_float")
-	extern public static function result_get_float(handle:Dynamic,i:Int):Float return 0.0;
+	extern public static function result_get_float(handle:Dynamic,i:Int):Float;
    @:native("_hx_mysql_result_get_fields_names")
-	extern public static function result_fields_names(handle:Dynamic):Array<String> return null;
+	extern public static function result_fields_names(handle:Dynamic):Array<String>;
 
    @:native("_hx_mysql_set_conversion")
 	extern public static function set_conv_funs(
       charsToBytes: cpp.Callable< Dynamic -> Dynamic >,
-      intToDate: cpp.Callable< Float -> Dynamic > ) : Void {}
+      intToDate: cpp.Callable< Float -> Dynamic > ) : Void;
 
    public static function charsToBytes(data:Dynamic) : Dynamic
       return haxe.io.Bytes.ofData(data);

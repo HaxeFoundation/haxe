@@ -45,5 +45,5 @@ extern class MutationEvent extends Event
 	var attrChange(default,null) : Int;
 	
 	/** @throws DOMError */
-	function initMutationEvent( type : String, canBubble : Bool, cancelable : Bool, relatedNode : Node, prevValue : String, newValue : String, attrName : String, attrChange : Int ) : Void;
+	function initMutationEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?relatedNode : Node, ?prevValue : String = "", ?newValue : String = "", ?attrName : String = "", ?attrChange : Int = 0 ) : Void;
 }

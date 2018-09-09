@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `CanvasPattern` interface represents an opaque object describing a pattern, based on an image, a canvas or a video, created by the `CanvasRenderingContext2D.createPattern()` method.
+	The `CanvasPattern` interface represents an opaque object describing a pattern, based on an image, a canvas, or a video, created by the `CanvasRenderingContext2D.createPattern()` method.
 
 	Documentation [CanvasPattern](https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 

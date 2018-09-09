@@ -208,7 +208,7 @@ let transform_abstract_field com this_t a_t a f =
 	| FProp _ when not stat ->
 		error "Member property accessors must be get/set or never" p;
 	| FFun fu when fst f.cff_name = "new" && not stat ->
-		let init p = (EVars [("this",null_pos),Some this_t,None],p) in
+		let init p = (EVars [("this",null_pos),false,Some this_t,None],p) in
 		let cast e = (ECast(e,None)),pos e in
 		let ret p = (EReturn (Some (cast (EConst (Ident "this"),p))),p) in
 		let meta = (Meta.Impl,[],null_pos) :: (Meta.NoCompletion,[],null_pos) :: f.cff_meta in
@@ -222,7 +222,7 @@ let transform_abstract_field com this_t a_t a f =
 		let fu = {
 			fu with
 			f_expr = (match fu.f_expr with
-			| None -> if Meta.has Meta.MultiType a.a_meta then Some (EConst (Ident "null"),p) else None
+			| None -> None
 			| Some (EBlock el,_) -> Some (EBlock (init p :: el @ [ret p]),p)
 			| Some e -> Some (EBlock [init p;e;ret p],p)
 			);
@@ -341,7 +341,7 @@ let build_enum_abstract ctx c a fields p =
 		| _ ->
 			()
 	) fields;
-	EVars [("",null_pos),Some (CTAnonymous fields,p),None],p
+	EVars [("",null_pos),false,Some (CTAnonymous fields,p),None],p
 
 let apply_macro ctx mode path el p =
 	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
@@ -486,7 +486,7 @@ let create_field_context (ctx,cctx) c cff =
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
 		field_kind = field_kind;
-		do_bind = (((not c.cl_extern || is_inline) && not c.cl_interface) || field_kind = FKInit);
+		do_bind = (((not (c.cl_extern || !is_extern) || is_inline) && not c.cl_interface) || field_kind = FKInit);
 		do_add = true;
 		expr_presence_matters = false;
 	} in
@@ -540,7 +540,7 @@ let build_fields (ctx,cctx) c fields =
 	c.cl_build <- (fun() -> BuildMacro pending);
 	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
-		| EVars [_,Some (CTAnonymous f,p),None] ->
+		| EVars [_,_,Some (CTAnonymous f,p),None] ->
 			let f = List.map (fun f ->
 				let f = match cctx.abstract with
 					| Some a ->
@@ -770,8 +770,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		else cctx.uninitialized_final <- Some f.cff_pos;
 	end;
 	let t = (match t with
-		| None when not fctx.is_static && eo = None ->
-			error ("Type required for member variable " ^ fst f.cff_name) p;
+		| None when eo = None ->
+			error ("Variable requires type-hint or initialization") (pos f.cff_name);
 		| None ->
 			mk_mono()
 		| Some t ->
@@ -1070,14 +1070,17 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		t
 	) "type_fun" in
 	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
-	else check_field_display ctx fctx c cf;
+	else begin
+		check_field_display ctx fctx c cf;
+		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
+	end;
 	cf
 
 let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	let name = fst f.cff_name in
 	(* TODO is_lib: lazify load_complex_type *)
 	let ret = (match t, eo with
-		| None, None -> error (name ^ ": Property must either define a type or a default value") p;
+		| None, None -> error (name ^ ": Property requires type-hint or initialization") p;
 		| None, _ -> mk_mono()
 		| Some t, _ -> lazy_display_type ctx (fun () -> load_type_hint ctx p (Some t))
 	) in

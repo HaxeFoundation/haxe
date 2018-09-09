@@ -277,7 +277,7 @@ let rec expr_to_value ctx env e =
 			let v1 = loop e1 in
 			throw v1 (pos e)
 		| EVars vl ->
-			List.iter (fun ((n,_),_,eo) ->
+			List.iter (fun ((n,_),_,_,eo) ->
 				match eo with
 				| Some e ->
 					env.env_extra_locals <- IntMap.add (hash_s n) (loop e) env.env_extra_locals

@@ -37,18 +37,6 @@ class MyParent {
 	function b() return 20;
 }
 
-class MyDynamicChildWithToString extends MyParent implements Dynamic
-{
-	public function toString()
-	{
-		return "Custom toString";
-	}
-}
-
-class MyDynamicChildWithoutToString extends MyParent implements Dynamic
-{
-}
-
 class MyChild1 extends MyParent {
 	public override function a() { return 12; }
 	override function b() return 21;

@@ -49,6 +49,7 @@ extern class Bytes {
 	@:pure
 	public static function ofString( s : String, ?encoding : Encoding ) : Bytes;
 	public static function ofData( b : BytesData ) : Bytes;
+	public static function ofHex( s : String ) : Bytes;
 	public static function fastGet( b : BytesData, pos : Int ) : Int;
 	static function __init__():Void {
 		haxe.io.Error;

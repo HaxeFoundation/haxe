@@ -52,7 +52,7 @@ let find_possible_references kind name (pack,decls) =
 			expr e1;
 			check KAnyField s;
 		| EVars vl ->
-			List.iter (fun (_,tho,eo) ->
+			List.iter (fun (_,_,tho,eo) ->
 				Option.may type_hint tho;
 				expr_opt eo
 			) vl;

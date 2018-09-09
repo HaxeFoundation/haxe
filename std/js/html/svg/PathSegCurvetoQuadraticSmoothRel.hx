@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegCurvetoQuadraticSmoothRel")
-extern class PathSegCurvetoQuadraticSmoothRel extends PathSeg
+typedef PathSegCurvetoQuadraticSmoothRel =
 {
 	var x : Float;
 	var y : Float;

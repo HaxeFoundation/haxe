@@ -34,4 +34,6 @@ package js.html.audio;
 @:native("MediaElementAudioSourceNode")
 extern class MediaElementAudioSourceNode extends AudioNode
 {
+	/** @throws DOMError */
+	function new( context : AudioContext, options : MediaElementAudioSourceOptions ) : Void;
 }

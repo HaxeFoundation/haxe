@@ -578,6 +578,26 @@ class Bytes {
 		return new Bytes(b.length,b);
 		#end
 	}
+	
+	/**
+		Convert hexadecimal string to Bytes.
+		Support only straight hex string ( Example: "0FDA14058916052309" )
+	**/
+	public static function ofHex( s : String ) : Bytes {
+		var len:Int = s.length;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var ret : Bytes = Bytes.alloc(len >> 1);
+		for (i in  0...ret.length)
+		{
+			var high = StringTools.fastCodeAt(s, i*2);
+			var low = StringTools.fastCodeAt(s, i*2 + 1);
+			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
+			ret.set( i ,( (high << 4) | low)  & 0xFF );
+		}  
+
+		return ret;
+	}
 
 	/**
 		Read the most efficiently possible the n-th byte of the data.

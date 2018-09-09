@@ -3,6 +3,7 @@ XXXX-XX-XX:
 	General improvements and optimizations:
 
 	all : made `final` on structure fields invariant (#7039)
+	all : [breaking] disallowed static variables that have no type-hint and expression (#6440)
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
 	php : Optimized `Map.copy()` and `Array.copy()`
 	php : Support native PHP generators. See `php.Syntax.yield()` and `php.Generator`
@@ -12,6 +13,7 @@ XXXX-XX-XX:
 
 	all : disallowed get_x/set_x property syntax (#4699)
 	all : disallowed default values on interface variables (#4087)
+	all : disallowed `implements Dynamic` on non-extern classes (#6191)
 
 	Bugfixes:
 

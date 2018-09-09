@@ -1,6 +1,6 @@
 package unit.issues;
 
-class Issue5608 extends unit.Test implements Dynamic<Bool> {
+class Issue5608 extends unit.Test {
 	var fields:Array<String>;
 
 	function test() {

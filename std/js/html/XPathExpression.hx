@@ -34,6 +34,10 @@ package js.html;
 @:native("XPathExpression")
 extern class XPathExpression
 {
-	/** @throws DOMError */
-	function evaluate( contextNode : Node, type : Int, result : Dynamic ) : XPathResult;
+	
+	/**
+		provide a context node/document, `XPathResult` constant, and `XPathResult` to store the query or null to return a new XPathResult.
+		@throws DOMError
+	**/
+	function evaluate( contextNode : Node, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

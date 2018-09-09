@@ -35,6 +35,8 @@ open Calls
 
 let check_assign ctx e =
 	match e.eexpr with
+	| TLocal {v_kind = VUser (TVOLocalFinal | TVOPatternFinal)} ->
+		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
@@ -1471,7 +1473,7 @@ and type_array_access ctx e1 e2 p mode =
 		AKExpr (mk (TArray (e1,e2)) pt p)
 
 and type_vars ctx vl p =
-	let vl = List.map (fun ((v,pv),t,e) ->
+	let vl = List.map (fun ((v,pv),final,t,e) ->
 		try
 			let t = Typeload.load_type_hint ctx p t in
 			let e = (match e with
@@ -1482,7 +1484,7 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
+			let v = add_local_with_origin ctx (if final then TVOLocalFinal else TVOLocalVariable) v t pv in
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
@@ -1625,11 +1627,11 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType t ->
-		let rec loop t =
+		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq t t') seen) ->
+				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -1643,7 +1645,7 @@ and type_object_decl ctx fl with_type p =
 			| _ ->
 				ODKPlain
 		in
-		loop t
+		loop [] t
 	| _ ->
 		ODKPlain
 	) in

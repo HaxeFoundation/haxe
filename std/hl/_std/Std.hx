@@ -64,9 +64,7 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return null;
-	}
+	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
 
 	extern public static inline function int( x : Float ) : Int {
 		return untyped $int(x);

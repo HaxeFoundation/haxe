@@ -23,19 +23,19 @@
 @:require(sys)
 @:coreApi
 class Sys {
-	extern static public function print(v:Dynamic):Void { }
-	extern static public function println(v:Dynamic):Void { }
-	extern static public function args():Array<String> { return []; }
-	extern static public function getEnv(s:String):String { return ""; }
-	extern static public function putEnv(s:String, v:String):Void { }
-	extern static public function environment():Map<String, String> { return null; }
-	extern static public function sleep(seconds:Float):Void { }
-	extern static public function setTimeLocale(loc:String):Bool { return false; }
-	extern static public function getCwd():String { return ""; }
-	extern static public function setCwd(s:String):Void { }
-	extern static public function systemName():String { return ""; }
+	extern static public function print(v:Dynamic):Void;
+	extern static public function println(v:Dynamic):Void;
+	extern static public function args():Array<String>;
+	extern static public function getEnv(s:String):String;
+	extern static public function putEnv(s:String, v:String):Void;
+	extern static public function environment():Map<String, String>;
+	extern static public function sleep(seconds:Float):Void;
+	extern static public function setTimeLocale(loc:String):Bool;
+	extern static public function getCwd():String;
+	extern static public function setCwd(s:String):Void;
+	extern static public function systemName():String;
 
-	extern static function _command(cmd:String):Int { return 0; }
+	extern static function _command(cmd:String):Int;
 
 	static public function command(cmd:String, ?args:Array<String>):Int {
 		if (args == null) {
@@ -57,12 +57,19 @@ class Sys {
 
 	static public function executablePath():String { return programPath(); }
 
-	extern static public function exit(code:Int):Void { }
-	extern static public function time():Float { return 0.; }
-	extern static public function cpuTime():Float { return 0.; }
-	extern static public function programPath():String { return ""; }
-	extern static public function getChar(echo:Bool):Int { return 0; }
-	extern static public function stdin():haxe.io.Input { return (null : sys.io.FileInput); }
-	extern static public function stdout():haxe.io.Output { return (null : sys.io.FileOutput); }
-	extern static public function stderr():haxe.io.Output { return (null : sys.io.FileOutput); }
+	extern static public function exit(code:Int):Void;
+	extern static public function time():Float;
+	extern static public function cpuTime():Float;
+	extern static public function programPath():String;
+	extern static public function getChar(echo:Bool):Int;
+	extern static public function stdin():haxe.io.Input;
+	extern static public function stdout():haxe.io.Output;
+	extern static public function stderr():haxe.io.Output;
+
+	static function __init__():Void {
+		// This nonsense causes the classes to be loaded. Otherwise they might not make
+		// it into the interpreter, and then stderr() et. al. don't work.
+		var _ = (null : sys.io.FileOutput);
+		var _ = (null : sys.io.FileInput);
+	}
 }

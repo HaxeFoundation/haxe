@@ -40,4 +40,6 @@ extern class MediaStreamAudioDestinationNode extends AudioNode
 	**/
 	var stream(default,null) : js.html.MediaStream;
 	
+	/** @throws DOMError */
+	function new( context : AudioContext, ?options : AudioNodeOptions ) : Void;
 }
