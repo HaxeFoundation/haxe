@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from cssrule.webidl. Do not edit!
+// This file is generated from mozilla\CSSRule.webidl. Do not edit!
 
 package js.html;
 
@@ -34,17 +34,22 @@ package js.html;
 @:native("CSSRule")
 extern class CSSRule
 {
-	static inline var UNKNOWN_RULE : Int = 0;
 	static inline var STYLE_RULE : Int = 1;
 	static inline var CHARSET_RULE : Int = 2;
 	static inline var IMPORT_RULE : Int = 3;
 	static inline var MEDIA_RULE : Int = 4;
 	static inline var FONT_FACE_RULE : Int = 5;
 	static inline var PAGE_RULE : Int = 6;
+	static inline var NAMESPACE_RULE : Int = 10;
+	static inline var KEYFRAMES_RULE : Int = 7;
+	static inline var KEYFRAME_RULE : Int = 8;
+	static inline var COUNTER_STYLE_RULE : Int = 11;
+	static inline var SUPPORTS_RULE : Int = 12;
+	static inline var FONT_FEATURE_VALUES_RULE : Int = 14;
 	
 	var type(default,null) : Int;
 	var cssText : String;
-	var parentStyleSheet(default,null) : CSSStyleSheet;
 	var parentRule(default,null) : CSSRule;
+	var parentStyleSheet(default,null) : CSSStyleSheet;
 	
 }

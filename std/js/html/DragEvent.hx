@@ -34,9 +34,13 @@ package js.html;
 @:native("DragEvent")
 extern class DragEvent extends MouseEvent
 {
+	
+	/**
+		The data that is transferred during a drag and drop interaction.
+	**/
 	var dataTransfer(default,null) : DataTransfer;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DragEventInit ) : Void;
-	function initDragEvent( type : String, canBubble : Bool, cancelable : Bool, aView : Window, aDetail : Int, aScreenX : Int, aScreenY : Int, aClientX : Int, aClientY : Int, aCtrlKey : Bool, aAltKey : Bool, aShiftKey : Bool, aMetaKey : Bool, aButton : Int, aRelatedTarget : EventTarget, aDataTransfer : DataTransfer ) : Void;
+	function initDragEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?aView : Window, ?aDetail : Int = 0, ?aScreenX : Int = 0, ?aScreenY : Int = 0, ?aClientX : Int = 0, ?aClientY : Int = 0, ?aCtrlKey : Bool = false, ?aAltKey : Bool = false, ?aShiftKey : Bool = false, ?aMetaKey : Bool = false, ?aButton : Int = 0, ?aRelatedTarget : EventTarget, ?aDataTransfer : DataTransfer ) : Void;
 }

@@ -39,6 +39,10 @@ extern class DOMError
 		Returns a `DOMString` representing one of the error type names (see below).
 	**/
 	var name(default,null) : String;
+	
+	/**
+		Returns a `DOMString` representing a message or description associated with the given error type name.
+	**/
 	var message(default,null) : String;
 	
 	/** @throws DOMError */

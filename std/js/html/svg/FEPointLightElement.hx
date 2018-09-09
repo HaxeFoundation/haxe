@@ -24,11 +24,30 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEPointLightElement` interface corresponds to the `fePointLight` element.
+
+	Documentation [SVGFEPointLightElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEPointLightElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEPointLightElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEPointLightElement>
+**/
 @:native("SVGFEPointLightElement")
 extern class FEPointLightElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `x` attribute of the given element.
+	**/
 	var x(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `y` attribute of the given element.
+	**/
 	var y(default,null) : AnimatedNumber;
+	
+	/**
+		An `SVGAnimatedNumber` corresponding to the `z` attribute of the given element.
+	**/
 	var z(default,null) : AnimatedNumber;
 	
 }

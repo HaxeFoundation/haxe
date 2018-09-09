@@ -80,10 +80,15 @@ extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
 	**/
 	var onnotificationclick : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
+	/**
+		An event handler fired whenever a `notificationclose` event occurs — when a user closes a displayed notification.
+	**/
+	var onnotificationclose : haxe.Constraints.Function;
+	
 	
 	/**
 		Allows the current service worker registration to progress from waiting to active state while service worker clients are using it.
+		@throws DOMError
 	**/
 	function skipWaiting() : Promise<Void>;
 }

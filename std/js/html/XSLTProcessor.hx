@@ -45,9 +45,17 @@ extern class XSLTProcessor
 	/** @throws DOMError */
 	function setParameter( namespaceURI : String, localName : String, value : Dynamic ) : Void;
 	/** @throws DOMError */
-	function getParameter( namespaceURI : String, localName : String ) : Dynamic/*MISSING nsIVariant*/;
+	function getParameter( namespaceURI : String, localName : String ) : Dynamic;
 	/** @throws DOMError */
 	function removeParameter( namespaceURI : String, localName : String ) : Void;
+	
+	/**
+		Removes all set parameters from the `XSLTProcessor`. The `XSLTProcessor` will then use the defaults specified in the XSLT stylesheet.
+	**/
 	function clearParameters() : Void;
+	
+	/**
+		Removes all parameters and stylesheets from the `XSLTProcessor`.
+	**/
 	function reset() : Void;
 }

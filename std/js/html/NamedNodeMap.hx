@@ -45,16 +45,16 @@ extern class NamedNodeMap implements ArrayAccess<Attr>
 		Returns a `Attr`, corresponding to the given name.
 	**/
 	function getNamedItem( name : String ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Replaces, or adds, the `Attr` identified in the map by the given name.
+		@throws DOMError
 	**/
 	function setNamedItem( arg : Attr ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Removes the `Attr` identified by the given map.
+		@throws DOMError
 	**/
 	function removeNamedItem( name : String ) : Attr;
 	
@@ -67,16 +67,16 @@ extern class NamedNodeMap implements ArrayAccess<Attr>
 		Returns a `Attr` identified by a namespace and related local name.
 	**/
 	function getNamedItemNS( namespaceURI : String, localName : String ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Replaces, or adds, the `Attr` identified in the map by the given namespace and related local name.
+		@throws DOMError
 	**/
 	function setNamedItemNS( arg : Attr ) : Attr;
-	/** @throws DOMError */
 	
 	/**
 		Removes the `Attr` identified by the given namespace and related local name.
+		@throws DOMError
 	**/
 	function removeNamedItemNS( namespaceURI : String, localName : String ) : Attr;
 }

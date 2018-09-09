@@ -25,7 +25,7 @@
 package js.html.svg;
 
 /**
-	The `SVGNumber` interface correspond to the number basic data type.
+	The `SVGNumber` interface corresponds to the `number` basic data type.
 
 	Documentation [SVGNumber](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -34,9 +34,12 @@ package js.html.svg;
 @:native("SVGNumber")
 extern class Number
 {
+	
+	/**
+		A float representing the number.
+		 Note: If the `SVGNumber` is read-only, a `DOMException` with the code NO_MODIFICATION_ALLOWED_ERR is raised on an attempt to change the value.
+		 
+	**/
 	var value : Float;
 	
-	/** @throws DOMError */
-	@:overload( function() : Void {} )
-	function new( value : Float ) : Void;
 }

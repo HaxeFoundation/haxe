@@ -27,8 +27,7 @@ package js.html.rtc;
 typedef OfferOptions =
 {
 	> OfferAnswerOptions,
-	@:optional var mandatory : Dynamic/*MISSING DeprecatedRTCOfferOptionsSet*/;
-	@:optional var offerToReceiveAudio : Int;
-	@:optional var offerToReceiveVideo : Int;
-	@:optional var optional : Array<Dynamic/*MISSING DeprecatedRTCOfferOptionsSet*/>;
+	@:optional var iceRestart : Bool;
+	@:optional var offerToReceiveAudio : Bool;
+	@:optional var offerToReceiveVideo : Bool;
 }

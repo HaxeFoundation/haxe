@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration>
 **/
-@:native("DeviceAcceleration")
-extern class DeviceAcceleration
+typedef DeviceAcceleration =
 {
 	
 	/**

@@ -34,4 +34,21 @@ package js.html;
 @:native("HTMLElement")
 extern class Element extends DOMElement
 {
+	
+	/**
+		Sends a mouse click event to the element.
+	**/
+	function click() : Void;
+	
+	/**
+		Makes the element the current keyboard focus.
+		@throws DOMError
+	**/
+	function focus() : Void;
+	
+	/**
+		Removes keyboard focus from the currently focused element.
+		@throws DOMError
+	**/
+	function blur() : Void;
 }

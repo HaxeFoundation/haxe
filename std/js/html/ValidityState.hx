@@ -56,6 +56,11 @@ extern class ValidityState
 	var tooLong(default,null) : Bool;
 	
 	/**
+		Is a `Boolean` indicating the value fails to meet the specified `minlength` for `HTMLInputElement` or `HTMLTextAreaElement` objects.
+	**/
+	var tooShort(default,null) : Bool;
+	
+	/**
 		Is a `Boolean` indicating the value is less than the minimum specified by the `min` attribute.
 	**/
 	var rangeUnderflow(default,null) : Bool;

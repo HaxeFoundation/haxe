@@ -38,7 +38,6 @@ extern class ViewElement extends Element
 	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
 	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;
 	
-	var viewTarget(default,null) : StringList;
 	var viewBox(default,null) : AnimatedRect;
 	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 	var zoomAndPan : Int;

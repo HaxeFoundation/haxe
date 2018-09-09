@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegLinetoHorizontalAbs")
-extern class PathSegLinetoHorizontalAbs extends PathSeg
+typedef PathSegLinetoHorizontalAbs =
 {
 	var x : Float;
 	

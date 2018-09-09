@@ -34,7 +34,15 @@ package js.html.svg;
 @:native("SVGScriptElement")
 extern class ScriptElement extends Element
 {
+	
+	/**
+		A `DOMString` corresponding to the `type` attribute of the given `script` element. A `DOMException` is raised with the code `NO_MODIFICATION_ALLOWED_ERR` on an attempt to change the value of a read only attribut.
+	**/
 	var type : String;
+	
+	/**
+		A `DOMString` corresponding to the `crossorigin` attribute of the given `script` element.
+	**/
 	var crossOrigin : String;
 	var href(default,null) : AnimatedString;
 	

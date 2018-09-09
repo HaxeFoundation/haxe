@@ -24,10 +24,8 @@
 
 package js.html;
 
-@:native("External")
-extern class External
+typedef External =
 {
 	function AddSearchProvider( aDescriptionURL : String ) : Void;
 	function IsSearchProviderInstalled( aSearchURL : String ) : Int;
-	function addSearchEngine( engineURL : String, iconURL : String, suggestedTitle : String, suggestedCategory : String ) : Void;
 }

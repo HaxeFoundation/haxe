@@ -75,16 +75,16 @@ extern class TableRowElement extends Element
 	**/
 	var bgColor : String;
 	
-	/** @throws DOMError */
 	
 	/**
 		Inserts a new cell just before the given position in the row. If the given position is not given or is `-1`, it appends the cell to the row. If the given position is greater (or equal as it starts at zero) than the amount of cells in the row, or is smaller than `-1`, it raises a `DOMException` with the `IndexSizeError` value. Returns a reference to a HTMLTableCellElement [en-US].
+		@throws DOMError
 	**/
 	function insertCell( ?index : Int = -1 ) : Element;
-	/** @throws DOMError */
 	
 	/**
 		Removes the cell at the given position in the row. If the given position is greater (or equal as it starts at zero) than the amount of cells in the row, or is smaller than `0`, it raises a `DOMException` with the `IndexSizeError` value.
+		@throws DOMError
 	**/
 	function deleteCell( index : Int ) : Void;
 }

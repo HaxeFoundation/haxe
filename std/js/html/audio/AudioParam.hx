@@ -25,7 +25,7 @@
 package js.html.audio;
 
 /**
-	There are two kinds of `AudioParam`, a-rate and k-rate parameters:
+	The Web Audio API's `AudioParam` interface represents an audio-related parameter, usually a parameter of an `AudioNode` (such as `GainNode.gain`).
 
 	Documentation [AudioParam](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/AudioParam$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -45,40 +45,50 @@ extern class AudioParam
 	**/
 	var defaultValue(default,null) : Float;
 	
-	/** @throws DOMError */
+	/**
+		Represents the minimum possible value for the parameter's nominal (effective) range. 
+	**/
+	var minValue(default,null) : Float;
 	
 	/**
-		Schedules an instant change to the value of the `AudioParam` at a precise time, as measured against `AudioContext.currentTime`. The new value is given in the `value` parameter.
+		Represents the maximum possible value for the parameter's nominal (effective) range. 
 	**/
-	function setValueAtTime( value : Float, startTime : Float ) : Void;
-	/** @throws DOMError */
+	var maxValue(default,null) : Float;
+	
+	
+	/**
+		Schedules an instant change to the value of the `AudioParam` at a precise time, as measured against `AudioContext.currentTime`. The new value is given by the `value` parameter.
+		@throws DOMError
+	**/
+	function setValueAtTime( value : Float, startTime : Float ) : AudioParam;
 	
 	/**
 		Schedules a gradual linear change in the value of the `AudioParam`. The change starts at the time specified for the previous event, follows a linear ramp to the new value given in the `value` parameter, and reaches the new value at the time given in the `endTime` parameter.
+		@throws DOMError
 	**/
-	function linearRampToValueAtTime( value : Float, endTime : Float ) : Void;
-	/** @throws DOMError */
+	function linearRampToValueAtTime( value : Float, endTime : Float ) : AudioParam;
 	
 	/**
 		Schedules a gradual exponential change in the value of the `AudioParam`. The change starts at the time specified for the previous event, follows an exponential ramp to the new value given in the `value` parameter, and reaches the new value at the time given in the `endTime` parameter.
+		@throws DOMError
 	**/
-	function exponentialRampToValueAtTime( value : Float, endTime : Float ) : Void;
-	/** @throws DOMError */
+	function exponentialRampToValueAtTime( value : Float, endTime : Float ) : AudioParam;
 	
 	/**
 		Schedules the start of a change to the value of the `AudioParam`. The change starts at the time specified in `startTime` and exponentially moves towards the value given by the `target` parameter. The exponential decay rate is defined by the `timeConstant` parameter, which is a time measured in seconds.
+		@throws DOMError
 	**/
-	function setTargetAtTime( target : Float, startTime : Float, timeConstant : Float ) : Void;
-	/** @throws DOMError */
+	function setTargetAtTime( target : Float, startTime : Float, timeConstant : Float ) : AudioParam;
 	
 	/**
-		Schedules the values of the `AudioParam` to follow a set of values, defined by the `values` `Float32Array` scaled to fit into the given interval, starting at `startTime`, and having a specific `duration`.
+		Schedules the values of the `AudioParam` to follow a set of values, defined by an array of floating-point numbers scaled to fit into the given interval, starting at a given start time and spanning a given duration of time.
+		@throws DOMError
 	**/
-	function setValueCurveAtTime( values : js.html.Float32Array, startTime : Float, duration : Float ) : Void;
-	/** @throws DOMError */
+	function setValueCurveAtTime( values : Array<Float>, startTime : Float, duration : Float ) : AudioParam;
 	
 	/**
 		Cancels all scheduled future changes to the `AudioParam`.
+		@throws DOMError
 	**/
-	function cancelScheduledValues( startTime : Float ) : Void;
+	function cancelScheduledValues( startTime : Float ) : AudioParam;
 }

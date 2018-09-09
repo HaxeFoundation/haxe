@@ -40,4 +40,14 @@ extern class SourceBufferList extends EventTarget implements ArrayAccess<SourceB
 	**/
 	var length(default,null) : Int;
 	
+	/**
+		The event handler for the `addsourcebuffer` event.
+	**/
+	var onaddsourcebuffer : haxe.Constraints.Function;
+	
+	/**
+		The event handler for the `removesourcebuffer` event.
+	**/
+	var onremovesourcebuffer : haxe.Constraints.Function;
+	
 }

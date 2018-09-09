@@ -35,6 +35,5 @@ package js.html;
 extern class DOMRect extends DOMRectReadOnly
 {
 	/** @throws DOMError */
-	@:overload( function() : Void {} )
-	function new( x : Float, y : Float, width : Float, height : Float ) : Void;
+	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?width : Float = 0.0, ?height : Float = 0.0 ) : Void;
 }

@@ -32,7 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis>
 **/
 @:native("SpeechSynthesis")
-extern class SpeechSynthesis
+extern class SpeechSynthesis extends EventTarget
 {
 	
 	/**
@@ -49,6 +49,11 @@ extern class SpeechSynthesis
 		A `Boolean` that returns `true` if the `SpeechSynthesis` object is in a paused state.
 	**/
 	var paused(default,null) : Bool;
+	
+	/**
+		Fired when the list of `SpeechSynthesisVoice` objects that would be returned by the `SpeechSynthesis.getVoices()` method has changed.
+	**/
+	var onvoiceschanged : haxe.Constraints.Function;
 	
 	
 	/**

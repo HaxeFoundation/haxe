@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `TextDecoder` interface represents a decoder for a specific method, that is a specific character encoding, like `utf-8`, `iso-8859-2`, `koi8`, `cp1261`, `gbk`, ... A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays.
+	The `TextDecoder` interface represents a decoder for a specific method, that is a specific character encoding, like `utf-8`, `iso-8859-2`, `koi8`, `cp1261`, `gbk`, etc. A decoder takes a stream of bytes as input and emits a stream of code points. For a more scalable, non-native library, see `StringView` – a C-like representation of strings based on typed arrays.
 
 	Documentation [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -45,12 +45,18 @@ extern class TextDecoder
 	**/
 	var fatal(default,null) : Bool;
 	
+	/**
+		Is a `Boolean` indicating whether the byte order marker is ignored.
+	**/
+	var ignoreBOM(default,null) : Bool;
+	
 	/** @throws DOMError */
 	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns a `DOMString` containing the text decoded with the method of the specific `TextDecoder` object.
+		@throws DOMError
 	**/
-	function decode( ?input : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, ?options : TextDecodeOptions ) : String;
+	@:overload( function( ?input : ArrayBuffer, ?options : TextDecodeOptions) : String {} )
+	function decode( ?input : ArrayBufferView, ?options : TextDecodeOptions ) : String;
 }

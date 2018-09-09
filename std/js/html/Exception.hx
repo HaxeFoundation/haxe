@@ -24,16 +24,15 @@
 
 package js.html;
 
-@:native("Exception")
-extern class Exception
+typedef Exception =
 {
+	var name(default,null) : String;
 	var message(default,null) : String;
 	var result(default,null) : Int;
-	var name(default,null) : String;
 	var filename(default,null) : String;
 	var lineNumber(default,null) : Int;
 	var columnNumber(default,null) : Int;
-	var data(default,null) : Dynamic/*MISSING nsISupports*/;
+	var data(default,null) : Dynamic;
 	var stack(default,null) : String;
 	
 }

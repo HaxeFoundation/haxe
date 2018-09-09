@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEMergeElement` interface corresponds to the `feMerge` element.
+
+	Documentation [SVGFEMergeElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeElement>
+**/
 @:native("SVGFEMergeElement")
 extern class FEMergeElement extends Element
 {

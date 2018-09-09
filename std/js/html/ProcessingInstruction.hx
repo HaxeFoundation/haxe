@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	A processing instruction provides an opportunity for application-specific instructions to be embedded within XML and which can be ignored by XML processors which do not support processing their instructions (outside of their having a place in the DOM).
+	A processing instruction embeds application-specific instructions in XML which can be ignored by other applications that don't recognize them.
 
 	Documentation [ProcessingInstruction](https://developer.mozilla.org/en-US/docs/Web/API/ProcessingInstruction) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/ProcessingInstruction$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -35,5 +35,6 @@ package js.html;
 extern class ProcessingInstruction extends CharacterData
 {
 	var target(default,null) : String;
+	var sheet(default,null) : StyleSheet;
 	
 }

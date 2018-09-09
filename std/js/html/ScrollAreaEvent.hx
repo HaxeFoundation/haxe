@@ -32,5 +32,5 @@ extern class ScrollAreaEvent extends UIEvent
 	var width(default,null) : Float;
 	var height(default,null) : Float;
 	
-	function initScrollAreaEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, detail : Int, x : Float, y : Float, width : Float, height : Float ) : Void;
+	function initScrollAreaEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?detail : Int = 0, ?x : Float = 0.0, ?y : Float = 0.0, ?width : Float = 0.0, ?height : Float = 0.0 ) : Void;
 }

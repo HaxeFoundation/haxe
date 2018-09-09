@@ -24,7 +24,6 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegClosePath")
-extern class PathSegClosePath extends PathSeg
+typedef PathSegClosePath =
 {
 }

@@ -42,7 +42,7 @@ extern class InputElement extends Element
 	var checked : Bool;
 	var disabled : Bool;
 	var form(default,null) : FormElement;
-	var files(default,null) : FileList;
+	var files : FileList;
 	var formAction : String;
 	var formEnctype : String;
 	var formMethod : String;
@@ -54,6 +54,7 @@ extern class InputElement extends Element
 	var max : String;
 	var maxLength : Int;
 	var min : String;
+	var minLength : Int;
 	var multiple : Bool;
 	var name : String;
 	var pattern : String;
@@ -66,11 +67,13 @@ extern class InputElement extends Element
 	var type : String;
 	var defaultValue : String;
 	var value : String;
+	var valueAsDate : Date;
 	var valueAsNumber : Float;
 	var width : Int;
 	var willValidate(default,null) : Bool;
 	var validity(default,null) : ValidityState;
 	var validationMessage(default,null) : String;
+	var labels(default,null) : NodeList;
 	var selectionStart : Int;
 	var selectionEnd : Int;
 	var selectionDirection : String;
@@ -86,7 +89,6 @@ extern class InputElement extends Element
 	var useMap : String;
 	var textLength(default,null) : Int;
 	
-	/** @throws DOMError */
 	
 	/**
 		Increments the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
@@ -97,9 +99,9 @@ extern class InputElement extends Element
 		  if the resulting value is above the `max` or below the `min`.
 		 
 		 
+		@throws DOMError
 	**/
 	function stepUp( ?n : Int = 1 ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Decrements the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
@@ -110,9 +112,11 @@ extern class InputElement extends Element
 		  if the resulting value is above the `max` or below the `min`. 
 		 
 		 
+		@throws DOMError
 	**/
 	function stepDown( ?n : Int = 1 ) : Void;
 	function checkValidity() : Bool;
+	function reportValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
 	function select() : Void;
 	/** @throws DOMError */

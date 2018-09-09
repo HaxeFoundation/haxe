@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `MessagePort` interface of the Channel Messaging API represents one of the two ports of a `MessageChannel`, allowing sending of messages from one port and listening out for them arriving at the other.
+	The `MessagePort` interface of the Channel Messaging API represents one of the two ports of a `MessageChannel`, allowing messages to be sent from one port and listening out for them arriving at the other.
 
 	Documentation [MessagePort](https://developer.mozilla.org/en-US/docs/Web/API/MessagePort) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MessagePort$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -35,9 +35,10 @@ package js.html;
 extern class MessagePort extends EventTarget
 {
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function postMessage( message : Dynamic, ?transferable : Array<Dynamic> ) : Void;
+	function postMessage( message : Dynamic, ?transferable : Array<Dynamic> = [] ) : Void;
 	function start() : Void;
 	function close() : Void;
 }

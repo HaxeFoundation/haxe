@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegCurvetoCubicAbs")
-extern class PathSegCurvetoCubicAbs extends PathSeg
+typedef PathSegCurvetoCubicAbs =
 {
 	var x : Float;
 	var y : Float;

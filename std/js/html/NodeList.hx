@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	`NodeList` objects are collections of nodes such as those returned by `Node.childNodes` and the `document.querySelectorAll` method.
+	`NodeList` objects are collections of nodes such as those returned by properties such as `Node.childNodes` and the `document.querySelectorAll()` method.
 
 	Documentation [NodeList](https://developer.mozilla.org/en-US/docs/Web/API/NodeList) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/NodeList$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 

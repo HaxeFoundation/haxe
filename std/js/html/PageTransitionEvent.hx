@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	Page transition events fire when a webpage is being loaded or unloaded.
+	The `PageTransitionEvent` is fired when a document is being loaded or unloaded.
 
 	Documentation [PageTransitionEvent](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -34,6 +34,10 @@ package js.html;
 @:native("PageTransitionEvent")
 extern class PageTransitionEvent extends Event
 {
+	
+	/**
+		Indicates if the document is loading from a cache.
+	**/
 	var persisted(default,null) : Bool;
 	
 	/** @throws DOMError */

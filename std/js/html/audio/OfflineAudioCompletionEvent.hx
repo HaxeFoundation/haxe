@@ -31,9 +31,16 @@ package js.html.audio;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioCompletionEvent>
 **/
+@:deprecated("OfflineAudioCompletionEvent is deprecated")
 @:native("OfflineAudioCompletionEvent")
 extern class OfflineAudioCompletionEvent extends js.html.Event
 {
+	
+	/**
+		An `AudioBuffer` containing the result of processing an `OfflineAudioContext`.
+	**/
 	var renderedBuffer(default,null) : AudioBuffer;
 	
+	/** @throws DOMError */
+	function new( type : String, eventInitDict : js.html.OfflineAudioCompletionEventInit ) : Void;
 }

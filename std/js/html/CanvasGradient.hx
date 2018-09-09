@@ -34,10 +34,10 @@ package js.html;
 @:native("CanvasGradient")
 extern class CanvasGradient
 {
-	/** @throws DOMError */
 	
 	/**
 		Adds a new stop, defined by an `offset` and a `color`, to the gradient. If the offset is not between `0` and `1` an `INDEX_SIZE_ERR` is raised, if the color can't be parsed as a CSS `color`, a `SYNTAX_ERR` is raised.
+		@throws DOMError
 	**/
 	function addColorStop( offset : Float, color : String ) : Void;
 }

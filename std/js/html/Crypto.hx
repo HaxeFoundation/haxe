@@ -40,6 +40,10 @@ extern class Crypto
 	**/
 	var subtle(default,null) : SubtleCrypto;
 	
-	/** @throws DOMError */
+	
+	/**
+		Fills the passed `TypedArray` with cryptographically sound random values.
+		@throws DOMError
+	**/
 	function getRandomValues( array : ArrayBufferView ) : ArrayBufferView;
 }
