@@ -687,7 +687,7 @@ let implement_final_lookup ctx cl =
 	let pos = cl.cl_pos in
 	let is_override = is_override cl in
 
-	let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in
+	(* let this = { eexpr = TConst(TThis); etype = TInst(cl, List.map snd cl.cl_params); epos = pos } in *)
 
 	let mk_throw str pos =
 		let e = ctx.rcf_mk_exception str pos in

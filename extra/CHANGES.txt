@@ -13,6 +13,7 @@ XXXX-XX-XX:
 
 	all : disallowed get_x/set_x property syntax (#4699)
 	all : disallowed default values on interface variables (#4087)
+	all : disallowed `implements Dynamic` on non-extern classes (#6191)
 
 	Bugfixes:
 

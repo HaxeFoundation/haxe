@@ -247,7 +247,7 @@ let rec build_generic ctx c p tl =
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
-		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
+		if c.cl_init <> None then error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.in_macro -> ()
 			| _ -> error "A generic class can't have static fields" cf.cf_pos
