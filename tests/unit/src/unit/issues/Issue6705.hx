@@ -65,4 +65,10 @@ class Issue6705 extends unit.Test {
 		t(Reflect.compareMethods(memberClosure1, alias(memberClosure1)));
 		t(Reflect.compareMethods(staticClosure1, alias(staticClosure1)));
 	}
+
+	function testTypeChange() {
+		function f1(x:Float) { }
+		var f2:Int -> Void = f1;
+		t(f1 == f2);
+	}
 }
