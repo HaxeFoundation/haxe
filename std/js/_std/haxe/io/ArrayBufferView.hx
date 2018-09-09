@@ -25,11 +25,6 @@ typedef ArrayBufferViewData = js.html.ArrayBufferView;
 
 abstract ArrayBufferView(ArrayBufferViewData) {
 
-	public static var EMULATED(get,never) : Bool;
-	static inline function get_EMULATED() {
-		return false;
-	}
-
 	public var buffer(get,never) : haxe.io.Bytes;
 	public var byteOffset(get, never) : Int;
 	public var byteLength(get, never) : Int;
