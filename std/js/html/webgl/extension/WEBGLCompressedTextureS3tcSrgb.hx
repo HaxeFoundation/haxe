@@ -24,6 +24,13 @@
 
 package js.html.webgl.extension;
 
+/**
+	The `WEBGL_compressed_texture_s3tc_srgb` extension is part of the WebGL API and exposes four S3TC compressed texture formats for the sRGB colorspace.
+
+	Documentation [WEBGL_compressed_texture_s3tc_srgb](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc_srgb) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc_srgb$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc_srgb>
+**/
 @:native("WEBGL_compressed_texture_s3tc_srgb")
 extern class WEBGLCompressedTextureS3tcSrgb
 {

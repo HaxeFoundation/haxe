@@ -24,6 +24,13 @@
 
 package js.html.webgl.extension;
 
+/**
+	The `WEBGL_compressed_texture_etc` extension is part of the WebGL API and exposes 10 ETC/EAC compressed texture formats.
+
+	Documentation [WEBGL_compressed_texture_etc](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc>
+**/
 @:native("WEBGL_compressed_texture_etc")
 extern class WEBGLCompressedTextureEtc
 {
