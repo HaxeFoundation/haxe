@@ -248,7 +248,6 @@ let mk_ident lexbuf =
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
 
-
 let ident = [%sedlex.regexp?
 	(
 		Star '_',
@@ -476,3 +475,25 @@ and regexp_options lexbuf =
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
 	| _ -> assert false
+
+and not_xml open_tag close_tag depth lexbuf =
+	match%sedlex lexbuf with
+	| eof -> raise Exit
+	| '\n' | '\r' | "\r\n" -> newline lexbuf; store lexbuf; not_xml open_tag close_tag depth lexbuf
+	| '<','/',ident,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		if s = close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml open_tag close_tag (depth - 1) lexbuf
+		end else
+			not_xml open_tag close_tag depth lexbuf
+	| '<',ident ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		let depth = if s = open_tag then depth + 1 else depth in
+		not_xml open_tag close_tag depth lexbuf
+	| '<' | '/' | '>' -> store lexbuf; not_xml open_tag close_tag depth lexbuf
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) -> store lexbuf; not_xml open_tag close_tag depth lexbuf
+	| _ ->
+		assert false

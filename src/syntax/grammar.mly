@@ -1085,6 +1085,16 @@ and expr = parser
 			let e = EConst (Ident "null"),null_pos in
 			display (make_meta name params e p)
 		end
+	| [< '(Binop OpLt,p1); name,pi = dollar_ident >] ->
+		if p1.pmax <> pi.pmin then error (Custom("Unexpected <")) p1;
+		let open_tag = "<" ^ name in
+		let close_tag = "</" ^ name ^ ">" in
+		Lexer.reset();
+		Buffer.add_string Lexer.buf ("<" ^ name);
+		let i = Lexer.not_xml open_tag close_tag 0 !code_ref in
+		let s = Lexer.contents() in
+		let e = EConst (String s),{p1 with pmax = i} in
+		make_meta Meta.Markup [] e p1
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
 		| [< b = block1; s >] ->

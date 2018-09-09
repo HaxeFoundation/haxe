@@ -97,6 +97,7 @@ let was_auto_triggered = ref false
 let display_mode = ref DMNone
 let in_macro = ref false
 let had_resume = ref false
+let code_ref = ref (Sedlexing.Utf8.from_string "")
 
 let reset_state () =
 	in_display := false;
@@ -105,7 +106,8 @@ let reset_state () =
 	display_mode := DMNone;
 	display_position := null_pos;
 	in_macro := false;
-	had_resume := false
+	had_resume := false;
+	code_ref := Sedlexing.Utf8.from_string ""
 
 (* Per-file state *)
 
