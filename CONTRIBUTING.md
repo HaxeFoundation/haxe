@@ -34,9 +34,7 @@ as possible for core devs to evaluate and merge. To that end:
 
   * If you've found and fixed a bug, have you also included a
     corresponding test for it?
-
   * Does your code formatting match that of the rest of the project?
-
   * If your changes require updates to the documentation, does your PR
     include those as well?
 
@@ -44,10 +42,8 @@ Please also bear the following in mind:
 
   * Evaluating PR's takes time and effort. Even taking a look at a PR
     in order to request more info or clarification is not zero-cost.
-    
-  * Members of the core team are volunteers too, and at any given time
+  * Most members of the core team are volunteers too, and at any given time
     are typically already busy working on other areas of Haxe.
-    
   * It's no fun providing negative feedback to a PR. The better you
     can craft and champion your PR, the more likely it is to be
     speedily evaluated.
