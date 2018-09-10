@@ -41,6 +41,7 @@ XXXX-XX-XX:
 	all : reworked CLI usage/help output (#6862)
 	all : implemented `for` loop unrolling (#3784)
 	all : metadata can now use `.`, e.g. `@:a.b`. This is represented as a string (#3959)
+	all : [breaking] disallow static extensions through abstract field casts (#5924)
 	all : [breaking] disallow static extensions on implicit `this` (#6036)
 	all : allow true and false expressions as type parameters (#6958)
 	all : improved display support in many areas

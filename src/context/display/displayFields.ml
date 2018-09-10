@@ -60,7 +60,7 @@ let collect_static_extensions ctx items e p =
 					| TFun((_,_,TType({t_path=["haxe";"macro"], "ExprOf"}, [t])) :: args, ret)
 					| TFun((_,_,t) :: args, ret) ->
 						begin try
-							unify_raise ctx (dup e.etype) t e.epos;
+							let e = TyperBase.unify_static_extension ctx {e with etype = dup e.etype} t p in
 							List.iter2 (fun m (name,t) -> match follow t with
 								| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] ->
 									List.iter (fun tc -> unify_raise ctx m (map tc) e.epos) constr
@@ -80,7 +80,7 @@ let collect_static_extensions ctx items e p =
 								let item = make_ci_class_field (CompletionClassField.make f CFSMember origin true) (f.cf_type,ct) in
 								PMap.add f.cf_name item acc
 							end
-						with Error (Unify _,_) ->
+						with Error (Unify _,_) | Unify_error _ ->
 							acc
 						end
 					| _ ->
