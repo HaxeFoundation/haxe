@@ -1546,8 +1546,8 @@ end
 
 module StdReflect = struct
 
-	let r_get_ = Rope.of_string "get_"
-	let r_set_ = Rope.of_string "set_"
+	let r_get_ = create_ascii "get_"
+	let r_set_ = create_ascii "set_"
 
 	let callMethod = vfun3 (fun o f args ->
 		call_value_on o f (decode_array args)
@@ -1584,7 +1584,7 @@ module StdReflect = struct
 	)
 
 	let deleteField = vfun2 (fun o name ->
-		let name = hash (decode_rope name) in
+		let name = hash_s (get (decode_vstring name)) in
 		match vresolve o with
 		| VObject o ->
 			let found = ref false in
@@ -1605,7 +1605,7 @@ module StdReflect = struct
 	)
 
 	let field' = vfun2 (fun o name ->
-		if o = vnull then vnull else dynamic_field o (hash (decode_rope name))
+		if o = vnull then vnull else dynamic_field o (hash_s (get (decode_vstring name)))
 	)
 
 	let fields = vfun1 (fun o ->
@@ -1622,14 +1622,15 @@ module StdReflect = struct
 	)
 
 	let getProperty = vfun2 (fun o name ->
-		let name = decode_rope name in
-		let vget = field o (hash (Rope.concat Rope.empty [r_get_;name])) in
+		let name = decode_vstring name in
+		let name_get = hash_s (get (concat r_get_ name)) in
+		let vget = field o name_get in
 		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash name)
+		else dynamic_field o (hash_s (get name))
 	)
 
 	let hasField = vfun2 (fun o field ->
-		let name = hash (decode_rope field) in
+		let name = hash_s (get (decode_vstring field)) in
 		let b = match vresolve o with
 			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
@@ -1660,16 +1661,16 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		set_field o (hash (decode_rope name)) v; vnull
+		set_field o (hash_s (get (decode_vstring name))) v; vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
-		let name = decode_rope name in
-		let vset = field o (hash (Rope.concat Rope.empty [r_set_;name])) in
-		if vset <> VNull then
-			call_value_on o vset [v]
+		let name = decode_vstring name in
+		let name_set = hash_s (get (concat r_set_ name)) in
+		let vset = field o name_set in
+		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			set_field o (hash name) v;
+			set_field o (hash_s (get name)) v;
 			vnull
 		end
 	)
@@ -2430,7 +2431,7 @@ module StdType = struct
 	)
 
 	let createEnum = vfun3 (fun e constr params ->
-		let constr = hash (decode_rope constr) in
+		let constr = hash_s (get (decode_vstring constr)) in
 		create_enum e constr params
 	)
 
@@ -2572,14 +2573,14 @@ module StdType = struct
 	)
 
 	let resolveClass = vfun1 (fun v ->
-		let name = decode_rope v in
-		try (get_static_prototype_raise (get_ctx()) (hash name)).pvalue with Not_found -> vnull
+		let name = get (decode_vstring v) in
+		try (get_static_prototype_raise (get_ctx()) (hash_s name)).pvalue with Not_found -> vnull
 	)
 
 	let resolveEnum = vfun1 (fun v ->
-		let name = decode_rope v in
+		let name = get (decode_vstring v) in
 		try
-			let proto = get_static_prototype_raise (get_ctx()) (hash name) in
+			let proto = get_static_prototype_raise (get_ctx()) (hash_s name) in
 			begin match proto.pkind with
 				| PEnum _ -> proto.pvalue
 				| _ -> vnull

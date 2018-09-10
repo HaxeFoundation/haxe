@@ -166,7 +166,7 @@ class Lambda {
 		If `it` is empty, the result is the empty Array even if `f` is null.
 		Otherwise if `f` is null, the result is unspecified.
 	**/
-	public static inline function filter<A>( it : Array<A>, f : A -> Bool ) {
+	public static function filter<A>( it : Array<A>, f : A -> Bool ) {
 		return [for (x in it) if (f(x)) x];
 	}
 
