@@ -82,6 +82,7 @@ class Sys {
 		var p = new sys.io.Process(cmd,[]);
 		var code = p.exitCode(true);
 		var out = p.stdout.readAll().toString();
+		p.close();
 		var lines = out.split("\n");
 		var m = new Map<String,String>();
 		for (l in lines){
