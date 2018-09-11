@@ -51,23 +51,41 @@ class String {
 	public inline function toUpperCase() : String return Utf8.upper(this);
 	public inline function toLowerCase() : String return Utf8.lower(this);
 	public inline function indexOf( str : String, ?startIndex : Int ) : Int {
-		if (startIndex == null) startIndex = 1;
-		else startIndex += 1;
-		var r = Utf8.find(this, str, startIndex, true).begin;
-		if (r != null && r > 0) return r-1;
-		else return -1;
+		if (startIndex == null) startIndex = 0;
+		if (str == "") {
+			if (this == ""){
+				return 0;
+			} else {
+				var max = cast Math.max(startIndex,0);
+				return cast Math.min(length, max);
+			}
+		} else {
+			var startIndex = startIndex >= 0 ? startIndex + 1 : startIndex;
+			var r = Utf8.find(this, str, startIndex, true).begin;
+			if (r != null && r > 0) return r-1;
+			else return -1;
+		}
 	}
 
 	public inline function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var i = 0;
 		var ret = -1;
 		if( startIndex == null ) startIndex = length;
-		while( true ) {
-			var p = indexOf(str, ret+1);
-			if( p == -1 || p > startIndex ) break;
-			ret = p;
+		if (str == ""){
+			if (this == ""){
+				return 0;
+			} else {
+				var max = cast Math.max(startIndex,0);
+				return cast Math.min(length, max);
+			}
+		} else {
+			while( true ) {
+				var p = indexOf(str, ret+1);
+				if( p == -1 || p > startIndex ) break;
+				ret = p;
+			}
+			return ret;
 		}
-		return ret;
 	}
 
 	public inline function split( delimiter : String ) : Array<String> {
