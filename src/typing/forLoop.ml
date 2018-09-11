@@ -368,7 +368,7 @@ let type_for_loop ctx handle_display it e2 p =
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
 		begin match follow e1.etype with
-		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
 		| _ -> ()
 		end;
 		let vtmp = gen_local ctx e1.etype e1.epos in
