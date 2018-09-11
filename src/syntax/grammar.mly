@@ -917,7 +917,7 @@ and parse_block_elt = parser
 	| [< '(Kwd Inline,p1); s >] ->
 		begin match s with parser
 		| [< '(Kwd Function,_); e = parse_function p1 true; _ = semicolon >] -> e
-		| [< e = secure_expr; _ = semicolon >] -> make_meta (Meta.Custom ":inline") [] e p1
+		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
 		end
 	| [< e = expr; _ = semicolon >] -> e
@@ -1218,7 +1218,7 @@ and expr = parser
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = secure_expr >] -> (EUntyped e,punion p1 (pos e))
 	| [< '(Dollar v,p); s >] -> expr_next (EConst (Ident ("$"^v)),p) s
-	| [< '(Kwd Inline,p); e = secure_expr >] -> make_meta (Meta.Custom ":inline") [] e p
+	| [< '(Kwd Inline,p); e = secure_expr >] -> make_meta Meta.Inline [] e p
 
 and expr_next e1 s =
 	try
