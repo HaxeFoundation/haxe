@@ -244,13 +244,35 @@ Reflect.field(obj, field) == null;
 function test(left:String, middle:String, right:String) {
 	var s = '$left:$middle:$right';
 	var rex = new EReg(':($middle):', "");
+	function check(rex:EReg) {
+		eq(rex.matchedLeft(), left);
+		eq(rex.matchedRight(), right);
+		eq(rex.matched(1), middle);
+		var pos = rex.matchedPos();
+		eq(pos.pos, left.length);
+		eq(pos.len, middle.length + 2);
+	}
+
 	t(rex.match(s));
-	eq(rex.matchedLeft(), left);
-	eq(rex.matchedRight(), right);
-	eq(rex.matched(1), middle);
-	var pos = rex.matchedPos();
-	eq(pos.pos, left.length);
-	eq(pos.len, middle.length + 2);
+	check(rex);
+
+	var split = rex.split(s);
+	eq(2, split.length);
+	eq(left, split[0]);
+	eq(right, split[1]);
+
+	eq(rex.replace(s, "a"), '${left}a$right');
+	eq(rex.replace(s, "ä"), '${left}ä$right');
+
+	eq(rex.map(s, r -> {
+		check(r);
+		"a";
+	}), '${left}a$right');
+
+	eq(rex.map(s, r -> {
+		check(r);
+		"ä";
+	}), '${left}ä$right');
 }
 
 test("äb", "ä", "bc");

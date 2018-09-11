@@ -805,7 +805,7 @@ module StdEReg = struct
 				this.r_groups <- [|a|];
 				let (first,last) = get_substring_ofs a 0 in
 				Rope.Buffer.add_substring buf s pos (first - pos);
-				Rope.Buffer.add_rope buf (decode_rope (call_value_on vthis f [vthis]));
+				Rope.Buffer.add_string buf (decode_string (call_value_on vthis f [vthis]));
 				if last = first then begin
 					if last >= l then
 						()
@@ -828,7 +828,7 @@ module StdEReg = struct
 		loop 0;
 		this.r_string <- "";
 		this.r_groups <- [||];
-		encode_rope (Rope.Buffer.contents buf)
+		create_unknown (Rope.to_string (Rope.Buffer.contents buf))
 	)
 
 	let match' = vifun1 (fun vthis s ->
@@ -907,7 +907,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		let by = decode_string by in
 		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
-		encode_string s
+		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
@@ -922,13 +922,13 @@ module StdEReg = struct
 					loop split (cur ^ s) acc l
 				| Delim s :: l ->
 					if split then
-						loop this.r_global "" ((encode_string cur) :: acc) l
+						loop this.r_global "" ((create_unknown cur) :: acc) l
 					else
 						loop false (cur ^ s) acc l
 				| _ :: l ->
 					loop split cur acc l
 				| [] ->
-					List.rev ((encode_string cur) :: acc)
+					List.rev ((create_unknown cur) :: acc)
 			in
 			let l = loop true "" [] l in
 			encode_array l
