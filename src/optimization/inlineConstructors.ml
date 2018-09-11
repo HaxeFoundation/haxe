@@ -221,6 +221,7 @@ let inline_constructors ctx e =
 		in
 		match e.eexpr, e.etype with
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
+		| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_
 			when captured && not (List.memq cf seen_ctors) ->
 			begin
 				let io_id = !current_io_id in
@@ -387,7 +388,7 @@ let inline_constructors ctx e =
 			([Type.map_expr f e], None)
 		in
 		match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ ->
+		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) ->
 			begin try
 				let io = get_io !current_io_id in
 				if io.io_cancelled then begin

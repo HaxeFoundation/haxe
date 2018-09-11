@@ -2275,6 +2275,9 @@ and type_meta ctx m e1 with_type p =
 			begin match fst e1 with
 			| ECall(e1,el) ->
 				type_call ctx e1 el Value true p
+			| ENew (t,el) ->
+				let e = type_new ctx t el with_type p in
+				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| _ ->
 				display_error ctx "Call expected after inline keyword" p;
 				e();
