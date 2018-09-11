@@ -96,6 +96,24 @@ let iterator a =
 		end
 	)
 
+let keyValueIterator a =
+	let i = ref 0 in
+	let a = Array.sub a.avalues 0 a.alength in
+	let length = Array.length a in
+	(fun () ->
+		!i < length
+	),
+	(fun () ->
+		if !i >= length then
+			!i, vnull
+		else begin
+			let v = a.(!i) in
+			let j = !i in
+			incr i;
+			j, v
+		end
+	)
+
 let join a f sep =
 	array_join (Array.sub a.avalues 0 a.alength) f sep
 

@@ -46,6 +46,10 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.iterator(this);
 	}
 
+	public inline function keyValueIterator() : KeyValueIterator<Int,T> {
+		return new ArrayKeyValueIterator(this);
+	}
+
 	public inline function insert( pos : Int, x : T ) : Void {
 		ArrayImpl.insert(this, pos, x);
 	}
@@ -137,4 +141,23 @@ extern class Array<T> implements ArrayAccess<T> {
 	}
 
 	@:noCompletion private function __iter__ ():NativeIterator<T>;
+}
+
+private class ArrayKeyValueIterator<T> {
+	var idx:Int;
+	var arr:Array<T>;
+
+	public inline function new(arr:Array<T>) {
+		this.arr = arr;
+		idx = 0;
+	}
+
+	public inline function hasNext():Bool {
+		return idx < arr.length;
+	}
+
+	public inline function next():{key:Int,value:T} {
+		var v = arr[idx];
+		return {key:idx++, value:v};
+	}
 }

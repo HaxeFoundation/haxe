@@ -85,6 +85,11 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return new ArrayIterator(this);
 	}
 
+	@:keep
+	public function keyValueIterator() : KeyValueIterator<Int,T> {
+		return new ArrayKeyValueIterator(this);
+	}
+
 	public function join(sep:String):String {
 		return Global.implode(sep, Global.array_map('strval', arr));
 	}
@@ -241,6 +246,34 @@ private class ArrayIterator<T> {
 
 	public inline function next():T {
 		return arr[idx++];
+	}
+
+	@:keep
+	@:phpMagic
+	function __get(method:String) {
+		return switch(method) {
+			case 'hasNext', 'next': Boot.closure(this, method);
+			case _: null;
+		}
+	}
+}
+
+private class ArrayKeyValueIterator<T> {
+	var idx:Int;
+	var arr:Array<T>;
+
+	public inline function new(arr:Array<T>) {
+		this.arr = arr;
+		idx = 0;
+	}
+
+	public inline function hasNext():Bool {
+		return idx < arr.length;
+	}
+
+	public inline function next():{key:Int,value:T} {
+		var v = arr[idx];
+		return {key:idx++, value:v};
 	}
 
 	@:keep

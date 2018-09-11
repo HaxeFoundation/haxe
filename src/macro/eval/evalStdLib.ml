@@ -141,6 +141,18 @@ module StdArray = struct
 		]
 	)
 
+	let keyValueIterator = vifun0 (fun vthis ->
+		let this = this vthis in
+		let f_has_next,f_next = EvalArray.keyValueIterator this in
+		encode_obj None [
+			key_hasNext,vifun0 (fun _ -> vbool (f_has_next()));
+			key_next,vifun0 (fun _ ->
+				let v_next = f_next() in
+				encode_obj None [key_key,vint (fst v_next);	key_value, snd v_next]
+			)
+		]
+	)
+
 	let join = vifun1 (fun vthis sep ->
 		let sep = decode_vstring sep in
 		let s = EvalArray.join (this vthis) (s_value 0) sep in
@@ -2846,6 +2858,7 @@ let init_standard_library builtins =
 		"insert",StdArray.insert;
 		"iterator",StdArray.iterator;
 		"join",StdArray.join;
+		"keyValueIterator",StdArray.keyValueIterator;
 		"lastIndexOf",StdArray.lastIndexOf;
 		"map",StdArray.map;
 		"pop",StdArray.pop;

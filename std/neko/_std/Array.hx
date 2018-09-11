@@ -66,6 +66,23 @@
 		};
 	}
 
+	public function keyValueIterator() : KeyValueIterator<Int, T> {
+		return untyped {
+			a : this,
+			p : 0,
+			hasNext : function() {
+				return __this__.p < __this__.a.length;
+			},
+			next : function() {
+				var i = __this__.a.__a[__this__.p];
+				return untyped {
+					key : __this__.p++,
+					value : i
+				};
+			}
+		};
+	}
+
 	public function insert( pos : Int, x : T ) : Void {
 		var l = this.length;
 		if( pos < 0 ) {

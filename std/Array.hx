@@ -268,6 +268,11 @@ extern class Array<T> {
 	function iterator() : Iterator<T>;
 
 	/**
+		Returns an iterator of the Array indices and values.
+	**/
+	function keyValueIterator() : KeyValueIterator<Int,T>;
+
+	/**
 		Creates a new Array by applying function `f` to all elements of `this`.
 
 		The order of elements is preserved.

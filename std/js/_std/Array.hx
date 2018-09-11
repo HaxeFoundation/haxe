@@ -71,6 +71,10 @@ extern class Array<T> {
 		return @:privateAccess HxOverrides.iter(this);
 	}
 
+	@:runtime inline function keyValueIterator() : KeyValueIterator<Int,T> {
+		return @:privateAccess HxOverrides.keyValueIter(this);
+	}
+
 	inline function resize( len : Int ) : Void {
 		this.length = len;
 	}
