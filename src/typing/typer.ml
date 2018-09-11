@@ -308,6 +308,14 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let inline_local_function ctx v e params t p =
+	(* create a fake class with a fake field to emulate inlining *)
+	let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
+	let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
+	c.cl_extern <- true;
+	c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
+	AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -350,20 +358,14 @@ let rec type_ident_raise ctx i p mode =
 	try
 		let v = PMap.find i ctx.locals in
 		(match v.v_extra with
-		| Some (params,e) ->
+		| Some (params,e,inline) ->
 			let t = monomorphs params v.v_type in
-			(match e with
-			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
+			(match e,inline with
+			| { eexpr = TFunction f },true when ctx.com.display.dms_inline ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
-					| MCall ->
-						(* create a fake class with a fake field to emulate inlining *)
-						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
-						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-						c.cl_extern <- true;
-						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+					| MCall -> inline_local_function ctx v e params t p
 				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
@@ -2033,7 +2035,7 @@ and type_local_function ctx name f with_type p =
 		| Some v ->
 			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
-			if params <> [] then v.v_extra <- Some (params,None);
+			if params <> [] then v.v_extra <- Some (params,(mk (TConst TNull) t_dynamic null_pos),false);
 			Some v
 	) in
 	let curfun = match ctx.curfun with
@@ -2055,7 +2057,7 @@ and type_local_function ctx name f with_type p =
 	| Some v ->
 		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
-		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+		v.v_extra <- Some (params,e,inline);
 		let rec loop = function
 			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
 			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
@@ -2296,6 +2298,9 @@ and type_call ctx e el (with_type:with_type) inline p =
 				| None ->
 					e
 				end;
+			| AKExpr {eexpr = TLocal ({v_extra = Some(params,({eexpr = TFunction _} as e1),_)} as v)} ->
+				let t = monomorphs params v.v_type in
+				inline_local_function ctx v e1 params t p
 			| _ -> e
 		in
 		let e = build_call ctx e el with_type p in

@@ -1187,10 +1187,11 @@ and encode_tconst c =
 	encode_enum ITConstant tag pl
 
 and encode_tvar v =
-	let f_extra (pl,e) =
+	let f_extra (pl,e,inline) =
 		encode_obj OTVar_extra [
 			"params",encode_type_params pl;
-			"expr",vopt encode_texpr e
+			"expr",encode_texpr e;
+			"isInline",vbool inline;
 		]
 	in
 	encode_obj OTVar [
