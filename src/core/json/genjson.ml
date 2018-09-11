@@ -253,12 +253,13 @@ and generate_type_parameter ctx (s,t) =
 
 and generate_tvar ctx v =
 	let generate_extra (params,e,inline) = jobject (
-		("params",jlist (generate_type_parameter ctx) params) ::
-		("expr",jobject [
-			("string",jstring (s_expr_pretty false "" false (s_type (print_context())) e))
-		]) ::
-		("inline",jbool inline) ::
-		[]
+		[
+			"params",jlist (generate_type_parameter ctx) params;
+			"expr",jobject [
+				("string",jstring (s_expr_pretty false "" false (s_type (print_context())) e))
+			];
+			"isInline",jbool inline;
+		]
 	) in
 	let fields = [
 		"id",jint v.v_id;
@@ -268,7 +269,6 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
-		(* "isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false); *) (* TODOOOO *)
 	] in
 	let origin_to_int = function
 		| TVOLocalVariable -> 0
