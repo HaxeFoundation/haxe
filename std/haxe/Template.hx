@@ -66,7 +66,7 @@ class Template {
 	public static var globals : Dynamic = {};
 
 	// To avoid issues with DCE, keep the array iterator.
-	@:keep var hxKeepArrayIterator = [].iterator();
+	@:keep static var hxKeepArrayIterator = [].iterator();
 
 	var expr : TemplateExpr;
 	var context : Dynamic;
