@@ -21,7 +21,7 @@
  */
 package haxe.rtti;
 import haxe.rtti.CType;
-import haxe.xml.Fast;
+import haxe.xml.Access;
 
 /**
 	XmlParser processes the runtime type information (RTTI) which
@@ -85,7 +85,7 @@ class XmlParser {
 
 	public function process( x : Xml, platform : String ) {
 		curplatform = platform;
-		xroot(new Fast(x));
+		xroot(new Access(x));
 	}
 
 	// merge inline and not inline
@@ -305,18 +305,18 @@ class XmlParser {
 		}
 	}
 
-	function xerror( c : Fast ) : Dynamic {
+	function xerror( c : Access ) : Dynamic {
 		return throw "Invalid "+c.name;
 	}
 
-	function xroot( x : Fast ) {
+	function xroot( x : Access ) {
 		for( c in x.x.elements() )
 			merge(processElement(c));
 
 	}
 
 	public function processElement( x : Xml ) {
-		var c = new haxe.xml.Fast(x);
+		var c = new haxe.xml.Access(x);
 		return switch( c.name ) {
 		case "class": TClassdecl(xclass(c));
 		case "enum": TEnumdecl(xenum(c));
@@ -326,7 +326,7 @@ class XmlParser {
 		}
 	}
 
-	function xmeta( x : Fast ) : MetaData {
+	function xmeta( x : Access ) : MetaData {
 		var ml = [];
 		for( m in x.nodes.m ) {
 			var pl = [];
@@ -337,7 +337,7 @@ class XmlParser {
 		return ml;
 	}
 
-	function xoverloads( x : Fast ) : Array<ClassField> {
+	function xoverloads( x : Access ) : Array<ClassField> {
 		var l = new Array();
 		for ( m in x.elements ) {
 			l.push(xclassfield(m));
@@ -345,7 +345,7 @@ class XmlParser {
 		return l;
 	}
 
-	function xpath( x : Fast ) : PathParams {
+	function xpath( x : Access ) : PathParams {
 		var path = mkPath(x.att.path);
 		var params = new Array();
 		for( c in x.elements )
@@ -356,7 +356,7 @@ class XmlParser {
 		};
 	}
 
-	function xclass( x : Fast ) : Classdef {
+	function xclass( x : Access ) : Classdef {
 		var csuper = null;
 		var doc = null;
 		var tdynamic = null;
@@ -369,7 +369,7 @@ class XmlParser {
 			case "haxe_doc": doc = c.innerData;
 			case "extends": csuper = xpath(c);
 			case "implements": interfaces.push(xpath(c));
-			case "haxe_dynamic": tdynamic = xtype(new Fast(c.x.firstElement()));
+			case "haxe_dynamic": tdynamic = xtype(new Access(c.x.firstElement()));
 			case "meta": meta = xmeta(c);
 			default:
 				if( c.x.exists("static") )
@@ -396,7 +396,7 @@ class XmlParser {
 		};
 	}
 
-	function xclassfield( x : Fast, ?defPublic = false ) : ClassField {
+	function xclassfield( x : Access, ?defPublic = false ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
 		var doc = null;
@@ -427,7 +427,7 @@ class XmlParser {
 		};
 	}
 
-	function xenum( x : Fast ) : Enumdef {
+	function xenum( x : Access ) : Enumdef {
 		var cl = new Array();
 		var doc = null;
 		var meta = [];
@@ -452,7 +452,7 @@ class XmlParser {
 		};
 	}
 
-	function xenumfield( x : Fast ) : EnumField {
+	function xenumfield( x : Access ) : EnumField {
 		var args = null;
 		var docElements = x.x.elementsNamed("haxe_doc");
 		var xdoc = if( docElements.hasNext() ) docElements.next() else null;
@@ -477,13 +477,13 @@ class XmlParser {
 		return {
 			name : x.name,
 			args : args,
-			doc : if( xdoc == null ) null else new Fast(xdoc).innerData,
+			doc : if( xdoc == null ) null else new Access(xdoc).innerData,
 			meta : meta,
 			platforms : defplat(),
 		};
 	}
 
-	function xabstract( x : Fast ) : Abstractdef {
+	function xabstract( x : Access ) : Abstractdef {
 		var doc = null, impl = null, athis = null;
 		var meta = [], to = [], from = [];
 		for( c in x.elements )
@@ -494,14 +494,14 @@ class XmlParser {
 				meta = xmeta(c);
 			case "to":
 				for( t in c.elements )
-					to.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
+					to.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 			case "from":
 				for( t in c.elements )
-					from.push({t: xtype(new Fast(t.x.firstElement())), field: t.has.field ? t.att.field : null});
+					from.push({t: xtype(new Access(t.x.firstElement())), field: t.has.field ? t.att.field : null});
 			case "impl":
 				impl = xclass(c.node.resolve("class"));
 			case "this":
-				athis = xtype(new Fast(c.x.firstElement()));
+				athis = xtype(new Access(c.x.firstElement()));
 			default:
 				xerror(c);
 			}
@@ -522,7 +522,7 @@ class XmlParser {
 	}
 
 
-	function xtypedef( x : Fast ) : Typedef {
+	function xtypedef( x : Access ) : Typedef {
 		var doc = null;
 		var t = null;
 		var meta = [];
@@ -550,7 +550,7 @@ class XmlParser {
 		};
 	}
 
-	function xtype( x : Fast ) : CType {
+	function xtype( x : Access ) : CType {
 		return switch( x.name ) {
 		case "unknown":
 			CUnknown;
@@ -599,14 +599,14 @@ class XmlParser {
 			var t = null;
 			var tx = x.x.firstElement();
 			if( tx != null )
-				t = xtype(new Fast(tx));
+				t = xtype(new Access(tx));
 			CDynamic(t);
 		default:
 			xerror(x);
 		}
 	}
 
-	function xtypeparams( x : Fast ) : Array<CType> {
+	function xtypeparams( x : Access ) : Array<CType> {
 		var p = new Array();
 		for( c in x.elements )
 			p.push(xtype(c));

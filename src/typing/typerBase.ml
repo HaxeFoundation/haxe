@@ -172,3 +172,18 @@ let has_constructible_constraint ctx tl el p =
 		| _ -> false
 	in
 	List.exists loop tl
+
+let unify_static_extension ctx e t p =
+	let multitype_involed t1 t2 =
+		let check t = match follow t with
+			| TAbstract(a,_) when Meta.has Meta.MultiType a.a_meta -> true
+			| _ -> false
+		in
+		check t1 || check t2
+	in
+	if multitype_involed e.etype t then
+		AbstractCast.cast_or_unify_raise ctx t e p
+	else begin
+		Type.unify e.etype t;
+		e
+	end

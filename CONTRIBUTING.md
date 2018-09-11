@@ -15,6 +15,40 @@ This repository is about the Haxe compiler itself and the Haxe standard library.
 * Something on api.haxe.org: For content this is probably the right repository. If it's about the representation, try <https://github.com/HaxeFoundation/dox/issues> instead.
 * Something else on haxe.org: <https://github.com/HaxeFoundation/haxe.org/issues>
 
+## Submitting a Pull-Request
+
+Thank you for your interest in contributing to Haxe! Haxe is a
+community-driven project and your help is vital and appreciated!
+
+When preparing to submit a pull-request, please make your PR as easy
+as possible for core devs to evaluate and merge. To that end:
+
+  * In your PR comments, include:
+
+      * the reason for your proposed changes (What problem are you fixing?)
+      * some possible solutions, and rationale for the one you chose
+      * a summary of the code changes in your PR
+      * any pros and cons to note about the solution you implemented
+      * links to any relevant GitHub issues, PR's, and/or forum
+        discussions
+
+  * If you've found and fixed a bug, have you also included a
+    corresponding test for it?
+  * Does your code formatting match that of the rest of the project?
+  * If your changes require updates to the documentation, does your PR
+    include those as well?
+
+Please also bear the following in mind:
+
+  * Evaluating PR's takes time and effort. Even taking a look at a PR
+    in order to request more info or clarification is not zero-cost.
+  * Most members of the core team are volunteers too, and at any given time
+    are typically already busy working on other areas of Haxe.
+  * It's no fun providing negative feedback to a PR. The better you
+    can craft and champion your PR, the more likely it is to be
+    speedily evaluated.
+
+
 ## Debugging Hints
 
 ### Using a debugger

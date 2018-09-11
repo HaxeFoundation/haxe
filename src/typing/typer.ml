@@ -687,7 +687,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 
 and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
-	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else wt) in
+	let with_type = match op with
+		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType e1.etype
+		| _ -> wt
+	in
+	let e2 = type_expr ctx e2 with_type in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in

@@ -219,6 +219,17 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let is_generic,is_generic_build = match mt with
 			| TClassDecl {cl_kind = KGeneric} -> true,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
+			| TTypeDecl td ->
+				begin try
+					let msg = match Meta.get Meta.Deprecated td.t_meta with
+						| _,[EConst(String s),_],_ -> s
+						| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
+					in
+					ctx.com.warning msg p
+				with Not_found ->
+					()
+				end;
+				false,false
 			| _ -> false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in

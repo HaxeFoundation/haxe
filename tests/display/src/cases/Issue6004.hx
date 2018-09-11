@@ -11,6 +11,6 @@ class Issue6004 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		eq(true, hasField(fields(pos(1)), "bind", "(?a : Int -> Int) -> (?a : Int -> Int)", "method"));
+		eq(true, hasField(fields(pos(1)), "bind", "((?a : Int) -> Int) -> ((?a : Int) -> Int)", "method"));
 	}
 }
