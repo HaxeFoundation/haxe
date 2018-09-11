@@ -2784,9 +2784,11 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 					self#write ("$" ^ arg_name);
 					match default_value with
 						| None -> ()
-						| Some const ->
+						| Some expr ->
 							self#write " = ";
-							self#write_expr const
+							match expr.eexpr with
+								| TConst _ -> self#write_expr expr
+								| _ -> self#write "null"
 		(**
 			Write an access to a field of dynamic value
 		*)
