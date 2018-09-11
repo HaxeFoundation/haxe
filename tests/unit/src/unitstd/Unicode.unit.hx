@@ -239,4 +239,28 @@ Reflect.deleteField(obj, field) == false;
 Reflect.hasField(obj, field) == false;
 Reflect.field(obj, field) == null;
 
+// EReg -_-
+
+function test(left:String, middle:String, right:String) {
+	var s = '$left:$middle:$right';
+	var rex = new EReg(':($middle):', "");
+	t(rex.match(s));
+	eq(rex.matchedLeft(), left);
+	eq(rex.matchedRight(), right);
+	eq(rex.matched(1), middle);
+	var pos = rex.matchedPos();
+	eq(pos.pos, left.length);
+	eq(pos.len, middle.length + 2);
+}
+
+test("äb", "ä", "bc");
+test("äb", "a", "bc");
+test("ab", "a", "bc");
+test("ab", "ä", "bc");
+
+test("äb", "äbc", "bc");
+test("äb", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "äbc", "bc");
+
 #end

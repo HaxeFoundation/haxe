@@ -849,20 +849,31 @@ module StdEReg = struct
 		let this = this vthis in
 		let n = decode_int n in
 		maybe_run this n (fun (first,last) ->
-			encode_string (ExtString.String.slice ~first ~last this.r_string)
+			create_unknown (ExtString.String.slice ~first ~last this.r_string)
 		)
 	)
 
 	let matchedLeft = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (first,_) ->
-			encode_string (ExtString.String.slice ~last:first this.r_string)
+			create_unknown (ExtString.String.slice ~last:first this.r_string)
 		)
 	)
 
 	let matchedPos = vifun0 (fun vthis ->
 		let this = this vthis in
+		let rec byte_offset_to_char_offset_lol s i k o =
+			if i = 0 then
+				k
+			else begin
+				let n = UTF8.next s o in
+				let d = n - o in
+				byte_offset_to_char_offset_lol s (i - d) (k + 1) n
+			end
+		in
 		maybe_run this 0 (fun (first,last) ->
+			let first = byte_offset_to_char_offset_lol this.r_string first 0 0 in
+			let last = byte_offset_to_char_offset_lol this.r_string last 0 0 in
 			encode_obj None [key_pos,vint first;key_len,vint (last - first)]
 		)
 	)
@@ -870,7 +881,7 @@ module StdEReg = struct
 	let matchedRight = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (_,last) ->
-			encode_string (ExtString.String.slice ~first:last this.r_string)
+			create_unknown (ExtString.String.slice ~first:last this.r_string)
 		)
 	)
 
