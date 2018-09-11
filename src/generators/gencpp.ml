@@ -985,18 +985,6 @@ let rec is_dynamic_accessor name acc field class_def =
    && (match class_def.cl_super with None -> true | Some (parent,_) -> is_dynamic_accessor name acc field parent )
 ;;
 
-
-(* Check to see if we are the first object in the parent tree to implement a dynamic interface *)
-let implement_dynamic_here class_def =
-   let implements_dynamic c = match c.cl_dynamic with None -> false | _ -> true  in
-   let rec super_implements_dynamic c = match c.cl_super with
-      | None -> false
-      | Some (csup, _) -> if (implements_dynamic csup) then true else
-            super_implements_dynamic csup;
-   in
-   ( (implements_dynamic class_def) && (not (super_implements_dynamic class_def) ) );;
-
-
 let gen_hash32 seed str =
    let h = ref (Int32.of_int seed) in
    let cycle = Int32.of_int 223 in
@@ -2896,6 +2884,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             | OpBoolAnd | OpBoolOr -> TCppScalar("bool")
             | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> TCppScalar("int")
             | OpAssign -> (retype TCppUnchanged left).cpptype
+            | OpMult | OpSub -> cpp_type_of expr.etype
             | _ -> TCppUnchanged
             in
             let e1 = retype binOpType left in
@@ -2938,7 +2927,12 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                | _ -> CppBinop(op,e1,e2)
             in
-            reference, cpp_type_of expr.etype
+            (match op,e1.cpptype,e2.cpptype  with
+            (* Variant + Variant = Variant *)
+            | OpAdd, _, TCppVariant | OpAdd, TCppVariant, _
+                -> reference, TCppVariant
+            | _,_,_ -> reference, cpp_type_of expr.etype
+            )
 
          | TUnop (op,pre,e1) ->
             let targetType = match op with
@@ -3294,10 +3288,11 @@ let cpp_gen_default_values ctx args prefix =
    ) args;
 ;;
 
-let is_constant_zero expr =
+let rec is_constant_zero expr =
   match expr.cppexpr with
   | CppFloat x when (float_of_string x) = 0.0 -> true
   | CppInt i when i = Int32.of_int 0 -> true
+  | CppCastScalar(expr,_) -> is_constant_zero(expr)
   | _ -> false
 ;;
 
@@ -3331,6 +3326,24 @@ let ctx_default_values ctx args prefix =
 
 let gen_type ctx haxe_type =
    ctx.ctx_output (ctx_type_string ctx haxe_type)
+;;
+
+
+
+
+
+let rec implements_native_interface class_def =
+   List.exists (fun (intf_def,_) ->
+        is_native_gen_class intf_def ||
+           implements_native_interface intf_def
+    ) class_def.cl_implements ||
+        (match class_def.cl_super with
+           | Some (i,_) -> implements_native_interface i
+           | _ -> false )
+;;
+
+let can_quick_alloc klass =
+   not (implements_native_interface klass)
 ;;
 
 
@@ -3488,7 +3501,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
            expr.cpppos);
          out " ]"
 
-      | CppCall(FuncNew( TCppInst klass), args) ->
+      | CppCall(FuncNew( TCppInst klass), args) when can_quick_alloc klass ->
          out ((cpp_class_path_of klass) ^ "_obj::__alloc( HX_CTX ");
          List.iter (fun arg -> out ","; gen arg ) args;
          out (")")
@@ -5166,14 +5179,12 @@ let list_iteri func in_list =
 ;;
 
 let has_new_gc_references ctx class_def =
-   match class_def.cl_dynamic with
-   | Some _ -> true
-   | _ -> (
+   (
       let is_gc_reference field =
       (should_implement_field field) && (is_data_member field) && not (ctx_cant_be_null ctx field.cf_type)
       in
       List.exists is_gc_reference class_def.cl_ordered_fields
-      )
+   )
 ;;
 
 
@@ -5229,7 +5240,7 @@ let is_writable class_def field =
 let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
 
 let has_set_member_field class_def =
-   implement_dynamic_here class_def || (
+   (
       let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
@@ -5245,14 +5256,14 @@ let has_set_static_field class_def =
 
 
 let has_get_fields class_def =
-   implement_dynamic_here class_def || (
+   (
       let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
       List.exists is_data_field class_def.cl_ordered_fields
    )
 ;;
 
 let has_get_member_field class_def =
-   implement_dynamic_here class_def || (
+   (
       let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       List.exists (is_readable class_def) reflect_fields
    )
@@ -5498,7 +5509,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let classIdTxt = Printf.sprintf "0x%08lx" classId in
 
    (* Config *)
-   let implement_dynamic = implement_dynamic_here class_def in
    let override_iteration = (not nativeGen) && (has_new_gc_references baseCtx class_def) in
    let dynamic_interface_closures =  (Common.defined baseCtx.ctx_common Define.DynamicInterfaceClosures) in
 
@@ -5578,6 +5588,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let isContainer = if (has_gc_references common_ctx class_def) then "true" else "false" in
 
+   let can_quick_alloc = can_quick_alloc class_def in
+
    let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
       out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
@@ -5586,35 +5598,38 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       out ("\treturn __this;\n");
       out ("}\n\n");
 
-      out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
-      out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
-      out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
-      let rec dump_dynamic class_def =
-         if has_dynamic_member_functions class_def then
-            out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_ctx,__this);\n")
-         else match class_def.cl_super with
-         | Some super -> dump_dynamic (fst super)
-         | _ -> ()
-      in
-      dump_dynamic class_def;
+      if can_quick_alloc then begin
+         out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
+            (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
+         out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
+         out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
+         let rec dump_dynamic class_def =
+            if has_dynamic_member_functions class_def then
+               out ("\t" ^ (join_class_path_remap class_def.cl_path "::") ^ "_obj::__alloc_dynamic_functions(_hx_ctx,__this);\n")
+            else match class_def.cl_super with
+            | Some super -> dump_dynamic (fst super)
+            | _ -> ()
+         in
+         dump_dynamic class_def;
 
-      if isHeader then begin
-        match class_def.cl_constructor with
-         | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
-            let old_debug = ctx.ctx_debug_level in
-            if has_meta_key definition.cf_meta Meta.NoDebug then
-               ctx.ctx_debug_level <- 0;
-            ctx.ctx_real_this_ptr <- false;
-            gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
-            out "\n";
+         if isHeader then begin
+           match class_def.cl_constructor with
+            | Some ( { cf_expr = Some ( { eexpr = TFunction(function_def) } ) } as definition ) ->
+               let old_debug = ctx.ctx_debug_level in
+               if has_meta_key definition.cf_meta Meta.NoDebug then
+                  ctx.ctx_debug_level <- 0;
+               ctx.ctx_real_this_ptr <- false;
+               gen_cpp_function_body ctx class_def false "new" function_def "" "" (has_meta_key definition.cf_meta Meta.NoDebug);
+               out "\n";
 
-            ctx.ctx_debug_level <- old_debug;
-         | _ -> ()
-      end else
-         out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
+               ctx.ctx_debug_level <- old_debug;
+            | _ -> ()
+         end else
+            out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
 
-      out ("\treturn __this;\n");
-      out ("}\n\n");
+         out ("\treturn __this;\n");
+         out ("}\n\n");
+      end;
    in
 
    (* State *)
@@ -5862,8 +5877,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          (* MARK function - explicitly mark all child pointers *)
          output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
          output_cpp ("\tHX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
-         if (implement_dynamic) then
-            output_cpp "\tHX_MARK_DYNAMIC;\n";
          List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") implemented_instance_fields;
          (match super_needs_iteration with
          | "" -> ()
@@ -5873,8 +5886,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          (* Visit function - explicitly visit all child pointers *)
          output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
-         if (implement_dynamic) then
-            output_cpp "\tHX_VISIT_DYNAMIC;\n";
          List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") implemented_instance_fields;
          (match super_needs_iteration with
          | "" -> ()
@@ -5936,8 +5947,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             ) ) )
          in
          dump_quick_field_test (get_field_dat reflect_member_readable);
-         if (implement_dynamic) then
-            output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
          output_cpp ("\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
       end;
@@ -5992,12 +6001,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          ) in
 
          dump_quick_field_test (set_field_dat reflect_write_member_variables);
-         if (implement_dynamic) then begin
-            output_cpp ("\ttry { return super::__SetField(inName,inValue,inCallProp); }\n");
-            output_cpp ("\tcatch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
-            output_cpp "\treturn inValue;\n}\n\n";
-         end else
-            output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
+         output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
       end;
 
       if (has_set_static_field class_def) then begin
@@ -6034,8 +6038,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
          List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
-         if (implement_dynamic) then
-            output_cpp "\tHX_APPEND_DYNAMIC_FIELDS(outFields);\n";
          output_cpp "\tsuper::__GetFields(outFields);\n";
          output_cpp "};\n\n";
       end;
@@ -6229,8 +6231,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
          else begin
             output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
-            if (not implement_dynamic) then
-               output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
+            output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
          end;
       end;
 
@@ -6486,7 +6487,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          outputConstructor ctx (fun str -> output_h ("\t\t" ^ str) ) true
       end else begin
          output_h ("\t\tstatic " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
-         output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::Ctx *_hx_ctx" ^ (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
+         if can_quick_alloc then
+             output_h ("\t\tstatic " ^ptr_name^ " __alloc(hx::Ctx *_hx_ctx" ^
+                 (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^");\n");
       end;
       output_h ("\t\tstatic void * _hx_vtable;\n");
       output_h ("\t\tstatic Dynamic __CreateEmpty();\n");
@@ -6508,8 +6511,6 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if (has_get_fields class_def) then
          output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
 
-      if (implement_dynamic) then
-         output_h ("\t\tHX_DECLARE_IMPLEMENT_DYNAMIC;\n");
       output_h ("\t\tstatic void __register();\n");
       if (override_iteration) then begin
          output_h ("\t\tvoid __Mark(HX_MARK_PARAMS);\n");
@@ -8015,7 +8016,6 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
-                                 (if (implement_dynamic_here class_def) then 1 else 0) +
                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
@@ -8056,8 +8056,6 @@ let generate_script_class common_ctx script class_def =
 
    List.iter (generate_field false) ordered_fields;
    List.iter (generate_field true) ordered_statics;
-   if (implement_dynamic_here class_def) then
-      script#implDynamic;
    script#write "\n";
 ;;
 

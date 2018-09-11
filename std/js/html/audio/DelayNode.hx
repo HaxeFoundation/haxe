@@ -25,6 +25,8 @@
 package js.html.audio;
 
 /**
+	The `DelayNode` interface represents a delay-line; an `AudioNode` audio-processing module that causes a delay between the arrival of an input data and its propagation to the output.
+
 	Documentation [DelayNode](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DelayNode$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DelayNode>
@@ -38,4 +40,6 @@ extern class DelayNode extends AudioNode
 	**/
 	var delayTime(default,null) : AudioParam;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : DelayOptions ) : Void;
 }

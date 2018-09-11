@@ -36,12 +36,12 @@ extern class FrameSetElement extends Element
 {
 	
 	/**
-		Is a `DOMString` that represents the foreground color of text.
+		Is a `DOMString` structured as a comma-seperated list specifing the width of each column inside a frameset.
 	**/
 	var cols : String;
 	
 	/**
-		Is a `DOMString` that represents the color of visited links.
+		Is a `DOMString` structured as a comma-seperated list specifing the height of each column inside a frameset.
 	**/
 	var rows : String;
 	var onafterprint : haxe.Constraints.Function;
@@ -50,6 +50,7 @@ extern class FrameSetElement extends Element
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var onpagehide : haxe.Constraints.Function;

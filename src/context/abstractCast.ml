@@ -46,35 +46,41 @@ let do_check_cast ctx tleft eright p =
 	if type_iseq tleft eright.etype then
 		eright
 	else begin
-		let rec loop tleft tright = match follow tleft,follow tright with
-		| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-			Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
-		| TAbstract(a,tl),_ ->
-			begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
-			with Not_found ->
-				let rec loop2 tcl = match tcl with
-					| tc :: tcl ->
-						if not (type_iseq tc tleft) then loop (apply_params a.a_params tl tc) tright
-						else loop2 tcl
-					| [] -> raise Not_found
-				in
-				loop2 a.a_from
+		let rec loop stack tleft tright =
+			if List.exists (fun (tleft',tright') -> fast_eq tleft tleft' && fast_eq tright tright') stack then
+				raise Not_found
+			else begin
+				let stack = (tleft,tright) :: stack in
+				match follow tleft,follow tright with
+				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+					Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
+				| TAbstract(a,tl),_ ->
+					begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+					with Not_found ->
+						let rec loop2 tcl = match tcl with
+							| tc :: tcl ->
+								if not (type_iseq tc tleft) then loop stack (apply_params a.a_params tl tc) tright
+								else loop2 tcl
+							| [] -> raise Not_found
+						in
+						loop2 a.a_from
+					end
+				| _,TAbstract(a,tl) ->
+					begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+					with Not_found ->
+						let rec loop2 tcl = match tcl with
+							| tc :: tcl ->
+								if not (type_iseq tc tright) then loop stack tleft (apply_params a.a_params tl tc)
+								else loop2 tcl
+							| [] -> raise Not_found
+						in
+						loop2 a.a_to
+					end
+				| _ ->
+					raise Not_found
 			end
-		| _,TAbstract(a,tl) ->
-			begin try find a tl (fun () -> Abstract.find_to a tl tleft)
-			with Not_found ->
-				let rec loop2 tcl = match tcl with
-					| tc :: tcl ->
-						if not (type_iseq tc tright) then loop tleft (apply_params a.a_params tl tc)
-						else loop2 tcl
-					| [] -> raise Not_found
-				in
-				loop2 a.a_to
-			end
-		| _ ->
-			raise Not_found
 		in
-		loop tleft eright.etype
+		loop [] tleft eright.etype
 	end
 
 let cast_or_unify_raise ctx tleft eright p =

@@ -944,7 +944,8 @@ let common_type ctx e1 e2 for_eq p =
 		| _ when for_eq && safe_cast t2 t1 -> t1
 		| HBool, HNull HBool when for_eq -> t2
 		| HNull HBool, HBool when for_eq -> t1
-		| HObj _, HVirtual _ | HVirtual _, HObj _ -> HDyn
+		| HObj _, HVirtual _ | HVirtual _, HObj _ | HVirtual _ , HVirtual _ -> HDyn
+		| HFun _, HFun _ -> HDyn
 		| _ ->
 			abort ("Don't know how to compare " ^ tstr t1 ^ " and " ^ tstr t2) p
 	in

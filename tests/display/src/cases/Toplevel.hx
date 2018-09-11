@@ -6,7 +6,7 @@ using Lambda;
 class Toplevel extends DisplayTestCase {
 	/**
 	class Main {
-		static var myField;
+		static var myField:String;
 		static function main() {{-1-}
 			{-2-}
 	**/
@@ -17,7 +17,7 @@ class Toplevel extends DisplayTestCase {
 
 	/**
 	class Main {
-		static var myField;
+		static var myField:String;
 		static function main() {
 			{-1-}
 			var a = "foo";
@@ -34,7 +34,7 @@ class Toplevel extends DisplayTestCase {
 
 	/**
 	class Main {
-		static var myField;
+		static var myField:String;
 		static function main() {
 			var a:{-1-}
 	**/
@@ -148,7 +148,7 @@ class Toplevel extends DisplayTestCase {
 
 	/**
 	class Main<ClassT> {
-		static var myField;
+		static var myField:String;
 		static function main<FieldT>() {
 			{-1-}
 		}
@@ -357,6 +357,6 @@ class Toplevel extends DisplayTestCase {
 	**/
 	function testTypeParameterApplication() {
 		var toplevel = toplevel(pos(1));
-		eq(true, hasToplevel(toplevel, "member", "f1", "t : String -> Void"));
+		eq(true, hasToplevel(toplevel, "member", "f1", "(t : String) -> Void"));
 	}
 }

@@ -44,6 +44,7 @@ extern class SpeechSynthesisEvent extends Event
 		Returns the index position of the character in the `SpeechSynthesisUtterance.text` that was being spoken when the event was triggered.
 	**/
 	var charIndex(default,null) : Int;
+	var charLength(default,null) : Int;
 	
 	/**
 		Returns the elapsed time in milliseconds after the `SpeechSynthesisUtterance.text` started being spoken that the event was triggered at.
@@ -51,7 +52,7 @@ extern class SpeechSynthesisEvent extends Event
 	var elapsedTime(default,null) : Float;
 	
 	/**
-		Returns the name associated with certain types of events occurring as the `SpeechSynthesisUtterance.text` is being spoken: the name of the SSML marker reached in the case of a `mark` event, or the type of boundary reached in the case of a `boundary` event.
+		Returns the name associated with certain types of events occuring as the `SpeechSynthesisUtterance.text` is being spoken: the name of the SSML marker reached in the case of a `mark` event, or the type of boundary reached in the case of a `boundary` event.
 	**/
 	var name(default,null) : String;
 	

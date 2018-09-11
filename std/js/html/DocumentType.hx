@@ -36,19 +36,28 @@ extern class DocumentType extends Node
 {
 	
 	/**
-		...
+		A `DOMString`, eg `"html"` for `!DOCTYPE HTML`.
 	**/
 	var name(default,null) : String;
 	
 	/**
-		...
+		A `DOMString`, eg `"-//W3C//DTD HTML 4.01//EN"`, empty string for HTML5.
 	**/
 	var publicId(default,null) : String;
 	
 	/**
-		...
+		A `DOMString`, eg `"http://www.w3.org/TR/html4/strict.dtd"`, empty string for HTML5.
 	**/
 	var systemId(default,null) : String;
 	
+	/** @throws DOMError */
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function before( nodes : haxe.extern.Rest<Node> ) : Void;
+	/** @throws DOMError */
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function after( nodes : haxe.extern.Rest<Node> ) : Void;
+	/** @throws DOMError */
+	@:overload( function( nodes : haxe.extern.Rest<String>) : Void {} )
+	function replaceWith( nodes : haxe.extern.Rest<Node> ) : Void;
 	function remove() : Void;
 }

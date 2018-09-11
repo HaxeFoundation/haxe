@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView>
 **/
-@:native("ArrayBufferView")
-extern class ArrayBufferView
+extern interface ArrayBufferView
 {
 	var buffer(default,null) : ArrayBuffer;
 	var byteOffset(default,null) : Int;

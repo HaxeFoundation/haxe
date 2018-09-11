@@ -410,10 +410,10 @@ let emit_anon_field_write exec1 proto i name exec2 env =
 	end;
 	v2
 
-let emit_field_write exec1 name exec2 env =
+let emit_field_write exec1 name exec2 p env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	set_field v1 name v2;
+	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
 	v2
 
 let emit_array_write exec1 exec2 exec3 p env =
@@ -468,7 +468,7 @@ let emit_instance_field_read_write exec1 i exec2 fop prefix env = match exec1 en
 	| VInstance vi -> instance_field_read_write vi i exec2 fop prefix env
 	| v -> unexpected_value v "instance"
 
-let emit_field_read_write exec1 name exec2 fop prefix env =
+let emit_field_read_write exec1 name exec2 fop prefix p env =
 	let v1 = exec1 env in
 	match vresolve v1 with
 	| VObject o ->
@@ -487,7 +487,7 @@ let emit_field_read_write exec1 name exec2 fop prefix env =
 		let vf = field v1 name in
 		let v2 = exec2 env in
 		let v = fop vf v2 in
-		set_field v1 name v;
+		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
 		if prefix then v else vf
 
 let emit_array_read_write exec1 exec2 exec3 fop prefix p env =

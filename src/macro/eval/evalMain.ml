@@ -397,7 +397,7 @@ let rec value_to_expr v p =
 	| VFalse -> (EConst (Ident "false"),p)
 	| VInt32 i -> (EConst (Int (Int32.to_string i)),p)
 	| VFloat f -> haxe_float f p
-	| VString s -> (EConst (String (Lazy.force s.sstring)),p)
+	| VString s -> (EConst (String (EvalString.get s)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
 			let n = rev_hash_s k in

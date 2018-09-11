@@ -211,6 +211,29 @@ let bytes_to_utf8 s =
 
 exception InvalidUnicodeChar
 
+let case_map this upper =
+	let dest = Bytes.of_string (Lazy.force this.sstring) in
+	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
+	let f i c =
+		let up = c lsr 6 in
+		if up < m then begin
+			let c' = a.(up).(c land ((1 lsl 6) - 1)) in
+			if c' <> 0 then EvalBytes.write_ui16 dest i c'
+		end
+	in
+	let l = Bytes.length dest in
+	let rec loop i =
+		if i = l then
+			()
+		else begin
+			let c = EvalBytes.read_ui16 dest i in
+			f i c;
+			loop (i + 2)
+		end
+	in
+	loop 0;
+	(create_ucs2 (Bytes.unsafe_to_string dest) this.slength)
+
 let from_char_code i =
 	if i < 0 then
 		raise Not_found
@@ -229,6 +252,37 @@ let from_char_code i =
 		create_ucs2 (Bytes.unsafe_to_string b) 2
 	end else
 		raise InvalidUnicodeChar
+
+let find_substring this sub reverse =
+	let l_this = Rope.length this.srope in
+	let s_this = Lazy.force this.sstring in
+	let s_sub = if not this.sascii then maybe_extend_ascii sub else Lazy.force sub.sstring in
+	let l_sub = String.length s_sub in
+	let rec scan i k =
+		if k = l_sub then true
+		else if String.unsafe_get s_this (i + k) = String.unsafe_get s_sub k then scan i (k + 1)
+		else false
+	in
+	let inc = if this.sascii then 1 else 2 in
+	if reverse then begin
+		let rec loop i =
+			if i < 0 then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i - inc)
+		in
+		loop
+	end else begin
+		let rec loop i =
+			if i > l_this - l_sub then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i + inc)
+		in
+		loop
+	end
 
 let get s =
 	let s' = Lazy.force s.sstring in

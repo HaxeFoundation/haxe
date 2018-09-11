@@ -995,9 +995,16 @@ let rec s_type ctx t =
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
-		String.concat " -> " (List.map (fun (s,b,t) ->
-			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
-		) l) ^ " -> " ^ s_fun ctx t false
+		let args = match l with
+			| [] -> "()"
+			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun ctx t true)
+			| _ ->
+				let args = String.concat ", " (List.map (fun (s,b,t) ->
+					(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
+				) l) in
+				"(" ^ args ^ ")"
+		in
+		Printf.sprintf "%s -> %s" args (s_fun ctx t false)
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
@@ -1433,7 +1440,6 @@ module Printer = struct
 			"cl_interface",string_of_bool c.cl_interface;
 			"cl_super",s_opt (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_super;
 			"cl_implements",s_list ", " (fun (c,tl) -> s_type (TInst(c,tl))) c.cl_implements;
-			"cl_dynamic",s_opt s_type c.cl_dynamic;
 			"cl_array_access",s_opt s_type c.cl_array_access;
 			"cl_overrides",s_list "," (fun cf -> cf.cf_name) c.cl_overrides;
 			"cl_init",s_opt (s_expr_ast true "" s_type) c.cl_init;

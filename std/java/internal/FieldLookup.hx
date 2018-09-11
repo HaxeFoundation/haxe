@@ -25,7 +25,7 @@ import java.lang.System;
 
 @:native('haxe.lang.FieldLookup')
 @:keep
-@:static private class FieldLookup
+@:static class FieldLookup
 {
 
 	@:functionCode('
@@ -58,17 +58,17 @@ import java.lang.System;
 		return ~min;
 	}
 
-	static function removeString(a:java.NativeArray<String>, length:Int, pos:Int) {
+	public static function removeString(a:java.NativeArray<String>, length:Int, pos:Int) {
 		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = null;
 	}
 
-	static function removeFloat(a:java.NativeArray<Float>, length:Int, pos:Int) {
+	public static function removeFloat(a:java.NativeArray<Float>, length:Int, pos:Int) {
 		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = 0;
 	}
 
-	static function removeDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int) {
+	public static function removeDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int) {
 		System.arraycopy(a, pos + 1, a, pos, length - pos - 1);
 		a[length - 1] = null;
 	}
@@ -118,7 +118,7 @@ import java.lang.System;
 		return a;
 	}
 
-	static function insertString(a:java.NativeArray<String>, length:Int, pos:Int, x:String):java.NativeArray<String> return __insert(a, length, pos, x);
-	static function insertFloat(a:java.NativeArray<Float>, length:Int, pos:Int, x:Float):java.NativeArray<Float> return __insert(a, length, pos, x);
-	static function insertDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):java.NativeArray<Dynamic> return __insert(a, length, pos, x);
+	public static function insertString(a:java.NativeArray<String>, length:Int, pos:Int, x:String):java.NativeArray<String> return __insert(a, length, pos, x);
+	public static function insertFloat(a:java.NativeArray<Float>, length:Int, pos:Int, x:Float):java.NativeArray<Float> return __insert(a, length, pos, x);
+	public static function insertDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):java.NativeArray<Dynamic> return __insert(a, length, pos, x);
 }

@@ -245,7 +245,7 @@ class Xml {
    }
 
    @:native("parse_xml")
-   extern static function parse_xml(str:String, state:NativeXmlState) { }
+   extern static function parse_xml(str:String, state:NativeXmlState);
 
    public static function parse( str : String ) : Xml
    {

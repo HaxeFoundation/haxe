@@ -1096,7 +1096,7 @@ let generate_class ctx c =
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_params;
 	let pack = open_block ctx in
-	print ctx "\tpublic %s%s%s %s " (if c.cl_final then " final " else "") (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
+	print ctx "\tpublic %s%s%s %s " (if c.cl_final then " final " else "") "" (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));

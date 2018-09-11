@@ -36,10 +36,10 @@ extern class XMLDocument extends Document
 {
 	var async : Bool;
 	
-	/** @throws DOMError */
 	
 	/**
 		Loads an XML document.
+		@throws DOMError
 	**/
 	function load( url : String ) : Bool;
 }

@@ -34,9 +34,25 @@ package js.html.svg;
 @:native("SVGForeignObjectElement")
 extern class ForeignObjectElement extends GraphicsElement
 {
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `foreignObject` element.
+	**/
 	var x(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `foreignObject` element.
+	**/
 	var y(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `width` attribute of the given `foreignObject` element.
+	**/
 	var width(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `height` attribute of the given `foreignObject` element.
+	**/
 	var height(default,null) : AnimatedLength;
 	
 }

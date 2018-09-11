@@ -1,7 +1,9 @@
 Main.hx:8: characters 9-15 : Warning : Usage of this typedef is deprecated
 Main.hx:9: characters 9-19 : Warning : Usage of this typedef is deprecated
 Main.hx:10: characters 9-14 : Warning : Usage of this typedef is deprecated
+Main.hx:18: characters 13-19 : Warning : This typedef is deprecated in favor of MyClass
 Main.hx:19: characters 9-19 : Warning : Usage of this typedef is deprecated
+Main.hx:20: characters 13-22 : Warning : This typedef is deprecated in favor of MyAbstract
 Main.hx:32: characters 9-13 : Warning : Usage of this enum is deprecated
 Main.hx:36: characters 9-14 : Warning : Usage of this enum field is deprecated
 Main.hx:4: characters 9-16 : Warning : Usage of this class is deprecated

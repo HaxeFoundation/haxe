@@ -46,7 +46,7 @@ class Issue6715 {
 		insanity4(function() var x = 1);
 	}
 
-	static var x;
+	static var x:Void->Void;
 
 	// Mixed: inline calls, reference reads
 	static inline function insanity(f:Void -> Void)

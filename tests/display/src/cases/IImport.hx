@@ -14,9 +14,9 @@ class IImport extends DisplayTestCase {
 		eq(true, hasPath(fields(pos(7)), "ExprTools"));
 		eq(true, hasPath(fields(pos(4)), "ExprArrayTools"));
 		eq(true, hasPath(fields(pos(8)), "ExprArrayTools"));
-		eq(true, hasField(fields(pos(5)), "iter", "el : Array<haxe.macro.Expr> -> f : (haxe.macro.Expr -> Void) -> Void"));
-		eq(true, hasField(fields(pos(9)), "iter", "el : Array<haxe.macro.Expr> -> f : (haxe.macro.Expr -> Void) -> Void"));
-		eq("el : Array<haxe.macro.Expr> -> f : (haxe.macro.Expr -> Void) -> Void", type(pos(5)));
+		eq(true, hasField(fields(pos(5)), "iter", "(el : Array<haxe.macro.Expr>, f : (haxe.macro.Expr -> Void)) -> Void"));
+		eq(true, hasField(fields(pos(9)), "iter", "(el : Array<haxe.macro.Expr>, f : (haxe.macro.Expr -> Void)) -> Void"));
+		eq("(el : Array<haxe.macro.Expr>, f : (haxe.macro.Expr -> Void)) -> Void", type(pos(5)));
 		// TODO: test @position display. A bit annoying because it actually ends up in other files and we can't use markers.
 	}
 

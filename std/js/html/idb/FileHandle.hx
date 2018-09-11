@@ -43,9 +43,15 @@ extern class FileHandle extends js.html.EventTarget
 	/** @throws DOMError */
 	function readAsText( size : Int, ?encoding : String ) : FileRequest;
 	/** @throws DOMError */
-	function write( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
+	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.html.Blob) : FileRequest {} )
+	function write( value : String ) : FileRequest;
 	/** @throws DOMError */
-	function append( value : haxe.extern.EitherType<String,haxe.extern.EitherType<js.html.ArrayBuffer,haxe.extern.EitherType<js.html.ArrayBufferView,js.html.Blob>>> ) : FileRequest;
+	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.html.Blob) : FileRequest {} )
+	function append( value : String ) : FileRequest;
 	/** @throws DOMError */
 	function truncate( ?size : Int ) : FileRequest;
 	/** @throws DOMError */

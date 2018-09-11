@@ -4,7 +4,7 @@ import unit.Test;
 private extern class Ext {
 	static inline var v = "foo";
 
-	public function new() { }
+	public function new();
 
 	public inline function test():Void { }
 

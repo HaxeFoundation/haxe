@@ -28,6 +28,7 @@ typedef SpeechSynthesisEventInit =
 {
 	> EventInit,
 	@:optional var charIndex : Int;
+	@:optional var charLength : Int;
 	@:optional var elapsedTime : Float;
 	@:optional var name : String;
 	var utterance : SpeechSynthesisUtterance;

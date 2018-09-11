@@ -243,6 +243,23 @@ class Bytes {
 		if( hb != null ) return hb;
 		return new Bytes(b);
 	}
+	
+	public static function ofHex( s : String ) : Bytes {		
+		if ( (s.length & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var a = new Array();
+		var i = 0;
+		var len = s.length >> 1;
+		while( i < len ) {
+			var high = StringTools.fastCodeAt(s, i*2);
+			var low = StringTools.fastCodeAt(s, i*2 + 1);
+			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
+			a.push( ( (high << 4) | low)  & 0xFF );
+			i++;
+		}
+
+		return new Bytes(new js.html.Uint8Array(a).buffer);
+	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {
 		// this requires that we have wrapped it with haxe.io.Bytes beforehand

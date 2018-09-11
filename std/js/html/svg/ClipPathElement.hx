@@ -34,10 +34,10 @@ package js.html.svg;
 @:native("SVGClipPathElement")
 extern class ClipPathElement extends Element
 {
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
 	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `clipPathUnits` attribute of the given `clipPath` element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var clipPathUnits(default,null) : AnimatedEnumeration;
 	var transform(default,null) : AnimatedTransformList;
 	

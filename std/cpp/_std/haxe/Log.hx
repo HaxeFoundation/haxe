@@ -24,7 +24,7 @@ package haxe;
 @:coreApi class Log {
 
    @:native("__trace")
-   extern private static function nativeTrace(message:String, posInfo:Dynamic) : Void { }
+   extern private static function nativeTrace(message:String, posInfo:Dynamic) : Void;
 
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		if (infos!=null && infos.customParams!=null) {

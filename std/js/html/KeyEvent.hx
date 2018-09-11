@@ -190,6 +190,7 @@ extern class KeyEvent
 	static inline var DOM_VK_ALTGR : Int = 225;
 	static inline var DOM_VK_WIN_ICO_HELP : Int = 227;
 	static inline var DOM_VK_WIN_ICO_00 : Int = 228;
+	static inline var DOM_VK_PROCESSKEY : Int = 229;
 	static inline var DOM_VK_WIN_ICO_CLEAR : Int = 230;
 	static inline var DOM_VK_WIN_OEM_RESET : Int = 233;
 	static inline var DOM_VK_WIN_OEM_JUMP : Int = 234;
@@ -213,5 +214,5 @@ extern class KeyEvent
 	static inline var DOM_VK_PA1 : Int = 253;
 	static inline var DOM_VK_WIN_OEM_CLEAR : Int = 254;
 	
-	function initKeyEvent( type : String, canBubble : Bool, cancelable : Bool, view : Window, ctrlKey : Bool, altKey : Bool, shiftKey : Bool, metaKey : Bool, keyCode : Int, charCode : Int ) : Void;
+	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
 }

@@ -339,7 +339,6 @@ module Dump = struct
 				print "%s%s%s%s %s%s" (s_metas c.cl_meta "") (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_params);
 				(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
 				List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
-				(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
 				(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
 				print " {\n";
 				(match c.cl_constructor with

@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEFloodElement` interface corresponds to the `feFlood` element.
+
+	Documentation [SVGFEFloodElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement>
+**/
 @:native("SVGFEFloodElement")
 extern class FEFloodElement extends Element
 {

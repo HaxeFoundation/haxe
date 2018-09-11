@@ -102,7 +102,7 @@ str.toHex() == "c3a9e38182f09f9882";
 
 var rawBytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
-#if !utf16
+#if (!utf16 || cpp)
 rawBytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
 #else
 rawBytes.toHex() == "e90042303dd802de"; // UTF-16 native
@@ -186,4 +186,57 @@ Reflect.compare("éed".substr(1), "ee") < 0;
 Reflect.compare("ee", "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "ed") > 0;
+
+#if !cpp
+
+var s = "ä😂";
+s.toUpperCase() == "Ä😂";
+s.toLowerCase() == s;
+
+var s = "Ä😂";
+s.toUpperCase() == s;
+s.toLowerCase() == "ä😂";
+
+var s = "a😂";
+s.toUpperCase() == "A😂";
+s.toLowerCase() == s;
+
+var s = "A😂";
+s.toUpperCase() == s;
+s.toLowerCase() == "a😂";
+
+"σ".toUpperCase() == "Σ";
+"Σ".toLowerCase() == "σ";
+
+#end
+
+var map = new haxe.ds.StringMap();
+map.set("path", 1);
+map.get("äpath".substr(1)) == 1;
+
+var data =  "<haxe><s>Hello World!</s><s2>π</s2></haxe>";
+var buf = new StringBuf();
+buf.addSub(data, 9, 12);
+var s = buf.toString();
+s == "Hello World!";
+s.length == 12;
+
+"äabc:def".substr(1).split(":") == ["abc","def"];
+
+var s1 = "abc";
+var b1 = haxe.io.Bytes.ofString(s1, RawNative);
+var s2 = b1.getString(0, b1.length, RawNative);
+s1 == s2;
+
+var obj:Dynamic = { };
+var field = "äabc".substr(1);
+Reflect.setField(obj, field, "ok");
+obj.abc == "ok";
+Reflect.field(obj, field) == "ok";
+Reflect.hasField(obj, field) == true;
+Reflect.deleteField(obj, field) == true;
+Reflect.deleteField(obj, field) == false;
+Reflect.hasField(obj, field) == false;
+Reflect.field(obj, field) == null;
+
 #end

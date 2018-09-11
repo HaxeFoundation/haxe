@@ -26,9 +26,9 @@ package cpp.objc;
 @:objc
 extern abstract NSData( NSDataData )
 {
-   @:native("_hx_value_to_objc") extern static function to_data(b:haxe.io.BytesData) : NSData return null;
-   @:native("_hx_value_to_objc") extern static function to_data_data(b:haxe.io.BytesData) : NSDataData return null;
-   @:native("_hx_objc_to_bytes") extern static function NSDataDataToBytes(d:NSDataData) : haxe.io.BytesData return null;
+   @:native("_hx_value_to_objc") extern static function to_data(b:haxe.io.BytesData) : NSData;
+   @:native("_hx_value_to_objc") extern static function to_data_data(b:haxe.io.BytesData) : NSDataData;
+   @:native("_hx_objc_to_bytes") extern static function NSDataDataToBytes(d:NSDataData) : haxe.io.BytesData;
 
 
    inline function new(d:NSDataData) this = d;

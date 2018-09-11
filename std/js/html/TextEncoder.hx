@@ -41,7 +41,7 @@ extern class TextEncoder
 	var encoding(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?utfLabel : String = "utf-8" ) : Void;
+	function new() : Void;
 	
 	/**
 		Returns a `Uint8Array` containing utf-8 encoded text.

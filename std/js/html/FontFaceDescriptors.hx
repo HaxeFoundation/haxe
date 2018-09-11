@@ -32,5 +32,6 @@ typedef FontFaceDescriptors =
 	@:optional var style : String;
 	@:optional var unicodeRange : String;
 	@:optional var variant : String;
+	@:optional var variationSettings : String;
 	@:optional var weight : String;
 }

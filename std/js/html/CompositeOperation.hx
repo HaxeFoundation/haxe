@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\Keyframe.webidl. Do not edit!
+// This file is generated from mozilla\BaseKeyframeTypes.webidl. Do not edit!
 
 package js.html;
 

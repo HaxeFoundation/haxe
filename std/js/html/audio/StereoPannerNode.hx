@@ -40,4 +40,6 @@ extern class StereoPannerNode extends AudioNode
 	**/
 	var pan(default,null) : AudioParam;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : StereoPannerOptions ) : Void;
 }

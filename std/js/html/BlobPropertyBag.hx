@@ -26,6 +26,6 @@ package js.html;
 
 typedef BlobPropertyBag =
 {
-	@:optional var endings : Dynamic/*MISSING EndingTypes*/;
+	@:optional var endings : EndingTypes;
 	@:optional var type : String;
 }

@@ -41,7 +41,7 @@ extern class TransitionEvent extends Event
 	var propertyName(default,null) : String;
 	
 	/**
-		Is a `float` giving the amount of time the transtion has been running, in seconds, when this event fired. This value is not affected by the `transition-delay` property.
+		Is a `float` giving the amount of time the transition has been running, in seconds, when this event fired. This value is not affected by the `transition-delay` property.
 	**/
 	var elapsedTime(default,null) : Float;
 	

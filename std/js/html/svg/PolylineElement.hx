@@ -32,7 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolylineElement>
 **/
 @:native("SVGPolylineElement")
-extern class PolylineElement extends GraphicsElement
+extern class PolylineElement extends GeometryElement
 {
 	var points(default,null) : PointList;
 	var animatedPoints(default,null) : PointList;

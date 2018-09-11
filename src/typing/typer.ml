@@ -687,7 +687,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		type_binop2 ctx op e1 e2 is_assign_op wt p
 
 and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
-	let e2 = type_expr ctx e2 (if op == OpEq || op == OpNotEq then WithType e1.etype else wt) in
+	let with_type = match op with
+		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType e1.etype
+		| _ -> wt
+	in
+	let e2 = type_expr ctx e2 with_type in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
@@ -1627,11 +1631,11 @@ and type_object_decl ctx fl with_type p =
 	let dynamic_parameter = ref None in
 	let a = (match with_type with
 	| WithType t ->
-		let rec loop t =
+		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				(match List.fold_left (fun acc t -> match loop t with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq t t') seen) ->
+				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -1645,7 +1649,7 @@ and type_object_decl ctx fl with_type p =
 			| _ ->
 				ODKPlain
 		in
-		loop t
+		loop [] t
 	| _ ->
 		ODKPlain
 	) in

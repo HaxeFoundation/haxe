@@ -36,10 +36,53 @@ extern class AElement extends GraphicsElement
 {
 	
 	/**
-		It corresponds to attribute  `target` on the given `a` element.
+		It corresponds to the `target` attribute of the given element.
 	**/
 	var target(default,null) : AnimatedString;
+	
+	/**
+		See `HTMLAnchorElement.download`.
+	**/
 	var download : String;
+	
+	/**
+		Is a `DOMString` that reflects the ping attribute, containing a space-separated list of URLs to which, when the hyperlink is followed, `POST` requests with the body `PING` will be sent by the browser (in the background). Typically used for tracking.
+	**/
+	var ping : String;
+	
+	/**
+		See `HTMLAnchorElement.rel`.
+	**/
+	var rel : String;
+	
+	/**
+		See `HTMLAnchorElement.referrerPolicy`.
+	**/
+	var referrerPolicy : String;
+	
+	/**
+		See `HTMLAnchorElement.relList`.
+	**/
+	var relList(default,null) : js.html.DOMTokenList;
+	
+	/**
+		Is a `DOMString` that reflects the `hreflang` attribute, indicating the language of the linked resource.
+	**/
+	var hreflang : String;
+	
+	/**
+		Is a `DOMString` that reflects the `type` attribute, indicating the MIME type of the linked resource.
+	**/
+	var type : String;
+	
+	/**
+		Is a `DOMString` being a synonym for the `Node.textContent` property.
+	**/
+	var text : String;
+	
+	/**
+		See `HTMLAnchorElement.href`.
+	**/
 	var href(default,null) : AnimatedString;
 	
 }
