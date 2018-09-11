@@ -2269,14 +2269,35 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.Custom ":inline",_,_) ->
+			begin match fst e1 with
+			| ECall(e1,el) ->
+				type_call ctx e1 el Value true p
+			| _ ->
+				display_error ctx "Call expected after inline keyword" p;
+				e();
+			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
 	e
 
-and type_call ctx e el (with_type:with_type) p =
+and type_call ctx e el (with_type:with_type) inline p =
 	let def () =
 		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+		let e = if not inline then
+			e
+		else match e with
+			| AKExpr {eexpr = TField(e1,fa)} ->
+				begin match extract_field fa with
+				| Some cf ->
+					let t = monomorphs cf.cf_params cf.cf_type in
+					AKInline(e1,cf,fa,t)
+				| None ->
+					e
+				end;
+			| _ -> e
+		in
 		let e = build_call ctx e el with_type p in
 		e
 	in
@@ -2440,7 +2461,7 @@ and type_expr ctx (e,p) (with_type:with_type) =
 		let e = type_expr ctx e Value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type p
+		type_call ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type p
 	| EUnop (op,flag,e) ->

@@ -133,7 +133,7 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
-let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?(force_inline=false) _ -> assert false)
 let type_expr_ref : (typer -> expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
 let type_block_ref : (typer -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
