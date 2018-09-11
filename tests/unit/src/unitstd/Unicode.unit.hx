@@ -285,4 +285,14 @@ test("äb", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "äbc", "bc");
 
+test("あb", "あbc", "bc");
+test("あb", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "あbc", "bc");
+
+test("😂b", "😂bc", "bc");
+test("😂b", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "😂bc", "bc");
+
 #end

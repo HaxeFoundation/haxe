@@ -862,11 +862,24 @@ module StdEReg = struct
 
 	let matchedPos = vifun0 (fun vthis ->
 		let this = this vthis in
+		let rec search_head s i =
+			if i >= String.length s then i else
+			let n = Char.code (String.unsafe_get s i) in
+			if n < 0x80 || n >= 0xc2 then i else
+			search_head s (i + 1)
+		in
+		let next' s i =
+			let n = Char.code s.[i] in
+			if n < 0x80 then i + 1 else
+			if n < 0xc0 then search_head s (i + 1) else
+			if n <= 0xdf then i + 2
+			else i + 3
+		in
 		let rec byte_offset_to_char_offset_lol s i k o =
 			if i = 0 then
 				k
 			else begin
-				let n = UTF8.next s o in
+				let n = next' s o in
 				let d = n - o in
 				byte_offset_to_char_offset_lol s (i - d) (k + 1) n
 			end
