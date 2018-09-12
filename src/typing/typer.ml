@@ -488,7 +488,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKSet(_,t,_) -> WithType t | AKExpr e -> WithType e.etype) in
+		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> Value | AKFieldSet(_,_,_,t) | AKSet(_,t,_) -> WithType t | AKExpr e -> WithType e.etype) in
 		let e2 = type_expr ctx e2 tt in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -506,6 +506,12 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
+		| AKFieldSet(ethis,e1,fname,t) ->
+			begin match follow e1.etype with
+				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
+				| _ -> assert false
+			end;
+			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
 		| AKUsing(ef,_,_,et) ->
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
@@ -652,6 +658,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			in
 			save();
 			e
+		| AKFieldSet _ ->
+			error "Invalid operation" p
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
@@ -1089,6 +1097,8 @@ and type_unop ctx op flag e p =
 			end
 		| AKInline _ | AKUsing _ | AKMacro _ ->
 			error "This kind of operation is not supported" p
+		| AKFieldSet _ ->
+			error "Invalid operation" p
 		| AKSet (e,t,cf) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype p in
