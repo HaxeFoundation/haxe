@@ -451,14 +451,14 @@ and usage_string arg_spec usage =
 	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
 	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
 	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
-	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> [cat] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
+	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> ["\n"^cat^":"] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
 		let label = make_label ok hint in
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n\n"
+		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -564,7 +564,7 @@ try
 		("Compilation",["-L";"--library"],["-lib"],Arg.String (fun l ->
 			cp_libs := l :: !cp_libs;
 			Common.raw_define com l;
-		),"<library[:version]>","use a haxelib library");
+		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			begin match var with
 				| "no_copt" | "no-copt" -> com.foptimize <- false;
@@ -605,7 +605,7 @@ try
 		),"[args...]","args that will be passed to the macro interpreter");
 	] in
 	let adv_args_spec = [
-		("Optimization",["--dce";"--dead-code-elimination"],["-dce"],Arg.String (fun mode ->
+		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
 			(match mode with
 			| "std" | "full" | "no" -> ()
 			| _ -> raise (Arg.Bad "Invalid DCE mode, expected std | full | no"));
