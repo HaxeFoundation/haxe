@@ -275,7 +275,7 @@ function test(left:String, middle:String, right:String) {
 	}), '${left}ä$right');
 }
 
-#if !(lua || cpp)
+#if !(lua || cpp || flash)
 test("äb", "ä", "bc");
 test("äb", "a", "bc");
 test("ab", "a", "bc");
