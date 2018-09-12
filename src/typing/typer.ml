@@ -165,18 +165,6 @@ let maybe_type_against_enum ctx f with_type iscall p =
 	with Exit ->
 		f()
 
-let merge_core_doc ctx c =
-	let c_core = Typeload.load_core_class ctx c in
-	if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
-	let maybe_merge cf_map cf =
-		if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
-	in
-	List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
-	List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
-	match c.cl_constructor,c_core.cl_constructor with
-		| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
-		| _ -> ()
-
 let check_error ctx err p = match err with
 	| Module_not_found ([],name) when Diagnostics.is_diagnostics_run p ->
 		DisplayToplevel.handle_unresolved_identifier ctx name p true
@@ -2508,6 +2496,7 @@ let rec create com =
 			do_format_string = format_string;
 			do_finalize = Finalization.finalize;
 			do_generate = Finalization.generate;
+			do_load_core_class = Typeload.load_core_class;
 		};
 		m = {
 			curmod = null_module;
@@ -2606,5 +2595,4 @@ let rec create com =
 unify_min_ref := unify_min;
 make_call_ref := make_call;
 build_call_ref := build_call;
-merge_core_doc_ref := merge_core_doc;
 type_block_ref := type_block

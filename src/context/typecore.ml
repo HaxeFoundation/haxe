@@ -93,6 +93,7 @@ type typer_globals = {
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_finalize : typer -> unit;
 	do_generate : typer -> (texpr option * module_type list * module_def list);
+	do_load_core_class : typer -> tclass -> tclass;
 }
 
 and typer = {
@@ -139,7 +140,6 @@ let type_block_ref : (typer -> expr list -> with_type -> pos -> texpr) ref = ref
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let get_pattern_locals_ref : (typer -> expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
-let merge_core_doc_ref : (typer -> tclass -> unit) ref = ref (fun _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -426,6 +426,22 @@ let prepare_using_field cf = match follow cf.cf_type with
 		in
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
+
+let merge_core_doc ctx mt =
+	(match mt with
+	| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
+		let c_core = ctx.g.do_load_core_class ctx c in
+		if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
+		let maybe_merge cf_map cf =
+			if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
+		in
+		List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
+		List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
+		begin match c.cl_constructor,c_core.cl_constructor with
+			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
+			| _ -> ()
+		end
+	| _ -> ());
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*

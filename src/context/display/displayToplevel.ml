@@ -147,10 +147,7 @@ let collect ctx tk with_type =
 			let mname = snd (t_infos mt).mt_module.m_path in
 			let path = if snd path = mname then path else (fst path @ [mname],snd path) in
 			if not (path_exists cctx path) then begin
-				(match mt with
-				| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
-					!merge_core_doc_ref ctx c
-				| _ -> ());
+				merge_core_doc ctx mt;
 				let is = get_import_status cctx true path in
 				if not (Meta.has Meta.NoCompletion (t_infos mt).mt_meta) then begin
 					add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
@@ -277,7 +274,7 @@ let collect ctx tk with_type =
 				let class_import c =
 					let cf = PMap.find s c.cl_statics in
 					let cf = if name = cf.cf_name then cf else {cf with cf_name = name} in
-					let decl,make = match c.cl_kind with 
+					let decl,make = match c.cl_kind with
 						| KAbstractImpl a -> TAbstractDecl a,
 							if Meta.has Meta.Enum cf.cf_meta then make_ci_enum_abstract_field a else make_ci_class_field
 						| _ -> TClassDecl c,make_ci_class_field
