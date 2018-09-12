@@ -135,7 +135,14 @@ let completion_type_of_type ctx ?(values=PMap.empty) t =
 	from_type values t
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
-	| DMDefinition | DMTypeDefinition -> raise_position [(t_infos mt).mt_name_pos];
+	| DMDefinition | DMTypeDefinition ->
+		begin match mt with
+		| TClassDecl c when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			raise_position [c.cl_name_pos;c'.cl_name_pos]
+		| _ ->
+			raise_position [(t_infos mt).mt_name_pos];
+		end
 	| DMUsage _ ->
 		let infos = t_infos mt in
 		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,KModuleType)

@@ -290,13 +290,35 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMDefinition ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
+		| TField(_,(FStatic (c,cf))) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			cf.cf_name_pos :: (try [(PMap.find cf.cf_name c'.cl_statics).cf_name_pos] with Not_found -> [])
+		| TField(_,(FInstance (c,tl,cf) | FClosure (Some(c,tl),cf))) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			let l = try
+				let _,_,cf = Type.class_field c' tl cf.cf_name in
+				[cf.cf_name_pos]
+			with Not_found ->
+				[]
+			in
+			cf.cf_name_pos :: l
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_name_pos]
 		| TLocal v | TVar(v,_) -> [v.v_pos]
+		| TTypeExpr (TClassDecl c) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			[c.cl_name_pos;c'.cl_name_pos]
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				[cf.cf_name_pos]
+				if Meta.has Meta.CoreApi c.cl_meta then begin
+					let c' = ctx.g.do_load_core_class ctx c in
+					begin match c'.cl_constructor with
+					| Some cf' -> [cf.cf_name_pos;cf'.cf_name_pos]
+					| None -> [cf.cf_name_pos]
+					end
+				end else
+					[cf.cf_name_pos]
 			with Not_found ->
 				[]
 			end
