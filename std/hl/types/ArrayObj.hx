@@ -224,6 +224,12 @@ class ArrayObj<T> extends ArrayBase {
 		return n;
 	}
 
+	public function keyValueIterator() : KeyValueIterator<Int,T> {
+		var n = new NativeArray.NativeArrayKeyValueIterator<T>(cast array);
+		@:privateAccess n.length = length;
+		return n;
+	}
+
 	public function map<S>( f : T -> S ) : ArrayDyn {
 		var a = new ArrayObj();
 		if( length > 0 ) a.__expand(length - 1);

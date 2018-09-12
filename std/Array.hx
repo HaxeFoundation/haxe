@@ -153,7 +153,7 @@ extern class Array<T> {
 
 		This operation modifies `this` Array in place.
 
-		If `len` is < 0 or `pos` exceeds `this`.length, an empty Array [] is 
+		If `len` is < 0 or `pos` exceeds `this`.length, an empty Array [] is
 		returned and `this` Array is unchanged.
 
 		If `pos` is negative, its value is calculated from the end	of `this`
