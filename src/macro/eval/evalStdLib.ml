@@ -805,7 +805,7 @@ module StdEReg = struct
 				this.r_groups <- [|a|];
 				let (first,last) = get_substring_ofs a 0 in
 				Rope.Buffer.add_substring buf s pos (first - pos);
-				Rope.Buffer.add_rope buf (decode_rope (call_value_on vthis f [vthis]));
+				Rope.Buffer.add_string buf (decode_string (call_value_on vthis f [vthis]));
 				if last = first then begin
 					if last >= l then
 						()
@@ -828,7 +828,7 @@ module StdEReg = struct
 		loop 0;
 		this.r_string <- "";
 		this.r_groups <- [||];
-		encode_rope (Rope.Buffer.contents buf)
+		create_unknown (Rope.to_string (Rope.Buffer.contents buf))
 	)
 
 	let match' = vifun1 (fun vthis s ->
@@ -849,20 +849,44 @@ module StdEReg = struct
 		let this = this vthis in
 		let n = decode_int n in
 		maybe_run this n (fun (first,last) ->
-			encode_string (ExtString.String.slice ~first ~last this.r_string)
+			create_unknown (ExtString.String.slice ~first ~last this.r_string)
 		)
 	)
 
 	let matchedLeft = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (first,_) ->
-			encode_string (ExtString.String.slice ~last:first this.r_string)
+			create_unknown (ExtString.String.slice ~last:first this.r_string)
 		)
 	)
 
 	let matchedPos = vifun0 (fun vthis ->
 		let this = this vthis in
+		let rec search_head s i =
+			if i >= String.length s then i else
+			let n = Char.code (String.unsafe_get s i) in
+			if n < 0x80 || n >= 0xc2 then i else
+			search_head s (i + 1)
+		in
+		let next' s i =
+			let n = Char.code s.[i] in
+			if n < 0x80 then i + 1 else
+			if n < 0xc0 then search_head s (i + 1) else
+			if n <= 0xdf then i + 2
+			else i + 3
+		in
+		let rec byte_offset_to_char_offset_lol s i k o =
+			if i = 0 then
+				k
+			else begin
+				let n = next' s o in
+				let d = n - o in
+				byte_offset_to_char_offset_lol s (i - d) (k + 1) n
+			end
+		in
 		maybe_run this 0 (fun (first,last) ->
+			let first = byte_offset_to_char_offset_lol this.r_string first 0 0 in
+			let last = byte_offset_to_char_offset_lol this.r_string last 0 0 in
 			encode_obj None [key_pos,vint first;key_len,vint (last - first)]
 		)
 	)
@@ -870,7 +894,7 @@ module StdEReg = struct
 	let matchedRight = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (_,last) ->
-			encode_string (ExtString.String.slice ~first:last this.r_string)
+			create_unknown (ExtString.String.slice ~first:last this.r_string)
 		)
 	)
 
@@ -896,7 +920,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		let by = decode_string by in
 		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
-		encode_string s
+		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
@@ -911,13 +935,13 @@ module StdEReg = struct
 					loop split (cur ^ s) acc l
 				| Delim s :: l ->
 					if split then
-						loop this.r_global "" ((encode_string cur) :: acc) l
+						loop this.r_global "" ((create_unknown cur) :: acc) l
 					else
 						loop false (cur ^ s) acc l
 				| _ :: l ->
 					loop split cur acc l
 				| [] ->
-					List.rev ((encode_string cur) :: acc)
+					List.rev ((create_unknown cur) :: acc)
 			in
 			let l = loop true "" [] l in
 			encode_array l

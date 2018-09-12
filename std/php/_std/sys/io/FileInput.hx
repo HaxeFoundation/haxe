@@ -47,6 +47,7 @@ class FileInput extends haxe.io.Input {
 	public override function readBytes( s : Bytes, p : Int, l : Int ) : Int {
 		if(feof(__f)) throw new Eof();
 		var r = fread(__f, l);
+		if(strlen(r) == 0) throw new Eof();
 		if(r == false) throw Custom('An error occurred');
 		var b = Bytes.ofString(r);
 		s.blit(p, b, 0, (r:String).length);

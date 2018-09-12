@@ -37,6 +37,9 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function push(val:T)
 		Syntax.code('{0}[] = {1}', this, val);
 
+	public inline function iterator():NativeIndexedArrayIterator<T>
+		return new NativeIndexedArrayIterator(this);
+
 	@:to
 	inline function toHaxeArray():Array<T>
 		return @:privateAccess Array.wrap(this);
@@ -44,4 +47,23 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:from
 	static inline function fromHaxeArray<T>(a:Array<T>):NativeIndexedArray<T>
 		return @:privateAccess a.arr;
+}
+
+private class NativeIndexedArrayIterator<T> {
+	var length:Int;
+	var current:Int = 0;
+	var data:NativeIndexedArray<T>;
+
+	public inline function new(data:NativeIndexedArray<T>) {
+		length = Global.count(data);
+		this.data = data;
+	}
+
+	public inline function hasNext():Bool {
+		return current < length;
+	}
+
+	public inline function next():T {
+		return data[current++];
+	}
 }
