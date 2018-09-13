@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi @:final class Array<T> {
 
 	private var __a : neko.NativeArray<T>;
@@ -66,21 +69,8 @@
 		};
 	}
 
-	public function keyValueIterator() : KeyValueIterator<Int, T> {
-		return untyped {
-			a : this,
-			p : 0,
-			hasNext : function() {
-				return __this__.p < __this__.a.length;
-			},
-			next : function() {
-				var i = __this__.a.__a[__this__.p];
-				return untyped {
-					key : __this__.p++,
-					value : i
-				};
-			}
-		};
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function insert( pos : Int, x : T ) : Void {

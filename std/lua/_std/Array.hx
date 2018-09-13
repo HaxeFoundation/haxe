@@ -19,6 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.ArrayKeyValueIterator;
+
 @:coreApi
 class Array<T> {
 
@@ -213,15 +216,8 @@ class Array<T> {
 			next : function() return this[cur_length++]
 		}
 	}
-	public inline function keyValueIterator() : KeyValueIterator<Int,T> {
-		var cur_length = 0;
-		return {
-			hasNext : function() return cur_length < length,
-			next : function() {
-				var v = this[cur_length];
-				return {key:cur_length++, value:v};
-			}
-		}
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+		return new ArrayKeyValueIterator(this);
 	}
 	public function resize(len:Int):Void {
 		if (length < len) {

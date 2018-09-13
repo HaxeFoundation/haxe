@@ -271,19 +271,6 @@ class Boot extends flash.display.MovieClip {
 				}
 			}
 		};
-		aproto.keyValueIterator = function() {
-			var cur = 0;
-			var arr : Array<Dynamic> = __this__;
-			return {
-				hasNext : function() {
-					return cur < arr.length;
-				},
-				next : function() {
-					var v = arr[cur];
-					return {key:cur++, value:v};
-				}
-			}
-		};
 		aproto.resize = function(len) {
 			__this__.length = len;
 		};
@@ -291,7 +278,6 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
-		aproto.setPropertyIsEnumerable("keyValueIterator", false);
 		aproto.setPropertyIsEnumerable("resize", false);
 		#if (as3 || no_flash_override)
 		aproto.filterHX = function(f) {

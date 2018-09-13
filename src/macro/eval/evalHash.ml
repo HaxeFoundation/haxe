@@ -45,8 +45,6 @@ let rev_file_hash i =
 	let s = rev_hash_s i in
 	try Hashtbl.find file_map s with Not_found -> s
 
-let key_key = hash_s "key"
-let key_value = hash_s "value"
 let key_length = hash_s "length"
 let key_toString = hash_s "toString"
 let key_OutsideBounds = hash_s "OutsideBounds"

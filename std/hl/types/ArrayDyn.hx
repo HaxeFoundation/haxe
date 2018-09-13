@@ -39,24 +39,6 @@ class ArrayDynIterator {
 	}
 }
 
-class ArrayDynKeyValueIterator {
-	var a : ArrayBase;
-	var len : Int;
-	var pos : Int;
-	public function new(a) {
-		this.a = a;
-		this.len = a.length;
-		this.pos = 0;
-	}
-	public function hasNext() {
-		return pos < len;
-	}
-	public function next() {
-		var v = a.getDyn(pos);
-		return {key:pos++, value:v};
-	}
-}
-
 @:keep
 class ArrayDyn extends ArrayAccess {
 
@@ -183,10 +165,6 @@ class ArrayDyn extends ArrayAccess {
 
 	public function iterator() : Iterator<Dynamic> {
 		return new ArrayDynIterator(array);
-	}
-
-	public function keyValueIterator() : KeyValueIterator<Int,Dynamic> {
-		return new ArrayDynKeyValueIterator(array);
 	}
 
 	public function map( f : Dynamic -> Dynamic ) : ArrayDyn {

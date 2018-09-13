@@ -38,23 +38,6 @@ class BytesIterator<T> {
 }
 
 @:keep
-@:generic
-class BytesKeyValueIterator<T> {
-	var pos : Int;
-	var a : ArrayBytes<T>;
-	public function new(a) {
-		this.a = a;
-	}
-	public function hasNext() {
-		return pos < a.length;
-	}
-	public function next() {
-		var v = @:privateAccess a.bytes.get(pos);
-		return {key:pos++, value:v};
-	}
-}
-
-@:keep
 @:generic class ArrayBytes<T> extends ArrayBase {
 
 	var bytes : hl.BytesAccess<T>;
@@ -255,10 +238,6 @@ class BytesKeyValueIterator<T> {
 
 	public function iterator() : Iterator<T> {
 		return new BytesIterator(this);
-	}
-
-	public function keyValueIterator() : KeyValueIterator<Int,T> {
-		return new BytesKeyValueIterator(this);
 	}
 
 	public function map<S>( f : T -> S ) : ArrayDyn @:privateAccess {

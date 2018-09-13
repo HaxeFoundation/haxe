@@ -21,6 +21,8 @@
  */
 import php.*;
 
+import haxe.iterators.ArrayKeyValueIterator;
+
 using php.Global;
 
 @:coreApi
@@ -86,7 +88,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	@:keep
-	public function keyValueIterator() : KeyValueIterator<Int,T> {
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
 		return new ArrayKeyValueIterator(this);
 	}
 
@@ -257,35 +259,6 @@ private class ArrayIterator<T> {
 		}
 	}
 }
-
-private class ArrayKeyValueIterator<T> {
-	var idx:Int;
-	var arr:Array<T>;
-
-	public inline function new(arr:Array<T>) {
-		this.arr = arr;
-		idx = 0;
-	}
-
-	public inline function hasNext():Bool {
-		return idx < arr.length;
-	}
-
-	public inline function next():{key:Int,value:T} {
-		var v = arr[idx];
-		return {key:idx++, value:v};
-	}
-
-	@:keep
-	@:phpMagic
-	function __get(method:String) {
-		return switch(method) {
-			case 'hasNext', 'next': Boot.closure(this, method);
-			case _: null;
-		}
-	}
-}
-
 
 /**
 	This one is required for `Array`

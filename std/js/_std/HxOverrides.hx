@@ -142,21 +142,6 @@ class HxOverrides {
 		};
 	}
 
-	@:pure
-	static function keyValueIter<T>( a : Array<T> ) : KeyValueIterator<Int,T> untyped {
-		return {
-			cur : 0,
-			arr : a,
-			hasNext : function() {
-				return __this__.cur < __this__.arr.length;
-			},
-			next : function() {
-				var v = __this__.arr[__this__.cur];
-				return {key:__this__.cur++,value:v};
-			}
-		};
-	}
-
 	static function __init__() untyped {
 #if (js_es < 5)
 		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));

@@ -21,6 +21,7 @@
  */
 import java.lang.System;
 import java.NativeArray;
+import haxe.iterators.ArrayKeyValueIterator;
 
 @:classCode('
 	public Array(T[] _native)
@@ -407,9 +408,9 @@ import java.NativeArray;
 		return new ArrayIterator<T>(this);
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<Int,T>
+	public inline function keyValueIterator() : ArrayKeyValueIterator<T>
 	{
-		return new ArrayKeyValueIterator<T>(this);
+		return new ArrayKeyValueIterator(this);
 	}
 
 	public function resize( len : Int ) : Void
@@ -502,26 +503,4 @@ private class ArrayIterator<T>
 
 	public inline function hasNext():Bool return i < len;
 	public inline function next():T return arr[i++];
-}
-
-@:final
-private class ArrayKeyValueIterator<T>
-{
-	var arr:Array<T>;
-	var len:Int;
-	var i:Int;
-
-	public inline function new(a:Array<T>)
-	{
-		arr = a;
-		len = a.length;
-		i = 0;
-	}
-
-	public inline function hasNext():Bool return i < len;
-	public inline function next(): {key:Int, value:T}
-	{
-		var v = arr[i];
-		return {key:i++, value:v};
-	}
 }
