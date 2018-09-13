@@ -285,7 +285,8 @@ let module_pass_1 ctx m tdecls loadp =
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();
-				a_resolve = None;
+				a_read = None;
+				a_write = None;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with

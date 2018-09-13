@@ -2,6 +2,7 @@ XXXX-XX-XX:
 
 	General improvements and optimizations:
 
+	all : added support for write-mode `@:op(a.b)`
 	all : made `final` on structure fields invariant (#7039)
 	all : [breaking] disallowed static variables that have no type-hint and expression (#6440)
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)

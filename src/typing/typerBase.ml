@@ -17,6 +17,7 @@ type access_kind =
 	| AKMacro of texpr * tclass_field
 	| AKUsing of texpr * tclass * tclass_field * texpr
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
+	| AKFieldSet of texpr * texpr * string * t
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
@@ -145,6 +146,7 @@ let s_access_kind acc =
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
 	| AKUsing(e1,c,cf,e2) -> Printf.sprintf "AKMacro(%s, %s, %s, %s)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2)
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
+	| AKFieldSet(_) -> ""
 
 let has_constructible_constraint ctx tl el p =
 	let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in

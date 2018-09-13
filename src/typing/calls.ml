@@ -407,7 +407,7 @@ let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
-	| AKSet _ | AKAccess _ -> assert false
+	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
 	| AKUsing (et,c,cf,e) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
@@ -607,7 +607,7 @@ let rec build_call ctx acc el (with_type:with_type) p =
 		ctx.on_error <- old;
 		!ethis_f();
 		e
-	| AKNo _ | AKSet _ | AKAccess _ ->
+	| AKNo _ | AKSet _ | AKAccess _ | AKFieldSet _ ->
 		ignore(acc_get ctx acc p);
 		assert false
 	| AKExpr e ->
