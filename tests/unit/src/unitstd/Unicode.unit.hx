@@ -24,6 +24,8 @@ var s = "abc";
 s.indexOf("éé")<0;
 s.lastIndexOf("éé")<0;
 
+"012::345€".indexOf("::", 1) == 3;
+
 var s = String.fromCharCode(0x1f602);
 s == "😂";
 

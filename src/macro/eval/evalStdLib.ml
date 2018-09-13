@@ -1966,7 +1966,7 @@ module StdString = struct
 			else if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
-				vint ((fst (find_substring this str false i)) lsr 1)
+				vint ((fst (find_substring this str false (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
