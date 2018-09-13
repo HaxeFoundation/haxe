@@ -97,7 +97,7 @@ let call_to_string ctx ?(resume=false) e =
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
 	let acc = type_field ~resume ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
-	!build_call_ref ctx acc [] (WithType ctx.t.tstring) e.epos
+	!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 
 let rec unify_call_args' ctx el args r callp inline force_inline =
 	let in_call_args = ctx.in_call_args in
@@ -111,7 +111,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 	in
 	let mk_pos_infos t =
 		let infos = mk_infos ctx callp [] in
-		type_expr ctx infos (WithType t)
+		type_expr ctx infos (WithType.with_type t)
 	in
 	let rec default_value name t =
 		if is_pos_infos t then
@@ -128,9 +128,9 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		default_value name t
 	in
 	(* let force_inline, is_extern = match cf with Some(TInst(c,_),f) -> is_forced_inline (Some c) f, c.cl_extern | _ -> false, false in *)
-	let type_against t e =
+	let type_against name t e =
 		try
-			let e = type_expr ctx e (WithType t) in
+			let e = type_expr ctx e (WithType.with_argument t name) in
 			AbstractCast.cast_or_unify_raise ctx t e e.epos
 		with Error(l,p) when (match l with Call_error _ | Module_not_found _ -> false | _ -> true) ->
 			raise (WithTypeError (l,p))
@@ -145,7 +145,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| _,[name,false,t] when (match follow t with TAbstract({a_path = ["haxe";"extern"],"Rest"},_) -> true | _ -> false) ->
 			begin match follow t with
 				| TAbstract({a_path=(["haxe";"extern"],"Rest")},[t]) ->
-					(try List.map (fun e -> type_against t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
+					(try List.map (fun e -> type_against name t e,false) el with WithTypeError(ul,p) -> arg_error ul name false p)
 				| _ ->
 					assert false
 			end
@@ -167,7 +167,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 			end
 		| e :: el,(name,opt,t) :: args ->
 			begin try
-				let e = type_against t e in
+				let e = type_against name t e in
 				(e,opt) :: loop el args
 			with
 				WithTypeError (ul,p)->
@@ -326,7 +326,7 @@ let unify_field_call ctx fa el args ret p inline =
 		| _ ->  error "Invalid field type for generic call" p
 	in
 	begin match with_type with
-		| WithType t -> unify ctx ret t p
+		| WithType.WithType(t,_) -> unify ctx ret t p
 		| _ -> ()
 	end;
 	let el,_ = unify_call_args ctx el args ret p false false in
@@ -507,7 +507,7 @@ let rec acc_get ctx g p =
 	| AKMacro _ ->
 		assert false
 
-let rec build_call ctx acc el (with_type:with_type) p =
+let rec build_call ctx acc el (with_type:WithType.t) p =
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
 		type_generic_function ctx (ethis,fmode) el with_type p
@@ -559,7 +559,7 @@ let rec build_call ctx acc el (with_type:with_type) p =
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
-			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
+			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) WithType.value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
 			| Some e -> (fun() -> type_expr ctx e with_type))
 		| _ ->
@@ -571,8 +571,8 @@ let rec build_call ctx acc el (with_type:with_type) p =
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
-							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) Value)
-							| Some e -> (fun() -> type_expr ctx e Value)
+							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) WithType.value)
+							| Some e -> (fun() -> type_expr ctx e WithType.value)
 						in
 						e
 					else
@@ -631,11 +631,11 @@ let rec build_call ctx acc el (with_type:with_type) p =
 			loop (Abstract.get_underlying_type a tl)
 		| TMono _ ->
 			let t = mk_mono() in
-			let el = List.map (fun e -> type_expr ctx e Value) el in
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
 			mk (TCall (e,el)) t p
 		| t ->
-			let el = List.map (fun e -> type_expr ctx e Value) el in
+			let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 			let t = if t == t_dynamic then
 				t_dynamic
 			else if ctx.untyped then
@@ -663,7 +663,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		| (n,o,t) :: args , [] when o ->
 			let a = if is_pos_infos t then
 					let infos = mk_infos ctx p [] in
-					ordered_args @ [type_expr ctx infos (WithType t)]
+					ordered_args @ [type_expr ctx infos (WithType.with_argument t n)]
 				else if ctx.com.config.pf_pad_nulls then
 					(ordered_args @ [(mk (TConst TNull) t_dynamic p)])
 				else
@@ -677,7 +677,7 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 			let v = alloc_var VGenerated (alloc_name n) (if o then ctx.t.tnull t else t) p in
 			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
-			let e = type_expr ctx param (WithType t) in
+			let e = type_expr ctx param (WithType.with_argument t n) in
 			let e = AbstractCast.cast_or_unify ctx t e p in
 			let v = alloc_var VGenerated (alloc_name n) t (pos param) in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])

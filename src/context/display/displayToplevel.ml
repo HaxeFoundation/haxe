@@ -262,7 +262,7 @@ let collect ctx tk with_type =
 
 		(* enum constructors of expected type *)
 		begin match with_type with
-			| WithType t ->
+			| WithType.WithType(t,_) ->
 				(try enum_ctors (module_type_of_type t) with Exit -> ())
 			| _ -> ()
 		end;

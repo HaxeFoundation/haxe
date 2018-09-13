@@ -116,7 +116,7 @@ module StrictMeta = struct
 			in
 
 			let left = type_expr ctx left_side NoValue in
-			let right = type_expr ctx expr (WithType left.etype) in
+			let right = type_expr ctx expr (WithType.with_type left.etype) in
 			unify ctx left.etype right.etype (snd expr);
 			(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 		) fields_to_check

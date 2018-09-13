@@ -24,11 +24,6 @@ open Type
 open Error
 open DisplayTypes
 
-type with_type =
-	| NoValue
-	| Value
-	| WithType of t
-
 type type_patch = {
 	mutable tp_type : complex_type option;
 	mutable tp_remove : bool;
@@ -103,7 +98,7 @@ and typer = {
 	g : typer_globals;
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
-	mutable with_type_stack : with_type list;
+	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
 	mutable pass : typer_pass;
@@ -135,8 +130,8 @@ exception Forbid_package of (string * path * pos) * pos list * string
 exception WithTypeError of error_msg * pos
 
 let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-let type_expr_ref : (typer -> expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
-let type_block_ref : (typer -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
+let type_expr_ref : (typer -> expr -> WithType.t -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let get_pattern_locals_ref : (typer -> expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
@@ -158,11 +153,6 @@ let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
-
-let s_with_type = function
-	| NoValue -> "NoValue"
-	| Value -> "Value"
-	| WithType t -> "WithType " ^ (s_type (print_context()) t)
 
 let make_static_this c p =
 	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
