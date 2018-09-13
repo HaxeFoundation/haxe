@@ -22,7 +22,18 @@
 package haxe.ds;
 
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
-
+#if (js_es >= 6)
+	var m:js.Map<Int,T>;
+	@:pure public inline function new() this.m = new js.Map();
+	@:pure public inline function get(key:Int):Null<T> return m.get(key);
+	public inline function set(key:Int, value:T):Void m.set(key, value);
+	@:pure public inline function exists(key:Int):Bool return m.has(key);
+	public inline function remove(key:Int):Bool return m.delete(key);
+	@:pure public inline function keys():Iterator<Int> return new js.JsIterator.JsIteratorAdapter(m.keys());
+	@:pure public inline function iterator():Iterator<T> return new js.JsIterator.JsIteratorAdapter(m.values());
+	@:pure public inline function copy():IntMap<T> return { var copy = new IntMap(); @:privateAccess js.Boot.__copyMap(this.m, copy.m); copy; };
+	@:pure public inline function toString():String return @:privateAccess js.Boot.__mapToString(m);
+#else
 	private var h : Dynamic;
 
 	public inline function new() : Void {
@@ -82,5 +93,5 @@ package haxe.ds;
 		s.add("}");
 		return s.toString();
 	}
-
+#end
 }

@@ -21,6 +21,7 @@
  */
 package haxe.ds;
 
+#if (js_es < 6)
 private class StringMapIterator<T> {
 	var map : StringMap<T>;
 	var keys : Array<String>;
@@ -39,9 +40,21 @@ private class StringMapIterator<T> {
 		return map.get(keys[index++]);
 	}
 }
+#end
 
 @:coreApi class StringMap<T> implements haxe.Constraints.IMap<String,T> {
-
+#if (js_es >= 6)
+	var m:js.Map<String,T>;
+	@:pure public inline function new() this.m = new js.Map();
+	@:pure public inline function get(key:String):Null<T> return m.get(key);
+	public inline function set(key:String, value:T):Void m.set(key, value);
+	@:pure public inline function exists(key:String):Bool return m.has(key);
+	public inline function remove(key:String):Bool return m.delete(key);
+	@:pure public inline function keys():Iterator<String> return new js.JsIterator.JsIteratorAdapter(m.keys());
+	@:pure public inline function iterator():Iterator<T> return new js.JsIterator.JsIteratorAdapter(m.values());
+	@:pure public inline function copy():StringMap<T> return { var copy = new StringMap(); @:privateAccess js.Boot.__copyMap(this.m, copy.m); copy; };
+	@:pure public inline function toString():String return @:privateAccess js.Boot.__mapToString(m);
+#else
 	private var h : Dynamic;
 	private var rh : Dynamic;
 
@@ -150,5 +163,5 @@ private class StringMapIterator<T> {
 	static function __init__() : Void {
 		untyped __js__("var __map_reserved = {};");
 	}
-
+#end
 }

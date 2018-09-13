@@ -24,7 +24,18 @@ package haxe.ds;
 
 @:coreApi
 class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
-
+#if (js_es >= 6)
+	var m:js.Map<K,V>;
+	@:pure public inline function new() this.m = new js.Map();
+	@:pure public inline function get(key:K):Null<V> return m.get(key);
+	public inline function set(key:K, value:V):Void m.set(key, value);
+	@:pure public inline function exists(key:K):Bool return m.has(key);
+	public inline function remove(key:K):Bool return m.delete(key);
+	@:pure public inline function keys():Iterator<K> return new js.JsIterator.JsIteratorAdapter(m.keys());
+	@:pure public inline function iterator():Iterator<V> return new js.JsIterator.JsIteratorAdapter(m.values());
+	@:pure public inline function copy():ObjectMap<K,V> return { var copy = new ObjectMap(); @:privateAccess js.Boot.__copyMap(this.m, copy.m); copy; };
+	@:pure public inline function toString():String return @:privateAccess js.Boot.__mapToString(m);
+#else
 	static var count:Int;
 
 	// initialize count through __init__ magic, because these are generated
@@ -108,4 +119,5 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		s.add("}");
 		return s.toString();
 	}
+#end
 }

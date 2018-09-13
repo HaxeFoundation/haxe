@@ -221,7 +221,7 @@ map["bar"] = map["foo"] = 9;
 map["bar"] == 9;
 map["foo"] == 9;
 
-#if !(java || cs)
+#if !(java || cs || js_es >= 6)
 ['' => ''].keys().next() == '';
 ['' => ''].iterator().next() == '';
 [2 => 3].keys().next() == 2;

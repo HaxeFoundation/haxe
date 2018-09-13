@@ -156,6 +156,33 @@ class Boot {
 		}
 	}
 
+	#if (js_es >= 6)
+	static function __copyMap<K,V>(src:js.Map<K,V>, dst:js.Map<K,V>):js.Map<K,V> {
+		var iter = src.entries(), step = iter.next();
+		while (!step.done) {
+			dst.set(step.value.key, step.value.value);
+			step = iter.next();
+		}
+		return dst;
+	}
+
+	static function __mapToString<K,V>(m:js.Map<K,V>):String {
+		var s = new StringBuf();
+		s.add("{");
+		var iter = m.entries(), step = iter.next();
+		while (!step.done) {
+			s.add(step.value.key);
+			s.add(" => ");
+			s.add(Std.string(step.value.value));
+			step = iter.next();
+			if (!step.done)
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
+	}
+	#end
+
 	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
 		if( cc == null )
 			return false;
