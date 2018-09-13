@@ -28,12 +28,12 @@ class Js {
 		getJSDependencies();
 
 		var jsOutputs = [
-			for (es3 in       [[], ["-D", "js-es=3"]])
+			for (es in        [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
 			{
-				var extras = args.concat(es3).concat(unflatten).concat(classic).concat(enums_as_objects);
+				var extras = args.concat(es).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 				runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
