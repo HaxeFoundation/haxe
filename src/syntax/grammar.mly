@@ -1091,7 +1091,7 @@ and expr = parser
 		let close_tag = "</" ^ name ^ ">" in
 		Lexer.reset();
 		Buffer.add_string Lexer.buf ("<" ^ name);
-		let i = Lexer.not_xml open_tag close_tag 0 !code_ref in
+		let i = Lexer.lex_xml p1.pmin open_tag close_tag !code_ref in
 		let s = Lexer.contents() in
 		let e = EConst (String s),{p1 with pmax = i} in
 		make_meta Meta.Markup [] e p1
