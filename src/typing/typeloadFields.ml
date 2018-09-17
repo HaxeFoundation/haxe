@@ -883,18 +883,25 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					end;
 					loop ml
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
-					if a.a_resolve <> None then error "Multiple resolve methods are not supported" cf.cf_pos;
 					let targ = if fctx.is_abstract_member then tthis else ta in
+					let check_fun t1 t2 =
+						if not fctx.is_macro then begin
+							if not (type_iseq targ t1) then error ("First argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
+							if not (type_iseq ctx.t.tstring t2) then error ("Second argument type must be String") cf.cf_pos
+						end
+					in
 					begin match follow t with
 						| TFun([(_,_,t1);(_,_,t2)],_) ->
-							if not fctx.is_macro then begin
-								if not (type_iseq targ t1) then error ("First argument type must be " ^ (s_type (print_context()) targ)) cf.cf_pos;
-								if not (type_iseq ctx.t.tstring t2) then error ("Second argument type must be String") cf.cf_pos
-							end
+							if a.a_read <> None then error "Multiple resolve-read methods are not supported" cf.cf_pos;
+							check_fun t1 t2;
+							a.a_read <- Some cf;
+						| TFun([(_,_,t1);(_,_,t2);(_,_,t3)],_) ->
+							if a.a_write <> None then error "Multiple resolve-write methods are not supported" cf.cf_pos;
+							check_fun t1 t2;
+							a.a_write <- Some cf;
 						| _ ->
 							error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") cf.cf_pos
 					end;
-					a.a_resolve <- Some cf;
 				| _ :: ml ->
 					loop ml
 				| [] ->
@@ -1300,7 +1307,8 @@ let init_class ctx c p context_init herits fields =
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
 			let cf = init_field (ctx,cctx,fctx) f in
 			if fctx.is_field_debug then print_endline ("Created field: " ^ Printer.s_tclass_field "" cf);
-			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib then error "You can't declare static fields in interfaces" p;
+			if fctx.is_static && c.cl_interface && fctx.field_kind <> FKInit && not cctx.is_lib && not (c.cl_extern) then
+				error "You can't declare static fields in interfaces" p;
 			let set_feature s =
 				ctx.m.curmod.m_extra.m_if_feature <- (s,(c,cf,fctx.is_static)) :: ctx.m.curmod.m_extra.m_if_feature
 			in

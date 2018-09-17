@@ -209,6 +209,9 @@ let bytes_to_utf8 s =
 	else
 		vstring (create_ucs2 s' length)
 
+let create_unknown s =
+	bytes_to_utf8 (Bytes.unsafe_of_string s)
+
 exception InvalidUnicodeChar
 
 let case_map this upper =

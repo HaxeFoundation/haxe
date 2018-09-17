@@ -23,7 +23,8 @@ class As3 {
 			addToPATH(flexsdkPath + "/bin");
 			var playerglobalswcFolder = flexsdkPath + "/player";
 			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-			runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/30/playerglobal30_0.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+			var flashVersion = runci.targets.Flash.getLatestFPVersion();
+			runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
 			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 			runCommand("mxmlc", ["--version"]);
 		}

@@ -221,11 +221,9 @@ class XmlParser {
 			}
 		}
 		for( ct in cur ) {
-			var tinf;
-			try
-				tinf = TypeApi.typeInfos(ct)
-			catch( e : Dynamic )
-				continue;
+			if( ct.match(TPackage(_)) ) continue;
+			var tinf = TypeApi.typeInfos(ct);
+
 			// compare params ?
 			if( tinf.path == inf.path ) {
 				var sameType = true;

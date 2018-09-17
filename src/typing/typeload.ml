@@ -193,7 +193,7 @@ let check_param_constraints ctx types t pl c p =
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType ti) in
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
 					begin try unify_raise ctx e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
@@ -260,7 +260,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
-							ignore(type_expr ctx e Value);
+							ignore(type_expr ctx e WithType.value);
 							"Expr"
 						| _ -> "Expr"
 					) in
@@ -731,6 +731,7 @@ let load_core_class ctx c =
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
+			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
@@ -836,7 +837,7 @@ let handle_path_display ctx path p =
 	in
 	match ImportHandling.convert_import_to_something_usable !DisplayPosition.display_position path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx TKType Typecore.NoValue in
+			let fields = DisplayToplevel.collect ctx TKType WithType.no_value in
 			raise_fields fields CRImport (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
