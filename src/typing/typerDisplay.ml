@@ -24,7 +24,7 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
-			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType t) in
+			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType.with_type t) in
 			Texpr.equal e e'
 		with _ ->
 			false
@@ -132,7 +132,7 @@ let completion_item_of_expr ctx e =
 
 let get_expected_type ctx with_type =
 	let t = match with_type with
-		| WithType t -> Some t
+		| WithType.WithType(t,_) -> Some t
 		| _ -> None
 	in
 	match t with
@@ -204,14 +204,14 @@ let rec handle_signature_display ctx e_ast with_type =
 	match fst e_ast with
 		| ECall(e1,el) ->
 			let def () = try
-				type_expr ctx e1 Value
+				type_expr ctx e1 WithType.value
 			with Error (Unknown_ident "trace",_) ->
 				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
-				type_expr ctx e Value
+				type_expr ctx e WithType.value
 			in
 			let e1 = match e1 with
 				| (EField (e,"bind"),p) ->
-					let e = type_expr ctx e Value in
+					let e = type_expr ctx e WithType.value in
 					(match follow e.etype with
 						| TFun signature -> e
 						| _ -> def ())
@@ -249,7 +249,7 @@ and display_expr ctx e_ast e dk with_type p =
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->
 		let item = completion_item_of_expr ctx e in
-		raise_hover item e.epos
+		raise_hover item (Some with_type) e.epos
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -398,7 +398,7 @@ let handle_display ctx e_ast dk with_type =
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "expression")) (pos e_ast);
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -409,9 +409,9 @@ let handle_display ctx e_ast dk with_type =
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0
 		| _ ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "value")) (pos e_ast);
 		end
-	| (EConst (Ident "_"),p),WithType t ->
+	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ctx e_ast with_type
@@ -464,12 +464,12 @@ let handle_display ctx e_ast dk with_type =
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 	if is_display_debug then begin
-		print_endline (Printf.sprintf "expected type: %s" (s_with_type with_type));
+		print_endline (Printf.sprintf "expected type: %s" (WithType.to_string with_type));
 		print_endline (Printf.sprintf "typed expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
 	let p = e.epos in
 	begin match with_type with
-		| WithType t ->
+		| WithType.WithType(t,_) ->
 			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
 			   It only matters that unification takes place. *)
 			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p) -> ());
@@ -488,7 +488,7 @@ let handle_edisplay ctx e dk with_type =
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
 	| DKStructure,DMDefault ->
 		begin match with_type with
-			| WithType t ->
+			| WithType.WithType(t,_) ->
 				begin match follow t with
 					| TAnon an ->
 						let origin = match t with
