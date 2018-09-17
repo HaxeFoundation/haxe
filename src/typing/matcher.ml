@@ -216,7 +216,7 @@ module Pattern = struct
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
-			let e = try type_expr ctx e (WithType t) with exc -> ctx.untyped <- old; raise exc in
+			let e = try type_expr ctx e (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
 			ctx.untyped <- old;
 			match e.eexpr with
 				| TTypeExpr mt ->
@@ -312,7 +312,7 @@ module Pattern = struct
 				let v = add_local final s p in
 				PatVariable v
 			| ECall(e1,el) ->
-				let e1 = type_expr ctx e1 (WithType t) in
+				let e1 = type_expr ctx e1 (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
 						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
@@ -445,7 +445,7 @@ module Pattern = struct
 						let v = add_local false s p in
 						begin match dko with
 						| None -> ()
-						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType t) p);
+						| Some dk -> ignore(TyperDisplay.display_expr ctx e (mk (TLocal v) v.v_type p) dk (WithType.with_type t) p);
 						end;
 						let pat = make pctx false t e2 in
 						PatBind(v,pat)
@@ -458,7 +458,7 @@ module Pattern = struct
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
 				let v = add_local false "_" null_pos in
-				let e1 = type_expr ctx e1 Value in
+				let e1 = type_expr ctx e1 WithType.value in
 				v.v_name <- "tmp";
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
@@ -470,18 +470,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
@@ -537,16 +537,16 @@ module Case = struct
 		unapply_type_parameters ctx.type_params monos;
 		let eg = match eg with
 			| None -> None
-			| Some e -> Some (type_expr ctx e Value)
+			| Some e -> Some (type_expr ctx e WithType.value)
 		in
 		let eo = match eo_ast,with_type with
-			| None,WithType t ->
+			| None,WithType.WithType(t,_) ->
 				unify ctx ctx.t.tvoid t (pos e);
 				None
 			| None,_ ->
 				None
-			| Some e,WithType t ->
-				let e = type_expr ctx e (WithType (map t)) in
+			| Some e,WithType.WithType(t,_) ->
+				let e = type_expr ctx e (WithType.with_type (map t)) in
 				let e = AbstractCast.cast_or_unify ctx (map t) e e.epos in
 				Some e
 			| Some e,_ ->
@@ -1354,7 +1354,7 @@ module TexprConverter = struct
 						let loop toplevel params dt =
 							try Some (loop toplevel params dt)
 							with Not_exhaustive -> match with_type,finiteness with
-								| NoValue,Infinite -> None
+								| WithType.NoValue,Infinite -> None
 								| _,CompileTimeFinite when unmatched = [] -> None
 								| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
 								| _ -> report_not_exhaustive e_subject unmatched
@@ -1473,13 +1473,13 @@ module Match = struct
 		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
-				let el = List.map (fun e -> type_expr ctx e Value) el in
+				let el = List.map (fun e -> type_expr ctx e WithType.value) el in
 				let t = tuple_type (List.map (fun e -> e.etype) el) in
 				t,el
 			| EParenthesis e1 ->
 				loop e1
 			| _ ->
-				let e = type_expr ctx e Value in
+				let e = type_expr ctx e WithType.value in
 				e.etype,[e]
 		in
 		let t,subjects = loop e in
@@ -1489,7 +1489,7 @@ module Match = struct
 			| Some (eo,p) -> cases @ [[EConst (Ident "_"),p],None,eo,p]
 		in
 		let tmono,with_type = match with_type with
-			| WithType t -> (match follow t with TMono _ -> Some t,Value | _ -> None,with_type)
+			| WithType.WithType(t,_) -> (match follow t with TMono _ -> Some t,WithType.value | _ -> None,with_type)
 			| _ -> None,with_type
 		in
 		let cases = List.map (fun (el,eg,eo,p) ->
@@ -1499,11 +1499,11 @@ module Match = struct
 		) cases in
 		let infer_switch_type () =
 			match with_type with
-				| NoValue -> ctx.t.tvoid
-				| Value ->
+				| WithType.NoValue -> ctx.t.tvoid
+				| WithType.Value(_) ->
 					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
 					unify_min ctx el
-				| WithType t -> t
+				| WithType.WithType(t,_) -> t
 		in
 		if match_debug then begin
 			print_endline "CASES BEGIN";

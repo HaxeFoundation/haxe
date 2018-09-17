@@ -28,14 +28,16 @@ package haxe;
 class Json {
 
 	#if haxeJSON inline #end
-	public static function parse( text : String ) : Dynamic {
+	public static function parse( text : String ) : Dynamic #if !haxeJSON ; #else {
 		return haxe.format.JsonParser.parse(text);
 	}
+	#end
 
 	#if haxeJSON inline #end
-	public static function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String {
+	public static function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String #if !haxeJSON ; #else {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
+	#end
 
 	#if (!haxeJSON && old_browser)
 	static function __init__():Void untyped {

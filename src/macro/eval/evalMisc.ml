@@ -30,7 +30,7 @@ open EvalHash
 open EvalString
 
 let throw_string s p =
-	throw (encode_string s) p
+	throw (create_unknown s) p
 
 let invalid_binop op v1 v2 p =
 	throw_string (Printf.sprintf "Invalid operation: %s %s %s" (value_string v1) (s_binop op) (value_string v2)) p
