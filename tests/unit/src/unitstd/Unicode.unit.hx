@@ -243,9 +243,11 @@ Reflect.field(obj, field) == null;
 
 // EReg -_-
 
-function test(left:String, middle:String, right:String) {
+function test(left:String, middle:String, right:String, ?rex:EReg) {
 	var s = '$left:$middle:$right';
-	var rex = new EReg(':($middle):', "");
+	if (rex == null) {
+		rex = new EReg(':($middle):', "");
+	}
 	function check(rex:EReg) {
 		eq(rex.matchedLeft(), left);
 		eq(rex.matchedRight(), right);
@@ -296,5 +298,10 @@ test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
+
+test("()", "ä", "[]", ~/:(\w):/);
+
+~/\bx/.match("äx") == false;
+~/x\b/.match("xä") == false;
 
 #end

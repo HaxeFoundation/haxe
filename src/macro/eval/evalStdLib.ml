@@ -764,10 +764,11 @@ module StdEReg = struct
 			| 'i' -> Some `CASELESS
 			| 's' -> Some `DOTALL
 			| 'm' -> Some `MULTILINE
-			| 'u' -> Some `UTF8
+			| 'u' -> None
 			| 'g' -> global := true; None
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
+		let flags = `UTF8 :: `UCP :: flags in
 		let r = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
 			r = r;
