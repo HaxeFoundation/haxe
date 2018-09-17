@@ -2393,7 +2393,18 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 	| EArrayDecl ((EBinop(OpArrow,_,_),_) as e1 :: el) ->
 		type_map_declaration ctx e1 el with_type p
 	| EArrayDecl el ->
-		type_array_decl ctx el with_type p
+		begin match el,with_type with
+			| [],WithType(t,_) ->
+				let rec loop t = match follow t with
+					| TAbstract({a_path = (["haxe";"ds"],"Map")},_) ->
+						type_expr ctx (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p) with_type
+					| _ ->
+						type_array_decl ctx el with_type p
+				in
+				loop t
+			| _ ->
+				type_array_decl ctx el with_type p
+		end
 	| EVars vl ->
 		type_vars ctx vl p
 	| EFor (it,e2) ->
