@@ -1,5 +1,6 @@
 package haxe.iterators;
 
+@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator")
 class ArrayKeyValueIterator<T> {
 	var idx:Int;
 	var arr:Array<T>;
