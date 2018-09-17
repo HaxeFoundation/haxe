@@ -1502,7 +1502,10 @@ and type_vars ctx vl p =
 		let e = mk (TBlock (List.map (fun (v,e) -> (mk (TVar (v,e)) ctx.t.tvoid p)) vl)) ctx.t.tvoid p in
 		mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos
 
-and format_string ctx s p =
+(* xml_hack is there because format_string expects strings delimited by ', which causes some offsets
+   to be wrong in xml literals. It should be possible to fix this differently but there are so many
+   + 1 here... *)
+and format_string ctx s p xml_hack =
 	let e = ref None in
 	let pmin = ref p.pmin in
 	let min = ref (p.pmin + 1) in
@@ -1590,7 +1593,7 @@ and format_string ctx s p =
 		min := !min + 2;
 		if slen > 0 then begin
 			let e =
-				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
+				let ep = { p with pmin = !pmin + pos + (if xml_hack then 1 else 2); pmax = !pmin + send + 1 } in
 				try ParserEntry.parse_expr_string ctx.com.defines scode ep error true
 				with Exit -> error "Invalid interpolated expression" ep
 			in
@@ -2242,7 +2245,13 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.Markup,_,_) ->
 			begin match fst e1 with
 			| EConst(String s) ->
-				type_expr ctx (format_string ctx s p) with_type
+				type_expr ctx (format_string ctx s p true) with_type
+			| EDisplay((EConst(String s),_),_) ->
+				let old = ctx.in_display in
+				ctx.in_display <- true;
+				let e = type_expr ctx (format_string ctx s p true) with_type in
+				ctx.in_display <- old;
+				e
 			| _ ->
 				error "String expected" (pos e1)
 			end
@@ -2378,7 +2387,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EConst (String s) when s <> "" && Lexer.is_fmt_string p ->
-		type_expr ctx (format_string ctx s p) with_type
+		type_expr ctx (format_string ctx s p false) with_type
 	| EConst c ->
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->

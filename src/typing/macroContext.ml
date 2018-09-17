@@ -358,7 +358,7 @@ let make_macro_api ctx p =
 			!macro_enable_cache
 		);
 		MacroApi.format_string = (fun s p ->
-			ctx.g.do_format_string ctx s p
+			ctx.g.do_format_string ctx s p false
 		);
 		MacroApi.cast_or_unify = (fun t e p ->
 			typing_timer ctx true (fun () ->
