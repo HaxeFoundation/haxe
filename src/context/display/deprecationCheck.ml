@@ -7,15 +7,18 @@ let curclass = ref null_class
 
 let warned_positions = Hashtbl.create 0
 
+let warn_deprecation com s p_usage =
+	if not (Hashtbl.mem warned_positions p_usage) then begin
+		Hashtbl.replace warned_positions p_usage true;
+		com.warning s p_usage;
+	end
+
 let print_deprecation_message com meta s p_usage =
 	let s = match meta with
 		| _,[EConst(String s),_],_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
-	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage true;
-		com.warning s p_usage;
-	end
+	warn_deprecation com s p_usage
 
 let check_meta com meta s p_usage =
 	try
