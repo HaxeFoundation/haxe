@@ -19,7 +19,6 @@ depends: [
   "ppx_tools_versioned" {build & != "5.2.1"} #https://github.com/alainfrisch/sedlex/issues/64
   "xml-light"           {build}
   "extlib"              {build & >= "1.7"}
-  "rope"                {build}
   "ptmap"               {build}
   "sha"                 {build}
   "conf-libpcre"

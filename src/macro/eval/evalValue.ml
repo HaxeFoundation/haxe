@@ -27,11 +27,9 @@ type cmp =
 	| CUndef
 
 type vstring = {
-	(* The rope representation of the string. This is what we mainly use. *)
-	srope   : Rope.t;
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
-	sstring : string Lazy.t;
+	sstring : string;
 	(* The length of the string. *)
 	slength : int;
 	(* If true, the string is one-byte-per-character ASCII. Otherwise, it is
@@ -40,7 +38,7 @@ type vstring = {
 }
 
 type vstring_buffer = {
-	        bbuffer : Rope.Buffer.t;
+	        bbuffer : Buffer.t;
 	mutable blength : int;
 	mutable bascii  : bool;
 }
@@ -55,18 +53,18 @@ let extend_ascii s =
 
 let vstring_equal s1 s2 =
 	if s1.sascii = s2.sascii then
-		s1.srope == s2.srope || Lazy.force s1.sstring = Lazy.force s2.sstring
+		s1.sstring = s2.sstring
 	else if not s2.sascii then
-		extend_ascii (Lazy.force s1.sstring) = Lazy.force s2.sstring
+		extend_ascii s1.sstring = s2.sstring
 	else
-		Lazy.force s1.sstring = extend_ascii (Lazy.force s2.sstring)
+		s1.sstring = extend_ascii s2.sstring
 
 module StringHashtbl = Hashtbl.Make(struct
 	type t = vstring
 	let equal = vstring_equal
 	let hash s =
-		let s = if s.sascii then extend_ascii (Lazy.force s.sstring)
-		else Lazy.force s.sstring in
+		let s = if s.sascii then extend_ascii s.sstring
+		else s.sstring in
 		Hashtbl.hash s
 end)
 
@@ -117,7 +115,7 @@ and vobject = {
 }
 
 and vprototype = {
-	(* The path of the prototype. Using rev_hash_s on this gives the original dot path. *)
+	(* The path of the prototype. Using rev_hash on this gives the original dot path. *)
 	ppath : int;
 	(* The fields of the prototype itself (static fields). *)
 	pfields : value array;

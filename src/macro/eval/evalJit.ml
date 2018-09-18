@@ -29,8 +29,8 @@ open EvalMisc
 (* Helper *)
 
 let rope_path t = match follow t with
-	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> Rope.of_string (s_type_path path)
-	| TDynamic _ -> Rope.of_string "Dynamic"
+	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> s_type_path path
+	| TDynamic _ -> "Dynamic"
 	| TFun _ | TAnon _ | TMono _ | TType _ | TLazy _ -> assert false
 
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos
@@ -55,7 +55,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
 		else emit_local_write (get_slot jit var.v_id e1.epos) exec
 	| TField(ef,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
@@ -71,7 +71,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FAnon cf ->
 				begin match follow ef.etype with
 					| TAnon an ->
-						let l = PMap.foldi (fun k _ acc -> (hash_s k,()) :: acc) an.a_fields [] in
+						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name ef.epos in
 						emit_anon_field_write exec1 proto i name exec2
@@ -104,7 +104,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
 	| TField(ef,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
@@ -179,7 +179,7 @@ and jit_expr jit return e =
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun ((s,_,_),e) -> hash_s s,jit_expr jit false e) fl in
+		let fl = List.map (fun ((s,_,_),e) -> hash s,jit_expr jit false e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s e.epos,exec) fl in
 		let fa = Array.of_list fl in
@@ -294,13 +294,13 @@ and jit_expr jit return e =
 		begin match e1.eexpr with
 		| TField({eexpr = TConst TSuper;epos=pv},FInstance(c,_,cf)) ->
 			let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			let i = get_proto_field_index proto name in
 			let slot = get_slot jit 0 pv in
 			let execs = List.map (jit_expr jit false) el in
 			emit_super_field_call slot proto i execs e.epos
 		| TField(ef,fa) ->
-			let name = hash_s (field_name fa) in
+			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
 			(* let is_overridden c s_name =
 				try
@@ -412,7 +412,7 @@ and jit_expr jit return e =
 		if var.v_capture then emit_capture_read (get_capture_slot jit var.v_id)
 		else emit_local_read (get_slot jit var.v_id e.epos)
 	| TField(e1,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		begin match fa with
 			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1)
 			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1)
@@ -428,7 +428,7 @@ and jit_expr jit return e =
 			| FAnon _ ->
 				begin match follow e1.etype with
 					| TAnon an ->
-						let l = PMap.foldi (fun k _ acc -> (hash_s k,()) :: acc) an.a_fields [] in
+						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name e1.epos in
 						emit_anon_field_read (jit_expr jit false e1) proto i name e1.epos

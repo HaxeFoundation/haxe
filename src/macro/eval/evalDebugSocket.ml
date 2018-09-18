@@ -34,13 +34,13 @@ let var_to_json name value access =
 		| VObject o -> "{...}"
 		| VString s -> string_repr s
 		| VArray _ | VVector _ -> "[...]"
-		| VInstance vi -> (rev_hash_s vi.iproto.ppath) ^ " {...}"
+		| VInstance vi -> (rev_hash vi.iproto.ppath) ^ " {...}"
 		| VPrototype proto -> EvalString.get (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "<fun>"
 		| VLazy f -> level2_value_repr (!f())
 	in
 	let fields_string fields =
-		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash_s name) (level2_value_repr value)) fields in
+		let l = List.map (fun (name, value) -> Printf.sprintf "%s: %s" (rev_hash name) (level2_value_repr value)) fields in
 		Printf.sprintf "{%s}" (String.concat ", " l)
 	in
 	let array_elems l =
@@ -54,7 +54,7 @@ let var_to_json name value access =
 		| VInt32 i -> jv "Int" (Int32.to_string i) false
 		| VFloat f -> jv "Float" (string_of_float f) false
 		| VEnumValue ve ->
-			let type_s = rev_hash_s ve.epath in
+			let type_s = rev_hash ve.epath in
 			let name = EvalPrinting.s_enum_ctor_name ve in
 			let value_s,is_structured = match ve.eargs with
 				| [||] -> name, false
@@ -69,7 +69,7 @@ let var_to_json name value access =
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
 		| VInstance vi ->
-			let class_name = rev_hash_s vi.iproto.ppath in
+			let class_name = rev_hash vi.iproto.ppath in
 			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
 		| VPrototype proto -> jv "Anonymous" (EvalString.get (s_proto_kind proto)) false (* TODO: show statics *)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
@@ -172,7 +172,7 @@ let output_inner_vars v access =
 		| VObject o ->
 			let fields = object_fields o in
 			List.map (fun (n,v) ->
-				let n = rev_hash_s n in
+				let n = rev_hash n in
 				let a = access ^ "." ^ n in
 				n, v, a
 			) fields
@@ -201,7 +201,7 @@ let output_inner_vars v access =
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->
-				let n = rev_hash_s n in
+				let n = rev_hash n in
 				let a = access ^ "." ^ n in
 				n, v, a
 			) fields
@@ -285,7 +285,7 @@ let make_connection socket =
 						| _ ->
 							invalid_params ();
 					in
-					let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+					let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 					let h =
 						try
 							let h = Hashtbl.find ctx.debug.breakpoints hash in

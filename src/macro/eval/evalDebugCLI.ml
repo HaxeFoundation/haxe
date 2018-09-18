@@ -29,7 +29,7 @@ let value_string value =
 		let tabs = String.make (depth * 2) ' ' in
 		let l = List.map (fun (name,value) ->
 			let s_type,s_value = value_string depth value in
-			Printf.sprintf "%s%s : %s = %s" tabs (rev_hash_s name) s_type s_value
+			Printf.sprintf "%s%s : %s = %s" tabs (rev_hash name) s_type s_value
 		) fields in
 		Printf.sprintf "{\n%s\n%s}" (String.concat "\n" l) tabs
 	and instance_fields depth vi =
@@ -43,12 +43,12 @@ let value_string value =
 		| VFalse -> "Bool","false"
 		| VInt32 i -> "Int",Int32.to_string i
 		| VFloat f -> "Float",string_of_float f
-		| VEnumValue ev -> rev_hash_s ev.epath,EvalString.get (s_enum_value 0 ev)
+		| VEnumValue ev -> rev_hash ev.epath,EvalString.get (s_enum_value 0 ev)
 		| VObject o -> "Anonymous",fields_string (depth + 1) (object_fields o)
 		| VString s -> "String","\"" ^ (Ast.s_escape (EvalString.get s)) ^ "\""
 		| VArray va -> "Array",EvalString.get (s_array (depth + 1) va)
 		| VVector vv -> "Vector",EvalString.get (s_vector (depth + 1) vv)
-		| VInstance vi -> rev_hash_s vi.iproto.ppath,instance_fields (depth + 1) vi
+		| VInstance vi -> rev_hash vi.iproto.ppath,instance_fields (depth + 1) vi
 		| VPrototype proto -> "Anonymous",EvalString.get (s_proto_kind proto)
 		| VFunction _ | VFieldClosure _ -> "Function","fun"
 		| VLazy f -> value_string depth (!f())
@@ -202,7 +202,7 @@ let rec wait ctx run env =
 			loop()
 		| ["classes"] ->
 			IntMap.iter (fun i _ ->
-				output_type_name (rev_hash_s i)
+				output_type_name (rev_hash i)
 			) ctx.type_cache;
 			loop()
 		| ["mem"] ->

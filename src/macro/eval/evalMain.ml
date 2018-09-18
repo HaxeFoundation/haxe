@@ -151,7 +151,7 @@ let call_path ctx path f vl api =
 		in
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
-			let vfield = field vtype (hash_s f) in
+			let vfield = field vtype (hash f) in
 			call_value_on vtype vfield vl
 		) api.pos
 	end
@@ -170,9 +170,9 @@ let value_signature v =
 			Hashtbl.add scache s (Hashtbl.length scache);
 			addc 'y';
 			let s = EvalStdLib.StdStringTools.url_encode s in
-			add (string_of_int (Rope.length s));
+			add (string_of_int (String.length s));
 			addc ':';
-			add (Rope.to_string s)
+			add s
 	in
 	let cache = ValueHashtbl.create 0 in
 	let cache_length = ref 0 in
@@ -207,7 +207,7 @@ let value_signature v =
 		| VEnumValue ve ->
 			cache v (fun () ->
 				addc 'j';
-				adds (rev_hash_s ve.epath);
+				adds (rev_hash ve.epath);
 				addc ':';
 				add (string_of_int ve.eindex);
 				addc ':';
@@ -230,7 +230,7 @@ let value_signature v =
 			cache v (fun() ->
 				addc 'b';
 				StringHashtbl.iter (fun s value ->
-					adds (Lazy.force s.sstring);
+					adds s.sstring;
 					loop value
 				) map;
 				addc 'h'
@@ -271,13 +271,13 @@ let value_signature v =
 		| VInstance i ->
 			cache v (fun () ->
 				addc 'c';
-				adds (rev_hash_s i.iproto.ppath);
+				adds (rev_hash i.iproto.ppath);
 				let fields = instance_fields i in
 				loop_fields fields;
 				addc 'g';
 			)
 		| VString s ->
-			adds (Lazy.force s.sstring)
+			adds s.sstring
 		| VArray {avalues = a} | VVector a ->
 			cache v (fun () ->
 				addc 'a';
@@ -301,10 +301,10 @@ let value_signature v =
 			)
 		| VPrototype {pkind = PClass _; ppath = path} ->
 			addc 'A';
-			adds (rev_hash_s path)
+			adds (rev_hash path)
 		| VPrototype {pkind = PEnum _; ppath = path} ->
 			addc 'B';
-			adds (rev_hash_s path)
+			adds (rev_hash path)
 		| VPrototype _ ->
 			assert false
 		| VFunction _ | VFieldClosure _ ->
@@ -318,7 +318,7 @@ let value_signature v =
 			loop (!f())
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
-			adds (rev_hash_s name);
+			adds (rev_hash name);
 			loop v;
 		) fields
 	in
@@ -400,7 +400,7 @@ let rec value_to_expr v p =
 	| VString s -> (EConst (String (EvalString.get s)),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
 	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
-			let n = rev_hash_s k in
+			let n = rev_hash k in
 			((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
 		) (object_fields o)),p)
 	| VEnumValue e ->
@@ -425,7 +425,7 @@ let rec value_to_expr v p =
 
 let encode_obj = encode_obj_s
 
-let field v f = field v (EvalHash.hash_s f)
+let field v f = field v (EvalHash.hash f)
 
 let value_string = value_string
 
@@ -448,7 +448,7 @@ let handle_decoding_error f v t =
 				incr line;
 				f (Printf.sprintf "\n%s%s: " (tabs ^ "\t") cf.cf_name);
 				try
-					let vf = field_raise v (EvalHash.hash_s cf.cf_name) in
+					let vf = field_raise v (EvalHash.hash cf.cf_name) in
 					begin match vf with
 					| VNull when not (is_explicit_null cf.cf_type) -> error "expected value" vf
 					| _ -> loop (tabs ^ "\t") cf.cf_type vf

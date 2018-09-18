@@ -162,7 +162,7 @@ let rec kind_name ctx kind =
 			let parent_id = env_id - 1 in
 			let env = DynArray.get ctx.environments parent_id in
 			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
-		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
+		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
 		| EKDelayed,_ -> "delayed"
 	in
 	loop kind ctx.environment_offset
@@ -284,7 +284,7 @@ let get_static_prototype_raise ctx path =
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_static_prototype_as_value ctx path p =
 	(get_static_prototype ctx path p).pvalue
@@ -294,14 +294,14 @@ let get_instance_prototype_raise ctx path =
 
 let get_instance_prototype ctx path p =
 	try get_instance_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_instance_constructor_raise ctx path =
 	IntMap.find path ctx.constructors
 
 let get_instance_constructor ctx path p =
 	try get_instance_constructor_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_special_instance_constructor_raise ctx path =
 	Hashtbl.find (get_ctx()).builtins.constructor_builtins path
@@ -311,11 +311,11 @@ let get_proto_field_index_raise proto name =
 
 let get_proto_field_index proto name =
 	try get_proto_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) null_pos
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
 
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) p
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p

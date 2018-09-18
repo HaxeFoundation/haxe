@@ -22,29 +22,13 @@ open EvalValue
 open EvalBytes
 
 let create_ascii s = {
-	srope = Rope.of_string s;
-	sstring = lazy s;
+	sstring = s;
 	slength = String.length s;
 	sascii = true;
 }
 
-let create_ascii_of_rope r = {
-	srope = r;
-	sstring = lazy (Rope.to_string r);
-	slength = Rope.length r;
-	sascii = true;
-}
-
 let create_ucs2 s length = {
-	srope = Rope.of_string s;
-	sstring = lazy s;
-	slength = length;
-	sascii = false;
-}
-
-let create_ucs2_of_rope r length = {
-	srope = r;
-	sstring = lazy (Rope.to_string r);
+	sstring = s;
 	slength = length;
 	sascii = false;
 }
@@ -55,40 +39,40 @@ module AwareBuffer = struct
 	type t = vstring_buffer
 
 	let create () = {
-		bbuffer = Rope.Buffer.create 0;
+		bbuffer = Buffer.create 0;
 		blength = 0;
 		bascii = true;
 	}
 
 	let promote_to_ucs this =
-		let current = Rope.to_string (Rope.Buffer.contents this.bbuffer) in
+		let current = Buffer.contents this.bbuffer in
 		let current = extend_ascii current in
-		Rope.Buffer.clear this.bbuffer;
+		Buffer.clear this.bbuffer;
 		this.bascii <- false;
-		Rope.Buffer.add_string this.bbuffer current
+		Buffer.add_string this.bbuffer current
 
 	let add_string this s =
 		begin match s.sascii,this.bascii with
 		| true,true
 		| false,false ->
-			Rope.Buffer.add_rope this.bbuffer s.srope
+			Buffer.add_string this.bbuffer s.sstring
 		| true,false ->
-			Rope.Buffer.add_string this.bbuffer (extend_ascii (Lazy.force s.sstring))
+			Buffer.add_string this.bbuffer (extend_ascii s.sstring)
 		| false,true ->
 			promote_to_ucs this;
-			Rope.Buffer.add_rope this.bbuffer s.srope
+			Buffer.add_string this.bbuffer s.sstring
 		end;
 		this.blength <- this.blength + s.slength
 
 	let contents this =
 		if this.bascii then
-			create_ascii_of_rope (Rope.Buffer.contents this.bbuffer)
+			create_ascii (Buffer.contents this.bbuffer)
 		else
-			create_ucs2_of_rope (Rope.Buffer.contents this.bbuffer) this.blength
+			create_ucs2 (Buffer.contents this.bbuffer) this.blength
 end
 
 let read_char s =
-	read_ui16 (Bytes.unsafe_of_string (Lazy.force s.sstring))
+	read_ui16 (Bytes.unsafe_of_string s.sstring)
 
 let utf8_to_utf16 s =
 	let only_ascii = ref true in
@@ -170,7 +154,7 @@ let utf16_to_utf8 s =
 	Buffer.contents buf
 
 let maybe_extend_ascii s =
-	let s' = Lazy.force s.sstring in
+	let s' = s.sstring in
 	if s.sascii then begin
 		extend_ascii s'
 	end else
@@ -179,13 +163,13 @@ let maybe_extend_ascii s =
 let concat s1 s2 =
 	match s1.sascii,s2.sascii with
 	| true,true ->
-		create_ascii_of_rope (Rope.concat2 s1.srope s2.srope)
+		create_ascii (s1.sstring ^ s2.sstring)
 	| false,false ->
-		create_ucs2_of_rope (Rope.concat2 s1.srope s2.srope) (s1.slength + s2.slength)
+		create_ucs2 (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
 	| true,false ->
-		create_ucs2 ((extend_ascii (Lazy.force s1.sstring)) ^ (Lazy.force s2.sstring)) (s1.slength + s2.slength)
+		create_ucs2 ((extend_ascii s1.sstring) ^ s2.sstring) (s1.slength + s2.slength)
 	| false,true ->
-		create_ucs2 ((Lazy.force s1.sstring) ^ (extend_ascii (Lazy.force s2.sstring))) (s1.slength + s2.slength)
+		create_ucs2 (s1.sstring ^ (extend_ascii s2.sstring)) (s1.slength + s2.slength)
 
 let join sep sl =
 	let buf = AwareBuffer.create () in
@@ -215,7 +199,7 @@ let create_unknown s =
 exception InvalidUnicodeChar
 
 let case_map this upper =
-	let dest = Bytes.of_string (Lazy.force this.sstring) in
+	let dest = Bytes.of_string this.sstring in
 	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
 	let f i c =
 		let up = c lsr 6 in
@@ -257,9 +241,9 @@ let from_char_code i =
 		raise InvalidUnicodeChar
 
 let find_substring this sub reverse =
-	let l_this = Rope.length this.srope in
-	let s_this = Lazy.force this.sstring in
-	let s_sub = if not this.sascii then maybe_extend_ascii sub else Lazy.force sub.sstring in
+	let s_this = this.sstring in
+	let l_this = String.length s_this in
+	let s_sub = if not this.sascii then maybe_extend_ascii sub else sub.sstring in
 	let l_sub = String.length s_sub in
 	let rec scan i k =
 		if k = l_sub then true
@@ -288,6 +272,6 @@ let find_substring this sub reverse =
 	end
 
 let get s =
-	let s' = Lazy.force s.sstring in
+	let s' = s.sstring in
 	if s.sascii then s'
 	else utf16_to_utf8 s'
