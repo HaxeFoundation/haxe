@@ -433,102 +433,105 @@ let exc_string = exc_string
 
 let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
 
-let handle_decoding_error v t =
+let handle_decoding_error f v t =
 	let line = ref 1 in
 	let errors = ref [] in
-	let error msg v s =
+	let error msg v =
 		errors := (msg,!line) :: !errors;
-		Printf.sprintf "%s%s <- %s" s (value_string v) msg
+		f (Printf.sprintf "%s <- %s" (value_string v) msg)
 	in
-	let rec loop tabs s t v =
+	let rec loop tabs t v =
 		match t with
 		| TAnon an ->
-			let s = s ^ "{" in
-			let s = PMap.fold (fun cf s ->
+			f "{";
+			PMap.iter (fun _ cf ->
 				incr line;
-				let s = Printf.sprintf "%s\n%s%s: " s (tabs ^ "\t") cf.cf_name in
+				f (Printf.sprintf "\n%s%s: " (tabs ^ "\t") cf.cf_name);
 				try
 					let vf = field_raise v (EvalHash.hash_s cf.cf_name) in
 					begin match vf with
-					| VNull when not (is_explicit_null cf.cf_type) -> error "expected value" vf s
-					| _ -> loop (tabs ^ "\t") s cf.cf_type vf
+					| VNull when not (is_explicit_null cf.cf_type) -> error "expected value" vf
+					| _ -> loop (tabs ^ "\t") cf.cf_type vf
 					end
 				with Not_found ->
-					if not (is_explicit_null cf.cf_type) then error "expected value" VNull s
-					else s ^ "null"
-			) an.a_fields s in
+					if not (is_explicit_null cf.cf_type) then error "expected value" VNull
+					else f "null"
+			) an.a_fields;
 			incr line;
-			Printf.sprintf "%s\n%s}" s tabs
+			f (Printf.sprintf "\n%s}" tabs)
 		| TInst({cl_path=[],"Array"},[t1]) ->
 			begin match v with
 				| VArray va ->
-					let s = s ^ "[" in
-					let s = snd (List.fold_left (fun (first,s) v ->
-						let s = if first then s else s ^ ", " in
-						false,loop tabs s t1 v
-					) (true,s) (EvalArray.to_list va)) in
-					s ^ "]"
-				| _ -> error "expected Array" v s
+					f "[";
+					let _ = List.fold_left (fun first v ->
+						if not first then f ", ";
+						loop tabs t1 v;
+						false
+					) true (EvalArray.to_list va) in
+					f "]"
+				| _ -> error "expected Array" v
 			end
 		| TInst({cl_path=[],"String"},_) ->
 			begin match v with
-				| VString _ -> s ^ (value_string v)
-				| _ -> error "expected String" v s
+				| VString _ -> f (value_string v)
+				| _ -> error "expected String" v
 			end
 		| TAbstract({a_path=[],"Null"},[t1]) ->
-			if v = VNull then s ^ "null" else loop tabs s t1 v
+			if v = VNull then f "null" else loop tabs t1 v
 		| TAbstract({a_path=[],"Bool"},_) ->
 			begin match v with
-				| VTrue -> s ^ "true"
-				| VFalse -> s ^ "false"
-				| _ -> error "expected Bool" v s
+				| VTrue -> f "true"
+				| VFalse -> f "false"
+				| _ -> error "expected Bool" v
 			end
 		| TAbstract({a_path=[],("Int" | "Float")},_) ->
 			begin match v with
-				| VInt32 _ | VFloat _ -> s ^ (value_string v)
-				| _ -> error "expected Bool" v s
+				| VInt32 _ | VFloat _ -> f (value_string v)
+				| _ -> error "expected Bool" v
 			end
 		| TType(t,tl) ->
-			loop tabs s (apply_params t.t_params tl t.t_type) v
+			loop tabs (apply_params t.t_params tl t.t_type) v
 		| TAbstract({a_path=["haxe";"macro"],"Position"},_) ->
 			begin match v with
-				| VInstance {ikind=IPos _} -> s ^ "#pos"
-				| _ -> error "expected Position" v s
+				| VInstance {ikind=IPos _} -> f "#pos"
+				| _ -> error "expected Position" v
 			end
 		| TEnum(en,_) ->
 			begin match v with
 				| VEnumValue ev ->
 					let ef = PMap.find (List.nth en.e_names ev.eindex) en.e_constrs in
-					let s = Printf.sprintf "%s%s" s ef.ef_name in
-					let rec loop2 first s tl vl = match tl,vl with
-						| _,[] -> s
-						| [],_ -> s (* ? *)
+					f ef.ef_name;
+					let rec loop2 first tl vl = match tl,vl with
+						| _,[] -> ()
+						| [],_ -> ()
 						| (_,_,t) :: tl,v :: vl ->
-							let s = if first then s else s ^ ", " in
-							let s = loop tabs s t v in
-							loop2 false s tl vl
+							if not first then f ", ";
+							loop tabs t v;
+							loop2 false tl vl
 					in
 					begin match follow ef.ef_type,Array.to_list ev.eargs with
-						| _,[] -> s
+						| _,[] ->
+							()
 						| TFun(tl,_),vl ->
-							let s = s ^ "(" in
-							let s =  loop2 true s tl vl in
-							s ^ ")"
-						| _ -> s
+							 f "(";
+							loop2 true tl vl;
+							f ")"
+						| _ -> ()
 					end
-				| _ -> error "expected enum value" v s
+				| _ -> error "expected enum value" v
 			end
 		| TInst _ | TAbstract _ | TFun _ ->
 			(* TODO: might need some more of these, not sure *)
 			assert false
 		| TMono r ->
 			begin match !r with
-				| None -> s
-				| Some t -> loop tabs s t v
+				| None -> ()
+				| Some t -> loop tabs t v
 			end
 		| TLazy r ->
-			loop tabs s (lazy_type r) v
+			loop tabs (lazy_type r) v
 		| TDynamic _ ->
-			s (* Nothing we can do *)
+			()
 	in
-	loop "" "" t v,!errors
+	loop "" t v;
+	!errors
