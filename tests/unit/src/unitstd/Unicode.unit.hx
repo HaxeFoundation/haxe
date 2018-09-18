@@ -294,14 +294,20 @@ test("あb", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "あbc", "bc");
 
+#if !flash
+// wontfix (cantfix?)
 test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
 
-test("()", "ä", "[]", ~/:(\w):/);
-
 ~/\bx/.match("äx") == false;
 ~/x\b/.match("xä") == false;
+#end
+
+#if (eval || lua || python)
+// unspecced?
+test("()", "ä", "[]", ~/:(\w):/);
+#end
 
 #end
