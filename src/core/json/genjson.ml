@@ -643,7 +643,8 @@ let generate_abstract ctx a =
 		"from",generate_casts a.a_from_field a.a_from;
 		"to",generate_casts a.a_to_field a.a_to;
 		"array",jlist (classfield_ref ctx) a.a_array;
-		"resolve",jopt (classfield_ref ctx) a.a_resolve;
+		"read",jopt (classfield_ref ctx) a.a_read;
+		"write",jopt (classfield_ref ctx) a.a_write;
 	]
 
 let generate_module_type ctx mt =

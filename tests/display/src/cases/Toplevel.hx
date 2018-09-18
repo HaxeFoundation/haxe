@@ -357,6 +357,6 @@ class Toplevel extends DisplayTestCase {
 	**/
 	function testTypeParameterApplication() {
 		var toplevel = toplevel(pos(1));
-		eq(true, hasToplevel(toplevel, "member", "f1", "t : String -> Void"));
+		eq(true, hasToplevel(toplevel, "member", "f1", "(t : String) -> Void"));
 	}
 }

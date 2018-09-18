@@ -37,7 +37,7 @@ import haxe.ds.List;
 **/
 
 class Lambda {
-	
+
 
 	/**
 		Creates an Array from Iterable `it`.
@@ -64,55 +64,38 @@ class Lambda {
 	}
 
 	/**
-		Creates a new List by applying function `f` to all elements of `it`.
-
+		Creates a new Array by applying function `f` to all elements of `it`.
 		The order of elements is preserved.
-
 		If `f` is null, the result is unspecified.
 	**/
-	public static function map<A,B>( it : Iterable<A>, f : A -> B ) : List<B> {
-		var l = new List<B>();
-		for( x in it )
-			l.add(f(x));
-		return l;
+	public static inline function map<A,B>( it : Iterable<A>, f : A -> B ) : Array<B> {
+		return [for (x in it) f(x)];
 	}
 
 	/**
 		Similar to map, but also passes the index of each element to `f`.
-
 		The order of elements is preserved.
-
 		If `f` is null, the result is unspecified.
 	**/
-	public static function mapi<A,B>( it : Iterable<A>, f : Int -> A -> B ) : List<B> {
-		var l = new List<B>();
+	public static inline function mapi<A,B>( it : Iterable<A>, f : Int -> A -> B ) : Array<B> {
 		var i = 0;
-		for( x in it )
-			l.add(f(i++,x));
-		return l;
+		return [for (x in it) f(i++, x)];
 	}
 
 	/**
-		Concatenate a list of lists.
-
+		Concatenate a list of iterables.
 		The order of elements is preserved.
 	**/
-	public static function flatten<A>( it : Iterable<Iterable<A>> ) : List<A> {
-		var l = new List<A>();
-		for (e in it)
-			for (x in e)
-				l.add(x);
-		return l;
+	public static inline function flatten<A>( it : Iterable<Iterable<A>> ) : Array<A> {
+		return [for (e in it) for (x in e) x];
 	}
 
 	/**
 		A composition of map and flatten.
-
 		The order of elements is preserved.
-
 		If `f` is null, the result is unspecified.
 	**/
-	public static function flatMap<A,B>( it : Iterable<A>, f: A -> Iterable<B> ) : List<B> {
+	public static inline function flatMap<A,B>( it : Iterable<A>, f: A -> Iterable<B> ) : Array<B> {
 		return Lambda.flatten(Lambda.map(it, f));
 	}
 
@@ -178,19 +161,13 @@ class Lambda {
 	}
 
 	/**
-		Returns a List containing those elements of `it` for which `f` returned
+		Returns a Array containing those elements of `it` for which `f` returned
 		true.
-
-		If `it` is empty, the result is the empty List even if `f` is null.
-
+		If `it` is empty, the result is the empty Array even if `f` is null.
 		Otherwise if `f` is null, the result is unspecified.
 	**/
 	public static function filter<A>( it : Iterable<A>, f : A -> Bool ) {
-		var l = new List<A>();
-		for( x in it )
-			if( f(x) )
-				l.add(x);
-		return l;
+		return [for (x in it) if (f(x)) x];
 	}
 
 	/**
@@ -271,17 +248,17 @@ class Lambda {
 	}
 
 	/**
-		Returns a new List containing all elements of Iterable `a` followed by
+		Returns a new Array containing all elements of Iterable `a` followed by
 		all elements of Iterable `b`.
 
 		If `a` or `b` are null, the result is unspecified.
 	**/
-	public static function concat<T>( a : Iterable<T>, b : Iterable<T> ) : List<T> {
-		var l = new List();
+	public static function concat<T>( a : Iterable<T>, b : Iterable<T> ) : Array<T> {
+		var l = new Array();
 		for( x in a )
-			l.add(x);
+			l.push(x);
 		for( x in b )
-			l.add(x);
+			l.push(x);
 		return l;
 	}
 

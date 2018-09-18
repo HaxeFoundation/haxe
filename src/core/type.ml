@@ -312,7 +312,8 @@ and tabstract = {
 	mutable a_to : t list;
 	mutable a_to_field : (t * tclass_field) list;
 	mutable a_array : tclass_field list;
-	mutable a_resolve : tclass_field option;
+	mutable a_read : tclass_field option;
+	mutable a_write : tclass_field option;
 }
 
 and module_type =
@@ -517,7 +518,8 @@ let null_abstract = {
 	a_to = [];
 	a_to_field = [];
 	a_array = [];
-	a_resolve = None;
+	a_read = None;
+	a_write = None;
 }
 
 let add_dependency m mdep =
@@ -995,9 +997,16 @@ let rec s_type ctx t =
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
-		String.concat " -> " (List.map (fun (s,b,t) ->
-			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
-		) l) ^ " -> " ^ s_fun ctx t false
+		let args = match l with
+			| [] -> "()"
+			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun ctx t true)
+			| _ ->
+				let args = String.concat ", " (List.map (fun (s,b,t) ->
+					(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
+				) l) in
+				"(" ^ args ^ ")"
+		in
+		Printf.sprintf "%s -> %s" args (s_fun ctx t false)
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
@@ -1501,7 +1510,8 @@ module Printer = struct
 			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_from_field;
 			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_to_field;
 			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
-			"a_resolve",s_opt (fun cf -> cf.cf_name) a.a_resolve;
+			"a_read",s_opt (fun cf -> cf.cf_name) a.a_read;
+			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
 	let s_tvar_extra (tl,eo) =

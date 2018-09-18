@@ -268,6 +268,7 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_pad_nulls = true;
+			pf_uses_utf16 = false;
 		}
 	| Flash when defined Define.As3 ->
 		{

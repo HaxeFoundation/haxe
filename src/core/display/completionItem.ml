@@ -442,11 +442,18 @@ let get_index item = match item.ci_kind with
 	| ITExpression _ -> 12
 	| ITTypeParameter _ -> 13
 
-let get_sort_index tk item p = match item.ci_kind with
+let get_sort_index tk item p expected_name = match item.ci_kind with
 	| ITLocal v ->
 		let i = p.pmin - v.v_pos.pmin in
 		let i = if i < 0 then 0 else i in
-		0,(Printf.sprintf "%05i" i)
+		let s = Printf.sprintf "%05i" i in
+		let s = match expected_name with
+			| None -> s
+			| Some name ->
+				let i = StringError.levenshtein name v.v_name in
+				Printf.sprintf "%05i%s" i s
+		in
+		0,s
 	| ITClassField ccf ->
 		let open ClassFieldOrigin in
 		let i = match ccf.origin,ccf.scope with

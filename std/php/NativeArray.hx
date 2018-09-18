@@ -40,28 +40,5 @@ using php.Global;
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
-		return new NativeArrayIterator(this);
-}
-
-/**
-	Allows iterating over native PHP array with Haxe for-loop
-**/
-private class NativeArrayIterator {
-	var arr:NativeArray;
-	var hasMore:Bool;
-
-	public inline function new( a:NativeArray ) {
-		arr = a;
-		hasMore = (arr.reset() != false);
-	}
-
-	public inline function hasNext() : Bool {
-		return hasMore;
-	}
-
-	public inline function next() : Dynamic {
-		var result = arr.current();
-		hasMore = (arr.next() != false);
-		return result;
-	}
+		return (this:NativeIndexedArray<Dynamic>).iterator();
 }

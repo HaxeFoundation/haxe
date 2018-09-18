@@ -229,3 +229,7 @@ map["foo"] == 9;
 //[a => b].keys().next() == a;
 //[a => b].iterator().next() == b;
 #end
+
+var map:Map<String, Int>;
+HelperMacros.typedAs((null : Map<String, Int>), map = []);
+HelperMacros.typeError(map[1] = 1) == true;
