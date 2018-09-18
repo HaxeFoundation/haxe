@@ -300,14 +300,16 @@ test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
-
-~/\bx/.match("äx") == false;
-~/x\b/.match("xä") == false;
 #end
 
 #if (eval || lua || python)
 // unspecced?
 test("()", "ä", "[]", ~/:(\w):/);
+~/\bx/.match("äx") == false;
+~/x\b/.match("xä") == false;
 #end
+
+test("a", "É", "b", ~/:(é):/i);
+test("a", "é", "b", ~/:(É):/i);
 
 #end
