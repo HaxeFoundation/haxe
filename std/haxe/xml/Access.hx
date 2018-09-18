@@ -48,7 +48,7 @@ private abstract AttribAccess(Xml) from Xml {
 	}
 
 	@:op(a.b)
-	public function set( name : String, value : String ) : String {
+	function _hx_set( name : String, value : String ) : String {
 		if( this.nodeType == Xml.Document )
 			throw "Cannot access document attribute "+name;
 		this.set(name, value);
