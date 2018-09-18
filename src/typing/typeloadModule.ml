@@ -116,7 +116,7 @@ module StrictMeta = struct
 			in
 
 			let left = type_expr ctx left_side NoValue in
-			let right = type_expr ctx expr (WithType left.etype) in
+			let right = type_expr ctx expr (WithType.with_type left.etype) in
 			unify ctx left.etype right.etype (snd expr);
 			(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 		) fields_to_check
@@ -285,7 +285,8 @@ let module_pass_1 ctx m tdecls loadp =
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();
-				a_resolve = None;
+				a_read = None;
+				a_write = None;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with

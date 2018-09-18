@@ -9,6 +9,11 @@ import runci.System.*;
 import runci.Config.*;
 
 class Flash {
+	static public function getLatestFPVersion():Array<Int> {
+		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
+		return versionStr.split(",").map(Std.parseInt);
+	}
 
 	static public function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
@@ -25,7 +30,8 @@ class Flash {
 				Linux.requireAptPackages([
 					"libglib2.0", "libfreetype6"
 				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/30/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
+				var majorVersion = getLatestFPVersion()[0];
+				runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
 				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");

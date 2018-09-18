@@ -24,6 +24,8 @@ var s = "abc";
 s.indexOf("éé")<0;
 s.lastIndexOf("éé")<0;
 
+"012::345€".indexOf("::", 1) == 3;
+
 var s = String.fromCharCode(0x1f602);
 s == "😂";
 
@@ -238,5 +240,63 @@ Reflect.deleteField(obj, field) == true;
 Reflect.deleteField(obj, field) == false;
 Reflect.hasField(obj, field) == false;
 Reflect.field(obj, field) == null;
+
+// EReg -_-
+
+function test(left:String, middle:String, right:String) {
+	var s = '$left:$middle:$right';
+	var rex = new EReg(':($middle):', "");
+	function check(rex:EReg) {
+		eq(rex.matchedLeft(), left);
+		eq(rex.matchedRight(), right);
+		eq(rex.matched(1), middle);
+		var pos = rex.matchedPos();
+		eq(pos.pos, left.length);
+		eq(pos.len, middle.length + 2);
+	}
+
+	t(rex.match(s));
+	check(rex);
+
+	var split = rex.split(s);
+	eq(2, split.length);
+	eq(left, split[0]);
+	eq(right, split[1]);
+
+	eq(rex.replace(s, "a"), '${left}a$right');
+	eq(rex.replace(s, "ä"), '${left}ä$right');
+
+	eq(rex.map(s, r -> {
+		check(r);
+		"a";
+	}), '${left}a$right');
+
+	eq(rex.map(s, r -> {
+		check(r);
+		"ä";
+	}), '${left}ä$right');
+}
+
+#if !(lua || cpp || flash)
+test("äb", "ä", "bc");
+test("äb", "a", "bc");
+test("ab", "a", "bc");
+test("ab", "ä", "bc");
+
+test("äb", "äbc", "bc");
+test("äb", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "äbc", "bc");
+
+test("あb", "あbc", "bc");
+test("あb", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "あbc", "bc");
+
+test("😂b", "😂bc", "bc");
+test("😂b", "abc", "bc");
+test("ab", "abc", "bc");
+test("ab", "😂bc", "bc");
+#end
 
 #end

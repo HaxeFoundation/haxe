@@ -139,9 +139,13 @@ let opcode_fx frw op =
 		read a; read b; read c
 	| ONew d ->
 		write d
-	| OArraySize (d, a)	| OGetType (d,a) | OGetTID (d,a) | ORef (d, a) | OUnref (d,a) | OSetref (d, a) | OEnumIndex (d, a) | OEnumField (d,a,_,_) ->
+	| OArraySize (d, a)	| OGetType (d,a) | OGetTID (d,a) | OUnref (d,a) | OSetref (d, a) | OEnumIndex (d, a) | OEnumField (d,a,_,_) ->
 		read a;
 		write d
+	| ORef (d, a) ->
+		read a;
+		write a; (* prevent issue with 'a' being reused later - this is not exact as it can be set everytime we pass it to a function *)
+		write d;
 	| OType (d,_) | OEnumAlloc (d,_) ->
 		write d
 	| OMakeEnum (d,_,rl) ->

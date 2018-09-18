@@ -371,7 +371,7 @@ let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
 	match vi with
 	| VInstance i ->
-		set_instance_field i key_message (encode_string msg);
+		set_instance_field i key_message (EvalString.create_unknown msg);
 		set_instance_field i key_pos (encode_pos pos);
 		exc vi
 	| _ ->
