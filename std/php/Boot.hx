@@ -42,6 +42,8 @@ class Boot {
 	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
 	/** Metadata storage */
 	@:protected static var meta = new NativeAssocArray<{}>();
+	/** Cache for closures created of static methods */
+	@:protected static var staticClosures = new NativeAssocArray<NativeAssocArray<HxClosure>>();
 
 	/**
 		Initialization stuff.
@@ -534,8 +536,33 @@ class Boot {
 		var chars = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
 		return chars == false ? null : (chars:NativeArray)[index];
 	}
-}
 
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
+		if(result != null) {
+			return result;
+		}
+		result = new HxClosure(obj, methodName);
+		if(!Global.property_exists(obj, '__hx_closureCache')) {
+			obj.__hx_closureCache = new NativeAssocArray();
+		}
+		obj.__hx_closureCache[methodName] = result;
+		return result;
+	}
+
+	public static function getStaticClosure(phpClassName:String, methodName:String) {
+		var result = Syntax.coalesce(staticClosures[phpClassName][methodName], null);
+		if(result != null) {
+			return result;
+		}
+		result = new HxClosure(phpClassName, methodName);
+		if(!Global.array_key_exists(phpClassName, staticClosures)) {
+			staticClosures[phpClassName] = new NativeAssocArray();
+		}
+		staticClosures[phpClassName][methodName] = result;
+		return result;
+	}
+}
 
 /**
 	Class<T> implementation for Haxe->PHP internals.
