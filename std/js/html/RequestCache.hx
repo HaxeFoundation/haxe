@@ -31,4 +31,5 @@ enum abstract RequestCache(String)
 	var RELOAD = "reload";
 	var NO_CACHE = "no-cache";
 	var FORCE_CACHE = "force-cache";
+	var ONLY_IF_CACHED = "only-if-cached";
 }

@@ -349,10 +349,12 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if s.sascii || encode_native encoding then
-			encode_bytes (Bytes.of_string (Lazy.force s.sstring))
-		else begin
-			let s = utf16_to_utf8 (Lazy.force s.sstring) in
+		if encode_native encoding then begin
+			let s = maybe_extend_ascii s in
+			encode_bytes (Bytes.of_string s)
+		end else begin
+			let s' = Lazy.force s.sstring in
+			let s = if s.sascii then s' else utf16_to_utf8 s' in
 			encode_bytes (Bytes.of_string s)
 		end
 	)
@@ -546,14 +548,14 @@ module StdCallStack = struct
 		List.iter (fun (pos,kind) ->
 			let file_pos s =
 				let line1,col1,_,_ = Lexer.get_pos_coords pos in
-				encode_enum_value key_haxe_StackItem 2 [|s;encode_string pos.pfile;vint line1;vint col1|] None
+				encode_enum_value key_haxe_StackItem 2 [|s;create_unknown pos.pfile;vint line1;vint col1|] None
 			in
 			match kind with
 			| EKLocalFunction i ->
 				let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] None in
 				DynArray.add l (file_pos local_function);
 			| EKMethod(st,sf) ->
-				let local_function = encode_enum_value key_haxe_StackItem 3 [|encode_string (rev_hash_s st); encode_string (rev_hash_s sf)|] None in
+				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash_s st); create_unknown (rev_hash_s sf)|] None in
 				DynArray.add l (file_pos local_function);
 			| EKDelayed ->
 				()
@@ -787,7 +789,7 @@ module StdEReg = struct
 
 	let escape = vfun1 (fun s ->
 		let s = decode_string s in
-		encode_string (Str.quote s)
+		create_unknown (Str.quote s)
 	)
 
 	let map = vifun2 (fun vthis s f ->
@@ -803,7 +805,7 @@ module StdEReg = struct
 				this.r_groups <- [|a|];
 				let (first,last) = get_substring_ofs a 0 in
 				Rope.Buffer.add_substring buf s pos (first - pos);
-				Rope.Buffer.add_rope buf (decode_rope (call_value_on vthis f [vthis]));
+				Rope.Buffer.add_string buf (decode_string (call_value_on vthis f [vthis]));
 				if last = first then begin
 					if last >= l then
 						()
@@ -826,7 +828,7 @@ module StdEReg = struct
 		loop 0;
 		this.r_string <- "";
 		this.r_groups <- [||];
-		encode_rope (Rope.Buffer.contents buf)
+		create_unknown (Rope.to_string (Rope.Buffer.contents buf))
 	)
 
 	let match' = vifun1 (fun vthis s ->
@@ -847,20 +849,44 @@ module StdEReg = struct
 		let this = this vthis in
 		let n = decode_int n in
 		maybe_run this n (fun (first,last) ->
-			encode_string (ExtString.String.slice ~first ~last this.r_string)
+			create_unknown (ExtString.String.slice ~first ~last this.r_string)
 		)
 	)
 
 	let matchedLeft = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (first,_) ->
-			encode_string (ExtString.String.slice ~last:first this.r_string)
+			create_unknown (ExtString.String.slice ~last:first this.r_string)
 		)
 	)
 
 	let matchedPos = vifun0 (fun vthis ->
 		let this = this vthis in
+		let rec search_head s i =
+			if i >= String.length s then i else
+			let n = Char.code (String.unsafe_get s i) in
+			if n < 0x80 || n >= 0xc2 then i else
+			search_head s (i + 1)
+		in
+		let next' s i =
+			let n = Char.code s.[i] in
+			if n < 0x80 then i + 1 else
+			if n < 0xc0 then search_head s (i + 1) else
+			if n <= 0xdf then i + 2
+			else i + 3
+		in
+		let rec byte_offset_to_char_offset_lol s i k o =
+			if i = 0 then
+				k
+			else begin
+				let n = next' s o in
+				let d = n - o in
+				byte_offset_to_char_offset_lol s (i - d) (k + 1) n
+			end
+		in
 		maybe_run this 0 (fun (first,last) ->
+			let first = byte_offset_to_char_offset_lol this.r_string first 0 0 in
+			let last = byte_offset_to_char_offset_lol this.r_string last 0 0 in
 			encode_obj None [key_pos,vint first;key_len,vint (last - first)]
 		)
 	)
@@ -868,7 +894,7 @@ module StdEReg = struct
 	let matchedRight = vifun0 (fun vthis ->
 		let this = this vthis in
 		maybe_run this 0 (fun (_,last) ->
-			encode_string (ExtString.String.slice ~first:last this.r_string)
+			create_unknown (ExtString.String.slice ~first:last this.r_string)
 		)
 	)
 
@@ -894,7 +920,7 @@ module StdEReg = struct
 		let s = decode_string s in
 		let by = decode_string by in
 		let s = (if this.r_global then Pcre.replace else Pcre.replace_first) ~rex:this.r ~templ:by s in
-		encode_string s
+		create_unknown s
 	)
 
 	let split = vifun1 (fun vthis s ->
@@ -909,13 +935,13 @@ module StdEReg = struct
 					loop split (cur ^ s) acc l
 				| Delim s :: l ->
 					if split then
-						loop this.r_global "" ((encode_string cur) :: acc) l
+						loop this.r_global "" ((create_unknown cur) :: acc) l
 					else
 						loop false (cur ^ s) acc l
 				| _ :: l ->
 					loop split cur acc l
 				| [] ->
-					List.rev ((encode_string cur) :: acc)
+					List.rev ((create_unknown cur) :: acc)
 			in
 			let l = loop true "" [] l in
 			encode_array l
@@ -1132,7 +1158,7 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let absolutePath = vfun1 (fun relPath ->
-		encode_string (Path.unique_full_path (decode_string relPath))
+		create_unknown (Path.unique_full_path (decode_string relPath))
 	)
 
 	let createDirectory = vfun1 (fun path ->
@@ -1156,7 +1182,7 @@ module StdFileSystem = struct
 	)
 
 	let fullPath = vfun1 (fun relPath ->
-		try encode_string (Extc.get_full_path (decode_string relPath)) with exc -> exc_string (Printexc.to_string exc)
+		try create_unknown (Extc.get_full_path (decode_string relPath)) with exc -> exc_string (Printexc.to_string exc)
 	)
 
 	let isDirectory = vfun1 (fun dir ->
@@ -1166,7 +1192,7 @@ module StdFileSystem = struct
 
 	let readDirectory = vfun1 (fun dir ->
 		let d = try Sys.readdir (decode_string dir) with Sys_error s -> exc_string s in
-		encode_array (Array.to_list (Array.map (fun s -> encode_string s) d))
+		encode_array (Array.to_list (Array.map (fun s -> create_unknown s) d))
 	)
 
 	let rename = vfun2 (fun path newPath ->
@@ -1327,17 +1353,17 @@ module StdHost = struct
 		inet_addr_of_string str
 
 	let localhost = vfun0 (fun () ->
-		encode_string (gethostname())
+		create_unknown (gethostname())
 	)
 
 	let hostReverse = vfun1 (fun ip ->
 		let ip = decode_i32 ip in
-		try encode_string (gethostbyaddr (int32_addr ip)).h_name with Not_found -> exc_string "Could not reverse host"
+		try create_unknown (gethostbyaddr (int32_addr ip)).h_name with Not_found -> exc_string "Could not reverse host"
 	)
 
 	let hostToString = vfun1 (fun ip ->
 		let ip = decode_i32 ip in
-		encode_string (string_of_inet_addr (int32_addr ip))
+		create_unknown (string_of_inet_addr (int32_addr ip))
 	)
 
 	let resolve = vfun1 (fun name ->
@@ -1544,8 +1570,8 @@ end
 
 module StdReflect = struct
 
-	let r_get_ = Rope.of_string "get_"
-	let r_set_ = Rope.of_string "set_"
+	let r_get_ = create_ascii "get_"
+	let r_set_ = create_ascii "set_"
 
 	let callMethod = vfun3 (fun o f args ->
 		call_value_on o f (decode_array args)
@@ -1582,7 +1608,7 @@ module StdReflect = struct
 	)
 
 	let deleteField = vfun2 (fun o name ->
-		let name = hash (decode_rope name) in
+		let name = hash_s (get (decode_vstring name)) in
 		match vresolve o with
 		| VObject o ->
 			let found = ref false in
@@ -1603,7 +1629,7 @@ module StdReflect = struct
 	)
 
 	let field' = vfun2 (fun o name ->
-		if o = vnull then vnull else dynamic_field o (hash (decode_rope name))
+		if o = vnull then vnull else dynamic_field o (hash_s (get (decode_vstring name)))
 	)
 
 	let fields = vfun1 (fun o ->
@@ -1620,14 +1646,15 @@ module StdReflect = struct
 	)
 
 	let getProperty = vfun2 (fun o name ->
-		let name = decode_rope name in
-		let vget = field o (hash (Rope.concat Rope.empty [r_get_;name])) in
+		let name = decode_vstring name in
+		let name_get = hash_s (get (concat r_get_ name)) in
+		let vget = field o name_get in
 		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash name)
+		else dynamic_field o (hash_s (get name))
 	)
 
 	let hasField = vfun2 (fun o field ->
-		let name = hash (decode_rope field) in
+		let name = hash_s (get (decode_vstring field)) in
 		let b = match vresolve o with
 			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
@@ -1658,16 +1685,16 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		set_field o (hash (decode_rope name)) v; vnull
+		set_field o (hash_s (get (decode_vstring name))) v; vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
-		let name = decode_rope name in
-		let vset = field o (hash (Rope.concat Rope.empty [r_set_;name])) in
-		if vset <> VNull then
-			call_value_on o vset [v]
+		let name = decode_vstring name in
+		let name_set = hash_s (get (concat r_set_ name)) in
+		let vset = field o name_set in
+		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			set_field o (hash name) v;
+			set_field o (hash_s (get name)) v;
 			vnull
 		end
 	)
@@ -1677,7 +1704,7 @@ module StdResource = struct
 	open Common
 
 	let listNames = vfun0 (fun () ->
-		encode_array (List.map encode_string (hashtbl_keys ((get_ctx()).curapi.MacroApi.get_com()).resources))
+		encode_array (List.map create_unknown (hashtbl_keys ((get_ctx()).curapi.MacroApi.get_com()).resources))
 	)
 
 	let getString = vfun1 (fun name ->
@@ -1939,9 +1966,7 @@ module StdString = struct
 			else if this.sascii then
 				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
 			else begin
-				let pat = Str.regexp (maybe_extend_ascii str) in
-				let s = Lazy.force this.sstring in
-				vint ((Str.search_forward pat s (i lsl 1)) lsr 1);
+				vint ((fst (find_substring this str false (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
@@ -1960,20 +1985,19 @@ module StdString = struct
 				let s = Lazy.force this.sstring in
 				if this.sascii then
 					vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
-				else begin
-					let pat = Str.regexp (maybe_extend_ascii str) in
-					vint ((Str.search_backward pat s (i lsl 1)) lsr 1);
-				end
+				else
+					vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
 	)
 
 	let split = vifun1 (fun vthis delimiter ->
-		let this = this vthis in
-		let ascii = this.sascii in
-		let this,s = this.srope,Lazy.force this.sstring in
-		let delimiter = Lazy.force (decode_vstring delimiter).sstring in
+		let this' = this vthis in
+		let ascii = this'.sascii in
+		let this,s = this'.srope,Lazy.force this'.sstring in
+		let delimiter' = (decode_vstring delimiter) in
+		let delimiter = Lazy.force delimiter'.sstring in
 		let l_delimiter = String.length delimiter in
 		let l_this = Rope.length this in
 		let encode_range pos length =
@@ -1998,36 +2022,17 @@ module StdString = struct
 		end else if l_delimiter > l_this then
 			encode_array [encode_range 0 (Rope.length this)]
 		else begin
-			let chr = delimiter.[0] in
 			let acc = DynArray.create () in
-			let rec loop k i =
+			let f = find_substring this' delimiter' false in
+			let rec loop i =
 				try
-					if i > l_this - l_delimiter then raise Not_found;
-					let index = String.index_from s i chr in
-					let rec loop2 i2 =
-						if i2 = l_delimiter then true
-						else if String.unsafe_get s (index + i2) = String.unsafe_get delimiter i2 then loop2 (i2 + 1)
-						else false
-					in
-					if not (loop2 1) then
-						loop k (index + 1)
-					else begin
-						DynArray.add acc (encode_range k (index - k));
-						loop (index + l_delimiter) (index + l_delimiter)
-					end
-				with Not_found ->
-					DynArray.add acc (encode_range k (l_this - k))
-			in
-			let rec loop1 i =
-				try
-					if i = l_this then raise Not_found;
-					let index = String.index_from s i chr in
-					DynArray.add acc (encode_range i (index - i));
-					loop1 (index + (l_delimiter lsl (if ascii then 0 else 1)))
+					let offset,next = f i in
+					DynArray.add acc (encode_range i (offset - i));
+					loop next;
 				with Not_found ->
 					DynArray.add acc (encode_range i (l_this - i))
 			in
-			if l_delimiter = 1 then loop1 0 else loop 0 0;
+			loop 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))
 		end
 	)
@@ -2286,7 +2291,7 @@ module StdSys = struct
 	open Common
 
 	let args = vfun0 (fun () ->
-		encode_array (List.map encode_string ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
+		encode_array (List.map create_unknown ((get_ctx()).curapi.MacroApi.get_com()).sys_args)
 	)
 
 	let _command = vfun1 (fun cmd ->
@@ -2301,7 +2306,7 @@ module StdSys = struct
 		let h = StringHashtbl.create 0 in
 		Array.iter(fun s ->
 			let k, v = ExtString.String.split s "=" in
-			StringHashtbl.replace h (create_ascii k) (encode_string v)
+			StringHashtbl.replace h (create_ascii k) (create_unknown v)
 		) env;
 		encode_string_map_direct h
 	)
@@ -2320,12 +2325,18 @@ module StdSys = struct
 	let getCwd = vfun0 (fun () ->
 		let dir = Unix.getcwd() in
 		let l = String.length dir in
-		encode_string (if l = 0 then "./" else match dir.[l - 1] with '/' | '\\' -> dir | _ -> dir ^ "/")
+		if l = 0 then
+			encode_string "./"
+		else match dir.[l - 1] with
+		| '/' | '\\' ->
+			create_unknown dir
+		| _ ->
+			create_unknown (dir ^ "/")
 	)
 
 	let getEnv = vfun1 (fun s ->
 		let s = decode_string s in
-		try encode_string (Unix.getenv s) with _ -> vnull
+		try create_unknown (Unix.getenv s) with _ -> vnull
 	)
 
 	let print = vfun1 (fun v ->
@@ -2349,7 +2360,7 @@ module StdSys = struct
 		| None -> assert false
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
-			| Some(Type.TInst (c, _)) -> encode_string (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
+			| Some(Type.TInst (c, _)) -> create_unknown (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
 			| _ -> assert false
 	)
 
@@ -2450,7 +2461,7 @@ module StdType = struct
 	)
 
 	let createEnum = vfun3 (fun e constr params ->
-		let constr = hash (decode_rope constr) in
+		let constr = hash_s (get (decode_vstring constr)) in
 		create_enum e constr params
 	)
 
@@ -2592,14 +2603,14 @@ module StdType = struct
 	)
 
 	let resolveClass = vfun1 (fun v ->
-		let name = decode_rope v in
-		try (get_static_prototype_raise (get_ctx()) (hash name)).pvalue with Not_found -> vnull
+		let name = get (decode_vstring v) in
+		try (get_static_prototype_raise (get_ctx()) (hash_s name)).pvalue with Not_found -> vnull
 	)
 
 	let resolveEnum = vfun1 (fun v ->
-		let name = decode_rope v in
+		let name = get (decode_vstring v) in
 		try
-			let proto = get_static_prototype_raise (get_ctx()) (hash name) in
+			let proto = get_static_prototype_raise (get_ctx()) (hash_s name) in
 			begin match proto.pkind with
 				| PEnum _ -> proto.pvalue
 				| _ -> vnull
@@ -2695,12 +2706,12 @@ module StdUtf8 = struct
 			incr i
 		) s;
 		let s = Bytes.unsafe_to_string buf in
-		encode_string s
+		create_unknown s
 	)
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		encode_string (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
 	)
 
 	let iter = vfun2 (fun s f ->

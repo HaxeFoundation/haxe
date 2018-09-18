@@ -39,7 +39,7 @@ let unexpected_value_p v s p =
 	throw_string str p
 
 let cannot_call v p =
-	throw (encode_string ("Cannot call " ^ (value_string v))) p
+	throw (EvalString.create_unknown ("Cannot call " ^ (value_string v))) p
 
 let decode_int_p v p = match v with
 	| VInt32 i -> Int32.to_int i

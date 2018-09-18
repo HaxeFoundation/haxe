@@ -2172,7 +2172,7 @@ let generate_class ctx c =
 		} :: statics
 	in
 	let rec is_dynamic c =
-		if c.cl_dynamic <> None || c.cl_array_access <> None then true
+		if c.cl_array_access <> None then true
 		else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_dynamic c

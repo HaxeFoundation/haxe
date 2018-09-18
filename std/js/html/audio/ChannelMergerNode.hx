@@ -27,4 +27,6 @@ package js.html.audio;
 @:native("ChannelMergerNode")
 extern class ChannelMergerNode extends AudioNode
 {
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : ChannelMergerOptions ) : Void;
 }

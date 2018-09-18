@@ -60,6 +60,8 @@ extern class AnalyserNode extends AudioNode
 	**/
 	var smoothingTimeConstant : Float;
 	
+	/** @throws DOMError */
+	function new( context : BaseAudioContext, ?options : AnalyserOptions ) : Void;
 	
 	/**
 		Copies the current frequency data into a `Float32Array` array passed into it.

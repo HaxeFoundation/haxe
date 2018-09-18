@@ -19,7 +19,7 @@ type generic_context = {
 let generic_check_const_expr ctx t =
 	match follow t with
 	| TInst({cl_kind = KExpr e},_) ->
-		let e = type_expr {ctx with locals = PMap.empty} e Value in
+		let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
 		e.etype,Some e
 	| _ -> t,None
 
@@ -247,7 +247,7 @@ let rec build_generic ctx c p tl =
 			cf_new.cf_type <- TLazy r;
 			cf_new
 		in
-		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
+		if c.cl_init <> None then error "This class can't be generic" p;
 		List.iter (fun cf -> match cf.cf_kind with
 			| Method MethMacro when not ctx.in_macro -> ()
 			| _ -> error "A generic class can't have static fields" cf.cf_pos

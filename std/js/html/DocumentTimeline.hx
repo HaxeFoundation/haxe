@@ -34,4 +34,6 @@ package js.html;
 @:native("DocumentTimeline")
 extern class DocumentTimeline extends AnimationTimeline
 {
+	/** @throws DOMError */
+	function new( ?options : DocumentTimelineOptions ) : Void;
 }

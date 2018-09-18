@@ -42,5 +42,6 @@ extern class SharedWorker extends EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( scriptURL : String, ?name : String ) : Void;
+	@:overload( function( scriptURL : String, ?options : WorkerOptions) : SharedWorker {} )
+	function new( scriptURL : String, ?options : String ) : Void;
 }

@@ -34,17 +34,17 @@ package js.html;
 @:native("Response")
 extern class Response
 {
-	static 
+	
 	/**
 		Returns a new `Response` object associated with a network error.
 	**/
-	function error() : Response;
-	/** @throws DOMError */
-	static 
+	static function error() : Response;
+	
 	/**
 		Creates a new response with a different URL.
+		@throws DOMError
 	**/
-	function redirect( url : String, ?status : Int = 302 ) : Response;
+	static function redirect( url : String, ?status : Int = 302 ) : Response;
 	
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).
@@ -55,6 +55,11 @@ extern class Response
 		Contains the URL of the response.
 	**/
 	var url(default,null) : String;
+	
+	/**
+		Indicates whether or not the response is the result of a redirect; that is, its URL list has more than one entry.
+	**/
+	var redirected(default,null) : Bool;
 	
 	/**
 		Contains the status code of the response (e.g., `200` for a success).
@@ -78,11 +83,17 @@ extern class Response
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>, ?init : ResponseInit ) : Void;
-	/** @throws DOMError */
+	@:overload( function( ?body : ArrayBufferView, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : ArrayBuffer, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : FormData, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : URLSearchParams, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : Dynamic/*MISSING ReadableStream*/, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : String, ?init : ResponseInit) : Response {} )
+	function new( ?body : Blob, ?init : ResponseInit ) : Void;
 	
 	/**
 		Creates a clone of a `Response` object.
+		@throws DOMError
 	**/
 	function clone() : Response;
 	/** @throws DOMError */

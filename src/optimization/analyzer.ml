@@ -1043,7 +1043,7 @@ module Run = struct
 			let e = try
 				run_on_expr actx e
 			with
-			| Error.Error _ | Abort _ as exc ->
+			| Error.Error _ | Abort _ | Sys.Break as exc ->
 				raise exc
 			| exc ->
 				debug();

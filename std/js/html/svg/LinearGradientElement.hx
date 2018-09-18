@@ -34,9 +34,25 @@ package js.html.svg;
 @:native("SVGLinearGradientElement")
 extern class LinearGradientElement extends GradientElement
 {
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x1` attribute of the given `linearGradient` element.
+	**/
 	var x1(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y1` attribute of the given `linearGradient` element.
+	**/
 	var y1(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `x2` attribute of the given `linearGradient` element.
+	**/
 	var x2(default,null) : AnimatedLength;
+	
+	/**
+		An `SVGAnimatedLength` corresponding to the `y2` attribute of the given `linearGradient` element.
+	**/
 	var y2(default,null) : AnimatedLength;
 	
 }

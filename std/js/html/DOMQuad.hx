@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	A `DOMQuad` is a collection of four `DOMPoint`s defining the corners of an arbitrary quadrilateral. Returning `DOMQuad`s lets `getBoxQuads()` return accurate information even when arbitrary 2D or 3D transforms are present. It has a handy `bounds` attribute returning a `DOMRectReadOnly` for those cases where you just want an axis-aligned bounding rectangle.
+
+	Documentation [DOMQuad](https://developer.mozilla.org/en-US/docs/Web/API/DOMQuad) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/DOMQuad$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMQuad>
+**/
 @:native("DOMQuad")
 extern class DOMQuad
 {
+	
+	/**
+		are `DOMPoint` objects for each of the `DOMQuad` object's four corners.
+	**/
 	var p1(default,null) : DOMPoint;
 	var p2(default,null) : DOMPoint;
 	var p3(default,null) : DOMPoint;
@@ -36,4 +47,14 @@ extern class DOMQuad
 	/** @throws DOMError */
 	@:overload( function( ?p1 : DOMPointInit, ?p2 : DOMPointInit, ?p3 : DOMPointInit, ?p4 : DOMPointInit ) : Void {} )
 	function new( rect : DOMRectReadOnly ) : Void;
+	
+	/**
+		Returns a `DOMRect` object with the coordinates and dimensions of the `DOMQuad` object.
+	**/
+	function getBounds() : DOMRectReadOnly;
+	
+	/**
+		Returns a JSON representation of the `DOMQuad` object.
+	**/
+	function toJSON() : DOMQuadJSON;
 }

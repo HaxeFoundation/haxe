@@ -55,21 +55,27 @@ extern class Cursor
 	**/
 	var primaryKey(default,null) : Dynamic;
 	
-	/** @throws DOMError */
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, updates the value at the current position of the cursor in the object store. This can be used to update specific records.
+		@throws DOMError
 	**/
 	function update( value : Dynamic ) : Request;
-	/** @throws DOMError */
 	
 	/**
 		Sets the number times a cursor should move its position forward.
+		@throws DOMError
 	**/
 	function advance( count : Int ) : Void;
 	/** @throws DOMError */
 	@:native("continue")
 	function continue_( ?key : Dynamic ) : Void;
+	
+	/**
+		Sets the cursor to the given index key and primary key given as arguments.
+		@throws DOMError
+	**/
+	function continuePrimaryKey( key : Dynamic, primaryKey : Dynamic ) : Void;
 	/** @throws DOMError */
 	@:native("delete")
 	function delete_() : Request;

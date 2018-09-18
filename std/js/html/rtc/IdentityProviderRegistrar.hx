@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-@:native("RTCIdentityProviderRegistrar")
-extern class IdentityProviderRegistrar
+typedef IdentityProviderRegistrar =
 {
 	function register( idp : IdentityProvider ) : Void;
 }

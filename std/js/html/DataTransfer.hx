@@ -46,9 +46,14 @@ extern class DataTransfer
 	var effectAllowed : String;
 	
 	/**
+		Gives a `DataTransferItemList` object which is a list of all of the drag data.
+	**/
+	var items(default,null) : DataTransferItemList;
+	
+	/**
 		An array of `DOMString` giving the formats that were set in the `dragstart` event.
 	**/
-	var types(default,null) : DOMStringList;
+	var types(default,null) : Array<String>;
 	
 	/**
 		Contains a list of all the local files available on the data transfer. If the drag operation doesn't involve dragging files, this property is an empty list.
@@ -56,35 +61,34 @@ extern class DataTransfer
 	var files(default,null) : FileList;
 	
 	/** @throws DOMError */
-	function new( eventType : String, isExternal : Bool ) : Void;
-	/** @throws DOMError */
+	function new() : Void;
 	
 	/**
 		Set the image to be used for dragging if a custom one is desired.
 	**/
 	function setDragImage( image : Element, x : Int, y : Int ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Retrieves the data for a given type, or an empty string if data for that type does not exist or the data transfer contains no data.
+		@throws DOMError
 	**/
 	function getData( format : String ) : String;
-	/** @throws DOMError */
 	
 	/**
 		Set the data for a given type. If data for the type does not exist, it is added at the end, such that the last item in the types list will be the new format. If data for the type already exists, the existing data is replaced in the same position.
+		@throws DOMError
 	**/
 	function setData( format : String, data : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Remove the data associated with a given type. The type argument is optional. If the type is empty or not specified, the data associated with all types is removed. If data for the specified type does not exist, or the data transfer contains no data, this method will have no effect.
+		@throws DOMError
 	**/
 	function clearData( ?format : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sets the drag source to the given element.
+		@throws DOMError
 	**/
 	function addElement( element : Element ) : Void;
 }

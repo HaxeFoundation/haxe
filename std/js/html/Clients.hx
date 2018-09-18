@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `Clients` interface of the Service Workers API represents a container for a list of `Client` objects.
+	The `Clients` interface provides access to `Client` objects. Access it via ``self`.clients` within a service worker.
 
 	Documentation [Clients](https://developer.mozilla.org/en-US/docs/Web/API/Clients) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Clients$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -36,17 +36,22 @@ extern class Clients
 {
 	
 	/**
-		Gets a service worker client matching a given `id` and returns it in a `Promise`.
+		Returns a `Promise` for a `Client` matching a given `Client.id`.
 	**/
 	function get( id : String ) : Promise<Dynamic>;
 	
 	/**
-		Gets a list of service worker clients and returns them in a `Promise`. Include the `options` parameter to return all service worker clients whose origin is the same as the associated service worker's origin. If `options` are not included, the method returns only the service worker clients controlled by the service worker. 
+		Returns a `Promise` for an array of `Client` objects. An options argument allows you to control the types of clients returned. 
 	**/
 	function matchAll( ?options : ClientQueryOptions ) : Promise<Array<Client>>;
 	
 	/**
-		Allows an active Service Worker to set itself as the active worker for a client page when the worker and the page are in the same scope. 
+		Opens a new browser window for a given url and returns a `Promise` for the new `WindowClient`.
+	**/
+	function openWindow( url : String ) : Promise<WindowClient>;
+	
+	/**
+		Allows an active service worker to set itself as the `ServiceWorkerContainer.controller` for all clients within its `ServiceWorkerRegistration.scope`. 
 	**/
 	function claim() : Promise<Void>;
 }

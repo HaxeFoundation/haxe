@@ -26,13 +26,16 @@ package js.html;
 
 typedef RequestInit =
 {
-	@:optional var body : haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<FormData,haxe.extern.EitherType<String,URLSearchParams>>>>>;
+	@:optional var body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>;
 	@:optional var cache : RequestCache;
 	@:optional var credentials : RequestCredentials;
-	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>>;
+	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
+	@:optional var integrity : String;
 	@:optional var method : String;
 	@:optional var mode : RequestMode;
+	@:optional var observe : haxe.extern.EitherType<FetchObserver -> Void, ObserverCallback>;
 	@:optional var redirect : RequestRedirect;
 	@:optional var referrer : String;
 	@:optional var referrerPolicy : ReferrerPolicy;
+	@:optional var signal : AbortSignal;
 }

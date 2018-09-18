@@ -45,9 +45,4 @@ extern class TouchList implements ArrayAccess<Touch>
 		Returns the `Touch` object at the specified index in the list.
 	**/
 	function item( index : Int ) : Touch;
-	
-	/**
-		Returns the first `Touch` item in the list whose identifier matches a specified value.
-	**/
-	function identifiedTouch( identifier : Int ) : Touch;
 }

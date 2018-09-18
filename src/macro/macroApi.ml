@@ -953,7 +953,8 @@ and encode_tabstract a =
 		"from", encode_array ((List.map (fun t -> encode_obj OAbstractType_from [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj OAbstractType_from [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field));
 		"to", encode_array ((List.map (fun t -> encode_obj OAbstractType_to [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj OAbstractType_to [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field));
 		"array", encode_array (List.map encode_cfield a.a_array);
-		"resolve", (match a.a_resolve with None -> vnull | Some cf -> encode_cfref cf)
+		"resolve", (match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
+		"resolveWrite", (match a.a_write with None -> vnull | Some cf -> encode_cfref cf)
 	]
 
 and encode_efield f =

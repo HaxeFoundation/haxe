@@ -31,9 +31,9 @@ e2.length == 0;
 var a = [1, 2, 3];
 var b = Lambda.map(a,function(i) return i * 2);
 b.length == 3;
-b.pop() == 2;
-b.pop() == 4;
 b.pop() == 6;
+b.pop() == 4;
+b.pop() == 2;
 
 // mapi
 var a = [1, 2, 3];
@@ -45,9 +45,9 @@ function myMap(index, i) {
 var b = Lambda.mapi(a, myMap);
 total == 3;
 b.length == 3;
-b.pop() == 2;
-b.pop() == 4;
 b.pop() == 6;
+b.pop() == 4;
+b.pop() == 2;
 
 // has
 Lambda.has([1,2,3],1) == true;

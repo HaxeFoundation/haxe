@@ -1270,6 +1270,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		val mutable sourcemap : sourcemap_builder option = None
 		(** Indicates if `super()` expressions should be generated if spotted. *)
 		val mutable has_super_constructor = true
+		(** The latest string written to the output buffer via `self#write_pos` method *)
+		val mutable last_written_pos = ""
 		(**
 			Get php name of current type
 		*)
@@ -1845,7 +1847,14 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Write position of specified expression to output buffer
 		*)
 		method write_pos expr =
-			self#write ("#" ^ (stringify_pos expr.epos) ^ "\n");
+			let pos = ("#" ^ (stringify_pos expr.epos) ^ "\n") in
+			if pos = last_written_pos then
+				false
+			else begin
+				last_written_pos <- pos;
+				self#write pos;
+				true
+			end
 		(**
 			Writes "{ <expressions> }" to output buffer
 		*)
@@ -1854,10 +1863,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			and exprs = match expr.eexpr with TBlock exprs -> exprs | _ -> [expr] in
 			let write_body () =
 				let write_expr expr =
-					if not !skip_line_directives && not (is_block expr) then begin
-						self#write_pos expr;
-						self#write_indentation
-					end;
+					if not !skip_line_directives && not (is_block expr) then
+						if self#write_pos expr then self#write_indentation;
 					self#write_expr expr;
 					match expr.eexpr with
 						| TBlock _ | TIf _ | TTry _ | TSwitch _ | TWhile (_, _, NormalWhile) -> self#write "\n"

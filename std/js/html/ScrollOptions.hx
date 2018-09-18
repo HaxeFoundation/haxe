@@ -26,5 +26,5 @@ package js.html;
 
 typedef ScrollOptions =
 {
-	@:optional var behavior : Dynamic/*MISSING ScrollBehavior*/;
+	@:optional var behavior : ScrollBehavior;
 }

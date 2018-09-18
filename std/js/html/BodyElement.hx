@@ -70,6 +70,7 @@ extern class BodyElement extends Element
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
+	var onmessageerror : haxe.Constraints.Function;
 	var onoffline : haxe.Constraints.Function;
 	var ononline : haxe.Constraints.Function;
 	var onpagehide : haxe.Constraints.Function;

@@ -6,15 +6,15 @@ class Issue4799 extends Test {
 	function test() {
 		eq(typeString((null : Int)), "Int");
 		eq(typeString((null : (Int))), "Int");
-		eq(typeString((null : (Int,Int)->Int)), "Int -> Int -> Int");
-		eq(typeString((null : (a:Int,Int)->Int)), "a : Int -> Int -> Int");
-		eq(typeString((null : (a:Int, b:Int)->Int)), "a : Int -> b : Int -> Int");
+		eq(typeString((null : (Int,Int)->Int)), "(Int, Int) -> Int");
+		eq(typeString((null : (a:Int,Int)->Int)), "(a : Int, Int) -> Int");
+		eq(typeString((null : (a:Int, b:Int)->Int)), "(a : Int, b : Int) -> Int");
 		eq(typeString((null : (a:Int, Int, ?String->Void, ?b:(Int->Int)->Int, c:(a:Int)->Void)->Int)),
-		                      "a : Int -> Int -> (?String -> Void) -> ?b : ((Int -> Int) -> Int) -> c : (a : Int -> Void) -> Int");
+		                      "(a : Int, Int, (?String -> Void), ?b : ((Int -> Int) -> Int), c : ((a : Int) -> Void)) -> Int");
 		t(parseError("(Int,Int)->Int->Int"));
 		t(parseError("(a:Int)->Int->Int"));
-		eq(typeString((null : (Int,Int)->(Int->Int))), "Int -> Int -> (Int -> Int)");
-		eq(typeString((null : (a:Int)->(Int->Int))), "a : Int -> (Int -> Int)");
+		eq(typeString((null : (Int,Int)->(Int->Int))), "(Int, Int) -> (Int -> Int)");
+		eq(typeString((null : (a:Int)->(Int->Int))), "(a : Int) -> (Int -> Int)");
 	}
 
 	static macro function parseError(s:String) {

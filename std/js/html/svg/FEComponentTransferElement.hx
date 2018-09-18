@@ -24,9 +24,20 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEComponentTransferElement` interface corresponds to the `feComponentTransfer` element.
+
+	Documentation [SVGFEComponentTransferElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEComponentTransferElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEComponentTransferElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEComponentTransferElement>
+**/
 @:native("SVGFEComponentTransferElement")
 extern class FEComponentTransferElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

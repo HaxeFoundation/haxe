@@ -51,12 +51,12 @@ extern class EmbedElement extends Element
 	var width : String;
 	
 	/**
-		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"center"`, and `"justify"`.
+		Is a `DOMString` reflecting the `height` HTML attribute, containing the displayed height of the resource.
 	**/
 	var height : String;
 	
 	/**
-		Is a `DOMString` reflecting the `height` HTML attribute, containing the displayed height of the resource.
+		Is a `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"center"`, and `"justify"`.
 	**/
 	var align : String;
 	

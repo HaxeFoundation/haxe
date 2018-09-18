@@ -26,7 +26,7 @@ package js.html.rtc;
 
 typedef IceCandidateInit =
 {
-	@:optional var candidate : String;
+	var candidate : String;
 	@:optional var sdpMLineIndex : Int;
 	@:optional var sdpMid : String;
 }

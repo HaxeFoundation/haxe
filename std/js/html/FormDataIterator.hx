@@ -24,8 +24,7 @@
 
 package js.html;
 
-@:native("FormDataIterator")
-extern class FormDataIterator
+typedef FormDataIterator =
 {
 	/** @throws DOMError */
 	function next() : Dynamic;

@@ -2152,7 +2152,6 @@ module Generator = struct
 						) c.cl_ordered_fields
 					in
 					let field_names = List.map (fun f -> handle_keywords f.cf_name) real_fields in
-					let field_names = match c.cl_dynamic with Some _ -> "__dict__" :: field_names | None -> field_names in
 					use_pass := false;
 					print ctx "\n    __slots__ = (";
 					(match field_names with

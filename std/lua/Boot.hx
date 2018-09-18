@@ -29,7 +29,7 @@ import haxe.Constraints.Function;
 class Boot {
 
 	// Used temporarily for bind()
-	static var _;
+	static var _:Dynamic;
 	static var _fid = 0;
 
 	// A max stack size to respect for unpack operations

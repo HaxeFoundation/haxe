@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegArcAbs")
-extern class PathSegArcAbs extends PathSeg
+typedef PathSegArcAbs =
 {
 	var x : Float;
 	var y : Float;

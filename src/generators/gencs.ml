@@ -2773,17 +2773,13 @@ let generate con =
 		let rcf_static_lookup = mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "lookupHash" null_pos [] in
 
 		let rcf_static_insert, rcf_static_remove =
-			if erase_generics then begin
-				let get_specialized_postfix t = match t with
-					| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
-					| TAnon _ | TDynamic _ -> "Dynamic"
-					| _ -> print_endline (debug_type t); assert false
-				in
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
-			end else
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "insert" null_pos [t]),
-				(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) "remove" null_pos [t])
+			let get_specialized_postfix t = match t with
+				| TAbstract({a_path = [],("Float" | "Int" as name)}, _) -> name
+				| TAnon _ | TDynamic _ -> "Dynamic"
+				| _ -> print_endline (debug_type t); assert false
+			in
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("insert" ^ get_specialized_postfix t) null_pos []),
+			(fun t -> mk_static_field_access_infer (get_cl (get_type gen (["haxe";"lang"], "FieldLookup"))) ("remove" ^ get_specialized_postfix t) null_pos [])
 		in
 
 		let can_be_float = like_float in
