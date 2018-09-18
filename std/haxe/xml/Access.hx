@@ -47,6 +47,14 @@ private abstract AttribAccess(Xml) from Xml {
 		return v;
 	}
 
+	@:op(a.b)
+	public function set( name : String, value : String ) : String {
+		if( this.nodeType == Xml.Document )
+			throw "Cannot access document attribute "+name;
+		this.set(name, value);
+		return value;
+	}
+
 }
 
 private abstract HasAttribAccess(Xml) from Xml {
