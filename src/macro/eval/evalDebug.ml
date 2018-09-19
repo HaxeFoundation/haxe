@@ -86,7 +86,8 @@ let debug_loop jit conn e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when debugger_catches v ->
+		| RunTimeException(v,_,_) when debugger_catches v && ctx.debug.caught_exception != v ->
+			ctx.debug.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env

@@ -153,6 +153,7 @@ let emit_try exec catches env =
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
+		ctx.debug.caught_exception <- vnull;
 		restore();
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;

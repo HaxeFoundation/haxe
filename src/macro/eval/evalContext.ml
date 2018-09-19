@@ -131,6 +131,7 @@ and debug = {
 	mutable environment_offset_delta : int;
 	mutable debug_socket : debug_socket option;
 	mutable exception_mode : exception_mode;
+	mutable caught_exception : value;
 }
 
 and eval = {
