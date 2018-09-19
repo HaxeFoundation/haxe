@@ -319,6 +319,27 @@ let make_connection socket =
 					with Not_found ->
 						invalid_params ();
 					end
+				| "setFunctionBreakpoints" ->
+					begin match params with
+						| Some (JArray ja) ->
+							Hashtbl.clear ctx.debug.function_breakpoints;
+							let l = List.map (fun j -> match j with
+								| JObject jo ->
+									let name = try (match List.assoc "name" jo with JString s -> s | _ -> raise Not_found) with Not_found -> invalid_params() in
+									let i = String.rindex name '.' in
+									if i < 0 then invalid_params();
+									let key_type = String.sub name 0 i in
+									let key_field = String.sub name (i + 1) (String.length name - i - 1) in
+									let bp = make_function_breakpoint BPEnabled in
+									Hashtbl.add ctx.debug.function_breakpoints (hash key_type,hash key_field) bp;
+									JObject ["id",JInt bp.fbpid]
+								| _ ->
+									invalid_params()
+							) ja in
+							Loop (JArray l)
+						| _ ->
+							invalid_params ()
+					end
 				| "removeBreakpoint" ->
 					let id =
 						match params with

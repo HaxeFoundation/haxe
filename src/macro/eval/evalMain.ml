@@ -86,6 +86,7 @@ let create com api is_macro =
 			let debug' = {
 				do_debug = com.Common.debug || support_debugger;
 				breakpoints = Hashtbl.create 0;
+				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
 				debug_state = DbgStart;
 				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;

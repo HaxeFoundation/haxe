@@ -14,19 +14,25 @@ let createInstance_ref : value ref = Obj.magic ()
 
 (* Breakpoints *)
 
-let make_breakpoint =
-	let id = ref (-1) in
-	(fun file line state column condition ->
-		incr id;
-		{
-			bpid = !id;
-			bpfile = file;
-			bpline = line;
-			bpstate = state;
-			bpcolumn = column;
-			bpcondition = condition
-		}
-	)
+let breakpoint_id = ref (-1)
+
+let make_breakpoint file line state column condition =
+	incr breakpoint_id;
+	{
+		bpid = !breakpoint_id;
+		bpfile = file;
+		bpline = line;
+		bpstate = state;
+		bpcolumn = column;
+		bpcondition = condition
+	}
+
+let make_function_breakpoint state =
+	incr breakpoint_id;
+	{
+		fbpid = !breakpoint_id;
+		fbpstate = state;
+	}
 
 let iter_breakpoints ctx f =
 	Hashtbl.iter (fun _ breakpoints ->

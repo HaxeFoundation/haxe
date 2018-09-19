@@ -84,6 +84,11 @@ type breakpoint = {
 	mutable bpstate : breakpoint_state;
 }
 
+type function_breakpoint = {
+	fbpid : int;
+	mutable fbpstate : breakpoint_state;
+}
+
 type debug_state =
 	| DbgStart
 	| DbgRunning
@@ -118,6 +123,7 @@ and debug_socket = {
 and debug = {
 	do_debug : bool;
 	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
+	function_breakpoints : ((int * int),function_breakpoint) Hashtbl.t;
 	mutable support_debugger : bool;
 	mutable debug_state : debug_state;
 	mutable breakpoint : breakpoint;
@@ -280,6 +286,19 @@ let push_environment ctx info num_locals num_captures =
 	else
 		DynArray.unsafe_set eval.environments eval.environment_offset env;
 	eval.environment_offset <- eval.environment_offset + 1;
+	begin match ctx.debug.debug_socket,env.env_info.kind with
+		| Some socket,EKMethod(key_type,key_field) ->
+			begin try
+				let bp = Hashtbl.find ctx.debug.function_breakpoints (key_type,key_field) in
+				if bp.fbpstate <> BPEnabled then raise Not_found;
+				socket.connection.bp_stop ctx env;
+				ctx.debug.debug_state <- DbgWaiting;
+			with Not_found ->
+				()
+			end
+		| _ ->
+			()
+	end;
 	env
 
 let pop_environment ctx env =
