@@ -217,6 +217,167 @@ type command_outcome =
 	| Run of Json.t * EvalContext.env
 	| Wait of Json.t * EvalContext.env
 
+
+module ValueCompletion = struct
+	let prototype_instance_fields proto =
+		let rec loop acc proto =
+			let acc = match proto.pparent with
+				| None -> acc
+				| Some  proto -> loop acc proto
+			in
+			let acc = IntMap.fold (fun name _ acc -> IntMap.add name (name,"field",None) acc) proto.pinstance_names acc in
+			IntMap.fold (fun name _ acc -> IntMap.add name (name,"method",None) acc) proto.pnames acc
+		in
+		loop IntMap.empty proto
+
+	let prototype_static_fields proto =
+		IntMap.fold (fun name _ acc -> IntMap.add name (name,"field",None) acc) proto.pnames IntMap.empty
+
+
+	let to_json l =
+		JArray (List.map (fun (n,k,column) ->
+			let fields = ["label",JString (rev_hash n);"kind",JString k] in
+			let fields = match column with None -> fields | Some column -> ("start",JInt column) :: fields in
+			JObject fields
+		) l)
+
+	let collect_idents ctx env =
+		let acc = Hashtbl.create 0 in
+		let add key =
+			if not (Hashtbl.mem acc key) then
+				Hashtbl.add acc key (key,"value",None)
+		in
+		(* 0. Extra locals *)
+		IntMap.iter (fun key _ -> add key) env.env_extra_locals;
+		(* 1. Variables *)
+		let rec loop scopes = match scopes with
+			| scope :: scopes ->
+				Hashtbl.iter (fun key _ -> add (hash key)) scope.local_ids;
+				loop scopes
+			| [] ->
+				()
+		in
+		loop env.env_debug.scopes;
+		(* 2. Captures *)
+		Hashtbl.iter (fun slot name ->
+			add (hash name)
+		) env.env_info.capture_infos;
+		(* 3. Instance *)
+		if not env.env_info.static then begin
+			let v = env.env_locals.(0) in
+			begin match v with
+			| VInstance vi ->
+				let fields = prototype_instance_fields vi.iproto in
+				IntMap.iter (fun key _ -> add key) fields
+			| _ ->
+				()
+			end
+		end;
+		(* 4. Static *)
+		begin match env.env_info.kind with
+			| EKMethod(i1,_) ->
+				let proto = get_static_prototype_raise ctx i1 in
+				let fields = prototype_static_fields proto in
+				IntMap.iter (fun key _ -> add key) fields
+			| _ ->
+				raise Not_found
+		end;
+		(* 5. Toplevel *)
+		begin match ctx.toplevel with
+		| VObject o ->
+			let fields = object_fields o in
+			List.iter (fun (n,_) -> add n) fields
+		| _ ->
+			()
+		end;
+		to_json (Hashtbl.fold (fun _ v acc -> v :: acc) acc [])
+
+	let output_completion ctx column v =
+		let field_value_kind v = match v with
+			| VFunction _ | VFieldClosure _ -> "function"
+			| _ -> "field"
+		in
+		let rec loop v = match v with
+			| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ ->
+				[]
+			| VObject o ->
+				let fields = object_fields o in
+				List.map (fun (n,v) ->
+					n,(field_value_kind v),None
+				) fields
+			| VInstance vi ->
+				let fields = prototype_instance_fields vi.iproto in
+				IntMap.fold (fun _ v acc -> v :: acc) fields []
+			| VString _ ->
+				let fields = prototype_instance_fields ctx.string_prototype in
+				IntMap.fold (fun _ v acc -> v :: acc) fields [key_length,"field",None]
+			| VArray _ ->
+				let fields = prototype_instance_fields ctx.array_prototype in
+				IntMap.fold (fun _ v acc -> v :: acc) fields [key_length,"field",None]
+			| VVector _ ->
+				let fields = prototype_instance_fields ctx.vector_prototype in
+				IntMap.fold (fun _ v acc -> v :: acc) fields [key_length,"field",None]
+			| VPrototype proto ->
+				let fields = prototype_static_fields proto in
+				IntMap.fold (fun _ v acc -> v :: acc) fields []
+			| VLazy f ->
+				loop (!f())
+			| VEnumValue ve ->
+				begin match ve.eargs with
+					| [||] -> []
+					| vl ->
+						Array.to_list (Array.mapi (fun i v ->
+							let n = hash (Printf.sprintf "[%d]" i) in
+							n,"value",Some (column - 1) (* doesn't seem to work in vscode... *)
+						) vl)
+				end
+		in
+		let l = loop v in
+		to_json l
+
+	exception JsonException of Json.t
+
+	let get_completion ctx text column env =
+		let p = { pmin = 0; pmax = 0; pfile = "" } in
+		let save =
+			let old = !Parser.display_mode,!DisplayPosition.display_position in
+			(fun () ->
+				Parser.display_mode := fst old;
+				DisplayPosition.display_position := snd old;
+			)
+		in
+		Parser.display_mode := DMDefault;
+		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
+		DisplayPosition.display_position := {p with pmin = offset; pmax = offset};
+		begin try
+			let e = parse_expr ctx text p in
+			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in
+			save();
+			let rec loop e = match fst e with
+			| EDisplay(e1,DKDot) ->
+				let v = expr_to_value ctx env e1 in
+				let json = output_completion ctx column v in
+				raise (JsonException json)
+			| EDisplay(_,DKMarked) ->
+				let json = collect_idents ctx env in
+				raise (JsonException json)
+			| _ ->
+				Ast.iter_expr loop e
+			in
+			begin try
+				loop e;
+				raise Exit
+			with
+			| JsonException json ->
+				Loop (json)
+			end
+		with _ ->
+			save();
+			raise Exit
+		end;
+
+end
+
 type handler_context = {
 	ctx : context;
 	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
@@ -406,6 +567,14 @@ let handler =
 			| Exit ->
 				hctx.send_error "Don't know how to handle this expression"
 			end
+		);
+		"getCompletion",(fun hctx ->
+			let text = hctx.jsonrpc#get_string_param "text" in
+			let column = hctx.jsonrpc#get_int_param "column" in
+			try
+				ValueCompletion.get_completion hctx.ctx text column hctx.env
+			with Exit ->
+				hctx.send_error "No completion point found";
 		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;

@@ -17,7 +17,7 @@ module ReferencePosition = struct
 end
 
 module ExprPreprocessing = struct
-	let find_before_pos com dm e =
+	let find_before_pos dm e =
 
 		let display_pos = ref (!DisplayPosition.display_position) in
 		let is_annotated,is_completion = match dm with
@@ -179,7 +179,7 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end
