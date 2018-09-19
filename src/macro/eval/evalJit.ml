@@ -516,11 +516,14 @@ and jit_expr jit return e =
 		Error.error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
-	if ctx.debug.support_debugger then begin match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
-		| _ -> EvalDebug.debug_loop jit e f
-	end else
-		f
+	begin match ctx.debug.debug_socket with
+		| None ->
+			f
+		| Some socket -> begin match e.eexpr with
+			| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
+			| _ -> EvalDebug.debug_loop jit socket.connection e f
+		end
+	end
 
 and jit_tfunction jit static pos tf =
 	let ctx = jit.ctx in

@@ -69,15 +69,22 @@ let create com api is_macro =
 						raise Exit
 					in
 					let s = Common.defined_value com Define.EvalDebugger in
-					if s = "1" then raise Exit;
 					let host,port = try ExtString.String.split s ":" with _ -> fail "Invalid host format, expected host:port" in
 					let port = try int_of_string port with _ -> fail "Invalid port, expected int" in
-					Some (try Socket.create host port with exc -> fail (Printexc.to_string exc))
+					Some (try
+						let socket = Socket.create host port in
+						{
+							socket = socket;
+							connection = EvalDebugSocket.make_connection socket;
+						};
+					with exc ->
+						fail (Printexc.to_string exc)
+					)
 				with _ ->
 					None
 			in
 			let debug' = {
-				debug = com.Common.debug || support_debugger;
+				do_debug = com.Common.debug || support_debugger;
 				breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
 				debug_state = DbgStart;

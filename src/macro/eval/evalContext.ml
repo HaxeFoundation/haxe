@@ -104,24 +104,35 @@ type exception_mode =
 	| CatchUncaught
 	| CatchNone
 
-type debug = {
-	debug : bool;
+type debug_connection = {
+	wait : context -> (env -> value) -> env -> value;
+	bp_stop : context -> env -> unit;
+	exc_stop : context -> value -> pos -> unit;
+}
+
+and debug_socket = {
+	socket : Socket.t;
+	connection : debug_connection;
+}
+
+and debug = {
+	do_debug : bool;
 	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
 	mutable support_debugger : bool;
 	mutable debug_state : debug_state;
 	mutable breakpoint : breakpoint;
 	caught_types : (int,bool) Hashtbl.t;
 	mutable environment_offset_delta : int;
-	mutable debug_socket : Socket.t option;
+	mutable debug_socket : debug_socket option;
 	mutable exception_mode : exception_mode;
 }
 
-type eval = {
+and eval = {
 	environments : env DynArray.t;
 	mutable environment_offset : int;
 }
 
-type context = {
+and context = {
 	ctx_id : int;
 	is_macro : bool;
 	detail_times : bool;

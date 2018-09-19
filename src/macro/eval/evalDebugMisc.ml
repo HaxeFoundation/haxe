@@ -8,12 +8,6 @@ open EvalEncode
 open EvalMisc
 open EvalExceptions
 
-type debug_connection = {
-	wait : context -> (env -> value) -> env -> value;
-	bp_stop : context -> env -> unit;
-	exc_stop : context -> value -> pos -> unit;
-}
-
 exception BreakHere
 
 let createInstance_ref : value ref = Obj.magic ()
