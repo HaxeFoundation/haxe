@@ -46,7 +46,7 @@ private class ArrayBufferCompat {
 		return resultArray.buffer;
 	}
 
-	static inline function __init__(): Void untyped {
+	static function __init__(): Void untyped {
 		// IE10 ArrayBuffer.slice polyfill
 		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl;
 	}
