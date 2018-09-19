@@ -217,281 +217,256 @@ type command_outcome =
 	| Run of Json.t * EvalContext.env
 	| Wait of Json.t * EvalContext.env
 
-let make_connection socket =
-	(* Reads input and reacts accordingly. *)
-	let rec wait ctx run env =
-		let get_real_env ctx =
-			ctx.debug.environment_offset_delta <- 0;
-			DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
-		in
-		let rec loop () =
-			let handle_request id name params =
-				let error msg =
-					let open JsonRpc in
-					raise (JsonRpc_error (Custom (id, 1, msg)))
-				in
-				let invalid_params () =
-					let open JsonRpc in
-					raise (JsonRpc_error (Invalid_params id))
-				in
-				let parse_breakpoint = function
-					| JObject fl ->
-						let rec loop (line,column,condition) fl = match fl with
-							| ("line",JInt i) :: fl -> loop (i,column,condition) fl
-							| ("column",JInt i) :: fl -> loop (line,BPColumn i,condition) fl
-							| ("condition",JString s) :: fl -> loop (line,column,Some (parse_expr ctx s env.env_debug.expr.epos)) fl
-							| _ :: fl -> loop (line,column,condition) fl
-							| [] -> line,column,condition
-						in
-						loop (0,BPAny,None) fl
-					| _ -> invalid_params ()
-				in
-				let rec move_frame offset =
-					if offset < 0 || offset >= (get_eval ctx).environment_offset then begin
-						error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 ((get_eval ctx).environment_offset - 1))
-					end else begin
-						ctx.debug.environment_offset_delta <- ((get_eval ctx).environment_offset - offset - 1);
-						Wait (JNull, (DynArray.get (get_eval ctx).environments offset))
-					end
-				in
-				match name with
-				| "continue" ->
-					let env = get_real_env ctx in
-					ctx.debug.debug_state <- (if ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
-					Run (JNull,env)
-				| "stepIn" ->
-					let env = get_real_env ctx in
-					Run (JNull,env)
-				| "next" ->
-					let env = get_real_env ctx in
-					ctx.debug.debug_state <- DbgNext (get_eval ctx).environment_offset;
-					Run (JNull,env)
-				| "stepOut" ->
-					let env = get_real_env ctx in
-					ctx.debug.debug_state <- DbgFinish (get_eval ctx).environment_offset;
-					Run (JNull,env)
-				| "stackTrace" ->
-					Loop (output_call_stack ctx env.env_info.kind env.env_debug.expr.epos)
-				| "setBreakpoints" ->
-					let file, bps =
-						match params with
-						| Some (JObject fl) ->
-							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
-							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
-							let bps = try List.find (fun (n,_) -> n = "breakpoints") fl with Not_found -> invalid_params () in
-							let bps = match (snd bps) with JArray jl -> jl | _ -> invalid_params () in
-							let bps = List.map parse_breakpoint bps in
-							file, bps
-						| _ ->
-							invalid_params ();
-					in
-					let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
-					let h =
-						try
-							let h = Hashtbl.find ctx.debug.breakpoints hash in
-							Hashtbl.clear h;
-							h
-						with Not_found ->
-							let h = Hashtbl.create (List.length bps) in
-							Hashtbl.add ctx.debug.breakpoints hash h;
-							h
-					in
-					let bps = List.map (fun (line,column,condition) ->
-						let bp = make_breakpoint hash line BPEnabled column condition in
-						Hashtbl.add h line bp;
-						JObject ["id",JInt bp.bpid]
-					) bps in
-					Loop (JArray bps)
-				| "setBreakpoint" ->
-					let file,line,column,condition =
-						match params with
-						| Some (JObject fl as jo) ->
-							let file = try List.find (fun (n,_) -> n = "file") fl with Not_found -> invalid_params () in
-							let file = match (snd file) with JString s -> s | _ -> invalid_params () in
-							let line,column,condition = parse_breakpoint jo in
-							file,line,column,condition
-						| _ ->
-							invalid_params ();
-					in
-					begin try
-						let breakpoint = add_breakpoint ctx file line column condition in
-						Loop (JObject ["id",JInt breakpoint.bpid])
-					with Not_found ->
-						invalid_params ();
-					end
-				| "setFunctionBreakpoints" ->
-					begin match params with
-						| Some (JArray ja) ->
-							Hashtbl.clear ctx.debug.function_breakpoints;
-							let l = List.map (fun j -> match j with
-								| JObject jo ->
-									let name = try (match List.assoc "name" jo with JString s -> s | _ -> raise Not_found) with Not_found -> invalid_params() in
-									let i = String.rindex name '.' in
-									if i < 0 then invalid_params();
-									let key_type = String.sub name 0 i in
-									let key_field = String.sub name (i + 1) (String.length name - i - 1) in
-									let bp = make_function_breakpoint BPEnabled in
-									Hashtbl.add ctx.debug.function_breakpoints (hash key_type,hash key_field) bp;
-									JObject ["id",JInt bp.fbpid]
-								| _ ->
-									invalid_params()
-							) ja in
-							Loop (JArray l)
-						| _ ->
-							invalid_params ()
-					end
-				| "removeBreakpoint" ->
-					let id =
-						match params with
-						| Some (JObject fl) ->
-							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
-							(match (snd id) with JInt s -> s | _ -> invalid_params ())
-						| _ -> invalid_params ()
-					in
-					begin try
-						Hashtbl.iter (fun _ h ->
-							let to_delete = ref [] in
-							Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
-							List.iter (fun k -> Hashtbl.remove h k) !to_delete;
-						) ctx.debug.breakpoints
-					with Not_found ->
-						error (Printf.sprintf "Unknown breakpoint: %d" id)
-					end;
-					Loop JNull
-				| "switchFrame" ->
-					let frame =
-						match params with
-						| Some (JObject fl) ->
-							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
-							(match (snd id) with JInt s -> s | _ -> invalid_params ())
-						| _ -> invalid_params ()
-					in
-					move_frame ((get_eval ctx).environment_offset - frame - 1)
-				| "getScopes" ->
-					Loop (output_scopes env.env_info.capture_infos env.env_debug.scopes);
-				| "getScopeVariables" ->
-					let sid =
-						match params with
-						| Some (JObject fl) ->
-							let id = try List.find (fun (n,_) -> n = "id") fl with Not_found -> invalid_params () in
-							(match (snd id) with JInt s -> s | _ -> invalid_params ())
-						| _ -> invalid_params ()
-					in
-					begin
-						let vars =
-							try
-								if sid = 0 then begin
-									output_capture_vars env
-								end else begin
-									let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
-									output_scope_vars env scope
-								end
-							with Exit ->
-								error "Invalid scope id"
-						in
-						Loop vars
-					end
-				| "getStructure" ->
-					let e =
-						match params with
-						| Some (JObject fl) ->
-							let id = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
-							(match (snd id) with JString s -> s | _ -> invalid_params ())
-						| _ -> invalid_params ()
-					in
-					begin try
-						let e = parse_expr ctx e env.env_debug.expr.epos in
-						begin try
-							let v = expr_to_value ctx env e in
-							Loop (output_inner_vars v (Ast.s_expr e))
-						with Exit ->
-							error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
-						end
-					with Parse_expr_error e ->
-						error e
-					end
-				| "setVariable" ->
-					let expr_s,value =
-						match params with
-						| Some (JObject fl) ->
-							let expr = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
-							let expr = match (snd expr) with JString s -> s | _ -> invalid_params () in
-							let value = try List.find (fun (n,_) -> n = "value") fl with Not_found -> invalid_params () in
-							let value = match (snd value) with JString s -> s | _ -> invalid_params () in
-							expr,value
-						| _ ->
-							invalid_params ();
-					in
-					let parse s = parse_expr ctx s env.env_debug.expr.epos in
-					begin try
-						let expr,value = parse expr_s,parse value in
-						begin try
-							let value = expr_to_value ctx env value in
-							write_expr ctx env expr value;
-							Loop (var_to_json name value expr_s)
-						with Exit ->
-							error "Don't know how to handle this expression"
-						end
-					with Parse_expr_error e ->
-						error e
-					end
-				| "evaluate" ->
-					let s =
-						match params with
-						| Some (JObject fl) ->
-							let id = try List.find (fun (n,_) -> n = "expr") fl with Not_found -> invalid_params () in
-							(match (snd id) with JString s -> s | _ -> invalid_params ())
-						| _ -> invalid_params ()
-					in
-					begin try
-						let e = parse_expr ctx s env.env_debug.expr.epos in
-						let v = expr_to_value ctx env e in
-						Loop (var_to_json "" v (Ast.s_expr e))
-					with
-					| Parse_expr_error e ->
-						error e
-					| Exit ->
-						error "Don't know how to handle this expression"
-					end
-				| "setExceptionOptions" ->
-					let sl = match params with
-						| Some (JArray ja) -> List.map (function JString s -> s | _ -> invalid_params()) ja
-						| _ -> invalid_params()
-					in
-					ctx.debug.exception_mode <- if List.mem "all" sl then CatchAll
-						else if List.mem "uncaught" sl then CatchUncaught
-						else CatchNone;
-					Loop(JNull)
-				| meth ->
-					let open JsonRpc in
-					raise (JsonRpc_error (Method_not_found (id, meth)))
-			in
-			let process_outcome id outcome =
-				let output j = send_json socket (JsonRpc.result id j) in
-				match outcome with
-				| Loop result ->
-					output result;
-					loop ()
-				| Run (result,env) ->
-					output result;
-					run env
-				| Wait (result,env) ->
-					output result;
-					wait ctx run env;
-			in
-			let send_output_and_continue json =
-				send_json socket json;
-				loop ();
-			in
-			JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.process_request (Socket.read_string socket) handle_request process_outcome) send_output_and_continue;
-		in
-		loop ()
+type handler_context = {
+	ctx : context;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
+	env : env;
+	send_error : 'a . string -> 'a;
+}
+
+let handler =
+	let get_real_env ctx =
+		ctx.debug.environment_offset_delta <- 0;
+		DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
 	in
+	let parse_breakpoint hctx jo =
+		let j = hctx.jsonrpc in
+		let obj = j#get_object "breakpoint" jo in
+		let line = j#get_int_field "line" "line" obj in
+		let column = j#get_opt_param (fun () -> BPColumn (j#get_int_field "column" "column" obj)) BPAny in
+		let condition = j#get_opt_param (fun () ->
+			let s = j#get_string_field "condition" "condition" obj in
+			Some (parse_expr hctx.ctx s hctx.env.env_debug.expr.epos)
+		) None in
+		(line,column,condition)
+	in
+	let rec move_frame hctx offset =
+		let eval = get_eval hctx.ctx in
+		if offset < 0 || offset >= eval.environment_offset then begin
+			hctx.send_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (eval.environment_offset - 1))
+		end else begin
+			hctx.ctx.debug.environment_offset_delta <- (eval.environment_offset - offset - 1);
+			Wait (JNull, (DynArray.get eval.environments offset))
+		end
+	in
+	let h = Hashtbl.create 0 in
+	let l = [
+		"continue",(fun hctx ->
+			let env = get_real_env hctx.ctx in
+			hctx.ctx.debug.debug_state <- (if hctx.ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
+			Run (JNull,env)
+		);
+		"stepIn",(fun hctx ->
+			let env = get_real_env hctx.ctx in
+			Run (JNull,env)
+		);
+		"next",(fun hctx ->
+			let env = get_real_env hctx.ctx in
+			hctx.ctx.debug.debug_state <- DbgNext (get_eval hctx.ctx).environment_offset;
+			Run (JNull,env)
+		);
+		"stepOut",(fun hctx ->
+			let env = get_real_env hctx.ctx in
+			hctx.ctx.debug.debug_state <- DbgFinish (get_eval hctx.ctx).environment_offset;
+			Run (JNull,env)
+		);
+		"stackTrace",(fun hctx ->
+			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
+		);
+		"getScopes",(fun hctx ->
+			Loop (output_scopes hctx.env.env_info.capture_infos hctx.env.env_debug.scopes);
+		);
+		"getScopeVariables",(fun hctx ->
+			let sid = hctx.jsonrpc#get_int_param "id" in
+			begin
+				let vars =
+					try
+						if sid = 0 then begin
+							output_capture_vars hctx.env
+						end else begin
+							let scope = try List.nth hctx.env.env_debug.scopes (sid - 1) with _ -> raise Exit in
+							output_scope_vars hctx.env scope
+						end
+					with Exit ->
+						hctx.send_error "Invalid scope id"
+				in
+				Loop vars
+			end
+		);
+		"getStructure",(fun hctx ->
+			let e = hctx.jsonrpc#get_string_param "expr" in
+			begin try
+				let e = parse_expr hctx.ctx e hctx.env.env_debug.expr.epos in
+				begin try
+					let v = expr_to_value hctx.ctx hctx.env e in
+					Loop (output_inner_vars v (Ast.s_expr e))
+				with Exit ->
+					hctx.send_error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
+				end
+			with Parse_expr_error e ->
+				hctx.send_error e
+			end
+		);
+		"setBreakpoints",(fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let bps = hctx.jsonrpc#get_array_param "breakpoints" in
+			let bps = List.map (parse_breakpoint hctx) bps in
+			let hash = hash (Path.unique_full_path (Common.find_file (hctx.ctx.curapi.get_com()) file)) in
+			let h =
+				try
+					let h = Hashtbl.find hctx.ctx.debug.breakpoints hash in
+					Hashtbl.clear h;
+					h
+				with Not_found ->
+					let h = Hashtbl.create (List.length bps) in
+					Hashtbl.add hctx.ctx.debug.breakpoints hash h;
+					h
+			in
+			let bps = List.map (fun (line,column,condition) ->
+				let bp = make_breakpoint hash line BPEnabled column condition in
+				Hashtbl.add h line bp;
+				JObject ["id",JInt bp.bpid]
+			) bps in
+			Loop (JArray bps)
+		);
+		"setBreakpoint",(fun hctx ->
+			let line,column,condition = parse_breakpoint hctx (hctx.jsonrpc#get_params) in
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let breakpoint = add_breakpoint hctx.ctx file line column condition in
+			Loop (JObject ["id",JInt breakpoint.bpid])
+		);
+		"setFunctionBreakpoints",(fun hctx ->
+			Hashtbl.clear hctx.ctx.debug.function_breakpoints;
+			let j = hctx.jsonrpc in
+			let bps = j#get_array "param" (j#get_params) in
+			let bps = List.map (fun jo ->
+				let obj = j#get_object "breakpoint" jo in
+				let name = j#get_string_field "name" "name" obj in
+				let i = String.rindex name '.' in
+				if i < 0 then hctx.send_error "Invalid format, expected Type.field";
+				let key_type = String.sub name 0 i in
+				let key_field = String.sub name (i + 1) (String.length name - i - 1) in
+				let bp = make_function_breakpoint BPEnabled in
+				Hashtbl.add hctx.ctx.debug.function_breakpoints (hash key_type,hash key_field) bp;
+				JObject ["id",JInt bp.fbpid]
+			) bps in
+			Loop (JArray bps)
+		);
+		"removeBreakpoint",(fun hctx ->
+			let id = hctx.jsonrpc#get_int_param "id" in
+			begin try
+				Hashtbl.iter (fun _ h ->
+					let to_delete = ref [] in
+					Hashtbl.iter (fun k breakpoint -> if breakpoint.bpid = id then to_delete := k :: !to_delete) h;
+					List.iter (fun k -> Hashtbl.remove h k) !to_delete;
+				) hctx.ctx.debug.breakpoints;
+			with Not_found ->
+				hctx.send_error (Printf.sprintf "Unknown breakpoint: %d" id)
+			end;
+			Loop JNull
+		);
+		"switchFrame",(fun hctx ->
+			let frame = hctx.jsonrpc#get_int_param "id" in
+			move_frame hctx ((get_eval hctx.ctx).environment_offset - frame - 1)
+		);
+		"setVariable",(fun hctx ->
+			let expr_s = hctx.jsonrpc#get_string_param "expr" in
+			let value = hctx.jsonrpc#get_string_param "value" in
+			let parse s = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
+			begin try
+				let expr,value = parse expr_s,parse value in
+				begin try
+					let value = expr_to_value hctx.ctx hctx.env value in
+					write_expr hctx.ctx hctx.env expr value;
+					Loop (var_to_json "" value expr_s)
+				with Exit ->
+					hctx.send_error "Don't know how to handle this expression"
+				end
+			with Parse_expr_error e ->
+				hctx.send_error e
+			end
+		);
+		"setExceptionOptions",(fun hctx ->
+			let sl = hctx.jsonrpc#get_array "" hctx.jsonrpc#get_params in
+			let sl = List.map (hctx.jsonrpc#get_string "") sl in
+			hctx.ctx.debug.exception_mode <- if List.mem "all" sl then CatchAll
+				else if List.mem "uncaught" sl then CatchUncaught
+				else CatchNone;
+			Loop(JNull)
+		);
+		"evaluate",(fun hctx ->
+			let s = hctx.jsonrpc#get_string_param "expr" in
+			begin try
+				let e = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
+				let v = expr_to_value hctx.ctx hctx.env e in
+				Loop (var_to_json "" v (Ast.s_expr e))
+			with
+			| Parse_expr_error e ->
+				hctx.send_error e
+			| Exit ->
+				hctx.send_error "Don't know how to handle this expression"
+			end
+		);
+	] in
+	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
+	h
+
+let make_connection socket =
 	let output_breakpoint_stop _ _ =
 		send_event socket "breakpointStop" None
 	in
 	let output_exception_stop _ v _ =
 		send_event socket "exceptionStop" (Some (JObject ["text",JString (value_string v)]))
+	in
+	let rec wait ctx (run : env -> value) env =
+		let rec process_outcome id outcome =
+			let output j = send_json socket (JsonRpc.result id j) in
+			match outcome with
+			| Loop result ->
+				output result;
+				loop ()
+			| Run (result,env) ->
+				output result;
+				run env
+			| Wait (result,env) ->
+				output result;
+				wait ctx run env;
+		and send_output_and_continue json =
+			send_json socket json;
+			loop ()
+		and send_output_and_exit json =
+			send_json socket json;
+			raise Exit
+		and loop () : value =
+			let input = Socket.read_string socket in
+			let input =
+				JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_output_and_exit
+			in
+			let jsonrpc = new Jsonrpc_handler.jsonrpc_handler input in
+			let error msg =
+				let open JsonRpc in
+				raise (JsonRpc_error (Custom (jsonrpc#get_id, 1, msg)))
+			in
+			let hctx = {
+				ctx = ctx;
+				jsonrpc = jsonrpc;
+				env = env;
+				send_error = error;
+			} in
+			JsonRpc.handle_jsonrpc_error (fun () ->
+				let method_name = jsonrpc#get_method_name in
+				let f = try
+					Hashtbl.find handler method_name
+				with Not_found ->
+					JsonRpc.raise_method_not_found jsonrpc#get_id method_name
+				in
+				process_outcome jsonrpc#get_id (f hctx)
+			) send_output_and_continue
+		in
+		try
+			loop ()
+		with Exit ->
+			loop ()
 	in
 	{
 		wait = wait;

@@ -9,9 +9,8 @@ class jsonrpc_handler (id,name,params) = object(self)
 	val id = id
 	val method_name : string = name
 	val params = match params with
-		| Some (JObject fl) -> fl
-		| Some json -> raise_invalid_params json
-		| None -> []
+		| Some json -> json
+		| None -> JNull
 
 	method get_id = id
 	method get_method_name = method_name
@@ -61,21 +60,27 @@ class jsonrpc_handler (id,name,params) = object(self)
 	method get_object_field desc name fl =
 		self#get_object desc (self#get_field desc fl name)
 
+	method private get_obj_params = match params with
+		| JObject fl -> fl
+		| _ -> invalid_arg "params"
+
 	method get_string_param name =
-		self#get_string_field "params" name params
+		self#get_string_field "params" name (self#get_obj_params)
 
 	method get_int_param name =
-		self#get_int_field "params" name params
+		self#get_int_field "params" name (self#get_obj_params)
 
 	method get_bool_param name =
-		self#get_bool_field "params" name params
+		self#get_bool_field "params" name (self#get_obj_params)
 
 	method get_array_param name =
-		self#get_array_field "params" name params
+		self#get_array_field "params" name (self#get_obj_params)
 
 	method get_object_param name =
-		self#get_object_field "params" name params
+		self#get_object_field "params" name (self#get_obj_params)
 
 	method get_opt_param : 'a . (unit -> 'a) -> 'a -> 'a = fun f def ->
 		try f() with JsonRpc_error _ -> def
+
+	method get_params = params
 end
