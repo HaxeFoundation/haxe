@@ -1227,7 +1227,7 @@ and expr_next' e1 = parser
 		| _ -> assert false)
 	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
-	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
+	| [< '(BkOpen,_); e2 = secure_expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
 		let er = try let e = expr s in e,false with Display e -> e,true

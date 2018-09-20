@@ -358,7 +358,20 @@ module ValueCompletion = struct
 				let v = expr_to_value ctx env e1 in
 				let json = output_completion ctx column v in
 				raise (JsonException json)
-			| EDisplay(_,DKMarked) ->
+			| EArray(e1,(EDisplay((EConst (Ident "null"),_),DKMarked),_)) ->
+				let v = expr_to_value ctx env e1 in
+				begin match v with
+				| VArray va ->
+					let l = EvalArray.to_list va in
+					let l = List.mapi (fun i v ->
+						let n = Printf.sprintf "%d" i in
+						(hash n),"value",Some column
+					) l in
+					raise (JsonException (to_json l))
+				| _ ->
+					raise Exit
+				end
+			| EDisplay(e1,DKMarked) ->
 				let json = collect_idents ctx env in
 				raise (JsonException json)
 			| _ ->
