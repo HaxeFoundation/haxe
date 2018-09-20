@@ -1187,8 +1187,21 @@ and expr = parser
 		| [< '(Const (Int i),p); e = expr_next (EConst (Int i),p) >] -> e
 		| [< '(Const (Float f),p); e = expr_next (EConst (Float f),p) >] -> e
 		| [< >] -> serror()) */*)
-	| [< '(Kwd For,p); '(POpen,_); it = secure_expr; '(PClose,_); e = secure_expr >] -> (EFor (it,e),punion p (pos e))
-	| [< '(Kwd If,p); '(POpen,_); cond = secure_expr; '(PClose,_); e1 = secure_expr; s >] ->
+	| [< '(Kwd For,p); '(POpen,_); it = secure_expr; s >] ->
+		let e = match s with parser
+			| [< '(PClose,_); e = secure_expr >] -> e
+			| [< >] ->
+				if !in_display then mk_null_expr (pos it)
+				else serror()
+		in
+		(EFor (it,e),punion p (pos e))
+	| [< '(Kwd If,p); '(POpen,_); cond = secure_expr; s >] ->
+		let e1 = match s with parser
+			| [< '(PClose,_); e1 = secure_expr >] -> e1
+			| [< >] ->
+				if !in_display then mk_null_expr (pos cond)
+				else serror()
+		in
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
 			| [< >] ->
@@ -1210,8 +1223,23 @@ and expr = parser
 		end
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
-	| [< '(Kwd While,p1); '(POpen,_); cond = secure_expr; '(PClose,_); e = secure_expr >] -> (EWhile (cond,e,NormalWhile),punion p1 (pos e))
-	| [< '(Kwd Do,p1); e = secure_expr; '(Kwd While,_); '(POpen,_); cond = secure_expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
+	| [< '(Kwd While,p1); '(POpen,_); cond = secure_expr; s >] ->
+		let e = match s with parser
+			| [< '(PClose,_); e = secure_expr >] -> e
+			| [< >] ->
+				if !in_display then mk_null_expr (pos cond)
+				else serror()
+		in
+		(EWhile (cond,e,NormalWhile),punion p1 (pos e))
+	| [< '(Kwd Do,p1); e = secure_expr; s >] ->
+		begin match s with parser
+			| [< '(Kwd While,_); '(POpen,_); cond = secure_expr; s >] ->
+				let p2 = expect_unless_resume_p pclose s in
+				(EWhile (cond,e,DoWhile),punion p1 p2)
+			| [< >] ->
+				if !in_display then e (* ignore do *)
+				else serror()
+		end
 	| [< '(Kwd Switch,p1); e = secure_expr; s >] ->
 		begin match s with parser
 			| [< '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
