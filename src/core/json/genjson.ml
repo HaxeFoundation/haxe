@@ -269,6 +269,7 @@ and generate_tvar ctx v =
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
 		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
+		"isFinal",jbool v.v_final;
 	] in
 	let origin_to_int = function
 		| TVOLocalVariable -> 0
@@ -277,8 +278,6 @@ and generate_tvar ctx v =
 		| TVOPatternVariable -> 3
 		| TVOCatchVariable -> 4
 		| TVOLocalFunction -> 5
-		| TVOLocalFinal -> 6
-		| TVOPatternFinal -> 7
 	in
 	let fields = match v.v_kind with
 			| VUser origin -> ("origin",jint (origin_to_int origin)) :: fields
