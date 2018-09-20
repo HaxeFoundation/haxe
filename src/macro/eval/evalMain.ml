@@ -84,7 +84,6 @@ let create com api is_macro =
 					None
 			in
 			let debug' = {
-				do_debug = com.Common.debug || support_debugger;
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;

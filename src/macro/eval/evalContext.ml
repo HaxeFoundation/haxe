@@ -26,15 +26,16 @@ open EvalString
 type var_info = string
 
 type scope = {
+	(* The position of the current scope. *)
 	pos : pos;
 	(* The local start offset of the current scope. *)
 	local_offset : int;
 	(* The locals declared in the current scope. Maps variable IDs to local slots. *)
-	mutable locals : (int,int) Hashtbl.t;
+	locals : (int,int) Hashtbl.t;
 	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable local_infos : (int,var_info) Hashtbl.t;
+	local_infos : (int,var_info) Hashtbl.t;
 	(* The IDs of local variables. Maps variable names to variable IDs. *)
-	mutable local_ids : (string,int) Hashtbl.t;
+	local_ids : (string,int) Hashtbl.t;
 }
 
 type env_kind =
@@ -42,27 +43,49 @@ type env_kind =
 	| EKMethod of int * int
 	| EKDelayed
 
+(* Compile-time information for environments. This information is static for all
+   environments of the same kind, e.g. all environments of a specific method. *)
 type env_info = {
+	(* If false, the environment has a this-context. *)
 	static : bool;
+	(* Hash of the source file of this environment. *)
 	pfile : int;
+	(* The environment kind. *)
 	kind : env_kind;
+	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	capture_infos : (int,var_info) Hashtbl.t;
 }
 
+(* Per-environment debug information. These values are only modified while debugging. *)
 type env_debug = {
+	(* The timer function to execute when the environment finishes executing *)
 	timer : unit -> unit;
+	(* The current scope stack. *)
 	mutable scopes : scope list;
+	(* The current line being executed. This in conjunction with `env_info.pfile` is used to find breakpoints. *)
 	mutable line : int;
+	(* The current expression being executed *)
 	mutable expr : texpr;
 }
 
+(* An environment in which code is executed. Environments are created whenever a function is called and when
+   evaluating static inits. *)
 type env = {
+	(* The compile-time information for the current environment *)
 	env_info : env_info;
+	(* The debug information for the current environment *)
 	env_debug : env_debug;
+	(* The position at which the current environment was left, e.g. by a call. *)
 	mutable env_leave_pmin : int;
+	(* The position at which the current environment was left, e.g. by a call. *)
 	mutable env_leave_pmax : int;
+	(* The environment's local variables. Indices are determined during compile-time, or can be obtained
+	   through `scope.locals` when debugging. *)
 	env_locals : value array;
+	(* The reference to the environment's captured local variables. Indices are determined during compile-time,
+	   or can be obtained through `env_info.capture_infos`. *)
 	env_captures : value ref array;
+	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
 }
 
@@ -120,17 +143,28 @@ and debug_socket = {
 	connection : debug_connection;
 }
 
+(* Per-context debug information *)
 and debug = {
-	do_debug : bool;
+	(* The registered breakpoints *)
 	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
+	(* The registered function breakpoints *)
 	function_breakpoints : ((int * int),function_breakpoint) Hashtbl.t;
+	(* Whether or not debugging is supported. Has various effects on the amount of
+	   data being retained at run-time. *)
 	mutable support_debugger : bool;
+	(* The current debug state. Managed by the debugger. *)
 	mutable debug_state : debug_state;
+	(* The currently active breakpoint. Set to a dummy value initially. *)
 	mutable breakpoint : breakpoint;
+	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
 	caught_types : (int,bool) Hashtbl.t;
+	(* The current environment offset. Modified by the debugger when walking up the call stack. *)
 	mutable environment_offset_delta : int;
+	(* The debugger socket *)
 	mutable debug_socket : debug_socket option;
+	(* The current exception mode *)
 	mutable exception_mode : exception_mode;
+	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
 	mutable caught_exception : value;
 }
 
