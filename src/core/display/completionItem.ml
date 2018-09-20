@@ -360,10 +360,15 @@ module CompletionType = struct
 		let fields = ("type",generate_type ctx af.ctf_type) :: fields in
 		jobject fields
 
-	and generate_anon ctx cta = jobject [
-		"status",generate_anon_status ctx cta.ct_status;
-		"fields",jlist (generate_anon_field ctx) cta.ct_fields;
-	]
+	and generate_anon ctx cta =
+		let fields = List.sort (fun ctf1 ctf2 ->
+			compare ctf1.ctf_field.cf_name_pos.pmin ctf2.ctf_field.cf_name_pos.pmin
+		) cta.ct_fields in
+		jobject [
+			"status",generate_anon_status ctx cta.ct_status;
+			"fields",jlist (generate_anon_field ctx) fields;
+		]
+
 	and generate_type ctx ct =
 		let name,args = match ct with
 			| CTMono -> "TMono",None
