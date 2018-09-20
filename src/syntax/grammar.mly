@@ -260,7 +260,10 @@ and parse_import s p1 =
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< >] ->
-				if !in_display then p,List.rev acc,INormal else serror()
+				if !in_display then begin
+					ignore(popt semicolon s);
+					p,List.rev acc,INormal
+				end else serror()
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
