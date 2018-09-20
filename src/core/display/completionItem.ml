@@ -612,6 +612,7 @@ let to_json ctx item =
 		| ITMetadata meta ->
 			let open Meta in
 			let name,(doc,params) = Meta.get_info meta in
+			let name = "@" ^ name in
 			let usage_to_string = function
 				| TClass -> "TClass"
 				| TClassField -> "TClassField"
