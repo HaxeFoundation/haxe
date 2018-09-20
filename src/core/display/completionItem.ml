@@ -395,7 +395,7 @@ type t_kind =
 	| ITModule of path
 	| ITLiteral of string
 	| ITTimer of string * string
-	| ITMetadata of string * documentation
+	| ITMetadata of Meta.strict_meta
 	| ITKeyword of keyword
 	| ITAnonymous of tanon
 	| ITExpression of texpr
@@ -420,7 +420,7 @@ let make_ci_package path l = make (ITPackage(path,l)) None
 let make_ci_module path = make (ITModule path) None
 let make_ci_literal lit t = make (ITLiteral lit) (Some t)
 let make_ci_timer name value = make (ITTimer(name,value)) None
-let make_ci_metadata s doc = make (ITMetadata(s,doc)) None
+let make_ci_metadata meta = make (ITMetadata meta) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
 let make_ci_expr e t = make (ITExpression e) (Some t)
@@ -508,7 +508,7 @@ let legacy_sort item = match item.ci_kind with
 	| ITType(cm,_) -> 2,cm.name
 	| ITModule path -> 3,snd path
 	| ITPackage(path,_) -> 4,snd path
-	| ITMetadata(s,_) -> 5,s
+	| ITMetadata meta -> 5,Meta.to_string meta
 	| ITTimer(s,_) -> 6,s
 	| ITLocal v -> 7,v.v_name
 	| ITLiteral s -> 9,s
@@ -526,7 +526,7 @@ let get_name item = match item.ci_kind with
 	| ITModule path -> snd path
 	| ITLiteral s -> s
 	| ITTimer(s,_) -> s
-	| ITMetadata(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
 	| ITKeyword kwd -> s_keyword kwd
 	| ITAnonymous _ -> ""
 	| ITExpression _ -> ""
@@ -604,10 +604,39 @@ let to_json ctx item =
 			"name",jstring s;
 			"value",jstring value;
 		]
-		| ITMetadata(s,doc) -> "Metadata",jobject [
-			"name",jstring s;
-			"doc",jopt jstring doc;
-		]
+		| ITMetadata meta ->
+			let open Meta in
+			let name,(doc,params) = Meta.get_info meta in
+			let usage_to_string = function
+				| TClass -> "TClass"
+				| TClassField -> "TClassField"
+				| TAbstract -> "TAbstract"
+				| TAbstractField -> "TAbstractField"
+				| TEnum -> "TEnum"
+				| TTypedef -> "TTypedef"
+				| TAnyField -> "TAnyField"
+				| TExpr -> "TExpr"
+				| TTypeParameter -> "TTypeParameter"
+				| TVariable -> "TVariable"
+			in
+			let rec loop internal params platforms targets l = match l with
+				| HasParam s :: l -> loop internal (s :: params) platforms targets l
+				| Platform pl :: l -> loop internal params (platform_name pl :: platforms) targets l
+				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets l
+				| UsedOn usage :: l -> loop internal params platforms (usage_to_string usage :: targets) l
+				| UsedOnEither usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
+				| UsedInternally :: l -> loop true params platforms targets l
+				| [] -> internal,params,platforms,targets
+			in
+			let internal,params,platforms,targets = loop false [] [] [] params in
+			"Metadata",jobject [
+				"name",jstring name;
+				"doc",jstring doc;
+				"parameters",jlist jstring params;
+				"platforms",jlist jstring platforms;
+				"targets",jlist jstring targets;
+				"internal",jbool internal;
+			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
 		]

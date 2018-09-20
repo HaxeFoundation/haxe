@@ -429,3 +429,11 @@ let get_documentation_list () =
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
+
+let get_all () =
+	let rec loop i =
+		let d = Obj.magic i in
+		if d <> Last then d :: loop (i + 1)
+		else []
+	in
+	loop 0

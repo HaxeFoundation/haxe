@@ -68,7 +68,9 @@ let print_fields fields =
 			"type",snd path,s_type_path path,None
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
-		| ITMetadata(s,doc) -> "metadata",s,"",doc
+		| ITMetadata  meta ->
+			let s,(doc,_) = Meta.get_info meta in
+			"metadata",s,"",Some doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
