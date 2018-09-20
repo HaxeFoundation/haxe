@@ -70,7 +70,7 @@ let print_fields fields =
 		| ITModule path -> "type",snd path,"",None
 		| ITMetadata  meta ->
 			let s,(doc,_) = Meta.get_info meta in
-			"metadata",s,"",Some doc
+			"metadata","@" ^ s,"",Some doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
