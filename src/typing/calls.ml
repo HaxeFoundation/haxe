@@ -160,9 +160,13 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 					let e_def = default_value name t in
 					(e_def,true) :: args
 			end
-		| (_,p) :: _, [] ->
+		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
-				| [] -> call_error Too_many_arguments p
+				| [] ->
+					if ctx.com.display.dms_display then begin
+						let e = type_expr ctx (e,p) WithType.value in
+						(e,false) :: loop el []
+					end	else call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->

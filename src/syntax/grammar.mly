@@ -98,6 +98,9 @@ let colon = parser
 let pclose = parser
 	| [< '(PClose,p) >] -> p
 
+let bkclose = parser
+	| [< '(BkClose,p) >] -> p
+
 let question_mark = parser
 	| [< '(Question,p) >] -> p
 
@@ -945,7 +948,6 @@ and parse_obj_decl name e p0 s =
 	e
 
 and parse_array_decl p1 s =
-	let secure_expr acc s = expr s in
 	let resume_or_fail p1 =
 		if !in_display then begin
 			let p = punion_next p1 s in
@@ -954,15 +956,18 @@ and parse_array_decl p1 s =
 	in
 	let el,p2 = match s with parser
 		| [< '(BkClose,p2) >] -> [],p2
-		| [< e0 = secure_expr [] >] ->
+		| [< e0 = secure_expr >] ->
 			let rec loop acc = match s with parser
 				| [< '(Comma,pk) >] ->
 					begin match s with parser
 						| [< '(BkClose,p2) >] -> acc,p2
-						| [< e = secure_expr acc >] -> loop (e :: acc)
-						| [< >] -> resume_or_fail pk
+						| [< e = secure_expr >] -> loop (e :: acc)
+						| [< >] ->
+							if !in_display then acc,pk else serror()
 					end
 				| [< '(BkClose,p2) >] -> acc,p2
+				| [< >] ->
+					if !in_display then acc,next_pos s else serror()
 			in
 			loop [e0]
 		| [< >] -> resume_or_fail p1
@@ -1151,7 +1156,9 @@ and expr = parser
 					| [< >] -> serror())
 				| [< >] -> serror())
 			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
-			| [< >] -> serror())
+			| [< >] ->
+				if !in_display then expr_next (EParenthesis e, punion p1 (pos e)) s
+				else serror())
 		)
 	| [< '(BkOpen,p1); e = parse_array_decl p1; s >] -> expr_next e s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
@@ -1209,7 +1216,8 @@ and expr_next' e1 = parser
 		| _ -> assert false)
 	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
-	| [< '(BkOpen,_); e2 = secure_expr; '(BkClose,p2); s >] ->
+	| [< '(BkOpen,_); e2 = secure_expr; s >] ->
+		let p2 = expect_unless_resume_p bkclose s in
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
 		let er = expr s in
