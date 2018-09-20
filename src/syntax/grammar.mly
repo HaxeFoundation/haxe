@@ -150,7 +150,11 @@ and parse_type_decls pack acc s =
 		parse_type_decls pack acc s
 
 and parse_abstract doc meta flags = parser
-	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
+	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
+		let fl,p2 = match s with parser
+			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
+			| [< >] -> if !in_display then [],last_pos s else serror()
+		in
 		let flags = List.map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
 		({
@@ -307,9 +311,17 @@ and parse_using s p1 =
 	(EUsing path,punion p1 p2)
 
 and parse_abstract_relations s =
+	let check_display p1 (ct,p2) =
+		if !in_display_file && p1.pmax < !display_position.pmin && p2.pmin >= !display_position.pmax then
+			(* This means we skipped the display position between the to/from and the type-hint we parsed.
+			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
+			((CTPath magic_type_path,p2))
+		else
+			(ct,p2)
+	in
 	match s with parser
-	| [< '(Const (Ident "to"),_); t = parse_complex_type >] -> AbTo t
-	| [< '(Const (Ident "from"),_); t = parse_complex_type >] -> AbFrom t
+	| [< '(Const (Ident "to"),p1); t = parse_complex_type_at p1 >] -> (AbTo (check_display p1 t))
+	| [< '(Const (Ident "from"),p1); t = parse_complex_type_at p1 >] -> AbFrom (check_display p1 t)
 
 and parse_abstract_subtype s =
 	match s with parser
