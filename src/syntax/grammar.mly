@@ -1326,8 +1326,13 @@ and parse_call_params f p1 s =
 				if not (is_signature_display()) then e
 				else begin
 					let p = punion p1 p2 in
-					if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
-					else e
+					if true || not !was_auto_triggered then begin (* TODO: #6383 *)
+						if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
+						else e
+					end else begin
+						if !display_position.pmin = p1.pmax then (mk_display_expr e DKMarked)
+						else e
+					end
 				end
 			in
 			match s with parser
