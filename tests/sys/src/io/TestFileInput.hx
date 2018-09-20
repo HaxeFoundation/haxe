@@ -13,13 +13,15 @@ import sys.io.FileSeek;
  * @author        Maximilian Ruta <mr@xtain.net>
  */
 class TestFileInput {
+	static var contentString = "test\n1234сюрприз!"; //that's total of 24 bytes
+	static var contentBytes = [116, 101, 115, 116, 10, 49, 50, 51, 52, 209, 129, 209, 142, 209, 128, 208, 191, 209, 128, 208, 184, 208, 183, 33];
 
 	private var path = 'temp/testcase-test-file.txt';
 
 	public function new() { }
 
 	public function setup() {
-		File.saveContent(path, "test\n1234");
+		File.saveContent(path, contentString);
 	}
 
 	public function tearDown() {
@@ -28,124 +30,116 @@ class TestFileInput {
 
 	public function testRead() {
 		var file : FileInput = File.read(path);
-		Assert.equals(0, file.tell());
-		Assert.equals(116, file.readByte());
-		Assert.equals(1, file.tell());
-		Assert.equals(101, file.readByte());
-		Assert.equals(2, file.tell());
-		Assert.equals(115, file.readByte());
-		Assert.equals(3, file.tell());
-		Assert.equals(116, file.readByte());
-		Assert.equals(4, file.tell());
+		for(i in 0...contentBytes.length) {
+			Assert.equals(i, file.tell());
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 		file.close();
 	}
 
 	public function testReadBytes() {
 		var file : FileInput = File.read(path);
-		var bytes : Bytes = Bytes.alloc (9);
-		var count = file.readBytes(bytes, 0, 9);
-		Assert.equals(9, count);
-		Assert.equals(116, bytes.get(0));
+		var bytes : Bytes = Bytes.alloc (contentBytes.length);
+		var count = file.readBytes(bytes, 0, contentBytes.length);
+		Assert.equals(contentBytes.length, count);
+		for(i in 0...contentBytes.length) {
+			Assert.equals(contentBytes[i], bytes.get(i));
+		}
 		file.close();
 	}
 
 	public function testSeekBeginCur() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(-4, FileSeek.SeekCur);
-		Assert.equals(0, file.tell());
-		Assert.equals(116, file.readByte());
-		Assert.equals(1, file.tell());
+		var pos = Std.int(contentBytes.length / 2) - 4;
+		Assert.equals(pos, file.tell());
+		Assert.equals(contentBytes[pos], file.readByte());
+		Assert.equals(pos + 1, file.tell());
 		file.close();
 	}
 
 	public function testSeekBeginEnd() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
-		file.seek(-9, FileSeek.SeekEnd);
+		file.seek(-contentBytes.length, FileSeek.SeekEnd);
 		Assert.equals(0, file.tell());
-		Assert.equals(116, file.readByte());
+		Assert.equals(contentBytes[0], file.readByte());
 		Assert.equals(1, file.tell());
 		file.close();
 	}
 
 	public function testSeekBegin() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(0, FileSeek.SeekBegin);
 		Assert.equals(0, file.tell());
-		Assert.equals(116, file.readByte());
+		Assert.equals(contentBytes[0], file.readByte());
 		Assert.equals(1, file.tell());
 		file.close();
 	}
 
 	public function testSeekPosBegin() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(1, FileSeek.SeekBegin);
 		Assert.equals(1, file.tell());
-		Assert.equals(101, file.readByte());
+		Assert.equals(contentBytes[1], file.readByte());
 		Assert.equals(2, file.tell());
 		file.close();
 	}
 
 	public function testSeekPosBeginMulti() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(1, FileSeek.SeekBegin);
 		Assert.equals(1, file.tell());
-		Assert.equals(101, file.readByte());
+		Assert.equals(contentBytes[1], file.readByte());
 		Assert.equals(2, file.tell());
 		file.seek(3, FileSeek.SeekBegin);
 		Assert.equals(3, file.tell());
-		Assert.equals(116, file.readByte());
+		Assert.equals(contentBytes[3], file.readByte());
 		Assert.equals(4, file.tell());
 		file.close();
 	}
 
 	public function testSeekEnd() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(-1, FileSeek.SeekEnd);
-		Assert.equals(8, file.tell());
-		Assert.equals(52, file.readByte());
-		Assert.equals(9, file.tell());
+		var pos = contentBytes.length - 1;
+		Assert.equals(pos, file.tell());
+		Assert.equals(contentBytes[pos], file.readByte());
+		Assert.equals(pos + 1, file.tell());
 		file.close();
 	}
 
 	public function testSeekEofLast() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(0, FileSeek.SeekEnd);
-		Assert.equals(9, file.tell());
+		Assert.equals(contentBytes.length, file.tell());
 		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
@@ -159,13 +153,12 @@ class TestFileInput {
 
 	public function testSeekEof() {
 		var file : FileInput = File.read(path);
-		Assert.equals(116, file.readByte());
-		Assert.equals(101, file.readByte());
-		Assert.equals(115, file.readByte());
-		Assert.equals(116, file.readByte());
+		for(i in 0...Std.int(contentBytes.length / 2)) {
+			Assert.equals(contentBytes[i], file.readByte());
+		}
 
 		file.seek(0, FileSeek.SeekEnd);
-		Assert.equals(9, file.tell());
+		Assert.equals(contentBytes.length, file.tell());
 		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
@@ -174,11 +167,12 @@ class TestFileInput {
 			Assert.isTrue(true);
 		}
 		Assert.isTrue(file.eof());
-		Assert.equals(9, file.tell());
+		Assert.equals(contentBytes.length, file.tell());
 		file.seek(-1, FileSeek.SeekCur);
-		Assert.equals(8, file.tell());
-		Assert.equals(52, file.readByte());
-		Assert.equals(9, file.tell());
+		var pos = contentBytes.length - 1;
+		Assert.equals(pos, file.tell());
+		Assert.equals(contentBytes[pos], file.readByte());
+		Assert.equals(pos + 1, file.tell());
 		Assert.isFalse(file.eof());
 		try {
 			file.readByte();
@@ -187,7 +181,7 @@ class TestFileInput {
 			Assert.isTrue(true);
 		}
 		Assert.isTrue(file.eof());
-		Assert.equals(9, file.tell());
+		Assert.equals(pos + 1, file.tell());
 		try {
 			file.readByte();
 			Assert.isTrue(false);
