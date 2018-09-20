@@ -276,15 +276,14 @@ let create_instance_prototype ctx c =
 let get_object_prototype ctx l =
 	let l = List.sort (fun (i1,_) (i2,_) -> if i1 = i2 then 0 else if i1 < i2 then -1 else 1) l in
 	let sfields = String.concat "," (List.map (fun (i,_) -> rev_hash i) l) in
-	let key = Hashtbl.hash sfields in
+	let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
 	try
-		IntMap.find key ctx.instance_prototypes,l
+		IntMap.find name ctx.instance_prototypes,l
 	with Not_found ->
-		let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
 		let pctx = PrototypeBuilder.create ctx name None PObject None in
 		List.iter (fun (name,_) -> PrototypeBuilder.add_instance_field pctx name (lazy vnull)) l;
 		let proto = fst (PrototypeBuilder.finalize pctx) in
-		ctx.instance_prototypes <- IntMap.add key proto ctx.instance_prototypes;
+		ctx.instance_prototypes <- IntMap.add name proto ctx.instance_prototypes;
 		proto,l
 
 let add_types ctx types ready =
