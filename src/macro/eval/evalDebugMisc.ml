@@ -152,6 +152,21 @@ let resolve_ident ctx env s =
 	with Not_found ->
 		vnull
 
+let find_enum_field_by_name ve name =
+	match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
+	| PEnum names ->
+		let fields = snd (List.nth names ve.eindex) in
+		let rec loop i fields = match fields with
+			| field :: fields ->
+				if field = name then i
+				else loop (i + 1) fields
+			| [] ->
+				raise Not_found
+		in
+		loop 0 fields
+	| _ ->
+		raise Not_found
+
 let rec expr_to_value ctx env e =
 	let safe_call f a =
 		let old = ctx.debug.debug_state in
@@ -190,8 +205,19 @@ let rec expr_to_value ctx env e =
 			end
 		| EField(e1,s) ->
 			let v1 = loop e1 in
-			let v = EvalField.field v1 (hash s) in
-			v
+			let s = hash s in
+			begin match v1 with
+			| VEnumValue ve ->
+				begin try
+					let i = find_enum_field_by_name ve s in
+					ve.eargs.(i)
+				with Not_found ->
+					vnull
+				end
+			| _ ->
+				let v = EvalField.field v1 s in
+				v
+			end
 		| EArrayDecl el ->
 			let vl = List.map loop el in
 			encode_array vl
@@ -315,8 +341,19 @@ let rec expr_to_value ctx env e =
 and write_expr ctx env expr value =
 	begin match fst expr with
 		| EField(e1,s) ->
+			let s = hash s in
 			let v1 = expr_to_value ctx env e1 in
-			set_field v1 (hash s) value;
+			begin match v1 with
+			| VEnumValue ve ->
+				begin try
+					let i = find_enum_field_by_name ve s in
+					ve.eargs.(i) <- value
+				with Not_found ->
+					()
+				end
+			| _ ->
+				set_field v1 s value;
+			end
 		| EConst (Ident s) ->
 			begin try
 				let slot = get_var_slot_by_name env.env_debug.scopes s in

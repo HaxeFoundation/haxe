@@ -84,7 +84,7 @@ type vzlib = {
 
 type vprototype_kind =
 	| PClass of int list
-	| PEnum of string list
+	| PEnum of (string * int list) list
 	| PInstance
 	| PObject
 

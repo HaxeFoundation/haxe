@@ -77,7 +77,7 @@ and s_vector depth vv =
 and s_enum_ctor_name ve =
 	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-			| PEnum names -> (try List.nth names ve.eindex with _ -> "#unknown")
+			| PEnum names -> (try fst (List.nth names ve.eindex) with _ -> "#unknown")
 			| _ -> raise Not_found
 		end
 	with Not_found -> "#unknown"

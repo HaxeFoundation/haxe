@@ -2430,7 +2430,7 @@ module StdType = struct
 		match v with
 		| VPrototype ({pkind = PEnum names} as proto) ->
 			begin try
-				let l = ExtList.List.filter_map (fun s ->
+				let l = ExtList.List.filter_map (fun (s,_) ->
 					try
 						begin match proto_field_direct proto (hash s) with
 							| VEnumValue _ as v -> Some v
@@ -2468,7 +2468,7 @@ module StdType = struct
 		match e with
 		| VPrototype {pkind = PEnum names} ->
 			begin try
-				create_enum e (hash (List.nth names index)) params
+				create_enum e (hash (fst (List.nth names index))) params
 			with Not_found ->
 				vnull
 			end
@@ -2497,7 +2497,7 @@ module StdType = struct
 		| VEnumValue ve ->
 			begin try
 				begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-					| PEnum names -> encode_string (List.nth names ve.eindex)
+					| PEnum names -> encode_string (fst (List.nth names ve.eindex))
 					| _ -> raise Not_found
 				end
 			with Not_found ->
@@ -2559,7 +2559,7 @@ module StdType = struct
 		match v with
 		| VPrototype {pkind = PEnum names} ->
 			begin try
-				encode_array (List.map encode_string names)
+				encode_array (List.map (fun (n,_) -> encode_string n) names)
 			with Not_found ->
 				vnull
 			end

@@ -160,14 +160,16 @@ let output_inner_vars v access =
 	let rec loop v = match v with
 		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 		| VEnumValue ve ->
-			begin match ve.eargs with
-				| [||] -> []
-				| vl ->
-					Array.to_list (Array.mapi (fun i v ->
-						let n = Printf.sprintf "[%d]" i in
-						let a = access ^ n in
+			begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
+				| PEnum names ->
+					let fields = snd (List.nth names ve.eindex) in
+					List.mapi (fun i n ->
+						let n = rev_hash n in
+						let a = access ^ "." ^ n in
+						let v = ve.eargs.(i) in
 						n, v, a
-					) vl)
+					) fields
+				| _ -> []
 			end
 		| VObject o ->
 			let fields = object_fields o in
@@ -323,13 +325,11 @@ module ValueCompletion = struct
 			| VLazy f ->
 				loop (!f())
 			| VEnumValue ve ->
-				begin match ve.eargs with
-					| [||] -> []
-					| vl ->
-						Array.to_list (Array.mapi (fun i v ->
-							let n = hash (Printf.sprintf "[%d]" i) in
-							n,"value",Some (column - 1) (* doesn't seem to work in vscode... *)
-						) vl)
+				begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
+					| PEnum names ->
+						let fields = snd (List.nth names ve.eindex) in
+						List.map (fun n -> n,"value",None) fields
+					| _ -> []
 				end
 		in
 		let l = loop v in

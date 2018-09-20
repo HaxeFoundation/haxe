@@ -207,7 +207,17 @@ let create_static_prototype ctx mt =
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->
-		let pctx = PrototypeBuilder.create ctx key None (PEnum en.e_names) meta in
+		let names = List.map (fun name ->
+			let ef = PMap.find name en.e_constrs in
+			let args = match follow ef.ef_type with
+				| TFun(args,_) ->
+					List.map (fun (n,_,_) -> hash n) args
+				| _ ->
+					[]
+			in
+			name,args
+		) en.e_names in
+		let pctx = PrototypeBuilder.create ctx key None (PEnum names) meta in
 		let enum_field_value ef = match follow ef.ef_type with
 			| TFun(args,_) ->
 				let f = (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos)) in

@@ -417,7 +417,7 @@ let rec value_to_expr v p =
 			let proto = get_static_prototype_raise (get_ctx()) e.epath in
 			let expr = path e.epath in
 			let name = match proto.pkind with
-				| PEnum names -> List.nth names e.eindex
+				| PEnum names -> fst (List.nth names e.eindex)
 				| _ -> assert false
 			in
 			(EField (expr, name), p)
