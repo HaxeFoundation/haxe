@@ -213,6 +213,12 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			List.iter (function
+				| HExtern -> c.cl_extern <- true
+				| HInterface -> c.cl_interface <- true
+				| HFinal -> c.cl_final <- true
+				| _ -> ()
+			) d.d_flags;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -512,12 +518,6 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		List.iter (function
-			| HExtern -> c.cl_extern <- true
-			| HInterface -> c.cl_interface <- true
-			| HFinal -> c.cl_final <- true
-			| _ -> ()
-		) herits;
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
 				c.cl_final <- true;
