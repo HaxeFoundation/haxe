@@ -95,6 +95,9 @@ let comma = parser
 let colon = parser
 	| [< '(DblDot,p) >] -> p
 
+let pclose = parser
+	| [< '(PClose,p) >] -> p
+
 let question_mark = parser
 	| [< '(Question,p) >] -> p
 
@@ -395,20 +398,22 @@ and parse_common_flags = parser
 	| [< >] -> []
 
 and parse_meta_argument_expr s =
-	try
-		expr s
-	with Display e -> match fst e with
-		| EDisplay(e,_) ->
-			begin try
-				type_path (string_list_of_expr_path_raise e) false (pos e)
-			with Exit ->
-				e
-			end
-		| _ ->
+	let e = expr s in
+	begin match fst e with
+	| EDisplay(e1,DKDot) ->
+		begin try
+			type_path (string_list_of_expr_path_raise e1) false (pos e1)
+		with Exit ->
 			e
+		end
+	| _ ->
+		e
+	end
 
 and parse_meta_params pname s = match s with parser
-	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma parse_meta_argument_expr; '(PClose,_); >] -> params
+	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma parse_meta_argument_expr; >] ->
+		ignore(expect_unless_resume_p pclose s);
+		params
 	| [< >] -> []
 
 and parse_meta_entry = parser
@@ -702,7 +707,7 @@ and parse_enum_param = parser
 and parse_function_field doc meta al = parser
 	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let e, p2 = (match s with parser
-			| [< e = toplevel_expr; s >] ->
+			| [< e = expr; s >] ->
 				(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
 				Some e, pos e
 			| [< p = semicolon >] -> None, p
@@ -717,7 +722,7 @@ and parse_function_field doc meta al = parser
 		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
-	| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
+	| [< '(Binop OpAssign,_); e = expr; p2 = semicolon >] -> Some e , p2
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
@@ -815,7 +820,7 @@ and parse_fun_param s =
 	| [< name, pn = dollar_ident; t = popt parse_type_hint; c = parse_fun_param_value >] -> ((name,pn),false,meta,t,c)
 
 and parse_fun_param_value = parser
-	| [< '(Binop OpAssign,_); e = toplevel_expr >] -> Some e
+	| [< '(Binop OpAssign,_); e = expr >] -> Some e
 	| [< >] -> None
 
 and parse_fun_param_type = parser
@@ -870,13 +875,7 @@ and block1 = parser
 and block2 name ident p s =
 	match s with parser
 	| [< '(DblDot,_) >] ->
-		let e = try
-			secure_expr s
-		with Display e ->
-			let acc = [name,e] in
-			let e = EObjectDecl acc,punion p (pos e) in
-			display e
-		in
+		let e = secure_expr s in
 		fst (parse_obj_decl name e p s)
 	| [< >] ->
 		let f s =
@@ -893,7 +892,7 @@ and block acc s =
 and block_with_pos' acc f p s =
 	try
 		(* because of inner recursion, we can't put Display handling in errors below *)
-		let e = try f s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
+		let e = f s in
 		block_with_pos (e :: acc) (pos e) s
 	with
 		| Stream.Failure ->
@@ -946,13 +945,7 @@ and parse_obj_decl name e p0 s =
 	e
 
 and parse_array_decl p1 s =
-	let secure_expr acc s = try
-		expr s
-	with Display e ->
-		let acc = e :: acc in
-		let e = EArrayDecl (List.rev acc),punion p1 (pos e) in
-		display e
-	in
+	let secure_expr acc s = expr s in
 	let resume_or_fail p1 =
 		if !in_display then begin
 			let p = punion_next p1 s in
@@ -985,13 +978,8 @@ and parse_var_assignment = parser
 	| [< >] -> None
 
 and parse_var_assignment_resume final vl name pn t s =
-	try
-		let eo = parse_var_assignment s in
-		((name,pn),final,t,eo)
-	with Display e ->
-		let v = ((name,pn),final,t,Some e) in
-		let e = (EVars(List.rev (v :: vl)),punion pn (pos e)) in
-		display e
+	let eo = parse_var_assignment s in
+	((name,pn),final,t,eo)
 
 and parse_var_decls_next final vl = parser
 	| [< '(Comma,p1); name,final,t,pn = parse_var_decl_head final; s >] ->
@@ -1039,21 +1027,17 @@ and parse_function p1 inl = parser
 			} in
 			EFunction ((match name with None -> None | Some (name,pn) -> Some ((if inl then "inline_" ^ name else name),pn)),f), punion p1 (pos e)
 		in
-		(try
-			make (secure_expr s)
-		with
-			Display e -> display (make e))
+		make (secure_expr s)
 
 and arrow_expr = parser
-	| [< '(Arrow,_); s >] -> try let e = expr s in e,false with Display e -> e,true
-	| _ -> serror()
+	| [< '(Arrow,_); e = expr >] -> e
+	| [< >] -> serror()
 
 and arrow_function p1 al er =
 	let make e =
 		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
 	in
-	let e,display_error = er in
-	if display_error then display (make e) else make e
+	make er
 
 and arrow_ident_checktype e = (match e with
 	| EConst(Ident n),p -> (n,p),None
@@ -1079,11 +1063,9 @@ and expr = parser
 		begin try
 			make_meta name params (secure_expr s) p
 		with
-		| Display e ->
-			display (make_meta name params e p)
 		| Stream.Failure | Stream.Error _ when !in_display_file ->
 			let e = EConst (Ident "null"),null_pos in
-			display (make_meta name params e p)
+			make_meta name params e p
 		end
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
@@ -1099,7 +1081,7 @@ and expr = parser
 			| EObjectDecl _ -> expr_next e s
 			| _ -> e)
 		| [< >] ->
-			check_resume p1 (fun() -> display (EDisplay ((EObjectDecl [],p1),DKStructure),p1)) serror;
+			check_resume p1 (fun() -> (EDisplay ((EObjectDecl [],p1),DKStructure),p1)) serror;
 		)
 	| [< '(Kwd k,p) when !parsing_macro_cond; s >] ->
 		expr_next (EConst (Ident (s_keyword k)), p) s
@@ -1199,7 +1181,7 @@ and expr = parser
 		(EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e))
 	| [< '(Kwd Return,p); s >] ->
 		begin match s with parser
-		| [< e = toplevel_expr >] -> (EReturn (Some e),punion p (pos e))
+		| [< e = expr >] -> (EReturn (Some e),punion p (pos e))
 		| [< >] ->
 			if would_skip_display_position p s then (EReturn (Some (mk_null_expr (punion_next p s))),p)
 			else (EReturn None,p)
@@ -1230,8 +1212,8 @@ and expr_next' e1 = parser
 	| [< '(BkOpen,_); e2 = secure_expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
-		let er = try let e = expr s in e,false with Display e -> e,true
-		in arrow_function (snd e1) [arrow_first_param e1] er
+		let er = expr s in
+		arrow_function (snd e1) [arrow_first_param e1] er
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
 		| [< '(Binop OpGt,p2) when p1.pmax = p2.pmin; s >] ->
@@ -1256,19 +1238,20 @@ and expr_next' e1 = parser
 	| [< >] -> e1
 
 and parse_field e1 p s =
-	check_resume p (fun () -> display (EDisplay (e1,DKDot),p)) (fun () -> ());
-	begin match s with parser
-	| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
-	| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
-	| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
-	| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-	| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
-	| [< >] ->
-		(* turn an integer followed by a dot into a float *)
-		match e1 with
-		| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
-		| _ -> serror()
-	end
+	check_resume p (fun () -> (EDisplay (e1,DKDot),p)) (fun () ->
+		begin match s with parser
+		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
+		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
+		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
+		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
+		| [< >] ->
+			(* turn an integer followed by a dot into a float *)
+			match e1 with
+			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| _ -> serror()
+		end
+	)
 
 and parse_guard = parser
 	| [< '(Kwd If,p1); '(POpen,_); e = expr; '(PClose,_); >] ->
@@ -1281,7 +1264,7 @@ and expr_or_var = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,cases,Some (Some e,punion p1 (pos e))),punion (pos eswitch) (pos e))) in
+		let b,p2 = (block_with_pos [] p1 s) in
 		let b = match b with
 			| [] -> None,p1
 			| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
@@ -1295,7 +1278,7 @@ and parse_switch_cases eswitch cases = parser
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
 		| _ ->
-			let b,p2 = (try block_with_pos [] p1 s with Display e -> display (ESwitch (eswitch,List.rev ((el,eg,Some e,punion p1 (pos e)) :: cases),None),punion (pos eswitch) (pos e))) in
+			let b,p2 = (block_with_pos [] p1 s) in
 			let b,p = match b with
 				| [] ->
 					let p2 = match eg with Some e -> pos e | None -> match List.rev el with (_,p) :: _ -> p | [] -> p1 in
@@ -1330,8 +1313,6 @@ and parse_call_params f p1 s =
 			with
 			| Stream.Error _ | Stream.Failure ->
 				mk_null_expr (punion_next p1 s)
-			| Display e ->
-				display (f (List.rev (e :: acc)) (pos e))
 			in
 			let check_signature_mark e p2 =
 				if not (is_signature_display()) then e
@@ -1358,13 +1339,6 @@ and parse_call_params f p1 s =
 		| [< >] -> parse_next_param [] p1
 	end
 
-(* Parses an expression and catches Display exceptions. *)
-and toplevel_expr s =
-	try
-		expr s
-	with
-		Display e -> expr_next e s
-
 and secure_expr s =
 	expr_or_fail serror s
 
@@ -1373,7 +1347,7 @@ and secure_expr s =
    not accepted ones! *)
 and expr_or_fail fail s =
 	match s with parser
-	| [< e = toplevel_expr >] -> e
+	| [< e = expr >] -> e
 	| [< >] -> if !in_display then begin
 		let last = last_token s in
 		let plast = pos last in
