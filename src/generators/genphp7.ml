@@ -2413,12 +2413,20 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "keepVar" -> ()
 				| _ -> ctx.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
 		(**
-			Writes plain php code (for `php.Syntax.php()`)
+			Writes plain php code (for `php.Syntax.code()`)
 		*)
 		method write_expr_syntax_code args =
 			match args with
 				| [] -> fail self#pos __POS__
 				| { eexpr = TConst (TString php) } :: args ->
+					let args = List.map
+						(fun arg ->
+							match (reveal_expr arg).eexpr with
+								| TBinop _ | TUnop _ -> parenthesis arg
+								| _ -> arg
+						)
+						args
+					in
 					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
 				| _ -> ctx.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**
