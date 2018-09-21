@@ -296,6 +296,14 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let inline_local_function ctx v e params t p =
+	(* create a fake class with a fake field to emulate inlining *)
+	let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
+	let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
+	c.cl_extern <- true;
+	c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
+	AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -338,20 +346,14 @@ let rec type_ident_raise ctx i p mode =
 	try
 		let v = PMap.find i ctx.locals in
 		(match v.v_extra with
-		| Some (params,e) ->
+		| Some (params,e,inline) ->
 			let t = monomorphs params v.v_type in
-			(match e with
-			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
+			(match e,inline with
+			| { eexpr = TFunction f },true when ctx.com.display.dms_inline ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
-					| MCall ->
-						(* create a fake class with a fake field to emulate inlining *)
-						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
-						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-						c.cl_extern <- true;
-						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+					| MCall -> inline_local_function ctx v e params t p
 				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
@@ -2031,7 +2033,7 @@ and type_local_function ctx name inline f with_type p =
 		| Some v ->
 			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
-			if params <> [] then v.v_extra <- Some (params,None);
+			if params <> [] then v.v_extra <- Some (params,(mk (TConst TNull) t_dynamic null_pos),false);
 			Some v
 	) in
 	let curfun = match ctx.curfun with
@@ -2053,7 +2055,7 @@ and type_local_function ctx name inline f with_type p =
 	| Some v ->
 		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
-		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+		v.v_extra <- Some (params,e,inline);
 		let rec loop = function
 			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
 			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
@@ -2269,19 +2271,41 @@ and type_meta ctx m e1 with_type p =
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.Inline,_,_) ->
 			begin match fst e1 with
+			| ECall(e1,el) ->
+				type_call ctx e1 el WithType.value true p
+			| ENew (t,el) ->
+				let e = type_new ctx t el with_type p in
+				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| EFunction(Some(_) as name,e1) ->
 				type_local_function ctx name true e1 with_type p
 			| _ ->
+				display_error ctx "Call or function expected after inline keyword" p;
 				e();
-			end;
+			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
 	e
 
-and type_call ctx e el (with_type:WithType.t) p =
+and type_call ctx e el (with_type:WithType.t) inline p =
 	let def () =
 		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+		let e = if not inline then
+			e
+		else match e with
+			| AKExpr {eexpr = TField(e1,fa)} ->
+				begin match extract_field fa with
+				| Some cf ->
+					let t = monomorphs cf.cf_params cf.cf_type in
+					AKInline(e1,cf,fa,t)
+				| None ->
+					e
+				end;
+			| AKExpr {eexpr = TLocal ({v_extra = Some(params,({eexpr = TFunction _} as e1),_)} as v)} ->
+				let t = monomorphs params v.v_type in
+				inline_local_function ctx v e1 params t p
+			| _ -> e
+		in
 		let e = build_call ctx e el with_type p in
 		e
 	in
@@ -2456,7 +2480,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type p
+		type_call ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type p
 	| EUnop (op,flag,e) ->
