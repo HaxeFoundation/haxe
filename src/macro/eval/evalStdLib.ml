@@ -1980,7 +1980,7 @@ module StdString = struct
 				vint (max 0 (min i this.slength))
 			end else begin
 				let i = default_int startIndex (this.slength - 1) in
-				if i >= this.slength || i < 0 then raise Not_found;
+				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
 				let s = this.sstring in
 				if this.sascii then
 					vint (Str.search_backward (Str.regexp_string str.sstring) s i)
