@@ -1045,7 +1045,9 @@ and parse_function p1 inl = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			EFunction ((match name with None -> None | Some (name,pn) -> Some ((if inl then "inline_" ^ name else name),pn)),f), punion p1 (pos e)
+			let e = EFunction ((match name with None -> None | Some (name,pn) -> Some (name,pn)),f), punion p1 (pos e) in
+			if inl then make_meta Meta.Inline [] e p1
+			else e
 		in
 		make (secure_expr s)
 
