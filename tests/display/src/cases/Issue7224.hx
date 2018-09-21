@@ -5,7 +5,7 @@ class Issue7224 extends DisplayTestCase {
 	typedef Nope = Int;
 
 	class Bar {
-		function new() {}
+		public function new() {}
 	}
 	typedef Foo = Bar;
 

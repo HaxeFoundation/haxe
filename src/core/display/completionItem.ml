@@ -49,6 +49,7 @@ module CompletionModuleType = struct
 
 	type not_bool =
 		| Yes
+		| YesButPrivate
 		| No
 		| Maybe
 
@@ -74,9 +75,14 @@ module CompletionModuleType = struct
 
 	let of_type_decl pack module_name (td,p) = match td with
 		| EClass d ->
-			let ctor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes
-				else if (List.exists (function HExtends _ -> true | _ -> false) d.d_flags) then Maybe
-				else No
+			let ctor =
+				try
+					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					if List.mem HExtern d.d_flags || List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes
+					else YesButPrivate
+				with Not_found ->
+					if (List.exists (function HExtends _ -> true | _ -> false) d.d_flags) then Maybe
+					else No
 			in
 			{
 				pack = pack;
@@ -125,7 +131,15 @@ module CompletionModuleType = struct
 				has_constructor = if kind = Struct then No else Maybe;
 				source = Syntax td;
 			}
-		| EAbstract d -> {
+		| EAbstract d ->
+			let ctor =
+				try
+					let cff = List.find (fun cff -> fst cff.cff_name = "new") d.d_data in
+					if List.exists (fun (acc,_) -> acc = APublic) cff.cff_access then Yes else YesButPrivate
+				with Not_found ->
+					No
+			in
+			{
 				pack = pack;
 				name = fst d.d_name;
 				module_name = module_name;
@@ -137,32 +151,44 @@ module CompletionModuleType = struct
 				is_extern = List.mem AbExtern d.d_flags;
 				is_final = false;
 				kind = if Meta.has Meta.Enum d.d_meta then EnumAbstract else Abstract;
-				has_constructor = if (List.exists (fun cff -> fst cff.cff_name = "new") d.d_data) then Yes else No;
+				has_constructor = ctor;
 				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
 			raise Exit
 
 	let of_module_type mt =
-		let has_ctor a = match a.a_impl with
-			| None -> false
-			| Some c -> PMap.mem "_new" c.cl_statics
+		let actor a = match a.a_impl with
+			| None -> No
+			| Some c ->
+				try
+					let cf = PMap.find "_new" c.cl_statics in
+					if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+				with Not_found ->
+					No
 		in
-		let is_extern,is_final,kind,has_ctor = match mt with
+		let ctor c =
+			try
+				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
+				if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+			with Not_found ->
+				No
+		in
+		let is_extern,is_final,kind,ctor = match mt with
 			| TClassDecl c ->
-				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),has_constructor c
+				c.cl_extern,c.cl_final,(if c.cl_interface then Interface else Class),ctor c
 			| TEnumDecl en ->
-				en.e_extern,false,Enum,false
+				en.e_extern,false,Enum,No
 			| TTypeDecl td ->
-				let kind,has_ctor = match follow td.t_type with
-					| TAnon _ -> Struct,false
-					| TInst(c,_) -> TypeAlias,has_constructor c
-					| TAbstract(a,_) -> TypeAlias,has_ctor a
-					| _ -> TypeAlias,false
+				let kind,ctor = match follow td.t_type with
+					| TAnon _ -> Struct,No
+					| TInst(c,_) -> TypeAlias,ctor c
+					| TAbstract(a,_) -> TypeAlias,actor a
+					| _ -> TypeAlias,No
 				in
-				false,false,kind,has_ctor
+				false,false,kind,ctor
 			| TAbstractDecl a ->
-				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),has_ctor a
+				false,false,(if Meta.has Meta.Enum a.a_meta then EnumAbstract else Abstract),actor a
 		in
 		let infos = t_infos mt in
 		let convert_type_param (s,t) = match follow t with
@@ -187,7 +213,7 @@ module CompletionModuleType = struct
 			is_extern = is_extern;
 			is_final = is_final;
 			kind = kind;
-			has_constructor = if has_ctor then Yes else No;
+			has_constructor = ctor;
 			source = Typed mt;
 		}
 
