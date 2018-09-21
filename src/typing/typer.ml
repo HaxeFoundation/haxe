@@ -35,7 +35,7 @@ open Calls
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_kind = VUser (TVOLocalFinal | TVOPatternFinal)} ->
+	| TLocal {v_final = true} ->
 		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
@@ -1488,7 +1488,8 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local_with_origin ctx (if final then TVOLocalFinal else TVOLocalVariable) v t pv in
+			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
+			if final then v.v_final <- true;
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
@@ -1981,17 +1982,16 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx name f with_type p =
+and type_local_function ctx name inline f with_type p =
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
 	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
-	let inline,v,pname = (match name with
-		| None -> false,None,p
-		| Some (v,pn) when ExtString.String.starts_with v "inline_" -> true,Some (String.sub v 7 (String.length v - 7)),pn
-		| Some (v,pn) -> false,Some v,pn
+	let v,pname = (match name with
+		| None -> None,p
+		| Some (v,pn) -> Some v,pn
 	) in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
@@ -2070,7 +2070,7 @@ and type_local_function ctx name f with_type p =
 				mk (TLocal v) ft p
 			]) ft p) in
 			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end else if inline && not ctx.in_display then
+		end else if inline && not ctx.com.display.dms_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 		else
 			mk (TVar (v,Some e)) ctx.t.tvoid p
@@ -2484,7 +2484,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
-		type_local_function ctx name f with_type p
+		type_local_function ctx name false f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;

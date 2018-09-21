@@ -195,7 +195,7 @@ module type InterpApi = sig
 
 	val flush_core_context : (unit -> t) -> t
 
-	val handle_decoding_error : value -> Type.t -> (string * (string * int) list)
+	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 end
 

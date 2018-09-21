@@ -1035,6 +1035,11 @@ extern class Global {
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.stream-get-contents.php
+	**/
+	static function stream_get_contents( handle:Resource, maxlength:Int = -1, offset:Int = -1 ) : EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php
 	**/
 	static function stream_socket_shutdown( stream:Resource, how:Int ) : Bool;

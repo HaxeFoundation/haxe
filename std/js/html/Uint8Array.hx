@@ -24,9 +24,6 @@
 
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.Uint8Array;
-
 @:native("Uint8Array")
 extern class Uint8Array implements ArrayBufferView implements ArrayAccess<Int>
 {

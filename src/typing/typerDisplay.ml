@@ -438,6 +438,18 @@ let handle_display ctx e_ast dk with_type =
 			| ITType({kind = (Class | Abstract | TypeAlias)} as mt,_) when not mt.is_private || is_private_to_current_module mt ->
 				begin match mt.has_constructor with
 				| Yes -> true
+				| YesButPrivate ->
+					if (Meta.has Meta.PrivateAccess ctx.meta) then true
+					else begin
+						let path = (mt.pack,mt.name) in
+						let rec loop c =
+							if c.cl_path = path then true
+							else match c.cl_super with
+								| Some(c,_) -> loop c
+								| None -> false
+						in
+						loop ctx.curclass
+					end
 				| No -> false
 				| Maybe ->
 					begin try

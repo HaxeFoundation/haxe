@@ -17,16 +17,17 @@ module ReferencePosition = struct
 end
 
 module ExprPreprocessing = struct
-	let find_before_pos com dm e =
+	let find_before_pos dm e =
 
 		let display_pos = ref (!DisplayPosition.display_position) in
+		let was_annotated = ref false in
 		let is_annotated,is_completion = match dm with
-			| DMDefault -> (fun p -> encloses_position !display_pos p),true
-			| DMHover -> (fun p -> encloses_position_gt !display_pos p),false
-			| _ -> (fun p -> encloses_position !display_pos p),false
+			| DMDefault -> (fun p -> not !was_annotated && encloses_position !display_pos p),true
+			| DMHover -> (fun p -> not !was_annotated && encloses_position_gt !display_pos p),false
+			| _ -> (fun p -> not !was_annotated && encloses_position !display_pos p),false
 		in
 		let annotate e dk =
-			display_pos := { pfile = ""; pmin = -2; pmax = -2 };
+			was_annotated := true;
 			(EDisplay(e,dk),pos e)
 		in
 		let annotate_marked e = annotate e DKMarked in
@@ -86,7 +87,7 @@ module ExprPreprocessing = struct
 				in
 				let vl,mark = loop2 [] false vl in
 				let e = EVars (List.rev vl),pos e in
-				if mark then annotate_marked e else e
+				if !was_annotated then e else raise Exit
 			| EBinop((OpAssign | OpAssignOp _) as op,e1,e2) when is_annotated (pos e) && is_completion ->
 				(* Special case for assign ops: If the expression is marked, but none of its operands are,
 				   we are "probably" interested in the rhs. Like with EVars, this isn't accurate because we
@@ -179,7 +180,7 @@ module ExprPreprocessing = struct
 
 
 	let process_expr com e = match com.display.dms_kind with
-		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com com.display.dms_kind e
+		| DMDefinition | DMTypeDefinition | DMUsage _ | DMHover | DMDefault -> find_before_pos com.display.dms_kind e
 		| DMSignature -> find_display_call e
 		| _ -> e
 end

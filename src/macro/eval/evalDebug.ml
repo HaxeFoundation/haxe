@@ -49,7 +49,7 @@ let rec run_loop ctx wait run env : value =
 		| DbgWaiting | DbgStart ->
 			wait ctx run env
 
-let debug_loop jit e f =
+let debug_loop jit conn e f =
 	let ctx = jit.ctx in
 	let scopes = jit.scopes in
 	let line,col1,_,_ = Lexer.get_pos_coords e.epos in
@@ -62,10 +62,6 @@ let debug_loop jit e f =
 		| Some e -> match expr_to_value_safe ctx env e with
 			| VTrue -> true
 			| _ -> false
-	in
-	let conn = match ctx.debug.debug_socket with
-		| Some socket -> EvalDebugSocket.make_connection socket
-		| None -> EvalDebugCLI.connection
 	in
 	let debugger_catches v = match ctx.debug.exception_mode with
 		| CatchAll -> true
@@ -90,7 +86,8 @@ let debug_loop jit e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when debugger_catches v ->
+		| RunTimeException(v,_,_) when debugger_catches v && ctx.debug.caught_exception != v ->
+			ctx.debug.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env

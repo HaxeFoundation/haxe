@@ -32,7 +32,7 @@ STATICLINK?=0
 HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib rope ptmap sha
+OPAM_LIBS=sedlex xml-light extlib ptmap sha
 
 FINDLIB_LIBS=$(OCAML_LIBS)
 FINDLIB_LIBS+=$(OPAM_LIBS)

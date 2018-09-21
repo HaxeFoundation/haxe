@@ -39,7 +39,6 @@ type syntax_completion =
 
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
-exception Display of expr
 exception SyntaxCompletion of syntax_completion * pos
 
 let error_msg = function
@@ -130,8 +129,6 @@ let get_doc s =
 			if pos = p.pmin then Some d else None
 
 let serror() = raise (Stream.Error "")
-
-let display e = raise (Display e)
 
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }

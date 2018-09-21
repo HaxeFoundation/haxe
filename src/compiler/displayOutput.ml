@@ -68,7 +68,9 @@ let print_fields fields =
 			"type",snd path,s_type_path path,None
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
-		| ITMetadata(s,doc) -> "metadata",s,"",doc
+		| ITMetadata  meta ->
+			let s,(doc,_) = Meta.get_info meta in
+			"metadata","@" ^ s,"",Some doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
@@ -387,6 +389,10 @@ module TypePathHandler = struct
 				| _ -> p,c
 			in
 			let ctx = Typer.create com in
+			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
+			   does not raise another TypePath exception. However, we still want to have it treated like the
+			   display file, so we just set the position to 0 (#6558). *)
+			DisplayPosition.display_position := {!DisplayPosition.display_position with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					TypeloadModule.load_module ctx (p,s_module) null_pos

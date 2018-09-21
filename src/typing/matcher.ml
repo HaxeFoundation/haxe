@@ -61,7 +61,7 @@ let get_general_module_type ctx mt p =
 	Typeload.load_instance ctx ({tname=loop mt;tpackage=[];tsub=None;tparams=[]},p) true
 
 module Constructor = struct
-	type t =
+	type t_kind =
 		| ConConst of tconstant
 		| ConEnum of tenum * tenum_field
 		| ConStatic of tclass * tclass_field
@@ -69,7 +69,9 @@ module Constructor = struct
 		| ConFields of string list
 		| ConArray of int
 
-	let to_string con = match con with
+	type t = t_kind * pos
+
+	let to_string con = match fst con with
 		| ConConst ct -> s_const ct
 		| ConEnum(en,ef) -> ef.ef_name
 		| ConStatic(c,cf) -> Printf.sprintf "%s.%s" (s_type_path (match c.cl_kind with KAbstractImpl a -> a.a_path | _ -> c.cl_path)) cf.cf_name
@@ -77,7 +79,7 @@ module Constructor = struct
 		| ConFields fields -> Printf.sprintf "{ %s }" (String.concat ", " fields)
 		| ConArray i -> Printf.sprintf "<array %i>" i
 
-	let equal con1 con2 = match con1,con2 with
+	let equal con1 con2 = match fst con1,fst con2 with
 		| ConConst ct1,ConConst ct2 -> ct1 = ct2
 		| ConEnum(en1,ef1),ConEnum(en2,ef2) -> en1 == en2 && ef1 == ef2
 		| ConStatic(c1,cf1),ConStatic(c2,cf2) -> c1 == c2 && cf1 == cf2
@@ -86,7 +88,7 @@ module Constructor = struct
 		| ConArray i1,ConArray i2 -> i1 = i2
 		| _ -> false
 
-	let arity con = match con with
+	let arity con = match fst con with
 		| ConEnum (_,{ef_type = TFun(args,_)}) -> List.length args
 		| ConEnum _ -> 0
 		| ConConst _ -> 0
@@ -95,7 +97,7 @@ module Constructor = struct
 		| ConTypeExpr _ -> 0
 		| ConStatic _ -> 0
 
-	let compare con1 con2 = match con1,con2 with
+	let compare con1 con2 = match fst con1,fst con2 with
 		| ConConst ct1,ConConst ct2 -> compare ct1 ct2
 		| ConEnum(en1,ef1),ConEnum(en2,ef2) -> compare ef1.ef_index ef2.ef_index
 		| ConStatic(c1,cf1),ConStatic(c2,cf2) -> compare cf1.cf_name cf2.cf_name
@@ -106,7 +108,9 @@ module Constructor = struct
 
 	open Typecore
 
-	let to_texpr ctx match_debug p con = match con with
+	let to_texpr ctx match_debug con =
+		let p = pos con in
+		match fst con with
 		| ConEnum(en,ef) ->
 			if Meta.has Meta.FakeEnum en.e_meta then begin
 				let e_mt = TyperBase.type_module_type ctx (TEnumDecl en) None p in
@@ -119,7 +123,7 @@ module Constructor = struct
 		| ConStatic(c,cf) -> make_static_field c cf p
 		| ConFields _ -> error "Something went wrong" p
 
-	let hash = Hashtbl.hash
+	let hash con = Hashtbl.hash (fst con)
 end
 
 module Pattern = struct
@@ -184,7 +188,8 @@ module Pattern = struct
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				v
 			| _ ->
-				let v = alloc_var (VUser (if final then TVOPatternFinal else TVOPatternVariable)) name t p in
+				let v = alloc_var (VUser TVOPatternVariable) name t p in
+				if final then v.v_final <- true;
 				pctx.current_locals <- PMap.add name (v,p) pctx.current_locals;
 				ctx.locals <- PMap.add name v ctx.locals;
 				v
@@ -192,8 +197,13 @@ module Pattern = struct
 		let con_enum en ef p =
 			DeprecationCheck.check_enum pctx.ctx.com en p;
 			DeprecationCheck.check_ef pctx.ctx.com ef p;
-			ConEnum(en,ef)
+			ConEnum(en,ef),p
 		in
+		let con_static c cf p = ConStatic(c,cf),p in
+		let con_const ct p = ConConst ct,p in
+		let con_type_expr mt p = ConTypeExpr mt,p in
+		let con_array i p = ConArray i,p in
+		let con_fields fl p = ConFields fl,p in
 		let check_expr e =
 			let rec loop e = match e.eexpr with
 				| TField(_,FEnum(en,ef)) ->
@@ -201,9 +211,9 @@ module Pattern = struct
 					(* (match follow ef.ef_type with TFun _ -> raise Exit | _ -> ()); *)
 					PatConstructor(con_enum en ef e.epos,[])
 				| TField(_,FStatic(c,({cf_kind = Var {v_write = AccNever}} as cf))) ->
-					PatConstructor(ConStatic(c,cf),[])
+					PatConstructor(con_static c cf e.epos,[])
 				| TConst ct ->
-					PatConstructor(ConConst ct,[])
+					PatConstructor(con_const ct e.epos,[])
 				| TCast(e1,None) ->
 					loop e1
 				| TField _ ->
@@ -221,7 +231,7 @@ module Pattern = struct
 			match e.eexpr with
 				| TTypeExpr mt ->
 					unify_type_pattern ctx mt t e.epos;
-					PatConstructor(ConTypeExpr mt,[])
+					PatConstructor(con_type_expr mt e.epos,[])
 				| _ ->
 					let pat = check_expr e in
 					begin try
@@ -295,10 +305,11 @@ module Pattern = struct
 				pctx.in_reification <- old;
 				e
 			| EConst((Ident ("false" | "true") | Int _ | String _ | Float _) as ct) ->
+				let p = pos e in
 				let e = Texpr.type_constant ctx.com.basic ct p in
 				unify_expected e.etype;
 				let ct = match e.eexpr with TConst ct -> ct | _ -> assert false in
-				PatConstructor(ConConst ct,[])
+				PatConstructor(con_const ct p,[])
 			| EConst (Ident i) ->
 				begin match follow t with
 					| TFun(ta,tr) when tr == fake_tuple_type ->
@@ -371,7 +382,7 @@ module Pattern = struct
 						let patterns = ExtList.List.mapi (fun i e ->
 							make pctx false t2 e
 						) el in
-						PatConstructor(ConArray (List.length patterns),patterns)
+						PatConstructor(con_array (List.length patterns) (pos e),patterns)
 					| _ ->
 						fail()
 				end
@@ -428,7 +439,7 @@ module Pattern = struct
 							patterns,fields
 				) ([],[]) known_fields in
 				List.iter (fun ((s,_,_),e) -> if not (List.mem s fields) then error (Printf.sprintf "%s has no field %s" (s_type t) s) (pos e)) fl;
-				PatConstructor(ConFields fields,patterns)
+				PatConstructor(con_fields fields (pos e),patterns)
 			| EBinop(OpOr,e1,e2) ->
 				let pctx1 = {pctx with current_locals = PMap.empty} in
 				let pat1 = make pctx1 toplevel t e1 in
@@ -704,7 +715,7 @@ module Useless = struct
 					let s = specialize false con pM in
 					u s (patterns @ ql)
 				| PatTuple patterns ->
-					let s = specialize true (ConConst TNull) pM in
+					let s = specialize true (ConConst TNull,pos pat) pM in
 					u s (patterns @ ql)
 				| (PatVariable _ | PatAny) ->
 					let d = default pM in
@@ -804,7 +815,7 @@ module Useless = struct
 					let pM,qM,rM = specialize' false con pM qM rM in
 					u' pM qM rM (patterns @ pl) q r
 				| PatTuple patterns ->
-					let pM,qM,rM = specialize' true (ConConst TNull) pM qM rM in
+					let pM,qM,rM = specialize' true (ConConst TNull,pos pat) pM qM rM in
 					u' pM qM rM (patterns @ pl) q r
 				| PatAny | PatVariable _ ->
 					let pM,qM = transfer_column pM qM in
@@ -871,7 +882,7 @@ module Compile = struct
 	let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
 	let rec get_sub_subjects mctx e con =
-		match con with
+		match fst con with
 		| ConEnum(en,ef) ->
 			let tl = List.map (fun _ -> mk_mono()) en.e_params in
 			let t_en = TEnum(en,tl) in
@@ -1052,7 +1063,7 @@ module Compile = struct
 			let null = ref [] in
 			List.iter (fun (case,bindings,patterns) ->
 				let rec loop bindings pat = match fst pat with
-					| PatConstructor(ConConst TNull,_) ->
+					| PatConstructor((ConConst TNull,_),_) ->
 						null := (case,bindings,List.tl patterns) :: !null;
 					| PatConstructor(con,_) ->
 						if case.case_guard = None then ConTable.replace unguarded con true;
@@ -1190,7 +1201,7 @@ module TexprConverter = struct
 		| SKLength -> "length"
 
 	let unify_constructor ctx params t con =
-		match con with
+		match fst con with
 		| ConEnum(en,ef) ->
 			let t_ef = match follow ef.ef_type with TFun(_,t) -> t | _ -> ef.ef_type in
 			let t_ef = apply_params ctx.type_params params (monomorphs en.e_params (monomorphs ef.ef_params t_ef)) in
@@ -1220,7 +1231,7 @@ module TexprConverter = struct
 					(* error "Could not determine switch kind, make sure the type is known" e.epos; *)
 					t_dynamic
 				in
-				let t = match con with
+				let t = match fst con with
 					| ConEnum(en,_) -> TEnum(en,List.map snd en.e_params)
 					| ConArray _ -> ctx.t.tarray t_dynamic
 					| ConConst ct ->
@@ -1249,16 +1260,16 @@ module TexprConverter = struct
 		in
 		let rec loop t = match follow t with
 			| TAbstract({a_path = [],"Bool"},_) ->
-				add (ConConst(TBool true));
-				add (ConConst(TBool false));
+				add (ConConst(TBool true),null_pos);
+				add (ConConst(TBool false),null_pos);
 				SKValue,RunTimeFinite
 			| TAbstract({a_impl = Some c} as a,pl) when Meta.has Meta.Enum a.a_meta ->
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
 					if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
 						| Some {eexpr = TConst ct | TCast ({eexpr = TConst ct},None)} ->
-							if ct != TNull then add (ConConst ct)
-						| _ -> add (ConStatic(c,cf))
+							if ct != TNull then add (ConConst ct,null_pos)
+						| _ -> add (ConStatic(c,cf),null_pos)
 				) c.cl_ordered_statics;
 				SKValue,CompileTimeFinite
 			| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
@@ -1269,7 +1280,7 @@ module TexprConverter = struct
 			| TInst({cl_path=[],"Array"},_) ->
 				SKLength,Infinite
 			| TEnum(en,pl) ->
-				PMap.iter (fun _ ef -> add (ConEnum(en,ef))) en.e_constrs;
+				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
 				if Meta.has Meta.FakeEnum en.e_meta then
 					SKFakeEnum,CompileTimeFinite
 				else
@@ -1282,7 +1293,7 @@ module TexprConverter = struct
 				SKValue,Infinite
 		in
 		let kind,finiteness = loop t in
-		let compatible_kind con = match con with
+		let compatible_kind con = match fst con with
 			| ConEnum _ -> kind = SKEnum || kind = SKFakeEnum
 			| ConArray _ -> kind = SKLength
 			| _ -> kind = SKValue
@@ -1297,7 +1308,7 @@ module TexprConverter = struct
 	let report_not_exhaustive e_subject unmatched =
 		let sl = match follow e_subject.etype with
 			| TAbstract({a_impl = Some c} as a,tl) when Meta.has Meta.Enum a.a_meta ->
-				List.map (fun (con,_) -> match con with
+				List.map (fun (con,_) -> match fst con with
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->
 							match cf.cf_expr with
@@ -1346,7 +1357,7 @@ module TexprConverter = struct
 							| Some e -> e
 							| None -> mk (TBlock []) ctx.t.tvoid case.case_pos
 						end
-					| Switch(_,[ConFields _,_,dt],_) -> (* TODO: Can we improve this by making it more general? *)
+					| Switch(_,[(ConFields _,_),_,dt],_) -> (* TODO: Can we improve this by making it more general? *)
 						loop false params dt
 					| Switch(e_subject,cases,default) ->
 						let e_subject,unmatched,kind,finiteness = all_ctors ctx e_subject cases in
@@ -1386,7 +1397,7 @@ module TexprConverter = struct
 							let eo = loop false params dt in
 							begin match eo with
 								| None -> None
-								| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug dt.dt_pos) (List.sort Constructor.compare cons),e)
+								| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug) (List.sort Constructor.compare cons),e)
 							end
 						) cases in
 						let e_subject = match kind with
@@ -1446,7 +1457,7 @@ module TexprConverter = struct
 						with Not_exhaustive ->
 							if toplevel then (fun () -> loop false params dt2)
 							else if ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore then (fun () -> mk (TConst TNull) (mk_mono()) dt2.dt_pos)
-							else report_not_exhaustive e [ConConst TNull,dt.dt_pos]
+							else report_not_exhaustive e [(ConConst TNull,dt.dt_pos),dt.dt_pos]
 						in
 						f()
 					| Bind(bl,dt) ->
