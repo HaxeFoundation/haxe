@@ -2276,8 +2276,10 @@ and type_meta ctx m e1 with_type p =
 			| ENew (t,el) ->
 				let e = type_new ctx t el with_type p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
+			| EFunction(Some(_) as name,e1) ->
+				type_local_function ctx name true e1 with_type p
 			| _ ->
-				display_error ctx "Call expected after inline keyword" p;
+				display_error ctx "Call or function expected after inline keyword" p;
 				e();
 			end
 		| _ -> e()
