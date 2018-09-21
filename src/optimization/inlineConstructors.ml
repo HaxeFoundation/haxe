@@ -98,7 +98,7 @@ let inline_constructors ctx e =
 			| IOKCtor(_,isextern,vars) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
 				if isextern then begin
-					display_error ctx "Extern constructor could not be inlined" io.io_pos;
+					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ctx "Cancellation happened here" p;
 				end
 			| _ -> ()
@@ -246,7 +246,8 @@ let inline_constructors ctx e =
 				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+					let forced = is_extern_ctor c cf || (match e.eexpr with TMeta _ -> true | _ -> false) in
+					let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 					let rec loop (c:tclass) (tl:t list) =
 						let apply = apply_params c.cl_params tl in
 						List.iter (fun cf ->
