@@ -694,6 +694,9 @@ private class HxString {
 			startIndex = 0;
 		} else {
 			startIndex = startIndex - str.length;
+			if(startIndex > 0) {
+				startIndex = 0;
+			}
 		}
 		var index = Global.mb_strrpos(str, search, startIndex, 'UTF-8');
 		if (index == false) {
