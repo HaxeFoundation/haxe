@@ -650,13 +650,13 @@ let find_doc t =
 
 let handle_syntax_completion com kind p =
 	let open Parser in
-	let l = match kind with
+	let l,kind = match kind with
 		| SCClassRelation ->
-			[Extends;Implements]
+			[Extends;Implements],CRTypeRelation
 		| SCInterfaceRelation ->
-			[Extends]
+			[Extends],CRTypeRelation
 		| SCComment ->
-			[]
+			[],CRTypeRelation
 		| SCTypeDecl mode ->
 			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
@@ -664,7 +664,7 @@ let handle_syntax_completion com kind p =
 				| TCAfterImport -> Import :: Using :: l
 				| TCAfterType -> l
 			in
-			l
+			l,CRTypeDecl
 		| SCAfterTypeFlag flags ->
 			let l = [Class;Interface] in
 			let l = if List.mem DPrivate flags then l else Private :: l in
@@ -672,7 +672,7 @@ let handle_syntax_completion com kind p =
 			let l = if List.mem DFinal flags then l else
 				Final :: Enum :: Abstract :: Typedef :: l
 			in
-			l
+			l,CRTypeDecl
 	in
 	match l with
 	| [] ->
@@ -692,4 +692,4 @@ let handle_syntax_completion com kind p =
 			raise (Completion s)
 		| Some(f,_) ->
 			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None)
+			f(fields_to_json ctx l kind None)
