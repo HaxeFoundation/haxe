@@ -1005,7 +1005,8 @@ with
 			| CRUsing
 			| CRNew
 			| CRPattern _
-			| CRTypeRelation ->
+			| CRTypeRelation
+			| CRTypeDecl ->
 				DisplayOutput.print_toplevel fields
 			| CRField _
 			| CRStructureField
