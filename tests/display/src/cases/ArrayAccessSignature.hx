@@ -78,7 +78,7 @@ class ArrayAccessSignature extends DisplayTestCase {
 	**/
 	function testMap1() {
 		// because screw consistency
-		sigEq(0, [["key:Int"], ["k:Int"]], signature(pos(1)));
+		sigEq(0, [["key:Int"], ["k:Int", "v:Int"]], signature(pos(1)));
 	}
 
 	/**
@@ -91,6 +91,27 @@ class ArrayAccessSignature extends DisplayTestCase {
 	}
 	**/
 	function testInCall1() {
-		sigEq(0, [["key:Int"], ["k:Int"]], signature(pos(1)));
+		sigEq(0, [["key:Int"], ["k:Int", "v:Int"]], signature(pos(1)));
+	}
+
+	/**
+	abstract MyArray<T>(Array<T>) {
+		public function new() this = [];
+
+		@:op([])
+		function arrayRead(k:Int):T return cast this[k];
+
+		@:op([])
+		function arrayReadWrite(k:Int, v:T) this[k] = v;
+	}
+	class Some {
+		function main() {
+			var m = new MyArray();
+			var k = m[{-1-}
+		}
+	}
+	**/
+	function testVoidReturn() {
+		sigEq(0, [["k:Int"]], signature(pos(1)));
 	}
 }
