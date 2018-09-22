@@ -161,16 +161,21 @@ module ExprPreprocessing = struct
 
 	let find_display_call e =
 		let found = ref false in
+		let handle_el e el =
+			let call_arg_is_marked () =
+				el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
+			in
+			if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
+			found := true;
+			Parser.mk_display_expr e DKCall
+			end else
+				e
+		in
 		let loop e = match fst e with
 			| ECall(_,el) | ENew(_,el) when not !found && encloses_display_position (pos e) ->
-				let call_arg_is_marked () =
-					el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
-				in
-				if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
-				found := true;
-				Parser.mk_display_expr e DKCall
-				end else
-					e
+				handle_el e el
+			| EArray(e1,e2) when not !found && encloses_display_position (pos e2) ->
+				handle_el e [e2]
 			| EDisplay(_,DKCall) ->
 				raise Exit
 			| _ -> e

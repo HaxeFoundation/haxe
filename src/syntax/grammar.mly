@@ -1281,8 +1281,9 @@ and expr_next' e1 = parser
 		| _ -> assert false)
 	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
-	| [< '(BkOpen,_); e2 = secure_expr; s >] ->
+	| [< '(BkOpen,p1); e2 = secure_expr; s >] ->
 		let p2 = expect_unless_resume_p bkclose s in
+		let e2 = check_signature_mark e2 p1 p2 in
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
 		let er = expr s in
@@ -1387,29 +1388,16 @@ and parse_call_params f p1 s =
 			| Stream.Error _ | Stream.Failure ->
 				mk_null_expr (punion_next p1 s)
 			in
-			let check_signature_mark e p2 =
-				if not (is_signature_display()) then e
-				else begin
-					let p = punion p1 p2 in
-					if true || not !was_auto_triggered then begin (* TODO: #6383 *)
-						if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
-						else e
-					end else begin
-						if !display_position.pmin = p1.pmax then (mk_display_expr e DKMarked)
-						else e
-					end
-				end
-			in
 			match s with parser
 			| [< '(PClose,p2) >] ->
-				let e = check_signature_mark e p2 in
+				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
 			| [< '(Comma,p2) >] ->
-				let e = check_signature_mark e p2 in
+				let e = check_signature_mark e p1 p2 in
 				parse_next_param (e :: acc) p2
 			| [< >] ->
 				let p2 = next_pos s in
-				let e = check_signature_mark e p2 in
+				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
 		in
 		match s with parser

@@ -296,4 +296,17 @@ let check_type_decl_completion mode pmax s =
 		(* print_endline (Printf.sprintf "(%i <= %i) (%i >= %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
 		if pmax <= !display_position.pmin && pmin >= !display_position.pmax then
 			delay_syntax_completion (SCTypeDecl mode) !display_position
-	end;
+	end
+
+let check_signature_mark e p1 p2 =
+	if not (is_signature_display()) then e
+	else begin
+		let p = punion p1 p2 in
+		if true || not !was_auto_triggered then begin (* TODO: #6383 *)
+			if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
+			else e
+		end else begin
+			if !display_position.pmin = p1.pmax then (mk_display_expr e DKMarked)
+			else e
+		end
+	end

@@ -183,7 +183,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
 		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
-		raise_signatures overloads 0 (* ? *) display_arg
+		raise_signatures overloads 0 (* ? *) display_arg SKCall
 	in
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
@@ -233,6 +233,26 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ENew(tpath,el) ->
 			let t = Typeload.load_instance ctx tpath true in
 			handle_call (find_constructor_types t) el (pos tpath)
+		| EArray(e1,e2) ->
+			let e1 = type_expr ctx e1 WithType.value in
+			begin match follow e1.etype with
+			| TInst({cl_path=([],"Array")},[t]) ->
+				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
+				raise_signatures [res,Some "The array index"] 0 0 SKCall
+			| TAbstract(a,tl) ->
+				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
+				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
+					| TFun(_ :: (n,o,t) :: _,r) ->
+						let t = apply_params a.a_params tl t in
+						let r = apply_params a.a_params tl r in
+						Some (convert_function_signature ctx PMap.empty ([(n,o,t)],r),cf.cf_doc)
+					| _ ->
+						None
+				) a.a_array in
+				raise_signatures sigs 0 0 SKArrayAccess
+			| _ ->
+				raise_signatures [] 0 0 SKArrayAccess
+			end
 		| _ -> error "Call expected" p
 
 and display_expr ctx e_ast e dk with_type p =
@@ -395,7 +415,7 @@ let handle_display ctx e_ast dk with_type =
 		let arg = ["expression",false,mono] in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
 		| _ ->
 			let t = TFun(arg,mono) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "expression")) (pos e_ast);
@@ -406,7 +426,7 @@ let handle_display ctx e_ast dk with_type =
 		let ret = ctx.com.basic.tvoid in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
 		| _ ->
 			let t = TFun(arg,ret) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "value")) (pos e_ast);
