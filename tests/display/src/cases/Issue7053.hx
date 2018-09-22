@@ -33,5 +33,60 @@ class Issue7053 extends DisplayTestCase {
 		for (expected in ["private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			eq(true, hasField(fields, expected, null, "keyword"));
 		}
+		for (unexpected in ["import", "using"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
+	}
+
+	/**
+	private {-1-}
+	**/
+	function testAfterPrivate() {
+		var fields = toplevel(pos(1));
+		for (expected in ["extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
+			eq(true, hasField(fields, expected, null, "keyword"));
+		}
+		for (unexpected in ["private"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
+	}
+
+	/**
+	extern {-1-}
+	**/
+	function testAFterExtern() {
+		var fields = toplevel(pos(1));
+		for (expected in ["private", "class", "interface", "enum", "abstract", "typedef", "final"]) {
+			eq(true, hasField(fields, expected, null, "keyword"));
+		}
+		for (unexpected in ["extern"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
+	}
+
+	/**
+	final {-1-}
+	**/
+	function testAFterFinal() {
+		var fields = toplevel(pos(1));
+		for (expected in ["private", "class", "interface", "extern"]) {
+			eq(true, hasField(fields, expected, null, "keyword"));
+		}
+		for (unexpected in ["final", "enum", "typedef", "abstract"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
+	}
+
+	/**
+	final extern {-1-}
+	**/
+	function testAFterFinalExtern() {
+		var fields = toplevel(pos(1));
+		for (expected in ["private", "class", "interface"]) {
+			eq(true, hasField(fields, expected, null, "keyword"));
+		}
+		for (unexpected in ["final", "enum", "typedef", "abstract", "extern"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
 	}
 }

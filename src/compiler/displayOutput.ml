@@ -649,17 +649,26 @@ let find_doc t =
 	doc
 
 let handle_syntax_completion com kind p =
+	let open Parser in
 	let l = match kind with
-		| Parser.SCClassRelation ->
+		| SCClassRelation ->
 			[Extends;Implements]
-		| Parser.SCInterfaceRelation ->
+		| SCInterfaceRelation ->
 			[Extends]
-		| Parser.SCComment ->
+		| SCComment ->
 			[]
-		| Parser.SCTypeDecl(had_package,had_non_import) ->
+		| SCTypeDecl(had_package,had_non_import) ->
 			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = if had_package then l else Package :: l in
 			let l = if had_non_import then l else Import :: Using :: l in
+			l
+		| SCAfterTypeFlag flags ->
+			let l = [Class;Interface] in
+			let l = if List.mem DPrivate flags then l else Private :: l in
+			let l = if List.mem DExtern flags then l else Extern :: l in
+			let l = if List.mem DFinal flags then l else
+				Final :: Enum :: Abstract :: Typedef :: l
+			in
 			l
 	in
 	match l with

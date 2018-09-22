@@ -32,11 +32,17 @@ type error_msg =
 	| Missing_type
 	| Custom of string
 
+type decl_flag =
+	| DPrivate
+	| DExtern
+	| DFinal
+
 type syntax_completion =
 	| SCComment
 	| SCClassRelation
 	| SCInterfaceRelation
 	| SCTypeDecl of bool (* had package *) * bool (* had non-import/using *)
+	| SCAfterTypeFlag of decl_flag list
 
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
@@ -58,11 +64,6 @@ let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
 let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
-
-type decl_flag =
-	| DPrivate
-	| DExtern
-	| DFinal
 
 let decl_flag_to_class_flag (flag,p) = match flag with
 	| DPrivate -> HPrivate

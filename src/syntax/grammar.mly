@@ -248,6 +248,16 @@ and parse_type_decl s =
 			}, punion p1 (pos t))
 		| [< a,p = parse_abstract doc meta c >] ->
 			EAbstract a,p
+		| [< >] ->
+			if not !in_display_file then raise Stream.Failure;
+			match c with
+			| [] -> raise Stream.Failure
+			| (_,p) :: _ ->
+				if would_skip_display_position p s then begin
+					let flags = List.map fst c in
+					syntax_completion (SCAfterTypeFlag flags) p
+				end;
+				raise Stream.Failure
 
 
 and parse_class doc meta cflags need_name s =
