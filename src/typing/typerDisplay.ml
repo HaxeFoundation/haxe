@@ -243,7 +243,7 @@ let rec handle_signature_display ctx e_ast with_type =
 				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
 					| TFun(_ :: args,r) ->
-						if ExtType.is_void (follow r) && (match with_type with NoValue -> false | _ -> true) then
+						if ExtType.is_void (follow r) && (match with_type with WithType.NoValue -> false | _ -> true) then
 							None
 						else begin
 							let map = apply_params a.a_params tl in
