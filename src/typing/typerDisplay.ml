@@ -242,10 +242,11 @@ let rec handle_signature_display ctx e_ast with_type =
 			| TAbstract(a,tl) ->
 				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
-					| TFun(_ :: (n,o,t) :: _,r) ->
-						let t = apply_params a.a_params tl t in
-						let r = apply_params a.a_params tl r in
-						Some (convert_function_signature ctx PMap.empty ([(n,o,t)],r),cf.cf_doc)
+					| TFun(_ :: args,r) ->
+						let map = apply_params a.a_params tl in
+						let tl = List.map (fun (n,o,t) -> n,o,map t) args in
+						let r = map r in
+						Some (convert_function_signature ctx PMap.empty (tl,r),cf.cf_doc)
 					| _ ->
 						None
 				) a.a_array in
