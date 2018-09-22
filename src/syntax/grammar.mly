@@ -130,17 +130,7 @@ let rec	parse_file s =
 
 and parse_type_decls mode pmax pack acc s =
 	try
-		(* We check if we hit the magic type path here *)
-		if !in_display_file then begin
-			let pmin = match Stream.peek s with
-				| Some (Eof,_) | None -> max_int
-				| Some tk -> (pos tk).pmin
-			in
-			(* print_endline (Printf.sprintf "(%i <= %i) (%i > %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
-			if pmax <= !display_position.pmin && pmin > !display_position.pmax then begin
-				delay_syntax_completion (SCTypeDecl mode) !display_position
-			end
-		end;
+		check_type_decl_completion mode pmax s;
 		match s with parser
 		| [< (v,p) = parse_type_decl mode >] ->
 			let mode = match v with
@@ -248,22 +238,7 @@ and parse_type_decl mode s =
 		| [< a,p = parse_abstract doc meta c >] ->
 			EAbstract a,p
 		| [< >] ->
-			if not !in_display_file then raise Stream.Failure;
-			let check_type_completion () = match Stream.peek s with
-				(* If there's an identifier coming up, it's probably an incomplete type
-				   declaration. Let's just raise syntax completion in that case because
-				   the parser would fail otherwise anyway. *)
-				| Some((Const(Ident _),p)) -> syntax_completion (SCTypeDecl mode) p
-				| _ -> raise Stream.Failure
-			in
-			match c with
-			| [] -> check_type_completion()
-			| (_,p) :: _ ->
-				if would_skip_display_position p s then begin
-					let flags = List.map fst c in
-					syntax_completion (SCAfterTypeFlag flags) p
-				end;
-				check_type_completion()
+			check_type_decl_flag_completion mode c s
 
 
 and parse_class doc meta cflags need_name s =

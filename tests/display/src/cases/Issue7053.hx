@@ -82,6 +82,18 @@ class Issue7053 extends DisplayTestCase {
 	}
 
 	/**
+	{-1-}class
+	**/
+	function testOnClass() {
+		var fields = toplevel(pos(1));
+		// technically, "package" should be here too. But I think the test system adds a
+		// package statement automatically, so it is omitted.
+		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
+			eq(true, hasField(fields, expected, null, "keyword"));
+		}
+	}
+
+	/**
 	private {-1-}
 	**/
 	function testAfterPrivate() {
