@@ -124,11 +124,11 @@ let rec	parse_file s =
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
 		begin match s with parser
 		| [< '(Const(Ident _),p) when pack = [] >] -> error (Custom "Package name must start with a lowercase character") p
-		| [< psem = semicolon; l = parse_type_decls psem.pmax pack []; '(Eof,_) >] -> pack , l
+		| [< psem = semicolon; l = parse_type_decls TCAfterImport psem.pmax pack []; '(Eof,_) >] -> pack , l
 		end
-	| [< l = parse_type_decls (-1) [] []; '(Eof,_) >] -> [] , l
+	| [< l = parse_type_decls TCBeforePackage (-1) [] []; '(Eof,_) >] -> [] , l
 
-and parse_type_decls pmax pack acc s =
+and parse_type_decls mode pmax pack acc s =
 	try
 		(* We check if we hit the magic type path here *)
 		if !in_display_file then begin
@@ -138,17 +138,16 @@ and parse_type_decls pmax pack acc s =
 			in
 			(* print_endline (Printf.sprintf "(%i <= %i) (%i > %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
 			if pmax <= !display_position.pmin && pmin > !display_position.pmax then begin
-				let had_package = pack <> [] in
-				let mode = match acc with
-					| [] -> if had_package then TCAfterImport else TCBeforePackage
-					| ((EClass _ | EEnum _ | ETypedef _ | EAbstract _),_) :: _ -> TCAfterType
-					| ((EImport _ | EUsing _),_) :: _ -> TCAfterImport
-				in
 				delay_syntax_completion (SCTypeDecl mode) !display_position
 			end
 		end;
 		match s with parser
-		| [< (v,p) = parse_type_decl; l = parse_type_decls p.pmax pack ((v,p) :: acc) >] -> l
+		| [< (v,p) = parse_type_decl mode >] ->
+			let mode = match v with
+				| EImport _ | EUsing _ -> TCAfterImport
+				| _ -> TCAfterType
+			in
+			parse_type_decls mode p.pmax pack ((v,p) :: acc) s
 		| [< >] -> List.rev acc
 	with
 	| TypePath ([],Some (name,false),b,p) ->
@@ -164,7 +163,7 @@ and parse_type_decls pmax pack acc s =
 		raise (TypePath (pack,Some(name,true),b,p))
 	| Stream.Error _ when !in_display ->
 		ignore(resume false false s);
-		parse_type_decls (last_pos s).pmax pack acc s
+		parse_type_decls mode (last_pos s).pmax pack acc s
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
@@ -183,7 +182,7 @@ and parse_abstract doc meta flags = parser
 			d_data = fl;
 		},punion p1 p2)
 
-and parse_type_decl s =
+and parse_type_decl mode s =
 	match s with parser
 	| [< '(Kwd Import,p1) >] -> parse_import s p1
 	| [< '(Kwd Using,p1) >] -> parse_using s p1
@@ -250,14 +249,21 @@ and parse_type_decl s =
 			EAbstract a,p
 		| [< >] ->
 			if not !in_display_file then raise Stream.Failure;
+			let check_type_completion () = match Stream.peek s with
+				(* If there's an identifier coming up, it's probably an incomplete type
+				   declaration. Let's just raise syntax completion in that case because
+				   the parser would fail otherwise anyway. *)
+				| Some((Const(Ident _),p)) -> syntax_completion (SCTypeDecl mode) p
+				| _ -> raise Stream.Failure
+			in
 			match c with
-			| [] -> raise Stream.Failure
+			| [] -> check_type_completion()
 			| (_,p) :: _ ->
 				if would_skip_display_position p s then begin
 					let flags = List.map fst c in
 					syntax_completion (SCAfterTypeFlag flags) p
 				end;
-				raise Stream.Failure
+				check_type_completion()
 
 
 and parse_class doc meta cflags need_name s =
