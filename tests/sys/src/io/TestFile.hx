@@ -4,8 +4,7 @@ import utest.Assert;
 import sys.io.File;
 import sys.FileSystem;
 
-class TestFile {
-	public function new() { }
+class TestFile extends utest.Test {
 
 	public function testCopyOverwrite() {
 		var fileA = "temp/a.txt";

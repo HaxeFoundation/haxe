@@ -12,19 +12,17 @@ import sys.io.FileSeek;
  *
  * @author        Maximilian Ruta <mr@xtain.net>
  */
-class TestFileInput {
+class TestFileInput extends utest.Test {
 	static var contentString = "test\n1234сюрприз!"; //that's total of 24 bytes
 	static var contentBytes = [116, 101, 115, 116, 10, 49, 50, 51, 52, 209, 129, 209, 142, 209, 128, 208, 191, 209, 128, 208, 184, 208, 183, 33];
 
 	private var path = 'temp/testcase-test-file.txt';
 
-	public function new() { }
-
 	public function setup() {
 		File.saveContent(path, contentString);
 	}
 
-	public function tearDown() {
+	public function teardown() {
 		FileSystem.deleteFile(path);
 	}
 
