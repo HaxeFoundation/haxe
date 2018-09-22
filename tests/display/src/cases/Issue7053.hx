@@ -22,6 +22,9 @@ class Issue7053 extends DisplayTestCase {
 		for (expected in ["import", "using", "private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			eq(true, hasField(fields, expected, null, "keyword"));
 		}
+		for (unexpected in ["package"]) {
+			eq(false, hasField(fields, unexpected, null, "keyword"));
+		}
 	}
 
 	/**
@@ -33,7 +36,7 @@ class Issue7053 extends DisplayTestCase {
 		for (expected in ["private", "extern", "class", "interface", "enum", "abstract", "typedef", "final"]) {
 			eq(true, hasField(fields, expected, null, "keyword"));
 		}
-		for (unexpected in ["import", "using"]) {
+		for (unexpected in ["import", "using", "package"]) {
 			eq(false, hasField(fields, unexpected, null, "keyword"));
 		}
 	}

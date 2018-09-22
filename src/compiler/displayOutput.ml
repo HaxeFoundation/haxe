@@ -657,10 +657,13 @@ let handle_syntax_completion com kind p =
 			[Extends]
 		| SCComment ->
 			[]
-		| SCTypeDecl(had_package,had_non_import) ->
+		| SCTypeDecl mode ->
 			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
-			let l = if had_package then l else Package :: l in
-			let l = if had_non_import then l else Import :: Using :: l in
+			let l = match mode with
+				| TCBeforePackage -> Package :: Import :: Using :: l
+				| TCAfterImport -> Import :: Using :: l
+				| TCAfterType -> l
+			in
 			l
 		| SCAfterTypeFlag flags ->
 			let l = [Class;Interface] in

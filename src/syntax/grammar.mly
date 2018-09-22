@@ -139,12 +139,12 @@ and parse_type_decls pmax pack acc s =
 			(* print_endline (Printf.sprintf "(%i <= %i) (%i > %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
 			if pmax <= !display_position.pmin && pmin > !display_position.pmax then begin
 				let had_package = pack <> [] in
-				let had_non_import = match acc with
-					| [] -> false
-					| ((EClass _ | EEnum _ | ETypedef _ | EAbstract _),_) :: _ -> true
-					| ((EImport _ | EUsing _),_) :: _ -> false
+				let mode = match acc with
+					| [] -> if had_package then TCAfterImport else TCBeforePackage
+					| ((EClass _ | EEnum _ | ETypedef _ | EAbstract _),_) :: _ -> TCAfterType
+					| ((EImport _ | EUsing _),_) :: _ -> TCAfterImport
 				in
-				delay_syntax_completion (SCTypeDecl(had_package,had_non_import)) !display_position
+				delay_syntax_completion (SCTypeDecl mode) !display_position
 			end
 		end;
 		match s with parser

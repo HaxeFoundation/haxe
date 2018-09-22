@@ -37,11 +37,16 @@ type decl_flag =
 	| DExtern
 	| DFinal
 
+type type_decl_completion_mode =
+	| TCBeforePackage
+	| TCAfterImport
+	| TCAfterType
+
 type syntax_completion =
 	| SCComment
 	| SCClassRelation
 	| SCInterfaceRelation
-	| SCTypeDecl of bool (* had package *) * bool (* had non-import/using *)
+	| SCTypeDecl of type_decl_completion_mode
 	| SCAfterTypeFlag of decl_flag list
 
 exception Error of error_msg * pos
