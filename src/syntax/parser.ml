@@ -112,7 +112,8 @@ let reset_state () =
 	display_mode := DMNone;
 	display_position := null_pos;
 	in_macro := false;
-	had_resume := false
+	had_resume := false;
+	delayed_syntax_completion := None
 
 (* Per-file state *)
 
