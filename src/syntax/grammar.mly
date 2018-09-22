@@ -124,14 +124,31 @@ let rec	parse_file s =
 	| [< '(Kwd Package,_); pack = parse_package; s >] ->
 		begin match s with parser
 		| [< '(Const(Ident _),p) when pack = [] >] -> error (Custom "Package name must start with a lowercase character") p
-		| [< _ = semicolon; l = parse_type_decls pack []; '(Eof,_) >] -> pack , l
+		| [< psem = semicolon; l = parse_type_decls psem.pmax pack []; '(Eof,_) >] -> pack , l
 		end
-	| [< l = parse_type_decls [] []; '(Eof,_) >] -> [] , l
+	| [< l = parse_type_decls (-1) [] []; '(Eof,_) >] -> [] , l
 
-and parse_type_decls pack acc s =
+and parse_type_decls pmax pack acc s =
 	try
+		(* We check if we hit the magic type path here *)
+		if !in_display_file then begin
+			let pmin = match Stream.peek s with
+				| Some (Eof,_) | None -> max_int
+				| Some tk -> (pos tk).pmin
+			in
+			(* print_endline (Printf.sprintf "(%i <= %i) (%i > %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
+			if pmax <= !display_position.pmin && pmin > !display_position.pmax then begin
+				let had_package = pack <> [] in
+				let had_non_import = match acc with
+					| [] -> false
+					| ((EClass _ | EEnum _ | ETypedef _ | EAbstract _),_) :: _ -> true
+					| ((EImport _ | EUsing _),_) :: _ -> false
+				in
+				delay_syntax_completion (SCTypeDecl(had_package,had_non_import)) !display_position
+			end
+		end;
 		match s with parser
-		| [< v = parse_type_decl; l = parse_type_decls pack (v :: acc) >] -> l
+		| [< (v,p) = parse_type_decl; l = parse_type_decls p.pmax pack ((v,p) :: acc) >] -> l
 		| [< >] -> List.rev acc
 	with
 	| TypePath ([],Some (name,false),b,p) ->
@@ -147,7 +164,7 @@ and parse_type_decls pack acc s =
 		raise (TypePath (pack,Some(name,true),b,p))
 	| Stream.Error _ when !in_display ->
 		ignore(resume false false s);
-		parse_type_decls pack acc s
+		parse_type_decls (last_pos s).pmax pack acc s
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->

@@ -648,19 +648,36 @@ let find_doc t =
 	in
 	doc
 
-let handle_syntax_completion com kind p = match com.json_out with
-	| None ->
-		(* Not supported *)
-		()
-	| Some(f,_) ->
-		match kind with
+let handle_syntax_completion com kind p =
+	let l = match kind with
 		| Parser.SCClassRelation ->
-			let l = [make_ci_keyword Extends;make_ci_keyword Implements] in
-			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None)
+			[Extends;Implements]
 		| Parser.SCInterfaceRelation ->
-			let l = [make_ci_keyword Extends] in
+			[Extends]
+		| Parser.SCComment ->
+			[]
+		| Parser.SCTypeDecl(had_package,had_non_import) ->
+			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
+			let l = if had_package then l else Package :: l in
+			let l = if had_non_import then l else Import :: Using :: l in
+			l
+	in
+	match l with
+	| [] ->
+		()
+	| _ ->
+		let l = List.map make_ci_keyword l in
+		match com.json_out with
+		| None ->
+			let b = Buffer.create 0 in
+			Buffer.add_string b "<il>\n";
+			List.iter (fun item -> match item.ci_kind with
+				| ITKeyword kwd -> Buffer.add_string b (Printf.sprintf "<i k=\"keyword\">%s</i>" (s_keyword kwd));
+				| _ -> assert false
+			) l;
+			Buffer.add_string b "</il>";
+			let s = Buffer.contents b in
+			raise (Completion s)
+		| Some(f,_) ->
 			let ctx = Genjson.create_context GMFull in
 			f(fields_to_json ctx l CRTypeRelation None)
-		| Parser.SCComment ->
-			()

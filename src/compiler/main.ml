@@ -880,6 +880,10 @@ try
 			| None ->
 				None
 		in
+		begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
+			| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
+			| _ -> ()
+		end;
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)

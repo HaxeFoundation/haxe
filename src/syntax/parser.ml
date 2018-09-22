@@ -36,6 +36,7 @@ type syntax_completion =
 	| SCComment
 	| SCClassRelation
 	| SCInterfaceRelation
+	| SCTypeDecl of bool (* had package *) * bool (* had non-import/using *)
 
 exception Error of error_msg * pos
 exception TypePath of string list * (string * bool) option * bool (* in import *) * pos
@@ -96,6 +97,7 @@ let was_auto_triggered = ref false
 let display_mode = ref DMNone
 let in_macro = ref false
 let had_resume = ref false
+let delayed_syntax_completion : (syntax_completion * pos) option ref = ref None
 
 let reset_state () =
 	in_display := false;
@@ -132,6 +134,9 @@ let serror() = raise (Stream.Error "")
 
 let magic_display_field_name = " - display - "
 let magic_type_path = { tpackage = []; tname = ""; tparams = []; tsub = None }
+
+let delay_syntax_completion kind p =
+	delayed_syntax_completion := Some(kind,p)
 
 let type_path sl in_import p = match sl with
 	| n :: l when n.[0] >= 'A' && n.[0] <= 'Z' -> raise (TypePath (List.rev l,Some (n,false),in_import,p));
