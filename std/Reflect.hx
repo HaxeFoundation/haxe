@@ -91,9 +91,15 @@ extern class Reflect {
 	/**
 		Call a method `func` with the given arguments `args`.
 
-		The object `o` is only respected if `func` does not already have a context. This can occur
-		on JavaScript by using `Reflect.field(object, "name")`, in which case the `object` context
-		is lost at run-time.
+		The object `o` is ignored in most cases. It serves as the `this`-context in the following
+		situations:
+
+		* (neko) Allows switching the context to `o` in all cases.
+		* (macro) Same as neko for Haxe 3. No context switching in Haxe 4.
+		* (js, lua) Require the `o` argument if `func` does not, but should have a context.
+		    This can occur by accessing a function field natively, e.g. through `Reflect.field`
+			or by using `(object : Dynamic).field`. However, if `func` has a context, `o` is
+			ignored like on other targets.
 	**/
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
