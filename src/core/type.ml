@@ -83,7 +83,7 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = (type_params * texpr * bool) option
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -92,8 +92,6 @@ and tvar_origin =
 	| TVOPatternVariable
 	| TVOCatchVariable
 	| TVOLocalFunction
-	| TVOLocalFinal
-	| TVOPatternFinal
 
 and tvar_kind =
 	| VUser of tvar_origin
@@ -108,6 +106,7 @@ and tvar = {
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
 	mutable v_capture : bool;
+	mutable v_final : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
 	v_pos : pos;
@@ -383,7 +382,20 @@ type class_field_scope =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun kind n t p -> incr uid; { v_kind = kind; v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
+	(fun kind n t p ->
+		incr uid;
+		{
+			v_kind = kind;
+			v_name = n;
+			v_type = t;
+			v_id = !uid;
+			v_capture = false;
+			v_final = false;
+			v_extra = None;
+			v_meta = [];
+			v_pos = p
+		}
+	)
 
 let alloc_mid =
 	let mid = ref 0 in
@@ -1514,8 +1526,8 @@ module Printer = struct
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
-	let s_tvar_extra (tl,eo) =
-		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
+	let s_tvar_extra (tl,e,_) =
+		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_expr_ast true "" s_type e)
 
 	let s_tvar v =
 		s_record_fields "" [
@@ -2658,7 +2670,7 @@ module TExprToExpr = struct
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (EConst (tconst_to_const c),e.epos)) in
 			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), (match v.v_kind with VUser TVOLocalFinal -> true | _ -> false), mk_type_hint v.v_type v.v_pos, eopt eo])
+			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in

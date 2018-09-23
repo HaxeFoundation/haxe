@@ -353,7 +353,7 @@ module StdBytes = struct
 			let s = maybe_extend_ascii s in
 			encode_bytes (Bytes.of_string s)
 		end else begin
-			let s' = Lazy.force s.sstring in
+			let s' = s.sstring in
 			let s = if s.sascii then s' else utf16_to_utf8 s' in
 			encode_bytes (Bytes.of_string s)
 		end
@@ -485,9 +485,9 @@ module StdBytesBuffer = struct
 		let this = this vthis in
 		let src = decode_vstring src in
 		let s = if src.sascii || StdBytes.encode_native encoding then
-			Lazy.force src.sstring
+			src.sstring
 		else
-			utf16_to_utf8 (Lazy.force src.sstring)
+			utf16_to_utf8 src.sstring
 		in
 		Buffer.add_string this s;
 		vnull
@@ -555,7 +555,7 @@ module StdCallStack = struct
 				let local_function = encode_enum_value key_haxe_StackItem 4 [|vint i|] None in
 				DynArray.add l (file_pos local_function);
 			| EKMethod(st,sf) ->
-				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash_s st); create_unknown (rev_hash_s sf)|] None in
+				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
 			| EKDelayed ->
 				()
@@ -796,7 +796,7 @@ module StdEReg = struct
 		let this = this vthis in
 		let s = decode_string s in
 		let l = String.length s in
-		let buf = Rope.Buffer.create 0 in
+		let buf = Buffer.create 0 in
 		let rec loop pos =
 			if pos >= l then
 				()
@@ -804,31 +804,31 @@ module StdEReg = struct
 				let a = exec ~rex:this.r ~pos s in
 				this.r_groups <- [|a|];
 				let (first,last) = get_substring_ofs a 0 in
-				Rope.Buffer.add_substring buf s pos (first - pos);
-				Rope.Buffer.add_string buf (decode_string (call_value_on vthis f [vthis]));
+				Buffer.add_substring buf s pos (first - pos);
+				Buffer.add_string buf (decode_string (call_value_on vthis f [vthis]));
 				if last = first then begin
 					if last >= l then
 						()
 					else begin
 						if this.r_global then begin
-							Rope.Buffer.add_substring buf s first 1;
+							Buffer.add_substring buf s first 1;
 							loop (first + 1)
 						end else
-							Rope.Buffer.add_substring buf s first (l - first)
+							Buffer.add_substring buf s first (l - first)
 					end
 				end else if this.r_global then
 					loop last
 				else
-					Rope.Buffer.add_substring buf s last (l - last)
+					Buffer.add_substring buf s last (l - last)
 			with Not_found ->
-				Rope.Buffer.add_substring buf s pos (l - pos)
+				Buffer.add_substring buf s pos (l - pos)
 			end
 		in
 		this.r_string <- s;
 		loop 0;
 		this.r_string <- "";
 		this.r_groups <- [||];
-		create_unknown (Rope.to_string (Rope.Buffer.contents buf))
+		create_unknown (Buffer.contents buf)
 	)
 
 	let match' = vifun1 (fun vthis s ->
@@ -1221,30 +1221,30 @@ end
 
 module StdGc = struct
 	open Gc
-	let key_minor_heap_size = hash_s "minor_heap_size"
-	let key_major_heap_increment = hash_s "major_heap_increment"
-	let key_space_overhead = hash_s "space_overhead"
-	let key_verbose = hash_s "verbose"
-	let key_max_overhead = hash_s "max_overhead"
-	let key_stack_limit = hash_s "stack_limit"
-	let key_allocation_policy = hash_s "allocation_policy"
-	let key_minor_words = hash_s "minor_words"
-	let key_minor_words = hash_s "minor_words"
-	let key_promoted_words = hash_s "promoted_words"
-	let key_major_words = hash_s "major_words"
-	let key_minor_collections = hash_s "minor_collections"
-	let key_major_collections = hash_s "major_collections"
-	let key_heap_words = hash_s "heap_words"
-	let key_heap_chunks = hash_s "heap_chunks"
-	let key_live_words = hash_s "live_words"
-	let key_live_blocks = hash_s "live_blocks"
-	let key_free_words = hash_s "free_words"
-	let key_free_blocks = hash_s "free_blocks"
-	let key_largest_free = hash_s "largest_free"
-	let key_fragments = hash_s "fragments"
-	let key_compactions = hash_s "compactions"
-	let key_top_heap_words = hash_s "top_heap_words"
-	let key_stack_size = hash_s "stack_size"
+	let key_minor_heap_size = hash "minor_heap_size"
+	let key_major_heap_increment = hash "major_heap_increment"
+	let key_space_overhead = hash "space_overhead"
+	let key_verbose = hash "verbose"
+	let key_max_overhead = hash "max_overhead"
+	let key_stack_limit = hash "stack_limit"
+	let key_allocation_policy = hash "allocation_policy"
+	let key_minor_words = hash "minor_words"
+	let key_minor_words = hash "minor_words"
+	let key_promoted_words = hash "promoted_words"
+	let key_major_words = hash "major_words"
+	let key_minor_collections = hash "minor_collections"
+	let key_major_collections = hash "major_collections"
+	let key_heap_words = hash "heap_words"
+	let key_heap_chunks = hash "heap_chunks"
+	let key_live_words = hash "live_words"
+	let key_live_blocks = hash "live_blocks"
+	let key_free_words = hash "free_words"
+	let key_free_blocks = hash "free_blocks"
+	let key_largest_free = hash "largest_free"
+	let key_fragments = hash "fragments"
+	let key_compactions = hash "compactions"
+	let key_top_heap_words = hash "top_heap_words"
+	let key_stack_size = hash "stack_size"
 
 	let encode_stats stats =
 		encode_obj None [
@@ -1376,9 +1376,9 @@ module StdHost = struct
 end
 
 module StdLog = struct
-	let key_fileName = hash_s "fileName"
-	let key_lineNumber = hash_s "lineNumber"
-	let key_customParams = hash_s "customParams"
+	let key_fileName = hash "fileName"
+	let key_lineNumber = hash "lineNumber"
+	let key_customParams = hash "customParams"
 
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
@@ -1433,7 +1433,6 @@ module StdMap (Hashtbl : Hashtbl.S) = struct
 			enc_inst copied
 		);
 		"toString",vifun0 (fun vthis ->
-			let open Rope in
 			let l = Hashtbl.fold (fun key vvalue acc -> (join rempty [str key; create_ascii " => "; s_value 0 vvalue]) :: acc) (this vthis) [] in
 			let s = join rcomma l in
 			let s = join rempty [rbropen;s;rbrclose] in
@@ -1616,7 +1615,7 @@ module StdReflect = struct
 	)
 
 	let deleteField = vfun2 (fun o name ->
-		let name = hash_s (get (decode_vstring name)) in
+		let name = hash (get (decode_vstring name)) in
 		match vresolve o with
 		| VObject o ->
 			let found = ref false in
@@ -1637,7 +1636,7 @@ module StdReflect = struct
 	)
 
 	let field' = vfun2 (fun o name ->
-		if o = vnull then vnull else dynamic_field o (hash_s (get (decode_vstring name)))
+		if o = vnull then vnull else dynamic_field o (hash (get (decode_vstring name)))
 	)
 
 	let fields = vfun1 (fun o ->
@@ -1650,19 +1649,19 @@ module StdReflect = struct
 			| VString _ | VArray _ | VVector _ -> [key_length]
 			| _ -> unexpected_value o "object"
 		in
-		encode_array (List.map (fun i -> encode_rope (rev_hash i)) fields)
+		encode_array (List.map (fun i -> encode_string (rev_hash i)) fields)
 	)
 
 	let getProperty = vfun2 (fun o name ->
 		let name = decode_vstring name in
-		let name_get = hash_s (get (concat r_get_ name)) in
+		let name_get = hash (get (concat r_get_ name)) in
 		let vget = field o name_get in
 		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash_s (get name))
+		else dynamic_field o (hash (get name))
 	)
 
 	let hasField = vfun2 (fun o field ->
-		let name = hash_s (get (decode_vstring field)) in
+		let name = hash (get (decode_vstring field)) in
 		let b = match vresolve o with
 			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
@@ -1693,16 +1692,16 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		set_field o (hash_s (get (decode_vstring name))) v; vnull
+		set_field o (hash (get (decode_vstring name))) v; vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
 		let name = decode_vstring name in
-		let name_set = hash_s (get (concat r_set_ name)) in
+		let name_set = hash (get (concat r_set_ name)) in
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			set_field o (hash_s (get name)) v;
+			set_field o (hash (get name)) v;
 			vnull
 		end
 	)
@@ -1930,10 +1929,10 @@ module StdString = struct
 	let charAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
-		if i < 0 || i >= this.slength then encode_rope Rope.empty
+		if i < 0 || i >= this.slength then encode_string ""
 		else begin
-			let s = Lazy.force this.sstring in
-			if this.sascii then encode_rope (Rope.of_char (String.get s i))
+			let s = this.sstring in
+			if this.sascii then encode_string (String.make 1 (String.get s i))
 			else begin
 				let b = Bytes.create 2 in
 				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
@@ -1949,7 +1948,7 @@ module StdString = struct
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
-		else if this.sascii then vint (int_of_char (String.get (Lazy.force this.sstring) i))
+		else if this.sascii then vint (int_of_char (String.get this.sstring i))
 		else vint (read_char this (i lsl 1))
 	)
 
@@ -1969,10 +1968,10 @@ module StdString = struct
 		let this = this vthis in
 		let i = default_int startIndex 0 in
 		try
-			if Rope.length str.srope = 0 then
+			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else if this.sascii then
-				vint (Rope.search_forward_string (Lazy.force str.sstring) this.srope i)
+				vint ((fst (find_substring this str false i)))
 			else begin
 				vint ((fst (find_substring this str false (i lsl 1))) lsr 1)
 			end
@@ -1984,15 +1983,15 @@ module StdString = struct
 		let str = this str in
 		let this = this vthis in
 		try
-			if Rope.length str.srope = 0 then begin
+			if str.slength = 0 then begin
 				let i = default_int startIndex this.slength in
 				vint (max 0 (min i this.slength))
 			end else begin
 				let i = default_int startIndex (this.slength - 1) in
-				if i >= this.slength || i < 0 then raise Not_found;
-				let s = Lazy.force this.sstring in
+				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
+				let s = this.sstring in
 				if this.sascii then
-					vint (Str.search_backward (Str.regexp_string (Lazy.force str.sstring)) s i)
+					vint (Str.search_backward (Str.regexp_string str.sstring) s i)
 				else
 					vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
 			end
@@ -2003,15 +2002,15 @@ module StdString = struct
 	let split = vifun1 (fun vthis delimiter ->
 		let this' = this vthis in
 		let ascii = this'.sascii in
-		let this,s = this'.srope,Lazy.force this'.sstring in
+		let s = this'.sstring in
 		let delimiter' = (decode_vstring delimiter) in
-		let delimiter = Lazy.force delimiter'.sstring in
+		let delimiter = delimiter'.sstring in
 		let l_delimiter = String.length delimiter in
-		let l_this = Rope.length this in
+		let l_this = String.length s in
 		let encode_range pos length =
-			let s = Rope.sub this pos length in
-			if ascii then encode_rope s
-			else encode_rope_ucs2 s (length lsr 1)
+			let s = String.sub s pos length in
+			if ascii then encode_string s
+			else vstring (create_ucs2 s (length lsr 1))
 		in
 		if l_delimiter = 0 then begin
 			if ascii then
@@ -2028,7 +2027,7 @@ module StdString = struct
 				encode_array (DynArray.to_list acc)
 			end
 		end else if l_delimiter > l_this then
-			encode_array [encode_range 0 (Rope.length this)]
+			encode_array [encode_range 0 (String.length s)]
 		else begin
 			let acc = DynArray.create () in
 			let f = find_substring this' delimiter' false in
@@ -2047,38 +2046,39 @@ module StdString = struct
 
 	let substr = vifun2 (fun vthis pos len ->
 		let this = this vthis in
+		let s = this.sstring in
+		let l_this = String.length s in
 		let pos = decode_int pos in
-		let r = this.srope in
 		if pos >= this.slength then
-			encode_rope Rope.empty
+			encode_string ""
 		else begin
 			let pos = if pos < 0 then begin
 				let pos = this.slength + pos in
 				if pos < 0 then 0 else pos
 			end else pos in
 			if this.sascii then begin
-				let len = default_int len (Rope.length r - pos) in
-				let len = if len < 0 then Rope.length r + len - pos else len in
+				let len = default_int len (l_this - pos) in
+				let len = if len < 0 then l_this + len - pos else len in
 				let s =
-					if len < 0 then Rope.empty
-					else if len + pos > Rope.length r then Rope.sub r pos (Rope.length r - pos)
-					else Rope.sub r pos len
+					if len < 0 then ""
+					else if len + pos > l_this then String.sub s pos (l_this - pos)
+					else String.sub s pos len
 				in
-				encode_rope s
+				encode_string s
 			end else begin
 				let pos = pos lsl 1 in
 				let len = match len with
-					| VNull -> (Rope.length r - pos)
+					| VNull -> (l_this - pos)
 					| VInt32 i -> Int32.to_int i lsl 1
 					| _ -> unexpected_value len "int"
 				in
-				let len = if len < 0 then Rope.length r + len - pos else len in
+				let len = if len < 0 then l_this + len - pos else len in
 				let s =
-					if len < 0 then Rope.empty
-					else if len + pos > Rope.length r then Rope.sub r pos (Rope.length r - pos)
-					else Rope.sub r pos len
+					if len < 0 then ""
+					else if len + pos > l_this then String.sub s pos (l_this - pos)
+					else String.sub s pos len
 				in
-				vstring (create_ucs2_of_rope s (len lsr 1))
+				vstring (create_ucs2 s (len lsr 1))
 			end
 		end
 	)
@@ -2093,16 +2093,16 @@ module StdString = struct
 		let first,last = if first > last then last,first else first,last in
 		let last = if last > l then l else last in
 		if first > l then
-			encode_rope Rope.empty
+			encode_string ""
 		else begin
 			if this.sascii then
-				encode_rope (Rope.sub this.srope first (last - first))
+				encode_string (String.sub this.sstring first (last - first))
 			else begin
 				let first = first lsl 1 in
 				let last = last lsl 1 in
 				let length = last - first in
-				let r = Rope.sub this.srope first length in
-				vstring (create_ucs2_of_rope r length)
+				let r = String.sub this.sstring first length in
+				vstring (create_ucs2 r length)
 			end
 		end
 	)
@@ -2110,7 +2110,7 @@ module StdString = struct
 	let toLowerCase = vifun0 (fun vthis ->
 		let this = this vthis in
 		if this.sascii then
-			encode_rope (Rope.lowercase this.srope)
+			encode_string (String.lowercase this.sstring)
 		else
 			vstring (case_map this false)
 	)
@@ -2120,7 +2120,7 @@ module StdString = struct
 	let toUpperCase = vifun0 (fun vthis ->
 		let this = this vthis in
 		if this.sascii then
-			encode_rope (Rope.uppercase this.srope)
+			encode_string (String.uppercase this.sstring)
 		else
 			vstring (case_map this true)
 	)
@@ -2133,8 +2133,6 @@ module StdString = struct
 end
 
 module StdStringBuf = struct
-	module Buffer = Rope.Buffer
-
 	let this vthis = match vthis with
 		| VInstance {ikind = IBuffer sb} -> sb
 		| v -> unexpected_value v "string"
@@ -2185,13 +2183,13 @@ module StdStringBuf = struct
 		let i = decode_int pos in
 		let i = if s.sascii then i else i lsl 1 in
 		let len = match len with
-			| VNull -> Rope.length s.srope - i
+			| VNull -> String.length s.sstring - i
 			| VInt32 i -> Int32.to_int i lsl (if s.sascii then 0 else 1)
 			| _ -> unexpected_value len "int"
 		in
-		let s' = Rope.sub s.srope i len in
-		let s' = if s.sascii then create_ascii_of_rope s'
-		else create_ucs2_of_rope s' (len lsr 1) in
+		let s' = String.sub s.sstring i len in
+		let s' = if s.sascii then create_ascii s'
+		else create_ucs2 s' (len lsr 1) in
 		AwareBuffer.add_string this s';
 		vnull
 	)
@@ -2210,15 +2208,15 @@ end
 
 module StdStringTools = struct
 	let url_encode s =
-		let b = Rope.Buffer.create 0 in
-		Common.url_encode s (Rope.Buffer.add_char b);
-		Rope.Buffer.contents b
+		let b = Buffer.create 0 in
+		Common.url_encode s (Buffer.add_char b);
+		Buffer.contents b
 
 	let fastCodeAt = StdString.charCodeAt
 
 	let urlEncode = vfun1 (fun s ->
 		let s = decode_string s in
-		encode_rope (url_encode s)
+		encode_string (url_encode s)
 	)
 
 	let urlDecode = vfun1 (fun s ->
@@ -2440,9 +2438,9 @@ module StdType = struct
 		match v with
 		| VPrototype ({pkind = PEnum names} as proto) ->
 			begin try
-				let l = ExtList.List.filter_map (fun s ->
+				let l = ExtList.List.filter_map (fun (s,_) ->
 					try
-						begin match proto_field_direct proto (hash_s s) with
+						begin match proto_field_direct proto (hash s) with
 							| VEnumValue _ as v -> Some v
 							| _ -> None
 						end
@@ -2469,7 +2467,7 @@ module StdType = struct
 	)
 
 	let createEnum = vfun3 (fun e constr params ->
-		let constr = hash_s (get (decode_vstring constr)) in
+		let constr = hash (get (decode_vstring constr)) in
 		create_enum e constr params
 	)
 
@@ -2478,7 +2476,7 @@ module StdType = struct
 		match e with
 		| VPrototype {pkind = PEnum names} ->
 			begin try
-				create_enum e (hash_s (List.nth names index)) params
+				create_enum e (hash (fst (List.nth names index))) params
 			with Not_found ->
 				vnull
 			end
@@ -2507,7 +2505,7 @@ module StdType = struct
 		| VEnumValue ve ->
 			begin try
 				begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-					| PEnum names -> encode_string (List.nth names ve.eindex)
+					| PEnum names -> encode_string (fst (List.nth names ve.eindex))
 					| _ -> raise Not_found
 				end
 			with Not_found ->
@@ -2548,14 +2546,14 @@ module StdType = struct
 	let getClassFields = vfun1 (fun v ->
 		match v with
 		| VPrototype {pkind = PClass _;pnames = names} ->
-			encode_array (IntMap.fold (fun name _ acc -> (encode_rope (rev_hash name)) :: acc) names []);
+			encode_array (IntMap.fold (fun name _ acc -> (encode_string (rev_hash name)) :: acc) names []);
 		| _ ->
 			vnull
 	)
 
 	let getClassName = vfun1 (fun v ->
 		match v with
-		| VPrototype {pkind = PClass _; ppath = path} -> encode_rope (rev_hash path)
+		| VPrototype {pkind = PClass _; ppath = path} -> encode_string (rev_hash path)
 		| _ -> vnull
 	)
 
@@ -2569,7 +2567,7 @@ module StdType = struct
 		match v with
 		| VPrototype {pkind = PEnum names} ->
 			begin try
-				encode_array (List.map encode_string names)
+				encode_array (List.map (fun (n,_) -> encode_string n) names)
 			with Not_found ->
 				vnull
 			end
@@ -2579,7 +2577,7 @@ module StdType = struct
 
 	let getEnumName = vfun1 (fun v ->
 		match v with
-		| VPrototype {pkind = PEnum _; ppath = path} -> encode_rope (rev_hash path)
+		| VPrototype {pkind = PEnum _; ppath = path} -> encode_string (rev_hash path)
 		| _ -> vnull
 	)
 
@@ -2596,7 +2594,7 @@ module StdType = struct
 					IntMap.fold (fun name _ acc -> IntMap.add name 0 acc) proto.pnames acc
 				in
 				let proto = get_instance_prototype (get_ctx()) proto.ppath null_pos in
-				encode_array (List.map (fun i -> encode_rope (rev_hash i)) (ptmap_keys (loop IntMap.empty proto)))
+				encode_array (List.map (fun i -> encode_string (rev_hash i)) (ptmap_keys (loop IntMap.empty proto)))
 			with Not_found ->
 				vnull
 			end
@@ -2612,13 +2610,13 @@ module StdType = struct
 
 	let resolveClass = vfun1 (fun v ->
 		let name = get (decode_vstring v) in
-		try (get_static_prototype_raise (get_ctx()) (hash_s name)).pvalue with Not_found -> vnull
+		try (get_static_prototype_raise (get_ctx()) (hash name)).pvalue with Not_found -> vnull
 	)
 
 	let resolveEnum = vfun1 (fun v ->
 		let name = get (decode_vstring v) in
 		try
-			let proto = get_static_prototype_raise (get_ctx()) (hash_s name) in
+			let proto = get_static_prototype_raise (get_ctx()) (hash name) in
 			begin match proto.pkind with
 				| PEnum _ -> proto.pvalue
 				| _ -> vnull
@@ -2751,7 +2749,7 @@ module StdUtf8 = struct
 end
 
 let init_fields builtins path static_fields instance_fields =
-	let map (name,v) = (hash_s name,v) in
+	let map (name,v) = (hash name,v) in
 	let path = path_hash path in
 	builtins.static_builtins <- IntMap.add path (List.map map static_fields) builtins.static_builtins;
 	builtins.instance_builtins <- IntMap.add path (List.map map instance_fields) builtins.instance_builtins
@@ -2865,7 +2863,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
-	Hashtbl.add h key_String (fun () -> encode_rope Rope.empty);
+	Hashtbl.add h key_String (fun () -> encode_string "");
 	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create 0)));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));

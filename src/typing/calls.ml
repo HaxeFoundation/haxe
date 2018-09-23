@@ -15,7 +15,7 @@ let is_forced_inline c cf =
 	| _ when cf.cf_extern -> true
 	| _ -> false
 
-let make_call ctx e params t p =
+let make_call ctx e params t ?(force_inline=false) p =
 	try
 		let ethis,cl,f = match e.eexpr with
 			| TField (ethis,fa) ->
@@ -28,7 +28,7 @@ let make_call ctx e params t p =
 			| _ ->
 				raise Exit
 		in
-		if f.cf_kind <> Method MethInline then raise Exit;
+		if not force_inline && f.cf_kind <> Method MethInline then raise Exit;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
 				let t = if f.cf_name = "_new" then
@@ -160,9 +160,13 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 					let e_def = default_value name t in
 					(e_def,true) :: args
 			end
-		| (_,p) :: _, [] ->
+		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
-				| [] -> call_error Too_many_arguments p
+				| [] ->
+					if ctx.com.display.dms_display then begin
+						let e = type_expr ctx (e,p) WithType.value in
+						(e,false) :: loop el []
+					end	else call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
@@ -230,9 +234,9 @@ let unify_field_call ctx fa el args ret p inline =
 	let attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			let mk_call ethis p_field =
+			let mk_call ethis p_field inline =
 				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
-				make_call ctx ef (List.map fst el) ret p
+				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
 			in
 			el,tf,mk_call
 		| _ ->
@@ -265,7 +269,7 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
-		[],tf,(fun ethis p_field ->
+		[],tf,(fun ethis p_field _ ->
 			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
 			mk (TCall(e1,[])) ret p)
 	in
@@ -515,7 +519,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		(match follow t with
 			| TFun (args,r) ->
 				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
-				mk_call ethis p
+				mk_call ethis p true
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
@@ -620,7 +624,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
 							let _,_,mk_call = unify_field_call ctx fa el args r p false in
-							mk_call e1 e.epos
+							mk_call e1 e.epos false
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in

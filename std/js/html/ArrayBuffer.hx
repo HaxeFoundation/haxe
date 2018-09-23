@@ -24,9 +24,6 @@
 
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.ArrayBuffer;
-
 @:native("ArrayBuffer")
 extern class ArrayBuffer
 {
@@ -37,3 +34,22 @@ extern class ArrayBuffer
 	function new( length : Int ) : Void;
 	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
 }
+
+#if (js_es <= 5)
+@:ifFeature('js.html.ArrayBuffer.slice')
+private class ArrayBufferCompat {
+
+	static function sliceImpl(begin, ?end) {	
+		var u = new js.html.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : (end - begin));
+		var resultArray = new js.html.Uint8Array(u.byteLength);	
+		resultArray.set(u);	
+		return resultArray.buffer;
+	}
+
+	static function __init__(): Void untyped {
+		// IE10 ArrayBuffer.slice polyfill
+		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl;
+	}
+
+}
+#end

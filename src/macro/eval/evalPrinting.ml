@@ -23,7 +23,6 @@ open EvalValue
 open EvalContext
 open EvalField
 open EvalHash
-open Rope
 open EvalString
 
 let rempty = create_ascii ""
@@ -48,7 +47,7 @@ let s_date d =
 	let t = localtime d in
 	create_ascii (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
 
-let s_hash key = create_ascii_of_rope (EvalHash.rev_hash key)
+let s_hash key = create_ascii (EvalHash.rev_hash key)
 
 let rec s_object depth o =
 	let fields = object_fields o in
@@ -78,7 +77,7 @@ and s_vector depth vv =
 and s_enum_ctor_name ve =
 	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-			| PEnum names -> (try List.nth names ve.eindex with _ -> "#unknown")
+			| PEnum names -> (try fst (List.nth names ve.eindex) with _ -> "#unknown")
 			| _ -> raise Not_found
 		end
 	with Not_found -> "#unknown"

@@ -77,6 +77,7 @@ type strict_meta =
 	| ImplicitCast
 	| Include
 	| InitPackage
+	| Inline
 	| InlineConstructorArgument of int * int
 	| Internal
 	| IsVar
@@ -274,6 +275,7 @@ let get_info = function
 	| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[UsedInternally; UsedOn TExpr])
 	| Include -> ":include",("",[Platform Cpp])
 	| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[UsedInternally; Platform Js])
+	| Inline -> ":inline",("Inserted by the parser in case of `inline expr` and `inline function`",[UsedOn TExpr])
 	| InlineConstructorArgument _ -> ":inlineConstructorArgument",("Internally used to mark expressions that were passed as arguments of an inlined constructor",[UsedInternally])
 	| Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 	| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
@@ -429,3 +431,11 @@ let get_documentation_list () =
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
+
+let get_all () =
+	let rec loop i =
+		let d = Obj.magic i in
+		if d <> Last then d :: loop (i + 1)
+		else []
+	in
+	loop 0

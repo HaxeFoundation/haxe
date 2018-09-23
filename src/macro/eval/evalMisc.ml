@@ -105,8 +105,8 @@ let rec compare a b =
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
 	| VString s1,VString s2 ->
-		let s1' = Lazy.force s1.sstring in
-		let s2' = Lazy.force s2.sstring in
+		let s1' = s1.sstring in
+		let s2' = s2.sstring in
 		let s1,s2 = match s1.sascii,s2.sascii with
 		| true,true
 		| false,false -> s1',s2'
@@ -155,7 +155,7 @@ and equals_structurally a b =
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VString s1,VString s2 -> Lazy.force s1.sstring = Lazy.force s2.sstring (* STODO *)
+	| VString s1,VString s2 -> s1.sstring = s2.sstring (* STODO *)
 	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
 	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
 	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields

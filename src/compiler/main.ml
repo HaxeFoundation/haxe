@@ -880,6 +880,10 @@ try
 			| None ->
 				None
 		in
+		begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
+			| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
+			| _ -> ()
+		end;
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
@@ -1001,7 +1005,8 @@ with
 			| CRUsing
 			| CRNew
 			| CRPattern _
-			| CRTypeRelation ->
+			| CRTypeRelation
+			| CRTypeDecl ->
 				DisplayOutput.print_toplevel fields
 			| CRField _
 			| CRStructureField
@@ -1013,7 +1018,7 @@ with
 	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->
+	| DisplayException(DisplaySignatures(signatures,_,display_arg,_)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else

@@ -19,7 +19,12 @@ s.indexOf("a")==0;
 s.lastIndexOf("a")==1;
 s.indexOf("😂")>0;
 s.lastIndexOf("😂")>0;
-s.lastIndexOf("é")==s.length-1;
+s.lastIndexOf("é") == s.length-1;
+s.lastIndexOf("a", s.length) == 1;
+s.lastIndexOf("a", s.length + 9000) == 1;
+s.lastIndexOf("é", s.length) == s.length-1;
+s.lastIndexOf("é", s.length + 9000) == s.length-1;
+
 var s = "abc";
 s.indexOf("éé")<0;
 s.lastIndexOf("éé")<0;
