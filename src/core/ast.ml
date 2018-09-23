@@ -63,6 +63,8 @@ type keyword =
 	| Abstract
 	| Macro
 	| Final
+	| Operator
+	| Overload
 
 type binop =
 	| OpAdd
@@ -430,6 +432,8 @@ let s_keyword = function
 	| Abstract -> "abstract"
 	| Macro -> "macro"
 	| Final -> "final"
+	| Operator -> "operator"
+	| Overload -> "overload"
 
 let rec s_binop = function
 	| OpAdd -> "+"
