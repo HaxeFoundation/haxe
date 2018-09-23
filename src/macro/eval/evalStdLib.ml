@@ -1573,15 +1573,7 @@ module StdReflect = struct
 	let r_set_ = create_ascii "set_"
 
 	let callMethod = vfun3 (fun o f args ->
-		let args = decode_array args in
-		match f with
-		| VFunction(f,b) ->
-			let vl = if not b then o :: args else args in
-			call_function f vl
-		| VFieldClosure(v1,f) ->
-			call_function f (o :: args)
-		| _ ->
-			exc_string ("Cannot call " ^ (value_string f))
+		call_value_on o f (decode_array args)
 	)
 
 	let compare = vfun2 (fun a b ->
