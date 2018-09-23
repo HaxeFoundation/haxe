@@ -80,7 +80,7 @@ class File {
 	}
 
 	public static function saveContent( path : String, content : String ) : Void {
-		var f = write(path, false);
+		var f = write(path, true);
 		f.writeString(content);
 		f.close();
 	}
