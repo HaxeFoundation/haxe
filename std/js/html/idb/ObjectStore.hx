@@ -72,7 +72,11 @@ extern class ObjectStore
 		@throws DOMError
 	**/
 	function add( value : Dynamic, ?key : Dynamic ) : Request;
-	/** @throws DOMError */
+	
+	/**
+		returns an `IDBRequest` object, and, in a separate thread, deletes the store object selected by the specified key. This is for deleting individual records out of an object store.
+		@throws DOMError
+	**/
 	@:native("delete")
 	function delete_( key : Dynamic ) : Request;
 	
