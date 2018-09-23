@@ -215,7 +215,7 @@ and tinfos = {
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
 	mt_params : type_params;
-	mt_using : (tclass * pos) list;
+	mutable mt_using : (tclass * pos) list;
 }
 
 and tclass = {
