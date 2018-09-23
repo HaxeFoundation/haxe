@@ -2718,6 +2718,37 @@ module ExtType = struct
 	let is_void = function
 		| TAbstract({a_path=[],"Void"},_) -> true
 		| _ -> false
+
+	type semantics =
+		| VariableSemantics
+		| ReferenceSemantics
+
+	let semantics_name = function
+		| VariableSemantics -> "variable"
+		| ReferenceSemantics -> "reference"
+
+	let has_semantics t sem =
+		let name = semantics_name sem in
+		let check meta =
+			has_meta_option meta Meta.Semantics name
+		in
+		let rec loop t = match t with
+			| TInst(c,_) -> check c.cl_meta
+			| TEnum(en,_) -> check en.e_meta
+			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TAbstract(a,_) -> check a.a_meta
+			| TLazy f -> loop (lazy_type f)
+			| TMono r ->
+				(match !r with
+				| Some t -> loop t
+				| _ -> false)
+			| _ ->
+				false
+		in
+		loop t
+
+	let has_variable_semantics t = has_semantics t VariableSemantics
+	let has_reference_semantics t = has_semantics t ReferenceSemantics
 end
 
 module StringError = struct
