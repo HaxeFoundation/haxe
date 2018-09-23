@@ -18,6 +18,11 @@ class Issue7106 extends unit.Test {
 		var c2 = new C(2);
 		eq(2, Reflect.callMethod(c1, c2.getI, []));
 		eq(2, Reflect.callMethod(c2, Reflect.field(c2, "getI"), []));
+
+		// On targets that don't have native closures, the first argument
+		// replaces the context. On other targets it is ignored.
+		var cCheck = #if js c2 #else c1 #end;
+		eq(2, Reflect.callMethod(cCheck, Reflect.field(c2, "getI"), []));
 	}
 
 	function testStatic() {

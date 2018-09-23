@@ -89,7 +89,11 @@ extern class Reflect {
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void;
 
 	/**
-		Call a method with the given object and arguments.
+		Call a method `func` with the given arguments `args`.
+
+		The object `o` is only respected if `func` does not already have a context. This can occur
+		on JavaScript by using `Reflect.field(object, "name")`, in which case the `object` context
+		is lost at run-time.
 	**/
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
@@ -135,7 +139,7 @@ extern class Reflect {
 
 	/**
 		Compares the functions `f1` and `f2`.
-		
+
 		If `f1` or `f2` are null, the result is false.
 		If `f1` or `f2` are not functions, the result is unspecified.
 
