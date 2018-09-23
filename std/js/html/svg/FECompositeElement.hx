@@ -41,14 +41,14 @@ extern class FECompositeElement extends Element
 	static inline var SVG_FECOMPOSITE_OPERATOR_ATOP : Int = 4;
 	static inline var SVG_FECOMPOSITE_OPERATOR_XOR : Int = 5;
 	static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC : Int = 6;
-	
-	
+
+
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
 	**/
 	var in1(default,null) : AnimatedString;
 	var in2(default,null) : AnimatedString;
-	var operator(default,null) : AnimatedEnumeration;
+	@:native("operator") var operator_(default,null) : AnimatedEnumeration;
 	var k1(default,null) : AnimatedNumber;
 	var k2(default,null) : AnimatedNumber;
 	var k3(default,null) : AnimatedNumber;
@@ -58,5 +58,5 @@ extern class FECompositeElement extends Element
 	var width(default,null) : AnimatedLength;
 	var height(default,null) : AnimatedLength;
 	var result(default,null) : AnimatedString;
-	
+
 }

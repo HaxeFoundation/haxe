@@ -37,23 +37,23 @@ extern class FEMorphologyElement extends Element
 	static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN : Int = 0;
 	static inline var SVG_MORPHOLOGY_OPERATOR_ERODE : Int = 1;
 	static inline var SVG_MORPHOLOGY_OPERATOR_DILATE : Int = 2;
-	
-	
+
+
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
 	**/
 	var in1(default,null) : AnimatedString;
-	
+
 	/**
 		An `SVGAnimatedEnumeration` corresponding to the `operator` attribute of the given element. It takes one of the `SVG_MORPHOLOGY_OPERATOR_*` constants defined on this interface.
 	**/
-	var operator(default,null) : AnimatedEnumeration;
-	
+	@:native("operator") var operator_(default,null) : AnimatedEnumeration;
+
 	/**
 		An `SVGAnimatedNumber` corresponding to the X component of the `radius` attribute of the given element.
 	**/
 	var radiusX(default,null) : AnimatedNumber;
-	
+
 	/**
 		An `SVGAnimatedNumber` corresponding to the Y component of the `radius` attribute of the given element.
 	**/
@@ -63,5 +63,5 @@ extern class FEMorphologyElement extends Element
 	var width(default,null) : AnimatedLength;
 	var height(default,null) : AnimatedLength;
 	var result(default,null) : AnimatedString;
-	
+
 }
