@@ -258,15 +258,6 @@ class Boot {
 	}
 
 	/**
-		Creates Haxe-compatible closure.
-		@param type `this` for instance methods; full php class name for static methods
-		@param func Method name
-	**/
-	public static inline function closure( target:Dynamic, func:Dynamic ) : HxClosure {
-		return new HxClosure(target, func);
-	}
-
-	/**
 		Unsafe cast to HxClosure
 	**/
 	public static inline function castClosure(value:Dynamic) : HxClosure {
@@ -537,6 +528,10 @@ class Boot {
 		return chars == false ? null : (chars:NativeArray)[index];
 	}
 
+	/**
+		Creates Haxe-compatible closure of an instance method.
+		@param obj - any object
+	**/
 	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
 		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
 		if(result != null) {
@@ -550,6 +545,9 @@ class Boot {
 		return result;
 	}
 
+	/**
+		Creates Haxe-compatible closure of a static method.
+	**/
 	public static function getStaticClosure(phpClassName:String, methodName:String) {
 		var result = Syntax.coalesce(staticClosures[phpClassName][methodName], null);
 		if(result != null) {
@@ -561,6 +559,15 @@ class Boot {
 		}
 		staticClosures[phpClassName][methodName] = result;
 		return result;
+	}
+
+	/**
+		Creates Haxe-compatible closure.
+		@param type `this` for instance methods; full php class name for static methods
+		@param func Method name
+	**/
+	public static inline function closure( target:Dynamic, func:String ) : HxClosure {
+		return target.is_string() ? getStaticClosure(target, func) : getInstanceClosure(target, func);
 	}
 }
 
