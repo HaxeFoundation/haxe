@@ -235,6 +235,7 @@ let module_pass_1 ctx m tdecls loadp =
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
 				e_params = [];
+				e_using = [];
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
@@ -257,6 +258,7 @@ let module_pass_1 ctx m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
+				t_using = [];
 				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
@@ -281,6 +283,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
+				a_using = [];
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
@@ -400,6 +403,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					t_doc = None;
 					t_meta = [];
 					t_params = (t_infos t).mt_params;
+					t_using = [];
 					t_type = f (List.map snd (t_infos t).mt_params);
 				} in
 				if ctx.is_display_file && DisplayPosition.encloses_display_position p then

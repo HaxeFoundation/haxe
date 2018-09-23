@@ -215,6 +215,7 @@ and tinfos = {
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
 	mt_params : type_params;
+	mt_using : (tclass * pos) list;
 }
 
 and tclass = {
@@ -226,6 +227,7 @@ and tclass = {
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
+	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
@@ -272,6 +274,7 @@ and tenum = {
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
+	mutable e_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -288,6 +291,7 @@ and tdef = {
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
+	mutable t_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -301,6 +305,7 @@ and tabstract = {
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
+	mutable a_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -442,6 +447,7 @@ let mk_class m path pos name_pos =
 		cl_final = false;
 		cl_interface = false;
 		cl_params = [];
+		cl_using = [];
 		cl_super = None;
 		cl_implements = [];
 		cl_fields = PMap.empty;
@@ -521,6 +527,7 @@ let null_abstract = {
 	a_doc = None;
 	a_meta = [];
 	a_params = [];
+	a_using = [];
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;
@@ -2789,6 +2796,7 @@ let class_module_type c = {
 	};
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = no_meta;
 }
 
@@ -2801,6 +2809,7 @@ let enum_module_type m path p  = {
 	t_type = mk_mono();
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = [];
 }
 
@@ -2816,6 +2825,7 @@ let abstract_module_type a tl = {
 	};
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = no_meta;
 }
 
