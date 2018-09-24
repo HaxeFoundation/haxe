@@ -85,6 +85,5 @@ extern class Cursor
 		Returns an `IDBRequest` object, and, in a separate thread, deletes the record at the cursor's position, without changing the cursor's position. This can be used to delete specific records.
 		@throws DOMError
 	**/
-	@:native("delete")
-	function delete_() : Request;
+	function delete() : Request;
 }

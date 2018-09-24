@@ -106,8 +106,7 @@ extern class LinkElement extends Element
 	/**
 		Is a `DOMString` representing the type of content being loaded by the HTML link.
 	**/
-	@:native("as")
-	var as_ : String;
+	var as : String;
 	var sheet(default,null) : StyleSheet;
 	
 }

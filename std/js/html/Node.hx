@@ -259,7 +259,7 @@ extern class Node extends EventTarget
 		Returns a `DOMString` containing the prefix for a given namespace URI, if present, and `null` if not. When multiple prefixes are possible, the result is implementation-dependent.
 	**/
 	@:pure
-	function lookupPrefix( namespace_ : String ) : String;
+	function lookupPrefix( namespace : String ) : String;
 	
 	/**
 		Accepts a prefix and returns the namespace URI associated with it on the given node if found (and `null` if not). Supplying `null` for the prefix will return the default namespace.
@@ -271,5 +271,5 @@ extern class Node extends EventTarget
 		Accepts a namespace URI as an argument and returns a `Boolean` with a value of `true` if the namespace is the default namespace on the given node or `false` if not.
 	**/
 	@:pure
-	function isDefaultNamespace( namespace_ : String ) : Bool;
+	function isDefaultNamespace( namespace : String ) : Bool;
 }

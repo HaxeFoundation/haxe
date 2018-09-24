@@ -47,8 +47,7 @@ extern class FormData
 	/**
 		Deletes a key/value pair from a `FormData` object.
 	**/
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated with a given key from within a `FormData` object.

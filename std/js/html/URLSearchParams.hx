@@ -47,8 +47,7 @@ extern class URLSearchParams
 	/**
 		Deletes the given search parameter, and its associated value, from the list of all search parameters.
 	**/
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated to the given search parameter.
