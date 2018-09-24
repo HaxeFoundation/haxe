@@ -24,5 +24,5 @@ package haxe.ds;
 
 @:forward(length, concat, copy, filter, indexOf, iterator, join, lastIndexOf, map, slice, toString)
 abstract ReadOnlyArray<T>(Array<T>) from Array<T> {
-  @:arrayAccess public inline function get(i:Int) return this[i];
+  @:arrayAccess inline function get(i:Int) return this[i];
 } 
