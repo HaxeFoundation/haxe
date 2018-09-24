@@ -350,11 +350,10 @@ module StdBytes = struct
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
 		if encode_native encoding then begin
-			let s = maybe_extend_ascii s in
-			encode_bytes (Bytes.of_string s)
+			encode_bytes (Bytes.of_string s.sstring)
 		end else begin
 			let s' = s.sstring in
-			let s = if s.sascii then s' else utf16_to_utf8 s' in
+			let s = utf16_to_utf8 s' in
 			encode_bytes (Bytes.of_string s)
 		end
 	)
@@ -484,7 +483,7 @@ module StdBytesBuffer = struct
 	let addString = vifun2 (fun vthis src encoding ->
 		let this = this vthis in
 		let src = decode_vstring src in
-		let s = if src.sascii || StdBytes.encode_native encoding then
+		let s = if StdBytes.encode_native encoding then
 			src.sstring
 		else
 			utf16_to_utf8 src.sstring
@@ -1923,9 +1922,7 @@ module StdString = struct
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then encode_string ""
 		else begin
-			let s = this.sstring in
-			if this.sascii then encode_string (String.make 1 (String.get s i))
-			else begin
+			begin
 				let b = Bytes.create 2 in
 				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
 				let s = create_ucs2 (Bytes.unsafe_to_string b) 1 in
@@ -1938,7 +1935,6 @@ module StdString = struct
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
-		else if this.sascii then vint (int_of_char (String.get this.sstring i))
 		else vint (read_char this (i lsl 1))
 	)
 
@@ -1960,8 +1956,6 @@ module StdString = struct
 		try
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
-			else if this.sascii then
-				vint ((fst (find_substring this str false i)))
 			else begin
 				vint ((fst (find_substring this str false (i lsl 1))) lsr 1)
 			end
@@ -1980,10 +1974,7 @@ module StdString = struct
 				let i = default_int startIndex (this.slength - 1) in
 				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
 				let s = this.sstring in
-				if this.sascii then
-					vint (Str.search_backward (Str.regexp_string str.sstring) s i)
-				else
-					vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
+				vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
 			end
 		with Not_found ->
 			vint (-1)
@@ -1991,7 +1982,6 @@ module StdString = struct
 
 	let split = vifun1 (fun vthis delimiter ->
 		let this' = this vthis in
-		let ascii = this'.sascii in
 		let s = this'.sstring in
 		let delimiter' = (decode_vstring delimiter) in
 		let delimiter = delimiter'.sstring in
@@ -1999,13 +1989,10 @@ module StdString = struct
 		let l_this = String.length s in
 		let encode_range pos length =
 			let s = String.sub s pos length in
-			if ascii then encode_string s
-			else vstring (create_ucs2 s (length lsr 1))
+			vstring (create_ucs2 s (length lsr 1))
 		in
 		if l_delimiter = 0 then begin
-			if ascii then
-				encode_array (List.map (fun chr -> encode_string (String.make 1 chr)) (ExtString.String.explode s))
-			else begin
+			begin
 				let acc = DynArray.create () in
 				let bs = Bytes.unsafe_of_string s in
 				for i = 0 to (l_this - 1) lsr 1 do
@@ -2046,16 +2033,7 @@ module StdString = struct
 				let pos = this.slength + pos in
 				if pos < 0 then 0 else pos
 			end else pos in
-			if this.sascii then begin
-				let len = default_int len (l_this - pos) in
-				let len = if len < 0 then l_this + len - pos else len in
-				let s =
-					if len < 0 then ""
-					else if len + pos > l_this then String.sub s pos (l_this - pos)
-					else String.sub s pos len
-				in
-				encode_string s
-			end else begin
+			begin
 				let pos = pos lsl 1 in
 				let len = match len with
 					| VNull -> (l_this - pos)
@@ -2085,9 +2063,7 @@ module StdString = struct
 		if first > l then
 			encode_string ""
 		else begin
-			if this.sascii then
-				encode_string (String.sub this.sstring first (last - first))
-			else begin
+			begin
 				let first = first lsl 1 in
 				let last = last lsl 1 in
 				let length = last - first in
@@ -2099,27 +2075,17 @@ module StdString = struct
 
 	let toLowerCase = vifun0 (fun vthis ->
 		let this = this vthis in
-		if this.sascii then
-			encode_string (String.lowercase this.sstring)
-		else
-			vstring (case_map this false)
+		vstring (case_map this false)
 	)
 
 	let toString = vifun0 (fun vthis -> vthis)
 
 	let toUpperCase = vifun0 (fun vthis ->
 		let this = this vthis in
-		if this.sascii then
-			encode_string (String.uppercase this.sstring)
-		else
-			vstring (case_map this true)
+		vstring (case_map this true)
 	)
 
 	let cca = charCodeAt
-
-	let isAscii = vifun0 (fun vthis ->
-		vbool (this vthis).sascii
-	)
 end
 
 module StdStringBuf = struct
@@ -2141,7 +2107,6 @@ module StdStringBuf = struct
 		let this = this vthis in
 		let i = decode_int c in
 		let add i =
-			if this.bascii then AwareBuffer.promote_to_ucs this;
 			Buffer.add_char this.bbuffer (char_of_int (i land 0xFF));
 			Buffer.add_char this.bbuffer (char_of_int (i lsr 8));
 			this.blength <- this.blength + 1;
@@ -2149,11 +2114,7 @@ module StdStringBuf = struct
 		begin if i < 0 then
 			()
 		else if i < 128 then begin
-			if this.bascii then begin
-				Buffer.add_char this.bbuffer (char_of_int i);
-				this.blength <- this.blength + 1;
-			end else
-				add i
+			add i
 		end else if i < 0x10000 then begin
 			if i >= 0xD800 && i <= 0xDFFF then exc_string ("Invalid unicode char " ^ (string_of_int i));
 			add i
@@ -2171,15 +2132,14 @@ module StdStringBuf = struct
 		let this = this vthis in
 		let s = decode_vstring s in
 		let i = decode_int pos in
-		let i = if s.sascii then i else i lsl 1 in
+		let i = i lsl 1 in
 		let len = match len with
 			| VNull -> String.length s.sstring - i
-			| VInt32 i -> Int32.to_int i lsl (if s.sascii then 0 else 1)
+			| VInt32 i -> Int32.to_int i lsl 1
 			| _ -> unexpected_value len "int"
 		in
 		let s' = String.sub s.sstring i len in
-		let s' = if s.sascii then create_ascii s'
-		else create_ucs2 s' (len lsr 1) in
+		let s' = create_ucs2 s' (len lsr 1) in
 		AwareBuffer.add_string this s';
 		vnull
 	)
@@ -3162,7 +3122,6 @@ let init_standard_library builtins =
 		"toString",StdString.toString;
 		"toUpperCase",StdString.toUpperCase;
 		"cca",StdString.cca;
-		"isAscii",StdString.isAscii;
 	];
 	init_fields builtins ([],"StringBuf") [] [
 		"add",StdStringBuf.add;

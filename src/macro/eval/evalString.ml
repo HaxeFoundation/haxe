@@ -21,16 +21,9 @@ open Globals
 open EvalValue
 open EvalBytes
 
-let create_ascii s = {
-	sstring = s;
-	slength = String.length s;
-	sascii = true;
-}
-
 let create_ucs2 s length = {
 	sstring = s;
 	slength = length;
-	sascii = false;
 }
 
 let vstring s = VString s
@@ -41,34 +34,19 @@ module AwareBuffer = struct
 	let create () = {
 		bbuffer = Buffer.create 0;
 		blength = 0;
-		bascii = true;
 	}
 
 	let promote_to_ucs this =
 		let current = Buffer.contents this.bbuffer in
-		let current = extend_ascii current in
 		Buffer.clear this.bbuffer;
-		this.bascii <- false;
 		Buffer.add_string this.bbuffer current
 
 	let add_string this s =
-		begin match s.sascii,this.bascii with
-		| true,true
-		| false,false ->
-			Buffer.add_string this.bbuffer s.sstring
-		| true,false ->
-			Buffer.add_string this.bbuffer (extend_ascii s.sstring)
-		| false,true ->
-			promote_to_ucs this;
-			Buffer.add_string this.bbuffer s.sstring
-		end;
+		Buffer.add_string this.bbuffer s.sstring;
 		this.blength <- this.blength + s.slength
 
 	let contents this =
-		if this.bascii then
-			create_ascii (Buffer.contents this.bbuffer)
-		else
-			create_ucs2 (Buffer.contents this.bbuffer) this.blength
+		create_ucs2 (Buffer.contents this.bbuffer) this.blength
 end
 
 let read_char s =
@@ -112,6 +90,13 @@ let utf8_to_utf16 s =
 	done;
 	Buffer.contents buf,!only_ascii,!l
 
+let create_ascii s =
+	let s,_,l = utf8_to_utf16 s in
+	{
+		sstring = s;
+		slength = l;
+	}
+
 let utf16_to_utf8 s =
 	let buf = Buffer.create 0 in
 	let i = ref 0 in
@@ -153,23 +138,8 @@ let utf16_to_utf8 s =
 	done;
 	Buffer.contents buf
 
-let maybe_extend_ascii s =
-	let s' = s.sstring in
-	if s.sascii then begin
-		extend_ascii s'
-	end else
-		s'
-
 let concat s1 s2 =
-	match s1.sascii,s2.sascii with
-	| true,true ->
-		create_ascii (s1.sstring ^ s2.sstring)
-	| false,false ->
-		create_ucs2 (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
-	| true,false ->
-		create_ucs2 ((extend_ascii s1.sstring) ^ s2.sstring) (s1.slength + s2.slength)
-	| false,true ->
-		create_ucs2 (s1.sstring ^ (extend_ascii s2.sstring)) (s1.slength + s2.slength)
+	create_ucs2 (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
 
 let join sep sl =
 	let buf = AwareBuffer.create () in
@@ -187,11 +157,7 @@ let join sep sl =
 	AwareBuffer.contents buf
 
 let bytes_to_utf8 s =
-	let s',is_ascii,length = utf8_to_utf16 (Bytes.unsafe_to_string s) in
-	if is_ascii then
-		vstring (create_ascii (Bytes.unsafe_to_string s))
-	else
-		vstring (create_ucs2 s' length)
+	vstring (create_ascii (Bytes.unsafe_to_string s))
 
 let create_unknown s =
 	bytes_to_utf8 (Bytes.unsafe_of_string s)
@@ -243,14 +209,14 @@ let from_char_code i =
 let find_substring this sub reverse =
 	let s_this = this.sstring in
 	let l_this = String.length s_this in
-	let s_sub = if not this.sascii then maybe_extend_ascii sub else sub.sstring in
+	let s_sub = sub.sstring in
 	let l_sub = String.length s_sub in
 	let rec scan i k =
 		if k = l_sub then true
 		else if String.unsafe_get s_this (i + k) = String.unsafe_get s_sub k then scan i (k + 1)
 		else false
 	in
-	let inc = if this.sascii then 1 else 2 in
+	let inc = 2 in
 	if reverse then begin
 		let rec loop i =
 			if i < 0 then raise Not_found;
@@ -273,5 +239,4 @@ let find_substring this sub reverse =
 
 let get s =
 	let s' = s.sstring in
-	if s.sascii then s'
-	else utf16_to_utf8 s'
+	utf16_to_utf8 s'

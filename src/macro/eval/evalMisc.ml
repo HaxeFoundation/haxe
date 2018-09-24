@@ -107,13 +107,7 @@ let rec compare a b =
 	| VString s1,VString s2 ->
 		let s1' = s1.sstring in
 		let s2' = s2.sstring in
-		let s1,s2 = match s1.sascii,s2.sascii with
-		| true,true
-		| false,false -> s1',s2'
-		| true,false -> extend_ascii s1',s2'
-		| false,true -> s1',extend_ascii s2'
-		in
-		let r = String.compare s1 s2 in
+		let r = String.compare s1' s2' in
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
 	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
