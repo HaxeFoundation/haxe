@@ -25,11 +25,13 @@ let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
+		snext = (0,0);
 	}
 
 let create_ucs2 s length = {
 	sstring = s;
 	slength = length;
+	snext = (0,0);
 }
 
 let create_unknown s =
@@ -54,7 +56,14 @@ let get s =
 	s.sstring
 
 let read_char s index =
-	UChar.int_of_uchar (UTF8.get s.sstring index)
+	let offset = if fst s.snext = index then
+		snd s.snext
+	else
+		UTF8.nth s.sstring index
+	in
+	let char = UTF8.look s.sstring offset in
+	s.snext <- (index + 1,UTF8.next s.sstring offset);
+	UChar.int_of_uchar char
 
 let string_of_char_code i =
 	UTF8.init 1 (fun _ ->  UChar.uchar_of_int i)
