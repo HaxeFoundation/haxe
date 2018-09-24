@@ -958,7 +958,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try ((create_unknown (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try ((create_unknown (Std.input_file path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
@@ -1923,7 +1923,7 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
-				let b = UTF8.nth this.sstring i in
+				let b = get_offset this i in
 				let offset,_,_ = find_substring this str false i b in
 				vint offset
 			end
@@ -1941,7 +1941,7 @@ module StdString = struct
 			end else begin
 				let i = default_int startIndex (this.slength - 1) in
 				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
-				let b = UTF8.nth this.sstring i in
+				let b = get_offset this i in
 				let offset,_,_ = find_substring this str true i b in
 				vint offset
 			end
@@ -2006,7 +2006,7 @@ module StdString = struct
 					else if len > l_this - pos then l_this - pos
 					else len
 				in
-				vstring (try substr this pos len with exc -> print_endline (Printf.sprintf "%s %i %i" this.sstring pos len); raise exc);
+				vstring (substr this pos len);
 			end
 		end
 	)
@@ -2025,9 +2025,12 @@ module StdString = struct
 		else begin
 			begin
 				let offset1 = get_offset this first in
-				let diff = last - first in
-				let offset2 = UTF8.move this.sstring offset1 diff in
-				vstring (create_ucs2 (String.sub this.sstring offset1 (offset2 - offset1)) (last - first))
+				let clen = last - first in
+				let len =
+					if last = l then String.length this.sstring - offset1
+					else (UTF8.move this.sstring offset1 clen) - offset1
+				in
+				vstring (create_ucs2 (String.sub this.sstring offset1 len) clen)
 			end
 		end
 	)
@@ -2080,7 +2083,7 @@ module StdStringBuf = struct
 			| _ -> unexpected_value len "int"
 		in
 		if len > 0 then begin
-			let offset1 = try get_offset s i with exc -> exc_string (Printf.sprintf "%s %i %i" s.sstring i len) in
+			let offset1 = get_offset s i in
 			let offset2 = UTF8.move s.sstring offset1 len in
 			AwareBuffer.add_substring this s offset1 (offset2 - offset1) len;
 		end else

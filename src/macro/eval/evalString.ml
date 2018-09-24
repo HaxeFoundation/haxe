@@ -24,13 +24,13 @@ let vstring s = VString s
 let create_ascii s =
 	{
 		sstring = s;
-		slength = (try UTF8.length s with _ -> String.length s);
+		slength = String.length s;
 		snext = (0,0);
 	}
 
 let create_ucs2 s length = {
 	sstring = s;
-	slength = (try UTF8.length s with _ -> length);
+	slength = length;
 	snext = (0,0);
 }
 
@@ -67,7 +67,7 @@ let get_offset s index =
 	else
 		UTF8.nth s.sstring index
 	in
-	if index < s.slength then s.snext <- (index + 1,UTF8.next s.sstring offset);
+	if index < s.slength - 1 then s.snext <- (index + 1,UTF8.next s.sstring offset);
 	offset
 
 let read_char s index =
