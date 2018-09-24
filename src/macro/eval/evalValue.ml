@@ -29,7 +29,7 @@ type cmp =
 type vstring = {
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
-	sstring : string;
+	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
 }

@@ -335,10 +335,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		if encode_native encoding then
-			vstring (create_ucs2 (Bytes.unsafe_to_string s) len)
-		else
-			bytes_to_utf8 s
+		vstring (create_ucs2 (Bytes.unsafe_to_string s) len)
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -349,13 +346,7 @@ module StdBytes = struct
 
 	let ofString = vfun2 (fun v encoding ->
 		let s = decode_vstring v in
-		if encode_native encoding then begin
-			encode_bytes (Bytes.of_string s.sstring)
-		end else begin
-			let s' = s.sstring in
-			let s = utf16_to_utf8 s' in
-			encode_bytes (Bytes.of_string s)
-		end
+		encode_bytes (Bytes.of_string s.sstring)
 	)
 
 	let ofHex = vfun1 (fun v ->
@@ -441,7 +432,7 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		bytes_to_utf8 (this vthis)
+		vstring (create_ascii (Bytes.to_string (this vthis)))
 	)
 end
 
@@ -483,12 +474,7 @@ module StdBytesBuffer = struct
 	let addString = vifun2 (fun vthis src encoding ->
 		let this = this vthis in
 		let src = decode_vstring src in
-		let s = if StdBytes.encode_native encoding then
-			src.sstring
-		else
-			utf16_to_utf8 src.sstring
-		in
-		Buffer.add_string this s;
+		Buffer.add_string this src.sstring;
 		vnull
 	)
 
@@ -985,7 +971,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try bytes_to_utf8 (Bytes.unsafe_of_string ((Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try (vstring (create_ascii (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
@@ -1706,7 +1692,7 @@ module StdResource = struct
 	)
 
 	let getString = vfun1 (fun name ->
-		try bytes_to_utf8 (Bytes.unsafe_of_string (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name))) with Not_found -> vnull
+		try (vstring (create_ascii (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name)))) with Not_found -> vnull
 	)
 
 	let getBytes = vfun1 (fun name ->
@@ -1924,7 +1910,7 @@ module StdString = struct
 		else begin
 			begin
 				let b = Bytes.create 2 in
-				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
+				EvalBytes.write_ui16 b 0 (read_char this i);
 				let s = create_ucs2 (Bytes.unsafe_to_string b) 1 in
 				vstring s
 			end
@@ -1935,7 +1921,7 @@ module StdString = struct
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
-		else vint (read_char this (i lsl 1))
+		else vint (read_char this i)
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -1945,8 +1931,8 @@ module StdString = struct
 		with
 		| Not_found ->
 			vnull
-		| InvalidUnicodeChar ->
-			exc_string ("Invalid unicode char " ^ (string_of_int i))
+		(* | InvalidUnicodeChar ->
+			exc_string ("Invalid unicode char " ^ (string_of_int i)) *)
 	)
 
 	let indexOf = vifun2 (fun vthis str startIndex ->
@@ -1957,7 +1943,7 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
-				vint ((fst (find_substring this str false (i lsl 1))) lsr 1)
+				vint ((fst (find_substring this str false i)))
 			end
 		with Not_found ->
 			vint (-1)
@@ -1973,8 +1959,7 @@ module StdString = struct
 			end else begin
 				let i = default_int startIndex (this.slength - 1) in
 				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
-				let s = this.sstring in
-				vint ((fst (find_substring this str true (i lsl 1))) lsr 1)
+				vint ((fst (find_substring this str true i)))
 			end
 		with Not_found ->
 			vint (-1)
@@ -1989,20 +1974,25 @@ module StdString = struct
 		let l_this = String.length s in
 		let encode_range pos length =
 			let s = String.sub s pos length in
-			vstring (create_ucs2 s (length lsr 1))
+			vstring (create_ucs2 s length)
 		in
 		if l_delimiter = 0 then begin
-			begin
+			let acc = DynArray.create () in
+			UTF8.iter (fun uc ->
+				DynArray.add acc (vstring (create_ascii (UTF8.init 1 (fun _ -> uc))));
+			) s;
+			encode_array (DynArray.to_list acc)
+			(* begin
 				let acc = DynArray.create () in
 				let bs = Bytes.unsafe_of_string s in
-				for i = 0 to (l_this - 1) lsr 1 do
+				for i = 0 to (l_this - 1) do
 					let b = Bytes.create 2 in
-					Bytes.unsafe_set b 0 (Bytes.unsafe_get bs (i lsl 1));
-					Bytes.unsafe_set b 1 (Bytes.unsafe_get bs ((i lsl 1 + 1)));
+					Bytes.unsafe_set b 0 (Bytes.unsafe_get bs i);
+					Bytes.unsafe_set b 1 (Bytes.unsafe_get bs ((i + 1)));
 					DynArray.add acc (vstring (create_ucs2 (Bytes.unsafe_to_string b) 1));
 				done;
 				encode_array (DynArray.to_list acc)
-			end
+			end *)
 		end else if l_delimiter > l_this then
 			encode_array [encode_range 0 (String.length s)]
 		else begin
@@ -2034,10 +2024,9 @@ module StdString = struct
 				if pos < 0 then 0 else pos
 			end else pos in
 			begin
-				let pos = pos lsl 1 in
 				let len = match len with
 					| VNull -> (l_this - pos)
-					| VInt32 i -> Int32.to_int i lsl 1
+					| VInt32 i -> Int32.to_int i
 					| _ -> unexpected_value len "int"
 				in
 				let len = if len < 0 then l_this + len - pos else len in
@@ -2046,7 +2035,7 @@ module StdString = struct
 					else if len + pos > l_this then String.sub s pos (l_this - pos)
 					else String.sub s pos len
 				in
-				vstring (create_ucs2 s (len lsr 1))
+				vstring (create_ucs2 s len)
 			end
 		end
 	)
@@ -2064,8 +2053,8 @@ module StdString = struct
 			encode_string ""
 		else begin
 			begin
-				let first = first lsl 1 in
-				let last = last lsl 1 in
+				let first = first in
+				let last = last in
 				let length = last - first in
 				let r = String.sub this.sstring first length in
 				vstring (create_ucs2 r length)
@@ -2132,14 +2121,13 @@ module StdStringBuf = struct
 		let this = this vthis in
 		let s = decode_vstring s in
 		let i = decode_int pos in
-		let i = i lsl 1 in
 		let len = match len with
 			| VNull -> String.length s.sstring - i
-			| VInt32 i -> Int32.to_int i lsl 1
+			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
 		let s' = String.sub s.sstring i len in
-		let s' = create_ucs2 s' (len lsr 1) in
+		let s' = create_ucs2 s' len in
 		AwareBuffer.add_string this s';
 		vnull
 	)
@@ -2685,7 +2673,7 @@ module StdUtf8 = struct
 
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
-		bytes_to_utf8 (Bytes.unsafe_of_string (UTF8.Buf.contents this))
+		vstring (create_ascii ((UTF8.Buf.contents this)))
 	)
 
 	let validate = vfun1 (fun s ->

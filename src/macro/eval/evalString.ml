@@ -17,14 +17,124 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
 
-open Globals
 open EvalValue
-open EvalBytes
+
+let vstring s = VString s
+
+let create_ascii s =
+	{
+		sstring = s;
+		slength = String.length s;
+	}
+
 
 let create_ucs2 s length = {
 	sstring = s;
 	slength = length;
 }
+
+let concat s1 s2 =
+	create_ucs2 (s1.sstring ^ s2.sstring) (s1.slength + s2.slength)
+
+let join sep sl =
+	let l_sep = sep.slength in
+	let buf = Buffer.create 0 in
+	let _,length = List.fold_left (fun (first,length) s ->
+		let length = if first then 0 else length + l_sep in
+		let length = length + s.slength in
+		if not first then Buffer.add_string buf sep.sstring;
+		Buffer.add_string buf s.sstring;
+		(false,length)
+	) (true,0) sl in
+	create_ucs2 (Buffer.contents buf) length
+
+let get s =
+	s.sstring
+
+let create_unknown s =
+	vstring (create_ucs2 s (UTF8.length s))
+
+let read_char s index =
+	UChar.int_of_uchar (UTF8.get s.sstring index)
+
+let from_char_code i =
+	create_ucs2 (UTF8.init 1 (fun _ ->  UChar.uchar_of_int i)) 1
+
+
+let find_substring this sub reverse =
+	let s_this = this.sstring in
+	let l_this = String.length s_this in
+	let s_sub = sub.sstring in
+	let l_sub = String.length s_sub in
+	let rec scan i k =
+		if k = l_sub then true
+		else if String.unsafe_get s_this (i + k) = String.unsafe_get s_sub k then scan i (k + 1)
+		else false
+	in
+	let inc = 1 in
+	if reverse then begin
+		let rec loop i =
+			if i < 0 then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i - inc)
+		in
+		loop
+	end else begin
+		let rec loop i =
+			if i > l_this - l_sub then raise Not_found;
+			if scan i 0 then
+				i,i + l_sub
+			else
+				loop (i + inc)
+		in
+		loop
+	end
+
+let case_map this upper =
+	let dest = Bytes.of_string this.sstring in
+	let a,m = if upper then EvalBytes.Unicase._UPPER,1022 else EvalBytes.Unicase._LOWER,1021 in
+	let f i c =
+		let up = c lsr 6 in
+		if up < m then begin
+			let c' = a.(up).(c land ((1 lsl 6) - 1)) in
+			if c' <> 0 then EvalBytes.write_ui16 dest i c'
+		end
+	in
+	let l = Bytes.length dest in
+	let rec loop i =
+		if i = l then
+			()
+		else begin
+			let c = EvalBytes.read_ui16 dest i in
+			f i c;
+			loop (i + 2)
+		end
+	in
+	loop 0;
+	(create_ucs2 (Bytes.unsafe_to_string dest) this.slength)
+
+module AwareBuffer = struct
+	type t = vstring_buffer
+
+	let create () = {
+		bbuffer = Buffer.create 0;
+		blength = 0;
+	}
+
+	let add_string this s =
+		Buffer.add_string this.bbuffer s.sstring;
+		this.blength <- this.blength + s.slength
+
+	let contents this =
+		create_ucs2 (Buffer.contents this.bbuffer) this.blength
+end
+
+(* open Globals
+open EvalValue
+open EvalBytes
+
 
 let vstring s = VString s
 
@@ -35,11 +145,6 @@ module AwareBuffer = struct
 		bbuffer = Buffer.create 0;
 		blength = 0;
 	}
-
-	let promote_to_ucs this =
-		let current = Buffer.contents this.bbuffer in
-		Buffer.clear this.bbuffer;
-		Buffer.add_string this.bbuffer current
 
 	let add_string this s =
 		Buffer.add_string this.bbuffer s.sstring;
@@ -239,4 +344,4 @@ let find_substring this sub reverse =
 
 let get s =
 	let s' = s.sstring in
-	utf16_to_utf8 s'
+	utf16_to_utf8 s' *)

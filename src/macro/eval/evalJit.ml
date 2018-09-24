@@ -36,7 +36,7 @@ let rope_path t = match follow t with
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos
 
 let eval_const = function
-	| TString s -> EvalString.bytes_to_utf8 (Bytes.unsafe_of_string s)
+	| TString s -> EvalString.vstring (EvalString.create_ascii s)
 	| TInt i32 -> vint32 i32
 	| TFloat f -> vfloat (float_of_string f)
 	| TBool b -> vbool b
