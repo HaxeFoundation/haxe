@@ -24,13 +24,13 @@ let vstring s = VString s
 let create_ascii s =
 	{
 		sstring = s;
-		slength = String.length s;
+		slength = (try UTF8.length s with _ -> String.length s);
 		snext = (0,0);
 	}
 
 let create_ucs2 s length = {
 	sstring = s;
-	slength = length;
+	slength = (try UTF8.length s with _ -> length);
 	snext = (0,0);
 }
 
@@ -55,14 +55,24 @@ let join sep sl =
 let get s =
 	s.sstring
 
-let read_char s index =
+let rec nth_aux s i n =
+  if n = 0 then i else
+  nth_aux s (UTF8.next s i) (n - 1)
+
+let get_offset s index =
 	let offset = if fst s.snext = index then
 		snd s.snext
+	else if fst s.snext < index then
+		nth_aux s.sstring (snd s.snext) (index - fst s.snext)
 	else
 		UTF8.nth s.sstring index
 	in
+	if index < s.slength then s.snext <- (index + 1,UTF8.next s.sstring offset);
+	offset
+
+let read_char s index =
+	let offset = get_offset s index in
 	let char = UTF8.look s.sstring offset in
-	s.snext <- (index + 1,UTF8.next s.sstring offset);
 	UChar.int_of_uchar char
 
 let string_of_char_code i =
@@ -120,20 +130,12 @@ let case_map this upper =
 	create_ucs2 (UTF8.Buf.contents buf) this.slength
 
 let substr this index length =
-	let buf = UTF8.Buf.create 0 in
-	let offset = UTF8.nth this.sstring index in
-	let rec loop b l =
-		if l = length || b >= String.length this.sstring then ()
-		else begin
-			UTF8.Buf.add_char buf (UTF8.look this.sstring b);
-			loop (UTF8.next this.sstring b) (l + 1)
-		end
-	in
 	if length < 0 then
 		create_ucs2 "" 0
 	else begin
-		loop offset 0;
-		create_ucs2 (UTF8.Buf.contents buf) length
+		let offset1 = get_offset this index in
+		let offset2 = UTF8.move this.sstring offset1 length in
+		create_ucs2 (String.sub this.sstring offset1 (offset2 - offset1)) length
 	end
 
 module AwareBuffer = struct
@@ -147,6 +149,10 @@ module AwareBuffer = struct
 	let add_string this s =
 		Buffer.add_string this.bbuffer s.sstring;
 		this.blength <- this.blength + s.slength
+
+	let add_substring this s pos len slen =
+		Buffer.add_substring this.bbuffer s.sstring pos len;
+		this.blength <- this.blength + slen
 
 	let contents this =
 		create_ucs2 (Buffer.contents this.bbuffer) this.blength

@@ -958,7 +958,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try (vstring (create_ascii (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try ((create_unknown (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
@@ -1679,7 +1679,7 @@ module StdResource = struct
 	)
 
 	let getString = vfun1 (fun name ->
-		try (vstring (create_ascii (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name)))) with Not_found -> vnull
+		try ((create_unknown (Hashtbl.find ((get_ctx()).curapi.MacroApi.get_com()).resources (decode_string name)))) with Not_found -> vnull
 	)
 
 	let getBytes = vfun1 (fun name ->
@@ -1986,10 +1986,9 @@ module StdString = struct
 
 	let substr = vifun2 (fun vthis pos len ->
 		let this = this vthis in
-		let s = this.sstring in
-		let l_this = String.length s in
+		let l_this = this.slength in
 		let pos = decode_int pos in
-		if pos >= this.slength then
+		if pos >= l_this then
 			encode_string ""
 		else begin
 			let pos = if pos < 0 then begin
@@ -2002,8 +2001,12 @@ module StdString = struct
 					| VInt32 i -> Int32.to_int i
 					| _ -> unexpected_value len "int"
 				in
-				let len = if len < 0 then l_this + len - pos else len in
-				vstring (substr this pos len)
+				let len =
+					if len < 0 then l_this + len - pos
+					else if len > l_this - pos then l_this - pos
+					else len
+				in
+				vstring (try substr this pos len with exc -> print_endline (Printf.sprintf "%s %i %i" this.sstring pos len); raise exc);
 			end
 		end
 	)
@@ -2017,15 +2020,14 @@ module StdString = struct
 		let last = if last < 0 then 0 else last in
 		let first,last = if first > last then last,first else first,last in
 		let last = if last > l then l else last in
-		if first > l then
+		if first > l || first = last then
 			encode_string ""
 		else begin
 			begin
-				let first = UTF8.nth this.sstring first in
-				let last = UTF8.nth this.sstring last in
-				let length = last - first in
-				let r = String.sub this.sstring first length in
-				vstring (create_ascii r)
+				let offset1 = get_offset this first in
+				let diff = last - first in
+				let offset2 = UTF8.move this.sstring offset1 diff in
+				vstring (create_ucs2 (String.sub this.sstring offset1 (offset2 - offset1)) (last - first))
 			end
 		end
 	)
@@ -2077,8 +2079,12 @@ module StdStringBuf = struct
 			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
-		let s' = substr s i len in
-		AwareBuffer.add_string this s';
+		if len > 0 then begin
+			let offset1 = try get_offset s i with exc -> exc_string (Printf.sprintf "%s %i %i" s.sstring i len) in
+			let offset2 = UTF8.move s.sstring offset1 len in
+			AwareBuffer.add_substring this s offset1 (offset2 - offset1) len;
+		end else
+			AwareBuffer.add_string this (create_ascii "");
 		vnull
 	)
 
