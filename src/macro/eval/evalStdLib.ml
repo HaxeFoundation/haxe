@@ -847,24 +847,11 @@ module StdEReg = struct
 
 	let matchedPos = vifun0 (fun vthis ->
 		let this = this vthis in
-		let rec search_head s i =
-			if i >= String.length s then i else
-			let n = Char.code (String.unsafe_get s i) in
-			if n < 0x80 || n >= 0xc2 then i else
-			search_head s (i + 1)
-		in
-		let next' s i =
-			let n = Char.code s.[i] in
-			if n < 0x80 then i + 1 else
-			if n < 0xc0 then search_head s (i + 1) else
-			if n <= 0xdf then i + 2
-			else i + 3
-		in
 		let rec byte_offset_to_char_offset_lol s i k o =
 			if i = 0 then
 				k
 			else begin
-				let n = next' s o in
+				let n = UTF8.next s o in
 				let d = n - o in
 				byte_offset_to_char_offset_lol s (i - d) (k + 1) n
 			end
@@ -1907,14 +1894,7 @@ module StdString = struct
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then encode_string ""
-		else begin
-			begin
-				let b = Bytes.create 2 in
-				EvalBytes.write_ui16 b 0 (read_char this i);
-				let s = create_ucs2 (Bytes.unsafe_to_string b) 1 in
-				vstring s
-			end
-		end
+		else vstring (from_char_code (read_char this i))
 	)
 
 	let charCodeAt = vifun1 (fun vthis index ->
@@ -1943,7 +1923,9 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
-				vint ((fst (find_substring this str false i)))
+				let b = UTF8.nth this.sstring i in
+				let offset,_,_ = find_substring this str false i b in
+				vint offset
 			end
 		with Not_found ->
 			vint (-1)
@@ -1959,7 +1941,9 @@ module StdString = struct
 			end else begin
 				let i = default_int startIndex (this.slength - 1) in
 				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
-				vint ((fst (find_substring this str true i)))
+				let b = UTF8.nth this.sstring i in
+				let offset,_,_ = find_substring this str true i b in
+				vint offset
 			end
 		with Not_found ->
 			vint (-1)
@@ -1982,31 +1966,20 @@ module StdString = struct
 				DynArray.add acc (vstring (create_ascii (UTF8.init 1 (fun _ -> uc))));
 			) s;
 			encode_array (DynArray.to_list acc)
-			(* begin
-				let acc = DynArray.create () in
-				let bs = Bytes.unsafe_of_string s in
-				for i = 0 to (l_this - 1) do
-					let b = Bytes.create 2 in
-					Bytes.unsafe_set b 0 (Bytes.unsafe_get bs i);
-					Bytes.unsafe_set b 1 (Bytes.unsafe_get bs ((i + 1)));
-					DynArray.add acc (vstring (create_ucs2 (Bytes.unsafe_to_string b) 1));
-				done;
-				encode_array (DynArray.to_list acc)
-			end *)
 		end else if l_delimiter > l_this then
 			encode_array [encode_range 0 (String.length s)]
 		else begin
 			let acc = DynArray.create () in
 			let f = find_substring this' delimiter' false in
-			let rec loop i =
+			let rec loop i b =
 				try
-					let offset,next = f i in
-					DynArray.add acc (encode_range i (offset - i));
-					loop next;
+					let offset,boffset,next = f i b in
+					DynArray.add acc (encode_range b (boffset - b));
+					loop (offset + delimiter'.slength) next;
 				with Not_found ->
-					DynArray.add acc (encode_range i (l_this - i))
+					DynArray.add acc (encode_range b (l_this - b))
 			in
-			loop 0;
+			loop 0 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))
 		end
 	)
@@ -2030,12 +2003,7 @@ module StdString = struct
 					| _ -> unexpected_value len "int"
 				in
 				let len = if len < 0 then l_this + len - pos else len in
-				let s =
-					if len < 0 then ""
-					else if len + pos > l_this then String.sub s pos (l_this - pos)
-					else String.sub s pos len
-				in
-				vstring (create_ucs2 s len)
+				vstring (substr this pos len)
 			end
 		end
 	)
@@ -2053,11 +2021,11 @@ module StdString = struct
 			encode_string ""
 		else begin
 			begin
-				let first = first in
-				let last = last in
+				let first = UTF8.nth this.sstring first in
+				let last = UTF8.nth this.sstring last in
 				let length = last - first in
 				let r = String.sub this.sstring first length in
-				vstring (create_ucs2 r length)
+				vstring (create_ascii r)
 			end
 		end
 	)
@@ -2095,25 +2063,8 @@ module StdStringBuf = struct
 	let addChar = vifun1 (fun vthis c ->
 		let this = this vthis in
 		let i = decode_int c in
-		let add i =
-			Buffer.add_char this.bbuffer (char_of_int (i land 0xFF));
-			Buffer.add_char this.bbuffer (char_of_int (i lsr 8));
-			this.blength <- this.blength + 1;
-		in
-		begin if i < 0 then
-			()
-		else if i < 128 then begin
-			add i
-		end else if i < 0x10000 then begin
-			if i >= 0xD800 && i <= 0xDFFF then exc_string ("Invalid unicode char " ^ (string_of_int i));
-			add i
-		end else if i < 0x110000 then begin
-			let i = i - 0x10000 in
-			add ((i lsr 10 + 0xD800));
-			add ((i land 1023) + 0xDC00);
-		end else
-			exc_string ("Invalid unicode char " ^ (string_of_int i))
-		end;
+		Buffer.add_string this.bbuffer (string_of_char_code i);
+		this.blength <- this.blength + 1;
 		vnull
 	)
 
@@ -2126,8 +2077,7 @@ module StdStringBuf = struct
 			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
-		let s' = String.sub s.sstring i len in
-		let s' = create_ucs2 s' len in
+		let s' = substr s i len in
 		AwareBuffer.add_string this s';
 		vnull
 	)
