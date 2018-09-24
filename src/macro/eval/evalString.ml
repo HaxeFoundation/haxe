@@ -25,13 +25,13 @@ let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
-		soffsets = [|(0,0);(0,0);(0,0)|];
+		soffset = (0,0);
 	}
 
 let create_with_length s length = {
 	sstring = s;
 	slength = length;
-	soffsets = [|(0,0);(0,0);(0,0)|];
+	soffset = (0,0);
 }
 
 let create_unknown s =
@@ -53,26 +53,29 @@ let join sep sl =
 	create_with_length (Buffer.contents buf) length
 
 let get_offset s c_index =
-	let c_offset,b_offset = ref 0,ref 0 in
-	let diff = ref c_index in
-	let i = ref 0 in
-	Array.iteri (fun i' (c_offset',b_offset') ->
-		if c_offset' <= c_index then begin
-			let diff' = c_index - c_offset' in
-			if diff' <= !diff then begin
-				diff := diff';
-				c_offset := c_offset';
-				b_offset := b_offset';
-				i := i';
-			end
-		end
-	) s.soffsets;
-	let rec nth_aux s i n =
-		if n = 0 then i else
-		nth_aux s (UTF8.next s i) (n - 1)
+	let rec get_b_offset c_len b_offset =
+		if c_len = 0 then b_offset else
+		get_b_offset (c_len - 1) (UTF8.next s.sstring b_offset)
 	in
-	let b_offset = nth_aux s.sstring !b_offset (c_index - !c_offset) in
-	s.soffsets.(!i) <- (c_index,b_offset);
+	let rec rget_b_offset c_len b_offset =
+		if c_len = 0 then b_offset else
+		rget_b_offset (c_len + 1) (UTF8.prev s.sstring b_offset)
+	in
+	let (c_index',b_offset') = s.soffset in
+	let b_offset = match c_index - c_index' with
+		| 0 -> b_offset'
+		| 1 -> UTF8.next s.sstring b_offset'
+		| -1 -> UTF8.prev s.sstring b_offset'
+		| diff ->
+			if diff > 0 then
+				get_b_offset diff b_offset'
+			else if c_index + diff < 0 then
+				(* big step backwards, better to start over *)
+				get_b_offset c_index 0
+			else
+				rget_b_offset diff b_offset'
+	in
+	s.soffset <- (c_index,b_offset);
 	b_offset
 
 let char_at s c_index =

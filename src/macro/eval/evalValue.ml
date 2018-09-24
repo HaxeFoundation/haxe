@@ -32,7 +32,8 @@ type vstring = {
 	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
-	mutable soffsets : (int * int) array;
+	(* The current (character * byte) offsets. *)
+	mutable soffset : (int * int);
 }
 
 type vstring_buffer = {
