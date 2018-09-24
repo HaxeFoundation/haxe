@@ -18,7 +18,7 @@ let var_to_json name value access =
 	let jv t v structured =
 		JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
 	in
-	let string_repr s = "\"" ^ (Ast.s_escape (EvalString.get s)) ^ "\"" in
+	let string_repr s = "\"" ^ (Ast.s_escape s.sstring) ^ "\"" in
 	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"
@@ -35,7 +35,7 @@ let var_to_json name value access =
 		| VString s -> string_repr s
 		| VArray _ | VVector _ -> "[...]"
 		| VInstance vi -> (rev_hash vi.iproto.ppath) ^ " {...}"
-		| VPrototype proto -> EvalString.get (s_proto_kind proto)
+		| VPrototype proto -> (s_proto_kind proto).sstring
 		| VFunction _ | VFieldClosure _ -> "<fun>"
 		| VLazy f -> level2_value_repr (!f())
 	in
@@ -71,7 +71,7 @@ let var_to_json name value access =
 		| VInstance vi ->
 			let class_name = rev_hash vi.iproto.ppath in
 			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
-		| VPrototype proto -> jv "Anonymous" (EvalString.get (s_proto_kind proto)) false (* TODO: show statics *)
+		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring false (* TODO: show statics *)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
 		| VLazy f -> value_string (!f())
 	in
@@ -195,7 +195,7 @@ let output_inner_vars v access =
 			) l
 		| VInstance {ikind = IStringMap h} ->
 			StringHashtbl.fold (fun k v acc ->
-				let s = EvalString.get k in
+				let s = k.sstring in
 				let n = Printf.sprintf "[%s]" s in
 				let a = access ^ n in
 				(s,v,a) :: acc

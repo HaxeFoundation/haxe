@@ -335,7 +335,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		vstring (create_ucs2 (Bytes.unsafe_to_string s) len)
+		vstring (create_with_length (Bytes.unsafe_to_string s) len)
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -1579,7 +1579,7 @@ module StdReflect = struct
 	)
 
 	let deleteField = vfun2 (fun o name ->
-		let name = hash (get (decode_vstring name)) in
+		let name = hash (decode_vstring name).sstring in
 		match vresolve o with
 		| VObject o ->
 			let found = ref false in
@@ -1600,7 +1600,7 @@ module StdReflect = struct
 	)
 
 	let field' = vfun2 (fun o name ->
-		if o = vnull then vnull else dynamic_field o (hash (get (decode_vstring name)))
+		if o = vnull then vnull else dynamic_field o (hash (decode_vstring name).sstring)
 	)
 
 	let fields = vfun1 (fun o ->
@@ -1618,14 +1618,14 @@ module StdReflect = struct
 
 	let getProperty = vfun2 (fun o name ->
 		let name = decode_vstring name in
-		let name_get = hash (get (concat r_get_ name)) in
+		let name_get = hash (concat r_get_ name).sstring in
 		let vget = field o name_get in
 		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash (get name))
+		else dynamic_field o (hash name.sstring)
 	)
 
 	let hasField = vfun2 (fun o field ->
-		let name = hash (get (decode_vstring field)) in
+		let name = hash (decode_vstring field).sstring in
 		let b = match vresolve o with
 			| VObject o -> IntMap.mem name o.oproto.pinstance_names
 			| VInstance vi -> IntMap.mem name vi.iproto.pinstance_names || IntMap.mem name vi.iproto.pnames
@@ -1656,16 +1656,16 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		set_field o (hash (get (decode_vstring name))) v; vnull
+		set_field o (hash (decode_vstring name).sstring) v; vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
 		let name = decode_vstring name in
-		let name_set = hash (get (concat r_set_ name)) in
+		let name_set = hash (concat r_set_ name).sstring in
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			set_field o (hash (get name)) v;
+			set_field o (hash name.sstring) v;
 			vnull
 		end
 	)
@@ -1863,8 +1863,9 @@ module StdStd = struct
 		| _ -> vfalse
 	)
 
-	let string = vfun1 (fun v ->
-		vstring (s_value 0 v)
+	let string = vfun1 (fun v -> match v with
+		| VString _ -> v
+		| _ -> vstring (s_value 0 v)
 	)
 
 	let int = vfun1 (fun v ->
@@ -1894,14 +1895,14 @@ module StdString = struct
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then encode_string ""
-		else vstring (from_char_code (read_char this i))
+		else vstring (from_char_code (char_at this i))
 	)
 
 	let charCodeAt = vifun1 (fun vthis index ->
 		let this = this vthis in
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
-		else vint (read_char this i)
+		else vint (char_at this i)
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -1911,8 +1912,6 @@ module StdString = struct
 		with
 		| Not_found ->
 			vnull
-		(* | InvalidUnicodeChar ->
-			exc_string ("Invalid unicode char " ^ (string_of_int i)) *)
 	)
 
 	let indexOf = vifun2 (fun vthis str startIndex ->
@@ -1950,34 +1949,33 @@ module StdString = struct
 	)
 
 	let split = vifun1 (fun vthis delimiter ->
-		let this' = this vthis in
-		let s = this'.sstring in
-		let delimiter' = (decode_vstring delimiter) in
-		let delimiter = delimiter'.sstring in
-		let l_delimiter = String.length delimiter in
-		let l_this = String.length s in
+		let this = this vthis in
+		let s = this.sstring in
+		let delimiter = decode_vstring delimiter in
+		let bl_delimiter = String.length delimiter.sstring in
+		let bl_this = String.length s in
 		let encode_range pos length clength =
 			let s = String.sub s pos length in
-			vstring (create_ucs2 s clength)
+			vstring (create_with_length s clength)
 		in
-		if l_delimiter = 0 then begin
+		if bl_delimiter = 0 then begin
 			let acc = DynArray.create () in
 			UTF8.iter (fun uc ->
 				DynArray.add acc (vstring (create_ascii (UTF8.init 1 (fun _ -> uc))));
 			) s;
 			encode_array (DynArray.to_list acc)
-		end else if l_delimiter > l_this then
-			encode_array [encode_range 0 (String.length s) this'.slength]
+		end else if bl_delimiter > bl_this then
+			encode_array [encode_range 0 bl_this this.slength]
 		else begin
 			let acc = DynArray.create () in
-			let f = find_substring this' delimiter' false in
-			let rec loop i b =
+			let f = find_substring this delimiter false in
+			let rec loop c_index b_index =
 				try
-					let offset,boffset,next = f i b in
-					DynArray.add acc (encode_range b (boffset - b) (offset - i));
-					loop (offset + delimiter'.slength) next;
+					let c_offset,b_offset,next = f c_index b_index in
+					DynArray.add acc (encode_range b_index (b_offset - b_index) (c_offset - c_index));
+					loop (c_offset + delimiter.slength) next;
 				with Not_found ->
-					DynArray.add acc (encode_range b (l_this - b) (this'.slength - i))
+					DynArray.add acc (encode_range b_index (bl_this - b_index) (this.slength - c_index))
 			in
 			loop 0 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))
@@ -1986,51 +1984,51 @@ module StdString = struct
 
 	let substr = vifun2 (fun vthis pos len ->
 		let this = this vthis in
-		let l_this = this.slength in
-		let pos = decode_int pos in
-		if pos >= l_this then
+		let cl_this = this.slength in
+		let c_pos = decode_int pos in
+		if c_pos >= cl_this then
 			encode_string ""
 		else begin
-			let pos = if pos < 0 then begin
-				let pos = this.slength + pos in
-				if pos < 0 then 0 else pos
-			end else pos in
+			let c_pos = if c_pos < 0 then begin
+				let c_pos = this.slength + c_pos in
+				if c_pos < 0 then 0 else c_pos
+			end else c_pos in
 			begin
-				let len = match len with
-					| VNull -> (l_this - pos)
+				let c_len = match len with
+					| VNull -> (cl_this - c_pos)
 					| VInt32 i -> Int32.to_int i
 					| _ -> unexpected_value len "int"
 				in
-				let len =
-					if len < 0 then l_this + len - pos
-					else if len > l_this - pos then l_this - pos
-					else len
+				let c_len =
+					if c_len < 0 then cl_this + c_len - c_pos
+					else if c_len > cl_this - c_pos then cl_this - c_pos
+					else c_len
 				in
-				vstring (substr this pos len);
+				vstring (substr this c_pos c_len);
 			end
 		end
 	)
 
 	let substring = vifun2 (fun vthis startIndex endIndex ->
 		let this = this vthis in
-		let first = decode_int startIndex in
-		let l = this.slength in
-		let last = default_int endIndex l in
-		let first = if first < 0 then 0 else first in
-		let last = if last < 0 then 0 else last in
-		let first,last = if first > last then last,first else first,last in
-		let last = if last > l then l else last in
-		if first > l || first = last then
+		let c_first = decode_int startIndex in
+		let cl_this = this.slength in
+		let c_last = default_int endIndex cl_this in
+		let c_first = if c_first < 0 then 0 else c_first in
+		let c_last = if c_last < 0 then 0 else c_last in
+		let c_first,c_last = if c_first > c_last then c_last,c_first else c_first,c_last in
+		let c_last = if c_last > cl_this then cl_this else c_last in
+		if c_first > cl_this || c_first = c_last then
 			encode_string ""
 		else begin
 			begin
-				let offset1 = get_offset this first in
-				let clen = last - first in
-				let len =
-					if last = l then String.length this.sstring - offset1
-					else (UTF8.move this.sstring offset1 clen) - offset1
+				let b_offset1 = get_offset this c_first in
+				let c_len = c_last - c_first in
+				let b_len =
+					if c_last = cl_this then String.length this.sstring - b_offset1
+					else (UTF8.move this.sstring b_offset1 c_len) - b_offset1
 				in
-				vstring (create_ucs2 (String.sub this.sstring offset1 len) clen)
+				vstring (create_with_length (String.sub this.sstring b_offset1 b_len) c_len)
 			end
 		end
 	)
@@ -2061,7 +2059,7 @@ module StdStringBuf = struct
 			| VString s -> s
 			| _ -> create_ascii (value_string x)
 		in
-		AwareBuffer.add_string this s;
+		VStringBuffer.add_string this s;
 		vnull;
 	)
 
@@ -2076,18 +2074,17 @@ module StdStringBuf = struct
 	let addSub = vifun3 (fun vthis s pos len ->
 		let this = this vthis in
 		let s = decode_vstring s in
-		let i = decode_int pos in
-		let len = match len with
-			| VNull -> String.length s.sstring - i
+		let c_pos = decode_int pos in
+		let c_len = match len with
+			| VNull -> String.length s.sstring - c_pos
 			| VInt32 i -> Int32.to_int i
 			| _ -> unexpected_value len "int"
 		in
-		if len > 0 then begin
-			let offset1 = get_offset s i in
-			let offset2 = UTF8.move s.sstring offset1 len in
-			AwareBuffer.add_substring this s offset1 (offset2 - offset1) len;
-		end else
-			AwareBuffer.add_string this (create_ascii "");
+		if c_len > 0 then begin
+			let b_offset1 = get_offset s c_pos in
+			let b_offset2 = UTF8.move s.sstring b_offset1 c_len in
+			VStringBuffer.add_substring this s b_offset1 (b_offset2 - b_offset1) c_len;
+		end;
 		vnull
 	)
 
@@ -2098,7 +2095,7 @@ module StdStringBuf = struct
 
 	let toString = vifun0 (fun vthis ->
 		let this = this vthis in
-		let s = AwareBuffer.contents this in
+		let s = VStringBuffer.contents this in
 		vstring s
 	)
 end
@@ -2118,9 +2115,9 @@ module StdStringTools = struct
 
 	let urlDecode = vfun1 (fun s ->
 		let s = decode_string s in
-		let b = AwareBuffer.create () in
+		let b = VStringBuffer.create () in
 		let add s =
-			AwareBuffer.add_string b s
+			VStringBuffer.add_string b s
 		in
 		let len = String.length s in
 		let decode c =
@@ -2185,7 +2182,7 @@ module StdStringTools = struct
 				loop (i + 1)
 		in
 		loop 0;
-		vstring (AwareBuffer.contents b)
+		vstring (VStringBuffer.contents b)
 	)
 end
 
@@ -2364,7 +2361,7 @@ module StdType = struct
 	)
 
 	let createEnum = vfun3 (fun e constr params ->
-		let constr = hash (get (decode_vstring constr)) in
+		let constr = hash (decode_vstring constr).sstring in
 		create_enum e constr params
 	)
 
@@ -2506,12 +2503,12 @@ module StdType = struct
 	)
 
 	let resolveClass = vfun1 (fun v ->
-		let name = get (decode_vstring v) in
+		let name = (decode_vstring v).sstring in
 		try (get_static_prototype_raise (get_ctx()) (hash name)).pvalue with Not_found -> vnull
 	)
 
 	let resolveEnum = vfun1 (fun v ->
-		let name = get (decode_vstring v) in
+		let name = (decode_vstring v).sstring in
 		try
 			let proto = get_static_prototype_raise (get_ctx()) (hash name) in
 			begin match proto.pkind with
@@ -2699,7 +2696,7 @@ let init_constructors builtins =
 			| [s] -> s
 			| _ -> assert false
 		);
-	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (AwareBuffer.create())));
+	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
 	add key_haxe_Utf8
 		(fun vl -> match vl with
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
