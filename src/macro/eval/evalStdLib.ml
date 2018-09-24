@@ -1928,9 +1928,7 @@ module StdString = struct
 			else begin
 				let b = Bytes.create 2 in
 				EvalBytes.write_ui16 b 0 (read_char this (i lsl 1));
-				let c = Bytes.unsafe_get b 0 in
-				let s = if (int_of_char c) < 0x80 then create_ascii (String.make 1 c)
-				else create_ucs2 (Bytes.unsafe_to_string b) 1 in
+				let s = create_ucs2 (Bytes.unsafe_to_string b) 1 in
 				vstring s
 			end
 		end

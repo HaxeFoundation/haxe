@@ -151,7 +151,6 @@ var s = "ée";
 var s1 = s.charAt(1);
 s1 == "e";
 #if eval
-(untyped s1.isAscii()) == true;
 (untyped s.charAt(0).isAscii()) == false;
 #end
 
@@ -303,5 +302,9 @@ test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
 #end
+
+for (str in ["ä", "あ", "😂", "aä", "aあ", "a😂"]) {
+	eq(str.charAt(0).charCodeAt(0), str.charCodeAt(0));
+}
 
 #end
