@@ -432,7 +432,7 @@ module StdBytes = struct
 	)
 
 	let toString = vifun0 (fun vthis ->
-		vstring (create_ascii (Bytes.to_string (this vthis)))
+		(create_unknown (Bytes.to_string (this vthis)))
 	)
 end
 
@@ -958,7 +958,7 @@ module StdFile = struct
 
 	let getContent = vfun1 (fun path ->
 		let path = decode_string path in
-		try ((create_unknown (Std.input_file path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
+		try ((create_unknown (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
@@ -1956,9 +1956,9 @@ module StdString = struct
 		let delimiter = delimiter'.sstring in
 		let l_delimiter = String.length delimiter in
 		let l_this = String.length s in
-		let encode_range pos length =
+		let encode_range pos length clength =
 			let s = String.sub s pos length in
-			vstring (create_ucs2 s length)
+			vstring (create_ucs2 s clength)
 		in
 		if l_delimiter = 0 then begin
 			let acc = DynArray.create () in
@@ -1967,17 +1967,17 @@ module StdString = struct
 			) s;
 			encode_array (DynArray.to_list acc)
 		end else if l_delimiter > l_this then
-			encode_array [encode_range 0 (String.length s)]
+			encode_array [encode_range 0 (String.length s) this'.slength]
 		else begin
 			let acc = DynArray.create () in
 			let f = find_substring this' delimiter' false in
 			let rec loop i b =
 				try
 					let offset,boffset,next = f i b in
-					DynArray.add acc (encode_range b (boffset - b));
+					DynArray.add acc (encode_range b (boffset - b) (offset - i));
 					loop (offset + delimiter'.slength) next;
 				with Not_found ->
-					DynArray.add acc (encode_range b (l_this - b))
+					DynArray.add acc (encode_range b (l_this - b) (this'.slength - i))
 			in
 			loop 0 0;
 			encode_array_instance (EvalArray.create (DynArray.to_array acc))

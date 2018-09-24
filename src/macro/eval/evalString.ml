@@ -25,13 +25,13 @@ let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
-		snext = (0,0);
+		soffsets = [|(0,0);(0,0);(0,0)|];
 	}
 
 let create_ucs2 s length = {
 	sstring = s;
 	slength = length;
-	snext = (0,0);
+	soffsets = [|(0,0);(0,0);(0,0)|];
 }
 
 let create_unknown s =
@@ -60,14 +60,23 @@ let rec nth_aux s i n =
   nth_aux s (UTF8.next s i) (n - 1)
 
 let get_offset s index =
-	let offset = if fst s.snext = index then
-		snd s.snext
-	else if fst s.snext < index then
-		nth_aux s.sstring (snd s.snext) (index - fst s.snext)
-	else
-		UTF8.nth s.sstring index
-	in
-	if index < s.slength - 1 then s.snext <- (index + 1,UTF8.next s.sstring offset);
+	let offset_char,offset_byte = ref 0,ref 0 in
+	let diff = ref index in
+	let i = ref 0 in
+	Array.iteri (fun i' (offset_char',offset_byte') ->
+		if offset_char' <= index then begin
+			let diff' = index - offset_char' in
+			if diff' <= !diff then begin
+				diff := diff';
+				offset_char := offset_char';
+				offset_byte := offset_byte';
+				i := i';
+			end
+		end
+	) s.soffsets;
+	(* print_endline (Printf.sprintf "[%i] %i %i %i" !i index !offset_byte (index - !offset_char)); *)
+	let offset = nth_aux s.sstring !offset_byte (index - !offset_char) in
+	s.soffsets.(!i) <- (index,offset);
 	offset
 
 let read_char s index =
