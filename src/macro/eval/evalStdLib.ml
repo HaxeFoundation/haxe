@@ -964,7 +964,7 @@ module StdFile = struct
 	let read = vfun2 (fun path binary ->
 		let path = decode_string path in
 		let binary = match binary with
-			| VTrue -> true
+			| VTrue | VNull -> true
 			| _ -> false
 		in
 		let ch = open_in_gen (Open_rdonly :: (if binary then [Open_binary] else [])) 0 path in
