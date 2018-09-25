@@ -1368,9 +1368,9 @@ module TexprConverter = struct
 						let e_subject,unmatched,kind,finiteness = all_ctors ctx e_subject cases in
 						let unmatched = ExtList.List.filter_map (unify_constructor ctx params e_subject.etype) unmatched in
 						let loop toplevel params dt =
-							try Some (loop toplevel params dt)
+							try Some (loop false params dt)
 							with Not_exhaustive -> match with_type,finiteness with
-								| WithType.NoValue,Infinite -> None
+								| WithType.NoValue,Infinite when toplevel -> None
 								| _,CompileTimeFinite when unmatched = [] -> None
 								| _ when ctx.com.display.DisplayMode.dms_error_policy = DisplayMode.EPIgnore -> None
 								| _ -> report_not_exhaustive e_subject unmatched
@@ -1396,10 +1396,10 @@ module TexprConverter = struct
 							| [],RunTimeFinite ->
 								None
 							| _ ->
-								loop false params default
+								loop toplevel params default
 						in
 						let cases = ExtList.List.filter_map (fun (cons,dt,params) ->
-							let eo = loop false params dt in
+							let eo = loop toplevel params dt in
 							begin match eo with
 								| None -> None
 								| Some e -> Some (List.map (Constructor.to_texpr ctx match_debug) (List.sort Constructor.compare cons),e)
