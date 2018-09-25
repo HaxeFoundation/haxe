@@ -335,7 +335,7 @@ module StdBytes = struct
 		let pos = decode_int pos in
 		let len = decode_int len in
 		let s = try Bytes.sub this pos len with _ -> outside_bounds() in
-		vstring (create_with_length (Bytes.unsafe_to_string s) len)
+		create_unknown (Bytes.unsafe_to_string s)
 	)
 
 	let getUInt16 = vifun1 (fun vthis pos ->
@@ -1961,7 +1961,7 @@ module StdString = struct
 		if bl_delimiter = 0 then begin
 			let acc = DynArray.create () in
 			UTF8.iter (fun uc ->
-				DynArray.add acc (vstring (create_ascii (UTF8.init 1 (fun _ -> uc))));
+				DynArray.add acc (vstring (create_with_length (UTF8.init 1 (fun _ -> uc)) 1));
 			) s;
 			encode_array (DynArray.to_list acc)
 		end else if bl_delimiter > bl_this then
