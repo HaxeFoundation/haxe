@@ -129,7 +129,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			final();
 			match v1,v2 with
 				| VString s,VInstance {ikind = IPos p} ->
-					raise (Error.Error (Error.Custom (EvalString.get s),p))
+					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
 					Error.error "Something went wrong" null_pos
 		end else begin

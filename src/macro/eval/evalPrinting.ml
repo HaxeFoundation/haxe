@@ -140,5 +140,4 @@ and call_value_on vthis v vl =
 	| _ -> exc_string ("Cannot call " ^ (value_string v))
 
 and value_string v =
-	let s = s_value 0 v in
-	EvalString.get s
+	(s_value 0 v).sstring

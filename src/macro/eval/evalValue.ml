@@ -29,42 +29,26 @@ type cmp =
 type vstring = {
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
-	sstring : string;
+	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
-	(* If true, the string is one-byte-per-character ASCII. Otherwise, it is
-	   encoded as UCS2. *)
-	sascii  : bool;
+	(* The current (character * byte) offsets. *)
+	mutable soffset : (int * int);
 }
 
 type vstring_buffer = {
 	        bbuffer : Buffer.t;
 	mutable blength : int;
-	mutable bascii  : bool;
 }
 
-let extend_ascii s =
-	let length = String.length s in
-	let b = Bytes.make (length lsl 1) '\000' in
-	for i = 0 to length - 1 do
-		Bytes.unsafe_set b (i lsl 1) (String.unsafe_get s i)
-	done;
-	Bytes.unsafe_to_string b
-
 let vstring_equal s1 s2 =
-	if s1.sascii = s2.sascii then
-		s1.sstring = s2.sstring
-	else if not s2.sascii then
-		extend_ascii s1.sstring = s2.sstring
-	else
-		s1.sstring = extend_ascii s2.sstring
+	s1.sstring = s2.sstring
 
 module StringHashtbl = Hashtbl.Make(struct
 	type t = vstring
 	let equal = vstring_equal
 	let hash s =
-		let s = if s.sascii then extend_ascii s.sstring
-		else s.sstring in
+		let s = s.sstring in
 		Hashtbl.hash s
 end)
 

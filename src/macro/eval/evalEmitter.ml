@@ -365,8 +365,7 @@ let emit_string_cca exec1 exec2 p env =
 	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
-	else if s.sascii then vint (int_of_char (String.get s.sstring index))
-	else vint (EvalString.read_char s (index lsl 1))
+	else vint (EvalString.char_at s index)
 
 (* Write *)
 
