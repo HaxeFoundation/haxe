@@ -1305,8 +1305,11 @@ and expr_next' e1 = parser
 	| [< '(Binop op,_); e2 = secure_expr >] -> make_binop op e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
-	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
-		(ETernary (e1,e2,e3),punion (pos e1) (pos e3))
+	| [< '(Question,_); e2 = expr; s >] ->
+		begin match s with parser
+		| [< '(DblDot,_); e3 = expr >] -> (ETernary (e1,e2,e3),punion (pos e1) (pos e3))
+		| [< >] -> if !in_display then e2 else serror()
+		end
 	| [< '(Kwd In,_); e2 = expr >] ->
 		make_binop OpIn e1 e2
 	| [< >] -> e1
