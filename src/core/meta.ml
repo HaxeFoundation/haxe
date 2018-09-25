@@ -167,6 +167,7 @@ type strict_meta =
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
+	| Using
 	| Used
 	| Value
 	| Void
@@ -366,6 +367,7 @@ let get_info = function
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
+	| Using -> ":using",("Automatically uses the argument types as static extensions for the annotated type",[UsedOnEither [TClass;TEnum;TAbstract]])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 	| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 	| Last -> assert false

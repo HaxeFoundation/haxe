@@ -894,3 +894,38 @@ let handle_path_display ctx path p =
 			) m.m_types;
 		| (IDK,_),_ ->
 			()
+
+let handle_using ctx path p =
+	let t = match List.rev path with
+		| (s1,_) :: (s2,_) :: sl ->
+			if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
+			else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+		| (s1,_) :: sl ->
+			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+		| [] ->
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
+	in
+	let types = (match t.tsub with
+		| None ->
+			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+			types
+		| Some _ ->
+			let t = load_type_def ctx p t in
+			[t]
+	) in
+	(* delay the using since we need to resolve typedefs *)
+	let filter_classes types =
+		let rec loop acc types = match types with
+			| td :: l ->
+				(match resolve_typedef td with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					loop ((c,p) :: acc) l
+				| td ->
+					loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
+	types,filter_classes

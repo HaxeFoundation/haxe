@@ -859,6 +859,12 @@ let rec string_list_of_expr_path_raise (e,p) =
 	| EField (e,f) -> f :: string_list_of_expr_path_raise e
 	| _ -> raise Exit
 
+let rec string_pos_list_of_expr_path_raise (e,p) =
+	match e with
+	| EConst (Ident i) -> [i,p]
+	| EField (e,f) -> (f,p) :: string_pos_list_of_expr_path_raise e (* wrong p? *)
+	| _ -> raise Exit
+
 let expr_of_type_path (sl,s) p =
 	match sl with
 	| [] -> (EConst(Ident s),p)
