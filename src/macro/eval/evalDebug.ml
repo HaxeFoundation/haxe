@@ -95,7 +95,10 @@ let debug_loop jit conn e f =
 			conn.bp_stop ctx env;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
-
+		(* | Return _ | Break | Continue | Sys_exit _ | RunTimeException _ as exc ->
+			raise exc
+		| exc ->
+			throw (EvalString.vstring (EvalString.create_ascii (Printexc.to_string exc))) e.epos; *)
 	in
 	(* Sets the environmental debug data, then executes the debug loop. *)
 	let run_set env =

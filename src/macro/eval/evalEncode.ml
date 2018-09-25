@@ -190,7 +190,7 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	vstring (create_ascii s)
+	create_unknown s
 
 let encode_bytes s =
 	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)

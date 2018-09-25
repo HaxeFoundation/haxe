@@ -65,7 +65,7 @@ let var_to_json name value access =
 			in
 			jv type_s value_s is_structured
 		| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
-		| VString s -> jv "String" (string_repr s) false
+		| VString s -> jv "String" (string_repr s) true
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
 		| VInstance vi ->
@@ -178,7 +178,12 @@ let output_inner_vars v access =
 				let a = access ^ "." ^ n in
 				n, v, a
 			) fields
-		| VString _ -> []
+		| VString s -> [
+			"length",vint s.slength,access ^ ".length";
+			"byteLength",vint (String.length s.sstring),access ^ ".byteLength";
+			"charOffset",vint (fst s.soffset),access ^ ".charOffset";
+			"byteOffset",vint (snd s.soffset),access ^ ".byteOffset";
+		]
 		| VArray va ->
 			let l = EvalArray.to_list va in
 			List.mapi (fun i v ->
