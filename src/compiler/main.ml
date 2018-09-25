@@ -1062,6 +1062,8 @@ with
 		exit i
 	| DisplayOutput.Completion _ as exc ->
 		raise exc
+	| Out_of_memory as exc ->
+		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos
 

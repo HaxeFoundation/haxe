@@ -490,7 +490,11 @@ let rec wait_loop process_params verbose accept =
 			let estr = Printexc.to_string e in
 			ServerMessage.uncaught_error estr;
 			(try write estr with _ -> ());
-			if is_debug_run() then print_endline (Printexc.get_backtrace());
+			if is_debug_run() then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if e = Out_of_memory then begin
+				close();
+				exit (-1);
+			end;
 		);
 		close();
 		current_stdin := None;
