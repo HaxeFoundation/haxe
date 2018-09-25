@@ -54,6 +54,10 @@ extern class SpeechSynthesisVoice
 		A `Boolean` indicating whether the voice is supplied by a local speech synthesizer service (`true`), or a remote speech synthesizer service (`false`.)
 	**/
 	var localService(default,null) : Bool;
+	
+	/**
+		A `Boolean` indicating whether the voice is the default voice for the current app language (`true`), or not (`false`.)
+	**/
 	@:native("default")
 	var default_(default,null) : Bool;
 	

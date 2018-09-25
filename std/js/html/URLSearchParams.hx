@@ -43,8 +43,11 @@ extern class URLSearchParams
 		Appends a specified key/value pair as a new search parameter.
 	**/
 	function append( name : String, value : String ) : Void;
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes the given search parameter, and its associated value, from the list of all search parameters.
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated to the given search parameter.
