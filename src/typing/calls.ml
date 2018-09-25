@@ -716,3 +716,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		tf_expr = mk (TReturn (Some func)) t_inner p;
 	}) (TFun(outer_fun_args given_args, t_inner)) p in
 	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+
+let array_access ctx e1 e2 mode p =
+	let has_abstract_array_access = ref false in
+	try
+		(match follow e1.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+			begin match mode with
+			| MSet ->
+				(* resolve later *)
+				AKAccess (a,pl,c,e1,e2)
+			| _ ->
+				has_abstract_array_access := true;
+				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
+				AKExpr e
+			end
+		| _ -> raise Not_found)
+	with Not_found ->
+		unify ctx e2.etype ctx.t.tint e2.epos;
+		let rec loop et =
+			match follow et with
+			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
+				apply_params pl tl t
+			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
+				apply_params pl tl (loop (TInst (c,stl)))
+			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
+				t
+			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
+				t_dynamic
+			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
+				loop (apply_params a.a_params tl a.a_this)
+			| _ ->
+				let pt = mk_mono() in
+				let t = ctx.t.tarray pt in
+				(try unify_raise ctx et t p
+				with Error(Unify _,_) -> if not ctx.untyped then begin
+					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
+					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
+				end);
+				pt
+		in
+		let pt = loop e1.etype in
+		AKExpr (mk (TArray (e1,e2)) pt p)

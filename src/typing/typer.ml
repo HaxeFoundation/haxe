@@ -92,20 +92,6 @@ let get_iterable_param t =
 			raise Not_found)
 	| _ -> raise Not_found
 
-let get_abstract_froms a pl =
-	let l = List.map (apply_params a.a_params pl) a.a_from in
-	List.fold_left (fun acc (t,f) ->
-		match follow (Type.field_type f) with
-		| TFun ([_,_,v],t) ->
-			(try
-				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
-				v :: acc
-			with Unify_error _ ->
-				acc)
-		| _ ->
-			acc
-	) l a.a_from_field
-
 let maybe_type_against_enum ctx f with_type iscall p =
 	try
 		begin match with_type with
@@ -1435,46 +1421,7 @@ and type_access ctx e p mode =
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
 	let e2 = type_expr ctx e2 WithType.value in
-	let has_abstract_array_access = ref false in
-	try
-		(match follow e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
-			begin match mode with
-			| MSet ->
-				(* resolve later *)
-				AKAccess (a,pl,c,e1,e2)
-			| _ ->
-				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
-				AKExpr e
-			end
-		| _ -> raise Not_found)
-	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
-		let rec loop et =
-			match follow et with
-			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
-				apply_params pl tl t
-			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
-				apply_params pl tl (loop (TInst (c,stl)))
-			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
-				t
-			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
-				t_dynamic
-			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
-				loop (apply_params a.a_params tl a.a_this)
-			| _ ->
-				let pt = mk_mono() in
-				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
-				pt
-		in
-		let pt = loop e1.etype in
-		AKExpr (mk (TArray (e1,e2)) pt p)
+	Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
 	let vl = List.map (fun ((v,pv),final,t,e) ->

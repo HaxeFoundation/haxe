@@ -366,7 +366,7 @@ module Pattern = struct
 					| Bad_pattern s -> error s p
 				end
 			| EArrayDecl el ->
-				begin match follow t with
+				let rec pattern t = match follow t with
 					| TFun(tl,tr) when tr == fake_tuple_type ->
 						let rec loop el tl = match el,tl with
 							| e :: el,(_,_,t) :: tl ->
@@ -383,9 +383,15 @@ module Pattern = struct
 							make pctx false t2 e
 						) el in
 						PatConstructor(con_array (List.length patterns) (pos e),patterns)
+					| TAbstract(a,tl) ->
+						begin match TyperBase.get_abstract_froms a tl with
+							| [t2] -> pattern t2
+							| _ -> fail()
+						end
 					| _ ->
 						fail()
-				end
+				in
+				pattern t
 			| EObjectDecl fl ->
 				let rec known_fields t = match follow t with
 					| TAnon an ->
@@ -897,10 +903,9 @@ module Compile = struct
 			List.map (type_field_access mctx.ctx e) sl
 		| ConArray 0 -> []
 		| ConArray i ->
-			let t = match follow e.etype with TInst({cl_path=[],"Array"},[t]) -> t | TDynamic _ as t -> t | _ -> assert false in
 			ExtList.List.init i (fun i ->
 				let ei = make_int mctx.ctx.com.basic i e.epos in
-				mk (TArray(e,ei)) t e.epos
+				Calls.acc_get mctx.ctx (Calls.array_access mctx.ctx e ei MGet e.epos) e.epos
 			)
 		| ConConst _ | ConTypeExpr _ | ConStatic _ ->
 			[]
