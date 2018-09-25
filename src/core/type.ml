@@ -2063,7 +2063,22 @@ let rec unify a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
+				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then begin
+					f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
+					match f2.cf_kind with
+					| Var vk ->
+						let check name =
+							try
+								let _,_,cf = raw_class_field make_type c tl name in
+								if not (Meta.has Meta.MaybeUsed cf.cf_meta) then
+									cf.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: cf.cf_meta
+							with Not_found ->
+								()
+						in
+						(match vk.v_read with AccCall -> check ("get_" ^ f1.cf_name) | _ -> ());
+						(match vk.v_write with AccCall -> check ("set_" ^ f1.cf_name) | _ -> ());
+					| _ -> ()
+				end;
 				(match f1.cf_kind with
 				| Method MethInline ->
 					if (c.cl_extern || f1.cf_extern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
