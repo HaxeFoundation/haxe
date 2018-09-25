@@ -1044,3 +1044,36 @@ module Expr = struct
 		loop' "" e;
 		Buffer.contents buf
 end
+
+let has_meta_option metas meta s =
+	let rec loop ml = match ml with
+		| (meta',el,_) :: ml when meta = meta' ->
+			if List.exists (fun (e,p) ->
+				match e with
+					| EConst(Ident s2) when s = s2 -> true
+					| _ -> false
+			) el then
+				true
+			else
+				loop ml
+		| _ :: ml ->
+			loop ml
+		| [] ->
+			false
+	in
+	loop metas
+
+let get_meta_options metas meta =
+	let rec loop ml = match ml with
+		| (meta',el,_) :: ml when meta = meta' ->
+			ExtList.List.filter_map (fun (e,p) ->
+				match e with
+					| EConst(Ident s2) -> Some s2
+					| _ -> None
+			) el
+		| _ :: ml ->
+			loop ml
+		| [] ->
+			[]
+	in
+	loop metas

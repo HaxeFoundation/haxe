@@ -150,30 +150,6 @@ let is_unbound_call_that_might_have_side_effects s el = match s,el with
 	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
 	| _ -> true
 
-let is_ref_type = function
-	| TType({t_path = ["cs"],("Ref" | "Out")},_) -> true
-	| TType({t_path = path},_) when path = Genphp7.ref_type_path -> true
-	| TType({t_path = ["cpp"],("Reference")},_) -> true
-	| TAbstract({a_path=["hl";"types"],"Ref"},_) -> true
-	| _ -> false
-
-let rec is_asvar_type t =
-	let check meta =
-		AnalyzerConfig.has_analyzer_option meta "as_var"
-	in
-	match t with
-	| TInst(c,_) -> check c.cl_meta
-	| TEnum(en,_) -> check en.e_meta
-	| TType(t,tl) -> check t.t_meta || (is_asvar_type (apply_params t.t_params tl t.t_type))
-	| TAbstract(a,_) -> check a.a_meta
-	| TLazy f -> is_asvar_type (lazy_type f)
-	| TMono r ->
-		(match !r with
-		| Some t -> is_asvar_type t
-		| _ -> false)
-	| _ ->
-		false
-
 let type_change_ok com t1 t2 =
 	if t1 == t2 then
 		true
@@ -716,7 +692,7 @@ module Fusion = struct
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
-					not (is_asvar_type v.v_type) &&
+					not (ExtType.has_variable_semantics v.v_type) &&
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
@@ -868,7 +844,7 @@ module Fusion = struct
 							found := true;
 							if type_change_ok com v1.v_type e1.etype then e1 else mk (TCast(e1,None)) v1.v_type e.epos
 						| TLocal v ->
-							if has_var_write ir v || ((v.v_capture || is_ref_type v.v_type) && (has_state_write ir)) then raise Exit;
+							if has_var_write ir v || ((v.v_capture || ExtType.has_reference_semantics v.v_type) && (has_state_write ir)) then raise Exit;
 							e
 						| TBinop(OpAssign,({eexpr = TLocal v} as e1),e2) ->
 							let e2 = replace e2 in
@@ -1225,7 +1201,7 @@ module Purity = struct
 		let rec check_write e1 =
 			begin match e1.eexpr with
 				| TLocal v ->
-					if is_ref_type v.v_type then taint_raise node; (* Writing to a ref type means impurity. *)
+					if ExtType.has_reference_semantics v.v_type then taint_raise node; (* Writing to a ref type means impurity. *)
 					() (* Writing to locals does not violate purity. *)
 				| TField({eexpr = TConst TThis},_) when is_ctor ->
 					() (* A constructor can write to its own fields without violating purity. *)

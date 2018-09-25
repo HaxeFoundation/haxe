@@ -305,11 +305,11 @@ let rec func ctx bb tf t p =
 	and call bb e e1 el =
 		let bb = ref bb in
 		let check e t = match e.eexpr with
-			| TLocal v when is_ref_type t ->
+			| TLocal v when ExtType.has_reference_semantics t ->
 				v.v_capture <- true;
 				e
 			| _ ->
-				if is_asvar_type t then begin
+				if ExtType.has_variable_semantics t then begin
 					let v = alloc_var VGenerated "tmp" t e.epos in
 					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
 					bb := bb';
