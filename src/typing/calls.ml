@@ -602,10 +602,10 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		);
 		let e = try
 			f()
-		with Error (m,p) ->
+		with exc ->
 			ctx.on_error <- old;
 			!ethis_f();
-			raise (Fatal_error ((error_msg m),p))
+			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
 		ctx.on_error <- old;
