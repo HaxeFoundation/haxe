@@ -26,6 +26,11 @@ type cmp =
 	| CInf
 	| CUndef
 
+type vstring_offset =
+	| VSONone
+	| VSOOne of (int * int) ref
+	| VSOTwo of (int * int) ref * (int * int) ref
+
 type vstring = {
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
@@ -33,7 +38,7 @@ type vstring = {
 	(* The length of the string. *)
 	slength : int;
 	(* The current (character * byte) offsets. *)
-	mutable soffset : (int * int);
+	mutable soffset : vstring_offset;
 }
 
 type vstring_buffer = {

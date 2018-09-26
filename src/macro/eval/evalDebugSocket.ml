@@ -181,8 +181,6 @@ let output_inner_vars v access =
 		| VString s -> [
 			"length",vint s.slength,access ^ ".length";
 			"byteLength",vint (String.length s.sstring),access ^ ".byteLength";
-			"charOffset",vint (fst s.soffset),access ^ ".charOffset";
-			"byteOffset",vint (snd s.soffset),access ^ ".byteOffset";
 		]
 		| VArray va ->
 			let l = EvalArray.to_list va in

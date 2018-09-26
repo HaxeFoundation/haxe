@@ -21,17 +21,22 @@ open EvalValue
 
 let vstring s = VString s
 
+let get_offset s =
+	let l = String.length s in
+	if l > 5 then VSOOne (ref (0,0))
+	else VSONone
+
 let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
-		soffset = (0,0);
+		soffset = get_offset s;
 	}
 
 let create_with_length s length = {
 	sstring = s;
 	slength = length;
-	soffset = (0,0);
+	soffset = get_offset s;
 }
 
 let create_unknown s =
@@ -61,22 +66,61 @@ let get_offset s c_index =
 		if c_len = 0 then b_offset else
 		rget_b_offset (c_len + 1) (UTF8.prev s.sstring b_offset)
 	in
-	let (c_index',b_offset') = s.soffset in
-	let b_offset = match c_index - c_index' with
-		| 0 -> b_offset'
-		| 1 -> UTF8.next s.sstring b_offset'
-		| -1 -> UTF8.prev s.sstring b_offset'
-		| diff ->
-			if diff > 0 then
-				get_b_offset diff b_offset'
-			else if c_index + diff < 0 then
-				(* big step backwards, better to start over *)
-				get_b_offset c_index 0
-			else
-				rget_b_offset diff b_offset'
-	in
-	s.soffset <- (c_index,b_offset);
-	b_offset
+	match s.soffset with
+	| VSONone ->
+		get_b_offset c_index 0
+	| VSOOne r1 ->
+		let (c_index1,b_offset1) = !r1 in
+		let diff = c_index - c_index1 in
+		let b_offset = match diff with
+			| 0 -> b_offset1
+			| 1 -> UTF8.next s.sstring b_offset1
+			| -1 -> UTF8.prev s.sstring b_offset1
+			| _ ->
+				if diff > 0 then
+					get_b_offset diff b_offset1
+				else if c_index + diff < 0 then
+					(* big step backwards, better to start over *)
+					get_b_offset c_index 0
+				else
+					rget_b_offset diff b_offset1
+		in
+		(* If our jump is larger than the scientifically determined value 20, upgrade
+		   to two offset pointers. *)
+		if abs diff > 20 then s.soffset <- VSOTwo(r1,ref (c_index,b_offset))
+		else r1 := (c_index,b_offset);
+		b_offset
+	| VSOTwo(r1,r2) ->
+		let (c_index1,b_offset1) = !r1 in
+		let (c_index2,b_offset2) = !r2 in
+		let diff1 = c_index - c_index1 in
+		let diff2 = c_index - c_index2 in
+		let first,b_offset = match diff1,diff2 with
+			| 0,_ -> true,b_offset1
+			| _,0 -> false,b_offset2
+			| 1,_ -> true,UTF8.next s.sstring b_offset1
+			| _,1 -> false,UTF8.next s.sstring b_offset2
+			| -1,_ -> true,UTF8.prev s.sstring b_offset1
+			| _,-1 -> false,UTF8.prev s.sstring b_offset2
+			| _ ->
+				let first,diff,b_offset' = if abs diff1 > abs diff2 then
+					false,diff2,b_offset2
+				else
+					true,diff1,b_offset1
+				in
+				let b_offset = if diff > 0 then
+					get_b_offset diff b_offset'
+				else if c_index + diff < 0 then
+					(* big step backwards, better to start over *)
+					get_b_offset c_index 0
+				else
+					rget_b_offset diff b_offset'
+				in
+				first,b_offset
+		in
+		if first then r1 := (c_index,b_offset)
+		else r2 := (c_index,b_offset);
+		b_offset
 
 let char_at s c_index =
 	let b_offset = get_offset s c_index in
