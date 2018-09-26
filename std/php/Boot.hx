@@ -720,18 +720,17 @@ private class HxString {
 	}
 
 	public static function substr( str:String, pos:Int, ?len:Int ) : String {
-		if (pos < -str.length) {
-			pos = 0;
-		} else if (pos >= str.length) {
-			return '';
-		}
 		return Global.mb_substr(str, pos, len, 'UTF-8');
 	}
 
 	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
 		if (endIndex == null) {
-			endIndex = str.length;
-		} else if (endIndex < 0) {
+			if(startIndex < 0) {
+				startIndex = 0;
+			}
+			return Global.mb_substr(str, startIndex, null, 'UTF-8');
+		}
+		if (endIndex < 0) {
 			endIndex = 0;
 		}
 		if (startIndex < 0) {

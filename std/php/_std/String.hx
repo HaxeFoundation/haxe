@@ -48,7 +48,9 @@ import php.*;
 
 	@:pure function split( delimiter : String ) : Array<String>;
 
-	@:pure function substr( pos : Int, ?len : Int ) : String;
+	@:pure @:runtime inline function substr( pos : Int, ?len : Int ) : String {
+		return Global.mb_substr(this, pos, len, 'UTF-8');
+	}
 
 	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
 

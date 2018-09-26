@@ -95,7 +95,8 @@ import php.*;
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return (s.length == index ? 0 : Global.mb_ord(Global.mb_substr(s, index, 1, 'UTF-8'), 'UTF-8'));
+		var char = Global.mb_substr(s, index, 1, 'UTF-8');
+		return char == '' ? 0 : Global.mb_ord(char, 'UTF-8');
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
