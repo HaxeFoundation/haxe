@@ -254,18 +254,26 @@ and jit_expr jit return e =
 	(* control flow *)
 	| TBlock [] ->
 		emit_null
-	| TBlock el ->
-		let e1,el = match List.rev el with
-			| e1 :: el -> e1,List.rev el
-			| [] -> assert false
+	| TBlock [e1] ->
+		jit_expr jit return e1
+	| TBlock (e1 :: el) ->
+		let rec loop f el =
+			match el with
+				| [e] ->
+					let f' = jit_expr jit return e in
+					emit_seq f f'
+				| e1 :: el ->
+					let f' = jit_expr jit false e1 in
+					let f = emit_seq f f' in
+					loop f el
+				| [] ->
+					assert false
 		in
 		push_scope jit e.epos;
-		let execs = List.map (jit_expr jit false) el in
-		let exec1 = jit_expr jit return e1 in
+		let f0 = jit_expr jit false e1 in
+		let f = loop f0 el in
 		pop_scope jit;
-		let execs = (Array.of_list (execs @ [exec1])) in
-		let l = Array.length execs in
-		emit_block execs l
+		f
 	| TReturn None ->
 		if return then emit_null
 		else begin

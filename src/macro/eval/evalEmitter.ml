@@ -182,6 +182,10 @@ let emit_block execs l env =
 let emit_value exec env =
 	exec env
 
+let emit_seq exec1 exec2 env =
+	ignore(exec1 env);
+	exec2 env
+
 let emit_return_null _ = raise (Return vnull)
 
 let emit_return_value exec env = raise (Return (exec env))
