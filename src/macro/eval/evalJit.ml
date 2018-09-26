@@ -419,7 +419,10 @@ and jit_expr jit return e =
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
 				let i = get_instance_field_index proto name e1.epos in
-				emit_instance_field_read (jit_expr jit false e1) i
+				begin match e1.eexpr with
+					| TConst TThis -> emit_this_field_read (get_slot jit 0 e.epos) i
+					| _ -> emit_instance_field_read (jit_expr jit false e1) i
+				end
 			| FAnon _ ->
 				begin match follow e1.etype with
 					| TAnon an ->

@@ -323,6 +323,10 @@ let emit_instance_field_read exec i env = match exec env with
 	| VString s -> vint (s.slength)
 	| v -> unexpected_value v "instance"
 
+let emit_this_field_read iv i env = match env.env_locals.(iv) with
+	| VInstance vi -> vi.ifields.(i)
+	| v -> unexpected_value v "instance"
+
 let emit_field_closure exec name env =
 	let v = exec env in
 	dynamic_field v name
