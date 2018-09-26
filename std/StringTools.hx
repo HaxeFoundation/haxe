@@ -336,10 +336,13 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		while (s.length < l) {
-			s = c + s;
+		var buf = new StringBuf();
+		l -= s.length;
+		while (buf.length < l) {
+			buf.add(c);
 		}
-		return s;
+		buf.add(s);
+		return buf.toString();
 	}
 
 	/**
@@ -358,10 +361,12 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		while (s.length < l) {
-			s = s + c;
+		var buf = new StringBuf();
+		buf.add(s);
+		while (buf.length < l) {
+			buf.add(c);
 		}
-		return s;
+		return buf.toString();
 	}
 
 	/**
