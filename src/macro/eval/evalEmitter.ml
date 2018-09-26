@@ -173,8 +173,7 @@ let emit_try exec catches env =
 
 (* Control flow *)
 
-let emit_block execs env =
-	let l = Array.length execs in
+let emit_block execs l env =
 	for i = 0 to l - 2 do
 		ignore((Array.unsafe_get execs i) env)
 	done;
@@ -638,20 +637,15 @@ let handle_capture_arguments exec varaccs env =
 	) varaccs;
 	exec env
 
-let run_function ctx exec env =
-	let v = try
+let run_function exec env =
+	try
 		exec env
 	with
 		| Return v -> v
-	in
-	pop_environment ctx env;
-	v
 [@@inline]
 
-let run_function_noret ctx exec env =
-	let v = exec env in
-	pop_environment ctx env;
-	v
+let run_function_noret exec env =
+	exec env
 [@@inline]
 
 let get_normal_env ctx info num_locals num_captures _ =
@@ -662,23 +656,28 @@ let get_closure_env ctx info num_locals num_captures refs =
 	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
 	env
 
-let create_function ctx num_args get_env hasret refs exec =
-	if hasret || ctx.debug.support_debugger then (fun vl ->
-		let env = get_env refs in
-		List.iteri (fun i v ->
+let execute_set_local env i v =
 			env.env_locals.(i) <- v
-		) vl;
-		run_function ctx exec env
-	)
-	else (fun vl ->
-		let env = get_env refs in
-		List.iteri (fun i v ->
-			env.env_locals.(i) <- v
-		) vl;
-		run_function_noret ctx exec env
-	)
 
-let emit_closure ctx num_captures num_args get_env hasret exec env =
+let emit_function_ret ctx get_env refs exec vl =
+		let env = get_env refs in
+	List.iteri (execute_set_local env) vl;
+	let v = run_function exec env in
+	pop_environment ctx env;
+	v
+
+let emit_function_noret ctx get_env refs exec vl =
+	let env = get_env refs in
+	List.iteri (execute_set_local env) vl;
+	let v = run_function_noret exec env in
+	pop_environment ctx env;
+	v
+
+let create_function ctx get_env hasret refs exec =
+	if hasret || ctx.debug.support_debugger then (emit_function_ret ctx get_env refs exec)
+	else (emit_function_noret ctx get_env refs exec)
+
+let emit_closure ctx num_captures get_env hasret exec env =
 	let refs = Array.sub env.env_captures 0 num_captures in
-	let f = create_function ctx num_args get_env hasret refs exec in
+	let f = create_function ctx get_env hasret refs exec in
 	vstatic_function f
