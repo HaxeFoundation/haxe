@@ -519,15 +519,6 @@ class Boot {
 		return @:privateAccess new HxDynamicStr(str);
 	}
 
-	static public function utf8CharAt(str:String, index:Int):Null<String> {
-		if (index < 0 || index >= str.length) {
-			return null;
-		}
-		//preg_split() is faster than mb_substr()
-		var chars = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
-		return chars == false ? null : (chars:NativeArray)[index];
-	}
-
 	/**
 		Creates Haxe-compatible closure of an instance method.
 		@param obj - any object
@@ -677,13 +668,15 @@ private class HxString {
 	}
 
 	public static function charAt( str:String, index:Int) : String {
-		return Syntax.coalesce(Boot.utf8CharAt(str, index), '');
+		return index < 0 ? '' : Global.mb_substr(str, index, 1);
 	}
 
 	public static function charCodeAt( str:String, index:Int) : Null<Int> {
-		var char = Boot.utf8CharAt(str, index);
-		if(char == null) return null;
-		return Global.mb_ord(char, 'UTF-8');
+		if(index < 0) {
+			return null;
+		}
+		var char = Global.mb_substr(str, index, 1, 'UTF-8');
+		return char == '' ? null : Global.mb_ord(char, 'UTF-8');
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {

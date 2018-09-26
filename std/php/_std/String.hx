@@ -37,7 +37,7 @@ import php.*;
 	}
 
 	@:pure @:runtime inline function charAt(index : Int) : String {
-		return Syntax.coalesce(Boot.utf8CharAt(this, index), '');
+		return index < 0 ? '' : Global.mb_substr(this, index, 1, 'UTF-8');
 	}
 
 	@:pure function charCodeAt( index : Int) : Null<Int>;
