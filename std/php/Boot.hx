@@ -234,7 +234,7 @@ class Boot {
 	**/
 	public static function getPhpName( haxeName:String ) : Null<String> {
 		var prefix = getPrefix();
-		var phpParts = (prefix.length == 0 ? [] : [prefix]);
+		var phpParts = (Global.strlen(prefix) == 0 ? [] : [prefix]);
 
 		var haxeParts = haxeName.split('.');
 		for (part in haxeParts) {
@@ -682,7 +682,7 @@ private class HxString {
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0) {
+		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative ingexes are supported since 7.1.0
 			startIndex += str.length;
 		}
 		var index = Global.mb_strpos(str, search, startIndex, 'UTF-8');
