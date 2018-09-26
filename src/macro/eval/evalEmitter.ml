@@ -28,10 +28,6 @@ open EvalExceptions
 open EvalField
 open EvalMisc
 
-type varacc =
-	| Local of int
-	| Env of int
-
 (* Helper *)
 
 let unexpected_value_p v s p =
@@ -99,7 +95,7 @@ let emit_mk_pos exec1 exec2 exec3 env =
 	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
 
 let emit_enum_construction key i execs p env =
-	encode_enum_value key i (Array.map (fun exec -> exec env) execs) p
+	encode_enum_value key i (Array.map (apply env) execs) p
 
 (* Branching *)
 
@@ -163,21 +159,12 @@ let emit_try exec catches env =
 			with Not_found ->
 				raise exc
 		in
-		begin match varacc with
-			| Local slot -> env.env_locals.(slot) <- v
-			| Env slot -> env.env_captures.(slot) <- ref v
-		end;
+		varacc (fun _ -> v) env;
 		exec env
 	in
 	v
 
 (* Control flow *)
-
-let emit_block execs l env =
-	for i = 0 to l - 2 do
-		ignore((Array.unsafe_get execs i) env)
-	done;
-	(Array.unsafe_get execs (l -1)) env
 
 let emit_value exec env =
 	exec env
@@ -208,7 +195,7 @@ let emit_safe_cast exec t p env =
 let emit_super_field_call slot proto i execs p env =
 	let vthis = env.env_locals.(slot) in
 	let vf = proto.pfields.(i) in
-	let vl = List.map (fun f -> f env) execs in
+	let vl = List.map (apply env) execs in
 	call_value_on vthis vf vl
 
 (* Type.call() - immediate *)
@@ -217,7 +204,7 @@ let emit_proto_field_call proto i execs p =
 	let vf = lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v p) in
 	(fun env ->
 		let f = Lazy.force vf in
-		let vl = List.map (fun exec -> exec env) execs in
+		let vl = List.map (apply env) execs in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 		f vl
@@ -253,29 +240,19 @@ let emit_field_call exec name execs p env =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_callN proto vf execs p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let vl = List.map (fun exec -> exec env) execs in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f (vthis :: vl));
-	vthis
-
 let emit_constructor_call proto fnew execs p =
 	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	emit_constructor_callN proto vf execs p
+	(fun env ->
+		let f = Lazy.force vf in
+		let vthis = create_instance_direct proto in
+		let vl = List.map (apply env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* super() - immediate + this-binding *)
-
-let emit_super_callN vf execs p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let vl = List.map (fun exec -> exec env) execs in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f (vthis :: vl));
-	vthis
 
 let emit_special_super_call fnew execs env =
 	let vl = List.map (apply env) execs in
@@ -290,7 +267,15 @@ let emit_special_super_call fnew execs env =
 
 let emit_super_call fnew execs p =
 	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	emit_super_callN vf execs p
+	(fun env ->
+		let f = Lazy.force vf in
+		let vthis = env.env_locals.(0) in
+		let vl = List.map (apply env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* unknown call - full lookup *)
 
@@ -664,7 +649,7 @@ let execute_set_local env i v =
 			env.env_locals.(i) <- v
 
 let emit_function_ret ctx get_env refs exec vl =
-		let env = get_env refs in
+	let env = get_env refs in
 	List.iteri (execute_set_local env) vl;
 	let v = run_function exec env in
 	pop_environment ctx env;

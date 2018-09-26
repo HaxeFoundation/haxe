@@ -248,7 +248,11 @@ and jit_expr jit return e =
 			let exec = jit_expr jit return e in
 			pop_scope jit;
 			let key = hash (rope_path var.v_type) in
-			exec,key,varacc
+			let f = match varacc with
+				| Local slot -> emit_local_write slot
+				| Env slot -> emit_capture_write slot
+			in
+			exec,key,f
 		) catches in
 		emit_try exec catches
 	(* control flow *)
