@@ -668,7 +668,7 @@ private class HxString {
 	}
 
 	public static function charAt( str:String, index:Int) : String {
-		return index < 0 ? '' : Global.mb_substr(str, index, 1);
+		return index < 0 ? '' : Global.mb_substr(str, index, 1, 'UTF-8');
 	}
 
 	public static function charCodeAt( str:String, index:Int) : Null<Int> {
