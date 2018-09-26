@@ -302,23 +302,18 @@ and jit_expr jit return e =
 		| TField(ef,fa) ->
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			(* let is_overridden c s_name =
-				try
-					Hashtbl.find ctx.overrides (c.cl_path,s_name)
-				with Not_found ->
-					false
-			in *)
+			let is_final c cf = c.cl_final || cf.cf_final in
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
 				| Var _ -> false
 			in
-			(* let instance_call c =
+			let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let i = get_proto_field_index proto name in
 				emit_proto_field_call proto i (exec :: execs) e.epos
-			in *)
+			in
 			let default () =
 				let exec = jit_expr jit false ef in
 				emit_method_call exec name execs e.epos
@@ -338,18 +333,18 @@ and jit_expr jit return e =
 					let i = get_proto_field_index proto name in
 					emit_proto_field_call proto i execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
-					default();
-					(* if is_overridden c cf.cf_name then
+					if not (is_final c cf) then
 						default()
 					else if not c.cl_interface then
 						instance_call c
-					else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
+					(* still can't do this because of incomplete information *)
+					(* else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
 						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
 							instance_call c'
 						| _ ->
-							default()
-					end else
-						default() *)
+							default() *)
+					else
+						default()
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
