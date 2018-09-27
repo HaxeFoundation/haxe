@@ -714,16 +714,13 @@ private class HxString {
 	}
 
 	public static function split( str:String, delimiter:String ) : Array<String> {
-		if (delimiter == '') {
-			var arr:NativeArray = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
-			return @:privateAccess Array.wrap(arr);
+		var arr:NativeArray = if(delimiter == '') {
+			Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
 		} else {
-			//don't mess with user-defined encoding
-			var prev = Global.mb_regex_encoding();
-			Global.mb_regex_encoding('UTF-8');
-			return @:privateAccess Array.wrap(Global.mb_split(Global.preg_quote(delimiter), str));
-			Global.mb_regex_encoding(prev);
+			delimiter = Global.preg_quote(delimiter, '/');
+			Global.preg_split('/$delimiter/', str);
 		}
+		return @:privateAccess Array.wrap(arr);
 	}
 
 	public static function substr( str:String, pos:Int, ?len:Int ) : String {
