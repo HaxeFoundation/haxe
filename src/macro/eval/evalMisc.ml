@@ -229,7 +229,7 @@ let op_ushr p v1 v2 = match v1,v2 with
 	| _ -> invalid_binop OpUShr v1 v2 p
 
 let op_mod p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.rem i1 i2)
+	| VInt32 i1,VInt32 i2 -> (try vint32 (Int32.rem i1 i2) with Division_by_zero -> vfloat nan)
 	| VFloat f1,VFloat f2 -> vfloat (mod_float f1 f2)
 	| VInt32 i1,VFloat f2 -> vfloat (mod_float (Int32.to_float i1) f2)
 	| VFloat f1,VInt32 i2 -> vfloat (mod_float f1 (Int32.to_float i2))
