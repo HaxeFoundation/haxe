@@ -2108,6 +2108,47 @@ module StdStringTools = struct
 
 	let fastCodeAt = StdString.charCodeAt
 
+	let replace = vfun3 (fun s sub by ->
+		let by = decode_vstring by in
+		let sub = decode_vstring sub in
+		let s' = decode_vstring s in
+		let bl_s = String.length s'.sstring in
+		let buf = UTF8.Buf.create bl_s in
+		let replace_count = ref 0 in
+		let create () =
+			vstring (create_with_length (UTF8.Buf.contents buf) (s'.slength + by.slength * !replace_count - sub.slength * !replace_count))
+		in
+		if sub.slength = 0 then begin
+			if by.slength = 0 then
+				s
+			else begin
+				UTF8.iter (fun uc ->
+					UTF8.Buf.add_char buf uc;
+					(* don't add for the final char *)
+					if !replace_count <> s'.slength - 1 then begin
+						UTF8.Buf.add_string buf by.sstring;
+						incr replace_count;
+					end
+				) s'.sstring;
+				create ();
+			end
+		end else begin
+			let f = find_substring s' sub false in
+			let rec loop c_index b_index =
+				try
+					let c_offset,b_offset,next = f c_index b_index in
+					UTF8.Buf.add_string buf (String.sub s'.sstring b_index (b_offset - b_index));
+					UTF8.Buf.add_string buf by.sstring;
+					incr replace_count;
+					loop (c_offset + sub.slength) next;
+				with Not_found ->
+					UTF8.Buf.add_string buf (String.sub s'.sstring b_index (bl_s - b_index));
+			in
+			loop 0 0;
+			create()
+		end
+	)
+
 	let urlEncode = vfun1 (fun s ->
 		let s = decode_string s in
 		encode_string (url_encode s)
@@ -3076,6 +3117,7 @@ let init_standard_library builtins =
 	];
 	init_fields builtins ([],"StringTools") [
 		"fastCodeAt",StdStringTools.fastCodeAt;
+		"replace",StdStringTools.replace;
 		"urlEncode",StdStringTools.urlEncode;
 		"urlDecode",StdStringTools.urlDecode;
 	] [];
