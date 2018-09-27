@@ -57,6 +57,13 @@ class Boot {
 					if (Global.error_reporting() & errno == 0) {
 						return false;
 					}
+					/*
+					* Division by zero should not throw
+					* @see https://github.com/HaxeFoundation/haxe/issues/7034#issuecomment-394264544
+					*/
+					if(errno == Const.E_WARNING && errstr == 'Division by zero') {
+						return true;
+					}
 					throw new ErrorException(errstr, 0, errno, errfile, errline);
 				}
 			);
