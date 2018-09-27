@@ -19,43 +19,51 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js.html.compat;
+package haxe.iterators;
 
-#if !nodejs
-@:ifFeature("js.html.ArrayBuffer.*")
-class ArrayBuffer {
+/**
+	This iterator can be used to iterate across strings in a cross-platform
+	way. It handles surrogate pairs on platforms that require it. On each
+	iteration, it returns the next character code.
 
-	public var byteLength : Int;
-	var a : Array<Int>;
+	Note that this has different semantics than a standard for-loop over the
+	String's length due to the fact that it deals with surrogate pairs.
+**/
+class StringIteratorUnicode {
+	var offset = 0;
+	var s:String;
 
-	public function new( ?a : Dynamic ) {
-		if( Std.is(a,Array) ) {
-			this.a = a;
-			byteLength = a.length;
-		} else {
-			var len : Int = a;
-			this.a = [];
-			for( i in 0...len )
-				this.a[i] = 0;
-			byteLength = len;
+	/**
+		Create a new `StringIteratorUnicode` over String `s`.
+	**/
+	public inline function new(s:String) {
+		this.s = s;
+	}
+
+	/**
+		See `Iterator.hasNext`
+	**/
+	public inline function hasNext() {
+		return offset < s.length;
+	}
+
+	/**
+		See `Iterator.next`
+	**/
+	public inline function next() {
+		var c = StringTools.fastCodeAt(s, offset++);
+		#if utf16
+		if (c >= 0xD800 && c < 0xDBFF) {
+			c = ((c -0xD7C0) << 10) | (StringTools.fastCodeAt(s, offset++) & 0x3FF);
 		}
+		#end
+		return c;
 	}
 
-	public function slice(begin,?end) {
-		return new ArrayBuffer(a.slice(begin,end));
-	}
-
-	static function sliceImpl(begin,?end) {
-		var u = new js.html.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : end - begin);
-		var result = new js.html.ArrayBuffer(u.byteLength);
-		var resultArray = new js.html.Uint8Array(result);
-		resultArray.set(u);
-		return result;
-	}
-
-	static function __init__() untyped {
-		__js__("var ArrayBuffer = {0} || {1}", js.Lib.global.ArrayBuffer, js.html.compat.ArrayBuffer);
-		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl; // IE10
+	/**
+		Convenience function which can be used as a static extension.
+	**/
+	static public inline function unicodeIterator(s:String) {
+		return new StringIteratorUnicode(s);
 	}
 }
-#end

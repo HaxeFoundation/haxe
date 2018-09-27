@@ -56,4 +56,23 @@ class Completion extends DisplayTestCase {
 		eq(true, hasField(fields(pos(3)), "foo", "Int"));
 		eq(true, hasField(fields(pos(4)), "foo", "Int"));
 	}
+
+	/**
+	var s = { foo: 1 };
+	"foo".
+	wtf
+	var lol
+	miauga(
+	notArray[
+	[
+	(
+	{
+	{
+		obj:
+			obj
+				s.{-1-}
+	**/
+	@:funcCode function testDrunkAst1() {
+		eq(true, hasField(fields(pos(1)), "foo", "Int"));
+	}
 }

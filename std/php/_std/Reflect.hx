@@ -51,7 +51,7 @@ using php.Global;
 			return Syntax.field(o, field);
 		}
 		if (o.method_exists(field)) {
-			return Boot.closure(o, field);
+			return Boot.getInstanceClosure(o, field);
 		}
 
 		if (Boot.isClass(o)) {
@@ -63,7 +63,7 @@ using php.Global;
 				return Syntax.field(o, field);
 			}
 			if (Global.method_exists(phpClassName, field)) {
-				return Boot.closure(phpClassName, field);
+				return Boot.getStaticClosure(phpClassName, field);
 			}
 		}
 
@@ -100,15 +100,7 @@ using php.Global;
 	}
 
 	public static function callMethod( o : Dynamic, func : Function, args : Array<Dynamic> ) : Dynamic {
-		var callback:Any = func;
-		if(o != null && !Boot.isClass(o)) {
-			if (Std.is(func, Closure)) {
-				callback = (cast func:Closure).bindTo(o);
-			} else {
-				callback = Boot.castClosure(func).getCallback(o);
-			}
-		}
-		return Global.call_user_func_array(callback, @:privateAccess args.arr);
+		return Global.call_user_func_array(func, @:privateAccess args.arr);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> {

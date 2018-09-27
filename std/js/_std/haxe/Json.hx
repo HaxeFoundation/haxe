@@ -22,7 +22,7 @@
 package haxe;
 
 @:coreApi
-#if (!haxeJSON && !old_browser)
+#if !haxeJSON
 @:native("JSON") extern
 #end
 class Json {
@@ -36,13 +36,6 @@ class Json {
 	#if haxeJSON inline #end
 	public static function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String #if !haxeJSON ; #else {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
-	}
-	#end
-
-	#if (!haxeJSON && old_browser)
-	static function __init__():Void untyped {
-		if( __js__('typeof(JSON)') != 'undefined' )
-			Json = __js__('JSON');
 	}
 	#end
 

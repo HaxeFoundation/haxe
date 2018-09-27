@@ -26,7 +26,7 @@ using php.Global;
 /**
 	Native PHP array.
 **/
-@:coreType @:runtimeValue abstract NativeArray {
+@:coreType @:runtimeValue @:semantics(value) abstract NativeArray {
 	public inline function new()
 		this = Syntax.arrayDecl();
 

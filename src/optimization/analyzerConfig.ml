@@ -57,25 +57,7 @@ let all_flags =
 	) [] [flag_optimize;flag_const_propagation;flag_copy_propagation;flag_local_dce;flag_fusion;flag_ignore;flag_dot_debug;flag_user_var_fusion]
 
 let has_analyzer_option meta s =
-	try
-		let rec loop ml = match ml with
-			| (Meta.Analyzer,el,_) :: ml ->
-				if List.exists (fun (e,p) ->
-					match e with
-						| EConst(Ident s2) when s = s2 -> true
-						| _ -> false
-				) el then
-					true
-				else
-					loop ml
-			| _ :: ml ->
-				loop ml
-			| [] ->
-				false
-		in
-		loop meta
-	with Not_found ->
-		false
+	Ast.has_meta_option meta Meta.Analyzer s
 
 let is_ignored meta =
 	has_analyzer_option meta flag_ignore

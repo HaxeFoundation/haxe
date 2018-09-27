@@ -44,9 +44,12 @@ extern class Headers
 		@throws DOMError
 	**/
 	function append( name : String, value : String ) : Void;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes a header from a `Headers` object.
+		@throws DOMError
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns a `ByteString` sequence of all the values of a header within a `Headers` object with a given name.

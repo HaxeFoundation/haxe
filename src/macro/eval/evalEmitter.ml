@@ -28,10 +28,6 @@ open EvalExceptions
 open EvalField
 open EvalMisc
 
-type varacc =
-	| Local of int
-	| Env of int
-
 (* Helper *)
 
 let unexpected_value_p v s p =
@@ -99,7 +95,7 @@ let emit_mk_pos exec1 exec2 exec3 env =
 	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
 
 let emit_enum_construction key i execs p env =
-	encode_enum_value key i (Array.map (fun exec -> exec env) execs) p
+	encode_enum_value key i (Array.map (apply env) execs) p
 
 (* Branching *)
 
@@ -118,6 +114,41 @@ let emit_switch exec execs patterns exec_def env =
 			loop v1 (i + 1)
 	in
 	loop v1 0
+
+let emit_int_switch_map exec cases exec_def p env = match exec env with
+	| VInt32 i32 ->
+		let i = Int32.to_int i32 in
+		begin try
+			(IntMap.find i cases) env
+		with Not_found ->
+			exec_def env
+		end
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "int" p
+
+let emit_string_switch_map exec cases exec_def p env = match exec env with
+	| VString s ->
+		begin try
+			(PMap.find s.sstring cases) env
+		with Not_found ->
+			exec_def env
+		end
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "string" p
+
+let emit_int_switch_array shift exec cases exec_def p env = match exec env with
+	| VInt32 i32 ->
+		let i = Int32.to_int i32 + shift in
+		if i >= Array.length cases || i < 0 then exec_def env
+		else (Array.unsafe_get cases i) env
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "int" p
 
 let rec run_while_continue exec_cond exec_body env =
 	try
@@ -153,6 +184,7 @@ let emit_try exec catches env =
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
+		ctx.debug.caught_exception <- vnull;
 		restore();
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
@@ -162,25 +194,19 @@ let emit_try exec catches env =
 			with Not_found ->
 				raise exc
 		in
-		begin match varacc with
-			| Local slot -> env.env_locals.(slot) <- v
-			| Env slot -> env.env_captures.(slot) <- ref v
-		end;
+		varacc (fun _ -> v) env;
 		exec env
 	in
 	v
 
 (* Control flow *)
 
-let emit_block execs env =
-	let l = Array.length execs in
-	for i = 0 to l - 2 do
-		ignore((Array.unsafe_get execs i) env)
-	done;
-	(Array.unsafe_get execs (l -1)) env
-
 let emit_value exec env =
 	exec env
+
+let emit_seq exec1 exec2 env =
+	ignore(exec1 env);
+	exec2 env
 
 let emit_return_null _ = raise (Return vnull)
 
@@ -204,7 +230,7 @@ let emit_safe_cast exec t p env =
 let emit_super_field_call slot proto i execs p env =
 	let vthis = env.env_locals.(slot) in
 	let vf = proto.pfields.(i) in
-	let vl = List.map (fun f -> f env) execs in
+	let vl = List.map (apply env) execs in
 	call_value_on vthis vf vl
 
 (* Type.call() - immediate *)
@@ -213,7 +239,7 @@ let emit_proto_field_call proto i execs p =
 	let vf = lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v p) in
 	(fun env ->
 		let f = Lazy.force vf in
-		let vl = List.map (fun exec -> exec env) execs in
+		let vl = List.map (apply env) execs in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 		f vl
@@ -249,29 +275,19 @@ let emit_field_call exec name execs p env =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_callN proto vf execs p env =
-	let f = Lazy.force vf in
-	let vthis = create_instance_direct proto in
-	let vl = List.map (fun exec -> exec env) execs in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f (vthis :: vl));
-	vthis
-
 let emit_constructor_call proto fnew execs p =
 	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	emit_constructor_callN proto vf execs p
+	(fun env ->
+		let f = Lazy.force vf in
+		let vthis = create_instance_direct proto in
+		let vl = List.map (apply env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* super() - immediate + this-binding *)
-
-let emit_super_callN vf execs p env =
-	let f = Lazy.force vf in
-	let vthis = env.env_locals.(0) in
-	let vl = List.map (fun exec -> exec env) execs in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	ignore(f (vthis :: vl));
-	vthis
 
 let emit_special_super_call fnew execs env =
 	let vl = List.map (apply env) execs in
@@ -286,7 +302,15 @@ let emit_special_super_call fnew execs env =
 
 let emit_super_call fnew execs p =
 	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	emit_super_callN vf execs p
+	(fun env ->
+		let f = Lazy.force vf in
+		let vthis = env.env_locals.(0) in
+		let vl = List.map (apply env) execs in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* unknown call - full lookup *)
 
@@ -320,6 +344,10 @@ let emit_proto_field_read proto i env =
 let emit_instance_field_read exec i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
 	| VString s -> vint (s.slength)
+	| v -> unexpected_value v "instance"
+
+let emit_this_field_read iv i env = match env.env_locals.(iv) with
+	| VInstance vi -> vi.ifields.(i)
 	| v -> unexpected_value v "instance"
 
 let emit_field_closure exec name env =
@@ -364,8 +392,7 @@ let emit_string_cca exec1 exec2 p env =
 	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
-	else if s.sascii then vint (int_of_char (String.get (Lazy.force s.sstring) index))
-	else vint (EvalString.read_char s (index lsl 1))
+	else vint (EvalString.char_at s index)
 
 (* Write *)
 
@@ -634,20 +661,15 @@ let handle_capture_arguments exec varaccs env =
 	) varaccs;
 	exec env
 
-let run_function ctx exec env =
-	let v = try
+let run_function exec env =
+	try
 		exec env
 	with
 		| Return v -> v
-	in
-	pop_environment ctx env;
-	v
 [@@inline]
 
-let run_function_noret ctx exec env =
-	let v = exec env in
-	pop_environment ctx env;
-	v
+let run_function_noret exec env =
+	exec env
 [@@inline]
 
 let get_normal_env ctx info num_locals num_captures _ =
@@ -658,23 +680,28 @@ let get_closure_env ctx info num_locals num_captures refs =
 	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
 	env
 
-let create_function ctx num_args get_env hasret refs exec =
-	if hasret || ctx.debug.support_debugger then (fun vl ->
-		let env = get_env refs in
-		List.iteri (fun i v ->
+let execute_set_local env i v =
 			env.env_locals.(i) <- v
-		) vl;
-		run_function ctx exec env
-	)
-	else (fun vl ->
-		let env = get_env refs in
-		List.iteri (fun i v ->
-			env.env_locals.(i) <- v
-		) vl;
-		run_function_noret ctx exec env
-	)
 
-let emit_closure ctx num_captures num_args get_env hasret exec env =
+let emit_function_ret ctx get_env refs exec vl =
+	let env = get_env refs in
+	List.iteri (execute_set_local env) vl;
+	let v = run_function exec env in
+	pop_environment ctx env;
+	v
+
+let emit_function_noret ctx get_env refs exec vl =
+	let env = get_env refs in
+	List.iteri (execute_set_local env) vl;
+	let v = run_function_noret exec env in
+	pop_environment ctx env;
+	v
+
+let create_function ctx get_env hasret refs exec =
+	if hasret || ctx.debug.support_debugger then (emit_function_ret ctx get_env refs exec)
+	else (emit_function_noret ctx get_env refs exec)
+
+let emit_closure ctx num_captures get_env hasret exec env =
 	let refs = Array.sub env.env_captures 0 num_captures in
-	let f = create_function ctx num_args get_env hasret refs exec in
+	let f = create_function ctx get_env hasret refs exec in
 	vstatic_function f

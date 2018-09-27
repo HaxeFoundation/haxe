@@ -122,7 +122,7 @@ let encode_obj _ l =
 	}
 
 let encode_obj_s k l =
-	encode_obj k (List.map (fun (s,v) -> (hash_s s),v) l)
+	encode_obj k (List.map (fun (s,v) -> (hash s),v) l)
 
 (* Enum values *)
 
@@ -190,13 +190,7 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	vstring (create_ascii s)
-
-let encode_rope r =
-	vstring (create_ascii_of_rope r)
-
-let encode_rope_ucs2 r length =
-	vstring (create_ucs2_of_rope r length)
+	create_unknown s
 
 let encode_bytes s =
 	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)

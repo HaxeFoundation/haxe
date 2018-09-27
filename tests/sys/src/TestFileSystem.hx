@@ -1,7 +1,7 @@
 import sys.FileSystem;
 import utest.Assert;
 
-class TestFileSystem {
+class TestFileSystem extends utest.Test {
 	/**
 		Recursively remove a given directory.
 	*/
@@ -25,14 +25,12 @@ class TestFileSystem {
 		case _: ["", "/"];
 	}
 
-	public function new() { }
-
 	public function setup() {
 		removeDir(dir);
 		FileSystem.createDirectory(dir);
 	}
 
-	public function tearDown() {
+	public function teardown() {
 		removeDir(dir);
 	}
 

@@ -15,7 +15,7 @@ let is_forced_inline c cf =
 	| _ when cf.cf_extern -> true
 	| _ -> false
 
-let make_call ctx e params t p =
+let make_call ctx e params t ?(force_inline=false) p =
 	try
 		let ethis,cl,f = match e.eexpr with
 			| TField (ethis,fa) ->
@@ -28,7 +28,7 @@ let make_call ctx e params t p =
 			| _ ->
 				raise Exit
 		in
-		if f.cf_kind <> Method MethInline then raise Exit;
+		if not force_inline && f.cf_kind <> Method MethInline then raise Exit;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
 				let t = if f.cf_name = "_new" then
@@ -160,9 +160,13 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 					let e_def = default_value name t in
 					(e_def,true) :: args
 			end
-		| (_,p) :: _, [] ->
+		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
-				| [] -> call_error Too_many_arguments p
+				| [] ->
+					if ctx.com.display.dms_display then begin
+						let e = type_expr ctx (e,p) WithType.value in
+						(e,false) :: loop el []
+					end	else call_error Too_many_arguments p
 				| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 		| e :: el,(name,opt,t) :: args ->
@@ -230,9 +234,9 @@ let unify_field_call ctx fa el args ret p inline =
 	let attempt_call t cf = match follow t with
 		| TFun(args,ret) ->
 			let el,tf = unify_call_args' ctx el args ret p inline is_forced_inline in
-			let mk_call ethis p_field =
+			let mk_call ethis p_field inline =
 				let ef = mk (TField(ethis,mk_fa cf)) t p_field in
-				make_call ctx ef (List.map fst el) ret p
+				make_call ctx ef (List.map fst el) ret ~force_inline:inline p
 			in
 			el,tf,mk_call
 		| _ ->
@@ -265,7 +269,7 @@ let unify_field_call ctx fa el args ret p inline =
 	in
 	let fail_fun () =
 		let tf = TFun(args,ret) in
-		[],tf,(fun ethis p_field ->
+		[],tf,(fun ethis p_field _ ->
 			let e1 = mk (TField(ethis,mk_fa cf)) tf p_field in
 			mk (TCall(e1,[])) ret p)
 	in
@@ -515,7 +519,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		(match follow t with
 			| TFun (args,r) ->
 				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
-				mk_call ethis p
+				mk_call ethis p true
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
@@ -598,10 +602,10 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		);
 		let e = try
 			f()
-		with Error (m,p) ->
+		with exc ->
 			ctx.on_error <- old;
 			!ethis_f();
-			raise (Fatal_error ((error_msg m),p))
+			raise exc
 		in
 		let e = Diagnostics.secure_generated_code ctx e in
 		ctx.on_error <- old;
@@ -620,7 +624,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 							type_generic_function ctx (e1,fa) el with_type p
 						| _ ->
 							let _,_,mk_call = unify_field_call ctx fa el args r p false in
-							mk_call e1 e.epos
+							mk_call e1 e.epos false
 					end
 				| _ ->
 					let el, tfunc = unify_call_args ctx el args r p false false in
@@ -712,3 +716,45 @@ let type_bind ctx (e : texpr) (args,ret) params p =
 		tf_expr = mk (TReturn (Some func)) t_inner p;
 	}) (TFun(outer_fun_args given_args, t_inner)) p in
 	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+
+let array_access ctx e1 e2 mode p =
+	let has_abstract_array_access = ref false in
+	try
+		(match follow e1.etype with
+		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+			begin match mode with
+			| MSet ->
+				(* resolve later *)
+				AKAccess (a,pl,c,e1,e2)
+			| _ ->
+				has_abstract_array_access := true;
+				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
+				AKExpr e
+			end
+		| _ -> raise Not_found)
+	with Not_found ->
+		unify ctx e2.etype ctx.t.tint e2.epos;
+		let rec loop et =
+			match follow et with
+			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
+				apply_params pl tl t
+			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
+				apply_params pl tl (loop (TInst (c,stl)))
+			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
+				t
+			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
+				t_dynamic
+			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
+				loop (apply_params a.a_params tl a.a_this)
+			| _ ->
+				let pt = mk_mono() in
+				let t = ctx.t.tarray pt in
+				(try unify_raise ctx et t p
+				with Error(Unify _,_) -> if not ctx.untyped then begin
+					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
+					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
+				end);
+				pt
+		in
+		let pt = loop e1.etype in
+		AKExpr (mk (TArray (e1,e2)) pt p)

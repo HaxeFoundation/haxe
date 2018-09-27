@@ -28,7 +28,7 @@ enum abstract ResponseType(String)
 {
 	var BASIC = "basic";
 	var CORS = "cors";
-	var DEFAULT_ = "default";
+	var DEFAULT = "default";
 	var ERROR = "error";
 	var OPAQUE = "opaque";
 	var OPAQUEREDIRECT = "opaqueredirect";

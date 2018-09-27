@@ -195,7 +195,7 @@ module type InterpApi = sig
 
 	val flush_core_context : (unit -> t) -> t
 
-	val handle_decoding_error : value -> Type.t -> (string * (string * int) list)
+	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
 end
 
@@ -1188,10 +1188,11 @@ and encode_tconst c =
 	encode_enum ITConstant tag pl
 
 and encode_tvar v =
-	let f_extra (pl,e) =
+	let f_extra (pl,e,inline) =
 		encode_obj OTVar_extra [
 			"params",encode_type_params pl;
-			"expr",vopt encode_texpr e
+			"expr",encode_texpr e;
+			"isInline",vbool inline;
 		]
 	in
 	encode_obj OTVar [

@@ -52,11 +52,11 @@ let safe_decode v t p f =
 	try
 		f ()
 	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-		let s,errors = Interp.handle_decoding_error v t in
 		let path = ["dump";"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
-		Printf.fprintf ch "%s" s;
+		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
+		close_out ch;
 		error (Printf.sprintf "There was a problem decoding (see %s.txt for details)" (String.concat "/" path)) p
 
 let get_next_stored_typed_expr_id =
@@ -152,7 +152,7 @@ let make_macro_api ctx p =
 						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
 				in
 				try
-					let m = Some (Typeload.load_instance ctx (tp,null_pos) true) in
+					let m = Some (Typeload.load_instance ctx (tp,p) true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None

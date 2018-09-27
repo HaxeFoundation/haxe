@@ -29,4 +29,5 @@ package cs;
 **/
 @:analyzer(no_simplification)
 @:analyzer(no_local_dce)
+@:semantics(reference)
 typedef Out<T> = T;

@@ -176,7 +176,7 @@ class BytesBuffer {
 
 	/**
 		Returns either a copy or a reference of the current bytes.
-		Once called, the buffer can no longer be used.
+		Once called, the buffer should no longer be used.
 	**/
 	public function getBytes() : Bytes untyped {
 		#if neko

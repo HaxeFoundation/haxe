@@ -213,6 +213,12 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			List.iter (function
+				| HExtern -> c.cl_extern <- true
+				| HInterface -> c.cl_interface <- true
+				| HFinal -> c.cl_final <- true
+				| _ -> ()
+			) d.d_flags;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -229,6 +235,7 @@ let module_pass_1 ctx m tdecls loadp =
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
 				e_params = [];
+				e_using = [];
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
@@ -251,6 +258,7 @@ let module_pass_1 ctx m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
+				t_using = [];
 				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
@@ -275,6 +283,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
+				a_using = [];
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
@@ -394,6 +403,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					t_doc = None;
 					t_meta = [];
 					t_params = (t_infos t).mt_params;
+					t_using = [];
 					t_type = f (List.map snd (t_infos t).mt_params);
 				} in
 				if ctx.is_display_file && DisplayPosition.encloses_display_position p then
@@ -470,41 +480,9 @@ let init_module_type ctx context_init do_init (decl,p) =
 			))
 	| EUsing path ->
 		check_path_display path p;
-		let t = match List.rev path with
-			| (s1,_) :: (s2,_) :: sl ->
-				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
-				else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
-			| (s1,_) :: sl ->
-				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
-			| [] ->
-				DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
-		in
+		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
-		let types = (match t.tsub with
-			| None ->
-				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-				types
-			| Some _ ->
-				let t = load_type_def ctx p t in
-				ctx.m.module_types <- (t,p) :: ctx.m.module_types;
-				[t]
-		) in
-		(* delay the using since we need to resolve typedefs *)
-		let filter_classes types =
-			let rec loop acc types = match types with
-				| td :: l ->
-					(match resolve_typedef td with
-					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-						loop ((c,p) :: acc) l
-					| td ->
-						loop acc l)
-				| [] ->
-					acc
-			in
-			loop [] types
-		in
+		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
@@ -512,12 +490,6 @@ let init_module_type ctx context_init do_init (decl,p) =
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		List.iter (function
-			| HExtern -> c.cl_extern <- true
-			| HInterface -> c.cl_interface <- true
-			| HFinal -> c.cl_final <- true
-			| _ -> ()
-		) herits;
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
 				c.cl_final <- true;

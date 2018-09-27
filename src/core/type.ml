@@ -83,7 +83,7 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr option) option
+and tvar_extra = (type_params * texpr * bool) option
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -92,8 +92,6 @@ and tvar_origin =
 	| TVOPatternVariable
 	| TVOCatchVariable
 	| TVOLocalFunction
-	| TVOLocalFinal
-	| TVOPatternFinal
 
 and tvar_kind =
 	| VUser of tvar_origin
@@ -108,6 +106,7 @@ and tvar = {
 	mutable v_type : t;
 	mutable v_kind : tvar_kind;
 	mutable v_capture : bool;
+	mutable v_final : bool;
 	mutable v_extra : tvar_extra;
 	mutable v_meta : metadata;
 	v_pos : pos;
@@ -216,6 +215,7 @@ and tinfos = {
 	mt_doc : Ast.documentation;
 	mutable mt_meta : metadata;
 	mt_params : type_params;
+	mutable mt_using : (tclass * pos) list;
 }
 
 and tclass = {
@@ -227,6 +227,7 @@ and tclass = {
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
 	mutable cl_params : type_params;
+	mutable cl_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
@@ -273,6 +274,7 @@ and tenum = {
 	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
 	mutable e_params : type_params;
+	mutable e_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	e_type : tdef;
 	mutable e_extern : bool;
@@ -289,6 +291,7 @@ and tdef = {
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_params : type_params;
+	mutable t_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable t_type : t;
 }
@@ -302,6 +305,7 @@ and tabstract = {
 	a_doc : Ast.documentation;
 	mutable a_meta : metadata;
 	mutable a_params : type_params;
+	mutable a_using : (tclass * pos) list;
 	(* do not insert any fields above *)
 	mutable a_ops : (Ast.binop * tclass_field) list;
 	mutable a_unops : (Ast.unop * unop_flag * tclass_field) list;
@@ -383,7 +387,20 @@ type class_field_scope =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun kind n t p -> incr uid; { v_kind = kind; v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None; v_meta = []; v_pos = p })
+	(fun kind n t p ->
+		incr uid;
+		{
+			v_kind = kind;
+			v_name = n;
+			v_type = t;
+			v_id = !uid;
+			v_capture = false;
+			v_final = false;
+			v_extra = None;
+			v_meta = [];
+			v_pos = p
+		}
+	)
 
 let alloc_mid =
 	let mid = ref 0 in
@@ -430,6 +447,7 @@ let mk_class m path pos name_pos =
 		cl_final = false;
 		cl_interface = false;
 		cl_params = [];
+		cl_using = [];
 		cl_super = None;
 		cl_implements = [];
 		cl_fields = PMap.empty;
@@ -509,6 +527,7 @@ let null_abstract = {
 	a_doc = None;
 	a_meta = [];
 	a_params = [];
+	a_using = [];
 	a_ops = [];
 	a_unops = [];
 	a_impl = None;
@@ -1514,8 +1533,8 @@ module Printer = struct
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
-	let s_tvar_extra (tl,eo) =
-		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
+	let s_tvar_extra (tl,e,_) =
+		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_expr_ast true "" s_type e)
 
 	let s_tvar v =
 		s_record_fields "" [
@@ -2044,7 +2063,22 @@ let rec unify a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
+				if not (Meta.has Meta.MaybeUsed f1.cf_meta) then begin
+					f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta;
+					match f2.cf_kind with
+					| Var vk ->
+						let check name =
+							try
+								let _,_,cf = raw_class_field make_type c tl name in
+								if not (Meta.has Meta.MaybeUsed cf.cf_meta) then
+									cf.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: cf.cf_meta
+							with Not_found ->
+								()
+						in
+						(match vk.v_read with AccCall -> check ("get_" ^ f1.cf_name) | _ -> ());
+						(match vk.v_write with AccCall -> check ("set_" ^ f1.cf_name) | _ -> ());
+					| _ -> ()
+				end;
 				(match f1.cf_kind with
 				| Method MethInline ->
 					if (c.cl_extern || f1.cf_extern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
@@ -2658,7 +2692,7 @@ module TExprToExpr = struct
 			let arg (v,c) = (v.v_name,v.v_pos), false, v.v_meta, mk_type_hint v.v_type null_pos, (match c with None -> None | Some c -> Some (convert_expr c)) in
 			EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_type_hint f.tf_type null_pos; f_expr = Some (convert_expr f.tf_expr) })
 		| TVar (v,eo) ->
-			EVars ([(v.v_name,v.v_pos), (match v.v_kind with VUser TVOLocalFinal -> true | _ -> false), mk_type_hint v.v_type v.v_pos, eopt eo])
+			EVars ([(v.v_name,v.v_pos), v.v_final, mk_type_hint v.v_type v.v_pos, eopt eo])
 		| TBlock el -> EBlock (List.map convert_expr el)
 		| TFor (v,it,e) ->
 			let ein = (EBinop (OpIn,(EConst (Ident v.v_name),it.epos),convert_expr it),it.epos) in
@@ -2706,6 +2740,40 @@ module ExtType = struct
 	let is_void = function
 		| TAbstract({a_path=[],"Void"},_) -> true
 		| _ -> false
+
+	type semantics =
+		| VariableSemantics
+		| ReferenceSemantics
+		| ValueSemantics
+
+	let semantics_name = function
+		| VariableSemantics -> "variable"
+		| ReferenceSemantics -> "reference"
+		| ValueSemantics -> "value"
+
+	let has_semantics t sem =
+		let name = semantics_name sem in
+		let check meta =
+			has_meta_option meta Meta.Semantics name
+		in
+		let rec loop t = match t with
+			| TInst(c,_) -> check c.cl_meta
+			| TEnum(en,_) -> check en.e_meta
+			| TType(t,tl) -> check t.t_meta || (loop (apply_params t.t_params tl t.t_type))
+			| TAbstract(a,_) -> check a.a_meta
+			| TLazy f -> loop (lazy_type f)
+			| TMono r ->
+				(match !r with
+				| Some t -> loop t
+				| _ -> false)
+			| _ ->
+				false
+		in
+		loop t
+
+	let has_variable_semantics t = has_semantics t VariableSemantics
+	let has_reference_semantics t = has_semantics t ReferenceSemantics
+	let has_value_semantics t = has_semantics t ValueSemantics
 end
 
 module StringError = struct
@@ -2777,6 +2845,7 @@ let class_module_type c = {
 	};
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = no_meta;
 }
 
@@ -2789,6 +2858,7 @@ let enum_module_type m path p  = {
 	t_type = mk_mono();
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = [];
 }
 
@@ -2804,6 +2874,7 @@ let abstract_module_type a tl = {
 	};
 	t_private = true;
 	t_params = [];
+	t_using = [];
 	t_meta = no_meta;
 }
 
