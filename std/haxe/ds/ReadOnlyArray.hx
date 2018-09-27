@@ -22,6 +22,12 @@
  
 package haxe.ds;
 
+/**
+	ReadOnlyArray is an abstract over an ordinary Array but only exposes
+ API's that don't modify the Array instance, hence read-only.
+ Notice that this doesn't necessarily mean that the instance is immutable.
+ Because other code holding the reference as ordinary Array can still modify it.
+**/
 @:forward(concat, copy, filter, indexOf, iterator, join, lastIndexOf, map, slice, toString)
 abstract ReadOnlyArray<T>(Array<T>) from Array<T> {
   public var length(get,never):Int;
