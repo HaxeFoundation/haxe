@@ -151,8 +151,18 @@ class StringTools {
 		- `'` becomes `&#039`;
 	**/
 	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
-		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
+		var buf = new StringBuf();
+		for (code in new haxe.iterators.StringIteratorUnicode(s)) {
+			switch (code) {
+				case '&'.code: buf.add("&amp;");
+				case '<'.code: buf.add("&lt;");
+				case '>'.code: buf.add("&gt;");
+				case '"'.code if (quotes): buf.add("&quot;");
+				case '\''.code if (quotes): buf.add("&#039;");
+				case _: buf.addChar(code);
+			}
+		}
+		return buf.toString();
 	}
 
 	/**
