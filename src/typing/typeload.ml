@@ -299,17 +299,13 @@ let rec load_instance' ctx (t,p) allow_no_params =
 			let rec loop tl1 tl2 is_rest = match tl1,tl2 with
 				| t :: tl1,(name,t2) :: tl2 ->
 					let check_const c =
-						let is_expression,is_const = match follow t with
-							| TInst ({ cl_kind = KExpr _ },_) -> true,false
-							| TInst ({ cl_kind = KTypeParameter _ } as c,_) -> false,Meta.has Meta.Const c.cl_meta
-							| _ -> false,false
-						in
+						let is_expression = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 						let expects_expression = name = "Const" || Meta.has Meta.Const c.cl_meta in
 						let accepts_expression = name = "Rest" in
 						if is_expression then begin
 							if not expects_expression && not accepts_expression then
 								error "Constant value unexpected here" p
-						end else if expects_expression && not is_const then
+						end else if expects_expression then
 							error "Type parameter is expected to be a constant value" p
 					in
 					let is_rest = is_rest || name = "Rest" && is_generic_build in
