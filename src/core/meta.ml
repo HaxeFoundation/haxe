@@ -77,6 +77,7 @@ type strict_meta =
 	| ImplicitCast
 	| Include
 	| InitPackage
+	| Inline
 	| InlineConstructorArgument of int * int
 	| Internal
 	| IsVar
@@ -143,6 +144,7 @@ type strict_meta =
 	| RuntimeValue
 	| Scalar
 	| SelfCall
+	| Semantics
 	| Setter
 	| SkipCtor
 	| SkipReflection
@@ -167,6 +169,7 @@ type strict_meta =
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
+	| Using
 	| Used
 	| Value
 	| Void
@@ -275,6 +278,7 @@ let get_info = function
 	| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[UsedInternally; UsedOn TExpr])
 	| Include -> ":include",("",[Platform Cpp])
 	| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[UsedInternally; Platform Js])
+	| Inline -> ":inline",("Inserted by the parser in case of `inline expr` and `inline function`",[UsedOn TExpr])
 	| InlineConstructorArgument _ -> ":inlineConstructorArgument",("Internally used to mark expressions that were passed as arguments of an inlined constructor",[UsedInternally])
 	| Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 	| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
@@ -341,6 +345,7 @@ let get_info = function
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
+	| Semantics -> ":semantics",("The native semantics of the type",[UsedOnEither [TClass;TTypedef;TAbstract];HasParam "value | reference | variable"])
 	| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
 	| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; UsedInternally])
 	| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; UsedInternally])
@@ -366,6 +371,7 @@ let get_info = function
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
+	| Using -> ":using",("Automatically uses the argument types as static extensions for the annotated type",[UsedOnEither [TClass;TEnum;TAbstract]])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 	| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 	| Last -> assert false
@@ -431,3 +437,11 @@ let get_documentation_list () =
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
+
+let get_all () =
+	let rec loop i =
+		let d = Obj.magic i in
+		if d <> Last then d :: loop (i + 1)
+		else []
+	in
+	loop 0

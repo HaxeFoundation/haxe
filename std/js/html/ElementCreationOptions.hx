@@ -26,6 +26,5 @@ package js.html;
 
 typedef ElementCreationOptions =
 {
-	@:native("is")
-	@:optional var is_ : String;
+	@:optional var is : String;
 }

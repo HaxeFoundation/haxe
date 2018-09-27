@@ -50,11 +50,7 @@ let decode_varray v = match v with
 	| _ -> unexpected_value v "array"
 
 let decode_string v = match v with
-	| VString s -> EvalString.get s
-	| _ -> unexpected_value v "string"
-
-let decode_rope v = match v with
-	| VString s -> s.srope
+	| VString s -> s.sstring
 	| _ -> unexpected_value v "string"
 
 let decode_vstring v = match v with

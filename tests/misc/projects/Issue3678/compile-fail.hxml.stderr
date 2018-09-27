@@ -1,3 +1,1 @@
-Main.hx:3: characters 18-19 : expression expected after =
-Main.hx:3: characters 20-70 : Unnamed lvalue functions are not supported
-Main.hx:4: characters 9-13 : Unknown identifier : func
+Main.hx:3: characters 20-70 : Call or function expected after inline keyword

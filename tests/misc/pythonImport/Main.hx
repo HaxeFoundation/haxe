@@ -26,9 +26,7 @@ extern class InexistantExtern2 {}
 @:pythonImport("inexistant", ignoreError=true)
 extern class InexistantExtern3 {}
 
-class Main {
-
-	function new() { }
+class Main extends utest.Test {
 
     function testExtern() {
         Assert.equals(new ExternClass().f(1), 2);

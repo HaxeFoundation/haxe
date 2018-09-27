@@ -59,6 +59,10 @@ extern class TrackElement extends Element
 		Is a `DOMString` that reflects the `label` HTML attribute, indicating a user-readable title for the track.
 	**/
 	var label : String;
+	
+	/**
+		Is a `Boolean` reflects the `default` HTML attribute, indicating that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+	**/
 	@:native("default")
 	var default_ : Bool;
 	

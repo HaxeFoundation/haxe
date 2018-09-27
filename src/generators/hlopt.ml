@@ -739,6 +739,14 @@ let optimize dump get_str (f:fundecl) =
 			write_counts.(d) <- write_counts.(d) - 1;
 			add_reg_moved i d r;
 			set_nop i "unused"
+		| OJAlways d when d >= 0 ->
+			let rec loop k =
+				if k = d then set_nop i "nojmp" else
+				match f.code.(i + k + 1) with
+				| ONop _ -> loop (k + 1)
+				| _ -> ()
+			in
+			loop 0
 		| _ -> ());
 	done;
 

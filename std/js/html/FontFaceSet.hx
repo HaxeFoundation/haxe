@@ -60,8 +60,7 @@ extern class FontFaceSet extends EventTarget
 	/** @throws DOMError */
 	function add( font : FontFace ) : Void;
 	function has( font : FontFace ) : Bool;
-	@:native("delete")
-	function delete_( font : FontFace ) : Bool;
+	function delete( font : FontFace ) : Bool;
 	function clear() : Void;
 	function entries() : FontFaceSetIterator;
 	function values() : FontFaceSetIterator;

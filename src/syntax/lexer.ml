@@ -92,7 +92,8 @@ let keywords =
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
 		Cast;Override;Dynamic;Typedef;Package;
-		Inline;Using;Null;True;False;Abstract;Macro;Final];
+		Inline;Using;Null;True;False;Abstract;Macro;Final;
+		Operator;Overload];
 	h
 
 let is_valid_identifier s = try
@@ -251,7 +252,10 @@ let mk lexbuf t =
 
 let mk_ident lexbuf =
 	let s = lexeme lexbuf in
-	mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
+	mk lexbuf (Const (Ident s))
+
+let mk_keyword lexbuf kwd =
+	mk lexbuf (Kwd kwd)
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
@@ -385,6 +389,57 @@ let rec token lexbuf =
 		let v = lexeme lexbuf in
 		let v = String.sub v 1 (String.length v - 1) in
 		mk lexbuf (Dollar v)
+	(* type decl *)
+	| "package" -> mk_keyword lexbuf Package
+	| "import" -> mk_keyword lexbuf Import
+	| "using" -> mk_keyword lexbuf Using
+	| "class" -> mk_keyword lexbuf Class
+	| "interface" -> mk_keyword lexbuf Interface
+	| "enum" -> mk_keyword lexbuf Enum
+	| "abstract" -> mk_keyword lexbuf Abstract
+	| "typedef" -> mk_keyword lexbuf Typedef
+	(* relations *)
+	| "extends" -> mk_keyword lexbuf Extends
+	| "implements" -> mk_keyword lexbuf Implements
+	(* modifier *)
+	| "extern" -> mk_keyword lexbuf Extern
+	| "static" -> mk_keyword lexbuf Static
+	| "public" -> mk_keyword lexbuf Public
+	| "private" -> mk_keyword lexbuf Private
+	| "override" -> mk_keyword lexbuf Override
+	| "dynamic" -> mk_keyword lexbuf Dynamic
+	| "inline" -> mk_keyword lexbuf Inline
+	| "macro" -> mk_keyword lexbuf Macro
+	| "final" -> mk_keyword lexbuf Final
+	| "operator" -> mk_keyword lexbuf Operator
+	| "overload" -> mk_keyword lexbuf Overload
+	(* fields *)
+	| "function" -> mk_keyword lexbuf Function
+	| "var" -> mk_keyword lexbuf Var
+	(* values *)
+	| "null" -> mk_keyword lexbuf Null
+	| "true" -> mk_keyword lexbuf True
+	| "false" -> mk_keyword lexbuf False
+	| "this" -> mk_keyword lexbuf This
+	(* expr *)
+	| "if" -> mk_keyword lexbuf If
+	| "else" -> mk_keyword lexbuf Else
+	| "while" -> mk_keyword lexbuf While
+	| "do" -> mk_keyword lexbuf Do
+	| "for" -> mk_keyword lexbuf For
+	| "break" -> mk_keyword lexbuf Break
+	| "continue" -> mk_keyword lexbuf Continue
+	| "return" -> mk_keyword lexbuf Return
+	| "switch" -> mk_keyword lexbuf Switch
+	| "case" -> mk_keyword lexbuf Case
+	| "default" -> mk_keyword lexbuf Default
+	| "throw" -> mk_keyword lexbuf Throw
+	| "try" -> mk_keyword lexbuf Try
+	| "catch" -> mk_keyword lexbuf Catch
+	| "untyped" -> mk_keyword lexbuf Untyped
+	| "new" -> mk_keyword lexbuf New
+	| "in" -> mk_keyword lexbuf In
+	| "cast" -> mk_keyword lexbuf Cast
 	| ident -> mk_ident lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char lexbuf

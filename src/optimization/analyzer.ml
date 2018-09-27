@@ -485,7 +485,7 @@ module ConstPropagation = DataFlow(struct
 				if not (type_change_ok ctx.com t e.etype) then raise Not_found;
 				mk (TTypeExpr mt) t e.epos
 		in
-		let is_special_var v = v.v_capture || is_asvar_type v.v_type in
+		let is_special_var v = v.v_capture || ExtType.has_variable_semantics v.v_type in
 		let rec commit e = match e.eexpr with
 			| TLocal v when not (is_special_var v) ->
 				begin try
@@ -638,7 +638,7 @@ module LocalDce = struct
 			Meta.has Meta.Used v.v_meta
 		in
 		let keep v =
-			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || is_ref_type v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
+			is_used v || ((match v.v_kind with VUser _ | VInlined -> true | _ -> false) && not ctx.config.local_dce) || ExtType.has_reference_semantics v.v_type || v.v_capture || Meta.has Meta.This v.v_meta
 		in
 		let rec use v =
 			if not (is_used v) then begin
@@ -1043,7 +1043,7 @@ module Run = struct
 			let e = try
 				run_on_expr actx e
 			with
-			| Error.Error _ | Abort _ as exc ->
+			| Error.Error _ | Abort _ | Sys.Break as exc ->
 				raise exc
 			| exc ->
 				debug();

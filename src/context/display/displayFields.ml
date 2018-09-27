@@ -95,6 +95,12 @@ let collect_static_extensions ctx items e p =
 	| _ ->
 		let items = loop items ctx.m.module_using in
 		let items = loop items ctx.g.global_using in
+		let items = try
+			let mt = module_type_of_type e.etype in
+			loop items (t_infos mt).mt_using
+		with Exit ->
+			items
+		in
 		items
 
 let collect ctx e_ast e dk with_type p =

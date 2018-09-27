@@ -105,15 +105,9 @@ let rec compare a b =
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
 	| VString s1,VString s2 ->
-		let s1' = Lazy.force s1.sstring in
-		let s2' = Lazy.force s2.sstring in
-		let s1,s2 = match s1.sascii,s2.sascii with
-		| true,true
-		| false,false -> s1',s2'
-		| true,false -> extend_ascii s1',s2'
-		| false,true -> s1',extend_ascii s2'
-		in
-		let r = String.compare s1 s2 in
+		let s1' = s1.sstring in
+		let s2' = s2.sstring in
+		let r = String.compare s1' s2' in
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
 	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
@@ -155,7 +149,7 @@ and equals_structurally a b =
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VString s1,VString s2 -> Lazy.force s1.sstring = Lazy.force s2.sstring (* STODO *)
+	| VString s1,VString s2 -> s1.sstring = s2.sstring (* STODO *)
 	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
 	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
 	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields

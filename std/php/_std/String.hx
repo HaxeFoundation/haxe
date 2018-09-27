@@ -37,7 +37,7 @@ import php.*;
 	}
 
 	@:pure @:runtime inline function charAt(index : Int) : String {
-		return Syntax.coalesce(Boot.utf8CharAt(this, index), '');
+		return index < 0 ? '' : Global.mb_substr(this, index, 1, 'UTF-8');
 	}
 
 	@:pure function charCodeAt( index : Int) : Null<Int>;
@@ -48,7 +48,9 @@ import php.*;
 
 	@:pure function split( delimiter : String ) : Array<String>;
 
-	@:pure function substr( pos : Int, ?len : Int ) : String;
+	@:pure @:runtime inline function substr( pos : Int, ?len : Int ) : String {
+		return Global.mb_substr(this, pos, len, 'UTF-8');
+	}
 
 	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
 

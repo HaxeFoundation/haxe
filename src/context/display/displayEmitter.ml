@@ -254,20 +254,17 @@ let display_meta com meta p = match com.display.dms_kind with
 	| DMHover ->
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
-		| _ -> match Meta.get_documentation meta with
-			| None -> ()
-			| Some (_,s) ->
-				(* TODO: hack until we support proper output for hover display mode *)
-				if com.json_out = None then
+		| _ ->
+			if com.json_out = None then begin match Meta.get_documentation meta with
+				| None -> ()
+				| Some (_,s) ->
 					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
-				else
-					raise_hover (make_ci_metadata (Meta.to_string meta) (Some s)) None p
+			end else
+				raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
-		let all,_ = Meta.get_documentation_list() in
-		let all = List.map (fun (s,doc) ->
-			make_ci_metadata s (Some doc)
-		) all in
+		let all = Meta.get_all() in
+		let all = List.map make_ci_metadata all in
 		raise_fields all CRMetadata (Some p)
 	| _ ->
 		()

@@ -177,3 +177,17 @@ let unify_static_extension ctx e t p =
 		Type.unify e.etype t;
 		e
 	end
+
+let get_abstract_froms a pl =
+	let l = List.map (apply_params a.a_params pl) a.a_from in
+	List.fold_left (fun acc (t,f) ->
+		match follow (Type.field_type f) with
+		| TFun ([_,_,v],t) ->
+			(try
+				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
+				v :: acc
+			with Unify_error _ ->
+				acc)
+		| _ ->
+			acc
+	) l a.a_from_field

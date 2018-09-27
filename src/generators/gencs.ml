@@ -1302,6 +1302,9 @@ let generate con =
 					| TBinop ((Ast.OpAssign as op), e1, e2)
 					| TBinop ((Ast.OpAssignOp _ as op), e1, e2) ->
 						expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2
+					(* hack to dodge #7034 *)
+					| TBinop (OpMod,_,e2) when (match (Texpr.skip e2).eexpr with TConst (TInt i32) -> i32 = Int32.zero | _ -> false) ->
+						write w ("System.Double.NaN")
 					| TBinop (op, e1, e2) ->
 						write w "( ";
 						expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2;

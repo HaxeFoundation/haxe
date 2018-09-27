@@ -28,5 +28,5 @@ enum abstract StorageType(String)
 {
 	var PERSISTENT = "persistent";
 	var TEMPORARY = "temporary";
-	var DEFAULT_ = "default";
+	var DEFAULT = "default";
 }
