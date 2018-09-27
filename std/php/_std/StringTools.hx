@@ -83,7 +83,7 @@ import php.*;
 
 	public static function replace( s : String, sub : String, by : String ) : String {
 		if (sub == '') {
-			return Global.implode(by, Global.str_split(s));
+			return Global.implode(by, Global.preg_split('//u', s, -1, Const.PREG_SPLIT_NO_EMPTY));
 		}
 		return Global.str_replace(sub, by, s);
 	}
