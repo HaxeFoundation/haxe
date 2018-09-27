@@ -57,8 +57,8 @@ Math.isNaN(Math.NaN / Math.POSITIVE_INFINITY) == true;
 Math.isNaN(Math.NEGATIVE_INFINITY / Math.NaN) == true;
 
 // %
-var izero = 0;
-Math.isNaN(1%izero) == true;
+// var izero = 0;
+// Math.isNaN(1%izero) == true;
 // abs
 Math.abs(-1.223) == 1.223;
 Math.abs(1.223) == 1.223;
