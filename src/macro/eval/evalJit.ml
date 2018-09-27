@@ -47,6 +47,10 @@ let is_int t = match follow t with
 	| TAbstract({a_path=[],"Int"},_) -> true
 	| _ -> false
 
+let is_string t = match follow t with
+	| TInst({cl_path=[],"String"},_) -> true
+	| _ -> false
+
 open EvalJitContext
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
@@ -156,6 +160,16 @@ and unop jit op flag e1 p =
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
 
+and jit_default jit return def =
+	match def with
+	| None ->
+		emit_null
+	| Some e ->
+		push_scope jit e.epos;
+		let exec = jit_expr jit return e in
+		pop_scope jit;
+		exec
+
 (*
 	This is the main jit function. It turns expression [e] into a function, which can be
 	executed int an environment of type [EvalContext.env].
@@ -211,6 +225,45 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
+	| TSwitch(e1,cases,def) when is_int e1.etype ->
+		let exec = jit_expr jit false e1 in
+		let h = ref IntMap.empty in
+		let max = ref 0 in
+		let min = ref max_int in
+		List.iter (fun (el,e) ->
+			push_scope jit e.epos;
+			let exec = jit_expr jit return e in
+			List.iter (fun e -> match e.eexpr with
+				| TConst (TInt i32) ->
+					let i = Int32.to_int i32 in
+					h := IntMap.add i exec !h;
+					if i > !max then max := i;
+					if i < !min then min := i;
+				| _ -> assert false
+			) el;
+			pop_scope jit;
+		) cases;
+		let exec_def = jit_default jit return def in
+		let l = !max - !min + 1 in
+		if l < 256 then begin
+			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
+			emit_int_switch_array (- !min) exec cases exec_def e1.epos
+		end else
+			emit_int_switch_map exec !h exec_def e1.epos
+	(* | TSwitch(e1,cases,def) when is_string e1.etype ->
+		let exec = jit_expr jit false e1 in
+		let h = ref PMap.empty in
+		List.iter (fun (el,e) ->
+			push_scope jit e.epos;
+			let exec = jit_expr jit return e in
+			List.iter (fun e -> match e.eexpr with
+				| TConst (TString s) -> h := PMap.add s exec !h;
+				| _ -> assert false
+			) el;
+			pop_scope jit;
+		) cases;
+		let exec_def = jit_default jit return def in
+		emit_string_switch_map exec !h exec_def e1.epos *)
 	| TSwitch(e1,cases,def) ->
 		let exec = jit_expr jit false e1 in
 		let execs = DynArray.create () in
@@ -221,15 +274,7 @@ and jit_expr jit return e =
 			pop_scope jit;
 			el
 		) cases in
-		let exec_def = match def with
-			| None ->
-				emit_null
-			| Some e ->
-				push_scope jit e.epos;
-				let exec = jit_expr jit return e in
-				pop_scope jit;
-				exec
-		in
+		let exec_def = jit_default jit return def in
 		emit_switch exec (DynArray.to_array execs) (Array.of_list patterns) exec_def
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}

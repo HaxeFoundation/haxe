@@ -115,6 +115,41 @@ let emit_switch exec execs patterns exec_def env =
 	in
 	loop v1 0
 
+let emit_int_switch_map exec cases exec_def p env = match exec env with
+	| VInt32 i32 ->
+		let i = Int32.to_int i32 in
+		begin try
+			(IntMap.find i cases) env
+		with Not_found ->
+			exec_def env
+		end
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "int" p
+
+let emit_string_switch_map exec cases exec_def p env = match exec env with
+	| VString s ->
+		begin try
+			(PMap.find s.sstring cases) env
+		with Not_found ->
+			exec_def env
+		end
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "string" p
+
+let emit_int_switch_array shift exec cases exec_def p env = match exec env with
+	| VInt32 i32 ->
+		let i = Int32.to_int i32 + shift in
+		if i >= Array.length cases || i < 0 then exec_def env
+		else (Array.unsafe_get cases i) env
+	| VNull ->
+		exec_def env
+	| v ->
+		unexpected_value_p v "int" p
+
 let rec run_while_continue exec_cond exec_body env =
 	try
 		while is_true (exec_cond env) do exec_body env done;
