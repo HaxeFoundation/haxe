@@ -410,9 +410,11 @@ let rec gen_function_header ctx name f params p =
 				match c with
 				| None ->
 					if ctx.constructor_block then print ctx " = %s" (default_value tstr);
-				| Some c ->
+				| Some ({eexpr = TConst _ } as e) ->
 					spr ctx " = ";
-					gen_expr ctx c
+					gen_expr ctx e
+				| _ ->
+					spr ctx " = null"
 	) f.tf_args;
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
