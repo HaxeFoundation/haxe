@@ -10,6 +10,9 @@ a == max;
 ++a == min;
 --a == max;
 
+// #7485 clamp behavior of negate
+-min == min;
+
 max+min == -1;
 max+1 == min;
 
