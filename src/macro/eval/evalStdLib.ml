@@ -65,7 +65,8 @@ module StdEvalVector = struct
 	)
 
 	let fromArrayCopy = vfun1 (fun arr ->
-		encode_vector_instance (Array.copy (decode_varray arr).avalues)
+		let a = decode_varray arr in
+		encode_vector_instance (Array.sub a.avalues 0 a.alength)
 	)
 
 	let copy = vifun0 (fun vthis ->
