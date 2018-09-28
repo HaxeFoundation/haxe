@@ -43,7 +43,6 @@ type 'value compiler_api = {
 	current_module : unit -> module_def;
 	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
-	delayed_macro : int -> (unit -> (unit -> 'value));
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;

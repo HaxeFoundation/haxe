@@ -428,12 +428,6 @@ and jit_expr jit return e =
 				let exec2 = jit_expr jit false min in
 				let exec3 = jit_expr jit false max in
 				emit_mk_pos exec1 exec2 exec3
-			| TIdent "$__delayed_call__",[{eexpr = TConst(TInt i)}] ->
-				let f = ctx.curapi.MacroApi.delayed_macro (Int32.to_int i) in
-				(fun env ->
-					let f = f() in
-					f()
-				)
 			| _ ->
 				let exec = jit_expr jit false e1 in
 				let execs = List.map (jit_expr jit false) el in

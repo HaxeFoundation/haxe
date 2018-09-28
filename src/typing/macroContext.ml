@@ -46,8 +46,6 @@ let macro_interp_cache = ref None
 let macro_interp_on_reuse = ref []
 let macro_interp_reused = ref false
 
-let delayed_macro_result = ref ((fun() -> assert false) : unit -> unit -> Interp.value)
-
 let safe_decode v t p f =
 	try
 		f ()
@@ -348,14 +346,6 @@ let make_macro_api ctx p =
 			ctx.m.curmod
 		);
 		MacroApi.current_macro_module = (fun () -> assert false);
-		MacroApi.delayed_macro = (fun i ->
-			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
-			let f = (try DynArray.get mctx.g.delayed_macros i with _ -> failwith "Delayed macro retrieve failure") in
-			f();
-			let ret = !delayed_macro_result in
-			delayed_macro_result := (fun() -> assert false);
-			ret
-		);
 		MacroApi.use_cache = (fun() ->
 			!macro_enable_cache
 		);
@@ -580,6 +570,7 @@ let load_macro ctx display cpath f p =
 		meth
 	in
 	let call args =
+		if ctx.in_macro then flush_macro_context mint ctx;
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
@@ -744,35 +735,9 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			safe_decode v mret p process
 
 	in
-	let e = (if ctx.in_macro then begin
-		(*
-			this is super-tricky : we can't evaluate a macro inside a macro because we might trigger some cycles.
-			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
-			macro if/when it is called.
-
-			The tricky part is that the whole delayed-evaluation process has to use the same contextual information
-			as if it was evaluated now.
-		*)
-		let ctx = {
-			ctx with locals = ctx.locals;
-		} in
-		let pos = DynArray.length mctx.g.delayed_macros in
-		DynArray.add mctx.g.delayed_macros (fun() ->
-			delayed_macro_result := (fun() ->
-				let mint = Interp.get_ctx() in
-				match call() with
-				| None -> (fun() -> raise MacroApi.Abort)
-				| Some e -> Interp.eval_delayed mint (type_expr ctx e WithType.value)
-			);
-		);
-		ctx.m.curmod.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
-		if Common.defined ctx.com Define.MacroDebug then
-			ctx.com.warning "Macro-in-macro call detected" p;
-		let e = (EConst (Ident "$__delayed_call__"),p) in
-		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
-	end else
+	let e =
 		call()
-	) in
+	in
 	e
 
 let call_macro ctx path meth args p =
