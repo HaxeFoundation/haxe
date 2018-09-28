@@ -43,9 +43,15 @@ class Compiler {
 
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
+	#if !macro
 	macro static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
+	#else
+	static public function getDefine( key : String ) {
+		return haxe.macro.Context.definedValue(key);
+	}
+	#end
 
 #if (neko || (macro && hl) || (macro && eval))
 
