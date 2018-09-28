@@ -80,7 +80,7 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # ocaml dependencies
-  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - wget -nv https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
