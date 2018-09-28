@@ -570,7 +570,6 @@ let load_macro ctx display cpath f p =
 		meth
 	in
 	let call args =
-		if ctx.in_macro then flush_macro_context mint ctx;
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in
 		incr stats.s_macros_called;
@@ -733,9 +732,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				)
 			in
 			safe_decode v mret p process
-
 	in
-	let e =
+	let e = if ctx.in_macro then
+		Some (EThrow((EConst(String "macro-in-macro")),p),p)
+	else
 		call()
 	in
 	e
