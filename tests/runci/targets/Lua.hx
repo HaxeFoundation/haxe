@@ -56,12 +56,12 @@ class Lua {
 
 			runCommand("lua",["-v"]);
 
-			runCommand("luarocks", ["help", "--lua-incdir"]);
-			runCommand("luarocks", ["help", "--lua-libdir"]);
-			runCommand("luarocks", ["help", "--lua-ver"]);
-			runCommand("luarocks", ["help", "--system-config"]);
-			runCommand("luarocks", ["help", "--user-config"]);
-			runCommand("luarocks", ["help", "--rock-trees"]);
+			runCommand("luarocks", ["config", "--lua-incdir"]);
+			runCommand("luarocks", ["config", "--lua-libdir"]);
+			runCommand("luarocks", ["config", "--lua-ver"]);
+			runCommand("luarocks", ["config", "--system-config"]);
+			runCommand("luarocks", ["config", "--user-config"]);
+			runCommand("luarocks", ["config", "--rock-trees"]);
 
 			installLuaVersionDependencies(lv);
 
