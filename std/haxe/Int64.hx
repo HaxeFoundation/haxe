@@ -215,7 +215,7 @@ abstract Int64(__Int64) from __Int64 to __Int64
 	**/
 	@:op(-A) public static inline function neg( x : Int64 ) : Int64 {
 		var high = ~x.high;
-		var low = -x.low;
+		var low = @:privateAccess Int32.clamp(-x.low);
 		if( low == 0 )
 			high++;
 		return make( high, low );

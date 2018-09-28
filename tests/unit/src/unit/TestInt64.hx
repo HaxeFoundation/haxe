@@ -38,6 +38,37 @@ class TestInt64 extends Test {
 		exc( tryOverflow.bind(a) );	// Throws Overflow
 	}
 
+	public function testNegateOverflow_Issue7485()
+	{
+		// 0x7fffffff - 0x7fffffffffffffff = -7fffffff80000000
+		var a = haxe.Int64.parseString('2147483647');
+		var b = haxe.Int64.parseString('9223372036854775807');
+		var s = haxe.Int64.sub(a, b);
+		eq(haxe.Int64.toStr(s), "-9223372034707292160");
+
+		// z = a - b
+		var z = haxe.Int64.make(-2147483648, -2147483648);
+		eq( s==z, true );
+		
+		// This fails because the first division fails:
+		var ten = haxe.Int64.make(0, 10);
+		var modulus = haxe.Int64.divMod( z, ten ).modulus.low;
+		eq( modulus, 0 );
+
+		// The first division failed because of negate:
+		eq( (-z).low, -2147483648 );
+		eq( (-z).high, 2147483647 );
+
+		// Some other negate cases
+		var z = haxe.Int64.make(-2147483648, 0);
+		eq( (-z).low, 0 );
+		eq( (-z).high, -2147483648 );
+
+		var z = haxe.Int64.make(2147483647, 0);
+		eq( (-z).low, 0 );
+		eq( (-z).high, -2147483647 );
+	}
+
 	// Some tests of how it generates Int64 when used as Null<Int64> or as type parameters
 	function testGen()
 	{
