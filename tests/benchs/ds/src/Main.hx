@@ -66,10 +66,10 @@ class Main {
 		var suite = new Suite("read + write");
 		var a = [1];
 		var v = Vector.fromArrayCopy(a);
-		var sm = new Map();
-		var im = new Map();
-		var om = new Map();
+		var sm = ["foo" => 0];
+		var im = [1 => 0];
 		var key = { foo: 1 };
+		var om = [key => 0];
 		suite.add("Vector", v[0] += 1);
 		suite.add("Array", a[0] += 1);
 		suite.add("StringMap", sm["foo"] += 1);
