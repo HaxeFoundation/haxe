@@ -51,7 +51,6 @@ type strict_defined =
 	| IncludePrefix
 	| Interp
 	| JavaVer
-	| JqueryVer
 	| JsClassic
 	| JsEs
 	| JsUnflatten
@@ -166,7 +165,6 @@ let infos = function
 	| IncludePrefix -> "include_prefix",("prepend path to generated include files",[Platform Cpp])
 	| Interp -> "interp",("The code is compiled to be run with --interp",[])
 	| JavaVer -> "java_ver",("<version:5-7> Sets the Java version to be targeted",[Platform Java])
-	| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an integer. e.g. 1.11.3 is encoded as 11103",[Platform Js])
 	| JsClassic -> "js_classic",("Don't use a function wrapper and strict mode in JS output",[Platform Js])
 	| JsEs -> "js_es",("Generate JS compliant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
 	| JsEnumsAsArrays -> "js_enums_as_arrays",("Generate enum representation as array instead of as object",[Platform Js])
