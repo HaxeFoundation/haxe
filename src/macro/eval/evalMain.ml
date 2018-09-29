@@ -228,8 +228,8 @@ let value_signature v =
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun s value ->
-					adds s.sstring;
+				StringHashtbl.iter (fun s (_,value) ->
+					adds s;
 					loop value
 				) map;
 				addc 'h'

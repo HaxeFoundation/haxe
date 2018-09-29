@@ -871,6 +871,8 @@ private class HxClosure {
 	var target : Dynamic;
 	/** Method name for methods */
 	var func : String;
+	/** A callable value, which can be invoked by PHP */
+	var callable : Any;
 
 	public function new( target:Dynamic, func:String ) : Void {
 		this.target = target;
@@ -879,6 +881,7 @@ private class HxClosure {
 		if (target.is_null()) {
 			throw "Unable to create closure on `null`";
 		}
+		callable = Std.is(target, HxAnon) ? Syntax.field(target, func) : Syntax.arrayDecl(target, func);
 	}
 
 	/**
@@ -886,7 +889,7 @@ private class HxClosure {
 	**/
 	@:phpMagic
 	public function __invoke() {
-		return Global.call_user_func_array(getCallback(), Global.func_get_args());
+		return Global.call_user_func_array(callable, Global.func_get_args());
 	}
 
 	/**
@@ -896,10 +899,8 @@ private class HxClosure {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (Std.is(eThis, StdClass)) {
-			if (Std.is(eThis, HxAnon)) {
-				return Syntax.field(eThis, func);
-			}
+		if (Std.is(eThis, HxAnon)) {
+			return Syntax.field(eThis, func);
 		}
 		return Syntax.arrayDecl(eThis, func);
 	}

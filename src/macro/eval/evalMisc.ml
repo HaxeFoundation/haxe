@@ -163,14 +163,14 @@ let is_true v = match v with
 	| VTrue -> true
 	| _ -> false
 
-let op_add v1 v2 = match v1,v2 with
+let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
 	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
-	| v1,v2 -> vstring (concat (s_value 0 v1) (s_value 0 v2))
+	| v1,v2 -> invalid_binop OpAdd v1 v2 p
 
 let op_mult p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
@@ -236,7 +236,7 @@ let op_mod p v1 v2 = match v1,v2 with
 	| _ -> invalid_binop OpMod v1 v2 p
 
 let get_binop_fun op p = match op with
-	| OpAdd -> op_add
+	| OpAdd -> op_add p
 	| OpMult -> op_mult p
 	| OpDiv -> op_div p
 	| OpSub -> op_sub p

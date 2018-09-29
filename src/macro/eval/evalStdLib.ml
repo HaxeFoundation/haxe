@@ -65,7 +65,8 @@ module StdEvalVector = struct
 	)
 
 	let fromArrayCopy = vfun1 (fun arr ->
-		encode_vector_instance (Array.copy (decode_varray arr).avalues)
+		let a = decode_varray arr in
+		encode_vector_instance (Array.sub a.avalues 0 a.alength)
 	)
 
 	let copy = vifun0 (fun vthis ->
@@ -1379,41 +1380,160 @@ let encode_list_iterator l =
 		)
 	]
 
-module StdMap (Hashtbl : Hashtbl.S) = struct
-	let map_fields enc dec str enc_inst this = [
-		"get",vifun1 (fun vthis vkey -> try Hashtbl.find (this vthis) (dec vkey) with Not_found -> vnull);
-		"set",vifun2 (fun vthis vkey vvalue -> Hashtbl.replace (this vthis) (dec vkey) vvalue; vnull);
-		"exists",vifun1 (fun vthis vkey -> vbool (Hashtbl.mem (this vthis) (dec vkey)));
-		"remove",vifun1 (fun vthis vkey ->
-			let key = dec vkey in
-			let b = Hashtbl.mem (this vthis) key in
-			Hashtbl.remove (this vthis) key;
-			vbool b
-		);
-		"keys",vifun0 (fun vthis ->
-			let keys = Hashtbl.fold (fun v _ acc -> (enc v) :: acc) (this vthis) [] in
-			encode_list_iterator keys
-		);
-		"iterator",vifun0 (fun vthis ->
-			let keys = Hashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
-			encode_list_iterator keys
-		);
-		"copy",vifun0 (fun vthis ->
-			let copied = Hashtbl.copy (this vthis) in
-			enc_inst copied
-		);
-		"toString",vifun0 (fun vthis ->
-			let l = Hashtbl.fold (fun key vvalue acc -> (join rempty [str key; create_ascii " => "; s_value 0 vvalue]) :: acc) (this vthis) [] in
-			let s = join rcomma l in
-			let s = join rempty [rbropen;s;rbrclose] in
-			vstring s
-		);
-	]
+module StdIntMap = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IIntMap h} -> h
+		| v -> unexpected_value v "int map"
+
+	let copy = vifun0 (fun vthis ->
+		let copied = IntHashtbl.copy (this vthis) in
+		encode_int_map_direct copied
+	)
+
+	let exists = vifun1 (fun vthis vkey ->
+		vbool (IntHashtbl.mem (this vthis) (decode_int vkey))
+	)
+
+	let get = vifun1 (fun vthis vkey ->
+		try IntHashtbl.find (this vthis) (decode_int vkey)
+		with Not_found -> vnull
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let keys = IntHashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keys = vifun0 (fun vthis ->
+		let keys = IntHashtbl.fold (fun k _ acc -> vint k :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let remove = vifun1 (fun vthis vkey ->
+		let this = this vthis in
+		let key = decode_int vkey in
+		let b = IntHashtbl.mem this key in
+		IntHashtbl.remove this key;
+		vbool b
+	)
+
+	let set = vifun2 (fun vthis vkey vvalue ->
+		IntHashtbl.add (this vthis) (decode_int vkey) vvalue;
+		vnull
+	)
+
+	let toString = vifun0 (fun vthis ->
+		let this = this vthis in
+		let l = IntHashtbl.fold (fun key vvalue acc ->
+			(join rempty [create_ascii (string_of_int key); create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+		let s = join rcomma l in
+		let s = join rempty [rbropen;s;rbrclose] in
+		vstring s
+	)
 end
 
-module StdStringMap = StdMap(StringHashtbl)
-module StdIntMap = StdMap(IntHashtbl)
-module StdObjectMap = StdMap(ValueHashtbl)
+module StdStringMap = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IStringMap h} -> h
+		| v -> unexpected_value v "string map"
+
+	let copy = vifun0 (fun vthis ->
+		let copied = StringHashtbl.copy (this vthis) in
+		encode_string_map_direct copied
+	)
+
+	let exists = vifun1 (fun vthis vkey ->
+		vbool (StringHashtbl.mem (this vthis) (decode_vstring vkey))
+	)
+
+	let get = vifun1 (fun vthis vkey ->
+		try snd (StringHashtbl.find (this vthis) (decode_vstring vkey))
+		with Not_found -> vnull
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let keys = StringHashtbl.fold (fun _ (_,v) acc -> v :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keys = vifun0 (fun vthis ->
+		let keys = StringHashtbl.fold (fun _ (k,_) acc -> vstring k :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let remove = vifun1 (fun vthis vkey ->
+		let this = this vthis in
+		let key = decode_vstring vkey in
+		let b = StringHashtbl.mem this key in
+		StringHashtbl.remove this key;
+		vbool b
+	)
+
+	let set = vifun2 (fun vthis vkey vvalue ->
+		StringHashtbl.add (this vthis) (decode_vstring vkey) vvalue;
+		vnull
+	)
+
+	let toString = vifun0 (fun vthis ->
+		let this = this vthis in
+		let l = StringHashtbl.fold (fun _ (key,vvalue) acc ->
+			(join rempty [key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+		let s = join rcomma l in
+		let s = join rempty [rbropen;s;rbrclose] in
+		vstring s
+	)
+end
+
+module StdObjectMap = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IObjectMap h} -> Obj.magic h
+		| v -> unexpected_value v "int map"
+
+	let copy = vifun0 (fun vthis ->
+		let copied = ValueHashtbl.copy (this vthis) in
+		encode_object_map_direct copied
+	)
+
+	let exists = vifun1 (fun vthis vkey ->
+		vbool (ValueHashtbl.mem (this vthis) vkey)
+	)
+
+	let get = vifun1 (fun vthis vkey ->
+		try ValueHashtbl.find (this vthis) vkey
+		with Not_found -> vnull
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let keys = ValueHashtbl.fold (fun _ v acc -> v :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let keys = vifun0 (fun vthis ->
+		let keys = ValueHashtbl.fold (fun k _ acc -> k :: acc) (this vthis) [] in
+		encode_list_iterator keys
+	)
+
+	let remove = vifun1 (fun vthis vkey ->
+		let this = this vthis in
+		let b = ValueHashtbl.mem this vkey in
+		ValueHashtbl.remove this vkey;
+		vbool b
+	)
+
+	let set = vifun2 (fun vthis vkey vvalue ->
+		ValueHashtbl.replace (this vthis) vkey vvalue;
+		vnull
+	)
+
+	let toString = vifun0 (fun vthis ->
+		let this = this vthis in
+		let l = ValueHashtbl.fold (fun key vvalue acc ->
+			(join rempty [s_value 0 key; create_ascii " => "; s_value 0 vvalue]) :: acc) this [] in
+		let s = join rcomma l in
+		let s = join rempty [rbropen;s;rbrclose] in
+		vstring s
+	)
+end
 
 let random = Random.State.make_self_init()
 
@@ -2242,10 +2362,10 @@ module StdSys = struct
 
 	let environment = vfun0 (fun () ->
 		let env = Unix.environment() in
-		let h = StringHashtbl.create 0 in
+		let h = StringHashtbl.create () in
 		Array.iter(fun s ->
 			let k, v = ExtString.String.split s "=" in
-			StringHashtbl.replace h (create_ascii k) (create_unknown v)
+			StringHashtbl.add h (create_ascii k) (create_unknown v)
 		) env;
 		encode_string_map_direct h
 	)
@@ -2688,21 +2808,36 @@ let init_fields builtins path static_fields instance_fields =
 	builtins.instance_builtins <- IntMap.add path (List.map map instance_fields) builtins.instance_builtins
 
 let init_maps builtins =
-	let this vthis = match vthis with
-		| VInstance {ikind = IIntMap h} -> h
-		| v -> unexpected_value v "int map"
-	in
-	init_fields builtins (["haxe";"ds"],"IntMap") [] (StdIntMap.map_fields vint decode_int (fun i -> create_ascii (string_of_int i)) encode_int_map_direct this);
-	let this vthis = match vthis with
-		| VInstance {ikind = IStringMap h} -> h
-		| v -> unexpected_value v "string map"
-	in
-	init_fields builtins (["haxe";"ds"],"StringMap") [] (StdStringMap.map_fields vstring decode_vstring (fun s -> s) encode_string_map_direct this);
-	let this vthis = match vthis with
-		| VInstance {ikind = IObjectMap h} -> Obj.magic h
-		| v -> unexpected_value v "object map"
-	in
-    init_fields builtins (["haxe";"ds"],"ObjectMap") [] (StdObjectMap.map_fields (fun v -> v) (fun v -> v) (fun s -> s_value 0 s) encode_object_map_direct this)
+	init_fields builtins (["haxe";"ds"],"IntMap") [] [
+		"copy",StdIntMap.copy;
+		"exists",StdIntMap.exists;
+		"get",StdIntMap.get;
+		"iterator",StdIntMap.iterator;
+		"keys",StdIntMap.keys;
+		"remove",StdIntMap.remove;
+		"set",StdIntMap.set;
+		"toString",StdIntMap.toString;
+	];
+	init_fields builtins (["haxe";"ds"],"ObjectMap") [] [
+		"copy",StdObjectMap.copy;
+		"exists",StdObjectMap.exists;
+		"get",StdObjectMap.get;
+		"iterator",StdObjectMap.iterator;
+		"keys",StdObjectMap.keys;
+		"remove",StdObjectMap.remove;
+		"set",StdObjectMap.set;
+		"toString",StdObjectMap.toString;
+	];
+	init_fields builtins (["haxe";"ds"],"StringMap") [] [
+		"copy",StdStringMap.copy;
+		"exists",StdStringMap.exists;
+		"get",StdStringMap.get;
+		"iterator",StdStringMap.iterator;
+		"keys",StdStringMap.keys;
+		"remove",StdStringMap.remove;
+		"set",StdStringMap.set;
+		"toString",StdStringMap.toString;
+	]
 
 let init_constructors builtins =
 	let add = Hashtbl.add builtins.constructor_builtins in
@@ -2741,9 +2876,9 @@ let init_constructors builtins =
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
 			| _ -> assert false
 		);
-	add key_haxe_ds_StringMap (fun _ -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create 0)));
-	add key_haxe_ds_IntMap (fun _ -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));
-	add key_haxe_ds_ObjectMap (fun _ -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
+	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
+	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
+	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
 	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
 	add key_haxe_io_Bytes
 		(fun vl -> match vl with
@@ -2798,8 +2933,8 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
 	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
-	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create 0)));
-	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create 0)));
+	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
+	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
 	Hashtbl.add h key_haxe_io_BytesBuffer (fun () -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)))
 

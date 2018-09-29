@@ -535,7 +535,7 @@ and jit_expr jit return e =
 			let exec1 = jit_expr jit false e1 in
 			let exec2 = jit_expr jit false e2 in
 			begin match op with
-				| OpAdd -> emit_op_add exec1 exec2
+				| OpAdd -> emit_op_add e.epos exec1 exec2
 				| OpMult -> emit_op_mult e.epos exec1 exec2
 				| OpDiv -> emit_op_div e.epos exec1 exec2
 				| OpSub -> emit_op_sub e.epos exec1 exec2

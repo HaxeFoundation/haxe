@@ -52,7 +52,8 @@ install_linux: &install_linux
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       sudo add-apt-repository ppa:haxe/snapshots -y;
-      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y neko neko-dev;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" update -qqy;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -qqy neko neko-dev;
     else
       if [ ! -d "$HOME/neko" ]; then
         mkdir $HOME/neko;

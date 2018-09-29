@@ -47,17 +47,35 @@ type vstring_buffer = {
 }
 
 let vstring_equal s1 s2 =
-	s1.sstring = s2.sstring
+	s1 == s2 || s1.sstring = s2.sstring
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = vstring
-	let equal = vstring_equal
-	let hash s =
-		let s = s.sstring in
-		Hashtbl.hash s
-end)
+module StringHashtbl = struct
+	type 'value t = (vstring * 'value) StringMap.t ref
 
-module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
+	let add this key v = this := StringMap.add key.sstring (key,v) !this
+	let copy this = ref !this
+	let create () = ref StringMap.empty
+	let find this key = StringMap.find key.sstring !this
+	let fold f this acc = StringMap.fold f !this acc
+	let is_empty this = StringMap.is_empty !this
+	let iter f this = StringMap.iter f !this
+	let mem this key = StringMap.mem key.sstring !this
+	let remove this key = this := StringMap.remove key.sstring !this
+end
+
+module IntHashtbl = struct
+	type 'value t = 'value IntMap.t ref
+
+	let add this key v = this := IntMap.add key v !this
+	let copy this = ref !this
+	let create () = ref IntMap.empty
+	let find this key = IntMap.find key !this
+	let fold f this acc = IntMap.fold f !this acc
+	let is_empty this = IntMap.is_empty !this
+	let iter f this = IntMap.iter f !this
+	let mem this key = IntMap.mem key !this
+	let remove this key = this := IntMap.remove key !this
+end
 
 type vregex = {
 	r : Pcre.regexp;
