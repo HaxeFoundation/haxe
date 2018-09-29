@@ -58,6 +58,7 @@ class Access extends TestCase {
 		return suite.run();
 	}
 
+	@:analyzer(ignore)
 	function measureDynamic() {
 		var o:Dynamic = getObj();
 		var suite = new Suite("dynamic");
