@@ -2878,9 +2878,9 @@ let init_constructors builtins =
 			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
 			| _ -> assert false
 		);
-	add key_haxe_ds_StringMap (fun _ -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
-	add key_haxe_ds_IntMap (fun _ -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
-	add key_haxe_ds_ObjectMap (fun _ -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
+	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
+	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
+	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
 	add key_haxe_io_BytesBuffer (fun _ -> encode_instance key_haxe_io_BytesBuffer ~kind:(IOutput (Buffer.create 0)));
 	add key_haxe_io_Bytes
 		(fun vl -> match vl with

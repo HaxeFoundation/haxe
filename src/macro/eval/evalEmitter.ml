@@ -279,7 +279,7 @@ let emit_constructor_call proto fnew execs p =
 	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
 	(fun env ->
 		let f = Lazy.force vf in
-		let vthis = create_instance_direct proto in
+		let vthis = create_instance_direct proto INormal in
 		let vl = List.map (apply env) execs in
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;

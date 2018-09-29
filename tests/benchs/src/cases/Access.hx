@@ -39,7 +39,9 @@ class Access extends TestCase {
 
 	@:analyzer(ignore)
 	function measureJson() {
-		var o:Obj = haxe.Json.parse(haxe.Json.stringify(getObj()));
+		var o = getObj();
+		var o = haxe.Json.stringify(o);
+		var o:Obj = haxe.Json.parse(o);
 		var suite = new Suite("json");
 		suite.add(".Int", o.i);
 		suite.add(".Float", o.f);
