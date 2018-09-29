@@ -1,34 +1,21 @@
-import haxe.ds.Vector;
+package cases;
 
+import haxe.ds.Vector;
 import hxbenchmark.Suite;
 
-class Main {
-	static var printer = new hxbenchmark.ResultPrinter();
-
-	static function main() {
-		measureCreate();
-		measureRead();
-		measureWrite();
-		measureReadWrite();
-		measureIterate();
-		measureMap();
-		measureJoin();
-		measureCopy();
-	}
-
-	static function measureCreate() {
+class Ds extends TestCase {
+	function measureCreate() {
 		var suite = new Suite("create");
 		suite.add("Vector", new Vector(0));
 		suite.add("Array", new Array());
 		suite.add("StringMap", new haxe.ds.StringMap());
 		suite.add("IntMap", new haxe.ds.IntMap());
 		suite.add("ObjectMap", new haxe.ds.ObjectMap());
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
 	@:analyzer(ignore)
-	static function measureRead() {
+	function measureRead() {
 		var suite = new Suite("read");
 		var a = [1];
 		var v = Vector.fromArrayCopy(a);
@@ -41,11 +28,10 @@ class Main {
 		suite.add("StringMap", sm["foo"]);
 		suite.add("IntMap", im[1]);
 		suite.add("ObjectMap", om[key]);
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureWrite() {
+	function measureWrite() {
 		var suite = new Suite("write");
 		var a = [1];
 		var v = Vector.fromArrayCopy(a);
@@ -58,11 +44,10 @@ class Main {
 		suite.add("StringMap", sm["foo"] = 1);
 		suite.add("IntMap", im[1] = 1);
 		suite.add("ObjectMap", om[key] = 1);
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureReadWrite() {
+	function measureReadWrite() {
 		var suite = new Suite("read + write");
 		var a = [1];
 		var v = Vector.fromArrayCopy(a);
@@ -75,29 +60,32 @@ class Main {
 		suite.add("StringMap", sm["foo"] += 1);
 		suite.add("IntMap", im[1] += 1);
 		suite.add("ObjectMap", om[key] += 1);
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureIterate() {
+	function measureIterate() {
 		var suite = new Suite("iterate + write");
 		var a = [];
-		for (i in 0...10000) a[i] = i;
-		var v = Vector.fromArrayCopy(a);
 		var sm = new Map();
 		var im = new Map();
 		var om = new Map();
+		for (i in 0...10000) {
+			a[i] = i;
+			im[i] = i;
+			sm["" + i] = i;
+			om[{foo: i}] = i;
+		}
+		var v = Vector.fromArrayCopy(a);
 		var key = { foo: 1 };
 		suite.add("Vector", for (i in v) { v[i] = i; });
 		suite.add("Array", for (i in a) { a[i] = i; });
 		suite.add("StringMap", for (i in a) { sm["foo"] = i; });
 		suite.add("IntMap", for (i in a) { im[1] = i; });
 		suite.add("ObjectMap", for (i in a) { om[key] = i; });
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureMap() {
+	function measureMap() {
 		var suite = new Suite("map");
 		var a = [];
 		for (i in 0...10000) a[i] = i;
@@ -105,11 +93,10 @@ class Main {
 		function f(x) return x;
 		suite.add("Vector", v.map(f));
 		suite.add("Array", a.map(f));
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureJoin() {
+	function measureJoin() {
 		var suite = new Suite("join");
 		var a = [];
 		for (i in 0...10000) a[i] = i;
@@ -117,11 +104,10 @@ class Main {
 		function f(x) return x;
 		suite.add("Vector", v.join(""));
 		suite.add("Array", a.join(""));
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 
-	static function measureCopy() {
+	function measureCopy() {
 		var suite = new Suite("copy");
 		var a = [];
 		var sm = new Map();
@@ -140,7 +126,6 @@ class Main {
 		suite.add("StringMap", sm.copy());
 		suite.add("IntMap", im.copy());
 		suite.add("ObjectMap", om.copy());
-		var stats = suite.run();
-		trace(printer.print(stats));
+		return suite.run();
 	}
 }

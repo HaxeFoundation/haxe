@@ -21,15 +21,16 @@ class ResultPrinter {
 			}
 		}
 		var best = result.cases[0].numSamples;
+		trace(best);
 		var buf = new StringBuf();
-		buf.add("Suite: " + result.name + "\n");
+		buf.add("  Suite: " + result.name + "\n");
 		for (caseResult in result.cases) {
-			buf.add("\t");
+			buf.add("    ");
 			buf.add(caseResult.name.lpad(" ", maxNameLength));
 			buf.add(": ");
 			buf.add(printNumber(caseResult.numSamples).lpad(" ", maxSampleLength));
 			buf.add(" (");
-			var percentage = round(Std.string(caseResult.numSamples * 100 / best), 2);
+			var percentage = round(Std.string(caseResult.numSamples * 100. / best), 2);
 			buf.add(percentage.lpad(" ", 6));
 			buf.add("%)\n");
 		}
