@@ -13,12 +13,16 @@ class Suite {
 		cases = [];
 	}
 
-	macro public function add(eThis:Expr, name:String, expr:Expr) {
+	macro public function add(eThis:Expr, name:String, expr:Expr, ?exprInit:Expr) {
+		if (exprInit == null) {
+			exprInit = macro {};
+		}
 		return macro @:privateAccess {
 			var f = function() {
 				var currentTime = haxe.Timer.stamp();
 				var targetTime = currentTime + $eThis.maxTimePerCase;
 				var numSamples = 0;
+				$exprInit;
 				do {
 					++numSamples;
 					$expr;
