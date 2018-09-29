@@ -118,3 +118,4 @@ dev-display.hxml
 tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/
+tests/benchs/dump/

@@ -21,7 +21,6 @@ class ResultPrinter {
 			}
 		}
 		var best = result.cases[0].numSamples;
-		trace(best);
 		var buf = new StringBuf();
 		buf.add("  Suite: " + result.name + "\n");
 		for (caseResult in result.cases) {
