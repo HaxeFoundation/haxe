@@ -205,7 +205,7 @@ let encode_object_map_direct h =
 	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create 0 in
+	let h = StringHashtbl.create () in
 	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
