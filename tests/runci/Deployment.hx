@@ -46,7 +46,7 @@ class Deployment {
 	static function isDeployNightlies() {
 		return
 			Sys.getEnv("DEPLOY_NIGHTLIES") != null &&
-			(gitInfo.branch == "development" || gitInfo.branch == "master");
+			(gitInfo.branch == "development" || gitInfo.branch == "master" || gitInfo.branch == "deploy-test");
 	}
 
 	static function deployBintray():Void {
@@ -113,6 +113,86 @@ class Deployment {
 		}
 	}
 
+	static function cleanup32BitDlls()
+	{
+		infoMsg('Cleaning up the 32-bit DLLS');
+		cleanup32BitDll('zlib1.dll');
+	}
+
+	static function cleanup32BitDll(name:String)
+	{
+		var cygRoot = Sys.getEnv("CYG_ROOT");
+		if (cygRoot != null) {
+			while (true)
+			{
+				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w `which $name`']);
+				var out = proc.stdout.readAll().toString().trim();
+				var err = proc.stderr.readAll().toString().trim();
+				if (proc.exitCode() == 0)
+				{
+					if (!is64BitDll(out))
+					{
+						infoMsg('Deleting the file $out because it is a 32-bit DLL');
+            continue;
+					} else {
+            break;
+          }
+				} else {
+					infoMsg('Error while getting the cygpath for $name: $out\n$err');
+          break; // no more dlls
+        }
+			}
+		} else {
+			var path = Sys.getEnv('PATH').split(';');
+			for (base in path)
+			{
+				var fullPath = '$base/$name';
+				if (sys.FileSystem.exists(fullPath) && !is64BitDll(fullPath))
+				{
+					infoMsg('Deleting the file $fullPath because it is a 32-bit DLL');
+					sys.FileSystem.deleteFile(fullPath);
+				}
+			}
+		}
+	}
+
+	static function is64BitDll(path:String)
+	{
+		if (!sys.FileSystem.exists(path))
+		{
+			throw 'The DLL at path $path was not found';
+		}
+
+		var file = sys.io.File.read(path);
+		if (file.readByte() != 'M'.code || file.readByte() != 'Z'.code)
+		{
+			throw 'The DLL at path $path is invalid: Invalid MZ magic header';
+		}
+		file.seek(0x3c, SeekBegin);
+		var peSigOffset = file.readInt32();
+		file.seek(peSigOffset, SeekBegin);
+		if (file.readByte() != 'P'.code || file.readByte() != 'E'.code || file.readByte() != 0 || file.readByte() != 0)
+		{
+			throw 'Invalid PE header signature: PE expected';
+		}
+    // coff header
+    file.readString(20);
+		// pe header
+		var peKind = file.readUInt16();
+		file.close();
+		switch(peKind)
+		{
+			case 0x20b: // 64 bit
+				return true;
+			case 0x10b: // 32 bit
+				return false;
+			case 0x107: // rom
+				return false;
+			case _:
+				throw 'Unknown PE header kind $peKind';
+		}
+	}
+
 	/**
 		Deploy source package to hxbuilds s3
 	*/
@@ -153,6 +233,7 @@ class Deployment {
 					case "32":
 						"windows";
 					case "64":
+						cleanup32BitDlls();
 						"windows64";
 					case _:
 						throw "unknown ARCH";
