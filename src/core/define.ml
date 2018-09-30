@@ -106,7 +106,6 @@ type strict_defined =
 	| Sys
 	| Unsafe
 	| UseNekoc
-	| UseRttiDoc
 	| Utf16
 	| Vcproj
 	| WarnVarShadowing
@@ -221,7 +220,6 @@ let infos = function
 	| Sys -> "sys",("Defined for all system platforms",[])
 	| Unsafe -> "unsafe",("Allow unsafe code when targeting C#",[Platform Cs])
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
-	| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
 	| Utf16 -> "utf16",("Defined for all platforms that have utf16 encoding with ucs2 api",[])
 	| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
 	| WarnVarShadowing -> "warn_var_shadowing",("Warn about shadowing variable declarations",[])
@@ -285,7 +283,9 @@ let get_signature def =
 			(* don't make much difference between these special compilation flags *)
 			match String.concat "_" (ExtString.String.nsplit k "-") with
 			(* If we add something here that might be used in conditional compilation it should be added to
-			   Parser.parse_macro_ident as well (issue #5682). *)
+			   Parser.parse_macro_ident as well (issue #5682).
+			   Note that we should removed flags like use_rtti_doc here.
+			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in

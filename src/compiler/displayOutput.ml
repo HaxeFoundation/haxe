@@ -555,7 +555,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		com.display <- DisplayMode.create mode;
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		Parser.use_doc := true;
 		DisplayPosition.display_position := {
 			pfile = Path.unique_full_path file;
 			pmin = pos;

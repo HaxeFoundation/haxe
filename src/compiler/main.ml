@@ -415,7 +415,6 @@ let rec process_params create pl =
 	(* put --display in front if it was last parameter *)
 	let pl = (match List.rev pl with
 		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
-		| "use_rtti_doc" :: "-D" :: file :: "--display" :: pl -> "--display" :: file :: List.rev pl
 		| _ -> pl
 	) in
 	loop [] pl
@@ -481,7 +480,6 @@ try
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Parser.display_mode <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -565,7 +563,6 @@ try
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			begin match var with
 				| "no_copt" | "no-copt" -> com.foptimize <- false;
-				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
 				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			end;
 			Common.raw_define com var;
@@ -690,11 +687,9 @@ try
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
 		("Services",["--xml"],["-xml"],Arg.String (fun file ->
-			Parser.use_doc := true;
 			xml_out := Some file
 		),"<file>","generate XML types description");
 		("Services",["--json"],[],Arg.String (fun file ->
-			Parser.use_doc := true;
 			json_out := Some file
 		),"<file>","generate JSON types description");
 		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
