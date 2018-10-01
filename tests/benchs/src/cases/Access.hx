@@ -15,8 +15,8 @@ typedef Obj = {>Def,
 	var sub : Def;
 }
 
+@:analyzer(ignore)
 class Access extends TestCase {
-	@:analyzer(ignore)
 	function measureReal() {
 		var o = getObj();
 		var suite = new Suite("real");
@@ -37,7 +37,6 @@ class Access extends TestCase {
 		return suite.run();
 	}
 
-	@:analyzer(ignore)
 	function measureJson() {
 		var o = getObj();
 		var o = haxe.Json.stringify(o);
@@ -60,7 +59,6 @@ class Access extends TestCase {
 		return suite.run();
 	}
 
-	@:analyzer(ignore)
 	function measureDynamic() {
 		var o:Dynamic = getObj();
 		var suite = new Suite("dynamic");
