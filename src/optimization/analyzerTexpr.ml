@@ -105,10 +105,9 @@ let target_handles_unops com = match com.platform with
 	| Lua | Python -> false
 	| _ -> true
 
-let target_handles_assign_ops com = match com.platform with
-	(* Technically PHP can handle assign ops, but unfortunately x += y is not always
-	   equivalent to x = x + y in case y has side-effects. *)
-	| Lua | Php -> false
+let target_handles_assign_ops com e2 = match com.platform with
+	| Php -> not (has_side_effect e2)
+	| Lua -> false
 	| Cpp when not (Common.defined com Define.Cppia) -> false
 	| _ -> true
 
@@ -529,7 +528,7 @@ module InterferenceReport = struct
 		let s_hashtbl f h =
 			String.concat ", " (Hashtbl.fold (fun k _ acc -> (f k) :: acc) h [])
 		in
-		Type.Printer.s_record_fields "\t" [
+		Type.Printer.s_record_fields "" [
 			"ir_var_reads",s_hashtbl string_of_int ir.ir_var_reads;
 			"ir_var_writes",s_hashtbl string_of_int ir.ir_var_writes;
 			"ir_field_reads",s_hashtbl (fun x -> x) ir.ir_field_reads;
@@ -621,14 +620,14 @@ module Fusion = struct
 		| OpArrow ->
 			false
 
-	let use_assign_op com op e1 e2 =
+	let use_assign_op com op e1 e2 e3 =
 		let skip e = match com.platform with
 			| Eval -> Texpr.skip e
 			| _ -> e
 		in
 		let e1 = skip e1 in
 		let e2 = skip e2 in
-		is_assign_op op && target_handles_assign_ops com && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
+		is_assign_op op && target_handles_assign_ops com e3 && Texpr.equal e1 e2 && not (has_side_effect e1) && match com.platform with
 			| Cs when is_null e1.etype || is_null e2.etype -> false (* C# hates OpAssignOp on Null<T> *)
 			| _ -> true
 
@@ -696,9 +695,9 @@ module Fusion = struct
 			        (is_compiler_generated || config.optimize && config.fusion && config.user_var_fusion && not has_type_params)
 			in
 			if config.fusion_debug then begin
-				print_endline (Printf.sprintf "FUSION\n\tvar %s<%i> = %s" v.v_name v.v_id (s_expr_pretty e));
-				print_endline (Printf.sprintf "\tcan_be_fused:%b: num_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b)"
-					b num_uses num_writes can_be_used_as_value is_compiler_generated config.optimize config.fusion config.user_var_fusion)
+				print_endline (Printf.sprintf "\nFUSION: %s\n\tvar %s<%i> = %s" (if b then "true" else "false") v.v_name v.v_id (s_expr_pretty e));
+				print_endline (Printf.sprintf "CONDITION:\n\tnum_uses:%i <= 1 && num_writes:%i = 0 && can_be_used_as_value:%b && (is_compiler_generated:%b || config.optimize:%b && config.fusion:%b && config.user_var_fusion:%b)"
+					num_uses num_writes can_be_used_as_value is_compiler_generated config.optimize config.fusion config.user_var_fusion)
 			end;
 			b
 		in
@@ -778,8 +777,8 @@ module Fusion = struct
 				let found = ref false in
 				let blocked = ref false in
 				let ir = InterferenceReport.from_texpr e1 in
-				if config.fusion_debug then print_endline (Printf.sprintf "\tInterferenceReport: %s\n\t%s"
-					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "\t" false (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
+				if config.fusion_debug then print_endline (Printf.sprintf "INTERFERENCE: %s\nINTO: %s"
+					 (InterferenceReport.to_string ir) (Type.s_expr_pretty true "" false (s_type (print_context())) (mk (TBlock el) t_dynamic null_pos)));
 				(* This function walks the AST in order of evaluation and tries to find an occurrence of v1. If successful, that occurrence is
 				   replaced with e1. If there's an interference "on the way" the replacement is canceled. *)
 				let rec replace e =
@@ -1017,7 +1016,7 @@ module Fusion = struct
 				with Exit ->
 					fuse (e1 :: acc) (e2 :: el)
 				end
-			| {eexpr = TBinop(OpAssign,e1,{eexpr = TBinop(op,e2,e3)})} as e :: el when use_assign_op com op e1 e2 ->
+			| {eexpr = TBinop(OpAssign,e1,{eexpr = TBinop(op,e2,e3)})} as e :: el when use_assign_op com op e1 e2 e3 ->
 				let rec loop e = match e.eexpr with
 					| TLocal v -> state#dec_reads v;
 					| _ -> Type.iter loop e

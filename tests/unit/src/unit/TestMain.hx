@@ -118,13 +118,6 @@ class TestMain {
 			//new TestRemoting(),
 		];
 
-
-		#if js
-		if (js.Browser.supported) {
-			classes.push(new TestJQuery());
-		}
-		#end
-
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 		var current = null;
