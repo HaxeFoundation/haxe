@@ -197,8 +197,7 @@ let output_inner_vars v access =
 				n, v, a
 			) l
 		| VInstance {ikind = IStringMap h} ->
-			StringHashtbl.fold (fun k v acc ->
-				let s = k.sstring in
+			StringHashtbl.fold (fun s (_,v) acc ->
 				let n = Printf.sprintf "[%s]" s in
 				let a = access ^ n in
 				(s,v,a) :: acc

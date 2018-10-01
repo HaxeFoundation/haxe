@@ -98,7 +98,6 @@ end
 (* Global state *)
 
 let in_display = ref false
-let use_doc = ref false
 let was_auto_triggered = ref false
 let display_mode = ref DMNone
 let in_macro = ref false
@@ -107,7 +106,6 @@ let delayed_syntax_completion : (syntax_completion * pos) option ref = ref None
 
 let reset_state () =
 	in_display := false;
-	use_doc := false;
 	was_auto_triggered := false;
 	display_mode := DMNone;
 	display_position := null_pos;
