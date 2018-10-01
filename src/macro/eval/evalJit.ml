@@ -363,7 +363,13 @@ and jit_expr jit return e =
 		| TField(ef,fa) ->
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			let is_final c cf = c.cl_final || cf.cf_final in
+			let is_final c cf =
+				c.cl_final || cf.cf_final ||
+				(* In interp mode we can assume that a field is final if it is not overridden.
+				   We cannot do that in macro mode because overriding fields might be added
+				   after jitting this call. *)
+				(not ctx.is_macro && not (Hashtbl.mem ctx.overrides (c.cl_path,cf.cf_name)))
+			in
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
@@ -398,13 +404,13 @@ and jit_expr jit return e =
 						default()
 					else if not c.cl_interface then
 						instance_call c
-					(* still can't do this because of incomplete information *)
-					(* else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
-						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
+					(* If we have exactly one implementer, use it instead of the super class/interface. *)
+					else if not ctx.is_macro && c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
+						| [c'] when not c'.cl_interface && is_final c' cf ->
 							instance_call c'
 						| _ ->
-							default() *)
-					else
+							default()
+					end else
 						default()
 				| _ ->
 					let exec = jit_expr jit false ef in
