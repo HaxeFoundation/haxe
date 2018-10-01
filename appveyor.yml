@@ -15,9 +15,9 @@ environment:
     matrix:
         - ARCH: 64
           TEST: "neko,hl,python,cs,java,php,macro"
+          DEPLOY_NIGHTLIES: 1
         - ARCH: 64
           TEST: "cpp"
-          DEPLOY_NIGHTLIES: 1
         - ARCH: 32
           TEST: "macro"
           DEPLOY_NIGHTLIES: 1
