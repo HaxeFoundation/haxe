@@ -133,14 +133,14 @@ class Deployment {
 					if (!is64BitDll(out))
 					{
 						infoMsg('Deleting the file $out because it is a 32-bit DLL');
-            continue;
+						continue;
 					} else {
-            break;
-          }
+						break;
+					}
 				} else {
 					infoMsg('Error while getting the cygpath for $name: $out\n$err');
-          break; // no more dlls
-        }
+					break; // no more dlls
+				}
 			}
 		} else {
 			var path = Sys.getEnv('PATH').split(';');
@@ -175,8 +175,8 @@ class Deployment {
 		{
 			throw 'Invalid PE header signature: PE expected';
 		}
-    // coff header
-    file.readString(20);
+		// coff header
+		file.readString(20);
 		// pe header
 		var peKind = file.readUInt16();
 		file.close();
