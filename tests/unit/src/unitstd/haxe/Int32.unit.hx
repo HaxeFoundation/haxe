@@ -13,6 +13,10 @@ a == max;
 // #7485 clamp behavior of negate
 -min == min;
 
+// clamp order of operations
+-2147483643 == 5 + -min;
+2147483643 == -(5 + min);
+
 max+min == -1;
 max+1 == min;
 
