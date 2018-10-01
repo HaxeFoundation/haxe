@@ -304,7 +304,10 @@ and jit_expr jit return e =
 	| TBlock [] ->
 		emit_null
 	| TBlock [e1] ->
-		jit_expr jit return e1
+		push_scope jit e.epos;
+		let exec = jit_expr jit return e1 in
+		pop_scope jit;
+		exec
 	| TBlock (e1 :: el) ->
 		let rec loop f el =
 			match el with
