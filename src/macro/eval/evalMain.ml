@@ -131,6 +131,7 @@ let create com api is_macro =
 			oproto = fake_proto key_eval_toplevel;
 		};
 		eval = eval;
+		evals = evals;
 		exception_stack = [];
 	} in
 	t();
