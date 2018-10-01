@@ -2478,6 +2478,45 @@ module StdSys = struct
 	let time = vfun0 (fun () -> vfloat (Unix.gettimeofday()))
 end
 
+module StdThread = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IThread thread} -> thread
+		| _ -> unexpected_value vthis "Thread"
+
+	let delay = vfun1 (fun f ->
+		Thread.delay (num f);
+		vnull
+	)
+
+	let exit = vfun0 (fun () ->
+		Thread.exit();
+		vnull
+	)
+
+	let id = vifun0 (fun vthis ->
+		vint (Thread.id (this vthis))
+	)
+
+	let join = vfun1 (fun thread ->
+		Thread.join (this thread);
+		vnull
+	)
+
+	let kill = vifun0 (fun vthis ->
+		Thread.kill (this vthis);
+		vnull
+	)
+
+	let self = vfun0 (fun () ->
+		encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.self()))
+	)
+
+	let yield = vfun0 (fun () ->
+		Thread.yield();
+		vnull
+	)
+end
+
 module StdType = struct
 	open Ast
 
@@ -2925,6 +2964,27 @@ let init_constructors builtins =
 				let z = Extc.zlib_inflate_init2 windowBits in
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
 			| _ -> assert false
+		);
+	add key_eval_vm_Thread
+		(fun vl -> match vl with
+			| [f] ->
+				let ctx = get_ctx() in
+				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
+				let f () =
+					let id = Thread.id (Thread.self()) in
+					let new_eval = {environments = DynArray.create (); environment_offset = 0} in
+					if DynArray.length ctx.evals = id then
+						DynArray.add ctx.evals new_eval
+					else
+						DynArray.set ctx.evals id new_eval;
+					try
+						ignore(call_value f []);
+					with RunTimeException(v,stack,p) ->
+						let msg = get_exc_error_message ctx v stack p in
+						prerr_endline msg
+				in
+				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
+			| _ -> assert false
 		)
 
 let init_empty_constructors builtins =
@@ -3278,6 +3338,16 @@ let init_standard_library builtins =
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
 	] [];
+	init_fields builtins (["eval";"vm"],"Thread") [
+		"delay",StdThread.delay;
+		"exit",StdThread.exit;
+		"join",StdThread.join;
+		"self",StdThread.self;
+		"yield",StdThread.yield;
+	] [
+		"id",StdThread.id;
+		"kill",StdThread.kill;
+	];
 	init_fields builtins ([],"Type") [
 		"allEnums",StdType.allEnums;
 		"createEmptyInstance",StdType.createEmptyInstance;

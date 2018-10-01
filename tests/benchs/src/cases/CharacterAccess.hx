@@ -3,6 +3,7 @@ package cases;
 import hxbenchmark.Suite;
 using StringTools;
 
+@:analyzer(no_local_dce)
 class CharacterAccess extends TestCase {
 	function measureL1() {
 		var s = "a";

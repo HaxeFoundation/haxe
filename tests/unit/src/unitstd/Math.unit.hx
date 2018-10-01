@@ -8,7 +8,9 @@ Math.isNaN(Math.NaN) == true;
 Math.isNaN(Math.sqrt( -1)) == true;
 Math.NEGATIVE_INFINITY == Math.NEGATIVE_INFINITY;
 Math.POSITIVE_INFINITY == Math.POSITIVE_INFINITY;
+#if !python
 Math.isNaN(0/0) == true;
+#end
 // +
 Math.POSITIVE_INFINITY + Math.POSITIVE_INFINITY == Math.POSITIVE_INFINITY;
 Math.NEGATIVE_INFINITY + Math.NEGATIVE_INFINITY == Math.NEGATIVE_INFINITY;
