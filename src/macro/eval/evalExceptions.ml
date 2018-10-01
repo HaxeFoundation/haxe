@@ -119,6 +119,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		Some v
 	with
 	| RunTimeException(v,stack,p') ->
+		ctx.debug.caught_exception <- vnull;
 		build_exception_stack ctx environment_offset;
 		eval.environment_offset <- environment_offset;
 		if is v key_haxe_macro_Error then begin
@@ -128,7 +129,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 			final();
 			match v1,v2 with
 				| VString s,VInstance {ikind = IPos p} ->
-					raise (Error.Error (Error.Custom (EvalString.get s),p))
+					raise (Error.Error (Error.Custom s.sstring,p))
 				| _ ->
 					Error.error "Something went wrong" null_pos
 		end else begin

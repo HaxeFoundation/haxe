@@ -68,7 +68,9 @@ let print_fields fields =
 			"type",snd path,s_type_path path,None
 		| ITPackage(path,_) -> "package",snd path,"",None
 		| ITModule path -> "type",snd path,"",None
-		| ITMetadata(s,doc) -> "metadata",s,"",doc
+		| ITMetadata  meta ->
+			let s,(doc,_) = Meta.get_info meta in
+			"metadata","@" ^ s,"",Some doc
 		| ITTimer(name,value) -> "timer",name,"",Some value
 		| ITLiteral s ->
 			let t = match k.ci_type with None -> t_dynamic | Some (t,_) -> t in
@@ -387,6 +389,10 @@ module TypePathHandler = struct
 				| _ -> p,c
 			in
 			let ctx = Typer.create com in
+			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
+			   does not raise another TypePath exception. However, we still want to have it treated like the
+			   display file, so we just set the position to 0 (#6558). *)
+			DisplayPosition.display_position := {!DisplayPosition.display_position with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					TypeloadModule.load_module ctx (p,s_module) null_pos
@@ -549,7 +555,6 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		com.display <- DisplayMode.create mode;
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		Parser.use_doc := true;
 		DisplayPosition.display_position := {
 			pfile = Path.unique_full_path file;
 			pmin = pos;
@@ -642,19 +647,48 @@ let find_doc t =
 	in
 	doc
 
-let handle_syntax_completion com kind p = match com.json_out with
-	| None ->
-		(* Not supported *)
+let handle_syntax_completion com kind p =
+	let open Parser in
+	let l,kind = match kind with
+		| SCClassRelation ->
+			[Extends;Implements],CRTypeRelation
+		| SCInterfaceRelation ->
+			[Extends],CRTypeRelation
+		| SCComment ->
+			[],CRTypeRelation
+		| SCTypeDecl mode ->
+			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
+			let l = match mode with
+				| TCBeforePackage -> Package :: Import :: Using :: l
+				| TCAfterImport -> Import :: Using :: l
+				| TCAfterType -> l
+			in
+			l,CRTypeDecl
+		| SCAfterTypeFlag flags ->
+			let l = [Class;Interface] in
+			let l = if List.mem DPrivate flags then l else Private :: l in
+			let l = if List.mem DExtern flags then l else Extern :: l in
+			let l = if List.mem DFinal flags then l else
+				Final :: Enum :: Abstract :: Typedef :: l
+			in
+			l,CRTypeDecl
+	in
+	match l with
+	| [] ->
 		()
-	| Some(f,_) ->
-		match kind with
-		| Parser.SCClassRelation ->
-			let l = [make_ci_keyword Extends;make_ci_keyword Implements] in
+	| _ ->
+		let l = List.map make_ci_keyword l in
+		match com.json_out with
+		| None ->
+			let b = Buffer.create 0 in
+			Buffer.add_string b "<il>\n";
+			List.iter (fun item -> match item.ci_kind with
+				| ITKeyword kwd -> Buffer.add_string b (Printf.sprintf "<i k=\"keyword\">%s</i>" (s_keyword kwd));
+				| _ -> assert false
+			) l;
+			Buffer.add_string b "</il>";
+			let s = Buffer.contents b in
+			raise (Completion s)
+		| Some(f,_) ->
 			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None)
-		| Parser.SCInterfaceRelation ->
-			let l = [make_ci_keyword Extends] in
-			let ctx = Genjson.create_context GMFull in
-			f(fields_to_json ctx l CRTypeRelation None)
-		| Parser.SCComment ->
-			()
+			f(fields_to_json ctx l kind None)

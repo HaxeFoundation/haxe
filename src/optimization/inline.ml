@@ -394,7 +394,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					_had_side_effect <- true;
 					l.i_force_temp <- true;
 				end;
-				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],e,true);
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
@@ -415,7 +415,7 @@ class inline_state ctx ethis params cf f p = object(self)
 	method finalize config e tl tret p =
 		let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 		if self#had_side_effect then List.iter (fun (l,e) ->
-			if self#might_be_affected e then l.i_force_temp <- true;
+			if self#might_be_affected e && not (ExtType.has_value_semantics e.etype) then l.i_force_temp <- true;
 		) _inlined_vars;
 		let vars,subst = self#get_substitutions p in
 		let rec inline_params in_call in_assignment e =

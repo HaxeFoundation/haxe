@@ -273,16 +273,23 @@ let rec using_field ctx mode e i p =
 			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
-	try loop ctx.m.module_using with Not_found ->
 	try
+		(* module using from `using Path` *)
+		loop ctx.m.module_using
+	with Not_found -> try
+		(* type using from `@:using(Path)` *)
+		let mt = module_type_of_type e.etype in
+		loop  (t_infos mt).mt_using
+	with Not_found | Exit -> try
+		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
 		| AKUsing (_,c,_,_) -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> assert false);
 		acc
 	with Not_found ->
-	if not !check_constant_struct then raise Not_found;
-	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+		if not !check_constant_struct then raise Not_found;
+		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field ?(resume=false) ctx e i p mode =

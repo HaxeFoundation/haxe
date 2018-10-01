@@ -130,7 +130,7 @@ class CallStack {
 
 				if ((next['function']:String).indexOf('{closure}') >= 0) {
 					item = LocalFunction();
-				} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
+				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
 					var cls = Boot.getClassName(next['class']);
 					item = Method(cls, next['function']);
 				}

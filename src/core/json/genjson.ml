@@ -252,13 +252,14 @@ and generate_type_parameter ctx (s,t) =
 (* texpr *)
 
 and generate_tvar ctx v =
-	let generate_extra (params,eo) = jobject (
-		("params",jlist (generate_type_parameter ctx) params) ::
-		(match eo with
-		| None -> []
-		| Some e ->	["expr",jobject [
-			("string",jstring (s_expr_pretty false "" false (s_type (print_context())) e))
-		]]);
+	let generate_extra (params,e,inline) = jobject (
+		[
+			"params",jlist (generate_type_parameter ctx) params;
+			"expr",jobject [
+				("string",jstring (s_expr_pretty false "" false (s_type (print_context())) e))
+			];
+			"isInline",jbool inline;
+		]
 	) in
 	let fields = [
 		"id",jint v.v_id;
@@ -268,7 +269,8 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
-		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
+		"isInline",jbool (match v.v_extra with Some (_,_,b) -> b | _ -> false);
+		"isFinal",jbool v.v_final;
 	] in
 	let origin_to_int = function
 		| TVOLocalVariable -> 0
@@ -277,8 +279,6 @@ and generate_tvar ctx v =
 		| TVOPatternVariable -> 3
 		| TVOCatchVariable -> 4
 		| TVOLocalFunction -> 5
-		| TVOLocalFinal -> 6
-		| TVOPatternFinal -> 7
 	in
 	let fields = match v.v_kind with
 			| VUser origin -> ("origin",jint (origin_to_int origin)) :: fields

@@ -189,15 +189,15 @@ let create_static_prototype ctx mt =
 		let delays = DynArray.create() in
 		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
-				let name = hash_s cf.cf_name in
+				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
 			| Var _,Some e ->
-				let name = hash_s cf.cf_name in
+				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				DynArray.add delays (fun proto -> proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull))
 			| _,None when is_physical_field cf ->
-				PrototypeBuilder.add_proto_field pctx (hash_s cf.cf_name) (lazy vnull);
+				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (lazy vnull);
 			|  _ ->
 				()
 		) fields;
@@ -207,14 +207,24 @@ let create_static_prototype ctx mt =
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->
-		let pctx = PrototypeBuilder.create ctx key None (PEnum en.e_names) meta in
+		let names = List.map (fun name ->
+			let ef = PMap.find name en.e_constrs in
+			let args = match follow ef.ef_type with
+				| TFun(args,_) ->
+					List.map (fun (n,_,_) -> hash n) args
+				| _ ->
+					[]
+			in
+			name,args
+		) en.e_names in
+		let pctx = PrototypeBuilder.create ctx key None (PEnum names) meta in
 		let enum_field_value ef = match follow ef.ef_type with
 			| TFun(args,_) ->
 				let f = (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos)) in
 				vstatic_function f
 			| _ -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos)
 		in
-		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash_s name ) (lazy (enum_field_value ef))) en.e_constrs;
+		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash name ) (lazy (enum_field_value ef))) en.e_constrs;
 		PrototypeBuilder.finalize pctx,[];
 	| TAbstractDecl a ->
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
@@ -224,9 +234,9 @@ let create_static_prototype ctx mt =
 	in
 	let rec loop v name path = match path with
 		| [] ->
-			set_field v (hash_s name) (vprototype (fst (fst o)))
+			set_field v (hash name) (vprototype (fst (fst o)))
 		| s :: sl ->
-			let key = hash_s s in
+			let key = hash s in
 			let v2 = EvalField.field v key in
 			let v2 = match v2 with
 				| VNull -> encode_obj None []
@@ -251,12 +261,12 @@ let create_instance_prototype ctx c =
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
 		| Var _,_ when is_physical_field cf ->
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
 		|  _ ->
 			()
@@ -265,16 +275,15 @@ let create_instance_prototype ctx c =
 
 let get_object_prototype ctx l =
 	let l = List.sort (fun (i1,_) (i2,_) -> if i1 = i2 then 0 else if i1 < i2 then -1 else 1) l in
-	let sfields = String.concat "," (List.map (fun (i,_) -> rev_hash_s i) l) in
-	let key = Hashtbl.hash sfields in
+	let sfields = String.concat "," (List.map (fun (i,_) -> rev_hash i) l) in
+	let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
 	try
-		IntMap.find key ctx.instance_prototypes,l
+		IntMap.find name ctx.instance_prototypes,l
 	with Not_found ->
-		let name = hash_s (Printf.sprintf "eval.object.Object[%s]" sfields) in
 		let pctx = PrototypeBuilder.create ctx name None PObject None in
 		List.iter (fun (name,_) -> PrototypeBuilder.add_instance_field pctx name (lazy vnull)) l;
 		let proto = fst (PrototypeBuilder.finalize pctx) in
-		ctx.instance_prototypes <- IntMap.add key proto ctx.instance_prototypes;
+		ctx.instance_prototypes <- IntMap.add name proto ctx.instance_prototypes;
 		proto,l
 
 let add_types ctx types ready =
@@ -293,7 +302,7 @@ let add_types ctx types ready =
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
 			if ctx.debug.support_debugger then begin
-				let file_key = hash_s inf.mt_module.m_extra.m_file in
+				let file_key = hash inf.mt_module.m_extra.m_file in
 				if not (Hashtbl.mem ctx.debug.breakpoints file_key) then begin
 					Hashtbl.add ctx.debug.breakpoints file_key (Hashtbl.create 0)
 				end

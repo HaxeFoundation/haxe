@@ -47,7 +47,8 @@ extern class FEMorphologyElement extends Element
 	/**
 		An `SVGAnimatedEnumeration` corresponding to the `operator` attribute of the given element. It takes one of the `SVG_MORPHOLOGY_OPERATOR_*` constants defined on this interface.
 	**/
-	var operator(default,null) : AnimatedEnumeration;
+	@:native("operator")
+	var operator_(default,null) : AnimatedEnumeration;
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the X component of the `radius` attribute of the given element.

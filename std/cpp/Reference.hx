@@ -23,6 +23,7 @@ package cpp;
 
 // Allows haxe to type result correctly, and hxcpp can recognise this and prevent
 //  unwanted casting
+@:semantics(reference)
 typedef Reference<T> = T;
 
 

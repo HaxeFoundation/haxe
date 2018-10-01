@@ -21,6 +21,7 @@
  */
 package hl;
 
+@:semantics(reference)
 @:coreType abstract Ref<T> {
 
 	@:from extern public static inline function make<T>( v : T ) {

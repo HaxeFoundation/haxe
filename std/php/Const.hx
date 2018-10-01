@@ -13,6 +13,7 @@ extern class Const {
 	/**
 		@see http://php.net/manual/en/reserved.constants.php
 	**/
+	static var PHP_VERSION_ID : Int;
 	static var PHP_OS : String;
 	static var PHP_SAPI : String;
 	static var PHP_BINARY : String;

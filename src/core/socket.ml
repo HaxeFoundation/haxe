@@ -40,10 +40,18 @@ let send_string socket s =
 	| None ->
 		failwith "no socket" (* TODO: reconnect? *)
 	| Some socket ->
-		let l = String.length s in
-		assert (l < 0xFFFF);
-		let buf = Bytes.make 2 ' ' in
-		Bytes.set buf 0 (Char.unsafe_chr l);
-		Bytes.set buf 1 (Char.unsafe_chr (l lsr 8));
-		ignore(send socket buf 0 2 []);
-		ignore(send socket (Bytes.unsafe_of_string s) 0 (String.length s) [])
+		let b = Bytes.unsafe_of_string s in
+		let l = Bytes.length b in
+		let buf = Bytes.make 4 ' ' in
+		EvalBytes.write_i32 buf 0 (Int32.of_int l);
+		ignore(send socket buf 0 4 []);
+		let rec loop length offset =
+			if length <= 0 then
+				()
+			else begin
+				let k = min length 0xFFFF in
+				ignore(send socket b offset k []);
+				loop (length - k) (offset + k)
+			end
+		in
+		loop l 0

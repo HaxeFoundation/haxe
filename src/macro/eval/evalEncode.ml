@@ -122,7 +122,7 @@ let encode_obj _ l =
 	}
 
 let encode_obj_s k l =
-	encode_obj k (List.map (fun (s,v) -> (hash_s s),v) l)
+	encode_obj k (List.map (fun (s,v) -> (hash s),v) l)
 
 (* Enum values *)
 
@@ -162,11 +162,11 @@ let encode_enum i pos index pl =
 
 (* Instances *)
 
-let create_instance_direct proto =
+let create_instance_direct proto kind =
 	vinstance {
 		ifields = if Array.length proto.pinstance_fields = 0 then proto.pinstance_fields else Array.copy proto.pinstance_fields;
 		iproto = proto;
-		ikind = INormal;
+		ikind = kind;
 	}
 
 let create_instance ?(kind=INormal) path =
@@ -190,28 +190,29 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	vstring (create_ascii s)
+	create_unknown s
 
-let encode_rope r =
-	vstring (create_ascii_of_rope r)
+(* Should only be used for std types that aren't expected to change while the compilation server is running *)
+let create_cached_instance path fkind =
+	let proto = lazy (get_instance_prototype (get_ctx()) path null_pos) in
+	(fun v ->
+		create_instance_direct (Lazy.force proto) (fkind v)
+	)
 
-let encode_rope_ucs2 r length =
-	vstring (create_ucs2_of_rope r length)
+let encode_bytes =
+	create_cached_instance key_haxe_io_Bytes (fun s -> IBytes s)
 
-let encode_bytes s =
-	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)
+let encode_int_map_direct =
+	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
 
-let encode_int_map_direct h =
-	encode_instance key_haxe_ds_IntMap ~kind:(IIntMap h)
+let encode_string_map_direct =
+	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
 
-let encode_string_map_direct h =
-	encode_instance key_haxe_ds_StringMap ~kind:(IStringMap h)
-
-let encode_object_map_direct h =
-	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
+let encode_object_map_direct =
+	create_cached_instance key_haxe_ds_ObjectMap (fun (s : value ValueHashtbl.t) -> IObjectMap (Obj.magic s))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create 0 in
+	let h = StringHashtbl.create () in
 	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 

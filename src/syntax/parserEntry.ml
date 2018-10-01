@@ -99,10 +99,8 @@ let parse ctx code file =
 		| Comment s ->
 			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let tk = next_token() in
-			if !use_doc then begin
-				let l = String.length s in
-				if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
-			end;
+			let l = String.length s in
+			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
 			if !in_display_file && encloses_display_position (pos tk) then syntax_completion SCComment (pos tk);

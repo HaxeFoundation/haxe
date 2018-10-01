@@ -11,6 +11,7 @@ class Issue6133 extends unit.Test {
 		var foo = new Foo();
 		switch foo {
 			case { b: 5 }:
+			case { b: _ }:
 		}
 	}
 }

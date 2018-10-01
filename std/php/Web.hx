@@ -61,7 +61,7 @@ class Web {
 		var reg = new EReg("^"+param+"(\\[|%5B)([0-9]*?)(\\]|%5D)=(.*?)$", "");
 		var res = new Array<String>();
 		var explore = function(data:String){
-			if (data == null || data.length == 0)
+			if (data == null || Global.strlen(data) == 0)
 				return;
 			for (part in data.split("&")){
 				if (reg.match(part)){
@@ -330,7 +330,7 @@ class Web {
 				h.set(curname,buf.toString());
 			curname = p;
 			buf = new StringBuf();
-			maxSize -= p.length;
+			maxSize -= Global.strlen(p);
 			if( maxSize < 0 )
 				throw "Maximum size reached";
 		}, function(str,pos,len) {

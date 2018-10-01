@@ -48,7 +48,8 @@ extern class FECompositeElement extends Element
 	**/
 	var in1(default,null) : AnimatedString;
 	var in2(default,null) : AnimatedString;
-	var operator(default,null) : AnimatedEnumeration;
+	@:native("operator")
+	var operator_(default,null) : AnimatedEnumeration;
 	var k1(default,null) : AnimatedNumber;
 	var k2(default,null) : AnimatedNumber;
 	var k3(default,null) : AnimatedNumber;

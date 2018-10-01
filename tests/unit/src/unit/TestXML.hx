@@ -230,4 +230,9 @@ class TestXML extends Test {
 		var plainData = '<data><thing blah="abc&def"/></data>';
 		eq("blah = abc&def", doXml(plainData));
 	}
+
+	function testIssue7454() {
+		var string:String = "<Text><![CDATA[Some text ]]></Text>";
+		eq(string, Xml.parse(string).toString());
+	}
 }

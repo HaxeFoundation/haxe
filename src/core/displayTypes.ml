@@ -79,6 +79,7 @@ module CompletionResultKind = struct
 		| CRPattern of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option * bool
 		| CROverride
 		| CRTypeRelation
+		| CRTypeDecl
 
 	let to_json ctx kind =
 		let expected_type_fields t = match t with
@@ -131,6 +132,7 @@ module CompletionResultKind = struct
 				11,Some (jobject fields)
 			| CROverride -> 12,None
 			| CRTypeRelation -> 13,None
+			| CRTypeDecl -> 14,None
 		in
 		jobject (
 			("kind",jint i) :: (match args with None -> [] | Some arg -> ["args",arg])

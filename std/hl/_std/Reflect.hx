@@ -57,38 +57,26 @@ class Reflect {
 
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic {
 		var args : hl.types.ArrayDyn = cast args;
-		var count = args.length;
 
 		var ft = hl.Type.getDynamic(func);
 		if( ft.kind != HFun )
 			throw "Invalid function " + func;
+
+		var count = args.length;
 		var need = ft.getArgsCount();
+		var nargs = count < need ? need : count;
 		var cval : Dynamic = hl.Api.getClosureValue(func);
-		var isClosure = cval != null && need >= 0;
-		if( isClosure ) {
-			if( o == null )
-				o = cval;
-			else if( isFunction(cval) ) {
-				// swap the sub object for closure wrapping
-				// see hashlink/#143
-				var subO = hl.Api.getClosureValue(cval);
-				if( subO != null )
-					o = hl.Api.makeClosure(cval, o);
-			}
-		} else {
-			if( count == need )
-				o = null;
+		if( cval != null ) {
+			func = hl.Api.noClosure(func);
+			nargs++;
 		}
-		var nargs = o == null ? count : count + 1;
-		if( isClosure ) need++;
-		if( nargs < need ) nargs = need;
+
 		var a = new hl.NativeArray<Dynamic>(nargs);
-		if( o == null || need < 0 ) {
+		if( cval == null ) {
 			for( i in 0...count )
 				a[i] = args.getDyn(i);
 		} else {
-			func = hl.Api.noClosure(func);
-			a[0] = o;
+			a[0] = cval;
 			for( i in 0...count )
 				a[i+1] = args.getDyn(i);
 		}

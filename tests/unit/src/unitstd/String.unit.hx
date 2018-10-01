@@ -96,6 +96,8 @@ s.lastIndexOf("bar", 12) == 12;
 s.lastIndexOf("bar", 11) == 9;
 s.lastIndexOf("bar", 9) == 9;
 s.lastIndexOf("bar", 8) == -1;
+s.lastIndexOf("a", s.length) == 13;
+s.lastIndexOf("a", s.length + 9000) == 13;
 
 // split
 var s = "xfooxfooxxbarxbarxx";

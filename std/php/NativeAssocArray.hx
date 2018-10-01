@@ -22,6 +22,7 @@
 package php;
 
 @:forward
+@:semantics(value)
 abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function new()
 		this = Syntax.arrayDecl();

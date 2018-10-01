@@ -27,5 +27,5 @@ package js.html;
 enum abstract EndingTypes(String)
 {
 	var TRANSPARENT = "transparent";
-	var NATIVE_ = "native";
+	var NATIVE = "native";
 }
