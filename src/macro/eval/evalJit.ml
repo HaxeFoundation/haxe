@@ -375,11 +375,15 @@ and jit_expr jit return e =
 				| Method _ -> true
 				| Var _ -> false
 			in
+			let lazy_proto_field proto =
+				let i = get_proto_field_index proto name in
+				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+			in
 			let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
-				let i = get_proto_field_index proto name in
-				emit_proto_field_call proto i (exec :: execs) e.epos
+				let v = lazy_proto_field proto in
+				emit_proto_field_call v (exec :: execs) e.epos
 			in
 			let default () =
 				let exec = jit_expr jit false ef in
@@ -397,8 +401,8 @@ and jit_expr jit return e =
 					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
-					let i = get_proto_field_index proto name in
-					emit_proto_field_call proto i execs e.epos
+					let v = lazy_proto_field proto in
+					emit_proto_field_call v execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
 					if not (is_final c cf) then
 						default()
@@ -426,7 +430,8 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					emit_super_call fnew execs e.epos
+					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					emit_super_call v execs e.epos
 				end
 			| _ -> assert false
 			end
@@ -467,7 +472,8 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			emit_constructor_call proto fnew execs e.epos
+			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)
 	| TLocal var ->

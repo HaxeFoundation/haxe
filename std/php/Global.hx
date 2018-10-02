@@ -948,6 +948,11 @@ extern class Global {
 	static function utf8_decode( data:String ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.mb-internal-encoding.php
+	**/
+	static function mb_internal_encoding( ?encoding:String ) : EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-convert-encoding.php
 	**/
 	static function mb_convert_encoding( str:String, to_encoding:String, ?from_encoding:Dynamic ) : String;

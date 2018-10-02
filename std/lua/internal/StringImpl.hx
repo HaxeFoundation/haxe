@@ -20,45 +20,27 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php.*;
+package lua.internal;
+import lua.lib.luautf8.Utf8;
 
-@:coreApi extern class String {
-
-	var length(default,null) : Int;
-
-	@:pure function new(string:String) : Void;
-
-	@:pure @:runtime inline function toUpperCase() : String {
-		return Global.mb_strtoupper(this);
-	}
-
-	@:pure @:runtime inline function toLowerCase() : String {
-		return Global.mb_strtolower(this);
-	}
-
-	@:pure @:runtime inline function charAt(index : Int) : String {
-		return index < 0 ? '' : Global.mb_substr(this, index, 1);
-	}
-
-	@:pure function charCodeAt( index : Int) : Null<Int>;
-
-	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
-
-	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-
-	@:pure function split( delimiter : String ) : Array<String>;
-
-	@:pure @:runtime inline function substr( pos : Int, ?len : Int ) : String {
-		return Global.mb_substr(this, pos, len);
-	}
-
-	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
-
-	@:pure @:runtime inline function toString() : String {
-		return this;
-	}
-
-	@:pure @:runtime static inline function fromCharCode( code : Int ) : String {
-		return Global.mb_chr(code);
+/**
+  An implementation for some of the string logic
+**/
+class StringImpl {
+	static public function indexOf( _this : String, str : String, ?startIndex : Int ) : Int {
+		if (startIndex == null) startIndex = 0;
+		if (str == "") {
+			if (_this == ""){
+				return 0;
+			} else {
+				var max = cast Math.max(startIndex,0);
+				return cast Math.min(_this.length, max);
+			}
+		} else {
+			var startIndex = startIndex >= 0 ? startIndex + 1 : startIndex;
+			var r = Utf8.find(_this, str, startIndex, true).begin;
+			if (r != null && r > 0) return r-1;
+			else return -1;
+		}
 	}
 }

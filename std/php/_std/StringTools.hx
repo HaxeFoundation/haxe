@@ -110,9 +110,10 @@ import php.*;
 		return s.toUpperCase();
 	}
 
-	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		var char = Global.mb_substr(s, index, 1, 'UTF-8');
-		return char == '' ? 0 : Global.mb_ord(char, 'UTF-8');
+	public static function fastCodeAt( s : String, index : Int ) : Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		if(char == '') return 0;
+		return Boot.unsafeOrd(char);
 	}
 
 	public static inline function isEof( c : Int ) : Bool {
