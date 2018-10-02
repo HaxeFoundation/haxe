@@ -2210,7 +2210,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
 					self#write "mb_strlen(";
 					self#write_expr expr;
-					self#write ", 'UTF-8')"
+					self#write ")"
 				| FInstance (_, _, field) -> self#write_expr_for_field_access expr "->" (field_name field)
 				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with

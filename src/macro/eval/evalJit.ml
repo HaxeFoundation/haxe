@@ -363,17 +363,27 @@ and jit_expr jit return e =
 		| TField(ef,fa) ->
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			let is_final c cf = c.cl_final || cf.cf_final in
+			let is_final c cf =
+				c.cl_final || cf.cf_final ||
+				(* In interp mode we can assume that a field is final if it is not overridden.
+				   We cannot do that in macro mode because overriding fields might be added
+				   after jitting this call. *)
+				(not ctx.is_macro && not (Hashtbl.mem ctx.overrides (c.cl_path,cf.cf_name)))
+			in
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
 				| Var _ -> false
 			in
+			let lazy_proto_field proto =
+				let i = get_proto_field_index proto name in
+				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+			in
 			let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
-				let i = get_proto_field_index proto name in
-				emit_proto_field_call proto i (exec :: execs) e.epos
+				let v = lazy_proto_field proto in
+				emit_proto_field_call v (exec :: execs) e.epos
 			in
 			let default () =
 				let exec = jit_expr jit false ef in
@@ -391,20 +401,20 @@ and jit_expr jit return e =
 					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
-					let i = get_proto_field_index proto name in
-					emit_proto_field_call proto i execs e.epos
+					let v = lazy_proto_field proto in
+					emit_proto_field_call v execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
 					if not (is_final c cf) then
 						default()
 					else if not c.cl_interface then
 						instance_call c
-					(* still can't do this because of incomplete information *)
-					(* else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
-						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
+					(* If we have exactly one implementer, use it instead of the super class/interface. *)
+					else if not ctx.is_macro && c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
+						| [c'] when not c'.cl_interface && is_final c' cf ->
 							instance_call c'
 						| _ ->
-							default() *)
-					else
+							default()
+					end else
 						default()
 				| _ ->
 					let exec = jit_expr jit false ef in
@@ -420,7 +430,8 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					emit_super_call fnew execs e.epos
+					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					emit_super_call v execs e.epos
 				end
 			| _ -> assert false
 			end
@@ -461,7 +472,8 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			emit_constructor_call proto fnew execs e.epos
+			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)
 	| TLocal var ->
