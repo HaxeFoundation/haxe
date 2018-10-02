@@ -26,51 +26,56 @@ type cmp =
 	| CInf
 	| CUndef
 
+type vstring_offset =
+	| VSONone
+	| VSOOne of (int * int) ref
+	| VSOTwo of (int * int) ref * (int * int) ref
+
 type vstring = {
-	(* The rope representation of the string. This is what we mainly use. *)
-	srope   : Rope.t;
 	(* The bytes representation of the string. This is only evaluated if we
 	   need it for something like random access. *)
-	sstring : string Lazy.t;
+	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
-	(* If true, the string is one-byte-per-character ASCII. Otherwise, it is
-	   encoded as UCS2. *)
-	sascii  : bool;
+	(* The current (character * byte) offsets. *)
+	mutable soffset : vstring_offset;
 }
 
 type vstring_buffer = {
-	        bbuffer : Rope.Buffer.t;
+	        bbuffer : Buffer.t;
 	mutable blength : int;
-	mutable bascii  : bool;
 }
 
-let extend_ascii s =
-	let length = String.length s in
-	let b = Bytes.make (length lsl 1) '\000' in
-	for i = 0 to length - 1 do
-		Bytes.unsafe_set b (i lsl 1) (String.unsafe_get s i)
-	done;
-	Bytes.unsafe_to_string b
-
 let vstring_equal s1 s2 =
-	if s1.sascii = s2.sascii then
-		s1.srope == s2.srope || Lazy.force s1.sstring = Lazy.force s2.sstring
-	else if not s2.sascii then
-		extend_ascii (Lazy.force s1.sstring) = Lazy.force s2.sstring
-	else
-		Lazy.force s1.sstring = extend_ascii (Lazy.force s2.sstring)
+	s1 == s2 || s1.sstring = s2.sstring
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = vstring
-	let equal = vstring_equal
-	let hash s =
-		let s = if s.sascii then extend_ascii (Lazy.force s.sstring)
-		else Lazy.force s.sstring in
-		Hashtbl.hash s
-end)
+module StringHashtbl = struct
+	type 'value t = (vstring * 'value) StringMap.t ref
 
-module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
+	let add this key v = this := StringMap.add key.sstring (key,v) !this
+	let copy this = ref !this
+	let create () = ref StringMap.empty
+	let find this key = StringMap.find key.sstring !this
+	let fold f this acc = StringMap.fold f !this acc
+	let is_empty this = StringMap.is_empty !this
+	let iter f this = StringMap.iter f !this
+	let mem this key = StringMap.mem key.sstring !this
+	let remove this key = this := StringMap.remove key.sstring !this
+end
+
+module IntHashtbl = struct
+	type 'value t = 'value IntMap.t ref
+
+	let add this key v = this := IntMap.add key v !this
+	let copy this = ref !this
+	let create () = ref IntMap.empty
+	let find this key = IntMap.find key !this
+	let fold f this acc = IntMap.fold f !this acc
+	let is_empty this = IntMap.is_empty !this
+	let iter f this = IntMap.iter f !this
+	let mem this key = IntMap.mem key !this
+	let remove this key = this := IntMap.remove key !this
+end
 
 type vregex = {
 	r : Pcre.regexp;
@@ -86,7 +91,7 @@ type vzlib = {
 
 type vprototype_kind =
 	| PClass of int list
-	| PEnum of string list
+	| PEnum of (string * int list) list
 	| PInstance
 	| PObject
 
@@ -117,7 +122,7 @@ and vobject = {
 }
 
 and vprototype = {
-	(* The path of the prototype. Using rev_hash_s on this gives the original dot path. *)
+	(* The path of the prototype. Using rev_hash on this gives the original dot path. *)
 	ppath : int;
 	(* The fields of the prototype itself (static fields). *)
 	pfields : value array;

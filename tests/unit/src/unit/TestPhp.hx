@@ -211,6 +211,11 @@ class TestPhp extends Test
 		t(Syntax.instanceof(o, phpClassName));
 	}
 
+	var a = 2;
+	function testSyntaxCodeParens() {
+		eq(8, Syntax.code("{0} * {1}", a, a + a));
+	}
+
 	@:analyzer(no_user_var_fusion)
 	function testSyntaxNativeClassName() {
 		eq("Array_hx", Syntax.nativeClassName(Array));

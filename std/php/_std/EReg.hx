@@ -37,7 +37,7 @@ import php.*;
 		this.pattern = r;
 		options = Global.str_replace('g', '', opt);
 		global = options != opt;
-		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + options;
+		this.re = '"' + Global.str_replace('"', '\\"', r) + '"u' + options;
 	}
 
 	public function match( s : String ) : Bool {
@@ -107,8 +107,9 @@ import php.*;
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
+		var length = s.length;
 		do {
-			if (offset >= s.length) {
+			if (offset >= length) {
 				break;
 			} else if (!matchSub(s, offset)) {
 				buf.add(s.substr(offset));
@@ -125,7 +126,7 @@ import php.*;
 				offset = p.pos + p.len;
 			}
 		} while (global);
-		if (!global && offset > 0 && offset < s.length) {
+		if (!global && offset > 0 && offset < length) {
 			buf.add(s.substr(offset));
 		}
 		return buf.toString();

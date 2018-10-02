@@ -2,6 +2,7 @@ XXXX-XX-XX:
 
 	General improvements and optimizations:
 
+	all : [breaking] reserved `operator` and `overload` as keywords (#7413)
 	all : added support for write-mode `@:op(a.b)`
 	all : made `final` on structure fields invariant (#7039)
 	all : [breaking] disallowed static variables that have no type-hint and expression (#6440)

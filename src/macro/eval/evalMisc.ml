@@ -105,15 +105,9 @@ let rec compare a b =
 	| VFalse,VTrue -> CInf
 	| VTrue,VFalse -> CSup
 	| VString s1,VString s2 ->
-		let s1' = Lazy.force s1.sstring in
-		let s2' = Lazy.force s2.sstring in
-		let s1,s2 = match s1.sascii,s2.sascii with
-		| true,true
-		| false,false -> s1',s2'
-		| true,false -> extend_ascii s1',s2'
-		| false,true -> s1',extend_ascii s2'
-		in
-		let r = String.compare s1 s2 in
+		let s1' = s1.sstring in
+		let s2' = s2.sstring in
+		let r = String.compare s1' s2' in
 		if r = 0 then CEq else if r < 0 then CInf else CSup
 	| VFunction(a,_), VFunction(b,_) -> if a == b then CEq else CUndef
 	| VArray va1,VArray va2 -> if va1 == va2 then CEq else CUndef
@@ -155,7 +149,7 @@ and equals_structurally a b =
 	| VFloat a,VFloat b -> a = b
 	| VFloat a,VInt32 b -> a = (Int32.to_float b)
 	| VInt32 a,VFloat b -> (Int32.to_float a) = b
-	| VString s1,VString s2 -> Lazy.force s1.sstring = Lazy.force s2.sstring (* STODO *)
+	| VString s1,VString s2 -> s1.sstring = s2.sstring (* STODO *)
 	| VArray a,VArray b -> a == b || arrays_equal equals_structurally a.avalues b.avalues
 	| VVector a,VVector b -> a == b || arrays_equal equals_structurally a b
 	| VObject a,VObject b -> a == b || arrays_equal equals_structurally a.ofields b.ofields
@@ -169,14 +163,14 @@ let is_true v = match v with
 	| VTrue -> true
 	| _ -> false
 
-let op_add v1 v2 = match v1,v2 with
+let op_add p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
 	| VFloat f1,VFloat f2 -> vfloat (f1 +. f2)
 	| VInt32 i,VFloat f | VFloat f,VInt32 i -> vfloat ((Int32.to_float i) +. f)
 	| VString s1,VString s2 -> vstring (concat s1 s2)
 	| VString s1,v2 -> vstring (concat s1 (s_value 0 v2))
 	| v1,VString s2 -> vstring (concat (s_value 0 v1) s2)
-	| v1,v2 -> vstring (concat (s_value 0 v1) (s_value 0 v2))
+	| v1,v2 -> invalid_binop OpAdd v1 v2 p
 
 let op_mult p v1 v2 = match v1,v2 with
 	| VInt32 i1,VInt32 i2 -> vint32 (Int32.mul i1 i2)
@@ -235,14 +229,14 @@ let op_ushr p v1 v2 = match v1,v2 with
 	| _ -> invalid_binop OpUShr v1 v2 p
 
 let op_mod p v1 v2 = match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.rem i1 i2)
+	| VInt32 i1,VInt32 i2 -> (try vint32 (Int32.rem i1 i2) with Division_by_zero -> vfloat nan)
 	| VFloat f1,VFloat f2 -> vfloat (mod_float f1 f2)
 	| VInt32 i1,VFloat f2 -> vfloat (mod_float (Int32.to_float i1) f2)
 	| VFloat f1,VInt32 i2 -> vfloat (mod_float f1 (Int32.to_float i2))
 	| _ -> invalid_binop OpMod v1 v2 p
 
 let get_binop_fun op p = match op with
-	| OpAdd -> op_add
+	| OpAdd -> op_add p
 	| OpMult -> op_mult p
 	| OpDiv -> op_div p
 	| OpSub -> op_sub p

@@ -145,10 +145,6 @@ input.readString(bytes.length - 9,RawNative) == "éあ😂";
 var s = "ée";
 var s1 = s.charAt(1);
 s1 == "e";
-#if eval
-(untyped s1.isAscii()) == true;
-(untyped s.charAt(0).isAscii()) == false;
-#end
 
 var s1 = s.substr(1, 1);
 var s2 = s.substr(1);
@@ -158,14 +154,6 @@ s1 == "e";
 s2 == "e";
 s3 == "e";
 s4 == "e";
-#if eval
-// We currently don't asciify anything we extract from UCS2 strings... not sure if this would
-// be worth it or not.
-(untyped s1.isAscii()) == false;
-(untyped s2.isAscii()) == false;
-(untyped s3.isAscii()) == false;
-(untyped s4.isAscii()) == false;
-#end
 
 var s1 = s.substring(1, 2);
 var s2 = s.substring(1);
@@ -175,12 +163,6 @@ s1 == "e";
 s2 == "e";
 s3 == "e";
 s4 == "e";
-#if eval
-(untyped s1.isAscii()) == false;
-(untyped s2.isAscii()) == false;
-(untyped s3.isAscii()) == false;
-(untyped s4.isAscii()) == false;
-#end
 
 Reflect.compare("ed", "éee".substr(1)) < 0;
 Reflect.compare("éed".substr(1), "éee".substr(1)) < 0;
@@ -243,9 +225,11 @@ Reflect.field(obj, field) == null;
 
 // EReg -_-
 
-function test(left:String, middle:String, right:String) {
+function test(left:String, middle:String, right:String, ?rex:EReg) {
 	var s = '$left:$middle:$right';
-	var rex = new EReg(':($middle):', "");
+	if (rex == null) {
+		rex = new EReg(':($middle):', "");
+	}
 	function check(rex:EReg) {
 		eq(rex.matchedLeft(), left);
 		eq(rex.matchedRight(), right);
@@ -255,7 +239,11 @@ function test(left:String, middle:String, right:String) {
 		eq(pos.len, middle.length + 2);
 	}
 
-	t(rex.match(s));
+	if (!rex.match(s)) {
+		assert();
+		infos("For " + s);
+		return;
+	}
 	check(rex);
 
 	var split = rex.split(s);
@@ -277,7 +265,6 @@ function test(left:String, middle:String, right:String) {
 	}), '${left}ä$right');
 }
 
-#if !(lua || cpp || flash)
 test("äb", "ä", "bc");
 test("äb", "a", "bc");
 test("ab", "a", "bc");
@@ -293,10 +280,22 @@ test("あb", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "あbc", "bc");
 
+#if !flash
+// wontfix (cantfix?)
 test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
 #end
+
+#if (eval || lua || python)
+// unspecced?
+test("()", "ä", "[]", ~/:(\w):/);
+~/\bx/.match("äx") == false;
+~/x\b/.match("xä") == false;
+#end
+
+test("a", "É", "b", ~/:(é):/i);
+test("a", "é", "b", ~/:(É):/i);
 
 #end

@@ -43,8 +43,11 @@ extern class FormData
 	**/
 	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function append( name : String, value : String ) : Void;
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes a key/value pair from a `FormData` object.
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated with a given key from within a `FormData` object.

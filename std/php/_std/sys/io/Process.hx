@@ -65,8 +65,8 @@ private class ReadablePipe extends Input {
 		var result:String = result;
 
 		var bytes = Bytes.ofString(result);
-		s.blit(pos, bytes, 0, result.length);
-		return result.length;
+		s.blit(pos, bytes, 0, result.strlen());
+		return result.strlen();
 	}
 }
 

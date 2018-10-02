@@ -301,7 +301,7 @@ extern class DOMElement extends Node
 		Retrieves the value of the attribute with the specified name and namespace, from the current node and returns it as an `Object`.
 	**/
 	@:pure
-	function getAttributeNS( namespace_ : String, localName : String ) : String;
+	function getAttributeNS( namespace : String, localName : String ) : String;
 	
 	/**
 		Toggles a boolean attribute, removing it if it is present and adding it if it is not present, on the specified element.
@@ -319,7 +319,7 @@ extern class DOMElement extends Node
 		Sets the value of the attribute with the specified name and namespace, from the current node.
 		@throws DOMError
 	**/
-	function setAttributeNS( namespace_ : String, name : String, value : String ) : Void;
+	function setAttributeNS( namespace : String, name : String, value : String ) : Void;
 	
 	/**
 		Removes the named attribute from the current node.
@@ -331,7 +331,7 @@ extern class DOMElement extends Node
 		Removes the attribute with the specified name and namespace, from the current node.
 		@throws DOMError
 	**/
-	function removeAttributeNS( namespace_ : String, localName : String ) : Void;
+	function removeAttributeNS( namespace : String, localName : String ) : Void;
 	
 	/**
 		Returns a `Boolean` indicating if the element has the specified attribute or not.
@@ -343,7 +343,7 @@ extern class DOMElement extends Node
 		Returns a `Boolean` indicating if the element has the specified attribute, in the specified namespace, or not.
 	**/
 	@:pure
-	function hasAttributeNS( namespace_ : String, localName : String ) : Bool;
+	function hasAttributeNS( namespace : String, localName : String ) : Bool;
 	
 	/**
 		Returns a `Boolean` indicating if the element has one or more HTML attributes present.
@@ -379,7 +379,7 @@ extern class DOMElement extends Node
 		@throws DOMError
 	**/
 	@:pure
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace : String, localName : String ) : HTMLCollection;
 	
 	/**
 		Returns a live `HTMLCollection` that contains all descendants of the current element that possess the list of classes given in the parameter.

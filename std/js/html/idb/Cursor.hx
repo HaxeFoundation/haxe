@@ -67,7 +67,11 @@ extern class Cursor
 		@throws DOMError
 	**/
 	function advance( count : Int ) : Void;
-	/** @throws DOMError */
+	
+	/**
+		Advances the cursor to the next position along its direction, to the item whose key matches the optional `key` parameter.
+		@throws DOMError
+	**/
 	@:native("continue")
 	function continue_( ?key : Dynamic ) : Void;
 	
@@ -76,7 +80,10 @@ extern class Cursor
 		@throws DOMError
 	**/
 	function continuePrimaryKey( key : Dynamic, primaryKey : Dynamic ) : Void;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_() : Request;
+	
+	/**
+		Returns an `IDBRequest` object, and, in a separate thread, deletes the record at the cursor's position, without changing the cursor's position. This can be used to delete specific records.
+		@throws DOMError
+	**/
+	function delete() : Request;
 }

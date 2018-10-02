@@ -369,7 +369,7 @@ extern class Document extends Node
 		@throws DOMError
 	**/
 	@:pure
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace : String, localName : String ) : HTMLCollection;
 	
 	/**
 		Returns a list of elements with the given class name.
@@ -390,8 +390,8 @@ extern class Document extends Node
 		Creates a new element with the given tag name and namespace URI.
 		@throws DOMError
 	**/
-	@:overload( function( namespace_ : String, qualifiedName : String, ?options : String) : Element {} )
-	function createElementNS( namespace_ : String, qualifiedName : String, ?options : ElementCreationOptions ) : Element;
+	@:overload( function( namespace : String, qualifiedName : String, ?options : String) : Element {} )
+	function createElementNS( namespace : String, qualifiedName : String, ?options : ElementCreationOptions ) : Element;
 	
 	/**
 		Creates a new document fragment.
@@ -470,7 +470,7 @@ extern class Document extends Node
 		Creates a new attribute node in a given namespace and returns it.
 		@throws DOMError
 	**/
-	function createAttributeNS( namespace_ : String, name : String ) : Attr;
+	function createAttributeNS( namespace : String, name : String ) : Attr;
 	@:pure
 	function getElementsByName( elementName : String ) : NodeList;
 	

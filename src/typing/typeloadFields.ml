@@ -380,6 +380,17 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 						()
 				end
 			)
+		| Meta.Using,el,p -> (fun () ->
+			List.iter (fun e ->
+				try
+					let path = List.rev (string_pos_list_of_expr_path_raise e) in
+					let types,filter_classes = handle_using ctx path (pos e) in
+					let ti = t_infos mt in
+					ti.mt_using <- (filter_classes types) @ ti.mt_using;
+				with Exit ->
+					error "dot path expected" (pos e)
+			) el;
+		) :: f_build,f_enum
 		| _ ->
 			f_build,f_enum
 	in

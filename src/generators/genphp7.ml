@@ -2210,7 +2210,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| FInstance ({ cl_path = [], "String"}, _, { cf_name = "length"; cf_kind = Var _ }) ->
 					self#write "mb_strlen(";
 					self#write_expr expr;
-					self#write ", 'UTF-8')"
+					self#write ")"
 				| FInstance (_, _, field) -> self#write_expr_for_field_access expr "->" (field_name field)
 				| FStatic (_, ({ cf_kind = Var _ } as field)) ->
 					(match (reveal_expr expr).eexpr with
@@ -2319,7 +2319,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method write_static_method_closure expr field_name =
 			let expr = reveal_expr expr in
-			self#write ("new " ^ (self#use hxclosure_type_path) ^ "(");
+			self#write ((self#use boot_type_path) ^ "::getStaticClosure(");
+			(* self#write ("new " ^ (self#use hxclosure_type_path) ^ "("); *)
 			(match (reveal_expr expr).eexpr with
 				| TTypeExpr (TClassDecl { cl_path = ([], "String") }) ->
 					self#write ((self#use hxstring_type_path) ^ "::class")
@@ -2344,7 +2345,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 						self#write_expr expr;
 						self#write ("->" ^ (field_name field))
 			else
-				let new_closure = "new " ^ (self#use hxclosure_type_path) in
+				(* let new_closure = "new " ^ (self#use hxclosure_type_path) in *)
+				let new_closure = ((self#use boot_type_path) ^ "::getInstanceClosure") in
 				match expr.eexpr with
 					| TTypeExpr mtype ->
 						let class_name = self#use_t (type_of_module_type mtype) in
@@ -2411,12 +2413,20 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "keepVar" -> ()
 				| _ -> ctx.error ("php.Syntax." ^ name ^ "() is not supported.") self#pos
 		(**
-			Writes plain php code (for `php.Syntax.php()`)
+			Writes plain php code (for `php.Syntax.code()`)
 		*)
 		method write_expr_syntax_code args =
 			match args with
 				| [] -> fail self#pos __POS__
 				| { eexpr = TConst (TString php) } :: args ->
+					let args = List.map
+						(fun arg ->
+							match (reveal_expr arg).eexpr with
+								| TBinop _ | TUnop _ -> parenthesis arg
+								| _ -> arg
+						)
+						args
+					in
 					Codegen.interpolate_code ctx php args self#write self#write_expr self#pos
 				| _ -> ctx.error "First argument of php.Syntax.code() must be a constant string." self#pos
 		(**

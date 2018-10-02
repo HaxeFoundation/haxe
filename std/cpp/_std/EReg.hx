@@ -178,6 +178,8 @@
 	}
 	static var escapeRegExpRe = ~/[\[\]{}()*+?.\\\^$|]/g;
 
+   function toString():String return 'EReg($r)';
+
    @:native("_hx_regexp_new_options")
 	extern static function _hx_regexp_new_options(s:String, options:String) : Dynamic;
 

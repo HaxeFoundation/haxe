@@ -127,7 +127,12 @@ class Type {
 		if( t == hl.Type.get((null : hl.types.ArrayBase.ArrayAccess)) )
 			return cast new Array<Dynamic>();
 		var o = t.allocObject();
-		if( c.__constructor__ != null ) Reflect.callMethod(o, c.__constructor__, args);
+		if( c.__constructor__ != null ) {
+			var v : Dynamic = hl.Api.noClosure(c.__constructor__);
+			var args = args.copy();
+			args.unshift(o);
+			Reflect.callMethod(null, v, args);
+		}
 		return o;
 	}
 

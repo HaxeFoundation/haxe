@@ -24,7 +24,7 @@
 import haxe.extern.AsVar;
 
 @:coreType
-@:analyzer(as_var)
+@:semantics(variable)
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
    public var ref(get,set):Reference<T>;

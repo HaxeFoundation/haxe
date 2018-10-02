@@ -52,8 +52,17 @@ class Lua {
 			Sys.println('Lua Version: $lv');
 			runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
 			trace('path: ' + Sys.getEnv("PATH"));
+
+
 			runCommand("lua",["-v"]);
-			runCommand("luarocks",[]);
+
+			runCommand("luarocks", ["config", "--lua-incdir"]);
+			runCommand("luarocks", ["config", "--lua-libdir"]);
+			runCommand("luarocks", ["config", "--lua-ver"]);
+			runCommand("luarocks", ["config", "--system-config"]);
+			runCommand("luarocks", ["config", "--user-config"], false, true); //can fail when there is no user config
+			runCommand("luarocks", ["config", "--rock-trees"]);
+
 			installLuaVersionDependencies(lv);
 
 			changeDirectory(unitDir);

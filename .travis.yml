@@ -52,7 +52,8 @@ install_linux: &install_linux
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       sudo add-apt-repository ppa:haxe/snapshots -y;
-      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y neko neko-dev;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" update -qqy;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -qqy neko neko-dev;
     else
       if [ ! -d "$HOME/neko" ]; then
         mkdir $HOME/neko;
@@ -80,7 +81,7 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # ocaml dependencies
-  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - wget -nv https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only

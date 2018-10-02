@@ -35,7 +35,7 @@ open Calls
 
 let check_assign ctx e =
 	match e.eexpr with
-	| TLocal {v_kind = VUser (TVOLocalFinal | TVOPatternFinal)} ->
+	| TLocal {v_final = true} ->
 		error "Cannot assign to final" e.epos
 	| TLocal {v_extra = None} | TArray _ | TField _ | TIdent _ ->
 		()
@@ -91,20 +91,6 @@ let get_iterable_param t =
 		| _ ->
 			raise Not_found)
 	| _ -> raise Not_found
-
-let get_abstract_froms a pl =
-	let l = List.map (apply_params a.a_params pl) a.a_from in
-	List.fold_left (fun acc (t,f) ->
-		match follow (Type.field_type f) with
-		| TFun ([_,_,v],t) ->
-			(try
-				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
-				v :: acc
-			with Unify_error _ ->
-				acc)
-		| _ ->
-			acc
-	) l a.a_from_field
 
 let maybe_type_against_enum ctx f with_type iscall p =
 	try
@@ -296,6 +282,14 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let inline_local_function ctx v e params t p =
+	(* create a fake class with a fake field to emulate inlining *)
+	let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
+	let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
+	c.cl_extern <- true;
+	c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
+	AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -338,20 +332,14 @@ let rec type_ident_raise ctx i p mode =
 	try
 		let v = PMap.find i ctx.locals in
 		(match v.v_extra with
-		| Some (params,e) ->
+		| Some (params,e,inline) ->
 			let t = monomorphs params v.v_type in
-			(match e with
-			| Some ({ eexpr = TFunction f } as e) when ctx.com.display.dms_inline ->
+			(match e,inline with
+			| { eexpr = TFunction f },true when ctx.com.display.dms_inline ->
 				begin match mode with
 					| MSet -> error "Cannot set inline closure" p
 					| MGet -> error "Cannot create closure on inline closure" p
-					| MCall ->
-						(* create a fake class with a fake field to emulate inlining *)
-						let c = mk_class ctx.m.curmod (["local"],v.v_name) e.epos null_pos in
-						let cf = { (mk_field v.v_name v.v_type e.epos null_pos) with cf_params = params; cf_expr = Some e; cf_kind = Method MethInline } in
-						c.cl_extern <- true;
-						c.cl_fields <- PMap.add cf.cf_name cf PMap.empty;
-						AKInline (mk (TConst TNull) (TInst (c,[])) p, cf, FInstance(c,[],cf), t)
+					| MCall -> inline_local_function ctx v e params t p
 				end
 			| _ ->
 				AKExpr (mk (TLocal v) t p))
@@ -1433,46 +1421,7 @@ and type_access ctx e p mode =
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
 	let e2 = type_expr ctx e2 WithType.value in
-	let has_abstract_array_access = ref false in
-	try
-		(match follow e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
-			begin match mode with
-			| MSet ->
-				(* resolve later *)
-				AKAccess (a,pl,c,e1,e2)
-			| _ ->
-				has_abstract_array_access := true;
-				let e = mk_array_get_call ctx (AbstractCast.find_array_access ctx a pl e2 None p) c e1 p in
-				AKExpr e
-			end
-		| _ -> raise Not_found)
-	with Not_found ->
-		unify ctx e2.etype ctx.t.tint e2.epos;
-		let rec loop et =
-			match follow et with
-			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
-				apply_params pl tl t
-			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
-				apply_params pl tl (loop (TInst (c,stl)))
-			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
-				t
-			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
-				t_dynamic
-			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
-				loop (apply_params a.a_params tl a.a_this)
-			| _ ->
-				let pt = mk_mono() in
-				let t = ctx.t.tarray pt in
-				(try unify_raise ctx et t p
-				with Error(Unify _,_) -> if not ctx.untyped then begin
-					if !has_abstract_array_access then error ("No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)) e1.epos
-					else error ("Array access is not allowed on " ^ (s_type (print_context()) e1.etype)) e1.epos
-				end);
-				pt
-		in
-		let pt = loop e1.etype in
-		AKExpr (mk (TArray (e1,e2)) pt p)
+	Calls.array_access ctx e1 e2 mode p
 
 and type_vars ctx vl p =
 	let vl = List.map (fun ((v,pv),final,t,e) ->
@@ -1486,7 +1435,8 @@ and type_vars ctx vl p =
 					Some e
 			) in
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
-			let v = add_local_with_origin ctx (if final then TVOLocalFinal else TVOLocalVariable) v t pv in
+			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
+			if final then v.v_final <- true;
 			if ctx.in_display && DisplayPosition.encloses_display_position pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
@@ -1979,17 +1929,16 @@ and type_map_declaration ctx e1 el with_type p =
 	let el = (mk (TVar (v,Some enew)) t_dynamic p) :: (List.rev el) in
 	mk (TBlock el) tmap p
 
-and type_local_function ctx name f with_type p =
+and type_local_function ctx name inline f with_type p =
 	let params = TypeloadFunction.type_function_params ctx f (match name with None -> "localfun" | Some (n,_) -> n) p in
 	if params <> [] then begin
 		if name = None then display_error ctx "Type parameters not supported in unnamed local functions" p;
 		if with_type <> WithType.NoValue then error "Type parameters are not supported for rvalue functions" p
 	end;
 	List.iter (fun tp -> if tp.tp_constraints <> None then display_error ctx "Type parameter constraints are not supported for local functions" p) f.f_params;
-	let inline,v,pname = (match name with
-		| None -> false,None,p
-		| Some (v,pn) when ExtString.String.starts_with v "inline_" -> true,Some (String.sub v 7 (String.length v - 7)),pn
-		| Some (v,pn) -> false,Some v,pn
+	let v,pname = (match name with
+		| None -> None,p
+		| Some (v,pn) -> Some v,pn
 	) in
 	let old_tp,old_in_loop = ctx.type_params,ctx.in_loop in
 	ctx.type_params <- params @ ctx.type_params;
@@ -2031,7 +1980,7 @@ and type_local_function ctx name f with_type p =
 		| Some v ->
 			if starts_with v '$' then display_error ctx "Variable names starting with a dollar are not allowed" p;
 			let v = (add_local_with_origin ctx TVOLocalFunction v ft pname) in
-			if params <> [] then v.v_extra <- Some (params,None);
+			if params <> [] then v.v_extra <- Some (params,(mk (TConst TNull) t_dynamic null_pos),false);
 			Some v
 	) in
 	let curfun = match ctx.curfun with
@@ -2053,7 +2002,7 @@ and type_local_function ctx name f with_type p =
 	| Some v ->
 		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
 		let open LocalUsage in
-		if params <> [] || inline then v.v_extra <- Some (params,if inline then Some e else None);
+		v.v_extra <- Some (params,e,inline);
 		let rec loop = function
 			| LocalUsage.Block f | LocalUsage.Loop f | LocalUsage.Function f -> f loop
 			| LocalUsage.Use v2 | LocalUsage.Assign v2 when v == v2 -> raise Exit
@@ -2068,7 +2017,7 @@ and type_local_function ctx name f with_type p =
 				mk (TLocal v) ft p
 			]) ft p) in
 			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end else if inline && not ctx.in_display then
+		end else if inline && not ctx.com.display.dms_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
 		else
 			mk (TVar (v,Some e)) ctx.t.tvoid p
@@ -2267,14 +2216,43 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.Inline,_,_) ->
+			begin match fst e1 with
+			| ECall(e1,el) ->
+				type_call ctx e1 el WithType.value true p
+			| ENew (t,el) ->
+				let e = type_new ctx t el with_type p in
+				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
+			| EFunction(Some(_) as name,e1) ->
+				type_local_function ctx name true e1 with_type p
+			| _ ->
+				display_error ctx "Call or function expected after inline keyword" p;
+				e();
+			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
 	e
 
-and type_call ctx e el (with_type:WithType.t) p =
+and type_call ctx e el (with_type:WithType.t) inline p =
 	let def () =
 		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+		let e = if not inline then
+			e
+		else match e with
+			| AKExpr {eexpr = TField(e1,fa)} ->
+				begin match extract_field fa with
+				| Some cf ->
+					let t = monomorphs cf.cf_params cf.cf_type in
+					AKInline(e1,cf,fa,t)
+				| None ->
+					e
+				end;
+			| AKExpr {eexpr = TLocal ({v_extra = Some(params,({eexpr = TFunction _} as e1),_)} as v)} ->
+				let t = monomorphs params v.v_type in
+				inline_local_function ctx v e1 params t p
+			| _ -> e
+		in
 		let e = build_call ctx e el with_type p in
 		e
 	in
@@ -2449,13 +2427,13 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type p
+		type_call ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
-		type_local_function ctx name f with_type p
+		type_local_function ctx name false f with_type p
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
@@ -2501,7 +2479,6 @@ let rec create com =
 			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];
-			delayed_macros = DynArray.create();
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);

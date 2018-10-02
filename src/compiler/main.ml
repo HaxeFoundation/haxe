@@ -212,9 +212,6 @@ module Initialize = struct
 				add_std "neko";
 				"n"
 			| Js ->
-				if not (PMap.exists (fst (Define.infos Define.JqueryVer)) com.defines.Define.values) then
-					Common.define_value com Define.JqueryVer "30301";
-
 				let es_version =
 					try
 						int_of_string (Common.defined_value com Define.JsEs)
@@ -280,7 +277,10 @@ let generate tctx ext xml_out interp swf_header =
 		to accidentaly delete a source file. *)
 	if file_extension com.file = ext then delete_file com.file;
 	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (Codegen.fix_overrides com) com.types;
-	if Common.defined com Define.Dump then Codegen.Dump.dump_types com;
+	if Common.defined com Define.Dump then begin
+		Codegen.Dump.dump_types com;
+		Option.may Codegen.Dump.dump_types (com.get_macros())
+	end;
 	if Common.defined com Define.DumpDependencies then begin
 		Codegen.Dump.dump_dependencies com;
 		if not tctx.Typecore.in_macro then match tctx.Typecore.g.Typecore.macros with
@@ -418,7 +418,6 @@ let rec process_params create pl =
 	(* put --display in front if it was last parameter *)
 	let pl = (match List.rev pl with
 		| file :: "--display" :: pl when file <> "memory" -> "--display" :: file :: List.rev pl
-		| "use_rtti_doc" :: "-D" :: file :: "--display" :: pl -> "--display" :: file :: List.rev pl
 		| _ -> pl
 	) in
 	loop [] pl
@@ -484,7 +483,6 @@ try
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Parser.display_mode <> DMNone || (CompilationServer.runs());
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -568,7 +566,6 @@ try
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
 			begin match var with
 				| "no_copt" | "no-copt" -> com.foptimize <- false;
-				| "use_rtti_doc" | "use-rtti-doc" -> Parser.use_doc := true;
 				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			end;
 			Common.raw_define com var;
@@ -693,11 +690,9 @@ try
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
 		),"","display code tips");
 		("Services",["--xml"],["-xml"],Arg.String (fun file ->
-			Parser.use_doc := true;
 			xml_out := Some file
 		),"<file>","generate XML types description");
 		("Services",["--json"],[],Arg.String (fun file ->
-			Parser.use_doc := true;
 			json_out := Some file
 		),"<file>","generate JSON types description");
 		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
@@ -880,6 +875,10 @@ try
 			| None ->
 				None
 		in
+		begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
+			| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
+			| _ -> ()
+		end;
 		if ctx.com.display.dms_exit_during_typing then begin
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
@@ -952,10 +951,6 @@ with
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
-	| Hlmacro.Error (msg,p :: l) ->
-		message ctx (CMError(msg,p));
-		List.iter (fun p -> message ctx (CMError("Called from",p))) l;
-		error ctx "Aborted" null_pos;
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->
@@ -1001,7 +996,8 @@ with
 			| CRUsing
 			| CRNew
 			| CRPattern _
-			| CRTypeRelation ->
+			| CRTypeRelation
+			| CRTypeDecl ->
 				DisplayOutput.print_toplevel fields
 			| CRField _
 			| CRStructureField
@@ -1013,7 +1009,7 @@ with
 	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures(signatures,_,display_arg)) ->
+	| DisplayException(DisplaySignatures(signatures,_,display_arg,_)) ->
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
@@ -1056,6 +1052,8 @@ with
 		if !measure_times then Timer.report_times prerr_endline;
 		exit i
 	| DisplayOutput.Completion _ as exc ->
+		raise exc
+	| Out_of_memory as exc ->
 		raise exc
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" || CompilationServer.runs() with _ -> true) && not (is_debug_run()) ->
 		error ctx (Printexc.to_string e) null_pos

@@ -1,6 +1,9 @@
 open Type
 open EvalContext
-open EvalEmitter
+
+type varacc =
+	| Local of int
+	| Env of int
 
 (*
 	JitContext keeps track of allocated local variables and closures. Scopes can be pushed
