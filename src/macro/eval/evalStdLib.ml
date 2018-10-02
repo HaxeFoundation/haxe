@@ -1607,6 +1607,29 @@ module StdMd5 = struct
 	)
 end
 
+module StdMutex = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=IMutex mutex} -> mutex
+		| _ -> unexpected_value vthis "Mutex"
+
+	let acquire = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		Mutex.lock mutex;
+		vnull
+	)
+
+	let release = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		Mutex.unlock mutex;
+		vnull
+	)
+
+	let tryAcquire = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		vbool (Mutex.try_lock mutex)
+	)
+end
+
 module StdNativeProcess = struct
 
 	let this vthis = match vthis with
@@ -2986,6 +3009,10 @@ let init_constructors builtins =
 				in
 				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
 			| _ -> assert false
+		);
+	add key_eval_vm_Mutex
+		(fun _ ->
+			encode_instance key_eval_vm_Mutex ~kind:(IMutex (Mutex.create ()))
 		)
 
 let init_empty_constructors builtins =
@@ -3226,6 +3253,11 @@ let init_standard_library builtins =
 		"encode",StdMd5.encode;
 		"make",StdMd5.make;
 	] [];
+	init_fields builtins (["eval";"vm"],"Mutex") [] [
+		"acquire",StdMutex.acquire;
+		"tryAcquire",StdMutex.tryAcquire;
+		"release",StdMutex.release;
+	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
 		"exitCode",StdNativeProcess.exitCode;
