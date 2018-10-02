@@ -105,6 +105,7 @@ let create com api is_macro =
 	let eval = {
 		environments = DynArray.make 32;
 		environment_offset = 0;
+		local_storage = IntMap.empty;
 	} in
 	DynArray.add evals eval;
 	let rec ctx = {

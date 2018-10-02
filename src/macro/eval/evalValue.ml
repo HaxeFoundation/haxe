@@ -160,6 +160,8 @@ and vinstance_kind =
 	| ISocket of Unix.file_descr
 	| IThread of Thread.t
 	| IMutex of Mutex.t
+	| ILock of unit Event.channel
+	| ITls of int
 	| IZip of vzlib (* Compress/Uncompress *)
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)

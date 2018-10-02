@@ -171,6 +171,7 @@ and debug = {
 and eval = {
 	environments : env DynArray.t;
 	mutable environment_offset : int;
+	mutable local_storage : value IntMap.t;
 }
 
 and context = {

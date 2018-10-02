@@ -1349,6 +1349,24 @@ module StdHost = struct
 	)
 end
 
+module StdLock = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = ILock ch} -> ch
+		| v -> unexpected_value v "Lock"
+
+	let release = vifun0 (fun vthis ->
+		let ch = this vthis in
+		Event.sync(Event.send ch ());
+		vnull
+	)
+
+	let wait = vifun1 (fun vthis timeout ->
+		let ch = this vthis in
+		Event.sync(Event.receive ch);
+		vbool true
+	)
+end
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -2541,6 +2559,28 @@ module StdThread = struct
 	)
 end
 
+module StdTls = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = ITls i} -> i
+		| _ -> unexpected_value vthis "Thread"
+
+	let get_value = vifun0 (fun vthis ->
+		let this = this vthis in
+		let eval = get_eval (get_ctx()) in
+		try
+			IntMap.find this eval.local_storage
+		with Not_found ->
+			vnull
+	)
+
+	let set_value = vifun1 (fun vthis v ->
+		let this = this vthis in
+		let eval = get_eval (get_ctx()) in
+		eval.local_storage <- IntMap.add this v eval.local_storage;
+		v
+	)
+end
+
 module StdType = struct
 	open Ast
 
@@ -2996,7 +3036,11 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f () =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {environments = DynArray.create (); environment_offset = 0} in
+					let new_eval = {
+						environments = DynArray.create ();
+						environment_offset = 0;
+						local_storage = IntMap.empty;
+					} in
 					if DynArray.length ctx.evals = id then
 						DynArray.add ctx.evals new_eval
 					else
@@ -3013,6 +3057,17 @@ let init_constructors builtins =
 	add key_eval_vm_Mutex
 		(fun _ ->
 			encode_instance key_eval_vm_Mutex ~kind:(IMutex (Mutex.create ()))
+		);
+	add key_eval_vm_Lock
+		(fun _ ->
+			let ch = Event.new_channel () in
+			encode_instance key_eval_vm_Lock ~kind:(ILock ch)
+		);
+	let tls_counter = ref (-1) in
+	add key_eval_vm_Tls
+		(fun _ ->
+			incr tls_counter;
+			encode_instance key_eval_vm_Tls ~kind:(ITls !tls_counter)
 		)
 
 let init_empty_constructors builtins =
@@ -3217,6 +3272,10 @@ let init_standard_library builtins =
 		"hostToString",StdHost.hostToString;
 		"resolve",StdHost.resolve;
 	] [];
+	init_fields builtins (["eval";"vm"],"Lock") [] [
+		"release",StdLock.release;
+		"wait",StdLock.wait;
+	];
 	init_fields builtins (["haxe"],"Log") [
 		"trace",StdLog.trace;
 	] [];
@@ -3380,6 +3439,10 @@ let init_standard_library builtins =
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
+	];
+	init_fields builtins (["eval";"vm"],"Tls") [] [
+		"get_value",StdTls.get_value;
+		"set_value",StdTls.set_value;
 	];
 	init_fields builtins ([],"Type") [
 		"allEnums",StdType.allEnums;
