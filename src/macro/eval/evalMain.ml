@@ -101,18 +101,16 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let evals = DynArray.create () in
 	let eval = {
 		environments = DynArray.make 32;
 		environment_offset = 0;
-		local_storage = IntMap.empty;
 		thread = {
 			tthread = Thread.self();
 			tchannel = Event.new_channel();
 			tqueue = Queue.create ();
+			tstorage = IntMap.empty;
 		}
 	} in
-	DynArray.add evals eval;
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
@@ -137,7 +135,7 @@ let create com api is_macro =
 			oproto = fake_proto key_eval_toplevel;
 		};
 		eval = eval;
-		evals = evals;
+		evals = IntMap.singleton 0 eval;
 		exception_stack = [];
 	} in
 	t();

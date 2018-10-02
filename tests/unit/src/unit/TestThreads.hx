@@ -17,6 +17,12 @@ import java.vm.Deque;
 import java.vm.Lock;
 import java.vm.Tls;
 import java.vm.Mutex;
+#elseif eval
+import eval.vm.Thread;
+import eval.vm.Deque;
+import eval.vm.Lock;
+import eval.vm.Tls;
+import eval.vm.Mutex;
 #end
 
 class TestThreads extends Test
@@ -47,6 +53,7 @@ class TestThreads extends Test
 									{
 										ts.run();
 										t(true);
+										trace("ok");
 									}
 									catch(e:Dynamic)
 									{
@@ -129,6 +136,7 @@ class ThreadSort
 						finishedMutex.release();
 						break;
 					}
+					Thread.yield();
 					if (++i % Std.int(maxVal / 10) == 0 && consumerLoad)
 						Sys.sleep(.01);
 				}

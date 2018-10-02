@@ -160,7 +160,7 @@ and vinstance_kind =
 	| ISocket of Unix.file_descr
 	| IThread of vthread
 	| IMutex of Mutex.t
-	| ILock of unit Event.channel
+	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
 	| IZip of vzlib (* Compress/Uncompress *)
@@ -196,14 +196,20 @@ and venum_value = {
 }
 
 and vthread = {
-	tthread : Thread.t;
+	mutable tthread : Thread.t;
 	tchannel : value Event.channel;
 	tqueue : value Queue.t;
+	mutable tstorage : value IntMap.t;
 }
 
 and vdeque = {
 	mutable dvalues : value list; (* TODO: lol *)
 	dchannel : value Event.channel;
+}
+
+and vlock = {
+	mutable lcounter : int;
+	lchannel : unit Event.channel;
 }
 
 let rec equals a b = match a,b with

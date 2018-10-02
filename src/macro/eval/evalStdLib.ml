@@ -744,22 +744,20 @@ module StdDeque = struct
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
-		match this.dvalues with
-		| v :: vl ->
-			this.dvalues <- vl;
-			v
-		| [] ->
-			if blocking <> VTrue then
-				vnull
-			else begin
-				ignore(Event.sync(Event.receive this.dchannel));
-				match this.dvalues with
-				| v :: vl ->
-					this.dvalues <- vl;
-					v
-				| [] ->
-					assert false
-			end
+		let rec loop () =
+			match this.dvalues with
+			| v :: vl ->
+				this.dvalues <- vl;
+				v
+			| [] ->
+				if blocking <> VTrue then
+					vnull
+				else begin
+					ignore(Event.sync(Event.receive this.dchannel));
+					loop()
+				end
+		in
+		loop()
 	)
 
 	let push = vifun1 (fun vthis i ->
@@ -1391,18 +1389,21 @@ end
 
 module StdLock = struct
 	let this vthis = match vthis with
-		| VInstance {ikind = ILock ch} -> ch
+		| VInstance {ikind = ILock lock} -> lock
 		| v -> unexpected_value v "Lock"
 
 	let release = vifun0 (fun vthis ->
-		let ch = this vthis in
-		Event.sync(Event.send ch ());
+		let lock = this vthis in
+		lock.lcounter <- lock.lcounter + 1;
+		ignore(Event.poll(Event.send lock.lchannel ()));
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
-		let ch = this vthis in
-		Event.sync(Event.receive ch);
+		let lock = this vthis in
+		if lock.lcounter <= 0 then
+			Event.sync(Event.receive lock.lchannel);
+		lock.lcounter <- lock.lcounter - 1;
 		vbool true
 	)
 end
@@ -2521,7 +2522,7 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (decode_float f)); vnull)
+	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (num f)); vnull)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
@@ -2627,9 +2628,10 @@ module StdTls = struct
 
 	let get_value = vifun0 (fun vthis ->
 		let this = this vthis in
-		let eval = get_eval (get_ctx()) in
 		try
-			IntMap.find this eval.local_storage
+			let id = Thread.id (Thread.self()) in
+			let eval = IntMap.find id (get_ctx()).evals in
+			IntMap.find this eval.thread.tstorage
 		with Not_found ->
 			vnull
 	)
@@ -2637,7 +2639,7 @@ module StdTls = struct
 	let set_value = vifun1 (fun vthis v ->
 		let this = this vthis in
 		let eval = get_eval (get_ctx()) in
-		eval.local_storage <- IntMap.add this v eval.local_storage;
+		eval.thread.tstorage <- IntMap.add this v eval.thread.tstorage;
 		v
 	)
 end
@@ -3095,32 +3097,30 @@ let init_constructors builtins =
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
-				let thread = ref (Obj.magic ()) in
-				let f () =
+				let f thread =
 					let new_eval = {
 						environments = DynArray.create ();
 						environment_offset = 0;
-						local_storage = IntMap.empty;
-						thread = !thread;
+						thread = thread;
 					} in
 					let thread = Thread.self() in
 					let id = Thread.id thread in
-					if DynArray.length ctx.evals = id then
-						DynArray.add ctx.evals new_eval
-					else
-						DynArray.set ctx.evals id new_eval;
+					ctx.evals <- IntMap.add id new_eval ctx.evals;
+					Thread.yield();
 					try
 						ignore(call_value f []);
 					with RunTimeException(v,stack,p) ->
 						let msg = get_exc_error_message ctx v stack p in
 						prerr_endline msg
 				in
-				thread := {
-					tthread = Thread.create f ();
+				let thread = {
+					tthread = Obj.magic ();
 					tchannel = Event.new_channel ();
 					tqueue = Queue.create ();
-				};
-				encode_instance key_eval_vm_Thread ~kind:(IThread !thread)
+					tstorage = IntMap.empty;
+				} in
+				thread.tthread <- Thread.create f thread;
+				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> assert false
 		);
 	add key_eval_vm_Mutex
@@ -3130,7 +3130,11 @@ let init_constructors builtins =
 	add key_eval_vm_Lock
 		(fun _ ->
 			let ch = Event.new_channel () in
-			encode_instance key_eval_vm_Lock ~kind:(ILock ch)
+			let lock = {
+				lcounter = 0;
+				lchannel = ch;
+			} in
+			encode_instance key_eval_vm_Lock ~kind:(ILock lock)
 		);
 	let tls_counter = ref (-1) in
 	add key_eval_vm_Tls

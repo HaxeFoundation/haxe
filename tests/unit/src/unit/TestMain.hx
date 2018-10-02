@@ -111,9 +111,9 @@ class TestMain {
 			new TestMapComprehension(),
 			new TestMacro(),
 			new TestKeyValueIterator(),
-			// #if ( (java || neko) && !macro && !interp)
-			// new TestThreads(),
-			// #end
+			#if ( (java || neko || cpp || eval) && !macro)
+			new TestThreads(),
+			#end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];

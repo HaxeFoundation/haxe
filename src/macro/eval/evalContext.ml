@@ -172,7 +172,6 @@ and eval = {
 	environments : env DynArray.t;
 	thread : vthread;
 	mutable environment_offset : int;
-	mutable local_storage : value IntMap.t;
 }
 
 and context = {
@@ -196,7 +195,7 @@ and context = {
 	(* eval *)
 	toplevel : value;
 	eval : eval;
-	evals : eval DynArray.t;
+	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
 }
 
@@ -208,7 +207,7 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 
 let get_eval ctx =
     let id = Thread.id (Thread.self()) in
-    if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
+    if id = 0 then ctx.eval else IntMap.find id ctx.evals
 
 let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with
