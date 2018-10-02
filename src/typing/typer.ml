@@ -2479,7 +2479,6 @@ let rec create com =
 			module_check_policies = [];
 			delayed = [];
 			debug_delayed = [];
-			delayed_macros = DynArray.create();
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);

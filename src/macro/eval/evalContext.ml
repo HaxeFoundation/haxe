@@ -41,7 +41,6 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
-	| EKDelayed
 
 (* Compile-time information for environments. This information is static for all
    environments of the same kind, e.g. all environments of a specific method. *)
@@ -217,7 +216,6 @@ let rec kind_name ctx kind =
 			let env = DynArray.get ctx.environments parent_id in
 			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
 		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
-		| EKDelayed,_ -> "delayed"
 	in
 	loop kind ctx.environment_offset
 
