@@ -106,6 +106,11 @@ let create com api is_macro =
 		environments = DynArray.make 32;
 		environment_offset = 0;
 		local_storage = IntMap.empty;
+		thread = {
+			tthread = Thread.self();
+			tchannel = Event.new_channel();
+			tqueue = Queue.create ();
+		}
 	} in
 	DynArray.add evals eval;
 	let rec ctx = {

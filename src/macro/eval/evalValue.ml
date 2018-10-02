@@ -158,10 +158,11 @@ and vinstance_kind =
 	| IInChannel of in_channel * bool ref (* FileInput *)
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
-	| IThread of Thread.t
+	| IThread of vthread
 	| IMutex of Mutex.t
 	| ILock of unit Event.channel
 	| ITls of int
+	| IDeque of vdeque
 	| IZip of vzlib (* Compress/Uncompress *)
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
@@ -192,6 +193,17 @@ and venum_value = {
 	eargs : value array;
 	epath : int;
 	enpos : pos option;
+}
+
+and vthread = {
+	tthread : Thread.t;
+	tchannel : value Event.channel;
+	tqueue : value Queue.t;
+}
+
+and vdeque = {
+	mutable dvalues : value list; (* TODO: lol *)
+	dchannel : value Event.channel;
 }
 
 let rec equals a b = match a,b with

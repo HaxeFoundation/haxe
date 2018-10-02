@@ -170,6 +170,7 @@ and debug = {
 
 and eval = {
 	environments : env DynArray.t;
+	thread : vthread;
 	mutable environment_offset : int;
 	mutable local_storage : value IntMap.t;
 }

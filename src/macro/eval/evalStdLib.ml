@@ -730,6 +730,46 @@ module StdDate = struct
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
+module StdDeque = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IDeque d} -> d
+		| _ -> unexpected_value vthis "Deque"
+
+	let add = vifun1 (fun vthis i ->
+		let this = this vthis in
+		this.dvalues <- this.dvalues @ [i]; (* TODO: bad bad bad *)
+		ignore(Event.poll(Event.send this.dchannel i));
+		vnull;
+	)
+
+	let pop = vifun1 (fun vthis blocking ->
+		let this = this vthis in
+		match this.dvalues with
+		| v :: vl ->
+			this.dvalues <- vl;
+			v
+		| [] ->
+			if blocking <> VTrue then
+				vnull
+			else begin
+				ignore(Event.sync(Event.receive this.dchannel));
+				match this.dvalues with
+				| v :: vl ->
+					this.dvalues <- vl;
+					v
+				| [] ->
+					assert false
+			end
+	)
+
+	let push = vifun1 (fun vthis i ->
+		let this = this vthis in
+		this.dvalues <- i :: this.dvalues;
+		ignore(Event.poll(Event.send this.dchannel i));
+		vnull;
+	)
+end
+
 module StdEReg = struct
 	open Pcre
 
@@ -2536,21 +2576,42 @@ module StdThread = struct
 	)
 
 	let id = vifun0 (fun vthis ->
-		vint (Thread.id (this vthis))
+		vint (Thread.id (this vthis).tthread)
 	)
 
 	let join = vfun1 (fun thread ->
-		Thread.join (this thread);
+		Thread.join (this thread).tthread;
 		vnull
 	)
 
 	let kill = vifun0 (fun vthis ->
-		Thread.kill (this vthis);
+		Thread.kill (this vthis).tthread;
 		vnull
 	)
 
 	let self = vfun0 (fun () ->
-		encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.self()))
+		let eval = get_eval (get_ctx()) in
+		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
+	)
+
+	let readMessage = vifun1 (fun vthis blocking ->
+		let this = this vthis in
+		if not (Queue.is_empty this.tqueue) then
+			Queue.pop this.tqueue
+		else if blocking <> VTrue then
+			vnull
+		else begin
+			let event = Event.receive this.tchannel in
+			ignore(Event.sync event);
+			Queue.pop this.tqueue
+		end
+	)
+
+	let sendMessage = vifun1 (fun vthis msg ->
+		let this = this vthis in
+		Queue.add msg this.tqueue;
+		ignore(Event.poll (Event.send this.tchannel msg));
+		vnull
 	)
 
 	let yield = vfun0 (fun () ->
@@ -3034,13 +3095,16 @@ let init_constructors builtins =
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
+				let thread = ref (Obj.magic ()) in
 				let f () =
-					let id = Thread.id (Thread.self()) in
 					let new_eval = {
 						environments = DynArray.create ();
 						environment_offset = 0;
 						local_storage = IntMap.empty;
+						thread = !thread;
 					} in
+					let thread = Thread.self() in
+					let id = Thread.id thread in
 					if DynArray.length ctx.evals = id then
 						DynArray.add ctx.evals new_eval
 					else
@@ -3051,7 +3115,12 @@ let init_constructors builtins =
 						let msg = get_exc_error_message ctx v stack p in
 						prerr_endline msg
 				in
-				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
+				thread := {
+					tthread = Thread.create f ();
+					tchannel = Event.new_channel ();
+					tqueue = Queue.create ();
+				};
+				encode_instance key_eval_vm_Thread ~kind:(IThread !thread)
 			| _ -> assert false
 		);
 	add key_eval_vm_Mutex
@@ -3068,6 +3137,14 @@ let init_constructors builtins =
 		(fun _ ->
 			incr tls_counter;
 			encode_instance key_eval_vm_Tls ~kind:(ITls !tls_counter)
+		);
+	add key_eval_vm_Deque
+		(fun _ ->
+			let deque = {
+				dvalues = [];
+				dchannel = Event.new_channel();
+			} in
+			encode_instance key_eval_vm_Deque ~kind:(IDeque deque)
 		)
 
 let init_empty_constructors builtins =
@@ -3192,6 +3269,11 @@ let init_standard_library builtins =
 		"getSeconds",StdDate.getSeconds;
 		"getTime",StdDate.getTime;
 		"toString",StdDate.toString;
+	];
+	init_fields builtins (["eval";"vm"],"Deque") [] [
+		"add",StdDeque.add;
+		"push",StdDeque.push;
+		"pop",StdDeque.pop;
 	];
 	init_fields builtins ([],"EReg") [
 		"escape",StdEReg.escape;
@@ -3439,6 +3521,8 @@ let init_standard_library builtins =
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
+		"readMessage",StdThread.readMessage;
+		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["eval";"vm"],"Tls") [] [
 		"get_value",StdTls.get_value;
