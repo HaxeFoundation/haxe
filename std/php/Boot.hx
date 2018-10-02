@@ -50,6 +50,7 @@ class Boot {
 		This method is called once before invoking any Haxe-generated user code.
 	**/
 	static function __init__() {
+		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
 			var previousLevel = Global.error_reporting(Const.E_ALL);
 			var previousHandler = Global.set_error_handler(
@@ -567,6 +568,22 @@ class Boot {
 	public static inline function closure( target:Dynamic, func:String ) : HxClosure {
 		return target.is_string() ? getStaticClosure(target, func) : getInstanceClosure(target, func);
 	}
+
+	/**
+		Get UTF-8 code of che first character in `s` without any checks
+	**/
+	static public inline function unsafeOrd(s:NativeString):Int {
+		var code = Global.ord(s[0]);
+		if(code < 0xC0) {
+			return code;
+		} else if(code < 0xE0) {
+			return ((code - 0xC0) << 6) + Global.ord(s[1]) - 0x80;
+		} else if(code < 0xF0) {
+			return ((code - 0xE0) << 12) + ((Global.ord(s[1]) - 0x80) << 6) + Global.ord(s[2]) - 0x80;
+		} else {
+			return ((code - 0xF0) << 18) + ((Global.ord(s[1]) - 0x80) << 12) + ((Global.ord(s[2]) - 0x80) << 6) + Global.ord(s[3]) - 0x80;
+		}
+	}
 }
 
 /**
@@ -667,32 +684,35 @@ private class HxEnum {
 private class HxString {
 
 	public static function toUpperCase( str:String ) : String {
-		return Global.mb_strtoupper(str, 'UTF-8');
+		return Global.mb_strtoupper(str);
 	}
 
 	public static function toLowerCase( str:String ) : String {
-		return Global.mb_strtolower(str, 'UTF-8');
+		return Global.mb_strtolower(str);
 	}
 
 	public static function charAt( str:String, index:Int) : String {
-		return index < 0 ? '' : Global.mb_substr(str, index, 1, 'UTF-8');
+		return index < 0 ? '' : Global.mb_substr(str, index, 1);
 	}
 
 	public static function charCodeAt( str:String, index:Int) : Null<Int> {
-		if(index < 0) {
+		if(index < 0 || str == '') {
 			return null;
 		}
-		var char = Global.mb_substr(str, index, 1, 'UTF-8');
-		return char == '' ? null : Global.mb_ord(char, 'UTF-8');
+		if(index == 0) {
+			return Boot.unsafeOrd(str);
+		}
+		var char = Global.mb_substr(str, index, 1);
+		return char == '' ? null : Boot.unsafeOrd(char);
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative ingexes are supported since 7.1.0
+		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative indexes are supported since 7.1.0
 			startIndex += str.length;
 		}
-		var index = Global.mb_strpos(str, search, startIndex, 'UTF-8');
+		var index = Global.mb_strpos(str, search, startIndex);
 		return (index == false ? -1 : index);
 	}
 
@@ -705,7 +725,7 @@ private class HxString {
 				startIndex = 0;
 			}
 		}
-		var index = Global.mb_strrpos(str, search, startIndex, 'UTF-8');
+		var index = Global.mb_strrpos(str, search, startIndex);
 		if (index == false) {
 			return -1;
 		} else {
@@ -724,7 +744,7 @@ private class HxString {
 	}
 
 	public static function substr( str:String, pos:Int, ?len:Int ) : String {
-		return Global.mb_substr(str, pos, len, 'UTF-8');
+		return Global.mb_substr(str, pos, len);
 	}
 
 	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
@@ -732,7 +752,7 @@ private class HxString {
 			if(startIndex < 0) {
 				startIndex = 0;
 			}
-			return Global.mb_substr(str, startIndex, null, 'UTF-8');
+			return Global.mb_substr(str, startIndex);
 		}
 		if (endIndex < 0) {
 			endIndex = 0;
@@ -745,7 +765,7 @@ private class HxString {
 			endIndex = startIndex;
 			startIndex = tmp;
 		}
-		return Global.mb_substr(str, startIndex, endIndex - startIndex, 'UTF-8');
+		return Global.mb_substr(str, startIndex, endIndex - startIndex);
 	}
 
 	public static function toString( str:String ) : String {
@@ -753,7 +773,7 @@ private class HxString {
 	}
 
 	public static function fromCharCode( code:Int ) : String {
-		return Global.mb_chr(code, 'UTF-8');
+		return Global.mb_chr(code);
 	}
 }
 

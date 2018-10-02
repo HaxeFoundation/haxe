@@ -194,6 +194,7 @@ and context = {
 	(* eval *)
 	toplevel : value;
 	eval : eval;
+	evals : eval DynArray.t;
 	mutable exception_stack : (pos * env_kind) list;
 }
 
@@ -204,7 +205,8 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 (* Misc *)
 
 let get_eval ctx =
-	ctx.eval
+    let id = Thread.id (Thread.self()) in
+    if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
 
 let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with
@@ -241,7 +243,8 @@ let proto_fields proto =
 exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
-	List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
+	let eval = get_eval ctx in
+	List.rev (DynArray.to_list (DynArray.sub eval.environments 0 eval.environment_offset))
 
 let throw v p =
 	let ctx = get_ctx() in

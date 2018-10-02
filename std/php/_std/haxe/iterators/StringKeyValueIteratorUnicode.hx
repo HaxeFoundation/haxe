@@ -22,12 +22,13 @@
 package haxe.iterators;
 
 import php.Global.*;
+import php.NativeString;
 
 class StringKeyValueIteratorUnicode {
 	var charOffset:Int = 0;
 	var byteOffset:Int = 0;
 	var totalBytes:Int;
-	var s:String;
+	var s:NativeString;
 
 	public inline function new(s:String) {
 		this.s = s;
@@ -39,9 +40,20 @@ class StringKeyValueIteratorUnicode {
 	}
 
 	public inline function next() {
-		var char = mb_substr(substr(s, byteOffset, 4), 0, 1, 'UTF-8');
-		byteOffset += strlen(char);
-		return { key: charOffset++, value: mb_ord(char, 'UTF-8') };
+		var code = ord(s[byteOffset]);
+		if(code < 0xC0) {
+			byteOffset++;
+		} else if(code < 0xE0) {
+			code = ((code - 0xC0) << 6) + ord(s[byteOffset + 1]) - 0x80;
+			byteOffset += 2;
+		} else if(code < 0xF0) {
+			code = ((code - 0xE0) << 12) + ((ord(s[byteOffset + 1]) - 0x80) << 6) + ord(s[byteOffset + 2]) - 0x80;
+			byteOffset += 3;
+		} else {
+			code = ((code - 0xF0) << 18) + ((ord(s[byteOffset + 1]) - 0x80) << 12) + ((ord(s[byteOffset + 2]) - 0x80) << 6) + ord(s[byteOffset + 3]) - 0x80;
+			byteOffset += 4;
+		}
+		return { key: charOffset++, value: code };
 	}
 
 	static public inline function unicodeKeyValueIterator(s:String) {

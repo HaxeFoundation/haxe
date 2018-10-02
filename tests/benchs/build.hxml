@@ -1,3 +1,6 @@
 -cp src
 -main Main
--D test=Access
+-D test=StringIterator
+-D analyzer-optimize
+-D analyzer-no-purity-inference
+-D dump=pretty
