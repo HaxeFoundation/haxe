@@ -252,7 +252,7 @@ let throw v p =
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 	end;
-	raise (RunTimeException(v,call_stack ctx,p))
+	raise_notrace (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
 
