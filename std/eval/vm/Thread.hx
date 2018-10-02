@@ -76,4 +76,6 @@ extern class Thread {
 		to other threads.
 	**/
 	static function yield():Void;
+
+	static inline function create(f:Void -> Void):Thread return new Thread(f);
 }
