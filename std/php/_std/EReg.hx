@@ -37,7 +37,7 @@ import php.*;
 		this.pattern = r;
 		options = Global.str_replace('g', '', opt);
 		global = options != opt;
-		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + options;
+		this.re = '"' + Global.str_replace('"', '\\"', r) + '"u' + options;
 	}
 
 	public function match( s : String ) : Bool {
