@@ -239,7 +239,7 @@ let create_static_prototype ctx mt =
 			let key = hash s in
 			let v2 = EvalField.field v key in
 			let v2 = match v2 with
-				| VNull -> encode_obj None []
+				| VNull -> encode_obj []
 				| _ -> v2
 			in
 			set_field v key v2;

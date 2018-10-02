@@ -951,10 +951,6 @@ with
 		end
 	| Error.Error (m,p) ->
 		error ctx (Error.error_msg m) p
-	| Hlmacro.Error (msg,p :: l) ->
-		message ctx (CMError(msg,p));
-		List.iter (fun p -> message ctx (CMError("Called from",p))) l;
-		error ctx "Aborted" null_pos;
 	| Generic.Generic_Exception(m,p) ->
 		error ctx m p
 	| Arg.Bad msg ->

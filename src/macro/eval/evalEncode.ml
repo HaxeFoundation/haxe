@@ -113,7 +113,7 @@ let vfun5 f = vstatic_function (fun vl -> match vl with
 
 (* Objects *)
 
-let encode_obj _ l =
+let encode_obj l =
 	let ctx = get_ctx() in
 	let proto,sorted = ctx.get_object_prototype ctx l in
 	vobject {
@@ -121,8 +121,8 @@ let encode_obj _ l =
 		oproto = proto;
 	}
 
-let encode_obj_s k l =
-	encode_obj k (List.map (fun (s,v) -> (hash s),v) l)
+let encode_obj_s l =
+	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
 
 (* Enum values *)
 
