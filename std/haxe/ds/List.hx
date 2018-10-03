@@ -311,13 +311,18 @@ class List<T> {
 	public function reverse() : Void {
 		if (tail == null) return;
 		var node = head.next;
+		var pool = tail.next;
 		for(i in 1...length) {
 			var next = node.next;
 			node.connectTo(node.previous);
 			node = next;
 		}
 		var newTail = head;
-		newTail.next = tail.next;
+		if (pool == null) {
+			newTail.next = null;
+		} else {
+			newTail.connectTo(pool);
+		}
 		head = tail;
 		head.previous = null;
 		tail = newTail;

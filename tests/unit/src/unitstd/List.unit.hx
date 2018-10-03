@@ -6,6 +6,7 @@ l.length == 0;
 l.first() == null;
 l.last() == null;
 l.pop() == null;
+l.popLast() == null;
 l.add("1");
 l.length == 1;
 l.first() == "1";
@@ -33,8 +34,8 @@ l.add("2");
 l.add("3");
 var l2 = l.map(function(i:String) return i + i);
 l2.pop() == "11";
+l2.popLast() == "33";
 l2.pop() == "22";
-l2.pop() == "33";
 var l3 = l.filter(function(i:String) return i != "2");
 l3.pop() == "1";
 l3.pop() == "3";
@@ -49,3 +50,43 @@ l4.add(8);
 [for (k=>v in l4) k] == [0,1,2,3,4];
 [for (k=>v in l4) v] == [1,2,3,5,8];
 [for (k=>v in l4) k*v] == [0,2,6,15,32];
+
+// removeLast
+var l5 = new List();
+l5.add(0);
+l5.removeLast(0) == true;
+l5.length == 0;
+l5.removeLast(0) == false;
+l5.length == 0;
+for(i in 0...3) l5.add(i);
+l5.add(0);
+l5.removeLast(0) == true;
+l5.length == 3;
+l5.removeLast(9) == false;
+l5.length == 3;
+l5.first() == 0;
+l5.last() == 2;
+
+// copy
+var l6 = new List();
+for(i in 0...3) l6.add(i);
+var copy = l6.copy();
+copy != l6;
+[for(i in copy) i] == [0, 1, 2];
+
+// reverse
+var l7 = new List();
+l7.reverse();
+l7.length == 0;
+for(i in 0...3) l7.add(i);
+l7.reverse();
+[for(i in l7) i] == [2, 1, 0];
+l7.first() == 2;
+l7.last() == 0;
+l7.pop() == 2;
+l7.reverse();
+[for(i in l7) i] == [0, 1];
+l7.popLast() == 1;
+[for(i in l7) i] == [0];
+l7.reverse();
+[for(i in l7) i] == [0];
