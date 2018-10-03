@@ -29,20 +29,28 @@ package haxe.ds;
 	@see https://haxe.org/manual/std-List.html
 **/
 class List<T> {
-
-	private var h : ListNode<T>;
-	private var q : ListNode<T>;
-
 	/**
 		The length of `this` List.
 	**/
-	public var length(default,null) : Int;
+	public var length(default,null) : Int = 0;
+
+	var head:Null<ListNode<T>>;
+	var tail:Null<ListNode<T>>;
 
 	/**
 		Creates a new empty list.
+		@param capacity denotes prospective list size. Does not limit the size of the list.
+						This amount of empty nodes will be created in advance.
 	**/
-	public function new() {
-		length = 0;
+	public function new(capacity:Int = 0) {
+		if(capacity > 0) {
+			head = new ListNode();
+			var node = head;
+			for(_ in 1...capacity) {
+				node.connectTo(new ListNode());
+				node = node.next;
+			}
+		}
 	}
 
 	/**
@@ -51,12 +59,19 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
-		var x = ListNode.create(item, null);
-		if( h == null )
-			h = x;
-		else
-			q.next = x;
-		q = x;
+		var node = if (tail == null) {
+			if(head == null) {
+				head = new ListNode();
+			}
+			tail = head;
+		} else {
+			if(tail.next == null) {
+				tail.connectTo(new ListNode());
+			}
+			tail = tail.next;
+		}
+		node.item = item;
+		node.isEmpty = false;
 		length++;
 	}
 
@@ -66,10 +81,29 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
-		var x = ListNode.create(item, h);
-		h = x;
-		if( q == null )
-			q = x;
+		var node = if (tail == null) {
+			if(head == null) {
+				head = new ListNode();
+			}
+			tail = head;
+		} else {
+			var empty = if (tail.next == null) {
+				new ListNode();
+			} else {
+				var empty = tail.next;
+				empty.previous = null;
+				if (empty.next == null) {
+					tail.next = null;
+				} else {
+					tail.connectTo(empty.next);
+				}
+				empty;
+			}
+			empty.connectTo(head);
+			head = empty;
+		}
+		node.item = item;
+		node.isEmpty = false;
 		length++;
 	}
 
@@ -79,7 +113,7 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function first() : Null<T> {
-		return if( h == null ) null else h.item;
+		return tail == null ? null : head.item;
 	}
 
 	/**
@@ -88,9 +122,8 @@ class List<T> {
 		This function does not modify `this` List.
 	**/
 	public function last() : Null<T> {
-		return if( q == null ) null else q.item;
+		return tail == null ? null : tail.item;
 	}
-
 
 	/**
 		Returns the first element of `this` List, or null if no elements exist.
@@ -98,21 +131,41 @@ class List<T> {
 		The element is removed from `this` List.
 	**/
 	public function pop() : Null<T> {
-		if( h == null )
-			return null;
-		var x = h.item;
-		h = h.next;
-		if( h == null )
-			q = null;
-		length--;
-		return x;
+		if (tail == null) return null;
+		var result = head.item;
+		clearNode(head);
+		return result;
+	}
+
+	/**
+		Returns the tail element of `this` List, or null if no elements exist.
+
+		The element is removed from `this` List.
+	**/
+	public function popLast() : Null<T> {
+		if(tail == null) return null;
+		var result = tail.item;
+		clearNode(tail);
+		return result;
 	}
 
 	/**
 		Tells if `this` List is empty.
 	**/
-	public function isEmpty() : Bool {
-		return (h == null);
+	public inline function isEmpty() : Bool {
+		return tail == null;
+	}
+
+	/**
+		Every time an item is removed from the list, emptied node is moved to the pool.
+		This method drops the pool.
+	**/
+	public inline function deflate() {
+		if(tail != null) {
+			tail.next = null;
+		} else {
+			head = null;
+		}
 	}
 
 	/**
@@ -122,8 +175,13 @@ class List<T> {
 		internal references to null and `this.length` to 0.
 	**/
 	public function clear() : Void {
-		h = null;
-		q = null;
+		if (tail != null) {
+			head = tail.next;
+			if (head != null) {
+				head.previous = null;
+			}
+		}
+		tail = null;
 		length = 0;
 	}
 
@@ -136,21 +194,35 @@ class List<T> {
 		Otherwise, false is returned.
 	**/
 	public function remove( v : T ) : Bool {
-		var prev:ListNode<T> = null;
-		var l = h;
-		while( l != null ) {
-			if( l.item == v ) {
-				if( prev == null )
-					h = l.next;
-				else
-					prev.next = l.next;
-				if( q == l )
-					q = prev;
-				length--;
+		var node = head;
+		for(i in 0...length) {
+			if(node.item == v) {
+				clearNode(node);
 				return true;
 			}
-			prev = l;
-			l = l.next;
+			node = node.next;
+		}
+		return false;
+	}
+
+	/**
+		Removes the last occurrence of `v` in `this` List.
+
+		If `v` is found by checking standard equality, it is removed from `this`
+		List and the function returns true.
+
+		Otherwise, false is returned.
+
+		This method performs the search from the end of the list to the beginning.
+	**/
+	public function removeLast( v : T ) : Bool {
+		var node = tail;
+		for(i in -length...0) {
+			if(node.item == v) {
+				clearNode(node);
+				return true;
+			}
+			node = node.previous;
 		}
 		return false;
 	}
@@ -159,14 +231,14 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public inline function iterator() : ListIterator<T> {
-		return new ListIterator<T>(h);
+		return new ListIterator<T>(head);
 	}
 
 	/**
 		Returns an iterator of the List indices and values.
 	**/
 	@:pure @:runtime public inline function keyValueIterator() : ListKeyValueIterator<T> {
-		return new ListKeyValueIterator(h);
+		return new ListKeyValueIterator(head);
 	}
 
 	/**
@@ -177,16 +249,12 @@ class List<T> {
 	**/
 	public function toString() {
 		var s = new StringBuf();
-		var first = true;
-		var l = h;
 		s.add("{");
-		while( l != null ) {
-			if( first )
-				first = false;
-			else
-				s.add(", ");
-			s.add(Std.string(l.item));
-			l = l.next;
+		var node = head;
+		for(i in 0...length) {
+			if(i > 0) s.add(", ");
+			s.add(node.item);
+			node = node.next;
 		}
 		s.add("}");
 		return s.toString();
@@ -198,15 +266,11 @@ class List<T> {
 	**/
 	public function join(sep : String) {
 		var s = new StringBuf();
-		var first = true;
-		var l = h;
-		while( l != null ) {
-			if( first )
-				first = false;
-			else
-				s.add(sep);
-			s.add(l.item);
-			l = l.next;
+		var node = head;
+		for(i in 0...length) {
+			if(i > 0) s.add(sep);
+			s.add(node.item);
+			node = node.next;
 		}
 		return s.toString();
 	}
@@ -216,15 +280,15 @@ class List<T> {
 		elements for which `f(x) == true`.
 	**/
 	public function filter( f : T -> Bool ) {
-		var l2 = new List();
-		var l = h;
-		while( l != null ) {
-			var v = l.item;
-			l = l.next;
-			if( f(v) )
-				l2.add(v);
+		var result = new List();
+		var node = head;
+		for(i in 0...length) {
+			if(f(node.item)) {
+				result.add(node.item);
+			}
+			node = node.next;
 		}
-		return l2;
+		return result;
 	}
 
 	/**
@@ -232,78 +296,125 @@ class List<T> {
 		function `f`.
 	**/
 	public function map<X>(f : T -> X) : List<X> {
-		var b = new List();
-		var l = h;
-		while( l != null ) {
-			var v = l.item;
-			l = l.next;
-			b.add(f(v));
+		var result = new List();
+		var node = head;
+		for(i in 0...length) {
+			result.add(f(node.item));
+			node = node.next;
 		}
-		return b;
+		return result;
 	}
 
-}
+	/**
+		Reverse the order of items in this list.
+	**/
+	public function reverse() : Void {
+		if (tail == null) return;
+		var node = head.next;
+		for(i in 1...length) {
+			var next = node.next;
+			node.connectTo(node.previous);
+			node = next;
+		}
+		var newTail = head;
+		newTail.next = tail.next;
+		head = tail;
+		head.previous = null;
+		tail = newTail;
+	}
 
-#if neko
-private extern class ListNode<T> extends neko.NativeArray<Dynamic> {
-	var item(get,set):T;
-	var next(get,set):ListNode<T>;
-	private inline function get_item():T return this[0];
-	private inline function set_item(v:T):T return this[0] = v;
-	private inline function get_next():ListNode<T> return this[1];
-	private inline function set_next(v:ListNode<T>):ListNode<T> return this[1] = v;
-	inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
-		return untyped __dollar__array(item, next);
+	/**
+		Create a new copy of this list.
+	**/
+	public function copy() : List<T> {
+		var result = new List();
+		var node = head;
+		for(i in 0...length) {
+			result.add(node.item);
+			node = node.next;
+		}
+		return result;
+	}
+
+	inline function clearNode(node:ListNode<T>) {
+		node.item = null;
+		node.isEmpty = true;
+		length--;
+
+		if (length == 0) {
+			tail = null;
+		} else {
+			if (node == tail) {
+				tail = node.previous;
+			} else {
+				if (node == head) {
+					head = node.next;
+					head.previous = null;
+				} else {
+					node.previous.connectTo(node.next);
+					if (tail.next == null) {
+						node.next = null;
+					} else {
+						node.connectTo(tail.next);
+					}
+				}
+				tail.connectTo(node);
+			}
+		}
 	}
 }
-#else
+
 private class ListNode<T> {
-	public var item:T;
+	static var cnt = 0;
+	@:keep var id = cnt++;
 	public var next:ListNode<T>;
-	public function new(item:T, next:ListNode<T>) {
-		this.item = item;
-		this.next = next;
-	}
-	extern public inline static function create<T>(item:T, next:ListNode<T>):ListNode<T> {
-		return new ListNode(item, next);
+	public var previous:ListNode<T>;
+	public var item:Null<T>;
+	public var isEmpty:Bool = true;
+
+	public function new() {}
+
+	public inline function connectTo(nextNode:ListNode<T>) {
+		next = nextNode;
+		nextNode.previous = this;
 	}
 }
-#end
 
 private class ListIterator<T> {
-	var head:ListNode<T>;
+	var current:Null<ListNode<T>>;
 
-	public inline function new(head:ListNode<T>) {
-		this.head = head;
+	public inline function new(head:Null<ListNode<T>>) {
+		this.current = head;
 	}
 
 	public inline function hasNext():Bool {
-		return head != null;
+		return current != null && !current.isEmpty;
 	}
 
 	public inline function next():T {
-		var val = head.item;
-		head = head.next;
+		var val = current.item;
+		current = current.next;
 		return val;
 	}
 }
 
+@:access(haxe.ds.List)
 private class ListKeyValueIterator<T> {
 	var idx:Int;
-	var head:ListNode<T>;
+	var current:Null<ListNode<T>>;
 
-	public inline function new(head:ListNode<T>) {
-		this.head = head;
+	public inline function new(head:Null<ListNode<T>>) {
+		this.current = head;
 		this.idx = 0;
 	}
 
 	public inline function hasNext():Bool {
-		return head != null;
+		return current != null && !current.isEmpty;
 	}
 
 	public inline function next():{key:Int,value:T} {
-		var val = head.item;
-		head = head.next;
+		var val = current.item;
+		current = current.next;
 		return {value: val, key:idx++};
 	}
 }
