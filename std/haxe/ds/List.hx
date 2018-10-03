@@ -36,6 +36,7 @@ class List<T> {
 
 	var head:Null<ListNode<T>>;
 	var tail:Null<ListNode<T>>;
+	var pool:Null<ListNode<T>>;
 
 	/**
 		Creates a new empty list.
@@ -44,11 +45,10 @@ class List<T> {
 	**/
 	public function new(capacity:Int = 0) {
 		if(capacity > 0) {
-			head = new ListNode();
-			var node = head;
+			pool = new ListNode();
 			for(_ in 1...capacity) {
-				node.connectTo(new ListNode());
-				node = node.next;
+				new ListNode().connectTo(pool);
+				pool = pool.previous;
 			}
 		}
 	}
@@ -59,17 +59,13 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function add( item : T ) {
-		var node = if (tail == null) {
-			if(head == null) {
-				head = new ListNode();
-			}
-			tail = head;
+		var node = getNode();
+		if (head == null) {
+			head = node;
 		} else {
-			if(tail.next == null) {
-				tail.connectTo(new ListNode());
-			}
-			tail = tail.next;
+			tail.connectTo(node);
 		}
+		tail = node;
 		node.item = item;
 		node.isEmpty = false;
 		length++;
@@ -81,27 +77,13 @@ class List<T> {
 		`this.length` increases by 1.
 	**/
 	public function push( item : T ) {
-		var node = if (tail == null) {
-			if(head == null) {
-				head = new ListNode();
-			}
-			tail = head;
+		var node = getNode();
+		if (head == null) {
+			tail = node;
 		} else {
-			var empty = if (tail.next == null) {
-				new ListNode();
-			} else {
-				var empty = tail.next;
-				empty.previous = null;
-				if (empty.next == null) {
-					tail.next = null;
-				} else {
-					tail.connectTo(empty.next);
-				}
-				empty;
-			}
-			empty.connectTo(head);
-			head = empty;
+			node.connectTo(head);
 		}
+		head = node;
 		node.item = item;
 		node.isEmpty = false;
 		length++;
@@ -131,7 +113,7 @@ class List<T> {
 		The element is removed from `this` List.
 	**/
 	public function pop() : Null<T> {
-		if (tail == null) return null;
+		if (length == 0) return null;
 		var result = head.item;
 		clearNode(head);
 		return result;
@@ -143,7 +125,7 @@ class List<T> {
 		The element is removed from `this` List.
 	**/
 	public function popLast() : Null<T> {
-		if(tail == null) return null;
+		if(length == 0) return null;
 		var result = tail.item;
 		clearNode(tail);
 		return result;
@@ -153,7 +135,7 @@ class List<T> {
 		Tells if `this` List is empty.
 	**/
 	public inline function isEmpty() : Bool {
-		return tail == null;
+		return length == 0;
 	}
 
 	/**
@@ -161,11 +143,7 @@ class List<T> {
 		This method drops the pool.
 	**/
 	public inline function deflate() {
-		if(tail != null) {
-			tail.next = null;
-		} else {
-			head = null;
-		}
+		pool = null;
 	}
 
 	/**
@@ -175,13 +153,7 @@ class List<T> {
 		internal references to null and `this.length` to 0.
 	**/
 	public function clear() : Void {
-		if (tail != null) {
-			head = tail.next;
-			if (head != null) {
-				head.previous = null;
-			}
-		}
-		tail = null;
+		head = tail = null;
 		length = 0;
 	}
 
@@ -309,23 +281,18 @@ class List<T> {
 		Reverse the order of items in this list.
 	**/
 	public function reverse() : Void {
-		if (tail == null) return;
+		if (length < 2) return;
 		var node = head.next;
-		var pool = tail.next;
 		for(i in 1...length) {
 			var next = node.next;
 			node.connectTo(node.previous);
 			node = next;
 		}
 		var newTail = head;
-		if (pool == null) {
-			newTail.next = null;
-		} else {
-			newTail.connectTo(pool);
-		}
 		head = tail;
-		head.previous = null;
 		tail = newTail;
+		head.previous = null;
+		tail.next = null;
 	}
 
 	/**
@@ -341,31 +308,39 @@ class List<T> {
 		return result;
 	}
 
+	inline function getNode() : ListNode<T> {
+		if (pool == null) {
+			return new ListNode();
+		}
+		var result = pool;
+		pool = pool.next;
+		result.next = result.previous = null;
+		return result;
+	}
+
 	inline function clearNode(node:ListNode<T>) {
 		node.item = null;
 		node.isEmpty = true;
 		length--;
 
 		if (length == 0) {
-			tail = null;
+			head = tail = null;
+		} else if (node == tail) {
+			tail = node.previous;
+			tail.next = null;
+		} else if (node == head) {
+			head = node.next;
+			head.previous = null;
 		} else {
-			if (node == tail) {
-				tail = node.previous;
-			} else {
-				if (node == head) {
-					head = node.next;
-					head.previous = null;
-				} else {
-					node.previous.connectTo(node.next);
-					if (tail.next == null) {
-						node.next = null;
-					} else {
-						node.connectTo(tail.next);
-					}
-				}
-				tail.connectTo(node);
-			}
+			node.previous.connectTo(node.next);
 		}
+
+		if (pool == null) {
+			node.next = null;
+		} else {
+			node.connectTo(pool);
+		}
+		pool = node;
 	}
 }
 
