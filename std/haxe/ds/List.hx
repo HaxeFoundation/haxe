@@ -403,7 +403,6 @@ private class ListIterator<T> {
 	}
 }
 
-@:access(haxe.ds.List)
 private class ListKeyValueIterator<T> {
 	var idx:Int;
 	var current:Null<ListNode<T>>;
