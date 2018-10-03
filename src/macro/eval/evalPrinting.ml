@@ -51,14 +51,17 @@ let s_hash key = create_ascii (EvalHash.rev_hash key)
 
 let rec s_object depth o =
 	let fields = object_fields o in
-	let s,_ = List.fold_left (fun (s,sep) (key,value) ->
-		let s = concat s sep in
-		let s = concat s (s_hash key) in
-		let s = concat s rcolon in
-		let s = concat s (s_value depth value) in
-		(s,rcomma)
-	) (rempty,rbropen) fields in
-	concat s rbrclose
+	let buf = Buffer.create 0 in
+	Buffer.add_string buf "{";
+	List.iteri (fun i (k,v) ->
+		if i >= 0 then Buffer.add_string buf ", ";
+		Buffer.add_string buf (rev_hash k);
+		Buffer.add_string buf ": ";
+		Buffer.add_string buf (s_value depth v).sstring;
+	) fields;
+	Buffer.add_string buf "}";
+	let s = Buffer.contents buf in
+	create_with_length s (UTF8.length s)
 
 and s_array depth va =
 	join rempty [

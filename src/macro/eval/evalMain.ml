@@ -143,15 +143,6 @@ let create com api is_macro =
 
 (* API for macroContext.ml *)
 
-let eval_delayed ctx e =
-	let jit,f = jit_expr ctx e in
-	let info = create_env_info true (file_hash e.epos.pfile) EKDelayed jit.capture_infos in
-	fun () ->
-		let env = push_environment ctx info jit.max_num_locals (Hashtbl.length jit.captures) in
-		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.epos with
-			| Some v -> v
-			| None -> vnull
-
 let call_path ctx path f vl api =
 	if ctx.had_error then
 		None
