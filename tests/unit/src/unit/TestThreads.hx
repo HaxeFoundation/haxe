@@ -34,8 +34,9 @@ class TestThreads extends Test
 #if java
 		ts.maxVal *= 10;
 #end
+		var testCounter = 0;
 		for (creatorWait in [.02, .05, 0])
-			for (creatorLoad in [false, true])
+			for (creatorLoad in [false])
 				for (consumerWait in [.02,.05,0])
 					for (useTls in [false,true])
 						for (q in [new QDeque() #if java, new QLockFree()#end])
@@ -51,13 +52,13 @@ class TestThreads extends Test
 									ts.lock2 = lock2;
 									try
 									{
+										trace('${testCounter++}: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 										ts.run();
 										t(true);
-										trace("ok");
 									}
 									catch(e:Dynamic)
 									{
-										Test.report('Error $e for parameters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
+										Test.report('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 									}
 								}
 	}

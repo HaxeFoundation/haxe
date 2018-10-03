@@ -1392,9 +1392,13 @@ module StdLock = struct
 		| VInstance {ikind = ILock lock} -> lock
 		| v -> unexpected_value v "Lock"
 
+	let lock_mutex = Mutex.create ()
+
 	let release = vifun0 (fun vthis ->
 		let lock = this vthis in
+		Mutex.lock lock_mutex;
 		lock.lcounter <- lock.lcounter + 1;
+		Mutex.unlock lock_mutex;
 		ignore(Event.poll(Event.send lock.lchannel ()));
 		vnull
 	)
@@ -1403,7 +1407,9 @@ module StdLock = struct
 		let lock = this vthis in
 		if lock.lcounter <= 0 then
 			Event.sync(Event.receive lock.lchannel);
+		Mutex.lock lock_mutex;
 		lock.lcounter <- lock.lcounter - 1;
+		Mutex.unlock lock_mutex;
 		vbool true
 	)
 end
@@ -2522,7 +2528,7 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (num f)); vnull)
+	let sleep = vfun1 (fun f -> Thread.delay (num f); vnull)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
