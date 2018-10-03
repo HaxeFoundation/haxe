@@ -41,9 +41,7 @@ extern class Syntax {
     /**
         Generates `$left ?? $right`
     **/
-    static inline function coalesce<T>( left:T, right:T ) : T {
-        return codeDeref('({0} ?? {1})', left, right);
-    }
+    static function coalesce<T>( left:T, right:T ) : T ;
 
     /**
         Generates `$left . $right`

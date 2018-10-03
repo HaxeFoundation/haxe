@@ -418,6 +418,7 @@ let needs_dereferencing for_assignment expr =
 			| TCall ({ eexpr = TField (_, FStatic ({ cl_path = syntax_type_path }, { cf_name = name })) }, _) ->
 				(match name with
 					| "codeDeref" -> for_assignment
+					| "coalesce" -> for_assignment
 					| _ -> false
 				)
 			| _ -> false
@@ -2397,6 +2398,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			in
 			match name with
 				| "code" | "codeDeref" -> self#write_expr_syntax_code args
+				| "coalesce" -> self#write_expr_syntax_coalesce args
 				| "instanceof" -> self#write_expr_syntax_instanceof args
 				| "nativeClassName" -> self#write_expr_syntax_native_class_name args
 				| "foreach" -> self#write_expr_syntax_foreach args
@@ -2544,6 +2546,18 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			self#write "(";
 			write_args self#write (fun e -> self#write_expr e) args;
 			self#write ")"
+		(**
+			Writes `$left ?? $right` expression to output buffer (for `php.Syntax.coalesce()`)
+		*)
+		method write_expr_syntax_coalesce args =
+			match args with
+				| left :: right :: [] ->
+					self#write "(";
+					self#write_expr left;
+					self#write " ?? ";
+					self#write_expr right;
+					self#write ")";
+				| _ -> fail self#pos __POS__
 		(**
 			Writes `instanceof` expression to output buffer (for `php.Syntax.instanceof()`)
 		*)
