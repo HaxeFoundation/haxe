@@ -38,55 +38,58 @@ l2.popLast() == "33";
 l2.pop() == "22";
 var l3 = l.filter(function(i:String) return i != "2");
 l3.pop() == "1";
-l3.pop() == "3";
+l3.popLast() == "3";
 
 // keyValueIterator
-var l4 = new List();
-l4.add(1);
-l4.add(2);
-l4.add(3);
-l4.add(5);
-l4.add(8);
-[for (k=>v in l4) k] == [0,1,2,3,4];
-[for (k=>v in l4) v] == [1,2,3,5,8];
-[for (k=>v in l4) k*v] == [0,2,6,15,32];
+var l3 = new List();
+l3.add(1);
+l3.add(2);
+l3.add(3);
+l3.add(5);
+l3.add(8);
+[for (k=>v in l3) k] == [0,1,2,3,4];
+[for (k=>v in l3) v] == [1,2,3,5,8];
+[for (k=>v in l3) k*v] == [0,2,6,15,32];
+
+l3.clear();
 
 // removeLast
-var l5 = new List();
-l5.add(0);
-l5.removeLast(0) == true;
-l5.length == 0;
-l5.removeLast(0) == false;
-l5.length == 0;
-for(i in 0...3) l5.add(i);
-l5.add(0);
-l5.removeLast(0) == true;
-l5.length == 3;
-l5.removeLast(9) == false;
-l5.length == 3;
-l5.first() == 0;
-l5.last() == 2;
+l3.add(0);
+l3.removeLast(0) == true;
+l3.length == 0;
+l3.removeLast(0) == false;
+l3.length == 0;
+for(i in 0...3) l3.add(i);
+l3.add(0);
+l3.removeLast(0) == true;
+l3.length == 3;
+l3.removeLast(9) == false;
+l3.length == 3;
+l3.first() == 0;
+l3.last() == 2;
+
+l3.clear();
 
 // copy
-var l6 = new List();
-for(i in 0...3) l6.add(i);
-var copy = l6.copy();
-copy != l6;
+for(i in 0...3) l3.add(i);
+var copy = l3.copy();
+copy != l3;
 [for(i in copy) i] == [0, 1, 2];
 
+l3.clear();
+
 // reverse
-var l7 = new List();
-l7.reverse();
-l7.length == 0;
-for(i in 0...3) l7.add(i);
-l7.reverse();
-[for(i in l7) i] == [2, 1, 0];
-l7.first() == 2;
-l7.last() == 0;
-l7.pop() == 2;
-l7.reverse();
-[for(i in l7) i] == [0, 1];
-l7.popLast() == 1;
-[for(i in l7) i] == [0];
-l7.reverse();
-[for(i in l7) i] == [0];
+l3.reverse();
+l3.length == 0;
+for(i in 0...3) l3.add(i);
+l3.reverse();
+[for(i in l3) i] == [2, 1, 0];
+l3.first() == 2;
+l3.last() == 0;
+l3.pop() == 2;
+l3.reverse();
+[for(i in l3) i] == [0, 1];
+l3.popLast() == 1;
+[for(i in l3) i] == [0];
+l3.reverse();
+[for(i in l3) i] == [0];
