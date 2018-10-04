@@ -57,13 +57,17 @@ class FPHelper {
 
 	static inline function _floatToI32(f: Float): Int {
 		if ( f == 0 )
+		#if js
 			return 1 / f > 0 ? 0 : 0x80000000;
+		#else
+			return 0;
+		#end
 		if (Math.isNaN(f))
 			return 0x7FC00000;
 		var af = f < 0 ? -f : f;
 		var exp = Math.floor(Math.log(af) / LN2);
 		if (exp > 127) {
-			return f < 0 ? 0xFF800000 :0x7F800000;
+			return f < 0 ? 0xFF800000 : 0x7F800000;
 		} else {
 			if (exp <= -127) {
 				exp = -127;
@@ -85,7 +89,11 @@ class FPHelper {
 		var i64 = i64tmp;
 		if (v == 0) {
 			i64.set_low(0);
+			#if js
 			i64.set_high(1 / v > 0 ? 0 : 0x80000000);
+			#else
+			i64.set_high(0);
+			#end
 		} else if (!Math.isFinite(v)) {
 			i64.set_low(0);
 			i64.set_high(Math.isNaN(v) ? 0x7FF80000 : (v > 0 ? 0x7FF00000 : 0xFFF00000));
