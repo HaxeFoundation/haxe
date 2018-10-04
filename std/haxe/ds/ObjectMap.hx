@@ -68,7 +68,12 @@ extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 		See `Map.iterator`
 	**/
 	public function iterator():Iterator<V>;
-	
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+	public function keyValueIterator():KeyValueIterator<K, V>;
+
 	/**
 		See `Map.copy`
 	**/

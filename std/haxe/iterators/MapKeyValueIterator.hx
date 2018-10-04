@@ -26,9 +26,10 @@ import haxe.ds.IntMap;
 /**
 	This Key/Value iterator can be used to iterate across maps.
 **/
+@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator")
 class MapKeyValueIterator<K, V> {
 	var map:Map<K, V>;
-	var keys:Iterator<Int>;
+	var keys:Iterator<K>;
 
  	public inline function new(map:Map<K, V>) {
 		this.map = map;

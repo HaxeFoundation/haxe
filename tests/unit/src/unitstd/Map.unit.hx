@@ -56,6 +56,15 @@ map.exists("bar") == false;
 map.exists("baz") == true;
 map.get("bar") == null;
 
+var map3 = [1=>"2",2=>"4",3=>"6"];
+var keys = [for (k=>v in map3) k];
+keys.sort(Reflect.compare); 
+keys == [1,2,3];
+var values = [for (k=>v in map3) v];
+values.sort(Reflect.compare); 
+values == ["2","4","6"];
+
+
 // Int
 var map = new Map();
 map.exists(1) == false;
@@ -104,6 +113,14 @@ map.exists(2) == false;
 map.exists(3) == true;
 map.get(2) == null;
 
+var map3 = [1=>2,2=>4,3=>6]
+var keys = [for (k=>v in map3) k];
+keys.sort(Reflect.compare); 
+keys == [1,2,3];
+var values = [for (k=>v in map3) v];
+values.sort(Reflect.compare); 
+values == [2,4,6];
+
 // Hashable
 var map = new Map();
 var a = new unit.MyAbstract.ClassWithHashCode(1);
@@ -120,6 +137,15 @@ map.exists(c) == true;
 map.get(a) == 1;
 map.get(b) == 2;
 map.get(c) == 3;
+
+var keys = [for (k=>v in map) k];
+keys[0] in [a,b,c];
+keys[1] in [a,b,c];
+keys[2] in [a,b,c];
+var values = [for (k=>v in map) v];
+values[0] in [1,2,3];
+values[1] in [1,2,3];
+values[2] in [1,2,3];
 
 var copied = map.copy();
 copied != map;
@@ -170,6 +196,15 @@ map.exists(c) == true;
 map.get(a) == 1;
 map.get(b) == 2;
 map.get(c) == 3;
+
+var keys = [for (k=>v in map) k];
+keys[0] in [a,b,c];
+keys[1] in [a,b,c];
+keys[2] in [a,b,c];
+var values = [for (k=>v in map) v];
+values[0] in [1,2,3];
+values[1] in [1,2,3];
+values[2] in [1,2,3];
 
 var copied = map.copy();
 copied != map;
