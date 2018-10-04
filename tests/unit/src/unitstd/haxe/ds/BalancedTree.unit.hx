@@ -72,3 +72,13 @@ for (k in test.keys()) {
 	eq(ms.remove(Std.string(k)), true);
 	eq(ms.exists(Std.string(k)), false);
 }
+
+// keyValueIterator
+var test2 = new haxe.ds.BalancedTree<Int, Int>();
+var keys1 = [1,2,3];
+var values1 = [2,4,6];
+for(i in 0 ... keys1.length) test2.set(keys[i], values[i]);
+
+[for(k=>v in test2) k] == [1,2,3];
+[for(k=>v in test2) v] == [2,4,6];
+[for(k=>v in test2) k*v] == [2,8,18];
