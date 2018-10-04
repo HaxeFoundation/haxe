@@ -26,7 +26,7 @@
  	all platforms.
  **/
 abstract Int32(Int) from Int to Int {
-	@:op(-A) private inline function negate():Int32 return (this==-2147483648) ? -2147483648 : -this;
+	@:op(-A) private inline function negate():Int32 return clamp(~this+1);
 
 	@:op(++A) private inline function preIncrement():Int32
 		return this = clamp(++this);
