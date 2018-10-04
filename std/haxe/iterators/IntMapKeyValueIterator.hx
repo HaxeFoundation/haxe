@@ -25,18 +25,18 @@ import haxe.ds.IntMap;
 
 class IntMapKeyValueIterator<T> {
 	var key:Int;
-    var map:IntMap<T>;
+	var map:IntMap<T>;
 	var iter:Iterator<Int>;
-	
+
  	public inline function new(map:IntMap<T>) {
 		this.map = map;
 		this.iter = map.keys();
 	}
-	
+
  	public inline function hasNext():Bool {
 		return iter.hasNext();
 	}
-	
+
  	public inline function next():{key:Int,value:T} {
 		var key = iter.next();
 		return {value: map.get(key), key:key};
