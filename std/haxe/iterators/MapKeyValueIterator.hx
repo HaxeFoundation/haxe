@@ -28,10 +28,10 @@ import haxe.ds.IntMap;
 **/
 @:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator")
 class MapKeyValueIterator<K, V> {
-	var map:Map<K, V>;
+	var map:haxe.Constraints.IMap<K, V>;
 	var keys:Iterator<K>;
 
- 	public inline function new(map:Map<K, V>) {
+ 	public inline function new(map:haxe.Constraints.IMap<K, V>) {
 		this.map = map;
 		this.keys = map.keys();
 	}
