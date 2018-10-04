@@ -77,7 +77,7 @@ for (k in test.keys()) {
 var test2 = new haxe.ds.BalancedTree<Int, Int>();
 var keys1 = [1,2,3];
 var values1 = [2,4,6];
-for(i in 0 ... keys1.length) test2.set(keys[i], values[i]);
+for(i in 0 ... keys1.length) test2.set(keys1[i], values1[i]);
 
 [for(k=>v in test2) k] == [1,2,3];
 [for(k=>v in test2) v] == [2,4,6];
