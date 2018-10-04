@@ -254,7 +254,7 @@ let get_prototype v p = match vresolve v with
 let emit_method_call exec name execs p env =
 	let vthis = exec env in
 	let proto = get_prototype vthis p in
-	let vf = proto_field_raise proto name in
+	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
