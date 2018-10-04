@@ -113,7 +113,7 @@ map.exists(2) == false;
 map.exists(3) == true;
 map.get(2) == null;
 
-var map3 = [1=>2,2=>4,3=>6]
+var map3 = [1=>2,2=>4,3=>6];
 var keys = [for (k=>v in map3) k];
 keys.sort(Reflect.compare); 
 keys == [1,2,3];
