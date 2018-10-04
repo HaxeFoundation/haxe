@@ -89,13 +89,6 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	public inline function iterator() {
 		return this.values.iterator();
 	}
-
-	/**
-		See `Map.keyValueIterator`
-	**/
-	public inline function keyValueIterator() : KeyValueIterator<K, V> {
-		return new haxe.iterators.MapKeyValueIterator(this);
-	}
 }
 
 private class HashMapData<K:{ function hashCode():Int; },V> {
