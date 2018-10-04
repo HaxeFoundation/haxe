@@ -64,11 +64,17 @@ extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 		See `Map.iterator`
 	**/
 	public function iterator() : Iterator<T>;
-	
+
 	/**
 		See `Map.keyValueIterator`
 	**/
+#if eval
+	public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+#else
 	public function keyValueIterator() : KeyValueIterator<Int, T>;
+#end
 
 	/**
 		See `Map.copy`

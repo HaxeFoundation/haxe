@@ -88,7 +88,7 @@ import php.NativeIndexedArray;
 		See `Map.keyValueIterator`
 	**/
 	public inline function keyValueIterator() : KeyValueIterator<Int, T> {
-		return new haxe.iterators.IntMapKeyValueIterator(this);
+		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
 	public inline function copy() : IntMap<T> {

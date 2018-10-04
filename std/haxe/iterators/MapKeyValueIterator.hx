@@ -23,22 +23,30 @@ package haxe.iterators;
 
 import haxe.ds.IntMap;
 
-class IntMapKeyValueIterator<T> {
-	var key:Int;
-	var map:IntMap<T>;
-	var iter:Iterator<Int>;
+/**
+	This Key/Value iterator can be used to iterate across maps.
+**/
+class MapKeyValueIterator<K, V> {
+	var map:Map<K, V>;
+	var keys:Iterator<Int>;
 
- 	public inline function new(map:IntMap<T>) {
+ 	public inline function new(map:Map<K, V>) {
 		this.map = map;
-		this.iter = map.keys();
+		this.keys = map.keys();
 	}
 
+	/**
+		See `Iterator.hasNext`
+	**/
  	public inline function hasNext():Bool {
-		return iter.hasNext();
+		return keys.hasNext();
 	}
 
- 	public inline function next():{key:Int,value:T} {
-		var key = iter.next();
+	/**
+		See `Iterator.next`
+	**/
+ 	public inline function next():{key:K,value:V} {
+		var key = keys.next();
 		return {value: map.get(key), key:key};
 	}
 }

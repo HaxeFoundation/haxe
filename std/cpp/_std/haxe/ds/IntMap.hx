@@ -84,7 +84,7 @@ package haxe.ds;
 	}
 
 	public inline function keyValueIterator() : KeyValueIterator<Int, T> {
-		return new haxe.iterators.IntMapKeyValueIterator(this);
+		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
 	public function copy() : IntMap<T> {
