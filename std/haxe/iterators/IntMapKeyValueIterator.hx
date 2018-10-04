@@ -19,65 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe.ds;
+package haxe.iterators;
 
-/**
-	IntMap allows mapping of Int keys to arbitrary values.
+import haxe.ds.IntMap;
 
-	See `Map` for documentation details.
-
-	@see https://haxe.org/manual/std-Map.html
-**/
-extern class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
-
-	/**
-		Creates a new IntMap.
-	**/
-	public function new() : Void;
-
-	/**
-		See `Map.set`
-	**/
-	public function set( key : Int, value : T ) : Void;
-
-	/**
-		See `Map.get`
-	**/
-	public function get( key : Int ) : Null<T>;
-
-	/**
-		See `Map.exists`
-	**/
-	public function exists( key : Int ) : Bool;
-
-	/**
-		See `Map.remove`
-	**/
-	public function remove( key : Int ) : Bool;
-
-	/**
-		See `Map.keys`
-	**/
-	public function keys() : Iterator<Int>;
-
-	/**
-		See `Map.iterator`
-	**/
-	public function iterator() : Iterator<T>;
+class IntMapKeyValueIterator<T> {
+	var key:Int;
+    var map:IntMap<T>;
+	var iter:Iterator<Int>;
 	
-	/**
-		See `Map.keyValueIterator`
-	**/
-	public function keyValueIterator() : KeyValueIterator<Int, T>;
-
-	/**
-		See `Map.copy`
-	**/
-	public function copy() : IntMap<T>;
+ 	public inline function new(map:IntMap<T>) {
+		this.map = map;
+		this.iter = map.keys();
+	}
 	
-	/**
-		See `Map.toString`
-	**/
-	public function toString() : String;
-
+ 	public inline function hasNext():Bool {
+		return iter.hasNext();
+	}
+	
+ 	public inline function next():{key:Int,value:T} {
+		var key = iter.next();
+		return {value: map.get(key), key:key};
+	}
 }

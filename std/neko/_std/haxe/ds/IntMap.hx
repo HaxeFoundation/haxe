@@ -56,7 +56,11 @@ package haxe.ds;
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
 	}
-	
+
+	public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+		return new haxe.iterators.IntMapKeyValueIterator(this);
+	}
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));
