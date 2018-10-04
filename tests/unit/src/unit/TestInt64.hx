@@ -40,6 +40,11 @@ class TestInt64 extends Test {
 
 	public function testNegateOverflow_Issue7485()
 	{
+		// Guarantee two's complement overflow (-min == min)
+		//  - discussion: https://github.com/HaxeFoundation/haxe/pull/7491
+		var min = haxe.Int64.parseString('-9223372036854775808');
+		eq( min==(-min), true);
+
 		// 0x7fffffff - 0x7fffffffffffffff = -7fffffff80000000
 		var a = haxe.Int64.parseString('2147483647');
 		var b = haxe.Int64.parseString('9223372036854775807');
