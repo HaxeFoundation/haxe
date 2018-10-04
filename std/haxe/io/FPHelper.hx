@@ -55,47 +55,63 @@ class FPHelper {
 		return sign * m * Math.pow(2, e - 1023);
 	}
 
-	static inline function _floatToI32(f:Float):Int {
-		if (f == 0)
-			return 0;
+	static inline function _floatToI32(f: Float): Int {
+		if ( f == 0 )
+			return 1 / f > 0 ? 0 : 0x80000000;
+		if (Math.isNaN(f))
+			return 0x7FC00000;
 		var af = f < 0 ? -f : f;
 		var exp = Math.floor(Math.log(af) / LN2);
 		if (exp > 127) {
-			return 0x7F800000;
+			return f < 0 ? 0xFF800000 :0x7F800000;
 		} else {
 			if (exp <= -127) {
 				exp = -127;
 				af *= 7.1362384635298e+44; // af * 0.5 * 0x800000 / Math.pow(2, -127)
 			} else {
-				af = (af / Math.pow(2, exp) - 1.0) * 0x800000;
+				af /= Math.pow(2, exp);
+				if (af >= 2.0) {
+					af *= 0.5;
+					++ exp;
+				}
+				af = (af - 1.0) * 0x800000;
 			}
 			return (f < 0 ? 0x80000000 : 0) | ((exp + 127) << 23) | Math.round(af);
 		}
 	}
 
-	static inline function _doubleToI64(v:Float):Int64@:privateAccess {
+	@:access(haxe.Int64)
+	static inline function _doubleToI64(v: Float): Int64 {
 		var i64 = i64tmp;
 		if (v == 0) {
 			i64.set_low(0);
-			i64.set_high(0);
+			i64.set_high(1 / v > 0 ? 0 : 0x80000000);
 		} else if (!Math.isFinite(v)) {
 			i64.set_low(0);
-			i64.set_high(v > 0 ? 0x7FF00000 : 0xFFF00000);
+			i64.set_high(Math.isNaN(v) ? 0x7FF80000 : (v > 0 ? 0x7FF00000 : 0xFFF00000));
 		} else {
 			var av = v < 0 ? -v : v;
 			var exp = Math.floor(Math.log(av) / LN2);
 			if (exp > 1023) {
 				i64.set_low(0xFFFFFFFF);
-				i64.set_high(0x7FEFFFFF);
+				i64.set_high(v > 0 ? 0x7FEFFFFF : 0xFFEFFFFF);
 			} else {
 				if (exp <= -1023) {
 					exp = -1023;
-					av = av / 2.2250738585072014e-308;
+					av /= 2.2250738585072014e-308; // Math.pow(2, -1023) / 0.5
 				} else {
-					av = av / Math.pow(2, exp) - 1.0;
+					av /= Math.pow(2, exp);
+					if (av >= 2.0) {
+						++ exp;
+						av *= 0.5;
+					} else if (av < 1.0) {
+						-- exp;
+						av *= 2.0;
+					}
+					av -= 1.0;
 				}
+				// If the "sig" is outside of Int32 range then the result will be unspecified in non-js
 				var sig = Math.fround(av * 4503599627370496.); // 2^52
-				// Note: If "sig" is outside of the signed Int32 range, the result is unspecified in HL, C#, Java and Neko,
 				var sig_l = Std.int(sig);
 				var sig_h = Std.int(sig / 4294967296.0);
 				i64.set_low(sig_l);
