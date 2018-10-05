@@ -20,8 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import haxe.iterators..StringIterator;
-import haxe.iterators..StringKeyValueIterator;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 
 /**
 	The basic String class.
@@ -88,7 +88,7 @@ extern class String {
 		internal encoding of strings in different of runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
 	**/
-	@:pure @:runtime inline function iterator() : StringIterator<T> {
+	@:pure @:runtime inline function iterator() : StringIterator {
 		return new StringIterator(this);
 	}
 
@@ -99,7 +99,7 @@ extern class String {
 		internal encoding of strings in different of runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
 	**/
-	@:pure @:runtime inline function iterator() : StringKeyValueIterator<T> {
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
 		return new StringKeyValueIterator(this);
 	}
 

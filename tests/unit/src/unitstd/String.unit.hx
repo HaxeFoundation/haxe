@@ -162,3 +162,13 @@ String.fromCharCode(65) == "A";
 // ensure int strings compared as strings, not parsed ints (issue #3734)
 ("3" > "11") == true;
 (" 3" < "3") == true;
+
+// iterator
+var s = 'abвг';
+function testCodes(codes:Array<Int>, ?pos:haxe.PosInfos) {
+	aeq(codes, [97, 98, 1074, 1075], pos);
+}
+testCodes([for(c in s) c]);
+testCodes([for(c in (s:Iterable<Int>)) c]);
+testCodes([for(c in ((s:Dynamic).iterator():Iterator<Int>)) c]);
+testCodes([for(c in (Reflect.field(s, 'iterator')():Iterator<Int>)) c]);

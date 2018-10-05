@@ -22,6 +22,8 @@
 package php;
 
 import haxe.PosInfos;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 
 using php.Global;
 
@@ -704,6 +706,14 @@ private class HxString {
 		}
 		var char = Global.mb_substr(str, index, 1);
 		return char == '' ? null : Boot.unsafeOrd(char);
+	}
+
+	public static function iterator( str:String ):StringIterator {
+		return new StringIterator(str);
+	}
+
+	public static function keyValueIterator( str:String ):StringKeyValueIterator {
+		return new StringKeyValueIterator(str);
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {

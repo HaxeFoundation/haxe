@@ -2024,6 +2024,24 @@ module StdString = struct
 		else vint (char_at this i)
 	)
 
+	let iterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_string_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
+	let keyValueIterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_string_key_value_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
 	let fromCharCode = vfun1 (fun i ->
 		let i = decode_int i in
 		try
@@ -3292,6 +3310,8 @@ let init_standard_library builtins =
 	] [
 		"charAt",StdString.charAt;
 		"charCodeAt",StdString.charCodeAt;
+		"iterator",StdString.iterator;
+		"keyValueIterator",StdString.keyValueIterator;
 		"indexOf",StdString.indexOf;
 		"lastIndexOf",StdString.lastIndexOf;
 		"split",StdString.split;
