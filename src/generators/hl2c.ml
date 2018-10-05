@@ -37,6 +37,7 @@ type output_options =
 	| OODecreaseIndent
 	| OOBeginBlock
 	| OOEndBlock
+	| OOBreak
 
 type function_entry = {
 	mutable fe_name : string;
@@ -606,6 +607,7 @@ let generate_function ctx f =
 				| OOLabel -> sline "%s:" (label i)
 				| OOCase i -> sline "case %i:" i
 				| OODefault -> line "default:"
+				| OOBreak -> line "break;";
 				| OOIncreaseIndent -> block()
 				| OODecreaseIndent -> unblock()
 				| OOBeginBlock ->  line "{"
@@ -940,12 +942,17 @@ let generate_function ctx f =
 		| OSwitch (r,idx,eend) ->
 			sline "switch(%s) {" (reg r);
 			block();
-			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
-			Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
 			let pend = i+1+eend in
 			(* insert at end if we have another switch case here *)
 			let old = output_options.(pend) in
 			output_options.(pend) <- [];
+			(* insert cases *)
+			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
+			Array.iteri (fun k delta ->
+				output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent];
+				if delta = eend then output_at pend OOBreak;
+			) idx;
+			(* insert end switch *)
 			output_at2 pend ([OODecreaseIndent;OODecreaseIndent;OOEndBlock] @ List.rev old);
 		| ONullCheck r ->
 			sexpr "if( %s == NULL ) hl_null_access()" (reg r)
