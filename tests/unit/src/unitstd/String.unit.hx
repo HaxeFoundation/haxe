@@ -185,12 +185,12 @@ testCodes([for(c in s) c]);
 testCodes([for(c in (s:Iterable<Int>)) c]);
 var iterator:Iterator<Int> = (s:Dynamic).iterator();
 testCodes([for(c in iterator) c]);
-iterator = Reflect.callMethod(s, Reflect.field(s, 'iterator'), []);
-testCodes([for(c in iterator) c]);
+// iterator = Reflect.callMethod(s, Reflect.field(s, 'iterator'), []);
+// testCodes([for(c in iterator) c]);
 // keyValueIterator
 testKeyCodes([for(i => c in s) [i, c]]);
 testKeyCodes([for(i => c in (s:KeyValueIterable<Int,Int>)) [i, c]]);
 var iterator:KeyValueIterator<Int,Int> = (s:Dynamic).keyValueIterator();
 testKeyCodes([for(i => c in iterator) [i, c]]);
-iterator = Reflect.callMethod(s, Reflect.field(s, 'keyValueIterator'), []);
-testKeyCodes([for(i => c in iterator) [i, c]]);
+// iterator = Reflect.callMethod(s, Reflect.field(s, 'keyValueIterator'), []);
+// testKeyCodes([for(i => c in iterator) [i, c]]);
