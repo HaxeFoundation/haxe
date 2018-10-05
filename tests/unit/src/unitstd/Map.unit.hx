@@ -278,15 +278,15 @@ HelperMacros.typeError(map[1] = 1) == true;
 
 var map = [1=>"2",2=>"4"];
 var iterable:KeyValueIterable<Int, String> = map; 
-var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+var values = [for(kv in iterable.keyValueIterator()) kv.value];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
 
-var map:haxe.ds.StringMap<String> = ["1"=>"2","2"=>"4"];
-var iterable:KeyValueIterable<String, String> = map; 
-var iterator:KeyValueIterator<String,String> = iterable.keyValueIterator();
-
-var map:haxe.ds.IntMap<String> = [1=>"2",2=>"4"];
-var iterable:KeyValueIterable<Int, String> = map; 
 var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+var keys = [for(kv in iterator) kv.key];
+keys[0] in [1,2];
+keys[1] in [1,2];
+
 
 // Test through Dynamic
 
@@ -303,6 +303,8 @@ var it:KeyValueIterator<Int,String> = cast it;
 var values = [for(kv in it) kv.value];
 values[0] in ["2","4"];
 values[1] in ["2","4"];
+var it = dyn.keyValueIterator(); 
+var it:KeyValueIterator<Int,String> = cast it;
 var keys = [for(kv in it) kv.key];
 keys[0] in [1,2];
 keys[1] in [1,2];
@@ -316,11 +318,15 @@ var values = [for(v in it) v];
 values[0] in ["2","4"];
 values[1] in ["2","4"];
 
-var it = dyn.keyValueIterator; 
+var it = dyn.keyValueIterator(); 
 var it:KeyValueIterator<String,String> = cast it;
 var values = [for(kv in it) kv.value];
 values[0] in ["2","4"];
 values[1] in ["2","4"];
+
+var it = dyn.keyValueIterator(); 
+var it:KeyValueIterator<String,String> = cast it;
 var keys = [for(kv in it) kv.key];
 keys[0] in ["1a","1b"];
 keys[1] in ["1a","1b"];
+*/

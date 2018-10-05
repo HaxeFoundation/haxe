@@ -55,3 +55,17 @@ keys2b == [1,2,3];
 var values2b = [for (k=>v in map2) v];
 values2b.sort(Reflect.compare); 
 values2b == ["2","4","6"];
+
+
+// Test unification
+
+var map:haxe.ds.IntMap<String> = [1=>"2",2=>"4"];
+var iterable:KeyValueIterable<Int, String> = map; 
+var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+var values = [for(kv in iterator) kv.value];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
+var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+var keys = [for(kv in iterator) kv.key];
+keys[0] in [1,2];
+keys[1] in [1,2];
