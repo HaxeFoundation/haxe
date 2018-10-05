@@ -269,6 +269,25 @@ var map:Map<String, Int>;
 HelperMacros.typedAs((null : Map<String, Int>), map = []);
 HelperMacros.typeError(map[1] = 1) == true;
 
+['' => ''].keyValueIterator().next().key == '';
+['' => ''].keyValueIterator().next().value == '';
+[2 => 3].keyValueIterator().next().key == 2;
+[2 => 3].keyValueIterator().next().value == 3;
+
+// Test unification
+
+var map = [1=>"2",2=>"4"];
+var iterable:KeyValueIterable<Int, String> = map; 
+var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+
+var map:haxe.ds.StringMap<String> = ["1"=>"2","2"=>"4"];
+var iterable:KeyValueIterable<String, String> = map; 
+var iterator:KeyValueIterator<String,String> = iterable.keyValueIterator();
+
+var map:haxe.ds.IntMap<String> = [1=>"2",2=>"4"];
+var iterable:KeyValueIterable<Int, String> = map; 
+var iterator:KeyValueIterator<Int,String> = iterable.keyValueIterator();
+
 // Test through Dynamic
 
 var map = [1=>"2",2=>"4"];
@@ -297,7 +316,7 @@ var values = [for(v in it) v];
 values[0] in ["2","4"];
 values[1] in ["2","4"];
 
-var it = dyn.keyValueIterator(); 
+var it = dyn.keyValueIterator; 
 var it:KeyValueIterator<String,String> = cast it;
 var values = [for(kv in it) kv.value];
 values[0] in ["2","4"];
