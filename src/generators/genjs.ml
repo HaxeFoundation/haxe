@@ -327,6 +327,7 @@ let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
+			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
@@ -336,12 +337,32 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		has_feature ctx "HxOverrides.iter" && loop x.etype
+		(has_feature ctx "HxOverrides.iter" || has_feature ctx "String.iterator") && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
+
+let is_dynamic_key_value_iterator ctx e =
+	let check x =
+		let rec loop t = match follow t with
+			| TInst ({ cl_path = [],"String" },_)
+			| TInst ({ cl_kind = KTypeParameter _}, _)
+			| TAnon _
+			| TDynamic _
+			| TMono _ ->
+				true
+			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				loop (Abstract.get_underlying_type a tl)
+			| _ ->
+				false
+		in
+		has_feature ctx "String.keyValueIterator" && loop x.etype
+	in
+	match e.eexpr with
+	| TField (x,f) when field_name f = "keyValueIterator" -> check x
+	| _ -> false
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -444,6 +465,11 @@ let rec gen_call ctx e el in_value =
 	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$getIterator";
 		print ctx "$getIterator(";
+		gen_value ctx x;
+		print ctx ")";
+	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_key_value_iterator ctx e ->
+		add_feature ctx "use.$getKeyValueIterator";
+		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
@@ -1537,7 +1563,11 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else if (typeof o == 'string') return HxOverrides.strIter(o); else return o.iterator(); }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getKeyValueIterator" then begin
+		print ctx "function $getKeyValueIterator(o) { if (typeof o == 'string') return HxOverrides.strKVIter(o); else return o.keyValueIterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

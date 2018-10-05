@@ -19,6 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import js.Syntax;
+import js.Lib;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi class Reflect {
 
 	@:pure
@@ -26,9 +32,17 @@
 		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
-	@:pure
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		try return o[cast field] catch( e : Dynamic ) return null;
+		var result = try o[cast field] catch( e : Dynamic ) null;
+		if(result == null) {
+			switch(field) {
+				case 'iterator' if(Syntax.typeof(o) == 'string'):
+					return () -> new StringIterator(Lib.nativeThis);
+				case 'keyValueIterator' if(Syntax.typeof(o) == 'string'):
+					return () -> new StringKeyValueIterator(Lib.nativeThis);
+			}
+		}
+		return result;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
