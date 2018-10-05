@@ -41,6 +41,9 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function iterator():NativeIndexedArrayIterator<T>
 		return new NativeIndexedArrayIterator(this);
 
+	public inline function keyValueIterator():NativeIndexedArrayKeyValueIterator<T>
+		return new NativeIndexedArrayKeyValueIterator(this);
+
 	@:to
 	inline function toHaxeArray():Array<T>
 		return @:privateAccess Array.wrap(this);
@@ -66,5 +69,24 @@ private class NativeIndexedArrayIterator<T> {
 
 	public inline function next():T {
 		return data[current++];
+	}
+}
+
+private class NativeIndexedArrayKeyValueIterator<T> {
+	var length:Int;
+	var current:Int = 0;
+	var data:NativeIndexedArray<T>;
+
+	public inline function new(data:NativeIndexedArray<T>) {
+		length = Global.count(data);
+		this.data = data;
+	}
+
+	public inline function hasNext():Bool {
+		return current < length;
+	}
+
+	public inline function next():{key:Int, value:T} {
+		return {key:current, value:data[current++]};
 	}
 }
