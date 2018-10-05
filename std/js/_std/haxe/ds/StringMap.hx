@@ -125,7 +125,7 @@ private class StringMapIterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 

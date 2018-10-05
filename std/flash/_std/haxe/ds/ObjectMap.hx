@@ -70,7 +70,7 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constrain
 
 	#end
 
-	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 

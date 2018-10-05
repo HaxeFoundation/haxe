@@ -397,7 +397,7 @@ import java.NativeArray;
 		return new IntMapValueIterator(this);
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<Int, T> 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> 
 	{
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}

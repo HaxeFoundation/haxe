@@ -57,7 +57,7 @@ package haxe.ds;
 		return l.iterator();
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 

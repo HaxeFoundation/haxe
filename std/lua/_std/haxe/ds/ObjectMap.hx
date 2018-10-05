@@ -80,7 +80,7 @@ class ObjectMap<A,B> implements haxe.Constraints.IMap<A,B> {
 		};
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<A, B> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<A, B> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 

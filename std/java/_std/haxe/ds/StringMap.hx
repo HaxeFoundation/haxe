@@ -390,7 +390,7 @@ import java.NativeArray;
 		return new StringMapKeyIterator(this);
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 

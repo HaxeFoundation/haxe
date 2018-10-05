@@ -81,7 +81,7 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 		};
 	}
 
-	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
