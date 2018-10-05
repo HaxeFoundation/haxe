@@ -121,9 +121,9 @@ abstract Vector<T>(VectorData<T>) {
 
 	public inline function map<S>(f:T->S):Vector<S> {
 		var result = new Vector(this.length);
-		for(i in 0...this.length) {
-			result[i] = f(get(i));
-		}
+		Syntax.foreach(this.data, function(key:Int, value:T) {
+			result[key] = f(value);
+		});
 		return result;
 	}
 
