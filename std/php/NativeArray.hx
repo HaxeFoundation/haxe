@@ -21,6 +21,8 @@
  */
 package php;
 
+import haxe.extern.EitherType;
+
 using php.Global;
 
 /**
@@ -55,7 +57,7 @@ private class NativeArrayKeyValueIterator {
 	public inline function new(data:NativeArray) {
 		length = Global.count(data);
 		this.keys = Global.array_keys(data);
-		this.data = Global.array_values(data);
+		this.values = Global.array_values(data);
 	}
 
 	public inline function hasNext():Bool {
@@ -63,6 +65,6 @@ private class NativeArrayKeyValueIterator {
 	}
 
 	public inline function next():{key:EitherType<String,Int>, value:Dynamic} {
-		return {key:keys[current], value:data[current++]};
+		return {key:keys[current], value:values[current++]};
 	}
 }

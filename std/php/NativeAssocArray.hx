@@ -45,13 +45,13 @@ abstract NativeAssocArray<T>(NativeArray) from NativeArray to NativeArray {
 private class NativeAssocArrayKeyValueIterator<T> {
 	var length:Int;
 	var current:Int = 0;
-	var keys:NativeIndexedArray<T>;
+	var keys:NativeIndexedArray<String>;
 	var values:NativeIndexedArray<T>;
 
 	public inline function new(data:NativeIndexedArray<T>) {
 		length = Global.count(data);
 		this.keys = Global.array_keys(data);
-		this.data = Global.array_values(data);
+		this.values = cast Global.array_values(data);
 	}
 
 	public inline function hasNext():Bool {
@@ -59,6 +59,6 @@ private class NativeAssocArrayKeyValueIterator<T> {
 	}
 
 	public inline function next():{key:String, value:T} {
-		return {key:keys[current], value:data[current++]};
+		return {key:keys[current], value:values[current++]};
 	}
 }
