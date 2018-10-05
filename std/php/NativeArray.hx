@@ -41,4 +41,28 @@ using php.Global;
 
 	public inline function iterator()
 		return (this:NativeIndexedArray<Dynamic>).iterator();
+
+	public inline function keyValueIterator():NativeArrayKeyValueIterator
+		return new NativeArrayKeyValueIterator(this);
+}
+
+private class NativeArrayKeyValueIterator {
+	var length:Int;
+	var current:Int = 0;
+	var keys:NativeIndexedArray<EitherType<String,Int>>;
+	var values:NativeIndexedArray<Dynamic>;
+
+	public inline function new(data:NativeArray) {
+		length = Global.count(data);
+		this.keys = Global.array_keys(data);
+		this.data = Global.array_values(data);
+	}
+
+	public inline function hasNext():Bool {
+		return current < length;
+	}
+
+	public inline function next():{key:EitherType<String,Int>, value:Dynamic} {
+		return {key:keys[current], value:data[current++]};
+	}
 }
