@@ -268,3 +268,40 @@ map["foo"] == 9;
 var map:Map<String, Int>;
 HelperMacros.typedAs((null : Map<String, Int>), map = []);
 HelperMacros.typeError(map[1] = 1) == true;
+
+// Test through Dynamic
+
+var map = [1=>"2",2=>"4"];
+var dyn:Dynamic = map;
+var it = dyn.iterator(); 
+var it:Iterator<String> = cast it;
+var values = [for(v in it) v];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
+
+var it = dyn.keyValueIterator(); 
+var it:KeyValueIterator<Int,String> = cast it;
+var values = [for(kv in it) kv.value];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
+var keys = [for(kv in it) kv.key];
+keys[0] in [1,2];
+keys[1] in [1,2];
+
+
+var map = ["1a"=>"2","1b"=> "4"];
+var dyn:Dynamic = map;
+var it = dyn.iterator(); 
+var it:Iterator<String> = cast it;
+var values = [for(v in it) v];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
+
+var it = dyn.keyValueIterator(); 
+var it:KeyValueIterator<String,String> = cast it;
+var values = [for(kv in it) kv.value];
+values[0] in ["2","4"];
+values[1] in ["2","4"];
+var keys = [for(kv in it) kv.key];
+keys[0] in ["1a","1b"];
+keys[1] in ["1a","1b"];
