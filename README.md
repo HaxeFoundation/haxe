@@ -27,7 +27,7 @@ Haxe allows you to compile for the following targets:
 
 You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
 
-For more information about Haxe, head to the [offical Haxe website](https://haxe.org).
+For more information about Haxe, head to the [official Haxe website](https://haxe.org).
 
 ## License
 
@@ -59,7 +59,7 @@ See [extra/BUILDING.md](extra/BUILDING.md).
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
+For information on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
 
  * [Haxe Introduction](https://haxe.org/documentation/introduction/), an introduction to the Haxe toolkit
  * [The Haxe Manual](https://haxe.org/manual/), the reference manual for the Haxe language
@@ -80,7 +80,7 @@ You can get help and talk with fellow Haxers from around the world via:
 
 ## Version compatibility
 
-Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  | 
+Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  |
 ----          | ----  | ----   | ----   |  ---- | ----  | ---- |
 2.*           | 1.*   | 8-10   | -      | -     | -     | -    |
 3.0.0         | 2.0.0 |        | -      | -     | 5.1+  | -    |
