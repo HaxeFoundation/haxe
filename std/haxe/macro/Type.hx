@@ -753,7 +753,7 @@ typedef TVar = {
 		Special information which is internally used to keep track of closure.
 		information
 	**/
-	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: TypedExpr, isInline: Bool}>;
+	public var extra(default,never):Null<{params: Array<TypeParameter>, expr: Null<TypedExpr>}>;
 
 	/**
 		The metadata of the variable.
