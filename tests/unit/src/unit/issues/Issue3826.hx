@@ -36,6 +36,10 @@ class Issue3826 extends Test {
 	}
 
 	public function testReflect() {
+		#if (java || cs || lua)
+		return; // TODO
+		#end
+			
 		#if !flash
 		eq( Reflect.callMethod(this, get, []), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );
