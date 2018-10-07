@@ -1186,7 +1186,7 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
 		out
-	| HNull t1, HRef t2 when t1 == t2 ->
+	| HNull _, HRef t2 ->
 		let out = alloc_tmp ctx t in
 		op ctx (OJNotNull (r,2));
 		op ctx (ONull out);
