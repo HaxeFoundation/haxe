@@ -4,6 +4,7 @@ class Issue3826 extends Test {
 
 	var inull : Null<Int> = null;
 	var fnull : Null<Float> = null;
+	var dnull : Dynamic = null;
 
 	function get( a = 2, b = 4.25 ) {
 		return ""+a+"/"+b;
@@ -23,6 +24,7 @@ class Issue3826 extends Test {
 		eq( get(inull), "2/4.25" );
 		eq( get(inull,fnull), "2/4.25" );		
 		eq( get(fnull), "2/4.25" );
+		eq( get(dnull,dnull), "2/4.25" );
 		
 		#end
 	}
