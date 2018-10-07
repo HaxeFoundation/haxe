@@ -10,18 +10,32 @@ class Issue3826 extends Test {
 	}
 
 	public function test() {
+		eq( get(), "2/4.25" );
+		eq( get(5), "5/4.25" );
+		eq( get(5,8.5), "5/8.5" );
+
 		#if !flash
 		// flash does have two problems wrt these tests
 		// - not skippable nullable arg
 		// - explicit null args are cast to 0
-		eq( get(), "2/4.25" );
-		eq( get(5), "5/4.25" );
-		eq( get(5,8.5), "5/8.5" );
 		eq( get(8.5), "2/8.5" );
 
 		eq( get(inull), "2/4.25" );
 		eq( get(inull,fnull), "2/4.25" );		
 		eq( get(fnull), "2/4.25" );
+		
+		#end
+	}
+
+	public function testReflect() {
+		#if !flash
+		eq( Reflect.callMethod(this, get, []), "2/4.25" );
+		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );
+		eq( Reflect.callMethod(this, get, [5,8.5]), "5/8.5" );
+		eq( Reflect.callMethod(this, get, [null,8.5]), "2/8.5" );
+
+		eq( Reflect.callMethod(this, get, [null]), "2/4.25" );
+		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );		
 		#end
 	}
 
