@@ -32,17 +32,9 @@ import haxe.iterators.StringKeyValueIterator;
 		return js.Object.prototype.hasOwnProperty.call(o, field);
 	}
 
+	@:pure
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		var result = try o[cast field] catch( e : Dynamic ) null;
-		if(result == null) {
-			switch(field) {
-				case 'iterator' if(Syntax.typeof(o) == 'string'):
-					return () -> new StringIterator(Lib.nativeThis);
-				case 'keyValueIterator' if(Syntax.typeof(o) == 'string'):
-					return () -> new StringKeyValueIterator(Lib.nativeThis);
-			}
-		}
-		return result;
+		return try o[cast field] catch( e : Dynamic ) null;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
