@@ -35,11 +35,21 @@ class HxOverrides {
 	// we need to modify the transformer to call Reflect directly
 
 	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
-	static public function iterator(x) {
+	static public function iterator(x:Any):Any {
 		if (Boot.isArray(x)) {
 			return (x:Array<Dynamic>).iterator();
 		}
+		if (Boot.isString(x)) {
+			return new haxe.iterators.StringIterator(x);
+		}
 		return Syntax.callField(x, "iterator");
+	}
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
+	static public function keyValueIterator(x:Any):Any {
+		if (Boot.isString(x)) {
+			return new haxe.iterators.StringKeyValueIterator(x);
+		}
+		return Syntax.callField(x, "keyValueIterator");
 	}
 	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
 	static function eq( a:Dynamic, b:Dynamic ) : Bool {
