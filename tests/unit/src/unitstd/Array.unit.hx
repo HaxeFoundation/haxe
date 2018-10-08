@@ -304,3 +304,11 @@ var a : Array<Int> = [1,2,3,5,8];
 [for (k=>v in a) k] == [0,1,2,3,4];
 [for (k=>v in a) v] == [1,2,3,5,8];
 [for (k=>v in a) k*v] == [0,2,6,15,32];
+
+// keyValueIterator through Dynamic
+var a : Array<Int> = [1,2,3,5,8];
+var d : Dynamic = a;
+var it : KeyValueIterable<Int, Int> = d;
+[for (k=>v in it) k] == [0,1,2,3,4];
+[for (k=>v in it) v] == [1,2,3,5,8];
+[for (k=>v in it) k*v] == [0,2,6,15,32];
