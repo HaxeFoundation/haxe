@@ -305,10 +305,21 @@ var a : Array<Int> = [1,2,3,5,8];
 [for (k=>v in a) v] == [1,2,3,5,8];
 [for (k=>v in a) k*v] == [0,2,6,15,32];
 
-// keyValueIterator through Dynamic
+// keyValueIterator through Structure
 var a : Array<Int> = [1,2,3,5,8];
-var d : Dynamic = a;
-var it : KeyValueIterable<Int, Int> = d;
+var it : KeyValueIterable<Int, Int> = a;
 [for (k=>v in it) k] == [0,1,2,3,4];
 [for (k=>v in it) v] == [1,2,3,5,8];
 [for (k=>v in it) k*v] == [0,2,6,15,32];
+
+// keyValueIterator through Structure
+var a : Array<Int> = [1,2,3,5,8];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+var a2 = [for (k=>v in it) k];
+a2 == [0,1,2,3,4];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+a2 = [for (k=>v in it) v];
+a2 == [1,2,3,5,8];
+var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
+a2 = [for (k=>v in it) k*v];
+a2 == [0,2,6,15,32];
