@@ -142,6 +142,12 @@ class HxOverrides {
 		};
 	}
 
+	@:pure
+	@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator", "closure_read.keyValueIterator")
+	static function keyValueIter<T>( a : Array<T> ) {
+		return new haxe.iterators.ArrayKeyValueIterator(a);
+	}
+
 	static function __init__() untyped {
 #if (js_es < 5)
 		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
