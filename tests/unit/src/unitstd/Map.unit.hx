@@ -269,10 +269,12 @@ var map:Map<String, Int>;
 HelperMacros.typedAs((null : Map<String, Int>), map = []);
 HelperMacros.typeError(map[1] = 1) == true;
 
+#if !(java || cs)
 ['' => ''].keyValueIterator().next().key == '';
 ['' => ''].keyValueIterator().next().value == '';
 [2 => 3].keyValueIterator().next().key == 2;
 [2 => 3].keyValueIterator().next().value == 3;
+#end
 
 // Test unification
 
