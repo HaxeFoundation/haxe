@@ -41,11 +41,14 @@ class EReg {
 				case "i" : ropt |= FLAGS.CASELESS;
 				case "m" : ropt |= FLAGS.MULTILINE;
 				case "s" : ropt |= FLAGS.DOTALL;
-				case "u" : ropt |= FLAGS.UTF8;
 				case "g" : global = true;
 				default : null;
 			}
 		}
+
+		ropt |= FLAGS.UTF8; // always check validity of utf8 string
+		ropt |= FLAGS.UCP; // always enable utf8 character properties
+
 		if (global == null) global = false;
 		this.r = Rex.create(r, ropt);
 	}
@@ -82,10 +85,12 @@ class EReg {
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
+		var left = matchedLeft();
+		var matched = matched(0);
 		if( m[1] == null ) throw "No string matched";
 		return {
-			pos : m[1]-1,
-			len : m[2]-m[1]+ 1
+			pos : left.length,
+			len : matched.length
 		}
 	}
 
@@ -121,8 +126,9 @@ class EReg {
 	}
 
 	public function replace( s : String, by : String ) : String {
-		by = Rex.gsub(by, "\\$(\\d)", "%%%1"); // convert dollar sign matched groups to Rex equivalent
-		by = Rex.gsub(by, "\\${2}", "$"); // escape double dollar signs
+		var chunks = by.split("$$");
+		chunks = [for (chunk in chunks) Rex.gsub(chunk, "\\$(\\d)", "%%%1", 1)];
+		by = chunks.join("$");
 		return Rex.gsub(s,r,by, global ? null : 1);
 	}
 

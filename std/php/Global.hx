@@ -948,6 +948,11 @@ extern class Global {
 	static function utf8_decode( data:String ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.mb-internal-encoding.php
+	**/
+	static function mb_internal_encoding( ?encoding:String ) : EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-convert-encoding.php
 	**/
 	static function mb_convert_encoding( str:String, to_encoding:String, ?from_encoding:Dynamic ) : String;
@@ -1033,6 +1038,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-select.php
 	**/
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-get-contents.php
+	**/
+	static function stream_get_contents( handle:Resource, maxlength:Int = -1, offset:Int = -1 ) : EitherType<String,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php

@@ -29,14 +29,14 @@ open EvalMisc
 (* Helper *)
 
 let rope_path t = match follow t with
-	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> Rope.of_string (s_type_path path)
-	| TDynamic _ -> Rope.of_string "Dynamic"
+	| TInst({cl_path=path},_) | TEnum({e_path=path},_) | TAbstract({a_path=path},_) -> s_type_path path
+	| TDynamic _ -> "Dynamic"
 	| TFun _ | TAnon _ | TMono _ | TType _ | TLazy _ -> assert false
 
 let eone = mk (TConst(TInt (Int32.one))) t_dynamic null_pos
 
 let eval_const = function
-	| TString s -> EvalString.bytes_to_utf8 (Bytes.unsafe_of_string s)
+	| TString s -> EvalString.create_unknown s
 	| TInt i32 -> vint32 i32
 	| TFloat f -> vfloat (float_of_string f)
 	| TBool b -> vbool b
@@ -47,6 +47,10 @@ let is_int t = match follow t with
 	| TAbstract({a_path=[],"Int"},_) -> true
 	| _ -> false
 
+let is_string t = match follow t with
+	| TInst({cl_path=[],"String"},_) -> true
+	| _ -> false
+
 open EvalJitContext
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
@@ -55,7 +59,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 		if var.v_capture then emit_capture_write (get_capture_slot jit var.v_id) exec
 		else emit_local_write (get_slot jit var.v_id e1.epos) exec
 	| TField(ef,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
@@ -71,7 +75,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FAnon cf ->
 				begin match follow ef.etype with
 					| TAnon an ->
-						let l = PMap.foldi (fun k _ acc -> (hash_s k,()) :: acc) an.a_fields [] in
+						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name ef.epos in
 						emit_anon_field_write exec1 proto i name exec2
@@ -104,7 +108,7 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 		if var.v_capture then emit_capture_read_write (get_capture_slot jit var.v_id) exec op prefix
 		else emit_local_read_write (get_slot jit var.v_id e1.epos) exec op prefix
 	| TField(ef,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		let exec1 = jit_expr jit false ef in
 		let exec2 = jit_expr jit false e2 in
 		begin match fa with
@@ -156,6 +160,16 @@ and unop jit op flag e1 p =
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
 
+and jit_default jit return def =
+	match def with
+	| None ->
+		emit_null
+	| Some e ->
+		push_scope jit e.epos;
+		let exec = jit_expr jit return e in
+		pop_scope jit;
+		exec
+
 (*
 	This is the main jit function. It turns expression [e] into a function, which can be
 	executed int an environment of type [EvalContext.env].
@@ -179,7 +193,7 @@ and jit_expr jit return e =
 	| TConst ct ->
 		emit_const (eval_const ct)
 	| TObjectDecl fl ->
-		let fl = List.map (fun ((s,_,_),e) -> hash_s s,jit_expr jit false e) fl in
+		let fl = List.map (fun ((s,_,_),e) -> hash s,jit_expr jit false e) fl in
 		let proto,_ = ctx.get_object_prototype ctx fl in
 		let fl = List.map (fun (s,exec) -> get_instance_field_index proto s e.epos,exec) fl in
 		let fa = Array.of_list fl in
@@ -201,8 +215,7 @@ and jit_expr jit return e =
 		let num_captures = Hashtbl.length jit.captures in
 		let hasret = jit_closure.has_nonfinal_return in
 		let get_env = get_env jit_closure false (file_hash tf.tf_expr.epos.pfile) (EKLocalFunction jit.num_closures) in
-		let num_args = List.length tf.tf_args in
-		emit_closure ctx num_captures num_args get_env hasret exec
+		emit_closure ctx num_captures get_env hasret exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
 		let exec_cond = jit_expr jit false e1 in
@@ -212,6 +225,45 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
+	| TSwitch(e1,cases,def) when is_int e1.etype ->
+		let exec = jit_expr jit false e1 in
+		let h = ref IntMap.empty in
+		let max = ref 0 in
+		let min = ref max_int in
+		List.iter (fun (el,e) ->
+			push_scope jit e.epos;
+			let exec = jit_expr jit return e in
+			List.iter (fun e -> match e.eexpr with
+				| TConst (TInt i32) ->
+					let i = Int32.to_int i32 in
+					h := IntMap.add i exec !h;
+					if i > !max then max := i;
+					if i < !min then min := i;
+				| _ -> assert false
+			) el;
+			pop_scope jit;
+		) cases;
+		let exec_def = jit_default jit return def in
+		let l = !max - !min + 1 in
+		if l < 256 then begin
+			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
+			emit_int_switch_array (- !min) exec cases exec_def e1.epos
+		end else
+			emit_int_switch_map exec !h exec_def e1.epos
+	(* | TSwitch(e1,cases,def) when is_string e1.etype ->
+		let exec = jit_expr jit false e1 in
+		let h = ref PMap.empty in
+		List.iter (fun (el,e) ->
+			push_scope jit e.epos;
+			let exec = jit_expr jit return e in
+			List.iter (fun e -> match e.eexpr with
+				| TConst (TString s) -> h := PMap.add s exec !h;
+				| _ -> assert false
+			) el;
+			pop_scope jit;
+		) cases;
+		let exec_def = jit_default jit return def in
+		emit_string_switch_map exec !h exec_def e1.epos *)
 	| TSwitch(e1,cases,def) ->
 		let exec = jit_expr jit false e1 in
 		let execs = DynArray.create () in
@@ -222,15 +274,7 @@ and jit_expr jit return e =
 			pop_scope jit;
 			el
 		) cases in
-		let exec_def = match def with
-			| None ->
-				emit_null
-			| Some e ->
-				push_scope jit e.epos;
-				let exec = jit_expr jit return e in
-				pop_scope jit;
-				exec
-		in
+		let exec_def = jit_default jit return def in
 		emit_switch exec (DynArray.to_array execs) (Array.of_list patterns) exec_def
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
@@ -249,22 +293,39 @@ and jit_expr jit return e =
 			let exec = jit_expr jit return e in
 			pop_scope jit;
 			let key = hash (rope_path var.v_type) in
-			exec,key,varacc
+			let f = match varacc with
+				| Local slot -> emit_local_write slot
+				| Env slot -> emit_capture_write slot
+			in
+			exec,key,f
 		) catches in
 		emit_try exec catches
 	(* control flow *)
 	| TBlock [] ->
 		emit_null
-	| TBlock el ->
-		let e1,el = match List.rev el with
-			| e1 :: el -> e1,List.rev el
-			| [] -> assert false
+	| TBlock [e1] ->
+		push_scope jit e.epos;
+		let exec = jit_expr jit return e1 in
+		pop_scope jit;
+		exec
+	| TBlock (e1 :: el) ->
+		let rec loop f el =
+			match el with
+				| [e] ->
+					let f' = jit_expr jit return e in
+					emit_seq f f'
+				| e1 :: el ->
+					let f' = jit_expr jit false e1 in
+					let f = emit_seq f f' in
+					loop f el
+				| [] ->
+					assert false
 		in
 		push_scope jit e.epos;
-		let execs = List.map (jit_expr jit false) el in
-		let exec1 = jit_expr jit return e1 in
+		let f0 = jit_expr jit false e1 in
+		let f = loop f0 el in
 		pop_scope jit;
-		emit_block (Array.of_list (execs @ [exec1]))
+		f
 	| TReturn None ->
 		if return then emit_null
 		else begin
@@ -294,31 +355,36 @@ and jit_expr jit return e =
 		begin match e1.eexpr with
 		| TField({eexpr = TConst TSuper;epos=pv},FInstance(c,_,cf)) ->
 			let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			let i = get_proto_field_index proto name in
 			let slot = get_slot jit 0 pv in
 			let execs = List.map (jit_expr jit false) el in
 			emit_super_field_call slot proto i execs e.epos
 		| TField(ef,fa) ->
-			let name = hash_s (field_name fa) in
+			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
-			(* let is_overridden c s_name =
-				try
-					Hashtbl.find ctx.overrides (c.cl_path,s_name)
-				with Not_found ->
-					false
-			in *)
+			let is_final c cf =
+				c.cl_final || cf.cf_final ||
+				(* In interp mode we can assume that a field is final if it is not overridden.
+				   We cannot do that in macro mode because overriding fields might be added
+				   after jitting this call. *)
+				(not ctx.is_macro && not (Hashtbl.mem ctx.overrides (c.cl_path,cf.cf_name)))
+			in
 			let is_proper_method cf = match cf.cf_kind with
 				| Method MethDynamic -> false
 				| Method _ -> true
 				| Var _ -> false
 			in
-			(* let instance_call c =
+			let lazy_proto_field proto =
+				let i = get_proto_field_index proto name in
+				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+			in
+			let instance_call c =
 				let exec = jit_expr jit false ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
-				let i = get_proto_field_index proto name in
-				emit_proto_field_call proto i (exec :: execs) e.epos
-			in *)
+				let v = lazy_proto_field proto in
+				emit_proto_field_call v (exec :: execs) e.epos
+			in
 			let default () =
 				let exec = jit_expr jit false ef in
 				emit_method_call exec name execs e.epos
@@ -335,21 +401,21 @@ and jit_expr jit return e =
 					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
-					let i = get_proto_field_index proto name in
-					emit_proto_field_call proto i execs e.epos
+					let v = lazy_proto_field proto in
+					emit_proto_field_call v execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
-					default();
-					(* if is_overridden c cf.cf_name then
+					if not (is_final c cf) then
 						default()
 					else if not c.cl_interface then
 						instance_call c
-					else if c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
-						| [c'] when not c'.cl_interface && not (is_overridden c' cf.cf_name) ->
+					(* If we have exactly one implementer, use it instead of the super class/interface. *)
+					else if not ctx.is_macro && c.cl_implements = [] && c.cl_super = None then begin match c.cl_descendants with
+						| [c'] when not c'.cl_interface && is_final c' cf ->
 							instance_call c'
 						| _ ->
 							default()
 					end else
-						default() *)
+						default()
 				| _ ->
 					let exec = jit_expr jit false ef in
 					emit_field_call exec name execs e.epos
@@ -364,7 +430,8 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					emit_super_call fnew execs e.epos
+					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					emit_super_call v execs e.epos
 				end
 			| _ -> assert false
 			end
@@ -375,12 +442,6 @@ and jit_expr jit return e =
 				let exec2 = jit_expr jit false min in
 				let exec3 = jit_expr jit false max in
 				emit_mk_pos exec1 exec2 exec3
-			| TIdent "$__delayed_call__",[{eexpr = TConst(TInt i)}] ->
-				let f = ctx.curapi.MacroApi.delayed_macro (Int32.to_int i) in
-				(fun env ->
-					let f = f() in
-					f()
-				)
 			| _ ->
 				let exec = jit_expr jit false e1 in
 				let execs = List.map (jit_expr jit false) el in
@@ -405,14 +466,15 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			emit_constructor_call proto fnew execs e.epos
+			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)
 	| TLocal var ->
 		if var.v_capture then emit_capture_read (get_capture_slot jit var.v_id)
 		else emit_local_read (get_slot jit var.v_id e.epos)
 	| TField(e1,fa) ->
-		let name = hash_s (field_name fa) in
+		let name = hash (field_name fa) in
 		begin match fa with
 			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1)
 			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1)
@@ -424,11 +486,14 @@ and jit_expr jit return e =
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) e1.epos in
 				let i = get_instance_field_index proto name e1.epos in
-				emit_instance_field_read (jit_expr jit false e1) i
+				begin match e1.eexpr with
+					| TConst TThis -> emit_this_field_read (get_slot jit 0 e.epos) i
+					| _ -> emit_instance_field_read (jit_expr jit false e1) i
+				end
 			| FAnon _ ->
 				begin match follow e1.etype with
 					| TAnon an ->
-						let l = PMap.foldi (fun k _ acc -> (hash_s k,()) :: acc) an.a_fields [] in
+						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name e1.epos in
 						emit_anon_field_read (jit_expr jit false e1) proto i name e1.epos
@@ -485,7 +550,7 @@ and jit_expr jit return e =
 			let exec1 = jit_expr jit false e1 in
 			let exec2 = jit_expr jit false e2 in
 			begin match op with
-				| OpAdd -> emit_op_add exec1 exec2
+				| OpAdd -> emit_op_add e.epos exec1 exec2
 				| OpMult -> emit_op_mult e.epos exec1 exec2
 				| OpDiv -> emit_op_div e.epos exec1 exec2
 				| OpSub -> emit_op_sub e.epos exec1 exec2
@@ -516,11 +581,14 @@ and jit_expr jit return e =
 		Error.error ("Unknown identifier: " ^ s) e.epos
 	in
 	let f = loop e in
-	if ctx.debug.support_debugger then begin match e.eexpr with
-		| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
-		| _ -> EvalDebug.debug_loop jit e f
-	end else
-		f
+	begin match ctx.debug.debug_socket with
+		| None ->
+			f
+		| Some socket -> begin match e.eexpr with
+			| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
+			| _ -> EvalDebug.debug_loop jit socket.connection e f
+		end
+	end
 
 and jit_tfunction jit static pos tf =
 	let ctx = jit.ctx in
@@ -564,8 +632,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
 	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
-	let num_args = List.length tf.tf_args + (if not static then 1 else 0) in
-	let f = create_function ctx num_args get_env hasret empty_array exec in
+	let f = create_function ctx get_env hasret empty_array exec in
 	t();
 	f
 

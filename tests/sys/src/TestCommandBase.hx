@@ -2,10 +2,8 @@ import sys.*;
 import haxe.io.*;
 import utest.Assert;
 
-class TestCommandBase {
+class TestCommandBase extends utest.Test {
 	var runInfo:{out:String, err:String} = null;
-
-	public function new() { }
 
 	function run(cmd:String, ?args:Array<String>):Int {
 		throw "should be overridden";

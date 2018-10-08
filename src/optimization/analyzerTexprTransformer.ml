@@ -305,11 +305,11 @@ let rec func ctx bb tf t p =
 	and call bb e e1 el =
 		let bb = ref bb in
 		let check e t = match e.eexpr with
-			| TLocal v when is_ref_type t ->
+			| TLocal v when ExtType.has_reference_semantics t ->
 				v.v_capture <- true;
 				e
 			| _ ->
-				if is_asvar_type t then begin
+				if ExtType.has_variable_semantics t then begin
 					let v = alloc_var VGenerated "tmp" t e.epos in
 					let bb',e = bind_to_temp ~v:(Some v) !bb false e in
 					bb := bb';
@@ -718,7 +718,7 @@ and func ctx i =
 			let eo = Option.map loop eo in
 			let v' = get_var_origin ctx.graph v in
 			{e with eexpr = TVar(v',eo)}
-		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com ->
+		| TBinop(OpAssign,e1,({eexpr = TBinop(op,e2,e3)} as e4)) when target_handles_assign_ops ctx.com e3 ->
 			let e1 = loop e1 in
 			let e2 = loop e2 in
 			let e3 = loop e3 in
@@ -733,8 +733,8 @@ and func ctx i =
 			begin match e1.eexpr,e2.eexpr with
 				| TLocal v1,TLocal v2 when v1 == v2 && not v1.v_capture && is_valid_assign_op op ->
 					begin match op,e3.eexpr with
-						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Increment,Prefix,e1)}
-						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 && target_handles_assign_ops ctx.com -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
+						| OpAdd,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Increment,Prefix,e1)}
+						| OpSub,TConst (TInt i32) when Int32.to_int i32 = 1 -> {e with eexpr = TUnop(Decrement,Prefix,e1)}
 						| _ -> {e with eexpr = TBinop(OpAssignOp op,e1,e3)}
 					end
 				| _ ->

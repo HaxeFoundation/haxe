@@ -23,7 +23,6 @@ open EvalValue
 open EvalContext
 open EvalField
 open EvalHash
-open Rope
 open EvalString
 
 let rempty = create_ascii ""
@@ -48,18 +47,21 @@ let s_date d =
 	let t = localtime d in
 	create_ascii (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
 
-let s_hash key = create_ascii_of_rope (EvalHash.rev_hash key)
+let s_hash key = create_ascii (EvalHash.rev_hash key)
 
 let rec s_object depth o =
 	let fields = object_fields o in
-	let s,_ = List.fold_left (fun (s,sep) (key,value) ->
-		let s = concat s sep in
-		let s = concat s (s_hash key) in
-		let s = concat s rcolon in
-		let s = concat s (s_value depth value) in
-		(s,rcomma)
-	) (rempty,rbropen) fields in
-	concat s rbrclose
+	let buf = Buffer.create 0 in
+	Buffer.add_string buf "{";
+	List.iteri (fun i (k,v) ->
+		if i >= 0 then Buffer.add_string buf ", ";
+		Buffer.add_string buf (rev_hash k);
+		Buffer.add_string buf ": ";
+		Buffer.add_string buf (s_value depth v).sstring;
+	) fields;
+	Buffer.add_string buf "}";
+	let s = Buffer.contents buf in
+	create_with_length s (UTF8.length s)
 
 and s_array depth va =
 	join rempty [
@@ -78,7 +80,7 @@ and s_vector depth vv =
 and s_enum_ctor_name ve =
 	try
 		begin match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
-			| PEnum names -> (try List.nth names ve.eindex with _ -> "#unknown")
+			| PEnum names -> (try fst (List.nth names ve.eindex) with _ -> "#unknown")
 			| _ -> raise Not_found
 		end
 	with Not_found -> "#unknown"
@@ -141,5 +143,4 @@ and call_value_on vthis v vl =
 	| _ -> exc_string ("Cannot call " ^ (value_string v))
 
 and value_string v =
-	let s = s_value 0 v in
-	EvalString.get s
+	(s_value 0 v).sstring

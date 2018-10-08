@@ -193,7 +193,7 @@ let check_param_constraints ctx types t pl c p =
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType ti) in
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
 					begin try unify_raise ctx e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
@@ -206,6 +206,33 @@ let generate_value_meta com co fadd args =
 	match values with
 		| [] -> ()
 		| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
+
+let is_redefined ctx cf1 fields p =
+	try
+		let cf2 = PMap.find cf1.cf_name fields in
+		let st = s_type (print_context()) in
+		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
+			display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+			display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+			error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
+		end else
+			true
+	with Not_found ->
+		false
+
+let make_extension_type ctx tl p =
+	let mk_extension fields t = match follow t with
+		| TAnon a ->
+			PMap.fold (fun cf fields ->
+				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
+				else fields
+			) a.a_fields fields
+		| _ ->
+			error "Can only extend structures" p
+	in
+	let fields = List.fold_left mk_extension PMap.empty tl in
+	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+	ta
 
 (* build an instance from a full type *)
 let rec load_instance' ctx (t,p) allow_no_params =
@@ -260,7 +287,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
-							ignore(type_expr ctx e Value);
+							ignore(type_expr ctx e WithType.value);
 							"Expr"
 						| _ -> "Expr"
 					) in
@@ -332,19 +359,6 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 	build an instance from a complex type
 *)
 and load_complex_type' ctx allow_display (t,p) =
-	let is_redefined cf1 fields =
-		try
-			let cf2 = PMap.find cf1.cf_name fields in
-			let st = s_type (print_context()) in
-			if not (type_iseq cf1.cf_type cf2.cf_type) then begin
-				display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
-				display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
-				error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
-			end else
-				true
-		with Not_found ->
-			false
-	in
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
@@ -365,17 +379,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		let t = TMono tr in
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
-			let mk_extension fields t = match follow t with
-				| TAnon a ->
-					PMap.fold (fun cf fields ->
-						if not (is_redefined cf fields) then PMap.add cf.cf_name cf fields
-						else fields
-					) a.a_fields fields
-				| _ ->
-					error "Can only extend structures" p
-			in
-			let fields = List.fold_left mk_extension PMap.empty tl in
-			let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+			let ta = make_extension_type ctx tl p in
 			tr := Some ta;
 			ta
 		) "constraint" in
@@ -390,14 +394,14 @@ and load_complex_type' ctx allow_display (t,p) =
 				| TMono _ ->
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
-					PMap.iter (fun _ cf -> ignore(is_redefined cf a2.a_fields)) a.a_fields;
+					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
 					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
 				| _ -> error "Can only extend structures" p
 			in
 			let loop t = match follow t with
 				| TAnon a2 ->
 					PMap.iter (fun f cf ->
-						if not (is_redefined cf a.a_fields) then
+						if not (is_redefined ctx cf a.a_fields p) then
 							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
@@ -731,6 +735,7 @@ let load_core_class ctx c =
 			Common.define com2 Define.Sys;
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
+			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
@@ -836,7 +841,7 @@ let handle_path_display ctx path p =
 	in
 	match ImportHandling.convert_import_to_something_usable !DisplayPosition.display_position path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx TKType Typecore.NoValue in
+			let fields = DisplayToplevel.collect ctx TKType WithType.no_value in
 			raise_fields fields CRImport (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
@@ -889,3 +894,38 @@ let handle_path_display ctx path p =
 			) m.m_types;
 		| (IDK,_),_ ->
 			()
+
+let handle_using ctx path p =
+	let t = match List.rev path with
+		| (s1,_) :: (s2,_) :: sl ->
+			if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
+			else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+		| (s1,_) :: sl ->
+			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+		| [] ->
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
+	in
+	let types = (match t.tsub with
+		| None ->
+			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+			types
+		| Some _ ->
+			let t = load_type_def ctx p t in
+			[t]
+	) in
+	(* delay the using since we need to resolve typedefs *)
+	let filter_classes types =
+		let rec loop acc types = match types with
+			| td :: l ->
+				(match resolve_typedef td with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					loop ((c,p) :: acc) l
+				| td ->
+					loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
+	types,filter_classes

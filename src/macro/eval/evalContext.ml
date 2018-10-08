@@ -26,43 +26,65 @@ open EvalString
 type var_info = string
 
 type scope = {
+	(* The position of the current scope. *)
 	pos : pos;
 	(* The local start offset of the current scope. *)
 	local_offset : int;
 	(* The locals declared in the current scope. Maps variable IDs to local slots. *)
-	mutable locals : (int,int) Hashtbl.t;
+	locals : (int,int) Hashtbl.t;
 	(* The name of local variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable local_infos : (int,var_info) Hashtbl.t;
+	local_infos : (int,var_info) Hashtbl.t;
 	(* The IDs of local variables. Maps variable names to variable IDs. *)
-	mutable local_ids : (string,int) Hashtbl.t;
+	local_ids : (string,int) Hashtbl.t;
 }
 
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
-	| EKDelayed
 
+(* Compile-time information for environments. This information is static for all
+   environments of the same kind, e.g. all environments of a specific method. *)
 type env_info = {
+	(* If false, the environment has a this-context. *)
 	static : bool;
+	(* Hash of the source file of this environment. *)
 	pfile : int;
+	(* The environment kind. *)
 	kind : env_kind;
+	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
 	capture_infos : (int,var_info) Hashtbl.t;
 }
 
+(* Per-environment debug information. These values are only modified while debugging. *)
 type env_debug = {
+	(* The timer function to execute when the environment finishes executing *)
 	timer : unit -> unit;
+	(* The current scope stack. *)
 	mutable scopes : scope list;
+	(* The current line being executed. This in conjunction with `env_info.pfile` is used to find breakpoints. *)
 	mutable line : int;
+	(* The current expression being executed *)
 	mutable expr : texpr;
 }
 
+(* An environment in which code is executed. Environments are created whenever a function is called and when
+   evaluating static inits. *)
 type env = {
+	(* The compile-time information for the current environment *)
 	env_info : env_info;
+	(* The debug information for the current environment *)
 	env_debug : env_debug;
+	(* The position at which the current environment was left, e.g. by a call. *)
 	mutable env_leave_pmin : int;
+	(* The position at which the current environment was left, e.g. by a call. *)
 	mutable env_leave_pmax : int;
+	(* The environment's local variables. Indices are determined during compile-time, or can be obtained
+	   through `scope.locals` when debugging. *)
 	env_locals : value array;
+	(* The reference to the environment's captured local variables. Indices are determined during compile-time,
+	   or can be obtained through `env_info.capture_infos`. *)
 	env_captures : value ref array;
+	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
 }
 
@@ -82,6 +104,11 @@ type breakpoint = {
 	bpcolumn : breakpoint_column;
 	bpcondition : Ast.expr option;
 	mutable bpstate : breakpoint_state;
+}
+
+type function_breakpoint = {
+	fbpid : int;
+	mutable fbpstate : breakpoint_state;
 }
 
 type debug_state =
@@ -104,24 +131,48 @@ type exception_mode =
 	| CatchUncaught
 	| CatchNone
 
-type debug = {
-	debug : bool;
-	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
-	mutable support_debugger : bool;
-	mutable debug_state : debug_state;
-	mutable breakpoint : breakpoint;
-	caught_types : (int,bool) Hashtbl.t;
-	mutable environment_offset_delta : int;
-	mutable debug_socket : Socket.t option;
-	mutable exception_mode : exception_mode;
+type debug_connection = {
+	wait : context -> (env -> value) -> env -> value;
+	bp_stop : context -> env -> unit;
+	exc_stop : context -> value -> pos -> unit;
 }
 
-type eval = {
+and debug_socket = {
+	socket : Socket.t;
+	connection : debug_connection;
+}
+
+(* Per-context debug information *)
+and debug = {
+	(* The registered breakpoints *)
+	breakpoints : (int,(int,breakpoint) Hashtbl.t) Hashtbl.t;
+	(* The registered function breakpoints *)
+	function_breakpoints : ((int * int),function_breakpoint) Hashtbl.t;
+	(* Whether or not debugging is supported. Has various effects on the amount of
+	   data being retained at run-time. *)
+	mutable support_debugger : bool;
+	(* The current debug state. Managed by the debugger. *)
+	mutable debug_state : debug_state;
+	(* The currently active breakpoint. Set to a dummy value initially. *)
+	mutable breakpoint : breakpoint;
+	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
+	caught_types : (int,bool) Hashtbl.t;
+	(* The current environment offset. Modified by the debugger when walking up the call stack. *)
+	mutable environment_offset_delta : int;
+	(* The debugger socket *)
+	mutable debug_socket : debug_socket option;
+	(* The current exception mode *)
+	mutable exception_mode : exception_mode;
+	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
+	mutable caught_exception : value;
+}
+
+and eval = {
 	environments : env DynArray.t;
 	mutable environment_offset : int;
 }
 
-type context = {
+and context = {
 	ctx_id : int;
 	is_macro : bool;
 	detail_times : bool;
@@ -142,6 +193,7 @@ type context = {
 	(* eval *)
 	toplevel : value;
 	eval : eval;
+	evals : eval DynArray.t;
 	mutable exception_stack : (pos * env_kind) list;
 }
 
@@ -152,7 +204,8 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 (* Misc *)
 
 let get_eval ctx =
-	ctx.eval
+    let id = Thread.id (Thread.self()) in
+    if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
 
 let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with
@@ -162,8 +215,7 @@ let rec kind_name ctx kind =
 			let parent_id = env_id - 1 in
 			let env = DynArray.get ctx.environments parent_id in
 			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
-		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash_s i1) (rev_hash_s i2)
-		| EKDelayed,_ -> "delayed"
+		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
 	in
 	loop kind ctx.environment_offset
 
@@ -189,7 +241,8 @@ let proto_fields proto =
 exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
-	List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
+	let eval = get_eval ctx in
+	List.rev (DynArray.to_list (DynArray.sub eval.environments 0 eval.environment_offset))
 
 let throw v p =
 	let ctx = get_ctx() in
@@ -199,7 +252,7 @@ let throw v p =
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 	end;
-	raise (RunTimeException(v,call_stack ctx,p))
+	raise_notrace (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
 
@@ -269,6 +322,19 @@ let push_environment ctx info num_locals num_captures =
 	else
 		DynArray.unsafe_set eval.environments eval.environment_offset env;
 	eval.environment_offset <- eval.environment_offset + 1;
+	begin match ctx.debug.debug_socket,env.env_info.kind with
+		| Some socket,EKMethod(key_type,key_field) ->
+			begin try
+				let bp = Hashtbl.find ctx.debug.function_breakpoints (key_type,key_field) in
+				if bp.fbpstate <> BPEnabled then raise Not_found;
+				socket.connection.bp_stop ctx env;
+				ctx.debug.debug_state <- DbgWaiting;
+			with Not_found ->
+				()
+			end
+		| _ ->
+			()
+	end;
 	env
 
 let pop_environment ctx env =
@@ -284,7 +350,7 @@ let get_static_prototype_raise ctx path =
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Type not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_static_prototype_as_value ctx path p =
 	(get_static_prototype ctx path p).pvalue
@@ -294,14 +360,14 @@ let get_instance_prototype_raise ctx path =
 
 let get_instance_prototype ctx path p =
 	try get_instance_prototype_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Instance prototype not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_instance_constructor_raise ctx path =
 	IntMap.find path ctx.constructors
 
 let get_instance_constructor ctx path p =
 	try get_instance_constructor_raise ctx path
-	with Not_found -> Error.error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash_s path)) p
+	with Not_found -> Error.error (Printf.sprintf "[%i] Instance constructor not found: %s" ctx.ctx_id (rev_hash path)) p
 
 let get_special_instance_constructor_raise ctx path =
 	Hashtbl.find (get_ctx()).builtins.constructor_builtins path
@@ -311,11 +377,11 @@ let get_proto_field_index_raise proto name =
 
 let get_proto_field_index proto name =
 	try get_proto_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) null_pos
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) null_pos
 
 let get_instance_field_index_raise proto name =
 	IntMap.find name proto.pinstance_names
 
 let get_instance_field_index proto name p =
 	try get_instance_field_index_raise proto name
-	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash_s name) (rev_hash_s proto.ppath)) p
+	with Not_found -> Error.error (Printf.sprintf "Field index for %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p

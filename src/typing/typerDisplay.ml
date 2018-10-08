@@ -24,7 +24,7 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
-			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType t) in
+			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType.with_type t) in
 			Texpr.equal e e'
 		with _ ->
 			false
@@ -48,6 +48,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
+			merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
 				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
@@ -60,6 +61,7 @@ let completion_item_of_expr ctx e =
 			in
 			of_field e origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
+			merge_core_doc ctx (TClassDecl c);
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
 				Parent (TClassDecl c)
@@ -79,10 +81,12 @@ let completion_item_of_expr ctx e =
 				| _ -> itexpr e
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
+			merge_core_doc ctx (TAbstractDecl a);
 			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
 			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
+			merge_core_doc ctx mt;
 			let t = tpair e.etype in
 			make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t) (* TODO *)
 		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
@@ -93,6 +97,7 @@ let completion_item_of_expr ctx e =
 				| _ -> itexpr e
 			end
 		| TNew(c,tl,_) ->
+			merge_core_doc ctx (TClassDecl c);
 			(* begin match fst e_ast with
 			| EConst (Regexp (r,opt)) ->
 				let present,absent = List.partition (String.contains opt) ['g';'i';'m';'s';'u'] in
@@ -127,7 +132,7 @@ let completion_item_of_expr ctx e =
 
 let get_expected_type ctx with_type =
 	let t = match with_type with
-		| WithType t -> Some t
+		| WithType.WithType(t,_) -> Some t
 		| _ -> None
 	in
 	match t with
@@ -178,7 +183,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
 		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
-		raise_signatures overloads 0 (* ? *) display_arg
+		raise_signatures overloads 0 (* ? *) display_arg SKCall
 	in
 	let find_constructor_types t = match follow t with
 		| TInst ({cl_kind = KTypeParameter tl} as c,_) ->
@@ -199,14 +204,14 @@ let rec handle_signature_display ctx e_ast with_type =
 	match fst e_ast with
 		| ECall(e1,el) ->
 			let def () = try
-				type_expr ctx e1 Value
+				type_expr ctx e1 WithType.value
 			with Error (Unknown_ident "trace",_) ->
 				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
-				type_expr ctx e Value
+				type_expr ctx e WithType.value
 			in
 			let e1 = match e1 with
 				| (EField (e,"bind"),p) ->
-					let e = type_expr ctx e Value in
+					let e = type_expr ctx e WithType.value in
 					(match follow e.etype with
 						| TFun signature -> e
 						| _ -> def ())
@@ -228,6 +233,31 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ENew(tpath,el) ->
 			let t = Typeload.load_instance ctx tpath true in
 			handle_call (find_constructor_types t) el (pos tpath)
+		| EArray(e1,e2) ->
+			let e1 = type_expr ctx e1 WithType.value in
+			begin match follow e1.etype with
+			| TInst({cl_path=([],"Array")},[t]) ->
+				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
+				raise_signatures [res,Some "The array index"] 0 0 SKCall
+			| TAbstract(a,tl) ->
+				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
+				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
+					| TFun(_ :: args,r) ->
+						if ExtType.is_void (follow r) && (match with_type with WithType.NoValue -> false | _ -> true) then
+							None
+						else begin
+							let map = apply_params a.a_params tl in
+							let tl = List.map (fun (n,o,t) -> n,o,map t) args in
+							let r = map r in
+							Some (convert_function_signature ctx PMap.empty (tl,r),cf.cf_doc)
+						end
+					| _ ->
+						None
+				) a.a_array in
+				raise_signatures sigs 0 0 SKArrayAccess
+			| _ ->
+				raise_signatures [] 0 0 SKArrayAccess
+			end
 		| _ -> error "Call expected" p
 
 and display_expr ctx e_ast e dk with_type p =
@@ -244,7 +274,7 @@ and display_expr ctx e_ast e dk with_type p =
 		handle_signature_display ctx e_ast with_type
 	| DMHover ->
 		let item = completion_item_of_expr ctx e in
-		raise_hover item e.epos
+		raise_hover item (Some with_type) e.epos
 	| DMUsage _ ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) ->
@@ -285,13 +315,35 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMDefinition ->
 		let rec loop e = match e.eexpr with
 		| TField(_,FEnum(_,ef)) -> [ef.ef_name_pos]
+		| TField(_,(FStatic (c,cf))) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			cf.cf_name_pos :: (try [(PMap.find cf.cf_name c'.cl_statics).cf_name_pos] with Not_found -> [])
+		| TField(_,(FInstance (c,tl,cf) | FClosure (Some(c,tl),cf))) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			let l = try
+				let _,_,cf = Type.class_field c' tl cf.cf_name in
+				[cf.cf_name_pos]
+			with Not_found ->
+				[]
+			in
+			cf.cf_name_pos :: l
 		| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) -> [cf.cf_name_pos]
 		| TLocal v | TVar(v,_) -> [v.v_pos]
+		| TTypeExpr (TClassDecl c) when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			[c.cl_name_pos;c'.cl_name_pos]
 		| TTypeExpr mt -> [(t_infos mt).mt_name_pos]
 		| TNew(c,tl,_) ->
 			begin try
 				let _,cf = get_constructor ctx c tl p in
-				[cf.cf_name_pos]
+				if Meta.has Meta.CoreApi c.cl_meta then begin
+					let c' = ctx.g.do_load_core_class ctx c in
+					begin match c'.cl_constructor with
+					| Some cf' -> [cf.cf_name_pos;cf'.cf_name_pos]
+					| None -> [cf.cf_name_pos]
+					end
+				end else
+					[cf.cf_name_pos]
 			with Not_found ->
 				[]
 			end
@@ -368,10 +420,10 @@ let handle_display ctx e_ast dk with_type =
 		let arg = ["expression",false,mono] in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
 		| _ ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "expression")) (pos e_ast);
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
@@ -379,12 +431,12 @@ let handle_display ctx e_ast dk with_type =
 		let ret = ctx.com.basic.tvoid in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0
+			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
 		| _ ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "value")) (pos e_ast);
 		end
-	| (EConst (Ident "_"),p),WithType t ->
+	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
 		type_expr ctx e_ast with_type
@@ -411,6 +463,18 @@ let handle_display ctx e_ast dk with_type =
 			| ITType({kind = (Class | Abstract | TypeAlias)} as mt,_) when not mt.is_private || is_private_to_current_module mt ->
 				begin match mt.has_constructor with
 				| Yes -> true
+				| YesButPrivate ->
+					if (Meta.has Meta.PrivateAccess ctx.meta) then true
+					else begin
+						let path = (mt.pack,mt.name) in
+						let rec loop c =
+							if c.cl_path = path then true
+							else match c.cl_super with
+								| Some(c,_) -> loop c
+								| None -> false
+						in
+						loop ctx.curclass
+					end
 				| No -> false
 				| Maybe ->
 					begin try
@@ -437,12 +501,12 @@ let handle_display ctx e_ast dk with_type =
 	in
 	let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 	if is_display_debug then begin
-		print_endline (Printf.sprintf "expected type: %s" (s_with_type with_type));
+		print_endline (Printf.sprintf "expected type: %s" (WithType.to_string with_type));
 		print_endline (Printf.sprintf "typed expr:\n%s" (s_expr_ast true "" (s_type (print_context())) e));
 	end;
 	let p = e.epos in
 	begin match with_type with
-		| WithType t ->
+		| WithType.WithType(t,_) ->
 			(* We don't want to actually use the transformed expression which may have inserted implicit cast calls.
 			   It only matters that unification takes place. *)
 			(try ignore(AbstractCast.cast_or_unify_raise ctx t e e.epos) with Error (Unify l,p) -> ());
@@ -461,7 +525,7 @@ let handle_edisplay ctx e dk with_type =
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
 	| DKStructure,DMDefault ->
 		begin match with_type with
-			| WithType t ->
+			| WithType.WithType(t,_) ->
 				begin match follow t with
 					| TAnon an ->
 						let origin = match t with

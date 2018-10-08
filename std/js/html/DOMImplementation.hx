@@ -50,7 +50,7 @@ extern class DOMImplementation
 		Creates and returns an `XMLDocument`.
 		@throws DOMError
 	**/
-	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
+	function createDocument( namespace : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
 	
 	/**
 		Creates and returns an HTML `Document`.

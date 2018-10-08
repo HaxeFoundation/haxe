@@ -95,6 +95,12 @@ let collect_static_extensions ctx items e p =
 	| _ ->
 		let items = loop items ctx.m.module_using in
 		let items = loop items ctx.g.global_using in
+		let items = try
+			let mt = module_type_of_type e.etype in
+			loop items (t_infos mt).mt_using
+		with Exit ->
+			items
+		in
 		items
 
 let collect ctx e_ast e dk with_type p =
@@ -117,6 +123,7 @@ let collect ctx e_ast e dk with_type p =
 		| TInst(c0,tl) ->
 			(* For classes, browse the hierarchy *)
 			let fields = TClass.get_all_fields c0 tl in
+			merge_core_doc ctx (TClassDecl c0);
 			PMap.foldi (fun k (c,cf) acc ->
 				if should_access c cf false && is_new_item acc cf.cf_name then begin
 					let origin = if c == c0 then Self(TClassDecl c) else Parent(TClassDecl c) in
@@ -127,6 +134,7 @@ let collect ctx e_ast e dk with_type p =
 					acc
 			) fields items
 		| TAbstract({a_impl = Some c} as a,tl) ->
+			merge_core_doc ctx (TAbstractDecl a);
 			(* Abstracts should show all their @:impl fields minus the constructor. *)
 			let items = List.fold_left (fun acc cf ->
 				if Meta.has Meta.Impl cf.cf_meta && not (Meta.has Meta.Enum cf.cf_meta) && should_access c cf false && is_new_item acc cf.cf_name then begin
@@ -180,11 +188,13 @@ let collect ctx e_ast e dk with_type p =
 							else
 								acc;
 						| Statics c ->
+							merge_core_doc ctx (TClassDecl c);
 							if should_access c cf true then add (Self (TClassDecl c)) make_ci_class_field else acc;
 						| EnumStatics en ->
 							let ef = PMap.find name en.e_constrs in
 							PMap.add name (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (cf.cf_type,ct)) acc
 						| AbstractStatics a ->
+							merge_core_doc ctx (TAbstractDecl a);
 							let check = match a.a_impl with
 								| None -> true
 								| Some c -> allow_static_abstract_access c cf
@@ -230,7 +240,7 @@ let collect ctx e_ast e dk with_type p =
 	(* Add static extensions *)
 	let items = collect_static_extensions ctx items e p in
 	let items = PMap.fold (fun item acc -> item :: acc) items [] in
-	let items = sort_fields items Value (TKField p) in
+	let items = sort_fields items WithType.value (TKField p) in
 	try
 		let sl = string_list_of_expr_path_raise e_ast in
 		(* Add submodule fields *)

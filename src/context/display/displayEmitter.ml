@@ -14,13 +14,18 @@ open Common
 open Display
 open DisplayPosition
 
+let get_expected_name with_type = match with_type with
+	| WithType.Value (Some s) | WithType.WithType(_,Some s) -> Some s
+	| _ -> None
+
 let sort_fields l with_type tk =
 	let p = match tk with
 		| TKExpr p | TKField p -> Some p
 		| _ -> None
 	in
+	let expected_name = get_expected_name with_type in
 	let l = List.map (fun ci ->
-		let i = get_sort_index tk ci (Option.default Globals.null_pos p) in
+		let i = get_sort_index tk ci (Option.default Globals.null_pos p) (Option.map fst expected_name) in
 		ci,i
 	) l in
 	let sort l =
@@ -32,7 +37,7 @@ let sort_fields l with_type tk =
 		| _ -> Type.map dynamify_type_params t
 	in
 	let l = match with_type with
-		| WithType t when (match follow t with TMono _ -> false | _ -> true) ->
+		| WithType.WithType(t,_) when (match follow t with TMono _ -> false | _ -> true) ->
 			let rec comp item = match item.ci_type with
 				| None -> 9
 				| Some (t',_) ->
@@ -135,14 +140,21 @@ let completion_type_of_type ctx ?(values=PMap.empty) t =
 	from_type values t
 
 let display_module_type ctx mt p = match ctx.com.display.dms_kind with
-	| DMDefinition | DMTypeDefinition -> raise_position [(t_infos mt).mt_name_pos];
+	| DMDefinition | DMTypeDefinition ->
+		begin match mt with
+		| TClassDecl c when Meta.has Meta.CoreApi c.cl_meta ->
+			let c' = ctx.g.do_load_core_class ctx c in
+			raise_position [c.cl_name_pos;c'.cl_name_pos]
+		| _ ->
+			raise_position [(t_infos mt).mt_name_pos];
+		end
 	| DMUsage _ ->
 		let infos = t_infos mt in
 		ReferencePosition.set (snd infos.mt_path,infos.mt_name_pos,KModuleType)
 	| DMHover ->
 		let t = type_of_module_type mt in
 		let ct = completion_type_of_type ctx t in
-		raise_hover (make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some (t,ct))) p
+		raise_hover (make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some (t,ct))) None p
 	| _ -> ()
 
 let rec display_type ctx t p =
@@ -158,7 +170,7 @@ let rec display_type ctx t p =
 			| DMHover ->
 				let ct = completion_type_of_type ctx t in
 				let ci = make_ci_expr (mk (TConst TNull) t p) (t,ct) in
-				raise_hover ci p
+				raise_hover ci None p
 			| _ ->
 				()
 
@@ -197,7 +209,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,KVar)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ~values:(get_value_meta v.v_meta) v.v_type in
-		raise_hover (make_ci_local v (v.v_type,ct)) p
+		raise_hover (make_ci_local v (v.v_type,ct)) None p
 	| _ -> ()
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
@@ -223,7 +235,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
             | _ -> cf
         in
 		let ct = completion_type_of_type ctx ~values:(get_value_meta cf.cf_meta) cf.cf_type in
-		raise_hover (make_ci_class_field (CompletionClassField.make cf scope origin true) (cf.cf_type,ct)) p
+		raise_hover (make_ci_class_field (CompletionClassField.make cf scope origin true) (cf.cf_type,ct)) None p
 	| _ -> ()
 
 let maybe_display_field ctx origin scope cf p =
@@ -235,27 +247,24 @@ let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->
 		let ct = completion_type_of_type ctx ef.ef_type in
-		raise_hover (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (ef.ef_type,ct)) p
+		raise_hover (make_ci_enum_field (CompletionEnumField.make ef (Self (TEnumDecl en)) true) (ef.ef_type,ct)) None p
 	| _ -> ()
 
 let display_meta com meta p = match com.display.dms_kind with
 	| DMHover ->
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
-		| _ -> match Meta.get_documentation meta with
-			| None -> ()
-			| Some (_,s) ->
-				(* TODO: hack until we support proper output for hover display mode *)
-				if com.json_out = None then
+		| _ ->
+			if com.json_out = None then begin match Meta.get_documentation meta with
+				| None -> ()
+				| Some (_,s) ->
 					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
-				else
-					raise_hover (make_ci_metadata (Meta.to_string meta) (Some s)) p
+			end else
+				raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
-		let all,_ = Meta.get_documentation_list() in
-		let all = List.map (fun (s,doc) ->
-			make_ci_metadata s (Some doc)
-		) all in
+		let all = Meta.get_all() in
+		let all = List.map make_ci_metadata all in
 		raise_fields all CRMetadata (Some p)
 	| _ ->
 		()
@@ -266,7 +275,7 @@ let check_display_metadata ctx meta =
 		List.iter (fun e ->
 			if encloses_display_position (pos e) then begin
 				let e = ExprPreprocessing.process_expr ctx.com e in
-				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e Value));
+				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
 		) args
 	) meta

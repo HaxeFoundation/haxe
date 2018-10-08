@@ -53,7 +53,7 @@ module IterationKind = struct
 		let e1 = try
 			AbstractCast.cast_or_unify_raise ctx t e p
 		with Error (Unify _,_) ->
-			let acc = !build_call_ref ctx (type_field ctx e s e.epos MCall) [] Value e.epos in
+			let acc = !build_call_ref ctx (type_field ctx e s e.epos MCall) [] WithType.value e.epos in
 			try
 				unify_raise ctx acc.etype t acc.epos;
 				acc
@@ -130,8 +130,8 @@ module IterationKind = struct
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field ~resume:true ctx e_tmp "next" p MCall in
 				let acc_hasNext = type_field ~resume:true ctx e_tmp "hasNext" p MCall in
-				let e_next = !build_call_ref ctx acc_next [] Value e.epos in
-				let e_hasNext = !build_call_ref ctx acc_hasNext [] Value e.epos in
+				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
+				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				check_iterator ()
@@ -343,14 +343,14 @@ let type_for_loop ctx handle_display it e2 p =
 		| _ -> error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 Value in
+	let e1 = type_expr ctx e1 WithType.value in
 	let old_loop = ctx.in_loop in
 	let old_locals = save_locals ctx in
 	ctx.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
-		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType i.v_type))
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType.with_type i.v_type))
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->
@@ -373,8 +373,8 @@ let type_for_loop ctx handle_display it e2 p =
 		end;
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field ctx etmp "hasNext" etmp.epos MCall) [] Value etmp.epos in
-		let enext = !build_call_ref ctx (type_field ctx etmp "next" etmp.epos MCall) [] Value etmp.epos in
+		let ehasnext = !build_call_ref ctx (type_field ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
+		let enext = !build_call_ref ctx (type_field ctx etmp "next" etmp.epos MCall) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
 		let ekey = Calls.acc_get ctx (type_field ctx ev "key" ev.epos MGet) ev.epos in

@@ -8,31 +8,31 @@ open EvalEncode
 open EvalMisc
 open EvalExceptions
 
-type debug_connection = {
-	wait : context -> (env -> value) -> env -> value;
-	bp_stop : context -> env -> unit;
-	exc_stop : context -> value -> pos -> unit;
-}
-
 exception BreakHere
 
 let createInstance_ref : value ref = Obj.magic ()
 
 (* Breakpoints *)
 
-let make_breakpoint =
-	let id = ref (-1) in
-	(fun file line state column condition ->
-		incr id;
-		{
-			bpid = !id;
-			bpfile = file;
-			bpline = line;
-			bpstate = state;
-			bpcolumn = column;
-			bpcondition = condition
-		}
-	)
+let breakpoint_id = ref (-1)
+
+let make_breakpoint file line state column condition =
+	incr breakpoint_id;
+	{
+		bpid = !breakpoint_id;
+		bpfile = file;
+		bpline = line;
+		bpstate = state;
+		bpcolumn = column;
+		bpcondition = condition
+	}
+
+let make_function_breakpoint state =
+	incr breakpoint_id;
+	{
+		fbpid = !breakpoint_id;
+		fbpstate = state;
+	}
 
 let iter_breakpoints ctx f =
 	Hashtbl.iter (fun _ breakpoints ->
@@ -40,7 +40,7 @@ let iter_breakpoints ctx f =
 	) ctx.debug.breakpoints
 
 let add_breakpoint ctx file line column condition =
-	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 	let h = try
 		Hashtbl.find ctx.debug.breakpoints hash
 	with Not_found ->
@@ -53,7 +53,7 @@ let add_breakpoint ctx file line column condition =
 	breakpoint
 
 let delete_breakpoint ctx file line =
-	let hash = hash_s (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
+	let hash = hash (Path.unique_full_path (Common.find_file (ctx.curapi.get_com()) file)) in
 	let h = Hashtbl.find ctx.debug.breakpoints hash in
 	Hashtbl.remove h line
 
@@ -77,7 +77,7 @@ exception Parse_expr_error of string
 
 let parse_expr ctx s p =
 	let error s = raise (Parse_expr_error s) in
-	ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error false
+	ParserEntry.parse_expr_string (ctx.curapi.get_com()).Common.defines s p error true
 
 (* Vars *)
 
@@ -122,7 +122,7 @@ let get_variable capture_infos scopes name env =
 (* Expr to value *)
 
 let resolve_ident ctx env s =
-	let key = hash_s s in
+	let key = hash s in
 	try
 		(* 0. Extra locals *)
 		IntMap.find key env.env_extra_locals
@@ -152,6 +152,21 @@ let resolve_ident ctx env s =
 	with Not_found ->
 		vnull
 
+let find_enum_field_by_name ve name =
+	match (get_static_prototype_raise (get_ctx()) ve.epath).pkind with
+	| PEnum names ->
+		let fields = snd (List.nth names ve.eindex) in
+		let rec loop i fields = match fields with
+			| field :: fields ->
+				if field = name then i
+				else loop (i + 1) fields
+			| [] ->
+				raise Not_found
+		in
+		loop 0 fields
+	| _ ->
+		raise Not_found
+
 let rec expr_to_value ctx env e =
 	let safe_call f a =
 		let old = ctx.debug.debug_state in
@@ -167,7 +182,7 @@ let rec expr_to_value ctx env e =
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
-				| String s -> encode_string s
+				| String s -> EvalString.create_unknown s
 				| Int s -> VInt32 (Int32.of_string s)
 				| Float s -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue
@@ -190,14 +205,25 @@ let rec expr_to_value ctx env e =
 			end
 		| EField(e1,s) ->
 			let v1 = loop e1 in
-			let v = EvalField.field v1 (hash_s s) in
-			v
+			let s = hash s in
+			begin match v1 with
+			| VEnumValue ve ->
+				begin try
+					let i = find_enum_field_by_name ve s in
+					ve.eargs.(i)
+				with Not_found ->
+					vnull
+				end
+			| _ ->
+				let v = EvalField.field v1 s in
+				v
+			end
 		| EArrayDecl el ->
 			let vl = List.map loop el in
 			encode_array vl
 		| EObjectDecl fl ->
 			let fl = List.map (fun ((s,_,_),e) -> s,loop e) fl in
-			encode_obj_s None fl
+			encode_obj_s fl
 		| EBinop(op,e1,e2) ->
 			begin match op with
 			| OpAssign ->
@@ -240,7 +266,7 @@ let rec expr_to_value ctx env e =
 			begin match fst e1 with
 			| EField(ethis,s) ->
 				let vthis = loop ethis in
-				let v1 = EvalField.field vthis (hash_s s) in
+				let v1 = EvalField.field vthis (hash s) in
 				let vl = List.map loop el in
 				safe_call (EvalPrinting.call_value_on vthis v1) vl
 			| _ ->
@@ -280,7 +306,7 @@ let rec expr_to_value ctx env e =
 			List.iter (fun ((n,_),_,_,eo) ->
 				match eo with
 				| Some e ->
-					env.env_extra_locals <- IntMap.add (hash_s n) (loop e) env.env_extra_locals
+					env.env_extra_locals <- IntMap.add (hash n) (loop e) env.env_extra_locals
 				| _ ->
 					()
 			) vl;
@@ -299,7 +325,7 @@ let rec expr_to_value ctx env e =
 			let rec loop2 v sl = match sl with
 				| [] -> v
 				| s :: sl ->
-					loop2 (EvalField.field v (hash_s s)) sl
+					loop2 (EvalField.field v (hash s)) sl
 			in
 			let v1 = loop2 ctx.toplevel tp.tpackage in
 			let v1 = loop2 v1 [match tp.tsub with None -> tp.tname | Some s -> s] in
@@ -315,8 +341,19 @@ let rec expr_to_value ctx env e =
 and write_expr ctx env expr value =
 	begin match fst expr with
 		| EField(e1,s) ->
+			let s = hash s in
 			let v1 = expr_to_value ctx env e1 in
-			set_field v1 (hash_s s) value;
+			begin match v1 with
+			| VEnumValue ve ->
+				begin try
+					let i = find_enum_field_by_name ve s in
+					ve.eargs.(i) <- value
+				with Not_found ->
+					()
+				end
+			| _ ->
+				set_field v1 s value;
+			end
 		| EConst (Ident s) ->
 			begin try
 				let slot = get_var_slot_by_name env.env_debug.scopes s in

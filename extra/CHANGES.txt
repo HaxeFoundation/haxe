@@ -1,11 +1,17 @@
 XXXX-XX-XX:
+	New features:
+
+	lua : add -D lua-vanilla, which emits code with reduced functionality but no additional lib dependencies
 
 	General improvements and optimizations:
 
+	all : [breaking] reserved `operator` and `overload` as keywords (#7413)
+	all : added support for write-mode `@:op(a.b)`
 	all : made `final` on structure fields invariant (#7039)
 	all : [breaking] disallowed static variables that have no type-hint and expression (#6440)
 	php : Optimized haxe.ds.Vector (VectorData is not Array anymore)
 	php : Optimized `Map.copy()` and `Array.copy()`
+	php : Optimized iterators of `Map` and native arrays.
 	php : Support native PHP generators. See `php.Syntax.yield()` and `php.Generator`
 	js : Updated jQuery extern (js.jquery.*). Supporting jQuery up to 3.3.1.
 

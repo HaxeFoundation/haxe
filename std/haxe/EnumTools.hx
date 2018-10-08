@@ -169,34 +169,4 @@ extern class EnumValueTools {
 	static public inline function getIndex(e:EnumValue):Int {
 		return Type.enumIndex(e);
 	}
-
-	/**
-		Matches enum instance `e` against pattern `pattern`, returning `true` if
-		matching succeeded and `false` otherwise.
-
-		Example usage:
-
-		```haxe
-		if (e.match(pattern)) {
-			// codeIfTrue
-		} else {
-			// codeIfFalse
-		}
-		```
-
-		This is equivalent to the following code:
-
-		```haxe
-		switch (e) {
-			case pattern:
-				// codeIfTrue
-			case _:
-				// codeIfFalse
-		}
-		```
-
-		This method is implemented in the compiler. This definition exists only
-		for documentation.
-	**/
-	static public function match(e:EnumValue, pattern:Dynamic):Bool;
 }

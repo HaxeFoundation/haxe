@@ -268,6 +268,7 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
+		"isFinal",jbool v.v_final;
 		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
 	] in
 	let origin_to_int = function
@@ -277,8 +278,6 @@ and generate_tvar ctx v =
 		| TVOPatternVariable -> 3
 		| TVOCatchVariable -> 4
 		| TVOLocalFunction -> 5
-		| TVOLocalFinal -> 6
-		| TVOPatternFinal -> 7
 	in
 	let fields = match v.v_kind with
 			| VUser origin -> ("origin",jint (origin_to_int origin)) :: fields
@@ -643,7 +642,8 @@ let generate_abstract ctx a =
 		"from",generate_casts a.a_from_field a.a_from;
 		"to",generate_casts a.a_to_field a.a_to;
 		"array",jlist (classfield_ref ctx) a.a_array;
-		"resolve",jopt (classfield_ref ctx) a.a_resolve;
+		"read",jopt (classfield_ref ctx) a.a_read;
+		"write",jopt (classfield_ref ctx) a.a_write;
 	]
 
 let generate_module_type ctx mt =

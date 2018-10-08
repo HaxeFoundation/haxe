@@ -325,13 +325,13 @@ let get_config com =
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_can_skip_non_nullable_argument = false;
 		}
 	| Eval ->
 		{
 			default_config with
 			pf_static = false;
 			pf_pad_nulls = true;
+			pf_uses_utf16 = false;
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -551,6 +551,9 @@ let add_filter ctx f =
 let add_final_filter ctx f =
 	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
+let platform_name_macro com =
+	if defined com Define.Macro then "macro" else platform_name com.platform
+
 let find_file ctx f =
 	try
 		(match Hashtbl.find ctx.file_lookup_cache f with
@@ -567,7 +570,7 @@ let find_file ctx f =
 				if Sys.file_exists file then begin
 					(try
 						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name ctx.platform ^ String.sub file ext (String.length file - ext) in
+						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
 						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
 					with Not_found ->
 						file)

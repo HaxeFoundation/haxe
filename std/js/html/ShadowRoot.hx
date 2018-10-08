@@ -55,7 +55,7 @@ extern class ShadowRoot extends DocumentFragment
 	
 	function getElementById( elementId : String ) : Element;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
-	function getElementsByTagNameNS( namespace_ : String, localName : String ) : HTMLCollection;
+	function getElementsByTagNameNS( namespace : String, localName : String ) : HTMLCollection;
 	function getElementsByClassName( classNames : String ) : HTMLCollection;
 	function elementFromPoint( x : Float, y : Float ) : Element;
 	function elementsFromPoint( x : Float, y : Float ) : Array<Element>;

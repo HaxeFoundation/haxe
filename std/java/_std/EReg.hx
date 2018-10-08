@@ -45,6 +45,9 @@ import java.util.regex.*;
 			}
 		}
 
+		flags |= Pattern.UNICODE_CASE;
+		flags |= Pattern.UNICODE_CHARACTER_CLASS;
+
 		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
 	}

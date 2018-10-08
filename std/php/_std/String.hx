@@ -29,15 +29,15 @@ import php.*;
 	@:pure function new(string:String) : Void;
 
 	@:pure @:runtime inline function toUpperCase() : String {
-		return Global.mb_strtoupper(this, 'UTF-8');
+		return Global.mb_strtoupper(this);
 	}
 
 	@:pure @:runtime inline function toLowerCase() : String {
-		return Global.mb_strtolower(this, 'UTF-8');
+		return Global.mb_strtolower(this);
 	}
 
 	@:pure @:runtime inline function charAt(index : Int) : String {
-		return Syntax.coalesce(Boot.utf8CharAt(this, index), '');
+		return index < 0 ? '' : Global.mb_substr(this, index, 1);
 	}
 
 	@:pure function charCodeAt( index : Int) : Null<Int>;
@@ -48,7 +48,9 @@ import php.*;
 
 	@:pure function split( delimiter : String ) : Array<String>;
 
-	@:pure function substr( pos : Int, ?len : Int ) : String;
+	@:pure @:runtime inline function substr( pos : Int, ?len : Int ) : String {
+		return Global.mb_substr(this, pos, len);
+	}
 
 	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
 
@@ -57,6 +59,6 @@ import php.*;
 	}
 
 	@:pure @:runtime static inline function fromCharCode( code : Int ) : String {
-		return Global.mb_chr(code, 'UTF-8');
+		return Global.mb_chr(code);
 	}
 }

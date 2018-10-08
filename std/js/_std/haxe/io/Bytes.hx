@@ -21,11 +21,6 @@
  */
 package haxe.io;
 
-#if !nodejs
-import js.html.compat.Uint8Array;
-import js.html.compat.DataView;
-#end
-
 @:coreApi
 class Bytes {
 
@@ -48,7 +43,7 @@ class Bytes {
 	}
 
 	public inline function set( pos : Int, v : Int ) : Void {
-		b[pos] = v & 0xFF; // the &0xFF is necessary for js.html.compat support
+		b[pos] = v;
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {

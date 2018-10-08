@@ -273,16 +273,23 @@ let rec using_field ctx mode e i p =
 			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
-	try loop ctx.m.module_using with Not_found ->
 	try
+		(* module using from `using Path` *)
+		loop ctx.m.module_using
+	with Not_found -> try
+		(* type using from `@:using(Path)` *)
+		let mt = module_type_of_type e.etype in
+		loop  (t_infos mt).mt_using
+	with Not_found | Exit -> try
+		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
 		| AKUsing (_,c,_,_) -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> assert false);
 		acc
 	with Not_found ->
-	if not !check_constant_struct then raise Not_found;
-	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+		if not !check_constant_struct then raise Not_found;
+		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field ?(resume=false) ctx e i p mode =
@@ -527,14 +534,24 @@ let rec type_field ?(resume=false) ctx e i p mode =
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found -> try
-			let c,cf = match a.a_impl,a.a_resolve with
-				| Some c,Some cf -> c,cf
-				| _ -> raise Not_found
+			let get_resolve is_write =
+				let c,cf = match a.a_impl,(if is_write then a.a_write else a.a_read) with
+					| Some c,Some cf -> c,cf
+					| _ -> raise Not_found
+				in
+				let et = type_module_type ctx (TClassDecl c) None p in
+				let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
+				let ef = mk (TField (et,FStatic (c,cf))) t p in
+				let r = match follow t with
+					| TFun(_,r) -> r
+					| _ -> assert false
+				in
+				if is_write then
+					AKFieldSet(e,ef,i,r)
+				else
+					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
 			in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
-			let ef = mk (TField (et,FStatic (c,cf))) t p in
-			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
+			get_resolve (mode = MSet)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())
