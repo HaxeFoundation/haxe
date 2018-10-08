@@ -390,6 +390,10 @@ import java.NativeArray;
 		return new StringMapKeyIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration

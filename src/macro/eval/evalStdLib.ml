@@ -1390,6 +1390,14 @@ let encode_list_iterator l =
 		)
 	]
 
+let map_key_value_iterator path = vifun0 (fun vthis ->
+	let ctx = get_ctx() in
+	let vit = encode_instance path in
+	let fnew = get_instance_constructor ctx path null_pos in
+	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	vit
+)
+
 module StdIntMap = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = IIntMap h} -> h
@@ -1418,6 +1426,8 @@ module StdIntMap = struct
 		let keys = IntHashtbl.fold (fun k _ acc -> vint k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -1471,6 +1481,8 @@ module StdStringMap = struct
 		encode_list_iterator keys
 	)
 
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
+
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
 		let key = decode_vstring vkey in
@@ -1522,6 +1534,8 @@ module StdObjectMap = struct
 		let keys = ValueHashtbl.fold (fun k _ acc -> k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -2863,6 +2877,7 @@ let init_maps builtins =
 		"get",StdIntMap.get;
 		"iterator",StdIntMap.iterator;
 		"keys",StdIntMap.keys;
+		"keyValueIterator",StdIntMap.keyValueIterator;
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
@@ -2873,6 +2888,7 @@ let init_maps builtins =
 		"get",StdObjectMap.get;
 		"iterator",StdObjectMap.iterator;
 		"keys",StdObjectMap.keys;
+		"keyValueIterator",StdObjectMap.keyValueIterator;
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
@@ -2883,6 +2899,7 @@ let init_maps builtins =
 		"get",StdStringMap.get;
 		"iterator",StdStringMap.iterator;
 		"keys",StdStringMap.keys;
+		"keyValueIterator",StdStringMap.keyValueIterator;
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;

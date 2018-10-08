@@ -80,7 +80,11 @@ class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 			next : function() return h[it.next()]
 		};
 	}
-	
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
 		for(key in keys()) copied.set(key, get(key));

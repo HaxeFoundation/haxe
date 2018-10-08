@@ -19,72 +19,35 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package haxe.iterators;
 
-package haxe.ds;
+import haxe.ds.IntMap;
 
 /**
-	StringMap allows mapping of String keys to arbitrary values.
-
-	See `Map` for documentation details.
-
-	@see https://haxe.org/manual/std-Map.html
+	This Key/Value iterator can be used to iterate across maps.
 **/
-extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
+@:ifFeature("anon_read.keyValueIterator", "dynamic_read.keyValueIterator")
+class MapKeyValueIterator<K, V> {
+	var map:haxe.Constraints.IMap<K, V>;
+	var keys:Iterator<K>;
 
-	/**
-		Creates a new StringMap.
-	**/
-	public function new() : Void;
-
-	/**
-		See `Map.set`
-	**/
-	public function set( key : String, value : T ) : Void;
-
-	/**
-		See `Map.get`
-	**/
-	public function get( key : String ) : Null<T>;
-
-	/**
-		See `Map.exists`
-	**/
-	public function exists( key : String ) : Bool;
-
-	/**
-		See `Map.remove`
-	**/
-	public function remove( key : String ) : Bool;
-
-	/**
-		See `Map.keys`
-	**/
-	public function keys() : Iterator<String>;
-
-	/**
-		See `Map.iterator`
-	**/
-	public function iterator() : Iterator<T>;
-
-	/**
-		See `Map.keyValueIterator`
-	**/
-#if eval
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
-		return new haxe.iterators.MapKeyValueIterator(this);
+ 	public inline function new(map:haxe.Constraints.IMap<K, V>) {
+		this.map = map;
+		this.keys = map.keys();
 	}
-#else
-	public function keyValueIterator() : KeyValueIterator<String, T>;
-#end
 
 	/**
-		See `Map.copy`
+		See `Iterator.hasNext`
 	**/
-	public function copy() : StringMap<T>;
-	
-	/**
-		See `Map.toString`
-	**/
-	public function toString() : String;
+ 	public inline function hasNext():Bool {
+		return keys.hasNext();
+	}
 
+	/**
+		See `Iterator.next`
+	**/
+ 	public inline function next():{key:K,value:V} {
+		var key = keys.next();
+		return {value: map.get(key), key:key};
+	}
 }

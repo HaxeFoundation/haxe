@@ -82,7 +82,11 @@ package haxe.ds;
 		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
 		return a.iterator();
 	}
-	
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));

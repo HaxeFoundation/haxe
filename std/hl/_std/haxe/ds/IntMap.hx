@@ -54,7 +54,11 @@ class IntMap<T> implements haxe.Constraints.IMap<Int,T> {
 	public function iterator() : Iterator<T> {
 		return h.iterator();
 	}
-	
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));

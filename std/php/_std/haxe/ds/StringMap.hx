@@ -63,6 +63,10 @@ import haxe.Constraints;
 		return data.iterator();
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public inline function copy() : StringMap<T> {
 		return Syntax.clone(this);
 	}
