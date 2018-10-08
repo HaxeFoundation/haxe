@@ -394,7 +394,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					_had_side_effect <- true;
 					l.i_force_temp <- true;
 				end;
-				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],e,true);
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
