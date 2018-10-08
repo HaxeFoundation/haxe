@@ -47,14 +47,13 @@ extern class Array<T> implements ArrayAccess<T> {
 		return ArrayImpl.iterator(this);
 	}
 
-	public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
+	@:runtime public inline function keyValueIterator() : ArrayKeyValueIterator<T> {
 		return new ArrayKeyValueIterator(this);
 	}
 
 	public inline function insert( pos : Int, x : T ) : Void {
 		ArrayImpl.insert(this, pos, x);
 	}
-
 
 	@:runtime public inline function join( sep : String ) : String {
 		return ArrayImpl.join(this, sep);
