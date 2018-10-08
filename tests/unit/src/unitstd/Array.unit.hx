@@ -324,6 +324,8 @@ var it : KeyValueIterator<Int, Int> = a.keyValueIterator();
 a2 = [for (k=>v in it) k*v];
 a2 == [0,2,6,15,32];
 
+#if !flash
+// Can't create this closure on Flash apparently
 // keyValueIterator closure because why not
 var a : Array<Int> = [1,2,3,5,8];
 var itf : Void -> KeyValueIterator<Int, Int> = a.keyValueIterator;
@@ -354,3 +356,4 @@ var itf : Void -> KeyValueIterator<Int, Int> = d.keyValueIterator;
 var it = itf();
 a2 = [for (k=>v in it) k*v];
 a2 == [0,2,6,15,32];
+#end
