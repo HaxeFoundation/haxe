@@ -122,6 +122,15 @@ abstract Map<K,V>(IMap<K,V> ) {
 	**/
 	public inline function iterator():Iterator<V> {
 		return this.iterator();
+	}	
+
+	/**
+		Returns an Iterator over the keys and values of `this` Map.
+
+		The order of values is undefined.
+	**/
+	public inline function keyValueIterator():KeyValueIterator<K, V> {
+		return this.keyValueIterator();
 	}
 
 	/**
