@@ -261,7 +261,7 @@ class TestType extends Test {
  		eq("foo0", f());
 
 		var foo = function(bar = 2) { return bar; };
-		#if (flash || hl) // Cannot skip not-nullable argument
+		#if flash // Cannot skip not-nullable argument
 		t(typeError(foo.bind(_)));
 		#else
 		var l = foo.bind(_);

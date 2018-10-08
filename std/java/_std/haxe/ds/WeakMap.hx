@@ -429,6 +429,12 @@ import java.lang.ref.ReferenceQueue;
 		return new WeakMapValueIterator(this);
 	}
 
+	/**
+		See `Map.keyValueIterator`
+	**/
+	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
 
 	public function copy() : WeakMap<K,V> {
 		var copied = new WeakMap();

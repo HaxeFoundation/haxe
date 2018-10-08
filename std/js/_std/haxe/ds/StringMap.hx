@@ -125,6 +125,10 @@ private class StringMapIterator<T> {
 		return new StringMapIterator(this, arrayKeys());
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap();
 		for(key in keys()) copied.set(key, get(key));

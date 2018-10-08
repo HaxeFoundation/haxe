@@ -325,7 +325,6 @@ let get_config com =
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_can_skip_non_nullable_argument = false;
 		}
 	| Eval ->
 		{
