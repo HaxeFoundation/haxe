@@ -548,22 +548,29 @@ and not_xml ctx depth in_open =
 		newline lexbuf;
 		store lexbuf;
 		not_xml ctx depth in_open
+	(* closing tag *)
 	| '<','/',ident,'>' ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
 		if s = ctx.close_tag then begin
 			if depth = 0 then lexeme_end lexbuf
 			else not_xml ctx (depth - 1) false
 		end else
 			not_xml ctx depth false
+	(* opening tag *)
 	| '<',ident ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
 		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
 		not_xml ctx depth in_open
+	(* /> *)
 	| '/','>' ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+		   In that case, decrease depth and finish if it's 0. *)
 		let depth = if in_open then depth - 1 else depth in
 		if depth < 0 then lexeme_end lexbuf
 		else not_xml ctx depth false
