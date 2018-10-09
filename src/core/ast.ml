@@ -531,9 +531,7 @@ let unescape s =
 						with _ ->
 							fail()
 					in
-					let ub = UTF8.Buf.create 0 in
-					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
-					Buffer.add_string b (UTF8.Buf.contents ub);
+					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
 					fail());

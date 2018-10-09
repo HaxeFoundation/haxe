@@ -30,8 +30,15 @@ type error_msg =
 	| Unclosed_code
 	| Invalid_escape of char
 	| Invalid_option
+	| Unterminated_xml
 
 exception Error of error_msg * pos
+
+type xml_lexing_context = {
+	open_tag : string;
+	close_tag : string;
+	lexbuf : Sedlexing.lexbuf;
+}
 
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
@@ -42,6 +49,7 @@ let error_msg = function
 	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
 	| Invalid_option -> "Invalid regular expression option"
+	| Unterminated_xml -> "Unterminated XML literal"
 
 type lexer_file = {
 	lfile : string;
@@ -251,7 +259,6 @@ let mk_keyword lexbuf kwd =
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
-
 
 let ident = [%sedlex.regexp?
 	(
@@ -531,3 +538,58 @@ and regexp_options lexbuf =
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
 	| _ -> assert false
+
+and not_xml ctx depth in_open =
+	let lexbuf = ctx.lexbuf in
+	match%sedlex lexbuf with
+	| eof ->
+		raise Exit
+	| '\n' | '\r' | "\r\n" ->
+		newline lexbuf;
+		store lexbuf;
+		not_xml ctx depth in_open
+	(* closing tag *)
+	| '<','/',ident,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
+		if s = ctx.close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml ctx (depth - 1) false
+		end else
+			not_xml ctx depth false
+	(* opening tag *)
+	| '<',ident ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
+		not_xml ctx depth in_open
+	(* /> *)
+	| '/','>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+		   In that case, decrease depth and finish if it's 0. *)
+		let depth = if in_open then depth - 1 else depth in
+		if depth < 0 then lexeme_end lexbuf
+		else not_xml ctx depth false
+	| '<' | '/' | '>' ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| _ ->
+		assert false
+
+let lex_xml p open_tag close_tag lexbuf =
+	let ctx = {
+		open_tag = open_tag;
+		close_tag = close_tag;
+		lexbuf = lexbuf;
+	} in
+	try
+		not_xml ctx 0 true
+	with Exit ->
+		error Unterminated_xml p

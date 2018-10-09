@@ -789,7 +789,7 @@ module Fusion = struct
 						blocked := old;
 						e
 					in
-					let handle_el el =
+					let handle_el' el =
 						(* This mess deals with the fact that the order of evaluation is undefined for call
 							arguments on these targets. Even if we find a replacement, we pretend that we
 							didn't in order to find possible interferences in later call arguments. *)
@@ -804,7 +804,7 @@ module Fusion = struct
 						found := !really_found;
 						el
 					in
-					let handle_el = if not (target_handles_side_effect_order com) then handle_el else List.map replace in
+					let handle_el = if not (target_handles_side_effect_order com) then handle_el' else List.map replace in
 					let handle_call e2 el = match com.platform with
 						| Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
@@ -925,7 +925,8 @@ module Fusion = struct
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
 						| TObjectDecl fl ->
-							let el = handle_el (List.map snd fl) in
+							(* The C# generator has trouble with evaluation order in structures (#7531). *)
+							let el = (match com.platform with Cs -> handle_el' | _ -> handle_el) (List.map snd fl) in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 						| TArrayDecl el ->
@@ -1118,7 +1119,6 @@ module Cleanup = struct
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
-				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 				e
 			| TMeta((Meta.Ast,_,_),e1) when (match e1.eexpr with TSwitch _ -> false | _ -> true) ->
 				loop e1
