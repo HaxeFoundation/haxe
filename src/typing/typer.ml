@@ -2186,6 +2186,8 @@ and type_meta ctx m e1 with_type p =
 			(match follow e.etype with
 				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
 				| _ -> e)
+		| (Meta.Markup,_,_) ->
+			error "Markup literals must be processed by a macro" p
 		| (Meta.This,_,_) ->
 			let e = match ctx.this_stack with
 				| [] -> error "Cannot type @:this this here" p
