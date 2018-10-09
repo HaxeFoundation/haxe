@@ -3,6 +3,7 @@ package unit;
 import haxe.macro.Expr;
 import haxe.macro.Context.*;
 import haxe.macro.TypeTools.*;
+import haxe.macro.MacroStringTools.*;
 
 class HelperMacros {
 	static public macro function getCompilationDate() {
@@ -82,5 +83,14 @@ class HelperMacros {
 		var e = parse(s, currentPos());
 		var s2 = new haxe.macro.Printer().printExpr(e);
 		return macro eq($v{s}, $v{s2});
+	}
+
+	static public macro function pipeMarkupLiteral(e:Expr) {
+		return switch (e) {
+			case macro @:markup $v{(s:String)}:
+				formatString(s, e.pos);
+			case _:
+				error("Markup literal expected", e.pos);
+		}
 	}
 }
