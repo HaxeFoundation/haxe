@@ -83,7 +83,7 @@ enum ValueType {
 	}
 
 	public static inline function resolveEnum( name : String ) : Enum<Dynamic> {
-		return untyped $hxEnums[name];
+		return untyped __define_feature__("Type.resolveEnum", $hxEnums[name]);
 	}
 	#end
 
