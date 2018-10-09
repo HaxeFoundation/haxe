@@ -41,9 +41,7 @@ extern class Syntax {
     /**
         Generates `$left ?? $right`
     **/
-    static inline function coalesce<T>( left:T, right:T ) : T {
-        return codeDeref('({0} ?? {1})', left, right);
-    }
+    static function coalesce<T>( left:T, right:T ) : T ;
 
     /**
         Generates `$left . $right`
@@ -191,7 +189,19 @@ extern class Syntax {
         }
         ```
     **/
-    static function foreach<TCollection,TKey,TValue>( collection:TCollection, body:TKey->TValue->Void ) : Void;
+    static inline function foreach<TCollection,TKey,TValue>(collection:TCollection, body:TKey->TValue->Void) : Void {
+        while(Syntax.foreachCondition) {
+            Syntax.foreachCollection(collection);
+            var key:TKey = Syntax.foreachKey();
+            var value:TValue = Syntax.foreachValue();
+            Syntax.keepVar(key, value, key, value);
+            body(key, value);
+        }
+    }
+    static private var foreachCondition:Bool;
+    static private function foreachCollection<T>(collection:T):Void;
+    static private function foreachKey<T>():T;
+    static private function foreachValue<T>():T;
 
     /**
         Generates `new $className($arg1, ...$argN)`
@@ -263,7 +273,7 @@ extern class Syntax {
     /**
         Don't let compiler to optimize away local var passed to this method.
     **/
-    static function keepVar( localVar:Dynamic ) : Void;
+    static function keepVar( localVar:Rest<Dynamic> ) : Void;
 
     /**
         Adds `...` operator before `args`

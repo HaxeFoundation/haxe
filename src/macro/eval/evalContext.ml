@@ -41,7 +41,6 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
-	| EKDelayed
 
 (* Compile-time information for environments. This information is static for all
    environments of the same kind, e.g. all environments of a specific method. *)
@@ -194,6 +193,7 @@ and context = {
 	(* eval *)
 	toplevel : value;
 	eval : eval;
+	evals : eval DynArray.t;
 	mutable exception_stack : (pos * env_kind) list;
 }
 
@@ -204,7 +204,8 @@ let select ctx = get_ctx_ref := (fun() -> ctx)
 (* Misc *)
 
 let get_eval ctx =
-	ctx.eval
+    let id = Thread.id (Thread.self()) in
+    if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
 
 let rec kind_name ctx kind =
 	let rec loop kind env_id = match kind, env_id with
@@ -215,7 +216,6 @@ let rec kind_name ctx kind =
 			let env = DynArray.get ctx.environments parent_id in
 			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
 		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
-		| EKDelayed,_ -> "delayed"
 	in
 	loop kind ctx.environment_offset
 
@@ -241,7 +241,8 @@ let proto_fields proto =
 exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
-	List.rev (DynArray.to_list (DynArray.sub ctx.eval.environments 0 ctx.eval.environment_offset))
+	let eval = get_eval ctx in
+	List.rev (DynArray.to_list (DynArray.sub eval.environments 0 eval.environment_offset))
 
 let throw v p =
 	let ctx = get_ctx() in
@@ -251,7 +252,7 @@ let throw v p =
 		env.env_leave_pmin <- p.pmin;
 		env.env_leave_pmax <- p.pmax;
 	end;
-	raise (RunTimeException(v,call_stack ctx,p))
+	raise_notrace (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
 

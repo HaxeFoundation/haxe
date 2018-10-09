@@ -67,6 +67,17 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 	public function iterator() : Iterator<T>;
 
 	/**
+		See `Map.keyValueIterator`
+	**/
+#if eval
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+#else
+	public function keyValueIterator() : KeyValueIterator<String, T>;
+#end
+
+	/**
 		See `Map.copy`
 	**/
 	public function copy() : StringMap<T>;

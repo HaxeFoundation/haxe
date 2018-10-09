@@ -67,6 +67,10 @@ class ObjectMap <K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 		return _values.iterator();
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public inline function copy() : ObjectMap<K,V> {
 		return Syntax.clone(this);
 	}

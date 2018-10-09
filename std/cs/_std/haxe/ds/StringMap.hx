@@ -399,6 +399,10 @@ import cs.NativeArray;
 		return new StringMapValueIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : StringMap<T> {
 		var copied = new StringMap<T>();
 		for(key in keys()) copied.set(key, get(key));

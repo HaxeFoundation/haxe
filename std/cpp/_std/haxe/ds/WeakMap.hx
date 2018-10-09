@@ -74,7 +74,11 @@ class WeakMap<K:{},V> implements haxe.Constraints.IMap<K,V> {
 		var a:Array<Dynamic> = untyped __global__.__object_hash_values(h);
 		return a.iterator();
 	}
-	
+
+	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : WeakMap<K,V> {
 		var copied = new WeakMap();
 		for(key in keys()) copied.set(key, get(key));

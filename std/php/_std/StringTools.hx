@@ -69,16 +69,28 @@ import php.*;
 		var cLength = c.length;
 		var sLength = s.length;
 		if (cLength == 0 || sLength >= l) return s;
-		var padLength = Math.ceil((l - sLength) / cLength) * cLength + sLength;
-		return Global.str_pad(s, padLength, c, Const.STR_PAD_RIGHT);
+		var padLength = l - sLength;
+		var padCount = Syntax.int(padLength / cLength);
+		if(padCount > 0) {
+			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_RIGHT);
+			return (padCount * cLength >= padLength) ? result : Syntax.concat(result, c);
+		} else {
+			return Syntax.concat(s, c);
+		}
 	}
 
 	public static function lpad( s : String, c : String, l : Int ) : String {
 		var cLength = c.length;
 		var sLength = s.length;
 		if (cLength == 0 || sLength >= l) return s;
-		var padLength = Math.ceil((l - sLength) / cLength) * cLength + sLength;
-		return Global.str_pad(s, padLength, c, Const.STR_PAD_LEFT);
+		var padLength = l - sLength;
+		var padCount = Syntax.int(padLength / cLength);
+		if(padCount > 0) {
+			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_LEFT);
+			return (padCount * cLength >= padLength) ? result : Syntax.concat(c, result);
+		} else {
+			return Syntax.concat(c, s);
+		}
 	}
 
 	public static function replace( s : String, sub : String, by : String ) : String {
@@ -98,9 +110,10 @@ import php.*;
 		return s.toUpperCase();
 	}
 
-	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		var char = Global.mb_substr(s, index, 1, 'UTF-8');
-		return char == '' ? 0 : Global.mb_ord(char, 'UTF-8');
+	public static function fastCodeAt( s : String, index : Int ) : Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		if(char == '') return 0;
+		return Boot.unsafeOrd(char);
 	}
 
 	public static inline function isEof( c : Int ) : Bool {

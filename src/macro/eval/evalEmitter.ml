@@ -192,7 +192,7 @@ let emit_try exec catches env =
 			try
 				List.find (fun (_,path,i) -> is v path) catches
 			with Not_found ->
-				raise exc
+				raise_notrace exc
 		in
 		varacc (fun _ -> v) env;
 		exec env
@@ -208,13 +208,13 @@ let emit_seq exec1 exec2 env =
 	ignore(exec1 env);
 	exec2 env
 
-let emit_return_null _ = raise (Return vnull)
+let emit_return_null _ = raise_notrace (Return vnull)
 
-let emit_return_value exec env = raise (Return (exec env))
+let emit_return_value exec env = raise_notrace (Return (exec env))
 
-let emit_break env = raise Break
+let emit_break env = raise_notrace Break
 
-let emit_continue env = raise Continue
+let emit_continue env = raise_notrace Continue
 
 let emit_throw exec p env = throw (exec env) p
 
@@ -235,34 +235,30 @@ let emit_super_field_call slot proto i execs p env =
 
 (* Type.call() - immediate *)
 
-let emit_proto_field_call proto i execs p =
-	let vf = lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v p) in
-	(fun env ->
-		let f = Lazy.force vf in
-		let vl = List.map (apply env) execs in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-		f vl
-	)
+let emit_proto_field_call v execs p env =
+	let f = Lazy.force v in
+	let vl = List.map (apply env) execs in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
+	f vl
 
 (* instance.call() where call is overridden - dynamic dispatch *)
 
-let emit_method_call exec name execs p =
-	let vf vthis = match vthis with
-		| VInstance {iproto = proto} | VPrototype proto -> proto_field_raise proto name
-		| VString _ -> proto_field_raise (get_ctx()).string_prototype name
-		| VArray _ -> proto_field_raise (get_ctx()).array_prototype name
-		| VVector _ -> proto_field_raise (get_ctx()).vector_prototype name
-		| _ -> unexpected_value_p vthis "instance" p
-	in
-	(fun env ->
-		let vthis = exec env in
-		let vf = vf vthis in
-		let vl = List.map (apply env) execs in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-		call_value_on vthis vf vl
-	)
+let get_prototype v p = match vresolve v with
+	| VInstance {iproto = proto} | VPrototype proto -> proto
+	| VString _ -> (get_ctx()).string_prototype
+	| VArray _ -> (get_ctx()).array_prototype
+	| VVector _ -> (get_ctx()).vector_prototype
+	| _ -> unexpected_value_p v "instance" p
+
+let emit_method_call exec name execs p env =
+	let vthis = exec env in
+	let proto = get_prototype vthis p in
+	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
+	let vl = List.map (apply env) execs in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
+	call_value_on vthis vf vl
 
 (* instance.call() where call is not a method - lookup + this-binding *)
 
@@ -275,17 +271,14 @@ let emit_field_call exec name execs p env =
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_call proto fnew execs p =
-	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	(fun env ->
-		let f = Lazy.force vf in
-		let vthis = create_instance_direct proto in
-		let vl = List.map (apply env) execs in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-		ignore(f (vthis :: vl));
-		vthis
-	)
+let emit_constructor_call proto v execs p env =
+	let f = Lazy.force v in
+	let vthis = create_instance_direct proto INormal in
+	let vl = List.map (apply env) execs in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
+	ignore(f (vthis :: vl));
+	vthis
 
 (* super() - immediate + this-binding *)
 
@@ -300,17 +293,14 @@ let emit_special_super_call fnew execs env =
 	end;
 	vnull
 
-let emit_super_call fnew execs p =
-	let vf = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v p) in
-	(fun env ->
-		let f = Lazy.force vf in
-		let vthis = env.env_locals.(0) in
-		let vl = List.map (apply env) execs in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-		ignore(f (vthis :: vl));
-		vthis
-	)
+let emit_super_call v execs p env =
+	let f = Lazy.force v in
+	let vthis = env.env_locals.(0) in
+	let vl = List.map (apply env) execs in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
+	ignore(f (vthis :: vl));
+	vthis
 
 (* unknown call - full lookup *)
 
@@ -440,7 +430,7 @@ let emit_anon_field_write exec1 proto i name exec2 env =
 let emit_field_write exec1 name exec2 p env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
+	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
 	v2
 
 let emit_array_write exec1 exec2 exec3 p env =
@@ -514,7 +504,7 @@ let emit_field_read_write exec1 name exec2 fop prefix p env =
 		let vf = field v1 name in
 		let v2 = exec2 env in
 		let v = fop vf v2 in
-		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
+		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
 		if prefix then v else vf
 
 let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
@@ -551,10 +541,10 @@ let emit_not_eq_null exec env = match exec env with
 	| VNull -> VFalse
 	| _ -> VTrue
 
-let emit_op_add exec1 exec2 env =
+let emit_op_add p exec1 exec2 env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	op_add v1 v2
+	op_add p v1 v2
 
 let emit_op_mult p exec1 exec2 env =
 	let v1 = exec1 env in
@@ -661,17 +651,6 @@ let handle_capture_arguments exec varaccs env =
 	) varaccs;
 	exec env
 
-let run_function exec env =
-	try
-		exec env
-	with
-		| Return v -> v
-[@@inline]
-
-let run_function_noret exec env =
-	exec env
-[@@inline]
-
 let get_normal_env ctx info num_locals num_captures _ =
 	push_environment ctx info num_locals num_captures
 
@@ -681,19 +660,19 @@ let get_closure_env ctx info num_locals num_captures refs =
 	env
 
 let execute_set_local env i v =
-			env.env_locals.(i) <- v
+	env.env_locals.(i) <- v
 
 let emit_function_ret ctx get_env refs exec vl =
 	let env = get_env refs in
 	List.iteri (execute_set_local env) vl;
-	let v = run_function exec env in
+	let v = try exec env with Return v -> v in
 	pop_environment ctx env;
 	v
 
 let emit_function_noret ctx get_env refs exec vl =
 	let env = get_env refs in
 	List.iteri (execute_set_local env) vl;
-	let v = run_function_noret exec env in
+	let v = exec env in
 	pop_environment ctx env;
 	v
 

@@ -75,7 +75,6 @@ type typer_globals = {
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
-	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : (tclass * pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;

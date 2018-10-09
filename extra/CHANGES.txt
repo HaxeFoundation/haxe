@@ -1,4 +1,7 @@
 XXXX-XX-XX:
+	New features:
+
+	lua : add -D lua-vanilla, which emits code with reduced functionality but no additional lib dependencies
 
 	General improvements and optimizations:
 

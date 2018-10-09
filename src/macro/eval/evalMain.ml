@@ -131,21 +131,13 @@ let create com api is_macro =
 			oproto = fake_proto key_eval_toplevel;
 		};
 		eval = eval;
+		evals = evals;
 		exception_stack = [];
 	} in
 	t();
 	ctx
 
 (* API for macroContext.ml *)
-
-let eval_delayed ctx e =
-	let jit,f = jit_expr ctx e in
-	let info = create_env_info true (file_hash e.epos.pfile) EKDelayed jit.capture_infos in
-	fun () ->
-		let env = push_environment ctx info jit.max_num_locals (Hashtbl.length jit.captures) in
-		match catch_exceptions ctx (fun () -> Std.finally (fun _ -> pop_environment ctx env) f env) e.epos with
-			| Some v -> v
-			| None -> vnull
 
 let call_path ctx path f vl api =
 	if ctx.had_error then
@@ -237,8 +229,8 @@ let value_signature v =
 		| VInstance {ikind = IStringMap map} ->
 			cache v (fun() ->
 				addc 'b';
-				StringHashtbl.iter (fun s value ->
-					adds s.sstring;
+				StringHashtbl.iter (fun s (_,value) ->
+					adds s;
 					loop value
 				) map;
 				addc 'h'

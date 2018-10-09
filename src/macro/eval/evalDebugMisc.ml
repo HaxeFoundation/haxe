@@ -223,7 +223,7 @@ let rec expr_to_value ctx env e =
 			encode_array vl
 		| EObjectDecl fl ->
 			let fl = List.map (fun ((s,_,_),e) -> s,loop e) fl in
-			encode_obj_s None fl
+			encode_obj_s fl
 		| EBinop(op,e1,e2) ->
 			begin match op with
 			| OpAssign ->

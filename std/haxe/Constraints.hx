@@ -63,6 +63,7 @@ interface IMap<K,V> {
 	public function remove(k:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
+	public function keyValueIterator():KeyValueIterator<K, V>;
 	public function copy():IMap<K,V>;
 	public function toString():String;
 }

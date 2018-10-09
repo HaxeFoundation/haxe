@@ -12,9 +12,7 @@ class Issue7247 extends Test {
 		eq(str.indexOf("\\"),-1);
 		eq(str.lastIndexOf("\\"),-1);
 		eq(str.split("\\").length,1);
-		#if !cpp
 		f( ~/\\/.match(str) );
-		#end
 
 		eq(str2.indexOf("\\"), 2);
 		eq(str2.lastIndexOf("\\"), 2);

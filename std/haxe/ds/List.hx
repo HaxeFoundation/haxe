@@ -163,6 +163,13 @@ class List<T> {
 	}
 
 	/**
+		Returns an iterator of the List indices and values.
+	**/
+	@:pure @:runtime public inline function keyValueIterator() : ListKeyValueIterator<T> {
+		return new ListKeyValueIterator(h);
+	}
+
+	/**
 		Returns a string representation of `this` List.
 
 		The result is enclosed in { } with the individual elements being
@@ -278,5 +285,25 @@ private class ListIterator<T> {
 		var val = head.item;
 		head = head.next;
 		return val;
+	}
+}
+
+private class ListKeyValueIterator<T> {
+	var idx:Int;
+	var head:ListNode<T>;
+
+	public inline function new(head:ListNode<T>) {
+		this.head = head;
+		this.idx = 0;
+	}
+
+	public inline function hasNext():Bool {
+		return head != null;
+	}
+
+	public inline function next():{key:Int,value:T} {
+		var val = head.item;
+		head = head.next;
+		return {value: val, key:idx++};
 	}
 }

@@ -12,9 +12,9 @@ class Linux {
 		if (notYetInstalled.length > 0) {
 			var aptCacheDir = Sys.getEnv("APT_CACHE_DIR");
 			var baseCommand = if (aptCacheDir != null) {
-				["apt-get", "-o", 'dir::cache::archives=${aptCacheDir}', "install", "-y"];
+				["apt-get", "-o", 'dir::cache::archives=${aptCacheDir}', "install", "-qqy"];
 			} else {
-				["apt-get", "install", "-y"];
+				["apt-get", "install", "-qqy"];
 			};
 			runCommand("sudo", baseCommand.concat(notYetInstalled), true);
 		}
