@@ -51,7 +51,6 @@ type module_check_policy =
 	| NoCheckDependencies
 	| NoCheckShadowing
 
-
 type t =
 	| TMono of t option ref
 	| TEnum of tenum * tparams
@@ -1702,6 +1701,8 @@ type unify_error =
 	| Constraint_failure of string
 	| Missing_overload of tclass_field * t
 	| FinalInvariance (* nice band name *)
+	| Invalid_function_argument of int
+	| Invalid_return_type
 	| Unify_custom of string
 
 exception Unify_error of unify_error list
@@ -2010,8 +2011,8 @@ let rec unify a b =
 			) l2 l1 (* contravariance *)
 		with
 			Unify_error l ->
-				let msg = if !i = 0 then "Cannot unify return types" else "Cannot unify argument " ^ (string_of_int !i) in
-				error (cannot_unify a b :: Unify_custom msg :: l))
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument !i in
+				error (cannot_unify a b :: msg :: l))
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
 			| KTypeParameter pl ->
