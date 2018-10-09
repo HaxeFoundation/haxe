@@ -291,6 +291,7 @@ class Boot {
 		@throws HxException if `value` cannot be casted to this type
 	**/
 	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		if (value == null) return null;
 		switch (hxClass.phpClassName) {
 			case 'Int':
 				if (Boot.isNumber(value)) {
