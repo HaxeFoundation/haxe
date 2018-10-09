@@ -68,6 +68,10 @@ let unify_error_msg ctx = function
 		cf.cf_name ^ " has no overload for " ^ s_type ctx t
 	| FinalInvariance ->
 		"Cannot unify final and non-final fields"
+	| Invalid_function_argument i ->
+		Printf.sprintf "Cannot unify argument %i" i
+	| Invalid_return_type ->
+		"Cannot unify return types"
 	| Unify_custom msg ->
 		msg
 
