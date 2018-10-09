@@ -220,8 +220,9 @@ let emit_throw exec p env = throw (exec env) p
 
 let emit_safe_cast exec t p env =
 	let v1 = exec env in
-	if not (is v1 t) then throw_string "Class cast error" p;
-	v1
+	match vresolve v1 with
+	| VNull -> v1
+	| _ -> if not (is v1 t) then throw_string "Class cast error" p else v1
 
 (* Calls *)
 
