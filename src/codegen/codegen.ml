@@ -448,8 +448,11 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let enull = Texpr.Builder.make_null vexpr.etype p in
+	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
+	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent echeck,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
