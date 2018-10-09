@@ -8,6 +8,7 @@ class Issue7115 extends unit.Test {
 		f(Std.is(getNull(), String));
 		f(Std.is(getNull(), Issue7115));
 		f(Std.is(getNull(), haxe.ds.Option));
+		f(Std.is(getNull(), Dynamic));
 	}
 
 	function testCast() {

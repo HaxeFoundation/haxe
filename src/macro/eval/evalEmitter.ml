@@ -190,7 +190,7 @@ let emit_try exec catches env =
 		eval.environment_offset <- environment_offset;
 		let exec,_,varacc =
 			try
-				List.find (fun (_,path,i) -> is v path) catches
+				List.find (fun (_,path,i) -> path = key_Dynamic || is v path) catches
 			with Not_found ->
 				raise_notrace exc
 		in
