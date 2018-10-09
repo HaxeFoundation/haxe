@@ -53,7 +53,7 @@ class Macro {
 
 	macro static public function getCases(pack:String) {
 		var cases = [];
-		var singleCase = haxe.macro.Compiler.getDefine("test");
+		var singleCase = haxe.macro.Context.definedValue("test");
 		function loop(pack:Array<String>) {
 			var path = Context.resolvePath(Path.join(pack));
 			for (file in sys.FileSystem.readDirectory(path)) {

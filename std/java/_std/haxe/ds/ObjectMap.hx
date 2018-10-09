@@ -395,6 +395,9 @@ import java.NativeArray;
 		return new ObjectMapValueIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
 
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();

@@ -136,7 +136,7 @@ module StdArray = struct
 	let iterator = vifun0 (fun vthis ->
 		let this = this vthis in
 		let f_has_next,f_next = EvalArray.iterator this in
-		encode_obj None [
+		encode_obj [
 			key_hasNext,vifun0 (fun _ -> vbool (f_has_next()));
 			key_next,vifun0 (fun _ -> f_next())
 		]
@@ -543,8 +543,6 @@ module StdCallStack = struct
 			| EKMethod(st,sf) ->
 				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
-			| EKDelayed ->
-				()
 		) envs;
 		encode_array (DynArray.to_list l)
 
@@ -581,7 +579,7 @@ module StdCompress = struct
 		let dst = decode_bytes dst in
 		let dstPos = decode_int dstPos in
 		let r = try f this.z (Bytes.unsafe_to_string src) srcPos (Bytes.length src - srcPos) dst dstPos (Bytes.length dst - dstPos) this.z_flush with _ -> exc_string "oops" in
-		encode_obj None [
+		encode_obj [
 			key_done,vbool r.z_finish;
 			key_read,vint r.z_read;
 			key_write,vint r.z_wrote
@@ -654,7 +652,7 @@ module StdContext = struct
 			| None ->
 				vnull
 			| Some l ->
-				encode_obj_s None l
+				encode_obj_s l
 	)
 end
 
@@ -750,10 +748,11 @@ module StdEReg = struct
 			| 'i' -> Some `CASELESS
 			| 's' -> Some `DOTALL
 			| 'm' -> Some `MULTILINE
-			| 'u' -> Some `UTF8
+			| 'u' -> None
 			| 'g' -> global := true; None
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
+		let flags = `UTF8 :: `UCP :: flags in
 		let r = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
 			r = r;
@@ -860,7 +859,7 @@ module StdEReg = struct
 		maybe_run this 0 (fun (first,last) ->
 			let first = byte_offset_to_char_offset_lol this.r_string first 0 0 in
 			let last = byte_offset_to_char_offset_lol this.r_string last 0 0 in
-			encode_obj None [key_pos,vint first;key_len,vint (last - first)]
+			encode_obj [key_pos,vint first;key_len,vint (last - first)]
 		)
 	)
 
@@ -1176,7 +1175,7 @@ module StdFileSystem = struct
 	let stat = vfun1 (fun path ->
 		let s = try Unix.stat (patch_path (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg) in
 		let open Unix in
-		encode_obj None [
+		encode_obj [
 			key_gid,vint s.st_gid;
 			key_uid,vint s.st_uid;
 			key_atime,StdDate.encode_date s.st_atime;
@@ -1220,7 +1219,7 @@ module StdGc = struct
 	let key_stack_size = hash "stack_size"
 
 	let encode_stats stats =
-		encode_obj None [
+		encode_obj [
 			key_minor_words,vfloat stats.minor_words;
 			key_promoted_words,vfloat stats.promoted_words;
 			key_major_words,vfloat stats.major_words;
@@ -1245,7 +1244,7 @@ module StdGc = struct
 
 	let counters = vfun0 (fun () ->
 		let (minor_words,promoted_words,major_words) = Gc.counters() in
-		encode_obj None [
+		encode_obj [
 			key_minor_words,vfloat minor_words;
 			key_promoted_words,vfloat promoted_words;
 			key_major_words,vfloat major_words;
@@ -1269,7 +1268,7 @@ module StdGc = struct
 
 	let get = vfun0 (fun () ->
 		let control = Gc.get() in
-		encode_obj None [
+		encode_obj [
 			key_minor_heap_size,vint control.minor_heap_size;
 			key_major_heap_increment,vint control.major_heap_increment;
 			key_space_overhead,vint control.space_overhead;
@@ -1372,7 +1371,7 @@ end
 
 let encode_list_iterator l =
 	let l = ref l in
-	encode_obj None [
+	encode_obj [
 		key_hasNext,vifun0 (fun _ ->
 			match !l with [] -> vfalse | _ -> vtrue
 		);
@@ -1381,6 +1380,14 @@ let encode_list_iterator l =
 			| v :: l' -> l := l'; v
 		)
 	]
+
+let map_key_value_iterator path = vifun0 (fun vthis ->
+	let ctx = get_ctx() in
+	let vit = encode_instance path in
+	let fnew = get_instance_constructor ctx path null_pos in
+	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	vit
+)
 
 module StdIntMap = struct
 	let this vthis = match vthis with
@@ -1410,6 +1417,8 @@ module StdIntMap = struct
 		let keys = IntHashtbl.fold (fun k _ acc -> vint k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -1463,6 +1472,8 @@ module StdStringMap = struct
 		encode_list_iterator keys
 	)
 
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
+
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
 		let key = decode_vstring vkey in
@@ -1514,6 +1525,8 @@ module StdObjectMap = struct
 		let keys = ValueHashtbl.fold (fun k _ acc -> k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -1862,7 +1875,7 @@ module StdSocket = struct
 	let host = vifun0 (fun vthis ->
 		match getsockname (this vthis) with
 		| ADDR_INET (addr,port) ->
-			encode_obj None [
+			encode_obj [
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
@@ -1879,7 +1892,7 @@ module StdSocket = struct
 	let peer = vifun0 (fun vthis ->
 		match getpeername (this vthis) with
 		| ADDR_INET (addr,port) ->
-			encode_obj None [
+			encode_obj [
 				key_ip,vint32 (inet_addr_to_int32 addr);
 				key_port,vint port;
 			]
@@ -1920,7 +1933,7 @@ module StdSocket = struct
 		let read = List.map (fun sock -> List.assq sock read) read' in
 		let write = List.map (fun sock -> List.assq sock write) write' in
 		let others = List.map (fun sock -> List.assq sock others) others' in
-		encode_obj None [
+		encode_obj [
 			key_read,encode_array read;
 			key_write,encode_array write;
 			key_others,encode_array others;
@@ -2855,6 +2868,7 @@ let init_maps builtins =
 		"get",StdIntMap.get;
 		"iterator",StdIntMap.iterator;
 		"keys",StdIntMap.keys;
+		"keyValueIterator",StdIntMap.keyValueIterator;
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
@@ -2865,6 +2879,7 @@ let init_maps builtins =
 		"get",StdObjectMap.get;
 		"iterator",StdObjectMap.iterator;
 		"keys",StdObjectMap.keys;
+		"keyValueIterator",StdObjectMap.keyValueIterator;
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
@@ -2875,6 +2890,7 @@ let init_maps builtins =
 		"get",StdStringMap.get;
 		"iterator",StdStringMap.iterator;
 		"keys",StdStringMap.keys;
+		"keyValueIterator",StdStringMap.keyValueIterator;
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;

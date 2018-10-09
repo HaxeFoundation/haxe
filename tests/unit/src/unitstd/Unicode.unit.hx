@@ -225,9 +225,11 @@ Reflect.field(obj, field) == null;
 
 // EReg -_-
 
-function test(left:String, middle:String, right:String) {
+function test(left:String, middle:String, right:String, ?rex:EReg) {
 	var s = '$left:$middle:$right';
-	var rex = new EReg(':($middle):', "");
+	if (rex == null) {
+		rex = new EReg(':($middle):', "");
+	}
 	function check(rex:EReg) {
 		eq(rex.matchedLeft(), left);
 		eq(rex.matchedRight(), right);
@@ -237,7 +239,11 @@ function test(left:String, middle:String, right:String) {
 		eq(pos.len, middle.length + 2);
 	}
 
-	t(rex.match(s));
+	if (!rex.match(s)) {
+		assert();
+		infos("For " + s);
+		return;
+	}
 	check(rex);
 
 	var split = rex.split(s);
@@ -259,7 +265,6 @@ function test(left:String, middle:String, right:String) {
 	}), '${left}ä$right');
 }
 
-#if !(lua || cpp || flash)
 test("äb", "ä", "bc");
 test("äb", "a", "bc");
 test("ab", "a", "bc");
@@ -275,10 +280,22 @@ test("あb", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "あbc", "bc");
 
+#if !flash
+// wontfix (cantfix?)
 test("😂b", "😂bc", "bc");
 test("😂b", "abc", "bc");
 test("ab", "abc", "bc");
 test("ab", "😂bc", "bc");
 #end
+
+#if (eval || lua || python)
+// unspecced?
+test("()", "ä", "[]", ~/:(\w):/);
+~/\bx/.match("äx") == false;
+~/x\b/.match("xä") == false;
+#end
+
+test("a", "É", "b", ~/:(é):/i);
+test("a", "é", "b", ~/:(É):/i);
 
 #end

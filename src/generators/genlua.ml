@@ -47,6 +47,7 @@ type ctx = {
     mutable separator : bool;
     mutable found_expose : bool;
     mutable lua_jit : bool;
+    mutable lua_vanilla : bool;
     mutable lua_ver : float;
 }
 
@@ -646,10 +647,15 @@ and gen_expr ?(local=true) ctx e = begin
     | TEnumIndex x ->
         gen_value ctx x;
         print ctx "[1]"
-    | TField (e, ef) when is_string_expr e && field_name ef = "length"->
-        spr ctx "__lua_lib_luautf8_Utf8.len(";
-        gen_value ctx e;
-        spr ctx ")";
+    | TField (e, ef) when is_string_expr e && field_name ef = "length" ->
+        if ctx.lua_vanilla then (
+            spr ctx "#";
+            gen_value ctx e;
+        ) else (
+            spr ctx "__lua_lib_luautf8_Utf8.len(";
+            gen_value ctx e;
+            spr ctx ")";
+        )
     | TField (e, ef) when is_possible_string_field e (field_name ef)  ->
         add_feature ctx "use._hx_wrap_if_string_field";
         add_feature ctx "use.string";
@@ -1841,6 +1847,7 @@ let alloc_ctx com =
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
+        lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
                 float_of_string (PMap.find "lua_ver" com.defines.Define.values)
             with | Not_found -> 5.2;
@@ -2042,8 +2049,6 @@ let generate com =
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "else";
-        println ctx "  _G.error(\"Bitop library is missing.  Please install luabitop\");";
         println ctx "end";
     end;
 

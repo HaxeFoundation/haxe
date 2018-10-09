@@ -59,10 +59,10 @@ type strict_defined =
 	| SourceMap
 	| KeepOldOutput
 	| LoopUnrollMaxCost
-	| LuaVer
 	| LuaJit
+	| LuaVanilla
+	| LuaVer
 	| Macro
-	| MacroDebug
 	| MacroTimes
 	| NekoSource
 	| NekoV1
@@ -173,9 +173,9 @@ let infos = function
 	| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
 	| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])
 	| LuaJit -> "lua_jit",("Enable the jit compiler for lua (version 5.2 only)",[Platform Lua])
+	| LuaVanilla -> "lua_vanilla",("Generate code lacking compiled extern lib support (e.g. utf8)",[Platform Lua])
 	| LuaVer -> "lua_ver",("The lua version to target",[Platform Lua])
 	| Macro -> "macro",("Defined when code is compiled in the macro context",[])
-	| MacroDebug -> "macro_debug",("Show warnings for potential macro problems (e.g. macro-in-macro calls)",[])
 	| MacroTimes -> "macro_times",("Display per-macro timing when used with --times",[])
 	| NetVer -> "net_ver",("<version:20-45> Sets the .NET version to be targeted",[Platform Cs])
 	| NetTarget -> "net_target",("<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",[Platform Cs])

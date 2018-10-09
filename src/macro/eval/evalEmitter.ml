@@ -192,7 +192,7 @@ let emit_try exec catches env =
 			try
 				List.find (fun (_,path,i) -> is v path) catches
 			with Not_found ->
-				raise exc
+				raise_notrace exc
 		in
 		varacc (fun _ -> v) env;
 		exec env
@@ -208,13 +208,13 @@ let emit_seq exec1 exec2 env =
 	ignore(exec1 env);
 	exec2 env
 
-let emit_return_null _ = raise (Return vnull)
+let emit_return_null _ = raise_notrace (Return vnull)
 
-let emit_return_value exec env = raise (Return (exec env))
+let emit_return_value exec env = raise_notrace (Return (exec env))
 
-let emit_break env = raise Break
+let emit_break env = raise_notrace Break
 
-let emit_continue env = raise Continue
+let emit_continue env = raise_notrace Continue
 
 let emit_throw exec p env = throw (exec env) p
 
@@ -254,7 +254,7 @@ let get_prototype v p = match vresolve v with
 let emit_method_call exec name execs p env =
 	let vthis = exec env in
 	let proto = get_prototype vthis p in
-	let vf = proto_field_raise proto name in
+	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
@@ -430,7 +430,7 @@ let emit_anon_field_write exec1 proto i name exec2 env =
 let emit_field_write exec1 name exec2 p env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
+	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
 	v2
 
 let emit_array_write exec1 exec2 exec3 p env =
@@ -504,7 +504,7 @@ let emit_field_read_write exec1 name exec2 fop prefix p env =
 		let vf = field v1 name in
 		let v2 = exec2 env in
 		let v = fop vf v2 in
-		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise (RunTimeException(v,stack,p)));
+		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
 		if prefix then v else vf
 
 let emit_array_read_write exec1 exec2 exec3 fop prefix p env =

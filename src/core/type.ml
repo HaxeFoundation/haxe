@@ -83,7 +83,7 @@ and tconstant =
 	| TThis
 	| TSuper
 
-and tvar_extra = (type_params * texpr * bool) option
+and tvar_extra = (type_params * texpr option) option
 
 and tvar_origin =
 	| TVOLocalVariable
@@ -1533,8 +1533,8 @@ module Printer = struct
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
 		]
 
-	let s_tvar_extra (tl,e,_) =
-		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_expr_ast true "" s_type e)
+	let s_tvar_extra (tl,eo) =
+		Printf.sprintf "Some(%s, %s)" (s_type_params tl) (s_opt (s_expr_ast true "" s_type) eo)
 
 	let s_tvar v =
 		s_record_fields "" [
