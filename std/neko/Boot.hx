@@ -70,7 +70,7 @@ class Boot {
 	private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		untyped {
 			if( cl == Dynamic )
-				return true;
+				return o != null;
 			switch( __dollar__typeof(o) ) {
 			case 1: return (cl == Int || cl == Float);
 			case 2: return cl == Float || (cl == Int && __dollar__int(o) == o);
