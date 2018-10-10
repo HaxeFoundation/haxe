@@ -99,7 +99,7 @@ class Boot {
 			case Table:
 				return Lua.type(o) == "table";
 			case Dynamic:
-				return true;
+				return o != null;
 			default: {
 				if ( o!= null &&  Lua.type(o)  == "table" && Lua.type(cl) == "table"){
 					if (extendsOrImplements(getClass(o), cl)) return true;

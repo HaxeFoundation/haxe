@@ -2149,7 +2149,7 @@ and eval_expr ctx e =
 				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some TNull else None) eargs in
+				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
 				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
 				let f = {
 					tf_args = eargs;
@@ -3101,25 +3101,25 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		let vt = to_type ctx v.v_type in
 		let capt = captured_index ctx v in
 		(match o with
-		| None | Some TNull -> ()
+		| None | Some {eexpr = TConst TNull} -> ()
 		| Some c when not (is_nullable vt) ->
 			(* if optional but not null, turn into a not nullable here *)
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			let t = alloc_tmp ctx vt in
 			(match vt with
 			| HUI8 | HUI16 | HI32 | HI64 ->
-				(match c with
-				| TInt i -> op ctx (OInt (t,alloc_i32 ctx i))
-				| TFloat s -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
+				(match c.eexpr with
+				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
+				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
 				| _ -> assert false)
 			| HF32 | HF64 ->
-				(match c with
-				| TInt i -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
-				| TFloat s -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
+				(match c.eexpr with
+				| TConst (TInt i) -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
+				| TConst (TFloat s) -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
 				| _ -> assert false)
 			| HBool ->
-				(match c with
-				| TBool b -> op ctx (OBool (t,b))
+				(match c.eexpr with
+				| TConst (TBool b) -> op ctx (OBool (t,b))
 				| _ -> assert false)
 			| _ ->
 				assert false);
@@ -3134,30 +3134,32 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			hold ctx t
 		| Some c ->
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
-			(match c with
-			| TNull | TThis | TSuper -> assert false
-			| TInt i when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
+			(match c.eexpr with
+			| TConst (TNull | TThis | TSuper) -> assert false
+			| TConst (TInt i) when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
+			| TConst (TFloat s) when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
-			| TInt i ->
+			| TConst (TInt i) ->
 				let tmp = alloc_tmp ctx HF64 in
 				op ctx (OFloat (tmp, alloc_float ctx (Int32.to_float i)));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s ->
+			| TConst (TFloat s) ->
 				let tmp = alloc_tmp ctx HF64 in
 				op ctx (OFloat (tmp, alloc_float ctx (float_of_string s)));
 				op ctx (OToDyn (r, tmp));
-			| TBool b ->
+			| TConst (TBool b) ->
 				let tmp = alloc_tmp ctx HBool in
 				op ctx (OBool (tmp, b));
 				op ctx (OToDyn (r, tmp));
-			| TString s ->
+			| TConst (TString s) ->
 				op ctx (OMov (r, make_string ctx s f.tf_expr.epos))
+			| _ ->
+				op ctx (OMov (r, eval_to ctx c vt))
 			);
 			j();
 		);

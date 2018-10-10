@@ -1315,6 +1315,6 @@ let get_type gen path =
 	try Hashtbl.find gen.gtypes path with | Not_found -> raise (TypeNotFound path)
 
 
-let fun_args (l : (tvar * tconstant option) list)=
+let fun_args l =
 	List.map (fun (v,s) -> (v.v_name, (s <> None), v.v_type)) l
 

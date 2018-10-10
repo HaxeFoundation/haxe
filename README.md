@@ -22,7 +22,7 @@ Haxe allows you to compile for the following targets:
  * PHP
  * Python 3
  * [NekoVM](http://nekovm.org/)
- * Flash
+ * Flash (SWF Bytecode)
  * ActionScript 3
 
 You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
