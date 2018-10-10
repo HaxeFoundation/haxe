@@ -3287,11 +3287,11 @@ let cpp_gen_default_values ctx args prefix =
          let name = cpp_var_name_of tvar in
          let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
          let pname = prefix ^ name in
-         ctx.ctx_output ( spacer ^ "\t" ^ (tcpp_to_string vtype) ^ " " ^ name ^ " = "  );
+         ctx.ctx_output ( spacer ^ "\t" ^ (tcpp_to_string vtype) ^ " " ^ name ^ " = " ^ pname );
          ctx.ctx_output ( if not_null then
-                pname ^ ".Default(" ^ (default_value_string ctx.ctx_common const) ^ ");\n"
+                ".Default(" ^ (default_value_string ctx.ctx_common const) ^ ");\n"
             else
-                "hx::IsNotNull(" ^ pname ^ ") ? " ^  pname ^  " : " ^ (default_value_string ctx.ctx_common const) ^ ";\n"
+                ";\n" ^ spacer ^ "\tif (hx::IsNull(" ^ pname ^ ")) " ^  name ^  " = " ^ (default_value_string ctx.ctx_common const) ^ ";\n"
             );
       | _ -> ()
    ) args;
