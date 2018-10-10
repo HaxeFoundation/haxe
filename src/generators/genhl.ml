@@ -3159,7 +3159,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			| TConst (TString s) ->
 				op ctx (OMov (r, make_string ctx s f.tf_expr.epos))
 			| _ ->
-				assert false (* TFTODO *)
+				op ctx (OMov (r, eval_to ctx c vt))
 			);
 			j();
 		);
