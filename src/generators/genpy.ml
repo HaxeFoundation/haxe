@@ -312,13 +312,13 @@ module Transformer = struct
 		let assigns = List.fold_left (fun acc (v,value) ->
 			KeywordHandler.check_var_declaration v;
 			match value with
-				| None | Some TNull ->
+				| None | Some {eexpr = TConst TNull} ->
 					acc
 				| Some ct ->
 					let a_local = mk (TLocal v) v.v_type p in
 					let a_null = mk (TConst TNull) v.v_type p in
 					let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
-					let a_value = mk (TConst(ct)) v.v_type p in
+					let a_value = ct in
 					let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
 					let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
 					a_if :: acc
@@ -1122,7 +1122,7 @@ module Printer = struct
 		| TMeta(_,e) -> remove_outer_parens e
 		| _ -> e
 
-	let print_args args p =
+	let rec print_args pctx args p =
 		let had_value = ref false in
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
@@ -1145,11 +1145,11 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_constant ct)
+							Printf.sprintf " = %s" (print_expr pctx ct)
 		) args in
 		String.concat "," sl
 
-	let rec print_op_assign_right pctx e =
+	and print_op_assign_right pctx e =
 		match e.eexpr with
 			| TIf({eexpr = TParenthesis econd},eif,Some eelse)
 			| TIf(econd,eif,Some eelse) ->
@@ -1173,7 +1173,7 @@ module Printer = struct
 			| None -> pctx.pc_next_anon_func()
 			| Some s -> handle_keywords s
 		in
-		let s_args = print_args tf.tf_args p in
+		let s_args = print_args pctx tf.tf_args p in
 		let s_expr = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} tf.tf_expr in
 		Printf.sprintf "def %s(%s):\n%s    %s" s_name s_args pctx.pc_indent s_expr
 

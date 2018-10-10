@@ -1260,17 +1260,6 @@ let is_matching_interface_type t0 t1 =
 
 
 
-let default_value_string ctx value =
-match value with
-   | TInt i -> Printf.sprintf "%ld" i
-   | TFloat float_as_string -> "((Float)" ^ float_as_string ^ ")"
-   | TString s -> strq ctx s
-   | TBool b -> (if b then "true" else "false")
-   | TNull -> "null()"
-   | _ -> "/* Hmmm */"
-;;
-
-
 
 let get_nth_type field index =
    match follow field.ef_type with
@@ -1286,12 +1275,6 @@ let get_nth_type field index =
 ;;
 
 
-
-let has_default_values args =
-   List.exists ( fun (_,o) -> match o with
-            | Some TNull -> false
-            | Some _ -> true
-            | _ -> false ) args ;;
 
 exception PathFound of string;;
 
@@ -1389,7 +1372,7 @@ and tcppexpr = {
 
 and tcpp_closure = {
    close_type : tcpp;
-   close_args : (tvar * tconstant option) list;
+   close_args : (tvar * texpr option) list;
    close_expr : tcppexpr;
    close_id : int;
    close_undeclared : (string,tvar) Hashtbl.t;
@@ -2093,7 +2076,7 @@ let ctx_arg_type_name ctx name default_val arg_type prefix =
    let remap_name = keyword_remap name in
    let type_str = (ctx_type_string ctx arg_type) in
    match default_val with
-   | Some TNull  -> (type_str,remap_name)
+   | Some {eexpr = TConst TNull}  -> (type_str,remap_name)
    | Some constant when (ctx_cant_be_null ctx arg_type) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
    | Some constant  -> (type_str,prefix ^ remap_name)
    | _ -> (type_str,remap_name);;
@@ -3270,23 +3253,54 @@ let cpp_arg_type_name ctx tvar default_val prefix =
    let remap_name = (cpp_var_name_of tvar) in
    let type_str = (cpp_var_type_of ctx tvar) in
    match default_val with
-   | Some TNull  -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),remap_name
+   | Some {eexpr = TConst TNull}  -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),remap_name
    | Some constant -> (tcpp_to_string (cpp_type_of_null ctx tvar.v_type)),prefix ^ remap_name
    | _ -> type_str,remap_name
 ;;
 
 
+
+let string_of_path path =
+      "::" ^ (join_class_path_remap path "::") ^ "_obj"
+;;
+
+let default_value_string ctx value =
+match value.eexpr with
+   | TConst (TInt i) -> Printf.sprintf "%ld" i
+   | TConst (TFloat float_as_string) -> "((Float)" ^ float_as_string ^ ")"
+   | TConst (TString s) -> strq ctx s
+   | TConst (TBool b) -> (if b then "true" else "false")
+   | TConst TNull -> "null()"
+   | TField (_, FEnum(enum,field) ) -> (string_of_path enum.e_path) ^ "::" ^ (cpp_enum_name_of field) ^ "_dyn()"
+   | _ -> "/* Hmmm " ^ (s_expr_kind value) ^ " */"
+;;
+
+
+
 let cpp_gen_default_values ctx args prefix =
    List.iter ( fun (tvar,o) ->
+      let vtype = cpp_type_of ctx tvar.v_type in
+      let not_null = (type_has_meta_key tvar.v_type Meta.NotNull) || (is_cpp_scalar vtype) in
       match o with
-      | Some TNull -> ()
+      | Some {eexpr = TConst TNull} -> ()
       | Some const ->
          let name = cpp_var_name_of tvar in
-         ctx.ctx_output ((cpp_var_type_of ctx tvar) ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
-            (default_value_string ctx.ctx_common const) ^ ");\n")
+         let spacer = if (ctx.ctx_debug_level>0) then "            \t" else "" in
+         let pname = prefix ^ name in
+         ctx.ctx_output ( spacer ^ "\t" ^ (tcpp_to_string vtype) ^ " " ^ name ^ " = " ^ pname );
+         ctx.ctx_output ( if not_null then
+                ".Default(" ^ (default_value_string ctx.ctx_common const) ^ ");\n"
+            else
+                ";\n" ^ spacer ^ "\tif (hx::IsNull(" ^ pname ^ ")) " ^  name ^  " = " ^ (default_value_string ctx.ctx_common const) ^ ";\n"
+            );
       | _ -> ()
    ) args;
 ;;
+
+let ctx_default_values ctx args prefix =
+    cpp_gen_default_values ctx args prefix
+;;
+
 
 let rec is_constant_zero expr =
   match expr.cppexpr with
@@ -3316,11 +3330,6 @@ let cpp_arg_string ctx tvar default_val prefix =
 
 let cpp_arg_list ctx args prefix =
     String.concat "," (List.map (fun (v,o) -> (cpp_arg_string ctx v o prefix) ) args)
-;;
-
-
-let ctx_default_values ctx args prefix =
-    cpp_gen_default_values ctx args prefix
 ;;
 
 
@@ -4110,8 +4119,6 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | OpArrow -> "->"
       | OpIn -> " in "
       | OpAssign | OpAssignOp _ -> abort "Unprocessed OpAssign" pos
-   and string_of_path path =
-      "::" ^ (join_class_path_remap path "::") ^ "_obj"
 
    and gen_closure closure =
       let argc = Hashtbl.length closure.close_undeclared in
@@ -7271,15 +7278,10 @@ class script_writer ctx filename asciiOut =
                this#begin_expr;
                this#writePos function_def.tf_expr;
                this#write ( (this#op IaFun) ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length args)) ^ "\n" );
-               List.iter (fun(arg,init) ->
-                  this#write (indent ^ indent_str );
-                  this#writeVar arg;
-                  match init with
-                  | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
-                  | _ -> this#write "0\n";
-               ) function_def.tf_args;
+               let close = this#gen_func_args function_def.tf_args in
                this#gen_expression_tree cppExpr;
                this#end_expr;
+               close()
             end else
                this#gen_expression e
          | _ -> print_endline ("Missing function body for " ^ funcName );
@@ -7372,25 +7374,72 @@ class script_writer ctx filename asciiOut =
       this#gen_expression expr;
    end
 
+   method gen_func_args args = 
+      let gen_inits = ref [] in
+      List.iter (fun(arg,init) ->
+         this#write (indent ^ indent_str );
+         this#writeVar arg;
+         match init with
+         | Some ({eexpr = TConst TNull}) -> this#write "0\n"
+         | Some const ->
+            let argType = (cpp_type_of ctx const.etype) in
+            if (is_cpp_scalar argType || argType==TCppString ) then begin
+               this#write ("1 ");
+               this#gen_expression_only const;
+               this#write "\n";
+            end else begin
+               gen_inits := (arg, const) :: !gen_inits;
+               this#write "0\n";
+            end
+         | _ -> this#write "0\n";
+      ) args;
 
+      if (List.length !gen_inits)==0  then begin
+         fun () -> ( )
+      end else begin
+         this#begin_expr;
+         this#writePos (snd (List.hd !gen_inits) );
+         this#writeList (this#op IaBlock) ((List.length !gen_inits) + 1);
+         List.iter (fun(arg,const) ->
+            let start_expr( ) = this#begin_expr; this#writePos const; in
+            let local_var( ) =
+               this#begin_expr;
+               this#writePos const;
+               this#write ((this#op IaVar) ^ (string_of_int arg.v_id) ^ (this#commentOf arg.v_name) );
+               this#end_expr;
+            in
 
-   method gen_expression expr = (* { *)
+            start_expr();
+            this#writeOpLine IaIf;
+               start_expr();
+               this#writeOpLine IaIsNull;
+                  local_var();
+               this#end_expr;
+               start_expr();
+               this#writeOpLine IaSet;
+                  local_var();
+                  this#gen_expression const;
+               this#end_expr;
+            this#begin_expr;
+         ) !gen_inits;
+         fun () -> this#end_expr;
+      end
+
+   method gen_expression expr =
+      this#begin_expr;
+      this#writePos expr;
+      this#gen_expression_only expr;
+      this#end_expr;
+
+   method gen_expression_only expr = (* { *)
    let expression = remove_parens expr in
-   this#begin_expr;
-   (*this#write ( (this#fileText expression.epos.pfile) ^ "\t" ^ (string_of_int (Lexer.get_error_line expression.epos) ) ^ indent);*)
-   this#writePos expression;
    (match expression.eexpr with
    | TFunction function_def -> this#write ( (this#op IaFun) ^ (this#typeText function_def.tf_type) ^ (string_of_int (List.length function_def.tf_args)) ^ "\n" );
-         List.iter (fun(arg,init) ->
-            this#write (indent ^ indent_str );
-            this#writeVar arg;
-            match init with
-            | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
-            | _ -> this#write "0\n";
-         ) function_def.tf_args;
+         let close = this#gen_func_args function_def.tf_args in
          let pop = this#pushReturn function_def.tf_type in
          this#gen_expression function_def.tf_expr;
          pop ();
+         close()
    | TBlock expr_list -> this#writeList (this#op IaBlock) (List.length expr_list);
          List.iter this#gen_expression expr_list;
    | TConst const -> this#write (this#constText const)
@@ -7626,7 +7675,6 @@ class script_writer ctx filename asciiOut =
    | TMeta(_,_) -> abort "Unexpected meta" expression.epos
    | TIdent _ -> abort "Unexpected ident" expression.epos
    );
-   this#end_expr;
    (* } *)
    method gen_expression_tree expression_tree = (* { *)
       let rec gen_expression expression =
@@ -7817,14 +7865,9 @@ class script_writer ctx filename asciiOut =
 
          | CppClosure closure ->
             this#write ( (this#op IaFun) ^ (this#astType closure.close_type) ^ (string_of_int (List.length closure.close_args)) ^ "\n" );
-            List.iter (fun(arg,init) ->
-               this#write (indent ^ indent_str );
-               this#writeVar arg;
-               match init with
-               | Some const -> this#write ("1 " ^ (this#constText const) ^ "\n")
-               | _ -> this#write "0\n";
-            ) closure.close_args;
+            let close = this#gen_func_args closure.close_args in
             gen_expression closure.close_expr;
+            close()
 
          | CppObjectDecl (values,isStruct) ->this#write ( (this#op IaObjDef) ^ (string_of_int (List.length values)));
             this#write " ";

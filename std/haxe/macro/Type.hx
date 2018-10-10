@@ -795,7 +795,7 @@ typedef TFunc = {
 		A list of function arguments identified by an argument variable `v` and
 		an optional initialization `value`.
 	**/
-	var args: Array<{v:TVar, value:Null<TConstant>}>;
+	var args: Array<{v:TVar, value:Null<TypedExpr>}>;
 
 	/**
 		The return type of the function.
