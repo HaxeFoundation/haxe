@@ -347,15 +347,25 @@ let rec is_function_type t =
     | TAbstract({a_path=["haxe"],"Function" },_) -> true
     | _ -> false
 
-and gen_argument ctx e = begin
+and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+            (
+            if reflect then (
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+            );
+
             add_feature ctx "use._hx_bind";
             print ctx "_hx_bind(";
             gen_value ctx x;
             print ctx ",";
             gen_value ctx x;
-            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name));
+
+            if reflect then
+                print ctx ")";
+            );
     | _ ->
         gen_value ctx e;
 end
@@ -386,6 +396,15 @@ and gen_call ctx e el =
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
+     | TField (_, FStatic( { cl_path = ([],"Reflect") }, { cf_name = "callMethod" })), (obj :: fld :: args :: rest) ->
+         gen_expr ctx e;
+         spr ctx "(";
+         gen_argument ctx obj;
+         spr ctx ",";
+         gen_argument ~reflect:true ctx fld;
+         spr ctx ",";
+         gen_argument ctx args;
+         spr ctx ")";
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;
