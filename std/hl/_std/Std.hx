@@ -45,7 +45,7 @@ class Std {
 		if( t == null ) return false;
 		switch( t.__type__.kind ) {
 		case HDyn:
-			return v != null;
+			return true;
 		case HF64:
 			switch( hl.Type.getDynamic(v).kind ) {
 			case HUI8, HUI16, HI32:

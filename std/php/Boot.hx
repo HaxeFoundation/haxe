@@ -410,7 +410,7 @@ class Boot {
 		var phpType = type.phpClassName;
 		switch (phpType) {
 			case 'Dynamic':
-				return value != null;
+				return true;
 			case 'Int':
 				return (
 						value.is_int()

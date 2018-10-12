@@ -56,7 +56,7 @@ import python.Syntax;
 			return false;
 		}
 		if (isMetaType(t,Dynamic)) {
-			return v != null;
+			return true;
 		}
 		var isBool = UBuiltins.isinstance(v, UBuiltins.bool);
 
