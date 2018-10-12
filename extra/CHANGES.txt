@@ -1,4 +1,4 @@
-XXXX-XX-XX:
+2018-10-13: 4.0.0-preview.5
 	New features:
 
 	all : support Unicode strings properly on all targets
@@ -35,7 +35,7 @@ XXXX-XX-XX:
 
 	Removals :
 
-	all : disallowed get_x/set_x property syntax (#4699)
+	all : disallowed get_x/set_x property syntax, use get/set instead (#4699)
 	all : disallowed default values on interface variables (#4087)
 	all : disallowed `implements Dynamic` on non-extern classes (#6191)
 	all : warn about expressions in extern non-inline fields (#5898)
