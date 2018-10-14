@@ -54,7 +54,7 @@ let rec s_object depth o =
 	let buf = Buffer.create 0 in
 	Buffer.add_string buf "{";
 	List.iteri (fun i (k,v) ->
-		if i >= 0 then Buffer.add_string buf ", ";
+		if i > 0 then Buffer.add_string buf ", ";
 		Buffer.add_string buf (rev_hash k);
 		Buffer.add_string buf ": ";
 		Buffer.add_string buf (s_value depth v).sstring;
