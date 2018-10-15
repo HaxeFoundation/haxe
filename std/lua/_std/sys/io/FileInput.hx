@@ -67,7 +67,7 @@ class FileInput extends haxe.io.Input {
 		}
 		return NativeStringTools.byte(byte);
 	}
-			
+
 	override function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		if(eof()) throw new haxe.io.Eof();
 		return super.readBytes(s, pos, len);
@@ -87,7 +87,9 @@ class FileInput extends haxe.io.Input {
 				if (len == 0) break;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) _eof = true;
+		} catch( e : Eof ) {
+			_eof = true;
+		}
 		return total.getBytes();
 	}
 
