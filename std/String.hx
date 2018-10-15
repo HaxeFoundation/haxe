@@ -46,15 +46,11 @@ extern class String {
 
 	/**
 		Returns a String where all characters of `this` String are upper case.
-
-		Affects the characters `a-z`. Other characters remain unchanged.
 	**/
 	function toUpperCase() : String;
 
 	/**
 		Returns a String where all characters of `this` String are lower case.
-
-		Affects the characters `A-Z`. Other characters remain unchanged.
 	**/
 	function toLowerCase() : String;
 
