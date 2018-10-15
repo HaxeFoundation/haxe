@@ -356,8 +356,6 @@ let setup get_api =
 	) api;
 	Globals.macro_platform := Globals.Eval
 
-let can_reuse ctx types = true
-
 let do_reuse ctx api =
 	ctx.curapi <- api;
 	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits

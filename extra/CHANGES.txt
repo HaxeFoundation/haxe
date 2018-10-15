@@ -1,3 +1,14 @@
+xxxx-xx-xx: 4.0.0-rc.1
+
+	General improvements and optimizations:
+
+	macro : static variables are now always re-initialized when using the compilation server (#5746)
+	macro : support `@:persistent` to keep macro static values across compilations
+
+	Removals :
+
+	macro : deprecated Context.registerModuleReuseCall and onMacroContextReused (#5746)
+
 2018-10-13: 4.0.0-preview.5
 	New features:
 
