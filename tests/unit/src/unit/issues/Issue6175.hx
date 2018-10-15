@@ -6,7 +6,7 @@ class Issue6175 extends unit.Test {
     }
 }
 
-@:enum abstract Method(String) {
+enum abstract Method(String) {
     var GET = 'GET';
 	public static function test() return Method.GET;
 }

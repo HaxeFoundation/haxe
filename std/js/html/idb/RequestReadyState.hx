@@ -24,7 +24,7 @@
 
 package js.html.idb;
 
-@:enum abstract RequestReadyState(String)
+enum abstract RequestReadyState(String)
 {
 	var PENDING = "pending";
 	var DONE = "done";

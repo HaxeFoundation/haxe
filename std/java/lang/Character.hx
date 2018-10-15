@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Character(CharacterClass) from CharacterClass to CharacterClass
 {
-	@:to @:extern inline public function toCharacter():java.types.Char16
+	@:to extern inline public function toCharacter():java.types.Char16
 		return this.charValue();
-	@:from @:extern inline public static function fromCharacter(b:java.types.Char16):Character
+	@:from extern inline public static function fromCharacter(b:java.types.Char16):Character
 		return CharacterClass.valueOf(b);
 }
 

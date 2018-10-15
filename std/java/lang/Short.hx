@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Short(ShortClass) from ShortClass to ShortClass
 {
-	@:to @:extern inline public function toShort():java.types.Int16
+	@:to extern inline public function toShort():java.types.Int16
 		return this.shortValue();
-	@:from @:extern inline public static function fromShort(b:java.types.Int16):Short
+	@:from extern inline public static function fromShort(b:java.types.Int16):Short
 		return ShortClass.valueOf(b);
 }
 

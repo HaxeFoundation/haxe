@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract BinaryType(String)
+enum abstract BinaryType(String)
 {
 	var BLOB = "blob";
 	var ARRAYBUFFER = "arraybuffer";

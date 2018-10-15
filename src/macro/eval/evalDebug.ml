@@ -49,7 +49,7 @@ let rec run_loop ctx wait run env : value =
 		| DbgWaiting | DbgStart ->
 			wait ctx run env
 
-let debug_loop jit e f =
+let debug_loop jit conn e f =
 	let ctx = jit.ctx in
 	let scopes = jit.scopes in
 	let line,col1,_,_ = Lexer.get_pos_coords e.epos in
@@ -57,9 +57,16 @@ let debug_loop jit e f =
 		| BPAny -> true
 		| BPColumn i -> i = col1
 	in
-	let conn = match ctx.debug.debug_socket with
-		| Some socket -> EvalDebugSocket.make_connection socket
-		| None -> EvalDebugCLI.connection
+	let condition_holds env breakpoint = match breakpoint.bpcondition with
+		| None -> true
+		| Some e -> match expr_to_value_safe ctx env e with
+			| VTrue -> true
+			| _ -> false
+	in
+	let debugger_catches v = match ctx.debug.exception_mode with
+		| CatchAll -> true
+		| CatchUncaught -> not (is_caught ctx v)
+		| CatchNone -> false
 	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
@@ -67,7 +74,7 @@ let debug_loop jit e f =
 			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
-				| BPEnabled when column_matches breakpoint ->
+				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					ctx.debug.breakpoint <- breakpoint;
 					conn.bp_stop ctx env;
@@ -79,7 +86,8 @@ let debug_loop jit e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when not (is_caught ctx v) ->
+		| RunTimeException(v,_,_) when debugger_catches v && ctx.debug.caught_exception != v ->
+			ctx.debug.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
@@ -87,7 +95,10 @@ let debug_loop jit e f =
 			conn.bp_stop ctx env;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
-
+		(* | Return _ | Break | Continue | Sys_exit _ | RunTimeException _ as exc ->
+			raise exc
+		| exc ->
+			throw (EvalString.vstring (EvalString.create_ascii (Printexc.to_string exc))) e.epos; *)
 	in
 	(* Sets the environmental debug data, then executes the debug loop. *)
 	let run_set env =

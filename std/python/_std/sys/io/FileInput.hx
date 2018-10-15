@@ -22,6 +22,7 @@
 package sys.io;
 
 import haxe.io.Bytes;
+import haxe.io.Encoding;
 import haxe.io.Input;
 import python.io.IFileInput;
 
@@ -115,7 +116,7 @@ class FileInput extends Input
 		return impl.readInt32();
 	}
 
-	override public function readString( len : Int ) : String {
+	override public function readString( len : Int, ?encoding : Encoding ) : String {
 		return impl.readString(len);
 	}
 

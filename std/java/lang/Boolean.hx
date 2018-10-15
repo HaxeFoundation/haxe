@@ -25,9 +25,9 @@
 @:forward
 @:forwardStatics abstract Boolean(BooleanClass) from BooleanClass to BooleanClass
 {
-	@:to @:extern inline public function toBool():Bool
+	@:to extern inline public function toBool():Bool
 		return this.booleanValue();
-	@:from @:extern inline public static function fromBool(b:Bool):Boolean
+	@:from extern inline public static function fromBool(b:Bool):Boolean
 		return BooleanClass.valueOf(b);
 }
 

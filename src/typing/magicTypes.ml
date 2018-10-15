@@ -4,6 +4,7 @@ open Common
 open Type
 open Typecore
 open Typeload
+open TypeloadModule
 open Error
 
 (* -------------------------------------------------------------------------- *)
@@ -25,21 +26,21 @@ let extend_remoting ctx c t p async prot =
 	(* build it *)
 	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
 	let file, decls = (try
-		parse_module ctx path p
+		TypeloadParse.parse_module ctx path p
 	with
 		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
 		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
 		{ cff_name = "__cnx",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None },null_pos),None) };
-		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
+		{ cff_name = "new",null_pos; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic,null_pos]; cff_kind = FFun { f_args = [("c",null_pos),false,[],None,None]; f_type = None; f_expr = Some (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p); f_params = [] } };
 	] in
 	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc f =
 		if fst f.cff_name = "new" then
 			acc
 		else match f.cff_kind with
-		| FFun fd when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
+		| FFun fd when (is_public || List.mem_assoc APublic f.cff_access) && not (List.mem_assoc AStatic f.cff_access) ->
 			if List.exists (fun (_,_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ fst f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
 			let eargs = [EArrayDecl (List.map (fun ((a,_),_,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
 			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" },_) -> None | _ -> fd.f_type) in
@@ -64,7 +65,7 @@ let extend_remoting ctx c t p async prot =
 				f_type = if async then None else ftype;
 				f_expr = Some (EBlock [expr],p);
 			} in
-			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun fd } :: acc
+			{ cff_name = f.cff_name; cff_pos = f.cff_pos; cff_doc = None; cff_meta = []; cff_access = [APublic,null_pos]; cff_kind = FFun fd } :: acc
 		| _ -> acc
 	in
 	let decls = List.map (fun d ->
@@ -90,7 +91,7 @@ let extend_remoting ctx c t p async prot =
 (* HAXE.XML.PROXY *)
 
 let extend_xml_proxy ctx c t file p =
-	let t = load_complex_type ctx false p (t,p) in
+	let t = load_complex_type ctx false (t,p) in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	add_dependency c.cl_module (create_fake_module ctx file);
 	let used = ref PMap.empty in

@@ -77,8 +77,8 @@ type strict_meta =
 	| ImplicitCast
 	| Include
 	| InitPackage
+	| Inline
 	| InlineConstructorArgument of int * int
-	| InlineConstructorVariable
 	| Internal
 	| IsVar
 	| JavaCanonical
@@ -91,6 +91,7 @@ type strict_meta =
 	| LoopLabel
 	| LuaRequire
 	| LuaDotMethod
+	| Markup
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -143,12 +144,14 @@ type strict_meta =
 	| RuntimeValue
 	| Scalar
 	| SelfCall
+	| Semantics
 	| Setter
 	| SkipCtor
 	| SkipReflection
 	| Sound
 	| SourceFile
 	| StackOnly
+	| StaticExtension
 	| StoredTypedExpr
 	| Strict
 	| Struct
@@ -166,9 +169,8 @@ type strict_meta =
 	| UnifyMinDynamic
 	| Unreflective
 	| Unsafe
-	| Usage
+	| Using
 	| Used
-	| UserVariable
 	| Value
 	| Void
 	| Last
@@ -189,6 +191,7 @@ type meta_usage =
 	| TAnyField
 	| TExpr
 	| TTypeParameter
+	| TVariable
 
 type meta_parameter =
 	| HasParam of string
@@ -246,7 +249,7 @@ let get_info = function
 	| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 	| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
 	| FileXml -> ":fileXml",("Include xml attribute snippet in Build.xml entry for file",[UsedOn TClass;Platform Cpp])
-	| Final -> ":final",("Prevents a class from being extended",[UsedOn TClass])
+	| Final -> ":final",("Prevents a class or interface from being extended or a method from being overriden",[UsedOnEither [TClass;TClassField]])
 	| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 	| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; UsedInternally])
 	| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
@@ -275,8 +278,8 @@ let get_info = function
 	| ImplicitCast -> ":implicitCast",("Generated automatically on the AST when an implicit abstract cast happens",[UsedInternally; UsedOn TExpr])
 	| Include -> ":include",("",[Platform Cpp])
 	| InitPackage -> ":initPackage",("Some weird thing for Genjs we want to remove someday",[UsedInternally; Platform Js])
+	| Inline -> ":inline",("Inserted by the parser in case of `inline expr` and `inline function`",[UsedOn TExpr])
 	| InlineConstructorArgument _ -> ":inlineConstructorArgument",("Internally used to mark expressions that were passed as arguments of an inlined constructor",[UsedInternally])
-	| InlineConstructorVariable -> ":inlineConstructorVariable",("Internally used to mark variables that come from inlined constructors",[UsedInternally])
 	| Internal -> ":internal",("Generates the annotated field/class with 'internal' access",[Platforms [Java;Cs]; UsedOnEither[TClass;TEnum;TClassField]])
 	| IsVar -> ":isVar",("Forces a physical field to be generated for properties that otherwise would not require one",[UsedOn TClassField])
 	| JavaCanonical -> ":javaCanonical",("Used by the Java target to annotate the canonical path of the type",[HasParam "Output type package";HasParam "Output type name";UsedOnEither [TClass;TEnum]; Platform Java])
@@ -289,6 +292,7 @@ let get_info = function
 	| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
 	| LibType -> ":libType",("Used by -net-lib and -java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",[UsedInternally; UsedOn TClass; Platforms [Java;Cs]])
 	| LoopLabel -> ":loopLabel",("Mark loop and break expressions with a label to support breaking from within switch",[UsedInternally])
+	| Markup -> ":markup",("Used as a result of inline XML parsing",[])
 	| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
 	| Macro -> ":macro",("(deprecated)",[])
 	| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[UsedInternally])
@@ -301,7 +305,7 @@ let get_info = function
 	| NativeGeneric -> ":nativeGeneric",("Used internally to annotate native generic classes",[Platform Cs; UsedOnEither[TClass;TEnum]; UsedInternally])
 	| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
 	| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
-	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field",[UsedOn TClassField])
+	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field or type",[UsedOn TClassField])
 	| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
 	| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 	| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[UsedInternally])
@@ -341,13 +345,15 @@ let get_info = function
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
+	| Semantics -> ":semantics",("The native semantics of the type",[UsedOnEither [TClass;TTypedef;TAbstract];HasParam "value | reference | variable"])
 	| Setter -> ":setter",("Generates a native setter function on the given field",[HasParam "Class field name";UsedOn TClassField;Platform Flash])
-	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
-	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| SkipCtor -> ":skipCtor",("Used internally to generate a constructor as if it were a native type (no __hx_ctor)",[Platforms [Java;Cs]; UsedInternally])
 	| SkipReflection -> ":skipReflection",("Used internally to annotate a field that shouldn't have its reflection data generated",[Platforms [Java;Cs]; UsedOn TClassField; UsedInternally])
 	| Sound -> ":sound",( "Includes a given .wav or .mp3 file into the target Swf and associates it with the class (must extend flash.media.Sound)",[HasParam "File path";UsedOn TClass;Platform Flash])
 	| SourceFile -> ":sourceFile",("Source code filename for external class",[Platform Cpp])
+	| StackOnly -> ":stackOnly",("Instances of this type can only appear on the stack",[Platform Cpp])
+	| StaticExtension -> "haxe.internal.static_extension",("Used internally to mark static extension fields",[UsedInternally])
+	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
 	| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
 	| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
@@ -364,9 +370,8 @@ let get_info = function
 	| UnifyMinDynamic -> ":unifyMinDynamic",("Allows a collection of types to unify to Dynamic",[UsedOn TClassField])
 	| Unreflective -> ":unreflective",("",[Platform Cpp])
 	| Unsafe -> ":unsafe",("Declares a class, or a method with the C#'s 'unsafe' flag",[Platform Cs; UsedOnEither [TClass;TClassField]])
-	| Usage -> ":usage",("Internal metadata used to mark a symbol for which usage request was invoked",[UsedInternally])
 	| Used -> ":used",("Internally used by DCE to mark a class or field as used",[UsedInternally])
-	| UserVariable -> ":userVariable",("Internally used to mark variables that come from user code",[UsedInternally])
+	| Using -> ":using",("Automatically uses the argument types as static extensions for the annotated type",[UsedOnEither [TClass;TEnum;TAbstract]])
 	| Value -> ":value",("Used to store default values for fields and function arguments",[UsedOn TClassField])
 	| Void -> ":void",("Use Cpp native 'void' return type",[Platform Cpp])
 	| Last -> assert false
@@ -432,3 +437,11 @@ let get_documentation_list () =
 	in
 	let all = List.sort (fun (s1,_) (s2,_) -> String.compare s1 s2) (loop 0) in
 	all,!m
+
+let get_all () =
+	let rec loop i =
+		let d = Obj.magic i in
+		if d <> Last then d :: loop (i + 1)
+		else []
+	in
+	loop 0

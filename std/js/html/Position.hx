@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Position>
 **/
-@:native("Position")
-extern class Position
+typedef Position =
 {
 	
 	/**

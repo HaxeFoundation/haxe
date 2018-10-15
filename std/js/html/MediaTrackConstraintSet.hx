@@ -26,17 +26,20 @@ package js.html;
 
 typedef MediaTrackConstraintSet =
 {
+	@:optional var autoGainControl : haxe.extern.EitherType<Bool,ConstrainBooleanParameters>;
 	@:optional var browserWindow : Int;
-	@:optional var deviceId : haxe.extern.EitherType<String,haxe.extern.EitherType<Array<String>,Dynamic/*MISSING ConstrainDOMStringParameters*/>>;
-	@:optional var echoCancellation : haxe.extern.EitherType<Bool,Dynamic/*MISSING ConstrainBooleanParameters*/>;
-	@:optional var facingMode : haxe.extern.EitherType<String,haxe.extern.EitherType<Array<String>,Dynamic/*MISSING ConstrainDOMStringParameters*/>>;
-	@:optional var frameRate : haxe.extern.EitherType<Float,Dynamic/*MISSING ConstrainDoubleRange*/>;
-	@:optional var height : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
+	@:optional var channelCount : haxe.extern.EitherType<Int,ConstrainLongRange>;
+	@:optional var deviceId : haxe.extern.EitherType<String,haxe.extern.EitherType<Array<String>,ConstrainDOMStringParameters>>;
+	@:optional var echoCancellation : haxe.extern.EitherType<Bool,ConstrainBooleanParameters>;
+	@:optional var facingMode : haxe.extern.EitherType<String,haxe.extern.EitherType<Array<String>,ConstrainDOMStringParameters>>;
+	@:optional var frameRate : haxe.extern.EitherType<Float,ConstrainDoubleRange>;
+	@:optional var height : haxe.extern.EitherType<Int,ConstrainLongRange>;
 	@:optional var mediaSource : String;
+	@:optional var noiseSuppression : haxe.extern.EitherType<Bool,ConstrainBooleanParameters>;
 	@:optional var scrollWithPage : Bool;
-	@:optional var viewportHeight : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
-	@:optional var viewportOffsetX : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
-	@:optional var viewportOffsetY : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
-	@:optional var viewportWidth : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
-	@:optional var width : haxe.extern.EitherType<Int,Dynamic/*MISSING ConstrainLongRange*/>;
+	@:optional var viewportHeight : haxe.extern.EitherType<Int,ConstrainLongRange>;
+	@:optional var viewportOffsetX : haxe.extern.EitherType<Int,ConstrainLongRange>;
+	@:optional var viewportOffsetY : haxe.extern.EitherType<Int,ConstrainLongRange>;
+	@:optional var viewportWidth : haxe.extern.EitherType<Int,ConstrainLongRange>;
+	@:optional var width : haxe.extern.EitherType<Int,ConstrainLongRange>;
 }

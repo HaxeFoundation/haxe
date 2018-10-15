@@ -67,7 +67,7 @@ class EReg {
 		`this.matchSub`, and then operates on the String of that operation.
 
 		The index `n` corresponds to the n-th set of parentheses in the pattern
-		of `this` EReg. If no such sub-group exists, an exception is thrown.
+		of `this` EReg. If no such sub-group exists, the result is unspecified.
 
 		If `n` equals 0, the whole matched substring is returned.
 	**/

@@ -94,162 +94,26 @@ type platform_config = {
 	pf_can_skip_non_nullable_argument : bool;
 	(** type paths that are reserved on the platform *)
 	pf_reserved_type_paths : path list;
+	(** supports function == function **)
+	pf_supports_function_equality : bool;
+	(** uses utf16 encoding with ucs2 api **)
+	pf_uses_utf16 : bool;
 }
 
-module DisplayMode = struct
-	type t =
-		| DMNone
-		| DMField
-		| DMUsage of bool (* true = also report definition *)
-		| DMPosition
-		| DMToplevel
-		| DMResolve of string
-		| DMPackage
-		| DMType
-		| DMModuleSymbols of string option
-		| DMDiagnostics of bool (* true = global, false = only in display file *)
-		| DMStatistics
-		| DMSignature
-
-	type error_policy =
-		| EPIgnore
-		| EPCollect
-		| EPShow
-
-	type display_file_policy =
-		| DFPOnly
-		| DFPAlso
-		| DFPNo
-
-	type settings = {
-		dms_kind : t;
-		dms_display : bool;
-		dms_full_typing : bool;
-		dms_force_macro_typing : bool;
-		dms_error_policy : error_policy;
-		dms_collect_data : bool;
-		dms_check_core_api : bool;
-		dms_inline : bool;
-		dms_display_file_policy : display_file_policy;
-		dms_exit_during_typing : bool;
-	}
-
-	let default_display_settings = {
-		dms_kind = DMField;
-		dms_display = true;
-		dms_full_typing = false;
-		dms_force_macro_typing = false;
-		dms_error_policy = EPIgnore;
-		dms_collect_data = false;
-		dms_check_core_api = false;
-		dms_inline = false;
-		dms_display_file_policy = DFPOnly;
-		dms_exit_during_typing = true;
-	}
-
-	let default_compilation_settings = {
-		dms_kind = DMNone;
-		dms_display = false;
-		dms_full_typing = true;
-		dms_force_macro_typing = true;
-		dms_error_policy = EPShow;
-		dms_collect_data = false;
-		dms_check_core_api = true;
-		dms_inline = true;
-		dms_display_file_policy = DFPNo;
-		dms_exit_during_typing = false;
-	}
-
-	let create dm =
-		let settings = { default_display_settings with dms_kind = dm } in
-		match dm with
-		| DMNone -> default_compilation_settings
-		| DMField | DMPosition | DMResolve _ | DMPackage | DMType | DMSignature -> settings
-		| DMUsage _ -> { settings with
-				dms_full_typing = true;
-				dms_collect_data = true;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false
-			}
-		| DMToplevel -> { settings with dms_full_typing = true; }
-		| DMModuleSymbols filter -> { settings with
-				dms_display_file_policy = if filter = None then DFPOnly else DFPNo;
-				dms_exit_during_typing = false;
-				dms_force_macro_typing = false;
-			}
-		| DMDiagnostics global -> { settings with
-				dms_full_typing = true;
-				dms_error_policy = EPCollect;
-				dms_collect_data = true;
-				dms_inline = true;
-				dms_display_file_policy = if global then DFPNo else DFPAlso;
-				dms_exit_during_typing = false;
-			}
-		| DMStatistics -> { settings with
-				dms_full_typing = true;
-				dms_collect_data = true;
-				dms_inline = false;
-				dms_display_file_policy = DFPAlso;
-				dms_exit_during_typing = false
-			}
-
-	let to_string = function
-		| DMNone -> "none"
-		| DMField -> "field"
-		| DMPosition -> "position"
-		| DMResolve s -> "resolve " ^ s
-		| DMPackage -> "package"
-		| DMType -> "type"
-		| DMUsage true -> "rename"
-		| DMUsage false -> "references"
-		| DMToplevel -> "toplevel"
-		| DMModuleSymbols None -> "module-symbols"
-		| DMModuleSymbols (Some s) -> "workspace-symbols " ^ s
-		| DMDiagnostics b -> (if b then "global " else "") ^ "diagnostics"
-		| DMStatistics -> "statistics"
-		| DMSignature -> "signature"
-end
-
 type compiler_callback = {
+	mutable after_init_macros : (unit -> unit) list;
 	mutable after_typing : (module_type list -> unit) list;
 	mutable before_dce : (unit -> unit) list;
 	mutable after_generation : (unit -> unit) list;
 }
 
-module IdentifierType = struct
-	type t =
-		| ITLocal of tvar
-		| ITMember of tclass_field
-		| ITStatic of tclass_field
-		| ITEnum of tenum * tenum_field
-		| ITEnumAbstract of tabstract * tclass_field
-		| ITGlobal of module_type * string * Type.t
-		| ITType of module_type
-		| ITPackage of string
-		| ITLiteral of string
-		| ITTimer of string
-
-	let get_name = function
-		| ITLocal v -> v.v_name
-		| ITMember cf | ITStatic cf | ITEnumAbstract(_,cf) -> cf.cf_name
-		| ITEnum(_,ef) -> ef.ef_name
-		| ITGlobal(_,s,_) -> s
-		| ITType mt -> snd (t_infos mt).mt_path
-		| ITPackage s -> s
-		| ITLiteral s -> s
-		| ITTimer s -> s
-end
-
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
 	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
-	mutable type_hints : (pos,Type.t) Hashtbl.t;
-	mutable document_symbols : (string * DisplayTypes.SymbolInformation.t DynArray.t) list;
-	mutable removable_code : (string * pos * pos) list;
 }
 
 type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * IdentifierType.t) list) list;
+	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
 	mutable interface_field_implementations : (tclass * tclass_field * tclass * tclass_field option) list;
 }
 
@@ -265,7 +129,7 @@ type context = {
 	shared : shared_context;
 	display_information : display_information;
 	mutable sys_args : string list;
-	mutable display : DisplayMode.settings;
+	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
@@ -273,7 +137,7 @@ type context = {
 	mutable config : platform_config;
 	mutable std_path : string list;
 	mutable class_path : string list;
-	mutable main_class : Type.path option;
+	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
@@ -285,6 +149,7 @@ type context = {
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
+	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
@@ -304,136 +169,13 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
+	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit)) option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
 }
 
 exception Abort of string * pos
-
-let display_default = ref DisplayMode.DMNone
-
-module CompilationServer = struct
-	type cache = {
-		c_haxelib : (string list, string list) Hashtbl.t;
-		c_files : ((string * string), float * Ast.package) Hashtbl.t;
-		c_modules : (path * string, module_def) Hashtbl.t;
-		c_directories : (string, (string * float ref) list) Hashtbl.t;
-	}
-
-	type t = {
-		cache : cache;
-		mutable signs : (string * string) list;
-	}
-
-	type context_options =
-		| NormalContext
-		| MacroContext
-		| NormalAndMacroContext
-
-	let instance : t option ref = ref None
-
-	let create_cache () = {
-		c_haxelib = Hashtbl.create 0;
-		c_files = Hashtbl.create 0;
-		c_modules = Hashtbl.create 0;
-		c_directories = Hashtbl.create 0;
-	}
-
-	let create () =
-		let cs = {
-			cache = create_cache();
-			signs = [];
-		} in
-		instance := Some cs;
-		cs
-
-	let get () =
-		!instance
-
-	let runs () =
-		!instance <> None
-
-	let get_context_files cs signs =
-		Hashtbl.fold (fun (file,sign) (_,data) acc ->
-			if (List.mem sign signs) then (file,data) :: acc
-			else acc
-		) cs.cache.c_files []
-
-	(* signatures *)
-
-	let get_sign cs sign =
-		List.assoc sign cs.signs
-
-	let add_sign cs sign =
-		let i = string_of_int (List.length cs.signs) in
-		cs.signs <- (sign,i) :: cs.signs;
-		i
-
-	(* modules *)
-
-	let find_module cs key =
-		Hashtbl.find cs.cache.c_modules key
-
-	let cache_module cs key value =
-		Hashtbl.replace cs.cache.c_modules key value
-
-	let taint_modules cs file =
-		Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
-
-	(* files *)
-
-	let find_file cs key =
-		Hashtbl.find cs.cache.c_files key
-
-	let cache_file cs key value =
-		Hashtbl.replace cs.cache.c_files key value
-
-	let remove_file cs key =
-		Hashtbl.remove cs.cache.c_files key
-
-	let remove_files cs file =
-		List.iter (fun (sign,_) -> remove_file cs (sign,file)) cs.signs
-
-	(* haxelibs *)
-
-	let find_haxelib cs key =
-		Hashtbl.find cs.cache.c_haxelib key
-
-	let cache_haxelib cs key value =
-		Hashtbl.replace cs.cache.c_haxelib key value
-
-	(* directories *)
-
-	let find_directories cs key =
-		Hashtbl.find cs.cache.c_directories key
-
-	let add_directories cs key value =
-		Hashtbl.replace cs.cache.c_directories key value
-
-	let remove_directory cs key value =
-		try
-			let current = find_directories cs key in
-			Hashtbl.replace cs.cache.c_directories key (List.filter (fun (s,_) -> s <> value) current);
-		with Not_found ->
-			()
-
-	let has_directory cs key value =
-		try
-			List.mem_assoc value (find_directories cs key)
-		with Not_found ->
-			false
-
-	let add_directory cs key value =
-		try
-			let current = find_directories cs key in
-			add_directories cs key (value :: current)
-		with Not_found ->
-			add_directories cs key [value]
-
-	let clear_directories cs key =
-		Hashtbl.remove cs.cache.c_directories key
-end
 
 (* Defines *)
 
@@ -497,6 +239,8 @@ let default_config =
 		pf_overload = false;
 		pf_can_skip_non_nullable_argument = true;
 		pf_reserved_type_paths = [];
+		pf_supports_function_equality = true;
+		pf_uses_utf16 = true;
 	}
 
 let get_config com =
@@ -517,12 +261,14 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Neko ->
 		{
 			default_config with
 			pf_static = false;
 			pf_pad_nulls = true;
+			pf_uses_utf16 = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -544,6 +290,7 @@ let get_config com =
 		{
 			default_config with
 			pf_static = false;
+			pf_uses_utf16 = false;
 		}
 	| Cpp ->
 		{
@@ -571,25 +318,27 @@ let get_config com =
 			default_config with
 			pf_static = false;
 			pf_capture_policy = CPLoopVars;
+			pf_uses_utf16 = false;
 		}
 	| Hl ->
 		{
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
-			pf_can_skip_non_nullable_argument = false;
 		}
 	| Eval ->
 		{
 			default_config with
 			pf_static = false;
 			pf_pad_nulls = true;
+			pf_uses_utf16 = false;
 		}
 
 let memory_marker = [|Unix.time()|]
 
 let create_callbacks () =
 	{
+		after_init_macros = [];
 		after_typing = [];
 		before_dce = [];
 		after_generation = [];
@@ -599,8 +348,8 @@ let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
 		PMap.add "true" "1" (
-		PMap.add "source-header" ("Generated by Haxe " ^ s_version) (
-		if !display_default <> DisplayMode.DMNone then PMap.add "display" "1" PMap.empty else PMap.empty))
+			PMap.add "source-header" ("Generated by Haxe " ^ s_version) PMap.empty
+		)
 	in
 	{
 		version = version;
@@ -609,9 +358,6 @@ let create version s_version args =
 			shared_display_information = {
 				import_positions = PMap.empty;
 				diagnostics_messages = [];
-				type_hints = Hashtbl.create 0;
-				document_symbols = [];
-				removable_code = [];
 			}
 		};
 		display_information = {
@@ -620,7 +366,7 @@ let create version s_version args =
 		};
 		sys_args = args;
 		debug = false;
-		display = DisplayMode.create !display_default;
+		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
 		verbose = false;
 		foptimize = true;
 		features = Hashtbl.create 0;
@@ -666,10 +412,12 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
+		json_out = None;
 	}
 
 let log com str =
@@ -682,7 +430,8 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
-		parser_cache = Hashtbl.create 0 ;
+		parser_cache = Hashtbl.create 0;
+		module_to_file = Hashtbl.create 0;
 		callbacks = create_callbacks();
 		display_information = {
 			unresolved_identifiers = [];
@@ -736,6 +485,7 @@ let init_platform com pf =
 	com.config <- get_config com;
 	if com.config.pf_static then define com Define.Static;
 	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then define com Define.Utf16;
 	raw_define com name
 
 let add_feature com f =
@@ -801,6 +551,9 @@ let add_filter ctx f =
 let add_final_filter ctx f =
 	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
+let platform_name_macro com =
+	if defined com Define.Macro then "macro" else platform_name com.platform
+
 let find_file ctx f =
 	try
 		(match Hashtbl.find ctx.file_lookup_cache f with
@@ -817,7 +570,7 @@ let find_file ctx f =
 				if Sys.file_exists file then begin
 					(try
 						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name ctx.platform ^ String.sub file ext (String.length file - ext) in
+						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
 						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
 					with Not_found ->
 						file)
@@ -830,6 +583,9 @@ let find_file ctx f =
 		| None -> raise Not_found
 		| Some f -> f)
 
+(* let find_file ctx f =
+	let timer = Timer.timer ["find_file"] in
+	Std.finally timer (find_file ctx) f *)
 
 let mem_size v =
 	Objsize.size_with_headers (Objsize.objsize v [] [])
@@ -857,6 +613,72 @@ let url_encode s add_char =
 let url_encode_s s =
 	let b = Buffer.create 0 in
 	url_encode s (Buffer.add_char b);
+	Buffer.contents b
+
+(* UTF8 *)
+
+let to_utf8 str p =
+	let u8 = try
+		UTF8.validate str;
+		str;
+	with
+		UTF8.Malformed_code ->
+			(* ISO to utf8 *)
+			let b = UTF8.Buf.create 0 in
+			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
+			UTF8.Buf.contents b
+	in
+	let ccount = ref 0 in
+	UTF8.iter (fun c ->
+		let c = UChar.code c in
+		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
+		incr ccount;
+		if c > 0x10000 then incr ccount;
+	) u8;
+	u8, !ccount
+
+let utf16_add buf c =
+	let add c =
+		Buffer.add_char buf (char_of_int (c land 0xFF));
+		Buffer.add_char buf (char_of_int (c lsr 8));
+	in
+	if c >= 0 && c < 0x10000 then begin
+		if c >= 0xD800 && c <= 0xDFFF then failwith ("Invalid unicode char " ^ string_of_int c);
+		add c;
+	end else if c < 0x110000 then begin
+		let c = c - 0x10000 in
+		add ((c asr 10) + 0xD800);
+		add ((c land 1023) + 0xDC00);
+	end else
+		failwith ("Invalid unicode char " ^ string_of_int c)
+
+let utf8_to_utf16 str zt =
+	let b = Buffer.create (String.length str * 2) in
+	(try UTF8.iter (fun c -> utf16_add b (UChar.code c)) str with Invalid_argument _ | UChar.Out_of_range -> ()); (* if malformed *)
+	if zt then utf16_add b 0;
+	Buffer.contents b
+
+let utf16_to_utf8 str =
+	let b = Buffer.create 0 in
+	let add c = Buffer.add_char b (char_of_int (c land 0xFF)) in
+	let get i = int_of_char (String.unsafe_get str i) in
+	let rec loop i =
+		if i >= String.length str then ()
+		else begin
+			let c = get i in
+			if c < 0x80 then begin
+				add c;
+				loop (i + 2);
+			end else if c < 0x800 then begin
+				let c = c lor ((get (i + 1)) lsl 8) in
+				add c;
+				add (c lsr 8);
+				loop (i + 2);
+			end else
+				assert false;
+		end
+	in
+	loop 0;
 	Buffer.contents b
 
 let add_diagnostics_message com s p sev =

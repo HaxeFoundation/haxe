@@ -27,23 +27,23 @@ package hl;
 	public var nullValue(get, never) : T;
 
 
-	@:extern inline function get_sizeBits() {
+	extern inline function get_sizeBits() {
 		return untyped $bytes_sizebits(this);
 	}
 
-	@:extern inline function get_nullValue() {
+	extern inline function get_nullValue() {
 		return untyped $bytes_nullvalue(this);
 	}
 
-	@:extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
+	extern public inline function blit( pos : Int, src : BytesAccess<T>, srcPos : Int, len : Int ) : Void {
 		(this:Bytes).blit(pos << sizeBits, src, srcPos << sizeBits, len << sizeBits);
 	}
 
-	@:extern @:arrayAccess public inline function get( pos : Int ) : T {
+	@:arrayAccess extern public inline function get( pos : Int ) : T {
 		return untyped $bget(this,pos);
 	}
 
-	@:extern @:arrayAccess public inline function set( pos : Int, value : T ) : T {
+	@:arrayAccess extern public inline function set( pos : Int, value : T ) : T {
 		untyped $bset(this,pos,value);
 		return value;
 	}

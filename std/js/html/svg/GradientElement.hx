@@ -38,12 +38,21 @@ extern class GradientElement extends Element
 	static inline var SVG_SPREADMETHOD_PAD : Int = 1;
 	static inline var SVG_SPREADMETHOD_REFLECT : Int = 2;
 	static inline var SVG_SPREADMETHOD_REPEAT : Int = 3;
-	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
-	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
-	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;
 	
+	
+	/**
+		Returns an `SVGAnimatedEnumeration` corresponding to the `gradientUnits` attribute on the given element. Takes one of the constants defined in `SVGUnitTypes`.
+	**/
 	var gradientUnits(default,null) : AnimatedEnumeration;
+	
+	/**
+		Returns an `SVGAnimatedTransformList` corresponding to attribute `gradientTransform` on the given element.
+	**/
 	var gradientTransform(default,null) : AnimatedTransformList;
+	
+	/**
+		Returns an `SVGAnimatedEnumeration` corresponding to attribute `spreadMethod` on the given element. One of the spread method types defined on this interface.
+	**/
 	var spreadMethod(default,null) : AnimatedEnumeration;
 	var href(default,null) : AnimatedString;
 	

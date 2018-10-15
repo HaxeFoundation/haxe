@@ -138,7 +138,7 @@ struct
 					let cf = mk_class_field name ef_type true pos (Method MethNormal) cf_params in
 					cf.cf_meta <- [];
 
-					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
+					let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some (Texpr.Builder.make_null t null_pos) else None) ) params in
 					let arr_decl = mk_nativearray_decl gen t_dynamic (List.map (fun (v,_) -> mk_local v pos) tf_args) pos in
 					let expr = {
 						eexpr = TFunction({
@@ -182,7 +182,7 @@ struct
 
 		let getTag_cf_type = tfun [] basic.tstring in
 		let getTag_cf = mk_class_field "getTag" getTag_cf_type true pos (Method MethNormal) [] in
-		getTag_cf.cf_meta <- [(Meta.Final, [], pos)];
+		getTag_cf.cf_final <- true;
 		getTag_cf.cf_expr <- Some {
 			eexpr = TFunction {
 				tf_args = [];

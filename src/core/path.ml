@@ -159,6 +159,18 @@ let make_valid_filename s =
 	let r = Str.regexp "[^A-Za-z0-9_\\-\\.,]" in
 	Str.global_substitute r (fun s -> "_") s
 
+let module_name_of_file file =
+	match List.rev (Str.split path_regex (get_real_path file)) with
+	| s :: _ ->
+		let s = match List.rev (ExtString.String.nsplit s ".") with
+		| [s] -> s
+		| _ :: sl -> String.concat "." (List.rev sl)
+		| [] -> ""
+		in
+		s
+	| [] ->
+		assert false
+
 let rec create_file bin ext acc = function
 	| [] -> assert false
 	| d :: [] ->
@@ -200,3 +212,6 @@ let mkdir_from_path path =
 		| _ ->
 			let dir_list = List.rev (List.tl (List.rev parts)) in
 			mkdir_recursive "" dir_list
+
+let full_dot_path pack mname tname =
+	if tname = mname then (pack,mname) else (pack @ [mname],tname)

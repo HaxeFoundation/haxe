@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Float(FloatClass) from FloatClass to FloatClass
 {
-	@:to @:extern inline public function toFloat():std.StdTypes.Float
+	@:to extern inline public function toFloat():std.StdTypes.Float
 		return this.floatValue();
-	@:from @:extern inline public static function fromFloat(b:std.StdTypes.Single):Float
+	@:from extern inline public static function fromFloat(b:std.StdTypes.Single):Float
 		return FloatClass.valueOf(b);
 }
 

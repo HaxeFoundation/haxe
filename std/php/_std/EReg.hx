@@ -35,13 +35,9 @@ import php.*;
 
 	public function new( r : String, opt : String ) : Void {
 		this.pattern = r;
-		var a = opt.split("g");
-		global = a.length > 1;
-		if (global) {
-			opt = a.join("");
-		}
-		this.options = opt;
-		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + opt;
+		options = Global.str_replace('g', '', opt);
+		global = options != opt;
+		this.re = '"' + Global.str_replace('"', '\\"', r) + '"u' + options;
 	}
 
 	public function match( s : String ) : Bool {
@@ -66,24 +62,24 @@ import php.*;
 
 	public function matchedLeft() : String {
 		if (Global.count(matches) == 0) throw "No string matched";
-		return last.substr(0, matches[0][1]);
+		return Global.substr(last, 0, matches[0][1]);
 	}
 
 	public function matchedRight() : String {
 		if (Global.count(matches) == 0) throw "No string matched";
 		var x : Int = (matches[0][1]:Int) + Global.strlen(matches[0][0]);
-		return last.substr(x);
+		return Global.substr(last, x);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
 		return {
-			pos : matches[0][1],
-			len : Global.strlen(matches[0][0])
+			pos : Global.mb_strlen(Global.substr(last, 0, matches[0][1])),
+			len : Global.mb_strlen(matches[0][0])
 		};
 	}
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
-		var subject = len < 0 ? s : s.substr(0,pos + len);
+		var subject = len < 0 ? s : s.substr(0, pos + len);
 		var p : Int = Global.preg_match(re, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);
 		if(p > 0) {
 			last = s;
@@ -111,8 +107,9 @@ import php.*;
 	public function map( s : String, f : EReg -> String ) : String {
 		var offset = 0;
 		var buf = new StringBuf();
+		var length = s.length;
 		do {
-			if (offset >= s.length) {
+			if (offset >= length) {
 				break;
 			} else if (!matchSub(s, offset)) {
 				buf.add(s.substr(offset));
@@ -129,7 +126,7 @@ import php.*;
 				offset = p.pos + p.len;
 			}
 		} while (global);
-		if (!global && offset > 0 && offset < s.length) {
+		if (!global && offset > 0 && offset < length) {
 			buf.add(s.substr(offset));
 		}
 		return buf.toString();

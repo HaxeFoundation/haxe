@@ -21,7 +21,7 @@
  */
 package neko;
 
-@:enum abstract XmlType(String) {}
+enum abstract XmlType(String) {}
 
 typedef NativeXml = Xml;
 

@@ -29,7 +29,7 @@ class Json {
 		return python.lib.Json.loads(text, { object_hook : python.Lib.dictToAnon });
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space : String ) : String {
+	public static inline function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space : String ) : String {
 		return haxe.format.JsonPrinter.print(value, replacer, space);
 	}
 }

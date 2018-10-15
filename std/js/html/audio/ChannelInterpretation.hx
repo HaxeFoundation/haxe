@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract ChannelInterpretation(String)
+enum abstract ChannelInterpretation(String)
 {
 	var SPEAKERS = "speakers";
 	var DISCRETE = "discrete";

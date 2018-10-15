@@ -27,13 +27,10 @@ package js.html.rtc;
 typedef DataChannelInit =
 {
 	@:optional var id : Int;
-	@:optional var maxRetransmitNum : Int;
+	@:optional var maxPacketLifeTime : Int;
 	@:optional var maxRetransmitTime : Int;
 	@:optional var maxRetransmits : Int;
 	@:optional var negotiated : Bool;
 	@:optional var ordered : Bool;
-	@:optional var outOfOrderAllowed : Bool;
-	@:optional var preset : Bool;
 	@:optional var protocol : String;
-	@:optional var stream : Int;
 }

@@ -309,17 +309,17 @@ let convert_ilfield ctx p field =
 		| name -> name
 	in
 	let cff_access = match field.fflags.ff_access with
-		| FAFamily | FAFamOrAssem -> APrivate
-		| FAPublic -> APublic
+		| FAFamily | FAFamOrAssem -> (APrivate,null_pos)
+		| FAPublic -> (APublic,null_pos)
 		| _ -> raise Exit (* private instances aren't useful on externs *)
 	in
 	let readonly, acc = List.fold_left (fun (readonly,acc) -> function
-		| CStatic -> readonly, AStatic :: acc
+		| CStatic -> readonly, (AStatic,null_pos) :: acc
 		| CInitOnly | CLiteral -> true, acc
 		| _ -> readonly,acc
 	) (false,[cff_access]) field.fflags.ff_contract in
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
-		Printf.printf "\t%sfield %s : %s\n" (if List.mem AStatic acc then "static " else "") cff_name (IlMetaDebug.ilsig_s field.fsig.ssig);
+		Printf.printf "\t%sfield %s : %s\n" (if List.mem_assoc AStatic acc then "static " else "") cff_name (IlMetaDebug.ilsig_s field.fsig.ssig);
 	let kind = match readonly with
 		| true ->
 			cff_meta := (Meta.ReadOnly, [], cff_pos) :: !cff_meta;
@@ -349,12 +349,12 @@ let convert_ilevent ctx p ev =
 	let name = ev.ename in
 	let kind = FVar (Some (convert_signature ctx p ev.esig.snorm,null_pos), None) in
 	let meta = [Meta.Event, [], p; Meta.Keep,[],p; Meta.SkipReflection,[],p] in
-	let acc = [APrivate] in
+	let acc = [APrivate,null_pos] in
 	let add_m acc m = match m with
 		| None -> acc
 		| Some (name,flags) ->
 			if List.mem (CMStatic) flags.mf_contract then
-				AStatic :: acc
+				(AStatic,null_pos) :: acc
 			else
 				acc
 	in
@@ -392,11 +392,11 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	let meta = [Meta.Overload, [], p] in
 	let acc, meta = match m.mflags.mf_access with
 		| FAFamily | FAFamOrAssem ->
-			APrivate, ((Meta.Protected, [], p) :: meta)
+			(APrivate,null_pos), ((Meta.Protected, [], p) :: meta)
 		(* | FAPrivate -> APrivate *)
 		| FAPublic when List.mem SGetter m.msemantics || List.mem SSetter m.msemantics ->
-			APrivate, meta
-		| FAPublic -> APublic, meta
+			(APrivate,null_pos), meta
+		| FAPublic -> (APublic,null_pos), meta
 		| _ ->
 			if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 				Printf.printf "\tmethod %s (skipped) : %s\n" cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
@@ -404,7 +404,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	in
 	let is_static = ref false in
 	let acc, is_final = List.fold_left (fun (acc,is_final) -> function
-		| CMStatic when cff_name <> "new" -> is_static := true; AStatic :: acc, is_final
+		| CMStatic when cff_name <> "new" -> is_static := true; (AStatic,null_pos) :: acc, is_final
 		| CMVirtual when is_final = None -> acc, Some false
 		| CMFinal -> acc, Some true
 		| _ -> acc, is_final
@@ -412,11 +412,11 @@ let convert_ilmethod ctx p m is_explicit_impl =
 	if PMap.mem "net_loader_debug" ctx.ncom.defines.Define.values then
 		Printf.printf "\t%smethod %s : %s\n" (if !is_static then "static " else "") cff_name (IlMetaDebug.ilsig_s m.msig.ssig);
 
-	let meta = match is_final with
+	let acc = match is_final with
 		| None | Some true when not force_check ->
-			(Meta.Final,[],p) :: meta
+			(AFinal,null_pos) :: acc
 		| _ ->
-			meta
+			acc
 	in
 	let meta = if is_explicit_impl then
 			(Meta.NoCompletion,[],p) :: (Meta.SkipReflection,[],p) :: meta
@@ -469,7 +469,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			{
 				tp_name = "M" ^ string_of_int t.tnumber,null_pos;
 				tp_params = [];
-				tp_constraints = [];
+				tp_constraints = None;
 				tp_meta = [];
 			}
 		) m.mtypes in
@@ -493,7 +493,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 		| _ when cff_name = "new" -> acc
 		| Some (path,s) -> match lookup_ilclass ctx.nstd ctx.ncom path with
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
-				AOverride :: acc
+				(AOverride,null_pos) :: acc
 			| None when ctx.ncom.verbose ->
 				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
 				acc
@@ -517,14 +517,14 @@ let convert_ilprop ctx p prop is_explicit_impl =
 		| _ -> None
 	in
 	let cff_access = match pmflags with
-		| Some { mf_access = FAFamily | FAFamOrAssem } -> APrivate
-		| Some { mf_access = FAPublic } -> APublic
+		| Some { mf_access = FAFamily | FAFamOrAssem } -> (APrivate,null_pos)
+		| Some { mf_access = FAPublic } -> (APublic,null_pos)
 		| _ -> raise Exit (* non-public / protected fields don't interest us *)
 	in
 	let access acc = acc.mf_access in
 	let cff_access = match pmflags with
 		| Some m when List.mem CMStatic m.mf_contract ->
-			[AStatic;cff_access]
+			[AStatic,null_pos;cff_access]
 		| _ -> [cff_access]
 	in
 	let get = match prop.pget with
@@ -638,7 +638,7 @@ let convert_delegate ctx p ilcls =
 		{
 			tp_name = ("T" ^ string_of_int t.tnumber),null_pos;
 			tp_params = [];
-			tp_constraints = [];
+			tp_constraints = None;
 			tp_meta = [];
 		}
 	) ilcls.ctypes in
@@ -661,8 +661,8 @@ let convert_delegate ctx p ilcls =
 			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = p;
-			cff_meta = [ Meta.Extern,[],p ; Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
-			cff_access = [APublic;AInline;AStatic];
+			cff_meta = [ Meta.Op, [ (EBinop(op, (EConst(Ident"A"),p), (EConst(Ident"B"),p)),p) ], p ];
+			cff_access = [APublic,null_pos;AInline,null_pos;AStatic,null_pos;AExtern,null_pos];
 			cff_kind = mk_op_fn op name p;
 		}
 	in
@@ -694,16 +694,16 @@ let convert_delegate ctx p ilcls =
 			EReturn( Some ( EConst(Ident "this"), p ) ), p
 		);
 	} in
-	let fn_new = mk_abstract_fun "new" p fn_new [Meta.Extern] [APublic;AInline] in
-	let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.Extern;Meta.From] [APublic;AInline;AStatic] in
-	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [Meta.Extern] [APublic;AInline] in
+	let fn_new = mk_abstract_fun "new" p fn_new [] [APublic,null_pos;AInline,null_pos;AExtern,null_pos] in
+	let fn_from_hx = mk_abstract_fun "FromHaxeFunction" p fn_from_hx [Meta.From] [APublic,null_pos;AInline,null_pos;AStatic,null_pos;AExtern,null_pos] in
+	let fn_asdel = mk_abstract_fun "AsDelegate" p fn_asdel [] [APublic,null_pos;AInline,null_pos;AExtern,null_pos] in
 	let _, c = netpath_to_hx ctx.nstd ilcls.cpath in
 	EAbstract {
 		d_name = netname_to_hx c,null_pos;
 		d_doc = None;
 		d_params = types;
 		d_meta = mk_metas [Meta.Delegate; Meta.Forward] p;
-		d_flags = [AIsType (underlying_type,null_pos)];
+		d_flags = [AbOver (underlying_type,null_pos)];
 		d_data = [fn_new;fn_from_hx;fn_asdel;mk_op Ast.OpAdd "Add";mk_op Ast.OpSub "Remove"];
 	}
 
@@ -725,7 +725,8 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 
 		let is_interface = ref false in
 		List.iter (fun f -> match f with
-			| SSealed -> meta := (Meta.Final, [], p) :: !meta
+			| SSealed ->
+				flags := HFinal :: !flags
 			| SInterface ->
 				is_interface := true;
 				flags := HInterface :: !flags
@@ -802,7 +803,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 				{
 					tp_name = "T" ^ string_of_int p.tnumber,null_pos;
 					tp_params = [];
-					tp_constraints = [];
+					tp_constraints = None;
 					tp_meta = [];
 				}) ilcls.ctypes
 			in
@@ -817,7 +818,7 @@ let convert_ilclass ctx p ?(delegate=false) ilcls = match ilcls.csuper with
 						cff_doc = None;
 						cff_pos = p;
 						cff_meta = [];
-						cff_access = [APublic;AStatic];
+						cff_access = [APublic,null_pos;AStatic,null_pos];
 						cff_kind = FFun {
 							f_params = params;
 							f_args = [("arg1",null_pos),false,[],Some (thist,null_pos),None;("arg2",null_pos),false,[],Some (thist,null_pos),None];

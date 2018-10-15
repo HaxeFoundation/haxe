@@ -79,9 +79,9 @@ let init com (should_wrap:t->bool) (wrap_throw:texpr->texpr) (unwrap_expr:texpr-
 			| _, (v, c) :: _ ->
 				let pos = c.epos in
 
-				let temp_var = alloc_var "catchallException" catchall_type pos in
+				let temp_var = alloc_var VGenerated "catchallException" catchall_type pos in
 				let temp_local = make_local temp_var pos in
-				let catchall_var = alloc_var "realException" t_dynamic pos in
+				let catchall_var = alloc_var VGenerated "realException" t_dynamic pos in
 				let catchall_local = make_local catchall_var pos in
 
 				(* if it is of type wrapper_type, unwrap it *)

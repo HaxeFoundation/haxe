@@ -34,11 +34,40 @@ package js.html;
 @:native("HTMLMeterElement")
 extern class MeterElement extends Element
 {
+	
+	/**
+		A `double` representing the currrent value, reflecting the `value` attribute.
+	**/
 	var value : Float;
+	
+	/**
+		A `double` representing the minimum value, reflecting the `min` attribute.
+	**/
 	var min : Float;
+	
+	/**
+		A `double` representing the maximum value, reflecting the `max` attribute.
+	**/
 	var max : Float;
+	
+	/**
+		A `double` representing the value of the low boundary, reflecting the `low`attribute.
+	**/
 	var low : Float;
+	
+	/**
+		A `double` representing the value of the high boundary, reflecting the `high` attribute.
+	**/
 	var high : Float;
+	
+	/**
+		A `double` representing the optimum, reflecting the `optimum` attribute.
+	**/
 	var optimum : Float;
+	
+	/**
+		A `NodeList` of `label` elements that are associated with the element.
+	**/
+	var labels(default,null) : NodeList;
 	
 }

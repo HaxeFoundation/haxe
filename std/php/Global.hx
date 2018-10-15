@@ -948,6 +948,11 @@ extern class Global {
 	static function utf8_decode( data:String ) : String;
 
 	/**
+		@see http://php.net/manual/en/function.mb-internal-encoding.php
+	**/
+	static function mb_internal_encoding( ?encoding:String ) : EitherType<Bool,String>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-convert-encoding.php
 	**/
 	static function mb_convert_encoding( str:String, to_encoding:String, ?from_encoding:Dynamic ) : String;
@@ -958,6 +963,11 @@ extern class Global {
 	static function mb_check_encoding( str:String = null, ?encoding:String ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.mb-split.php
+	**/
+	static function mb_split( pattern:String, str:String, ?limit:Int ) : NativeIndexedArray<String>;
+
+	/**
 		@see http://php.net/manual/en/function.mb-strlen.php
 	**/
 	static function mb_strlen( str:String, ?encoding:String ) : EitherType<Int,Bool>;
@@ -966,6 +976,43 @@ extern class Global {
 		@see http://php.net/manual/en/function.mb-substr.php
 	**/
 	static function mb_substr( str:String, start:Int, length:Int = null, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-chr.php
+		(Polyfilled for php 7.0)
+	**/
+	static function mb_chr( cp:Int, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-ord.php
+		(Polyfilled for php 7.0)
+	**/
+	static function mb_ord( str:String, ?encoding:String ) : Int;
+
+	/**
+		@see http://php.net/manual/en/function.mb-regex-encoding.php
+	**/
+	static function mb_regex_encoding( ?encoding:String ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strtoupper.php
+	**/
+	static function mb_strtoupper( str:String, ?encoding:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strpos.php
+	**/
+	static function mb_strpos( haystack:String, needle:String, ?offset:Int, ?encoding:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strrpos.php
+	**/
+	static function mb_strrpos( haystack:String, needle:String, ?offset:Int, ?encoding:String ) : EitherType<Int,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.mb-strtolower.php
+	**/
+	static function mb_strtolower( str:String, ?encoding:String ) : String;
 
 	/**
 		@see http://php.net/manual/en/function.proc-open.php
@@ -991,6 +1038,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-select.php
 	**/
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.stream-get-contents.php
+	**/
+	static function stream_get_contents( handle:Resource, maxlength:Int = -1, offset:Int = -1 ) : EitherType<String,Bool>;
 
 	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php
@@ -1026,6 +1078,91 @@ extern class Global {
 		@see http://php.net/manual/en/function.stream-socket-get-name.php
 	**/
 	static function stream_socket_get_name( stream:Resource, want_peer:Bool ) : EitherType<String,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-create.php
+	**/
+	static function socket_create( domain:Int, type:Int, protocol:Int ) : Resource;
+
+	/**
+		@see http://php.net/manual/en/function.socket-connect.php
+	**/
+	static function socket_connect( stream:Resource, host:String, port:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-listen.php
+	**/
+	static function socket_listen( stream:Resource, connections:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-shutdown.php
+	**/
+	static function socket_shutdown( stream:Resource, rw:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-bind.php
+	**/
+	static function socket_bind( stream:Resource, host:String, port:Int ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-accept.php
+	**/
+	static function socket_accept( stream:Resource ) : EitherType<Resource,Bool>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-getpeername.php
+	**/
+	static function socket_getpeername( stream:Resource, host:Ref<String>, port:Ref<Int> ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-getsockname.php
+	**/
+	static function socket_getsockname( stream:Resource, host:Ref<String>, port:Ref<Int> ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-block.php
+	**/
+	static function socket_set_block( stream:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-nonblock.php
+	**/
+	static function socket_set_nonblock( stream:Resource ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-set-option.php
+	**/
+	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Bool ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.socket-select.php
+	**/
+	static function socket_select( read:NativeIndexedArray<Resource>, write:NativeIndexedArray<Resource>, other:NativeIndexedArray<Resource>, tv_sec:Int=0, tv_usec:Int=0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-read.php
+	**/
+	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-write.php
+	**/
+	static function socket_write( resource:Resource, buffer:String, len:Int=0 ) : EitherType<Bool, Int>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-import-stream.php
+	**/
+	static function socket_import_stream( resource:Resource ) : EitherType<Bool, Resource>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-export-stream.php
+	**/
+	static function socket_export_stream( resource:Resource ) : EitherType<Bool, Resource>;
+
+	/**
+		@see http://php.net/manual/en/function.socket-close.php
+	**/
+	static function socket_close( resource:Resource ) : Void;
 
 	/**
 		@see http://php.net/manual/en/function.ini-get.php

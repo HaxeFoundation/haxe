@@ -21,7 +21,7 @@ class Python {
 					var pypyVersion = "pypy3-2.4.0-linux64";
 					var file = '${pypyVersion}.tar.bz2';
 					if(!FileSystem.exists(file)) {
-						runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/$file'], true);
+						runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/$file'], true);
 					}
 					runCommand("tar", ["-xf", file]);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');

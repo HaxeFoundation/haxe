@@ -39,10 +39,6 @@ extern class CanvasRenderingContext2D
 	var globalCompositeOperation : String;
 	var strokeStyle : haxe.extern.EitherType<String,haxe.extern.EitherType<CanvasGradient,CanvasPattern>>;
 	var fillStyle : haxe.extern.EitherType<String,haxe.extern.EitherType<CanvasGradient,CanvasPattern>>;
-	var shadowOffsetX : Float;
-	var shadowOffsetY : Float;
-	var shadowBlur : Float;
-	var shadowColor : String;
 	var filter : String;
 	var imageSmoothingEnabled : Bool;
 	var lineWidth : Float;
@@ -50,56 +46,50 @@ extern class CanvasRenderingContext2D
 	var lineJoin : String;
 	var miterLimit : Float;
 	var lineDashOffset : Float;
+	var shadowOffsetX : Float;
+	var shadowOffsetY : Float;
+	var shadowBlur : Float;
+	var shadowColor : String;
 	var font : String;
 	var textAlign : String;
 	var textBaseline : String;
 	
-	function save() : Void;
-	function restore() : Void;
 	/** @throws DOMError */
-	function scale( x : Float, y : Float ) : Void;
-	/** @throws DOMError */
-	function rotate( angle : Float ) : Void;
-	/** @throws DOMError */
-	function translate( x : Float, y : Float ) : Void;
-	/** @throws DOMError */
-	function transform( a : Float, b : Float, c : Float, d : Float, e : Float, f : Float ) : Void;
-	/** @throws DOMError */
-	function setTransform( a : Float, b : Float, c : Float, d : Float, e : Float, f : Float ) : Void;
-	/** @throws DOMError */
-	function resetTransform() : Void;
-	function createLinearGradient( x0 : Float, y0 : Float, x1 : Float, y1 : Float ) : CanvasGradient;
-	/** @throws DOMError */
-	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
-	/** @throws DOMError */
-	function createPattern( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, repetition : String ) : CanvasPattern;
-	function clearRect( x : Float, y : Float, w : Float, h : Float ) : Void;
-	function fillRect( x : Float, y : Float, w : Float, h : Float ) : Void;
-	function strokeRect( x : Float, y : Float, w : Float, h : Float ) : Void;
+	@:overload( function( image : js.html.svg.ImageElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : CanvasElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : VideoElement, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, dx : Float, dy : Float) : Void {} )
+	@:overload( function( image : js.html.svg.ImageElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : CanvasElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : VideoElement, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : js.html.svg.ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : CanvasElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : VideoElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageBitmap, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float) : Void {} )
+	@:overload( function( image : ImageElement, dx : Float, dy : Float ) : Void {} )
+	@:overload( function( image : ImageElement, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
+	function drawImage( image : ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	function beginPath() : Void;
 	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
 	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
 	@:overload( function() : Void {} )
 	function stroke( path : Path2D ) : Void;
-	/** @throws DOMError */
-	function drawFocusIfNeeded( element : Element ) : Void;
-	function drawCustomFocusRing( element : Element ) : Bool;
 	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
 	function clip( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
 	@:overload( function( x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool {} )
 	function isPointInPath( path : Path2D, x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool;
 	@:overload( function( x : Float, y : Float ) : Bool {} )
 	function isPointInStroke( path : Path2D, x : Float, y : Float ) : Bool;
+	function createLinearGradient( x0 : Float, y0 : Float, x1 : Float, y1 : Float ) : CanvasGradient;
 	/** @throws DOMError */
-	function fillText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
+	function createRadialGradient( x0 : Float, y0 : Float, r0 : Float, x1 : Float, y1 : Float, r1 : Float ) : CanvasGradient;
 	/** @throws DOMError */
-	function strokeText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
-	/** @throws DOMError */
-	function measureText( text : String ) : TextMetrics;
-	/** @throws DOMError */
-	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float ) : Void {} )
-	@:overload( function( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
-	function drawImage( image : haxe.extern.EitherType<ImageElement,haxe.extern.EitherType<CanvasElement,haxe.extern.EitherType<VideoElement,ImageBitmap>>>, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
+	@:overload( function( image : js.html.svg.ImageElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : CanvasElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : VideoElement, repetition : String) : CanvasPattern {} )
+	@:overload( function( image : ImageBitmap, repetition : String) : CanvasPattern {} )
+	function createPattern( image : ImageElement, repetition : String ) : CanvasPattern;
 	/** @throws DOMError */
 	function addHitRegion( ?options : HitRegionOptions ) : Void;
 	function removeHitRegion( id : String ) : Void;
@@ -127,4 +117,30 @@ extern class CanvasRenderingContext2D
 	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
 	/** @throws DOMError */
 	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	function clearRect( x : Float, y : Float, w : Float, h : Float ) : Void;
+	function fillRect( x : Float, y : Float, w : Float, h : Float ) : Void;
+	function strokeRect( x : Float, y : Float, w : Float, h : Float ) : Void;
+	function save() : Void;
+	function restore() : Void;
+	/** @throws DOMError */
+	function fillText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
+	/** @throws DOMError */
+	function strokeText( text : String, x : Float, y : Float, ?maxWidth : Float ) : Void;
+	/** @throws DOMError */
+	function measureText( text : String ) : TextMetrics;
+	/** @throws DOMError */
+	function scale( x : Float, y : Float ) : Void;
+	/** @throws DOMError */
+	function rotate( angle : Float ) : Void;
+	/** @throws DOMError */
+	function translate( x : Float, y : Float ) : Void;
+	/** @throws DOMError */
+	function transform( a : Float, b : Float, c : Float, d : Float, e : Float, f : Float ) : Void;
+	/** @throws DOMError */
+	function setTransform( a : Float, b : Float, c : Float, d : Float, e : Float, f : Float ) : Void;
+	/** @throws DOMError */
+	function resetTransform() : Void;
+	/** @throws DOMError */
+	function drawFocusIfNeeded( element : Element ) : Void;
+	function drawCustomFocusRing( element : Element ) : Bool;
 }

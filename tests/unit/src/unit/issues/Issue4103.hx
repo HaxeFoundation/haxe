@@ -1,7 +1,6 @@
 package unit.issues;
 
-@:enum
-private abstract IntAbstract(Int) from Int to Int {
+private enum abstract IntAbstract(Int) from Int to Int {
 	public static var value = 5;
 
 	var var1 = 1;

@@ -1,7 +1,7 @@
 package unit.issues;
 import unit.Test;
 
-@:enum abstract WorldRegion(Int) {
+enum abstract WorldRegion(Int) {
 	static public inline var MiddleCenter = 1;
 }
 

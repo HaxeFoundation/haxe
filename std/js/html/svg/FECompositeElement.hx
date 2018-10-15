@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFECompositeElement` interface corresponds to the `feComposite` element.
+
+	Documentation [SVGFECompositeElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFECompositeElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFECompositeElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFECompositeElement>
+**/
 @:native("SVGFECompositeElement")
 extern class FECompositeElement extends Element
 {
@@ -35,9 +42,14 @@ extern class FECompositeElement extends Element
 	static inline var SVG_FECOMPOSITE_OPERATOR_XOR : Int = 5;
 	static inline var SVG_FECOMPOSITE_OPERATOR_ARITHMETIC : Int = 6;
 	
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
 	var in2(default,null) : AnimatedString;
-	var operator(default,null) : AnimatedEnumeration;
+	@:native("operator")
+	var operator_(default,null) : AnimatedEnumeration;
 	var k1(default,null) : AnimatedNumber;
 	var k2(default,null) : AnimatedNumber;
 	var k3(default,null) : AnimatedNumber;

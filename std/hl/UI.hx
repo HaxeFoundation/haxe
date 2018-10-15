@@ -131,7 +131,7 @@ enum DialogFlags {
 	IsError;
 }
 
-@:enum abstract LoopResult(Int) {
+enum abstract LoopResult(Int) {
 	var NoMessage = 0;
 	var HandledMessage = 1;
 	var Quit = 2;

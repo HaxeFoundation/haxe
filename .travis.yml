@@ -42,6 +42,7 @@ install_linux: &install_linux
       ocaml
       ocaml-native-compilers
       ocaml-findlib
+      aspcud
       libpcre3-dev
       zlib1g-dev
       libgtk2.0-dev
@@ -51,7 +52,8 @@ install_linux: &install_linux
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       sudo add-apt-repository ppa:haxe/snapshots -y;
-      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y neko neko-dev;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" update -qqy;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -qqy neko neko-dev;
     else
       if [ ! -d "$HOME/neko" ]; then
         mkdir $HOME/neko;
@@ -79,7 +81,7 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # ocaml dependencies
-  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - wget -nv https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
@@ -96,11 +98,11 @@ install_linux: &install_linux
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
+  - (nvm ls 8 || nvm install 8) && nvm use 8
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew tap Homebrew/bundle
-  - travis_retry brew bundle --file=tests/Brewfile
+  - travis_retry brew bundle --file=tests/Brewfile --no-upgrade
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       brew install neko --HEAD;
@@ -166,7 +168,7 @@ matrix:
 
     - os: linux
       env:
-        - TEST=macro,js,php,flash9,as3,java,cs,python,lua
+        - TEST=macro,hl,js,php,flash9,as3,java,cs,python,lua
         - SAUCE=1
       addons:
         sauce_connect: true
@@ -188,20 +190,20 @@ matrix:
     # osx #
     #######
     - os: osx
-      osx_image: xcode7.3 # to compile binaries that support older versions of Mac, and 10.11 is the min version that brew provides bottles
+      osx_image: xcode8.3 # to compile binaries that support older versions of Mac, and 10.12 is the min version that brew provides bottles
       env:
         - TEST=neko
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
-        - TEST=macro,java,cs,lua,js,php,flash9,python
+        - TEST=macro,hl,java,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1 # to compile faster
+      osx_image: xcode9.4 # to compile faster
       env:
         - TEST=cpp
         - HXCPP_COMPILE_CACHE=~/hxcache

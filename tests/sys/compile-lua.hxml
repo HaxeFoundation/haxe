@@ -1,14 +1,14 @@
 
 compile-each.hxml
--main Main
+--main Main
 -lua bin/lua/sys.lua
 
 --next
 compile-each.hxml
--main TestArguments
+--main TestArguments
 -lua bin/lua/TestArguments.lua
 
 --next
 compile-each.hxml
--main ExitCode
+--main ExitCode
 -lua bin/lua/ExitCode.lua

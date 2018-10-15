@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The `FontFaceSet` interface of the CSS Font Loading API is an interface for loading font faces and checking their download statuses.
+	The `FontFaceSet` interface of the CSS Font Loading API manages the loading of font-faces and querying of their download status.
 
 	Documentation [FontFaceSet](https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -37,31 +37,30 @@ extern class FontFaceSet extends EventTarget
 	var size(default,null) : Int;
 	
 	/**
-		An `EventListener` property called whenever an event of type `loading` is fired, indicating that a font face set has started to load.
+		An `EventListener` called whenever an event of type `loading` is fired, indicating a font-face set has started loading.
 	**/
 	var onloading : haxe.Constraints.Function;
 	
 	/**
-		An `EventListener` property called whenever an event of type `loadingdone` is fired, indicating that a font face set has finished loading.
+		An `EventListener` called whenever an event of type `loadingdone` is fired, indicating that a font face set has finished loading.
 	**/
 	var onloadingdone : haxe.Constraints.Function;
 	
 	/**
-		An `EventListener` property called whenever an event of type `loadingerror` is fired, indicating that an error occurred during the loading of a font face set.
+		An `EventListener` called whenever an event of type `loadingerror` is fired, indicating that an error occurred whilst loading a font-face set.
 	**/
 	var onloadingerror : haxe.Constraints.Function;
 	var ready(default,null) : Promise<Void>;
 	
 	/**
-		Indicates the font face's loading status. It will be one of `'loading'` or `'loaded'`.
+		Indicates the font-face's loading status. It will be one of `'loading'` or `'loaded'`.
 	**/
 	var status(default,null) : FontFaceSetLoadStatus;
 	
 	/** @throws DOMError */
 	function add( font : FontFace ) : Void;
 	function has( font : FontFace ) : Bool;
-	@:native("delete")
-	function delete_( font : FontFace ) : Bool;
+	function delete( font : FontFace ) : Bool;
 	function clear() : Void;
 	function entries() : FontFaceSetIterator;
 	function values() : FontFaceSetIterator;

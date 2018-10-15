@@ -69,7 +69,11 @@ class ObjectMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constrain
 	}
 
 	#end
-	
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();
 		for(key in keys()) copied.set(key, get(key));

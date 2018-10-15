@@ -24,6 +24,13 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEBlendElement` interface corresponds to the `feBlend` element.
+
+	Documentation [SVGFEBlendElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEBlendElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEBlendElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEBlendElement>
+**/
 @:native("SVGFEBlendElement")
 extern class FEBlendElement extends Element
 {
@@ -45,8 +52,20 @@ extern class FEBlendElement extends Element
 	static inline var SVG_FEBLEND_MODE_COLOR : Int = 15;
 	static inline var SVG_FEBLEND_MODE_LUMINOSITY : Int = 16;
 	
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.
+	**/
 	var in1(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedString` corresponding to the `in2` attribute of the given element.
+	**/
 	var in2(default,null) : AnimatedString;
+	
+	/**
+		An `SVGAnimatedEnumeration` corresponding to the `mode` attribute of the given element. It takes one of the `SVG_FEBLEND_MODE_*` constants defined on this interface.
+	**/
 	var mode(default,null) : AnimatedEnumeration;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

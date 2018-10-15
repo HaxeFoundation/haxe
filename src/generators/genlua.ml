@@ -47,6 +47,7 @@ type ctx = {
     mutable separator : bool;
     mutable found_expose : bool;
     mutable lua_jit : bool;
+    mutable lua_vanilla : bool;
     mutable lua_ver : float;
 }
 
@@ -189,7 +190,7 @@ let rec concat ctx s f = function
 let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
-        | None | Some TNull -> e
+        | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
@@ -346,15 +347,25 @@ let rec is_function_type t =
     | TAbstract({a_path=["haxe"],"Function" },_) -> true
     | _ -> false
 
-and gen_argument ctx e = begin
+and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+            (
+            if reflect then (
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+            );
+
             add_feature ctx "use._hx_bind";
             print ctx "_hx_bind(";
             gen_value ctx x;
             print ctx ",";
             gen_value ctx x;
-            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name));
+
+            if reflect then
+                print ctx ")";
+            );
     | _ ->
         gen_value ctx e;
 end
@@ -385,6 +396,15 @@ and gen_call ctx e el =
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
+     | TField (_, FStatic( { cl_path = ([],"Reflect") }, { cf_name = "callMethod" })), (obj :: fld :: args :: rest) ->
+         gen_expr ctx e;
+         spr ctx "(";
+         gen_argument ctx obj;
+         spr ctx ",";
+         gen_argument ~reflect:true ctx fld;
+         spr ctx ",";
+         gen_argument ctx args;
+         spr ctx ")";
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;
@@ -407,7 +427,7 @@ and gen_call ctx e el =
          let count = ref 0 in
          spr ctx "({";
          List.iter (fun e ->
-             (match e with
+             (match Texpr.skip e with
               | { eexpr = TArrayDecl arr } ->
                   if (!count > 0 && List.length(arr) > 0) then spr ctx ",";
                   concat ctx "," (gen_value ctx) arr;
@@ -646,9 +666,15 @@ and gen_expr ?(local=true) ctx e = begin
     | TEnumIndex x ->
         gen_value ctx x;
         print ctx "[1]"
-    | TField (e, ef) when is_string_expr e && field_name ef = "length"->
-        spr ctx "#";
-        gen_value ctx e;
+    | TField (e, ef) when is_string_expr e && field_name ef = "length" ->
+        if ctx.lua_vanilla then (
+            spr ctx "#";
+            gen_value ctx e;
+        ) else (
+            spr ctx "__lua_lib_luautf8_Utf8.len(";
+            gen_value ctx e;
+            spr ctx ")";
+        )
     | TField (e, ef) when is_possible_string_field e (field_name ef)  ->
         add_feature ctx "use._hx_wrap_if_string_field";
         add_feature ctx "use.string";
@@ -782,7 +808,13 @@ and gen_expr ?(local=true) ctx e = begin
                     (* we have to box it in an object conforming to a multi-return extern class *)
                     let is_boxed_multireturn = Meta.has (Meta.Custom ":lua_mr_box") v.v_meta in
                     let e = if is_boxed_multireturn then mk_mr_box ctx e else e in
-                    gen_value ctx e;
+                    (match e.eexpr with
+                    | TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+                        add_feature ctx "use._hx_staticToInstance";
+                        spr ctx "_hx_staticToInstance(";
+                        gen_expr ctx e1;
+                        spr ctx ")";
+                    | _ -> gen_value ctx e);
         end
     | TNew (c,_,el) ->
         (match c.cl_constructor with
@@ -1130,7 +1162,7 @@ and gen_value ctx e =
     let value() =
         let old = ctx.in_value, ctx.in_loop in
         let r_id = temp ctx in
-        let r = alloc_var r_id t_dynamic e.epos in
+        let r = alloc_var VGenerated r_id t_dynamic e.epos in
         ctx.in_value <- Some r;
         ctx.in_loop <- false;
         spr ctx "(function() ";
@@ -1178,13 +1210,6 @@ and gen_value ctx e =
     | TBreak
     | TContinue ->
         unsupported e.epos
-    (* TODO: this is just a hack because this specific case is a TestReflect unit test. I don't know how to address this properly
-       	   at the moment. - Simon *)
-    | TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
-        add_feature ctx "use._hx_staticToInstance";
-        spr ctx "_hx_staticToInstance(";
-        gen_expr ctx e1;
-        spr ctx ")";
     | TCast (e1, Some t) ->
         print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
         gen_value ctx e1;
@@ -1308,6 +1333,13 @@ and gen_tbinop ctx op e1 e2 =
               spr ctx "_hx_funcToField(";
               gen_value ctx e2;
               spr ctx ")";
+          | _, TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
+              add_feature ctx "use._hx_staticToInstance";
+              gen_value ctx e1;
+              print ctx " %s " (Ast.s_binop op);
+              spr ctx "_hx_staticToInstance(";
+              gen_expr ctx e2;
+              spr ctx ")";
           | _ ->
               gen_value ctx e1;
               print ctx " %s " (Ast.s_binop op);
@@ -1320,10 +1352,10 @@ and gen_tbinop ctx op e1 e2 =
      | Ast.OpAssignOp(op2), TArray(e3,e4), _ ->
          (* TODO: Figure out how to rewrite this expression more cleanly *)
          println ctx "(function() ";
-         let idx = alloc_var "idx" e4.etype e4.epos in
+         let idx = alloc_var VGenerated "idx" e4.etype e4.epos in
          let idx_var =  mk (TVar( idx , Some(e4))) e4.etype e4.epos in
          gen_expr ctx idx_var;
-         let arr = alloc_var "arr" e3.etype e3.epos in
+         let arr = alloc_var VGenerated "arr" e3.etype e3.epos in
          let arr_var = mk (TVar(arr, Some(e3))) e3.etype e3.epos in
          gen_expr ctx arr_var;
          newline ctx;
@@ -1338,7 +1370,7 @@ and gen_tbinop ctx op e1 e2 =
      | Ast.OpAssignOp(op2), TField(e3,e4), _ ->
          (* TODO: Figure out how to rewrite this expression more cleanly *)
          println ctx "(function() ";
-         let obj = alloc_var "obj" e3.etype e3.epos in
+         let obj = alloc_var VGenerated "obj" e3.etype e3.epos in
          spr ctx "local fld = ";
          (match e4 with
           | FInstance(_,_,fld)
@@ -1834,6 +1866,7 @@ let alloc_ctx com =
         separator = false;
         found_expose = false;
         lua_jit = Common.defined com Define.LuaJit;
+        lua_vanilla = Common.defined com Define.LuaVanilla;
         lua_ver = try
                 float_of_string (PMap.find "lua_ver" com.defines.Define.values)
             with | Not_found -> 5.2;
@@ -2035,8 +2068,6 @@ let generate com =
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "else";
-        println ctx "  _G.error(\"Bitop library is missing.  Please install luabitop\");";
         println ctx "end";
     end;
 

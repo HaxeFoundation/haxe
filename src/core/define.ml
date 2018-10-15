@@ -47,22 +47,22 @@ type strict_defined =
 	| HxcppApiLevel
 	| HxcppGcGenerational
 	| HxcppDebugger
+	| HxcppSmartStings
 	| IncludePrefix
 	| Interp
 	| JavaVer
-	| JqueryVer
 	| JsClassic
 	| JsEs
 	| JsUnflatten
 	| JsSourceMap
-	| JsEnumsAsObjects
+	| JsEnumsAsArrays
 	| SourceMap
 	| KeepOldOutput
 	| LoopUnrollMaxCost
-	| LuaVer
 	| LuaJit
+	| LuaVanilla
+	| LuaVer
 	| Macro
-	| MacroDebug
 	| MacroTimes
 	| NekoSource
 	| NekoV1
@@ -106,7 +106,7 @@ type strict_defined =
 	| Sys
 	| Unsafe
 	| UseNekoc
-	| UseRttiDoc
+	| Utf16
 	| Vcproj
 	| WarnVarShadowing
 	| NoMacroCache
@@ -160,22 +160,22 @@ let infos = function
 	| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
 	| HxcppGcGenerational -> "HXCPP_GC_GENERATIONAL",("Experimental Garbage Collector",[Platform Cpp])
 	| HxcppDebugger -> "HXCPP_DEBUGGER",("Include additional information for HXCPP_DEBUGGER",[Platform Cpp])
+	| HxcppSmartStings -> "hxcpp_smart_strings",("Optionally use wide strings in hxcpp (in development)",[Platform Cpp])
 	| IncludePrefix -> "include_prefix",("prepend path to generated include files",[Platform Cpp])
 	| Interp -> "interp",("The code is compiled to be run with --interp",[])
 	| JavaVer -> "java_ver",("<version:5-7> Sets the Java version to be targeted",[Platform Java])
-	| JqueryVer -> "jquery_ver",("The jQuery version supported by js.jquery.*. The version is encoded as an integer. e.g. 1.11.3 is encoded as 11103",[Platform Js])
 	| JsClassic -> "js_classic",("Don't use a function wrapper and strict mode in JS output",[Platform Js])
 	| JsEs -> "js_es",("Generate JS compliant with given ES standard version (default 5)",[Platform Js; HasParam "version number"])
-	| JsEnumsAsObjects -> "js_enums_as_objects",("Generate enum representation as object instead of as array",[Platform Js])
+	| JsEnumsAsArrays -> "js_enums_as_arrays",("Generate enum representation as array instead of as object",[Platform Js])
 	| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 	| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
 	| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php only)",[Platform Php])
 	| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
 	| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])
 	| LuaJit -> "lua_jit",("Enable the jit compiler for lua (version 5.2 only)",[Platform Lua])
+	| LuaVanilla -> "lua_vanilla",("Generate code lacking compiled extern lib support (e.g. utf8)",[Platform Lua])
 	| LuaVer -> "lua_ver",("The lua version to target",[Platform Lua])
 	| Macro -> "macro",("Defined when code is compiled in the macro context",[])
-	| MacroDebug -> "macro_debug",("Show warnings for potential macro problems (e.g. macro-in-macro calls)",[])
 	| MacroTimes -> "macro_times",("Display per-macro timing when used with --times",[])
 	| NetVer -> "net_ver",("<version:20-45> Sets the .NET version to be targeted",[Platform Cs])
 	| NetTarget -> "net_target",("<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",[Platform Cs])
@@ -220,7 +220,7 @@ let infos = function
 	| Sys -> "sys",("Defined for all system platforms",[])
 	| Unsafe -> "unsafe",("Allow unsafe code when targeting C#",[Platform Cs])
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])
-	| UseRttiDoc -> "use_rtti_doc",("Allows access to documentation during compilation",[])
+	| Utf16 -> "utf16",("Defined for all platforms that have utf16 encoding with ucs2 api",[])
 	| Vcproj -> "vcproj",("GenCPP internal",[Platform Cpp])
 	| WarnVarShadowing -> "warn_var_shadowing",("Warn about shadowing variable declarations",[])
 	| Last -> assert false
@@ -283,7 +283,9 @@ let get_signature def =
 			(* don't make much difference between these special compilation flags *)
 			match String.concat "_" (ExtString.String.nsplit k "-") with
 			(* If we add something here that might be used in conditional compilation it should be added to
-			   Parser.parse_macro_ident as well (issue #5682). *)
+			   Parser.parse_macro_ident as well (issue #5682).
+			   Note that we should removed flags like use_rtti_doc here.
+			*)
 			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
@@ -291,3 +293,5 @@ let get_signature def =
 		let s = Digest.string str in
 		def.defines_signature <- Some s;
 		s
+
+let is_haxe3_compat def = raw_defined def "hx3compat"

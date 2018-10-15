@@ -8,7 +8,7 @@ using cpp.NativeString;
 @:structAccess
 extern class StdString extends StdStringRef
 {
-   @:extern @:native("std::string::npos")
+   @:native("std::string::npos")
    public static var npos(default,null):Int;
 
    //public function new(inData:StdStringData);

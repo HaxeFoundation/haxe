@@ -24,7 +24,7 @@
 
 package js.html.rtc;
 
-@:enum abstract SignalingState(String)
+enum abstract SignalingState(String)
 {
 	var STABLE = "stable";
 	var HAVE_LOCAL_OFFER = "have-local-offer";

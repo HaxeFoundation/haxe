@@ -85,7 +85,7 @@ import cs.StdTypes.Int64;
 	public var acc(get,never):PointerAccess<T>;
 
 	// @:analyzer(no_simplification)
-	@:extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
+	extern inline private function get_acc():PointerAccess<T> return (cast this : PointerAccess<T>);
 
 	// backwards compatibility
 	inline public function add(i:Int):Pointer<T>

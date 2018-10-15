@@ -25,7 +25,7 @@
 package js.html;
 
 /**
-	The HTMLTrackElement` interface provides access to the properties of `track` elements, as well as methods to manipulate them.
+	The `HTMLTrackElement`
 
 	Documentation [HTMLTrackElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTrackElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
@@ -59,12 +59,16 @@ extern class TrackElement extends Element
 		Is a `DOMString` that reflects the `label` HTML attribute, indicating a user-readable title for the track.
 	**/
 	var label : String;
+	
+	/**
+		Is a `Boolean` reflects the `default` HTML attribute, indicating that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+	**/
 	@:native("default")
 	var default_ : Bool;
 	
 	/**
-		Returns  an <code>unsigned short</code><code> </code>that show the readiness state of the track:
-		 <table style="margin: 0px 0px 1.286em;" class="standard-table">
+		Returns  an <code>unsigned short</code> that show the readiness state of the track:
+		 <table class="standard-table">
 		  
 		   <tr>
 		    <td class="header">Constant</td>
@@ -72,22 +76,22 @@ extern class TrackElement extends Element
 		    <td class="header">Description</td>
 		   </tr>
 		   <tr>
-		    <td><code style="font-size: 14px;">NONE</code></td>
+		    <td><code>NONE</code></td>
 		    <td>0</td>
 		    <td>Indicates that the text track's cues have not been obtained.</td>
 		   </tr>
 		   <tr>
-		    <td><code style="font-size: 14px;">LOADING</code></td>
+		    <td><code>LOADING</code></td>
 		    <td>1</td>
 		    <td>Indicates that the text track is loading and there have been no fatal errors encountered so far. Further cues might still be added to the track by the parser.</td>
 		   </tr>
 		   <tr>
-		    <td><code style="font-size: 14px;">LOADED</code></td>
+		    <td><code>LOADED</code></td>
 		    <td>2</td>
 		    <td>Indicates that the text track has been loaded with no fatal errors.</td>
 		   </tr>
 		   <tr>
-		    <td><code style="font-size: 14px;">ERROR</code></td>
+		    <td><code>ERROR</code></td>
 		    <td>3</td>
 		    <td>Indicates that the text track was enabled, but when the user agent attempted to obtain it, this failed in some way. Some or all of the cues are likely missing and will not be obtained.</td>
 		   </tr>

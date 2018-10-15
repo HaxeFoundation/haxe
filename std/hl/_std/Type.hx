@@ -55,7 +55,7 @@ class Type {
 		var e : hl.BaseType.Enum = et.allocObject();
 		e.__type__ = t;
 		e.__evalues__ = t.getEnumValues();
-		e.__ename__ = t.getName();
+		e.__ename__ = t.getTypeName();
 		e.__emap__ = new hl.types.BytesMap();
 		e.__constructs__ = new Array();
 		var cl = t.getEnumFields();
@@ -127,7 +127,12 @@ class Type {
 		if( t == hl.Type.get((null : hl.types.ArrayBase.ArrayAccess)) )
 			return cast new Array<Dynamic>();
 		var o = t.allocObject();
-		if( c.__constructor__ != null ) Reflect.callMethod(o, c.__constructor__, args);
+		if( c.__constructor__ != null ) {
+			var v : Dynamic = hl.Api.noClosure(c.__constructor__);
+			var args = args.copy();
+			args.unshift(o);
+			Reflect.callMethod(null, v, args);
+		}
 		return o;
 	}
 

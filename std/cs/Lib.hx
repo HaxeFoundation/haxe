@@ -57,7 +57,7 @@ class Lib
 
 		If equalLengthRequired is true, the result might be a copy of an array with the correct size.
 	**/
-	@:extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
+	extern inline public static function nativeArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>
 	{
 		var ret = new cs.NativeArray(arr.length);
 #if erase_generics
@@ -85,7 +85,7 @@ class Lib
 		This function will not work with Value Types (such as Int, Float, Bool...)
 	**/
 	@:pure
-	@:extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
+	extern public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{
 		return untyped __as__(obj);
 	}
@@ -176,7 +176,7 @@ class Lib
 		Rethrow an exception. This is useful when manually filtering an exception in order
 		to keep the previous exception stack.
 	**/
-	@:extern inline public static function rethrow(e:Dynamic):Void
+	extern inline public static function rethrow(e:Dynamic):Void
 	{
 		throw untyped __rethrow__;
 	}
@@ -194,7 +194,7 @@ class Lib
 			});
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function checked<V>(block:V):Void
+	extern public static inline function checked<V>(block:V):Void
 	{
 		untyped __checked__(block);
 	}
@@ -206,7 +206,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function lock<O,V>(obj:O, block:V):Void
+	extern public static inline function lock<O,V>(obj:O, block:V):Void
 	{
 		untyped __lock__(obj, block);
 	}
@@ -228,7 +228,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function fixed<V>(block:V):Void
+	extern public static inline function fixed<V>(block:V):Void
 	{
 		untyped __fixed__(block);
 	}
@@ -242,7 +242,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function unsafe<V>(block:V):Void
+	extern public static inline function unsafe<V>(block:V):Void
 	{
 		untyped __unsafe__(block);
 	}
@@ -260,7 +260,7 @@ class Lib
 		This method only exists at compile-time, so it can't be called via reflection.
 		Warning: This method will only work if a local variable is passed as an argument.
 	**/
-	@:extern public static inline function addressOf<T>(variable:T):cs.Pointer<T>
+	extern public static inline function addressOf<T>(variable:T):cs.Pointer<T>
 	{
 		return untyped __addressOf__(variable);
 	}
@@ -279,7 +279,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
+	extern public static inline function valueOf<T>(pointer:cs.Pointer<T>):T
 	{
 		return untyped __valueOf__(pointer);
 	}
@@ -300,7 +300,7 @@ class Lib
 
 		This method only exists at compile-time, so it can't be called via reflection.
 	**/
-	@:extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
+	extern public static inline function pointerOfArray<T>(array:cs.NativeArray<T>):cs.Pointer<T>
 	{
 		return untyped __ptr__(array);
 	}
@@ -308,7 +308,7 @@ class Lib
 	/**
 		Returns the byte size of the given struct. Only works with structs and basic types.
 	**/
-	@:extern public static inline function sizeof(struct:Class<Dynamic>):Int
+	extern public static inline function sizeof(struct:Class<Dynamic>):Int
 	{
 		return untyped __sizeof__(struct);
 	}

@@ -79,7 +79,7 @@ class Boot {
 				t = "object";
 			switch( t ) {
 			case "object":
-				#if js_enums_as_objects
+				#if !js_enums_as_arrays
 				if (o.__enum__) {
 					var e = $hxEnums[o.__enum__];
 					var n = e.__constructs__[o._hx_index];
@@ -94,7 +94,7 @@ class Boot {
 				}
 				#end
 				if( js.Syntax.instanceof(o, Array) ) {
-					#if !js_enums_as_objects
+					#if js_enums_as_arrays
 					if( o.__enum__ ) {
 						if( o.length == 2 )
 							return o[0];
@@ -206,7 +206,7 @@ class Boot {
 			// do not use isClass/isEnum here
 			untyped __feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
 			untyped __feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
-			#if !js_enums_as_objects
+			#if js_enums_as_arrays
 			return o.__enum__ == cl;
 			#else
 			return (untyped $hxEnums[o.__enum__]) == cl;

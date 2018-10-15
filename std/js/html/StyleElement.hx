@@ -49,11 +49,6 @@ extern class StyleElement extends Element
 		Is a `DOMString` representing the type of style being applied by this statement.
 	**/
 	var type : String;
-	
-	/**
-		Is a `Boolean` value indicating if the element applies to the whole document (`false`) or only to the parent's sub-tree (`true`).
-	**/
-	var scoped : Bool;
 	var sheet(default,null) : StyleSheet;
 	
 }

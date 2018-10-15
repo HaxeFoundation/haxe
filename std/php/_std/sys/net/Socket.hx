@@ -31,24 +31,32 @@ import sys.io.FileOutput;
 class Socket {
 
 	private var __s : Resource;
-	private var protocol : String;
+	private var stream : Resource;
 	public var input(default,null) : haxe.io.Input;
 	public var output(default,null) : haxe.io.Output;
 	public var custom : Dynamic;
 
+	var protocol : String;
+
 	public function new() : Void {
 		input = @:privateAccess new sys.io.FileInput(null);
 		output = @:privateAccess new sys.io.FileOutput(null);
+		initSocket();
 		protocol = "tcp";
 	}
 
+	private function initSocket() : Void {
+		__s = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+	}
+
 	private function assignHandler() : Void {
-		@:privateAccess (cast input:FileInput).__f = __s;
-		@:privateAccess (cast output:FileOutput).__f = __s;
+		stream = socket_export_stream(__s);
+		@:privateAccess (cast input:FileInput).__f = stream;
+		@:privateAccess (cast output:FileOutput).__f = stream;
 	}
 
 	public function close() : Void {
-		fclose(__s);
+		socket_close(__s);
 		@:privateAccess (cast input:FileInput).__f = null;
 		@:privateAccess (cast output:FileOutput).__f = null;
 		input.close();
@@ -57,79 +65,59 @@ class Socket {
 
 	public function read() : String {
 		var b = '';
-		while(!feof(__s)) b += fgets(__s);
+		while(!feof(stream)) b += fgets(stream);
 		return b;
 	}
 
 	public function write( content : String ) : Void {
-		fwrite(__s, content);
+		fwrite(stream, content);
 	}
 
 	public function connect(host : Host, port : Int) : Void {
-		var errs = null;
-		var errn = null;
-		var r = stream_socket_client(protocol + '://' + host.host + ':' + port, errn, errs);
-		Socket.checkError(r, errn, errs);
-		__s = r;
+		var r = socket_connect(__s, host.host, port);
+		checkError(r, 0, 'Unable to connect');
 		assignHandler();
 	}
 
 	public function listen(connections : Int) : Void {
-		throw "Not implemented";
-/* TODO: ??????
 		var r = socket_listen(__s, connections);
-		checkError(r);
-*/
+		checkError(r, 0, 'Unable to listen on socket');
+		assignHandler();
 	}
 
 	public function shutdown( read : Bool, write : Bool ) : Void {
 		var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
-		var r = stream_socket_shutdown(__s, rw);
-		checkError(r, 0, 'Unable to Shutdown');
+		var r = socket_shutdown(__s, rw);
+		checkError(r, 0, 'Unable to shutdown');
 	}
 
 	public function bind(host : Host, port : Int) : Void {
-		var errs = Boot.deref(null);
-		var errn = Boot.deref(null);
-		var r = stream_socket_server(
-			protocol + '://' + host.host + ':' + port,
-			errn,
-			errs,
-			(protocol == "udp" ? STREAM_SERVER_BIND : STREAM_SERVER_BIND | STREAM_SERVER_LISTEN)
-		);
-		Socket.checkError(r, errn, errs);
-		__s = cast r;
-		assignHandler();
+		var r = socket_bind(__s, host.host, port);
+		checkError(r, 0, "Unable to bind socket");
 	}
 
 	public function accept() : Socket {
-		var r = stream_socket_accept(__s);
+		var r = socket_accept(__s);
 		checkError(r, 0, 'Unable to accept connections on socket');
 		var s = new Socket();
+		// FIXME: wasted resource here
 		s.__s = r;
 		s.assignHandler();
 		return s;
 	}
 
-	private function hpOfString(s : String) : { host : Host, port : Int } {
-		var parts = s.split(':');
-		if(parts.length == 2) {
-			return { host : new Host(parts[0]), port : Std.parseInt(parts[1]) };
-		} else {
-			return { host : new Host(parts[1].substr(2)), port : Std.parseInt(parts[2]) };
-		}
-	}
-
 	public function peer() : { host : Host, port : Int } {
-		var r = stream_socket_get_name(__s, true);
+		var host:String = "", port:Int = 0;
+		var r = socket_getpeername(__s, host, port);
 		checkError(r, 0, 'Unable to retrieve the peer name');
-		return hpOfString(r);
+		return {host: new Host(host), port: port};
 	}
 
 	public function host() : { host : Host, port : Int } {
-		var r = stream_socket_get_name(__s, false);
+		var host:String = "", port:Int = 0;
+		var r = socket_getsockname(__s, host, port);
 		checkError(r, 0, 'Unable to retrieve the host name');
-		return hpOfString(r);
+		return {host: new Host(host), port: port};
 	}
 
 	public function setTimeout( timeout : Float ) : Void {
@@ -140,12 +128,13 @@ class Socket {
 	}
 
 	public function setBlocking( b : Bool ) : Void {
-		var r = stream_set_blocking(__s, b);
-		checkError(r, 0, 'Unable to block');
+		var r = b ? socket_set_block(__s) : socket_set_nonblock(__s);
+		checkError(r, 0, 'Unable to set blocking');
 	}
 
 	public function setFastSend( b : Bool ) : Void {
-		throw "Not implemented";
+		var r = socket_set_option(__s, SOL_TCP, TCP_NODELAY, true);
+		checkError(r, 0, "Unable to set TCP_NODELAY on socket");
 	}
 
 	public function waitForRead() : Void {
@@ -157,18 +146,37 @@ class Socket {
 		throw haxe.io.Error.Custom('Error [$code]: $msg');
 	}
 
-	private static function getType(isUdp : Bool) : Int {
-		return isUdp ? SOCK_DGRAM : SOCK_STREAM;
-	}
-
-	private static function getProtocol(protocol : String) : Int {
-		return getprotobyname(protocol);
- 	}
-
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
 	{
-		throw "Not implemented";
-		return null;
+		var map:Map<Int, Socket> = new Map();
+		inline function addSockets(sockets:Array<Socket>) {
+			if (sockets != null) for (s in sockets) map[Syntax.int(s.__s)] = s;
+		}
+		inline function getRaw(sockets:Array<Socket>):Array<Resource> {
+			return sockets == null ? [] : [for (s in sockets) s.__s];
+		}
+		inline function getOriginal(result:Array<Resource>) {
+			return [for (r in result) map[Syntax.int(r)]];
+		}
+
+		addSockets(read);
+		addSockets(write);
+		addSockets(others);
+
+		// unwrap Sockets into Resources
+		var rawRead:NativeIndexedArray<Resource> = getRaw(read),
+			rawWrite:NativeIndexedArray<Resource> = getRaw(write),
+			rawOthers:NativeIndexedArray<Resource> = getRaw(others);
+		var sec = Std.int(timeout),
+			usec = Std.int((timeout % 1) * 1000000);
+		var result = socket_select(rawRead, rawWrite, rawOthers, sec, usec);
+		checkError(result, 0, "Error during select call");
+		// convert raw resources back to Socket objects
+		return {
+			read: getOriginal(rawRead),
+			write: getOriginal(rawWrite),
+			others: getOriginal(rawOthers),
+		}
 	}
 
 }

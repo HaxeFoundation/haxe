@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract DistanceModelType(String)
+enum abstract DistanceModelType(String)
 {
 	var LINEAR = "linear";
 	var INVERSE = "inverse";

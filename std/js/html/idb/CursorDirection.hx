@@ -24,7 +24,7 @@
 
 package js.html.idb;
 
-@:enum abstract CursorDirection(String)
+enum abstract CursorDirection(String)
 {
 	var NEXT = "next";
 	var NEXTUNIQUE = "nextunique";

@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract ScrollRestoration(String)
+enum abstract ScrollRestoration(String)
 {
 	var AUTO = "auto";
 	var MANUAL = "manual";

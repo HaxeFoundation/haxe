@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract SourceBufferAppendMode(String)
+enum abstract SourceBufferAppendMode(String)
 {
 	var SEGMENTS = "segments";
 	var SEQUENCE = "sequence";

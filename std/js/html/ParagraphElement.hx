@@ -34,6 +34,10 @@ package js.html;
 @:native("HTMLParagraphElement")
 extern class ParagraphElement extends Element
 {
+	
+	/**
+		A `DOMString` representing an enumerated property indicating alignment of the element's contents with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.
+	**/
 	var align : String;
 	
 }

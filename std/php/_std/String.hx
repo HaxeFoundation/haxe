@@ -29,30 +29,28 @@ import php.*;
 	@:pure function new(string:String) : Void;
 
 	@:pure @:runtime inline function toUpperCase() : String {
-		return Global.strtoupper(this);
+		return Global.mb_strtoupper(this);
 	}
 
 	@:pure @:runtime inline function toLowerCase() : String {
-		return Global.strtolower(this);
+		return Global.mb_strtolower(this);
 	}
 
 	@:pure @:runtime inline function charAt(index : Int) : String {
-		return (index < 0 || index >= this.length ? '' : (this:NativeString)[index]);
+		return index < 0 ? '' : Global.mb_substr(this, index, 1);
 	}
 
-	@:pure @:runtime inline function charCodeAt( index : Int) : Null<Int> {
-		return (index < 0 || index >= this.length ? null : Global.ord((this:NativeString)[index]));
-	}
+	@:pure function charCodeAt( index : Int) : Null<Int>;
 
 	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
 
 	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 
-	@:pure @:runtime inline function split( delimiter : String ) : Array<String> {
-		return @:privateAccess Array.wrap(delimiter == '' ? Global.str_split(this) : Global.explode(delimiter, this));
-	}
+	@:pure function split( delimiter : String ) : Array<String>;
 
-	@:pure function substr( pos : Int, ?len : Int ) : String;
+	@:pure @:runtime inline function substr( pos : Int, ?len : Int ) : String {
+		return Global.mb_substr(this, pos, len);
+	}
 
 	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
 
@@ -61,6 +59,6 @@ import php.*;
 	}
 
 	@:pure @:runtime static inline function fromCharCode( code : Int ) : String {
-		return Global.chr(code);
+		return Global.mb_chr(code);
 	}
 }

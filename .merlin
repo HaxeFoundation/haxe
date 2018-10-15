@@ -3,7 +3,6 @@ B _build/src/**
 S libs/**
 B libs/**
 B +threads
-PKG rope
 PKG ptmap
 PKG sedlex
 PKG extlib
@@ -12,3 +11,4 @@ PKG xml-light
 PKG sha
 FLG -safe-string
 FLG -w -3
+FLG -w -40

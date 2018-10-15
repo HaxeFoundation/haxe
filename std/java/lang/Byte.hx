@@ -25,9 +25,9 @@
 @:forwardStatics
 @:forward abstract Byte(ByteClass) from ByteClass to ByteClass
 {
-	@:to @:extern inline public function toByte():java.types.Int8
+	@:to extern inline public function toByte():java.types.Int8
 		return this.byteValue();
-	@:from @:extern inline public static function fromByte(b:java.types.Int8):Byte
+	@:from extern inline public static function fromByte(b:java.types.Int8):Byte
 		return ByteClass.valueOf(b);
 }
 

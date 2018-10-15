@@ -313,6 +313,11 @@ typedef Var = {
 		The expression of the variable, if available.
 	**/
 	var expr : Null<Expr>;
+
+	/**
+		Whether or not the variable can be assigned to.
+	**/
+	var ?isFinal : Bool;
 }
 
 /**
@@ -509,7 +514,7 @@ enum ExprDef {
 	/**
 		Internally used to provide completion.
 	**/
-	EDisplay( e : Expr, isCall : Bool );
+	EDisplay( e : Expr, displayKind:DisplayKind );
 
 	/**
 		Internally used to provide completion.
@@ -530,6 +535,14 @@ enum ExprDef {
 		A `@m e` expression.
 	**/
 	EMeta( s : MetadataEntry, e : Expr );
+}
+
+enum DisplayKind {
+	DKCall;
+	DKDot;
+	DKStructure;
+	DKMarked;
+	DKPattern( outermost : Bool );
 }
 
 /**
@@ -575,6 +588,11 @@ enum ComplexType {
 		Represents a type with a name.
 	**/
 	TNamed( n : String, t : ComplexType );
+
+	/**
+		Represents an intersection type `T1 & T2 & ... & TN`.
+	**/
+	TIntersection(tl:Array<ComplexType>);
 }
 
 /**
@@ -818,6 +836,11 @@ enum Access {
 		variables, it means they can be assigned to only once.
 	**/
 	AFinal;
+
+	/**
+		Extern access modifier.
+	**/
+	AExtern;
 }
 
 /**
@@ -908,7 +931,7 @@ enum TypeDefKind {
 	/**
 		Represents a class kind.
 	**/
-	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool );
+	TDClass( ?superClass : TypePath, ?interfaces : Array<TypePath>, ?isInterface : Bool, ?isFinal : Bool );
 
 	/**
 		Represents an alias/typedef kind.

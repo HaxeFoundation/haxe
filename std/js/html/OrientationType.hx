@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract OrientationType(String)
+enum abstract OrientationType(String)
 {
 	var PORTRAIT_PRIMARY = "portrait-primary";
 	var PORTRAIT_SECONDARY = "portrait-secondary";

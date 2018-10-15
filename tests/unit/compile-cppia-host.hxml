@@ -1,9 +1,10 @@
--main cpp.cppia.Host
+--main cpp.cppia.Host
 -D source-header=''
 -D scriptable
+-D hxcpp_smart_strings
 -D dll_export=bin/cppia.classes
--debug
--dce no
+--debug
+--dce no
 -cpp bin/cppia
--cp src
+-p src
 --macro include("scripthost")

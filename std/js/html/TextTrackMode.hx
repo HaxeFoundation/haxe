@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract TextTrackMode(String)
+enum abstract TextTrackMode(String)
 {
 	var DISABLED = "disabled";
 	var HIDDEN = "hidden";

@@ -101,9 +101,10 @@ class EntryPoint {
 			if( f == null ) break;
 			f();
 		}
+		var time = @:privateAccess MainLoop.tick();
 		if( !MainLoop.hasEvents() && threadCount == 0 )
 			return -1;
-		return @:privateAccess MainLoop.tick();
+		return time;
 	}
 
 	/**

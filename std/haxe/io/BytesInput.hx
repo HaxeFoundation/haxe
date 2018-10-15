@@ -191,8 +191,8 @@ class BytesInput extends Input {
 	}
 
 	@:dox(hide)
-	override function readString( len : Int ) {
-		return try b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();
+	override function readString( len : Int, ?encoding : Encoding ) {
+		return try encoding == RawNative ? b.readMultiByte(len,"unicode") : b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();
 	}
 
 	#end

@@ -112,16 +112,20 @@ class Printer {
 	public function printComplexType(ct:ComplexType) return switch(ct) {
 		case TPath(tp): printTypePath(tp);
 		case TFunction(args, ret):
-			function printArg(ct) return switch ct {
-				case TFunction(_): "(" + printComplexType(ct) + ")";
-				default: printComplexType(ct);
-			};
-			(args.length>0 ? args.map(printArg).join(" -> ") :"Void") + " -> " + printComplexType(ret);
+			if (args.length == 1 && !(args[0].match(TNamed(_, _)) || args[0].match(TFunction(_, _)))) {
+				// This special case handles an ambigity between the old function syntax and the new
+				// (T) -> T parses as `TFunction([TParent(TPath)], ...`, rather than `TFunction([TPath], ...`
+				// We forgo patenthesis in this case so that (T) -> T doesn't get round-tripped to ((T)) -> T
+				printComplexType(args[0]) + " -> " + printComplexType(ret);
+			} else {
+				'(${args.map(printComplexType).join(", ")})' + " -> " + printComplexType(ret);
+			}
 		case TAnonymous(fields): "{ " + [for (f in fields) printField(f) + "; "].join("") + "}";
 		case TParent(ct): "(" + printComplexType(ct) + ")";
 		case TOptional(ct): "?" + printComplexType(ct);
 		case TNamed(n,ct): n + ":" + printComplexType(ct);
 		case TExtend(tpl, fields): '{> ${tpl.map(printTypePath).join(" >, ")}, ${fields.map(printField).join(", ")} }';
+		case TIntersection(tl): tl.map(printComplexType).join(" & ");
 	}
 
 	public function printMetadata(meta:MetadataEntry) return
@@ -137,6 +141,7 @@ class Printer {
 		case ADynamic: "dynamic";
 		case AMacro: "macro";
 		case AFinal: "final";
+		case AExtern: "extern";
 	}
 
 	public function printField(field:Field) return

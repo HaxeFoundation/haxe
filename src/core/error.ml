@@ -21,7 +21,7 @@ exception Fatal_error of string * Globals.pos
 exception Error of error_msg * Globals.pos
 
 let string_source t = match follow t with
-	| TInst(c,_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_fields
+	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
 	| TAnon a -> PMap.fold (fun cf acc -> cf.cf_name :: acc) a.a_fields []
 	| TAbstract({a_impl = Some c},_) -> List.map (fun cf -> cf.cf_name) c.cl_ordered_statics
 	| _ -> []
@@ -66,6 +66,12 @@ let unify_error_msg ctx = function
 		"Constraint check failure for " ^ name
 	| Missing_overload (cf, t) ->
 		cf.cf_name ^ " has no overload for " ^ s_type ctx t
+	| FinalInvariance ->
+		"Cannot unify final and non-final fields"
+	| Invalid_function_argument i ->
+		Printf.sprintf "Cannot unify argument %i" i
+	| Invalid_return_type ->
+		"Cannot unify return types"
 	| Unify_custom msg ->
 		msg
 
@@ -92,3 +98,18 @@ and s_call_error = function
 let error msg p = raise (Error (Custom msg,p))
 
 let raise_error err p = raise (Error(err,p))
+
+let error_require r p =
+	if r = "" then
+		error "This field is not available with the current compilation flags" p
+	else
+	let r = if r = "sys" then
+		"a system platform (php,neko,cpp,etc.)"
+	else try
+		if String.sub r 0 5 <> "flash" then raise Exit;
+		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
+		"flash version " ^ v ^ " (use -swf-version " ^ v ^ ")"
+	with _ ->
+		"'" ^ r ^ "' to be enabled"
+	in
+	error ("Accessing this field requires " ^ r) p

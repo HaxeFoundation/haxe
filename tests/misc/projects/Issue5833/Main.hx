@@ -1,4 +1,4 @@
-@:enum abstract A(Int) {
+enum abstract A(Int) {
 	var Typo = 0;
 }
 

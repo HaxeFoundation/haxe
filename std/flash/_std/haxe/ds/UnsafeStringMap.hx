@@ -80,7 +80,11 @@ class UnsafeStringMap<T> implements haxe.Constraints.IMap<String,T> {
 	}
 
 	#end
-	
+
+	public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : UnsafeStringMap<T> {
 		var copied = new UnsafeStringMap();
 		for(key in keys()) copied.set(key, get(key));

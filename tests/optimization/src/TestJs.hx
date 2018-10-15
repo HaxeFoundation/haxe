@@ -91,7 +91,7 @@ class TestJs {
 		forEach(function(x) use(x + 2));
 	}
 
-	@:js('var a = "";var e;var _hx_tmp = a.toLowerCase();if(_hx_tmp == "e") {e = 0;} else {throw new Error();}')
+	@:js('var a = "";var e;if(a.toLowerCase() == "e") {e = 0;} else {throw new Error();}')
 	@:analyzer(no_const_propagation, no_local_dce, no_copy_propagation)
 	static function testRValueSwitchWithExtractors() {
 		var a = "";
@@ -492,11 +492,19 @@ class TestJs {
 	static var intField = 12;
 	static var stringField(default, never) = "foo";
 
+	#if js_enums_as_arrays
 	@:js('
 		var _g = Type["typeof"]("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
+	#else
+	@:js('
+		var _g = Type["typeof"]("");
+		var v = _g._hx_index == 6 && _g.c == String;
+		TestJs.use(v);
+	')
+	#end
 	static function testIssue4745() {
 		var o = "";
 		var v = Type.typeof(o).match(TClass(String));

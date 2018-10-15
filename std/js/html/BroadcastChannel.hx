@@ -41,16 +41,21 @@ extern class BroadcastChannel extends EventTarget
 	var name(default,null) : String;
 	
 	/**
-		Is an `EventHandler` property that specifies the function to execute when a `message` event is fired on this object.
+		An `EventHandler` property that specifies the function to execute when a `message` event is fired on this object.
 	**/
 	var onmessage : haxe.Constraints.Function;
 	
+	/**
+		An `EventHandler` called when a `MessageEvent` of type `MessageError` is fired—that is, when it receives a message that cannot be deserialized.
+	**/
+	var onmessageerror : haxe.Constraints.Function;
+	
 	/** @throws DOMError */
 	function new( channel : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Sends the message, of any type of object, to each `BroadcastChannel` object listening to the same channel.
+		@throws DOMError
 	**/
 	function postMessage( message : Dynamic ) : Void;
 	

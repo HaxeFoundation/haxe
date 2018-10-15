@@ -31,8 +31,9 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerState>
 **/
-@:enum abstract ServiceWorkerState(String)
+enum abstract ServiceWorkerState(String)
 {
+	var PARSED = "parsed";
 	var INSTALLING = "installing";
 	var INSTALLED = "installed";
 	var ACTIVATING = "activating";

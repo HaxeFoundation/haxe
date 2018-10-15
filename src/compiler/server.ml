@@ -2,7 +2,8 @@ open Printf
 open Globals
 open Ast
 open Common
-open Common.DisplayMode
+open CompilationServer
+open DisplayTypes.DisplayMode
 open Timer
 open Type
 open DisplayOutput
@@ -26,33 +27,40 @@ type context = {
 	mutable has_error : bool;
 }
 
-type server_message =
-	| AddedDirectory of string
-	| FoundDirectories of (string * float ref) list
-	| ChangedDirectories of (string * float) list
-	| ModulePathChanged of (module_def * float * string)
-	| NotCached of module_def
-	| Parsed of (string * string)
-	| RemovedDirectory of string
-	| Reusing of module_def
-	| SkippingDep of (module_def * module_def)
-	| HaxePrint of string
-
 let s_version =
-	Printf.sprintf "%d.%d.%d%s" version_major version_minor version_revision (match Version.version_extra with None -> "" | Some v -> " " ^ v)
+	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
+	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
+	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
-let default_flush ctx =
-	List.iter
-		(fun msg -> match msg with
-			| CMInfo _ -> print_endline (compiler_message_string msg)
-			| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-		)
-		(List.rev ctx.messages);
-	if ctx.has_error && !prompt then begin
-		print_endline "Press enter to exit...";
-		ignore(read_line());
-	end;
-	if ctx.has_error then exit 1
+let default_flush ctx = match ctx.com.json_out with
+	| None ->
+		List.iter
+			(fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			)
+			(List.rev ctx.messages);
+		if ctx.has_error && !prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		if ctx.has_error then exit 1
+	| Some(_,f) ->
+		if ctx.has_error then begin
+			let errors = List.map (fun msg ->
+				let msg,p,i = match msg with
+					| CMInfo(msg,p) -> msg,p,3
+					| CMWarning(msg,p) -> msg,p,2
+					| CMError(msg,p) -> msg,p,1
+				in
+				JObject [
+					"severity",JInt i;
+					"location",Genjson.generate_pos_as_location p;
+					"message",JString msg;
+				]
+			) (List.rev ctx.messages) in
+			f errors
+		end
 
 let create_context params =
 	let ctx = {
@@ -99,75 +107,31 @@ let ssend sock str =
 	loop 0 (Bytes.length str)
 
 let rec wait_loop process_params verbose accept =
-	Sys.catch_break false;
+	if verbose then ServerMessage.enable_all ();
+	Sys.catch_break false; (* Sys can never catch a break *)
 	let has_parse_error = ref false in
-	let test_server_messages = DynArray.create () in
 	let cs = CompilationServer.create () in
-	let sign_string com =
-		let sign = Define.get_signature com.defines in
-		let	sign_id =
-			try
-				CompilationServer.get_sign cs sign;
-			with Not_found ->
-				let i = CompilationServer.add_sign cs sign in
-				print_endline (Printf.sprintf "Found context %s:\n%s" i (dump_context com));
-				i
-		in
-		Printf.sprintf "%2s,%3s: " sign_id (short_platform_name com.platform)
-	in
-	let process_server_message com tabs =
-		if Common.raw_defined com "compilation-server-test" then (fun message ->
-			let module_path m = JString (s_type_path m.m_path) in
-			let kind,data = match message with
-				| AddedDirectory dir -> "addedDirectory",JString dir
-				| FoundDirectories dirs -> "foundDirectories",JInt (List.length dirs)
-				| ChangedDirectories dirs -> "changedDirectories",JArray (List.map (fun (s,_) -> JString s) dirs)
-				| ModulePathChanged(m,time,file) -> "modulePathChanged",module_path m
-				| NotCached m -> "notCached",module_path m
-				| Parsed(ffile,_) -> "parsed",JString ffile
-				| RemovedDirectory dir -> "removedDirectory",JString dir
-				| Reusing m -> "reusing",module_path m
-				| SkippingDep(m,m') -> "skipping",JObject ["skipped",module_path m;"dependency",module_path m']
-				| HaxePrint s -> "print",JString s
-			in
-			let js = JObject [("kind",JString kind);("data",data)] in
-			DynArray.add test_server_messages js;
-		) else (fun message -> match message with
-			| AddedDirectory dir -> print_endline (Printf.sprintf "%sadded directory %s" (sign_string com) dir)
-			| FoundDirectories dirs -> print_endline (Printf.sprintf "%sfound %i directories" (sign_string com) (List.length dirs));
-			| ChangedDirectories dirs ->
-				print_endline (Printf.sprintf "%schanged directories: [%s]" (sign_string com) (String.concat ", " (List.map (fun (s,_) -> "\"" ^ s ^ "\"") dirs)))
-			| ModulePathChanged(m,time,file) ->
-				print_endline (Printf.sprintf "%smodule path might have changed: %s\n\twas: %2.0f %s\n\tnow: %2.0f %s"
-					(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file);
-			| NotCached m -> print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"));
-			| Parsed(ffile,info) -> print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)
-			| RemovedDirectory dir -> print_endline (Printf.sprintf "%sremoved directory %s" (sign_string com) dir);
-			| Reusing m -> print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path));
-			| SkippingDep(m,m') -> print_endline (Printf.sprintf "%sskipping %s%s" (sign_string com) (s_type_path m.m_path) (if m == m' then "" else Printf.sprintf "(%s)" (s_type_path m'.m_path)));
-			| HaxePrint s -> print_endline s
-		)
-	in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
-	Typeload.parse_hook := (fun com2 file p ->
+	TypeloadParse.parse_hook := (fun com2 file p ->
 		let ffile = Path.unique_full_path file in
-		let is_display_file = ffile = (!Parser.resume_display).pfile in
+		let is_display_file = ffile = (!DisplayPosition.display_position).pfile in
 
 		match is_display_file, !current_stdin with
 		| true, Some stdin when Common.defined com2 Define.DisplayStdin ->
-			Typeload.parse_file_from_string com2 file p stdin
+			TypeloadParse.parse_file_from_string com2 file p stdin
 		| _ ->
 			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
-			try
-				let time, data = CompilationServer.find_file cs fkey in
-				if time <> ftime then raise Not_found;
-				data
+			let t = Timer.timer ["server";"parser cache"] in
+			let data = try
+				let cfile = CompilationServer.find_file cs fkey in
+				if cfile.c_time <> ftime then raise Not_found;
+				cfile.c_package,cfile.c_decls
 			with Not_found ->
 				has_parse_error := false;
-				let data = Typeload.parse_file com2 file p in
+				let data = TypeloadParse.parse_file com2 file p in
 				let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
 					else if is_display_file then "not cached, is display file",true
 					else begin try
@@ -177,19 +141,22 @@ let rec wait_loop process_params verbose accept =
 						let ident = Hashtbl.find Parser.special_identifier_files ffile in
 						Printf.sprintf "not cached, using \"%s\" define" ident,true
 					with Not_found ->
-						CompilationServer.cache_file cs fkey (ftime,data);
+						CompilationServer.cache_file cs fkey ftime data;
 						"cached",false
 				end in
-				if verbose && is_unusual then process_server_message com2 "" (Parsed(ffile,info));
+				if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
 				data
+			in
+			t();
+			data
 	);
 	let check_module_shadowing com paths m =
-		List.iter (fun (path,_) ->
-			let file = (path ^ (snd m.m_path)) ^ ".hx" in
+		List.iter (fun dir ->
+			let file = (dir.c_path ^ (snd m.m_path)) ^ ".hx" in
 			if Sys.file_exists file then begin
 				let time = file_time file in
 				if time > m.m_extra.m_time then begin
-					if verbose then process_server_message com "" (ModulePathChanged(m,time,file));
+					ServerMessage.module_path_changed com "" (m,time,file);
 					raise Not_found
 				end
 			end
@@ -212,28 +179,28 @@ let rec wait_loop process_params verbose accept =
 			let dirs = try
 				(* Next, get all directories from the cache and filter the ones that haven't changed. *)
 				let all_dirs = CompilationServer.find_directories cs sign in
-				let dirs = List.fold_left (fun acc (dir,time) ->
+				let dirs = List.fold_left (fun acc dir ->
 					try
-						let time' = stat dir in
-						if !time < time' then begin
-							time := time';
-							let sub_dirs = Path.find_directories (platform_name com.platform) false [dir] in
+						let time' = stat dir.c_path in
+						if dir.c_mtime < time' then begin
+							dir.c_mtime <- time';
+							let sub_dirs = Path.find_directories (platform_name com.platform) false [dir.c_path] in
 							List.iter (fun dir ->
 								if not (CompilationServer.has_directory cs sign dir) then begin
 									let time = stat dir in
-									if verbose then process_server_message com "" (AddedDirectory dir);
-									CompilationServer.add_directory cs sign (dir,ref time)
+									ServerMessage.added_directory com "" dir;
+									CompilationServer.add_directory cs sign (CompilationServer.create_directory dir time)
 								end;
 							) sub_dirs;
-							(dir,time') :: acc
+							(CompilationServer.create_directory dir.c_path time') :: acc
 						end else
 							acc
 					with Unix.Unix_error _ ->
-						CompilationServer.remove_directory cs sign dir;
-						if verbose then process_server_message com "" (RemovedDirectory dir);
+						CompilationServer.remove_directory cs sign dir.c_path;
+						ServerMessage.removed_directory com "" dir.c_path;
 						acc
 				) [] all_dirs in
-				if verbose then process_server_message com "" (ChangedDirectories dirs);
+				ServerMessage.changed_directories com "" dirs;
 				dirs
 			with Not_found ->
 				(* There were no directories in the cache, so this must be a new context. Let's add
@@ -245,13 +212,13 @@ let rec wait_loop process_params verbose accept =
 					let add_dir path =
 						try
 							let time = stat path in
-							dirs := (path,ref time) :: !dirs
+							dirs := CompilationServer.create_directory path time :: !dirs
 						with Unix.Unix_error _ ->
 							()
 					in
 					List.iter add_dir com.class_path;
 					List.iter add_dir (Path.find_directories (platform_name com.platform) true com.class_path);
-					if verbose then process_server_message com "" (FoundDirectories !dirs);
+					ServerMessage.found_directories com "" !dirs;
 					CompilationServer.add_directories cs sign !dirs
 				) :: !delays;
 				(* Returning [] should be fine here because it's a new context, so we won't do any
@@ -267,7 +234,7 @@ let rec wait_loop process_params verbose accept =
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
-	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
+	TypeloadModule.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let t = Timer.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
 		let sign = Define.get_signature com2.defines in
@@ -275,11 +242,11 @@ let rec wait_loop process_params verbose accept =
 			let ffile = Path.unique_full_path file in
 			let fkey = (ffile,sign) in
 			try
-				let _, old_data = CompilationServer.find_file cs fkey in
+				let cfile = CompilationServer.find_file cs fkey in
 				(* We must use the module path here because the file path is absolute and would cause
 				   positions in the parsed declarations to differ. *)
-				let new_data = Typeload.parse_module ctx m.m_path p in
-				snd old_data <> snd new_data
+				let new_data = TypeloadParse.parse_module ctx m.m_path p in
+				cfile.c_decls <> snd new_data
 			with Not_found ->
 				true
 		in
@@ -295,19 +262,19 @@ let rec wait_loop process_params verbose accept =
 					(* if we have a file then this will override our extern type *)
 					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
 					if has_file then begin
-						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path);
+						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path); (* TODO *)
 						raise Not_found;
 					end;
 					let rec loop = function
 						| [] ->
-							if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path);
+							if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path); (* TODO *)
 							raise Not_found (* no extern registration *)
 						| load :: l ->
 							match load m.m_path p with
 							| None -> loop l
 							| Some (file,_) ->
 								if Path.unique_full_path file <> m.m_extra.m_file then begin
-									if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path);
+									if verbose then print_endline ("Library file was changed for " ^ s_type_path m.m_path); (* TODO *)
 									raise Not_found;
 								end
 					in
@@ -318,13 +285,16 @@ let rec wait_loop process_params verbose accept =
 					let _, mctx = MacroContext.get_macro_context ctx p in
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
-			let has_policy policy = List.mem policy m.m_extra.m_check_policy in
+			let has_policy policy = List.mem policy m.m_extra.m_check_policy || match policy with
+				| NoCheckShadowing | NoCheckFileTimeModification when !ServerConfig.do_not_check_modules && !Parser.display_mode <> DMNone -> true
+				| _ -> false
+			in
 			let check_file () =
 				if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
 					if has_policy CheckFileContentModification && not (content_changed m m.m_extra.m_file) then begin
-						if verbose then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com2) m.m_extra.m_file)
+						ServerMessage.unchanged_content com2 "" m.m_extra.m_file;
 					end else begin
-						if verbose then process_server_message com2 "" (NotCached m);
+						ServerMessage.not_cached com2 "" m;
 						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
 						raise Not_found;
 					end
@@ -344,7 +314,11 @@ let rec wait_loop process_params verbose accept =
 					None
 				else try
 					if m.m_extra.m_mark <= start_mark then begin
-						if not (has_policy NoCheckShadowing) then check_module_path();
+						(* Workaround for preview.4 Java issue *)
+						begin match m.m_extra.m_kind with
+							| MExtern -> check_module_path()
+							| _ -> if not (has_policy NoCheckShadowing) then check_module_path();
+						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
 					m.m_extra.m_mark <- mark;
@@ -366,7 +340,7 @@ let rec wait_loop process_params verbose accept =
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 				| _ ->
-					if verbose then process_server_message com2 tabs (Reusing m);
+					ServerMessage.reusing com2 tabs m;
 					m.m_extra.m_added <- !compilation_step;
 					List.iter (fun t ->
 						match t with
@@ -384,10 +358,9 @@ let rec wait_loop process_params verbose accept =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					Typeload.add_module ctx m p;
+					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					if ctx.Typecore.in_macro || com2.display.dms_full_typing then
-						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
+					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
 					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_reuse_macro_calls
 				)
 			end
@@ -398,7 +371,7 @@ let rec wait_loop process_params verbose accept =
 			begin match check m with
 			| None -> ()
 			| Some m' ->
-				if verbose then process_server_message com2 "" (SkippingDep(m,m'));
+				ServerMessage.skipping_dep com2 "" (m,m');
 				tcheck();
 				raise Not_found;
 			end;
@@ -416,19 +389,12 @@ let rec wait_loop process_params verbose accept =
 	while true do
 		let read, write, close = accept() in
 		let was_compilation = ref false in
-		let rec cache_context com =
-			let cache_module m =
-				CompilationServer.cache_module cs (m.m_path,m.m_extra.m_sign) m;
-				(*if verbose then print_endline (Printf.sprintf "%scached %s" (sign_string com) (s_type_path m.m_path));*)
-			in
+		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
 				was_compilation := true;
-				List.iter cache_module com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
+				CompilationServer.cache_context cs com;
+				ServerMessage.cached_modules com "" (List.length com.modules);
 			end;
-			match com.get_macros() with
-			| None -> ()
-			| Some com -> cache_context com
 		in
 		let create params =
 			let ctx = create_context params in
@@ -439,25 +405,24 @@ let rec wait_loop process_params verbose accept =
 					(fun msg ->
 						let s = compiler_message_string msg in
 						write (s ^ "\n");
-						if verbose then print_endline ("> " ^ s)
+						ServerMessage.message s;
 					)
 					(List.rev ctx.messages);
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"
-				end else cache_context ctx.com;
+				end else maybe_cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
 				let sign = Define.get_signature ctx.com.defines in
-				if verbose then begin
-					let defines = PMap.foldi (fun k v acc -> (k ^ "=" ^ v) :: acc) ctx.com.defines.Define.values [] in
-					print_endline ("Defines " ^ (String.concat "," (List.sort compare defines)));
-					print_endline ("Using signature " ^ Digest.to_hex sign);
-					print_endline ("Display position: " ^ (Printer.s_pos !Parser.resume_display));
-				end;
+				ServerMessage.defines ctx.com "";
+				ServerMessage.signature ctx.com "" sign;
+				ServerMessage.display_position ctx.com "" (!DisplayPosition.display_position);
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
-				if ctx.com.display.dms_display then begin
-					let file = (!Parser.resume_display).pfile in
+				(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
+				   current file in order to run diagnostics on it again. *)
+				if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
+					let file = (!DisplayPosition.display_position).pfile in
 					let fkey = (file,sign) in
 					(* force parsing again : if the completion point have been changed *)
 					CompilationServer.remove_file cs fkey;
@@ -465,7 +430,7 @@ let rec wait_loop process_params verbose accept =
 				end;
 				try
 					if (Hashtbl.find arguments sign) <> ctx.com.class_path then begin
-						if verbose then print_endline (Printf.sprintf "%sclass paths changed, resetting directories" (sign_string ctx.com));
+						ServerMessage.class_paths_changed ctx.com "";
 						Hashtbl.replace arguments sign ctx.com.class_path;
 						CompilationServer.clear_directories cs sign;
 					end;
@@ -473,10 +438,7 @@ let rec wait_loop process_params verbose accept =
 					Hashtbl.add arguments sign ctx.com.class_path;
 					()
 			);
-			ctx.com.print <- (fun str ->
-				if Common.raw_defined ctx.com "compilation-server-test" then process_server_message ctx.com "" (HaxePrint str)
-				else write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n")
-			);
+			ctx.com.print <- (fun str -> write ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
 			ctx
 		in
 		(try
@@ -491,14 +453,13 @@ let rec wait_loop process_params verbose accept =
 					s
 			in
 			let data = parse_hxml_data hxml in
-			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
+			ServerMessage.arguments data;
 			(try
-				DynArray.clear test_server_messages;
 				Hashtbl.clear changed_directories;
-				Common.display_default := DMNone;
-				Parser.resume_display := null_pos;
-				Typeload.return_partial_type := false;
+				Parser.reset_state();
+				return_partial_type := false;
 				measure_times := false;
+				Hashtbl.clear DeprecationCheck.warned_positions;
 				close_times();
 				stats.s_files_parsed := 0;
 				stats.s_classes_built := 0;
@@ -514,43 +475,36 @@ let rec wait_loop process_params verbose accept =
 				if !measure_times then report_times (fun s -> write (s ^ "\n"))
 			with
 			| Completion str ->
-				if verbose then print_endline ("Completion Response =\n" ^ str);
+				ServerMessage.completion str;
 				write str
 			| Arg.Bad msg ->
 				print_endline ("Error: " ^ msg);
 			);
-			if DynArray.length test_server_messages > 0 then begin
-				let b = Buffer.create 0 in
-				write_json (Buffer.add_string b) (JArray (DynArray.to_list test_server_messages));
-				write (Buffer.contents b)
-			end;
 			let fl = !delays in
 			delays := [];
 			List.iter (fun f -> f()) fl;
-			if verbose then begin
-				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
-				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
-			end;
+			ServerMessage.stats stats (get_time() -. t0);
 		with Unix.Unix_error _ ->
-			if verbose then print_endline "Connection Aborted"
+			ServerMessage.socket_message "Connection Aborted"
 		| e ->
 			let estr = Printexc.to_string e in
-			if verbose then print_endline ("Uncaught Error : " ^ estr);
+			ServerMessage.uncaught_error estr;
 			(try write estr with _ -> ());
-			if is_debug_run() then print_endline (Printexc.get_backtrace());
+			if is_debug_run() then print_endline (estr ^ "\n" ^ Printexc.get_backtrace());
+			if e = Out_of_memory then begin
+				close();
+				exit (-1);
+			end;
 		);
 		close();
 		current_stdin := None;
 		(* prevent too much fragmentation by doing some compactions every X run *)
 		if !was_compilation then incr run_count;
 		if !run_count mod 10 = 0 then begin
+			run_count := 1;
 			let t0 = get_time() in
 			Gc.compact();
-			if verbose then begin
-				let stat = Gc.quick_stat() in
-				let size = (float_of_int stat.Gc.heap_words) *. 4. in
-				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
-			end
+			ServerMessage.gc_stats (get_time() -. t0);
 		end else Gc.minor();
 	done
 
@@ -576,18 +530,18 @@ and init_wait_stdio() =
 		Buffer.clear berr;
 		read, write, close
 
-and init_wait_socket verbose host port =
+and init_wait_socket host port =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.setsockopt sock Unix.SO_REUSEADDR true with _ -> ());
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
-	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
+	ServerMessage.socket_message ("Waiting on " ^ host ^ ":" ^ string_of_int port);
 	Unix.listen sock 10;
 	let bufsize = 1024 in
 	let tmp = Bytes.create bufsize in
 	let accept() = (
 		let sin, _ = Unix.accept sock in
 		Unix.set_nonblock sin;
-		if verbose then print_endline "Client connected";
+		ServerMessage.socket_message "Client connected";
 		let b = Buffer.create 0 in
 		let rec read_loop count =
 			try
@@ -595,7 +549,7 @@ and init_wait_socket verbose host port =
 				if r = 0 then
 					failwith "Incomplete request"
 				else begin
-					if verbose then Printf.printf "Reading %d bytes\n" r;
+					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
 					Buffer.add_subbytes b tmp 0 r;
 					if Bytes.get tmp (r-1) = '\000' then
 						Buffer.sub b 0 (Buffer.length b - 1)
@@ -606,7 +560,7 @@ and init_wait_socket verbose host port =
 				if count = 100 then
 					failwith "Aborting inactive connection"
 				else begin
-					if verbose then print_endline "Waiting for data...";
+					ServerMessage.socket_message "Waiting for data...";
 					ignore(Unix.select [] [] [] 0.05); (* wait a bit *)
 					read_loop (count + 1);
 				end

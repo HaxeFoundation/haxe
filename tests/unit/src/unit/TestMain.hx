@@ -20,6 +20,18 @@ class TestMain {
 
 	static function main() {
 		Test.startStamp = haxe.Timer.stamp();
+
+		#if js
+		if (js.Browser.supported) {
+			var oTrace = haxe.Log.trace;
+			var traceElement = js.Browser.document.getElementById("haxe:trace");
+			haxe.Log.trace = function(v, ?infos) {
+				oTrace(v, infos);
+				traceElement.innerHTML += infos.fileName + ":" + infos.lineNumber + ": " + StringTools.htmlEscape(v) + "<br/>";
+			}
+		}
+		#end
+
 		var verbose = #if ( cpp || neko || php ) Sys.args().indexOf("-v") >= 0 #else false #end;
 
 		#if cs //"Turkey Test" - Issue #996
@@ -57,6 +69,7 @@ class TestMain {
 			new TestInt64(),
 			new TestReflect(),
 			new TestSerialize(),
+			new TestSerializerCrossTarget(),
 			new TestMeta(),
 			new TestType(),
 			new TestOrder(),
@@ -97,19 +110,13 @@ class TestMain {
 			#end
 			new TestMapComprehension(),
 			new TestMacro(),
+			new TestKeyValueIterator(),
 			// #if ( (java || neko) && !macro && !interp)
 			// new TestThreads(),
 			// #end
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
-
-
-		#if js
-		if (js.Browser.supported) {
-			classes.push(new TestJQuery());
-		}
-		#end
 
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");

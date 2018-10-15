@@ -31,13 +31,13 @@ enum GcFlag {
 	**/
 	DumpMem;
 	/**
-		Enable allocation tracking
-	**/
-	Track;
-	/**
 		Disable GC locking for multithreads
 	**/
 	NoThreads;
+	/**
+		Force major GC on each allocation
+	**/
+	ForceMajor;
 }
 
 class Gc {
@@ -65,7 +65,7 @@ class Gc {
 		_set_flags(v.toInt());
 		return v;
 	}
-	
+
 	/**
 		Enter/leave a blocking section: when in a blocking section the thread cannot
 		allocate any memory but other threads will not wait for it for collecting memory.

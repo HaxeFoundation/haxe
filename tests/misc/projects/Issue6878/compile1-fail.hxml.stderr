@@ -1,0 +1,2 @@
+Main1.hx:4: characters 3-11 : Constraint check failure for test.T
+Main1.hx:4: characters 3-11 : Int should be String

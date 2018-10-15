@@ -27,5 +27,5 @@ package js.html.rtc;
 typedef IdentityAssertionResult =
 {
 	var assertion : String;
-	var idp : Dynamic/*MISSING RTCIdentityProviderDetails*/;
+	var idp : IdentityProviderDetails;
 }

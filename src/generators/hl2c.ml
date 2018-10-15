@@ -37,6 +37,7 @@ type output_options =
 	| OODecreaseIndent
 	| OOBeginBlock
 	| OOEndBlock
+	| OOBreak
 
 type function_entry = {
 	mutable fe_name : string;
@@ -606,6 +607,7 @@ let generate_function ctx f =
 				| OOLabel -> sline "%s:" (label i)
 				| OOCase i -> sline "case %i:" i
 				| OODefault -> line "default:"
+				| OOBreak -> line "break;";
 				| OOIncreaseIndent -> block()
 				| OODecreaseIndent -> unblock()
 				| OOBeginBlock ->  line "{"
@@ -654,11 +656,11 @@ let generate_function ctx f =
 				(try
 					let fid = PMap.find "__compare" oa.pfunctions in
 					if op = CEq then
-						sexpr "if( %s == %s || (%s && %s && %s(%s,%s) == 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) (funname fid) (reg a) (reg b) (label d)
+						sexpr "if( %s == %s || (%s && %s && %s(%s,(vdynamic*)%s) == 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) (funname fid) (reg a) (reg b) (label d)
 					else if op = CNeq then
-						sexpr "if( %s != %s && (!%s || !%s || %s(%s,%s) != 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) (funname fid) (reg a) (reg b) (label d)
+						sexpr "if( %s != %s && (!%s || !%s || %s(%s,(vdynamic*)%s) != 0) ) goto %s" (reg a) (reg b) (reg a) (reg b) (funname fid) (reg a) (reg b) (label d)
 					else
-						sexpr "if( %s && %s && %s(%s,%s) %s 0 ) goto %s" (reg a) (reg b) (funname fid) (reg a) (reg b) (s_comp op) (label d)
+						sexpr "if( %s && %s && %s(%s,(vdynamic*)%s) %s 0 ) goto %s" (reg a) (reg b) (funname fid) (reg a) (reg b) (s_comp op) (label d)
 				with Not_found ->
 					phys_compare())
 			| HVirtual _, HVirtual _ ->
@@ -940,12 +942,17 @@ let generate_function ctx f =
 		| OSwitch (r,idx,eend) ->
 			sline "switch(%s) {" (reg r);
 			block();
-			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
-			Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
 			let pend = i+1+eend in
 			(* insert at end if we have another switch case here *)
 			let old = output_options.(pend) in
 			output_options.(pend) <- [];
+			(* insert cases *)
+			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
+			Array.iteri (fun k delta ->
+				output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent];
+				if delta = eend then output_at pend OOBreak;
+			) idx;
+			(* insert end switch *)
 			output_at2 pend ([OODecreaseIndent;OODecreaseIndent;OOEndBlock] @ List.rev old);
 		| ONullCheck r ->
 			sexpr "if( %s == NULL ) hl_null_access()" (reg r)
@@ -1190,17 +1197,36 @@ let write_c com file (code:code) =
 	line "}";
 
 	Array.iteri (fun i str ->
-		let rec loop s i =
-			if i = String.length s then [] else
-			let c = String.get s i in
-			string_of_int (int_of_char c) :: loop s (i+1)
+		let output_bytes f str =
+			for i = 0 to String.length str - 1 do
+				if (i+1) mod 0x80 = 0 then f "\\\n\t";
+				if i > 0 then f ",";
+				f (string_of_int (int_of_char str.[i]));
+			done
 		in
-		if Hashtbl.mem bytes_strings i then
-			sexpr "vbyte bytes$%d[] = {%s}" i (String.concat "," (loop str 0))
-		else if String.length str >= string_data_limit then
-			let s = utf8_to_utf16 str in
+		if Hashtbl.mem bytes_strings i then begin
+			if String.length str > 1000 then begin
+				let bytes_file = "hl/bytes_" ^ (Digest.to_hex (Digest.string str)) ^ ".h" in
+				let abs_file = ctx.dir ^ "/" ^ bytes_file in
+				if not (Sys.file_exists abs_file) then begin
+					let ch = open_out_bin abs_file in
+					output_bytes (output_string ch) str;
+					close_out ch;
+				end;
+				sline "vbyte bytes$%d[] = {" i;
+				output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
+				sexpr "}";
+			end else begin
+				output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
+				output_bytes (output ctx) str;
+				sexpr "}";
+			end
+		end else if String.length str >= string_data_limit then
+			let s = Common.utf8_to_utf16 str true in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
-			sexpr "vbyte string$%d[] = {%s}" i (String.concat "," (loop s 0))
+			output ctx (Printf.sprintf "vbyte string$%d[] = {" i);
+			output_bytes (output ctx) s;
+			sexpr "}"
 	) code.strings;
 
 	Hashtbl.iter (fun fid _ ->
@@ -1436,7 +1462,7 @@ let write_c com file (code:code) =
 	block ctx;
 	sline "\"version\" : %d," ctx.version;
 	sline "\"libs\" : [%s]," (String.concat "," (Hashtbl.fold (fun k _ acc -> sprintf "\"%s\"" k :: acc) native_libs []));
-	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" k v :: acc) com.Common.defines.Define.values []));
+	sline "\"defines\" : {%s\n\t}," (String.concat "," (PMap.foldi (fun k v acc -> sprintf "\n\t\t\"%s\" : \"%s\"" (String.escaped k) (String.escaped v) :: acc) com.Common.defines.Define.values []));
 	sline "\"files\" : [%s\n\t]" (String.concat "," (List.map (sprintf "\n\t\t\"%s\"") ctx.cfiles));
 	unblock ctx;
 	line "}";

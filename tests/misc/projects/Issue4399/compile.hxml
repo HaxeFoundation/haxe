@@ -1,3 +1,2 @@
--main Main
 -D analyzer
--x neko.n
+-x Main

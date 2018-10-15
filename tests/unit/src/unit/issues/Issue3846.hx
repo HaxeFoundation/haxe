@@ -11,7 +11,7 @@ private class Extern {
 	}
 
 	@:overload( function (a:Int):Dynamic {})
-	@:extern
+	extern
 	inline public static function test(a:String):Dynamic {
 		return mytest(a);
 	}

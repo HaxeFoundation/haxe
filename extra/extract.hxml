@@ -4,9 +4,9 @@
 # - Run haxe extract.hxml
 # - Restore removed haxe/std/flash/DIR directories
 # - Copy directories from hxclasses/flash to haxe/std/flash, overwriting restored ones
--debug
--swf-lib library.swf
+--debug
+--swf-lib library.swf
 -swf test.swf
--swf-version 15
+--swf-version 15
 --macro patchTypes("../extra/extract.patch")
 --gen-hx-classes

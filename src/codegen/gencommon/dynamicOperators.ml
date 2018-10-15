@@ -166,7 +166,15 @@ let init com handle_strings (should_change:texpr->bool) (equals_handler:texpr->t
 			mk (TBlock block) etype e.epos
 
 	| TUnop (op, flag, e1) when should_change e ->
-		let etype = match op with Not -> com.basic.tbool | _ -> com.basic.tint in
+		let etype = match op with
+			| Not -> com.basic.tbool
+			| Neg ->
+				if like_float e.etype || like_i64 e.etype then
+					e.etype
+				else
+					com.basic.tfloat
+			| _ -> com.basic.tint
+		in
 		mk_parent (mk (TUnop (op, flag, mk_cast etype (run e1))) etype e.epos)
 
 	| _ ->

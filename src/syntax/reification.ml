@@ -137,9 +137,11 @@ let reify in_macro =
 		| CTExtend (tl,fields) -> ct "TExtend" [to_array to_tpath tl p; to_array to_cfield fields p]
 		| CTOptional t -> ct "TOptional" [to_type_hint t p]
 		| CTNamed (n,t) -> ct "TNamed" [to_placed_name n; to_type_hint t p]
+		| CTIntersection tl -> ct "TIntersection" (List.map (fun t -> to_ctype t p) tl)
 	and to_type_hint (t,p) _ =
 		(* to_obj ["type",to_ctype t p;"pos",to_pos p] p *)
 		to_ctype (t,p) p
+	and to_display_kind dk p = mk_enum "DisplayKind" (s_display_kind dk) [] p
 	and to_fun f p =
 		let p = {p with pmax = p.pmin} in
 		let farg ((n,_),o,_,t,e) p =
@@ -153,7 +155,7 @@ let reify in_macro =
 		let rec fparam t p =
 			let fields = [
 				"name", to_placed_name t.tp_name;
-				"constraints", to_array to_ctype t.tp_constraints p;
+				"constraints", to_opt to_ctype t.tp_constraints p;
 				"params", to_array fparam t.tp_params p;
 			] in
 			to_obj fields p
@@ -168,7 +170,7 @@ let reify in_macro =
 	and to_cfield f p =
 		let p = f.cff_pos in
 		let to_access a p =
-			let n = (match a with
+			let n = (match fst a with
 			| APublic -> "APublic"
 			| APrivate -> "APrivate"
 			| AStatic -> "AStatic"
@@ -177,6 +179,7 @@ let reify in_macro =
 			| AInline -> "AInline"
 			| AMacro -> "AMacro"
 			| AFinal -> "AFinal"
+			| AExtern -> "AExtern"
 			) in
 			mk_enum "Access" n [] p
 		in
@@ -268,12 +271,12 @@ let reify in_macro =
 			) [] p in
 			expr "EUnop" [op;to_bool (flag = Postfix) p;loop e]
 		| EVars vl ->
-			expr "EVars" [to_array (fun ((n,pn),th,e) p ->
+			expr "EVars" [to_array (fun ((n,pn),final,th,e) p ->
 				let fields = [
-					(* "name", to_obj ["name",to_string n pn;"pos",to_pos pn] p; *)
 					"name", to_string n pn;
 					"type", to_opt to_type_hint th p;
 					"expr", to_opt to_expr e p;
+					"isFinal",to_bool final p;
 				] in
 				to_obj fields p
 			) vl p]
@@ -281,15 +284,15 @@ let reify in_macro =
 			let name = match name with
 				| None ->
 					to_null null_pos
-				| Some name ->
+				| Some (name,pn) ->
 					if ExtString.String.starts_with name "inline_$" then begin
 						let real_name = (String.sub name 7 (String.length name - 7)) in
-						let e_name = to_string real_name p in
+						let e_name = to_string real_name pn in
 						let e_inline = to_string "inline_" p in
 						let e_add = (EBinop(OpAdd,e_inline,e_name),p) in
 						e_add
 					end else
-						to_string name p
+						to_string name pn
 			in
 			expr "EFunction" [name; to_fun f p]
 		| EBlock el ->
@@ -322,8 +325,8 @@ let reify in_macro =
 			expr "EThrow" [loop e]
 		| ECast (e,ct) ->
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
-		| EDisplay (e,flag) ->
-			expr "EDisplay" [loop e; to_bool flag p]
+		| EDisplay (e,dk) ->
+			expr "EDisplay" [loop e; to_display_kind dk p]
 		| EDisplayNew t ->
 			expr "EDisplayNew" [to_tpath t p]
 		| ETernary (e1,e2,e3) ->
@@ -362,12 +365,12 @@ let reify in_macro =
 		to_obj [
 			"name", to_placed_name t.tp_name;
 			"params", (EArrayDecl (List.map (to_tparam_decl p) t.tp_params),p);
-			"constraints", (EArrayDecl (List.map (fun t -> to_ctype t p) t.tp_constraints),p)
+			"constraints", (EArrayDecl (match t.tp_constraints with None -> [] | Some th -> [to_ctype th p]),p)
 		] p
 	and to_type_def (t,p) =
 		match t with
 		| EClass d ->
-			let ext = ref None and impl = ref [] and interf = ref false in
+			let ext = ref None and impl = ref [] and interf = ref false and final = ref false in
 			List.iter (function
 				| HExtern | HPrivate -> ()
 				| HInterface -> interf := true;
@@ -378,6 +381,7 @@ let reify in_macro =
 						!ext
 						end)
 				| HImplements i-> impl := (to_tpath i p) :: !impl
+				| HFinal -> final := true
 			) d.d_flags;
 			to_obj [
 				"pack", (EArrayDecl [],p);
@@ -386,7 +390,7 @@ let reify in_macro =
 				"meta", to_meta d.d_meta p;
 				"params", (EArrayDecl (List.map (to_tparam_decl p) d.d_params),p);
 				"isExtern", to_bool (List.mem HExtern d.d_flags) p;
-				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p] p;
+				"kind", mk_enum "TypeDefKind" "TDClass" [(match !ext with None -> (EConst (Ident "null"),p) | Some t -> t);(EArrayDecl (List.rev !impl),p);to_bool !interf p;to_bool !final p] p;
 				"fields", (EArrayDecl (List.map (fun f -> to_cfield f p) d.d_data),p)
 			] p
 		| _ -> assert false

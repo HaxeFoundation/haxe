@@ -3,7 +3,7 @@ package cases;
 class Issue5712 extends DisplayTestCase {
 	/**
 	typedef Struct = {
-		{-1-}field:Float{-2-}
+		{-1-}field{-2-}:Float
 	}
 	class Main {
 		public static function main() {

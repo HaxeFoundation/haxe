@@ -105,7 +105,7 @@ class Sha256 {
 		Append padding bits and the length, as described in the SHA1 standard.
 	 */
 	static function str2blks( s :String ) : Array<Int> {
-#if !(neko || cpp)
+#if !(neko || (cpp && !hxcpp_smart_strings))
 		var s = haxe.io.Bytes.ofString(s);
 #end
 		var nblk = ((s.length + 8) >> 6) + 1;
@@ -115,7 +115,7 @@ class Sha256 {
 			blks[i] = 0;
 		for (i in 0...s.length){
 			var p = i >> 2;
-			blks[p] |= #if !(neko || cpp) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
+			blks[p] |= #if !(neko || (cpp && !hxcpp_smart_strings)) s.get(i) #else s.charCodeAt(i) #end << (24 - ((i & 3) << 3));
 		}
 		var i = s.length;
 		var p = i >> 2;
@@ -140,47 +140,47 @@ class Sha256 {
 		blks[nblk * 16 - 1] = b.length * 8;
 		return blks;
 	}
-	@:extern
+	extern
 	inline function S(X, n) {
 		return ( X >>> n ) | (X << (32 - n));
 	}
 
-	@:extern
+	extern
 	inline function R(X, n) {
 		return ( X >>> n );
 	}
 
-	@:extern
+	extern
 	inline function Ch(x, y, z) {
 		return ((x & y) ^ ((~x) & z));
 	}
 
-	@:extern
+	extern
 	inline function Maj(x, y, z) {
 		return ((x & y) ^ (x & z) ^ (y & z));
 	}
 
-	@:extern
+	extern
 	inline function Sigma0256(x) {
 		return (S(x, 2) ^ S(x, 13) ^ S(x, 22));
 	}
 
-	@:extern
+	extern
 	inline function Sigma1256(x) {
 		return (S(x, 6) ^ S(x, 11) ^ S(x, 25));
 	}
 
-	@:extern
+	extern
 	inline function Gamma0256(x) {
 		return (S(x, 7) ^ S(x, 18) ^ R(x, 3));
 	}
 
-	@:extern
+	extern
 	inline function Gamma1256(x) {
 		return (S(x, 17) ^ S(x, 19) ^ R(x, 10));
 	}
 
-	@:extern
+	extern
 	inline function safeAdd(x, y) {
 		var lsw = (x & 0xFFFF) + (y & 0xFFFF);
 		var msw = (x >> 16) + (y >> 16) + (lsw >> 16);

@@ -119,13 +119,14 @@ class Bytes {
 		setInt32(pos, v.low);
 	}
 
-	public function getString( pos : Int, len : Int ) : String {
+	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( outRange(pos,len) ) throw Error.OutsideBounds;
 
-		var b = new hl.Bytes(len + 1);
+		var b = new hl.Bytes(len + 2);
 		b.blit(0, this.b, pos, len);
 		b[len] = 0;
-		return @:privateAccess String.fromUTF8(b);
+		b[len+1] = 0;
+		return @:privateAccess (encoding == RawNative ? String.fromUCS2(b) : String.fromUTF8(b));
 	}
 
 	@:deprecated("readString is deprecated, use getString instead")
@@ -162,14 +163,37 @@ class Bytes {
 		return new Bytes(b,length);
 	}
 
-	public static function ofString( s : String ) : Bytes @:privateAccess {
-		var size = 0;
-		var b = s.bytes.utf16ToUtf8(0, size);
-		return new Bytes(b,size);
+	public static function ofString( s : String, ?encoding : Encoding ) : Bytes @:privateAccess {
+		if( encoding == null ) encoding = UTF8;
+		return switch( encoding ) {
+		case RawNative:
+			return new Bytes(s.bytes.sub(0,s.length << 1), s.length << 1);
+		case UTF8:
+			var size = 0;
+			var b = s.bytes.utf16ToUtf8(0, size);
+			return new Bytes(b,size);
+		}
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.bytes,b.length);
+	}
+	
+	public static function ofHex( s : String ) : Bytes {
+		var len = s.length;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var l = len >> 1;
+		var b = new hl.Bytes(l);
+		for (i in  0...l)
+		{
+			var high = s.charCodeAt(i*2);
+			var low = s.charCodeAt(i*2 + 1);
+			high = (high & 0xf) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xf) + ( (low & 0x40) >> 6 ) * 9;
+			b.setUI8(i, ( (high << 4) | low)  & 0xff );
+		}
+
+		return new Bytes(b,l);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

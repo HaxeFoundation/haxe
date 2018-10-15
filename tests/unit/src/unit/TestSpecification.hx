@@ -48,8 +48,6 @@ typedef T = {
 
 class CChild extends C { }
 
-class CDyn extends C implements Dynamic { }
-
 private class EmptyClass {
 	public function new() { }
 }

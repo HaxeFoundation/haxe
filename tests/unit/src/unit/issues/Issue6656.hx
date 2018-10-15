@@ -1,7 +1,6 @@
 package unit.issues;
 
-@:enum // comment to make it work
-private abstract TextFormatAlign(String) {
+private enum abstract TextFormatAlign(String) {
 	var Center = "center";
 	@:from static function fromString(value:String):TextFormatAlign {
 		return cast value;

@@ -151,8 +151,18 @@ class StringTools {
 		- `'` becomes `&#039`;
 	**/
 	public static function htmlEscape( s : String, ?quotes : Bool ) : String {
-		s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
-		return quotes ? s.split('"').join("&quot;").split("'").join("&#039;") : s;
+		var buf = new StringBuf();
+		for (code in new haxe.iterators.StringIteratorUnicode(s)) {
+			switch (code) {
+				case '&'.code: buf.add("&amp;");
+				case '<'.code: buf.add("&lt;");
+				case '>'.code: buf.add("&gt;");
+				case '"'.code if (quotes): buf.add("&quot;");
+				case '\''.code if (quotes): buf.add("&#039;");
+				case _: buf.addChar(code);
+			}
+		}
+		return buf.toString();
 	}
 
 	/**
@@ -336,10 +346,13 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		while (s.length < l) {
-			s = c + s;
+		var buf = new StringBuf();
+		l -= s.length;
+		while (buf.length < l) {
+			buf.add(c);
 		}
-		return s;
+		buf.add(s);
+		return buf.toString();
 	}
 
 	/**
@@ -358,10 +371,12 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		while (s.length < l) {
-			s = s + c;
+		var buf = new StringBuf();
+		buf.add(s);
+		while (buf.length < l) {
+			buf.add(c);
 		}
-		return s;
+		return buf.toString();
 	}
 
 	/**
@@ -369,9 +384,8 @@ class StringTools {
 		String `by`.
 
 		If `sub` is the empty String `""`, `by` is inserted after each character
-		of `s`. If `by` is also the empty String `""`, `s` remains unchanged.
-
-		This is a convenience function for `s.split(sub).join(by)`.
+		of `s` except the last one. If `by` is also the empty String `""`, `s`
+		remains unchanged.
 
 		If `sub` or `by` are null, the result is unspecified.
 	**/
@@ -457,7 +471,7 @@ class StringTools {
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
 		#elseif lua
-		return lua.NativeStringTools.byte(s,index+1);
+		return lua.lib.luautf8.Utf8.byte(s,index+1);
 		#else
 		return untyped s.cca(index);
 		#end

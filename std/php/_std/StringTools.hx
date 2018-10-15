@@ -66,20 +66,36 @@ import php.*;
 	}
 
 	public static function rpad( s : String, c : String, l : Int ) : String {
-		if (c.length == 0 || s.length >= l) return s;
-		var padLength = Math.ceil((l - s.length) / c.length) * c.length + s.length;
-		return Global.str_pad(s, padLength, c, Const.STR_PAD_RIGHT);
+		var cLength = c.length;
+		var sLength = s.length;
+		if (cLength == 0 || sLength >= l) return s;
+		var padLength = l - sLength;
+		var padCount = Syntax.int(padLength / cLength);
+		if(padCount > 0) {
+			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_RIGHT);
+			return (padCount * cLength >= padLength) ? result : Syntax.concat(result, c);
+		} else {
+			return Syntax.concat(s, c);
+		}
 	}
 
 	public static function lpad( s : String, c : String, l : Int ) : String {
-		if (c.length == 0 || s.length >= l) return s;
-		var padLength = Math.ceil((l - s.length) / c.length) * c.length + s.length;
-		return Global.str_pad(s, padLength, c, Const.STR_PAD_LEFT);
+		var cLength = c.length;
+		var sLength = s.length;
+		if (cLength == 0 || sLength >= l) return s;
+		var padLength = l - sLength;
+		var padCount = Syntax.int(padLength / cLength);
+		if(padCount > 0) {
+			var result = Global.str_pad(s, Global.strlen(s) + padCount * Global.strlen(c), c, Const.STR_PAD_LEFT);
+			return (padCount * cLength >= padLength) ? result : Syntax.concat(c, result);
+		} else {
+			return Syntax.concat(c, s);
+		}
 	}
 
 	public static function replace( s : String, sub : String, by : String ) : String {
 		if (sub == '') {
-			return Global.implode(by, Global.str_split(s));
+			return Global.implode(by, Global.preg_split('//u', s, -1, Const.PREG_SPLIT_NO_EMPTY));
 		}
 		return Global.str_replace(sub, by, s);
 	}
@@ -87,15 +103,17 @@ import php.*;
 	public static function hex( n : Int, ?digits : Int ) : String {
 		var s = Global.dechex(n);
 		var len = 8;
-		if (s.length > (null == digits ? len : (len = digits > len ? digits : len)))
+		if (Global.strlen(s) > (null == digits ? len : (len = digits > len ? digits : len)))
 			s = s.substr(-len);
 		else if ( digits != null )
 			s = lpad(s, '0', digits);
 		return s.toUpperCase();
 	}
 
-	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return (s.length == index ? 0 : Global.ord((s:NativeString)[index]));
+	public static function fastCodeAt( s : String, index : Int ) : Int {
+		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
+		if(char == '') return 0;
+		return Boot.unsafeOrd(char);
 	}
 
 	public static inline function isEof( c : Int ) : Bool {

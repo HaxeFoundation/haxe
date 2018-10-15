@@ -9,11 +9,11 @@ class Issue6275 extends DisplayTestCase {
 			{-1-}n{-2-}ew Main("foo"){-3-};
 		}
 
-		{-4-}function new(s:String) {}{-5-}
+		function {-4-}new{-5-}(s:String) {}
 	}
 	**/
 	function test() {
-		eq("s : String -> Void", type(pos(2)));
+		eq("(s : String) -> cases.Main", type(pos(2)));
 		eq(range(4, 5), position(pos(1)));
 		eq(range(1, 3), usage(pos(2))[0]);
 	}

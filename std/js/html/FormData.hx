@@ -36,53 +36,56 @@ extern class FormData
 {
 	/** @throws DOMError */
 	function new( ?form : FormElement ) : Void;
-	/** @throws DOMError */
-	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	
 	/**
 		Appends a new value onto an existing key inside a `FormData` object, or adds the key if it does not already exist.
+		@throws DOMError
 	**/
+	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function append( name : String, value : String ) : Void;
-	@:native("delete")
-	function delete_( name : String ) : Void;
+	
+	/**
+		Deletes a key/value pair from a `FormData` object.
+	**/
+	function delete( name : String ) : Void;
 	
 	/**
 		Returns the first value associated with a given key from within a `FormData` object.
 	**/
-	function get( name : String ) : haxe.extern.EitherType<Blob,String>;
+	function get( name : String ) : haxe.extern.EitherType<Blob,haxe.extern.EitherType<Directory,String>>;
 	
 	/**
 		Returns an array of all the values associated with a given key from within a `FormData`.
 	**/
-	function getAll( name : String ) : Array<haxe.extern.EitherType<Blob,String>>;
+	function getAll( name : String ) : Array<haxe.extern.EitherType<Blob,haxe.extern.EitherType<Directory,String>>>;
 	
 	/**
 		Returns a boolean stating whether a `FormData` object contains a certain key/value pair.
 	**/
 	function has( name : String ) : Bool;
-	/** @throws DOMError */
-	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	
 	/**
 		Sets a new value for an existing key inside a `FormData `object, or adds the key/value if it does not already exist.
+		@throws DOMError
 	**/
+	@:overload( function( name : String, value : Blob, ?filename : String ) : Void {} )
 	function set( name : String, value : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function entries() : FormDataIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all keys of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function keys() : FormDataIterator;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all values of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function values() : FormDataIterator;
 	/** @throws DOMError */

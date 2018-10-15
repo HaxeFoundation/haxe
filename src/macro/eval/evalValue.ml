@@ -26,15 +26,56 @@ type cmp =
 	| CInf
 	| CUndef
 
-type vstring = Rope.t * string Lazy.t
+type vstring_offset =
+	| VSONone
+	| VSOOne of (int * int) ref
+	| VSOTwo of (int * int) ref * (int * int) ref
 
-module StringHashtbl = Hashtbl.Make(struct
-	type t = vstring
-	let equal (r1,s1) (r2,s2) = r1 == r2 || Lazy.force s1 = Lazy.force s2
-	let hash (_,s) = Hashtbl.hash (Lazy.force s)
-end)
+type vstring = {
+	(* The bytes representation of the string. This is only evaluated if we
+	   need it for something like random access. *)
+	sstring : UTF8.t;
+	(* The length of the string. *)
+	slength : int;
+	(* The current (character * byte) offsets. *)
+	mutable soffset : vstring_offset;
+}
 
-module IntHashtbl = Hashtbl.Make(struct type t = int let equal = (=) let hash = Hashtbl.hash end)
+type vstring_buffer = {
+	        bbuffer : Buffer.t;
+	mutable blength : int;
+}
+
+let vstring_equal s1 s2 =
+	s1 == s2 || s1.sstring = s2.sstring
+
+module StringHashtbl = struct
+	type 'value t = (vstring * 'value) StringMap.t ref
+
+	let add this key v = this := StringMap.add key.sstring (key,v) !this
+	let copy this = ref !this
+	let create () = ref StringMap.empty
+	let find this key = StringMap.find key.sstring !this
+	let fold f this acc = StringMap.fold f !this acc
+	let is_empty this = StringMap.is_empty !this
+	let iter f this = StringMap.iter f !this
+	let mem this key = StringMap.mem key.sstring !this
+	let remove this key = this := StringMap.remove key.sstring !this
+end
+
+module IntHashtbl = struct
+	type 'value t = 'value IntMap.t ref
+
+	let add this key v = this := IntMap.add key v !this
+	let copy this = ref !this
+	let create () = ref IntMap.empty
+	let find this key = IntMap.find key !this
+	let fold f this acc = IntMap.fold f !this acc
+	let is_empty this = IntMap.is_empty !this
+	let iter f this = IntMap.iter f !this
+	let mem this key = IntMap.mem key !this
+	let remove this key = this := IntMap.remove key !this
+end
 
 type vregex = {
 	r : Pcre.regexp;
@@ -50,7 +91,7 @@ type vzlib = {
 
 type vprototype_kind =
 	| PClass of int list
-	| PEnum of string list
+	| PEnum of (string * int list) list
 	| PInstance
 	| PObject
 
@@ -69,29 +110,19 @@ type value =
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
+	| VLazy of (unit -> value) ref
 
-and vfunc =
-	| Fun0 of (unit -> value)
-	| Fun1 of (value -> value)
-	| Fun2 of (value -> value -> value)
-	| Fun3 of (value -> value -> value -> value)
-	| Fun4 of (value -> value -> value -> value -> value)
-	| Fun5 of (value -> value -> value -> value -> value -> value)
-	| FunN of (value list -> value)
+and vfunc = value list -> value
 
 and vobject = {
 	(* The fields of the object known when it is created. *)
-	ofields : value array;
+	mutable ofields : value array;
 	(* The prototype of the object. *)
-	oproto : vprototype;
-	(* Extra fields that were added after the object was created. *)
-	mutable oextra : value IntMap.t;
-	(* Map of fields (in ofields) that were deleted via Reflect.deleteField *)
-	mutable oremoved : bool IntMap.t;
+	mutable oproto : vprototype;
 }
 
 and vprototype = {
-	(* The path of the prototype. Using rev_hash_s on this gives the original dot path. *)
+	(* The path of the prototype. Using rev_hash on this gives the original dot path. *)
 	ppath : int;
 	(* The fields of the prototype itself (static fields). *)
 	pfields : value array;
@@ -120,7 +151,7 @@ and vinstance_kind =
 	| IIntMap of value IntHashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
-	| IBuffer of Rope.Buffer.t (* StringBuf *)
+	| IBuffer of vstring_buffer(* StringBuf *)
 	| IPos of pos
 	| IUtf8 of UTF8.Buf.buf
 	| IProcess of Process.process
@@ -160,7 +191,7 @@ and venum_value = {
 	enpos : pos option;
 }
 
-let equals a b = match a,b with
+let rec equals a b = match a,b with
 	| VTrue,VTrue
 	| VFalse,VFalse
 	| VNull,VNull -> true
@@ -171,11 +202,13 @@ let equals a b = match a,b with
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
 	| VObject vo1,VObject vo2 -> vo1 == vo2
 	| VInstance vi1,VInstance vi2 -> vi1 == vi2
-	| VString(r1,s1),VString(r2,s2) -> r1 == r2 || Lazy.force s1 = Lazy.force s2
+	| VString s1,VString s2 -> vstring_equal s1 s2
 	| VArray va1,VArray va2 -> va1 == va2
 	| VVector vv1,VVector vv2 -> vv1 == vv2
 	| VFunction(vf1,_),VFunction(vf2,_) -> vf1 == vf2
 	| VPrototype proto1,VPrototype proto2 -> proto1.ppath = proto2.ppath
+	| VLazy f1,_ -> equals (!f1()) b
+	| _,VLazy f2 -> equals a (!f2())
 	| _ -> a == b
 
 module ValueHashtbl = Hashtbl.Make(struct
@@ -203,11 +236,6 @@ let venum_value e = VEnumValue e
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
-let num_args = function
-	| Fun0 _ -> 0
-	| Fun1 _ -> 1
-	| Fun2 _ -> 2
-	| Fun3 _ -> 3
-	| Fun4 _ -> 4
-	| Fun5 _ -> 5
-	| FunN _ -> -1
+let rec vresolve v = match v with
+	| VLazy f -> vresolve (!f())
+	| _ -> v

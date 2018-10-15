@@ -20,11 +20,15 @@ class Allocation {
 @:hlNative("std")
 class Profile {
 
+	/**
+		Enable allocation tracking per thread. All threads are enabled by default.
+	**/
 	public static var enable(get, set) : Bool;
 
 	public static function getData( sortBySize = false ) {
 		var old = enable;
 		enable = false;
+		track_lock(true);
 		var maxDepth = 0;
 		var count = track_count(maxDepth);
 		var arr = new hl.NativeArray<Symbol>(maxDepth);
@@ -41,6 +45,7 @@ class Profile {
 			out.sort(function(a1, a2) return a2.size - a1.size);
 		else
 			out.sort(function(a1, a2) return a2.count - a1.count);
+		track_lock(false);
 		enable = old;
 		return out;
 	}
@@ -65,6 +70,24 @@ class Profile {
 		enable = old;
 	}
 
+	/**
+		Reset accumulated tracked data.
+	**/
+	@:hlNative("std","track_reset") public static function reset() {
+	}
+
+	/**
+		Start tracking. Enabled by default.
+	**/
+	@:hlNative("std","track_init") public static function start() {
+	}
+
+	/**
+		Stop tracking for all threads.
+	**/
+	@:hlNative("std","track_stop") public static function stop() {
+	}
+
 	static var BUFSIZE = 512;
 	static var buf = new hl.Bytes(BUFSIZE*2);
 	static function resolveSymbol( s : Symbol ) {
@@ -74,18 +97,18 @@ class Profile {
 		return @:privateAccess String.fromUCS2(bytes.sub(0,(size+1)*2));
 	}
 
-	static function get_enable() return Gc.flags.has(Track);
+	static function get_enable() return track_enabled();
 	static function set_enable(v) {
-		var flags = Gc.flags;
-		if( v ) flags.set(Track) else flags.unset(Track);
-		Gc.flags = flags;
+		track_enable(v);
 		return v;
 	}
 
 	static function resolve_symbol( s : Symbol, buf : hl.Bytes, bufSize : hl.Ref<Int> ) : hl.Bytes { return null; }
 	static function track_count( maxDepth : hl.Ref<Int> ) : Int { return 0; }
 	static function track_entry( id : Int, type : hl.Ref<hl.Type>, count : hl.Ref<Int>, size : hl.Ref<Int>, stack : NativeArray<Symbol> ) : Void {}
-	static function track_init() : Void {}
-	static function __init__() track_init();
+	static function track_enable(b:Bool) : Void {}
+	static function track_lock(b:Bool) : Void {}
+	static function track_enabled() : Bool { return false; }
+	static function __init__() { start(); track_enable(true); }
 
 }

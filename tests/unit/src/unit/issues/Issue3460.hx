@@ -8,6 +8,6 @@ private class MyClass {
 
 class Issue3460 extends Test {
 	function test() {
-		eq("x : Int -> String, x : String -> y : Bool -> Int", unit.issues.misc.Issue3460Macro.getOverloadString((null : MyClass)));
+		eq("(x : Int) -> String, (x : String, y : Bool) -> Int", unit.issues.misc.Issue3460Macro.getOverloadString((null : MyClass)));
 	}
 }

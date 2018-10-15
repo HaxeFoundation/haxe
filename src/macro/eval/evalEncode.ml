@@ -22,36 +22,107 @@ open EvalValue
 open EvalExceptions
 open EvalContext
 open EvalHash
+open EvalString
 
 (* Functions *)
 
-let vifun0 f = vfunction (Fun1 (fun a -> f a))
-let vifun1 f = vfunction (Fun2 (fun a b -> f a b))
-let vifun2 f = vfunction (Fun3 (fun a b c -> f a b c))
-let vifun3 f = vfunction (Fun4 (fun a b c d -> f a b c d))
-let vifun4 f = vfunction (Fun5 (fun a b c d e -> f a b c d e))
+let vifun0 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull
+	| [v0] -> f v0
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
 
-let vfun0 f = vstatic_function (Fun0 (fun vl -> f ()))
-let vfun1 f = vstatic_function (Fun1 (fun a -> f a))
-let vfun2 f = vstatic_function (Fun2 (fun a b -> f a b))
-let vfun3 f = vstatic_function (Fun3 (fun a b c -> f a b c))
-let vfun4 f = vstatic_function (Fun4 (fun a b c d -> f a b c d))
-let vfun5 f = vstatic_function (Fun5 (fun a b c d e -> f a b c d e))
+let vifun1 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull
+	| [v0] -> f v0 vnull
+	| [v0;v1] -> f v0 v1
+	| _ -> invalid_call_arg_number 2 (List.length  vl
+))
+
+let vifun2 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull
+	| [v0] -> f v0 vnull vnull
+	| [v0;v1] -> f v0 v1 vnull
+	| [v0;v1;v2] -> f v0 v1 v2
+	| _ -> invalid_call_arg_number 3 (List.length  vl
+))
+
+let vifun3 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vifun4 f = vfunction (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vfun0 f = vstatic_function (fun vl -> match vl with
+	| [] -> f ()
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
+
+let vfun1 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull
+	| [v0] -> f v0
+	| _ -> invalid_call_arg_number 1 (List.length  vl
+))
+
+let vfun2 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull
+	| [v0] -> f v0 vnull
+	| [v0;v1] -> f v0 v1
+	| _ -> invalid_call_arg_number 2 (List.length  vl
+))
+
+let vfun3 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull
+	| [v0] -> f v0 vnull vnull
+	| [v0;v1] -> f v0 v1 vnull
+	| [v0;v1;v2] -> f v0 v1 v2
+	| _ -> invalid_call_arg_number 3 (List.length  vl
+))
+
+let vfun4 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
+
+let vfun5 f = vstatic_function (fun vl -> match vl with
+	| [] -> f vnull vnull vnull vnull vnull
+	| [v0] -> f v0 vnull vnull vnull vnull
+	| [v0;v1] -> f v0 v1 vnull vnull vnull
+	| [v0;v1;v2] -> f v0 v1 v2 vnull vnull
+	| [v0;v1;v2;v3] -> f v0 v1 v2 v3 vnull
+	| [v0;v1;v2;v3;v4] -> f v0 v1 v2 v3 v4
+	| _ -> invalid_call_arg_number 4 (List.length  vl
+))
 
 (* Objects *)
 
-let encode_obj _ l =
+let encode_obj l =
 	let ctx = get_ctx() in
 	let proto,sorted = ctx.get_object_prototype ctx l in
 	vobject {
 		ofields = Array.of_list (List.map snd sorted);
 		oproto = proto;
-		oextra = IntMap.empty;
-		oremoved = IntMap.empty;
 	}
 
-let encode_obj_s k l =
-	encode_obj k (List.map (fun (s,v) -> (hash_s s),v) l)
+let encode_obj_s l =
+	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
 
 (* Enum values *)
 
@@ -91,11 +162,11 @@ let encode_enum i pos index pl =
 
 (* Instances *)
 
-let create_instance_direct proto =
+let create_instance_direct proto kind =
 	vinstance {
 		ifields = if Array.length proto.pinstance_fields = 0 then proto.pinstance_fields else Array.copy proto.pinstance_fields;
 		iproto = proto;
-		ikind = INormal;
+		ikind = kind;
 	}
 
 let create_instance ?(kind=INormal) path =
@@ -119,26 +190,30 @@ let encode_array l =
 	encode_array_instance (EvalArray.create (Array.of_list l))
 
 let encode_string s =
-	VString(Rope.of_string s,lazy s)
+	create_unknown s
 
-let encode_rope s =
-	vstring s
+(* Should only be used for std types that aren't expected to change while the compilation server is running *)
+let create_cached_instance path fkind =
+	let proto = lazy (get_instance_prototype (get_ctx()) path null_pos) in
+	(fun v ->
+		create_instance_direct (Lazy.force proto) (fkind v)
+	)
 
-let encode_bytes s =
-	encode_instance key_haxe_io_Bytes ~kind:(IBytes s)
+let encode_bytes =
+	create_cached_instance key_haxe_io_Bytes (fun s -> IBytes s)
 
-let encode_int_map_direct h =
-	encode_instance key_haxe_ds_IntMap ~kind:(IIntMap h)
+let encode_int_map_direct =
+	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
 
-let encode_string_map_direct h =
-	encode_instance key_haxe_ds_StringMap ~kind:(IStringMap h)
+let encode_string_map_direct =
+	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
 
-let encode_object_map_direct h =
-	encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic h))
+let encode_object_map_direct =
+	create_cached_instance key_haxe_ds_ObjectMap (fun (s : value ValueHashtbl.t) -> IObjectMap (Obj.magic s))
 
 let encode_string_map convert m =
-	let h = StringHashtbl.create 0 in
-	PMap.iter (fun key value -> StringHashtbl.add h (Rope.of_string key,lazy key) (convert value)) m;
+	let h = StringHashtbl.create () in
+	PMap.iter (fun key value -> StringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
 let fake_proto path =
@@ -203,3 +278,11 @@ let encode_ref v convert tostr =
 		iproto = ref_proto;
 		ikind = IRef (Obj.repr v);
 	}
+
+let encode_lazy f =
+	let rec r = ref (fun () ->
+		let v = f() in
+		r := (fun () -> v);
+		v
+	) in
+	VLazy r

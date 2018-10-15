@@ -500,7 +500,7 @@ class Serializer {
 				buf.add("0");
 			}
 
-			#elseif js_enums_as_objects
+			#elseif (js && !js_enums_as_arrays)
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v._hx_index);
@@ -537,7 +537,7 @@ class Serializer {
 		}
 	}
 
-	@:extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
+	extern inline function __getField(o:Dynamic, f:String):Dynamic return o[cast f];
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");

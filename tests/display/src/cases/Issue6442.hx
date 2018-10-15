@@ -3,7 +3,7 @@ package cases;
 class Issue6442 extends DisplayTestCase {
 	/**
 	extern class Foo {
-		{-1-}function b{-2-}ar():Void;{-3-}
+		function {-1-}b{-2-}ar{-3-}():Void;
 	}
 	**/
 	function test() {

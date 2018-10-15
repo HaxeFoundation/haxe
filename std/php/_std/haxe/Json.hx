@@ -35,7 +35,7 @@ class Json {
 		#end
 	}
 
-	public static inline function stringify( value : Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String ) : String {
+	public static inline function stringify( value : Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String ) : String {
 		#if haxeJSON
 			return JsonPrinter.print(value, replacer, space);
 		#else
@@ -74,7 +74,7 @@ class Json {
 		return value;
 	}
 
-	static function phpJsonEncode(value:Dynamic, ?replacer:Dynamic -> Dynamic -> Dynamic, ?space:String):String {
+	static function phpJsonEncode(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
 		if(null != replacer || null != space) {
 			return JsonPrinter.print(value, replacer, space);
 		}

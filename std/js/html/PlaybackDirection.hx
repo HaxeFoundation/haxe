@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\AnimationEffectReadOnly.webidl. Do not edit!
+// This file is generated from mozilla\AnimationEffect.webidl. Do not edit!
 
 package js.html;
 
-@:enum abstract PlaybackDirection(String)
+enum abstract PlaybackDirection(String)
 {
 	var NORMAL = "normal";
 	var REVERSE = "reverse";

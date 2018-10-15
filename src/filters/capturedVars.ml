@@ -63,14 +63,14 @@ let captured_vars com e =
 					let t = match v.v_type with TInst (_, [t]) -> t | _ -> assert false in
 					mk (TNew (cnativearray,[t],[eone])) v.v_type p
 				| Some e ->
-					{ (Optimizer.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
+					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
 
 			method mk_ref_access e v =
 				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
 
 			method mk_init av v pos =
 				let elocal = mk (TLocal v) v.v_type pos in
-				let earray = { (Optimizer.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
+				let earray = { (Inline.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
 				mk (TVar (av,Some earray)) t.tvoid pos
 		end
 	(* default implementation - use haxe array *)
@@ -87,7 +87,7 @@ let captured_vars com e =
 	in
 
 	let mk_var v used =
-		let v2 = alloc_var v.v_name (PMap.find v.v_id used) v.v_pos in
+		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
 		v2.v_meta <- v.v_meta;
 		v2
 	in
@@ -128,6 +128,11 @@ let captured_vars com e =
 			let tmp_used = ref used in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
+				| Use ({ v_extra = Some( _ :: _, _) })
+				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+					(* Java and C# deal with functions with type parameters in a different way *)
+					(* so they do should not be wrapped *)
+					()
 				| Use v | Assign v ->
 					if PMap.mem v.v_id !tmp_used then fused := PMap.add v.v_id v !fused;
 				| Declare v ->
@@ -153,7 +158,7 @@ let captured_vars com e =
 			*)
 			if com.config.pf_capture_policy = CPLoopVars then
 				(* We don't want to duplicate any variable declarations, so let's make copies (issue #3902). *)
-				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_name v.v_type v.v_pos) vars in
+				let new_vars = List.map (fun v -> v.v_id,alloc_var v.v_kind v.v_name v.v_type v.v_pos) vars in
 				let rec loop e = match e.eexpr with
 					| TLocal v ->
 						begin try
@@ -214,6 +219,10 @@ let captured_vars com e =
 					incr depth;
 					f (collect_vars false);
 					decr depth;
+				| Use ({ v_extra = Some( _ :: _, _) })
+				| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+					(* Java/C# use a special handling for functions with type parmaters *)
+					()
 				| Declare v ->
 					if in_loop then vars := PMap.add v.v_id !depth !vars;
 				| Use v | Assign v ->
@@ -247,6 +256,9 @@ let captured_vars com e =
 			decr depth;
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
+		| Use ({ v_extra = Some( _ :: _, _) })
+		| Assign ({ v_extra = Some( _ :: _, _) }) when com.platform = Cs || com.platform = Java ->
+			()
 		| Use v ->
 			(try
 				let d = PMap.find v.v_id !vars in

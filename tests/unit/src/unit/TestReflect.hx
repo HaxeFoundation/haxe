@@ -4,11 +4,11 @@ import haxe.ds.List;
 import Type;
 
 interface InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 }
 
 class ClassWithProp implements InterfWithProp {
-	public var x(get_x, set_x) : Int;
+	public var x(get, set) : Int;
 	var _x : Int;
 
 	public function new() {
@@ -23,7 +23,7 @@ class ClassWithProp implements InterfWithProp {
 		return v;
 	}
 
-	public static var STAT_X(default, set_STAT_X) : Int;
+	public static var STAT_X(default, set) : Int;
 
 	static function set_STAT_X(v) {
 		STAT_X = v * 2;
@@ -113,7 +113,6 @@ class TestReflect extends Test {
 	}
 
 	public function testIs() {
-		is(null,null);
 		is(0,Int,Float);
 		is(1,Int,Float);
 		is(-1,Int,Float);
@@ -230,7 +229,6 @@ class TestReflect extends Test {
 	}
 
 	function testCreate() {
-		#if !java
 		var i = Type.createInstance(MyClass,[33]);
 		t( (i is MyClass) );
 		eq( i.get(), 33 );
@@ -249,7 +247,6 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
 		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
-		#end
 	}
 
 	static function compareMethodsDummy() {}

@@ -1,4 +1,5 @@
--cp src
--main Main
+-p src
+--main Main
 --interp
 -D use-rtti-doc
+# -D test=Issue7326

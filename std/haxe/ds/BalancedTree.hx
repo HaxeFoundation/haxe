@@ -119,6 +119,13 @@ class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 	}
 
 	/**
+		See `Map.keyValueIterator`
+	**/
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
+	/**
 		Iterates over the keys of `this` BalancedTree.
 
 		This operation is performed in-order.
@@ -128,7 +135,7 @@ class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 		keysLoop(root, ret);
 		return ret.iterator();
 	}
-	
+
 	public function copy():BalancedTree<K, V> {
 		var copied = new BalancedTree<K, V>();
 		copied.root = root;
@@ -237,7 +244,7 @@ class TreeNode<K,V> {
 			_height = h;
 	}
 
-	@:extern public inline function get_height() return this == null ? 0 : _height;
+	extern public inline function get_height() return this == null ? 0 : _height;
 
 	public function toString() {
 		return (left == null ? "" : left.toString() + ", ") + '$key=$value' + (right == null ? "" : ", " +right.toString());

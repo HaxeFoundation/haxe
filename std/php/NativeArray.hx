@@ -21,12 +21,14 @@
  */
 package php;
 
+import haxe.extern.EitherType;
+
 using php.Global;
 
 /**
 	Native PHP array.
 **/
-@:coreType @:runtimeValue abstract NativeArray {
+@:coreType @:runtimeValue @:semantics(value) abstract NativeArray {
 	public inline function new()
 		this = Syntax.arrayDecl();
 
@@ -40,28 +42,29 @@ using php.Global;
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
-		return new NativeArrayIterator(this);
+		return (this:NativeIndexedArray<Dynamic>).iterator();
+
+	public inline function keyValueIterator():NativeArrayKeyValueIterator
+		return new NativeArrayKeyValueIterator(this);
 }
 
-/**
-	Allows iterating over native PHP array with Haxe for-loop
-**/
-private class NativeArrayIterator {
-	var arr:NativeArray;
-	var hasMore:Bool;
+private class NativeArrayKeyValueIterator {
+	var length:Int;
+	var current:Int = 0;
+	var keys:NativeIndexedArray<EitherType<String,Int>>;
+	var values:NativeIndexedArray<Dynamic>;
 
-	public inline function new( a:NativeArray ) {
-		arr = a;
-		hasMore = (arr.reset() != false);
+	public inline function new(data:NativeArray) {
+		length = Global.count(data);
+		this.keys = Global.array_keys(data);
+		this.values = Global.array_values(data);
 	}
 
-	public inline function hasNext() : Bool {
-		return hasMore;
+	public inline function hasNext():Bool {
+		return current < length;
 	}
 
-	public inline function next() : Dynamic {
-		var result = arr.current();
-		hasMore = (arr.next() != false);
-		return result;
+	public inline function next():{key:EitherType<String,Int>, value:Dynamic} {
+		return {key:keys[current], value:values[current++]};
 	}
 }

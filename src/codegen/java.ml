@@ -183,6 +183,11 @@ let rec same_sig parent jsig =
 	| TArray(s,_) -> same_sig parent s
 	| _ -> false
 
+let convert_constraints ctx p tl = match tl with
+	| [] -> None
+	| [t] -> Some (convert_signature ctx p t,null_pos)
+	| tl -> Some (CTIntersection(List.map (fun t -> convert_signature ctx p t,null_pos) tl),null_pos)
+
 let convert_param ctx p parent param =
 	let name, constraints = match param with
 		| (name, Some extends_sig, implem_sig) ->
@@ -194,7 +199,7 @@ let convert_param ctx p parent param =
 		{
 			tp_name = jname_to_hx name,null_pos;
 			tp_params = [];
-			tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) constraints;
+			tp_constraints = convert_constraints ctx p constraints;
 			tp_meta = [];
 		}
 
@@ -251,14 +256,14 @@ let convert_java_enum ctx p pe =
 		let readonly = ref false in
 
 		List.iter (function
-			| JPublic -> cff_access := APublic :: !cff_access
+			| JPublic -> cff_access := (APublic,null_pos) :: !cff_access
 			| JPrivate -> raise Exit (* private instances aren't useful on externs *)
 			| JProtected ->
 				cff_meta := (Meta.Protected, [], p) :: !cff_meta;
-				cff_access := APrivate :: !cff_access
-			| JStatic -> cff_access := AStatic :: !cff_access
+				cff_access := (APrivate,null_pos) :: !cff_access
+			| JStatic -> cff_access := (AStatic,null_pos) :: !cff_access
 			| JFinal ->
-				cff_meta := (Meta.Final, [], p) :: !cff_meta;
+				cff_access := (AFinal, p) :: !cff_access;
 				(match field.jf_kind, field.jf_vmsignature, field.jf_constant with
 				| JKField, TObject _, _ ->
 					jf_constant := None
@@ -279,7 +284,7 @@ let convert_java_enum ctx p pe =
 			| AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "Override"), [] ) } ->
-						cff_access := AOverride :: !cff_access
+						cff_access := (AOverride,null_pos) :: !cff_access
 					| _ -> ()
 				) ann
 			| _ -> ()
@@ -311,20 +316,19 @@ let convert_java_enum ctx p pe =
 					) args in
 					let t = Option.map_default (convert_signature ctx p) (mk_type_path ctx ([], "Void") []) ret in
 					cff_meta := (Meta.Overload, [], p) :: !cff_meta;
-
 					let types = List.map (function
 						| (name, Some ext, impl) ->
 							{
 								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (ext :: impl);
+								tp_constraints = convert_constraints ctx p (ext :: impl);
 								tp_meta = [];
 							}
 						| (name, None, impl) ->
 							{
 								tp_name = name,null_pos;
 								tp_params = [];
-								tp_constraints = List.map (fun t -> convert_signature ctx p t,null_pos) (impl);
+								tp_constraints = convert_constraints ctx p impl;
 								tp_meta = [];
 							}
 					) field.jf_types in
@@ -357,7 +361,7 @@ let convert_java_enum ctx p pe =
 							(Meta.Native, [EConst (String (cff_name) ), cff_pos], cff_pos) :: !cff_meta
 		in
 		if PMap.mem "java_loader_debug" ctx.jcom.defines.Define.values then
-			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem AStatic !cff_access then "static " else "") (if List.mem AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
+			Printf.printf "\t%s%sfield %s : %s\n" (if List.mem_assoc AStatic !cff_access then "static " else "") (if List.mem_assoc AOverride !cff_access then "override " else "") cff_name (s_sig field.jf_signature);
 
 		{
 			cff_name = cff_name,null_pos;
@@ -410,7 +414,7 @@ let convert_java_enum ctx p pe =
 
 			let is_interface = ref false in
 			List.iter (fun f -> match f with
-				| JFinal -> meta := (Meta.Final, [], p) :: !meta
+				| JFinal -> flags := HFinal :: !flags
 				| JInterface ->
 						is_interface := true;
 						flags := HInterface :: !flags

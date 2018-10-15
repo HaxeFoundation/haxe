@@ -26,6 +26,7 @@
 
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void { })
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void { })
+	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void { })
 	function new(string:String) : Void;
 
 	function toUpperCase() : String;

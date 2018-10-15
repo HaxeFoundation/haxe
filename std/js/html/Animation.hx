@@ -43,12 +43,12 @@ extern class Animation extends EventTarget
 	/**
 		Gets and sets the `AnimationEffectReadOnly` associated with this animation. This will usually be a `KeyframeEffect` object.
 	**/
-	var effect(default,null) : AnimationEffectReadOnly;
+	var effect : AnimationEffect;
 	
 	/**
 		Gets or sets the `AnimationTimeline` associated with this animation.
 	**/
-	var timeline(default,null) : AnimationTimeline;
+	var timeline : AnimationTimeline;
 	
 	/**
 		Gets or sets the scheduled time when an animation's playback should begin.
@@ -71,6 +71,11 @@ extern class Animation extends EventTarget
 	var playState(default,null) : AnimationPlayState;
 	
 	/**
+		Indicates whether the animation is currently waiting for an asynchronous operation such as initiating playback or pausing a running animation.
+	**/
+	var pending(default,null) : Bool;
+	
+	/**
 		Returns the current ready Promise for this animation.
 	**/
 	var ready(default,null) : Promise<Animation>;
@@ -91,34 +96,39 @@ extern class Animation extends EventTarget
 	var oncancel : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function new( ?effect : KeyframeEffectReadOnly, ?timeline : AnimationTimeline ) : Void;
+	function new( ?effect : AnimationEffect, ?timeline : AnimationTimeline ) : Void;
 	
 	/**
 		Clears all `KeyframeEffect` caused by this animation and aborts its playback.
 	**/
 	function cancel() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Seeks either end of an animation, depending on whether the animation is playing or reversing.
+		@throws DOMError
 	**/
 	function finish() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Starts or resumes playing of an animation, or begins the animation again if it previously finished.
+		@throws DOMError
 	**/
 	function play() : Void;
-	/** @throws DOMError */
 	
 	/**
 		Suspends playing of an animation.
+		@throws DOMError
 	**/
 	function pause() : Void;
-	/** @throws DOMError */
+	
+	/**
+		Sets the speed of an animation after first synchronizing its playback position.
+	**/
+	function updatePlaybackRate( playbackRate : Float ) : Void;
 	
 	/**
 		Reverses playback direction, stopping at the start of the animation. If the animation is finished or unplayed, it will play from end to beginning.
+		@throws DOMError
 	**/
 	function reverse() : Void;
 }

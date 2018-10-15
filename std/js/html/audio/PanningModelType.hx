@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract PanningModelType(String)
+enum abstract PanningModelType(String)
 {
 	var EQUALPOWER = "equalpower";
 	var HRTF = "HRTF";

@@ -21,7 +21,7 @@
  */
 package cpp;
 
-@:enum abstract XmlType(Int) {
+enum abstract XmlType(Int) {
    /**
       Represents an XML element type.
    **/
@@ -123,7 +123,7 @@ class NativeXmlState
       x._nodeValue = text.substr(1);
       cur.addChild(x);
    }
-   
+
    @:keep
    public function done()
    {
@@ -244,8 +244,8 @@ class Xml {
    function new() : Void {
    }
 
-   @:extern @:native("parse_xml")
-   static function parse_xml(str:String, state:NativeXmlState) { }
+   @:native("parse_xml")
+   extern static function parse_xml(str:String, state:NativeXmlState);
 
    public static function parse( str : String ) : Xml
    {
@@ -356,14 +356,14 @@ class Xml {
       if (_attributes==null)
          _attributes = {};
       Reflect.setField (_attributes, att, value );
-      return null;
+      return;
    }
 
    public function remove( att : String ) : Void{
       if( nodeType != Xml.Element )
          throw "bad nodeType";
       Reflect.deleteField( _attributes, att );
-      return null;
+      return;
    }
 
    public function exists( att : String ) : Bool {
@@ -422,7 +422,7 @@ class Xml {
       if( x._parent != null ) x._parent._children.remove(x);
       x._parent = this;
       _children.push( x );
-      return null;
+      return;
    }
 
    public function removeChild( x : Xml ) : Bool {
@@ -439,7 +439,7 @@ class Xml {
       if( x._parent != null ) x._parent._children.remove(x);
       x._parent = this;
       _children.insert( pos, x );
-      return null;
+      return;
    }
 
    public function toString() : String {

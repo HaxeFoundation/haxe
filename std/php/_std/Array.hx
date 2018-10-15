@@ -38,17 +38,17 @@ class Array<T> implements ArrayAccess<Int,T> {
 		return wrap(Global.array_merge(arr, a.arr));
 	}
 
-	public function copy():Array<T> {
-		return wrap(arr);
+	public inline function copy():Array<T> {
+		return Syntax.clone(this);
 	}
 
 	public inline function filter(f:T->Bool):Array<T> {
 		var result = Syntax.arrayDecl();
-		for(i in 0...length) {
-			if(f(arr[i])) {
-				result.push(arr[i]);
+		Syntax.foreach(arr, function(_, value:T) {
+			if(f(value)) {
+				result.push(value);
 			}
-		}
+		});
 		return wrap(result);
 	}
 
@@ -86,7 +86,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function join(sep:String):String {
-		return Global.implode(sep, Global.array_map('strval', arr));
+		return Global.implode(sep, Global.array_map(Syntax.nativeClassName(Boot) + '::stringify', arr));
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
@@ -102,9 +102,9 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
-		for(i in 0...length) {
-			result.push(f(arr[i]));
-		}
+		Syntax.foreach(arr, function(_, value:T) {
+			result.push(f(value));
+		});
 		return wrap(result);
 	}
 
@@ -119,14 +119,16 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function remove(x:T):Bool {
-		for (i in 0...length) {
-			if (arr[i] == x) {
-				Global.array_splice(arr, i, 1);
+		var result = false;
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			if (value == x) {
+				Global.array_splice(arr, index, 1);
 				length--;
-				return true;
+				result = true;
+				Syntax.code('break');
 			}
-		}
-		return false;
+		});
+		return result;
 	}
 
 	public inline function reverse():Void {
@@ -169,11 +171,8 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function toString():String {
-		var strings = Syntax.arrayDecl();
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			strings[index] = Boot.stringify(value);
-		});
-		return '[' + Global.implode(',', strings) + ']';
+		var strings = Global.implode(',', Global.array_map(Syntax.nativeClassName(Boot) + '::stringify', arr));
+		return '[' + strings + ']';
 	}
 
 	public function resize( len:Int ) : Void {

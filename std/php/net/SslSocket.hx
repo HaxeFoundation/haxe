@@ -21,7 +21,7 @@
  */
 package php.net;
 
-class SslSocket extends sys.net.Socket {
+class SslSocket extends php.net.Socket {
 
 	public function new() : Void {
 		super();

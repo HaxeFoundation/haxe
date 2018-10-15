@@ -89,7 +89,17 @@ extern class Reflect {
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void;
 
 	/**
-		Call a method with the given object and arguments.
+		Call a method `func` with the given arguments `args`.
+
+		The object `o` is ignored in most cases. It serves as the `this`-context in the following
+		situations:
+
+		* (neko) Allows switching the context to `o` in all cases.
+		* (macro) Same as neko for Haxe 3. No context switching in Haxe 4.
+		* (js, lua) Require the `o` argument if `func` does not, but should have a context.
+		    This can occur by accessing a function field natively, e.g. through `Reflect.field`
+			or by using `(object : Dynamic).field`. However, if `func` has a context, `o` is
+			ignored like on other targets.
 	**/
 	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic;
 
@@ -135,7 +145,7 @@ extern class Reflect {
 
 	/**
 		Compares the functions `f1` and `f2`.
-		
+
 		If `f1` or `f2` are null, the result is false.
 		If `f1` or `f2` are not functions, the result is unspecified.
 

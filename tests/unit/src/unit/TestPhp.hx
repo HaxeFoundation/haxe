@@ -35,6 +35,16 @@ class TestPhp extends Test
 		t(true);
 	}
 
+	var switchVal = "1";
+	function testIssue7257_looseSwitchComparison() {
+		var result = switch (switchVal) {
+			case "01": false;
+			case "1": true;
+			default: false;
+		}
+		t(result);
+	}
+
 	function testIssue1828() {
 		var x = try {
 			throw "foo";
@@ -199,6 +209,11 @@ class TestPhp extends Test
 		var phpClassName = Boot.castClass(ClosureDummy).phpClassName;
 		t(Syntax.instanceof(o, ClosureDummy));
 		t(Syntax.instanceof(o, phpClassName));
+	}
+
+	var a = 2;
+	function testSyntaxCodeParens() {
+		eq(8, Syntax.code("{0} * {1}", a, a + a));
 	}
 
 	@:analyzer(no_user_var_fusion)

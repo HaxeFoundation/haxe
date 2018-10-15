@@ -46,6 +46,7 @@ class Log {
 		information about the position where the `trace()` call was made.
 
 		This method can be rebound to a custom function:
+		
 			var oldTrace = haxe.Log.trace; // store old function
 			haxe.Log.trace = function(v, ?infos) {
 			  // handle trace

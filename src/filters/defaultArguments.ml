@@ -33,8 +33,7 @@ let gen_check basic t nullable_var const pos =
 		(is_null t1) <> (is_null t2)
 	in
 
-	let const_t = const_type basic const t in
-	let const = mk (TConst const) const_t pos in
+	let const_t = const.etype in
 	let const = if needs_cast t const_t then mk_cast const t pos else const in
 
 	let arg = make_local nullable_var pos in
@@ -45,14 +44,14 @@ let gen_check basic t nullable_var const pos =
 
 let add_opt com block pos (var,opt) =
 	match opt with
-	| None | Some TNull ->
+	| None | Some {eexpr = TConst TNull} ->
 		(var,opt)
-	| Some (TString str) ->
-		block := Texpr.set_default com.basic var (TString str) pos :: !block;
+	| Some ({eexpr = TConst (TString str)} as e) ->
+		block := Texpr.set_default com.basic var e pos :: !block;
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in
-		let nullable_var = alloc_var var.v_name (basic.tnull var.v_type) pos in
+		let nullable_var = alloc_var var.v_kind var.v_name (basic.tnull var.v_type) pos in
 		(* var v = (temp_var == null) ? const : cast temp_var; *)
 		let evar = mk (TVar(var, Some(gen_check basic var.v_type nullable_var const pos))) basic.tvoid pos in
 		block := evar :: !block;

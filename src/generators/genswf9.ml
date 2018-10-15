@@ -672,6 +672,9 @@ let end_fun ctx args dparams tret =
 		hlmt_function = None;
 	}
 
+let gen_expr_ref = ref (fun _ _ _ -> assert false)
+let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
+
 let begin_fun ctx args tret el stat p =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
@@ -708,18 +711,18 @@ let begin_fun ctx args tret el stat p =
 		let v = (match classify ctx t, c with
 		| _, None -> HVNone
 		| (KInt | KFloat | KUInt | KBool) as kind, Some c ->
-			(match c with
-			| TInt i -> if kind = KUInt then HVUInt i else HVInt i
-			| TFloat s -> HVFloat (float_of_string s)
-			| TBool b -> HVBool b
-			| TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			(match c.eexpr with
+			| TConst (TInt i) -> if kind = KUInt then HVUInt i else HVInt i
+			| TConst (TFloat s) -> HVFloat (float_of_string s)
+			| TConst (TBool b) -> HVBool b
+			| TConst TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
 			| _ -> assert false)
-		| _, Some TNull -> HVNone
+		| _, Some {eexpr = TConst TNull} -> HVNone
 		| k, Some c ->
 			write ctx (HReg r.rid);
 			write ctx HNull;
 			let j = jump ctx J3Neq in
-			gen_constant ctx c t p;
+			gen_expr ctx true c;
 			coerce ctx k;
 			write ctx (HSetReg r.rid);
 			j();
@@ -866,9 +869,6 @@ let pop_value ctx retval =
 	(* if we have multiple branches, make sure to forget about previous
 	   branch value *)
 	if retval then ctx.infos.istack <- ctx.infos.istack - 1
-
-let gen_expr_ref = ref (fun _ _ _ -> assert false)
-let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
 
 let rec gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
@@ -1777,10 +1777,10 @@ let generate_construct ctx fdata c =
 	let cargs = if not ctx.need_ctor_skip then fdata.tf_args else List.map (fun (v,c) ->
 		let c = (match c with Some _ -> c | None ->
 			Some (match classify ctx v.v_type with
-			| KInt | KUInt -> TInt 0l
-			| KFloat -> TFloat "0"
-			| KBool -> TBool false
-			| KType _ | KDynamic | KNone -> TNull)
+			| KInt | KUInt -> mk (TConst (TInt 0l)) ctx.com.basic.tint v.v_pos
+			| KFloat -> mk (TConst (TFloat "0")) ctx.com.basic.tfloat v.v_pos
+			| KBool -> mk (TConst (TBool false)) ctx.com.basic.tbool v.v_pos
+			| KType _ | KDynamic | KNone -> mk (TConst TNull) t_dynamic v.v_pos)
 		) in
 		v,c
 	) fdata.tf_args in
@@ -1991,7 +1991,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || (Meta.has Meta.Final f.cf_meta);
+				hlm_final = stat || f.cf_final;
 				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})
@@ -2007,7 +2007,7 @@ let generate_field_kind ctx f c stat =
 			) args;
 			let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
 			Some (HFMethod {
-				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t f.cf_pos, (if opt then Some TNull else None)) args) dparams tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var (VUser TVOArgument) a t f.cf_pos, (if opt then Some TNull else None)) args) dparams tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = snd (method_kind());
@@ -2172,7 +2172,7 @@ let generate_class ctx c =
 		} :: statics
 	in
 	let rec is_dynamic c =
-		if c.cl_dynamic <> None || c.cl_array_access <> None then true
+		if c.cl_array_access <> None then true
 		else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_dynamic c
@@ -2182,7 +2182,7 @@ let generate_class ctx c =
 		hlc_name = name;
 		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
-		hlc_final = Meta.has Meta.Final c.cl_meta;
+		hlc_final = c.cl_final;
 		hlc_interface = c.cl_interface;
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
@@ -2199,7 +2199,7 @@ let generate_class ctx c =
 let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
 	let api = ctx.com.basic in
-	let f = begin_fun ctx [alloc_var "tag" api.tstring e.e_pos, None;alloc_var "index" api.tint e.e_pos, None;alloc_var "params" (api.tarray (mk_mono())) e.e_pos, None] api.tvoid [ethis] false e.e_pos in
+	let f = begin_fun ctx [alloc_var VGenerated "tag" api.tstring e.e_pos, None;alloc_var VGenerated "index" api.tint e.e_pos, None;alloc_var VGenerated "params" (api.tarray (mk_mono())) e.e_pos, None] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -2230,7 +2230,7 @@ let generate_enum ctx e meta =
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t e.e_pos, (if opt then Some TNull else None)) args) (TEnum (e,[])) [] true f.ef_pos in
+					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var VGenerated a t e.e_pos, (if opt then Some (mk (TConst TNull) t_dynamic null_pos) else None)) args) (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (HFindPropStrict name_id);
 					write ctx (HString f.ef_name);
 					write ctx (HInt f.ef_index);

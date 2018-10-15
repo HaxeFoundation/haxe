@@ -29,8 +29,8 @@ extern class WorkerDebuggerGlobalScope extends EventTarget
 {
 	var global(default,null) : Dynamic;
 	var onmessage : haxe.Constraints.Function;
-	var console(default,null) : Console;
 	
+	/** @throws DOMError */
 	function createSandbox( name : String, prototype : Dynamic ) : Dynamic;
 	/** @throws DOMError */
 	function loadSubScript( url : String, ?sandbox : Dynamic ) : Void;
@@ -40,5 +40,9 @@ extern class WorkerDebuggerGlobalScope extends EventTarget
 	/** @throws DOMError */
 	function setImmediate( handler : haxe.Constraints.Function ) : Void;
 	function reportError( message : String ) : Void;
+	/** @throws DOMError */
+	function retrieveConsoleEvents() : Array<Dynamic>;
+	/** @throws DOMError */
+	function setConsoleEventHandler( handler : haxe.Constraints.Function ) : Void;
 	function dump( ?string : String ) : Void;
 }

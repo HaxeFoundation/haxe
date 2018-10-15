@@ -134,16 +134,13 @@ private class SocketOutput extends haxe.io.Output {
         Creates a new unconnected socket.
     **/
     public function new() : Void {
-    }
-
-    function __initSocket ():Void {
-        __s = new PSocket();
-    }
-
-    function __init() : Void  {
         __initSocket();
         input = new SocketInput(__s);
         output = new SocketOutput(__s);
+    }
+
+    function __initSocket() : Void {
+        __s = new PSocket();
     }
 
     /**
@@ -171,7 +168,6 @@ private class SocketOutput extends haxe.io.Output {
         Connect to the given server host/port. Throw an exception in case we couldn't successfully connect.
     **/
     public function connect( host : Host, port : Int ) : Void {
-        __init();
         var host_str = host.toString();
         __s.connect(Tuple2.make(host_str,port));
     }
@@ -193,7 +189,6 @@ private class SocketOutput extends haxe.io.Output {
         Bind the socket to the given host/port so it can afterwards listen for connections there.
     **/
     public function bind( host : Host, port : Int ) : Void {
-        __init();
         var host_str = host.toString();
         __s.bind(Tuple2.make(host_str,port));
     }
@@ -237,7 +232,7 @@ private class SocketOutput extends haxe.io.Output {
         Block until some data is available for read on the socket.
     **/
     public function waitForRead() : Void {
-
+        Select.select([this],[],[]);
     }
 
     /**
@@ -250,7 +245,9 @@ private class SocketOutput extends haxe.io.Output {
     /**
         Allows the socket to immediately send the data when written to its output : this will cause less ping but might increase the number of packets / data size, especially when doing a lot of small writes.
     **/
-    public function setFastSend( b : Bool ) : Void {}
+    public function setFastSend( b : Bool ) : Void {
+        __s.setsockopt(PSocketModule.SOL_TCP, PSocketModule.TCP_NODELAY, b);
+    }
 
     @:keep function fileno():Int return __s.fileno();
 

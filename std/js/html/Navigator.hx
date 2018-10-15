@@ -46,11 +46,6 @@ extern class Navigator
 		Reports the value of the user's do-not-track preference. When this value is "yes", your web site or application should not track the user.
 	**/
 	var doNotTrack(default,null) : String;
-	
-	/**
-		Returns a `BatteryManager` object you can use to get information about the battery charging status.
-	**/
-	var battery(default,null) : BatteryManager;
 	var maxTouchPoints(default,null) : Int;
 	
 	/**
@@ -74,9 +69,13 @@ extern class Navigator
 	var productSub(default,null) : String;
 	
 	/**
-		Returns a boolean indicating whether cookies are enabled in the browser or not.
+		Returns false if setting a cookie will be ignored and true otherwise.
 	**/
 	var cookieEnabled(default,null) : Bool;
+	
+	/**
+		Returns the build identifier of the browser (e.g., "2006090803").
+	**/
 	var buildID(default,null) : String;
 	var hardwareConcurrency(default,null) : Int;
 	
@@ -94,19 +93,18 @@ extern class Navigator
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
 	
-	/** @throws DOMError */
-	function getBattery() : Promise<BatteryManager>;
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
-	/** @throws DOMError */
 	function javaEnabled() : Bool;
 	/** @throws DOMError */
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
-	function sendBeacon( url : String, ?data : haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,haxe.extern.EitherType<String,FormData>>> ) : Bool;
-	/** @throws DOMError */
-	function registerProtocolHandler( scheme : String, url : String, title : String ) : Void;
-	/** @throws DOMError */
-	function registerContentHandler( mimeType : String, url : String, title : String ) : Void;
+	@:overload( function( url : String, ?data : ArrayBufferView) : Bool {} )
+	@:overload( function( url : String, ?data : ArrayBuffer) : Bool {} )
+	@:overload( function( url : String, ?data : FormData) : Bool {} )
+	@:overload( function( url : String, ?data : URLSearchParams) : Bool {} )
+	@:overload( function( url : String, ?data : String) : Bool {} )
+	function sendBeacon( url : String, ?data : Blob ) : Bool;
+	function requestMediaKeySystemAccess( keySystem : String, supportedConfigurations : Array<js.html.eme.MediaKeySystemConfiguration> ) : Promise<js.html.eme.MediaKeySystemAccess>;
 	function taintEnabled() : Bool;
 }

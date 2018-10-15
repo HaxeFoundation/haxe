@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-@:native("SVGPathSegMovetoRel")
-extern class PathSegMovetoRel extends PathSeg
+typedef PathSegMovetoRel =
 {
 	var x : Float;
 	var y : Float;

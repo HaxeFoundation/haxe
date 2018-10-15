@@ -17,18 +17,20 @@ class Basic extends DisplayTestCase {
 	class Some {
 		function main() {
 			var {-1-}variable{-2-} = 5;
-			variable{-3-};
+			{-3-}variabl{-4-}e{-5-};
 		}
 	}
 	**/
 	function testPosition1() {
 		eq(range(1, 2), position(pos(3)));
+		eq(range(1, 2), position(pos(4)));
+		eq(range(1, 2), position(pos(5)));
 	}
 
 	/**
 	class Some {
 		function main() {
-			var variable{-1-} = 5;
+			var variabl{-1-}e = 5;
 			{-2-}variable{-3-};
 		}
 	}
@@ -40,7 +42,7 @@ class Basic extends DisplayTestCase {
 	/**
 	class Some {
 		function main() {
-			var variable{-1-} = 5;
+			var variabl{-1-}e = 5;
 			{-2-}variable{-3-};
 			{-4-}variable{-5-};
 		}
@@ -48,6 +50,20 @@ class Basic extends DisplayTestCase {
 	**/
 	function testUsage2() {
 		arrayEq([range(2, 3), range(4, 5)], usage(pos(1)));
+	}
+
+	/**
+	class Some {
+		function main() {
+			{-1-}te{-2-}st{-3-}();
+		}
+
+		static function te{-4-}st() { }
+	}
+	**/
+	function testUsage3() {
+		arrayEq([range(1, 3)], usage(pos(2)));
+		arrayEq([range(1, 3)], usage(pos(4)));
 	}
 
 	/**
@@ -95,6 +111,6 @@ class Basic extends DisplayTestCase {
 	}
 	**/
 	function testCtorClosureType() {
-		eq("someName : Int -> cases.Some", type(pos(1)));
+		eq("(someName : Int) -> cases.Some", type(pos(1)));
 	}
 }

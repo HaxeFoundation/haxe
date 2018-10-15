@@ -201,6 +201,16 @@ typedef ClassField = {
 	var isPublic : Bool;
 
 	/**
+		Whether or not the class field is extern.
+	**/
+	var isExtern : Bool;
+
+	/**
+		Whether or not the class field is final.
+	**/
+	var isFinal : Bool;
+
+	/**
 		The type parameters of the class field.
 	**/
 	var params : Array<TypeParameter>;
@@ -393,7 +403,7 @@ typedef BaseType = {
 /**
 	Represents a class type.
 */
-typedef ClassType = {> BaseType,
+typedef ClassType = BaseType & {
 	/**
 		The kind of the class.
 	**/
@@ -403,6 +413,11 @@ typedef ClassType = {> BaseType,
 		If true the type is an interface, otherwise it is a class.
 	**/
 	var isInterface : Bool;
+
+	/**
+		If true the class is final and cannot be extended.
+	**/
+	var isFinal : Bool;
 
 	/**
 		The parent class and its type parameters, if available.
@@ -446,7 +461,7 @@ typedef ClassType = {> BaseType,
 /**
 	Represents an enum type.
 */
-typedef EnumType = {> BaseType,
+typedef EnumType = BaseType & {
 	/**
 		The available enum constructors.
 	**/
@@ -461,7 +476,7 @@ typedef EnumType = {> BaseType,
 /**
 	Represents a typedef.
 */
-typedef DefType = {> BaseType,
+typedef DefType = BaseType & {
 	/**
 		The target type of the typedef.
 	**/
@@ -471,7 +486,7 @@ typedef DefType = {> BaseType,
 /**
 	Represents an abstract type.
 */
-typedef AbstractType = {>BaseType,
+typedef AbstractType = BaseType & {
 	/**
 		The underlying type of the abstract.
 	**/
@@ -516,6 +531,12 @@ typedef AbstractType = {>BaseType,
 	**/
 	@:require(haxe_ver >= 3.3)
 	var resolve : Null<ClassField>;
+
+	/**
+		The method used for resolving unknown field access, if available.
+	**/
+	@:require(haxe_ver >= 4.0)
+	var resolveWrite : Null<ClassField>;
 }
 
 /**
@@ -774,7 +795,7 @@ typedef TFunc = {
 		A list of function arguments identified by an argument variable `v` and
 		an optional initialization `value`.
 	**/
-	var args: Array<{v:TVar, value:Null<TConstant>}>;
+	var args: Array<{v:TVar, value:Null<TypedExpr>}>;
 
 	/**
 		The return type of the function.

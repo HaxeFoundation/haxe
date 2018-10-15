@@ -69,7 +69,11 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints
 	}
 
 	#end
-	
+
+	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : WeakMap<K,V> {
 		var copied = new WeakMap();
 		for(key in keys()) copied.set(key, get(key));

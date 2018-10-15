@@ -22,6 +22,7 @@
 package python.io;
 
 import haxe.io.Bytes;
+import haxe.io.Encoding;
 
 interface IInput
 {
@@ -59,5 +60,5 @@ interface IInput
 
 	public function readInt32():Int;
 
-	public function readString( len : Int ) : String;
+	public function readString( len : Int, ?encoding : Encoding ) : String;
 }

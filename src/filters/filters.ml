@@ -111,7 +111,7 @@ let check_local_vars_init e =
 		| TVar (v,eo) ->
 			begin
 				match eo with
-				| None when Meta.has Meta.InlineConstructorVariable v.v_meta ->
+				| None when v.v_kind = VInlinedConstructorVariable ->
 					()
 				| None ->
 					declared := v.v_id :: !declared;
@@ -518,7 +518,7 @@ let add_field_inits reserved ctx t =
 	let apply c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_params)) c.cl_pos in
 		(* TODO: we have to find a variable name which is not used in any of the functions *)
-		let v = alloc_var "_g" ethis.etype ethis.epos in
+		let v = alloc_var VGenerated "_g" ethis.etype ethis.epos in
 		let need_this = ref false in
 		let inits,fields = List.fold_left (fun (inits,fields) cf ->
 			match cf.cf_kind,cf.cf_expr with
@@ -760,6 +760,23 @@ let iter_expressions fl mt =
 let filter_timer detailed s =
 	Timer.timer (if detailed then "filters" :: s else ["filters"])
 
+module ForRemap = struct
+	let apply ctx e =
+		let rec loop e = match e.eexpr with
+		| TFor(v,e1,e2) ->
+			let e1 = loop e1 in
+			let e2 = loop e2 in
+			let iterator = ForLoop.IterationKind.of_texpr ctx e1 (ForLoop.is_cheap_enough_t ctx e2) e.epos in
+			let restore = save_locals ctx in
+			let e = ForLoop.IterationKind.to_texpr ctx v iterator e2 e.epos in
+			restore();
+			e
+		| _ ->
+			Type.map_expr loop e
+		in
+		loop e
+end
+
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in
 	let new_types = List.filter (fun t ->
@@ -774,6 +791,7 @@ let run com tctx main =
 	) com.types in
 	(* PASS 1: general expression filters *)
 	let filters = [
+		(* ForRemap.apply tctx; *)
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
 		check_local_vars_init;

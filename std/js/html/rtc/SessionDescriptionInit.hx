@@ -27,5 +27,5 @@ package js.html.rtc;
 typedef SessionDescriptionInit =
 {
 	@:optional var sdp : String;
-	@:optional var type : SdpType;
+	var type : SdpType;
 }

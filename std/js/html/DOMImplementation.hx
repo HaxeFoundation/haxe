@@ -38,23 +38,23 @@ extern class DOMImplementation
 	/**
 		Returns a `Boolean` indicating if a given feature is supported or not. This function is unreliable and kept for compatibility purpose alone: except for SVG-related queries, it always returns `true`. Old browsers are very inconsistent in their behavior.
 	**/
-	function hasFeature( feature : String, version : String ) : Bool;
-	/** @throws DOMError */
+	function hasFeature() : Bool;
 	
 	/**
 		Creates and returns a `DocumentType`.
+		@throws DOMError
 	**/
 	function createDocumentType( qualifiedName : String, publicId : String, systemId : String ) : DocumentType;
-	/** @throws DOMError */
 	
 	/**
 		Creates and returns an `XMLDocument`.
+		@throws DOMError
 	**/
-	function createDocument( namespace_ : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
-	/** @throws DOMError */
+	function createDocument( namespace : String, qualifiedName : String, ?doctype : DocumentType ) : HTMLDocument;
 	
 	/**
 		Creates and returns an HTML `Document`.
+		@throws DOMError
 	**/
 	function createHTMLDocument( ?title : String ) : HTMLDocument;
 }

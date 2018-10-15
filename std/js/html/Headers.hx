@@ -35,58 +35,61 @@ package js.html;
 extern class Headers
 {
 	/** @throws DOMError */
-	function new( ?init : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,Dynamic/*MISSING ByteStringMozMap*/>> ) : Void;
-	/** @throws DOMError */
+	@:overload( function( ?init : Array<Array<String>>) : Headers {} )
+	@:overload( function( ?init : haxe.DynamicAccess<String>) : Headers {} )
+	function new( ?init : Headers ) : Void;
 	
 	/**
 		Appends a new value onto an existing header inside a `Headers` object, or adds the header if it does not already exist.
+		@throws DOMError
 	**/
 	function append( name : String, value : String ) : Void;
-	/** @throws DOMError */
-	@:native("delete")
-	function delete_( name : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
-		Returns the first value of a given header from within a `Headers` object.
+		Deletes a header from a `Headers` object.
+		@throws DOMError
+	**/
+	function delete( name : String ) : Void;
+	
+	/**
+		Returns a `ByteString` sequence of all the values of a header within a `Headers` object with a given name.
+		@throws DOMError
 	**/
 	function get( name : String ) : String;
-	/** @throws DOMError */
-	
-	/**
-		Returns an array of all the values of a header within a `Headers` object with a given name.
-	**/
-	function getAll( name : String ) : Array<String>;
-	/** @throws DOMError */
 	
 	/**
 		Returns a boolean stating whether a `Headers` object contains a certain header.
+		@throws DOMError
 	**/
 	function has( name : String ) : Bool;
-	/** @throws DOMError */
 	
 	/**
 		Sets a new value for an existing header inside a `Headers` object, or adds the header if it does not already exist.
+		@throws DOMError
 	**/
 	function set( name : String, value : String ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Returns an `Iteration_protocols` allowing to go through all key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function entries() : HeadersIterator;
-	/** @throws DOMError */
 	
 	/**
-		Returns an `Iteration_protocols` allowing to go through all keys f the key/value pairs contained in this object.
+		Returns an `Iteration_protocols` allowing you to go through all keys of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function keys() : HeadersIterator;
-	/** @throws DOMError */
 	
 	/**
-		Returns an `Iteration_protocols` allowing to go through all values of the key/value pairs contained in this object.
+		Returns an `Iteration_protocols` allowing you to go through all values of the key/value pairs contained in this object.
+		@throws DOMError
 	**/
 	function values() : HeadersIterator;
-	/** @throws DOMError */
+	
+	/**
+		Executes a provided function once for each array element.
+		@throws DOMError
+	**/
 	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
 }

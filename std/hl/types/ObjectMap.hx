@@ -25,7 +25,7 @@ typedef ObjectMapData = Abstract<"hl_obj_map">;
 
 abstract ObjectMap(ObjectMapData) {
 
-	@:extern public inline function new() {
+	extern public inline function new() {
 		this = alloc();
 	}
 
@@ -62,7 +62,7 @@ abstract ObjectMap(ObjectMapData) {
 		return null;
 	}
 
-	@:extern public inline function iterator() {
+	extern public inline function iterator() {
 		return new NativeArray.NativeArrayIterator<Dynamic>(valuesArray());
 	}
 

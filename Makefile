@@ -28,10 +28,11 @@ STATICLINK?=0
 
 # Configuration
 
-HAXE_DIRECTORIES=core syntax context codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
+# Modules in these directories should only depend on modules that are in directories to the left
+HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
-OPAM_LIBS=sedlex xml-light extlib rope ptmap sha
+OPAM_LIBS=sedlex xml-light extlib ptmap sha
 
 FINDLIB_LIBS=$(OCAML_LIBS)
 FINDLIB_LIBS+=$(OPAM_LIBS)
@@ -43,7 +44,7 @@ EXTLIB_INCLUDES=$(EXTLIB_LIBS:%=-I libs/%)
 ALL_INCLUDES=$(EXTLIB_INCLUDES) $(HAXE_INCLUDES)
 FINDLIB_PACKAGES=$(FINDLIB_LIBS:%=-package %)
 CFLAGS=
-ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
+ALL_CFLAGS=-bin-annot -safe-string -thread -g -w -3 -w -40 $(CFLAGS) $(ALL_INCLUDES) $(FINDLIB_PACKAGES)
 
 MESSAGE_FILTER=sed -e 's/_build\/src\//src\//' tmp.tmp
 
@@ -82,6 +83,7 @@ COMMIT_DATE=$(shell \
 )
 PACKAGE_FILE_NAME=haxe_$(COMMIT_DATE)_$(COMMIT_SHA)
 HAXE_VERSION=$(shell $(OUTPUT) -version 2>&1 | awk '{print $$1;}')
+HAXE_VERSION_SHORT=$(shell echo "$(HAXE_VERSION)" | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+")
 
 # using $(CURDIR) on Windows will not work since it might be a Cygwin path
 ifdef SYSTEMROOT
@@ -147,14 +149,14 @@ build_pass_2:
 build_pass_3:
 	ocamlfind ocamldep -slash $(OCAMLDEP_FLAGS) $(HAXE_INCLUDES) $(MODULES:%=%.ml) > Makefile.dependencies
 
-build_pass_4: $(MODULES:%=%.$(MODULE_EXT)) kill_exe_win
+build_pass_4: $(MODULES:%=%.$(MODULE_EXT))
 	$(COMPILER) -safe-string -linkpkg -g -o $(OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(MODULES:%=%.$(MODULE_EXT))
 
 kill_exe_win:
 ifdef SYSTEMROOT
 	-@taskkill /F /IM haxe.exe 2>/dev/null
 endif
-	
+
 plugin:
 ifeq ($(BYTECODE),1)
 	$(CC_CMD) $(PLUGIN).ml
@@ -239,7 +241,7 @@ $(INSTALLER_TMP_DIR):
 	mkdir -p $(INSTALLER_TMP_DIR)
 
 $(INSTALLER_TMP_DIR)/neko-osx64.tar.gz: $(INSTALLER_TMP_DIR)
-	wget http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
+	wget -nv http://nekovm.org/media/neko-2.1.0-osx64.tar.gz -O installer/neko-osx64.tar.gz
 
 # Installer
 

@@ -30,8 +30,15 @@ type error_msg =
 	| Unclosed_code
 	| Invalid_escape of char
 	| Invalid_option
+	| Unterminated_xml
 
 exception Error of error_msg * pos
+
+type xml_lexing_context = {
+	open_tag : string;
+	close_tag : string;
+	lexbuf : Sedlexing.lexbuf;
+}
 
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
@@ -42,6 +49,7 @@ let error_msg = function
 	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
 	| Invalid_option -> "Invalid regular expression option"
+	| Unterminated_xml -> "Unterminated XML literal"
 
 type lexer_file = {
 	lfile : string;
@@ -84,7 +92,8 @@ let keywords =
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
 		Cast;Override;Dynamic;Typedef;Package;
-		Inline;Using;Null;True;False;Abstract;Macro;Final];
+		Inline;Using;Null;True;False;Abstract;Macro;Final;
+		Operator;Overload];
 	h
 
 let is_valid_identifier s = try
@@ -243,11 +252,13 @@ let mk lexbuf t =
 
 let mk_ident lexbuf =
 	let s = lexeme lexbuf in
-	mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
+	mk lexbuf (Const (Ident s))
+
+let mk_keyword lexbuf kwd =
+	mk lexbuf (Kwd kwd)
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
-
 
 let ident = [%sedlex.regexp?
 	(
@@ -378,6 +389,57 @@ let rec token lexbuf =
 		let v = lexeme lexbuf in
 		let v = String.sub v 1 (String.length v - 1) in
 		mk lexbuf (Dollar v)
+	(* type decl *)
+	| "package" -> mk_keyword lexbuf Package
+	| "import" -> mk_keyword lexbuf Import
+	| "using" -> mk_keyword lexbuf Using
+	| "class" -> mk_keyword lexbuf Class
+	| "interface" -> mk_keyword lexbuf Interface
+	| "enum" -> mk_keyword lexbuf Enum
+	| "abstract" -> mk_keyword lexbuf Abstract
+	| "typedef" -> mk_keyword lexbuf Typedef
+	(* relations *)
+	| "extends" -> mk_keyword lexbuf Extends
+	| "implements" -> mk_keyword lexbuf Implements
+	(* modifier *)
+	| "extern" -> mk_keyword lexbuf Extern
+	| "static" -> mk_keyword lexbuf Static
+	| "public" -> mk_keyword lexbuf Public
+	| "private" -> mk_keyword lexbuf Private
+	| "override" -> mk_keyword lexbuf Override
+	| "dynamic" -> mk_keyword lexbuf Dynamic
+	| "inline" -> mk_keyword lexbuf Inline
+	| "macro" -> mk_keyword lexbuf Macro
+	| "final" -> mk_keyword lexbuf Final
+	| "operator" -> mk_keyword lexbuf Operator
+	| "overload" -> mk_keyword lexbuf Overload
+	(* fields *)
+	| "function" -> mk_keyword lexbuf Function
+	| "var" -> mk_keyword lexbuf Var
+	(* values *)
+	| "null" -> mk_keyword lexbuf Null
+	| "true" -> mk_keyword lexbuf True
+	| "false" -> mk_keyword lexbuf False
+	| "this" -> mk_keyword lexbuf This
+	(* expr *)
+	| "if" -> mk_keyword lexbuf If
+	| "else" -> mk_keyword lexbuf Else
+	| "while" -> mk_keyword lexbuf While
+	| "do" -> mk_keyword lexbuf Do
+	| "for" -> mk_keyword lexbuf For
+	| "break" -> mk_keyword lexbuf Break
+	| "continue" -> mk_keyword lexbuf Continue
+	| "return" -> mk_keyword lexbuf Return
+	| "switch" -> mk_keyword lexbuf Switch
+	| "case" -> mk_keyword lexbuf Case
+	| "default" -> mk_keyword lexbuf Default
+	| "throw" -> mk_keyword lexbuf Throw
+	| "try" -> mk_keyword lexbuf Try
+	| "catch" -> mk_keyword lexbuf Catch
+	| "untyped" -> mk_keyword lexbuf Untyped
+	| "new" -> mk_keyword lexbuf New
+	| "in" -> mk_keyword lexbuf In
+	| "cast" -> mk_keyword lexbuf Cast
 	| ident -> mk_ident lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char lexbuf
@@ -443,7 +505,11 @@ and code_string lexbuf open_braces =
 		code_string lexbuf open_braces
 	| "/*" ->
 		let pmin = lexeme_start lexbuf in
+		let save = contents() in
+		reset();
 		(try ignore(comment lexbuf) with Exit -> error Unclosed_comment pmin);
+		reset();
+		Buffer.add_string buf save;
 		code_string lexbuf open_braces
 	| "//", Star (Compl ('\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
 	| Plus (Compl ('/' | '"' | '\'' | '{' | '}' | '\n' | '\r')) -> store lexbuf; code_string lexbuf open_braces
@@ -472,3 +538,58 @@ and regexp_options lexbuf =
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
 	| _ -> assert false
+
+and not_xml ctx depth in_open =
+	let lexbuf = ctx.lexbuf in
+	match%sedlex lexbuf with
+	| eof ->
+		raise Exit
+	| '\n' | '\r' | "\r\n" ->
+		newline lexbuf;
+		store lexbuf;
+		not_xml ctx depth in_open
+	(* closing tag *)
+	| '<','/',ident,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
+		if s = ctx.close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml ctx (depth - 1) false
+		end else
+			not_xml ctx depth false
+	(* opening tag *)
+	| '<',ident ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
+		not_xml ctx depth in_open
+	(* /> *)
+	| '/','>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+		   In that case, decrease depth and finish if it's 0. *)
+		let depth = if in_open then depth - 1 else depth in
+		if depth < 0 then lexeme_end lexbuf
+		else not_xml ctx depth false
+	| '<' | '/' | '>' ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| _ ->
+		assert false
+
+let lex_xml p open_tag close_tag lexbuf =
+	let ctx = {
+		open_tag = open_tag;
+		close_tag = close_tag;
+		lexbuf = lexbuf;
+	} in
+	try
+		not_xml ctx 0 true
+	with Exit ->
+		error Unterminated_xml p

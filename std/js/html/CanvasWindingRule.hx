@@ -24,7 +24,7 @@
 
 package js.html;
 
-@:enum abstract CanvasWindingRule(String)
+enum abstract CanvasWindingRule(String)
 {
 	var NONZERO = "nonzero";
 	var EVENODD = "evenodd";

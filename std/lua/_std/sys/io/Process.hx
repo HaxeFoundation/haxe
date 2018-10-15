@@ -27,6 +27,7 @@ import lua.lib.luv.Signal;
 import lua.lib.luv.Loop;
 import lua.Boot;
 import lua.Table;
+import lua.NativeStringTools;
 
 import haxe.io.Bytes;
 import haxe.io.Error;
@@ -44,7 +45,7 @@ class Process {
 	public var  stdin(default,null) : haxe.io.Output;
 
 	static var argQuote = Sys.systemName() == "Windows" ? function(x) return StringTools.quoteWinArg(x,true) : StringTools.quoteUnixArg;
-	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/bash';
+	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/sh';
 
 	/**
 	  Sets the args for the shell, which will include the cmd to be executed
@@ -74,9 +75,9 @@ class Process {
 
 
 	public function new( cmd : String, ?args : Array<String>, ?detached : Bool){
-	
+
 		if( detached ) throw "Detached process is not supported on this platform";
-	
+
 		var _stdout = new Pipe(false);
 		var _stderr = new Pipe(false);
 		var _stdin  = new Pipe(false);
@@ -133,7 +134,7 @@ private class ProcessInput extends haxe.io.Input {
 
 	override public function readByte() {
 		var err_str = null;
-		if (buf == null || idx >= buf.length){
+		if (buf == null || idx >= NativeStringTools.len(buf)){
 			buf = null;
 			idx = 0;
 			var pending = true;
@@ -147,7 +148,7 @@ private class ProcessInput extends haxe.io.Input {
 		}
 		if (buf == null) throw new haxe.io.Eof();
 		if (err_str != null) throw err_str;
-		var code : Int =  cast buf.charCodeAt(idx++);
+		var code = NativeStringTools.byte(buf, ++idx);
 		return code;
 	}
 
@@ -168,6 +169,9 @@ private class ProcessInput extends haxe.io.Input {
 		return total.getBytes();
 	}
 
+	override public function close() {
+		b.close();
+	}
 }
 
 private class ProcessOutput extends haxe.io.Output {
@@ -179,7 +183,7 @@ private class ProcessOutput extends haxe.io.Output {
 	}
 
 	override public function writeByte(c : Int ) : Void {
-		b.write(String.fromCharCode(c));
+		b.write(NativeStringTools.char(c));
 	}
 
 	override public function close(){

@@ -41,9 +41,7 @@ extern class Syntax {
     /**
         Generates `$left ?? $right`
     **/
-    static inline function coalesce<T>( left:T, right:T ) : T {
-        return codeDeref('({0} ?? {1})', left, right);
-    }
+    static function coalesce<T>( left:T, right:T ) : T ;
 
     /**
         Generates `$left . $right`
@@ -191,7 +189,19 @@ extern class Syntax {
         }
         ```
     **/
-    static function foreach<TCollection,TKey,TValue>( collection:TCollection, body:TKey->TValue->Void ) : Void;
+    static inline function foreach<TCollection,TKey,TValue>(collection:TCollection, body:TKey->TValue->Void) : Void {
+        while(Syntax.foreachCondition) {
+            Syntax.foreachCollection(collection);
+            var key:TKey = Syntax.foreachKey();
+            var value:TValue = Syntax.foreachValue();
+            Syntax.keepVar(key, value, key, value);
+            body(key, value);
+        }
+    }
+    static private var foreachCondition:Bool;
+    static private function foreachCollection<T>(collection:T):Void;
+    static private function foreachKey<T>():T;
+    static private function foreachValue<T>():T;
 
     /**
         Generates `new $className($arg1, ...$argN)`
@@ -202,37 +212,37 @@ extern class Syntax {
     /**
         Generates instance field access for reading on `object`
     **/
-    static function field<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
+    static function field<T>( object:AsVar<T>, fieldName:String ) : Dynamic;
 
     /**
         Generates instance field access for reading on `object`
     **/
     @:deprecated("php.Syntax.getFiled() is deprecated. Use php.Syntax.field() instead.")
-    static function getField<T>( object:AsVar<T>, fieldName:AsVar<String> ) : Dynamic;
+    static function getField<T>( object:AsVar<T>, fieldName:String ) : Dynamic;
 
     /**
         Generates instance field access for writing on `object`
     **/
-    static function setField<T>( object:AsVar<T>, fieldName:AsVar<String>, value:Dynamic ) : Void;
+    static function setField<T>( object:AsVar<T>, fieldName:String, value:Dynamic ) : Void;
 
     /**
         Generates static field access for reading on `className`
     **/
-    static function getStaticField( className:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String> ) : Dynamic;
+    static function getStaticField( className:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:String ) : Dynamic;
 
     /**
         Generates static field access for writing on `object`
     **/
-    static function setStaticField( object:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:AsVar<String>, value:Dynamic ) : Void;
+    static function setStaticField( object:AsVar<EitherType<Class<Dynamic>,String>>, fieldName:String, value:Dynamic ) : Void;
 
     /**
         Generates a call to instance method: `$object->{$methodName}(<args>)`
     **/
-    static function call<T>( object:AsVar<T>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
+    static function call<T>( object:AsVar<T>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
     /**
         Generates a call to static method: `$className::{$methodName}(<args>)`
     **/
-    static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:AsVar<String>, args:Rest<Dynamic> ) : Dynamic;
+    static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
 
     /**
         ```
@@ -263,7 +273,7 @@ extern class Syntax {
     /**
         Don't let compiler to optimize away local var passed to this method.
     **/
-    static function keepVar( localVar:Dynamic ) : Void;
+    static function keepVar( localVar:Rest<Dynamic> ) : Void;
 
     /**
         Adds `...` operator before `args`
@@ -276,4 +286,36 @@ extern class Syntax {
         Add errors suppression operator `@` before `expression`
     **/
     static function suppress<T>( expression:T ) : T;
+
+    /**
+        Generates `clone $value`.
+        @see http://php.net/manual/en/language.oop5.cloning.php
+     */
+    static inline function clone<T>(value:T):T {
+        return Syntax.code('clone {0}', value);
+    }
+
+    /**
+        Generates `yield $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yield(value:Dynamic):Dynamic {
+        return Syntax.code('yield {0}', value);
+    }
+
+    /**
+        Generates `yield $key => $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yieldPair(key:Dynamic, value:Dynamic):Dynamic {
+        return Syntax.code('yield {0} => {1}', key, value);
+    }
+
+    /**
+        Generates `yield for $value`.
+        @see http://php.net/manual/en/language.generators.syntax.php
+     */
+    static inline function yieldFrom(value:Dynamic):Dynamic {
+        return Syntax.code('yield from {0}', value);
+    }
 }

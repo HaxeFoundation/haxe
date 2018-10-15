@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DataChannel.webidl. Do not edit!
+// This file is generated from mozilla\RTCDataChannel.webidl. Do not edit!
 
 package js.html.rtc;
 
-@:enum abstract DataChannelState(String)
+enum abstract DataChannelState(String)
 {
 	var CONNECTING = "connecting";
 	var OPEN = "open";

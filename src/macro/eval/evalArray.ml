@@ -26,13 +26,9 @@ let create values = {
 }
 
 let array_join a f sep =
-	let buf = Rope.Buffer.create 0 in
-	let last = Array.length a - 1 in
-	Array.iteri (fun i v ->
-		Rope.Buffer.add_rope buf (f v);
-		if i <> last then Rope.Buffer.add_rope buf sep;
-	) a;
-	Rope.Buffer.contents buf
+	let l = Array.map f a in
+	let l = Array.to_list l in
+	EvalString.join sep l
 
 let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 
@@ -200,6 +196,6 @@ let resize a l =
 		set a (l - 1) vnull;
 		()
 	end else if a.alength > l then begin
-		splice a l (a.alength - l) a.alength;
+		ignore(splice a l (a.alength - l) a.alength);
 		()
 	end else ()

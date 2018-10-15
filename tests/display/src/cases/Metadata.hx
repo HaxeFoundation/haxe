@@ -37,7 +37,7 @@ class Metadata extends DisplayTestCase {
 	}
 
 	/**
-	{-1-}class SomeOther { }{-2-}
+	class {-1-}SomeOther{-2-} { }
 
 	@:myMeta(Som{-3-}eOther)
 	class Some { }

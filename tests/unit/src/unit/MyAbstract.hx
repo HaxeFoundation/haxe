@@ -306,7 +306,7 @@ abstract MyDebugString(String) to String {
 }
 
 #if !macro
-@:enum
+enum
 abstract FakeEnumAbstract(Int) {
 	var NotFound = 404;
 	var MethodNotAllowed = 405;
@@ -320,7 +320,7 @@ abstract ExposingAbstract<S>(Array<S>) {
 }
 #end
 
-@:enum abstract GADTEnumAbstract<T:haxe.Constraints.Function>(Int) {
+enum abstract GADTEnumAbstract<T:haxe.Constraints.Function>(Int) {
 	var A:GADTEnumAbstract<Void->Void> = 1;
 	var B:GADTEnumAbstract<Int->Void> = 2;
 }

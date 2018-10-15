@@ -1,5 +1,6 @@
 import utest.Runner;
 import utest.ui.Report;
+import utest.ui.common.HeaderDisplayMode;
 
 class Main {
 	static public function main() {
@@ -9,10 +10,10 @@ class Main {
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
-		#if !lua
 		runner.addCase(new net.TestSocket());
-		#end
-		Report.create(runner);
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
 		runner.run();
 	}
 }

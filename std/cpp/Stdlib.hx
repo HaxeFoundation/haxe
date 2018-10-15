@@ -26,18 +26,18 @@ package cpp;
 extern class Stdlib
 {
    @:native("malloc")
-   public static function nativeMalloc(bytes:Int) : cpp.RawPointer<cpp.Void> return null;
+   public static function nativeMalloc(bytes:Int) : cpp.RawPointer<cpp.Void>;
    @:native("calloc")
-   public static function nativeCalloc(bytes:Int) : cpp.RawPointer<cpp.Void> return null;
+   public static function nativeCalloc(bytes:Int) : cpp.RawPointer<cpp.Void>;
    @:native("realloc")
-   public static function nativeRealloc(inPtr:cpp.RawPointer<cpp.Void>,bytes:Int) : cpp.RawPointer<cpp.Void> return null;
+   public static function nativeRealloc(inPtr:cpp.RawPointer<cpp.Void>,bytes:Int) : cpp.RawPointer<cpp.Void>;
    @:native("free")
-   public static function nativeFree(ptr:cpp.RawPointer<cpp.Void>) : Void { }
+   public static function nativeFree(ptr:cpp.RawPointer<cpp.Void>) : Void;
    @:native("memcpy")
-   public static function nativeMemcpy(dest:cpp.RawPointer<cpp.Void>, src:cpp.RawConstPointer<cpp.Void>, bytes:Int) : Void { }
+   public static function nativeMemcpy(dest:cpp.RawPointer<cpp.Void>, src:cpp.RawConstPointer<cpp.Void>, bytes:Int) : Void;
 
    @:native("hx::ClassSizeOf") @:templatedCall
-   public static function sizeof<T>(t:T) : Int { }
+   public static function sizeof<T>(t:T) : Int;
 
    inline public static function memcpy<DEST,SRC>(dest:cpp.Pointer<DEST>, src:cpp.ConstPointer<SRC>, bytes:Int) : Void
       nativeMemcpy(cast dest.ptr, cast src.ptr, bytes);

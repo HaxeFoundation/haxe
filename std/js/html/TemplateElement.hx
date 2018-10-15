@@ -24,9 +24,20 @@
 
 package js.html;
 
+/**
+	The `HTMLTemplateElement` interface enables access to the contents of an HTML `template` element.
+
+	Documentation [HTMLTemplateElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement>
+**/
 @:native("HTMLTemplateElement")
 extern class TemplateElement extends Element
 {
+	
+	/**
+		`DocumentFragment`: Returns the `template` element's template contents.
+	**/
 	var content(default,null) : DocumentFragment;
 	
 }

@@ -34,6 +34,4 @@ package js.html;
 @:native("BeforeUnloadEvent")
 extern class BeforeUnloadEvent extends Event
 {
-	var returnValue : String;
-	
 }

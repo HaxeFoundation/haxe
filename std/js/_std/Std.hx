@@ -43,10 +43,7 @@ import js.Boot;
 
 	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = untyped __js__("parseInt")(x, 10);
-		// parse again if hexadecimal
-		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
-			v = untyped __js__("parseInt")(x);
+		var v = untyped __js__('parseInt({0}, {0} && {0}[0]=="0" && ({0}[1]=="x" || {0}[1]=="X") ? 16 : 10)', x);
 		if( untyped __js__("isNaN")(v) )
 			return null;
 		return cast v;
@@ -62,12 +59,12 @@ import js.Boot;
 
 	static function __init__() : Void untyped {
 		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
-		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName","String",true));
 		__feature__("Type.resolveClass",$hxClasses["Array"] = Array);
-		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName","Array",true));
 		__feature__("Date.*", {
 			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
-			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
+			__feature__("js.Boot.isClass",__js__('Date').__name__ = "Date");
 		});
 		__feature__("Int.*",__js__('var Int = { };'));
 		__feature__("Dynamic.*",__js__('var Dynamic = { };'));

@@ -1,10 +1,10 @@
 compile-each.hxml
--main Main
+--main Main
 -neko bin/neko/sys.n
 
 --next
 compile-each.hxml
--main TestArguments
+--main TestArguments
 -neko bin/neko/TestArguments.n
 
 # --next

@@ -3,13 +3,13 @@ open Type
 
 let apply com e =
 	let rec loop var_inits e = match e.eexpr with
-		| TVar(v,Some e1) when (Meta.has (Meta.Custom ":extractorVariable") v.v_meta) ->
-			let var_inits,e1 = loop var_inits e1 in
+		| TVar(v,Some e1) when v.v_kind = VExtractorVariable ->
 			let var_inits = PMap.add v.v_id e1 var_inits in
 			var_inits,{e with eexpr = TVar(v,None)}
 		| TLocal v ->
 			begin try
 				let e_init = PMap.find v.v_id var_inits in
+				let var_inits,e_init = loop var_inits e_init in
 				let e = {e with eexpr = TBinop(OpAssign,e,e_init)} in
 				let e = {e with eexpr = TParenthesis e} in
 				let var_inits = PMap.remove v.v_id var_inits in

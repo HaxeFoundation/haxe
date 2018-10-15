@@ -4,8 +4,8 @@
 --next
 
 compile-each.hxml
--main unit.TestMain
+--main unit.TestMain
 -java bin/java
--java-lib native_java/native.jar
--java-lib java_drivers/mysql-connector-java-5.1.32-bin.jar
--java-lib java_drivers/sqlite-jdbc-3.7.2.jar
+--java-lib native_java/native.jar
+--java-lib java_drivers/mysql-connector-java-5.1.32-bin.jar
+--java-lib java_drivers/sqlite-jdbc-3.7.2.jar

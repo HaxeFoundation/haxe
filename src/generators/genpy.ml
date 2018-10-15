@@ -68,7 +68,7 @@ module KeywordHandler = struct
 	let kwds =
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
-			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
+			"and"; "as"; "assert"; "async"; "await"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; " raise"; "return"; "try"; "while";
 			"with"; "yield"; "None"; "True"; "False";
 		];
@@ -174,6 +174,8 @@ module Transformer = struct
 	let lift_expr1 is_value next_id blocks e =
 		lift_expr ~is_value:is_value ~next_id:(Some next_id) ~blocks:blocks e
 
+	let alloc_var = Type.alloc_var VGenerated
+
 	let to_tvar ?(capture = false) n t p =
 		alloc_var n t p
 		(* { v_name = n; v_type = t; v_id = 0; v_capture = capture; v_extra = None; v_meta = [] } *)
@@ -215,6 +217,39 @@ module Transformer = struct
 		mk (TBlock [
 			temp_var_def;
 			e_set_field;
+		]) e_set_field.etype e_set_field.epos
+
+	let dynamic_field_inc_dec next_id e1 s unop unop_flag t p =
+		let is_post_fix = match unop_flag with
+		| Postfix -> true
+		| Prefix -> false
+		in
+		let op = match unop with
+		| Increment -> OpAdd
+		| Decrement -> OpSub
+		| _ -> assert false
+		in
+		let one = mk (TConst(TInt(Int32.of_int(1)))) t p in
+
+		let temp_var = to_tvar (next_id()) e1.etype e1.epos in
+		let temp_var_def = mk (TVar(temp_var,Some e1)) e1.etype e1.epos in
+		let temp_local = mk (TLocal temp_var) e1.etype e1.epos in
+
+		let e_field = dynamic_field_read temp_local s t in
+
+		let prior_val_var = to_tvar (next_id()) t p in
+		let prior_val_var_def = mk (TVar(prior_val_var, Some e_field )) t p in
+		let prior_val_local = mk (TLocal prior_val_var) t p in
+
+		let e_value = mk (TBinop(op, prior_val_local, one)) t e1.epos in
+		let e_ret = if is_post_fix then prior_val_local else e_value in
+
+		let e_set_field = dynamic_field_write temp_local s e_value in
+		mk (TBlock [
+			temp_var_def;
+			prior_val_var_def;
+			e_set_field;
+			e_ret;
 		]) e_set_field.etype e_set_field.epos
 
 	let add_non_locals_to_func e = match e.eexpr with
@@ -277,13 +312,13 @@ module Transformer = struct
 		let assigns = List.fold_left (fun acc (v,value) ->
 			KeywordHandler.check_var_declaration v;
 			match value with
-				| None | Some TNull ->
+				| None | Some {eexpr = TConst TNull} ->
 					acc
 				| Some ct ->
 					let a_local = mk (TLocal v) v.v_type p in
 					let a_null = mk (TConst TNull) v.v_type p in
 					let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
-					let a_value = mk (TConst(ct)) v.v_type p in
+					let a_value = ct in
 					let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
 					let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
 					a_if :: acc
@@ -814,15 +849,13 @@ module Transformer = struct
 		| (is_value, TBinop(OpAssignOp op,{eexpr = TField(e1,FAnon cf); etype = t},e2)) when Meta.has Meta.Optional cf.cf_meta ->
 			let e = dynamic_field_read_write ae.a_next_id e1 cf.cf_name op e2 t in
 			transform_expr ~is_value:is_value e
-		(* TODO we need to deal with Increment, Decrement too!
 
-		| (_, TUnop( (Increment | Decrement) as unop, op,{eexpr = TField(e1,FAnon cf)})) when Meta.has Meta.Optional cf.cf_meta  ->
-			let  = dynamic_field_read e cf.cf_name in
-
-			let e = dynamic_field_read_write_unop ae.a_next_id e1 cf.cf_name unop op in
-			Printf.printf "dyn read write\n";
-			transform_expr e
-		*)
+		| (is_value, TUnop( (Increment | Decrement) as unop, unop_flag,{eexpr = TField(e1, FAnon cf); etype = t; epos = p})) when Meta.has Meta.Optional cf.cf_meta  ->
+			let e = dynamic_field_inc_dec ae.a_next_id e1 cf.cf_name unop unop_flag t p in
+			transform_expr ~is_value:is_value e
+		| (is_value, TUnop( (Increment | Decrement) as unop, unop_flag,{eexpr = TField(e1, FDynamic field_name); etype = t; epos = p})) ->
+			let e = dynamic_field_inc_dec ae.a_next_id e1 field_name unop unop_flag t p in
+			transform_expr ~is_value:is_value e
 		(*
 			anon field access with non optional members like iterator, length, split must be handled too, we need to Reflect on them too when it's a runtime method
 		*)
@@ -1089,7 +1122,7 @@ module Printer = struct
 		| TMeta(_,e) -> remove_outer_parens e
 		| _ -> e
 
-	let print_args args p =
+	let rec print_args pctx args p =
 		let had_value = ref false in
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
@@ -1112,11 +1145,11 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_constant ct)
+							Printf.sprintf " = %s" (print_expr pctx ct)
 		) args in
 		String.concat "," sl
 
-	let rec print_op_assign_right pctx e =
+	and print_op_assign_right pctx e =
 		match e.eexpr with
 			| TIf({eexpr = TParenthesis econd},eif,Some eelse)
 			| TIf(econd,eif,Some eelse) ->
@@ -1140,7 +1173,7 @@ module Printer = struct
 			| None -> pctx.pc_next_anon_func()
 			| Some s -> handle_keywords s
 		in
-		let s_args = print_args tf.tf_args p in
+		let s_args = print_args pctx tf.tf_args p in
 		let s_expr = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} tf.tf_expr in
 		Printf.sprintf "def %s(%s):\n%s    %s" s_name s_args pctx.pc_indent s_expr
 
@@ -1261,6 +1294,10 @@ module Printer = struct
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
 				| x, _ when is_underlying_array x ->
 					Printf.sprintf "(%s %s %s)" (print_expr pctx e1) (fst ops) (print_expr pctx e2)
+				| TInst({ cl_kind = KTypeParameter(_) }, _), _ ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
+				| _, TInst({ cl_kind = KTypeParameter(_) }, _) ->
+					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| TDynamic _, TDynamic _ ->
 					Printf.sprintf "%s(%s,%s)" (third ops) (print_expr pctx e1) (print_expr pctx e2)
 				| TDynamic _, x when is_list_or_anon x ->
@@ -1453,7 +1490,7 @@ module Printer = struct
 				do_default()
 
 	and print_try pctx e1 catches =
-		let has_catch_all = List.exists (fun (v,_) -> match v.v_type with
+		let has_catch_all = List.exists (fun (v,_) -> match follow v.v_type with
 			| TDynamic _ -> true
 			| _ -> false
 		) catches in
@@ -1865,7 +1902,7 @@ module Generator = struct
 					| e_last :: el ->
 						let new_last = {e_last with eexpr = TReturn (Some e_last)} in
 						let new_block = {expr2 with eexpr = TBlock (List.rev (new_last :: el))} in
-						let v_name = alloc_var name (tfun [] e_last.etype) e_last.epos in
+						let v_name = alloc_var VGenerated name (tfun [] e_last.etype) e_last.epos in
 						let f_name = mk (TLocal v_name) v_name.v_type e_last.epos in
 						let call_f = mk (TCall(f_name,[])) e_last.etype e_last.epos in
 						Some new_block,call_f
@@ -1895,7 +1932,7 @@ module Generator = struct
 		let e = match e.eexpr with
 			| TFunction(f) ->
 				let args = if add_self then
-					let v = alloc_var "self" t_dynamic p in
+					let v = alloc_var VGenerated "self" t_dynamic p in
 					v.v_meta <- (Meta.This,[],p) :: v.v_meta;
 					(v,None) :: f.tf_args
 				else
@@ -2115,7 +2152,6 @@ module Generator = struct
 						) c.cl_ordered_fields
 					in
 					let field_names = List.map (fun f -> handle_keywords f.cf_name) real_fields in
-					let field_names = match c.cl_dynamic with Some _ -> "__dict__" :: field_names | None -> field_names in
 					use_pass := false;
 					print ctx "\n    __slots__ = (";
 					(match field_names with

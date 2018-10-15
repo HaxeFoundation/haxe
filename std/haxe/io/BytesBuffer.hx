@@ -107,13 +107,13 @@ class BytesBuffer {
 		#end
 	}
 
-	public inline function addString( v : String ) {
+	public inline function addString( v : String, ?encoding : Encoding ) {
 		#if neko
 		untyped StringBuf.__add(b, v.__s);
 		#elseif flash
-		b.writeUTFBytes(v);
+		if( encoding == RawNative ) b.writeMultiByte(v, "unicode") else b.writeUTFBytes(v);
 		#else
-		add(Bytes.ofString(v));
+		add(Bytes.ofString(v,encoding));
 		#end
 	}
 
@@ -176,7 +176,7 @@ class BytesBuffer {
 
 	/**
 		Returns either a copy or a reference of the current bytes.
-		Once called, the buffer can no longer be used.
+		Once called, the buffer should no longer be used.
 	**/
 	public function getBytes() : Bytes untyped {
 		#if neko

@@ -9,7 +9,7 @@ class Main {
     }
 }
 
-@:enum
+enum
 abstract EnumAbstract(Int) {
     public static var VALUE = 0;
 }

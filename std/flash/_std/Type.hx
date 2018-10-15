@@ -276,7 +276,7 @@ enum ValueType {
 		return untyped if( e.params == null ) [] else e.params;
 	}
 
-	@:extern
+	extern
 	public inline static function enumIndex( e : EnumValue ) : Int {
 		return untyped e.index;
 	}

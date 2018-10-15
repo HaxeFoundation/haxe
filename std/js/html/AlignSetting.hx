@@ -24,10 +24,10 @@
 
 package js.html;
 
-@:enum abstract AlignSetting(String)
+enum abstract AlignSetting(String)
 {
 	var START = "start";
-	var MIDDLE = "middle";
+	var CENTER = "center";
 	var END = "end";
 	var LEFT = "left";
 	var RIGHT = "right";

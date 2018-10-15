@@ -22,7 +22,7 @@
 
 package lua.lib.luv.fs;
 
-@:enum
+enum
 abstract Open(String) {
   var ReadOnly                 = "r";
   var ReadOnlySync             = "rs";

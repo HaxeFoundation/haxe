@@ -536,34 +536,6 @@ class Context {
 	}
 
 	/**
-		Evaluates `e` as macro code.
-
-		Any call to this function takes effect when the macro is executed, not
-		during typing. As a consequence, this function can not introduce new
-		local variables into the macro context and may have other restrictions.
-
-		Usage example:
-
-		```haxe
-		var e = macro function(i) return i * 2;
-		var f:Int -> Int = haxe.macro.Context.eval(e);
-		trace(f(2)); // 4
-		```
-
-		Code passed in from outside the macro cannot reference anything in its
-		context, such as local variables. However, it is possible to reference
-		static methods.
-
-		This method should be considered experimental.
-
-		If `e` is null, the result is unspecified.
-	**/
-	//@:require(haxe_ver >= 3.3)
-	//public static function eval( e : Expr ) : Dynamic {
-		//return load("eval",1)(e);
-	//}
-
-	/**
 		Manually adds a dependency between module `modulePath` and an external
 		file `externFile`.
 

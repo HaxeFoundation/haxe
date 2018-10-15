@@ -32,16 +32,10 @@ package js.html;
 @:native("Permissions")
 extern class Permissions
 {
-	/** @throws DOMError */
 	
 	/**
 		Returns the user permission status for a given API.
+		@throws DOMError
 	**/
 	function query( permission : Dynamic ) : Promise<PermissionStatus>;
-	/** @throws DOMError */
-	
-	/**
-		Revokes the permission currently set on a given API.
-	**/
-	function revoke( permission : Dynamic ) : Promise<PermissionStatus>;
 }

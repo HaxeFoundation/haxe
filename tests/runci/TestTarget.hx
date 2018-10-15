@@ -1,6 +1,6 @@
 package runci;
 
-@:enum
+enum
 abstract TestTarget(String) from String {
 	var Macro = "macro";
 	var Neko = "neko";

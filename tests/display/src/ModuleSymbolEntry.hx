@@ -1,7 +1,6 @@
 // Taken from vshaxe... not ideal to copy it here
 
-@:enum
-private abstract ModuleSymbolKind(Int) {
+private enum abstract ModuleSymbolKind(Int) {
     var MClass = 1;
     var MInterface = 2;
     var MEnum = 3;

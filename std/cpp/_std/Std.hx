@@ -19,6 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+@:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
 	@:keep public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped __global__.__instanceof(v,t);

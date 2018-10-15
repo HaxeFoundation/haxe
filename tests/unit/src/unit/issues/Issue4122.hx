@@ -1,7 +1,6 @@
 package unit.issues;
 
-@:enum
-private abstract Test2(Int) to Int {
+private enum abstract Test2(Int) to Int {
 	var PROP = 123;
 }
 

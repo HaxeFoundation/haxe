@@ -21,11 +21,6 @@
  */
 package haxe.io;
 
-#if !nodejs
-import js.html.compat.Uint8Array;
-import js.html.compat.DataView;
-#end
-
 @:coreApi
 class Bytes {
 
@@ -48,7 +43,7 @@ class Bytes {
 	}
 
 	public inline function set( pos : Int, v : Int ) : Void {
-		b[pos] = v & 0xFF; // the &0xFF is necessary for js.html.compat support
+		b[pos] = v;
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
@@ -132,31 +127,38 @@ class Bytes {
 		setInt32(pos + 4, v.high);
 	}
 
-	public function getString( pos : Int, len : Int ) : String {
+	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		if( encoding == null ) encoding = UTF8;
 		var s = "";
 		var b = b;
-		var fcc = String.fromCharCode;
 		var i = pos;
 		var max = pos+len;
-		// utf8-decode and utf16-encode
-		while( i < max ) {
-			var c = b[i++];
-			if( c < 0x80 ) {
-				if( c == 0 ) break;
-				s += fcc(c);
-			} else if( c < 0xE0 )
-				s += fcc( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
-			else if( c < 0xF0 ) {
-				var c2 = b[i++];
-				s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
-			} else {
-				var c2 = b[i++];
-				var c3 = b[i++];
-				var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
-				// surrogate pair
-				s += fcc( (u >> 10) + 0xD7C0 );
-				s += fcc( (u & 0x3FF) | 0xDC00 );
+		switch( encoding ) {
+		case UTF8:
+			var debug = pos > 0;
+			// utf8-decode and utf16-encode
+			while( i < max ) {
+				var c = b[i++];
+				if( c < 0x80 ) {
+					if( c == 0 ) break;
+					s += String.fromCharCode(c);
+				} else if( c < 0xE0 )
+					s += String.fromCharCode( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
+				else if( c < 0xF0 ) {
+					var c2 = b[i++];
+					s += String.fromCharCode( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
+				} else {
+					var c2 = b[i++];
+					var c3 = b[i++];
+					var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
+					s += String.fromCharCode(u);
+				}
+			}
+		case RawNative:
+			while( i < max ) {
+				var c = b[i++] | (b[i++] << 8);
+				s += String.fromCharCode(c);
 			}
 		}
 		return s;
@@ -194,7 +196,16 @@ class Bytes {
 		return new Bytes(new BytesData(length));
 	}
 
-	public static function ofString( s : String ) : Bytes {
+	public static function ofString( s : String, ?encoding : Encoding ) : Bytes {
+		if( encoding == RawNative ) {
+			var buf = new js.html.Uint8Array(s.length << 1);
+			for( i in 0...s.length ) {
+				var c : Int = StringTools.fastCodeAt(s,i);
+				buf[i << 1] = c & 0xFF;
+				buf[(i << 1)|1] = c >> 8;
+			}
+			return new Bytes(buf.buffer);
+		}
 		var a = new Array();
 		// utf16-decode and utf8-encode
 		var i = 0;
@@ -226,6 +237,23 @@ class Bytes {
 		var hb = untyped b.hxBytes;
 		if( hb != null ) return hb;
 		return new Bytes(b);
+	}
+	
+	public static function ofHex( s : String ) : Bytes {		
+		if ( (s.length & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var a = new Array();
+		var i = 0;
+		var len = s.length >> 1;
+		while( i < len ) {
+			var high = StringTools.fastCodeAt(s, i*2);
+			var low = StringTools.fastCodeAt(s, i*2 + 1);
+			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
+			a.push( ( (high << 4) | low)  & 0xFF );
+			i++;
+		}
+
+		return new Bytes(new js.html.Uint8Array(a).buffer);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

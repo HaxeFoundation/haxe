@@ -23,23 +23,23 @@ package hl;
 
 @:coreType abstract Bytes {
 
-	@:extern public inline function new( v : Int ) {
+	extern public inline function new( v : Int ) {
 		this = alloc(v);
 	}
 
 	@:hlNative("std","bytes_blit") public function blit( pos : Int, src : Bytes, srcPos : Int, len : Int ) : Void {
 	}
 
-	@:extern @:arrayAccess public inline function getUI8( pos : Int ) : Int {
+	@:arrayAccess extern public inline function getUI8( pos : Int ) : Int {
 		return untyped $bgetui8(this,pos);
 	}
 
-	@:extern @:arrayAccess public inline function setUI8( pos : Int, value : Int ) : Int {
+	@:arrayAccess extern public inline function setUI8( pos : Int, value : Int ) : Int {
 		untyped $bsetui8(this,pos,value);
 		return value;
 	}
 
-	@:extern public inline function getI32( pos : Int ) : Int {
+	extern public inline function getI32( pos : Int ) : Int {
 		return untyped $bgeti32(this,pos);
 	}
 
@@ -51,23 +51,23 @@ package hl;
 		untyped $bsetui16(this,pos,v);
 	}
 
-	@:extern public inline function getF32( pos : Int ) : F32 {
+	extern public inline function getF32( pos : Int ) : F32 {
 		return untyped $bgetf32(this,pos);
 	}
 
-	@:extern public inline function getF64( pos : Int ) : Float {
+	extern public inline function getF64( pos : Int ) : Float {
 		return untyped $bgetf64(this,pos);
 	}
 
-	@:extern public inline function setI32( pos : Int, value : Int ) : Void {
+	extern public inline function setI32( pos : Int, value : Int ) : Void {
 		untyped $bseti32(this, pos, value);
 	}
 
-	@:extern public inline function setF32( pos : Int, value : F32 ) : Void {
+	extern public inline function setF32( pos : Int, value : F32 ) : Void {
 		untyped $bsetf32(this, pos, value);
 	}
 
-	@:extern public inline function setF64( pos : Int, value : Float ) : Void {
+	extern public inline function setF64( pos : Int, value : Float ) : Void {
 		untyped $bsetf64(this, pos, value);
 	}
 
@@ -205,7 +205,7 @@ package hl;
 	/**
 		Get the bytes reference from an array of basic types (no copy occurs)
 	**/
-	@:extern public static inline function getArray<T>( a : Array<T> ) : Bytes {
+	extern public static inline function getArray<T>( a : Array<T> ) : Bytes {
 		return untyped $abytes(a);
 	}
 

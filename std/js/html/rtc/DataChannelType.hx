@@ -20,11 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\DataChannel.webidl. Do not edit!
+// This file is generated from mozilla\RTCDataChannel.webidl. Do not edit!
 
 package js.html.rtc;
 
-@:enum abstract DataChannelType(String)
+enum abstract DataChannelType(String)
 {
 	var ARRAYBUFFER = "arraybuffer";
 	var BLOB = "blob";

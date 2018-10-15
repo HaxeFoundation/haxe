@@ -19,9 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 package sys.net;
 
+import cs.NativeArray;
+import cs.system.collections.ArrayList;
 import cs.system.net.IPEndPoint;
 import cs.system.net.sockets.AddressFamily;
 import cs.system.net.sockets.NetworkStream;
@@ -30,6 +32,7 @@ import cs.system.net.sockets.SocketFlags;
 import cs.system.net.sockets.SocketShutdown;
 import cs.system.net.sockets.SocketType;
 import cs.system.threading.Thread;
+import cs.system.net.sockets.Socket in NativeSocket;
 import haxe.io.Bytes;
 import haxe.io.Error;
 import haxe.io.Input;
@@ -40,7 +43,7 @@ import haxe.io.Output;
 **/
 @:coreapi
 class Socket {
-	private var sock : cs.system.net.sockets.Socket = null;
+	private var sock : NativeSocket = null;
 
 	/**
 		The stream on which you can read available data. By default the stream is blocking until the requested data is available,
@@ -62,7 +65,7 @@ class Socket {
 		Creates a new unconnected socket.
 	**/
 	public function new() : Void {
-		sock = new cs.system.net.sockets.Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
+		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
 		sock.Blocking = true;
 	}
 
@@ -130,7 +133,7 @@ class Socket {
 		Bind the socket to the given host/port so it can afterwards listen for connections there.
 	**/
 	public function bind( host : Host, port : Int ) : Void {
-		sock = new cs.system.net.sockets.Socket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
+		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
 		sock.Bind( new IPEndPoint(host.ipAddress, port) );
 	}
 
@@ -201,8 +204,42 @@ class Socket {
 		In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
 	**/
 	static public function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
-		throw "Not implemented yet.";
-		return null;
+		var map:Map<Int, Socket> = new Map();
+		inline function addSockets(sockets:Array<Socket>) {
+			if (sockets != null) for (s in sockets) map[s.sock.Handle.ToInt32()] = s;
+		}
+		inline function getRaw(sockets:Array<Socket>):ArrayList {
+			var a = new ArrayList(sockets == null ? 0 : sockets.length);
+			if (sockets != null) for (s in sockets) {
+				a.Add(s.sock);
+			}
+			return a;
+		}
+		inline function getOriginal(result:ArrayList) {
+			var a:Array<Socket> = [];
+			for (i in 0 ... result.Count) {
+				var s:NativeSocket = result[i];
+				a.push(map[s.Handle.ToInt32()]);
+			}
+			return a;
+		}
+
+		addSockets(read);
+		addSockets(write);
+		addSockets(others);
+
+		// unwrap Sockets into native sockets
+		var rawRead:ArrayList = getRaw(read),
+			rawWrite:ArrayList = getRaw(write),
+			rawOthers:ArrayList = getRaw(others);
+		var microsec = timeout == null ? -1 : Std.int(timeout * 1000000);
+		NativeSocket.Select(rawRead, rawWrite, rawOthers, microsec);
+		// convert native sockets back to Socket objects
+		return {
+			read: getOriginal(rawRead),
+			write: getOriginal(rawWrite),
+			others: getOriginal(rawOthers),
+		}
 	}
 
 }

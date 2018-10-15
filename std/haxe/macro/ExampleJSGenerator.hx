@@ -137,8 +137,7 @@ class ExampleJSGenerator {
 		else
 			print("function() { }");
 		newline();
-		var name = p.split(".").map(api.quoteString).join(",");
-		print('$p.__name__ = [$name]');
+		print('$p.__name__ = "$p"');
 		newline();
 		if( c.superClass != null ) {
 			var psup = getPath(c.superClass.t.get());
@@ -170,9 +169,8 @@ class ExampleJSGenerator {
 	function genEnum( e : EnumType ) {
 		genPackage(e.pack);
 		var p = getPath(e);
-		var names = p.split(".").map(api.quoteString).join(",");
 		var constructs = e.names.map(api.quoteString).join(",");
-		print('$p = $$hxClasses[\'$p\'] = { __ename__ : [$names], __constructs__ : [$constructs] }');
+		print('$p = $$hxClasses[\'$p\'] = { __ename__ : \'$p\', __constructs__ : [$constructs] }');
 		newline();
 		for( c in e.constructs.keys() ) {
 			var c = e.constructs.get(c);

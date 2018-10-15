@@ -1,5 +1,26 @@
 package unit;
 
+private typedef Foo = {
+	var bar(get, null): Bar;
+}
+
+private typedef Bar = {
+	var data: Int;
+}
+
+private class AdrianV {
+	public var bar(get, null): Bar = {data: 100};
+	function get_bar() {
+		return bar;
+	}
+
+	public function new() {}
+
+	static public function testFoo(foo: Foo) {
+		return foo.bar.data;
+	}
+}
+
 @:analyzer(no_local_dce)
 class DCEClass {
 	// used statics
@@ -162,6 +183,13 @@ class TestDCE extends Test {
 		#end
 		hf(ThrownWithToString, "toString");
 	}
+
+	public function testIssue7259() {
+		var me = new AdrianV();
+		AdrianV.testFoo(me);
+		var c = Type.getClass(me);
+		hf(c, "get_bar");
+	}
 }
 
 class UsedConstructed {
@@ -208,7 +236,7 @@ class UnusedImplements implements UsedInterface {
 }
 
 interface PropertyInterface {
-	public var x(get_x, set_x):String;
+	public var x(get, set):String;
 }
 
 class PropertyAccessorsFromBaseClass {
@@ -217,7 +245,7 @@ class PropertyAccessorsFromBaseClass {
 }
 
 class PropertyAccessorsFromBaseClassChild extends PropertyAccessorsFromBaseClass implements PropertyInterface {
-	public var x(get_x, set_x):String;
+	public var x(get, set):String;
 	public function new() { }
 }
 

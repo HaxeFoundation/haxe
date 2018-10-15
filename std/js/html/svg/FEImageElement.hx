@@ -24,9 +24,20 @@
 
 package js.html.svg;
 
+/**
+	The `SVGFEImageElement` interface corresponds to the `feImage` element.
+
+	Documentation [SVGFEImageElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEImageElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/SVGFEImageElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEImageElement>
+**/
 @:native("SVGFEImageElement")
 extern class FEImageElement extends Element
 {
+	
+	/**
+		An `SVGAnimatedPreserveAspectRatio` corresponding to the `preserveAspectRatio` attribute of the given element.
+	**/
 	var preserveAspectRatio(default,null) : AnimatedPreserveAspectRatio;
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;

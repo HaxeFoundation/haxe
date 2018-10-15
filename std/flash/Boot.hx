@@ -22,7 +22,7 @@
 package flash;
 
 #if !as3
-@:keep private class RealBoot extends Boot implements Dynamic {
+@:keep private class RealBoot extends Boot {
 	#if swc
 	public function new() {
 		super();
@@ -210,6 +210,15 @@ class Boot extends flash.display.MovieClip {
 			}
 		}
 		return new String(v);
+	}
+
+	static public function fromCodePoint( code : Int ) {
+		var o = new flash.utils.ByteArray();
+		o.endian = LITTLE_ENDIAN;
+		o.writeShort((code>>10) + 0xD7C0);
+		o.writeShort((code&0x3FF) + 0xDC00);
+		o.position = 0;
+		return o.readMultiByte(4,"unicode");
 	}
 
 	static function __unprotect__( s : String ) {

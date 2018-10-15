@@ -20,6 +20,7 @@ open Globals
 open Ast
 open Parser
 open Grammar
+open DisplayPosition
 
 (* eval *)
 type small_type =
@@ -71,9 +72,23 @@ let rec eval ctx (e,p) =
 		error (Custom "Invalid condition expression") p
 
 (* parse main *)
-let parse ctx code =
+let parse ctx code file =
 	let old = Lexer.save() in
 	let restore_cache = TokenCache.clear () in
+	let was_display = !in_display in
+	let was_display_file = !in_display_file in
+	let old_code = !code_ref in
+	code_ref := code;
+	in_display := !display_position <> null_pos;
+	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
+	let restore =
+		(fun () ->
+			restore_cache ();
+			in_display := was_display;
+			in_display_file := was_display_file;
+			code_ref := old_code;
+		)
+	in
 	let mstack = ref [] in
 	last_doc := None;
 	in_macro := Define.defined ctx Define.Macro;
@@ -85,13 +100,13 @@ let parse ctx code =
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
+			(* if encloses_resume (pos tk) then syntax_completion SCComment (pos tk); *)
 			let tk = next_token() in
-			if !use_doc then begin
-				let l = String.length s in
-				if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
-			end;
+			let l = String.length s in
+			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
+			if !in_display_file && encloses_display_position (pos tk) then syntax_completion SCComment (pos tk);
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with
@@ -122,9 +137,9 @@ let parse ctx code =
 			tk
 
 	and enter_macro p =
-		let tk, e = parse_macro_cond false sraw in
+		let tk, e = parse_macro_cond sraw in
 		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
-		if is_true (eval ctx e) || (match fst e with EConst (Ident "macro") when Path.unique_full_path p.pfile = (!resume_display).pfile -> true | _ -> false) then begin
+		if is_true (eval ctx e) then begin
 			mstack := p :: !mstack;
 			tk
 		end else
@@ -144,7 +159,7 @@ let parse ctx code =
 		| Sharp "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
-			if do_resume() then tk else error Unclosed_macro p
+			if !in_display then tk else error Unclosed_macro p
 		| _ ->
 			skip_tokens p test
 
@@ -158,8 +173,8 @@ let parse ctx code =
 	) in
 	try
 		let l = parse_file s in
-		(match !mstack with p :: _ when not (do_resume()) -> error Unclosed_macro p | _ -> ());
-		restore_cache ();
+		(match !mstack with p :: _ when not !in_display -> error Unclosed_macro p | _ -> ());
+		restore();
 		Lexer.restore old;
 		l
 	with
@@ -167,31 +182,38 @@ let parse ctx code =
 		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			Lexer.restore old;
-			restore_cache ();
+			restore();
 			error (Unexpected (fst last)) (pos last)
 		| e ->
 			Lexer.restore old;
-			restore_cache ();
+			restore();
 			raise e
 
 let parse_string com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
-	let old_display = !resume_display in
+	let old_display = !display_position in
 	let old_de = !display_error in
+	let old_in_display_file = !in_display_file in
 	let restore() =
 		(match old_file with
 		| None -> ()
 		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
-		if not inlined then resume_display := old_display;
+		if not inlined then begin
+			display_position := old_display;
+			in_display_file := old_in_display_file;
+		end;
 		Lexer.restore old;
 		display_error := old_de
 	in
 	Lexer.init p.pfile true;
 	display_error := (fun e p -> raise (Error (e,p)));
-	if not inlined then resume_display := null_pos;
+	if not inlined then begin
+		display_position := null_pos;
+		in_display_file := false;
+	end;
 	let pack, decls = try
-		parse com (Sedlexing.Utf8.from_string s)
+		parse com (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
 		error (error_msg e) (if inlined then pe else p)

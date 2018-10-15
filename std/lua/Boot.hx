@@ -29,8 +29,11 @@ import haxe.Constraints.Function;
 class Boot {
 
 	// Used temporarily for bind()
-	static var _;
+	static var _:Dynamic;
 	static var _fid = 0;
+
+	// A max stack size to respect for unpack operations
+	public static var MAXSTACKSIZE (default, null) = 1000;
 
 	public static var platformBigEndian = NativeStringTools.byte(NativeStringTools.dump(function(){}),7) > 0;
 
@@ -188,7 +191,14 @@ class Boot {
 			}
 			case "boolean" : untyped tostring(o);
 			case "string"  : o;
-			case "userdata": "<userdata>";
+			case "userdata": {
+				var mt = lua.Lua.getmetatable(o);
+				if (mt != null && mt.__tostring != null){
+					lua.Lua.tostring(o);
+				} else {
+					"<userdata>";
+				}
+			}
 			case "function": "<function>";
 			case "thread"  : "<thread>";
 			case "table": {
@@ -226,8 +236,19 @@ class Boot {
 	   Define an array from the given table
 	*/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
-		if (length == null) length = TableTools.maxn(tab) + 1; // maxn doesn't count 0 index
-		return untyped _hx_tab_array(tab, length);
+		if (length == null){
+			length = TableTools.maxn(tab);
+			if (length > 0){
+				var head = tab[1];
+				Table.remove(tab, 1);
+				tab[0] =  head;
+				return untyped _hx_tab_array(tab, length);
+			} else {
+				return [];
+			}
+		} else {
+			return untyped _hx_tab_array(tab, length);
+		}
 	}
 
 	/*
@@ -365,7 +386,7 @@ class Boot {
 	static var os_patterns = [
 		'Windows' => ['windows','^mingw','^cygwin'],
 		'Linux'   => ['linux'],
-		'Mac'     => ['mac','darwin'],
+		'Mac'     => ['mac','darwin','osx'],
 		'BSD'     => ['bsd$'],
 		'Solaris' => ['SunOS']
 	];

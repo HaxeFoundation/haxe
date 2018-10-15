@@ -28,7 +28,7 @@ type context = {
 	inf : context_infos;
 	ch : out_channel;
 	buf : Buffer.t;
-	path : path;
+	path : Globals.path;
 	mutable get_sets : (string * bool,string) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable tabs : string;
@@ -374,7 +374,7 @@ let gen_constant ctx p = function
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> spr ctx "super"
 
-let gen_function_header ctx name f params p =
+let rec gen_function_header ctx name f params p =
 	let old = ctx.in_value in
 	let old_t = ctx.local_types in
 	let old_bi = ctx.block_inits in
@@ -382,10 +382,10 @@ let gen_function_header ctx name f params p =
 	ctx.local_types <- List.map snd params @ ctx.local_types;
 	let init () =
  		List.iter (fun (v,o) -> match o with
-			| Some c when is_nullable v.v_type && c <> TNull ->
+			| Some c when is_nullable v.v_type && c.eexpr <> TConst TNull ->
 				newline ctx;
 				print ctx "if(%s==null) %s=" v.v_name v.v_name;
-				gen_constant ctx p c;
+				gen_expr ctx c;
 			| _ -> ()
 		) f.tf_args;
 		ctx.block_inits <- None;
@@ -410,9 +410,11 @@ let gen_function_header ctx name f params p =
 				match c with
 				| None ->
 					if ctx.constructor_block then print ctx " = %s" (default_value tstr);
-				| Some c ->
+				| Some ({eexpr = TConst _ } as e) ->
 					spr ctx " = ";
-					gen_constant ctx p c
+					gen_expr ctx e
+				| _ ->
+					spr ctx " = null"
 	) f.tf_args;
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
@@ -421,7 +423,7 @@ let gen_function_header ctx name f params p =
 		ctx.block_inits <- old_bi;
 	)
 
-let rec gen_call ctx e el r =
+and gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
 		spr ctx "(";
@@ -842,7 +844,7 @@ and gen_value ctx e =
 	let value block =
 		let old = ctx.in_value in
 		let t = type_str ctx e.etype e.epos in
-		let r = alloc_var (gen_local ctx "$r") e.etype e.epos in
+		let r = alloc_var VGenerated (gen_local ctx "$r") e.etype e.epos in
 		ctx.in_value <- Some r;
 		if ctx.in_static then
 			print ctx "function() : %s " t
@@ -967,9 +969,6 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
-let final m =
-	if Meta.has Meta.Final m then " final " else ""
-
 let generate_field ctx static f =
 	newline ctx;
 	ctx.in_static <- static;
@@ -1006,7 +1005,7 @@ let generate_field ctx static f =
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s%s " rights (if static then "" else final f.cf_meta);
+		print ctx "%s%s " rights (if static || not f.cf_final then "" else " final ");
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -1099,7 +1098,7 @@ let generate_class ctx c =
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_params;
 	let pack = open_block ctx in
-	print ctx "\tpublic %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
+	print ctx "\tpublic %s%s%s %s " (if c.cl_final then " final " else "") "" (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));

@@ -24,7 +24,7 @@
 
 package js.html.audio;
 
-@:enum abstract ChannelCountMode(String)
+enum abstract ChannelCountMode(String)
 {
 	var MAX = "max";
 	var CLAMPED_MAX = "clamped-max";

@@ -5,7 +5,7 @@ import utest.ui.Report;
 /**
 	This test is intented to be used by TestSys and io.TestProcess.
 */
-class TestArguments {
+class TestArguments extends utest.Test {
 	// We may compare and update the test cases of other popular langs/libs: https://gist.github.com/andyli/d55ae9ea1327bbbf749d
 	static public var expectedArgs(default, never):Array<String> = [
 		"foo",
@@ -101,8 +101,6 @@ class TestArguments {
 		null;
 	#end
 
-	function new() { }
-
 	function testArgs() {
 		var args = Sys.args();
 		for (i in 0...expectedArgs.length) {
@@ -113,7 +111,9 @@ class TestArguments {
 
 	static function main():Void {
 		var runner = new Runner();
-		Report.create(runner);
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
 		runner.addCase(new TestArguments());
 		runner.run();
 	}

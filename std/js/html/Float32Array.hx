@@ -24,15 +24,21 @@
 
 package js.html;
 
-// Explicitly include the compatibility class
-import js.html.compat.Float32Array;
-
 @:native("Float32Array")
-extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
+extern class Float32Array implements ArrayBufferView implements ArrayAccess<Float>
 {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
 	
+	@:pure
+	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Float32Array;
+	@:pure
+	static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Dynamic ) : Float32Array;
+	@:native("BYTES_PER_ELEMENT")
+	var BYTES_PER_ELEMENT_(default,null) : Int;
 	var length(default,null) : Int;
+	var buffer(default,null) : ArrayBuffer;
+	var byteOffset(default,null) : Int;
+	var byteLength(default,null) : Int;
 	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
@@ -41,5 +47,24 @@ extern class Float32Array extends ArrayBufferView implements ArrayAccess<Float>
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?length : Int ) : Void;
 	@:overload( function( array : Float32Array, ?offset : Int ) : Void {} )
 	function set( array : Array<Float>, ?offset : Int ) : Void;
-	function subarray( start : Int, ?end : Int ) : Float32Array;
+	function copyWithin( target : Int, start : Int, ?end : Int ) : Float32Array;
+	function every( callback : Float -> Int -> Float32Array -> Bool, ?thisArg : Dynamic ) : Bool;
+	function fill( value : Float, ?start : Int, ?end : Int ) : Float32Array;
+	function filter( callbackfn : Float -> Int -> Float32Array -> Dynamic, ?thisArg : Dynamic ) : Float32Array;
+	function find( predicate : Float -> Int -> Float32Array -> Bool, ?thisArg : Dynamic ) : Dynamic;
+	function findIndex( predicate : Float -> Int -> Float32Array -> Bool, ?thisArg : Dynamic ) : Int;
+	function forEach( callbackfn : Float -> Int -> Float32Array -> Void, ?thisArg : Dynamic ) : Void;
+	function indexOf( searchElement : Float, ?fromIndex : Int ) : Int;
+	function join( ?separator : String ) : String;
+	function lastIndexOf( searchElement : Float, ?fromIndex : Int ) : Int;
+	function map( callbackfn : Float -> Int -> Float32Array -> Float, ?thisArg : Dynamic ) : Float32Array;
+	@:overload( function( callbackfn : Float -> Float -> Int -> Float32Array -> Float ) : Int {} )
+	function reduce( callbackfn : Dynamic -> Float -> Int -> Float32Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
+	@:overload( function( callbackfn : Float -> Float -> Int -> Float32Array -> Float ) : Int {} )
+	function reduceRight( callbackfn : Dynamic -> Float -> Int -> Float32Array -> Dynamic, initialValue : Dynamic ) : Dynamic;
+	function reverse() : Float32Array;
+	function slice( ?start : Int, ?end : Int ) : Float32Array;
+	function some( callbackfn : Float -> Int -> Float32Array -> Bool, ?thisArg : Dynamic ) : Bool;
+	function sort( ?compareFn : Float -> Float -> Int ) : Float32Array;
+	function subarray( begin : Int, ?end : Int ) : Float32Array;
 }

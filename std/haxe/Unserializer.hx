@@ -476,14 +476,14 @@ class Unserializer {
 
 private class DefaultResolver {
 	public function new() {}
-	@:final public inline function resolveClass(name:String):Class<Dynamic> return Type.resolveClass(name);
-	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return Type.resolveEnum(name);
+	public inline function resolveClass(name:String):Class<Dynamic> return Type.resolveClass(name);
+	public inline function resolveEnum(name:String):Enum<Dynamic> return Type.resolveEnum(name);
 }
 
 private class NullResolver {
 	function new() {}
-	@:final public inline function resolveClass(name:String):Class<Dynamic> return null;
-	@:final public inline function resolveEnum(name:String):Enum<Dynamic> return null;
+	public inline function resolveClass(name:String):Class<Dynamic> return null;
+	public inline function resolveEnum(name:String):Enum<Dynamic> return null;
 	public static var instance(get,null):NullResolver;
 	inline static function get_instance():NullResolver {
 		if (instance == null) instance = new NullResolver();
