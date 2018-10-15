@@ -81,6 +81,11 @@ haxe.io.Path.normalize("http://haxe.org/downloads") == "http://haxe.org/download
 haxe.io.Path.normalize("../mydir") == "../mydir";
 haxe.io.Path.normalize("../../mydir") == "../../mydir";
 haxe.io.Path.normalize("dir1/.././../mydir/..") == "..";
+haxe.io.Path.normalize(".//dir1") == "dir1";
+haxe.io.Path.normalize(".//.//dir1") == "dir1";
+haxe.io.Path.normalize("././/dir1") == "dir1";
+haxe.io.Path.normalize("././dir1") == "dir1";
+haxe.io.Path.normalize("dir1/.//dir2") == "dir1/dir2";
 
 // join
 haxe.io.Path.join(["dir1/dir2", "dir3/dir4"]) == "dir1/dir2/dir3/dir4";
