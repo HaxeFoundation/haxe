@@ -32,16 +32,6 @@ class Lua {
 		}
 	}
 
-	static public function installLuaVersionDependencies(lv:String){
-		if (lv == "-l5.1") installLib("luabitop", "1.0.2-3");
-
-		installLib("lrexlib-pcre" , "2.8.0-1");
-		installLib("luv"          , "1.22.0-1");
-		installLib("luasocket"    , "3.0rc1-2");
-		installLib("luautf8"      , "0.1.1-1");
-
-	}
-
 	static public function run(args:Array<String>) {
 		getLuaDependencies();
 		var envpath = Sys.getEnv("HOME") + '/lua_env';
@@ -63,7 +53,7 @@ class Lua {
 			runCommand("luarocks", ["config", "--user-config"], false, true); //can fail when there is no user config
 			runCommand("luarocks", ["config", "--rock-trees"]);
 
-			installLuaVersionDependencies(lv);
+			installLib("haxe-deps", "0.0.1-0");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
