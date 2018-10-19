@@ -80,6 +80,11 @@ class TestCommandBase extends utest.Test {
 				if (exitCode != random)
 					trace(name);
 				Assert.equals(random, exitCode);
+
+				// Try to avoid unlink(): Resource temporarily unavailable error
+				#if php
+				php.Global.gc_collect_cycles();
+				#end
 				FileSystem.deleteFile(path);
 			}
 		}

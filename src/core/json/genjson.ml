@@ -300,7 +300,7 @@ and generate_tconstant ctx ct =
 and generate_tfunction ctx tf =
 	let generate_arg (v,cto) = jobject [
 		"v",generate_tvar ctx v;
-		"value",jopt (generate_tconstant ctx) cto;
+		"value",jopt (generate_texpr ctx) cto;
 	] in
 	jobject [
 		"args",jlist generate_arg tf.tf_args;

@@ -386,7 +386,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				let dynamic_e = follow e.etype == t_dynamic in
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
-					| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
+					| TConst TNull , Some c -> c
 					| _ -> e
 				in
 				if has_side_effect e then begin
@@ -398,7 +398,10 @@ class inline_state ctx ethis params cf f p = object(self)
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
-				let e = mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p in
+				let e = match opt with
+					| None -> mk (TConst TNull) v.v_type v.v_pos
+					| Some e -> e
+				in
 				loop ((l,e) :: acc) [] al false
 		in
 		(*

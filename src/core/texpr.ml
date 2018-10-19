@@ -219,7 +219,7 @@ module Builder = struct
 
 	let make_typeexpr mt pos =
 		let t =
-			match mt with
+			match resolve_typedef mt with
 			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
@@ -284,7 +284,7 @@ let set_default basic a c p =
 	let t = a.v_type in
 	let ve = mk (TLocal a) t p in
 	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) basic.tvoid p
+	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,c)) t p,None)) basic.tvoid p
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters

@@ -190,7 +190,7 @@ let rec concat ctx s f = function
 let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
-        | None | Some TNull -> e
+        | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
@@ -206,23 +206,6 @@ let is_dot_access e cf =
     match follow(e.etype), cf with
     | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
         true;
-    | _ ->
-        false
-
-let is_dynamic_iterator ctx e =
-    let check x =
-        has_feature ctx "HxOverrides.iter" && (match follow x.etype with
-            | TInst ({ cl_path = [],"Array" },_)
-            | TInst ({ cl_kind = KTypeParameter _}, _)
-            | TAnon _
-            | TDynamic _
-            | TMono _ ->
-                true
-            | _ -> false
-        )
-    in
-    match e.eexpr with
-    | TField (x,f) when field_name f = "iterator" -> check x
     | _ ->
         false
 
@@ -347,15 +330,25 @@ let rec is_function_type t =
     | TAbstract({a_path=["haxe"],"Function" },_) -> true
     | _ -> false
 
-and gen_argument ctx e = begin
+and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+            (
+            if reflect then (
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+            );
+
             add_feature ctx "use._hx_bind";
             print ctx "_hx_bind(";
             gen_value ctx x;
             print ctx ",";
             gen_value ctx x;
-            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name));
+
+            if reflect then
+                print ctx ")";
+            );
     | _ ->
         gen_value ctx e;
 end
@@ -386,6 +379,15 @@ and gen_call ctx e el =
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
+     | TField (_, FStatic( { cl_path = ([],"Reflect") }, { cf_name = "callMethod" })), (obj :: fld :: args :: rest) ->
+         gen_expr ctx e;
+         spr ctx "(";
+         gen_argument ctx obj;
+         spr ctx ",";
+         gen_argument ~reflect:true ctx fld;
+         spr ctx ",";
+         gen_argument ctx args;
+         spr ctx ")";
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;
@@ -636,11 +638,6 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "]";
     | TBinop (op,e1,e2) ->
         gen_tbinop ctx op e1 e2;
-    | TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
-        add_feature ctx "use._iterator";
-        print ctx "_iterator(";
-        gen_value ctx x;
-        print ctx ")";
     | TField (x,FClosure (_,f)) ->
         add_feature ctx "use._hx_bind";
         (match x.eexpr with
@@ -2081,11 +2078,6 @@ let generate com =
     newline ctx;
     println ctx "end";
     newline ctx;
-
-    if has_feature ctx "use._iterator" then begin
-        add_feature ctx "use._hx_bind";
-        println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
-    end;
 
     if has_feature ctx "use._hx_bind" then begin
         println ctx "_hx_bind = function(o,m)";

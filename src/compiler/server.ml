@@ -260,7 +260,7 @@ let rec wait_loop process_params verbose accept =
 				| MFake | MImport -> () (* don't get classpath *)
 				| MExtern ->
 					(* if we have a file then this will override our extern type *)
-					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
+					let has_file = (try check_module_shadowing com2 directories m; false with Not_found -> true) in
 					if has_file then begin
 						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path); (* TODO *)
 						raise Not_found;

@@ -108,7 +108,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 1;
+					"minor",jint 2;
 					"patch",jint 0;
 				]
 			])

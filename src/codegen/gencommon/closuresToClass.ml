@@ -730,7 +730,7 @@ struct
 				| Some const ->
 					{ eexpr = TIf(
 						{ elocal with eexpr = TBinop(Ast.OpEq, elocal, null elocal.etype elocal.epos); etype = basic.tbool },
-						{ elocal with eexpr = TConst(const); etype = const_type basic const t },
+						const,
 						Some ( mk_cast t elocal )
 					); etype = t; epos = elocal.epos }
 			in

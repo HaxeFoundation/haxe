@@ -113,7 +113,6 @@ class TestReflect extends Test {
 	}
 
 	public function testIs() {
-		is(null,null);
 		is(0,Int,Float);
 		is(1,Int,Float);
 		is(-1,Int,Float);
