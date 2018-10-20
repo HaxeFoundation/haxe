@@ -3075,7 +3075,7 @@ let generate con =
 						{ e with eexpr = TBinop(op, e1, mk_cast t2 e2) }
 					| _ ->
 							let handler = if is_string e1.etype then begin
-									{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "Compare" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
+									{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "CompareOrdinal" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
 								end else begin
 									let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
 									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }
