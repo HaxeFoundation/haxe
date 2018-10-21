@@ -364,6 +364,21 @@ module StdBytes = struct
 		done;
 		encode_bytes ret
 	)
+	
+	let ofHex = vfun1 (fun v ->
+		let s = decode_string v in
+		let len = String.length s in
+		if (len land 1) <> 0 then exc_string "Not a hex string (odd number of digits)";
+		let ret = (Bytes.make (len lsr 1) (Char.chr 0)) in
+		for i = 0 to Bytes.length ret - 1 do
+			let high = int_of_char s.[i * 2] in
+			let low = int_of_char s.[i * 2 + 1] in
+			let high = (high land 0xF) + ((high land 0x40) lsr 6) * 9 in
+			let low = (low land 0xF) + ((low land 0x40) lsr 6) * 9 in
+			Bytes.set ret i (char_of_int (((high lsl 4) lor low) land 0xFF));
+		done;
+		encode_bytes ret
+	)
 
 	let set = vifun2 (fun vthis pos v ->
 		let this = this vthis in
