@@ -32,11 +32,11 @@ extern class XPathEvaluator
 	/** @throws DOMError */
 	@:overload( function( expression : String, ?resolver : haxe.Constraints.Function) : XPathExpression {} )
 	@:overload( function( expression : String, ?resolver : XPathNSResolver) : XPathExpression {} )
-	function createExpression( expression : String, ?resolver : String -> String ) : XPathExpression;
+	function createExpression( expression : String, ?resolver : String -> Null<String> ) : XPathExpression;
 	@:pure
 	function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
 	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
 	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	function evaluate( expression : String, contextNode : Node, ?resolver : String -> String, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

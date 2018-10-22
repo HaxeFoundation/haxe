@@ -344,7 +344,7 @@ extern class Window extends EventTarget
 	var ontouchcancel : haxe.Constraints.Function;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;
-	var onbeforeunload : Event -> String;
+	var onbeforeunload : Event -> Null<String>;
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
