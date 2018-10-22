@@ -19,9 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-import lua.lib.lrexlib.Rex;
 import lua.Table;
 import lua.Lib;
+
+import lua.lib.lrexlib.Rex;
+// Note - lrexlib gives ascii-based offsets.  Use native string tools.
 import lua.NativeStringTools;
 
 @:coreApi

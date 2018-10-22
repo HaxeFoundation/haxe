@@ -209,23 +209,6 @@ let is_dot_access e cf =
     | _ ->
         false
 
-let is_dynamic_iterator ctx e =
-    let check x =
-        has_feature ctx "HxOverrides.iter" && (match follow x.etype with
-            | TInst ({ cl_path = [],"Array" },_)
-            | TInst ({ cl_kind = KTypeParameter _}, _)
-            | TAnon _
-            | TDynamic _
-            | TMono _ ->
-                true
-            | _ -> false
-        )
-    in
-    match e.eexpr with
-    | TField (x,f) when field_name f = "iterator" -> check x
-    | _ ->
-        false
-
 (*
 	return index of a first element in the list for which `f` returns true
 	TODO: is there some standard function to do that?
@@ -642,11 +625,6 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "]";
     | TBinop (op,e1,e2) ->
         gen_tbinop ctx op e1 e2;
-    | TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
-        add_feature ctx "use._iterator";
-        print ctx "_iterator(";
-        gen_value ctx x;
-        print ctx ")";
     | TField (x,FClosure (_,f)) ->
         add_feature ctx "use._hx_bind";
         (match x.eexpr with
@@ -2087,11 +2065,6 @@ let generate com =
     newline ctx;
     println ctx "end";
     newline ctx;
-
-    if has_feature ctx "use._iterator" then begin
-        add_feature ctx "use._hx_bind";
-        println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
-    end;
 
     if has_feature ctx "use._hx_bind" then begin
         println ctx "_hx_bind = function(o,m)";

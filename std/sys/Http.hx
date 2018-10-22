@@ -103,8 +103,12 @@ class Http extends haxe.http.HttpBase {
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
-		if(request == "")
-			request = "/";
+		// ensure path begins with a forward slash
+		// this is required by original URL specifications and many servers have issues if it's not supplied
+		// see https://stackoverflow.com/questions/1617058/ok-to-skip-slash-before-query-string
+		if (request.charAt(0) != "/") {
+			request = "/" + request;
+		}
 		var port = if (portString == null || portString == "") secure ? 443:80 else Std.parseInt(portString.substr(1, portString.length - 1));
 
 		var multipart = (file != null);
