@@ -46,7 +46,7 @@ extern class FrameSetElement extends Element
 	var rows : String;
 	var onafterprint : haxe.Constraints.Function;
 	var onbeforeprint : haxe.Constraints.Function;
-	var onbeforeunload : Event -> String;
+	var onbeforeunload : Event -> Null<String>;
 	var onhashchange : haxe.Constraints.Function;
 	var onlanguagechange : haxe.Constraints.Function;
 	var onmessage : haxe.Constraints.Function;
