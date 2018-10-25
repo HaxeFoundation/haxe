@@ -169,24 +169,26 @@ class Input {
 		return buf.getBytes().toString();
 	}
 
+	private var _wasEof(default, null):Bool = false;
+
 	/**
 		Read a line of text separated by CR and/or LF bytes.
 
 		The CR/LF characters are not included in the resulting string.
 	**/
-	public function readLine() : String {
+	public function readLine() : Null<String> {
 		var buf = new BytesBuffer();
 		var last : Int;
-		var s;
+		var s = null;
 		try {
 			while( (last = readByte()) != 10 )
 				buf.addByte( last );
 			s = buf.getBytes().toString();
 			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
-		} catch( e : Eof ) {
-			s = buf.getBytes().toString();
-			if( s.length == 0 )
-				#if neko neko.Lib.rethrow #else throw #end (e);
+		} catch ( e : Eof ) {
+			if (_wasEof) throw new Eof();
+			if ( s != null ) s = buf.getBytes().toString();
+			_wasEof = true;
 		}
 		return s;
 	}
