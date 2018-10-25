@@ -23,7 +23,7 @@ package sys.io;
 
 // This class is not extern because externs overriding non-externs messes with DCE
 
-@:coreApi
+//@:coreApi
 class FileInput extends haxe.io.Input {
 	extern public override function close():Void;
 	extern public function eof():Bool;
