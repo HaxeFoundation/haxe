@@ -291,6 +291,7 @@ class Compiler {
 		try {
 			while( true ) {
 				var l = StringTools.trim(f.readLine());
+				if (l == null) break;
 				if( l == "" || !~/[A-Za-z0-9._]/.match(l) )
 					continue;
 				classes.set(l,true);
@@ -317,6 +318,7 @@ class Compiler {
 		try {
 			while( true ) {
 				var r = StringTools.trim(f.readLine());
+				if (r == null) break;
 				if( r == "" || r.substr(0,2) == "//" ) continue;
 				if( StringTools.endsWith(r,";") ) r = r.substr(0,-1);
 				if( r.charAt(0) == "-" ) {
