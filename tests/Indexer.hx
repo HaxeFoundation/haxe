@@ -25,6 +25,7 @@ class Indexer
 			while(true)
 			{
 				var ln = spaceRegex.split(i.readLine());
+				if (line == null) break;
 				// trace(ln);
 
 				inline function getPath(path:String)

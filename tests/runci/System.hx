@@ -134,7 +134,7 @@ class System {
 		var code = proc.exitCode();
 		do {
 			result = proc.stdout.readLine();
-			if (!result.startsWith("-L")) {
+			if (result == null || !result.startsWith("-L")) {
 				break;
 			}
 		} while(true);

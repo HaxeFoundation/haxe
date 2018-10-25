@@ -98,6 +98,7 @@ class Flash {
 		while (true) {
 			try {
 				line = traceProcess.stdout.readLine();
+				if (line == null) break;
 				Sys.println(line);
 				if (line.indexOf("SUCCESS: ") >= 0) {
 					return line.indexOf("SUCCESS: true") >= 0;
