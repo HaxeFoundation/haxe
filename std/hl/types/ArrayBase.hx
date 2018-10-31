@@ -106,7 +106,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	function __cast( t : Type ) : Dynamic {
-		if( t == Type.get(new ArrayDyn()) )
+		if( t == Type.get((null : ArrayDyn)) )
 			return ArrayDyn.alloc(this, false);
 		return null;
 	}
