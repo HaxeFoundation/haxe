@@ -70,5 +70,10 @@ class Log {
 		throw "Not implemented"
 		#end
 	}
+	
+	public static inline function debug<T>(v:T, ?pos:haxe.PosInfos):T {
+		haxe.Log.trace(v, pos);
+		return v;
+	}
 
 }
