@@ -50,6 +50,14 @@ import cs.StdTypes;
 
 	function toString() : String;
 
+	@:pure @:runtime inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
+	}
+
 	static function fromCharCode( code : Int ) : String;
 
 	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
