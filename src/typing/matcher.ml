@@ -1253,7 +1253,7 @@ module TexprConverter = struct
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
-				mk (TCast(e,None)) t e.epos,t,true
+				e,t,true
 		in
 		let e,t,inferred = match follow e.etype with
 			| TDynamic _ | TMono _ ->

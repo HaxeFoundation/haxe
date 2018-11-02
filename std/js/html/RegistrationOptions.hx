@@ -20,23 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\XPathEvaluator.webidl. Do not edit!
+// This file is generated from mozilla\ServiceWorkerContainer.webidl. Do not edit!
 
 package js.html;
 
-@:native("XPathEvaluator")
-extern class XPathEvaluator
+typedef RegistrationOptions =
 {
-	/** @throws DOMError */
-	function new() : Void;
-	/** @throws DOMError */
-	@:overload( function( expression : String, ?resolver : haxe.Constraints.Function) : XPathExpression {} )
-	@:overload( function( expression : String, ?resolver : XPathNSResolver) : XPathExpression {} )
-	function createExpression( expression : String, ?resolver : String -> Null<String> ) : XPathExpression;
-	@:pure
-	function createNSResolver( nodeResolver : Node ) : Node;
-	/** @throws DOMError */
-	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
+	@:optional var scope : String;
+	@:optional var updateViaCache : ServiceWorkerUpdateViaCache;
 }

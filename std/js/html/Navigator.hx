@@ -77,6 +77,11 @@ extern class Navigator
 		Returns the build identifier of the browser (e.g., "2006090803").
 	**/
 	var buildID(default,null) : String;
+	
+	/**
+		Returns a `ServiceWorkerContainer` object, which provides access to registration, removal, upgrade, and communication with the `ServiceWorker` objects for the associated document.
+	**/
+	var serviceWorker(default,null) : ServiceWorkerContainer;
 	var hardwareConcurrency(default,null) : Int;
 	
 	/**
