@@ -161,7 +161,7 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 		let args,el,tl = List.fold_left (fun (args,el,tl) cf -> match cf.cf_kind with
 			| Var _ ->
 				let has_default_expr = field_has_default_expr cf.cf_name in
-				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
+				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta || Meta.has Meta.StructInitOptional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
 				let v = alloc_var VGenerated cf.cf_name t p in
 				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in

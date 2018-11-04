@@ -157,6 +157,7 @@ type strict_meta =
 	| Struct
 	| StructAccess
 	| StructInit
+	| StructInitOptional
 	| SuppressWarnings
 	| This
 	| Throws
@@ -358,6 +359,7 @@ let get_info = function
 	| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
 	| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 	| StructInit -> ":structInit",("Allows one to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
+	| StructInitOptional -> ":structInitOptional",("When initializing the class with a structure, this field can be absent, in which case it'll be assigned the default value for its type",[UsedOn TClassField])
 	| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
 	| TemplatedCall -> ":templatedCall",("Indicates that the first parameter of static call should be treated as a template argument",[Platform Cpp; UsedOn TClassField])
 	| Throws -> ":throws",("Adds a 'throws' declaration to the generated function",[HasParam "Type as String"; Platform Java; UsedOn TClassField])
