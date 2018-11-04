@@ -707,21 +707,42 @@ let apply_params cparams params t =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let rec follow ?(del_lambdas=false) t =
+let rec follow t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| Some t -> follow ~del_lambdas t
+		| Some t -> follow t
 		| _ -> t)
 	| TLazy f ->
-		follow ~del_lambdas (lazy_type f)
+		follow (lazy_type f)
 	| TType (t,tl) ->
-		follow ~del_lambdas (apply_params t.t_params tl t.t_type)
+		follow (apply_params t.t_params tl t.t_type)
 	| TAbstract({a_path = [],"Null"},[t]) ->
-		follow ~del_lambdas t
-	| TFun (_, _) when del_lambdas ->
-		TFun ([], t_dynamic)
+		follow t
 	| _ -> t
+
+(** Assumes `follow` has already been applied *)
+let rec ambiguate_funs t =
+	match t with
+	| TFun _ -> TFun ([], t_dynamic)
+	| TMono r ->
+		(match !r with
+		| Some _ -> assert false
+		| _ -> t)
+	| TInst (a, pl) ->
+	    TInst (a, List.map ambiguate_funs pl)
+	| TEnum (a, pl) ->
+	    TEnum (a, List.map ambiguate_funs pl)
+	| TAbstract (a, pl) ->
+	    TAbstract (a, List.map ambiguate_funs pl)
+	| TType (a, pl) ->
+	    TType (a, List.map ambiguate_funs pl)
+	| TDynamic _ -> t
+	| TAnon a ->
+	    TAnon { a with a_fields =
+		    PMap.map (fun af -> { af with cf_type =
+				ambiguate_funs af.cf_type }) a.a_fields }
+	| TLazy _ -> assert false
 
 let rec is_nullable = function
 	| TMono r ->

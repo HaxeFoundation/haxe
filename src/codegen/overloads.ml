@@ -2,20 +2,25 @@ open Globals
 open Type
 open Typecore
 
+type overload_args_comparison =
+  | Same
+  | Different
+  | Impl_conflict
+
 let distinguishes_funs_as_params ctx =
   	match ctx.com.platform with
   	| Java -> false
   	| _ -> true
 
-let same_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
+let compare_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 	let get_vmtype = match get_vmtype with
 		| None -> (fun f -> f)
 		| Some f -> f
 	in
 	if List.length f1.cf_params <> List.length f2.cf_params then
-		false
+		Different
 	else
-	let del_lambdas =
+	let amb_funs =
 		match ctx with
 		| None -> false
 		| Some ctx -> not (distinguishes_funs_as_params ctx) in
@@ -27,30 +32,45 @@ let same_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 		| TLazy f ->
 			follow_skip_null (lazy_type f)
 		| TAbstract ({ a_path = [],"Null" } as a, [p]) ->
-			TAbstract(a,[follow ~del_lambdas p])
+			TAbstract(a,[follow p])
 		| TType (t,tl) ->
 			follow_skip_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
 	in
-	let same_arg t1 t2 =
+	let compare_type t1 t2 =
+	  	(if type_iseq t1 t2 then
+			Same
+		else if amb_funs && type_iseq (ambiguate_funs t1) (ambiguate_funs t2) then
+			Impl_conflict
+		else
+			Different) in
+	let compare_arg t1 t2 =
 		let t1 = get_vmtype (follow_skip_null t1) in
 		let t2 = get_vmtype (follow_skip_null t2) in
 		match t1, t2 with
-			| TType _, TType _ -> type_iseq t1 t2
+			| TType _, TType _ -> compare_type t1 t2
 			| TType _, _
-			| _, TType _ -> false
-			| _ -> type_iseq t1 t2
+			| _, TType _ -> Different
+			| _ -> compare_type t1 t2
 	in
 
 	match follow (apply_params f1.cf_params (List.map (fun (_,t) -> t) f2.cf_params) t1), follow t2 with
 		| TFun(a1,_), TFun(a2,_) ->
 			(try
-				List.for_all2 (fun (_,_,t1) (_,_,t2) ->
-				same_arg t1 t2) a1 a2
+				if List.exists2 (fun (_,_,t1) (_,_,t2) ->
+					compare_arg t1 t2 = Different) a1 a2 then
+					Different
+				else if List.exists2 (fun (_,_,t1) (_,_,t2) ->
+					compare_arg t1 t2 = Impl_conflict) a1 a2 then
+					Impl_conflict
+				else
+					Same
 			with Invalid_argument _ ->
-				false)
+				Different)
 		| _ -> assert false
 
+let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
+	compare_overload_args ?get_vmtype t1 t2 f1 f2 <> Different
 
 (** retrieves all overloads from class c and field i, as (Type.t * tclass_field) list *)
 let rec get_overloads c i =
