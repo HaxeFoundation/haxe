@@ -707,18 +707,20 @@ let apply_params cparams params t =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let rec follow t =
+let rec follow ?(del_lambdas=false) t =
 	match t with
 	| TMono r ->
 		(match !r with
-		| Some t -> follow t
+		| Some t -> follow ~del_lambdas t
 		| _ -> t)
 	| TLazy f ->
-		follow (lazy_type f)
+		follow ~del_lambdas (lazy_type f)
 	| TType (t,tl) ->
-		follow (apply_params t.t_params tl t.t_type)
+		follow ~del_lambdas (apply_params t.t_params tl t.t_type)
 	| TAbstract({a_path = [],"Null"},[t]) ->
-		follow t
+		follow ~del_lambdas t
+	| TFun (_, _) when del_lambdas ->
+		TFun ([], t_dynamic)
 	| _ -> t
 
 let rec is_nullable = function

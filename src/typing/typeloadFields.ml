@@ -1265,7 +1265,7 @@ let check_overloads ctx c =
 		if Meta.has Meta.Overload f.cf_meta then
 			List.iter (fun f2 ->
 				try
-					ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
+					ignore (List.find (fun f3 -> f3 != f2 && Overloads.same_overload_args ~ctx f2.cf_type f3.cf_type f2 f3) (f :: f.cf_overloads));
 					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f2.cf_name) f2.cf_pos
 				with | Not_found -> ()
 		) (f :: f.cf_overloads)) (c.cl_ordered_fields @ c.cl_ordered_statics)
@@ -1419,7 +1419,7 @@ let init_class ctx c p context_init herits fields =
 			List.iter (fun f ->
 				try
 					(* TODO: consider making a broader check, and treat some types, like TAnon and type parameters as Dynamic *)
-					ignore(List.find (fun f2 -> f != f2 && Overloads.same_overload_args f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
+					ignore(List.find (fun f2 -> f != f2 && Overloads.same_overload_args ~ctx f.cf_type f2.cf_type f f2) (ctor :: ctor.cf_overloads));
 					display_error ctx ("Another overloaded field of same signature was already declared : " ^ f.cf_name) f.cf_pos;
 				with Not_found -> ()
 			) (ctor :: ctor.cf_overloads)

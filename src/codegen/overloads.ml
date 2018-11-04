@@ -1,6 +1,13 @@
+open Globals
 open Type
+open Typecore
 
-let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
+let distinguishes_funs_as_params ctx =
+  	match ctx.com.platform with
+  	| Java -> false
+  	| _ -> true
+
+let same_overload_args ?(get_vmtype) ?(ctx) t1 t2 f1 f2 =
 	let get_vmtype = match get_vmtype with
 		| None -> (fun f -> f)
 		| Some f -> f
@@ -8,6 +15,10 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	if List.length f1.cf_params <> List.length f2.cf_params then
 		false
 	else
+	let del_lambdas =
+		match ctx with
+		| None -> false
+		| Some ctx -> not (distinguishes_funs_as_params ctx) in
 	let rec follow_skip_null t = match t with
 		| TMono r ->
 			(match !r with
@@ -16,7 +27,7 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 		| TLazy f ->
 			follow_skip_null (lazy_type f)
 		| TAbstract ({ a_path = [],"Null" } as a, [p]) ->
-			TAbstract(a,[follow p])
+			TAbstract(a,[follow ~del_lambdas p])
 		| TType (t,tl) ->
 			follow_skip_null (apply_params t.t_params tl t.t_type)
 		| _ -> t
