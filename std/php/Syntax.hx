@@ -292,7 +292,7 @@ extern class Syntax {
         @see http://php.net/manual/en/language.oop5.cloning.php
      */
     static inline function clone<T>(value:T):T {
-        return Syntax.code('clone {0}', value);
+        return Syntax.code('(clone {0})', value);
     }
 
     /**
