@@ -598,6 +598,34 @@ class StringTools {
 		}
 	}
 
+	/**
+		Replace all occurrences of the regular expression `ereg` in the String `s` 
+		by the String `by`.
+
+		This is a convenience function for `ereg.replace(s, by)`.
+
+		By default, this method replaces only the first matched substring. If
+		the global g modifier is in place, all matched substrings are replaced.
+
+		If `by` contains `$1` to `$9`, the digit corresponds to number of a
+		matched sub-group and its value is used instead. If no such sub-group
+		exists, the replacement is unspecified. The string `$$` becomes `$`.
+
+		If `s` or `by` are null, the result is unspecified.
+	**/
+	public static inline function eregReplace(s : String, ereg : EReg, by : String ) : String {
+		return ereg.replace(s, by);
+	}
+
+	/**
+		Returns `true` if `str` contains `value` and returns `false` otherwise.
+		Returns `false` if `str` is `null`.
+		When `value` is `null`, the result is undefined.
+	**/
+	public static inline function contains(str : String, value : String) : Bool {
+		return if (str == null) false else str.indexOf(value) != -1;
+	}
+
 	#if java
 	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx);
 	#end
