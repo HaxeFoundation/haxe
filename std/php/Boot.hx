@@ -22,6 +22,7 @@
 package php;
 
 import haxe.PosInfos;
+import haxe.extern.EitherType;
 
 using php.Global;
 
@@ -712,20 +713,31 @@ private class HxString {
 		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative indexes are supported since 7.1.0
 			startIndex += str.length;
 		}
-		var index = Global.mb_strpos(str, search, startIndex);
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex > length ? length : startIndex;
+		} else{
+			Global.mb_strpos(str, search, startIndex);
+		}
 		return (index == false ? -1 : index);
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
-		if(startIndex == null) {
-			startIndex = 0;
+		var start = startIndex;
+		if(start == null) {
+			start = 0;
 		} else {
-			startIndex = startIndex - str.length;
-			if(startIndex > 0) {
-				startIndex = 0;
+			start = start - str.length;
+			if(start > 0) {
+				start = 0;
 			}
 		}
-		var index = Global.mb_strrpos(str, search, startIndex);
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex == null || startIndex > length ? length : startIndex;
+		} else {
+			Global.mb_strrpos(str, search, start);
+		}
 		if (index == false) {
 			return -1;
 		} else {
