@@ -220,4 +220,11 @@ import php.*;
 		}
 	}
 
+	public static inline function eregReplace(str:String, ereg:EReg, by:String ) : String {
+		return ereg.replace(str, by);
+	}
+
+	public static inline function contains(str:String, value:String) : Bool {
+		return if (str == null) false else str.indexOf(value) != -1;
+	}
 }
