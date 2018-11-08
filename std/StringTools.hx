@@ -599,22 +599,13 @@ class StringTools {
 	}
 
 	/**
-		Replace all occurrences of the regular expression `ereg` in the String `s` 
-		by the String `by`.
+		This is a convenience function for `ereg.replace(str, by)`.
 
-		This is a convenience function for `ereg.replace(s, by)`.
-
-		By default, this method replaces only the first matched substring. If
-		the global g modifier is in place, all matched substrings are replaced.
-
-		If `by` contains `$1` to `$9`, the digit corresponds to number of a
-		matched sub-group and its value is used instead. If no such sub-group
-		exists, the replacement is unspecified. The string `$$` becomes `$`.
-
-		If `s` or `by` are null, the result is unspecified.
+		See `EReg.replace` for implementation details.  
+		@see https://haxe.org/manual/std-regex-replace.html
 	**/
-	public static inline function eregReplace(s : String, ereg : EReg, by : String ) : String {
-		return ereg.replace(s, by);
+	public static inline function eregReplace(str : String, ereg : EReg, by : String ) : String {
+		return ereg.replace(str, by);
 	}
 
 	/**
