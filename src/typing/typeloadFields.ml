@@ -1195,7 +1195,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get);
 			AccCall
 		| _,pget ->
-			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get") p;
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
 			AccCall
 	) in
 	let set = (match set with
@@ -1214,7 +1214,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set);
 			AccCall
 		| _,pset ->
-			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use set") p;
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
 	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
