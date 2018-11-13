@@ -54,7 +54,6 @@ s.charCodeAt( -1) == null;
 
 // indexOf
 var s = "foo1bar";
-s.indexOf("") == 0;
 s.indexOf("f") == 0;
 s.indexOf("o") == 1;
 s.indexOf("1") == 3;
@@ -70,15 +69,12 @@ s.indexOf("oo") == 1;
 //s.indexOf("bart") == -1;
 //s.indexOf("r", -1) == -1;
 //s.indexOf("r", -10) == -1;
-s.indexOf("", 2) == 2;
-s.indexOf("", 200) == s.length;
 s.indexOf("o", 1) == 1;
 s.indexOf("o", 2) == 2;
 s.indexOf("o", 3) == -1;
 
 // lastIndexOf
 var s = "foofoofoobarbar";
-s.lastIndexOf("") == s.length;
 s.lastIndexOf("r") == 14;
 s.lastIndexOf("a") == 13;
 s.lastIndexOf("b") == 12;
@@ -91,8 +87,6 @@ s.lastIndexOf("z") == -1;
 //s.lastIndexOf(null) == -1;
 //s.lastIndexOf(null, 1) == -1;
 //s.lastIndexOf(null, 14) == -1;
-s.lastIndexOf("", 2) == 2;
-s.lastIndexOf("", 200) == s.length;
 s.lastIndexOf("r", 14) == 14;
 s.lastIndexOf("r", 13) == 11;
 s.lastIndexOf("a", 14) == 13;
