@@ -26,4 +26,8 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml"]);
 		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "--run", "Main"]);
+	}
 }

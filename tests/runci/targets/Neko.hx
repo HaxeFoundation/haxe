@@ -14,4 +14,9 @@ class Neko {
 		runCommand("haxe", ["compile-neko.hxml"]);
 		runCommand("neko", ["bin/neko/sys.n"]);
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-neko", "bin/benchs.n"]);
+		runCommand("neko", ["bin/benchs.n"]);
+	}
 }
