@@ -20,6 +20,7 @@ using StringTools;
 class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
+		var RUN_BENCHMARKS = true;
 
 		var args = Sys.args();
 		var tests:Array<TestTarget> = switch (args.length==1 ? args[0] : Sys.getEnv("TEST")) {
@@ -98,6 +99,73 @@ class RunCi {
 				successMsg('test ${test} succeeded');
 			} else {
 				failMsg('test ${test} failed');
+			}
+		}
+
+
+		// --- BENCHMARKS
+		// this runs after each test target is properly set up, so that we don't have to re-setup them
+
+		if (success && RUN_BENCHMARKS) {
+
+			switch (ci) {
+				case TravisCI:
+					Sys.println('travis_fold:start:bench-${test}');
+				case _:
+					//pass
+			}
+
+			infoMsg('bench $test');
+			var benchSuccess = true;
+			try {
+				changeDirectory(benchsDir);
+
+
+				switch (test) {
+					case Macro:
+						runci.targets.Macro.runBench(args);
+					case Neko:
+						runci.targets.Neko.runBench(args);
+					case Php:
+					//	runci.targets.Php.runBench(args);
+					case Python:
+					//	runci.targets.Python.runBench(args);
+					case Lua:
+					//	runci.targets.Lua.runBench(args);
+					case Cpp:
+					//	runci.targets.Cpp.runBench(args, true, true);
+					case Cppia:
+					//	runci.targets.Cpp.runBench(args, false, true);
+					case Js:
+					//	runci.targets.Js.runBench(args);
+					case Java:
+					//	runci.targets.Java.runBench(args);
+					case Cs:
+					//	runci.targets.Cs.runBench(args);
+					case Flash9:
+					//	runci.targets.Flash.runBench(args);
+					case As3:
+					//	runci.targets.As3.runBench(args);
+					case Hl:
+					//	runci.targets.Hl.runBench(args);
+					case t:
+						throw "unknown target: " + t;
+				}
+			} catch(f:Failure) {
+				benchSuccess = false;
+			}
+
+			switch (ci) {
+				case TravisCI:
+					Sys.println('travis_fold:end:bench-${test}');
+				case _:
+					//pass
+			}
+
+			if (benchSuccess) {
+				successMsg('bench ${test} succeeded');
+			} else {
+				failMsg('bench ${test} failed');
 			}
 		}
 
