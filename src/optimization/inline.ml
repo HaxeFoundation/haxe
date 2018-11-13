@@ -504,14 +504,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let map_var v =
+		let rec map_var v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
-				if not (self#read v).i_outside then v.v_type <- map_type v.v_type;
+				if not (self#read v).i_outside then begin
+					v.v_type <- map_type v.v_type;
+					match v.v_extra with
+					| Some(tl,Some e) ->
+						v.v_extra <- Some(tl,Some (map_expr_type e));
+					| _ ->
+						()
+				end
 			end;
 			v
-		in
-		let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
+		and map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
 		map_expr_type e
 end
 
