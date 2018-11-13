@@ -270,7 +270,7 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline ->
+			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (List.memq cf !inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
@@ -293,7 +293,12 @@ let rec reduce_loop ctx e =
 		reduce_expr ctx (reduce_control_flow ctx e))
 
 let reduce_expression ctx e =
-	if ctx.com.foptimize then reduce_loop ctx e else e
+	if ctx.com.foptimize then
+		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
+		   inlining (#7569). *)
+		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+	else
+		e
 
 let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
