@@ -155,7 +155,7 @@ let reify in_macro =
 		let rec fparam t p =
 			let fields = [
 				"name", to_placed_name t.tp_name;
-				"constraints", to_opt to_ctype t.tp_constraints p;
+				"constraints", (match t.tp_constraints with None -> to_null p | Some ct -> to_array to_ctype [ct] p);
 				"params", to_array fparam t.tp_params p;
 			] in
 			to_obj fields p
