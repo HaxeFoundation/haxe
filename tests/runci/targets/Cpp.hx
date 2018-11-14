@@ -79,4 +79,9 @@ class Cpp {
 		// 	runCpp("bin/TestObjc-debug");
 		// }
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-cpp", "bin/benchs.cpp"]);
+		runCpp("bin/benchs.cpp/Main", []);
+	}
 }

@@ -101,10 +101,14 @@ class RunCi {
 				failMsg('test ${test} failed');
 			}
 
-			// --- BENCHMARKS
-			// this runs after each test target is successful and so properly set up, so that we don't have to re-setup them
+			/**
+				BENCHMARKS
 
-			if (success && RUN_BENCHMARKS) {
+				these run after each target's tests (so all dependencies are already set up)
+				and only for the targets that can write to the console
+			*/
+			var isBenchable = [Macro, Neko, Lua, Php, Php7, Cpp, Java, Cs, Python, Hl, /*Node*/Js].indexOf(test) >= 0;
+			if (success && RUN_BENCHMARKS && isBenchable) {
 
 				switch (ci) {
 					case TravisCI:
@@ -125,27 +129,21 @@ class RunCi {
 						case Neko:
 							runci.targets.Neko.runBench(args);
 						case Php:
-						//	runci.targets.Php.runBench(args);
+							runci.targets.Php.runBench(args);
 						case Python:
-						//	runci.targets.Python.runBench(args);
+							runci.targets.Python.runBench(args);
 						case Lua:
-						//	runci.targets.Lua.runBench(args);
+							runci.targets.Lua.runBench(args);
 						case Cpp:
-						//	runci.targets.Cpp.runBench(args, true, true);
-						case Cppia:
-						//	runci.targets.Cpp.runBench(args, false, true);
+							runci.targets.Cpp.runBench(args);
 						case Js:
-						//	runci.targets.Js.runBench(args);
+							runci.targets.Js.runBench(args);
 						case Java:
-						//	runci.targets.Java.runBench(args);
+							runci.targets.Java.runBench(args);
 						case Cs:
-						//	runci.targets.Cs.runBench(args);
-						case Flash9:
-						//	runci.targets.Flash.runBench(args);
-						case As3:
-						//	runci.targets.As3.runBench(args);
+							runci.targets.Cs.runBench(args);
 						case Hl:
-						//	runci.targets.Hl.runBench(args);
+							runci.targets.Hl.runBench(args);
 						case t:
 							throw "unknown target: " + t;
 					}
@@ -166,7 +164,6 @@ class RunCi {
 					failMsg('bench ${test} failed');
 				}
 			}
-			// --- end BENCHMARKS
 		}
 
 		if (success) {

@@ -68,4 +68,9 @@ class Lua {
 			runCommand("haxe", ["compile.hxml"]);
 		}
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-lua", "bin/benchs.lua"]);
+		runCommand("lua", ["bin/benchs.lua"]);
+	}
 }

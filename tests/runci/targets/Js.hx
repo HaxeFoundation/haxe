@@ -93,4 +93,9 @@ class Js {
 		// runCommand("haxe", ["build.hxml"]);
 		// runCommand("node", ["test.js"]);
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-js", "bin/benchs.js"]);
+		runCommand("node", ["bin/benchs.js"]);
+	}
 }

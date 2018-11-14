@@ -39,4 +39,9 @@ class Java {
 			}
 		}
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-java", "bin/benchs.java"]);
+		runCommand("java", ["-jar", "bin/benchs.java/Main.jar"]);
+	}
 }

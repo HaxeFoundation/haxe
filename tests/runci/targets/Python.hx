@@ -75,4 +75,12 @@ class Python {
 			runCommand(py, ["test.py"]);
 		}
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		var pys = getPythonDependencies();
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-python", "bin/benchs.py"]);
+		for (py in pys) {
+			runCommand(py, ["bin/benchs.py"]);
+		}
+	}
 }

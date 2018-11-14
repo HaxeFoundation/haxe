@@ -44,7 +44,7 @@ class Hl {
         runCommand("cmake", [
             "--build", hlBuild
         ]);
-        
+
         addToPATH(Path.join([hlBuild, "bin"]));
         runCommand("hl", ["--version"]);
     }
@@ -55,5 +55,10 @@ class Hl {
         runCommand("hl", ["bin/unit.hl"]);
 
         // TODO sys test
+    }
+
+    static public function runBench(args:Array<String>, benchCase:String = "") {
+        runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-hl", "bin/benchs.hl"]);
+        runCommand("hl", ["bin/benchs.hl"]);
     }
 }

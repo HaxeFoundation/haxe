@@ -80,4 +80,9 @@ class Cs {
 			runCs("bin/main/bin/Main.exe");
 		}
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-cs", "bin/benchs.cs"]);
+		runCs("bin/benchs.cs/bin/Main.exe", []);
+	}
 }

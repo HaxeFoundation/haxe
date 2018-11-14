@@ -38,4 +38,9 @@ class Php {
 		runCommand("haxe", ["compile-php.hxml"]);
 		runCommand("php", ["bin/php/Main/index.php"]);
 	}
+
+	static public function runBench(args:Array<String>, benchCase:String = "") {
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-php", "bin/benchs.php"]);
+		runCommand("php", ["bin/benchs.php/index.php"]);
+	}
 }
