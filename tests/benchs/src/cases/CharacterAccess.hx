@@ -74,6 +74,7 @@ class CharacterAccess extends TestCase {
 		return suite.run();
 	}
 
+	#if !cpp
 	function measureL1000000() {
 		var s = "".lpad("a", 1000000);
 		var suite = new Suite("length 1000000");
@@ -103,4 +104,5 @@ class CharacterAccess extends TestCase {
 		}, var index = 0);
 		return suite.run();
 	}
+	#end
 }
