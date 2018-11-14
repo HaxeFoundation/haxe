@@ -95,7 +95,7 @@ class Js {
 	}
 
 	static public function runBench(args:Array<String>, benchCase:String = "") {
-		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-js", "bin/benchs.js"]);
+		runCommand("haxe", ["build.hxml", "-D", "test=" + benchCase, "-js", "bin/benchs.js", "-lib", "hxnodejs"]);
 		runCommand("node", ["bin/benchs.js"]);
 	}
 }
