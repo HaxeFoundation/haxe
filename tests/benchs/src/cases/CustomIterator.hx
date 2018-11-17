@@ -12,7 +12,6 @@ class CustomIterator<T> extends TestCase {
 		var custom = new Custom(data);
 
 		var suite = new Suite('Custom(Array<Int>[$N])', MAX_TIME_PER_CASE);
-		suite.add("array", for (v in data) {});
 		suite.add("inlineIterator()", for (v in custom.inlineIterator()) {});
 		suite.add("iterator()", for (v in custom.iterator()) {});
 		suite.add("iteratorT()", for (v in custom.iteratorT()) {});
@@ -25,7 +24,6 @@ class CustomIterator<T> extends TestCase {
 		var custom = new Custom(data);
 
 		var suite = new Suite('Custom(Array<String>[$N])', MAX_TIME_PER_CASE);
-		suite.add("array", for (v in data) {});
 		suite.add("inlineIterator()", for (v in custom.inlineIterator()) {});
 		suite.add("iterator()", for (v in custom.iterator()) {});
 		suite.add("iteratorT()", for (v in custom.iteratorT()) {});
@@ -38,7 +36,6 @@ class CustomIterator<T> extends TestCase {
 		var custom = new Custom(data);
 
 		var suite = new Suite('Custom(Array<Dummy>[$N])', MAX_TIME_PER_CASE);
-		suite.add("array", for (v in data) {});
 		suite.add("inlineIterator()", for (v in custom.inlineIterator()) {});
 		suite.add("iterator()", for (v in custom.iterator()) {});
 		suite.add("iteratorT()", for (v in custom.iteratorT()) {});
