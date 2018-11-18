@@ -215,6 +215,7 @@ type code = {
 	strings : string array;
 	ints : int32 array;
 	floats : float array;
+	bytes : bytes array;
 	(* types : ttype array // only in bytecode, rebuilt on save() *)
 	globals : ttype array;
 	natives : (string index * string index * ttype * functable index) array;
@@ -581,6 +582,10 @@ let dump pr code =
 	Array.iteri (fun i s ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ String.escaped s);
 	) code.strings;
+	pr (string_of_int (Array.length code.bytes) ^ " bytes");
+	Array.iteri (fun i s ->
+		pr ("	@" ^ string_of_int i ^ " : " ^ string_of_int (Bytes.length s));
+	) code.bytes;
 	pr (string_of_int (Array.length code.ints) ^ " ints");
 	Array.iteri (fun i v ->
 		pr ("	@" ^ string_of_int i ^ " : " ^ Int32.to_string v);

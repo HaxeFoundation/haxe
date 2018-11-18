@@ -1015,14 +1015,11 @@ let write_c com file (code:code) =
 	line "#endif";
 
 	let used_closures = Hashtbl.create 0 in
-	let bytes_strings = Hashtbl.create 0 in
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
 			| OStaticClosure (_,fid) ->
 				Hashtbl.replace used_closures fid ()
-			| OBytes (_,sid) ->
-				Hashtbl.replace bytes_strings sid ()
 			| _ ->
 				()
 		) f.code
@@ -1145,11 +1142,10 @@ let write_c com file (code:code) =
 	) code.globals;
 
 	Array.iteri (fun i str ->
-		if Hashtbl.mem bytes_strings i then
-			sexpr "extern vbyte bytes$%d[]" i
-		else if String.length str >= string_data_limit then
+		if String.length str >= string_data_limit then
 			sexpr "extern vbyte string$%d[]" i
 	) code.strings;
+	Array.iteri (fun i _ -> sexpr "extern vbyte bytes$%d[]" i) code.bytes;
 
 	Hashtbl.iter (fun fid _ -> sexpr "extern vclosure cl$%d" fid) used_closures;
 	line "";
@@ -1196,38 +1192,40 @@ let write_c com file (code:code) =
 	unblock ctx;
 	line "}";
 
+	let output_bytes f str =
+		for i = 0 to String.length str - 1 do
+			if (i+1) mod 0x80 = 0 then f "\\\n\t";
+			if i > 0 then f ",";
+			f (string_of_int (int_of_char str.[i]));
+		done
+	in
 	Array.iteri (fun i str ->
-		let output_bytes f str =
-			for i = 0 to String.length str - 1 do
-				if (i+1) mod 0x80 = 0 then f "\\\n\t";
-				if i > 0 then f ",";
-				f (string_of_int (int_of_char str.[i]));
-			done
-		in
-		if Hashtbl.mem bytes_strings i then begin
-			if String.length str > 1000 then begin
-				let bytes_file = "hl/bytes_" ^ (Digest.to_hex (Digest.string str)) ^ ".h" in
-				let abs_file = ctx.dir ^ "/" ^ bytes_file in
-				if not (Sys.file_exists abs_file) then begin
-					let ch = open_out_bin abs_file in
-					output_bytes (output_string ch) str;
-					close_out ch;
-				end;
-				sline "vbyte bytes$%d[] = {" i;
-				output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
-				sexpr "}";
-			end else begin
-				output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
-				output_bytes (output ctx) str;
-				sexpr "}";
-			end
-		end else if String.length str >= string_data_limit then
+		if String.length str >= string_data_limit then begin
 			let s = Common.utf8_to_utf16 str true in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
 			output ctx (Printf.sprintf "vbyte string$%d[] = {" i);
 			output_bytes (output ctx) s;
-			sexpr "}"
+			sexpr "}";
+		end
 	) code.strings;
+	Array.iteri (fun i bytes ->
+		if Bytes.length bytes > 1000 then begin
+			let bytes_file = "hl/bytes_" ^ (Digest.to_hex (Digest.bytes bytes)) ^ ".h" in
+			let abs_file = ctx.dir ^ "/" ^ bytes_file in
+			if not (Sys.file_exists abs_file) then begin
+				let ch = open_out_bin abs_file in
+				output_bytes (output_string ch) (Bytes.to_string bytes);
+				close_out ch;
+			end;
+			sline "vbyte bytes$%d[] = {" i;
+			output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
+			sexpr "}";
+		end else begin
+			output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
+			output_bytes (output ctx) (Bytes.to_string bytes);
+			sexpr "}";
+		end
+	) code.bytes;
 
 	Hashtbl.iter (fun fid _ ->
 		let ft = ctx.ftable.(fid) in
