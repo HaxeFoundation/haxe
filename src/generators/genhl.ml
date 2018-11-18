@@ -3658,7 +3658,7 @@ let write_code ch code debug =
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
 	write_index (Array.length code.strings);
-	write_index (Array.length code.bytes);
+	if code.version >= 5 then write_index (Array.length code.bytes);
 	write_index (Array.length all_types);
 	write_index (Array.length code.globals);
 	write_index (Array.length code.natives);
@@ -3689,7 +3689,7 @@ let write_code ch code debug =
 			bytes_pos := !bytes_pos + Bytes.length b
 		) bytes;
 	in
-	write_bytes code.bytes;
+	if code.version >= 5 then write_bytes code.bytes;
 
 	if debug then begin
 		write_index (Array.length code.debugfiles);
@@ -3944,11 +3944,12 @@ let add_types ctx types =
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
+	let bytes = DynArray.to_array ctx.cbytes.arr in
 	{
-		version = 5;
+		version = if Array.length bytes = 0 then 4 else 5;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
-		bytes = DynArray.to_array ctx.cbytes.arr;
+		bytes = bytes;
 		ints = DynArray.to_array ctx.cints.arr;
 		floats = DynArray.to_array ctx.cfloats.arr;
 		globals = DynArray.to_array ctx.cglobals.arr;
