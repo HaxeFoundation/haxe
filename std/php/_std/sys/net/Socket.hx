@@ -123,8 +123,11 @@ class Socket {
 	public function setTimeout( timeout : Float ) : Void {
 		var s = Std.int(timeout);
 		var ms = Std.int((timeout - s) * 1000000);
-		var r = stream_set_timeout(__s, s, ms);
-		checkError(r, 0, 'Unable to set timeout');
+		var timeOut:NativeStructArray<{sec:Int, usec:Int}> = {sec: s, usec: ms};
+		var r = socket_set_option(__s, SOL_SOCKET, SO_RCVTIMEO, timeOut);
+		checkError(r, 0, 'Unable to set receive timeout');
+		r = socket_set_option(__s, SOL_SOCKET, SO_SNDTIMEO, timeOut);
+		checkError(r, 0, 'Unable to set send timeout');
 	}
 
 	public function setBlocking( b : Bool ) : Void {

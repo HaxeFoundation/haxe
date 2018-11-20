@@ -124,13 +124,21 @@ class Socket extends sys.net.Socket {
 		checkError(r, 0, 'Unable to retrieve the host name');
 		return hpOfString(r);
 	}
+
+	override public function setTimeout( timeout : Float ) : Void {
+		var s = Std.int(timeout);
+		var ms = Std.int((timeout - s) * 1000000);
+		var r = stream_set_timeout(__s, s, ms);
+		checkError(r, 0, 'Unable to set timeout');
+	}
+
 	private static function getType(isUdp : Bool) : Int {
 		return isUdp ? SOCK_DGRAM : SOCK_STREAM;
 	}
 
 	private static function getProtocol(protocol : String) : Int {
 		return getprotobyname(protocol);
- 	}
+	}
 
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
 	{
