@@ -2433,8 +2433,23 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		type_new ctx t el with_type p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
-	| EFunction (name,f) ->
-		type_local_function ctx name false f with_type p
+	| EFunction (name,f) -> begin
+		let has_fun_type t =
+			match Type.follow t with
+			| TFun _ | TDynamic _ | TMono _ | TLazy _ -> true
+			| _ -> false
+		in
+		match with_type with
+		| WithType (et, typename) ->
+			if
+				has_fun_type (Abstract.follow_with_abstracts et) ||
+				List.exists has_fun_type (Abstract.follow_with_abstracts_from et)
+			then
+				type_local_function ctx name false f with_type p
+			else
+				raise (Error (Unify [Invalid_field_type (Printf.sprintf "Wrong WithType (%s) to type a EFunction" (Type.s_type_kind (Type.follow et)))], null_pos))
+		| _ -> type_local_function ctx name false f with_type p
+	end
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;

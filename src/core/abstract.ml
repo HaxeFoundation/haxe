@@ -94,3 +94,10 @@ let rec follow_with_abstracts t = match follow t with
 		follow_with_abstracts (get_underlying_type a tl)
 	| t ->
 		t
+
+let rec follow_with_abstracts_from t =	
+	match follow t with
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+		build_abstract a;
+		List.rev_append a.a_from (List.map fst a.a_from_field)
+	| t -> []
