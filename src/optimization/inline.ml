@@ -510,7 +510,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				if not (self#read v).i_outside then begin
 					v.v_type <- map_type v.v_type;
 					match v.v_extra with
-					| Some(tl,Some e) ->
+					| Some(tl,Some e) when ctx.com.platform <> Cs ->
 						v.v_extra <- Some(tl,Some (map_expr_type e));
 					| _ ->
 						()
