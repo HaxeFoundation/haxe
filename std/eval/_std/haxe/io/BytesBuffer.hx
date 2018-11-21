@@ -25,7 +25,7 @@ package haxe.io;
 extern class BytesBuffer {
 	public var length(get, never):Int;
 	public function new():Void;
-	function get_length():Int;
+	private function get_length():Int;
 	public function addByte(byte:Int):Void;
 	public function add(src:Bytes):Void;
 	public function addString(v:String,?encoding:Encoding):Void;
