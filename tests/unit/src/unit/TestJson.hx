@@ -110,16 +110,13 @@ class TestJson extends Test {
 	}
 
 	function test7629() {
-		// Test multiple byte order marks
-		var boms = [ [65279], [239, 187, 191] ];
+		// Test UTF-8 byte order mark
 
-		for (bom in boms) {
-			var bomString = [for (byte in bom) String.fromCharCode(byte)].join("");
-			var strJson = bomString + haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
+		var bomString = [for (byte in [239, 187, 191]) String.fromCharCode(byte)].join("");
+		var strJson = bomString + haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
 
-			var parsed : Dynamic = haxe.Json.parse( strJson );
-			eq( parsed.x, -4500 );
-			eq( parsed.y, 1.456 );
-		}
+		var parsed : Dynamic = haxe.Json.parse( strJson );
+		eq( parsed.x, -4500 );
+		eq( parsed.y, 1.456 );
 	}
 }
