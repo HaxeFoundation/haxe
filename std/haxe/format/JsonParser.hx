@@ -50,7 +50,11 @@ class JsonParser {
 
 	function new( str : String ) {
 		this.str = str;
-		this.pos = 0;
+
+		// Skip various Byte-Order Marks if present in the given JSON.
+		this.pos = if (this.str.charCodeAt(0) == 239) 3 // UTF8
+		else if (this.str.charCodeAt(0) == 65279) 1 // UTF16
+		else 0;
 	}
 
 	function doParse() : Dynamic {
