@@ -949,7 +949,7 @@ and gen_syntax ctx meth args pos =
 				else
 					spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 			| _ ->
-				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_expr ctx) code_pos
+				Codegen.interpolate_code ctx.com code args (spr ctx) (gen_value ctx) code_pos
 		end
 	| "field" , [eobj;efield] ->
 		gen_value ctx eobj;
