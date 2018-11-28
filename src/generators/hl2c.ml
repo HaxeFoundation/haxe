@@ -1296,7 +1296,7 @@ let write_c com file (code:code) =
 				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
 				sprintf "{(const uchar*)%s, %d, %s, %s, %s, %s}" (string ctx nid) (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
-			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
+			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (if Array.length e.efields = 0 then "NULL" else String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 			let efields = [
 				if e.eid = 0 then "NULL" else sprintf "(const uchar*)%s" (string ctx e.eid);
 				string_of_int (Array.length e.efields);
