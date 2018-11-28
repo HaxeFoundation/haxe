@@ -134,7 +134,8 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| AKExpr e ->
 					begin match follow e.etype with
 						| TFun(_,t') when is_enum ->
-							unify ctx t' t e.epos;
+							(* TODO: this is a dodge for #7603 *)
+							(try Type.unify t' t with Unify_error _ -> ());
 							AKExpr e
 						| _ ->
 							if iscall then
