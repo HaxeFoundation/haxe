@@ -93,4 +93,13 @@ class HelperMacros {
 				error("Markup literal expected", e.pos);
 		}
 	}
+
+	static public macro function pipeMarkupLiteralUnprocessed(e:Expr) {
+		return switch (e) {
+			case macro @:markup $v{(s:String)}:
+				macro $v{s};
+			case _:
+				error("Markup literal expected", e.pos);
+		}
+	}
 }
