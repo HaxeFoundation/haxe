@@ -1399,7 +1399,7 @@ let generate com =
 		match file with
 		| path, "top" ->
 			let file_content = Std.input_file ~bin:true (fst file) in
-			print ctx "%s\n" file_content;
+			print ctx "%s\n;" file_content;
 			()
 		| _ -> ()
 	) include_files;
@@ -1467,7 +1467,7 @@ let generate com =
 		match file with
 		| path, "closure" ->
 			let file_content = Std.input_file ~bin:true (fst file) in
-			print ctx "%s\n" file_content;
+			print ctx "%s\n;" file_content;
 			()
 		| _ -> ()
 	) include_files;
