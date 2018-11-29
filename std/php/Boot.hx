@@ -710,8 +710,17 @@ private class HxString {
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative indexes are supported since 7.1.0
-			startIndex += str.length;
+		} else {
+			var length = str.length;
+			if (startIndex < 0) {
+				startIndex += length;
+				if(startIndex < 0) {
+					startIndex = 0;
+				}
+			}
+			if(startIndex >= length && search != '') {
+				return -1;
+			}
 		}
 		var index:EitherType<Int,Bool> = if(search == '') {
 			var length = str.length;
