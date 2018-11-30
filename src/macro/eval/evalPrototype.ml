@@ -172,6 +172,9 @@ end
 let is_removable_field cf =
 	cf.cf_extern || Meta.has Meta.Generic cf.cf_meta
 
+let is_persistent cf =
+	Meta.has (Meta.Custom ":persistent") cf.cf_meta
+
 let create_static_prototype ctx mt =
 	let path = (t_infos mt).mt_path in
 	let key = path_hash path in
@@ -195,7 +198,10 @@ let create_static_prototype ctx mt =
 				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
-				DynArray.add delays (fun proto -> proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull))
+				let persistent = is_persistent cf in
+				DynArray.add delays (persistent,(fun proto ->
+					proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull)
+				))
 			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (lazy vnull);
 			|  _ ->
@@ -203,7 +209,7 @@ let create_static_prototype ctx mt =
 		) fields;
 		begin match c.cl_init with
 			| None -> ()
-			| Some e -> DynArray.add delays (fun _ -> ignore(eval_expr ctx key key___init__ e))
+			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx key key___init__ e)))
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->
@@ -342,8 +348,11 @@ let add_types ctx types ready =
 		f proto;
 		match delays with
 		| [] -> ()
-		| _ -> DynArray.add fl_static_init (proto,delays)
+		| _ ->
+			DynArray.add fl_static_init (proto,delays);
+			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
+			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
 	) fl_static;
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun f -> f proto) delays) fl_static_init;
+	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
 	t()

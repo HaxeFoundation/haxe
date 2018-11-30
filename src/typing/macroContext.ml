@@ -43,8 +43,6 @@ end
 
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
-let macro_interp_on_reuse = ref []
-let macro_interp_reused = ref false
 
 let safe_decode v t p f =
 	try
@@ -338,10 +336,6 @@ let make_macro_api ctx p =
 			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
 			add_dependency m (create_fake_module ctx file);
 		);
-		MacroApi.module_reuse_call = (fun mpath call ->
-			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
-			m.m_extra.m_reuse_macro_calls <- call :: List.filter ((<>) call) m.m_extra.m_reuse_macro_calls
-		);
 		MacroApi.current_module = (fun() ->
 			ctx.m.curmod
 		);
@@ -381,9 +375,6 @@ let make_macro_api ctx p =
 			| CompilationServer.MacroContext -> add_macro ctx
 			| CompilationServer.NormalAndMacroContext -> add ctx; add_macro ctx;
 		);
-		MacroApi.on_reuse = (fun f ->
-			macro_interp_on_reuse := f :: !macro_interp_on_reuse
-		);
 		MacroApi.decode_expr = Interp.decode_expr;
 		MacroApi.encode_expr = Interp.encode_expr;
 		MacroApi.encode_ctype = Interp.encode_ctype;
@@ -399,8 +390,6 @@ let rec init_macro_interp ctx mctx mint =
 	Interp.init mint;
 	if !macro_enable_cache && not (Common.defined mctx.com Define.NoMacroCache) then begin
 		macro_interp_cache := Some mint;
-		macro_interp_on_reuse := [];
-		macro_interp_reused := true;
 	end
 
 and flush_macro_context mint ctx =
@@ -410,26 +399,6 @@ and flush_macro_context mint ctx =
 	let _, types, modules = ctx.g.do_generate mctx in
 	mctx.com.types <- types;
 	mctx.com.Common.modules <- modules;
-	let check_reuse() =
-		if !macro_interp_reused then
-			true
-		else if not (List.for_all (fun f -> f())  !macro_interp_on_reuse) then
-			false
-		else begin
-			macro_interp_reused := true;
-			true;
-		end
-	in
-	(* if one of the type we are using has been modified, we need to create a new macro context from scratch *)
-	let mint = if not (Interp.can_reuse mint types && check_reuse()) then begin
-		let com2 = mctx.com in
-		let mint = Interp.create com2 (make_macro_api ctx Globals.null_pos) true in
-		let macro = ((fun() -> Interp.select mint), mctx) in
-		ctx.g.macros <- Some macro;
-		mctx.g.macros <- Some macro;
-		init_macro_interp ctx mctx mint;
-		mint
-	end else mint in
 	(* we should maybe ensure that all filters in Main are applied. Not urgent atm *)
 	let expr_filters = [VarLazifier.apply mctx.com;AbstractCast.handle_abstract_casts mctx; CapturedVars.captured_vars mctx.com;] in
 
@@ -468,7 +437,6 @@ let create_macro_interp ctx mctx =
 			Interp.select mint;
 			mint, (fun() -> init_macro_interp ctx mctx mint)
 		| Some mint ->
-			macro_interp_reused := false;
 			Interp.do_reuse mint (make_macro_api ctx null_pos);
 			mint, (fun() -> ())
 	) in
