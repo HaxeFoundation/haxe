@@ -274,11 +274,12 @@ let encode_import (path,mode) =
 let encode_placed_name (s,p) =
 	encode_string s
 
-let rec encode_path (t,_) =
+let rec encode_path (t,p) =
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
 		"name", encode_string t.tname;
 		"params", encode_array (List.map encode_tparam t.tparams);
+		"pos", encode_pos p;
 	] in
 	encode_obj (match t.tsub with
 		| None -> fields
@@ -568,12 +569,13 @@ let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
 let rec decode_path t =
+	let p = field t "pos" in
 	{
 		tpackage = List.map decode_string (decode_array (field t "pack"));
 		tname = decode_string (field t "name");
 		tparams = decode_opt_array decode_tparam (field t "params");
 		tsub = opt decode_string (field t "sub");
-	},Globals.null_pos
+	},if p = vnull then Globals.null_pos else decode_pos p
 
 and decode_tparam v =
 	match decode_enum v with
