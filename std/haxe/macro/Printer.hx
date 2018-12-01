@@ -335,4 +335,144 @@ class Printer {
 	}
 
 	function opt<T>(v:T, f:T->String, prefix = "") return v == null ? "" : (prefix + f(v));
+
+	public function printExprWithPositions(e:Expr) {
+		var buffer = new StringBuf();
+		function format4(i:Int) {
+			return StringTools.lpad(Std.string(i), " ", 4);
+		}
+		function loop(tabs:String, e:Expr) {
+			function add(s:String, ?p = null) {
+				if (p == null) {
+					p = e.pos;
+				}
+				var p = #if macro haxe.macro.Context.getPosInfos(p) #else e.pos #end;
+				buffer.add('${format4(p.min)}-${format4(p.max)} $tabs$s\n');
+			}
+			function loopI(e:Expr) loop(tabs + tabString, e);
+			switch (e.expr) {
+				case EConst(c): add(printConstant(c));
+				case EArray(e1, e2):
+					add("EArray");
+					loopI(e1);
+					loopI(e2);
+				case EBinop(op, e1, e2):
+					add("EBinop " + printBinop(op));
+					loopI(e1);
+					loopI(e2);
+				case EField(e, field):
+					add("EField " + field);
+					loopI(e);
+				case EParenthesis(e):
+					add("EParenthesis");
+					loopI(e);
+				case EObjectDecl(fields):
+					add("EObjectDecl");
+					for (field in fields) {
+						add(field.field); // TODO: we don't have the field pos?
+						loopI(field.expr);
+					}
+				case EArrayDecl(values):
+					add("EArrayDecl");
+					values.iter(loopI);
+				case ECall(e, params):
+					add("ECall");
+					loopI(e);
+					params.iter(loopI);
+				case ENew(tp, params):
+					add("ENew " + printTypePath(tp));
+					params.iter(loopI);
+				case EUnop(op, postFix, e):
+					add("EUnop " + printUnop(op));
+					loopI(e);
+				case EVars(vars):
+					add("EVars");
+					for (v in vars) {
+						if (v.expr != null) {
+							add(v.name);
+							loopI(v.expr);
+						}
+					}
+				case EFunction(name, f):
+					add("EFunction");
+					if (f.expr != null) {
+						loopI(f.expr);
+					}
+				case EBlock(exprs):
+					add("EBlock");
+					exprs.iter(loopI);
+				case EFor(it, expr):
+					add("EFor");
+					loopI(it);
+					loopI(expr);
+				case EIf(econd, eif, eelse):
+					add("EIf");
+					loopI(econd);
+					loopI(eif);
+					if (eelse != null) {
+						loopI(eelse);
+					}
+				case EWhile(econd, e, normalWhile):
+					add("EWhile");
+					loopI(econd);
+					loopI(e);
+				case ESwitch(e, cases, edef):
+					add("ESwitch");
+					loopI(e);
+					for (c in cases) {
+						for (pat in c.values) {
+							loop(tabs + tabString + tabString, pat);
+						}
+						if (c.expr != null) {
+							loop(tabs + tabString + tabString + tabString, c.expr);
+						}
+					}
+					if (edef != null) {
+						loop(tabs + tabString + tabString + tabString, edef);
+					}
+				case ETry(e, catches):
+					add("ETry");
+					loopI(e);
+					for (c in catches) {
+						loop(tabs + tabString + tabString, c.expr);
+					}
+				case EReturn(e):
+					add("EReturn");
+					if (e != null) {
+						loopI(e);
+					}
+				case EBreak:
+					add("EBreak");
+				case EContinue:
+					add("EContinue");
+				case EUntyped(e):
+					add("EUntyped");
+					loopI(e);
+				case EThrow(e):
+					add("EThrow");
+					loopI(e);
+				case ECast(e, t):
+					add("ECast");
+					loopI(e);
+				case EDisplay(e, displayKind):
+					add("EDisplay");
+					loopI(e);
+				case EDisplayNew(t):
+					add("EDisplayNew");
+				case ETernary(econd, eif, eelse):
+					add("ETernary");
+					loopI(econd);
+					loopI(eif);
+					loopI(eelse);
+				case ECheckType(e, t):
+					add("ECheckType");
+					loopI(e);
+				case EMeta(s, e):
+					add("EMeta " + printMetadata(s));
+					loopI(e);
+			}
+		}
+		loop("", e);
+		return buffer.toString();
+	}
 }
