@@ -646,6 +646,10 @@ let optimize dump get_str (f:fundecl) =
 				let s = state.(r) in
 				do_write r;
 				s.rnullcheck <- true;
+			| OToVirtual (v,o) ->
+				do_read o;
+				do_write v;
+				state.(v).rnullcheck <- state.(o).rnullcheck
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r
