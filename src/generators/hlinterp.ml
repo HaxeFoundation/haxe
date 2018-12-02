@@ -1072,7 +1072,8 @@ let interp ctx f args =
 					| HDynObj -> 16
 					| HAbstract _ -> 17
 					| HEnum _ -> 18
-					| HNull _ -> 19)))
+					| HNull _ -> 19
+					| HMethod _ -> 20)))
 				| _ -> assert false);
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))
@@ -2323,16 +2324,24 @@ let check code macros =
 				(match rl with
 				| [] -> assert false
 				| obj :: rl2 ->
-					let t, rl = (match rtype obj with
-						| HVirtual v ->
-							let _, _, t = v.vfields.(m) in
-							t, rl2
-						| _ ->
-							tfield obj m true, rl
-					) in
-					match t with
-					| HFun (targs, tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)
-					| t -> check t (HFun (List.map rtype rl, rtype r)))
+					let check_args targs tret rl =
+						if List.length targs <> List.length rl then false else begin
+							List.iter2 reg rl targs;
+							check tret (rtype r);
+							true;
+						end
+					in
+					match rtype obj with
+					| HVirtual v ->
+						let _, _, t = v.vfields.(m) in
+						(match t with
+						| HMethod (args,ret) when check_args args ret rl2 -> ()
+						| _ -> check t (HMethod (List.map rtype rl, rtype r)))
+					| _ ->
+						let t = tfield obj m true in
+						match t with
+						| HFun (args, ret) when check_args args ret rl -> ()
+						| _ -> check t (HFun (List.map rtype rl, rtype r)))
 			| OCallClosure (r,f,rl) ->
 				(match rtype f with
 				| HFun (targs,tret) when List.length targs = List.length rl -> List.iter2 reg rl targs; check tret (rtype r)

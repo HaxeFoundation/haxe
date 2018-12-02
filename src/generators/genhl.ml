@@ -402,16 +402,7 @@ let rec to_type ?tref ctx t =
 			| None -> ()
 			| Some r -> r := Some t);
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
-			let fields = PMap.fold (fun cf acc ->
-				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
-					(* allowing functions will crash unit tests *)
-					acc
-				| Method _ ->
-					acc
-				| _ ->
-					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
-			) a.a_fields [] in
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			if fields = [] then
 				let t = HDyn in
 				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
@@ -483,6 +474,14 @@ and resolve_class ctx c pl statics =
 	| _ ->
 		c
 
+and cfield_type ctx cf =
+	let t = to_type ctx cf.cf_type in
+	let t = (match cf.cf_kind, t with
+		| Method (MethNormal|MethInline), HFun (args,ret) -> HMethod (args,ret)
+		| _ -> t
+	) in
+	(cf.cf_name,alloc_string ctx cf.cf_name,t)
+
 and field_type ctx f p =
 	match f with
 	| FInstance (c,pl,f) | FClosure (Some (c,pl),f) ->
@@ -553,7 +552,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
+			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
 		in
 		let fields = loop c in
 		vp.vfields <- Array.of_list fields;
@@ -3708,10 +3707,10 @@ let write_code ch code debug =
 		| HBool -> byte 7
 		| HBytes -> byte 8
 		| HDyn -> byte 9
-		| HFun (args,ret) ->
+		| HFun (args,ret) | HMethod (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
-			byte 10;
+			byte (match t with HFun _ -> 10 | _ -> 20);
 			byte n;
 			List.iter write_type args;
 			write_type ret

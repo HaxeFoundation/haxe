@@ -101,7 +101,7 @@ let tname str =
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 
 let is_ptr = function
@@ -129,6 +129,7 @@ let rec ctype_no_ptr = function
 	| HAbstract (name,_) -> name,1
 	| HEnum _ -> "venum",1
 	| HNull _ -> "vdynamic",1
+	| HMethod _ -> "void",1
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -173,6 +174,7 @@ let type_id t =
 	| HAbstract _ -> "HABSTRACT"
 	| HEnum _ -> "HENUM"
 	| HNull _ -> "HNULL"
+	| HMethod _ -> "HMETHOD"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -275,6 +277,7 @@ let generate_reflection ctx =
 		| HVoid | HF32 | HF64 | HI64 -> t
 		| HBool | HUI8 | HUI16 | HI32 -> HI32
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
+		| HMethod _ -> assert false
 	in
 	let type_kind_id t =
 		match t with

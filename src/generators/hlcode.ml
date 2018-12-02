@@ -46,6 +46,7 @@ type ttype =
 	| HAbstract of string * string index
 	| HEnum of enum_proto
 	| HNull of ttype
+	| HMethod of ttype list * ttype
 
 and class_proto = {
 	pname : string;
@@ -253,7 +254,7 @@ let list_mapi f l =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType | HMethod _ -> true
 	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid -> false
 
 
@@ -281,6 +282,7 @@ let rec tsame t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
 	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
 	| HObj p1, HObj p2 -> p1 == p2
 	| HEnum e1, HEnum e2 -> e1 == e2
 	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
@@ -375,7 +377,7 @@ let gather_types (code:code) =
 		DynArray.add arr t;
 		types := PMap.add t index !types;
 		match t with
-		| HFun (args, ret) ->
+		| HFun (args, ret) | HMethod (args, ret) ->
 			List.iter get_type args;
 			get_type ret
 		| HObj p ->
@@ -421,6 +423,7 @@ let rec tstr ?(stack=[]) ?(detailed=false) t =
 	| HBytes -> "bytes"
 	| HDyn  -> "dyn"
 	| HFun (args,ret) -> "(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~stack ~detailed ret
+	| HMethod (args,ret) -> "method:(" ^ String.concat "," (List.map (tstr ~stack ~detailed) args) ^ "):" ^ tstr ~stack ~detailed ret
 	| HObj o when not detailed -> "#" ^ o.pname
 	| HObj o ->
 		let fields = "{" ^ String.concat "," (List.map (fun(s,_,t) -> s ^ " : " ^ tstr ~detailed:false t) (Array.to_list o.pfields)) ^ "}" in
