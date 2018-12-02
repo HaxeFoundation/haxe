@@ -253,8 +253,8 @@ let list_mapi f l =
 *)
 let is_nullable t =
 	match t with
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ -> true
-	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid | HType -> false
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HRef _ | HType -> true
+	| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HVoid -> false
 
 
 let is_int = function
