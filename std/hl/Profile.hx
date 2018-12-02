@@ -89,7 +89,7 @@ class Profile {
 	}
 
 	static var BUFSIZE = 512;
-	static var buf = new hl.Bytes(BUFSIZE*2);
+	static var buf = null;
 	static function resolveSymbol( s : Symbol ) {
 		var size = BUFSIZE;
 		var bytes = resolve_symbol(s, buf, size);
@@ -109,6 +109,6 @@ class Profile {
 	static function track_enable(b:Bool) : Void {}
 	static function track_lock(b:Bool) : Void {}
 	static function track_enabled() : Bool { return false; }
-	static function __init__() { start(); track_enable(true); }
+	static function __init__() { buf = new hl.Bytes(BUFSIZE*2); start(); track_enable(true); }
 
 }
