@@ -28,6 +28,7 @@ class Profile {
 	public static function getData( sortBySize = false ) {
 		var old = enable;
 		enable = false;
+		if( buf == null ) buf = new hl.Bytes(BUFSIZE*2); 
 		track_lock(true);
 		var maxDepth = 0;
 		var count = track_count(maxDepth);
@@ -89,9 +90,10 @@ class Profile {
 	}
 
 	static var BUFSIZE = 512;
-	static var buf = null;
+	static var buf : hl.Bytes;
 	static function resolveSymbol( s : Symbol ) {
 		var size = BUFSIZE;
+		if( buf == null ) throw "assert";
 		var bytes = resolve_symbol(s, buf, size);
 		if( bytes == null ) return "<???>";
 		return @:privateAccess String.fromUCS2(bytes.sub(0,(size+1)*2));
@@ -109,6 +111,6 @@ class Profile {
 	static function track_enable(b:Bool) : Void {}
 	static function track_lock(b:Bool) : Void {}
 	static function track_enabled() : Bool { return false; }
-	static function __init__() { buf = new hl.Bytes(BUFSIZE*2); start(); track_enable(true); }
+	static function __init__() { start(); track_enable(true); }
 
 }
