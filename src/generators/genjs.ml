@@ -905,9 +905,9 @@ and gen_syntax ctx meth args pos =
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")"
 	| "instanceof", [o;t] ->
-		spr ctx "(";
+		spr ctx "((";
 		gen_value ctx o;
-		print ctx " instanceof ";
+		print ctx ") instanceof ";
 		gen_value ctx t;
 		spr ctx ")"
 	| "typeof", [o] ->
