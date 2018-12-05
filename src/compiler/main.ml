@@ -478,6 +478,7 @@ try
 	let swf_version = ref false in
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
+	Common.raw_define com "haxe4";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
