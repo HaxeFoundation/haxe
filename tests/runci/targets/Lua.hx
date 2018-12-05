@@ -35,6 +35,12 @@ class Lua {
 	static public function run(args:Array<String>) {
 		getLuaDependencies();
 		var envpath = Sys.getEnv("HOME") + '/lua_env';
+
+		if (FileSystem.exists(envpath)){
+			infoMsg('Previous envpath $envpath detected: deleting it');
+			FileSystem.deleteDirectory(envpath);
+		}
+
 		addToPATH(envpath + '/bin');
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
@@ -50,8 +56,10 @@ class Lua {
 			runCommand("luarocks", ["config", "--lua-libdir"]);
 			runCommand("luarocks", ["config", "--lua-ver"]);
 			runCommand("luarocks", ["config", "--system-config"]);
-			runCommand("luarocks", ["config", "--user-config"], false, true); //can fail when there is no user config
 			runCommand("luarocks", ["config", "--rock-trees"]);
+
+			// Note: don't use a user config
+			// runCommand("luarocks", ["config", "--user-config"], false, true);
 
 			installLib("haxe-deps", "0.0.1-0");
 
