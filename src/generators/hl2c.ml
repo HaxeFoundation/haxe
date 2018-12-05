@@ -536,9 +536,7 @@ let generate_function ctx f =
 		| HVirtual vp ->
 			let name, nid, t = vp.vfields.(fid) in
 			let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt (rtype v)) (reg v) in
-			(match t with
-			| HFun _ -> expr dset
-			| _ -> sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset)
+			sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset
 		| _ ->
 			assert false
 	in
@@ -551,9 +549,7 @@ let generate_function ctx f =
 		| HVirtual v ->
 			let name, nid, t = v.vfields.(fid) in
 			let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt t) in
-			(match t with
-			| HFun _ -> sexpr "%s%s" (rassign r t) dget
-			| _ -> sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget)
+			sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget
 		| _ ->
 			assert false
 	in
@@ -1318,7 +1314,7 @@ let write_c com file (code:code) =
 				string_of_int (Array.length v.vfields)
 			] in
 			sexpr "static hl_type_virtual virt$%d = {%s}" i (String.concat "," vfields);
-		| HFun (args,t) ->
+		| HFun (args,t) | HMethod(args,t) ->
 			let aname = if args = [] then "NULL" else
 				let name = sprintf "fargs$%d" i in
 				sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map (type_value ctx) args));
@@ -1347,7 +1343,7 @@ let write_c com file (code:code) =
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i;
 			sexpr "hl_init_virtual(&type$%d,ctx)" i;
-		| HFun _ ->
+		| HFun _ | HMethod _ ->
 			sexpr "type$%d.fun = &tfun$%d" i i
 		| _ ->
 			()
