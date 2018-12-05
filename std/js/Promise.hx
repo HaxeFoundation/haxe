@@ -94,11 +94,9 @@ extern class Promise<T>
 	Handler type for the Promise object.
 **/
 abstract PromiseHandler<T,TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
-	from T->Promise<TOut> // direct casts have priority, so we use that to prioritize the Promise<TOut> return type
-{
-	// function casts are checked after direct ones, so we place T->TOut here to make it have lower priority than T->Promise<TOut>
-	@:from static inline function fromNonPromise<T,TOut>(f:T->TOut):PromiseHandler<T,TOut> return cast f;
-}
+	from T->TOut // order is important, because Promise<TOut> return must have priority 
+	from T->Promise<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
+{}
 
 /**
 	A value with a `then` method.
