@@ -42,9 +42,8 @@ extern class Promise<T>
 		use `Promise.resolve(value)` instead and work with the return value as
 		a promise.
 	**/
-	@:overload(function<T>(promise : Promise<T>) : Promise<T> {})
-	@:overload(function<T>(thenable : Thenable<T>) : Promise<T> {})
-	static function resolve<T>( ?value : T ) : Promise<T>;
+	@:overload(function<T>(?value : T) : Promise<T> {})
+	static function resolve<T>( thenable : Thenable<T> ) : Promise<T>;
 
 	/**
 		Returns a Promise object that is rejected with the given reason.
@@ -79,7 +78,7 @@ extern class Promise<T>
 		its original settled value if the promise was not handled
 		(i.e. if the relevant handler onFulfilled or onRejected is not a function).
 	**/
-	function then<TOut>( fulfillCallback : Null<PromiseHandler<T, TOut>>, ?rejectCallback : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
+	function then<TOut>( onFulfilled : Null<PromiseHandler<T, TOut>>, ?onRejected : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
 
 	/**
 		Appends a rejection handler callback to the promise, and returns a new
@@ -87,7 +86,7 @@ extern class Promise<T>
 		or to its original fulfillment value if the promise is instead fulfilled.
 	**/
 	@:native("catch")
-	function catchError<TOut>( rejectCallback : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
+	function catchError<TOut>( onRejected : PromiseHandler<Dynamic, TOut> ) : Promise<TOut>;
 }
 
 /**
@@ -95,12 +94,16 @@ extern class Promise<T>
 **/
 abstract PromiseHandler<T,TOut>(T->Dynamic) // T->Dynamic, so the compiler always knows the type of the argument and can infer it for then/catch callbacks
 	from T->TOut // order is important, because Promise<TOut> return must have priority 
-	from T->Promise<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
+	from T->Thenable<TOut> // although the checking order seems to be reversed at the moment, see https://github.com/HaxeFoundation/haxe/issues/7656
+	from T->Promise<TOut> // support Promise explicitly as it doesn't work transitively through Thenable at the moment
 {}
 
 /**
 	A value with a `then` method.
 **/
-typedef Thenable<T> = {
-	function then(resolve:T->Void, ?reject:Dynamic->Void):Void;
+@:forward
+abstract Thenable<T>(ThenableStruct<T>) from ThenableStruct<T> {} // abstract wrapping prevents compiler hanging, see https://github.com/HaxeFoundation/haxe/issues/5785
+
+typedef ThenableStruct<T> = {
+	function then<TOut>( onFulfilled : Null<PromiseHandler<T, TOut>>, ?onRejected : PromiseHandler<Dynamic, TOut> ) : Thenable<TOut>;
 }
