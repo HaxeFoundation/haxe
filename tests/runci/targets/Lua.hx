@@ -33,16 +33,14 @@ class Lua {
 	}
 
 	static public function run(args:Array<String>) {
+
 		getLuaDependencies();
-		var envpath = Sys.getEnv("HOME") + '/lua_env';
 
-		if (FileSystem.exists(envpath)){
-			infoMsg('Previous envpath $envpath detected: deleting it');
-			FileSystem.deleteDirectory(envpath);
-		}
-
-		addToPATH(envpath + '/bin');
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
+
+			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
+			addToPATH(envpath + '/bin');
+
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
