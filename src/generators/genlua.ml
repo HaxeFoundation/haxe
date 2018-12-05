@@ -2041,8 +2041,8 @@ let generate com =
         println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
         println ctx "if bit then";
         println ctx "  _hx_bit = bit";
-        println ctx "elseif bit32 then";
-        println ctx "  local _hx_bit_raw = bit32";
+        println ctx "else";
+        println ctx "  local _hx_bit_raw = _G.require('bit32')";
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
