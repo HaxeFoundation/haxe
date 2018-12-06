@@ -1,5 +1,7 @@
 package unit.issues;
 
+private interface Interface { }
+
 class Issue7115 extends unit.Test {
 	function testIs() {
 		f(Std.is(getNull(), Int));
@@ -10,6 +12,7 @@ class Issue7115 extends unit.Test {
 		f(Std.is(getNull(), haxe.ds.Option));
 		f(Std.is(getNull(), Dynamic));
 		f(Std.is(getNull(), null));
+		f(Std.is(getNull(), Interface));
 	}
 
 	function testCast() {
@@ -19,6 +22,7 @@ class Issue7115 extends unit.Test {
 		eq(null, cast(getNull(), String));
 		eq(null, cast(getNull(), Issue7115));
 		eq(null, cast(getNull(), haxe.ds.Option<Dynamic>));
+		eq(null, cast(getNull(), Interface));
 	}
 
 	function testCatch() {
@@ -72,6 +76,15 @@ class Issue7115 extends unit.Test {
 		var i = try {
 			throw (getNull() : haxe.ds.Option<Dynamic>);
 		} catch(s:haxe.ds.Option<Dynamic>) {
+			1;
+		} catch(e:Dynamic) {
+			2;
+		}
+		eq(2, i);
+
+		var i = try {
+			throw (getNull() : Interface);
+		} catch(s:Interface) {
 			1;
 		} catch(e:Dynamic) {
 			2;
