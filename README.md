@@ -90,6 +90,7 @@ Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  |
 4.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
 4.0 preview 3 |       |        |        | 1.3   |       |      |
 4.0 preview 4 |       |        |        | 1.6   |       |      |
+4.0 preview 5 |       |        |        | 1.8   |       |      |
 
 
 ## Contributing

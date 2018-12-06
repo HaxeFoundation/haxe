@@ -86,6 +86,7 @@ type context = {
 	com : Common.context;
 	cglobals : (string, ttype) lookup;
 	cstrings : (string, string) lookup;
+	cbytes : (bytes, bytes) lookup;
 	cfloats : (float, float) lookup;
 	cints : (int32, int32) lookup;
 	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
@@ -266,6 +267,9 @@ let alloc_i32 ctx i =
 let alloc_string ctx s =
 	lookup ctx.cstrings s (fun() -> s)
 
+let alloc_bytes ctx s =
+	lookup ctx.cbytes s (fun() -> s)
+
 let array_class ctx t =
 	match t with
 	| HI32 ->
@@ -398,16 +402,7 @@ let rec to_type ?tref ctx t =
 			| None -> ()
 			| Some r -> r := Some t);
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
-			let fields = PMap.fold (fun cf acc ->
-				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
-					(* allowing functions will crash unit tests *)
-					acc
-				| Method _ ->
-					acc
-				| _ ->
-					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
-			) a.a_fields [] in
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			if fields = [] then
 				let t = HDyn in
 				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
@@ -479,6 +474,14 @@ and resolve_class ctx c pl statics =
 	| _ ->
 		c
 
+and cfield_type ctx cf =
+	let t = to_type ctx cf.cf_type in
+	let t = (match cf.cf_kind, t with
+		| Method (MethNormal|MethInline), HFun (args,ret) -> HMethod (args,ret)
+		| _ -> t
+	) in
+	(cf.cf_name,alloc_string ctx cf.cf_name,t)
+
 and field_type ctx f p =
 	match f with
 	| FInstance (c,pl,f) | FClosure (Some (c,pl),f) ->
@@ -549,7 +552,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
+			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
 		in
 		let fields = loop c in
 		vp.vfields <- Array.of_list fields;
@@ -1966,7 +1969,9 @@ and eval_expr ctx e =
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
 				op ctx (OSetField (ro,0,rb));
-				op ctx (OBytes (rb,alloc_string ctx (v ^ "\x00"))); (* add a \x00 to prevent clashing with existing string *)
+				(* fix for Resource.getString *)
+				let str = try ignore(String.index v '\x00'); v with Not_found -> v ^ "\x00" in
+				op ctx (OBytes (rb,alloc_bytes ctx (Bytes.of_string str)));
 				op ctx (OSetField (ro,1,rb));
 				if has_len then op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
 				op ctx (OSetArray (arr,ridx,ro));
@@ -2000,7 +2005,7 @@ and eval_expr ctx e =
 			let rt = HAbstract ("macro_pos",alloc_string ctx "macro_pos") in
 			let r = alloc_tmp ctx rt in
 			let rfile = alloc_tmp ctx HBytes in
-			op ctx (OBytes (rfile, alloc_string ctx file));
+			op ctx (OBytes (rfile, alloc_bytes ctx (Bytes.of_string file)));
 			hold ctx rfile;
 			let min = eval_expr ctx min in hold ctx min;
 			let max = eval_expr ctx max in
@@ -3652,6 +3657,7 @@ let write_code ch code debug =
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
 	write_index (Array.length code.strings);
+	if code.version >= 5 then write_index (Array.length code.bytes);
 	write_index (Array.length all_types);
 	write_index (Array.length code.globals);
 	write_index (Array.length code.natives);
@@ -3671,6 +3677,19 @@ let write_code ch code debug =
 	in
 	write_strings code.strings;
 
+	let write_bytes bytes =
+		let bytes_length = ref 0 in
+		Array.iter (fun b -> bytes_length := !bytes_length + Bytes.length b) bytes;
+		IO.write_i32 ch !bytes_length;
+		Array.iter (IO.nwrite ch) bytes;
+		let bytes_pos = ref 0 in
+		Array.iter (fun b ->
+			write_index (!bytes_pos);
+			bytes_pos := !bytes_pos + Bytes.length b
+		) bytes;
+	in
+	if code.version >= 5 then write_bytes code.bytes;
+
 	if debug then begin
 		write_index (Array.length code.debugfiles);
 		write_strings code.debugfiles;
@@ -3688,10 +3707,10 @@ let write_code ch code debug =
 		| HBool -> byte 7
 		| HBytes -> byte 8
 		| HDyn -> byte 9
-		| HFun (args,ret) ->
+		| HFun (args,ret) | HMethod (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
-			byte 10;
+			byte (match t with HFun _ -> 10 | _ -> 20);
 			byte n;
 			List.iter write_type args;
 			write_type ret
@@ -3845,6 +3864,7 @@ let create_context com is_macro dump =
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
 		cstrings = new_lookup();
+		cbytes = new_lookup();
 		cfloats = new_lookup();
 		cglobals = new_lookup();
 		cnatives = new_lookup();
@@ -3923,10 +3943,12 @@ let add_types ctx types =
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
+	let bytes = DynArray.to_array ctx.cbytes.arr in
 	{
-		version = 4;
+		version = if Array.length bytes = 0 then 4 else 5;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
+		bytes = bytes;
 		ints = DynArray.to_array ctx.cints.arr;
 		floats = DynArray.to_array ctx.cfloats.arr;
 		globals = DynArray.to_array ctx.cglobals.arr;

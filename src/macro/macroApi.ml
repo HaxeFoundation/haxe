@@ -39,9 +39,7 @@ type 'value compiler_api = {
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
-	module_reuse_call : string -> string -> unit;
 	current_module : unit -> module_def;
-	on_reuse : (unit -> bool) -> unit;
 	mutable current_macro_module : unit -> module_def;
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
@@ -276,11 +274,12 @@ let encode_import (path,mode) =
 let encode_placed_name (s,p) =
 	encode_string s
 
-let rec encode_path (t,_) =
+let rec encode_path (t,p) =
 	let fields = [
 		"pack", encode_array (List.map encode_string t.tpackage);
 		"name", encode_string t.tname;
 		"params", encode_array (List.map encode_tparam t.tparams);
+		"pos", encode_pos p;
 	] in
 	encode_obj (match t.tsub with
 		| None -> fields
@@ -570,12 +569,13 @@ let decode_opt_array f v =
 	if v = vnull then [] else List.map f (decode_array v)
 
 let rec decode_path t =
+	let p = field t "pos" in
 	{
 		tpackage = List.map decode_string (decode_array (field t "pack"));
 		tname = decode_string (field t "name");
 		tparams = decode_opt_array decode_tparam (field t "params");
 		tsub = opt decode_string (field t "sub");
-	},Globals.null_pos
+	},if p = vnull then Globals.null_pos else decode_pos p
 
 and decode_tparam v =
 	match decode_enum v with
@@ -1789,10 +1789,6 @@ let macro_api ccom get_api =
 			(get_api()).module_dependency (decode_string m) (decode_string file);
 			vnull
 		);
-		"register_module_reuse_call", vfun2 (fun m mcall ->
-			(get_api()).module_reuse_call (decode_string m) (decode_string mcall);
-			vnull
-		);
 		"get_typed_expr", vfun1 (fun e ->
 			let e = decode_texpr e in
 			encode_expr (TExprToExpr.convert_expr e)
@@ -1823,11 +1819,6 @@ let macro_api ccom get_api =
 		"pattern_locals", vfun2 (fun e t ->
 			let loc = (get_api()).get_pattern_locals (decode_expr e) (decode_type t) in
 			encode_string_map (fun (v,_) -> encode_type v.v_type) loc
-		);
-		"on_macro_context_reused", vfun1 (fun c ->
-			let c = prepare_callback c 0 in
-			(get_api()).on_reuse (fun() -> decode_bool (c []));
-			vnull
 		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in

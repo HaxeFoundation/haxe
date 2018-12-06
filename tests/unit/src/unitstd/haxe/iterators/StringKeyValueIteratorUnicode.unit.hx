@@ -10,8 +10,6 @@ function traverse(s:String) {
 
 #if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
 
-#if !cppia
-
 var r = traverse("abcde");
 r.k == [0, 1, 2, 3, 4];
 r.v == ["a".code, "b".code, "c".code, "d".code, "e".code];
@@ -19,7 +17,5 @@ r.v == ["a".code, "b".code, "c".code, "d".code, "e".code];
 var r = traverse("aa😂éé");
 r.k == [0, 1, 2, 3, 4];
 r.v == ["a".code, "a".code, "😂".code, "é".code, "é".code];
-
-#end
 
 #end

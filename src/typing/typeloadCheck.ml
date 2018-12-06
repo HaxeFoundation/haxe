@@ -95,14 +95,17 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 		begin match follow t1, follow t2 with
 		| TFun (args1,r1) , TFun (args2,r2) -> (
 			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
+			let i = ref 0 in
 			try
+				valid r1 r2;
 				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+					incr i;
 					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
 				) args1 args2;
-				valid r1 r2
 			with Unify_error l ->
-				raise (Unify_error (Cannot_unify (t1,t2) :: l)))
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
+				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
 			assert false
 		end

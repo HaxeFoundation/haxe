@@ -33,7 +33,7 @@ import lua.Boot;
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		if (Lua.type(o) == "string"){
 			if (field == "length"){
-				return lua.NativeStringTools.len(o);
+				return lua.lib.luautf8.Utf8.len(o);
 			} else return untyped String.prototype[field];
 		} else {
 		   	return try o[field] catch( e : Dynamic ) null;

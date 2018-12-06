@@ -219,7 +219,7 @@ module Builder = struct
 
 	let make_typeexpr mt pos =
 		let t =
-			match mt with
+			match resolve_typedef mt with
 			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }

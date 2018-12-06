@@ -548,30 +548,14 @@ class Context {
 		load("register_module_dependency", 2)(modulePath,externFile);
 	}
 
-	/**
-		Register a macro call to be performed every time the module `modulePath` is reused by the compilation cache,
-		meaning that neither the module itself nor its dependencies was changed since last compilation.
-
-		The `macroCall` should be a String containing valid Haxe expression, similar to `--init` macros (see https://haxe.org/manual/macro-initialization.html).
-		Multiple calls with the exact same `macroCall` value will only register the callback once.
-
-		This also triggers loading of given module and its dependencies, if it's not yet loaded,
-		but given macro call will not be called on the first module load.
-
-		If the compilation cache is not used, `macroCall` expressions will not be called,
-		but calling this function will still trigger loading of given `modulePath`.
-	**/
+	@:deprecated
 	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
-		load("register_module_reuse_call", 2)(modulePath,macroCall);
+		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
-	/**
-		Register a callback function that will be called every time the macro context cached is reused with a new
-		compilation. This enable to reset some static vars since the code might have been changed. If the callback
-		returns false, the macro context is discarded and another one is created.
-	**/
+	@:deprecated
 	public static function onMacroContextReused( callb : Void -> Bool ) {
-		load("on_macro_context_reused", 1)(callb);
+		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
 	@:allow(haxe.macro.TypeTools)

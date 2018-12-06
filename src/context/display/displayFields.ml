@@ -155,8 +155,8 @@ let collect ctx e_ast e dk with_type p =
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
-				if sl = [] then items else PMap.foldi (fun name item acc ->
-					if List.mem name sl && is_new_item acc name then
+				PMap.foldi (fun name item acc ->
+					if sl = [] || List.mem name sl && is_new_item acc name then
 						PMap.add name item acc
 					else
 						acc

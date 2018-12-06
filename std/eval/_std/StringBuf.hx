@@ -24,7 +24,7 @@
 extern class StringBuf {
 	public var length(get,never) : Int;
 	public function new():Void;
-	function get_length() : Int;
+	private function get_length() : Int;
 	public function add<T>( x : T ) : Void;
 	public function addChar( c : Int ) : Void;
 	public function addSub( s : String, pos : Int, ?len : Int) : Void;

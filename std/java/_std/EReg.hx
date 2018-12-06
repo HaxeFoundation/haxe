@@ -46,8 +46,9 @@ import java.util.regex.*;
 		}
 
 		flags |= Pattern.UNICODE_CASE;
+		#if !android // see https://github.com/HaxeFoundation/haxe/issues/7632
 		flags |= Pattern.UNICODE_CHARACTER_CLASS;
-
+		#end
 		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
 	}

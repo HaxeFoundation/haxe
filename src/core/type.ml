@@ -350,7 +350,6 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_reuse_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
@@ -479,7 +478,6 @@ let module_extra file sign time kind policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_binded_res = PMap.empty;
-		m_reuse_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -1304,10 +1302,10 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TEnumIndex e1 -> tag "EnumIndex" [loop e1]
 	| TField (e1,fa) ->
 		let sfa = match fa with
-			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
-			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; cf.cf_name]
-			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl))); cf.cf_name]
-			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [cf.cf_name]
+			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl))); Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
 			| FDynamic s -> tag "FDynamic" ~extra_tabs:"\t" [s]
 			| FEnum(en,ef) -> tag "FEnum" ~extra_tabs:"\t" [s_type_path en.e_path; ef.ef_name]
 		in
@@ -1564,7 +1562,6 @@ module Printer = struct
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_reuse_macro_calls",String.concat ", " me.m_reuse_macro_calls;
 			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
@@ -1697,11 +1694,11 @@ type unify_error =
 	| Invalid_visibility of string
 	| Not_matching_optional of string
 	| Cant_force_optional
-	| Invariant_parameter of t * t
+	| Invariant_parameter of int
 	| Constraint_failure of string
 	| Missing_overload of tclass_field * t
 	| FinalInvariance (* nice band name *)
-	| Invalid_function_argument of int
+	| Invalid_function_argument of int (* index *) * int (* total *)
 	| Invalid_return_type
 	| Unify_custom of string
 
@@ -1827,7 +1824,7 @@ let rec type_eq param a b =
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
-		List.iter2 (type_eq param) tl1 tl2
+		type_eq_params param a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
 		type_eq param (apply_params t.t_params tl t.t_type) b
 	| _ , TType (t,tl) when can_follow b ->
@@ -1837,19 +1834,24 @@ let rec type_eq param a b =
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
 		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
-		List.iter2 (type_eq param) tl1 tl2
+		type_eq_params param a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) && (match c1.cl_kind, c2.cl_kind with KExpr _, KExpr _ -> false | _ -> true) then error [cannot_unify a b];
-		List.iter2 (type_eq param) tl1 tl2
+		type_eq_params param a b tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		let i = ref 0 in
 		(try
 			type_eq param r1 r2;
 			List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
+				incr i;
 				if o1 <> o2 then error [Not_matching_optional n];
 				type_eq param t1 t2
 			) l1 l2
 		with
-			Unify_error l -> error (cannot_unify a b :: l))
+			Unify_error l ->
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
+				error (cannot_unify a b :: msg :: l)
+		)
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
 	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
@@ -1860,7 +1862,7 @@ let rec type_eq param a b =
 		type_eq param a t
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
-		List.iter2 (type_eq param) tl1 tl2
+		type_eq_params param a b tl1 tl2
 	| TAnon a1, TAnon a2 ->
 		(try
 			(match !(a2.a_status) with
@@ -1898,6 +1900,17 @@ let rec type_eq param a b =
 			()
 		else
 			error [cannot_unify a b]
+
+and type_eq_params param a b tl1 tl2 =
+	let i = ref 0 in
+	List.iter2 (fun t1 t2 ->
+		incr i;
+		try
+			type_eq param t1 t2
+		with Unify_error l ->
+			let err = cannot_unify a b in
+			error (err :: (Invariant_parameter !i) :: l)
+		) tl1 tl2
 
 let type_iseq a b =
 	try
@@ -2011,7 +2024,7 @@ let rec unify a b =
 			) l2 l1 (* contravariance *)
 		with
 			Unify_error l ->
-				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument !i in
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length l1) in
 				error (cannot_unify a b :: msg :: l))
 	| TInst (c,tl) , TAnon an ->
 		if PMap.is_empty an.a_fields then (match c.cl_kind with
@@ -2330,12 +2343,14 @@ and unify_with_variance f t1 t2 =
 		error [cannot_unify t1 t2]
 
 and unify_type_params a b tl1 tl2 =
+	let i = ref 0 in
 	List.iter2 (fun t1 t2 ->
+		incr i;
 		try
 			with_variance (type_eq EqRightDynamic) t1 t2
 		with Unify_error l ->
 			let err = cannot_unify a b in
-			error (err :: (Invariant_parameter (t1,t2)) :: l)
+			error (err :: (Invariant_parameter !i) :: l)
 	) tl1 tl2
 
 and with_variance f t1 t2 =

@@ -140,8 +140,6 @@ input.readString(2) == "é";
 input.readString(7) == "あ😂";
 input.readString(bytes.length - 9,RawNative) == "éあ😂";
 
-// Mixed encoding tests... mostly relevant for Eval which has both ASCII and UCS2 at run-time
-
 var s = "ée";
 var s1 = s.charAt(1);
 s1 == "e";
@@ -171,8 +169,6 @@ Reflect.compare("ee", "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "éed".substr(1)) > 0;
 Reflect.compare("éee".substr(1), "ed") > 0;
 
-#if !cpp
-
 var s = "ä😂";
 s.toUpperCase() == "Ä😂";
 s.toLowerCase() == s;
@@ -191,8 +187,6 @@ s.toLowerCase() == "a😂";
 
 "σ".toUpperCase() == "Σ";
 "Σ".toLowerCase() == "σ";
-
-#end
 
 var map = new haxe.ds.StringMap();
 map.set("path", 1);

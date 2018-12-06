@@ -50,6 +50,10 @@ class Macro {
 			}
 		}
 		loop(pack.split('.'));
+		if(cases.length == 0) {
+			Sys.stderr().writeString('${Context.definedValue("test")} not found.\n');
+			Sys.exit(1);
+		}
 		return macro $a{cases};
 	}
 }

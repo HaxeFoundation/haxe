@@ -43,7 +43,7 @@ import cs.internal.Exceptions;
 			case "System.Boolean":
 				return untyped __cs__('{0} is bool', v);
 			case "System.Object":
-				return v != null;
+				return true;
 		}
 
 		var vt = cs.Lib.getNativeType(v);

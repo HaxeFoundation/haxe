@@ -2055,6 +2055,11 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
+				let i =
+					if i >= this.slength then raise Not_found
+					else if i < 0 then max (this.slength + i) 0
+					else i
+				in
 				let b = get_offset this i in
 				let offset,_,_ = find_substring this str false i b in
 				vint offset

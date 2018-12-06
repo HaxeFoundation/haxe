@@ -127,9 +127,20 @@ private class ProcessInput extends haxe.io.Input {
 	var b : Pipe;
 	var buf : String;
 	var idx : Int;
+	var _eof:Bool;
 
 	public function new(pipe:Pipe) {
 		b = pipe;
+		_eof = false;
+	}
+
+	inline public function eof() : Bool {
+		return _eof;
+	}
+
+	override function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
+		if(eof()) throw new haxe.io.Eof();
+		return super.readBytes(s, pos, len);
 	}
 
 	override public function readByte() {
@@ -146,7 +157,10 @@ private class ProcessInput extends haxe.io.Input {
 			// process io until we read our input (emulate blocking)
 			while (pending) Loop.run();
 		}
-		if (buf == null) throw new haxe.io.Eof();
+		if (buf == null){
+			_eof = true;
+			throw new haxe.io.Eof();
+		}
 		if (err_str != null) throw err_str;
 		var code = NativeStringTools.byte(buf, ++idx);
 		return code;
@@ -165,7 +179,9 @@ private class ProcessInput extends haxe.io.Input {
 					total.addBytes(buf,0,len);
 				if (len < bufsize)  break;
 			}
-		} catch( e : Eof ) {}
+		} catch( e : Eof ) {
+			_eof = true;
+		}
 		return total.getBytes();
 	}
 
