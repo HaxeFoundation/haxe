@@ -13,6 +13,7 @@ class TestCasts extends Test  {
 		eq( f(123), 123);
 	}
 	
+	#if !as3
 	function testInterfaces() {
 		
 		var v : MyClass.CI1 = null;
@@ -40,5 +41,6 @@ class TestCasts extends Test  {
 		exc(function() { cast(new MyClass.Cov1(), MyClass.CovI); });
 		
 	}
+	#end
 
 }
