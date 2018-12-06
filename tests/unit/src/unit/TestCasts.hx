@@ -32,7 +32,6 @@ class TestCasts extends Test  {
 
 		var v : MyClass.CovI = null;
 		eq( cast(v,MyClass.CovI), null );
-		exc( function() cast(v,MyClass.CovI2) );
 		
 		var v = new MyClass.Cov3();
 		eq( cast(v,MyClass.CovI), v );
