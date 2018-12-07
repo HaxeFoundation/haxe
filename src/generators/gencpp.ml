@@ -3089,8 +3089,6 @@ let retype_expression ctx request_type function_args function_type expression_tr
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid -> baseCpp.cppexpr, TCppVoid
-            | TCppInterface _ ->
-                  baseCpp.cppexpr, return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
@@ -3299,6 +3297,10 @@ let cpp_gen_default_values ctx args prefix =
 
 let ctx_default_values ctx args prefix =
     cpp_gen_default_values ctx args prefix
+;;
+
+let cpp_class_hash interface =
+   gen_hash 0 (join_class_path interface.cl_path "::" )
 ;;
 
 
@@ -3976,11 +3978,19 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppCode(value, exprs) ->
          Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
       | CppTCast(expr,cppType) ->
-         let toType = tcpp_to_string cppType in
-         if toType="Dynamic" then
-            (out " ::Dynamic("; gen expr; out ")")
-         else
-            (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
+         (match cppType with
+         | TCppInterface(i) ->
+             out " hx::interface_check(";
+             gen expr;
+             out ("," ^ (cpp_class_hash i) ^")")
+         | _ -> begin
+            let toType = tcpp_to_string cppType in
+            if toType="Dynamic" then
+               (out " ::Dynamic("; gen expr; out ")")
+            else
+               (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
+            end
+         )
 
       | CppCastStatic(expr,toType) ->
          let close = match expr.cpptype with
@@ -4468,10 +4478,6 @@ let cpp_interface_impl_name ctx interface =
 ;;
 
 
-let cpp_class_hash interface =
-   gen_hash 0 (join_class_path interface.cl_path "::" )
-;;
-
 
 
 let has_field_init field =
@@ -4510,7 +4516,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             let returnType = ctx_type_string ctx return_type in
             let returnStr = if returnType = "void" then "" else "return " in
             let commaArgList = if argList="" then argList else "," ^ argList in
-            let cast = "static_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
+            let cast = "hx::interface_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
             output ("		" ^ returnType ^ " (hx::Object :: *_hx_" ^ remap_name ^ ")(" ^ argList ^ "); \n");
             output ("		static inline " ^ returnType ^ " " ^ remap_name ^ "( ::Dynamic _hx_" ^ commaArgList ^ ") {\n");
             output ("			" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast ^ "(_hx_.mPtr->_hx_getInterface(" ^ (cpp_class_hash class_def) ^ ")))->_hx_" ^ remap_name ^ ")(" ^ cpp_arg_names args ^ ");\n		}\n" );
