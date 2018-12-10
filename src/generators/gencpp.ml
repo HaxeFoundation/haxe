@@ -5180,6 +5180,9 @@ let has_get_static_field class_def =
       List.exists (is_readable class_def) reflect_fields
 ;;
 
+let has_compare_field class_def =
+    List.exists (fun f -> f.cf_name="__compare") class_def.cl_ordered_fields
+;;
 
 
 let has_boot_field class_def =
@@ -6396,6 +6399,11 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
       if (implement_dynamic) then
          output_h ("\t\tHX_DECLARE_IMPLEMENT_DYNAMIC;\n");
+
+      if (has_compare_field class_def) then
+         output_h ("\t\tint __Compare(const hx::Object *inRHS) const { " ^
+                           "return const_cast<" ^ class_name ^ " *>(this)->__compare(Dynamic((hx::Object *)inRHS)); }\n");
+
       output_h ("\t\tstatic void __register();\n");
       if (override_iteration) then begin
          output_h ("\t\tvoid __Mark(HX_MARK_PARAMS);\n");
