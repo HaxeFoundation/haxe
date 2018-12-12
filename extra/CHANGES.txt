@@ -1,3 +1,10 @@
+2018-12-13: 3.4.8
+
+	Bugfixes :
+
+	cpp : fixed safe-cast to interfaces
+	cpp : fixed object comparisons that rely on `__compare`
+
 2018-02-21: 3.4.7
 
 	Bugfixes:
