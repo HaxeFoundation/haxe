@@ -28,7 +28,7 @@ LFLAGS=
 STATICLINK?=0
 
 CFLAGS= -bin-annot
-ALL_CFLAGS= $(CFLAGS) -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize -I libs/pcre \
+ALL_CFLAGS= $(CFLAGS) -unsafe-string -g -w -3 -I libs/extlib -I libs/extc -I libs/neko -I libs/javalib -I libs/ziplib -I libs/swflib -I libs/xml-light -I libs/ttflib -I libs/ilib -I libs/objsize -I libs/pcre \
 	-I src -I src/context -I src/generators -I src/macro -I src/optimization -I src/syntax -I src/typing -I src/display
 
 LIBS=unix str libs/extlib/extLib libs/xml-light/xml-light libs/swflib/swflib \
