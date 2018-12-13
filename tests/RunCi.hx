@@ -585,7 +585,7 @@ class RunCi {
 					infoMsg('pypy3 has already been installed.');
 				} else {
 					var pypyVersion = "pypy3-2.4.0-linux64";
-					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
+					runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
 					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
@@ -1190,13 +1190,14 @@ class RunCi {
 						} else {
 							var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 							var flexVersion = "4.16.0";
-							runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+							runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");
+							var flashVersion = getLatestFPVersion();
 							var playerglobalswcFolder = flexsdkPath + "/player";
 							FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-							runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+							runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
 							File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 							runCommand("mxmlc", ["--version"]);
 						}
