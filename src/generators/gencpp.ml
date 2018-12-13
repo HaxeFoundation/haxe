@@ -3088,7 +3088,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
-            | TCppVoid -> baseCpp.cppexpr, TCppVoid
+            | TCppVoid ->
+				CppTCast(baseCpp, cpp_type_of expr.etype), return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
@@ -7387,7 +7388,7 @@ class script_writer ctx filename asciiOut =
       this#gen_expression expr;
    end
 
-   method gen_func_args args = 
+   method gen_func_args args =
       let gen_inits = ref [] in
       List.iter (fun(arg,init) ->
          this#write (indent ^ indent_str );
