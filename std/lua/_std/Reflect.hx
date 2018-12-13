@@ -22,6 +22,7 @@
 import lua.Lua;
 import lua.TableTools;
 import lua.Boot;
+
 @:coreApi class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
@@ -33,7 +34,7 @@ import lua.Boot;
 	public static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		if (Lua.type(o) == "string"){
 			if (field == "length"){
-				return lua.lib.luautf8.Utf8.len(o);
+				return cast (o : String).length;
 			} else return untyped String.prototype[field];
 		} else {
 		   	return try o[field] catch( e : Dynamic ) null;

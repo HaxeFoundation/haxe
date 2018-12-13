@@ -33,6 +33,10 @@ typedef PySys = python.lib.Sys;
 	and vice-versa.
 **/
 class Lib {
+
+	static public var __name__(get, never):String;
+	static inline function get___name__():String return python.Syntax.code('__name__');
+
 	/**
 		Print the specified value on the default output.
 	**/

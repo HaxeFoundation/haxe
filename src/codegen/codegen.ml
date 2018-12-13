@@ -387,11 +387,34 @@ module Dump = struct
 			close();
 		) com.types
 
+	let dump_position com =
+		List.iter (fun mt ->
+			match mt with
+				| TClassDecl c ->
+					let buf,close = create_dumpfile_from_path com (t_path mt) in
+					Printf.bprintf buf "%s\n" (s_type_path c.cl_path);
+					let field cf =
+						Printf.bprintf buf "\t%s\n" cf.cf_name;
+						begin match cf.cf_expr with
+						| None -> ()
+						| Some e ->
+							Printf.bprintf buf "%s\n" (Texpr.dump_with_pos "\t" e);
+						end
+					in
+					Option.may field c.cl_constructor;
+					List.iter field c.cl_ordered_statics;
+					List.iter field c.cl_ordered_fields;
+					close();
+				| _ ->
+					()
+		) com.types
+
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
 			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
 			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
+			| "position" -> dump_position com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
 
 	let dump_dependencies ?(target_override=None) com =

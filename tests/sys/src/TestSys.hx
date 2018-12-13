@@ -6,13 +6,13 @@ class TestSys extends TestCommandBase {
 	}
 
 	function testEnv() {
-		#if !(java || lua)
+		#if !(java)
 		Sys.putEnv("foo", "value");
 		Assert.equals("value", Sys.getEnv("foo"));
 		#end
 		Assert.equals(null, Sys.getEnv("doesn't exist"));
 
-		#if !(java || lua)
+		#if !(java)
 		var env = Sys.environment();
 		Assert.equals("value", env.get("foo"));
 		#end
