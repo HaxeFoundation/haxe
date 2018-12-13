@@ -2585,7 +2585,7 @@ let generate con =
 
 	ExpressionUnwrap.configure gen;
 
-	UnnecessaryCastsRemoval.configure gen;
+	(* UnnecessaryCastsRemoval.configure gen; *)
 
 	IntDivisionSynf.configure gen;
 

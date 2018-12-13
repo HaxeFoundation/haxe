@@ -179,6 +179,7 @@ let rec expr_stat_map fn (expr:texpr) =
 		| TBreak
 		| TContinue
 		| TTry _
+		| TCast(_,Some _)
 		| TUnop (Increment, _, _)
 		| TUnop (Decrement, _, _) (* unop is a special case because the haxe compiler won't let us generate complex expressions with Increment/Decrement *)
 		| TBlock _ -> expr (* there is no expected expression here. Only statements *)
@@ -232,7 +233,7 @@ let rec shallow_expr_type expr : shallow_expr_type =
 		| TObjectDecl _
 		| TArrayDecl _
 		| TFunction _
-		| TCast _
+		| TCast(_,None)
 		| TUnop _ -> Expression (expr)
 		| TParenthesis p | TMeta(_,p) -> shallow_expr_type p
 		| TBlock ([e]) -> shallow_expr_type e
@@ -247,6 +248,7 @@ let rec shallow_expr_type expr : shallow_expr_type =
 		| TBreak
 		| TContinue
 		| TIf _
+		| TCast(_,Some _)
 		| TThrow _ -> Statement
 
 and expr_kind expr =
@@ -291,8 +293,8 @@ and expr_kind expr =
 			aggregate true el
 		| TObjectDecl (sel) ->
 			aggregate true (List.map snd sel)
-		| TCast (e,_) ->
-			aggregate true [e]
+		| TCast (e,mt) ->
+			aggregate (mt = None) [e]
 		| _ -> trace (debug_expr expr); assert false (* should have been read as Statement by shallow_expr_type *)
 
 let get_kinds (statement:texpr) =
@@ -372,7 +374,8 @@ let rec apply_assign assign_fun right =
 		| TFor _
 		| TReturn _
 		| TBreak
-		| TContinue -> right
+		| TContinue
+		| TCast(_,Some _) -> right
 		| TParenthesis p | TMeta(_,p) ->
 			apply_assign assign_fun p
 		| TVar _ ->
