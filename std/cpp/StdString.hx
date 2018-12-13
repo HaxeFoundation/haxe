@@ -6,7 +6,8 @@ using cpp.NativeString;
 @:include("hx/StdString.h")
 @:stackOnly
 @:structAccess
-extern class StdString extends StdStringRef
+@:unrelfective
+extern class StdString
 {
    @:native("std::string::npos")
    public static var npos(default,null):Int;
@@ -18,5 +19,13 @@ extern class StdString extends StdStringRef
    //public function toString():String;
    //public function find(s:String):Int;
    //public function substr(pos:Int, len:Int):StdString;
+
+   public function c_str() : ConstPointer<Char>;
+   public function size() : Int;
+   public function find(s:String):Int;
+   public function substr(pos:Int, len:Int):StdString;
+   public function toString():String;
+   public function toStdString():StdString;
+
 }
 

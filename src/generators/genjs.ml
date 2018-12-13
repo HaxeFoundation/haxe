@@ -1526,6 +1526,8 @@ let generate com =
 		match e.eexpr with
 		| TField (_,FClosure _) ->
 			add_feature ctx "use.$bind"
+		| TCall ({ eexpr = TField (_,f) } as ef, []) when field_name f = "iterator" && is_dynamic_iterator ctx ef ->
+			add_feature ctx "use.$getIterator";
 		| _ ->
 			Type.iter chk_features e
 	in

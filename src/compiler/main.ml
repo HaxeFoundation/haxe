@@ -444,13 +444,13 @@ and process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
-and usage_string arg_spec usage =
+and usage_string ?(print_cat=true) arg_spec usage =
 	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
 	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
 	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
 	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
 	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
-	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> ["\n"^cat^":"] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
+	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> (if print_cat then ["\n"^cat^":"] else []) @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
 		let label = make_label ok hint in
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
@@ -768,14 +768,22 @@ try
 			raise (HelpMessage (usage_string all_args usage))
 		| Arg.Bad msg ->
 			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
-			let new_msg = (Printf.sprintf "%s\n\n%s" first_line (usage_string all_args usage)) in
-			let r = Str.regexp "unknown option `\\([-A-Za-z]+\\)'" in
+			let new_msg = (Printf.sprintf "%s" first_line) in
+			let r = Str.regexp "unknown option [`']?\\([-A-Za-z]+\\)[`']?" in
 			try
 				ignore(Str.search_forward r msg 0);
 				let s = Str.matched_group 1 msg in
 				let sl = List.map (fun (s,_,_) -> s) all_args_spec in
-				let msg = StringError.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
-				raise (Arg.Bad msg)
+				let sl = StringError.get_similar s sl in
+				begin match sl with
+				| [] -> raise Not_found
+				| _ ->
+					let spec = List.filter (fun (_,sl',sl'',_,_,_) ->
+						List.exists (fun s -> List.mem s sl) (sl' @ sl'')
+					) all_args in
+					let new_msg = (Printf.sprintf "%s\nDid you mean:\n%s" first_line (usage_string ~print_cat:false spec "")) in
+					raise (Arg.Bad new_msg)
+				end;
 			with Not_found ->
 				raise (Arg.Bad new_msg));
 		arg_delays := []
