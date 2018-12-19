@@ -180,7 +180,7 @@ private class MysqlConnection implements Connection {
 	static function request_wrap( h :  ConnectionHandler, rq : hl.Bytes, rqLen : Int ) : ResultHandler { return null; }
 	@:hlNative("mysql","escape")
 	static function escape_wrap( h : ConnectionHandler, str : hl.Bytes, len : Int ) : hl.Bytes { return null; }
-	static function setConvFuns( fstring : Dynamic, fbytes : Dynamic, fdate : Dynamic ) { };
+	static function setConvFuns( fstring : Dynamic, fbytes : Dynamic, fdate : Dynamic, fjson : Dynamic ) { };
 
 }
 
@@ -202,7 +202,7 @@ class Mysql {
 				function(v:hl.Bytes) return @:privateAccess String.fromUTF8(v),
 				function(v:hl.Bytes,len:Int) return new haxe.io.Bytes(v,len),
 				function(t) return Date.fromTime(t),
-				function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v)),
+				function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v))
 			);
 		}
 		var p = new MysqlParams();
