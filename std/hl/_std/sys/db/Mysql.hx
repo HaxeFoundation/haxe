@@ -201,7 +201,8 @@ class Mysql {
 			MysqlConnection.setConvFuns(
 				function(v:hl.Bytes) return @:privateAccess String.fromUTF8(v),
 				function(v:hl.Bytes,len:Int) return new haxe.io.Bytes(v,len),
-				function(t) return Date.fromTime(t)
+				function(t) return Date.fromTime(t),
+				function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v)),
 			);
 		}
 		var p = new MysqlParams();
