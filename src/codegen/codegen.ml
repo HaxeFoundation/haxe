@@ -554,9 +554,7 @@ module UnificationCallback = struct
 		match e.eexpr with
 			| TFunction tf ->
 				tf_stack := tf :: !tf_stack;
-				let etf = {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})} in
-				tf_stack := List.tl !tf_stack;
-				etf
+				Std.finally (fun() -> tf_stack := List.tl !tf_stack) (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
 			| _ ->
 				check (Type.map_expr (run ff) e)
 end;;

@@ -74,9 +74,7 @@ let rec get_underlying_type a pl =
 			| _ ->
 				t
 		in
-		let t = loop t in
-		underlying_type_stack := List.tl !underlying_type_stack;
-		t
+		Std.finally (fun() -> underlying_type_stack := List.tl !underlying_type_stack) loop t
 	in
 	try
 		if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;
