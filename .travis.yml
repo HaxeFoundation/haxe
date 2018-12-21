@@ -62,7 +62,7 @@ install_osx: &install_osx
   # Install haxe dependencies
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew tap Homebrew/bundle
-  - travis_retry brew bundle --file=tests/Brewfile
+  - travis_retry brew bundle --file=tests/Brewfile --no-upgrade
   # Install neko
   - mkdir ~/neko
   - export NEKOPATH=~/neko
@@ -140,20 +140,20 @@ matrix:
     # osx #
     #######
     - os: osx
-      osx_image: xcode7.3
+      osx_image: xcode8.3
       env:
         - TEST=neko
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1
+      osx_image: xcode9.4
       env:
         - TEST=macro,js,php,flash9,as3,java,cs,python,hl,lua
       install: *install_osx
 
     - os: osx
-      osx_image: xcode9.1
+      osx_image: xcode9.4
       env:
         - TEST=cpp
       install: *install_osx

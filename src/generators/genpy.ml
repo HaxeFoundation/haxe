@@ -68,7 +68,7 @@ module KeywordHandler = struct
 	let kwds =
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
-			"and"; "as"; "assert"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
+			"and"; "as"; "assert"; "async"; "await"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
 			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; " raise"; "return"; "try"; "while";
 			"with"; "yield"; "None"; "True"; "False";
 		];

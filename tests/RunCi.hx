@@ -168,7 +168,13 @@ class RunCi {
 		Sys.setCwd(path);
 	}
 
-	static function setupFlashPlayerDebugger():Void {
+	static public function getLatestFPVersion():Array<Int> {
+		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		var versionStr = new haxe.xml.Fast(appcast).node.XML.node.update.att.version;
+		return versionStr.split(",").map(Std.parseInt);
+	}
+
+	static public function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
 			case "Linux":
 				Sys.getEnv("HOME") + "/mm.cfg";
@@ -180,21 +186,31 @@ class RunCi {
 
 		switch (systemName) {
 			case "Linux":
-				requireAptPackages([
-					"libcurl3:i386", "libglib2.0-0:i386", "libx11-6:i386", "libxext6:i386",
-					"libxt6:i386", "libxcursor1:i386", "libnss3:i386", "libgtk2.0-0:i386"
-				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/25/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
+				requireAptPackages(["libglib2.0", "libfreetype6"]);
+				var majorVersion = getLatestFPVersion()[0];
+				runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
 				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
 				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
 			case "Mac":
-				runCommand("brew", ["tap", "caskroom/versions"]);
+				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
+					return;
+				}
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
+
+				// Disable the "application downloaded from Internet" warning
+				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
+
 				var dir = Path.directory(mmcfgPath);
-				runCommand("sudo", ["mkdir", "-p", dir]);
-				runCommand("sudo", ["chmod", "a+w", dir]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				if (!FileSystem.exists(dir)) {
+					runCommand("sudo", ["mkdir", "-p", dir]);
+					runCommand("sudo", ["chmod", "a+w", dir]);
+				}
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
 		}
 	}
 
@@ -569,7 +585,7 @@ class RunCi {
 					infoMsg('pypy3 has already been installed.');
 				} else {
 					var pypyVersion = "pypy3-2.4.0-linux64";
-					runCommand("wget", ['https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
+					runCommand("wget", ["-nv", 'https://bitbucket.org/pypy/pypy/downloads/${pypyVersion}.tar.bz2'], true);
 					runCommand("tar", ["-xf", '${pypyVersion}.tar.bz2']);
 					pypy = FileSystem.fullPath('${pypyVersion}/bin/pypy3');
 				}
@@ -720,7 +736,7 @@ class RunCi {
 
 	static function isDeployApiDocsRequired () {
 		return
-			Sys.getEnv("DEPLOY_API_DOCS") != null && 
+			Sys.getEnv("DEPLOY_API_DOCS") != null &&
 			switch(Sys.getEnv("TRAVIS_TAG")) {
 				case null, _.trim() => "":
 					false;
@@ -1174,13 +1190,14 @@ class RunCi {
 						} else {
 							var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 							var flexVersion = "4.16.0";
-							runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+							runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 							runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 							var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 							addToPATH(flexsdkPath + "/bin");
+							var flashVersion = getLatestFPVersion();
 							var playerglobalswcFolder = flexsdkPath + "/player";
 							FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-							runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/11/playerglobal11_1.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+							runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
 							File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 							runCommand("mxmlc", ["--version"]);
 						}
