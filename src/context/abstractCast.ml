@@ -28,8 +28,7 @@ let do_check_cast ctx tleft eright p =
 	let recurse cf f =
 		if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
 		cast_stack := cf :: !cast_stack;
-		let r = f() in
-		cast_stack := List.tl !cast_stack;
+		let r = Std.finally (fun() -> cast_stack := List.tl !cast_stack) f () in
 		r
 	in
 	let find a tl f =
