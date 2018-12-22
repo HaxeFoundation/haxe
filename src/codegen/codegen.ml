@@ -476,7 +476,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = ref []
+	let tf_stack = new_rec_stack()
 
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
@@ -544,7 +544,7 @@ module UnificationCallback = struct
 					| _ -> e
 				end
 			| TReturn (Some e1) ->
-				begin match !tf_stack with
+				begin match tf_stack.rec_stack with
 					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
 					| _ -> e
 				end
@@ -553,8 +553,7 @@ module UnificationCallback = struct
 		in
 		match e.eexpr with
 			| TFunction tf ->
-				tf_stack := tf :: !tf_stack;
-				Std.finally (fun() -> tf_stack := List.tl !tf_stack) (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
+				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
 			| _ ->
 				check (Type.map_expr (run ff) e)
 end;;

@@ -5,7 +5,7 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = ref []
+let cast_stack = new_rec_stack()
 
 let make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
@@ -26,10 +26,8 @@ let make_static_call ctx c cf a pl args t p =
 
 let do_check_cast ctx tleft eright p =
 	let recurse cf f =
-		if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
-		cast_stack := cf :: !cast_stack;
-		let r = Std.finally (fun() -> cast_stack := List.tl !cast_stack) f () in
-		r
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
+		rec_stack_loop cast_stack cf f ()
 	in
 	let find a tl f =
 		let tcf,cf = f() in
