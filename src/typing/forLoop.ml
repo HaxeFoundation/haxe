@@ -195,7 +195,7 @@ module IterationKind = struct
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
-					| TLocal v' when v == v' -> ei
+					| TLocal v' when v == v' -> {ei with epos = e.epos}
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in

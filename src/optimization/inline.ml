@@ -394,7 +394,8 @@ class inline_state ctx ethis params cf f p = object(self)
 					_had_side_effect <- true;
 					l.i_force_temp <- true;
 				end;
-				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
+				(* We use a null expression because we only care about the type (for abstract casts). *)
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some {e with eexpr = TConst TNull});
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
@@ -510,7 +511,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				if not (self#read v).i_outside then begin
 					v.v_type <- map_type v.v_type;
 					match v.v_extra with
-					| Some(tl,Some e) when ctx.com.platform <> Cs ->
+					| Some(tl,Some e) ->
 						v.v_extra <- Some(tl,Some (map_expr_type e));
 					| _ ->
 						()

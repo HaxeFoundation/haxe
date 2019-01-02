@@ -255,7 +255,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| _ ->
 		e
 
-let inline_stack = ref []
+let inline_stack = new_rec_stack()
 
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
@@ -270,7 +270,7 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (List.memq cf !inline_stack) ->
+			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in

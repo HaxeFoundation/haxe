@@ -61,9 +61,6 @@ class Cpp {
 					runCommand("haxe", ["compile-cppia.hxml"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
-					runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
-					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 				}
 		}
 

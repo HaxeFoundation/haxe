@@ -2850,12 +2850,27 @@ and eval_expr ctx e =
 	| TCast (ev,Some _) ->
 		let t = to_type ctx e.etype in
 		let re = eval_expr ctx ev in
-		let r = alloc_tmp ctx t in
+		let rt = alloc_tmp ctx t in
 		if safe_cast (rtype ctx re) t then
-			op ctx (OMov (r,re))
-		else
-			op ctx (OSafeCast (r,re));
-		r
+			op ctx (OMov (rt,re))
+		else (match Abstract.follow_with_abstracts e.etype with
+		| TInst({ cl_interface = true } as c,_) ->
+			hold ctx re;
+			let c = eval_to ctx { eexpr = TTypeExpr(TClassDecl c); epos = e.epos; etype = t_dynamic } (class_type ctx ctx.base_type [] false) in
+			hold ctx c;
+			let rb = alloc_tmp ctx HBool in
+			op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,re));
+			let jnext = jump ctx (fun n -> OJTrue (rb,n)) in
+			let jnext2 = jump ctx (fun n -> OJNull (re,n)) in
+			op ctx (OThrow (make_string ctx "Cast error" e.epos));
+			jnext();
+			jnext2();
+			op ctx (OMov (rt, unsafe_cast_to ~debugchk:false ctx re (to_type ctx e.etype) e.epos));
+			free ctx c;
+			free ctx re;
+		| _ ->
+			op ctx (OSafeCast (rt,re)));
+		rt
 	| TIdent s ->
 		abort ("Unbound identifier " ^ s) e.epos
 

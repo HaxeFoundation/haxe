@@ -47,11 +47,10 @@ let find_from ab pl a b =
 	else
 		find_field_from ab pl a b
 
-let underlying_type_stack = ref []
+let underlying_type_stack = new_rec_stack()
 
 let rec get_underlying_type a pl =
 	let maybe_recurse t =
-		underlying_type_stack := (TAbstract(a,pl)) :: !underlying_type_stack;
 		let rec loop t = match t with
 			| TMono r ->
 				(match !r with
@@ -64,19 +63,16 @@ let rec get_underlying_type a pl =
 			| TType (t,tl) ->
 				loop (apply_params t.t_params tl t.t_type)
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				if List.exists (fast_eq t) !underlying_type_stack then begin
+				if rec_stack_exists (fast_eq t) underlying_type_stack then begin
 					let pctx = print_context() in
-					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: !underlying_type_stack))) in
-					underlying_type_stack := [];
+					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: underlying_type_stack.rec_stack))) in
 					error ("Abstract chain detected: " ^ s) a.a_pos
 				end;
 				get_underlying_type a tl
 			| _ ->
 				t
 		in
-		let t = loop t in
-		underlying_type_stack := List.tl !underlying_type_stack;
-		t
+		rec_stack_loop underlying_type_stack (TAbstract(a,pl)) loop t
 	in
 	try
 		if not (Meta.has Meta.MultiType a.a_meta) then raise Not_found;

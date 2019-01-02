@@ -4393,7 +4393,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                        | TCppStar (t,const) ->
                           output ("(cpp::" ^ (if const then "Const" else "") ^"Pointer<" ^ (tcpp_to_string t)^" >) ")
                        | TCppInst(t) when has_meta_key t.cl_meta Meta.StructAccess ->
-                          output ("(cpp::Struct< " ^ (tcpp_to_string return_type) ^ " >) ");
+                          output ("(cpp::Struct< " ^ (tcpp_to_string arg) ^ " >) ");
                        | _ -> () );
                      output ("a" ^ (string_of_int i));
                   )  tcpp_args;

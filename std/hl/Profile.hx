@@ -78,9 +78,9 @@ class Profile {
 	}
 
 	/**
-		Start tracking. Enabled by default.
+		Init tracking. Already set by default.
 	**/
-	@:hlNative("std","track_init") public static function start() {
+	@:hlNative("std","track_init") public static function init() {
 	}
 
 	/**
@@ -111,6 +111,6 @@ class Profile {
 	static function track_enable(b:Bool) : Void {}
 	static function track_lock(b:Bool) : Void {}
 	static function track_enabled() : Bool { return false; }
-	static function __init__() { start(); track_enable(true); }
+	static function __init__() { init(); if( Sys.getEnv("HL_TRACK_ENABLE") == "1" ) track_enable(true); }
 
 }

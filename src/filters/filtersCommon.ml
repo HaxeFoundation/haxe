@@ -50,9 +50,7 @@ let run_expression_filters ctx filters t =
 			ctx.curfield <- f;
 			(match f.cf_expr with
 			| Some e when not (is_removable_field ctx f) ->
-				AbstractCast.cast_stack := f :: !AbstractCast.cast_stack;
-				f.cf_expr <- Some (run e);
-				AbstractCast.cast_stack := List.tl !AbstractCast.cast_stack;
+				f.cf_expr <- Some (rec_stack_loop AbstractCast.cast_stack f run e);
 			| _ -> ());
 			List.iter process_field f.cf_overloads
 		in
