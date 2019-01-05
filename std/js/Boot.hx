@@ -215,7 +215,7 @@ class Boot {
 	}
 
 	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
-		if (__instanceof(o, t)) return o;
+		if (o == null || __instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 

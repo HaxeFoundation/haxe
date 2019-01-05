@@ -1044,7 +1044,13 @@ and gen_block_element ctx e  =
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
-        | TCast (e',_) | TParenthesis e' | TMeta (_,e') ->
+        | TCast (e1, Some t)->
+            print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
+            gen_expr ctx e1;
+            spr ctx " , ";
+            spr ctx (ctx.type_accessor t);
+            spr ctx ")"
+        | TCast (e', None) | TParenthesis e' | TMeta (_,e') ->
             gen_block_element ctx e'
         | TArray (e1,e2) ->
             gen_block_element ctx e1;

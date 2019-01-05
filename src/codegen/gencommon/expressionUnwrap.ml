@@ -292,7 +292,7 @@ and expr_kind expr =
 		| TObjectDecl (sel) ->
 			aggregate true (List.map snd sel)
 		| TCast (e,_) ->
-			aggregate true [e]
+			aggregate false [e]
 		| _ -> trace (debug_expr expr); assert false (* should have been read as Statement by shallow_expr_type *)
 
 let get_kinds (statement:texpr) =

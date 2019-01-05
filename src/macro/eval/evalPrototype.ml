@@ -186,7 +186,11 @@ let create_static_prototype ctx mt =
 			| None -> None
 			| Some(csup,_) -> Some (get_static_prototype ctx (path_hash csup.cl_path) c.cl_pos)
 		in
-		let interfaces = List.map (fun (c,_) -> path_hash c.cl_path) c.cl_implements in
+		let rec collect_interfaces acc (c,_) =
+			let acc = List.fold_left (fun acc c -> collect_interfaces acc c) acc c.cl_implements in
+			path_hash c.cl_path :: acc
+		in
+		let interfaces = collect_interfaces [] (c,[]) in
 		let pctx = PrototypeBuilder.create ctx key pparent (PClass interfaces) meta in
 		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
 		let delays = DynArray.create() in
