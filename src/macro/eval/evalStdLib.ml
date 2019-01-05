@@ -1962,6 +1962,13 @@ module StdSocket = struct
 		vnull
 	)
 
+	let setBroadcast = vifun1 (fun vthis b ->
+		let this = this vthis in
+		let b = decode_bool b in
+		setsockopt this SO_BROADCAST b;
+		vnull
+	)
+
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
@@ -3297,6 +3304,7 @@ let init_standard_library builtins =
 		"send",StdSocket.send;
 		"sendChar",StdSocket.sendChar;
 		"setFastSend",StdSocket.setFastSend;
+		"setBroadcast", StdSocket.setBroadcast;
 		"setTimeout",StdSocket.setTimeout;
 		"shutdown",StdSocket.shutdown;
 	];

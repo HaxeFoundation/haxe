@@ -254,6 +254,10 @@ class Socket {
       NativeSocket.socket_set_fast_send(__s,b);
    }
 
+   public function setBroadcast( b : Bool ) : Void {
+      NativeSocket.socket_set_broadcast(__s,b);
+   }
+
    public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float ) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
       var neko_array = NativeSocket.socket_select(read,write,others, timeout);
       if (neko_array==null)

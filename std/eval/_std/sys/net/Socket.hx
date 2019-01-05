@@ -37,6 +37,7 @@ extern private class NativeSocket {
 	function send(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
 	function sendChar(char:Int):Void;
 	function setFastSend(b:Bool):Void;
+	function setBroadcast(b:Bool):Void;
 	function setTimeout(timeout:Float):Void;
 	function shutdown(read:Bool, write:Bool):Void;
 
@@ -200,6 +201,10 @@ class Socket {
 
 	public function setFastSend(b:Bool):Void {
 		socket.setFastSend(b);
+	}
+
+	public function setBroadcast(b:Bool):Void {
+		socket.setBroadcast(b);
 	}
 
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>, ?timeout:Float):{ read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {

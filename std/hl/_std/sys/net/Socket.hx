@@ -203,6 +203,10 @@ class Socket {
 		if( !socket_set_fast_send(__s,b) ) throw new Sys.SysError("setFastSend() failure");
 	}
 
+	public function setBroadcast( b : Bool ) : Void {
+		if( !socket_set_broadcast(__s,b) ) throw new Sys.SysError("setBroadcast() failure");
+	}
+
 	// TODO : use TLS when multithread added
 	static var tmp : hl.Bytes = null;
 	static var curTmpSize = 0;

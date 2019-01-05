@@ -249,6 +249,13 @@ private class SocketOutput extends haxe.io.Output {
         __s.setsockopt(PSocketModule.SOL_TCP, PSocketModule.TCP_NODELAY, b);
     }
 
+    /**
+        Allows the socket to send to broadcast addresses.
+    **/
+    public function setBroadcast( b : Bool ) : Void {
+        __s.setsockopt(PSocketModule.SOL_SOCKET, PSocketModule.SO_BROADCAST, b);
+    }
+
     @:keep function fileno():Int return __s.fileno();
 
     /**
