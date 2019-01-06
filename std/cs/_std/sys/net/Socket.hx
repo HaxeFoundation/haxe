@@ -197,10 +197,11 @@ class Socket {
 
 	/**
 		Allows the socket to send to a broadcast address.
+		TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
 	**/
-	public function setBroadcast( b : Bool ) : Void {
-		sock.EnableBroadcast = b;
-	}
+	// public function setBroadcast( b : Bool ) : Void {
+	// 	sock.EnableBroadcast = b;
+	// }
 
 	/**
 		Wait until one of the sockets groups is ready for the given operation :

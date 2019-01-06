@@ -224,10 +224,6 @@ class Socket {
 		socket_set_fast_send(__s,b);
 	}
 
-	public function setBroadcast( b : Bool ) : Void{
-		socket_set_broadcast(__s,b);
-	}
-
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var c = untyped __dollar__hnew( 1 );
 		var f = function( a : Array<Socket> ){
@@ -281,5 +277,4 @@ class Socket {
 	private static var socket_shutdown = neko.Lib.load("std","socket_shutdown",3);
 	private static var socket_set_blocking = neko.Lib.load("std","socket_set_blocking",2);
 	private static var socket_set_fast_send = neko.Lib.loadLazy("std","socket_set_fast_send",2);
-	private static var socket_set_broadcast = neko.Lib.loadLazy("std","socket_set_broadcast",2);
 }

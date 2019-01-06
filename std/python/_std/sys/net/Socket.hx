@@ -251,10 +251,11 @@ private class SocketOutput extends haxe.io.Output {
 
     /**
         Allows the socket to send to broadcast addresses.
+        TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
     **/
-    public function setBroadcast( b : Bool ) : Void {
-        __s.setsockopt(PSocketModule.SOL_SOCKET, PSocketModule.SO_BROADCAST, b);
-    }
+    // public function setBroadcast( b : Bool ) : Void {
+    //     __s.setsockopt(PSocketModule.SOL_SOCKET, PSocketModule.SO_BROADCAST, b);
+    // }
 
     @:keep function fileno():Int return __s.fileno();
 

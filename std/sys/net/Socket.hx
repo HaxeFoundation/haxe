@@ -118,11 +118,6 @@ extern class Socket {
 	function setFastSend( b : Bool ) : Void;
 
 	/**
-		Allows the socket to send to broadcast addresses.
-	**/
-	function setBroadcast( b : Bool ) : Void;
-
-	/**
 		Wait until one of the sockets groups is ready for the given operation :
 		 - `read`contains sockets on which we want to wait for available data to be read,
 		 - `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,

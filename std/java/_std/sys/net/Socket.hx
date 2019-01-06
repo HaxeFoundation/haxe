@@ -170,12 +170,13 @@ class Socket {
 		catch(e:Dynamic) throw e;
 	}
 
-	public function setBroadcast( b : Bool ) : Void
-	{
-		try
-			sock.setBroadcast(b);
-		catch(e:Dynamic) throw e;
-	}
+	//TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
+	// public function setBroadcast( b : Bool ) : Void
+	// {
+	// 	try
+	// 		sock.setBroadcast(b);
+	// 	catch(e:Dynamic) throw e;
+	// }
 
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
 	{

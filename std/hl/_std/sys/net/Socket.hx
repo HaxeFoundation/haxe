@@ -203,10 +203,6 @@ class Socket {
 		if( !socket_set_fast_send(__s,b) ) throw new Sys.SysError("setFastSend() failure");
 	}
 
-	public function setBroadcast( b : Bool ) : Void {
-		if( !socket_set_broadcast(__s,b) ) throw new Sys.SysError("setBroadcast() failure");
-	}
-
 	// TODO : use TLS when multithread added
 	static var tmp : hl.Bytes = null;
 	static var curTmpSize = 0;
@@ -267,7 +263,6 @@ class Socket {
 	@:hlNative("std", "socket_shutdown") static function socket_shutdown( s : SocketHandle, read : Bool, write : Bool ) : Bool { return true; }
 	@:hlNative("std", "socket_set_blocking") static function socket_set_blocking( s : SocketHandle, b : Bool ) : Bool { return true; }
 	@:hlNative("std", "socket_set_fast_send") static function socket_set_fast_send( s : SocketHandle, b : Bool ) : Bool { return true; }
-
 	@:hlNative("std", "socket_fd_size") static function socket_fd_size( count : Int) : Int { return 0; }
 	@:hlNative("std", "socket_select") static function socket_select( read : hl.NativeArray<SocketHandle>, write : hl.NativeArray<SocketHandle>, other : hl.NativeArray<SocketHandle>, tmpData : hl.Bytes, tmpSize : Int, timeout : Float ) : Bool { return false; }
 

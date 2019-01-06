@@ -56,7 +56,12 @@ class UdpSocket extends Socket {
 		return r;
 	}
 
+	public function setBroadcast( b : Bool ) : Void{
+		socket_set_broadcast(__s,b);
+	}
+
 	static var socket_recv_from = neko.Lib.loadLazy("std", "socket_recv_from", 5);
 	static var socket_send_to = neko.Lib.loadLazy("std", "socket_send_to", 5);
+	static var socket_set_broadcast = neko.Lib.loadLazy("std","socket_set_broadcast",2);
 
 }

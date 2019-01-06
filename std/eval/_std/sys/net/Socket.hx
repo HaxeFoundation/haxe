@@ -37,7 +37,10 @@ extern private class NativeSocket {
 	function send(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
 	function sendChar(char:Int):Void;
 	function setFastSend(b:Bool):Void;
+	/*
+	 * TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
 	function setBroadcast(b:Bool):Void;
+	 */
 	function setTimeout(timeout:Float):Void;
 	function shutdown(read:Bool, write:Bool):Void;
 
@@ -203,9 +206,10 @@ class Socket {
 		socket.setFastSend(b);
 	}
 
-	public function setBroadcast(b:Bool):Void {
-		socket.setBroadcast(b);
-	}
+	//TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
+	// public function setBroadcast(b:Bool):Void {
+	// 	socket.setBroadcast(b);
+	// }
 
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>, ?timeout:Float):{ read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
 		return NativeSocket.select(read, write, others, timeout);
