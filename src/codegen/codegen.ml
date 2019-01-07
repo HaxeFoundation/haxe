@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -479,7 +479,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = ref []
+	let tf_stack = new_rec_stack()
 
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
@@ -547,7 +547,7 @@ module UnificationCallback = struct
 					| _ -> e
 				end
 			| TReturn (Some e1) ->
-				begin match !tf_stack with
+				begin match tf_stack.rec_stack with
 					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
 					| _ -> e
 				end
@@ -556,10 +556,7 @@ module UnificationCallback = struct
 		in
 		match e.eexpr with
 			| TFunction tf ->
-				tf_stack := tf :: !tf_stack;
-				let etf = {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})} in
-				tf_stack := List.tl !tf_stack;
-				etf
+				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
 			| _ ->
 				check (Type.map_expr (run ff) e)
 end;;

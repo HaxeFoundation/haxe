@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -135,8 +135,7 @@ class Boot {
 
 	@:ifFeature("typed_cast")
 	private static function __cast(o : Dynamic, t : Dynamic) {
-		if (o == null) return null;
-		else if (__instanceof(o, t)) return o;
+		if (o == null || __instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
