@@ -45,7 +45,7 @@ import java.internal.Exceptions;
 			case "boolean", "java.lang.Boolean":
 				return untyped __java__('v instanceof java.lang.Boolean');
 			case "java.lang.Object":
-				return true;
+				return v != null;
 		}
 
 		var clv:java.lang.Class<Dynamic> = untyped __java__('v.getClass()');

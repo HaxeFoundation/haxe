@@ -186,7 +186,7 @@ class Boot {
 		case Array:
 			return js.Syntax.instanceof(o, Array) && o.__enum__ == null;
 		case Dynamic:
-			return true;
+			return o != null;
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
