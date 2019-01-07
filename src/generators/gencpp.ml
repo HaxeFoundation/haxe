@@ -760,7 +760,7 @@ and type_string_suff suffix haxe_type remap =
    | TAbstract ({ a_path = ([],"Int") },[]) -> "int"
    | TAbstract ({ a_path = (["cpp"],"UInt8") },[]) -> "unsigned char"
    | TAbstract( { a_path = ([], "EnumValue") }, _  ) -> "Dynamic"
-   | TAbstract ({ a_path = ([],"Null") }, [t]) ->
+   | TType ({ t_path = ([],"Null") }, [t]) ->
 		(match follow t with
 		| TAbstract ({ a_path = [],"Int" },_)
 		| TAbstract ({ a_path = [],"Float" },_)
@@ -977,6 +977,18 @@ let is_extern_class_instance obj =
    | TInst (klass,params) -> klass.cl_extern
    | _ -> false
 ;;
+
+
+(* Check to see if we are the first object in the parent tree to implement a dynamic interface *)
+let implement_dynamic_here class_def =
+   let implements_dynamic c = match c.cl_dynamic with None -> false | _ -> true  in
+   let rec super_implements_dynamic c = match c.cl_super with
+      | None -> false
+      | Some (csup, _) -> if (implements_dynamic csup) then true else
+            super_implements_dynamic csup;
+   in
+   ( (implements_dynamic class_def) && (not (super_implements_dynamic class_def) ) );;
+
 
 
 let rec is_dynamic_accessor name acc field class_def =
@@ -1885,7 +1897,7 @@ let rec cpp_type_of ctx haxe_type =
         baseType
    and cpp_type_of_pointer ctx p =
      match p with
-     | TAbstract ({ a_path = ([],"Null") },[t]) -> cpp_type_of ctx t
+     | TType ({ t_path = ([],"Null") },[t]) -> cpp_type_of ctx t
      | x ->  cpp_type_of ctx x
    (* Optional types are Dynamic if they norally could not be null *)
    and cpp_fun_arg_type_of ctx tvar opt =
@@ -5237,7 +5249,7 @@ let is_writable class_def field =
 let statics_except_meta class_def = (List.filter (fun static -> static.cf_name <> "__meta__" && static.cf_name <> "__rtti") class_def.cl_ordered_statics);;
 
 let has_set_member_field class_def =
-   (
+   implement_dynamic_here class_def || (
       let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       let reflect_writable = List.filter (is_writable class_def) reflect_fields in
       List.exists variable_field reflect_writable
@@ -5253,14 +5265,14 @@ let has_set_static_field class_def =
 
 
 let has_get_fields class_def =
-   (
+   implement_dynamic_here class_def ||(
       let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
       List.exists is_data_field class_def.cl_ordered_fields
    )
 ;;
 
 let has_get_member_field class_def =
-   (
+   implement_dynamic_here class_def || (
       let reflect_fields = List.filter (reflective class_def) (class_def.cl_ordered_fields) in
       List.exists (is_readable class_def) reflect_fields
    )
@@ -5508,6 +5520,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    let classIdTxt = Printf.sprintf "0x%08lx" classId in
 
    (* Config *)
+   let implement_dynamic = implement_dynamic_here class_def in
    let override_iteration = (not nativeGen) && (has_new_gc_references baseCtx class_def) in
    let dynamic_interface_closures =  (Common.defined baseCtx.ctx_common Define.DynamicInterfaceClosures) in
 
@@ -5875,6 +5888,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          (* MARK function - explicitly mark all child pointers *)
          output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
          output_cpp ("\tHX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
+         if (implement_dynamic) then
+            output_cpp "\tHX_MARK_DYNAMIC;\n";
          List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") implemented_instance_fields;
          (match super_needs_iteration with
          | "" -> ()
@@ -5884,6 +5899,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          (* Visit function - explicitly visit all child pointers *)
          output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
+         if (implement_dynamic) then
+            output_cpp "\tHX_VISIT_DYNAMIC;\n";
          List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") implemented_instance_fields;
          (match super_needs_iteration with
          | "" -> ()
@@ -5964,6 +5981,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             ) )
          in
          dump_quick_field_test (get_field_dat reflect_static_readable);
+         if (implement_dynamic) then
+            output_cpp "\tHX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
          output_cpp ("\treturn false;\n}\n\n");
       end;
 
@@ -5999,7 +6018,12 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          ) in
 
          dump_quick_field_test (set_field_dat reflect_write_member_variables);
-         output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
+         if (implement_dynamic) then begin
+            output_cpp ("\ttry { return super::__SetField(inName,inValue,inCallProp); }\n");
+            output_cpp ("\tcatch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
+            output_cpp "\treturn inValue;\n}\n\n";
+         end else
+            output_cpp ("\treturn super::__SetField(inName,inValue,inCallProp);\n}\n\n");
       end;
 
       if (has_set_static_field class_def) then begin
@@ -6036,6 +6060,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
          output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
          List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
+         if (implement_dynamic) then
+            output_cpp "\tHX_APPEND_DYNAMIC_FIELDS(outFields);\n";
          output_cpp "\tsuper::__GetFields(outFields);\n";
          output_cpp "};\n\n";
       end;
@@ -6229,7 +6255,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
             output_cpp ("   HX_DEFINE_SCRIPTABLE_INTERFACE\n")
          else begin
             output_cpp ("   HX_DEFINE_SCRIPTABLE(HX_ARR_LIST" ^ (string_of_int (List.length constructor_var_list) ) ^ ")\n");
-            output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
+            if (not implement_dynamic) then
+               output_cpp "\tHX_DEFINE_SCRIPTABLE_DYNAMIC;\n";
          end;
       end;
 
@@ -6507,6 +6534,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          output_h ("\t\tstatic bool __SetStatic(const ::String &inString, Dynamic &ioValue, hx::PropertyAccess inCallProp);\n");
       if (has_get_fields class_def) then
          output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
+
+      if (implement_dynamic) then
+         output_h ("\t\tHX_DECLARE_IMPLEMENT_DYNAMIC;\n");
 
       if (has_compare_field class_def) then
          output_h ("\t\tint __Compare(const hx::Object *inRHS) const { " ^
@@ -6794,7 +6824,7 @@ let is_assign_op op =
 
 let rec script_type_string haxe_type =
    match haxe_type with
-   | TAbstract ({ a_path = ([],"Null") },[t]) ->
+   | TType ({ t_path = ([],"Null") },[t]) ->
       (match follow t with
       | TAbstract ({ a_path = [],"Int" },_)
       | TAbstract ({ a_path = [],"Float" },_)
@@ -7114,7 +7144,7 @@ class script_writer ctx filename asciiOut =
    val identTable = Hashtbl.create 0
    val fileTable = Hashtbl.create 0
    val identBuffer = Buffer.create 0
-   val cppiaAst = false
+   val cppiaAst = true
 
    method stringId name =
       try ( Hashtbl.find identTable name )
@@ -8004,6 +8034,7 @@ let generate_script_class common_ctx script class_def =
    script#write ((string_of_int ( (List.length ordered_fields) +
                                  (List.length ordered_statics) +
                                  (match class_def.cl_constructor with Some _ -> 1 | _ -> 0 ) +
+                                 (if (implement_dynamic_here class_def) then 1 else 0) +
                                  (match class_def.cl_init with Some _ -> 1 | _ -> 0 ) ) )
                                  ^ "\n");
 
@@ -8044,6 +8075,8 @@ let generate_script_class common_ctx script class_def =
 
    List.iter (generate_field false) ordered_fields;
    List.iter (generate_field true) ordered_statics;
+   if (implement_dynamic_here class_def) then
+      script#implDynamic;
    script#write "\n";
 ;;
 
