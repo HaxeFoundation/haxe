@@ -1516,7 +1516,7 @@ let generate com =
 			"	for (var name in fields) proto[name] = fields[name];\n" ^
 			"	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;\n" ^
 			"	return proto;\n" ^
-			"}"
+			"}\n"
 		in
 		spr ctx extend_code
 	end;
