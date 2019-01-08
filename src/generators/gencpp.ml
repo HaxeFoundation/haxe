@@ -5146,6 +5146,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    List.iter2 (fun r f -> gen_forward_decl h_file r f) referenced flags;
 
+   output_h ( get_code enum_def.e_meta Meta.HeaderCode );
+
    gen_open_namespace output_h class_path;
 
    output_h "\n\n";
