@@ -28,7 +28,7 @@ private class SocketInput extends haxe.io.Input {
 		var r = @:privateAccess __s.ssl.recv(buf, pos, len);
 		if( r == -1 )
 			throw haxe.io.Error.Blocked;
-		else if( r < 0 )
+		else if( r <= 0 )
 			throw new haxe.io.Eof();
 		return r;
 	}
