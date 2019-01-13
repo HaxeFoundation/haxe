@@ -365,6 +365,7 @@ class Http extends haxe.http.HttpBase {
 			try {
 				while(true) {
 					var len = sock.input.readBytes(buf,0,bufsize);
+					if (len == 0) break;
 					api.writeBytes(buf,0,len);
 				}
 			} catch(e:haxe.io.Eof) {
