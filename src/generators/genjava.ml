@@ -299,7 +299,7 @@ struct
 						| TClassDecl{ cl_path = (["haxe"], "Int64") } ->
 							mk_is true obj i64_md
 						| TAbstractDecl{ a_path = ([], "Dynamic") }
-						| TClassDecl{ cl_path = ([], "Dynamic") } ->
+						| TClassDecl{ cl_path = ([], "Dynamic") } when not (is_nullable obj.etype) ->
 							(match obj.eexpr with
 								| TLocal _ | TConst _ -> { e with eexpr = TConst(TBool true) }
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
