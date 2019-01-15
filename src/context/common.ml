@@ -513,22 +513,21 @@ let rec has_feature com f =
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] -> assert false
 		| [cl] -> has_feature com (cl ^ ".*")
-		| meth :: cl :: pack ->
+		| field :: cl :: pack ->
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
-					Meta.has Meta.Used (t_infos t).mt_meta)
+				| t when field = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
+					not (has_dce com) || Meta.has Meta.Used (t_infos t).mt_meta)
 				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
-					Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
+					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
 				| TClassDecl c ->
-					PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+					PMap.exists field c.cl_statics || PMap.exists field c.cl_fields
 				| _ ->
 					false)
 			with Not_found ->
 				false
 			) in
-			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
 			r
 
