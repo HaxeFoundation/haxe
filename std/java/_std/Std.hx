@@ -28,7 +28,7 @@ import java.internal.Exceptions;
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
-			return t == Dynamic;
+			return false;
 		if (t == null)
 			return false;
 		var clt:java.lang.Class<Dynamic> = cast t;
@@ -45,7 +45,7 @@ import java.internal.Exceptions;
 			case "boolean", "java.lang.Boolean":
 				return untyped __java__('v instanceof java.lang.Boolean');
 			case "java.lang.Object":
-				return v != null;
+				return true;
 		}
 
 		var clv:java.lang.Class<Dynamic> = untyped __java__('v.getClass()');

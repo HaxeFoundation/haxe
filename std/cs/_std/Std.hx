@@ -27,7 +27,7 @@ import cs.internal.Exceptions;
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
-			return t == Dynamic;
+			return false;
 		if (t == null)
 			return false;
 		var clt = cs.Lib.as(t, cs.system.Type);
@@ -43,7 +43,7 @@ import cs.internal.Exceptions;
 			case "System.Boolean":
 				return untyped __cs__('{0} is bool', v);
 			case "System.Object":
-				return v != null;
+				return true;
 		}
 
 		var vt = cs.Lib.getNativeType(v);
