@@ -528,7 +528,6 @@ let rec has_feature com f =
 			with Not_found ->
 				false
 			) in
-			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
 			r
 
