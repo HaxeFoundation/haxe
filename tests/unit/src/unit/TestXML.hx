@@ -1,5 +1,7 @@
 package unit;
 
+import haxe.xml.Parser.XmlParserException;
+
 class TestXML extends Test {
 
 	function checkExc( x : Xml, ?pos ) {
@@ -234,5 +236,28 @@ class TestXML extends Test {
 	function testIssue7454() {
 		var string:String = "<Text><![CDATA[Some text ]]></Text>";
 		eq(string, Xml.parse(string).toString());
+	}
+
+	function testNicolas() {
+		try {
+			haxe.xml.Parser.parse("<flow>x");
+			t(false);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unclosed node <flow>") != -1);
+		}
+
+		try {
+			var xml="<f><f/></f></f>";
+			haxe.xml.Parser.parse(xml);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unexpected </f>, tag is not open") != -1);
+		}
+
+		try {
+			haxe.xml.Parser.parse("<f><f></f>");
+			t(false);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unclosed node <f>") != -1);
+		}
 	}
 }
