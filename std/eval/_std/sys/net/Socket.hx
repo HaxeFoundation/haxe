@@ -202,11 +202,6 @@ class Socket {
 		socket.setFastSend(b);
 	}
 
-	//TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
-	// public function setBroadcast(b:Bool):Void {
-	// 	socket.setBroadcast(b);
-	// }
-
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>, ?timeout:Float):{ read: Array<Socket>,write: Array<Socket>,others: Array<Socket> } {
 		return NativeSocket.select(read, write, others, timeout);
 	}
