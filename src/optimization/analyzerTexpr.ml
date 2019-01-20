@@ -989,7 +989,8 @@ module Fusion = struct
 				begin try
 					let e2,f = match e2.eexpr with
 						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
-						| TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)})
+						(* This is not sound if e21 contains the variable (issue #7704) *)
+						(* | TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)}) *)
 						| TVar(v,Some e2) -> e2,(fun e -> {e2 with eexpr = TVar(v,Some e)})
 						| _ -> raise Exit
 					in
