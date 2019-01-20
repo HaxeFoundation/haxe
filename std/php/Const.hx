@@ -172,7 +172,6 @@ extern class Const {
 	static var SO_RCVTIMEO : Int;
 	static var SO_SNDTIMEO : Int;
 	static var TCP_NODELAY : Int;
-	static var SO_BROADCAST : Int;
 	static var PHP_BINARY_READ : Int;
 	/**
 		@see http://php.net/manual/en/json.constants.php

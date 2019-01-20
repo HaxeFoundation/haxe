@@ -37,10 +37,6 @@ extern private class NativeSocket {
 	function send(buf:haxe.io.Bytes, pos:Int, len:Int):Int;
 	function sendChar(char:Int):Void;
 	function setFastSend(b:Bool):Void;
-	/*
-	 * TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
-	function setBroadcast(b:Bool):Void;
-	 */
 	function setTimeout(timeout:Float):Void;
 	function shutdown(read:Bool, write:Bool):Void;
 

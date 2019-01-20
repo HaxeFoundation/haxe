@@ -140,12 +140,6 @@ class Socket {
 		checkError(r, 0, "Unable to set TCP_NODELAY on socket");
 	}
 
-	//TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
-	// public function setBroadcast( b : Bool ) : Void {
-	// 	var r = socket_set_option(__s, SOL_SOCKET, SO_BROADCAST, true);
-	// 	checkError(r, 0, "Unable to set SO_BROADCAST on socket");
-	// }
-
 	public function waitForRead() : Void {
 		select([this], null, null);
 	}

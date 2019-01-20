@@ -196,14 +196,6 @@ class Socket {
 	}
 
 	/**
-		Allows the socket to send to a broadcast address.
-		TODO: move to UdpSocket, as on TCP broadcast does not make much sense...
-	**/
-	// public function setBroadcast( b : Bool ) : Void {
-	// 	sock.EnableBroadcast = b;
-	// }
-
-	/**
 		Wait until one of the sockets groups is ready for the given operation :
 		* `read` contains sockets on which we want to wait for available data to be read,
 		* `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
