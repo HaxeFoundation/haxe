@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -223,6 +223,18 @@ let make_is e (t,p_t) p p_is =
 	let e_is = EField((EConst(Ident "Std"),null_pos),"is"),p_is in
 	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
+
+let handle_xml_literal p1 (name,pi) =
+	if p1.pmax <> pi.pmin then error (Custom("Unexpected <")) p1;
+	let open_tag = "<" ^ name in
+	let close_tag = "</" ^ name ^ ">" in
+	Lexer.reset();
+	Buffer.add_string Lexer.buf ("<" ^ name);
+	let i = Lexer.lex_xml p1.pmin open_tag close_tag !code_ref in
+	let xml = Lexer.contents() in
+	let e = EConst (String xml),{p1 with pmax = i} in
+	let e = make_meta Meta.Markup [] e p1 in
+	e
 
 let next_token s = match Stream.peek s with
 	| Some (Eof,p) ->

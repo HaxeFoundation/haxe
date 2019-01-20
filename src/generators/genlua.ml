@@ -1057,7 +1057,13 @@ and gen_block_element ctx e  =
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
-        | TCast (e',_) | TParenthesis e' | TMeta (_,e') ->
+        | TCast (e1, Some t)->
+            print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
+            gen_expr ctx e1;
+            spr ctx " , ";
+            spr ctx (ctx.type_accessor t);
+            spr ctx ")"
+        | TCast (e', None) | TParenthesis e' | TMeta (_,e') ->
             gen_block_element ctx e'
         | TArray (e1,e2) ->
             gen_block_element ctx e1;
@@ -2054,8 +2060,8 @@ let generate com =
         println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
         println ctx "if bit then";
         println ctx "  _hx_bit = bit";
-        println ctx "elseif bit32 then";
-        println ctx "  local _hx_bit_raw = bit32";
+        println ctx "else";
+        println ctx "  local _hx_bit_raw = _G.require('bit32')";
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -1965,6 +1965,7 @@ module StdSocket = struct
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = timeout *. 1000. in
 		setsockopt_float this SO_RCVTIMEO timeout;
 		setsockopt_float this SO_SNDTIMEO timeout;
 		vnull
@@ -2073,6 +2074,11 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
+				let i =
+					if i >= this.slength then raise Not_found
+					else if i < 0 then max (this.slength + i) 0
+					else i
+				in
 				let b = get_offset this i in
 				let offset,_,_ = find_substring this str false i b in
 				vint offset

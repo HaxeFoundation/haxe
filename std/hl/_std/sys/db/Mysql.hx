@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -92,7 +92,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 	}
 
 	public function getFieldsNames() : Array<String> {
-		var a = result_fields_names(r);
+		var a = result_get_fields_names(r);
 		return [for( v in a ) @:privateAccess String.fromUTF8(v)];
 	}
 
@@ -102,7 +102,7 @@ private class MysqlResultSet implements sys.db.ResultSet {
 	static function result_get( r : ResultHandler, n : Int ) : hl.Bytes { return null; }
 	static function result_get_int( r : ResultHandler, n : Int ) : Int { return 0; }
 	static function result_get_float( r : ResultHandler, n : Int ) : Float { return 0.; }
-	static function result_fields_names( r : ResultHandler ) : hl.NativeArray<hl.Bytes> { return null; }
+	static function result_get_fields_names( r : ResultHandler ) : hl.NativeArray<hl.Bytes> { return null; }
 
 }
 
@@ -126,8 +126,10 @@ private class MysqlConnection implements Connection {
 		return new MysqlResultSet(request_wrap(h, b, len));
 	}
 
-	public function escape( s : String ) {
-		return @:privateAccess String.fromUTF8(escape_wrap(h,s.toUtf8()));
+	public function escape( s : String ) @:privateAccess {
+		var len = 0;
+		var utf = s.bytes.utf16ToUtf8(0, len);
+		return String.fromUTF8(escape_wrap(h,utf,len));
 	}
 
 	public function quote( s : String ) {
@@ -177,8 +179,8 @@ private class MysqlConnection implements Connection {
 	@:hlNative("mysql","request")
 	static function request_wrap( h :  ConnectionHandler, rq : hl.Bytes, rqLen : Int ) : ResultHandler { return null; }
 	@:hlNative("mysql","escape")
-	static function escape_wrap( h : ConnectionHandler, str : hl.Bytes ) : hl.Bytes { return null; }
-	static function setConvFuns( fstring : Dynamic, fbytes : Dynamic, fdate : Dynamic ) { };
+	static function escape_wrap( h : ConnectionHandler, str : hl.Bytes, len : Int ) : hl.Bytes { return null; }
+	static function setConvFuns( fstring : Dynamic, fbytes : Dynamic, fdate : Dynamic, fjson : Dynamic ) { };
 
 }
 
@@ -199,7 +201,8 @@ class Mysql {
 			MysqlConnection.setConvFuns(
 				function(v:hl.Bytes) return @:privateAccess String.fromUTF8(v),
 				function(v:hl.Bytes,len:Int) return new haxe.io.Bytes(v,len),
-				function(t) return Date.fromTime(t)
+				function(t) return Date.fromTime(t),
+				function(v:hl.Bytes) return haxe.Json.parse(@:privateAccess String.fromUTF8(v))
 			);
 		}
 		var p = new MysqlParams();

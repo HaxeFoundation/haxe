@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -280,6 +280,8 @@ let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
 
+let xml_ident = [%sedlex.regexp? Opt('$'), (ident | idtype)]
+
 let rec skip_header lexbuf =
 	match%sedlex lexbuf with
 	| 0xfeff -> skip_header lexbuf
@@ -549,7 +551,7 @@ and not_xml ctx depth in_open =
 		store lexbuf;
 		not_xml ctx depth in_open
 	(* closing tag *)
-	| '<','/',ident,'>' ->
+	| '<','/',xml_ident,'>' ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
 		(* If it matches our document close tag, finish or decrease depth. *)
@@ -559,7 +561,7 @@ and not_xml ctx depth in_open =
 		end else
 			not_xml ctx depth false
 	(* opening tag *)
-	| '<',ident ->
+	| '<',xml_ident ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
 		(* If it matches our document open tag, increase depth and set in_open to true. *)

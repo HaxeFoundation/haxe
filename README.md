@@ -16,14 +16,15 @@ Haxe allows you to compile for the following targets:
  * JavaScript
  * C++
  * C#
- * [HashLink](http://hashlink.haxe.org/)
  * Java
  * Lua
  * PHP
  * Python 3
- * [NekoVM](http://nekovm.org/)
+ * [HashLink](https://hashlink.haxe.org/)
+ * [NekoVM](https://nekovm.org/)
  * Flash (SWF Bytecode)
  * ActionScript 3
+ * And its own [interpreter](https://haxe.org/blog/eval/)
 
 You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
 
@@ -90,6 +91,7 @@ Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  |
 4.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
 4.0 preview 3 |       |        |        | 1.3   |       |      |
 4.0 preview 4 |       |        |        | 1.6   |       |      |
+4.0 preview 5 |       |        |        | 1.8   |       |      |
 
 
 ## Contributing

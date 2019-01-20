@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,7 @@ package haxe.io;
 extern class BytesBuffer {
 	public var length(get, never):Int;
 	public function new():Void;
-	function get_length():Int;
+	private function get_length():Int;
 	public function addByte(byte:Int):Void;
 	public function add(src:Bytes):Void;
 	public function addString(v:String,?encoding:Encoding):Void;

@@ -544,20 +544,27 @@ let create_dir_recursive (path:string list) =
 (**
 	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
 *)
-let get_full_type_name ?escape ?omit_first_slash (type_path:path) =
+let get_full_type_name ?(escape=false) ?(omit_first_slash=false) (type_path:path) =
 	let name =
 		match type_path with
+			| ([], type_name) ->
+				if omit_first_slash then
+					type_name
+				else
+					"\\" ^ type_name
 			| (module_path, type_name) ->
 				let parts =
-					match omit_first_slash with
-						| Some true -> get_real_path module_path
-						| _ -> "" :: get_real_path module_path
+					if omit_first_slash then
+						get_real_path module_path
+					else
+						"" :: get_real_path module_path
 				in
 				(String.concat "\\" parts) ^ "\\" ^ type_name
 	in
-	match escape with
-		| Some true -> String.escaped name
-		| _ -> name
+	if escape then
+		String.escaped name
+	else
+		name
 
 (**
 	Check if `target` is or implements native PHP `Throwable` interface

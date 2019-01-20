@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,7 +62,7 @@ class Thread {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}
 
-	@:keep function __compare(t) : Int {
+	@:keep function __compare(t:Thread) : Int {
 		return handle == t.handle ? 0 : 1;
 	}
 

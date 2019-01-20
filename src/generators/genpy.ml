@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -2463,13 +2463,11 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
-				spr ctx "if __name__ == '__main__':";
-				newline ctx;
 				match e.eexpr with
 				| TBlock el ->
-					List.iter (fun e -> gen_expr ctx e "" "    "; newline ctx) el;
+					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
 				| _ ->
-					gen_expr ctx e "" "    "; newline ctx
+					gen_expr ctx e "" ""; newline ctx
 
 	(* Entry point *)
 

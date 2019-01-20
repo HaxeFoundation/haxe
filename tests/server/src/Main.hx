@@ -1,4 +1,5 @@
 import AsyncMacro.async;
+using StringTools;
 
 class NoModification extends HaxeServerTestCase {
 	public function test() {
@@ -46,6 +47,31 @@ class Dependency extends HaxeServerTestCase {
 	}
 }
 
+class Macro extends HaxeServerTestCase {
+	public function test() {
+		async({
+			vfs.putContent("MacroMain.hx", getTemplate("MacroMain.hx"));
+			vfs.putContent("Macro.hx", getTemplate("Macro.hx"));
+			var args = ["-main", "MacroMain.hx", "--no-output", "-js", "no.js"];
+			haxe(args);
+			assertHasPrint("1");
+			vfs.touchFile("MacroMain.hx");
+			haxe(args);
+			assertHasPrint("1");
+			vfs.touchFile("Macro.hx");
+			haxe(args);
+			assertHasPrint("1");
+			vfs.putContent("Macro.hx", getTemplate("Macro.hx").replace("1", "2"));
+			haxe(args);
+			assertHasPrint("2");
+			vfs.touchFile("MacroMain.hx");
+			haxe(args);
+			assertHasPrint("2");
+		});
+	}
+}
+
+
 class Main {
 	static public function main() {
 		Vfs.removeDir("test/cases");
@@ -53,6 +79,7 @@ class Main {
 		runner.addCase(new NoModification());
 		runner.addCase(new Modification());
 		runner.addCase(new Dependency());
+		runner.addCase(new Macro());
 		utest.ui.Report.create(runner);
 		runner.run();
 	}

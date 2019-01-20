@@ -1,6 +1,6 @@
 (*
    The Haxe Compiler
-   Copyright (C) 2005-2018  Haxe Foundation
+   Copyright (C) 2005-2019  Haxe Foundation
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -3088,9 +3088,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
                baseCpp.cppexpr, baseCpp.cpptype (* nothing to do *)
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
-            | TCppVoid -> baseCpp.cppexpr, TCppVoid
-            | TCppInterface _ ->
-                  baseCpp.cppexpr, return_type
+            | TCppVoid ->
+				CppTCast(baseCpp, cpp_type_of expr.etype), return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->
@@ -3299,6 +3298,10 @@ let cpp_gen_default_values ctx args prefix =
 
 let ctx_default_values ctx args prefix =
     cpp_gen_default_values ctx args prefix
+;;
+
+let cpp_class_hash interface =
+   gen_hash 0 (join_class_path interface.cl_path "::" )
 ;;
 
 
@@ -3976,11 +3979,19 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
       | CppCode(value, exprs) ->
          Codegen.interpolate_code ctx.ctx_common (format_code value) exprs out (fun e -> gen e) expr.cpppos
       | CppTCast(expr,cppType) ->
-         let toType = tcpp_to_string cppType in
-         if toType="Dynamic" then
-            (out " ::Dynamic("; gen expr; out ")")
-         else
-            (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
+         (match cppType with
+         | TCppInterface(i) ->
+             out " hx::interface_check(";
+             gen expr;
+             out ("," ^ (cpp_class_hash i) ^")")
+         | _ -> begin
+            let toType = tcpp_to_string cppType in
+            if toType="Dynamic" then
+               (out " ::Dynamic("; gen expr; out ")")
+            else
+               (out ("hx::TCast< " ^ toType ^ " >::cast("); gen expr; out ")")
+            end
+         )
 
       | CppCastStatic(expr,toType) ->
          let close = match expr.cpptype with
@@ -4383,7 +4394,7 @@ let gen_field ctx class_def class_name ptr_name dot_name is_static is_interface 
                        | TCppStar (t,const) ->
                           output ("(cpp::" ^ (if const then "Const" else "") ^"Pointer<" ^ (tcpp_to_string t)^" >) ")
                        | TCppInst(t) when has_meta_key t.cl_meta Meta.StructAccess ->
-                          output ("(cpp::Struct< " ^ (tcpp_to_string return_type) ^ " >) ");
+                          output ("(cpp::Struct< " ^ (tcpp_to_string arg) ^ " >) ");
                        | _ -> () );
                      output ("a" ^ (string_of_int i));
                   )  tcpp_args;
@@ -4468,10 +4479,6 @@ let cpp_interface_impl_name ctx interface =
 ;;
 
 
-let cpp_class_hash interface =
-   gen_hash 0 (join_class_path interface.cl_path "::" )
-;;
-
 
 
 let has_field_init field =
@@ -4510,7 +4517,7 @@ let gen_member_def ctx class_def is_static is_interface field =
             let returnType = ctx_type_string ctx return_type in
             let returnStr = if returnType = "void" then "" else "return " in
             let commaArgList = if argList="" then argList else "," ^ argList in
-            let cast = "static_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
+            let cast = "hx::interface_cast< ::" ^ join_class_path_remap class_def.cl_path "::" ^ "_obj *>" in
             output ("		" ^ returnType ^ " (hx::Object :: *_hx_" ^ remap_name ^ ")(" ^ argList ^ "); \n");
             output ("		static inline " ^ returnType ^ " " ^ remap_name ^ "( ::Dynamic _hx_" ^ commaArgList ^ ") {\n");
             output ("			" ^ returnStr ^ "(_hx_.mPtr->*( " ^ cast ^ "(_hx_.mPtr->_hx_getInterface(" ^ (cpp_class_hash class_def) ^ ")))->_hx_" ^ remap_name ^ ")(" ^ cpp_arg_names args ^ ");\n		}\n" );
@@ -5139,6 +5146,8 @@ let generate_enum_files baseCtx enum_def super_deps meta =
 
    List.iter2 (fun r f -> gen_forward_decl h_file r f) referenced flags;
 
+   output_h ( get_code enum_def.e_meta Meta.HeaderCode );
+
    gen_open_namespace output_h class_path;
 
    output_h "\n\n";
@@ -5282,6 +5291,9 @@ let has_get_static_field class_def =
       List.exists (is_readable class_def) reflect_fields
 ;;
 
+let has_compare_field class_def =
+    List.exists (fun f -> f.cf_name="__compare") class_def.cl_ordered_fields
+;;
 
 
 let has_boot_field class_def =
@@ -6518,6 +6530,10 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       if (has_get_fields class_def) then
          output_h ("\t\tvoid __GetFields(Array< ::String> &outFields);\n");
 
+      if (has_compare_field class_def) then
+         output_h ("\t\tint __Compare(const hx::Object *inRHS) const { " ^
+                           "return const_cast<" ^ class_name ^ " *>(this)->__compare(Dynamic((hx::Object *)inRHS)); }\n");
+
       output_h ("\t\tstatic void __register();\n");
       if (override_iteration) then begin
          output_h ("\t\tvoid __Mark(HX_MARK_PARAMS);\n");
@@ -7374,7 +7390,7 @@ class script_writer ctx filename asciiOut =
       this#gen_expression expr;
    end
 
-   method gen_func_args args = 
+   method gen_func_args args =
       let gen_inits = ref [] in
       List.iter (fun(arg,init) ->
          this#write (indent ^ indent_str );

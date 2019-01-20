@@ -97,6 +97,7 @@ module IterationKind = struct
 		| _,TAbstract({a_impl = Some c} as a,tl) ->
 			begin try
 				let cf_length = PMap.find "get_length" c.cl_statics in
+				if PMap.exists "iterator" c.cl_statics then raise Not_found;
 				let get_length e p =
 					make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
 				in
@@ -194,7 +195,7 @@ module IterationKind = struct
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
-					| TLocal v' when v == v' -> ei
+					| TLocal v' when v == v' -> {ei with epos = e.epos}
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in

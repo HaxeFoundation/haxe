@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -350,7 +350,6 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
-	mutable m_reuse_macro_calls : string list;
 	mutable m_if_feature : (string *(tclass * tclass_field * bool)) list;
 	mutable m_features : (string,bool) Hashtbl.t;
 }
@@ -479,7 +478,6 @@ let module_extra file sign time kind policy =
 		m_deps = PMap.empty;
 		m_kind = kind;
 		m_binded_res = PMap.empty;
-		m_reuse_macro_calls = [];
 		m_if_feature = [];
 		m_features = Hashtbl.create 0;
 		m_check_policy = policy;
@@ -1304,10 +1302,10 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TEnumIndex e1 -> tag "EnumIndex" [loop e1]
 	| TField (e1,fa) ->
 		let sfa = match fa with
-			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); cf.cf_name]
-			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; cf.cf_name]
-			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl))); cf.cf_name]
-			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [cf.cf_name]
+			| FInstance(c,tl,cf) -> tag "FInstance" ~extra_tabs:"\t" [s_type (TInst(c,tl)); Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FStatic(c,cf) -> tag "FStatic" ~extra_tabs:"\t" [s_type_path c.cl_path; Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FClosure(co,cf) -> tag "FClosure" ~extra_tabs:"\t" [(match co with None -> "None" | Some (c,tl) -> s_type (TInst(c,tl))); Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
+			| FAnon cf -> tag "FAnon" ~extra_tabs:"\t" [Printf.sprintf "%s:%s" cf.cf_name (s_type cf.cf_type)]
 			| FDynamic s -> tag "FDynamic" ~extra_tabs:"\t" [s]
 			| FEnum(en,ef) -> tag "FEnum" ~extra_tabs:"\t" [s_type_path en.e_path; ef.ef_name]
 		in
@@ -1564,7 +1562,6 @@ module Printer = struct
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)
-			"m_reuse_macro_calls",String.concat ", " me.m_reuse_macro_calls;
 			"m_if_feature",""; (* TODO *)
 			"m_features",""; (* TODO *)
 		]
@@ -1753,50 +1750,57 @@ let unify_kind k1 k2 =
 			| MethDynamic, MethNormal -> true
 			| _ -> false
 
-let eq_stack = ref []
+type 'a rec_stack = {
+	mutable rec_stack : 'a list;
+}
+
+let new_rec_stack() = { rec_stack = [] }
+let rec_stack_exists f s = List.exists f s.rec_stack
+let rec_stack_memq v s = List.memq v s.rec_stack
+let rec_stack_loop stack value f arg =
+	stack.rec_stack <- value :: stack.rec_stack;
+	try
+		let r = f arg in
+		stack.rec_stack <- List.tl stack.rec_stack;
+		r
+	with e ->
+		stack.rec_stack <- List.tl stack.rec_stack;
+		raise e
+
+let eq_stack = new_rec_stack()
 
 let rec_stack stack value fcheck frun ferror =
-	if not (List.exists fcheck !stack) then begin
+	if not (rec_stack_exists fcheck stack) then begin
 		try
-			stack := value :: !stack;
+			stack.rec_stack <- value :: stack.rec_stack;
 			let v = frun() in
-			stack := List.tl !stack;
+			stack.rec_stack <- List.tl stack.rec_stack;
 			v
 		with
 			Unify_error l ->
-				stack := List.tl !stack;
+				stack.rec_stack <- List.tl stack.rec_stack;
 				ferror l
 			| e ->
-				stack := List.tl !stack;
+				stack.rec_stack <- List.tl stack.rec_stack;
 				raise e
 	end
 
 let rec_stack_default stack value fcheck frun def =
-	if not (List.exists fcheck !stack) then begin
-		try
-			stack := value :: !stack;
-			let v = frun() in
-			stack := List.tl !stack;
-			v
-		with
-			| e ->
-				stack := List.tl !stack;
-				raise e
-	end	else def
+	if not (rec_stack_exists fcheck stack) then rec_stack_loop stack value frun () else def
 
 let rec_stack_bool stack value fcheck frun =
-	if (List.exists fcheck !stack) then false else begin
+	if (rec_stack_exists fcheck stack) then false else begin
 		try
-			stack := value :: !stack;
+			stack.rec_stack <- value :: stack.rec_stack;
 			frun();
-			stack := List.tl !stack;
+			stack.rec_stack <- List.tl stack.rec_stack;
 			true
 		with
 			Unify_error l ->
-				stack := List.tl !stack;
+				stack.rec_stack <- List.tl stack.rec_stack;
 				false
 			| e ->
-				stack := List.tl !stack;
+				stack.rec_stack <- List.tl stack.rec_stack;
 				raise e
 	end
 
@@ -1929,19 +1933,19 @@ let type_iseq_strict a b =
 	with Unify_error _ ->
 		false
 
-let unify_stack = ref []
-let abstract_cast_stack = ref []
-let unify_new_monos = ref []
+let unify_stack = new_rec_stack()
+let abstract_cast_stack = new_rec_stack()
+let unify_new_monos = new_rec_stack()
 
 let print_stacks() =
 	let ctx = print_context() in
 	let st = s_type ctx in
 	print_endline "unify_stack";
-	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !unify_stack;
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) unify_stack.rec_stack;
 	print_endline "monos";
-	List.iter (fun m -> print_endline ("\t" ^ st m)) !unify_new_monos;
+	List.iter (fun m -> print_endline ("\t" ^ st m)) unify_new_monos.rec_stack;
 	print_endline "abstract_cast_stack";
-	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) !abstract_cast_stack
+	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) abstract_cast_stack.rec_stack
 
 let rec unify a b =
 	if a == b then
@@ -2058,22 +2062,22 @@ let rec unify a b =
 				(match f2.cf_kind with
 				| Var { v_read = AccNo } | Var { v_read = AccNever } ->
 					(* we will do a recursive unification, so let's check for possible recursion *)
-					let old_monos = !unify_new_monos in
-					unify_new_monos := !monos @ !unify_new_monos;
+					let old_monos = unify_new_monos.rec_stack in
+					unify_new_monos.rec_stack <- !monos @ unify_new_monos.rec_stack;
 					rec_stack unify_stack (ft,f2.cf_type)
-						(fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono !unify_new_monos ft a2)
-						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun (a2,b2) -> fast_eq b2 f2.cf_type && fast_eq_mono unify_new_monos.rec_stack ft a2)
+						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos.rec_stack <- old_monos; raise e)
 						(fun l -> error (invalid_field n :: l));
-					unify_new_monos := old_monos;
+					unify_new_monos.rec_stack <- old_monos;
 				| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
 					(* same as before, but unification is reversed (read-only var) *)
-					let old_monos = !unify_new_monos in
-					unify_new_monos := !monos @ !unify_new_monos;
+					let old_monos = unify_new_monos.rec_stack in
+					unify_new_monos.rec_stack <- !monos @ unify_new_monos.rec_stack;
 					rec_stack unify_stack (f2.cf_type,ft)
-						(fun(a2,b2) -> fast_eq_mono !unify_new_monos b2 ft && fast_eq f2.cf_type a2)
-						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos := old_monos; raise e)
+						(fun(a2,b2) -> fast_eq_mono unify_new_monos.rec_stack b2 ft && fast_eq f2.cf_type a2)
+						(fun() -> try unify_with_access f1 ft f2 with e -> unify_new_monos.rec_stack <- old_monos; raise e)
 						(fun l -> error (invalid_field n :: l));
-					unify_new_monos := old_monos;
+					unify_new_monos.rec_stack <- old_monos;
 				| _ ->
 					(* will use fast_eq, which have its own stack *)
 					try

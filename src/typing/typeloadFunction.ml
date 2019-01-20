@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -111,9 +111,11 @@ let type_function ctx args ret fmode f do_display p =
 				error "Function body required" p
 		| Some e -> e
 	in
-	let e = if not do_display then
+	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
+	let e = if not do_display then begin
+		if is_position_debug then print_endline ("syntax:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
-	else begin
+	end else begin
 		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
@@ -198,6 +200,7 @@ let type_function ctx args ret fmode f do_display p =
 		| _ -> e
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
+	if is_position_debug then print_endline ("typing:\n" ^ (Texpr.dump_with_pos "" e));
 	e , fargs
 
 let type_function ctx args ret fmode f do_display p =
