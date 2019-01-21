@@ -3958,6 +3958,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                 | TCppInterface(klass) ->
                    let hash = (cpp_class_hash klass) in
                    output_i (!else_str ^ "if (hx::TIsInterface< (int)" ^ hash  ^ " >(_hx_e.mPtr))")
+                | TCppString ->
+                   output_i (!else_str ^ "if (_hx_e.IsClass< ::String >() && _hx_e->toString()!=null() )");
                 | _ ->
                    if (type_name="Dynamic") then begin
                       seen_dynamic := true;
@@ -7973,6 +7975,10 @@ class script_writer ctx filename asciiOut =
          | CppCastScalar(expr,"int") ->
              this#writeOpLine IaCastInt;
              gen_expression expr;
+
+         | CppCastScalar(expr,"Float") ->
+            this#write ((this#op IaTCast) ^ (this#astType (TCppScalar("Float"))) ^ "\n");
+            gen_expression expr;
 
          | CppCastScalar(expr,_) -> match_expr expr
          | CppCastVariant(expr) -> match_expr expr
