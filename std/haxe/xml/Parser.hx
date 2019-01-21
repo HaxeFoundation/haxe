@@ -338,6 +338,9 @@ class Parser
 							throw new XmlParserException("Expected node name", str, p);
 
 						var v = str.substr(start,p - start);
+						if (parent == null || parent.nodeType != Element) {
+							throw new XmlParserException('Unexpected </$v>, tag is not open', str, p);
+						}
 						if (v != parent.nodeName)
 							throw new XmlParserException("Expected </" +parent.nodeName + ">", str, p);
 
@@ -428,6 +431,9 @@ class Parser
 
 		if (state == S.PCDATA)
 		{
+			if (parent.nodeType == Element) {
+				throw new XmlParserException("Unclosed node <" + parent.nodeName + ">", str, p);
+			}
 			if (p != start || nsubs == 0) {
 				buf.addSub(str, start, p-start);
 				addChild(Xml.createPCData(buf.toString()));

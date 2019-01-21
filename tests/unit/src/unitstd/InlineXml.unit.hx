@@ -34,3 +34,6 @@ unit.HelperMacros.pipeMarkupLiteralUnprocessed(<$xml></$xml>) == "<$xml></$xml>"
 
 // uppercase
 unit.HelperMacros.pipeMarkupLiteral(<Xml></Xml>) == "<Xml></Xml>";
+
+// no semicolon at block-level
+unit.HelperMacros.pipeMarkupLiteral({ <Xml></Xml><yml /> }) == "<Xml></Xml><yml />";

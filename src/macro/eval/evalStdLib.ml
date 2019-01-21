@@ -1965,6 +1965,7 @@ module StdSocket = struct
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = timeout *. 1000. in
 		setsockopt_float this SO_RCVTIMEO timeout;
 		setsockopt_float this SO_SNDTIMEO timeout;
 		vnull

@@ -98,7 +98,7 @@ extern class Socket {
 	function host() : { host : Host, port : Int };
 
 	/**
-		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
+		Gives a timeout (in seconds) after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	function setTimeout( timeout : Float ) : Void;
 
