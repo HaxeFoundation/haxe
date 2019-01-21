@@ -3954,11 +3954,18 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
              let else_str = ref "" in
              List.iter (fun (v,catch) ->
                 let type_name = cpp_var_type_of ctx v in
-                if (type_name="Dynamic") then begin
-                   seen_dynamic := true;
-                   output_i !else_str;
-                end else
-                   output_i (!else_str ^ "if (_hx_e.IsClass< " ^ type_name ^ " >() )");
+                (match cpp_type_of ctx v.v_type with
+                | TCppInterface(klass) ->
+                   let hash = (cpp_class_hash klass) in
+                   output_i (!else_str ^ "if (hx::TIsInterface< (int)" ^ hash  ^ " >(_hx_e.mPtr))")
+                | _ ->
+                   if (type_name="Dynamic") then begin
+                      seen_dynamic := true;
+                      output_i !else_str;
+                   end else
+                      output_i (!else_str ^ "if (_hx_e.IsClass< " ^ type_name ^ " >() )");
+                );
+
                 let prologue = function _ ->
                    output_i "HX_STACK_BEGIN_CATCH\n";
                    output_i (type_name ^ " " ^ (cpp_var_name_of v) ^ " = _hx_e;\n");
