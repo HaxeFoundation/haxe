@@ -7976,6 +7976,10 @@ class script_writer ctx filename asciiOut =
              this#writeOpLine IaCastInt;
              gen_expression expr;
 
+         | CppCastScalar(expr,"Float") ->
+            this#write ((this#op IaTCast) ^ (this#astType (TCppScalar("Float"))) ^ "\n");
+            gen_expression expr;
+
          | CppCastScalar(expr,_) -> match_expr expr
          | CppCastVariant(expr) -> match_expr expr
          | CppCastStatic(expr,_) -> match_expr expr
