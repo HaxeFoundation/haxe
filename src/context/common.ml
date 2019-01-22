@@ -517,8 +517,9 @@ let rec has_feature com f =
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
-				| t when field = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
-					not (has_dce com) || Meta.has Meta.Used (t_infos t).mt_meta)
+				| t when field = "*" ->
+					not (has_dce com) ||
+					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
 				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
 					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
 				| TClassDecl c ->
