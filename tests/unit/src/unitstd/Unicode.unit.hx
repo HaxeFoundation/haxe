@@ -206,11 +206,18 @@ var b1 = haxe.io.Bytes.ofString(s1, RawNative);
 var s2 = b1.getString(0, b1.length, RawNative);
 s1 == s2;
 
-var obj:Dynamic = { };
+var obj:Dynamic = { abc: "ok" };
 var field = "äabc".substr(1);
-Reflect.setField(obj, field, "ok");
-obj.abc == "ok";
 Reflect.field(obj, field) == "ok";
+Reflect.hasField(obj, field) == true;
+Reflect.deleteField(obj, field) == true;
+Reflect.deleteField(obj, field) == false;
+Reflect.hasField(obj, field) == false;
+Reflect.field(obj, field) == null;
+
+var obj:Dynamic = { };
+Reflect.setField(obj, field, "still ok");
+Reflect.field(obj, field) == "still ok";
 Reflect.hasField(obj, field) == true;
 Reflect.deleteField(obj, field) == true;
 Reflect.deleteField(obj, field) == false;
