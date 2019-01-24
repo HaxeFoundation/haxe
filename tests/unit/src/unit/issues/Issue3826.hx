@@ -25,21 +25,21 @@ class Issue3826 extends Test {
 		eq( get(8.5), "2/8.5" );
 
 		eq( get(inull), "2/4.25" );
-		eq( get(inull,fnull), "2/4.25" );		
-		eq( get(inull,inull), "2/4.25" );		
+		eq( get(inull,fnull), "2/4.25" );
+		eq( get(inull,inull), "2/4.25" );
 		eq( get(fnull), "2/4.25" );
 		eq( get(dnull,dnull), "2/4.25" );
 		eq( get(ival,fval), "5/8.5" );
 		eq( get(dval,dval), "6/6" );
-		
+
 		#end
 	}
 
 	public function testReflect() {
-		#if (java || cs || lua)
+		#if (java || cs)
 		return; // TODO
 		#end
-			
+
 		#if !flash
 		eq( Reflect.callMethod(this, get, []), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );
@@ -47,9 +47,9 @@ class Issue3826 extends Test {
 		eq( Reflect.callMethod(this, get, [null,8.5]), "2/8.5" );
 
 		eq( Reflect.callMethod(this, get, [null]), "2/4.25" );
-		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );		
-		eq( Reflect.callMethod(this, get, [ival,fval]), "5/8.5" );		
-		eq( Reflect.callMethod(this, get, [dval,dval]), "6/6" );		
+		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );
+		eq( Reflect.callMethod(this, get, [ival,fval]), "5/8.5" );
+		eq( Reflect.callMethod(this, get, [dval,dval]), "6/6" );
 		#end
 	}
 
