@@ -57,4 +57,8 @@ class UdpSocket extends Socket {
 		return r;
 	}
 
+	public function setBroadcast( b : Bool ) : Void {
+		NativeSocket.socket_set_broadcast(__s,b);
+	}
+
 }

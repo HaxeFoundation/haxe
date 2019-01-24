@@ -278,7 +278,7 @@ class Compiler {
 				if( (p == pack || name == pack) || (rec && StringTools.startsWith(p, pack + ".")) )
 					excludeBaseType(b);
 			}
-		});
+		}, false);
 	}
 
 	/**

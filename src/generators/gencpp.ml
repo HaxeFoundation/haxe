@@ -3081,7 +3081,8 @@ let retype_expression ctx request_type function_args function_type expression_tr
          | TCast (base,Some t) ->
             let baseCpp = retype (cpp_type_of base.etype) base in
             let baseStr = (tcpp_to_string baseCpp.cpptype) in
-            let return_type = if return_type=TCppUnchanged then cpp_type_of expr.etype else return_type in
+            let default_return_type = if return_type=TCppUnchanged then cpp_type_of expr.etype else return_type in
+            let return_type = cpp_type_from_path ctx (t_path t) [] (fun () -> default_return_type ) in
             let returnStr = (tcpp_to_string return_type) in
 
             if baseStr=returnStr then
@@ -3089,7 +3090,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
             else (match return_type with
             | TCppNativePointer(klass) -> CppCastNative(baseCpp), return_type
             | TCppVoid ->
-				CppTCast(baseCpp, cpp_type_of expr.etype), return_type
+               CppTCast(baseCpp, cpp_type_of expr.etype), return_type
             | TCppDynamic ->
                   baseCpp.cppexpr, baseCpp.cpptype
             | _ ->

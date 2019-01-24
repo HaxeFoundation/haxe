@@ -165,21 +165,21 @@ let make_macro_api ctx p =
 			)
 		);
 		MacroApi.after_typing = (fun f ->
-			Common.add_typing_filter ctx.com (fun tl ->
+			ctx.com.callbacks#add_after_typing (fun tl ->
 				let t = macro_timer ctx ["afterTyping"] in
 				f tl;
 				t()
 			)
 		);
-		MacroApi.on_generate = (fun f ->
-			Common.add_filter ctx.com (fun() ->
+		MacroApi.on_generate = (fun f b ->
+			(if b then ctx.com.callbacks#add_before_save else ctx.com.callbacks#add_after_save) (fun() ->
 				let t = macro_timer ctx ["onGenerate"] in
 				f (List.map type_of_module_type ctx.com.types);
 				t()
 			)
 		);
 		MacroApi.after_generate = (fun f ->
-			Common.add_final_filter ctx.com (fun() ->
+			ctx.com.callbacks#add_after_generation (fun() ->
 				let t = macro_timer ctx ["afterGenerate"] in
 				f();
 				t()
@@ -631,11 +631,23 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| _ -> ());
 				e
 			with Error (Custom _,_) ->
-				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
-				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
-					(EConst (Ident "__tmp"),p);
-				],p)
+				let has_display e =
+					let rec loop e = match fst e with
+						| EDisplay _ -> raise Exit
+						| _ -> Ast.iter_expr loop e
+					in
+					try
+						loop e;
+						false
+					with Exit ->
+						true
+				in
+				if has_display e then
+					(* if the expression has EDisplay, pass it through as-is and hope that unify_call_args deals with it (issue #7699) *)
+					e
+				else
+					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+					(ECheckType((EConst (Ident "null"),p),(CTPath ctexpr,p)),p)
 			) in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;

@@ -156,11 +156,11 @@ let handler =
 			hctx.display#enable_display DMSignature
 		);
 		"server/readClassPaths", (fun hctx ->
-			hctx.com.callbacks.after_init_macros <- (fun () ->
+			hctx.com.callbacks#add_after_init_macros (fun () ->
 				CompilationServer.set_initialized hctx.display#get_cs;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
 				hctx.send_result (jstring "class paths read");
-			) :: hctx.com.callbacks.after_init_macros;
+			)
 		);
 		"server/contexts", (fun hctx ->
 			let l = List.map (fun (sign,(jo,_)) -> jobject [

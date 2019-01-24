@@ -1167,11 +1167,17 @@ module Compile = struct
 				let ev = mk (TLocal v) e.etype e.epos in
 				(ev :: subjects,(v,e.epos,e) :: vars)
 		) ([],[]) subjects in
-		let dt = compile mctx subjects cases in
-		Useless.check mctx.ctx.com cases;
-		match vars with
-			| [] -> dt
-			| _ -> bind mctx vars dt
+		begin match cases,subjects with
+		| [],(subject :: _) ->
+			let dt_fail = fail mctx subject.epos in
+			switch mctx subject [] dt_fail
+		| _ ->
+			let dt = compile mctx subjects cases in
+			Useless.check mctx.ctx.com cases;
+			match vars with
+				| [] -> dt
+				| _ -> bind mctx vars dt
+		end
 end
 
 module TexprConverter = struct
@@ -1519,8 +1525,15 @@ module Match = struct
 			match with_type with
 				| WithType.NoValue -> ctx.t.tvoid
 				| WithType.Value(_) ->
-					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
-					unify_min ctx el
+					begin match cases with
+					| [] ->
+						(* If there are no cases we assume Void. This then causes a "Cannot use Void as value" error.
+						   Note that we cannot rely on an exhaustiveness error because the switch could be over an empty enum. *)
+						ctx.t.tvoid
+					| _ ->
+						let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
+						unify_min ctx el
+					end
 				| WithType.WithType(t,_) -> t
 		in
 		if match_debug then begin
