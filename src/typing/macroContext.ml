@@ -631,11 +631,23 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| _ -> ());
 				e
 			with Error (Custom _,_) ->
-				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
-				(EBlock [
-					(EVars [("__tmp",null_pos),false,Some (CTPath ctexpr,p),Some (EConst (Ident "null"),p)],p);
-					(EConst (Ident "__tmp"),p);
-				],p)
+				let has_display e =
+					let rec loop e = match fst e with
+						| EDisplay _ -> raise Exit
+						| _ -> Ast.iter_expr loop e
+					in
+					try
+						loop e;
+						false
+					with Exit ->
+						true
+				in
+				if has_display e then
+					(* if the expression has EDisplay, pass it through as-is and hope that unify_call_args deals with it (issue #7699) *)
+					e
+				else
+					(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+					(ECheckType((EConst (Ident "null"),p),(CTPath ctexpr,p)),p)
 			) in
 			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
 			incr index;
