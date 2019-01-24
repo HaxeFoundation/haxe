@@ -849,10 +849,13 @@ let run com tctx main =
 	t();
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
-	List.iter (fun f -> f()) (List.rev com.callbacks.before_dce); (* macros onGenerate etc. *)
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	t();
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
+	t();
+	let t = filter_timer detail_times ["callbacks"] in
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	t();
 	let t = filter_timer detail_times ["type 2"] in
 	(* PASS 2: type filters pre-DCE *)

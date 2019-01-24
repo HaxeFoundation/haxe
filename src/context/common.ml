@@ -100,12 +100,34 @@ type platform_config = {
 	pf_uses_utf16 : bool;
 }
 
-type compiler_callback = {
-	mutable after_init_macros : (unit -> unit) list;
-	mutable after_typing : (module_type list -> unit) list;
-	mutable before_dce : (unit -> unit) list;
-	mutable after_generation : (unit -> unit) list;
-}
+class compiler_callbacks = object(self)
+	val mutable after_init_macros = [];
+	val mutable after_typing = [];
+	val mutable before_save = [];
+	val mutable after_save = [];
+	val mutable after_generation = [];
+
+	method add_after_init_macros (f : unit -> unit) : unit =
+		after_init_macros <- f :: after_init_macros
+
+	method add_after_typing (f : module_type list -> unit) : unit =
+		after_typing <- f :: after_typing
+
+	method add_before_save (f : unit -> unit) : unit =
+		before_save <- f :: before_save
+
+	method add_after_save (f : unit -> unit) : unit =
+		after_save <- f :: after_save
+
+	method add_after_generation (f : unit -> unit) : unit =
+		after_generation <- f :: after_generation
+
+	method get_after_init_macros = after_init_macros
+	method get_after_typing = after_typing
+	method get_before_save = before_save
+	method get_after_save = after_save
+	method get_after_generation = after_generation
+end
 
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
@@ -142,7 +164,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
-	callbacks : compiler_callback;
+	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
@@ -336,14 +358,6 @@ let get_config com =
 
 let memory_marker = [|Unix.time()|]
 
-let create_callbacks () =
-	{
-		after_init_macros = [];
-		after_typing = [];
-		before_dce = [];
-		after_generation = [];
-	}
-
 let create version s_version args =
 	let m = Type.mk_mono() in
 	let defines =
@@ -380,7 +394,7 @@ let create version s_version args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		callbacks = create_callbacks();
+		callbacks = new compiler_callbacks;
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -432,7 +446,7 @@ let clone com =
 		file_lookup_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
-		callbacks = create_callbacks();
+		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
@@ -541,15 +555,6 @@ let allow_package ctx s =
 let abort msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
-
-let add_typing_filter ctx f =
-	ctx.callbacks.after_typing <- f :: ctx.callbacks.after_typing
-
-let add_filter ctx f =
-	ctx.callbacks.before_dce <- f :: ctx.callbacks.before_dce
-
-let add_final_filter ctx f =
-	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform

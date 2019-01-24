@@ -15,7 +15,7 @@ type 'value compiler_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	after_typing : (module_type list -> unit) -> unit;
-	on_generate : (Type.t list -> unit) -> unit;
+	on_generate : (Type.t list -> unit) -> bool -> unit;
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
@@ -1521,9 +1521,9 @@ let macro_api ccom get_api =
 			(get_api()).after_typing (fun tl -> ignore(f [encode_array (List.map encode_module_type tl)]));
 			vnull
 		);
-		"on_generate", vfun1 (fun f ->
+		"on_generate", vfun2 (fun f b ->
 			let f = prepare_callback f 1 in
-			(get_api()).on_generate (fun tl -> ignore(f [encode_array (List.map encode_type tl)]));
+			(get_api()).on_generate (fun tl -> ignore(f [encode_array (List.map encode_type tl)])) (decode_bool b);
 			vnull
 		);
 		"on_after_generate", vfun1 (fun f ->
