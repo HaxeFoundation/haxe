@@ -66,9 +66,11 @@ let overrides_extern_field cf c =
 let is_std_file dce file =
 	List.exists (ExtString.String.starts_with file) dce.std_dirs
 
+let keep_metas = [Meta.Keep;Meta.Expose]
+
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
-	Meta.has Meta.Keep c.cl_meta
+	Meta.has_one_of keep_metas c.cl_meta
 	|| not (dce.full || is_std_file dce c.cl_module.m_extra.m_file || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
@@ -80,7 +82,7 @@ let keep_whole_class dce c =
 		| _ -> false)
 
 let keep_whole_enum dce en =
-	Meta.has Meta.Keep en.e_meta
+	Meta.has_one_of keep_metas en.e_meta
 	|| not (dce.full || is_std_file dce en.e_module.m_extra.m_file || has_meta Meta.Dce en.e_meta)
 
 (*
@@ -89,8 +91,7 @@ let keep_whole_enum dce en =
 	And then it is used at the end to check which fields can be filtered from their classes.
 *)
 let rec keep_field dce cf c is_static =
-	Meta.has Meta.Keep cf.cf_meta
-	|| Meta.has Meta.Used cf.cf_meta
+	Meta.has_one_of (Meta.Used :: keep_metas) cf.cf_meta
 	|| cf.cf_name = "__init__"
 	|| not (is_physical_field cf)
 	|| (not is_static && overrides_extern_field cf c)

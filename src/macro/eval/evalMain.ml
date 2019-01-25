@@ -345,7 +345,7 @@ let setup get_api =
 			let f vl = try
 				f vl
 			with
-			| Sys_error msg | Failure msg ->
+			| Sys_error msg | Failure msg | Invalid_argument msg ->
 				exc_string msg
 			| MacroApi.Invalid_expr ->
 				exc_string "Invalid expression"

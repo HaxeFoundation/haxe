@@ -831,7 +831,7 @@ try
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
-		List.iter (fun f -> f ()) (List.rev com.callbacks.after_init_macros);
+		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 		begin match CompilationServer.get () with
 		| None -> ()
 		| Some cs ->
@@ -929,7 +929,7 @@ try
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
 	if not !no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in

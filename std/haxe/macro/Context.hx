@@ -306,9 +306,15 @@ class Context {
 		The callback receives an `Array` containing all types which are about
 		to be generated. Modifications are limited to metadata, it is mainly
 		intended to obtain information.
+
+		By default, the callback is made before types are stored in the compilation
+		server, if active. This means that any effect persists for the next compilation.
+		If `persistent` is set to `false`, changes to types made by the callback only
+		affect the current compilation. If no compilation server is used, this flag has
+		no effect.
 	**/
-	public static function onGenerate( callback : Array<Type> -> Void ) {
-		load("on_generate",1)(callback);
+	public static function onGenerate( callback : Array<Type> -> Void, persistent:Bool = true ) {
+		load("on_generate",2)(callback, persistent);
 	}
 
 	/**
