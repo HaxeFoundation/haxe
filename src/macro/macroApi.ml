@@ -1885,6 +1885,11 @@ let macro_api ccom get_api =
 			] in
 			location
 		);
+		"null_safety", vfun1 (fun v_dot_path ->
+			let dot_path = decode_string v_dot_path in
+			(ccom()).null_safety#add_path dot_path;
+			vnull
+		);
 	]
 
 
