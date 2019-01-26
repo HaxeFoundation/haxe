@@ -93,7 +93,7 @@ class Profile {
 	static var buf : hl.Bytes;
 	static function resolveSymbol( s : Symbol ) {
 		var size = BUFSIZE;
-		if( buf == null ) throw "assert";
+		if( buf == null ) buf = new hl.Bytes(BUFSIZE*2);
 		var bytes = resolve_symbol(s, buf, size);
 		if( bytes == null ) return "<???>";
 		return @:privateAccess String.fromUCS2(bytes.sub(0,(size+1)*2));
