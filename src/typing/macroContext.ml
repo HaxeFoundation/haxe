@@ -247,14 +247,15 @@ let make_macro_api ctx p =
 			);
 		);
 		MacroApi.get_local_type = (fun() ->
-			match ctx.g.get_build_infos() with
+			match ctx.get_build_infos() with
 			| Some (mt,tl,_) ->
 				Some (match mt with
 					| TClassDecl c -> TInst (c,tl)
 					| TEnumDecl e -> TEnum (e,tl)
 					| TTypeDecl t -> TType (t,tl)
-					| TAbstractDecl a -> TAbstract(a,tl))
-			| None ->
+					| TAbstractDecl a -> TAbstract(a,tl)
+				)
+			| _ ->
 				if ctx.curclass == null_class then
 					None
 				else
@@ -283,7 +284,7 @@ let make_macro_api ctx p =
 			ctx.locals;
 		);
 		MacroApi.get_build_fields = (fun() ->
-			match ctx.g.get_build_infos() with
+			match ctx.get_build_infos() with
 			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
@@ -333,7 +334,12 @@ let make_macro_api ctx p =
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
-			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
+			let m = typing_timer ctx false (fun() ->
+				let old_deps = ctx.m.curmod.m_extra.m_deps in
+				let m = TypeloadModule.load_module ctx (parse_path mpath) p in
+				ctx.m.curmod.m_extra.m_deps <- old_deps;
+				m
+			) in
 			add_dependency m (create_fake_module ctx file);
 		);
 		MacroApi.current_module = (fun() ->
@@ -691,7 +697,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| MExpr | MDisplay -> Interp.decode_expr v
 				| MBuild ->
 					let fields = if v = Interp.vnull then
-							(match ctx.g.get_build_infos() with
+							(match ctx.get_build_infos() with
 							| None -> assert false
 							| Some (_,_,fields) -> fields)
 						else
