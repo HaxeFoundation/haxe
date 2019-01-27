@@ -844,6 +844,7 @@ let type_types_into_module ctx m tdecls p =
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
+		get_build_infos = (fun() -> None);
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = null_class;
