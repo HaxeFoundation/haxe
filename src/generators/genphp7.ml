@@ -1362,10 +1362,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 										| [] -> [name]
 										| _ -> rest
 									);
-									String.capitalize name
+									String.capitalize_ascii name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
-						if !alias = php_name then
+						if (String.uppercase_ascii !alias) = (String.uppercase_ascii php_name) then
 							alias := get_alias_next_part () ^ !alias;
 						while not !added do
 							try
