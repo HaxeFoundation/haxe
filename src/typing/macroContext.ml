@@ -248,13 +248,13 @@ let make_macro_api ctx p =
 		);
 		MacroApi.get_local_type = (fun() ->
 			match ctx.g.get_build_infos() with
-			| Some (mt,tl,_) ->
+			| Some (mt,tl,_) when ctx.curclass == null_class || (match mt with TClassDecl c -> c == ctx.curclass | _ -> false) ->
 				Some (match mt with
 					| TClassDecl c -> TInst (c,tl)
 					| TEnumDecl e -> TEnum (e,tl)
 					| TTypeDecl t -> TType (t,tl)
 					| TAbstractDecl a -> TAbstract(a,tl))
-			| None ->
+			| _ ->
 				if ctx.curclass == null_class then
 					None
 				else
