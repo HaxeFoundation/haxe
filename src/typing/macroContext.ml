@@ -333,7 +333,12 @@ let make_macro_api ctx p =
 			end
 		);
 		MacroApi.module_dependency = (fun mpath file ->
-			let m = typing_timer ctx false (fun() -> TypeloadModule.load_module ctx (parse_path mpath) p) in
+			let m = typing_timer ctx false (fun() ->
+				let old_deps = ctx.m.curmod.m_extra.m_deps in
+				let m = TypeloadModule.load_module ctx (parse_path mpath) p in
+				ctx.m.curmod.m_extra.m_deps <- old_deps;
+				m
+			) in
 			add_dependency m (create_fake_module ctx file);
 		);
 		MacroApi.current_module = (fun() ->
