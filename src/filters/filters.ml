@@ -789,9 +789,9 @@ let run com tctx main =
 			| _ -> ());
 		not (is_cached t)
 	) com.types in
+	(new NullSafety.null_safety com)#run new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
-		com.null_safety#run tctx;
 		(* ForRemap.apply tctx; *)
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
