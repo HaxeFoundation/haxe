@@ -967,7 +967,14 @@ class null_safety (com:Common.context) =
 					in
 					List.iter traverse types;
 					timer();
-					List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+					match com.callbacks#get_null_safety_report with
+						| [] ->
+							List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+						| callbacks ->
+							let errors =
+								List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors
+							in
+							List.iter (fun fn -> fn errors) callbacks
 		(**
 			Check if a type with the specified `type_path` is located in a "safe" package or module.
 		*)

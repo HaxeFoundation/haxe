@@ -1891,6 +1891,16 @@ let macro_api ccom get_api =
 			com.null_safety_paths <- dot_path :: com.null_safety_paths;
 			vnull
 		);
+		"on_null_safety_report", vfun1 (fun f ->
+			let f = prepare_callback f 1 in
+			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
+				let encode_item (msg,pos) =
+					encode_obj [("msg", encode_string msg); ("pos", encode_pos pos)]
+				in
+				ignore(f [encode_array (List.map encode_item errors)])
+			);
+			vnull
+		);
 	]
 
 

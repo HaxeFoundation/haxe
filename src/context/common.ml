@@ -106,6 +106,7 @@ class compiler_callbacks = object(self)
 	val mutable before_save = [];
 	val mutable after_save = [];
 	val mutable after_generation = [];
+	val mutable null_safety_report = [];
 
 	method add_after_init_macros (f : unit -> unit) : unit =
 		after_init_macros <- f :: after_init_macros
@@ -122,11 +123,15 @@ class compiler_callbacks = object(self)
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation <- f :: after_generation
 
+	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
+		null_safety_report <- f :: null_safety_report
+
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
 	method get_after_save = after_save
 	method get_after_generation = after_generation
+	method get_null_safety_report = null_safety_report
 end
 
 type shared_display_information = {
