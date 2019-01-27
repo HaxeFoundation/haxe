@@ -51,7 +51,7 @@ let rec is_nullable_type = function
 		(match !r with None -> false | Some t -> is_nullable_type t)
 	| TAbstract ({ a_path = ([],"Null") },[t]) ->
 		true
-	| TAbstract (a,tl) ->
+	| TAbstract (a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
 		is_nullable_type (apply_params a.a_params tl a.a_this)
 	| TLazy f ->
 		is_nullable_type (lazy_type f)
@@ -956,20 +956,16 @@ class null_safety (com:Common.context) =
 				| _ ->
 					let timer = Timer.timer ["null safety"] in
 					let report = { sr_errors = [] } in
-					(* class_paths <- cp_list; *)
 					let rec traverse com_type =
-						print_endline "-";
 						match com_type with
 							| TEnumDecl enm -> ()
 							| TTypeDecl typedef -> ()
 							| TAbstractDecl abstr -> ()
 							| TClassDecl cls when not (self#is_safe_type cls.cl_path) || (contains_unsafe_meta cls.cl_meta) -> ()
 							| TClassDecl cls ->
-								print_endline ("-" ^ (String.concat "." (fst cls.cl_path @ [snd cls.cl_path])));
 								(new class_checker cls report self#is_safe_file)#check
 					in
 					List.iter traverse types;
-					print_endline "Done";
 					timer();
 					List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
 		(**
