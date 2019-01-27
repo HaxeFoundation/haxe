@@ -64,6 +64,11 @@ let copy_file src dst =
 	Unix.close fd_in;
 	Unix.close fd_out
 
+type used_type = {
+	ut_alias : string;
+	ut_type_path : (string list * string)
+}
+
 (**
 	Get list of keys in Hashtbl
 *)
@@ -1365,21 +1370,26 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 									String.capitalize_ascii name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
-						if (String.uppercase_ascii !alias) = (String.uppercase_ascii php_name) then
-							alias := get_alias_next_part () ^ !alias;
+						let alias_upper = ref (String.uppercase_ascii !alias) in
+						let prepend_alias prefix =
+							alias := prefix ^ !alias;
+							alias_upper := String.uppercase_ascii !alias
+						in
+						if !alias_upper = (String.uppercase_ascii php_name) then
+							prepend_alias (get_alias_next_part ());
 						while not !added do
 							try
 								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx !alias namespace then
-									alias := get_alias_next_part () ^ !alias
+									prepend_alias (get_alias_next_part ())
 								else
-									let used_type = Hashtbl.find use_table !alias in
-									if used_type = type_path then
+									let used_type = Hashtbl.find use_table !alias_upper in
+									if used_type.ut_type_path = type_path then
 										added := true
 									else
-										alias := get_alias_next_part () ^ !alias;
+										prepend_alias (get_alias_next_part ());
 							with
 								| Not_found ->
-									Hashtbl.add use_table !alias type_path;
+									Hashtbl.add use_table !alias_upper { ut_alias = !alias; ut_type_path = type_path; };
 									added := true
 								| _ -> fail self#pos __POS__
 						done;
@@ -1589,13 +1599,13 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method write_use =
 			self#indent 0;
-			let write alias type_path =
-				if (get_module_path type_path) <> namespace then
-					if get_type_name type_path = alias then
-						self#write_statement ("use " ^ (get_full_type_name type_path))
+			let write _ used_type =
+				if (get_module_path used_type.ut_type_path) <> namespace then
+					if get_type_name used_type.ut_type_path = used_type.ut_alias then
+						self#write_statement ("use " ^ (get_full_type_name used_type.ut_type_path))
 					else
-						let full_name = get_full_type_name type_path in
-						self#write_statement ("use " ^ full_name ^ " as " ^ alias)
+						let full_name = get_full_type_name used_type.ut_type_path in
+						self#write_statement ("use " ^ full_name ^ " as " ^ used_type.ut_alias)
 			in
 			Hashtbl.iter write use_table
 		(**
