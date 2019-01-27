@@ -956,8 +956,8 @@ class null_safety (com:Common.context) =
 				| _ ->
 					let timer = Timer.timer ["null safety"] in
 					let report = { sr_errors = [] } in
-					let rec traverse com_type =
-						match com_type with
+					let rec traverse module_type =
+						match module_type with
 							| TEnumDecl enm -> ()
 							| TTypeDecl typedef -> ()
 							| TAbstractDecl abstr -> ()
@@ -979,12 +979,26 @@ class null_safety (com:Common.context) =
 			Check if a type with the specified `type_path` is located in a "safe" package or module.
 		*)
 		method is_safe_type type_path =
+			(* let pack = List.rev (
+					match List.rev (fst type_path) with
+						(* Remove underscore for private types in auto-generated packages like `_SomeType.PrivateType` *)
+						| last :: rest when (String.get last 0) = '_' ->
+							(String.sub last 1 ((String.length last) - 1)) :: rest
+						(* normal types *)
+						| pack -> pack
+				)
+			in
+			let path = pack @ [snd type_path] in *)
 			let path = fst type_path @ [snd type_path] in
 			self#is_safe_path path
 		(**
 			Check if null safety is applied to types in this `path`
 		*)
 		method is_safe_path (path:string list) =
+			(* if path = ["TestCases"] then begin
+				let is = List.exists (list_starts_with_list path) com.null_safety_paths in
+				print_endline (string_of_bool is);
+			end; *)
 			List.exists (list_starts_with_list path) com.null_safety_paths
 		(**
 			Check if null safety is applied to types located in this file

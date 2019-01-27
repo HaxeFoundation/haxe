@@ -1,0 +1,6 @@
+-cp src
+-main cases.Test
+-D analyzer-optimize
+
+--macro nullSafety('cases')
+--macro Validator.register()
