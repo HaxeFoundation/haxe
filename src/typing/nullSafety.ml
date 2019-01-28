@@ -67,15 +67,65 @@ let rec is_nullable_type = function
 let rec unify a b =
 	if a == b then
 		()
-	else if is_nullable_type a && not (is_nullable_type b) then
-		safety_error()
 	else
 		match a, b with
-			| TLazy f, _ -> unify (lazy_type f) b
+			(* if `b` is nullable, no more checks needed *)
+			| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
+				()
+			| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
+				safety_error()
+			| TInst (_, a_params), TInst(_, b_params) when (List.length a_params) = (List.length b_params) ->
+				List.iter2 unify a_params b_params
+			| TAnon a_anon, TAnon b_anon ->
+				unify_anon_to_anon a_anon b_anon
+			| TInst (a_cls, a_params), TAnon b_anon ->
+				unify_class_to_anon a_cls a_params b_anon
+			(* patterns below are used to reveal real type *)
+			| TLazy f, _ ->
+				unify (lazy_type f) b
 			| _, TLazy f -> unify a (lazy_type f)
-			| TMono t, _ -> (match !t with None -> () | Some t -> unify t b)
-			| _, TMono t -> (match !t with None -> () | Some t -> unify a t)
-			| _ -> ()
+			| TMono t, _ ->
+				(match !t with None -> () | Some t -> unify t b)
+			| _, TMono t ->
+				(match !t with None -> () | Some t -> unify a t)
+			| TType (t,tl), _ ->
+				unify (apply_params t.t_params tl t.t_type) b
+			| _, TType (t,tl) ->
+				unify a (apply_params t.t_params tl t.t_type)
+			| TAbstract (abstr,tl), _ when not (Meta.has Meta.CoreType abstr.a_meta) ->
+				unify (apply_params abstr.a_params tl abstr.a_this) b
+			| _, TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) ->
+				unify a (apply_params abstr.a_params tl abstr.a_this)
+			| _ ->
+				()
+
+and unify_anon_to_anon (a:tanon) (b:tanon) =
+	PMap.iter
+		(fun name b_field ->
+			let a_field =
+				try Some (PMap.find name a.a_fields)
+				with Not_found -> None
+			in
+			match a_field with
+				| None -> ()
+				| Some a_field -> unify a_field.cf_type b_field.cf_type
+		)
+		b.a_fields
+
+and unify_class_to_anon (a:tclass) (a_params:tparams) (b:tanon) =
+	PMap.iter
+		(fun name b_field ->
+			let a_field =
+				try Some (PMap.find name a.cl_fields)
+				with Not_found -> None
+			in
+			match a_field with
+				| None -> ()
+				| Some a_field ->
+					let a_type = apply_params a.cl_params a_params a_field.cf_type in
+					unify a_type b_field.cf_type
+		)
+		b.a_fields
 
 (**
 	Check if provided type is `Unsafe<T>`

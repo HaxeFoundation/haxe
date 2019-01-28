@@ -17,7 +17,7 @@ abstract AWrap<T>(T) from T to T {
 }
 
 class Generic<T> {
-	var value:T;
+	public var value:T;
 	public function new(value:T) {
 		this.value = value;
 	}
@@ -106,7 +106,6 @@ class Test {
 		var closure = shouldFail(instanceMethod);
 		var notInitializedYet = shouldFail(initializedInConstructor);
 		initializedInConstructor = 'hello';
-		//make sure safety is checked in constructors
 		var s:Null<String> = 'hello';
 		shouldFail(s.length);
 	}
@@ -518,13 +517,16 @@ class Test {
 	static function unification_typeOfNullableToTypeOfNotNullable_shouldFail(?a:Int) {
 		var withNullables = [1, a, 2];
 		shouldFail(var notNullables:Array<Int> = withNullables);
+		var withNullables = [a => 1, 2 => 3];
+		shouldFail(var notNullables:Map<Int,Int> = withNullables);
 	}
 
 	static function objectDecl_passObjWithNullabelFieldToObjWithNotNullableField_shouldFail(?a:String) {
 		shouldFail(var o:{field:String} = {field:a});
-		shouldFail(o = new Test(''));
+		shouldFail(o = new Test('')); //Test has `field:Null<String>`
 		var arr = (['', a]:Array<Null<String>>);
 		shouldFail(var q:{field:Array<String>} = {field:arr});
+		shouldFail(var v:{value:Array<String>} = new Generic(arr));
 	}
 
 	static function closure_whichReturnsWithoutExplicitType_shouldPass(s:String) {
