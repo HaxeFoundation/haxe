@@ -43,6 +43,13 @@ type dce = {
 	mutable features : (string,(tclass * tclass_field * bool) list) Hashtbl.t;
 }
 
+let push_class dce c =
+	let old = dce.curclass in
+	dce.curclass <- c;
+	(fun () ->
+		dce.curclass <- old
+	)
+
 (* checking *)
 
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
@@ -121,7 +128,7 @@ let rec check_feature dce s =
 
 and check_and_add_feature dce s =
 	check_feature dce s;
-	(* assert (dce.curclass != null_class); *)
+	assert (dce.curclass != null_class);
 	Hashtbl.replace dce.curclass.cl_module.m_extra.m_features s true
 
 (* mark a field as kept *)
@@ -159,6 +166,7 @@ and mark_field dce c cf stat =
 	end
 
 let rec update_marked_class_fields dce c =
+	let pop = push_class dce c in
 	(* mark all :?used fields as surely :used now *)
 	List.iter (fun cf ->
 		if Meta.has Meta.MaybeUsed cf.cf_meta then mark_field dce c cf true
@@ -169,7 +177,8 @@ let rec update_marked_class_fields dce c =
 	(* we always have to keep super classes and implemented interfaces *)
 	(match c.cl_init with None -> () | Some init -> dce.follow_expr dce init);
 	List.iter (fun (c,_) -> mark_class dce c) c.cl_implements;
-	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup)
+	(match c.cl_super with None -> () | Some (csup,pl) -> mark_class dce csup);
+	pop()
 
 (* mark a class as kept. If the class has fields marked as @:?keep, make sure to keep them *)
 and mark_class dce c = if not (Meta.has Meta.Used c.cl_meta) then begin
@@ -685,7 +694,9 @@ let collect_entry_points dce com =
 					()
 			end;
 		| TEnumDecl en when keep_whole_enum dce en ->
-			mark_enum dce en
+			let pop = push_class dce {null_class with cl_module = en.e_module} in
+			mark_enum dce en;
+			pop()
 		| _ ->
 			()
 	) com.types;
@@ -706,16 +717,18 @@ let mark dce =
 			List.iter (fun (c,cf,stat) -> mark_dependent_fields dce c cf.cf_name stat) cfl;
 			(* mark fields as used *)
 			List.iter (fun (c,cf,stat) ->
+				let pop = push_class dce c in
 				if is_physical_field cf then mark_class dce c;
 				mark_field dce c cf stat;
-				mark_t dce cf.cf_pos cf.cf_type
+				mark_t dce cf.cf_pos cf.cf_type;
+				pop()
 			) cfl;
 			(* follow expressions to new types/fields *)
 			List.iter (fun (c,cf,_) ->
-				dce.curclass <- c;
+				let pop = push_class dce c in
 				opt (expr dce) cf.cf_expr;
 				List.iter (fun cf -> if cf.cf_expr <> None then opt (expr dce) cf.cf_expr) cf.cf_overloads;
-				dce.curclass <- null_class
+				pop();
 			) cfl;
 			loop ()
 	in
