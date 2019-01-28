@@ -22,6 +22,11 @@ open Common
 open Type
 open Globals
 
+type dce_mode =
+	| DceNo
+	| DceStd
+	| DceFull
+
 type dce = {
 	com : context;
 	full : bool;
@@ -657,35 +662,7 @@ let fix_accessors com =
 		| _ -> ()
 	) com.types
 
-let run com main full =
-	let dce = {
-		com = com;
-		full = full;
-		dependent_types = Hashtbl.create 0;
-		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
-		debug = Common.defined com Define.DceDebug;
-		added_fields = [];
-		follow_expr = expr;
-		marked_fields = [];
-		marked_maybe_fields = [];
-		t_stack = [];
-		ts_stack = [];
-		features = Hashtbl.create 0;
-		curclass = null_class;
-	} in
-	begin match main with
-		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
-			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
-		| _ ->
-			()
-	end;
-	List.iter (fun m ->
-		List.iter (fun (s,v) ->
-			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
-			else Hashtbl.add dce.features s [v]
-		) m.m_extra.m_if_feature;
-	) com.modules;
-	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
+let collect_entry_points dce com =
 	List.iter (fun t -> match t with
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
@@ -717,8 +694,9 @@ let run com main full =
 			| None -> ()
 			| Some _ -> print_endline ("[DCE] Entry point: " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name)
 		) dce.added_fields;
-	end;
-	(* second step: initiate DCE passes and keep going until no new fields were added *)
+	end
+
+let mark dce =
 	let rec loop () =
 		match dce.added_fields with
 		| [] -> ()
@@ -741,8 +719,9 @@ let run com main full =
 			) cfl;
 			loop ()
 	in
-	loop ();
-	(* third step: filter types *)
+	loop ()
+
+let sweep dce com =
 	let rec loop acc types =
 		match types with
 		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
@@ -817,7 +796,46 @@ let run com main full =
 		| [] ->
 			acc
 	in
-	com.types <- loop [] (List.rev com.types);
+	com.types <- loop [] (List.rev com.types)
+
+let run com main mode =
+	let full = mode = DceFull in
+	let dce = {
+		com = com;
+		full = full;
+		dependent_types = Hashtbl.create 0;
+		std_dirs = if full then [] else List.map Path.unique_full_path com.std_path;
+		debug = Common.defined com Define.DceDebug;
+		added_fields = [];
+		follow_expr = expr;
+		marked_fields = [];
+		marked_maybe_fields = [];
+		t_stack = [];
+		ts_stack = [];
+		features = Hashtbl.create 0;
+		curclass = null_class;
+	} in
+	begin match main with
+		| Some {eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} | Some {eexpr = TBlock ({ eexpr = TCall({eexpr = TField(e,(FStatic(c,cf)))},_)} :: _)} ->
+			cf.cf_meta <- (Meta.Keep,[],cf.cf_pos) :: cf.cf_meta
+		| _ ->
+			()
+	end;
+	List.iter (fun m ->
+		List.iter (fun (s,v) ->
+			if Hashtbl.mem dce.features s then Hashtbl.replace dce.features s (v :: Hashtbl.find dce.features s)
+			else Hashtbl.add dce.features s [v]
+		) m.m_extra.m_if_feature;
+	) com.modules;
+
+	(* first step: get all entry points, which is the main method and all class methods which are marked with @:keep *)
+	collect_entry_points dce com;
+
+	(* second step: initiate DCE passes and keep going until no new fields were added *)
+	mark dce;
+
+	(* third step: filter types *)
+	if mode <> DceNo then sweep dce com;
 
 	(* extra step to adjust properties that had accessors removed (required for Php and Cpp) *)
 	fix_accessors com;
