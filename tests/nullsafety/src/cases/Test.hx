@@ -591,4 +591,28 @@ class Test {
 	static function anyExpr_withPositionOutOfSafety_shouldPass() {
 		Macro.wrongExprOutOfSafety();
 	}
+
+	static function functionWithNotNullableArg_toFunctionWithNullableArg_shouldFail() {
+		var fn = function(s:String):Void {}
+		var nullable = function(s:Null<String>):Void {}
+		shouldFail(nullable = fn);
+	}
+
+	static function functionWithNullableArg_toFunctionWithNotNullableArg_shouldPass() {
+		var fn = function(s:String):Void {}
+		var nullable = function(s:Null<String>):Void {}
+		fn = nullable;
+	}
+
+	static function functionWithNullableResult_toFunctionWithNotNullableResult_shouldFail() {
+		var fn = function():String return '';
+		var nullable = function():Null<String> return null;
+		shouldFail(fn = nullable);
+	}
+
+	static function functionWithNotNullableResult_toFunctionWithNullableResult_shouldPass() {
+		var fn = function():String return '';
+		var nullable = function():Null<String> return null;
+		nullable = fn;
+	}
 }

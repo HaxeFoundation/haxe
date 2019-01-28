@@ -80,6 +80,8 @@ let rec unify a b =
 				unify_anon_to_anon a_anon b_anon
 			| TInst (a_cls, a_params), TAnon b_anon ->
 				unify_class_to_anon a_cls a_params b_anon
+			| TFun a_signature, TFun b_signature ->
+				unify_functions a_signature b_signature
 			(* patterns below are used to reveal real type *)
 			| TLazy f, _ ->
 				unify (lazy_type f) b
@@ -126,6 +128,16 @@ and unify_class_to_anon (a:tclass) (a_params:tparams) (b:tanon) =
 					unify a_type b_field.cf_type
 		)
 		b.a_fields
+
+and unify_functions (a_args, a_result) (b_args, b_result) =
+	(* check return type *)
+	unify a_result b_result;
+	(* check arguments *)
+	List.iter2
+		(fun (_, _, a_arg) (_, _, b_arg) -> unify b_arg a_arg)
+		a_args
+		b_args
+
 
 (**
 	Check if provided type is `Unsafe<T>`
