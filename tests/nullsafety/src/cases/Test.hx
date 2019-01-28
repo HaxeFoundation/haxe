@@ -74,6 +74,8 @@ class Test {
 	@:shouldFail var initializedWithNullable:String = null;
 	function get_notInitializedIsVar() return notInitializedIsVar;
 	function set_notInitializedIsVar(v) return notInitializedIsVar = v;
+	var notReal(get,never):Int;
+	function get_notReal() return 42;
 
 	var initialized:Bool = false;
 	var initializedInConstructor:String;

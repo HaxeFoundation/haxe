@@ -937,7 +937,11 @@ class class_checker cls report is_safe_file  =
 			let fields_to_initialize = Hashtbl.create 20 in
 			List.iter
 				(fun f ->
-					if not (is_nullable_type f.cf_type) && not (contains_unsafe_meta f.cf_meta) then
+					if
+						should_be_initialized f
+						&& not (is_nullable_type f.cf_type)
+						&& not (contains_unsafe_meta f.cf_meta)
+					then
 						match f.cf_expr with
 							| Some _ -> ()
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
