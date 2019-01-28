@@ -32,16 +32,16 @@ class Validator {
 	}
 
 	static function validate(errors:Array<SafetyMessage>) {
-		var errors = check(expectedErrors, errors);
+		var errors = check(expectedErrors.copy(), errors.copy());
 		if(errors.ok) {
 			Sys.println('${errors.passed} expected errors spotted');
 			Sys.println('Compile-time tests passed.');
 		} else {
-			Context.error('Tests failed. See warnings.', Context.currentPos());
+			Context.error('Tests failed with ${errors.failed} failures. See warnings.', Context.currentPos());
 		}
 	}
 
-	static function check(expected:Array<ExpectedMessage>, actual:Array<SafetyMessage>):{ok:Bool, passed:Int} {
+	static function check(expected:Array<ExpectedMessage>, actual:Array<SafetyMessage>):{ok:Bool, passed:Int, failed:Int} {
 		var passed = 0;
 		var i = 0;
 		while(i < actual.length) {
@@ -70,7 +70,8 @@ class Validator {
 		}
 		return {
 			ok: actual.length == 0 && expected.length == 0,
-			passed: passed
+			passed: passed,
+			failed: actual.length + expected.length
 		}
 	}
 

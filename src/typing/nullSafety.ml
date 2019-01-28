@@ -82,7 +82,7 @@ let rec unify a b =
 *)
 let is_special_type_unsafe t =
 	match t with
-		| TType ({ t_path = ([], "Unsafe") }, _) -> true
+		| TType ({ t_path = (["haxe"], "Unsafe") }, _) -> true
 		| _ -> false
 
 (**

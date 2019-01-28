@@ -1,6 +1,7 @@
 package cases;
 
 import Validator.shouldFail;
+import haxe.Unsafe;
 
 private enum DummyEnum {
 	DummyOne;
@@ -40,10 +41,10 @@ class UnsafeFields {
 		var s:String = null;
 	}
 
-	// static function unsafeExpr() {
-	// 	var s:String;
-	// 	(s = null:Unsafe<String>);
-	// }
+	static function unsafeExpr() {
+		var s:String;
+		(s = null:Unsafe<String>);
+	}
 }
 
 /** Test `@:safety(unsafe)` is respected on a class */
@@ -351,9 +352,9 @@ class Test {
 		}
 	}
 
-	static function checkedAgainstNullAfterClosure_notModifiedInClosure_shouldPass(?a:String) {
+	static function checkedAgainstNullAfterClosure_usedButNotModifiedInClosure_shouldPass(?a:String) {
 		function local() {
-			var s:String = (a == null ? 'hello' : a);
+			var c = a;
 		}
 		if(a != null) {
 			var s:String = a;
