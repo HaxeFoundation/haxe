@@ -59,6 +59,17 @@ class UnsafeClass {
 	function doStuff(t:UnsafeClass) {}
 }
 
+/** Test `@:safety(false)` on a constructor. And that it does not disable safety checks for instance vars */
+@:build(Validator.checkFields())
+class UnsafeConstructor {
+	@:shouldFail var uninitializedVar:String;
+
+	@:safety(false)
+	public function new() {
+		var s:String = null;
+	}
+}
+
 @:build(Validator.checkFields())
 private class TestWithoutConstructor {
 	@:shouldFail var notInitializedField:String;

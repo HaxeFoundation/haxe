@@ -917,7 +917,7 @@ class class_checker cls report  =
 					Option.may checker#check_root_expr f.cf_expr
 			in
 			Option.may checker#check_root_expr cls.cl_init;
-			Option.may (fun field -> Option.may checker#check_root_expr field.cf_expr) cls.cl_constructor;
+			Option.may check_field cls.cl_constructor;
 			List.iter check_field cls.cl_ordered_fields;
 			List.iter check_field cls.cl_ordered_statics;
 		(**
