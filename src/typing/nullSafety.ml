@@ -904,8 +904,6 @@ class expr_checker report =
 class class_checker cls report  =
 	object (self)
 			val checker = new expr_checker report
-			val mutable initialized_in_constructor = Hashtbl.create 1
-			val mutable constructor_checked = false
 		(**
 			Entry point for checking a class
 		*)
