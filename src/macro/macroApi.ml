@@ -1885,12 +1885,6 @@ let macro_api ccom get_api =
 			] in
 			location
 		);
-		"null_safety", vfun1 (fun v_dot_path ->
-			let dot_path = String.split_on_char '.' (decode_string v_dot_path)
-			and com = ccom() in
-			com.null_safety_paths <- dot_path :: com.null_safety_paths;
-			vnull
-		);
 		"on_null_safety_report", vfun1 (fun f ->
 			let f = prepare_callback f 1 in
 			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->

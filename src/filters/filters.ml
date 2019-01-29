@@ -789,7 +789,7 @@ let run com tctx main =
 			| _ -> ());
 		not (is_cached t)
 	) com.types in
-	(new NullSafety.null_safety com)#run new_types;
+	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
 		(* ForRemap.apply tctx; *)

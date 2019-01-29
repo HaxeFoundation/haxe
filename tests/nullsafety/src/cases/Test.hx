@@ -31,12 +31,12 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
-/** Test `@:safety(unsafe)` is respected on fields */
+/** Test `@:safety(false)` is respected on fields */
 class UnsafeFields {
-	@:safety(unsafe) var unsafeVar:String = null;
-	@:safety(unsafe) var notInitializedField:String;
+	@:safety(false) var unsafeVar:String = null;
+	@:safety(false) var notInitializedField:String;
 
-	@:safety(unsafe)
+	@:safety(false)
 	static function unsafeMethod() {
 		var s:String = null;
 	}
@@ -47,8 +47,8 @@ class UnsafeFields {
 	}
 }
 
-/** Test `@:safety(unsafe)` is respected on a class */
-@:safety(unsafe)
+/** Test `@:safety(false)` is respected on a class */
+@:safety(false)
 class UnsafeClass {
 	var uninitializedVar:String;
 
@@ -588,10 +588,6 @@ class Test {
 	static function closure_returnsSomethingAndMethodReturnsNullable_shouldPass():Null<String> {
 		function local() return 10;
 		return null;
-	}
-
-	static function anyExpr_withPositionOutOfSafety_shouldPass() {
-		Macro.wrongExprOutOfSafety();
 	}
 
 	static function functionWithNotNullableArg_toFunctionWithNullableArg_shouldFail() {

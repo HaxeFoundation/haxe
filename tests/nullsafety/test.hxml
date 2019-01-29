@@ -2,5 +2,5 @@
 -main cases.Test
 -D analyzer-optimize
 
---macro nullSafety('cases')
+--macro addGlobalMetadata('cases', '@:safety')
 --macro Validator.register()

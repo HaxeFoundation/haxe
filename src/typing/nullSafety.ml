@@ -240,13 +240,23 @@ let process_condition condition (is_nullable_expr:texpr->bool) callback =
 	(!nulls, !not_nulls)
 
 (**
-	Check if metadata contains @:safety(unsafe) meta
+	Check if metadata contains @:safety(false) meta
 **)
 let rec contains_unsafe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.Custom ":safety", [(EConst (Ident "unsafe"), _)], _) :: _  -> true
+		| (Meta.Custom ":safety", [(EConst (Ident "false"), _)], _) :: _  -> true
 		| _ :: rest -> contains_unsafe_meta rest
+
+(**
+	Check if metadata contains @:safety or @:safety(true) meta
+**)
+let rec contains_safe_meta metadata =
+	match metadata with
+		| [] -> false
+		| (Meta.Custom ":safety", [], _) :: _
+		| (Meta.Custom ":safety", [(EConst (Ident "true"), _)], _) :: _  -> true
+		| _ :: rest -> contains_safe_meta rest
 
 (**
 	Check if `haystack` starts with `needle`
@@ -520,7 +530,7 @@ class local_vars =
 (**
 	This is a base class is used to recursively check typed expressions for null-safety
 *)
-class expr_checker report is_safe_file =
+class expr_checker report =
 	object (self)
 		val local_safety = new local_vars
 		val mutable return_types = []
@@ -532,7 +542,7 @@ class expr_checker report is_safe_file =
 			Register an error
 		*)
 		method error msg (p:Globals.pos) =
-			if not is_pretending && is_safe_file p.pfile then
+			if not is_pretending then
 				report.sr_errors <- { sm_msg = ("Safety: " ^ msg); sm_pos = p; } :: report.sr_errors;
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.
@@ -891,9 +901,9 @@ class expr_checker report is_safe_file =
 				| _ -> ()
 	end
 
-class class_checker cls report is_safe_file  =
+class class_checker cls report  =
 	object (self)
-			val checker = new expr_checker report is_safe_file
+			val checker = new expr_checker report
 			val mutable initialized_in_constructor = Hashtbl.create 1
 			val mutable constructor_checked = false
 		(**
@@ -1008,88 +1018,32 @@ let rec list_starts_with_list (haystack:string list) (needle:string list) =
 		| current_haystack :: rest_haystack, current_needle :: rest_needle ->
 			current_haystack = current_needle && list_starts_with_list rest_haystack rest_needle
 
+(**
+	Run null safety checks.
+	`cp_list` is the list of class paths (e.g. directories provided with `-cp` compiler arguments).
+	`error` is a function for reporting safety errors.
+*)
+let run (com:Common.context) (types:module_type list) =
+	let timer = Timer.timer ["null safety"] in
+	let report = { sr_errors = [] } in
+	let rec traverse module_type =
+		match module_type with
+			| TEnumDecl enm -> ()
+			| TTypeDecl typedef -> ()
+			| TAbstractDecl abstr -> ()
+			| TClassDecl cls when (contains_safe_meta cls.cl_meta) && not (contains_unsafe_meta cls.cl_meta) ->
+				(new class_checker cls report)#check
+			| TClassDecl _ -> ()
+	in
+	List.iter traverse types;
+	timer();
+	match com.callbacks#get_null_safety_report with
+		| [] ->
+			List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
+		| callbacks ->
+			let errors =
+				List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors
+			in
+			List.iter (fun fn -> fn errors) callbacks
 
-class null_safety (com:Common.context) =
-	object (self)
-		(**
-			Run null safety checks.
-			`cp_list` is the list of class paths (e.g. directories provided with `-cp` compiler arguments).
-			`error` is a function for reporting safety errors.
-		*)
-		method run (types:module_type list) =
-			match com.null_safety_paths with
-				| [] -> ()
-				| _ ->
-					let timer = Timer.timer ["null safety"] in
-					let report = { sr_errors = [] } in
-					let rec traverse module_type =
-						match module_type with
-							| TEnumDecl enm -> ()
-							| TTypeDecl typedef -> ()
-							| TAbstractDecl abstr -> ()
-							| TClassDecl cls when not (self#is_safe_type cls.cl_path) || (contains_unsafe_meta cls.cl_meta) -> ()
-							| TClassDecl cls ->
-								(new class_checker cls report self#is_safe_file)#check
-					in
-					List.iter traverse types;
-					timer();
-					match com.callbacks#get_null_safety_report with
-						| [] ->
-							List.iter (fun err -> com.error err.sm_msg err.sm_pos) (List.rev report.sr_errors)
-						| callbacks ->
-							let errors =
-								List.map (fun err -> (err.sm_msg, err.sm_pos)) report.sr_errors
-							in
-							List.iter (fun fn -> fn errors) callbacks
-		(**
-			Check if a type with the specified `type_path` is located in a "safe" package or module.
-		*)
-		method is_safe_type type_path =
-			(* let pack = List.rev (
-					match List.rev (fst type_path) with
-						(* Remove underscore for private types in auto-generated packages like `_SomeType.PrivateType` *)
-						| last :: rest when (String.get last 0) = '_' ->
-							(String.sub last 1 ((String.length last) - 1)) :: rest
-						(* normal types *)
-						| pack -> pack
-				)
-			in
-			let path = pack @ [snd type_path] in *)
-			let path = fst type_path @ [snd type_path] in
-			self#is_safe_path path
-		(**
-			Check if null safety is applied to types in this `path`
-		*)
-		method is_safe_path (path:string list) =
-			(* if path = ["TestCases"] then begin
-				let is = List.exists (list_starts_with_list path) com.null_safety_paths in
-				print_endline (string_of_bool is);
-			end; *)
-			List.exists (list_starts_with_list path) com.null_safety_paths
-		(**
-			Check if null safety is applied to types located in this file
-		*)
-		method is_safe_file (file:string) =
-			(* Finds file path relative to classpath *)
-			let rec module_file class_paths =
-				match class_paths with
-					| [] -> file
-					| cp :: _ when starts_with file cp ->
-						let cp_length = String.length cp in
-						String.sub file cp_length ((String.length file) - cp_length)
-					| _ :: rest -> module_file rest
-			in
-			let file_path =
-				try
-					Some (Path.parse_path (module_file com.class_path))
-				with
-					| Failure _ -> None
-			in
-			match file_path with
-				| None -> false
-				| Some (pack_path, file_name) ->
-					let module_name = List.hd (String.split_on_char '.' file_name) in
-					let path = pack_path @ [module_name] in
-					self#is_safe_path path
-	end
 ;;

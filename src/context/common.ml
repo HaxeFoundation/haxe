@@ -200,7 +200,6 @@ type context = {
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
-	mutable null_safety_paths : string list list;
 }
 
 exception Abort of string * pos
@@ -438,7 +437,6 @@ let create version s_version args =
 		memory_marker = memory_marker;
 		parser_cache = Hashtbl.create 0;
 		json_out = None;
-		null_safety_paths = [];
 	}
 
 let log com str =

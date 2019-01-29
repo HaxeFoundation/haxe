@@ -416,17 +416,6 @@ class Compiler {
 		#end
 	}
 
-	#if eval
-	/**
-		Enable null safety for the specified path.
-		E.g. `--macro nullSafety('my.pack')` to enable it for all the types in `my.pack` and in sub packages.
-		Or `--macro nullSafety('my.pack.MyClass') to enable it for `my.pack.MyClass` only
-	**/
-	public static function nullSafety(dotPath:String):Void {
-		load("null_safety", 1)(dotPath);
-	}
-	#end
-
 	#if (neko || eval)
 	static inline function load( f, nargs ) : Dynamic {
 		return @:privateAccess Context.load(f, nargs);
