@@ -97,7 +97,7 @@ class Test {
 	 *  Null safety should work in __init__ functions
 	 */
 	static function __init__() {
-		var s:Null<String> = 'hello';
+		var s:Null<String> = null;
 		shouldFail(s.length);
 	}
 
@@ -119,19 +119,19 @@ class Test {
 		var closure = shouldFail(instanceMethod);
 		var notInitializedYet = shouldFail(initializedInConstructor);
 		initializedInConstructor = 'hello';
-		var s:Null<String> = 'hello';
+		var s:Null<String> = null;
 		shouldFail(s.length);
 	}
 
 	function instanceMethod() {}
 
 	static function fieldAccess_onNullableValue_shouldFail():Void {
-		var a:Null<String> = "hello";
+		var a:Null<String> = null;
 		shouldFail(a.length);
 	}
 
 	static function fieldAccess_onNullableValueInIfCondition_shouldFail():Void {
-		var a:Null<String> = "hello";
+		var a:Null<String> = null;
 		shouldFail(if(a.length == 0) {});
 	}
 
@@ -150,7 +150,7 @@ class Test {
 	}
 
 	static function call_onNullableValue_shouldFail() {
-		var fn:Null<Void->Void> = function() {}
+		var fn:Null<Void->Void> = null;
 		shouldFail(fn());
 	}
 
@@ -161,13 +161,13 @@ class Test {
 
 	static function call_nullableValueToNotNullableArgument_shouldFail() {
 		var fn = function(a:String) {}
-		var v:Null<String> = 'hello';
+		var v:Null<String> = null;
 		shouldFail(fn(v));
 	}
 
 	static function call_nullableValueToOptionalArgument_shouldPass() {
 		var fn = function(?a:Int) {}
-		var v:Null<Int> = 1;
+		var v:Null<Int> = null;
 		fn(v);
 	}
 
@@ -184,13 +184,13 @@ class Test {
 	}
 
 	static function varDecl_assignNullableValueToNotNullableVar_shouldFail() {
-		var v:Null<String> = 'hello';
+		var v:Null<String> = null;
 		shouldFail(var s:String = v);
 		shouldFail(var s:String = null);
 	}
 
 	static function assign_nullableValueToNotNullable_shouldFail() {
-		var a:Null<Int> = 0;
+		var a:Null<Int> = null;
 		var b = 10;
 		shouldFail(b = a);
 	}
@@ -209,42 +209,42 @@ class Test {
 	}
 
 	static function binop_withNullableValue_shouldFail() {
-		var a:Null<Int> = 0;
+		var a:Null<Int> = null;
 		var b = 10;
 		shouldFail(a + b);
 	}
 
 	static function binop_comparisonWithNullableValue_shouldPass() {
-		var a:Null<Int> = 0;
+		var a:Null<Int> = null;
 		var b = 10;
 		a == b;
 		a != b;
 	}
 
 	static function unop_nullableValue_shouldFail() {
-		var a:Null<Int> = 0;
+		var a:Null<Int> = null;
 		shouldFail(a++);
 	}
 
 	static function ternary_nullableElse_assignToNotNullableValue_shouldFail() {
-		var v:Null<String> = 'a';
+		var v:Null<String> = null;
 		var a:String;
 		shouldFail((true ? 'hello' : v).length);
 	}
 
 	static function arrayAccess_nullableArray_shouldFail() {
-		var a:Null<Array<Int>> = [];
+		var a:Null<Array<Int>> = null;
 		shouldFail(a[0]);
 	}
 
 	static function arrayAccess_usingNullableIndex_shouldFail() {
 		var a:Array<Int> = [0];
-		var idx:Null<Int> = 0;
+		var idx:Null<Int> = null;
 		shouldFail(a[idx]);
 	}
 
 	static function if_nullableCondition_shouldFail() {
-		var s:Null<Bool> = false;
+		var s:Null<Bool> = null;
 		shouldFail(if(s) {});
 	}
 
@@ -300,7 +300,7 @@ class Test {
 	}
 
 	static function checkAgainstNull_checkAndFieldAccess(?a:String) {
-		var s:Null<String> = 'hello';
+		var s:Null<String> = null;
 		if(s != null && s.length == 0) {}
 		if(s == null || s.length == 0) {}
 		s != null && s.length == 0;
@@ -312,7 +312,7 @@ class Test {
 		shouldFail(s == null && s.length == 0);
 
 		//checked against not-nullable value, so it's not null
-		var nullable:Null<String> = 'hello';
+		var nullable:Null<String> = null;
 		var s = 'world';
 		if(nullable == s) {
 			s = nullable;
@@ -399,7 +399,7 @@ class Test {
 	}
 
 	static function checkAgainstNull_complexConditions() {
-		var nullable:Null<String> = 'hello';
+		var nullable:Null<String> = null;
 		var s:String;
 		if(nullable != null && true) {
 			s = nullable;
@@ -484,7 +484,7 @@ class Test {
 	}
 
 	static function throw_nullableValue_shouldFail() {
-		var s:Null<String> = 'hello';
+		var s:Null<String> = null;
 		shouldFail(throw s);
 	}
 
@@ -510,13 +510,13 @@ class Test {
 	}
 
 	static function cast_nullableExprToNotNullableType_shouldFail() {
-		var s:Null<String> = 'hello';
+		var s:Null<String> = null;
 		shouldFail((s:String));
 		shouldFail(cast(s, String));
 	}
 
 	static function untypedCast_shouldPass() {
-		var n:Null<String> = 'hello';
+		var n:Null<String> = null;
 		var s:String = cast n;
 	}
 
@@ -550,7 +550,7 @@ class Test {
 	}
 
 	static function switch_onNullableValue() {
-		var nullable:Null<String> = 'hello';
+		var nullable:Null<String> = null;
 		var s:String;
 
 		switch(nullable) {
@@ -585,6 +585,8 @@ class Test {
 	static function safetyInference_safeValueAssignedToNullable_shouldBecomeSafe(?a:String, ?b:String) {
 		a = 'hello';
 		var s:String = a;
+		var n:Null<String> = 'world';
+		s = n;
 	}
 
 	static function safetyInference_safeValueAssignedToNullableInAllBranches_shouldStaySafe(?a:String, ?b:String) {

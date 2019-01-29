@@ -853,18 +853,16 @@ class expr_checker report =
 			Don't assign nullable value to not-nullable variable on var declaration
 		*)
 		method private check_var v init p =
+			local_safety#declare_var v;
 			match init with
-				| None -> local_safety#declare_var v
+				| None -> ()
 				| Some e ->
-					let is_safe =
-						match (reveal_expr e).eexpr with
-							| TLocal v2 -> is_nullable_type v.v_type && local_safety#is_safe v2
-							| _ -> false
-					in
-					local_safety#declare_var ~is_safe:is_safe v;
+					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
+					self#check_binop OpAssign local e p
+					(* self#check_expr e;
+					local_safety#handle_assignment self#is_nullable_expr local e;
 					if not (self#can_pass_expr e v.v_type p) then
-						self#error "Cannot assign nullable value to not-nullable variable." p;
-					self#check_expr e
+						self#error "Cannot assign nullable value to not-nullable variable." p; *)
 		(**
 			Make sure nobody tries to access a field on a nullable value
 		*)
