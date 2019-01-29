@@ -624,4 +624,16 @@ class Test {
 		var nullable = function():Null<String> return null;
 		nullable = fn;
 	}
+
+	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
+		var c:Null<String> = null;
+		try {
+			if (c == null) {
+				throw "null";
+			}
+			c.charAt(0);
+		} catch (e:Dynamic) {
+			shouldFail(c.charAt(0));
+		}
+	}
 }

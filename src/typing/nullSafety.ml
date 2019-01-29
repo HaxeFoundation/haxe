@@ -299,16 +299,17 @@ let should_be_initialized field =
 *)
 class safety_scope (scope_type:scope_type) (safe_locals:(int,tvar) Hashtbl.t) (never_safe:(int,tvar) Hashtbl.t) =
 	object (self)
-		(* val safe_locals = Hashtbl.create 100
-		val never_safe = Hashtbl.create 100 *)
 		(** Local vars declared in current scope *)
 		val declarations = Hashtbl.create 100
 		method get_safe_locals = safe_locals
 		method get_never_safe = never_safe
-		(* method get_never_safe = safe_locals
-		method copy_safety *)
-		(* method get_never_safe = never_safe *)
 		method get_type = scope_type
+		(**
+			Reset local vars safety to the specified state
+		*)
+		method reset_to (state:(int,tvar) Hashtbl.t) =
+			Hashtbl.clear safe_locals;
+			Hashtbl.iter (Hashtbl.add safe_locals) state
 		(**
 			Should be called for each local var declared
 		*)
@@ -340,6 +341,16 @@ class safety_scope (scope_type:scope_type) (safe_locals:(int,tvar) Hashtbl.t) (n
 			Hashtbl.remove safe_locals v.v_id;
 			if forever then
 				Hashtbl.replace never_safe v.v_id v
+		(**
+			Remove locals, which don't exist in `sample`, from safety.
+		*)
+		method filter_safety (sample:(int,tvar) Hashtbl.t) =
+			Hashtbl.iter
+				(fun var_id v ->
+					if not (Hashtbl.mem sample var_id) then
+						self#remove_from_safety v
+				)
+				(Hashtbl.copy safe_locals);
 	end
 
 (**
@@ -439,18 +450,36 @@ class local_vars =
 			Should be called for bodies of loops (for, while)
 		*)
 		method process_loop_body (first_check:unit->unit) (second_check:unit->unit) =
-			let original_safe_locals = Hashtbl.copy self#get_current_scope#get_safe_locals in
+			let original_safe_locals = self#get_safe_locals_copy in
 			(** The first check to find out which vars will become unsafe in a loop *)
 			first_check();
 			(* If local var became safe in a loop, then we need to remove it from safety to make it unsafe outside of a loop again *)
-			Hashtbl.iter
-				(fun var_id v ->
-					if not (Hashtbl.mem original_safe_locals var_id) then
-						self#get_current_scope#remove_from_safety v
-				)
-				(Hashtbl.copy self#get_current_scope#get_safe_locals);
+			self#get_current_scope#filter_safety original_safe_locals;
 			(** The second check with unsafe vars removed from safety *)
 			second_check()
+		(**
+			This method should be called upon passing `try`.
+		*)
+		method process_try (try_block:texpr) (catches:(tvar * texpr) list) (check_expr:texpr->unit) =
+			let original_safe_locals = self#get_safe_locals_copy in
+			check_expr try_block;
+			(* Remove locals which became safe inside of a try block from safety *)
+			self#get_current_scope#filter_safety original_safe_locals;
+			let safe_after_try = self#get_safe_locals_copy
+			and safe_after_catches = self#get_safe_locals_copy in
+			List.iter
+				(fun (_, catch_block) ->
+					self#get_current_scope#reset_to safe_after_try;
+					check_expr catch_block;
+					Hashtbl.iter
+						(fun var_id v ->
+							if not (self#is_safe v) then
+								Hashtbl.remove safe_after_catches var_id
+						)
+						(Hashtbl.copy safe_after_catches)
+				)
+				catches;
+			self#get_current_scope#reset_to safe_after_catches
 		(**
 			This method should be called upon passing `if`.
 			It collects locals which are checked against `null` and executes callbacks for expressions with proper statuses of locals.
@@ -661,8 +690,7 @@ class expr_checker report =
 			Check try...catch
 		*)
 		method private check_try try_block catches =
-			self#check_expr try_block;
-			List.iter (fun (_, e) -> self#check_expr e) catches
+			local_safety#process_try try_block catches self#check_expr
 		(**
 			Don't use nullable value as a condition in `while`
 		*)
