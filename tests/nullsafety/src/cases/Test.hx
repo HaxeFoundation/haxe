@@ -75,6 +75,25 @@ private class TestWithoutConstructor {
 	@:shouldFail var notInitializedField:String;
 }
 
+class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
+	var v:Int;
+
+	/**
+	 * This is generated like:
+	 * ```
+	 * var _gthis = this; //problems come from here
+	 * this.v = 42;
+	 * var f = function() {
+	 * 		return _gthis.v;
+	 * }
+	 * ```
+	 */
+	public function new() {
+		v = 42;
+		var f = function() return this.v;
+	}
+}
+
 @:build(Validator.checkFields())
 class Test {
 	public var field:Null<String>;
@@ -114,7 +133,9 @@ class Test {
 		} else {
 			initializedInAllBranchesOfConstructor = 'hello';
 		}
-		var self = shouldFail(this);
+		shouldFail(acceptThis(this));
+		var self = this;
+		shouldFail(acceptThis(self));
 		shouldFail(instanceMethod());
 		var closure = shouldFail(instanceMethod);
 		var notInitializedYet = shouldFail(initializedInConstructor);
@@ -122,6 +143,8 @@ class Test {
 		var s:Null<String> = null;
 		shouldFail(s.length);
 	}
+
+	static function acceptThis(t:Test) {}
 
 	function instanceMethod() {}
 
@@ -460,6 +483,16 @@ class Test {
 		}
 
 		a.length + b.length;
+	}
+
+	public function checkAgainstNul_deadEndIfNullOrAnotherCondition_shouldPass() : Void {
+		var s : Null<String> = ((Math.random() > 0.5) ? "A" : null);
+
+		if (s == null || s.length == 42) {
+			return;
+		}
+
+		s.length;
 	}
 
 	static function checkAgainstNull_valueBecomesSafeInIf_shouldStaySafe(?a:String) {
