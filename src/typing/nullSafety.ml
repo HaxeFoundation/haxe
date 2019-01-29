@@ -500,7 +500,15 @@ class local_vars =
 			match expr.eexpr with
 				| TIf (condition, if_body, else_body) ->
 					condition_callback condition;
-					let (nulls, not_nulls) = process_condition condition is_nullable_expr (fun _ -> ()) in
+					let (nulls, not_nulls) =
+						process_condition condition is_nullable_expr (fun _ -> ())
+					in
+					let not_condition =
+						{ eexpr = TUnop (Not, Prefix, condition); etype = condition.etype; epos = condition.epos }
+					in
+					let (else_nulls, else_not_nulls) =
+						process_condition not_condition is_nullable_expr (fun _ -> ())
+					in
 					(** execute `if_body` with known not-null variables *)
 					List.iter self#get_current_scope#add_to_safety not_nulls;
 					body_callback if_body;
@@ -512,14 +520,14 @@ class local_vars =
 					in
 					(match else_body with
 						| None ->
-							(** If `if_body` terminates execution, then bypassing `if` means `nulls` are safe now *)
-							handle_dead_end if_body nulls
+							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
+							handle_dead_end if_body else_not_nulls
 						| Some else_body ->
-							List.iter self#get_current_scope#add_to_safety nulls;
+							List.iter self#get_current_scope#add_to_safety else_not_nulls;
 							body_callback else_body;
-							List.iter self#get_current_scope#remove_from_safety nulls;
-							(** If `if_body` terminates execution, then bypassing `if` means `nulls` are safe now *)
-							handle_dead_end if_body nulls;
+							List.iter self#get_current_scope#remove_from_safety else_not_nulls;
+							(** If `if_body` terminates execution, then bypassing `if` means `else_not_nulls` are safe now *)
+							handle_dead_end if_body else_not_nulls;
 							(** If `else_body` terminates execution, then bypassing `else` means `not_nulls` are safe now *)
 							handle_dead_end else_body not_nulls
 					);

@@ -406,11 +406,15 @@ class Test {
 		var s:String;
 		if(nullable != null && true) {
 			s = nullable;
-		}
-		else {
+		} else {
 			shouldFail(s = nullable);
 		}
-		if(false && (true || false) && null == nullable) {
+		if(Std.random(2) == 1 && null == nullable) {
+			shouldFail(s = nullable);
+		} else {
+			shouldFail(s = nullable);
+		}
+		if(Std.random(2) == 1 || null == nullable) {
 			shouldFail(s = nullable);
 		} else {
 			s = nullable;
@@ -448,6 +452,14 @@ class Test {
 			if(b == null) break;
 			s = b;
 		}
+	}
+
+	static public function checkAgainstNul_deadEndIfAnyIsNull_shouldPass(?a:String, ?b:String) {
+		if (a == null || b == null) {
+			return;
+		}
+
+		a.length + b.length;
 	}
 
 	static function checkAgainstNull_valueBecomesSafeInIf_shouldStaySafe(?a:String) {
