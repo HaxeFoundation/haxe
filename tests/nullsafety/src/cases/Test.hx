@@ -273,6 +273,8 @@ class Test {
 		if(a == null) {} else s = a;
 		if(null == a) {} else s = a;
 		if(a != null) s = a;
+		if(!(a == null)) s = a;
+		if(!(a == null || a == a)) a.charAt(0);
 		if(null != a) s = a;
 		s = (a == null ? 'hello' : a);
 		s = (null == a ? 'hello' : a);
@@ -305,6 +307,7 @@ class Test {
 		if(s == null || s.length == 0) {}
 		s != null && s.length == 0;
 		s == null || s.length == 0;
+		!(s == null || a == null) && s.length == a.length;
 
 		shouldFail(if(s != null || s.length == 0) {});
 		shouldFail(if(s == null && s.length == 0) {});

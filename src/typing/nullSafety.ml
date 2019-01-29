@@ -222,21 +222,33 @@ let rec can_pass_type src dst =
 let process_condition condition (is_nullable_expr:texpr->bool) callback =
 	let nulls = ref []
 	and not_nulls = ref [] in
-	let rec traverse e =
+	let add to_nulls v =
+		if to_nulls then nulls := v :: !nulls
+		else not_nulls := v :: !not_nulls
+	in
+	let rec traverse positive e =
 		match e.eexpr with
-			| TBinop (OpEq, { eexpr = TConst TNull }, { eexpr = TLocal v }) -> nulls := v :: !nulls
-			| TBinop (OpEq, { eexpr = TLocal v }, { eexpr = TConst TNull }) -> nulls := v :: !nulls
-			| TBinop (OpNotEq, { eexpr = TConst TNull }, { eexpr = TLocal v }) -> not_nulls := v :: !not_nulls
-			| TBinop (OpNotEq, { eexpr = TLocal v }, { eexpr = TConst TNull }) -> not_nulls := v :: !not_nulls
-			| TBinop (OpEq, e, { eexpr = TLocal v }) when not (is_nullable_expr e) -> not_nulls := v :: !not_nulls
-			| TBinop (OpEq, { eexpr = TLocal v }, e) when not (is_nullable_expr e) -> not_nulls := v :: !not_nulls
-			| TBinop (OpBoolAnd, left_expr, right_expr) ->
-				traverse left_expr;
-				traverse right_expr;
-			| TParenthesis e -> traverse e
+			| TUnop (Not, Prefix, e) -> traverse (not positive) e
+			| TBinop (OpEq, { eexpr = TConst TNull }, { eexpr = TLocal v })
+			| TBinop (OpEq, { eexpr = TLocal v }, { eexpr = TConst TNull }) ->
+				add positive v
+			| TBinop (OpNotEq, { eexpr = TConst TNull }, { eexpr = TLocal v })
+			| TBinop (OpNotEq, { eexpr = TLocal v }, { eexpr = TConst TNull }) ->
+				add (not positive) v
+			| TBinop (OpEq, e, { eexpr = TLocal v }) when not (is_nullable_expr e) ->
+				if positive then not_nulls := v :: !not_nulls
+			| TBinop (OpEq, { eexpr = TLocal v }, e) when not (is_nullable_expr e) ->
+				if positive then not_nulls := v :: !not_nulls
+			| TBinop (OpBoolAnd, left_expr, right_expr) when positive ->
+				traverse positive left_expr;
+				traverse positive right_expr
+			| TBinop (OpBoolOr, left_expr, right_expr) when not positive ->
+				traverse positive left_expr;
+				traverse positive right_expr
+			| TParenthesis e -> traverse positive e
 			| _ -> callback e
 	in
-	traverse condition;
+	traverse true condition;
 	(!nulls, !not_nulls)
 
 (**
