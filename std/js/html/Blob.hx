@@ -46,7 +46,7 @@ extern class Blob
 	var type(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?blobParts : Array<haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<Blob,String>>>, ?options : BlobPropertyBag ) : Void;
+	function new( ?blobParts : Array<haxe.extern.EitherType<ArrayBuffer,haxe.extern.EitherType<ArrayBufferView,haxe.extern.EitherType<Blob,String>>>>, ?options : BlobPropertyBag ) : Void;
 	
 	/**
 		Returns a new `Blob` object containing the data in the specified range of bytes of the source `Blob`.
