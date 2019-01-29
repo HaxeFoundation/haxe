@@ -246,28 +246,16 @@ module Pattern = struct
 					pat
 		in
 		let handle_ident s p =
-			let save =
-				let old = ctx.locals in
-				ctx.locals <- (try PMap.add "this" (PMap.find "this" old) PMap.empty with Not_found -> PMap.empty);
-				(fun () ->
-					ctx.locals <- old;
-				)
-			in
 			try
-				let pat = try_typing (EConst (Ident s),p) in
-				save();
-				pat
+				try_typing (EConst (Ident s),p)
 			with
 			| Exit | Bad_pattern _ ->
 				begin try
 					let mt = module_type_of_type t in
 					let e_mt = TyperBase.type_module_type ctx mt None p in
 					let e = type_field_access ctx ~resume:true e_mt s in
-					let pat = check_expr e in
-					save();
-					pat
+					check_expr e
 				with _ ->
-					save();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
@@ -291,9 +279,6 @@ module Pattern = struct
 					let v = add_local false s p in
 					PatVariable v
 				end
-			| exc ->
-				save();
-				raise exc
 		in
 		let rec loop e = match fst e with
 			| EParenthesis e1 | ECast(e1,None) ->
