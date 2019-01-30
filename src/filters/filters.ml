@@ -874,12 +874,13 @@ let run com tctx main =
 	else
 		(try Common.defined_value com Define.Dce with _ -> "no")
 	in
-	begin match dce_mode with
-		| "full" -> Dce.run com main (not (Common.defined com Define.Interp))
-		| "std" -> Dce.run com main false
-		| "no" -> Dce.fix_accessors com
+	let dce_mode = match dce_mode with
+		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
+		| "std" -> DceStd
+		| "no" -> DceNo
 		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-	end;
+	in
+	Dce.run com main dce_mode;
 	t();
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
