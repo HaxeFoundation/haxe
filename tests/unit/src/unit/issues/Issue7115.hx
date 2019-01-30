@@ -16,10 +16,12 @@ class Issue7115 extends unit.Test {
 	}
 
 	function testCast() {
+		#if !flash // ???
 		eq(#if static 0 #else null #end, cast(getNull(), Int));
 		eq(#if static 0. #else null #end, cast(getNull(), Float));
 		eq(#if static false #else null #end, cast(getNull(), Bool));
 		eq(null, cast(getNull(), String));
+		#end
 		eq(null, cast(getNull(), Issue7115));
 		eq(null, cast(getNull(), haxe.ds.Option<Dynamic>));
 		eq(null, cast(getNull(), Interface));
