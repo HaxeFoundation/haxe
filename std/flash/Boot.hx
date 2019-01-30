@@ -99,7 +99,7 @@ class Boot extends flash.display.MovieClip {
 	public static function __instanceof( v : Dynamic, t : Dynamic ) {
 		try {
 			if( t == Dynamic )
-				return true;
+				return v != null;
 			return untyped __is__(v,t);
 		} catch( e : Dynamic ) {
 		}
