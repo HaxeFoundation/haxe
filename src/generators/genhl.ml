@@ -3227,7 +3227,14 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) f else f in
+	let f = if ctx.optimize then begin
+		let t = Timer.timer ["generate";"hl";"opt"] in
+		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) f in
+		t();
+		f
+	end else
+		f
+	in
 	DynArray.add ctx.cfunctions f;
 	capt
 

@@ -74,7 +74,6 @@ type typer_globals = {
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
-	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	mutable global_using : (tclass * pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
@@ -108,6 +107,7 @@ and typer = {
 	mutable curclass : tclass;
 	mutable tthis : t;
 	mutable type_params : (string * t) list;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
