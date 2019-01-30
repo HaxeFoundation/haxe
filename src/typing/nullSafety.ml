@@ -1062,19 +1062,7 @@ class class_checker cls report  =
 	end
 
 (**
-	Check if all items of the `needle` list exist in the same order in the beginning of the `haystack` list.
-*)
-let rec list_starts_with_list (haystack:string list) (needle:string list) =
-	match haystack, needle with
-		| _, [] -> true
-		| [], _ -> false
-		| current_haystack :: rest_haystack, current_needle :: rest_needle ->
-			current_haystack = current_needle && list_starts_with_list rest_haystack rest_needle
-
-(**
 	Run null safety checks.
-	`cp_list` is the list of class paths (e.g. directories provided with `-cp` compiler arguments).
-	`error` is a function for reporting safety errors.
 *)
 let run (com:Common.context) (types:module_type list) =
 	let timer = Timer.timer ["null safety"] in
