@@ -686,4 +686,10 @@ class Test {
 			shouldFail(c.charAt(0));
 		}
 	}
+
+	static public function localNamedFunction_shouldPass() {
+		function cb() {
+			cb();
+		}
+	}
 }

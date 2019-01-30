@@ -668,7 +668,7 @@ class expr_checker report =
 				| TUnop (_, _, expr) -> self#check_unop expr e.epos
 				| TFunction fn -> self#check_function fn
 				| TVar (v, init_expr) -> self#check_var v init_expr e.epos
-				| TBlock exprs -> List.iter self#check_expr exprs
+				| TBlock exprs -> self#check_block exprs e.epos
 				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
@@ -684,6 +684,22 @@ class expr_checker report =
 				| TEnumIndex idx -> self#check_enum_index idx
 				| TEnumParameter (e, _, _) -> self#check_expr e (** Checking enum value itself is not needed here because this expr always follows after TEnumIndex *)
 				| TIdent _ -> ()
+		(**
+			Check expressions in a block
+		*)
+		method private check_block exprs p =
+			match exprs with
+				| [] -> ()
+				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
+				| { eexpr = TVar (v1, Some { eexpr = TConst TNull }) }
+					:: ({ eexpr = TBinop (OpAssign, { eexpr = TLocal v2 }, { eexpr = TFunction _ }) } as e)
+					:: rest
+						when v1.v_id = v2.v_id && (match v1.v_type with TFun _ -> true | _ -> false) ->
+					self#check_expr e;
+					self#check_block rest p
+				| e :: rest ->
+					self#check_expr e;
+					self#check_block rest p
 		(**
 			Don't allow to use nullable values as items in declaration of not-nullable arrays
 		*)
