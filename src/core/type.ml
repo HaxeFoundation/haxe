@@ -2440,8 +2440,9 @@ let iter f e =
 		(match eo with None -> () | Some e -> f e)
 
 (**
-	Returns `true` if `predicate` is evaluated to `true` for `e` or for at least one of sub-expressions.
+	Returns `true` if `predicate` is evaluated to `true` for at least one of sub-expressions.
 	Returns `false` otherwise.
+	Does not evaluate `predicate` for the `e` expression.
 *)
 let check_expr predicate e =
 	match e.eexpr with
