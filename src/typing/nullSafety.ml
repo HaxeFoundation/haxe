@@ -257,7 +257,7 @@ let process_condition condition (is_nullable_expr:texpr->bool) callback =
 let rec contains_unsafe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.Custom ":safety", [(EConst (Ident "false"), _)], _) :: _  -> true
+		| (Meta.Safety, [(EConst (Ident "false"), _)], _) :: _  -> true
 		| _ :: rest -> contains_unsafe_meta rest
 
 (**
@@ -266,8 +266,8 @@ let rec contains_unsafe_meta metadata =
 let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.Custom ":safety", [], _) :: _
-		| (Meta.Custom ":safety", [(EConst (Ident "true"), _)], _) :: _  -> true
+		| (Meta.Safety, [], _) :: _
+		| (Meta.Safety, [(EConst (Ident "true"), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
 (**
