@@ -256,14 +256,20 @@ let rec immediate_execution callee arg_num =
 		| _ -> false
 
 and is_stored fn_var expr =
-	match (reveal_expr expr).eexpr with
+	match expr.eexpr with
 		| TThrow { eexpr = TLocal v }
 		| TReturn (Some { eexpr = TLocal v })
 		| TCast ({ eexpr = TLocal v }, _)
 		| TMeta (_, { eexpr = TLocal v })
 		| TBinop (OpAssign, _, { eexpr = TLocal v }) when v.v_id = fn_var.v_id ->
-			print_endline ("stored " ^ fn_var.v_name ^ "!");
 			true
+		| TFunction fn ->
+			let rec captured e =
+				match e.eexpr with
+					| TLocal v -> v.v_id = fn_var.v_id
+					| _ -> check_expr captured e
+			in
+			captured fn.tf_expr
 		| TCall (callee, args) ->
 			if is_stored fn_var callee then
 				true

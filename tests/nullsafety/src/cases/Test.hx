@@ -718,15 +718,26 @@ class Test {
 	}
 	@:pure
 	static function pureMeta(cb:()->Int) return cb();
-	static var tmp:Int = Std.random(10);
+	static var tmp1:Int = Std.random(10);
 	static function notPureButImmediatelyExecutes(cb:()->Int) {
-		if(tmp < 5) tmp = cb();
-		for(i in 0...cb()) tmp += cb();
+		if(tmp1 < 5) tmp1 = cb();
+		for(i in 0...cb()) tmp1 += cb();
 	}
 	static function immediatelyExecutesTwoLevelsDeep(cb:()->Int) {
 		notPureButImmediatelyExecutes(cb);
 	}
+
+	static public function closure_storedSomewhere_shouldFail(?s:String) {
+		if(s != null) {
+			passesSomewhereElse(() -> shouldFail(s.length));
+			storesSomewhere(() -> shouldFail(s.length));
+		}
+	}
 	static function passesSomewhereElse(cb:()->Int) {
 		haxe.Timer.delay(cb, 1);
+	}
+	static var tmp2:Null<()->Int> = null;
+	static function storesSomewhere(cb:()->Int) {
+		tmp2 = cb;
 	}
 }
