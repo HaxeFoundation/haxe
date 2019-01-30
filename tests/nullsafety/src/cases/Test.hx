@@ -31,12 +31,12 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
-/** Test `@:safety(false)` is respected on fields */
+/** Test `@:nullSafety(false)` is respected on fields */
 class UnsafeFields {
-	@:safety(false) var unsafeVar:String = null;
-	@:safety(false) var notInitializedField:String;
+	@:nullSafety(false) var unsafeVar:String = null;
+	@:nullSafety(false) var notInitializedField:String;
 
-	@:safety(false)
+	@:nullSafety(false)
 	static function unsafeMethod() {
 		var s:String = null;
 	}
@@ -47,8 +47,8 @@ class UnsafeFields {
 	}
 }
 
-/** Test `@:safety(false)` is respected on a class */
-@:safety(false)
+/** Test `@:nullSafety(false)` is respected on a class */
+@:nullSafety(false)
 class UnsafeClass {
 	var uninitializedVar:String;
 
@@ -59,12 +59,12 @@ class UnsafeClass {
 	function doStuff(t:UnsafeClass) {}
 }
 
-/** Test `@:safety(false)` on a constructor. And that it does not disable safety checks for instance vars */
+/** Test `@:nullSafety(false)` on a constructor. And that it does not disable safety checks for instance vars */
 @:build(Validator.checkFields())
 class UnsafeConstructor {
 	@:shouldFail var uninitializedVar:String;
 
-	@:safety(false)
+	@:nullSafety(false)
 	public function new() {
 		var s:String = null;
 	}

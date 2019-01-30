@@ -326,22 +326,22 @@ let process_condition condition (is_nullable_expr:texpr->bool) callback =
 	(!nulls, !not_nulls)
 
 (**
-	Check if metadata contains @:safety(false) meta
+	Check if metadata contains @:nullSafety(false) meta
 **)
 let rec contains_unsafe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.Safety, [(EConst (Ident "false"), _)], _) :: _  -> true
+		| (Meta.NullSafety, [(EConst (Ident "false"), _)], _) :: _  -> true
 		| _ :: rest -> contains_unsafe_meta rest
 
 (**
-	Check if metadata contains @:safety or @:safety(true) meta
+	Check if metadata contains @:nullSafety or @:nullSafety(true) meta
 **)
 let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.Safety, [], _) :: _
-		| (Meta.Safety, [(EConst (Ident "true"), _)], _) :: _  -> true
+		| (Meta.NullSafety, [], _) :: _
+		| (Meta.NullSafety, [(EConst (Ident "true"), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
 (**

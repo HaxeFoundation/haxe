@@ -142,7 +142,7 @@ type strict_meta =
 	| Rtti
 	| Runtime
 	| RuntimeValue
-	| Safety
+	| NullSafety
 	| Scalar
 	| SelfCall
 	| Semantics
@@ -345,7 +345,7 @@ let get_info = function
 	| Rtti -> ":rtti",("Adds runtime type information",[UsedOn TClass])
 	| Runtime -> ":runtime",("?",[])
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
-	| Safety -> ":safety",("Enables null safety for classes or disables null safety for classes or fields if provided with `false` as an argument (e.g. `@:safety(false)`)",[UsedOnEither [TClass;TClassField]])
+	| NullSafety -> ":nullSafety",("Enables null safety for classes or disables null safety for classes or fields if provided with `false` as an argument (e.g. `@:nullSafety(false)`)",[UsedOnEither [TClass;TClassField]])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
 	| Semantics -> ":semantics",("The native semantics of the type",[UsedOnEither [TClass;TTypedef;TAbstract];HasParam "value | reference | variable"])
