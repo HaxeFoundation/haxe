@@ -2439,6 +2439,38 @@ let iter f e =
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
 
+(**
+	Returns `true` if `predicate` is evaluated to `true` for `e` or for at least one of sub-expressions.
+	Returns `false` otherwise.
+*)
+let check_expr predicate e =
+	match e.eexpr with
+		| TConst _ | TLocal _ | TBreak | TContinue | TTypeExpr _ | TIdent _ ->
+			false
+		| TArray (e1,e2) | TBinop (_,e1,e2) | TFor (_,e1,e2) | TWhile (e1,e2,_) ->
+			predicate e1 || predicate e2;
+		| TThrow e | TField (e,_) | TEnumParameter (e,_,_) | TEnumIndex e | TParenthesis e
+		| TCast (e,_) | TUnop (_,_,e) | TMeta(_,e) ->
+			predicate e
+		| TArrayDecl el | TNew (_,_,el) | TBlock el ->
+			List.exists predicate el
+		| TObjectDecl fl ->
+			List.exists (fun (_,e) -> predicate e) fl
+		| TCall (e,el) ->
+			predicate e ||  List.exists predicate el
+		| TVar (_,eo) | TReturn eo ->
+			(match eo with None -> false | Some e -> predicate e)
+		| TFunction fu ->
+			predicate fu.tf_expr
+		| TIf (e,e1,e2) ->
+			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
+		| TSwitch (e,cases,def) ->
+			predicate e
+			|| List.exists (fun (el,e2) -> List.exists predicate el || predicate e2) cases
+			|| (match def with None -> false | Some e -> predicate e)
+		| TTry (e,catches) ->
+			predicate e || List.exists (fun (_,e) -> predicate e) catches
+
 let map_expr f e =
 	match e.eexpr with
 	| TConst _

@@ -61,7 +61,7 @@ class Validator {
 				++i;
 			}
 		}
-
+		actual.reverse();
 		for(event in actual) {
 			Context.warning(event.msg, event.pos);
 		}

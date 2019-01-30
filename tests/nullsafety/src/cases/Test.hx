@@ -700,4 +700,33 @@ class Test {
 			cb();
 		}
 	}
+
+	static public function closure_immediatelyExecuted_shouldInheritSafety(?s:String) {
+		if(s != null) {
+			[1, 2, 3].map(i -> i * s.length);
+			pureMeta(() -> s.length);
+			notPureButImmediatelyExecutes(() -> s.length);
+			immediatelyExecutesTwoLevelsDeep(() -> s.length);
+			pureMeta(function() {
+				shouldFail(s.charAt(0));
+				s = null;
+				return shouldFail(s.length);
+			});
+			pureMeta(() -> shouldFail(s.length));
+			shouldFail(s.charAt(0));
+		}
+	}
+	@:pure
+	static function pureMeta(cb:()->Int) return cb();
+	static var tmp:Int = Std.random(10);
+	static function notPureButImmediatelyExecutes(cb:()->Int) {
+		if(tmp < 5) tmp = cb();
+		for(i in 0...cb()) tmp += cb();
+	}
+	static function immediatelyExecutesTwoLevelsDeep(cb:()->Int) {
+		notPureButImmediatelyExecutes(cb);
+	}
+	static function passesSomewhereElse(cb:()->Int) {
+		haxe.Timer.delay(cb, 1);
+	}
 }

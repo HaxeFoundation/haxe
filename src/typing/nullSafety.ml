@@ -15,6 +15,8 @@ type scope_type =
 	| STNormal
 	| STLoop
 	| STClosure
+	(* A closure which gets executed along the "normal" program flow without being delayed or stored somewhere *)
+	| STImmediateClosure
 
 type safety_unify_error =
 	| NullSafetyError
@@ -59,6 +61,27 @@ let rec is_nullable_type = function
 		is_nullable_type (apply_params t.t_params tl t.t_type)
 	| _ ->
 		false
+
+(**
+	If `expr` is a TCast or TMeta, returns underlying expression (recursively bypassing nested casts).
+	Otherwise returns `expr` as is.
+*)
+let rec reveal_expr expr =
+	match expr.eexpr with
+		| TCast (e, _) -> reveal_expr e
+		| TMeta (_, e) -> reveal_expr e
+		| _ -> expr
+
+(**
+	Try to get a human-readable representation of an `expr`
+*)
+let symbol_name expr =
+	match (reveal_expr expr).eexpr with
+		| TField (_, access) -> field_name access
+		| TIdent name -> name
+		| TLocal { v_name = name } -> name
+		| TNew _ -> "new"
+		| _ -> ""
 
 (**
 	Check if it's possible to pass a value of type `a` to a place where a value of type `b` is expected.
@@ -179,16 +202,6 @@ let rec unfold_null t =
 *)
 let safety_error () : unit = raise (Safety_error NullSafetyError)
 
-(**
-	If `expr` is a TCast or TMeta, returns underlying expression (recursively bypassing nested casts).
-	Otherwise returns `expr` as is.
-*)
-let rec reveal_expr expr =
-	match expr.eexpr with
-		| TCast (e, _) -> reveal_expr e
-		| TMeta (_, e) -> reveal_expr e
-		| _ -> expr
-
 let accessed_field_name access =
 	match access with
 		| FInstance (_, _, { cf_name = name }) -> name
@@ -214,6 +227,61 @@ let rec can_pass_type src dst =
 			| TLazy _ -> true
 			| TAbstract ({ a_path = ([],"Null") }, [t]) -> true
 			| TAbstract _ -> true
+
+(**
+	Check if a lambda passed to `arg_num`th argument of the `callee` function will be executed immediately without
+	delaying it or storing it somewhere else.
+*)
+let rec immediate_execution callee arg_num =
+	match (reveal_expr callee).eexpr with
+		| TField (_, FClosure (Some (cls, _), ({ cf_kind = Method (MethNormal | MethInline) } as field)))
+		| TField (_, FStatic (cls, ({ cf_kind = Method (MethNormal | MethInline) } as field)))
+		| TField (_, FInstance (cls, _, ({ cf_kind = Method (MethNormal | MethInline) } as field))) ->
+			if PurityState.is_pure cls field then
+				true
+			else
+				(match cls, field with
+					(* known to be pure *)
+					| { cl_path = ([], "Array") }, _ -> true
+					(* try to analyze function code *)
+					| _, { cf_expr = (Some { eexpr = TFunction fn }) } ->
+						if arg_num < 0 || arg_num >= List.length fn.tf_args then
+							false
+						else
+							let (arg_var, _) = List.nth fn.tf_args arg_num in
+							not (is_stored arg_var fn.tf_expr)
+					| _ ->
+						false
+				)
+		| _ -> false
+
+and is_stored fn_var expr =
+	match (reveal_expr expr).eexpr with
+		| TThrow { eexpr = TLocal v }
+		| TReturn (Some { eexpr = TLocal v })
+		| TCast ({ eexpr = TLocal v }, _)
+		| TMeta (_, { eexpr = TLocal v })
+		| TBinop (OpAssign, _, { eexpr = TLocal v }) when v.v_id = fn_var.v_id ->
+			print_endline ("stored " ^ fn_var.v_name ^ "!");
+			true
+		| TCall (callee, args) ->
+			if is_stored fn_var callee then
+				true
+			else begin
+				let arg_num = ref 0 in
+				List.exists
+					(fun arg ->
+						let result =
+							match arg.eexpr with
+								| TLocal v when v.v_id = fn_var.v_id -> not (immediate_execution callee !arg_num)
+								| _ -> is_stored fn_var arg
+						in
+						incr arg_num;
+						result
+					)
+					args
+			end
+		| _ -> check_expr (is_stored fn_var) expr
 
 (**
 	Collect nullable local vars which are checked against `null`.
@@ -391,8 +459,13 @@ class local_vars =
 		(**
 			Should be called upon local function declaration.
 		*)
-		method function_declared (fn:tfunc) =
-			let scope = new safety_scope STClosure (Hashtbl.create 100) (Hashtbl.create 100) in
+		method function_declared (immediate_execution:bool) (fn:tfunc) =
+			let scope =
+				if immediate_execution then
+					new safety_scope STImmediateClosure self#get_current_scope#get_safe_locals self#get_current_scope#get_never_safe
+				else
+					new safety_scope STClosure (Hashtbl.create 100) (Hashtbl.create 100)
+			in
 			scopes <- scope :: scopes;
 			List.iter (fun (v, _) -> scope#declare_var v) fn.tf_args
 		(**
@@ -664,7 +737,7 @@ class expr_checker report =
 				| TObjectDecl fields -> List.iter (fun (_, e) -> self#check_expr e) fields
 				| TArrayDecl items -> self#check_array_decl items e.etype e.epos
 				| TCall (callee, args) -> self#check_call callee args
-				| TNew (cls, params, args) -> self#check_new cls params args e.epos
+				| TNew _ -> self#check_new e
 				| TUnop (_, _, expr) -> self#check_unop expr e.epos
 				| TFunction fn -> self#check_function fn
 				| TVar (v, init_expr) -> self#check_var v init_expr e.epos
@@ -796,10 +869,20 @@ class expr_checker report =
 		(**
 			Check safety in a function
 		*)
-		method private check_function fn =
-			local_safety#function_declared fn;
+		method private check_function ?(immediate_execution=false) fn =
+			local_safety#function_declared immediate_execution fn;
 			return_types <- fn.tf_type :: return_types;
-			self#check_expr fn.tf_expr;
+			if immediate_execution then
+				begin
+					(* Start pretending to ignore errors *)
+					is_pretending <- true;
+					self#check_expr fn.tf_expr;
+					(* Now we know, which vars will become unsafe in this closure. Stop pretending and perform real check *)
+					is_pretending <- false;
+					self#check_expr fn.tf_expr
+				end
+			else
+				self#check_expr fn.tf_expr;
 			return_types <- List.tl return_types;
 			local_safety#scope_closed
 		(**
@@ -907,25 +990,29 @@ class expr_checker report =
 				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") p;
 			self#check_expr target
 		(**
-			Check constructor invocation: dont' pass nulable values to not-nullable arguments
+			Check constructor invocation: don't pass nulable values to not-nullable arguments
 		*)
-		method private check_new cls params args p =
-			let ctor =
-				try
-					Some (get_constructor (fun ctor -> apply_params cls.cl_params params ctor.cf_type) cls)
-				with
-					| Not_found -> None
-			in
-			match ctor with
-				| None ->
-					List.iter self#check_expr args
-				| Some (ctor_type, _) ->
-					let rec traverse t =
-						match follow t with
-							| TFun (types, _) -> self#check_args args types
-							| _ -> fail ~msg:"Unexpected constructor type." p __POS__
+		method private check_new e_new =
+			match e_new.eexpr with
+				| TNew (cls, params, args) ->
+					let ctor =
+						try
+							Some (get_constructor (fun ctor -> apply_params cls.cl_params params ctor.cf_type) cls)
+						with
+							| Not_found -> None
 					in
-					traverse ctor_type
+					(match ctor with
+						| None ->
+							List.iter self#check_expr args
+						| Some (ctor_type, _) ->
+							let rec traverse t =
+								match follow t with
+									| TFun (types, _) -> self#check_args e_new args types
+									| _ -> fail ~msg:"Unexpected constructor type." e_new.epos __POS__
+							in
+							traverse ctor_type
+					)
+				| _ -> fail ~msg:"TNew expected" e_new.epos __POS__
 		(**
 			Check calls: don't call a nullable value, dont' pass nulable values to not-nullable arguments
 		*)
@@ -933,33 +1020,29 @@ class expr_checker report =
 			if self#is_nullable_expr callee then
 				self#error "Cannot call a nullable value." callee.epos;
 			self#check_expr callee;
-			match callee.eexpr with
-				(* Handle other calls *)
+			match follow callee.etype with
+				| TFun (types, _) ->
+					self#check_args callee args types
 				| _ ->
-					match follow callee.etype with
-						| TFun (types, _) ->
-							let fn_name = match (reveal_expr callee).eexpr with
-								| TField (_, access) -> field_name access
-								| TIdent fn_name -> fn_name
-								| TLocal { v_name = fn_name } -> fn_name
-								| _ -> ""
-							in
-							self#check_args ~callee:fn_name args types
-						| _ ->
-							List.iter self#check_expr args
+					List.iter self#check_expr args
 		(**
 			Check if specified expressions can be passed to a call which expects `types`.
 		*)
-		method private check_args ?(callee="") args types =
+		method private check_args ?(arg_num=0) callee args types =
 			match (args, types) with
-				| (a :: args, (arg_name, optional, t) :: types) ->
-					if not optional && not (self#can_pass_expr a t a.epos) then begin
-						let fn_str = if callee = "" then "" else " of function \"" ^ callee ^ "\""
+				| (arg :: args, (arg_name, optional, t) :: types) ->
+					if not optional && not (self#can_pass_expr arg t arg.epos) then begin
+						let fn_str = match symbol_name callee with "" -> "" | name -> " of function \"" ^ name ^ "\""
 						and arg_str = if arg_name = "" then "" else " \"" ^ arg_name ^ "\"" in
-						self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") a.epos
+						self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") arg.epos
 					end;
-					self#check_expr a;
-					self#check_args ~callee:callee args types;
+					(match arg.eexpr with
+						| TFunction fn ->
+							self#check_function ~immediate_execution:(immediate_execution callee arg_num) fn
+						| _ ->
+							self#check_expr arg
+					);
+					self#check_args ~arg_num:(arg_num + 1) callee args types;
 				| _ -> ()
 	end
 
@@ -970,13 +1053,16 @@ class class_checker cls report  =
 			Entry point for checking a class
 		*)
 		method check =
-			if snd cls.cl_path = "AllVarsInitializedInConstructor_thisShouldBeUsable" then
-				Option.may (fun f -> Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr) cls.cl_constructor;
+			(* if snd cls.cl_path = "AllVarsInitializedInConstructor_thisShouldBeUsable" then
+				Option.may (fun f -> Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr) cls.cl_constructor; *)
 			if (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field f =
-				if not (contains_unsafe_meta f.cf_meta) then
+				if not (contains_unsafe_meta f.cf_meta) then begin
+					(* if f.cf_name = "closure_immediatelyExecuted_shouldInheritSafety" then
+						Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr; *)
 					Option.may checker#check_root_expr f.cf_expr
+				end
 			in
 			Option.may checker#check_root_expr cls.cl_init;
 			Option.may check_field cls.cl_constructor;
