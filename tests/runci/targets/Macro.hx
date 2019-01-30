@@ -16,6 +16,9 @@ class Macro {
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
 
+		changeDirectory(nullSafetyDir);
+		runCommand("haxe", ["test.hxml"]);
+
 		changeDirectory(miscDir);
 		getCsDependencies();
 		getPythonDependencies();

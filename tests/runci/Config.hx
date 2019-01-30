@@ -18,6 +18,7 @@ class Config {
 	static public final displayDir = cwd + "display/";
 	static public final serverDir = cwd + "server/";
 	static public final sourcemapsDir = cwd + "sourcemaps/";
+	static public final nullSafetyDir = cwd + "nullsafety/";
 
 	static public final ci:Null<Ci> =
 		if (Sys.getEnv("TRAVIS") == "true")

@@ -1,0 +1,6 @@
+-cp src
+-main cases.Test
+-D analyzer-optimize
+
+--macro addGlobalMetadata('cases', '@:safety')
+--macro Validator.register()
