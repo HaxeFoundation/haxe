@@ -655,6 +655,14 @@ class Test {
 		var fn = function(s:String):Void {}
 		var nullable = function(s:Null<String>):Void {}
 		shouldFail(nullable = fn);
+
+		var fn = function(a:Array<String>):Void {}
+		var nullable = function(a:Array<Null<String>>):Void {}
+		shouldFail(nullable = fn);
+
+		var fn = function(o:{field:String}):Void {}
+		var nullable = function(o:{field:Null<String>}):Void {}
+		shouldFail(nullable = fn);
 	}
 
 	static function functionWithNullableArg_toFunctionWithNotNullableArg_shouldPass() {
