@@ -31,8 +31,8 @@ let safety_error () : unit = raise (Safety_error NullSafetyError)
 let fail ?msg hxpos mlpos =
 	let msg =
 		(Lexer.get_error_pos (Printf.sprintf "%s:%d:") hxpos) ^ ": "
-		^ "Haxe-safety: " ^ (match msg with Some msg -> msg | _ -> "unexpected expression.") ^ "\n"
-		^ "Submit an issue to https://github.com/RealyUniqueName/Safety/issues with expression example and following information:"
+		^ "Null safety: " ^ (match msg with Some msg -> msg | _ -> "unexpected expression.") ^ "\n"
+		^ "Submit an issue to https://github.com/HaxeFoundation/haxe/issues with expression example and following information:"
 	in
 	match mlpos with
 		| (file, line, _, _) ->
@@ -701,7 +701,7 @@ class expr_checker immediate_execution report =
 		*)
 		method error msg (p:Globals.pos) =
 			if not is_pretending then
-				report.sr_errors <- { sm_msg = ("Safety: " ^ msg); sm_pos = p; } :: report.sr_errors;
+				report.sr_errors <- { sm_msg = ("Null safety: " ^ msg); sm_pos = p; } :: report.sr_errors;
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.
 			Haxe type system lies sometimes.
