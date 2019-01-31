@@ -748,7 +748,19 @@ and parse_function_field doc meta al = parser
 		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
-	| [< '(Binop OpAssign,_); e = expr; p2 = semicolon >] -> Some e , p2
+	| [< '(Binop OpAssign,_); s >] ->
+		begin match s with parser
+		| [< '(Binop OpLt,p1); i = dollar_ident; s >] ->
+			let e = handle_xml_literal p1 i in
+			(* accept but don't expect semicolon *)
+			let p2 = match s with parser
+				| [< '(Semicolon,p) >] -> p
+				| [< >] -> pos e
+			in
+			Some e,p2
+		| [< e = expr; p2 = semicolon >] -> Some e , p2
+		| [< >] -> serror()
+		end
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
