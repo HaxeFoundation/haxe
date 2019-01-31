@@ -902,14 +902,17 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
-			let is_type_parameter_field = match fa with
+			let requires_cast = match fa with
+				| FInstance({cl_interface=true},_,{cf_kind = Var _}) ->
+					(* we have to cast var access on interfaces *)
+					true
 				| FInstance(_,_,cf) ->
+					(* if the return type is one of the type-parameters, then we need to cast it *)
 					(match follow cf.cf_type with TInst({cl_kind = KTypeParameter _},_) -> true | _ -> false)
 				| _ ->
 					List.exists (fun t -> follow t == et) tl
 			in
-			(* if the return type is one of the type-parameters, then we need to cast it *)
-			if is_type_parameter_field then
+			if requires_cast then
 				VCast (id, classify ctx e.etype)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
