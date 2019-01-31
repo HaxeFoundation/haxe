@@ -1367,7 +1367,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 										| [] -> [name]
 										| _ -> rest
 									);
-									String.capitalize name
+									StringHelper.capitalize name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
 						let alias_upper = ref (StringHelper.uppercase !alias) in
