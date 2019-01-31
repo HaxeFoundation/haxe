@@ -386,6 +386,17 @@ class Compiler {
 	}
 
 	/**
+		Enables null safety for a type or a package.
+
+		@param path A package, module or sub-type dot path to keep.
+		@param paths An Array of package, module or sub-type dot paths to keep.
+		@param recursive If true, recurses into sub-packages for package paths.
+	**/
+	public static function nullSafety(path : String, ?recursive:Bool = true) {
+		addGlobalMetadata(path, "@:nullSafety", recursive);
+	}
+
+	/**
 		Adds metadata `meta` to all types (if `toTypes = true`) or fields (if
 		`toFields = true`) whose dot-path matches `pathFilter`.
 
