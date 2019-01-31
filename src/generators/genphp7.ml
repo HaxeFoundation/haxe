@@ -1370,12 +1370,12 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 									String.capitalize name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
-						let alias_upper = ref (String.uppercase !alias) in
+						let alias_upper = ref (StringHelper.uppercase !alias) in
 						let prepend_alias prefix =
 							alias := prefix ^ !alias;
-							alias_upper := String.uppercase !alias
+							alias_upper := StringHelper.uppercase !alias
 						in
-						if !alias_upper = (String.uppercase php_name) then
+						if !alias_upper = (StringHelper.uppercase php_name) then
 							prepend_alias (get_alias_next_part ());
 						while not !added do
 							try
