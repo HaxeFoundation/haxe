@@ -710,8 +710,6 @@ class expr_checker immediate_execution report =
 			match e.eexpr with
 				| TConst TNull -> true
 				| TConst _ -> false
-				(* Safety.unsafe() *)
-				| TCall ({ eexpr = TField (_, FStatic ({ cl_path = ([], "Safety")}, { cf_name = "unsafe" })) }, _) -> false
 				| TParenthesis e -> self#is_nullable_expr e
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TLocal v -> not (local_safety#is_safe v)
