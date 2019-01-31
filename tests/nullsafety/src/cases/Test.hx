@@ -740,4 +740,17 @@ class Test {
 	static function storesSomewhere(cb:()->Int) {
 		tmp2 = cb;
 	}
+
+	static function closure_passedToRecursiveFunction_shouldNotCrashTheCompiler(?a:String) {
+		if(a != null) {
+			recursive(() -> a.length);
+		}
+	}
+	static function recursive(cb:Void->Int) {
+		if(Std.random(10) == 0) {
+			recursive(cb);
+		} else {
+			cb();
+		}
+	}
 }
