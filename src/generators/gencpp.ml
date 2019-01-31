@@ -6149,8 +6149,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
          let isTemplated = not isStatic && not class_def.cl_interface in
          if isTemplated then output_cpp ("\ntemplate<bool _HX_SUPER=false>");
          output_cpp ("\nstatic void CPPIA_CALL " ^ scriptName ^ "(hx::CppiaCtx *ctx) {\n");
-         let ret = script_signature return_type false in
+         let ret = match cpp_type_of ctx return_type with TCppScalar("bool") -> "b" | _ -> script_signature return_type false in
          if (ret<>"v") then output_cpp ("ctx->return" ^ (script_type return_type false) ^ "(");
+
 
          let dump_call cast =
             if class_def.cl_interface then begin
