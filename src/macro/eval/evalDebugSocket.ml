@@ -18,7 +18,7 @@ let var_to_json name value access =
 	let jv t v structured =
 		JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
 	in
-	let string_repr s = "\"" ^ (Ast.s_escape s.sstring) ^ "\"" in
+	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
 	let rec level2_value_repr = function
 		| VNull -> "null"
 		| VTrue -> "true"

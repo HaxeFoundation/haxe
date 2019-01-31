@@ -1060,7 +1060,7 @@ let escape_command s =
 
 let gen_str macro gen s =
    let rec split s plus =
-      let escaped = Ast.s_escape ~hex:false s in
+      let escaped = StringHelper.s_escape ~hex:false s in
       let hexed = (special_to_hex escaped) in
       if (String.length hexed <= 16000 ) then
          plus ^ " HX_CSTRING(\"" ^ hexed ^ "\")"
@@ -1070,7 +1070,7 @@ let gen_str macro gen s =
          (split (String.sub s 0 half) plus ) ^ (split (String.sub s half (len-half)) "+" )
       end
    in
-   let escaped = Ast.s_escape ~hex:false s in
+   let escaped = StringHelper.s_escape ~hex:false s in
    let hexed = (special_to_hex escaped) in
    if (String.length hexed <= 16000 ) then
       macro ^ "(\"" ^ hexed ^ "\"," ^ (gen s) ^ ")"
@@ -1103,7 +1103,7 @@ let strq ctx s =
 
 
 let const_char_star s =
-   let escaped = Ast.s_escape ~hex:false s in
+   let escaped = StringHelper.s_escape ~hex:false s in
    "\"" ^ special_to_hex escaped ^ "\"";
 ;;
 
@@ -1297,7 +1297,7 @@ let strip_file ctx file = (match Common.defined ctx Common.Define.AbsolutePath w
 let hx_stack_push ctx output clazz func_name pos gc_stack =
    if ctx.ctx_debug_level > 0 then begin
       let stripped_file = strip_file ctx.ctx_common pos.pfile in
-      let esc_file = (Ast.s_escape stripped_file) in
+      let esc_file = (StringHelper.s_escape stripped_file) in
       ctx.ctx_file_info := PMap.add stripped_file pos.pfile !(ctx.ctx_file_info);
       let full_name = clazz ^ "." ^ func_name ^ (
         if (clazz="*") then
@@ -5935,7 +5935,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
                   output_cpp ("\tcase " ^ (string_of_int l) ^ ":\n");
                   len_case := l;
                end;
-               output_cpp ("\t\tif (HX_FIELD_EQ(inName,\"" ^  (Ast.s_escape field)  ^ "\") ) { " ^ result ^ " }\n");
+               output_cpp ("\t\tif (HX_FIELD_EQ(inName,\"" ^  (StringHelper.s_escape field)  ^ "\") ) { " ^ result ^ " }\n");
             ) sfields;
             output_cpp "\t}\n";
          end;

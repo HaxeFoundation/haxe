@@ -146,7 +146,7 @@ let valid_as3_ident s =
 
 let anon_field s =
 	let s = s_ident s in
-	if not (valid_as3_ident s) then "\"" ^ (Ast.s_escape s) ^ "\"" else s
+	if not (valid_as3_ident s) then "\"" ^ (StringHelper.s_escape s) ^ "\"" else s
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -352,7 +352,7 @@ let generate_resources infos =
 			k := !k + 1;
 			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" (Bytes.unsafe_to_string (Base64.str_encode name));
 			print ctx "\t\tpublic static var %s:Class;\n" varname;
-			inits := ("list[\"" ^ Ast.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
+			inits := ("list[\"" ^ StringHelper.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
 		) infos.com.resources;
 		spr ctx "\t\tstatic public function __init__():void {\n";
 		spr ctx "\t\t\tlist = new Dictionary();\n";
@@ -368,7 +368,7 @@ let generate_resources infos =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> print ctx "\"%s\"" (StringHelper.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -1209,7 +1209,7 @@ let generate_enum ctx e =
 		print ctx "public static var __meta__ : * = ";
 		gen_expr ctx e;
 		newline ctx);
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ StringHelper.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
 	print ctx "}";

@@ -1097,7 +1097,7 @@ let generate con =
 				let cur_line = Lexer.get_error_line p in
 				let file = Path.get_full_path p.pfile in
 				if cur_line <> ((!last_line)+1) then
-					let line = Ast.s_escape file in
+					let line = StringHelper.s_escape file in
 					if String.length line <= 256 then
 						begin print w "#line %d \"%s\"" cur_line line; newline w end
 					else (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)

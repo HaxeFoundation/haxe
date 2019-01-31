@@ -263,7 +263,7 @@ let string_data_limit = 64
 let string ctx sid =
 	let s = ctx.hlcode.strings.(sid) in
 	if String.length s < string_data_limit then
-		sprintf "USTR(\"%s\")" (Ast.s_escape ~hex:false s)
+		sprintf "USTR(\"%s\")" (StringHelper.s_escape ~hex:false s)
 	else
 		sprintf "string$%d" sid
 

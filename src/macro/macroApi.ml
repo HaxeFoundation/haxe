@@ -1617,7 +1617,7 @@ let macro_api ccom get_api =
 						vnull
 					);
 					"quoteString", vfun1 (fun v ->
-						encode_string ("\"" ^ Ast.s_escape (decode_string v) ^ "\"")
+						encode_string ("\"" ^ StringHelper.s_escape (decode_string v) ^ "\"")
 					);
 					"buildMetaData", vfun1 (fun t ->
 						match Texpr.build_metadata com.basic (decode_type_decl t) with

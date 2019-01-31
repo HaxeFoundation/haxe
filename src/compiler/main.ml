@@ -746,7 +746,7 @@ try
 	let args_callback cl =
 		begin try
 			let path,name = Path.parse_path cl in
-			if Path.starts_uppercase name then
+			if StringHelper.starts_uppercase name then
 				classes := (path,name) :: !classes
 			else begin
 				force_typing := true;

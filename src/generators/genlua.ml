@@ -84,7 +84,7 @@ let dot_path = Globals.s_type_path
 let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
-(* provided by Ast.s_escape *)
+(* provided by StringHelper.s_escape *)
 let s_escape_lua ?(dec=true) s =
     let b = Buffer.create (String.length s) in
     for i = 0 to (String.length s) - 1 do

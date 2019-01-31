@@ -1,3 +1,5 @@
+open StringHelper
+
 let get_path_parts f =
 	(*
 		this function is quite weird: it tries to determine whether the given
@@ -45,15 +47,6 @@ let parse_path f =
 			x :: path,name
 	in
 	loop cl
-
-let starts_uppercase x =
-	x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')
-
-let check_uppercase x =
-	if String.length x = 0 then
-		failwith "empty part"
-	else if not (starts_uppercase x) then
-		failwith "Class name must start with uppercase character"
 
 let parse_type_path s =
 	let pack,name = parse_path s in

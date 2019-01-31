@@ -131,7 +131,7 @@ class sourcemap_writer (generated_file:string) =
 			"],\n");
 		if Common.defined com Define.SourceMapContent then begin
 			output_string channel ("\"sourcesContent\":[" ^
-				(String.concat "," (List.map (fun s -> try "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
+				(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 				"],\n");
 		end;
 		output_string channel "\"names\":[],\n";

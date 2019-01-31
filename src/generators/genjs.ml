@@ -267,7 +267,7 @@ let write_mappings ctx smap =
 		"],\n");
 	if Common.defined ctx.com Define.SourceMapContent then begin
 		output_string channel ("\"sourcesContent\":[" ^
-			(String.concat "," (List.map (fun s -> try "\"" ^ Ast.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
+			(String.concat "," (List.map (fun s -> try "\"" ^ StringHelper.s_escape (Std.input_file ~bin:true s) ^ "\"" with _ -> "null") sources)) ^
 			"],\n");
 	end;
 	output_string channel "\"names\":[],\n";
@@ -346,7 +346,7 @@ let is_dynamic_iterator ctx e =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> print ctx "\"%s\"" (StringHelper.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -668,7 +668,7 @@ and gen_expr ctx e =
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun ((f,_,qs),e) -> (match qs with
-			| DoubleQuotes -> print ctx "\"%s\" : " (Ast.s_escape f);
+			| DoubleQuotes -> print ctx "\"%s\" : " (StringHelper.s_escape f);
 			| NoQuotes -> print ctx "%s : " (anon_field f));
 			gen_value ctx e
 		) fields;

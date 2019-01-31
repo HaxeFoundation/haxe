@@ -1396,7 +1396,7 @@ let generate con =
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
 			let file = Path.get_full_path p.pfile in
-			print w "//line %d \"%s\"" cur_line (Ast.s_escape file); newline w
+			print w "//line %d \"%s\"" cur_line (StringHelper.s_escape file); newline w
 	in
 
 	let extract_statements expr =
