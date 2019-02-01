@@ -315,6 +315,16 @@ let should_be_initialized field =
 		| _ -> false
 
 (**
+	Check if `field` is overridden in subclasses
+*)
+let is_overridden cls field =
+	let rec loop_inheritance c =
+		(PMap.mem field.cf_name c.cl_fields)
+		|| List.exists (fun d -> loop_inheritance d) c.cl_descendants;
+	in
+	List.exists (fun d -> loop_inheritance d) cls.cl_descendants
+
+(**
 	A class which is used to check if an anonymous function passed to a method will be executed
 	before that method execution is finished.
 *)
@@ -348,7 +358,7 @@ class immediate_execution =
 							(* known to be pure *)
 							| { cl_path = ([], "Array") }, _ -> true
 							(* try to analyze function code *)
-							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) ->
+							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) when field.cf_final || not (is_overridden cls field) ->
 								if arg_num < 0 || arg_num >= List.length fn.tf_args then
 									false
 								else begin

@@ -759,6 +759,14 @@ class Test {
 		}
 	}
 
+	static function closure_passedToOverriddenMethod(?a:String) {
+		var o:Parent = new Child();
+		if(a != null) {
+			cast(o, Child).childExecute(() -> a.length);
+			o.execute(() -> shouldFail(a.length));
+		}
+	}
+
 	static function recursiveTypedef_shouldNotCrashTheCompiler(a:Recursive<Void>, b:Recursive<Void>) {
 		a = b;
 	}
@@ -772,3 +780,15 @@ typedef Recursive<T1> = {
 // class RecClass<T1> {
 // 	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
 // }
+
+private class Parent {
+	public function new() {}
+
+	public function execute(cb:()->Void) cb();
+}
+
+private class Child extends Parent {
+	static var tmp:Any = '';
+	override public function execute(cb:()->Void) tmp = cb;
+	public function childExecute(cb:()->Void) cb();
+}
