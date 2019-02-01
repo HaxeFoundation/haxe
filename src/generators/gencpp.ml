@@ -6623,8 +6623,8 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
   generate_class_header ()
 ;;
 
-let generate_class_deps ctx class_def super_deps constructor_deps =
-   find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true false
+let generate_class_deps ctx class_def super_deps constructor_deps scriptable =
+   find_referenced_types ctx (TClassDecl class_def) super_deps constructor_deps false true scriptable
 ;;
 
 
@@ -8264,7 +8264,7 @@ let generate_source ctx =
             else if not (has_meta_key class_def.cl_meta Meta.NativeGen) then
                nonboot_classes := class_def.cl_path ::  !nonboot_classes;
             jobs := (fun () -> generate_class_files ctx super_deps constructor_deps class_def scriptable ) :: !jobs;
-            let deps = generate_class_deps ctx class_def super_deps constructor_deps in
+            let deps = generate_class_deps ctx class_def super_deps constructor_deps scriptable in
             if not (class_def.cl_interface && (is_native_gen_class class_def)) then
                exe_classes := (class_def.cl_path, deps, object_def)  ::  !exe_classes;
          end
