@@ -20,9 +20,9 @@
 	all : fixed various wrong positions when encoding data to macros
 	all : specified String.indexOf with out-of-bounds indices (#7601)
 	all : fixed various problems related to DCE and feature-handling (#7694)
-	all : fixed bad unary opator optimization (#7704)
+	all : fixed bad unary operator optimization (#7704)
 	js : fixed syntax problem related to `instanceof` (#7653)
-	flash : fixed var field access on interfaces being (#7727)
+	flash : fixed var field access on interfaces being uncast (#7727)
 	cpp : fixed various issues related to casts
 	cpp : fixed some leftover unicode issues
 	php : fixed class naming conflicts (#7716)
