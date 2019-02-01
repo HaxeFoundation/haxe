@@ -250,12 +250,23 @@ module Pattern = struct
 				try_typing (EConst (Ident s),p)
 			with
 			| Exit | Bad_pattern _ ->
+				let restore =
+					let old = ctx.on_error in
+					ctx.on_error <- (fun _ _ _ ->
+						raise Exit
+					);
+					(fun () ->
+						ctx.on_error <- old
+					)
+				in
 				begin try
 					let mt = module_type_of_type t in
 					let e_mt = TyperBase.type_module_type ctx mt None p in
 					let e = type_field_access ctx ~resume:true e_mt s in
+					restore();
 					check_expr e
 				with _ ->
+					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
