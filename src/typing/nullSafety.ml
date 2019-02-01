@@ -307,32 +307,8 @@ let rec contains_safe_meta metadata =
 		| (Meta.NullSafety, [(EConst (Ident "true"), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
-(**
-	Check if `haystack` starts with `needle`
-**)
-let starts_with (haystack:string) (needle:string) :bool =
-	(String.length haystack >= String.length needle)
-	&& (needle = String.sub haystack 0 (String.length needle))
-
-(**
-	Check if specified `path` is mentioned in `--macro nullSafety(dotPath)`
-*)
-let need_check_path safe_paths type_path =
-	let class_path =
-		match type_path with
-			| ([], name) -> name
-			| (pack, name) -> (String.concat "." pack) ^ "." ^ name
-	in
-	let rec traverse paths =
-		match paths with
-			| [] -> false
-			| current :: rest ->
-				if current = "" || starts_with class_path current then
-					true
-				else
-					traverse rest
-	in
-	traverse safe_paths
+let safety_enabled meta =
+	(contains_safe_meta meta) && not (contains_unsafe_meta meta)
 
 (**
 	Check if specified `field` represents a `var` field which will exist at runtime.
@@ -1106,6 +1082,7 @@ class expr_checker immediate_execution report =
 
 class class_checker cls immediate_execution report  =
 	object (self)
+			val is_safe_class = safety_enabled cls.cl_meta
 			val checker = new expr_checker immediate_execution report
 		(**
 			Entry point for checking a class
@@ -1113,26 +1090,32 @@ class class_checker cls immediate_execution report  =
 		method check =
 			(* if snd cls.cl_path = "AllVarsInitializedInConstructor_thisShouldBeUsable" then
 				Option.may (fun f -> Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr) cls.cl_constructor; *)
-			if (not cls.cl_extern) && (not cls.cl_interface) then
+			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field f =
-				if not (contains_unsafe_meta f.cf_meta) then begin
+				if self#is_in_safety f then begin
 					(* if f.cf_name = "closure_immediatelyExecuted_shouldInheritSafety" then
 						Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr; *)
 					Option.may checker#check_root_expr f.cf_expr
 				end
 			in
-			Option.may checker#check_root_expr cls.cl_init;
+			if is_safe_class then
+				Option.may checker#check_root_expr cls.cl_init;
 			Option.may check_field cls.cl_constructor;
 			List.iter check_field cls.cl_ordered_fields;
 			List.iter check_field cls.cl_ordered_statics;
+		(**
+			Check if field should be checked by null safety
+		*)
+		method private is_in_safety field =
+			(is_safe_class && not (contains_unsafe_meta field.cf_meta)) || safety_enabled field.cf_meta
 		(**
 			Check `var` fields are initialized properly
 		*)
 		method check_var_fields =
 			let check_field is_static field =
 				if should_be_initialized field then
-					if not (is_nullable_type field.cf_type) && not (contains_unsafe_meta field.cf_meta) then
+					if not (is_nullable_type field.cf_type) && self#is_in_safety field then
 						match field.cf_expr with
 							| None ->
 								if is_static then
@@ -1233,9 +1216,7 @@ let run (com:Common.context) (types:module_type list) =
 			| TEnumDecl enm -> ()
 			| TTypeDecl typedef -> ()
 			| TAbstractDecl abstr -> ()
-			| TClassDecl cls when (contains_safe_meta cls.cl_meta) && not (contains_unsafe_meta cls.cl_meta) ->
-				(new class_checker cls immediate_execution report)#check
-			| TClassDecl _ -> ()
+			| TClassDecl cls -> (new class_checker cls immediate_execution report)#check
 	in
 	List.iter traverse types;
 	timer();
