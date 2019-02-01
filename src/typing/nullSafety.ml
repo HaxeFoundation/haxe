@@ -187,14 +187,6 @@ class unificator =
 	end
 
 (**
-	Check if provided type is `NullUnsafe<T>`
-*)
-let is_special_type_unsafe t =
-	match t with
-		| TType ({ t_path = (["haxe"], "NullUnsafe") }, _) -> true
-		| _ -> false
-
-(**
 	Checks if execution of provided expression is guaranteed to be terminated with `return`, `throw`, `break` or `continue`.
 *)
 let rec is_dead_end e =
@@ -731,9 +723,7 @@ class expr_checker immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
-			if (is_special_type_unsafe expr.etype) || (is_special_type_unsafe to_type) then
-				true
-			else if self#is_nullable_expr expr && not (is_nullable_type to_type) then
+			if self#is_nullable_expr expr && not (is_nullable_type to_type) then
 				false
 			else
 				let expr_type = unfold_null expr.etype in
@@ -787,6 +777,7 @@ class expr_checker immediate_execution report =
 				| TContinue -> ()
 				| TThrow expr -> self#check_throw expr e.epos
 				| TCast (expr, _) -> self#check_cast expr e.etype e.epos
+				| TMeta (m, _) when contains_unsafe_meta [m] -> ()
 				| TMeta (_, e) -> self#check_expr e
 				| TEnumIndex idx -> self#check_enum_index idx
 				| TEnumParameter (e, _, _) -> self#check_expr e (** Checking enum value itself is not needed here because this expr always follows after TEnumIndex *)
@@ -889,17 +880,14 @@ class expr_checker immediate_execution report =
 			Don't cast nullable expressions to not-nullable types
 		*)
 		method private check_cast expr to_type p =
-			(* Don't check `(expr:NullUnsafe<T>)` *)
-			if not (is_special_type_unsafe to_type) then begin
-				self#check_expr expr;
-				match to_type with
-					(* untyped cast *)
-					| TMono _ -> ()
-					(* typed cast and type check *)
-					| _ ->
-						if not (self#can_pass_expr expr to_type p) then
-							self#error "Cannot cast nullable value to not nullable type." p
-			end
+			self#check_expr expr;
+			match to_type with
+				(* untyped cast *)
+				| TMono _ -> ()
+				(* typed cast and type check *)
+				| _ ->
+					if not (self#can_pass_expr expr to_type p) then
+						self#error "Cannot cast nullable value to not nullable type." p
 		(**
 			Check safety in a function
 		*)

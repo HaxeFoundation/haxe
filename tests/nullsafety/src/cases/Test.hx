@@ -2,7 +2,6 @@ package cases;
 
 import TestSafeFieldInUnsafeClass;
 import Validator.shouldFail;
-import haxe.NullUnsafe;
 
 private enum DummyEnum {
 	DummyOne;
@@ -44,7 +43,7 @@ class UnsafeFields {
 
 	static function unsafeExpr() {
 		var s:String;
-		(s = null:NullUnsafe<String>);
+		@:nullSafety(false) cast(null, String);
 	}
 }
 
