@@ -116,6 +116,7 @@ type strict_meta =
 	| NotNull
 	| NoUsing
 	| Ns
+	| NullSafety
 	| Objc
 	| ObjcProtocol
 	| Op
@@ -142,7 +143,6 @@ type strict_meta =
 	| Rtti
 	| Runtime
 	| RuntimeValue
-	| NullSafety
 	| Scalar
 	| SelfCall
 	| Semantics
@@ -319,6 +319,7 @@ let get_info = function
 	| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 	| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 	| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
+	| NullSafety -> ":nullSafety",("Enables null safety for classes. Disables null safety for classes, fields or expressions if provided with `false` as an argument (e.g. `@:nullSafety(false)`)",[UsedOnEither [TClass;TClassField;TExpr]])
 	| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
 	| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
 	| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
@@ -345,7 +346,6 @@ let get_info = function
 	| Rtti -> ":rtti",("Adds runtime type information",[UsedOn TClass])
 	| Runtime -> ":runtime",("?",[])
 	| RuntimeValue -> ":runtimeValue",("Marks an abstract as being a runtime value",[UsedOn TAbstract])
-	| NullSafety -> ":nullSafety",("Enables null safety for classes or disables null safety for classes or fields if provided with `false` as an argument (e.g. `@:nullSafety(false)`)",[UsedOnEither [TClass;TClassField]])
 	| Scalar -> ":scalar",("Used by hxcpp to mark a custom coreType abstract",[UsedOn TAbstract; Platform Cpp])
 	| SelfCall -> ":selfCall",("Translates method calls into calling object directly",[UsedOn TClassField; Platforms [Js;Lua]])
 	| Semantics -> ":semantics",("The native semantics of the type",[UsedOnEither [TClass;TTypedef;TAbstract];HasParam "value | reference | variable"])
