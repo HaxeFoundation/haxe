@@ -162,6 +162,19 @@ module IterationKind = struct
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
 		in
+		let check_loop_var_modification vl e =
+			let rec loop e =
+				match e.eexpr with
+				| TBinop (OpAssign,{ eexpr = TLocal l },_)
+				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
+				| TUnop (Increment,_,{ eexpr = TLocal l })
+				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
+					error "Loop variable cannot be modified" e.epos
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
+		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
 			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
@@ -192,6 +205,8 @@ module IterationKind = struct
 		in
 		match iterator.it_kind with
 		| IteratorIntUnroll(offset,length,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
@@ -203,6 +218,8 @@ module IterationKind = struct
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
@@ -217,6 +234,7 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
+			check_loop_var_modification [v] e2;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
