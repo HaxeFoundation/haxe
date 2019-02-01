@@ -187,11 +187,11 @@ class unificator =
 	end
 
 (**
-	Check if provided type is `Unsafe<T>`
+	Check if provided type is `NullUnsafe<T>`
 *)
 let is_special_type_unsafe t =
 	match t with
-		| TType ({ t_path = (["haxe"], "Unsafe") }, _) -> true
+		| TType ({ t_path = (["haxe"], "NullUnsafe") }, _) -> true
 		| _ -> false
 
 (**
@@ -889,7 +889,7 @@ class expr_checker immediate_execution report =
 			Don't cast nullable expressions to not-nullable types
 		*)
 		method private check_cast expr to_type p =
-			(* Don't check `(expr:Unsafe<T>)` *)
+			(* Don't check `(expr:NullUnsafe<T>)` *)
 			if not (is_special_type_unsafe to_type) then begin
 				self#check_expr expr;
 				match to_type with
