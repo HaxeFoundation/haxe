@@ -683,6 +683,11 @@ class Test {
 		nullable = fn;
 	}
 
+	static function functionWithNullableReturnType_toVoidFunction_shouldPass() {
+		var n:Void->Null<String> = () -> null;
+		var f:Void->Void = n;
+	}
+
 	static public function tryBlock_couldNotBeDeadEndForOuterBlock() {
 		var c:Null<String> = null;
 		try {

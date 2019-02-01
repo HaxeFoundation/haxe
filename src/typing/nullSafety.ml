@@ -174,7 +174,10 @@ class unificator =
 
 		method private unify_functions (a_args, a_result) (b_args, b_result) =
 			(* check return type *)
-			self#unify a_result b_result;
+			(match b_result with
+				| TAbstract ({ a_path = ([], "Void") }, []) -> ()
+				| _ -> self#unify a_result b_result;
+			);
 			(* check arguments *)
 			let rec traverse a_args b_args =
 				match a_args, b_args with
