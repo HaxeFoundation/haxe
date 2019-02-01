@@ -13,6 +13,7 @@
 	all : unified cast, catch and Std.is behavior of null-values (#7532)
 	macro : static variables are now always re-initialized when using the compilation server (#5746)
 	macro : support `@:persistent` to keep macro static values across compilations
+	js : improve js.Promise extern: now then callback argument types can be properly inferred (#7644)
 
 	Bugfixes:
 
