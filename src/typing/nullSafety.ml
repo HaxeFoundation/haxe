@@ -83,84 +83,108 @@ let symbol_name expr =
 		| TNew _ -> "new"
 		| _ -> ""
 
-(**
-	Check if it's possible to pass a value of type `a` to a place where a value of type `b` is expected.
-	Raises `Safety_error` exception if it's not.
-*)
-let rec unify a b =
-	if a == b then
-		()
-	else
-		match a, b with
-			(* if `b` is nullable, no more checks needed *)
-			| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
+class unificator =
+	object(self)
+		val stack = new_rec_stack()
+		(**
+			Check if it's possible to pass a value of type `a` to a place where a value of type `b` is expected.
+			Raises `Safety_error` exception if it's not.
+		*)
+		method unify a b =
+			if a == b then
 				()
-			| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
-				safety_error()
-			| TInst (_, a_params), TInst(_, b_params) when (List.length a_params) = (List.length b_params) ->
-				List.iter2 unify a_params b_params
-			| TAnon a_anon, TAnon b_anon ->
-				unify_anon_to_anon a_anon b_anon
-			| TInst (a_cls, a_params), TAnon b_anon ->
-				unify_class_to_anon a_cls a_params b_anon
-			| TFun a_signature, TFun b_signature ->
-				unify_functions a_signature b_signature
-			(* patterns below are used to reveal real type *)
-			| TLazy f, _ ->
-				unify (lazy_type f) b
-			| _, TLazy f -> unify a (lazy_type f)
-			| TMono t, _ ->
-				(match !t with None -> () | Some t -> unify t b)
-			| _, TMono t ->
-				(match !t with None -> () | Some t -> unify a t)
-			| TType (t,tl), _ ->
-				unify (apply_params t.t_params tl t.t_type) b
-			| _, TType (t,tl) ->
-				unify a (apply_params t.t_params tl t.t_type)
-			| TAbstract (abstr,tl), _ when not (Meta.has Meta.CoreType abstr.a_meta) ->
-				unify (apply_params abstr.a_params tl abstr.a_this) b
-			| _, TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) ->
-				unify a (apply_params abstr.a_params tl abstr.a_this)
-			| _ ->
-				()
+			else
+				match a, b with
+					(* if `b` is nullable, no more checks needed *)
+					| _, TAbstract ({ a_path = ([],"Null") },[t]) ->
+						()
+					| TAbstract ({ a_path = ([],"Null") },[t]), _ when not (is_nullable_type b) ->
+						safety_error()
+					| TInst (_, a_params), TInst(_, b_params) when (List.length a_params) = (List.length b_params) ->
+						List.iter2 self#unify a_params b_params
+					| TAnon a_anon, TAnon b_anon ->
+						self#unify_anon_to_anon a_anon b_anon
+					| TInst (a_cls, a_params), TAnon b_anon ->
+						self#unify_class_to_anon a_cls a_params b_anon
+					| TFun a_signature, TFun b_signature ->
+						self#unify_functions a_signature b_signature
+					(* patterns below are used to reveal real type *)
+					| TLazy f, _ ->
+						self#unify (lazy_type f) b
+					| _, TLazy f -> self#unify a (lazy_type f)
+					| TMono t, _ ->
+						(match !t with None -> () | Some t -> self#unify t b)
+					| _, TMono t ->
+						(match !t with None -> () | Some t -> self#unify a t)
+					| TType (t,tl), _ ->
+						self#unify_rec a b (fun() -> self#unify (apply_params t.t_params tl t.t_type) b)
+					| _, TType (t,tl) ->
+						self#unify_rec a b (fun() -> self#unify a (apply_params t.t_params tl t.t_type))
+					| TAbstract (abstr,tl), _ when not (Meta.has Meta.CoreType abstr.a_meta) ->
+						self#unify (apply_params abstr.a_params tl abstr.a_this) b
+					| _, TAbstract (abstr,tl) when not (Meta.has Meta.CoreType abstr.a_meta) ->
+						self#unify a (apply_params abstr.a_params tl abstr.a_this)
+					| _ ->
+						()
 
-and unify_anon_to_anon (a:tanon) (b:tanon) =
-	PMap.iter
-		(fun name b_field ->
-			let a_field =
-				try Some (PMap.find name a.a_fields)
-				with Not_found -> None
+		method unify_rec (a:t) (b:t) (frun:unit->unit) =
+			let checked =
+				rec_stack_exists
+					(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
+					stack
 			in
-			match a_field with
-				| None -> ()
-				| Some a_field -> unify a_field.cf_type b_field.cf_type
-		)
-		b.a_fields
+			if not checked then begin
+				try
+					stack.rec_stack <- (a, b) :: stack.rec_stack;
+					frun();
+					stack.rec_stack <- List.tl stack.rec_stack
+				with
+					| e ->
+						stack.rec_stack <- List.tl stack.rec_stack;
+						raise e
+			end
 
-and unify_class_to_anon (a:tclass) (a_params:tparams) (b:tanon) =
-	PMap.iter
-		(fun name b_field ->
-			let a_field =
-				try Some (PMap.find name a.cl_fields)
-				with Not_found -> None
+		method private unify_anon_to_anon (a:tanon) (b:tanon) =
+			PMap.iter
+				(fun name b_field ->
+					let a_field =
+						try Some (PMap.find name a.a_fields)
+						with Not_found -> None
+					in
+					match a_field with
+						| None -> ()
+						| Some a_field -> self#unify a_field.cf_type b_field.cf_type
+				)
+				b.a_fields
+
+		method private unify_class_to_anon (a:tclass) (a_params:tparams) (b:tanon) =
+			PMap.iter
+				(fun name b_field ->
+					let a_field =
+						try Some (PMap.find name a.cl_fields)
+						with Not_found -> None
+					in
+					match a_field with
+						| None -> ()
+						| Some a_field ->
+							let a_type = apply_params a.cl_params a_params a_field.cf_type in
+							self#unify a_type b_field.cf_type
+				)
+				b.a_fields
+
+		method private unify_functions (a_args, a_result) (b_args, b_result) =
+			(* check return type *)
+			self#unify a_result b_result;
+			(* check arguments *)
+			let rec traverse a_args b_args =
+				match a_args, b_args with
+					| [], _ | _, [] -> ()
+					| (_, _, a_arg) :: a_rest, (_, _, b_arg) :: b_rest ->
+						self#unify b_arg a_arg;
+						traverse a_rest b_rest
 			in
-			match a_field with
-				| None -> ()
-				| Some a_field ->
-					let a_type = apply_params a.cl_params a_params a_field.cf_type in
-					unify a_type b_field.cf_type
-		)
-		b.a_fields
-
-and unify_functions (a_args, a_result) (b_args, b_result) =
-	(* check return type *)
-	unify a_result b_result;
-	(* check arguments *)
-	List.iter2
-		(fun (_, _, a_arg) (_, _, b_arg) -> unify b_arg a_arg)
-		a_args
-		b_args
-
+			traverse a_args b_args
+	end
 
 (**
 	Check if provided type is `Unsafe<T>`
@@ -738,15 +762,15 @@ class expr_checker immediate_execution report =
 			else
 				let expr_type = unfold_null expr.etype in
 				try
-					unify expr_type to_type;
+					new unificator#unify expr_type to_type;
 					true
 				with
 					| Safety_error err ->
 						self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) p;
 						(* returning `true` because error is already logged in the line above *)
 						true
-					(* returning `true` because real unification check is already performed by the compiler at this moment *)
-					| _ -> true
+					| e ->
+						fail ~msg:"Null safety unification failure" expr.epos __POS__
 				(* can_pass_type expr.etype to_type *)
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.

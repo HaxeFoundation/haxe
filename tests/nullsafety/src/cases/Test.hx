@@ -753,4 +753,17 @@ class Test {
 			cb();
 		}
 	}
+
+	static function recursiveTypedef_shouldNotCrashTheCompiler(a:Recursive<Void>, b:Recursive<Void>) {
+		a = b;
+	}
 }
+
+typedef Recursive<T1> = {
+	public function rec<T2>(a:Recursive<T1>):Recursive<T2>;
+}
+
+// @see https://github.com/HaxeFoundation/haxe/issues/7733
+// class RecClass<T1> {
+// 	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
+// }
