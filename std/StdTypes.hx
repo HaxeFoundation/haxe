@@ -68,7 +68,7 @@
 	`Null<T>` is a wrapper that can be used to make the basic types `Int`,
 	`Float` and `Bool` nullable on static targets.
 
-	If null safety is enabled, only types wrapped in `Null<T>` are allowed to be `null`.
+	If null safety is enabled, only types wrapped in `Null<T>` are nullable.
 
 	Otherwise, it has no effect on non-basic-types, but it can be useful as a way to document
 	that `null` is an acceptable value for a method argument, return value or variable.
