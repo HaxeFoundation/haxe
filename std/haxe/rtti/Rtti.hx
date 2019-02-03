@@ -33,10 +33,10 @@ class Rtti {
 	/**
 		Returns the `haxe.rtti.CType.Classdef` corresponding to class `c`.
 
-		If `c` has no runtime type information, e.g. because no `@:rtti@` was
+		If `c` has no runtime type information, e.g. because no `@:rtti` was
 		added, `null` is returned.
 
-		If `c` is null, the result is unspecified.
+		If `c` is `null`, the result is unspecified.
 	**/
 	static public function getRtti<T>(c:Class<T>):Classdef {
 		var rtti = Reflect.field(c, "__rtti");
@@ -54,7 +54,7 @@ class Rtti {
 	/**
 		Tells if `c` has runtime type information.
 
-		If `c` is null, the result is unspecified.
+		If `c` is `null`, the result is unspecified.
 	**/
 	static public function hasRtti<T>(c:Class<T>):Bool {
 		return Lambda.has(Type.getClassFields(c), "__rtti");
