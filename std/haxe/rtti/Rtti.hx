@@ -34,7 +34,7 @@ class Rtti {
 		Returns the `haxe.rtti.CType.Classdef` corresponding to class `c`.
 
 		If `c` has no runtime type information, e.g. because no `@:rtti` was
-		added, `null` is returned.
+		added, an exception of type `String` is thrown.
 
 		If `c` is `null`, the result is unspecified.
 	**/
