@@ -31,7 +31,10 @@ open EvalMisc
 (* Helper *)
 
 let unexpected_value_p v s p =
-	let str = Printf.sprintf "Unexpected value %s, expected %s" (value_string v) s in
+	let str = match v with
+		| VNull -> "Null Access"
+		| _ -> Printf.sprintf "Unexpected value %s, expected %s" (value_string v) s
+	in
 	throw_string str p
 
 let as_array p = function

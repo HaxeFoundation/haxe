@@ -78,7 +78,10 @@ let s_value_kind = function
 	| VLazy _ -> "VLazy"
 
 let unexpected_value : 'a . value -> string -> 'a = fun v s ->
-	let str = Printf.sprintf "Unexpected value %s(%s), expected %s" (s_value_kind v) (value_string v) s in
+	let str = match v with
+		| VNull -> "Null Access"
+		| _ -> Printf.sprintf "Unexpected value %s(%s), expected %s" (s_value_kind v) (value_string v) s
+	in
 	exc_string str
 
 let invalid_call_arg_number i i2 =
