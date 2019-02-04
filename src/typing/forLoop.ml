@@ -75,8 +75,8 @@ module IterationKind = struct
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
 					let unroll = unroll (abs diff) in
-					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff < 0)
-					else IteratorIntConst(efrom,eto,diff < 0)
+					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
+					else IteratorIntConst(efrom,eto,diff <= 0)
 				| _ ->
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
