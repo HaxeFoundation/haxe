@@ -71,19 +71,19 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
-				emit_instance_field_write exec1 i exec2
+				emit_instance_field_write exec1 ef.epos i exec2
 			| FAnon cf ->
 				begin match follow ef.etype with
 					| TAnon an ->
 						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name ef.epos in
-						emit_anon_field_write exec1 proto i name exec2
+						emit_anon_field_write exec1 ef.epos proto i name exec2
 					| _ ->
-						emit_field_write exec1 name exec2 e1.epos
+						emit_field_write exec1 e1.epos name exec2
 				end
 			| _ ->
-				emit_field_write exec1 name exec2 e1.epos
+				emit_field_write exec1 e1.epos name exec2
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with
@@ -91,12 +91,12 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_vector_write exec1 exec2 exec3 ea2.epos
+				emit_vector_write exec1 ea1.epos exec2 ea2.epos exec3 ea2.epos
 			| _ ->
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_array_write exec1 exec2 exec3 ea2.epos
+				emit_array_write exec1 ea1.epos exec2 ea2.epos exec3 ea2.epos
 		end
 
 	| _ ->
@@ -118,9 +118,9 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
-				emit_instance_field_read_write exec1 i exec2 op prefix
+				emit_instance_field_read_write exec1 ef.epos i exec2 op prefix
 			| _ ->
-				emit_field_read_write exec1 name exec2 op prefix e1.epos
+				emit_field_read_write exec1 e1.epos name exec2 op prefix
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with
@@ -128,12 +128,12 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_vector_read_write exec1 exec2 exec3 op prefix ea2.epos
+				emit_vector_read_write exec1 ea1.epos exec2 ea2.epos exec3 op prefix
 			| _ ->
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_array_read_write exec1 exec2 exec3 op prefix ea2.epos
+				emit_array_read_write exec1 ea1.epos exec2 ea2.epos exec3 op prefix
 		end
 	| _ ->
 		assert false
@@ -476,9 +476,9 @@ and jit_expr jit return e =
 	| TField(e1,fa) ->
 		let name = hash (field_name fa) in
 		begin match fa with
-			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1)
-			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1)
-			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1)
+			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1) e1.epos
+			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1) e1.epos
+			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1) e1.epos
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_)
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
@@ -488,7 +488,7 @@ and jit_expr jit return e =
 				let i = get_instance_field_index proto name e1.epos in
 				begin match e1.eexpr with
 					| TConst TThis -> emit_this_field_read (get_slot jit 0 e.epos) i
-					| _ -> emit_instance_field_read (jit_expr jit false e1) i
+					| _ -> emit_instance_field_read (jit_expr jit false e1) e1.epos i
 				end
 			| FAnon _ ->
 				begin match follow e1.etype with
@@ -512,18 +512,18 @@ and jit_expr jit return e =
 			| TInst({cl_path=(["eval"],"Vector")}, _) ->
 				let exec1 = jit_expr jit false e1 in
 				let exec2 = jit_expr jit false e2 in
-				emit_vector_read exec1 exec2 e2.epos
+				emit_vector_read exec1 e1.epos exec2 e2.epos
 			| _ ->
 				let exec1 = jit_expr jit false e1 in
 				let exec2 = jit_expr jit false e2 in
-				emit_array_read exec1 exec2 e2.epos
+				emit_array_read exec1 e1.epos exec2 e2.epos
 		end
 	| TEnumParameter(e1,_,i) ->
 		let exec = jit_expr jit false e1 in
 		emit_enum_parameter_read exec i
 	| TEnumIndex e1 ->
 		let exec = jit_expr jit false e1 in
-		emit_enum_index exec
+		emit_enum_index exec e1.epos
 	(* ops *)
 	| TBinop(OpEq,e1,{eexpr = TConst TNull}) | TBinop(OpEq,{eexpr = TConst TNull},e1) ->
 		let exec = jit_expr jit false e1 in
