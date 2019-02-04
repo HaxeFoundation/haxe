@@ -770,6 +770,34 @@ class Test {
 	static function recursiveTypedef_shouldNotCrashTheCompiler(a:Recursive<Void>, b:Recursive<Void>) {
 		a = b;
 	}
+
+	static function anonFinalNullableField_checkedForNull() {
+		var o:{ final ?f:String; } = {};
+		if (o.f != null) {
+			var s:String = o.f;
+			o = {};
+			shouldFail(var s:String = o.f);
+		}
+	}
+
+	static function staticFinalNullableField_checkedForNull() {
+		if (FinalNullableFields.staticVar != null) {
+			var s:String = FinalNullableFields.staticVar;
+		}
+		shouldFail(var s:String = FinalNullableFields.staticVar);
+	}
+}
+
+private class FinalNullableFields {
+	static public final staticVar:Null<String> = "hello";
+	public final instanceVar:Null<String> = "world";
+
+	function instanceFinalNullableField_checkedForNull() {
+		if (instanceVar != null) {
+			var s:String = instanceVar;
+		}
+		shouldFail(var s:String = instanceVar);
+	}
 }
 
 typedef Recursive<T1> = {
