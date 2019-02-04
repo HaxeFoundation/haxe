@@ -595,9 +595,6 @@ try
 			did_something := true
 		),"","print help for all compiler metadatas");
 		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
-		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
-			com.sys_args <- com.sys_args @ [arg];
-		),"[args...]","args that will be passed to the macro interpreter");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
