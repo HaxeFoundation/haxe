@@ -62,6 +62,14 @@ private typedef NativeString = cs.system.String;
 		//TestBaseTypes.hx@133 fix
 		if (startIndex != null)
 		{
+			// if the number of letters between start index and the length of the string
+			// is less than the length of a searched substring - shift start index to the
+			// left by the difference to avoid OOB access later and save some work
+			var d = me.Length - sIndex - str.Length;
+			if (d < 0) {
+				sIndex += d;
+			}
+
 			var i = sIndex + 1;
 			while (i --> 0)
 			{
