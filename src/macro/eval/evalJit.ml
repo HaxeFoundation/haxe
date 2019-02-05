@@ -51,6 +51,12 @@ let is_string t = match follow t with
 	| TInst({cl_path=[],"String"},_) -> true
 	| _ -> false
 
+let is_const_int_pattern (el,_) =
+	List.for_all (fun e -> match e.eexpr with
+		| TConst (TInt _) -> true
+		| _ -> false
+	) el
+
 open EvalJitContext
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
@@ -225,7 +231,7 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
-	| TSwitch(e1,cases,def) when is_int e1.etype ->
+	| TSwitch(e1,cases,def) when is_int e1.etype && List.for_all is_const_int_pattern cases ->
 		let exec = jit_expr jit false e1 in
 		let h = ref IntMap.empty in
 		let max = ref 0 in
