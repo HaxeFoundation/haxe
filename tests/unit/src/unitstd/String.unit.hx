@@ -83,6 +83,7 @@ s.lastIndexOf("foo") == 6;
 s.lastIndexOf("foofoo") == 3;
 s.lastIndexOf("f") == 6;
 s.lastIndexOf("barb") == 9;
+s.lastIndexOf("barb", 12) == -1;
 s.lastIndexOf("z") == -1;
 //s.lastIndexOf(null) == -1;
 //s.lastIndexOf(null, 1) == -1;

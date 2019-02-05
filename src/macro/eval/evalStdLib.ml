@@ -2084,7 +2084,7 @@ module StdString = struct
 				let i = default_int startIndex this.slength in
 				vint (max 0 (min i this.slength))
 			end else begin
-				let i = default_int startIndex (this.slength - 1) in
+				let i = default_int startIndex (this.slength - str.slength) in
 				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
 				let b = get_offset this i in
 				let offset,_,_ = find_substring this str true i b in
