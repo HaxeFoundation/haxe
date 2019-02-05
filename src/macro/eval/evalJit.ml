@@ -397,7 +397,7 @@ and jit_expr jit return e =
 					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
-					let pos = Some ef.ef_pos in
+					let pos = Some e.epos in
 					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
