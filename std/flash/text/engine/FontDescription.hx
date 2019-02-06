@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class FontDescription {
+extern final class FontDescription {
 	var cffHinting : CFFHinting;
 	var fontLookup : FontLookup;
 	var fontName : String;

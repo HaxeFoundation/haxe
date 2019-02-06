@@ -21,7 +21,7 @@
  */
 import neko.Lib;
 
-@:coreApi @:final class Date {
+@:coreApi final class Date {
 
 	private var __t : Dynamic;
 

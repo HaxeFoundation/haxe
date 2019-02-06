@@ -24,7 +24,7 @@ class Generic<T> {
 }
 
 typedef AnonAsClass = {
-	@:optional var optional:String;
+	var ?optional:String;
 }
 
 typedef AnonAsStruct = {

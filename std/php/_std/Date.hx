@@ -23,7 +23,7 @@
 import php.Global.*;
 import php.Syntax.*;
 
-@:coreApi @:final class Date
+@:coreApi final class Date
 {
 	private var __t : Float;
 

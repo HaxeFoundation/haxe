@@ -37,5 +37,5 @@ typedef PosInfos = {
 	var lineNumber : Int;
 	var className : String;
 	var methodName : String;
-	@:optional var customParams : Array<Dynamic>;
+	var ?customParams : Array<Dynamic>;
 }

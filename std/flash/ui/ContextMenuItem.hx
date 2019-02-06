@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:final extern class ContextMenuItem extends flash.display.NativeMenuItem {
+extern final class ContextMenuItem extends flash.display.NativeMenuItem {
 	var caption : String;
 	var separatorBefore : Bool;
 	var visible : Bool;

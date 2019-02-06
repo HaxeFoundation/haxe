@@ -1,6 +1,6 @@
 package flash.concurrent;
 
-@:final @:require(flash11_4) extern class Mutex {
+@:require(flash11_4) extern final class Mutex {
 	function new() : Void;
 	function lock() : Void;
 	function tryLock() : Bool;

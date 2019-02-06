@@ -1,6 +1,6 @@
 package flash.media;
 
-@:final extern class SoundTransform {
+extern final class SoundTransform {
 	var leftToLeft : Float;
 	var leftToRight : Float;
 	var pan : Float;

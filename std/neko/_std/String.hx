@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi @:final class String {
+@:coreApi final class String {
 
 	static var __is_String = true;
 	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);

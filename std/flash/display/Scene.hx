@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class Scene {
+extern final class Scene {
 	var labels(default,never) : Array<FrameLabel>;
 	var name(default,never) : String;
 	var numFrames(default,never) : Int;

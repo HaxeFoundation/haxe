@@ -41,9 +41,9 @@
 	@:overload public function equals(param1 : Dynamic) : Bool;
 	@:overload public function hashCode() : Int;
 	@:overload public function toString() : String;
-	@:final public static var FALSE : Boolean;
-	@:final public static var TRUE : Boolean;
-	@:final public static var TYPE : Class<Boolean>;
+	final public static var FALSE : Boolean;
+	final public static var TRUE : Boolean;
+	final public static var TYPE : Class<Boolean>;
 	@:overload public static function compare(param1 : Bool, param2 : Bool) : Int;
 	@:overload public static function getBoolean(param1 : String) : Bool;
 	@:overload public static function parseBoolean(param1 : String) : Bool;

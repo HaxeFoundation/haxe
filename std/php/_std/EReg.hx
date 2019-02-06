@@ -23,7 +23,7 @@
 import haxe.extern.EitherType;
 import php.*;
 
-@:coreApi @:final class EReg {
+@:coreApi final class EReg {
 
 	var r : Dynamic;
 	var last : String;

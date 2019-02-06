@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class TabStop {
+extern final class TabStop {
 	var alignment : TabAlignment;
 	var decimalAlignmentToken : String;
 	var position : Float;
