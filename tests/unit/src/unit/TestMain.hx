@@ -78,6 +78,7 @@ class TestMain {
 			new TestArrowFunctions(),
 			new TestCasts(),
 			new TestSyntaxModule(),
+			new TestNull(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
