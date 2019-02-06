@@ -23,6 +23,7 @@ class TestSyntaxModule extends Test {
 		eq(o.field, value);
 	}
 
+	#if analyzer_optimize
 	function testConstruct() {
 		var className:String =
 			#if php "\\unit\\_TestSyntaxModule\\Construct";
@@ -40,6 +41,7 @@ class TestSyntaxModule extends Test {
 		t(Std.is(b, Construct));
 		eq(10, b.value);
 	}
+	#end
 #end
 }
 
