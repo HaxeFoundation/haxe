@@ -24,8 +24,7 @@ import php.*;
 using php.Global;
 
 @:coreApi
-@:final
-class Array<T> implements ArrayAccess<Int,T> {
+final class Array<T> implements ArrayAccess<Int,T> {
 	public var length(default, null):Int;
 	var arr:NativeIndexedArray<T>;
 

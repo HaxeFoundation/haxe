@@ -1,6 +1,6 @@
 package flash.system;
 
-@:final @:require(flash11_3) extern class AuthorizedFeaturesLoader extends flash.events.EventDispatcher {
+@:require(flash11_3) extern final class AuthorizedFeaturesLoader extends flash.events.EventDispatcher {
 	var authorizedFeatures(default,never) : AuthorizedFeatures;
 	function new() : Void;
 	function loadAuthorizedFeatures() : Void;

@@ -29,7 +29,7 @@ import java.NativeArray;
 		this.length = _native.length;
 	}
 ')
-@:final @:coreApi class Array<T> implements ArrayAccess<T> {
+@:coreApi final class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
@@ -481,8 +481,7 @@ import java.NativeArray;
 	}
 }
 
-@:final
-private class ArrayIterator<T>
+private final class ArrayIterator<T>
 {
 	var arr:Array<T>;
 	var len:Int;

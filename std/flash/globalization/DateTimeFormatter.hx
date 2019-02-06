@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class DateTimeFormatter {
+@:require(flash10_1) extern final class DateTimeFormatter {
 	var actualLocaleIDName(default,never) : String;
 	var lastOperationStatus(default,never) : LastOperationStatus;
 	var requestedLocaleIDName(default,never) : String;

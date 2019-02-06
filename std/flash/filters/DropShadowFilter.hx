@@ -1,6 +1,6 @@
 package flash.filters;
 
-@:final extern class DropShadowFilter extends BitmapFilter {
+extern final class DropShadowFilter extends BitmapFilter {
 	var alpha : Float;
 	var angle : Float;
 	var blurX : Float;

@@ -1,6 +1,6 @@
 package flash.sampler;
 
-@:final extern class StackFrame {
+extern final class StackFrame {
 	var file(default,never) : String;
 	var line(default,never) : UInt;
 	var name(default,never) : String;

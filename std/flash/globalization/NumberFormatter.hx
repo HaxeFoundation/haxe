@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class NumberFormatter {
+@:require(flash10_1) extern final class NumberFormatter {
 	var actualLocaleIDName(default,never) : String;
 	var decimalSeparator : String;
 	var digitsType : NationalDigitsType;

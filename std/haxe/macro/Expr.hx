@@ -286,7 +286,7 @@ typedef Case = {
 	/**
 		The optional guard expressions of the case, if available.
 	**/
-	@:optional var guard : Null<Expr>;
+	var ?guard : Null<Expr>;
 
 	/**
 		The expression of the case, if available.
@@ -373,7 +373,7 @@ typedef ObjectField = {
 	/**
 		How the field name is quoted.
 	**/
-	@:optional var quotes : QuoteStatus;
+	var ?quotes : QuoteStatus;
 }
 
 /**
@@ -612,13 +612,13 @@ typedef TypePath = {
 	/**
 		Optional parameters of the type path.
 	**/
-	@:optional var params : Array<TypeParam>;
+	var ?params : Array<TypeParam>;
 
 	/**
 		Sub is set on module sub-type access:
 		`pack.Module.Type` has name = Module, sub = Type, if available.
 	**/
-	@:optional var sub : Null<String>;
+	var ?sub : Null<String>;
 }
 
 /**
@@ -652,17 +652,17 @@ typedef TypeParamDecl = {
 	/**
 		The optional constraints of the type parameter.
 	**/
-	@:optional var constraints : Array<ComplexType>;
+	var ?constraints : Array<ComplexType>;
 
 	/**
 		The optional parameters of the type parameter.
 	**/
-	@:optional var params : Array<TypeParamDecl>;
+	var ?params : Array<TypeParamDecl>;
 
 	/**
 		The metadata of the type parameter.
 	**/
-	@:optional var meta : Metadata;
+	var ?meta : Metadata;
 }
 
 /**
@@ -687,7 +687,7 @@ typedef Function = {
 	/**
 		An optional list of function parameter type declarations.
 	**/
-	@:optional var params : Array<TypeParamDecl>;
+	var ?params : Array<TypeParamDecl>;
 }
 
 /**
@@ -702,7 +702,7 @@ typedef FunctionArg = {
 	/**
 		Whether or not the function argument is optional.
 	**/
-	@:optional var opt : Bool;
+	var ?opt : Bool;
 
 	/**
 		The type-hint of the function argument, if available.
@@ -712,12 +712,12 @@ typedef FunctionArg = {
 	/**
 		The optional value of the function argument, if available.
 	**/
-	@:optional var value : Null<Expr>;
+	var ?value : Null<Expr>;
 
 	/**
 		The metadata of the function argument.
 	**/
-	@:optional var meta : Metadata;
+	var ?meta : Metadata;
 }
 
 /**
@@ -732,7 +732,7 @@ typedef MetadataEntry = {
 	/**
 		The optional parameters of the metadata entry.
 	**/
-	@:optional var params : Array<Expr>;
+	var ?params : Array<Expr>;
 
 	/**
 		The position of the metadata entry.
@@ -758,13 +758,13 @@ typedef Field = {
 		The documentation of the field, if available. If the field has no
 		documentation, the value is `null`.
 	**/
-	@:optional var doc : Null<String>;
+	var ?doc : Null<String>;
 
 	/**
 		The access modifiers of the field. By default fields have private access.
 		@see https://haxe.org/manual/class-field-access-modifier.html
 	**/
-	@:optional var access : Array<Access>;
+	var ?access : Array<Access>;
 
 	/**
 		The kind of the field.
@@ -779,7 +779,7 @@ typedef Field = {
 	/**
 		The optional metadata of the field.
 	**/
-	@:optional var meta : Metadata;
+	var ?meta : Metadata;
 }
 
 /**
@@ -881,7 +881,7 @@ typedef TypeDefinition = {
 		The documentation of the type, if available. If the type has no
 		documentation, the value is `null`.
 	**/
-	@:optional var doc : Null<String>;
+	var ?doc : Null<String>;
 
 	/**
 		The position to the type definition.
@@ -891,17 +891,17 @@ typedef TypeDefinition = {
 	/**
 		The optional metadata of the type definition.
 	**/
-	@:optional var meta : Metadata;
+	var ?meta : Metadata;
 
 	/**
 		The parameter type declarations of the type definition.
 	**/
-	@:optional var params : Array<TypeParamDecl>;
+	var ?params : Array<TypeParamDecl>;
 
 	/**
 		Whether or not the type is extern.
 	**/
-	@:optional var isExtern : Bool;
+	var ?isExtern : Bool;
 
 	/**
 		The kind of the type definition.

@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class TextLine extends flash.display.DisplayObjectContainer {
+extern final class TextLine extends flash.display.DisplayObjectContainer {
 	var ascent(default,never) : Float;
 	var atomCount(default,never) : Int;
 	var descent(default,never) : Float;

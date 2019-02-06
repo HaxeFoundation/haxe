@@ -39,7 +39,6 @@ abstract NativeIterator<T>(NativeIteratorRaw<T>) to NativeIteratorRaw<T> to Nati
 /**
     Native Python iterator protocol.
 **/
-typedef NativeIteratorRaw<T> = {
-	>NativeIterableRaw<T>,
+typedef NativeIteratorRaw<T> = NativeIterableRaw<T> & {
 	function __next__():T;
 }

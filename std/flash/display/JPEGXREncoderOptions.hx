@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class JPEGXREncoderOptions {
+extern final class JPEGXREncoderOptions {
 	var colorSpace : BitmapEncodingColorSpace;
 	var quantization : UInt;
 	var trimFlexBits : UInt;

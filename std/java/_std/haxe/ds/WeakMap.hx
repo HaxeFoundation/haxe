@@ -181,7 +181,7 @@ import java.lang.ref.ReferenceQueue;
 #end
 	}
 
-	@:final private function lookup( key : K ) : Int
+	private final function lookup( key : K ) : Int
 	{
 		if (nBuckets != 0)
 		{
@@ -212,7 +212,7 @@ import java.lang.ref.ReferenceQueue;
 		return -1;
 	}
 
-	@:final @:private function resize(newNBuckets:Int) : Void
+	@:private final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
@@ -535,15 +535,14 @@ private class Entry<K,V> extends WeakReference<K>
 		this.hash = hash;
 	}
 
-	@:final inline public function keyEquals(k:K):Bool
+	final inline public function keyEquals(k:K):Bool
 	{
 		return k != null && untyped k.equals(get());
 	}
 }
 
 @:access(haxe.ds.WeakMap)
-@:final
-private class WeakMapKeyIterator<T:{},V> {
+private final class WeakMapKeyIterator<T:{},V> {
 	var m:WeakMap<T,V>;
 	var i:Int;
 	var len:Int;
@@ -585,8 +584,7 @@ private class WeakMapKeyIterator<T:{},V> {
 }
 
 @:access(haxe.ds.WeakMap)
-@:final
-private class WeakMapValueIterator<K:{},T> {
+private final class WeakMapValueIterator<K:{},T> {
 	var m:WeakMap<K,T>;
 	var i:Int;
 	var len:Int;

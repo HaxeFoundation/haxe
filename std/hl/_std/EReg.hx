@@ -23,7 +23,7 @@
 private typedef ERegValue = hl.Abstract<"ereg">;
 
 @:access(String)
-@:coreApi @:final class EReg {
+@:coreApi final class EReg {
 
 	var r : ERegValue;
 	var last : String;

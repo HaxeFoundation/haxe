@@ -31,7 +31,6 @@ import lua.Boot;
 #end
 
 @:coreApi
-@:extern
 class String {
 	static var __oldindex : String->String->Dynamic;
 	public var length(default,null) : Int;

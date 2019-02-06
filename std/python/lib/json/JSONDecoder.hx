@@ -24,12 +24,12 @@ package python.lib.json;
 import python.Tuple;
 
 typedef JSONDecoderOptions = {
-	@:optional var object_hook : Dict<String, Dynamic>->Dynamic;
-	@:optional var parse_float : String->Float;
-	@:optional var parse_int : String->Int;
-	@:optional var parse_constant : String->Dynamic;
-	@:optional var strict:Bool;
-	@:optional var object_pairs_hook : Array<Tuple2<String,String>>->Dict<String,Dynamic>;
+	var ?object_hook : Dict<String, Dynamic>->Dynamic;
+	var ?parse_float : String->Float;
+	var ?parse_int : String->Int;
+	var ?parse_constant : String->Dynamic;
+	var ?strict:Bool;
+	var ?object_pairs_hook : Array<Tuple2<String,String>>->Dict<String,Dynamic>;
 }
 
 @:pythonImport("json", "JSONDecoder")

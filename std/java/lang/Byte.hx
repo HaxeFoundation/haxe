@@ -40,10 +40,10 @@
 	@:overload function equals(param1 : Dynamic) : Bool;
 	@:overload function hashCode() : Int;
 	@:overload function toString() : String;
-	@:final static var MAX_VALUE(default,null) : java.types.Int8;
-	@:final static var MIN_VALUE(default,null) : java.types.Int8;
-	@:final static var SIZE(default,null) : Int;
-	@:final static var TYPE : Class<Byte>;
+	static final MAX_VALUE : java.types.Int8;
+	static final MIN_VALUE : java.types.Int8;
+	static final SIZE : Int;
+	static final TYPE : Class<Byte>;
 	@:overload static function compare(param1 : java.types.Int8, param2 : java.types.Int8) : Int;
 	@:overload @:throws("java.lang.NumberFormatException") static function decode(param1 : String) : Byte;
 	@:overload @:throws("java.lang.NumberFormatException") static function parseByte(param1 : String, param2 : Int) : java.types.Int8;

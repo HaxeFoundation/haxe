@@ -30,8 +30,7 @@ extern class Exception implements Throwable {
 	private var file : String;
 	private var line : Int;
 
-	@:final
-	function getPrevious() : Throwable;   // Returns previous Throwable
+	final function getPrevious() : Throwable;   // Returns previous Throwable
     function getMessage() : String;       // message of the exception
     function getCode() : Int;             // code of the exception
     function getFile() : String;          // source filename

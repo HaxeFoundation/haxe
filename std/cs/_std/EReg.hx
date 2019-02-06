@@ -24,7 +24,7 @@ import cs.system.text.regularexpressions.Match;
 import cs.system.text.regularexpressions.RegexOptions;
 import cs.system.text.regularexpressions.*;
 
-@:coreApi @:final class EReg {
+@:coreApi final class EReg {
 
 	private var regex : Regex;
 	private var m : Match;

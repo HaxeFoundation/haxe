@@ -67,7 +67,7 @@ import python.lib.json.JSONEncoder;
 
 private typedef T = {
 	var value:Int;
-	@:optional var maybeValue:Int;
+	var ?maybeValue:Int;
 }
 
 private enum MyEnum {
