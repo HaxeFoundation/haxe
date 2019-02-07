@@ -2193,8 +2193,11 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| OpAssignOp OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " %= "
-					else
+					else begin
+						self#write_expr expr1;
+						self#write " = ";
 						write_method "fmod"
+					end
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
