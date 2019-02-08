@@ -23,27 +23,26 @@ package haxe.xml;
 
 using StringTools;
 
-/* poor'man enum : reduce code size + a bit faster since inlined */
-extern private class S {
-	public static inline var IGNORE_SPACES 	= 0;
-	public static inline var BEGIN			= 1;
-	public static inline var BEGIN_NODE		= 2;
-	public static inline var TAG_NAME		= 3;
-	public static inline var BODY			= 4;
-	public static inline var ATTRIB_NAME	= 5;
-	public static inline var EQUALS			= 6;
-	public static inline var ATTVAL_BEGIN	= 7;
-	public static inline var ATTRIB_VAL		= 8;
-	public static inline var CHILDS			= 9;
-	public static inline var CLOSE			= 10;
-	public static inline var WAIT_END		= 11;
-	public static inline var WAIT_END_RET	= 12;
-	public static inline var PCDATA			= 13;
-	public static inline var HEADER			= 14;
-	public static inline var COMMENT		= 15;
-	public static inline var DOCTYPE		= 16;
-	public static inline var CDATA			= 17;
-	public static inline var ESCAPE			= 18;
+private enum abstract S(Int) {
+	var IGNORE_SPACES;
+	var BEGIN;
+	var BEGIN_NODE;
+	var TAG_NAME;
+	var BODY;
+	var ATTRIB_NAME;
+	var EQUALS;
+	var ATTVAL_BEGIN;
+	var ATTRIB_VAL;
+	var CHILDS;
+	var CLOSE;
+	var WAIT_END;
+	var WAIT_END_RET;
+	var PCDATA;
+	var HEADER;
+	var COMMENT;
+	var DOCTYPE;
+	var CDATA;
+	var ESCAPE;
 }
 
 class XmlParserException
