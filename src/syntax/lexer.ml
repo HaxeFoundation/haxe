@@ -283,7 +283,7 @@ let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
 (* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
 let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
 let xml_name_char = [%sedlex.regexp? xml_name_start_char | '-' | '.' | '0'..'9' | 0xB7 | 0x0300 .. 0x036F | 0x203F .. 0x2040]
-let xml_name = [%sedlex.regexp? xml_name_start_char, Star xml_name_char]
+let xml_name = [%sedlex.regexp? Opt(xml_name_start_char, Star xml_name_char)]
 
 let rec skip_header lexbuf =
 	match%sedlex lexbuf with
@@ -603,6 +603,6 @@ let lex_xml p lexbuf =
 		lexbuf = lexbuf;
 	} in
 	try
-		not_xml ctx 0 true
+		not_xml ctx 0 (name <> "") (* don't allow self-closing fragments *)
 	with Exit ->
 		error Unterminated_xml p

@@ -19,6 +19,10 @@ unit.HelperMacros.pipeMarkupLiteral(<:xml></:xml>) == "<:xml></:xml>";
 unit.HelperMacros.pipeMarkupLiteral(<xml:xml></xml:xml>) == "<xml:xml></xml:xml>";
 unit.HelperMacros.pipeMarkupLiteral(<foo.Bar_barf3-gnieh:blargh></foo.Bar_barf3-gnieh:blargh>) == "<foo.Bar_barf3-gnieh:blargh></foo.Bar_barf3-gnieh:blargh>";
 
+// fragments
+unit.HelperMacros.pipeMarkupLiteral(<></>) == "<></>";
+unit.HelperMacros.pipeMarkupLiteral(<>abc</>) == "<>abc</>";
+
 // No check for string literal balancing
 unit.HelperMacros.pipeMarkupLiteral(<xml a=" </xml>) == "<xml a=\" </xml>";
 unit.HelperMacros.pipeMarkupLiteral(<xml a=' </xml>) == "<xml a=' </xml>";
