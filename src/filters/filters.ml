@@ -842,7 +842,9 @@ let run com tctx main =
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		rename_local_vars tctx reserved;
+		(match com.platform with
+		| Eval -> (fun e -> e)
+		| _ -> rename_local_vars tctx reserved);
 		mark_switch_break_loops;
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
