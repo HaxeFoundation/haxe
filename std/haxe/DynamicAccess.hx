@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.iterators.DynamicAccessKeyValueIterator;
+
 /**
 	DynamicAccess is an abstract type for working with anonymous structures
 	that are intended to hold collections of objects by the string key.
@@ -102,7 +104,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		The order of values is undefined.
 	**/
-	public inline function keyValueIterator():KeyValueIterator<String, T> {
-		return new haxe.iterators.DynamicAccessKeyValueIterator(this);
+	public inline function keyValueIterator():DynamicAccessKeyValueIterator<T> {
+		return new DynamicAccessKeyValueIterator(this);
 	}
 }
