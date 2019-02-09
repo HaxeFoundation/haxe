@@ -26,25 +26,27 @@ package haxe.iterators;
 **/
 class DynamicAccessKeyValueIterator<T> {
 	final access:DynamicAccess<T>;
-	final keys:Iterator<String>;
+	final keys:Array<String>;
+	var index:Int;
 
 	public inline function new(access:DynamicAccess<T>) {
 		this.access = access;
-		this.keys = access.keys().iterator();
+		this.keys = access.keys();
+		index = 0;
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
  	public inline function hasNext():Bool {
-		return keys.hasNext();
+		return index < keys.length;
 	}
 
 	/**
 		See `Iterator.next`
 	**/
  	public inline function next():{key:String, value:T} {
-		var key = keys.next();
+		var key = keys[index++];
 		return {value: access[key], key: key};
 	}
 }
