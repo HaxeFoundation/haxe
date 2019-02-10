@@ -32,7 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext>
 **/
 @:native("WebGL2RenderingContext")
-extern class WebGL2RenderingContext
+extern class WebGL2RenderingContext extends RenderingContext
 {
 	static inline var READ_BUFFER : Int = 3074;
 	static inline var UNPACK_ROW_LENGTH : Int = 3314;
@@ -593,10 +593,6 @@ extern class WebGL2RenderingContext
 	static inline var CONTEXT_LOST_WEBGL : Int = 37442;
 	static inline var UNPACK_COLORSPACE_CONVERSION_WEBGL : Int = 37443;
 	static inline var BROWSER_DEFAULT_WEBGL : Int = 37444;
-	
-	var canvas(default,null) : js.html.CanvasElement;
-	var drawingBufferWidth(default,null) : Int;
-	var drawingBufferHeight(default,null) : Int;
 	
 	
 	/**
