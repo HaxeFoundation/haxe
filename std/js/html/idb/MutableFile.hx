@@ -41,7 +41,7 @@ extern class MutableFile extends js.html.EventTarget
 	var onerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function open( ?mode : js.html.FileMode = "readonly" ) : FileHandle;
+	function open( ?mode : js.html.FileMode = READONLY ) : FileHandle;
 	/** @throws DOMError */
 	function getFile() : js.html.DOMRequest;
 }

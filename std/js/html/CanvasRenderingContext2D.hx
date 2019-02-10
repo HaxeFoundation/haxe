@@ -71,14 +71,14 @@ extern class CanvasRenderingContext2D
 	@:overload( function( image : ImageElement, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
 	function drawImage( image : ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	function beginPath() : Void;
-	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
-	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
+	@:overload( function( ?winding : CanvasWindingRule = NONZERO ) : Void {} )
+	function fill( path : Path2D, ?winding : CanvasWindingRule = NONZERO ) : Void;
 	@:overload( function() : Void {} )
 	function stroke( path : Path2D ) : Void;
-	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
-	function clip( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
-	@:overload( function( x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool {} )
-	function isPointInPath( path : Path2D, x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool;
+	@:overload( function( ?winding : CanvasWindingRule = NONZERO ) : Void {} )
+	function clip( path : Path2D, ?winding : CanvasWindingRule = NONZERO ) : Void;
+	@:overload( function( x : Float, y : Float, ?winding : CanvasWindingRule = NONZERO ) : Bool {} )
+	function isPointInPath( path : Path2D, x : Float, y : Float, ?winding : CanvasWindingRule = NONZERO ) : Bool;
 	@:overload( function( x : Float, y : Float ) : Bool {} )
 	function isPointInStroke( path : Path2D, x : Float, y : Float ) : Bool;
 	function createLinearGradient( x0 : Float, y0 : Float, x1 : Float, y1 : Float ) : CanvasGradient;
