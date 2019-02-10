@@ -47,5 +47,5 @@ extern class HashChangeEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : HashChangeEventInit ) : Void;
-	function initHashChangeEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?oldURLArg : String = "", ?newURLArg : String = "" ) : Void;
+	function initHashChangeEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, oldURLArg : String = "", newURLArg : String = "" ) : Void;
 }

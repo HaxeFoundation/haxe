@@ -66,7 +66,7 @@ extern class FontFaceSet extends EventTarget
 	function values() : FontFaceSetIterator;
 	/** @throws DOMError */
 	function forEach( cb : FontFace -> FontFace -> FontFaceSet -> Void, ?thisArg : Dynamic ) : Void;
-	function load( font : String, ?text : String = " " ) : Promise<Array<FontFace>>;
+	function load( font : String, text : String = " " ) : Promise<Array<FontFace>>;
 	/** @throws DOMError */
-	function check( font : String, ?text : String = " " ) : Bool;
+	function check( font : String, text : String = " " ) : Bool;
 }

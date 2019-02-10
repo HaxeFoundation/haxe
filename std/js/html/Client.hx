@@ -56,5 +56,5 @@ extern class Client
 		Sends a message to the client.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, transfer : Array<Dynamic> = [] ) : Void;
 }

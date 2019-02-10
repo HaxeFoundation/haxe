@@ -101,7 +101,7 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `ScriptProcessorNode`, which can be used for direct audio processing via JavaScript.
 		@throws DOMError
 	**/
-	function createScriptProcessor( ?bufferSize : Int = 0, ?numberOfInputChannels : Int = 2, ?numberOfOutputChannels : Int = 2 ) : ScriptProcessorNode;
+	function createScriptProcessor( bufferSize : Int = 0, numberOfInputChannels : Int = 2, numberOfOutputChannels : Int = 2 ) : ScriptProcessorNode;
 	
 	/**
 		Creates an `AnalyserNode`, which can be used to expose audio time and frequency data and for example to create data visualisations.
@@ -119,7 +119,7 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `DelayNode`, which is used to delay the incoming audio signal by a certain amount. This node is also useful to create feedback loops in a Web Audio API graph.
 		@throws DOMError
 	**/
-	function createDelay( ?maxDelayTime : Float = 1.0 ) : DelayNode;
+	function createDelay( maxDelayTime : Float = 1.0 ) : DelayNode;
 	
 	/**
 		Creates a `BiquadFilterNode`, which represents a second order filter configurable as several different common filter types: high-pass, low-pass, band-pass, etc
@@ -161,13 +161,13 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `ChannelSplitterNode`, which is used to access the individual channels of an audio stream and process them separately.
 		@throws DOMError
 	**/
-	function createChannelSplitter( ?numberOfOutputs : Int = 6 ) : ChannelSplitterNode;
+	function createChannelSplitter( numberOfOutputs : Int = 6 ) : ChannelSplitterNode;
 	
 	/**
 		Creates a `ChannelMergerNode`, which is used to combine channels from multiple audio streams into a single audio stream.
 		@throws DOMError
 	**/
-	function createChannelMerger( ?numberOfInputs : Int = 6 ) : ChannelMergerNode;
+	function createChannelMerger( numberOfInputs : Int = 6 ) : ChannelMergerNode;
 	
 	/**
 		Creates a `DynamicsCompressorNode`, which can be used to apply acoustic compression to an audio signal.

@@ -36,5 +36,5 @@ extern class DOMPoint extends DOMPointReadOnly
 {
 	static function fromPoint( ?other : DOMPointInit ) : DOMPoint;
 	/** @throws DOMError */
-	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?z : Float = 0.0, ?w : Float = 1.0 ) : Void;
+	function new( x : Float = 0.0, y : Float = 0.0, z : Float = 0.0, w : Float = 1.0 ) : Void;
 }

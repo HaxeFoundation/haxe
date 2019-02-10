@@ -56,13 +56,13 @@ extern class CanvasElement extends Element
 		Returns a data-URL containing a representation of the image in the format specified by the `type` parameter (defaults to `png`). The returned image is in a resolution of 96dpi.
 		@throws DOMError
 	**/
-	function toDataURL( ?type : String = "", ?encoderOptions : Dynamic ) : String;
+	function toDataURL( type : String = "", ?encoderOptions : Dynamic ) : String;
 	
 	/**
 		Creates a `Blob` object representing the image contained in the canvas; this file may be cached on the disk or stored in memory at the discretion of the user agent.
 		@throws DOMError
 	**/
-	function toBlob( callback : Blob -> Void, ?type : String = "", ?encoderOptions : Dynamic ) : Void;
+	function toBlob( callback : Blob -> Void, type : String = "", ?encoderOptions : Dynamic ) : Void;
 	
 	/**
 		Returns a `CanvasCaptureMediaStream` that is a real-time video capture of the surface of the canvas.

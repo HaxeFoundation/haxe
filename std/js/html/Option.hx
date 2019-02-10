@@ -28,5 +28,5 @@ package js.html;
 extern class Option extends OptionElement
 {
 	/** @throws DOMError */
-	function new( ?text : String = "", ?value : String, ?defaultSelected : Bool = false, ?selected : Bool = false ) : Void;
+	function new( text : String = "", ?value : String, defaultSelected : Bool = false, selected : Bool = false ) : Void;
 }

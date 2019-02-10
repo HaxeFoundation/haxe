@@ -57,7 +57,7 @@ extern class DOMPointReadOnly
 	var w(default,null) : Float;
 	
 	/** @throws DOMError */
-	function new( ?x : Float = 0.0, ?y : Float = 0.0, ?z : Float = 0.0, ?w : Float = 1.0 ) : Void;
+	function new( x : Float = 0.0, y : Float = 0.0, z : Float = 0.0, w : Float = 1.0 ) : Void;
 	
 	/**
 		Returns a JSON representation of the `DOMPointReadOnly` object.

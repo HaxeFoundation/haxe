@@ -42,5 +42,5 @@ extern class StorageEvent extends Event
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : StorageEventInit ) : Void;
-	function initStorageEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?key : String, ?oldValue : String, ?newValue : String, ?url : String, ?storageArea : Storage ) : Void;
+	function initStorageEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?key : String, ?oldValue : String, ?newValue : String, ?url : String, ?storageArea : Storage ) : Void;
 }

@@ -35,5 +35,5 @@ extern class Directory
 	/** @throws DOMError */
 	function getFilesAndDirectories() : Promise<Array<haxe.extern.EitherType<File,Directory>>>;
 	/** @throws DOMError */
-	function getFiles( ?recursiveFlag : Bool = false ) : Promise<Array<File>>;
+	function getFiles( recursiveFlag : Bool = false ) : Promise<Array<File>>;
 }

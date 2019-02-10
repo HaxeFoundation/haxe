@@ -214,5 +214,5 @@ extern class KeyEvent
 	static inline var DOM_VK_PA1 : Int = 253;
 	static inline var DOM_VK_WIN_OEM_CLEAR : Int = 254;
 	
-	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
+	function initKeyEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, keyCode : Int = 0, charCode : Int = 0 ) : Void;
 }

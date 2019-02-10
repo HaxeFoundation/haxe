@@ -101,7 +101,7 @@ extern class InputElement extends Element
 		 
 		@throws DOMError
 	**/
-	function stepUp( ?n : Int = 1 ) : Void;
+	function stepUp( n : Int = 1 ) : Void;
 	
 	/**
 		Decrements the `value` by (`step` * n), where n defaults to 1 if not specified. Throws an INVALID_STATE_ERR exception:
@@ -114,14 +114,14 @@ extern class InputElement extends Element
 		 
 		@throws DOMError
 	**/
-	function stepDown( ?n : Int = 1 ) : Void;
+	function stepDown( n : Int = 1 ) : Void;
 	function checkValidity() : Bool;
 	function reportValidity() : Bool;
 	function setCustomValidity( error : String ) : Void;
 	function select() : Void;
 	/** @throws DOMError */
 	@:overload( function( replacement : String ) : Void {} )
-	function setRangeText( replacement : String, start : Int, end : Int, ?selectionMode : SelectionMode = PRESERVE ) : Void;
+	function setRangeText( replacement : String, start : Int, end : Int, selectionMode : SelectionMode = PRESERVE ) : Void;
 	/** @throws DOMError */
 	function setSelectionRange( start : Int, end : Int, ?direction : String ) : Void;
 }

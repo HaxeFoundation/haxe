@@ -55,7 +55,7 @@ extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope
 		Sends a message — which can consist of `any` JavaScript object — to the parent document that first spawned the worker.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, transfer : Array<Dynamic> = [] ) : Void;
 	
 	/**
 		Discards any tasks queued in the `WorkerGlobalScope`'s event loop, effectively closing this particular scope.

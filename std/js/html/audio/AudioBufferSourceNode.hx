@@ -72,5 +72,5 @@ extern class AudioBufferSourceNode extends AudioScheduledSourceNode
 		Used to schedule playback of the audio data contained in the buffer, or to begin playback immediately.
 		@throws DOMError
 	**/
-	function start( ?when : Float = 0.0, ?grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
+	function start( when : Float = 0.0, grainOffset : Float = 0.0, ?grainDuration : Float ) : Void;
 }

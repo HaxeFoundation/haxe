@@ -68,11 +68,11 @@ extern class AudioBuffer
 		Copies the samples from the specified channel of the `AudioBuffer` to the `destination` array.
 		@throws DOMError
 	**/
-	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
+	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, startInChannel : Int = 0 ) : Void;
 	
 	/**
 		Copies the samples to the specified channel of the `AudioBuffer`, from the `source` array.
 		@throws DOMError
 	**/
-	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
+	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, startInChannel : Int = 0 ) : Void;
 }

@@ -58,7 +58,7 @@ extern class MediaRecorder extends EventTarget
 	
 	/** @throws DOMError */
 	@:overload( function( stream : MediaStream, ?options : MediaRecorderOptions ) : Void {} )
-	function new( node : js.html.audio.AudioNode, ?output : Int = 0, ?options : MediaRecorderOptions ) : Void;
+	function new( node : js.html.audio.AudioNode, output : Int = 0, ?options : MediaRecorderOptions ) : Void;
 	
 	/**
 		Begins recording media; this method can optionally be passed a `timeslice` argument with a value in milliseconds. If this is specified, the media will be captured in separate chunks of that duration, rather than the default behavior of recording the media in a single large chunk.

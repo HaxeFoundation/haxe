@@ -418,7 +418,7 @@ extern class Document extends Node
 		Returns a clone of a node from an external document.
 		@throws DOMError
 	**/
-	function importNode( node : Node, ?deep : Bool = false ) : Node;
+	function importNode( node : Node, deep : Bool = false ) : Node;
 	
 	/**
 		Adopt node from an external document.
@@ -442,17 +442,17 @@ extern class Document extends Node
 		Creates a `NodeIterator` object.
 		@throws DOMError
 	**/
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : NodeIterator {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : NodeIterator {} )
-	function createNodeIterator( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : NodeIterator {} )
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : NodeIterator {} )
+	function createNodeIterator( root : Node, whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : NodeIterator;
 	
 	/**
 		Creates a `TreeWalker` object.
 		@throws DOMError
 	**/
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : TreeWalker {} )
-	@:overload( function( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : TreeWalker {} )
-	function createTreeWalker( root : Node, ?whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : haxe.Constraints.Function) : TreeWalker {} )
+	@:overload( function( root : Node, whatToShow : Int = cast 4294967295, ?filter : NodeFilter) : TreeWalker {} )
+	function createTreeWalker( root : Node, whatToShow : Int = cast 4294967295, ?filter : Node -> Int ) : TreeWalker;
 	
 	/**
 		Creates a new CDATA node and returns it.
@@ -510,7 +510,7 @@ extern class Document extends Node
 	/**
 		Creates a `Touch` object.
 	**/
-	function createTouch( ?view : Window, ?target : EventTarget, ?identifier : Int = 0, ?pageX : Int = 0, ?pageY : Int = 0, ?screenX : Int = 0, ?screenY : Int = 0, ?clientX : Int = 0, ?clientY : Int = 0, ?radiusX : Int = 0, ?radiusY : Int = 0, ?rotationAngle : Float = 0.0, ?force : Float = 0.0 ) : Touch;
+	function createTouch( ?view : Window, ?target : EventTarget, identifier : Int = 0, pageX : Int = 0, pageY : Int = 0, screenX : Int = 0, screenY : Int = 0, clientX : Int = 0, clientY : Int = 0, radiusX : Int = 0, radiusY : Int = 0, rotationAngle : Float = 0.0, force : Float = 0.0 ) : Touch;
 	
 	/**
 		Creates a `TouchList` object.
@@ -547,7 +547,7 @@ extern class Document extends Node
 	@:pure
 	function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
+	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

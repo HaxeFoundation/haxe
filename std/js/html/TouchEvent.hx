@@ -72,5 +72,5 @@ extern class TouchEvent extends UIEvent
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : TouchEventInit ) : Void;
-	function initTouchEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?detail : Int = 0, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?touches : TouchList, ?targetTouches : TouchList, ?changedTouches : TouchList ) : Void;
+	function initTouchEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, detail : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, ?touches : TouchList, ?targetTouches : TouchList, ?changedTouches : TouchList ) : Void;
 }

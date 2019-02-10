@@ -233,7 +233,7 @@ extern class MediaElement extends Element
 	/**
 		Adds a text track (such as a track for subtitles) to a media element.
 	**/
-	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
+	function addTextTrack( kind : TextTrackKind, label : String = "", language : String = "" ) : TextTrack;
 	
 	/**
 		Returns `Promise`. Sets the `MediaKeys` keys to use when decrypting media during playback.

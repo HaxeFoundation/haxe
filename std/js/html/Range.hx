@@ -112,7 +112,7 @@ extern class Range
 	/**
 		Collapses the `Range` to one of its boundary points.
 	**/
-	function collapse( ?toStart : Bool = false ) : Void;
+	function collapse( toStart : Bool = false ) : Void;
 	
 	/**
 		Sets the `Range` to contain the `Node` and its contents.

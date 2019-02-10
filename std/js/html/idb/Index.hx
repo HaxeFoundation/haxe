@@ -65,13 +65,13 @@ extern class Index
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range.
 		@throws DOMError
 	**/
-	function openCursor( ?range : Dynamic, ?direction : CursorDirection = NEXT ) : Request;
+	function openCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, creates a cursor over the specified key range, as arranged by this index.
 		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = NEXT ) : Request;
+	function openKeyCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Returns an `IDBRequest` object, and, in a separate thread, finds either the value in the referenced object store that corresponds to the given key or the first corresponding value, if `key` is an `IDBKeyRange`.

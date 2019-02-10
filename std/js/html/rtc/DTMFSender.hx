@@ -38,5 +38,5 @@ extern class DTMFSender extends js.html.EventTarget
 	**/
 	var toneBuffer(default,null) : String;
 	
-	function insertDTMF( tones : String, ?duration : Int = 100, ?interToneGap : Int = 70 ) : Void;
+	function insertDTMF( tones : String, duration : Int = 100, interToneGap : Int = 70 ) : Void;
 }

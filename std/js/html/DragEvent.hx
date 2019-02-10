@@ -42,5 +42,5 @@ extern class DragEvent extends MouseEvent
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DragEventInit ) : Void;
-	function initDragEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?aView : Window, ?aDetail : Int = 0, ?aScreenX : Int = 0, ?aScreenY : Int = 0, ?aClientX : Int = 0, ?aClientY : Int = 0, ?aCtrlKey : Bool = false, ?aAltKey : Bool = false, ?aShiftKey : Bool = false, ?aMetaKey : Bool = false, ?aButton : Int = 0, ?aRelatedTarget : EventTarget, ?aDataTransfer : DataTransfer ) : Void;
+	function initDragEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?aView : Window, aDetail : Int = 0, aScreenX : Int = 0, aScreenY : Int = 0, aClientX : Int = 0, aClientY : Int = 0, aCtrlKey : Bool = false, aAltKey : Bool = false, aShiftKey : Bool = false, aMetaKey : Bool = false, aButton : Int = 0, ?aRelatedTarget : EventTarget, ?aDataTransfer : DataTransfer ) : Void;
 }

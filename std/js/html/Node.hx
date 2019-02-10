@@ -229,7 +229,7 @@ extern class Node extends EventTarget
 		Clone a `Node`, and optionally, all of its contents. By default, it clones the content of the node.
 		@throws DOMError
 	**/
-	function cloneNode( ?deep : Bool = false ) : Node;
+	function cloneNode( deep : Bool = false ) : Node;
 	
 	/**
 		Returns a `Boolean` value indicating whether or not the two nodes are the same (that is, they reference the same object).

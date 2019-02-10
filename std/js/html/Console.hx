@@ -38,7 +38,7 @@ extern class Console
 	/**
 		Log a message and stack trace to console if the first argument is `false`.
 	**/
-	static function assert( ?condition : Bool = false, data : haxe.extern.Rest<Dynamic> ) : Void;
+	static function assert( condition : Bool = false, data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Clear the console.
@@ -48,12 +48,12 @@ extern class Console
 	/**
 		Log the number of times this line has been called with the given label.
 	**/
-	static function count( ?label : String = "default" ) : Void;
+	static function count( label : String = "default" ) : Void;
 	
 	/**
 		Resets the value of the counter with the given label.
 	**/
-	static function countReset( ?label : String = "default" ) : Void;
+	static function countReset( label : String = "default" ) : Void;
 	
 	/**
 		Outputs a message to the console with the log level `"debug"`.
@@ -122,17 +122,17 @@ extern class Console
 	/**
 		Starts a timer with a name specified as an input parameter. Up to 10,000 simultaneous timers can run on a given page.
 	**/
-	static function time( ?label : String = "default" ) : Void;
+	static function time( label : String = "default" ) : Void;
 	
 	/**
 		Logs the value of the specified timer to the console.
 	**/
-	static function timeLog( ?label : String = "default", data : haxe.extern.Rest<Dynamic> ) : Void;
+	static function timeLog( label : String = "default", data : haxe.extern.Rest<Dynamic> ) : Void;
 	
 	/**
 		Stops the specified timer and logs the elapsed time in seconds since it started.
 	**/
-	static function timeEnd( ?label : String = "default" ) : Void;
+	static function timeEnd( label : String = "default" ) : Void;
 	
 	/**
 		An alias for `error()`.

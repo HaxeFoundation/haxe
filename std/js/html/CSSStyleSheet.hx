@@ -56,7 +56,7 @@ extern class CSSStyleSheet extends StyleSheet
 		Inserts a new rule at the specified position in the style sheet, given the textual representation of the rule.
 		@throws DOMError
 	**/
-	function insertRule( rule : String, ?index : Int = 0 ) : Int;
+	function insertRule( rule : String, index : Int = 0 ) : Int;
 	
 	/**
 		Deletes a rule at the specified position from the style sheet.

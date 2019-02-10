@@ -44,7 +44,7 @@ extern class Response
 		Creates a new response with a different URL.
 		@throws DOMError
 	**/
-	static function redirect( url : String, ?status : Int = 302 ) : Response;
+	static function redirect( url : String, status : Int = 302 ) : Response;
 	
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).

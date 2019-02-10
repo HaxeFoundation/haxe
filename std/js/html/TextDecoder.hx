@@ -51,7 +51,7 @@ extern class TextDecoder
 	var ignoreBOM(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
+	function new( label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
 	
 	/**
 		Returns a `DOMString` containing the text decoded with the method of the specific `TextDecoder` object.

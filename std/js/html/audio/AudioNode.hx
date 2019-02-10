@@ -72,8 +72,8 @@ extern class AudioNode extends js.html.EventTarget
 		Allows us to connect the output of this node to be input into another node, either as audio data or as the value of an `AudioParam`.
 		@throws DOMError
 	**/
-	@:overload( function( destination : AudioNode, ?output : Int = 0, ?input : Int = 0 ) : AudioNode {} )
-	function connect( destination : AudioParam, ?output : Int = 0 ) : Void;
+	@:overload( function( destination : AudioNode, output : Int = 0, input : Int = 0 ) : AudioNode {} )
+	function connect( destination : AudioParam, output : Int = 0 ) : Void;
 	
 	/**
 		Allows us to disconnect the current node from another one it is already connected to.

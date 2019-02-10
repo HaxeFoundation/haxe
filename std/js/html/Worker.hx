@@ -58,5 +58,5 @@ extern class Worker extends EventTarget
 		Sends a message — which can consist of `any` JavaScript object — to the worker's inner scope.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, transfer : Array<Dynamic> = [] ) : Void;
 }

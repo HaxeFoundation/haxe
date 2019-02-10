@@ -81,5 +81,5 @@ extern class UIEvent extends Event
 	/**
 		Initializes a `UIEvent` object. If the event has already being dispatched, this method does nothing.
 	**/
-	function initUIEvent( aType : String, ?aCanBubble : Bool = false, ?aCancelable : Bool = false, ?aView : Window, ?aDetail : Int = 0 ) : Void;
+	function initUIEvent( aType : String, aCanBubble : Bool = false, aCancelable : Bool = false, ?aView : Window, aDetail : Int = 0 ) : Void;
 }
