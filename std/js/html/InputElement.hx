@@ -121,7 +121,7 @@ extern class InputElement extends Element
 	function select() : Void;
 	/** @throws DOMError */
 	@:overload( function( replacement : String ) : Void {} )
-	function setRangeText( replacement : String, start : Int, end : Int, ?selectionMode : SelectionMode = "preserve" ) : Void;
+	function setRangeText( replacement : String, start : Int, end : Int, ?selectionMode : SelectionMode = PRESERVE ) : Void;
 	/** @throws DOMError */
 	function setSelectionRange( start : Int, end : Int, ?direction : String ) : Void;
 }
