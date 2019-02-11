@@ -391,8 +391,8 @@ class Compiler {
 		@param path A package, module or sub-type dot path to keep.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
-	public static function nullSafety(path : String, ?recursive:Bool = true) {
-		addGlobalMetadata(path, "@:nullSafety", recursive);
+	public static function nullSafety(path : String, mode:NullSafetyMode = Weak, recursive:Bool = true) {
+		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
 	}
 
 	/**
@@ -475,4 +475,11 @@ enum abstract IncludePosition(String) from String to String {
 		Directly inject the file content at the call site.
 	*/
 	var Inline = "inline";
+}
+
+
+enum abstract NullSafetyMode(String) to String {
+	var Off;
+	var Weak;
+	var Strict;
 }

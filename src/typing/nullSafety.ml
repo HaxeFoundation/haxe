@@ -11,6 +11,9 @@ type safety_report = {
 	mutable sr_errors : safety_message list;
 }
 
+let add_error report msg pos =
+	report.sr_errors <- { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; } :: report.sr_errors;
+
 type scope_type =
 	| STNormal
 	| STLoop
@@ -24,6 +27,11 @@ type safety_unify_error =
 exception Safety_error of safety_unify_error
 
 let safety_error () : unit = raise (Safety_error NullSafetyError)
+
+type safety_mode =
+	| SMOff
+	| SMWeak
+	| SMStrict
 
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue in compiler repo.
@@ -345,12 +353,12 @@ let process_condition condition (is_nullable_expr:texpr->bool) callback =
 	(!nulls, !not_nulls)
 
 (**
-	Check if metadata contains @:nullSafety(false) meta
+	Check if metadata contains @:nullSafety(Off) meta
 **)
 let rec contains_unsafe_meta metadata =
 	match metadata with
 		| [] -> false
-		| (Meta.NullSafety, [(EConst (Ident "false"), _)], _) :: _  -> true
+		| (Meta.NullSafety, [(EConst (Ident "Off"), _)], _) :: _  -> true
 		| _ :: rest -> contains_unsafe_meta rest
 
 (**
@@ -360,11 +368,38 @@ let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
 		| (Meta.NullSafety, [], _) :: _
-		| (Meta.NullSafety, [(EConst (Ident "true"), _)], _) :: _  -> true
+		| (Meta.NullSafety, [(EConst (Ident ("Weak" | "Strict")), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
 let safety_enabled meta =
 	(contains_safe_meta meta) && not (contains_unsafe_meta meta)
+
+let safety_mode metadata =
+	let rec traverse mode meta =
+		match mode, metadata with
+			| Some SMOff, _
+			| _, [] -> mode
+			| None, (Meta.NullSafety, [(EConst (Ident "Off"))], _) :: _ ->
+				Some SMOff
+			| None, (Meta.NullSafety, ([] | [(EConst (Ident "Weak"))]), _) :: rest ->
+				traverse (Some SMWeak) rest
+			| Some SMWeak, (Meta.NullSafety, [(EConst (Ident "Strict"))], _) :: rest ->
+				traverse (Some SMStrict) rest
+			| _, _ :: rest -> traverse mode rest
+	in
+	match traverse None metadata with
+		| Some mode -> mode
+		| None -> SMOff
+
+let rec validate_safety_meta error (metadata:Ast.metadata) =
+	match metadata with
+		| [] -> ()
+		| (Meta.NullSafety, args, pos) :: rest ->
+			(match args with
+				| ([] | [(EConst (Ident ("Off" | "Weak" | "Strict")), _)]) -> ()
+				| _ ->
+			)
+		| _ :: rest -> validate_safety_meta error rest
 
 (**
 	Check if specified `field` represents a `var` field which will exist at runtime.
@@ -822,7 +857,7 @@ class expr_checker immediate_execution report =
 		*)
 		method error msg (p:Globals.pos) =
 			if not is_pretending then
-				report.sr_errors <- { sm_msg = ("Null safety: " ^ msg); sm_pos = p; } :: report.sr_errors;
+				add_error report msg p
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.
 			Haxe type system lies sometimes.
@@ -1202,6 +1237,7 @@ class class_checker cls immediate_execution report  =
 	object (self)
 			val is_safe_class = safety_enabled cls.cl_meta
 			val checker = new expr_checker immediate_execution report
+			val class_safety_mode = safety_mode cls.cl_meta
 		(**
 			Entry point for checking a class
 		*)
