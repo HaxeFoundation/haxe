@@ -226,7 +226,7 @@ class Boot {
 
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
-		var name = untyped __toStr.call(o).slice(8, -1);
+		var name:String = __toStr.call(o).slice(8, -1);
 		// exclude general Object and Function
 		// also exclude Math and JSON, because instanceof cannot be called on them
 		if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")
