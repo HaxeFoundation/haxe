@@ -69,6 +69,7 @@ extern class WorkerGlobalScope extends EventTarget
 	var origin(default,null) : String;
 	var isSecureContext(default,null) : Bool;
 	var indexedDB(default,null) : js.html.idb.Factory;
+	var caches(default,null) : CacheStorage;
 	
 	
 	/**

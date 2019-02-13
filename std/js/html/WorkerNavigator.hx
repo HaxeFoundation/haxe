@@ -44,6 +44,7 @@ extern class WorkerNavigator
 	var language(default,null) : String;
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
+	var storage(default,null) : StorageManager;
 	
 	function taintEnabled() : Bool;
 }

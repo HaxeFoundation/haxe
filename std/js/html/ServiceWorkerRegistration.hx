@@ -61,6 +61,11 @@ extern class ServiceWorkerRegistration extends EventTarget
 	**/
 	var onupdatefound : haxe.Constraints.Function;
 	
+	/**
+		Returns a reference to the `PushManager` interface for managing push subscriptions including subscribing, getting an active subscription, and accessing push permission status.
+	**/
+	var pushManager(default,null) : js.html.push.PushManager;
+	
 	
 	/**
 		Checks the server for an updated version of the service worker without consulting caches.
@@ -73,4 +78,16 @@ extern class ServiceWorkerRegistration extends EventTarget
 		@throws DOMError
 	**/
 	function unregister() : Promise<Bool>;
+	
+	/**
+		Displays the notification with the requested title.
+		@throws DOMError
+	**/
+	function showNotification( title : String, ?options : NotificationOptions ) : Promise<Void>;
+	
+	/**
+		Returns a `Promise` that resolves to an array of `Notification` objects.
+		@throws DOMError
+	**/
+	function getNotifications( ?filter : GetNotificationOptions ) : Promise<Array<Notification>>;
 }

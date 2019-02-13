@@ -309,6 +309,7 @@ extern class Window extends EventTarget
 	var ontimeupdate : haxe.Constraints.Function;
 	var onvolumechange : haxe.Constraints.Function;
 	var onwaiting : haxe.Constraints.Function;
+	var onselectstart : haxe.Constraints.Function;
 	var ontoggle : haxe.Constraints.Function;
 	var onpointercancel : haxe.Constraints.Function;
 	var onpointerdown : haxe.Constraints.Function;
@@ -368,6 +369,7 @@ extern class Window extends EventTarget
 	**/
 	var isSecureContext(default,null) : Bool;
 	var indexedDB(default,null) : js.html.idb.Factory;
+	var caches(default,null) : CacheStorage;
 	
 	/**
 		Returns a reference to the session storage object used to store data that may only be accessed by the origin that created it.
