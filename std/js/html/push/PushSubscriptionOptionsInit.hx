@@ -24,9 +24,7 @@
 
 package js.html.push;
 
-enum abstract PermissionState(String)
+typedef PushSubscriptionOptionsInit =
 {
-	var GRANTED = "granted";
-	var DENIED = "denied";
-	var PROMPT = "prompt";
+	@:optional var applicationServerKey : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
 }

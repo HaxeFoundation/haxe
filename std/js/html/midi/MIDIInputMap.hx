@@ -32,7 +32,7 @@ package js.html.midi;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIInputMap>
 **/
 @:native("MIDIInputMap")
-extern class InputMap
+extern class MIDIInputMap
 {
 	var size(default,null) : Int;
 	

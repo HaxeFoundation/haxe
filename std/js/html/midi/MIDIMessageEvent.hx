@@ -20,12 +20,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIConnectionEvent.webidl. Do not edit!
+// This file is generated from mozilla\MIDIMessageEvent.webidl. Do not edit!
 
 package js.html.midi;
 
-typedef ConnectionEventInit =
+@:native("MIDIMessageEvent")
+extern class MIDIMessageEvent extends js.html.Event
 {
-	> EventInit,
-	@:optional var port : Port;
+	var data(default,null) : js.html.Uint8Array;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : MIDIMessageEventInit ) : Void;
 }

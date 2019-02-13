@@ -32,7 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushManager>
 **/
 @:native("PushManager")
-extern class Manager
+extern class PushManager
 {
 	/** @throws DOMError */
 	function new( scope : String ) : Void;
@@ -41,17 +41,17 @@ extern class Manager
 		Subscribes to a push service. It returns a `Promise` that resolves to a `PushSubscription` object containing details of a push subscription. A new push subscription is created if the current service worker does not have an existing subscription.
 		@throws DOMError
 	**/
-	function subscribe( ?options : SubscriptionOptionsInit ) : Promise<Subscription>;
+	function subscribe( ?options : PushSubscriptionOptionsInit ) : Promise<PushSubscription>;
 	
 	/**
 		Retrieves an existing push subscription. It returns a `Promise` that resolves to a `PushSubscription` object containing details of an existing subscription. If no existing subscription exists, this resolves to a `null` value.
 		@throws DOMError
 	**/
-	function getSubscription() : Promise<Subscription>;
+	function getSubscription() : Promise<PushSubscription>;
 	
 	/**
 		Returns a `Promise` that resolves to the permission state of the current `PushManager`, which will be one of `'granted'`, `'denied'`, or `'prompt'`.
 		@throws DOMError
 	**/
-	function permissionState( ?options : SubscriptionOptionsInit ) : Promise<PermissionState>;
+	function permissionState( ?options : PushSubscriptionOptionsInit ) : Promise<PushPermissionState>;
 }

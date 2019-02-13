@@ -20,11 +20,26 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PushManager.webidl. Do not edit!
+// This file is generated from mozilla\PushEvent.webidl. Do not edit!
 
 package js.html.push;
 
-typedef SubscriptionOptionsInit =
+/**
+	The `PushEvent` interface of the Push API represents a push message that has been received. This event is sent to the global scope of a `ServiceWorker`. It contains the information sent from an application server to a `PushSubscription`.
+
+	Documentation [PushEvent](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushEvent>
+**/
+@:native("PushEvent")
+extern class PushEvent extends js.html.ExtendableEvent
 {
-	@:optional var applicationServerKey : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
+	
+	/**
+		Returns a reference to a `PushMessageData` object containing data sent to the `PushSubscription`.
+	**/
+	var data(default,null) : PushMessageData;
+	
+	/** @throws DOMError */
+	function new( type : String, ?eventInitDict : PushEventInit ) : Void;
 }

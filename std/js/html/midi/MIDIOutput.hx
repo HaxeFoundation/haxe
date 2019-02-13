@@ -20,13 +20,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
+// This file is generated from mozilla\MIDIOutput.webidl. Do not edit!
 
 package js.html.midi;
 
-enum abstract PortConnectionState(String)
+@:native("MIDIOutput")
+extern class MIDIOutput extends MIDIPort
 {
-	var OPEN = "open";
-	var CLOSED = "closed";
-	var PENDING = "pending";
+	/** @throws DOMError */
+	function send( data : Array<Int>, ?timestamp : Float ) : Void;
+	function clear() : Void;
 }

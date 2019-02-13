@@ -32,18 +32,18 @@ package js.html.midi;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIAccess>
 **/
 @:native("MIDIAccess")
-extern class Access extends js.html.EventTarget
+extern class MIDIAccess extends js.html.EventTarget
 {
 	
 	/**
 		Returns an instance of `MIDIInputMap` which provides access to any available MIDI input ports.
 	**/
-	var inputs(default,null) : InputMap;
+	var inputs(default,null) : MIDIInputMap;
 	
 	/**
 		Returns an instance of `MIDIOutputMap` which provides access to any available MIDI output ports.
 	**/
-	var outputs(default,null) : OutputMap;
+	var outputs(default,null) : MIDIOutputMap;
 	
 	/**
 		Called whenever a new MIDI port is added or an existing port changes state.

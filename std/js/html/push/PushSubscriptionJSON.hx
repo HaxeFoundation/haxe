@@ -24,8 +24,8 @@
 
 package js.html.push;
 
-enum abstract EncryptionKeyName(String)
+typedef PushSubscriptionJSON =
 {
-	var P256DH = "p256dh";
-	var AUTH = "auth";
+	@:optional var endpoint : String;
+	@:optional var keys : PushSubscriptionKeys;
 }

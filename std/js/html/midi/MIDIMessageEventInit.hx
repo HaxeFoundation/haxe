@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
+// This file is generated from mozilla\MIDIMessageEvent.webidl. Do not edit!
 
 package js.html.midi;
 
-enum abstract PortDeviceState(String)
+typedef MIDIMessageEventInit =
 {
-	var DISCONNECTED = "disconnected";
-	var CONNECTED = "connected";
+	> EventInit,
+	@:optional var data : js.html.Uint8Array;
 }

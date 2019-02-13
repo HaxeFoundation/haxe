@@ -32,7 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription>
 **/
 @:native("PushSubscription")
-extern class Subscription
+extern class PushSubscription
 {
 	
 	/**
@@ -43,16 +43,16 @@ extern class Subscription
 	/**
 		An object containing the options used to create the subscription.
 	**/
-	var options(default,null) : SubscriptionOptions;
+	var options(default,null) : PushSubscriptionOptions;
 	
 	/** @throws DOMError */
-	function new( initDict : SubscriptionInit ) : Void;
+	function new( initDict : PushSubscriptionInit ) : Void;
 	
 	/**
 		Returns an `ArrayBuffer` which contains the client's public key, which can then be sent to a server and used in encrypting push message data.
 		@throws DOMError
 	**/
-	function getKey( name : EncryptionKeyName ) : js.html.ArrayBuffer;
+	function getKey( name : PushEncryptionKeyName ) : js.html.ArrayBuffer;
 	
 	/**
 		Starts the asynchronous process of unsubscribing from the push service, returning a `Promise` that resolves to a `Boolean` when the current subscription is successfully unregistered.
@@ -64,5 +64,5 @@ extern class Subscription
 		Standard serializer — returns a JSON representation of the subscription properties.
 		@throws DOMError
 	**/
-	function toJSON() : SubscriptionJSON;
+	function toJSON() : PushSubscriptionJSON;
 }

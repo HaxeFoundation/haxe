@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIMessageEvent.webidl. Do not edit!
+// This file is generated from mozilla\MIDIOptions.webidl. Do not edit!
 
 package js.html.midi;
 
-typedef MessageEventInit =
+typedef MIDIOptions =
 {
-	> EventInit,
-	@:optional var data : js.html.Uint8Array;
+	@:optional var software : Bool;
+	@:optional var sysex : Bool;
 }

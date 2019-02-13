@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PushSubscription.webidl. Do not edit!
+// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
 
-package js.html.push;
+package js.html.midi;
 
-typedef SubscriptionKeys =
+enum abstract MIDIPortDeviceState(String)
 {
-	@:optional var auth : String;
-	@:optional var p256dh : String;
+	var DISCONNECTED = "disconnected";
+	var CONNECTED = "connected";
 }

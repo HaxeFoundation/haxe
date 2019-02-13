@@ -20,24 +20,22 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIInput.webidl. Do not edit!
+// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
 
 package js.html.midi;
 
-/**
-	Use the `MIDIInput` interface of the Web MIDI API to access and pass messages to a MIDI input port.
-
-	Documentation [MIDIInput](https://developer.mozilla.org/en-US/docs/Web/API/MIDIInput) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MIDIInput$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
-
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIInput>
-**/
-@:native("MIDIInput")
-extern class Input extends Port
+@:native("MIDIPort")
+extern class MIDIPort extends js.html.EventTarget
 {
+	var id(default,null) : String;
+	var manufacturer(default,null) : String;
+	var name(default,null) : String;
+	var version(default,null) : String;
+	var type(default,null) : MIDIPortType;
+	var state(default,null) : MIDIPortDeviceState;
+	var connection(default,null) : MIDIPortConnectionState;
+	var onstatechange : haxe.Constraints.Function;
 	
-	/**
-		When the current port receives a `MIDIMessage` it triggers a call to this event handler.
-	**/
-	var onmidimessage : haxe.Constraints.Function;
-	
+	function open() : Promise<MIDIPort>;
+	function close() : Promise<MIDIPort>;
 }

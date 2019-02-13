@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIOptions.webidl. Do not edit!
+// This file is generated from mozilla\PushSubscription.webidl. Do not edit!
 
-package js.html.midi;
+package js.html.push;
 
-typedef Options =
+typedef PushSubscriptionKeys =
 {
-	@:optional var software : Bool;
-	@:optional var sysex : Bool;
+	@:optional var auth : String;
+	@:optional var p256dh : String;
 }

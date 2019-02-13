@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PushEvent.webidl. Do not edit!
+// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
 
-package js.html.push;
+package js.html.midi;
 
-typedef EventInit =
+enum abstract MIDIPortType(String)
 {
-	> ExtendableEventInit,
-	@:optional var data : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
+	var INPUT = "input";
+	var OUTPUT = "output";
 }

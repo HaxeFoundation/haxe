@@ -64,7 +64,7 @@ extern class ServiceWorkerRegistration extends EventTarget
 	/**
 		Returns a reference to the `PushManager` interface for managing push subscriptions including subscribing, getting an active subscription, and accessing push permission status.
 	**/
-	var pushManager(default,null) : js.html.push.Manager;
+	var pushManager(default,null) : js.html.push.PushManager;
 	
 	
 	/**

@@ -20,13 +20,41 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PushSubscriptionOptions.webidl. Do not edit!
+// This file is generated from mozilla\PushMessageData.webidl. Do not edit!
 
 package js.html.push;
 
-@:native("PushSubscriptionOptions")
-extern class SubscriptionOptions
+/**
+	The `PushMessageData` interface of the Push API provides methods which let you retrieve the push data sent by a server in various formats.
+
+	Documentation [PushMessageData](https://developer.mozilla.org/en-US/docs/Web/API/PushMessageData) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/PushMessageData$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushMessageData>
+**/
+@:native("PushMessageData")
+extern class PushMessageData
 {
-	var applicationServerKey(default,null) : js.html.ArrayBuffer;
 	
+	/**
+		Extracts the data as an `ArrayBuffer` object.
+		@throws DOMError
+	**/
+	function arrayBuffer() : js.html.ArrayBuffer;
+	
+	/**
+		Extracts the data as a `Blob` object.
+		@throws DOMError
+	**/
+	function blob() : js.html.Blob;
+	
+	/**
+		Extracts the data as a JSON object.
+		@throws DOMError
+	**/
+	function json() : Dynamic;
+	
+	/**
+		Extracts the data as a plain text string.
+	**/
+	function text() : String;
 }

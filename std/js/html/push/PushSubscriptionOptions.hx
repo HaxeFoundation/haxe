@@ -20,12 +20,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\PushSubscription.webidl. Do not edit!
+// This file is generated from mozilla\PushSubscriptionOptions.webidl. Do not edit!
 
 package js.html.push;
 
-typedef SubscriptionJSON =
+@:native("PushSubscriptionOptions")
+extern class PushSubscriptionOptions
 {
-	@:optional var endpoint : String;
-	@:optional var keys : SubscriptionKeys;
+	var applicationServerKey(default,null) : js.html.ArrayBuffer;
+	
 }

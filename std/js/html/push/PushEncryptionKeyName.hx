@@ -20,22 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIPort.webidl. Do not edit!
+// This file is generated from mozilla\PushSubscription.webidl. Do not edit!
 
-package js.html.midi;
+package js.html.push;
 
-@:native("MIDIPort")
-extern class Port extends js.html.EventTarget
+enum abstract PushEncryptionKeyName(String)
 {
-	var id(default,null) : String;
-	var manufacturer(default,null) : String;
-	var name(default,null) : String;
-	var version(default,null) : String;
-	var type(default,null) : PortType;
-	var state(default,null) : PortDeviceState;
-	var connection(default,null) : PortConnectionState;
-	var onstatechange : haxe.Constraints.Function;
-	
-	function open() : Promise<Port>;
-	function close() : Promise<Port>;
+	var P256DH = "p256dh";
+	var AUTH = "auth";
 }

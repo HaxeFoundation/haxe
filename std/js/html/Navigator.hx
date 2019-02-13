@@ -110,7 +110,7 @@ extern class Navigator
 	/** @throws DOMError */
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
-	function requestMIDIAccess( ?options : js.html.midi.Options ) : Promise<js.html.midi.Access>;
+	function requestMIDIAccess( ?options : js.html.midi.MIDIOptions ) : Promise<js.html.midi.MIDIAccess>;
 	/** @throws DOMError */
 	@:overload( function( url : String, ?data : ArrayBufferView) : Bool {} )
 	@:overload( function( url : String, ?data : ArrayBuffer) : Bool {} )

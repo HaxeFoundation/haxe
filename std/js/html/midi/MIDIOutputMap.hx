@@ -20,26 +20,34 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MIDIConnectionEvent.webidl. Do not edit!
+// This file is generated from mozilla\MIDIOutputMap.webidl. Do not edit!
 
 package js.html.midi;
 
 /**
-	The `MIDIConnectionEvent` interface of the Web MIDI API is the event passed to the `onstatechange` event of the `MIDIAccess` interface and the `onstatechange` event of the `MIDIPorts` interface. This occurs any time a new port becomes available, or when a previously available port becomes unavailable. For example, this event is fired whenever a MIDI device is either plugged in to or unplugged from a computer.
+	The `MIDIOutputMap` read-only interface of the Web MIDI API provides a `Map`-like interface to the currently available MIDI output ports. Although it works like a map, because it is read-only, it does not contain `clear()`, `delete()`, or `set()` functions.
 
-	Documentation [MIDIConnectionEvent](https://developer.mozilla.org/en-US/docs/Web/API/MIDIConnectionEvent) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MIDIConnectionEvent$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	Documentation [MIDIOutputMap](https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutputMap) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutputMap$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIConnectionEvent>
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutputMap>
 **/
-@:native("MIDIConnectionEvent")
-extern class ConnectionEvent extends js.html.Event
+@:native("MIDIOutputMap")
+extern class MIDIOutputMap
 {
-	
-	/**
-		Returns a reference to a `MIDIPort` instance for a port that has been connected or disconnected."
-	**/
-	var port(default,null) : Port;
+	var size(default,null) : Int;
 	
 	/** @throws DOMError */
-	function new( type : String, ?eventInitDict : ConnectionEventInit ) : Void;
+	function entries() : Dynamic;
+	/** @throws DOMError */
+	function keys() : Dynamic;
+	/** @throws DOMError */
+	function values() : Dynamic;
+	/** @throws DOMError */
+	function forEach( callback : Dynamic, ?thisArg : Dynamic ) : Void;
+	/** @throws DOMError */
+	@:pure
+	function has( key : String ) : Bool;
+	/** @throws DOMError */
+	@:pure
+	function get( key : String ) : Dynamic;
 }
