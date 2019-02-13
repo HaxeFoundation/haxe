@@ -26,5 +26,5 @@ package js.html;
 
 typedef EventListenerOptions =
 {
-	@:optional var capture : Bool;
+	var ?capture : Bool;
 }

@@ -26,6 +26,6 @@ package js.html.midi;
 
 typedef MIDIOptions =
 {
-	@:optional var software : Bool;
-	@:optional var sysex : Bool;
+	var ?software : Bool;
+	var ?sysex : Bool;
 }

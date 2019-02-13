@@ -26,6 +26,6 @@ package js.html.idb;
 
 typedef FileMetadataParameters =
 {
-	@:optional var lastModified : Bool;
-	@:optional var size : Bool;
+	var ?lastModified : Bool;
+	var ?size : Bool;
 }

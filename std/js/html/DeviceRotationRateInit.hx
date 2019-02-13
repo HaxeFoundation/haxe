@@ -26,7 +26,7 @@ package js.html;
 
 typedef DeviceRotationRateInit =
 {
-	@:optional var alpha : Float;
-	@:optional var beta : Float;
-	@:optional var gamma : Float;
+	var ?alpha : Float;
+	var ?beta : Float;
+	var ?gamma : Float;
 }

@@ -26,6 +26,6 @@ package js.html;
 
 typedef PerformanceObserverInit =
 {
-	@:optional var buffered : Bool;
+	var ?buffered : Bool;
 	var entryTypes : Array<String>;
 }

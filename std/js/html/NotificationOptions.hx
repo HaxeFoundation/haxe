@@ -26,11 +26,11 @@ package js.html;
 
 typedef NotificationOptions =
 {
-	@:optional var body : String;
-	@:optional var data : Dynamic;
-	@:optional var dir : NotificationDirection;
-	@:optional var icon : String;
-	@:optional var lang : String;
-	@:optional var requireInteraction : Bool;
-	@:optional var tag : String;
+	var ?body : String;
+	var ?data : Dynamic;
+	var ?dir : NotificationDirection;
+	var ?icon : String;
+	var ?lang : String;
+	var ?requireInteraction : Bool;
+	var ?tag : String;
 }

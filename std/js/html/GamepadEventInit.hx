@@ -25,7 +25,6 @@
 package js.html;
 
 typedef GamepadEventInit =
-{
-	> EventInit,
-	@:optional var gamepad : Gamepad;
+EventInit & {
+	var ?gamepad : Gamepad;
 }

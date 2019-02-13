@@ -26,7 +26,7 @@ package js.html;
 
 typedef EventInit =
 {
-	@:optional var bubbles : Bool;
-	@:optional var cancelable : Bool;
-	@:optional var composed : Bool;
+	var ?bubbles : Bool;
+	var ?cancelable : Bool;
+	var ?composed : Bool;
 }

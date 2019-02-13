@@ -26,5 +26,5 @@ package js.html;
 
 typedef DocumentTimelineOptions =
 {
-	@:optional var originTime : Float;
+	var ?originTime : Float;
 }

@@ -26,5 +26,5 @@ package js.html;
 
 typedef AnimationFilter =
 {
-	@:optional var subtree : Bool;
+	var ?subtree : Bool;
 }

@@ -25,7 +25,6 @@
 package js.html;
 
 typedef MediaStreamTrackEventInit =
-{
-	> EventInit,
+EventInit & {
 	var track : MediaStreamTrack;
 }

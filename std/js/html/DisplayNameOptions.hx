@@ -26,6 +26,6 @@ package js.html;
 
 typedef DisplayNameOptions =
 {
-	@:optional var keys : Array<String>;
-	@:optional var style : String;
+	var ?keys : Array<String>;
+	var ?style : String;
 }

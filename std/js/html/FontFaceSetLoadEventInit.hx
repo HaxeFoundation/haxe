@@ -25,7 +25,6 @@
 package js.html;
 
 typedef FontFaceSetLoadEventInit =
-{
-	> EventInit,
-	@:optional var fontfaces : Array<FontFace>;
+EventInit & {
+	var ?fontfaces : Array<FontFace>;
 }

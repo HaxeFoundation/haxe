@@ -25,8 +25,7 @@
 package js.html.eme;
 
 typedef MediaKeyMessageEventInit =
-{
-	> EventInit,
+EventInit & {
 	var message : js.html.ArrayBuffer;
 	var messageType : MediaKeyMessageType;
 }

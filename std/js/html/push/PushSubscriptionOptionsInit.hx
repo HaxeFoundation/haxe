@@ -26,5 +26,5 @@ package js.html.push;
 
 typedef PushSubscriptionOptionsInit =
 {
-	@:optional var applicationServerKey : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
+	var ?applicationServerKey : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
 }

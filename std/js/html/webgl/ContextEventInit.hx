@@ -25,7 +25,6 @@
 package js.html.webgl;
 
 typedef ContextEventInit =
-{
-	> EventInit,
-	@:optional var statusMessage : String;
+EventInit & {
+	var ?statusMessage : String;
 }

@@ -25,7 +25,6 @@
 package js.html.audio;
 
 typedef GainOptions =
-{
-	> AudioNodeOptions,
-	@:optional var gain : Float;
+AudioNodeOptions & {
+	var ?gain : Float;
 }

@@ -26,9 +26,9 @@ package js.html.push;
 
 typedef PushSubscriptionInit =
 {
-	@:optional var appServerKey : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>;
-	@:optional var authSecret : js.html.ArrayBuffer;
+	var ?appServerKey : haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>;
+	var ?authSecret : js.html.ArrayBuffer;
 	var endpoint : String;
-	@:optional var p256dhKey : js.html.ArrayBuffer;
+	var ?p256dhKey : js.html.ArrayBuffer;
 	var scope : String;
 }
