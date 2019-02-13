@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSSupportsRule>
 **/
 @:native("CSSSupportsRule")
-extern class CSSSupportsRule extends CSSConditionRule
-{
+extern class CSSSupportsRule extends CSSConditionRule {
 }

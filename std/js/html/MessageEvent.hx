@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent>
 **/
 @:native("MessageEvent")
-extern class MessageEvent extends Event
-{
+extern class MessageEvent extends Event {
 	
 	/**
 		The data sent by the message emitter.

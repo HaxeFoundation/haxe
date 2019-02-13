@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDistantLightElement>
 **/
 @:native("SVGFEDistantLightElement")
-extern class FEDistantLightElement extends Element
-{
+extern class FEDistantLightElement extends Element {
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the `azimuth` attribute of the given element.

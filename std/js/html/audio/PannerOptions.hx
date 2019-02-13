@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef PannerOptions =
-AudioNodeOptions & {
+typedef PannerOptions = AudioNodeOptions & {
 	var ?coneInnerAngle : Float;
 	var ?coneOuterAngle : Float;
 	var ?coneOuterGain : Float;

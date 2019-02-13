@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CharacterData>
 **/
 @:native("CharacterData")
-extern class CharacterData extends Node
-{
+extern class CharacterData extends Node {
 	
 	/**
 		Is a `DOMString` representing the textual data contained in this object.

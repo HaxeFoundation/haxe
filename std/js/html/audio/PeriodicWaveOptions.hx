@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef PeriodicWaveOptions =
-PeriodicWaveConstraints & {
+typedef PeriodicWaveOptions = PeriodicWaveConstraints & {
 	var ?imag : Array<Float>;
 	var ?real : Array<Float>;
 }

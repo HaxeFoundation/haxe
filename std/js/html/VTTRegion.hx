@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("VTTRegion")
-extern class VTTRegion
-{
+extern class VTTRegion {
 	var id : String;
 	var width : Float;
 	var lines : Int;

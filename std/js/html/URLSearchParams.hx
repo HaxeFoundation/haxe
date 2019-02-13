@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams>
 **/
 @:native("URLSearchParams")
-extern class URLSearchParams
-{
+extern class URLSearchParams {
 	/** @throws DOMError */
 	@:overload( function( init : haxe.DynamicAccess<String> = "") : URLSearchParams {} )
 	@:overload( function( init : String = "") : URLSearchParams {} )

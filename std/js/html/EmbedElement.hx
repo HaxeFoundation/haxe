@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLEmbedElement>
 **/
 @:native("HTMLEmbedElement")
-extern class EmbedElement extends Element
-{
+extern class EmbedElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `src` HTML attribute, containing the address of the resource.

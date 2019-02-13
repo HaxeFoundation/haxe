@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef TouchEventInit =
-EventModifierInit & {
+typedef TouchEventInit = EventModifierInit & {
 	var ?changedTouches : Array<Touch>;
 	var ?targetTouches : Array<Touch>;
 	var ?touches : Array<Touch>;

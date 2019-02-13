@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLFramebuffer>
 **/
 @:native("WebGLFramebuffer")
-extern class Framebuffer
-{
+extern class Framebuffer {
 }

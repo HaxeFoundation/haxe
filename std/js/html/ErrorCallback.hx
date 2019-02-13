@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef ErrorCallback =
-{
+typedef ErrorCallback = {
 	function handleEvent( err : DOMException ) : Void;
 }

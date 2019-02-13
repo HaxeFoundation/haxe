@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCollection>
 **/
 @:native("HTMLCollection")
-extern class HTMLCollection implements ArrayAccess<Element>
-{
+extern class HTMLCollection implements ArrayAccess<Element> {
 	
 	/**
 		Returns the number of items in the collection.

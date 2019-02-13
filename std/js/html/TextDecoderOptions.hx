@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef TextDecoderOptions =
-{
+typedef TextDecoderOptions = {
 	var ?fatal : Bool;
 	var ?ignoreBOM : Bool;
 }

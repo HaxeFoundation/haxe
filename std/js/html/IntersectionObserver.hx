@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver>
 **/
 @:native("IntersectionObserver")
-extern class IntersectionObserver
-{
+extern class IntersectionObserver {
 	
 	/**
 		A specific ancestor of the target `element` being observed. If no value was passed to the constructor or this is `null`, the top-level document's viewport is used.

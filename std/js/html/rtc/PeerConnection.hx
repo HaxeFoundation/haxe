@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection>
 **/
 @:native("RTCPeerConnection")
-extern class PeerConnection extends js.html.EventTarget
-{
+extern class PeerConnection extends js.html.EventTarget {
 	/** @throws DOMError */
 	@:overload( function( keygenAlgorithm : String) : Promise<Certificate> {} )
 	static function generateCertificate( keygenAlgorithm : Dynamic ) : Promise<Certificate>;

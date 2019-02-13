@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement>
 **/
 @:native("HTMLInputElement")
-extern class InputElement extends Element
-{
+extern class InputElement extends Element {
 	var accept : String;
 	var alt : String;
 	var autocomplete : String;

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMatrix>
 **/
 @:native("SVGMatrix")
-extern class Matrix
-{
+extern class Matrix {
 	
 	/**
 		A float representing the a component of the matrix.

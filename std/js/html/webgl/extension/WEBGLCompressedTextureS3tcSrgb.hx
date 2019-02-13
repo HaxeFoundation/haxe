@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_s3tc_srgb>
 **/
 @:native("WEBGL_compressed_texture_s3tc_srgb")
-extern class WEBGLCompressedTextureS3tcSrgb
-{
+extern class WEBGLCompressedTextureS3tcSrgb {
 	
 	/**
 		A DXT1-compressed image in an sRGB image format.

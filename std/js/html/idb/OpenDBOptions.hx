@@ -24,8 +24,7 @@
 
 package js.html.idb;
 
-typedef OpenDBOptions =
-{
+typedef OpenDBOptions = {
 	var ?storage : js.html.StorageType;
 	var ?version : Int;
 }

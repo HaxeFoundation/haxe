@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef EventModifierInit =
-UIEventInit & {
+typedef EventModifierInit = UIEventInit & {
 	var ?altKey : Bool;
 	var ?ctrlKey : Bool;
 	var ?metaKey : Bool;

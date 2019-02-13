@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HashChangeEvent>
 **/
 @:native("HashChangeEvent")
-extern class HashChangeEvent extends Event
-{
+extern class HashChangeEvent extends Event {
 	
 	/**
 		The previous URL from which the window was navigated.

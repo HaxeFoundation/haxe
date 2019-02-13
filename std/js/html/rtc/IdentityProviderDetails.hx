@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef IdentityProviderDetails =
-{
+typedef IdentityProviderDetails = {
 	var domain : String;
 	var ?protocol : String;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseScrollEvent>
 **/
 @:native("MouseScrollEvent")
-extern class MouseScrollEvent extends MouseEvent
-{
+extern class MouseScrollEvent extends MouseEvent {
 	static inline var HORIZONTAL_AXIS : Int = 1;
 	static inline var VERTICAL_AXIS : Int = 2;
 	

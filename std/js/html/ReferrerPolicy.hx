@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ReferrerPolicy(String)
-{
+enum abstract ReferrerPolicy(String) {
 	var NONE = "";
 	var NO_REFERRER = "no-referrer";
 	var NO_REFERRER_WHEN_DOWNGRADE = "no-referrer-when-downgrade";

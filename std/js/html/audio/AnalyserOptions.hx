@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef AnalyserOptions =
-AudioNodeOptions & {
+typedef AnalyserOptions = AudioNodeOptions & {
 	var ?fftSize : Int;
 	var ?maxDecibels : Float;
 	var ?minDecibels : Float;

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef HitRegionOptions =
-{
+typedef HitRegionOptions = {
 	var ?control : Element;
 	var ?id : String;
 	var ?path : Path2D;

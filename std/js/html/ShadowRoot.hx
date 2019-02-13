@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot>
 **/
 @:native("ShadowRoot")
-extern class ShadowRoot extends DocumentFragment
-{
+extern class ShadowRoot extends DocumentFragment {
 	
 	/**
 		The mode of the `ShadowRoot` — either `open` or `closed`. This defines whether or not the shadow root's internal features are accessible from JavaScript.

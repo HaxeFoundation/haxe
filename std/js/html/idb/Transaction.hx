@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBTransaction>
 **/
 @:native("IDBTransaction")
-extern class Transaction extends js.html.EventTarget
-{
+extern class Transaction extends js.html.EventTarget {
 	
 	/**
 		The mode for isolating access to data in the object stores that are in the scope of the transaction. For possible values, see the Constants section below. The default value is `readonly`.

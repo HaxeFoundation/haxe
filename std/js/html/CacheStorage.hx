@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CacheStorage>
 **/
 @:native("CacheStorage")
-extern class CacheStorage
-{
+extern class CacheStorage {
 	/** @throws DOMError */
 	function new( namespace : CacheStorageNamespace, principal : Dynamic/*MISSING Principal*/ ) : Void;
 	

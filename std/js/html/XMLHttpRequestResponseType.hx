@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestResponseType>
 **/
-enum abstract XMLHttpRequestResponseType(String)
-{
+enum abstract XMLHttpRequestResponseType(String) {
 	var NONE = "";
 	var ARRAYBUFFER = "arraybuffer";
 	var BLOB = "blob";

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioTrackList>
 **/
 @:native("AudioTrackList")
-extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack>
-{
+extern class AudioTrackList extends EventTarget implements ArrayAccess<AudioTrack> {
 	
 	/**
 		The number of tracks in the list.

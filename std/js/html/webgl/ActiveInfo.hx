@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLActiveInfo>
 **/
 @:native("WebGLActiveInfo")
-extern class ActiveInfo
-{
+extern class ActiveInfo {
 	
 	/**
 		The read-only size of the requested variable.

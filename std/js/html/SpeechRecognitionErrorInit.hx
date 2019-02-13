@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef SpeechRecognitionErrorInit =
-EventInit & {
+typedef SpeechRecognitionErrorInit = EventInit & {
 	var ?error : SpeechRecognitionErrorCode;
 	var ?message : String;
 }

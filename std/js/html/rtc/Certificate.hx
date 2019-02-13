@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCCertificate>
 **/
 @:native("RTCCertificate")
-extern class Certificate
-{
+extern class Certificate {
 	
 	/**
 		Returns the expiration date of the certificate.

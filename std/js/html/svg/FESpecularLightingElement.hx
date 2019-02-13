@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFESpecularLightingElement>
 **/
 @:native("SVGFESpecularLightingElement")
-extern class FESpecularLightingElement extends Element
-{
+extern class FESpecularLightingElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

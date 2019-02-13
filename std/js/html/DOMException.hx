@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMException>
 **/
 @:native("DOMException")
-extern class DOMException
-{
+extern class DOMException {
 	static inline var INDEX_SIZE_ERR : Int = 1;
 	static inline var DOMSTRING_SIZE_ERR : Int = 2;
 	static inline var HIERARCHY_REQUEST_ERR : Int = 3;

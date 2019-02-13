@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLength>
 **/
 @:native("SVGAnimatedLength")
-extern class AnimatedLength
-{
+extern class AnimatedLength {
 	var baseVal(default,null) : Length;
 	var animVal(default,null) : Length;
 	

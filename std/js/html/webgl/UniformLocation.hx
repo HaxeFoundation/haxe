@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLUniformLocation>
 **/
 @:native("WebGLUniformLocation")
-extern class UniformLocation
-{
+extern class UniformLocation {
 }

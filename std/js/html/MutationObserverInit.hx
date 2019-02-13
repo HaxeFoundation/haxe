@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationObserverInit>
 **/
-typedef MutationObserverInit =
-{
+typedef MutationObserverInit = {
 	
 	/**
 		An array of specific attribute names to be monitored. If this property isn't included, changes to all attributes cause mutation notifications. No default value.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder>
 **/
 @:native("TextEncoder")
-extern class TextEncoder
-{
+extern class TextEncoder {
 	
 	/**
 		Is a `DOMString` containing the name of the encoder, that is a string describing the method the `TextEncoder` will use.

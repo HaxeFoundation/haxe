@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ScrollSetting(String)
-{
+enum abstract ScrollSetting(String) {
 	var NONE = "";
 	var UP = "up";
 }

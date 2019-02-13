@@ -24,6 +24,5 @@
 
 package js.html;
 
-typedef PromiseNativeHandler =
-{
+typedef PromiseNativeHandler = {
 }

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEPointLightElement>
 **/
 @:native("SVGFEPointLightElement")
-extern class FEPointLightElement extends Element
-{
+extern class FEPointLightElement extends Element {
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the `x` attribute of the given element.

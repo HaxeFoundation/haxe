@@ -25,8 +25,7 @@
 package js.html.push;
 
 @:native("PushSubscriptionOptions")
-extern class PushSubscriptionOptions
-{
+extern class PushSubscriptionOptions {
 	var applicationServerKey(default,null) : js.html.ArrayBuffer;
 	
 }

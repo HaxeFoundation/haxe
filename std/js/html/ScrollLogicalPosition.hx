@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ScrollLogicalPosition(String)
-{
+enum abstract ScrollLogicalPosition(String) {
 	var START = "start";
 	var CENTER = "center";
 	var END = "end";

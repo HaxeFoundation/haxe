@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHRElement>
 **/
 @:native("HTMLHRElement")
-extern class HRElement extends Element
-{
+extern class HRElement extends Element {
 	var align : String;
 	var color : String;
 	var noShade : Bool;

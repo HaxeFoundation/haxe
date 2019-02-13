@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLParamElement>
 **/
 @:native("HTMLParamElement")
-extern class ParamElement extends Element
-{
+extern class ParamElement extends Element {
 	
 	/**
 		Is a `DOMString` representing the name of the parameter. It reflects the `name` attribute.

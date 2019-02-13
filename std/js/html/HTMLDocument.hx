@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDocument>
 **/
 @:native("HTMLDocument")
-extern class HTMLDocument extends Document
-{
+extern class HTMLDocument extends Document {
 	var domain : String;
 	var cookie : String;
 	var designMode : String;

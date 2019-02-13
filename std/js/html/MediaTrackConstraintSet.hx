@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MediaTrackConstraintSet =
-{
+typedef MediaTrackConstraintSet = {
 	var ?autoGainControl : haxe.extern.EitherType<Bool,ConstrainBooleanParameters>;
 	var ?browserWindow : Int;
 	var ?channelCount : haxe.extern.EitherType<Int,ConstrainLongRange>;

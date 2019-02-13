@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef DragEventInit =
-MouseEventInit & {
+typedef DragEventInit = MouseEventInit & {
 	var ?dataTransfer : DataTransfer;
 }

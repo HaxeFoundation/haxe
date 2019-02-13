@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMTokenList>
 **/
 @:native("DOMTokenList")
-extern class DOMTokenList implements ArrayAccess<String>
-{
+extern class DOMTokenList implements ArrayAccess<String> {
 	
 	/**
 		Is an `integer` representing the number of objects stored in the object.

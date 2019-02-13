@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/console>
 **/
 @:native("console")
-extern class Console
-{
+extern class Console {
 	
 	/**
 		Log a message and stack trace to console if the first argument is `false`.

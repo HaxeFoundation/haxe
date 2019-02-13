@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ServiceWorkerUpdateViaCache(String)
-{
+enum abstract ServiceWorkerUpdateViaCache(String) {
 	var IMPORTS = "imports";
 	var ALL = "all";
 	var NONE = "none";

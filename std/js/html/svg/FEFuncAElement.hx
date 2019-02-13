@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFuncAElement>
 **/
 @:native("SVGFEFuncAElement")
-extern class FEFuncAElement extends ComponentTransferFunctionElement
-{
+extern class FEFuncAElement extends ComponentTransferFunctionElement {
 }

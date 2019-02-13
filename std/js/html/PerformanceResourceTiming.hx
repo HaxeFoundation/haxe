@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming>
 **/
 @:native("PerformanceResourceTiming")
-extern class PerformanceResourceTiming extends PerformanceEntry
-{
+extern class PerformanceResourceTiming extends PerformanceEntry {
 	
 	/**
 		A `DOMString` representing the type of resource that initiated the performance entry, as specified in `PerformanceResourceTiming.initiatorType`.

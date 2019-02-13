@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef FontFaceDescriptors =
-{
+typedef FontFaceDescriptors = {
 	var ?display : String;
 	var ?featureSettings : String;
 	var ?stretch : String;

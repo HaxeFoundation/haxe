@@ -25,6 +25,5 @@
 package js.html;
 
 @:native("AudioStreamTrack")
-extern class AudioStreamTrack extends MediaStreamTrack
-{
+extern class AudioStreamTrack extends MediaStreamTrack {
 }

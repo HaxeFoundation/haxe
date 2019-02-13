@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ConstrainDoubleRange =
-{
+typedef ConstrainDoubleRange = {
 	var ?exact : Float;
 	var ?ideal : Float;
 	var ?max : Float;

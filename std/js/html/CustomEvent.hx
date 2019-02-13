@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent>
 **/
 @:native("CustomEvent")
-extern class CustomEvent extends Event
-{
+extern class CustomEvent extends Event {
 	
 	/**
 		Any data passed when initializing the event.

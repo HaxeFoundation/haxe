@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef KeyframeAnimationOptions =
-KeyframeEffectOptions & {
+typedef KeyframeAnimationOptions = KeyframeEffectOptions & {
 	var ?id : String;
 }

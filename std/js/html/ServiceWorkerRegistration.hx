@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration>
 **/
 @:native("ServiceWorkerRegistration")
-extern class ServiceWorkerRegistration extends EventTarget
-{
+extern class ServiceWorkerRegistration extends EventTarget {
 	
 	/**
 		Returns a service worker whose state is `installing`. This is initially set to `null`.

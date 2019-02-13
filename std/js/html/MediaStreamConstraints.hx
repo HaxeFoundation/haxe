@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamConstraints>
 **/
-typedef MediaStreamConstraints =
-{
+typedef MediaStreamConstraints = {
 	
 	/**
 		Either a Boolean (which indicates whether or not an audio track is requested) or a `MediaTrackConstraints` object providing the constraints which must be met by the audio track included in the returned `MediaStream`. If constraints are specified, an audio track is inherently requested.

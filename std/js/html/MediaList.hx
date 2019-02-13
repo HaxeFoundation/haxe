@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("MediaList")
-extern class MediaList implements ArrayAccess<String>
-{
+extern class MediaList implements ArrayAccess<String> {
 	var mediaText : String;
 	var length(default,null) : Int;
 	

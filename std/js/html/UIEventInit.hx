@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef UIEventInit =
-EventInit & {
+typedef UIEventInit = EventInit & {
 	var ?detail : Int;
 	var ?view : Window;
 }

@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase>
 **/
 @:native("IDBDatabase")
-extern class Database extends js.html.EventTarget
-{
+extern class Database extends js.html.EventTarget {
 	
 	/**
 		A `DOMString` that contains the name of the connected database.

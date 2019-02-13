@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract DegradationPreference(String)
-{
+enum abstract DegradationPreference(String) {
 	var MAINTAIN_FRAMERATE = "maintain-framerate";
 	var MAINTAIN_RESOLUTION = "maintain-resolution";
 	var BALANCED = "balanced";

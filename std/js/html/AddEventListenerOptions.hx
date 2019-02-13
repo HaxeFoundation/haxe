@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef AddEventListenerOptions =
-EventListenerOptions & {
+typedef AddEventListenerOptions = EventListenerOptions & {
 	var ?once : Bool;
 	var ?passive : Bool;
 }

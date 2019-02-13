@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringMap>
 **/
 @:native("DOMStringMap")
-extern class DOMStringMap implements Dynamic<String>
-{
+extern class DOMStringMap implements Dynamic<String> {
 }

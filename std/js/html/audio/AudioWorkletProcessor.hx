@@ -25,8 +25,7 @@
 package js.html.audio;
 
 @:native("AudioWorkletProcessor")
-extern class AudioWorkletProcessor
-{
+extern class AudioWorkletProcessor {
 	var port(default,null) : js.html.MessagePort;
 	
 	/** @throws DOMError */

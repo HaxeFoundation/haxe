@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("ImageCaptureErrorEvent")
-extern class ImageCaptureErrorEvent extends Event
-{
+extern class ImageCaptureErrorEvent extends Event {
 	var imageCaptureError(default,null) : ImageCaptureError;
 	
 	/** @throws DOMError */

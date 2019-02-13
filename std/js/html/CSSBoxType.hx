@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract CSSBoxType(String)
-{
+enum abstract CSSBoxType(String) {
 	var MARGIN = "margin";
 	var BORDER = "border";
 	var PADDING = "padding";

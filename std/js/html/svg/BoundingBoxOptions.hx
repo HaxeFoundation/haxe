@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef BoundingBoxOptions =
-{
+typedef BoundingBoxOptions = {
 	var ?clipped : Bool;
 	var ?fill : Bool;
 	var ?markers : Bool;

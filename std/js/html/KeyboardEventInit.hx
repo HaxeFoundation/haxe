@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef KeyboardEventInit =
-EventModifierInit & {
+typedef KeyboardEventInit = EventModifierInit & {
 	var ?charCode : Int;
 	var ?code : String;
 	var ?isComposing : Bool;

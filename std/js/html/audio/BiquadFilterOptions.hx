@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef BiquadFilterOptions =
-AudioNodeOptions & {
+typedef BiquadFilterOptions = AudioNodeOptions & {
 	var ?Q : Float;
 	var ?detune : Float;
 	var ?frequency : Float;

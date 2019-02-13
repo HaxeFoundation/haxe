@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DedicatedWorkerGlobalScope>
 **/
 @:native("DedicatedWorkerGlobalScope")
-extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope
-{
+extern class DedicatedWorkerGlobalScope extends WorkerGlobalScope {
 	
 	/**
 		The name that the `Worker` was (optionally) given when it was created using the `Worker.Worker` constructor. This is mainly useful for debugging purposes.

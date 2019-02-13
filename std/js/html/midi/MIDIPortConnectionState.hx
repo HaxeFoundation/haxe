@@ -24,8 +24,7 @@
 
 package js.html.midi;
 
-enum abstract MIDIPortConnectionState(String)
-{
+enum abstract MIDIPortConnectionState(String) {
 	var OPEN = "open";
 	var CLOSED = "closed";
 	var PENDING = "pending";

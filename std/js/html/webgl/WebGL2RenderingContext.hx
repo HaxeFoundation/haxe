@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGL2RenderingContext>
 **/
 @:native("WebGL2RenderingContext")
-extern class WebGL2RenderingContext extends RenderingContext
-{
+extern class WebGL2RenderingContext extends RenderingContext {
 	static inline var READ_BUFFER : Int = 3074;
 	static inline var UNPACK_ROW_LENGTH : Int = 3314;
 	static inline var UNPACK_SKIP_ROWS : Int = 3315;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope>
 **/
 @:native("WorkerGlobalScope")
-extern class WorkerGlobalScope extends EventTarget
-{
+extern class WorkerGlobalScope extends EventTarget {
 	
 	/**
 		Returns a reference to the `WorkerGlobalScope` itself. Most of the time it is a specific scope like `DedicatedWorkerGlobalScope`,  `SharedWorkerGlobalScope` or `ServiceWorkerGlobalScope`.

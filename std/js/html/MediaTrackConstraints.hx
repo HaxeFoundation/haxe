@@ -31,7 +31,6 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints>
 **/
-typedef MediaTrackConstraints =
-MediaTrackConstraintSet & {
+typedef MediaTrackConstraints = MediaTrackConstraintSet & {
 	var ?advanced : Array<MediaTrackConstraintSet>;
 }

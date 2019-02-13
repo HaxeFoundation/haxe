@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef Configuration =
-{
+typedef Configuration = {
 	var ?bundlePolicy : BundlePolicy;
 	var ?certificates : Array<Certificate>;
 	var ?iceServers : Array<IceServer>;

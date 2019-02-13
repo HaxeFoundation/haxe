@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef AudioBufferSourceOptions =
-{
+typedef AudioBufferSourceOptions = {
 	var ?buffer : AudioBuffer;
 	var ?detune : Float;
 	var ?loop : Bool;

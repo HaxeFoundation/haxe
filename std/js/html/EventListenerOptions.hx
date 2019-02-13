@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef EventListenerOptions =
-{
+typedef EventListenerOptions = {
 	var ?capture : Bool;
 }

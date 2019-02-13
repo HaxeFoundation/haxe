@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DelayNode>
 **/
 @:native("DelayNode")
-extern class DelayNode extends AudioNode
-{
+extern class DelayNode extends AudioNode {
 	
 	/**
 		Is an a-rate `AudioParam` representing the amount of delay to apply.

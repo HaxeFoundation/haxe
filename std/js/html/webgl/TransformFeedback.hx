@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLTransformFeedback>
 **/
 @:native("WebGLTransformFeedback")
-extern class TransformFeedback
-{
+extern class TransformFeedback {
 }

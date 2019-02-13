@@ -32,8 +32,7 @@ package js.html.midi;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIOutputMap>
 **/
 @:native("MIDIOutputMap")
-extern class MIDIOutputMap
-{
+extern class MIDIOutputMap {
 	var size(default,null) : Int;
 	
 	/** @throws DOMError */

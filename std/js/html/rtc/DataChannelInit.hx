@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef DataChannelInit =
-{
+typedef DataChannelInit = {
 	var ?id : Int;
 	var ?maxPacketLifeTime : Int;
 	var ?maxRetransmitTime : Int;

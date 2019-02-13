@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef DeviceRotationRateInit =
-{
+typedef DeviceRotationRateInit = {
 	var ?alpha : Float;
 	var ?beta : Float;
 	var ?gamma : Float;

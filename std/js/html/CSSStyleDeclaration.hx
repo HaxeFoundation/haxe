@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleDeclaration>
 **/
 @:native("CSSStyleDeclaration")
-extern class CSSStyleDeclaration implements ArrayAccess<String>
-{
+extern class CSSStyleDeclaration implements ArrayAccess<String> {
 	var cssText : String;
 	var length(default,null) : Int;
 	var parentRule(default,null) : CSSRule;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisEvent>
 **/
 @:native("SpeechSynthesisEvent")
-extern class SpeechSynthesisEvent extends Event
-{
+extern class SpeechSynthesisEvent extends Event {
 	
 	/**
 		Returns the `SpeechSynthesisUtterance` instance that the event was triggered on.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment>
 **/
 @:native("DocumentFragment")
-extern class DocumentFragment extends Node
-{
+extern class DocumentFragment extends Node {
 	var children(default,null) : HTMLCollection;
 	var firstElementChild(default,null) : Element;
 	var lastElementChild(default,null) : Element;

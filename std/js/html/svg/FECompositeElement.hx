@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFECompositeElement>
 **/
 @:native("SVGFECompositeElement")
-extern class FECompositeElement extends Element
-{
+extern class FECompositeElement extends Element {
 	static inline var SVG_FECOMPOSITE_OPERATOR_UNKNOWN : Int = 0;
 	static inline var SVG_FECOMPOSITE_OPERATOR_OVER : Int = 1;
 	static inline var SVG_FECOMPOSITE_OPERATOR_IN : Int = 2;

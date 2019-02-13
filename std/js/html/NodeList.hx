@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeList>
 **/
 @:native("NodeList")
-extern class NodeList implements ArrayAccess<Node>
-{
+extern class NodeList implements ArrayAccess<Node> {
 	
 	/**
 		The number of nodes in the `NodeList`.

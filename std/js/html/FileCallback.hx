@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef FileCallback =
-{
+typedef FileCallback = {
 	function handleEvent( file : File ) : Void;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadEvent>
 **/
 @:native("GamepadEvent")
-extern class GamepadEvent extends Event
-{
+extern class GamepadEvent extends Event {
 	
 	/**
 		Returns a `Gamepad` object, providing access to the associated gamepad data for the event fired.

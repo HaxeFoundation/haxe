@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TreeWalker>
 **/
 @:native("TreeWalker")
-extern class TreeWalker
-{
+extern class TreeWalker {
 	
 	/**
 		Returns a `Node` representing the root node as specified when the `TreeWalker` was created.

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WaveShaperNode>
 **/
 @:native("WaveShaperNode")
-extern class WaveShaperNode extends AudioNode
-{
+extern class WaveShaperNode extends AudioNode {
 	
 	/**
 		Is a `Float32Array` of numbers describing the distortion to apply.

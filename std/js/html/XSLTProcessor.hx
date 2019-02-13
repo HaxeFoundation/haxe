@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XSLTProcessor>
 **/
 @:native("XSLTProcessor")
-extern class XSLTProcessor
-{
+extern class XSLTProcessor {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */

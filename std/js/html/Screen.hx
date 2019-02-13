@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Screen>
 **/
 @:native("Screen")
-extern class Screen extends EventTarget
-{
+extern class Screen extends EventTarget {
 	var availWidth(default,null) : Int;
 	var availHeight(default,null) : Int;
 	var width(default,null) : Int;

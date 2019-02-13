@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathExpression>
 **/
 @:native("XPathExpression")
-extern class XPathExpression
-{
+extern class XPathExpression {
 	
 	/**
 		provide a context node/document, `XPathResult` constant, and `XPathResult` to store the query or null to return a new XPathResult.

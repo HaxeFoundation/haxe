@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef IntersectionObserverInit =
-{
+typedef IntersectionObserverInit = {
 	var ?root : Element;
 	var ?rootMargin : String;
 	var ?threshold : haxe.extern.EitherType<Float,Array<Float>>;

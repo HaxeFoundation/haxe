@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef AudioBufferOptions =
-{
+typedef AudioBufferOptions = {
 	var length : Int;
 	var ?numberOfChannels : Int;
 	var sampleRate : Float;

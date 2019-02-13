@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ConstrainLongRange =
-{
+typedef ConstrainLongRange = {
 	var ?exact : Int;
 	var ?ideal : Int;
 	var ?max : Int;

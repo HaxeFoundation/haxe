@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent>
 **/
 @:native("DeviceOrientationEvent")
-extern class DeviceOrientationEvent extends Event
-{
+extern class DeviceOrientationEvent extends Event {
 	
 	/**
 		A number representing the motion of the device around the z axis, express in degrees with values ranging from 0 to 360.

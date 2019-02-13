@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel>
 **/
 @:native("MessageChannel")
-extern class MessageChannel
-{
+extern class MessageChannel {
 	
 	/**
 		Returns port1 of the channel.

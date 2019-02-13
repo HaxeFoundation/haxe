@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ClipboardEvent>
 **/
 @:native("ClipboardEvent")
-extern class ClipboardEvent extends Event
-{
+extern class ClipboardEvent extends Event {
 	
 	/**
 		Is a `DataTransfer` object containing the data affected by the user-initiated `cut`, `copy`, or `paste` operation, along with its MIME type.

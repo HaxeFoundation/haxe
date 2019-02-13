@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointInit>
 **/
-typedef DOMPointInit =
-{
+typedef DOMPointInit = {
 	
 	/**
 		The point's w perspective value given as an unrestricted floating-point number. The default is 1.

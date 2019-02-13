@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef OfferOptions =
-OfferAnswerOptions & {
+typedef OfferOptions = OfferAnswerOptions & {
 	var ?iceRestart : Bool;
 	var ?offerToReceiveAudio : Bool;
 	var ?offerToReceiveVideo : Bool;

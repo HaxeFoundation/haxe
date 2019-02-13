@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRuleList>
 **/
 @:native("CSSRuleList")
-extern class CSSRuleList implements ArrayAccess<CSSRule>
-{
+extern class CSSRuleList implements ArrayAccess<CSSRule> {
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : CSSRule;

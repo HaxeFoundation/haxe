@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract SdpType(String)
-{
+enum abstract SdpType(String) {
 	var OFFER = "offer";
 	var PRANSWER = "pranswer";
 	var ANSWER = "answer";

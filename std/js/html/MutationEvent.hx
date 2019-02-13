@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationEvent>
 **/
 @:native("MutationEvent")
-extern class MutationEvent extends Event
-{
+extern class MutationEvent extends Event {
 	static inline var MODIFICATION : Int = 1;
 	static inline var ADDITION : Int = 2;
 	static inline var REMOVAL : Int = 3;

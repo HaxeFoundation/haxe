@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedLengthList>
 **/
 @:native("SVGAnimatedLengthList")
-extern class AnimatedLengthList
-{
+extern class AnimatedLengthList {
 	var baseVal(default,null) : LengthList;
 	var animVal(default,null) : LengthList;
 	

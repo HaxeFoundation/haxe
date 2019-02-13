@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemFlags>
 **/
-typedef FileSystemFlags =
-{
+typedef FileSystemFlags = {
 	
 	/**
 		If this property is `true`, and the requested file or directory doesn't exist, the user agent should create it. The default is `false`. The parent directory must already exist.

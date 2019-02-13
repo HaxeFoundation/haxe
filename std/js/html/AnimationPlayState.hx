@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract AnimationPlayState(String)
-{
+enum abstract AnimationPlayState(String) {
 	var IDLE = "idle";
 	var RUNNING = "running";
 	var PAUSED = "paused";

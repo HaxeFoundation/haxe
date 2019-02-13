@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MediaRecorderOptions =
-{
+typedef MediaRecorderOptions = {
 	var ?audioBitsPerSecond : Int;
 	var ?bitsPerSecond : Int;
 	var ?mimeType : String;

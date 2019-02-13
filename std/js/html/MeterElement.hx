@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMeterElement>
 **/
 @:native("HTMLMeterElement")
-extern class MeterElement extends Element
-{
+extern class MeterElement extends Element {
 	
 	/**
 		A `double` representing the currrent value, reflecting the `value` attribute.

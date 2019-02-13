@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGUnitTypes>
 **/
 @:native("SVGUnitTypes")
-extern class UnitTypes
-{
+extern class UnitTypes {
 	static inline var SVG_UNIT_TYPE_UNKNOWN : Int = 0;
 	static inline var SVG_UNIT_TYPE_USERSPACEONUSE : Int = 1;
 	static inline var SVG_UNIT_TYPE_OBJECTBOUNDINGBOX : Int = 2;

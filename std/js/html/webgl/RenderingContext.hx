@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext>
 **/
 @:native("WebGLRenderingContext")
-extern class RenderingContext
-{
+extern class RenderingContext {
 	static inline var DEPTH_BUFFER_BIT : Int = 256;
 	static inline var STENCIL_BUFFER_BIT : Int = 1024;
 	static inline var COLOR_BUFFER_BIT : Int = 16384;

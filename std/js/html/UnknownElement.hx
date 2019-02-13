@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUnknownElement>
 **/
 @:native("HTMLUnknownElement")
-extern class UnknownElement extends Element
-{
+extern class UnknownElement extends Element {
 }

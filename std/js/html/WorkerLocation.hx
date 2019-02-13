@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation>
 **/
 @:native("WorkerLocation")
-extern class WorkerLocation
-{
+extern class WorkerLocation {
 	var href(default,null) : String;
 	var origin(default,null) : String;
 	var protocol(default,null) : String;

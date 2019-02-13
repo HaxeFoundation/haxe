@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGElement>
 **/
 @:native("SVGElement")
-extern class Element extends js.html.DOMElement
-{
+extern class Element extends js.html.DOMElement {
 	
 	/**
 		An `SVGSVGElement` referring to the nearest ancestor `svg` element. `null` if the given element is the outermost `svg` element.

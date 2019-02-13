@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSetElement>
 **/
 @:native("SVGSetElement")
-extern class SetElement extends AnimationElement
-{
+extern class SetElement extends AnimationElement {
 }

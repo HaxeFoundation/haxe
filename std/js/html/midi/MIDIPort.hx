@@ -25,8 +25,7 @@
 package js.html.midi;
 
 @:native("MIDIPort")
-extern class MIDIPort extends js.html.EventTarget
-{
+extern class MIDIPort extends js.html.EventTarget {
 	var id(default,null) : String;
 	var manufacturer(default,null) : String;
 	var name(default,null) : String;

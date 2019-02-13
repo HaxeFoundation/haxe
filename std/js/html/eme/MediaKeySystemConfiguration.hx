@@ -31,8 +31,7 @@ package js.html.eme;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration>
 **/
-typedef MediaKeySystemConfiguration =
-{
+typedef MediaKeySystemConfiguration = {
 	
 	/**
 		Returns a list of supported audio type and capability pairs.

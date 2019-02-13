@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaSource>
 **/
 @:native("MediaSource")
-extern class MediaSource extends EventTarget
-{
+extern class MediaSource extends EventTarget {
 	static function isTypeSupported( type : String ) : Bool;
 	
 	/**

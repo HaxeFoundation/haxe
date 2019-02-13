@@ -24,7 +24,6 @@
 
 package js.html.rtc;
 
-typedef DTMFToneChangeEventInit =
-EventInit & {
+typedef DTMFToneChangeEventInit = EventInit & {
 	var ?tone : String;
 }

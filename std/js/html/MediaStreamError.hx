@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MediaStreamError =
-{
+typedef MediaStreamError = {
 	var name(default,null) : String;
 	var message(default,null) : String;
 	var constraint(default,null) : String;

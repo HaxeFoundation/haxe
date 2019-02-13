@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef XPathNSResolver =
-{
+typedef XPathNSResolver = {
 	function lookupNamespaceURI( prefix : String ) : String;
 }

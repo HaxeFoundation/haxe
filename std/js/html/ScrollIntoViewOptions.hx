@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ScrollIntoViewOptions =
-ScrollOptions & {
+typedef ScrollIntoViewOptions = ScrollOptions & {
 	var ?block : ScrollLogicalPosition;
 	@:native("inline")
 	var ?inline_ : ScrollLogicalPosition;

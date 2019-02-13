@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBIndex>
 **/
 @:native("IDBIndex")
-extern class Index
-{
+extern class Index {
 	
 	/**
 		The name of this index.

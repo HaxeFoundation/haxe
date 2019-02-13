@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef OptionalEffectTiming =
-{
+typedef OptionalEffectTiming = {
 	var ?delay : Float;
 	var ?direction : PlaybackDirection;
 	var ?duration : haxe.extern.EitherType<Float,String>;

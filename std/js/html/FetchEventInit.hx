@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef FetchEventInit =
-EventInit & {
+typedef FetchEventInit = EventInit & {
 	var ?clientId : String;
 	var ?isReload : Bool;
 	var request : Request;

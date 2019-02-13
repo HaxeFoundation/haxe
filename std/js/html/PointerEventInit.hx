@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef PointerEventInit =
-MouseEventInit & {
+typedef PointerEventInit = MouseEventInit & {
 	var ?coalescedEvents : Array<PointerEvent>;
 	var ?height : Int;
 	var ?isPrimary : Bool;

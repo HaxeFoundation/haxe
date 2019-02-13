@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("KeyEvent")
-extern class KeyEvent
-{
+extern class KeyEvent {
 	static inline var DOM_VK_CANCEL : Int = 3;
 	static inline var DOM_VK_HELP : Int = 6;
 	static inline var DOM_VK_BACK_SPACE : Int = 8;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageData>
 **/
 @:native("ImageData")
-extern class ImageData
-{
+extern class ImageData {
 	
 	/**
 		Is an `unsigned` `long` representing the actual width, in pixels, of the `ImageData`.

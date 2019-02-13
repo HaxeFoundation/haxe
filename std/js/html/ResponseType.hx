@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ResponseType(String)
-{
+enum abstract ResponseType(String) {
 	var BASIC = "basic";
 	var CORS = "cors";
 	var DEFAULT = "default";

@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract SpeechRecognitionErrorCode(String)
-{
+enum abstract SpeechRecognitionErrorCode(String) {
 	var NO_SPEECH = "no-speech";
 	var ABORTED = "aborted";
 	var AUDIO_CAPTURE = "audio-capture";

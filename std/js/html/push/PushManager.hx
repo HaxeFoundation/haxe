@@ -32,8 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushManager>
 **/
 @:native("PushManager")
-extern class PushManager
-{
+extern class PushManager {
 	/** @throws DOMError */
 	function new( scope : String ) : Void;
 	

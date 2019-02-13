@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EffectTiming>
 **/
-typedef EffectTiming =
-{
+typedef EffectTiming = {
 	
 	/**
 		The number of milliseconds to delay the start of the animation. Defaults to 0.

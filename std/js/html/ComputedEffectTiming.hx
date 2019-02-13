@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ComputedEffectTiming =
-EffectTiming & {
+typedef ComputedEffectTiming = EffectTiming & {
 	var ?activeDuration : Float;
 	var ?currentIteration : Float;
 	var ?endTime : Float;

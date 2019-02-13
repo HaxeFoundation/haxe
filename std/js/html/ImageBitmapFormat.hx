@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ImageBitmapFormat(String)
-{
+enum abstract ImageBitmapFormat(String) {
 	var RGBA32 = "RGBA32";
 	var BGRA32 = "BGRA32";
 	var RGB24 = "RGB24";

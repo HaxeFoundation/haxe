@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEBlendElement>
 **/
 @:native("SVGFEBlendElement")
-extern class FEBlendElement extends Element
-{
+extern class FEBlendElement extends Element {
 	static inline var SVG_FEBLEND_MODE_UNKNOWN : Int = 0;
 	static inline var SVG_FEBLEND_MODE_NORMAL : Int = 1;
 	static inline var SVG_FEBLEND_MODE_MULTIPLY : Int = 2;

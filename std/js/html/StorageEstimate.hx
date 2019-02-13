@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageEstimate>
 **/
-typedef StorageEstimate =
-{
+typedef StorageEstimate = {
 	
 	/**
 		A numeric value which provides a conservative approximation of the total storage the user's device or computer has available for the site origin or Web app. It's possible that there's more than this amount of space available though you can't rely on that being the case.

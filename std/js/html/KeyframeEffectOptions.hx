@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef KeyframeEffectOptions =
-EffectTiming & {
+typedef KeyframeEffectOptions = EffectTiming & {
 	var ?composite : CompositeOperation;
 	var ?iterationComposite : IterationCompositeOperation;
 }

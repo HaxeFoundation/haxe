@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEConvolveMatrixElement>
 **/
 @:native("SVGFEConvolveMatrixElement")
-extern class FEConvolveMatrixElement extends Element
-{
+extern class FEConvolveMatrixElement extends Element {
 	static inline var SVG_EDGEMODE_UNKNOWN : Int = 0;
 	static inline var SVG_EDGEMODE_DUPLICATE : Int = 1;
 	static inline var SVG_EDGEMODE_WRAP : Int = 2;

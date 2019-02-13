@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("Directory")
-extern class Directory
-{
+extern class Directory {
 	var name(default,null) : String;
 	var path(default,null) : String;
 	

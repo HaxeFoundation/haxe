@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef IceServer =
-{
+typedef IceServer = {
 	var ?credential : String;
 	var ?credentialType : IceCredentialType;
 	var ?url : String;

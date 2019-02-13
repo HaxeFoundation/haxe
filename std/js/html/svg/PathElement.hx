@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPathElement>
 **/
 @:native("SVGPathElement")
-extern class PathElement extends GeometryElement
-{
+extern class PathElement extends GeometryElement {
 	var pathSegList(default,null) : PathSegList;
 	var animatedPathSegList(default,null) : PathSegList;
 	

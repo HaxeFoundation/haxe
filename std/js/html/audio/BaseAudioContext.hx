@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext>
 **/
 @:native("BaseAudioContext")
-extern class BaseAudioContext extends js.html.EventTarget
-{
+extern class BaseAudioContext extends js.html.EventTarget {
 	
 	/**
 		Returns an `AudioDestinationNode` representing the final destination of all audio in the context. It can be thought of as the audio-rendering device.

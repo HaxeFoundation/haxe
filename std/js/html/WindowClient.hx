@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WindowClient>
 **/
 @:native("WindowClient")
-extern class WindowClient extends Client
-{
+extern class WindowClient extends Client {
 	
 	/**
 		Indicates the visibility of the current client. This value can be one of `hidden`, `visible`, `prerender`, or `unloaded`.

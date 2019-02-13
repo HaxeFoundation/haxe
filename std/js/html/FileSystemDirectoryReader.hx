@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemDirectoryReader>
 **/
 @:native("FileSystemDirectoryReader")
-extern class FileSystemDirectoryReader
-{
+extern class FileSystemDirectoryReader {
 	/** @throws DOMError */
 	@:overload( function( successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
 	@:overload( function( successCallback : FileSystemEntriesCallback, ?errorCallback : ErrorCallback) : Void {} )

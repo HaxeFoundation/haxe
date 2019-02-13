@@ -24,7 +24,6 @@
 
 package js.html.audio;
 
-typedef PeriodicWaveConstraints =
-{
+typedef PeriodicWaveConstraints = {
 	var ?disableNormalization : Bool;
 }
