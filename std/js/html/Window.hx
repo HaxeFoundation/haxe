@@ -369,6 +369,7 @@ extern class Window extends EventTarget
 	**/
 	var isSecureContext(default,null) : Bool;
 	var indexedDB(default,null) : js.html.idb.Factory;
+	var caches(default,null) : CacheStorage;
 	
 	/**
 		Returns a reference to the session storage object used to store data that may only be accessed by the origin that created it.
