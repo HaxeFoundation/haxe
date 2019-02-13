@@ -41,7 +41,7 @@ extern class AudioScheduledSourceNode extends AudioNode
 	var onended : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function start( ?when : Float = 0.0 ) : Void;
+	function start( when : Float = 0.0 ) : Void;
 	/** @throws DOMError */
-	function stop( ?when : Float = 0.0 ) : Void;
+	function stop( when : Float = 0.0 ) : Void;
 }

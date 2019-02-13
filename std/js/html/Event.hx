@@ -140,5 +140,5 @@ extern class Event
 	/**
 		Initializes the value of an Event created. If the event has already being dispatched, this method does nothing.
 	**/
-	function initEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false ) : Void;
+	function initEvent( type : String, bubbles : Bool = false, cancelable : Bool = false ) : Void;
 }

@@ -51,5 +51,5 @@ extern class CompositionEvent extends UIEvent
 	/**
 		Initializes the attributes of a `CompositionEvent` object.
 	**/
-	function initCompositionEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?dataArg : String, ?localeArg : String = "" ) : Void;
+	function initCompositionEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, ?dataArg : String, localeArg : String = "" ) : Void;
 }

@@ -416,7 +416,7 @@ extern class DOMElement extends Node
 	/**
 		Sets up mouse event capture, redirecting all mouse events to this element.
 	**/
-	function setCapture( ?retargetToElement : Bool = false ) : Void;
+	function setCapture( retargetToElement : Bool = false ) : Void;
 	function releaseCapture() : Void;
 	
 	/**

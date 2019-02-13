@@ -45,19 +45,19 @@ extern class KeyRange
 		Creates a new key range with only a lower bound.
 		@throws DOMError
 	**/
-	static function lowerBound( lower : Dynamic, ?open : Bool = false ) : KeyRange;
+	static function lowerBound( lower : Dynamic, open : Bool = false ) : KeyRange;
 	
 	/**
 		Creates a new upper-bound key range.
 		@throws DOMError
 	**/
-	static function upperBound( upper : Dynamic, ?open : Bool = false ) : KeyRange;
+	static function upperBound( upper : Dynamic, open : Bool = false ) : KeyRange;
 	
 	/**
 		Creates a new key range with upper and lower bounds.
 		@throws DOMError
 	**/
-	static function bound( lower : Dynamic, upper : Dynamic, ?lowerOpen : Bool = false, ?upperOpen : Bool = false ) : KeyRange;
+	static function bound( lower : Dynamic, upper : Dynamic, lowerOpen : Bool = false, upperOpen : Bool = false ) : KeyRange;
 	
 	/**
 		Lower bound of the key range.

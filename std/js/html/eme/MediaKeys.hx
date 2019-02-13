@@ -41,7 +41,7 @@ extern class MediaKeys
 		Returns a new `MediaKeySession` object, which represents a context for message exchange with a content decryption module (CDM).
 		@throws DOMError
 	**/
-	function createSession( ?sessionType : MediaKeySessionType = TEMPORARY ) : MediaKeySession;
+	function createSession( sessionType : MediaKeySessionType = TEMPORARY ) : MediaKeySession;
 	
 	/**
 		Returns a `Promise` to a server certificate to be used to encrypt messages to the license server.

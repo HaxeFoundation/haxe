@@ -83,5 +83,5 @@ extern class DOMException
 	var stack(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( ?message : String = "", ?name : String ) : Void;
+	function new( message : String = "", ?name : String ) : Void;
 }

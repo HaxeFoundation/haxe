@@ -48,5 +48,5 @@ extern class CustomEvent extends Event
 		 Initializes a `CustomEvent` object. If the event has already being dispatched, this method does nothing.
 		 
 	**/
-	function initCustomEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?detail : Dynamic ) : Void;
+	function initCustomEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?detail : Dynamic ) : Void;
 }

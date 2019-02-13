@@ -37,7 +37,7 @@ extern class CSSGroupingRule extends CSSRule
 	var cssRules(default,null) : CSSRuleList;
 	
 	/** @throws DOMError */
-	function insertRule( rule : String, ?index : Int = 0 ) : Int;
+	function insertRule( rule : String, index : Int = 0 ) : Int;
 	/** @throws DOMError */
 	function deleteRule( index : Int ) : Void;
 }

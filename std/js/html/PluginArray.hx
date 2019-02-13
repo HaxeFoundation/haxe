@@ -42,5 +42,5 @@ extern class PluginArray implements ArrayAccess<Plugin>
 	
 	function item( index : Int ) : Plugin;
 	function namedItem( name : String ) : Plugin;
-	function refresh( ?reloadDocuments : Bool = false ) : Void;
+	function refresh( reloadDocuments : Bool = false ) : Void;
 }

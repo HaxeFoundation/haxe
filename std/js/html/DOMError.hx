@@ -46,5 +46,5 @@ extern class DOMError
 	var message(default,null) : String;
 	
 	/** @throws DOMError */
-	function new( name : String, ?message : String = "" ) : Void;
+	function new( name : String, message : String = "" ) : Void;
 }

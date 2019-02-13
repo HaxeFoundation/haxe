@@ -601,14 +601,14 @@ extern class WebGL2RenderingContext extends RenderingContext
 	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
 	@:overload( function( target : Int, srcData : js.html.ArrayBuffer, usage : Int ) : Void {} )
 	@:overload( function( target : Int, srcData : js.html.ArrayBufferView, usage : Int ) : Void {} )
-	function bufferData( target : Int, srcData : js.html.ArrayBufferView, usage : Int, srcOffset : Int, ?length : Int = 0 ) : Void;
+	function bufferData( target : Int, srcData : js.html.ArrayBufferView, usage : Int, srcOffset : Int, length : Int = 0 ) : Void;
 	
 	/**
 		Updates a subset of a buffer object's data store.
 	**/
 	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBuffer ) : Void {} )
 	@:overload( function( target : Int, offset : Int, srcData : js.html.ArrayBufferView ) : Void {} )
-	function bufferSubData( target : Int, dstByteOffset : Int, srcData : js.html.ArrayBufferView, srcOffset : Int, ?length : Int = 0 ) : Void;
+	function bufferSubData( target : Int, dstByteOffset : Int, srcData : js.html.ArrayBufferView, srcOffset : Int, length : Int = 0 ) : Void;
 	
 	/**
 		Copies part of the data of a buffer to another buffer.
@@ -618,7 +618,7 @@ extern class WebGL2RenderingContext extends RenderingContext
 	/**
 		Reads data from a buffer and writes them to an `ArrayBuffer` or `SharedArrayBuffer`.
 	**/
-	function getBufferSubData( target : Int, srcByteOffset : Int, dstData : js.html.ArrayBufferView, ?dstOffset : Int = 0, ?length : Int = 0 ) : Void;
+	function getBufferSubData( target : Int, srcByteOffset : Int, dstData : js.html.ArrayBufferView, dstOffset : Int = 0, length : Int = 0 ) : Void;
 	
 	/**
 		Transfers a block of pixels from the read framebuffer to the draw framebuffer.
@@ -719,28 +719,28 @@ extern class WebGL2RenderingContext extends RenderingContext
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.VideoElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, source : js.html.ImageData ) : Void {} )
-	function texSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0 ) : Void;
+	function texSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, type : Int, srcData : js.html.ArrayBufferView, srcOffset : Int = 0 ) : Void;
 	
 	/**
 		Copies pixels from the current `WebGLFramebuffer` into an existing 3D texture sub-image.
 	**/
 	function copyTexSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, x : Int, y : Int, width : Int, height : Int ) : Void;
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, imageSize : Int, offset : Int ) : Void {} )
-	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
+	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, srcData : js.html.ArrayBufferView, srcOffset : Int = 0, srcLengthOverride : Int = 0 ) : Void;
 	
 	/**
 		Specifies a three-dimensional texture image in a compressed format.
 	**/
 	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, imageSize : Int, offset : Int ) : Void {} )
-	function compressedTexImage3D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
+	function compressedTexImage3D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, depth : Int, border : Int, srcData : js.html.ArrayBufferView, srcOffset : Int = 0, srcLengthOverride : Int = 0 ) : Void;
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, imageSize : Int, offset : Int ) : Void {} )
-	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
+	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, srcData : js.html.ArrayBufferView, srcOffset : Int = 0, srcLengthOverride : Int = 0 ) : Void;
 	
 	/**
 		Specifies a three-dimensional sub-rectangle for a texture image in a compressed format.
 	**/
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, imageSize : Int, offset : Int ) : Void {} )
-	function compressedTexSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, srcData : js.html.ArrayBufferView, ?srcOffset : Int = 0, ?srcLengthOverride : Int = 0 ) : Void;
+	function compressedTexSubImage3D( target : Int, level : Int, xoffset : Int, yoffset : Int, zoffset : Int, width : Int, height : Int, depth : Int, format : Int, srcData : js.html.ArrayBufferView, srcOffset : Int = 0, srcLengthOverride : Int = 0 ) : Void;
 	
 	/**
 		Returns the binding of color numbers to user-defined varying out variables.
@@ -750,48 +750,48 @@ extern class WebGL2RenderingContext extends RenderingContext
 	function uniform2ui( location : UniformLocation, v0 : Int, v1 : Int ) : Void;
 	function uniform3ui( location : UniformLocation, v0 : Int, v1 : Int, v2 : Int ) : Void;
 	function uniform4ui( location : UniformLocation, v0 : Int, v1 : Int, v2 : Int, v3 : Int ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform1fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform2fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform3fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform4fv( location : UniformLocation, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform1iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform2iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform3iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform4iv( location : UniformLocation, data : js.html.Int32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform1uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform2uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform3uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, data : Array<Int>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniform4uiv( location : UniformLocation, data : js.html.Uint32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix3x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix4x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix2x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix4x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix2x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix3x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
-	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, ?srcOffset : Int = 0, ?srcLength : Int = 0) : Void {} )
-	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, ?srcOffset : Int = 0, ?srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform1fv( location : UniformLocation, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform2fv( location : UniformLocation, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform3fv( location : UniformLocation, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform4fv( location : UniformLocation, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform1iv( location : UniformLocation, data : js.html.Int32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform2iv( location : UniformLocation, data : js.html.Int32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform3iv( location : UniformLocation, data : js.html.Int32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform4iv( location : UniformLocation, data : js.html.Int32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform1uiv( location : UniformLocation, data : js.html.Uint32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform2uiv( location : UniformLocation, data : js.html.Uint32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform3uiv( location : UniformLocation, data : js.html.Uint32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, data : Array<Int>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniform4uiv( location : UniformLocation, data : js.html.Uint32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix3x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix4x2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix2x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix4x3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix2x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix3x4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
+	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>, srcOffset : Int = 0, srcLength : Int = 0) : Void {} )
+	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array, srcOffset : Int = 0, srcLength : Int = 0 ) : Void;
 	function vertexAttribI4i( index : Int, x : Int, y : Int, z : Int, w : Int ) : Void;
 	@:overload( function( index : Int, values : Array<Int>) : Void {} )
 	function vertexAttribI4iv( index : Int, values : js.html.Int32Array ) : Void;
@@ -832,12 +832,12 @@ extern class WebGL2RenderingContext extends RenderingContext
 		Specifies a list of color buffers to be drawn into.
 	**/
 	function drawBuffers( buffers : Array<Int> ) : Void;
-	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Float>, ?srcOffset : Int = 0) : Void {} )
-	function clearBufferfv( buffer : Int, drawbuffer : Int, values : js.html.Float32Array, ?srcOffset : Int = 0 ) : Void;
-	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, ?srcOffset : Int = 0) : Void {} )
-	function clearBufferiv( buffer : Int, drawbuffer : Int, values : js.html.Int32Array, ?srcOffset : Int = 0 ) : Void;
-	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, ?srcOffset : Int = 0) : Void {} )
-	function clearBufferuiv( buffer : Int, drawbuffer : Int, values : js.html.Uint32Array, ?srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Float>, srcOffset : Int = 0) : Void {} )
+	function clearBufferfv( buffer : Int, drawbuffer : Int, values : js.html.Float32Array, srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, srcOffset : Int = 0) : Void {} )
+	function clearBufferiv( buffer : Int, drawbuffer : Int, values : js.html.Int32Array, srcOffset : Int = 0 ) : Void;
+	@:overload( function( buffer : Int, drawbuffer : Int, values : Array<Int>, srcOffset : Int = 0) : Void {} )
+	function clearBufferuiv( buffer : Int, drawbuffer : Int, values : js.html.Uint32Array, srcOffset : Int = 0 ) : Void;
 	function clearBufferfi( buffer : Int, drawbuffer : Int, depth : Float, stencil : Int ) : Void;
 	
 	/**

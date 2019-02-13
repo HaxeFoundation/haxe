@@ -47,27 +47,27 @@ extern class DOMMatrix extends DOMMatrixReadOnly
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix being translated by the given vector.
 	**/
-	function translateSelf( tx : Float, ty : Float, ?tz : Float = 0.0 ) : DOMMatrix;
+	function translateSelf( tx : Float, ty : Float, tz : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x and y dimensions being scaled by the given factor, centered on the origin given.
 	**/
-	function scaleSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function scaleSelf( scale : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor, centered on the origin given.
 	**/
-	function scale3dSelf( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scale3dSelf( scale : Float, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the matrix x, y and z dimension being scaled by the given factor for each dimension, centered on the origin given.
 	**/
-	function scaleNonUniformSelf( scaleX : Float, ?scaleY : Float = 1.0, ?scaleZ : Float = 1.0, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scaleNonUniformSelf( scaleX : Float, scaleY : Float = 1.0, scaleZ : Float = 1.0, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the given angle, with the rotation centered on the origin given.
 	**/
-	function rotateSelf( angle : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function rotateSelf( angle : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns itself, a `DOMMatrix`, with its new content being the result of the original matrix being rotated by the angle between the given vector and (1,0), centered on the origin given.

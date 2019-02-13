@@ -97,5 +97,5 @@ extern class Location
 		Reloads the resource from the current URL. Its optional unique parameter is a `Boolean`, which, when it is `true`, causes the page to always be reloaded from the server. If it is `false` or not specified, the browser may reload the page from its cache.
 		@throws DOMError
 	**/
-	function reload( ?forceget : Bool = false ) : Void;
+	function reload( forceget : Bool = false ) : Void;
 }
