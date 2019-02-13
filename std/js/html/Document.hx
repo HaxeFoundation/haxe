@@ -187,6 +187,22 @@ extern class Document extends Node
 	var applets(default,null) : HTMLCollection;
 	
 	/**
+		`true` when the document is in `Using_full-screen_mode`.
+	**/
+	var fullscreen(default,null) : Bool;
+	var fullscreenEnabled(default,null) : Bool;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `fullscreenchange` event is raised.
+	**/
+	var onfullscreenchange : haxe.Constraints.Function;
+	
+	/**
+		Is an `EventHandler` representing the code to be called when the `fullscreenerror` event is raised.
+	**/
+	var onfullscreenerror : haxe.Constraints.Function;
+	
+	/**
 		Represents the event handling code for the `pointerlockchange` event.
 	**/
 	var onpointerlockchange : haxe.Constraints.Function;
@@ -484,6 +500,7 @@ extern class Document extends Node
 		Releases the current mouse capture if it's on an element in this document.
 	**/
 	function releaseCapture() : Void;
+	function exitFullscreen() : Void;
 	
 	/**
 		Release the pointer lock.

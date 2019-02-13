@@ -501,6 +501,12 @@ extern class DOMElement extends Node
 	function attachShadow( shadowRootInitDict : ShadowRootInit ) : ShadowRoot;
 	
 	/**
+		Asynchronously asks the browser to make the element full-screen.
+		@throws DOMError
+	**/
+	function requestFullscreen() : Void;
+	
+	/**
 		Allows to asynchronously ask for the pointer to be locked on the given element.
 	**/
 	function requestPointerLock() : Void;
