@@ -26,7 +26,7 @@ package js.html;
 
 typedef PerformanceEntryFilterOptions =
 {
-	@:optional var entryType : String;
-	@:optional var initiatorType : String;
-	@:optional var name : String;
+	var ?entryType : String;
+	var ?initiatorType : String;
+	var ?name : String;
 }

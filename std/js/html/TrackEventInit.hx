@@ -25,7 +25,6 @@
 package js.html;
 
 typedef TrackEventInit =
-{
-	> EventInit,
-	@:optional var track : haxe.extern.EitherType<VideoTrack,haxe.extern.EitherType<AudioTrack,TextTrack>>;
+EventInit & {
+	var ?track : haxe.extern.EitherType<VideoTrack,haxe.extern.EitherType<AudioTrack,TextTrack>>;
 }

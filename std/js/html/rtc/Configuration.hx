@@ -26,9 +26,9 @@ package js.html.rtc;
 
 typedef Configuration =
 {
-	@:optional var bundlePolicy : BundlePolicy;
-	@:optional var certificates : Array<Certificate>;
-	@:optional var iceServers : Array<IceServer>;
-	@:optional var iceTransportPolicy : IceTransportPolicy;
-	@:optional var peerIdentity : String;
+	var ?bundlePolicy : BundlePolicy;
+	var ?certificates : Array<Certificate>;
+	var ?iceServers : Array<IceServer>;
+	var ?iceTransportPolicy : IceTransportPolicy;
+	var ?peerIdentity : String;
 }

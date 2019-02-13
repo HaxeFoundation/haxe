@@ -26,5 +26,5 @@ package js.html;
 
 typedef GetNotificationOptions =
 {
-	@:optional var tag : String;
+	var ?tag : String;
 }

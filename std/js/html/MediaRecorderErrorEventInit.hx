@@ -25,7 +25,6 @@
 package js.html;
 
 typedef MediaRecorderErrorEventInit =
-{
-	> EventInit,
+EventInit & {
 	var error : DOMException;
 }

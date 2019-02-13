@@ -25,10 +25,9 @@
 package js.html;
 
 typedef SpeechRecognitionEventInit =
-{
-	> EventInit,
-	@:optional var emma : HTMLDocument;
-	@:optional var interpretation : Dynamic;
-	@:optional var resultIndex : Int;
-	@:optional var results : SpeechRecognitionResultList;
+EventInit & {
+	var ?emma : HTMLDocument;
+	var ?interpretation : Dynamic;
+	var ?resultIndex : Int;
+	var ?results : SpeechRecognitionResultList;
 }

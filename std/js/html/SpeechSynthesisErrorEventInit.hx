@@ -25,7 +25,6 @@
 package js.html;
 
 typedef SpeechSynthesisErrorEventInit =
-{
-	> SpeechSynthesisEventInit,
+SpeechSynthesisEventInit & {
 	var error : SpeechSynthesisErrorCode;
 }

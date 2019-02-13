@@ -26,6 +26,6 @@ package js.html;
 
 typedef ConstrainDOMStringParameters =
 {
-	@:optional var exact : haxe.extern.EitherType<String,Array<String>>;
-	@:optional var ideal : haxe.extern.EitherType<String,Array<String>>;
+	var ?exact : haxe.extern.EitherType<String,Array<String>>;
+	var ?ideal : haxe.extern.EitherType<String,Array<String>>;
 }

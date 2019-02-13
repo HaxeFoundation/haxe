@@ -26,10 +26,10 @@ package js.html.audio;
 
 typedef AudioBufferSourceOptions =
 {
-	@:optional var buffer : AudioBuffer;
-	@:optional var detune : Float;
-	@:optional var loop : Bool;
-	@:optional var loopEnd : Float;
-	@:optional var loopStart : Float;
-	@:optional var playbackRate : Float;
+	var ?buffer : AudioBuffer;
+	var ?detune : Float;
+	var ?loop : Bool;
+	var ?loopEnd : Float;
+	var ?loopStart : Float;
+	var ?playbackRate : Float;
 }

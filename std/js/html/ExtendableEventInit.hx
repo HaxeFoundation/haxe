@@ -25,6 +25,5 @@
 package js.html;
 
 typedef ExtendableEventInit =
-{
-	> EventInit,
+EventInit & {
 }

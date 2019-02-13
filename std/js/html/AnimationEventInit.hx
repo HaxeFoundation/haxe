@@ -25,9 +25,8 @@
 package js.html;
 
 typedef AnimationEventInit =
-{
-	> EventInit,
-	@:optional var animationName : String;
-	@:optional var elapsedTime : Float;
-	@:optional var pseudoElement : String;
+EventInit & {
+	var ?animationName : String;
+	var ?elapsedTime : Float;
+	var ?pseudoElement : String;
 }

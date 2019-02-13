@@ -25,7 +25,6 @@
 package js.html;
 
 typedef InputEventInit =
-{
-	> UIEventInit,
-	@:optional var isComposing : Bool;
+UIEventInit & {
+	var ?isComposing : Bool;
 }

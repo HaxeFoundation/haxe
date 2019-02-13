@@ -25,9 +25,8 @@
 package js.html;
 
 typedef FetchEventInit =
-{
-	> EventInit,
-	@:optional var clientId : String;
-	@:optional var isReload : Bool;
+EventInit & {
+	var ?clientId : String;
+	var ?isReload : Bool;
 	var request : Request;
 }

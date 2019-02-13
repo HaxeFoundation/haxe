@@ -26,6 +26,6 @@ package js.html.rtc;
 
 typedef RtcpParameters =
 {
-	@:optional var cname : String;
-	@:optional var reducedSize : Bool;
+	var ?cname : String;
+	var ?reducedSize : Bool;
 }

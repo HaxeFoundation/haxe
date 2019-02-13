@@ -37,17 +37,17 @@ typedef AudioNodeOptions =
 	/**
 		Represents an integer used to determine how many channels are used when up-mixing and down-mixing connections to any inputs to the node. (See `AudioNode.channelCount` for more information.) Its usage and precise definition depend on the value of `AudioNodeOptions.channelCountMode`.
 	**/
-	@:optional var channelCount : Int;
+	var ?channelCount : Int;
 	
 	/**
 		Represents an enumerated value describing the way channels must be matched between the node's inputs and outputs. (See `AudioNode.channelCountMode` for more information including default values.)
 	**/
-	@:optional var channelCountMode : ChannelCountMode;
+	var ?channelCountMode : ChannelCountMode;
 	
 	/**
 		Represents an enumerated value describing the meaning of the channels. This interpretation will define how audio up-mixing and down-mixing will happen.
 		
 			The possible values are `"speakers"` or `"discrete"`. (See `AudioNode.channelCountMode` for more information including default values.)
 	**/
-	@:optional var channelInterpretation : ChannelInterpretation;
+	var ?channelInterpretation : ChannelInterpretation;
 }

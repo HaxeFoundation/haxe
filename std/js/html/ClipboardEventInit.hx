@@ -25,8 +25,7 @@
 package js.html;
 
 typedef ClipboardEventInit =
-{
-	> EventInit,
-	@:optional var data : String;
-	@:optional var dataType : String;
+EventInit & {
+	var ?data : String;
+	var ?dataType : String;
 }

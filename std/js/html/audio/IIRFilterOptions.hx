@@ -25,8 +25,7 @@
 package js.html.audio;
 
 typedef IIRFilterOptions =
-{
-	> AudioNodeOptions,
+AudioNodeOptions & {
 	var feedback : Array<Float>;
 	var feedforward : Array<Float>;
 }

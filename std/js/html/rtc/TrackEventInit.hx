@@ -25,10 +25,9 @@
 package js.html.rtc;
 
 typedef TrackEventInit =
-{
-	> EventInit,
+EventInit & {
 	var receiver : RtpReceiver;
-	@:optional var streams : Array<js.html.MediaStream>;
+	var ?streams : Array<js.html.MediaStream>;
 	var track : js.html.MediaStreamTrack;
 	var transceiver : RtpTransceiver;
 }

@@ -25,8 +25,7 @@
 package js.html.idb;
 
 typedef VersionChangeEventInit =
-{
-	> EventInit,
-	@:optional var newVersion : Int;
-	@:optional var oldVersion : Int;
+EventInit & {
+	var ?newVersion : Int;
+	var ?oldVersion : Int;
 }

@@ -25,7 +25,6 @@
 package js.html.rtc;
 
 typedef RtpSynchronizationSource =
-{
-	> RtpContributingSource,
-	@:optional var voiceActivityFlag : Bool;
+RtpContributingSource & {
+	var ?voiceActivityFlag : Bool;
 }

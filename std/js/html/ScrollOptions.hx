@@ -26,5 +26,5 @@ package js.html;
 
 typedef ScrollOptions =
 {
-	@:optional var behavior : ScrollBehavior;
+	var ?behavior : ScrollBehavior;
 }

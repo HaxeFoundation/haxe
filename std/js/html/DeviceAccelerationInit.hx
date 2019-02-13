@@ -26,7 +26,7 @@ package js.html;
 
 typedef DeviceAccelerationInit =
 {
-	@:optional var x : Float;
-	@:optional var y : Float;
-	@:optional var z : Float;
+	var ?x : Float;
+	var ?y : Float;
+	var ?z : Float;
 }
