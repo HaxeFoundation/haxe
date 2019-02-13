@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrackEvent>
 **/
 @:native("MediaStreamTrackEvent")
-extern class MediaStreamTrackEvent extends Event
-{
+extern class MediaStreamTrackEvent extends Event {
 	
 	/**
 		A `MediaStreamTrack` object representing the track which was added to the stream.

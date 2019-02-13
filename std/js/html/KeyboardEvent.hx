@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent>
 **/
 @:native("KeyboardEvent")
-extern class KeyboardEvent extends UIEvent
-{
+extern class KeyboardEvent extends UIEvent {
 	static inline var DOM_KEY_LOCATION_STANDARD : Int = 0;
 	static inline var DOM_KEY_LOCATION_LEFT : Int = 1;
 	static inline var DOM_KEY_LOCATION_RIGHT : Int = 2;

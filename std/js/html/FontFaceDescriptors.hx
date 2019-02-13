@@ -24,14 +24,13 @@
 
 package js.html;
 
-typedef FontFaceDescriptors =
-{
-	@:optional var display : String;
-	@:optional var featureSettings : String;
-	@:optional var stretch : String;
-	@:optional var style : String;
-	@:optional var unicodeRange : String;
-	@:optional var variant : String;
-	@:optional var variationSettings : String;
-	@:optional var weight : String;
+typedef FontFaceDescriptors = {
+	var ?display : String;
+	var ?featureSettings : String;
+	var ?stretch : String;
+	var ?style : String;
+	var ?unicodeRange : String;
+	var ?variant : String;
+	var ?variationSettings : String;
+	var ?weight : String;
 }

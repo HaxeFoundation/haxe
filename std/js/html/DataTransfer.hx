@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DataTransfer>
 **/
 @:native("DataTransfer")
-extern class DataTransfer
-{
+extern class DataTransfer {
 	
 	/**
 		Gets the type of drag-and-drop operation currently selected or sets the operation to a new type. The value must be `none`, `copy`, `link` or `move`.

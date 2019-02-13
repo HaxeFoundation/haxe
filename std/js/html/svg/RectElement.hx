@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGRectElement>
 **/
 @:native("SVGRectElement")
-extern class RectElement extends GeometryElement
-{
+extern class RectElement extends GeometryElement {
 	
 	/**
 		Returns an `SVGAnimatedLength` corresponding to the `x` attribute of the given `rect` element.

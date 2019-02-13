@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaDeviceInfo>
 **/
 @:native("MediaDeviceInfo")
-extern class MediaDeviceInfo
-{
+extern class MediaDeviceInfo {
 	
 	/**
 		Returns a `DOMString` that is an identifier for the represented device that is persisted across sessions. It is un-guessable by other applications and unique to the origin of the calling application. It is reset when the user clears cookies (for Private Browsing, a different identifier is used that is not persisted across sessions).

@@ -24,9 +24,7 @@
 
 package js.html;
 
-typedef AnimationPlaybackEventInit =
-{
-	> EventInit,
-	@:optional var currentTime : Float;
-	@:optional var timelineTime : Float;
+typedef AnimationPlaybackEventInit = EventInit & {
+	var ?currentTime : Float;
+	var ?timelineTime : Float;
 }

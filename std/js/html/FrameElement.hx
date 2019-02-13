@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("HTMLFrameElement")
-extern class FrameElement extends Element
-{
+extern class FrameElement extends Element {
 	var name : String;
 	var scrolling : String;
 	var src : String;

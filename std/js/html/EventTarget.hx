@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget>
 **/
 @:native("EventTarget")
-extern class EventTarget
-{
+extern class EventTarget {
 	/** @throws DOMError */
 	function new() : Void;
 	

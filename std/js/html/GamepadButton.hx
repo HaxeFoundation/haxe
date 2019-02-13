@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/GamepadButton>
 **/
 @:native("GamepadButton")
-extern class GamepadButton
-{
+extern class GamepadButton {
 	
 	/**
 		A boolean value indicating whether the button is currently pressed (`true`) or unpressed (`false`).

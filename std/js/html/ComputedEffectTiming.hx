@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef ComputedEffectTiming =
-{
-	> EffectTiming,
-	@:optional var activeDuration : Float;
-	@:optional var currentIteration : Float;
-	@:optional var endTime : Float;
-	@:optional var localTime : Float;
-	@:optional var progress : Float;
+typedef ComputedEffectTiming = EffectTiming & {
+	var ?activeDuration : Float;
+	var ?currentIteration : Float;
+	var ?endTime : Float;
+	var ?localTime : Float;
+	var ?progress : Float;
 }

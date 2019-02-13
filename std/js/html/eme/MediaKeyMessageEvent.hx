@@ -32,8 +32,7 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeyMessageEvent>
 **/
 @:native("MediaKeyMessageEvent")
-extern class MediaKeyMessageEvent extends js.html.Event
-{
+extern class MediaKeyMessageEvent extends js.html.Event {
 	
 	/**
 		Indicates the type of message. May be one of `license-request`, `license-renewal`, `license-renewal`, or `individualization-request`.

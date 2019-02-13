@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableRowElement>
 **/
 @:native("HTMLTableRowElement")
-extern class TableRowElement extends Element
-{
+extern class TableRowElement extends Element {
 	
 	/**
 		Returns a `long` value which gives the logical position of the row within the entire table. If the row is not part of a table, returns `-1`.

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGImageElement>
 **/
 @:native("SVGImageElement")
-extern class ImageElement extends GraphicsElement
-{
+extern class ImageElement extends GraphicsElement {
 	
 	/**
 		An `SVGAnimatedLength` corresponding to the `x` attribute of the given `image` element.

@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegMovetoAbs =
-{
+typedef PathSegMovetoAbs = {
 	var x : Float;
 	var y : Float;
 	

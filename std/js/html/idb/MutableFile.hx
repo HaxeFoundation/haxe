@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBMutableFile>
 **/
 @:native("IDBMutableFile")
-extern class MutableFile extends js.html.EventTarget
-{
+extern class MutableFile extends js.html.EventTarget {
 	var name(default,null) : String;
 	var type(default,null) : String;
 	var database(default,null) : Database;

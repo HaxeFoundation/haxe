@@ -24,10 +24,8 @@
 
 package js.html;
 
-typedef TransitionEventInit =
-{
-	> EventInit,
-	@:optional var elapsedTime : Float;
-	@:optional var propertyName : String;
-	@:optional var pseudoElement : String;
+typedef TransitionEventInit = EventInit & {
+	var ?elapsedTime : Float;
+	var ?propertyName : String;
+	var ?pseudoElement : String;
 }

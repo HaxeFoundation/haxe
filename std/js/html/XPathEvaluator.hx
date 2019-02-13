@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("XPathEvaluator")
-extern class XPathEvaluator
-{
+extern class XPathEvaluator {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */

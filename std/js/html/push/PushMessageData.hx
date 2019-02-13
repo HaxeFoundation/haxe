@@ -32,8 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushMessageData>
 **/
 @:native("PushMessageData")
-extern class PushMessageData
-{
+extern class PushMessageData {
 	
 	/**
 		Extracts the data as an `ArrayBuffer` object.

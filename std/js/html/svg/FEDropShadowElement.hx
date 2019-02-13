@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDropShadowElement>
 **/
 @:native("SVGFEDropShadowElement")
-extern class FEDropShadowElement extends Element
-{
+extern class FEDropShadowElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

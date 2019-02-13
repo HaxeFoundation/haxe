@@ -24,6 +24,5 @@
 
 package js.html.rtc;
 
-typedef OfferAnswerOptions =
-{
+typedef OfferAnswerOptions = {
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Gamepad>
 **/
 @:native("Gamepad")
-extern class Gamepad
-{
+extern class Gamepad {
 	
 	/**
 		A `DOMString` containing identifying information about the controller.

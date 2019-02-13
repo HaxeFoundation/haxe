@@ -31,88 +31,87 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackSupportedConstraints>
 **/
-typedef MediaTrackSupportedConstraints =
-{
+typedef MediaTrackSupportedConstraints = {
 	
 	/**
 		A Boolean value whose value is `true` if the `aspectRatio` constraint is supported in the current environment.
 	**/
-	@:optional var aspectRatio : Bool;
+	var ?aspectRatio : Bool;
 	
 	/**
 		A Boolean whose value is `true` if the `autoGainControl` constraint is supported in the current environment.
 	**/
-	@:optional var autoGainControl : Bool;
-	@:optional var browserWindow : Bool;
+	var ?autoGainControl : Bool;
+	var ?browserWindow : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `channelCount` constraint is supported in the current environment.
 	**/
-	@:optional var channelCount : Bool;
+	var ?channelCount : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `deviceId` constraint is supported in the current environment.
 	**/
-	@:optional var deviceId : Bool;
+	var ?deviceId : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `echoCancellation` constraint is supported in the current environment.
 	**/
-	@:optional var echoCancellation : Bool;
+	var ?echoCancellation : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `facingMode` constraint is supported in the current environment.
 	**/
-	@:optional var facingMode : Bool;
+	var ?facingMode : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `frameRate` constraint is supported in the current environment.
 	**/
-	@:optional var frameRate : Bool;
+	var ?frameRate : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `groupId` constraint is supported in the current environment.
 	**/
-	@:optional var groupId : Bool;
+	var ?groupId : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `height` constraint is supported in the current environment.
 	**/
-	@:optional var height : Bool;
+	var ?height : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `latency` constraint is supported in the current environment.
 	**/
-	@:optional var latency : Bool;
-	@:optional var mediaSource : Bool;
+	var ?latency : Bool;
+	var ?mediaSource : Bool;
 	
 	/**
 		A Boolean whose value is `true` if the `noiseSuppression` constraint is supported in the current environment.
 	**/
-	@:optional var noiseSuppression : Bool;
+	var ?noiseSuppression : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `sampleRate` constraint is supported in the current environment.
 	**/
-	@:optional var sampleRate : Bool;
+	var ?sampleRate : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `sampleSize` constraint is supported in the current environment.
 	**/
-	@:optional var sampleSize : Bool;
-	@:optional var scrollWithPage : Bool;
-	@:optional var viewportHeight : Bool;
-	@:optional var viewportOffsetX : Bool;
-	@:optional var viewportOffsetY : Bool;
-	@:optional var viewportWidth : Bool;
+	var ?sampleSize : Bool;
+	var ?scrollWithPage : Bool;
+	var ?viewportHeight : Bool;
+	var ?viewportOffsetX : Bool;
+	var ?viewportOffsetY : Bool;
+	var ?viewportWidth : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `volume` constraint is supported in the current environment.
 	**/
-	@:optional var volume : Bool;
+	var ?volume : Bool;
 	
 	/**
 		A Boolean value whose value is `true` if the `width` constraint is supported in the current environment.
 	**/
-	@:optional var width : Bool;
+	var ?width : Bool;
 }

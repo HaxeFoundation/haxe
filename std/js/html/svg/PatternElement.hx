@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPatternElement>
 **/
 @:native("SVGPatternElement")
-extern class PatternElement extends Element
-{
+extern class PatternElement extends Element {
 	
 	/**
 		An `SVGAnimatedEnumeration` corresponding to the `patternUnits` attribute of the given `pattern` element. Takes one of the constants defined in `SVGUnitTypes`.

@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef ObserverCallback =
-{
+typedef ObserverCallback = {
 	function handleEvent( observer : FetchObserver ) : Void;
 }

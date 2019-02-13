@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSRule>
 **/
 @:native("CSSRule")
-extern class CSSRule
-{
+extern class CSSRule {
 	static inline var STYLE_RULE : Int = 1;
 	static inline var CHARSET_RULE : Int = 2;
 	static inline var IMPORT_RULE : Int = 3;

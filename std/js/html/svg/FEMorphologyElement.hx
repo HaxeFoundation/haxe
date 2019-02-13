@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMorphologyElement>
 **/
 @:native("SVGFEMorphologyElement")
-extern class FEMorphologyElement extends Element
-{
+extern class FEMorphologyElement extends Element {
 	static inline var SVG_MORPHOLOGY_OPERATOR_UNKNOWN : Int = 0;
 	static inline var SVG_MORPHOLOGY_OPERATOR_ERODE : Int = 1;
 	static inline var SVG_MORPHOLOGY_OPERATOR_DILATE : Int = 2;

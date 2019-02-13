@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract IceCredentialType(String)
-{
+enum abstract IceCredentialType(String) {
 	var PASSWORD = "password";
 	var TOKEN = "token";
 }

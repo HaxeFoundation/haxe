@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaQueryList>
 **/
 @:native("MediaQueryList")
-extern class MediaQueryList extends EventTarget
-{
+extern class MediaQueryList extends EventTarget {
 	
 	/**
 		 A `DOMString` representing a serialized media query.

@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGDescElement>
 **/
 @:native("SVGDescElement")
-extern class DescElement extends Element
-{
+extern class DescElement extends Element {
 }

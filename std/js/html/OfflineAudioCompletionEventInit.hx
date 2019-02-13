@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef OfflineAudioCompletionEventInit =
-{
-	> EventInit,
+typedef OfflineAudioCompletionEventInit = EventInit & {
 	var renderedBuffer : js.html.audio.AudioBuffer;
 }

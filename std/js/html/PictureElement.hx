@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPictureElement>
 **/
 @:native("HTMLPictureElement")
-extern class PictureElement extends Element
-{
+extern class PictureElement extends Element {
 }

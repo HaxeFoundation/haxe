@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract SelectionMode(String)
-{
+enum abstract SelectionMode(String) {
 	var SELECT = "select";
 	var START = "start";
 	var END = "end";

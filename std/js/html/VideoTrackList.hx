@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("VideoTrackList")
-extern class VideoTrackList extends EventTarget implements ArrayAccess<VideoTrack>
-{
+extern class VideoTrackList extends EventTarget implements ArrayAccess<VideoTrack> {
 	var length(default,null) : Int;
 	var selectedIndex(default,null) : Int;
 	var onchange : haxe.Constraints.Function;

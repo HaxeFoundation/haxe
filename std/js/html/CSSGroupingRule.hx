@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSGroupingRule>
 **/
 @:native("CSSGroupingRule")
-extern class CSSGroupingRule extends CSSRule
-{
+extern class CSSGroupingRule extends CSSRule {
 	var cssRules(default,null) : CSSRuleList;
 	
 	/** @throws DOMError */

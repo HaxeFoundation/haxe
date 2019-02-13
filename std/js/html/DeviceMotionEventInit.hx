@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef DeviceMotionEventInit =
-{
-	> EventInit,
-	@:optional var acceleration : DeviceAccelerationInit;
-	@:optional var accelerationIncludingGravity : DeviceAccelerationInit;
-	@:optional var interval : Float;
-	@:optional var rotationRate : DeviceRotationRateInit;
+typedef DeviceMotionEventInit = EventInit & {
+	var ?acceleration : DeviceAccelerationInit;
+	var ?accelerationIncludingGravity : DeviceAccelerationInit;
+	var ?interval : Float;
+	var ?rotationRate : DeviceRotationRateInit;
 }

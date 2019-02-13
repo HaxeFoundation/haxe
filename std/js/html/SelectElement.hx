@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSelectElement>
 **/
 @:native("HTMLSelectElement")
-extern class SelectElement extends Element implements ArrayAccess<Element>
-{
+extern class SelectElement extends Element implements ArrayAccess<Element> {
 	
 	/**
 		A `Boolean` reflecting the `autofocus` HTML attribute, which indicates whether the control should have input focus when the page loads, unless the user overrides it, for example by typing in a different control. Only one form-associated element in a document can have this attribute specified. `2.0`

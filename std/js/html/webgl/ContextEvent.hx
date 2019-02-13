@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLContextEvent>
 **/
 @:native("WebGLContextEvent")
-extern class ContextEvent extends js.html.Event
-{
+extern class ContextEvent extends js.html.Event {
 	
 	/**
 		A read-only property containing additional information about the event.

@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver>
 **/
 @:native("RTCRtpReceiver")
-extern class RtpReceiver
-{
+extern class RtpReceiver {
 	
 	/**
 		Returns the `MediaStreamTrack` associated with the current `RTCRtpReceiver` instance. 

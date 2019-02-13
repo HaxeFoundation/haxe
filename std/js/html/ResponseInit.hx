@@ -24,9 +24,8 @@
 
 package js.html;
 
-typedef ResponseInit =
-{
-	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
-	@:optional var status : Int;
-	@:optional var statusText : String;
+typedef ResponseInit = {
+	var ?headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
+	var ?status : Int;
+	var ?statusText : String;
 }

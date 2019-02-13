@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MimeTypeArray>
 **/
 @:native("MimeTypeArray")
-extern class MimeTypeArray implements ArrayAccess<MimeType>
-{
+extern class MimeTypeArray implements ArrayAccess<MimeType> {
 	
 	/**
 		The number of items in the array.

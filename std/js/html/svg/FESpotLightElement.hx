@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFESpotLightElement>
 **/
 @:native("SVGFESpotLightElement")
-extern class FESpotLightElement extends Element
-{
+extern class FESpotLightElement extends Element {
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the `x` attribute of the given element.

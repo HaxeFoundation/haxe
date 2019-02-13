@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Event>
 **/
 @:native("Event")
-extern class Event
-{
+extern class Event {
 	static inline var NONE : Int = 0;
 	static inline var CAPTURING_PHASE : Int = 1;
 	static inline var AT_TARGET : Int = 2;

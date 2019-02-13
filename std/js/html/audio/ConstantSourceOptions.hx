@@ -24,7 +24,6 @@
 
 package js.html.audio;
 
-typedef ConstantSourceOptions =
-{
-	@:optional var offset : Float;
+typedef ConstantSourceOptions = {
+	var ?offset : Float;
 }

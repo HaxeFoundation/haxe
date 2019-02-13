@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrix>
 **/
 @:native("DOMMatrix")
-extern class DOMMatrix extends DOMMatrixReadOnly
-{
+extern class DOMMatrix extends DOMMatrixReadOnly {
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	@:overload( function( transformList : String ) : Void {} )

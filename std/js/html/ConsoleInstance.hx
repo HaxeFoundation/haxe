@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Console>
 **/
-extern interface ConsoleInstance
-{
+extern interface ConsoleInstance {
 	
 	/**
 		Log a message and stack trace to console if the first argument is `false`.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionError>
 **/
 @:native("SpeechRecognitionError")
-extern class SpeechRecognitionError extends Event
-{
+extern class SpeechRecognitionError extends Event {
 	
 	/**
 		Returns the type of error raised.

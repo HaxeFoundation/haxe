@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLBuffer>
 **/
 @:native("WebGLBuffer")
-extern class Buffer
-{
+extern class Buffer {
 }

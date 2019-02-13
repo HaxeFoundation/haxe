@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ChannelPixelLayoutDataType(String)
-{
+enum abstract ChannelPixelLayoutDataType(String) {
 	var UINT8 = "uint8";
 	var INT8 = "int8";
 	var UINT16 = "uint16";

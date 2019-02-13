@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageManager>
 **/
 @:native("StorageManager")
-extern class StorageManager
-{
+extern class StorageManager {
 	
 	/**
 		Returns a `Promise` that resolves to `true` if persistence has already been granted for your site's storage.

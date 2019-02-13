@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PositionError>
 **/
 @:native("PositionError")
-extern class PositionError
-{
+extern class PositionError {
 	static inline var PERMISSION_DENIED : Int = 1;
 	static inline var POSITION_UNAVAILABLE : Int = 2;
 	static inline var TIMEOUT : Int = 3;

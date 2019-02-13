@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLIElement>
 **/
 @:native("HTMLLIElement")
-extern class LIElement extends Element
-{
+extern class LIElement extends Element {
 	
 	/**
 		Is a `long` indicating the ordinal position of the list element inside a given `ol`. It reflects the `value` attribute of the HTML `li` element, and can be smaller than `0`. If the `li` element is not a child of an `ol` element, the property has no meaning.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLProgressElement>
 **/
 @:native("HTMLProgressElement")
-extern class ProgressElement extends Element
-{
+extern class ProgressElement extends Element {
 	
 	/**
 		Is a `double` value that reflects the current value; if the progress bar is an indeterminate progress bar, it returns `0`.

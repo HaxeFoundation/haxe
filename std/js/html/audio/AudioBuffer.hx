@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer>
 **/
 @:native("AudioBuffer")
-extern class AudioBuffer
-{
+extern class AudioBuffer {
 	
 	/**
 		Returns a float representing the sample rate, in samples per second, of the PCM data stored in the buffer.

@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef PopStateEventInit =
-{
-	> EventInit,
-	@:optional var state : Dynamic;
+typedef PopStateEventInit = EventInit & {
+	var ?state : Dynamic;
 }

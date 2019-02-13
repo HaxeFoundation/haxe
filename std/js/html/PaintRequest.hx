@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("PaintRequest")
-extern class PaintRequest
-{
+extern class PaintRequest {
 	var clientRect(default,null) : DOMRect;
 	var reason(default,null) : String;
 	

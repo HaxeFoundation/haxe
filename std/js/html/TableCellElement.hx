@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCellElement>
 **/
 @:native("HTMLTableCellElement")
-extern class TableCellElement extends Element
-{
+extern class TableCellElement extends Element {
 	
 	/**
 		An unsigned long integer indicating the number of columns this cell must span; this lets the cell occupy space across multiple columns of the table. It reflects the `colspan` attribute.

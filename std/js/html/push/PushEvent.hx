@@ -32,8 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushEvent>
 **/
 @:native("PushEvent")
-extern class PushEvent extends js.html.ExtendableEvent
-{
+extern class PushEvent extends js.html.ExtendableEvent {
 	
 	/**
 		Returns a reference to a `PushMessageData` object containing data sent to the `PushSubscription`.

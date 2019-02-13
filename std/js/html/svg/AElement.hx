@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAElement>
 **/
 @:native("SVGAElement")
-extern class AElement extends GraphicsElement
-{
+extern class AElement extends GraphicsElement {
 	
 	/**
 		It corresponds to the `target` attribute of the given element.

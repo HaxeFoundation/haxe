@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef LocaleInfo =
-{
-	@:optional var direction : String;
-	@:optional var locale : String;
+typedef LocaleInfo = {
+	var ?direction : String;
+	var ?locale : String;
 }

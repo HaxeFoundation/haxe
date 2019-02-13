@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef FormDataIterator =
-{
+typedef FormDataIterator = {
 	/** @throws DOMError */
 	function next() : Dynamic;
 }

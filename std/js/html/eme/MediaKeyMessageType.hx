@@ -24,8 +24,7 @@
 
 package js.html.eme;
 
-enum abstract MediaKeyMessageType(String)
-{
+enum abstract MediaKeyMessageType(String) {
 	var LICENSE_REQUEST = "license-request";
 	var LICENSE_RENEWAL = "license-renewal";
 	var LICENSE_RELEASE = "license-release";

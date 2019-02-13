@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StyleSheetList>
 **/
 @:native("StyleSheetList")
-extern class StyleSheetList implements ArrayAccess<StyleSheet>
-{
+extern class StyleSheetList implements ArrayAccess<StyleSheet> {
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : StyleSheet;

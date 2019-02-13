@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextMetrics>
 **/
 @:native("TextMetrics")
-extern class TextMetrics
-{
+extern class TextMetrics {
 	
 	/**
 		Is a `double` giving the calculated width of a segment of inline text in CSS pixels. It takes into account the current font of the context.

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CSSTransition")
-extern class CSSTransition extends Animation
-{
+extern class CSSTransition extends Animation {
 	var transitionProperty(default,null) : String;
 	
 }

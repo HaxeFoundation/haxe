@@ -24,7 +24,6 @@
 
 package js.html.rtc;
 
-typedef FecParameters =
-{
-	@:optional var ssrc : Int;
+typedef FecParameters = {
+	var ?ssrc : Int;
 }

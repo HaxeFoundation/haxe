@@ -32,8 +32,7 @@ package js.html.midi;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIConnectionEvent>
 **/
 @:native("MIDIConnectionEvent")
-extern class MIDIConnectionEvent extends js.html.Event
-{
+extern class MIDIConnectionEvent extends js.html.Event {
 	
 	/**
 		Returns a reference to a `MIDIPort` instance for a port that has been connected or disconnected."

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode>
 **/
 @:native("StereoPannerNode")
-extern class StereoPannerNode extends AudioNode
-{
+extern class StereoPannerNode extends AudioNode {
 	
 	/**
 		Is an a-rate `AudioParam` representing the amount of panning to apply.

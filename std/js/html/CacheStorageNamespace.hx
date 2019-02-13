@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract CacheStorageNamespace(String)
-{
+enum abstract CacheStorageNamespace(String) {
 	var CONTENT = "content";
 	var CHROME = "chrome";
 }

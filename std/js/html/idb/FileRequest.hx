@@ -25,8 +25,7 @@
 package js.html.idb;
 
 @:native("IDBFileRequest")
-extern class FileRequest extends js.html.DOMRequest
-{
+extern class FileRequest extends js.html.DOMRequest {
 	var fileHandle(default,null) : FileHandle;
 	var lockedFile(default,null) : FileHandle;
 	var onprogress : haxe.Constraints.Function;

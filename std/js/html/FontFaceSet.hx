@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFaceSet>
 **/
 @:native("FontFaceSet")
-extern class FontFaceSet extends EventTarget
-{
+extern class FontFaceSet extends EventTarget {
 	var size(default,null) : Int;
 	
 	/**

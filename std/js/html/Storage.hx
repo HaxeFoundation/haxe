@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Storage>
 **/
 @:native("Storage")
-extern class Storage
-{
+extern class Storage {
 	
 	/**
 		Returns an integer representing the number of data items stored in the `Storage` object.

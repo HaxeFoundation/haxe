@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMStringList>
 **/
 @:native("DOMStringList")
-extern class DOMStringList implements ArrayAccess<String>
-{
+extern class DOMStringList implements ArrayAccess<String> {
 	
 	/**
 		Returns the length of the list,

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBodyElement>
 **/
 @:native("HTMLBodyElement")
-extern class BodyElement extends Element
-{
+extern class BodyElement extends Element {
 	
 	/**
 		Is a `DOMString` that represents the foreground color of text.

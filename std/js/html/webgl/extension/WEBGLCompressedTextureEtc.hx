@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_compressed_texture_etc>
 **/
 @:native("WEBGL_compressed_texture_etc")
-extern class WEBGLCompressedTextureEtc
-{
+extern class WEBGLCompressedTextureEtc {
 	
 	/**
 		One-channel (red) unsigned format compression.

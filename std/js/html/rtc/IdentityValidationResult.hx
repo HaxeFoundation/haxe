@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef IdentityValidationResult =
-{
+typedef IdentityValidationResult = {
 	var contents : String;
 	var identity : String;
 }

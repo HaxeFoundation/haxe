@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative>
 **/
 @:native("SpeechRecognitionAlternative")
-extern class SpeechRecognitionAlternative
-{
+extern class SpeechRecognitionAlternative {
 	
 	/**
 		Returns a string containing the transcript of the recognised word.

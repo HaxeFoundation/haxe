@@ -24,8 +24,7 @@
 
 package js.html.eme;
 
-enum abstract MediaKeySessionType(String)
-{
+enum abstract MediaKeySessionType(String) {
 	var TEMPORARY = "temporary";
 	var PERSISTENT_LICENSE = "persistent-license";
 }

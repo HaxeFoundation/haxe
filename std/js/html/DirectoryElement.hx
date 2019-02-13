@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("HTMLDirectoryElement")
-extern class DirectoryElement extends Element
-{
+extern class DirectoryElement extends Element {
 	var compact : Bool;
 	
 }

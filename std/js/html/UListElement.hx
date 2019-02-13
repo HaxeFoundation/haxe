@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLUListElement>
 **/
 @:native("HTMLUListElement")
-extern class UListElement extends Element
-{
+extern class UListElement extends Element {
 	
 	/**
 		Is a `Boolean` indicating that spacing between list items should be reduced. This property reflects the `compact` attribute only, it doesn't consider the `line-height` CSS property used for that behavior in modern pages.

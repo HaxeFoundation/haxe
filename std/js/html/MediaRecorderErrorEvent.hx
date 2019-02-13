@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorderErrorEvent>
 **/
 @:native("MediaRecorderErrorEvent")
-extern class MediaRecorderErrorEvent extends Event
-{
+extern class MediaRecorderErrorEvent extends Event {
 	
 	/**
 		A `DOMException` containing information about the error that occurred. Read only.

@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef NotificationEventInit =
-{
-	> ExtendableEventInit,
+typedef NotificationEventInit = ExtendableEventInit & {
 	var notification : Notification;
 }

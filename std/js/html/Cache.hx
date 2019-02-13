@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Cache>
 **/
 @:native("Cache")
-extern class Cache
-{
+extern class Cache {
 	@:overload( function( request : String, ?options : CacheQueryOptions) : Promise<Response> {} )
 	function match( request : Request, ?options : CacheQueryOptions ) : Promise<Response>;
 	@:overload( function( ?request : String, ?options : CacheQueryOptions) : Promise<Array<Response>> {} )

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ProcessingInstruction>
 **/
 @:native("ProcessingInstruction")
-extern class ProcessingInstruction extends CharacterData
-{
+extern class ProcessingInstruction extends CharacterData {
 	var target(default,null) : String;
 	var sheet(default,null) : StyleSheet;
 	

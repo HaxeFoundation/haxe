@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IIRFilterNode>
 **/
 @:native("IIRFilterNode")
-extern class IIRFilterNode extends AudioNode
-{
+extern class IIRFilterNode extends AudioNode {
 	/** @throws DOMError */
 	function new( context : BaseAudioContext, options : IIRFilterOptions ) : Void;
 	function getFrequencyResponse( frequencyHz : js.html.Float32Array, magResponse : js.html.Float32Array, phaseResponse : js.html.Float32Array ) : Void;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator>
 **/
 @:native("Navigator")
-extern class Navigator
-{
+extern class Navigator {
 	
 	/**
 		Returns a `Permissions` object that can be used to query and update permission status of APIs covered by the Permissions API.

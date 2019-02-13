@@ -32,8 +32,7 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySession>
 **/
 @:native("MediaKeySession")
-extern class MediaKeySession extends js.html.EventTarget
-{
+extern class MediaKeySession extends js.html.EventTarget {
 	var error(default,null) : MediaKeyError;
 	
 	/**

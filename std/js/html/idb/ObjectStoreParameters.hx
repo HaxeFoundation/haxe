@@ -24,8 +24,7 @@
 
 package js.html.idb;
 
-typedef ObjectStoreParameters =
-{
-	@:optional var autoIncrement : Bool;
-	@:optional var keyPath : haxe.extern.EitherType<String,Array<String>>;
+typedef ObjectStoreParameters = {
+	var ?autoIncrement : Bool;
+	var ?keyPath : haxe.extern.EitherType<String,Array<String>>;
 }

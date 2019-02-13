@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptionsCollection>
 **/
 @:native("HTMLOptionsCollection")
-extern class HTMLOptionsCollection extends HTMLCollection
-{
+extern class HTMLOptionsCollection extends HTMLCollection {
 	var selectedIndex : Int;
 	
 	/** @throws DOMError */

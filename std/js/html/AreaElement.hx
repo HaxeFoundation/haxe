@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAreaElement>
 **/
 @:native("HTMLAreaElement")
-extern class AreaElement extends Element
-{
+extern class AreaElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `alt` HTML attribute, containing alternative text for the element.

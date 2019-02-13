@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ValidityState>
 **/
 @:native("ValidityState")
-extern class ValidityState
-{
+extern class ValidityState {
 	
 	/**
 		Is a `Boolean` indicating the element has a `required` attribute, but no value.

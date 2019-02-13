@@ -24,8 +24,6 @@
 
 package js.html.rtc;
 
-typedef PeerConnectionIceEventInit =
-{
-	> EventInit,
-	@:optional var candidate : IceCandidate;
+typedef PeerConnectionIceEventInit = EventInit & {
+	var ?candidate : IceCandidate;
 }

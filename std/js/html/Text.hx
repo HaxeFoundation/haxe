@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Text>
 **/
 @:native("Text")
-extern class Text extends CharacterData
-{
+extern class Text extends CharacterData {
 	
 	/**
 		Returns a `DOMString` containing the text of all `Text` nodes logically adjacent to this `Node`, concatenated in document order.

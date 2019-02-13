@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/StorageEvent>
 **/
 @:native("StorageEvent")
-extern class StorageEvent extends Event
-{
+extern class StorageEvent extends Event {
 	var key(default,null) : String;
 	var oldValue(default,null) : String;
 	var newValue(default,null) : String;

@@ -24,8 +24,7 @@
 
 package js.html.midi;
 
-enum abstract MIDIPortDeviceState(String)
-{
+enum abstract MIDIPortDeviceState(String) {
 	var DISCONNECTED = "disconnected";
 	var CONNECTED = "connected";
 }

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MediaKeyStatusMapIterator =
-{
+typedef MediaKeyStatusMapIterator = {
 	/** @throws DOMError */
 	function next() : Dynamic;
 }

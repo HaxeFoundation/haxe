@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamAudioSourceNode>
 **/
 @:native("MediaStreamAudioSourceNode")
-extern class MediaStreamAudioSourceNode extends AudioNode
-{
+extern class MediaStreamAudioSourceNode extends AudioNode {
 	/** @throws DOMError */
 	function new( context : AudioContext, options : MediaStreamAudioSourceOptions ) : Void;
 }

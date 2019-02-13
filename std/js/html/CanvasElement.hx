@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement>
 **/
 @:native("HTMLCanvasElement")
-extern class CanvasElement extends Element
-{
+extern class CanvasElement extends Element {
 	
 	/**
 		Is a positive `integer` reflecting the `width` HTML attribute of the `canvas` element interpreted in CSS pixels. When the attribute is not specified, or if it is set to an invalid value, like a negative, the default value of `300` is used.

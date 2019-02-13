@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent>
 **/
 @:native("MouseEvent")
-extern class MouseEvent extends UIEvent
-{
+extern class MouseEvent extends UIEvent {
 	
 	/**
 		The X coordinate of the mouse pointer in global (screen) coordinates.

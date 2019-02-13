@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ChannelPixelLayout =
-{
+typedef ChannelPixelLayout = {
 	var dataType : ChannelPixelLayoutDataType;
 	var height : Int;
 	var offset : Int;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessagePort>
 **/
 @:native("MessagePort")
-extern class MessagePort extends EventTarget
-{
+extern class MessagePort extends EventTarget {
 	var onmessage : haxe.Constraints.Function;
 	var onmessageerror : haxe.Constraints.Function;
 	

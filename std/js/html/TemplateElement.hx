@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTemplateElement>
 **/
 @:native("HTMLTemplateElement")
-extern class TemplateElement extends Element
-{
+extern class TemplateElement extends Element {
 	
 	/**
 		`DocumentFragment`: Returns the `template` element's template contents.

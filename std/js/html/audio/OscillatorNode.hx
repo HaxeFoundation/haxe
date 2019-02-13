@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OscillatorNode>
 **/
 @:native("OscillatorNode")
-extern class OscillatorNode extends AudioScheduledSourceNode
-{
+extern class OscillatorNode extends AudioScheduledSourceNode {
 	
 	/**
 		A string which specifies the shape of waveform to play; this can be one of a number of standard values, or `custom` to use a `PeriodicWave` to describe a custom waveform. Different waves will produce different tones. Standard values are `"sine"`, `"square"`, `"sawtooth"`, `"triangle"` and `"custom"`. The default is `"sine"`.

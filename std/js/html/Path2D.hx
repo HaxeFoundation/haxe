@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Path2D>
 **/
 @:native("Path2D")
-extern class Path2D
-{
+extern class Path2D {
 	/** @throws DOMError */
 	@:overload( function() : Void {} )
 	@:overload( function( other : Path2D ) : Void {} )

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Attr>
 **/
 @:native("Attr")
-extern class Attr extends Node
-{
+extern class Attr extends Node {
 	
 	/**
 		A `DOMString` representing the local part of the qualified name of the attribute.

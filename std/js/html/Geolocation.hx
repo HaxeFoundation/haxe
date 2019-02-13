@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Geolocation>
 **/
-typedef Geolocation =
-{
+typedef Geolocation = {
 	
 	/**
 		Determines the device's current location and gives back a `Position` object with the data.

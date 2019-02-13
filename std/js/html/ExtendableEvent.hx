@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent>
 **/
 @:native("ExtendableEvent")
-extern class ExtendableEvent extends Event
-{
+extern class ExtendableEvent extends Event {
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : ExtendableEventInit ) : Void;
 	/** @throws DOMError */

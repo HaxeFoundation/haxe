@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract PriorityType(String)
-{
+enum abstract PriorityType(String) {
 	var VERY_LOW = "very-low";
 	var LOW = "low";
 	var MEDIUM = "medium";

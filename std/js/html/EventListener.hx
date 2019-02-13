@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EventListener>
 **/
-typedef EventListener =
-{
+typedef EventListener = {
 	
 	/**
 		A function that is called whenever an event of the specified type occurs.

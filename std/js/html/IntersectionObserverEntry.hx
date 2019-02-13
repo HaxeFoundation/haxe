@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserverEntry>
 **/
 @:native("IntersectionObserverEntry")
-extern class IntersectionObserverEntry
-{
+extern class IntersectionObserverEntry {
 	
 	/**
 		A `DOMHighResTimeStamp` indicating the time at which the intersection was recorded, relative to the `IntersectionObserver`'s time origin.

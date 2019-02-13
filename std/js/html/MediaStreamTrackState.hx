@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract MediaStreamTrackState(String)
-{
+enum abstract MediaStreamTrackState(String) {
 	var LIVE = "live";
 	var ENDED = "ended";
 }

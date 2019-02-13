@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemDirectoryEntry>
 **/
 @:native("FileSystemDirectoryEntry")
-extern class FileSystemDirectoryEntry extends FileSystemEntry
-{
+extern class FileSystemDirectoryEntry extends FileSystemEntry {
 	function createReader() : FileSystemDirectoryReader;
 	@:overload( function( ?path : String, ?options : FileSystemFlags, ?successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
 	@:overload( function( ?path : String, ?options : FileSystemFlags, ?successCallback : FileSystemEntryCallback, ?errorCallback : ErrorCallback) : Void {} )

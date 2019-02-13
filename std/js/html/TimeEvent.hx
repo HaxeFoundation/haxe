@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TimeEvent>
 **/
 @:native("TimeEvent")
-extern class TimeEvent extends Event
-{
+extern class TimeEvent extends Event {
 	var detail(default,null) : Int;
 	var view(default,null) : Window;
 	

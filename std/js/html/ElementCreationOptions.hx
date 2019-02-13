@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef ElementCreationOptions =
-{
-	@:optional var is : String;
+typedef ElementCreationOptions = {
+	var ?is : String;
 }

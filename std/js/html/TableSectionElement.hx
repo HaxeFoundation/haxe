@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableSectionElement>
 **/
 @:native("HTMLTableSectionElement")
-extern class TableSectionElement extends Element
-{
+extern class TableSectionElement extends Element {
 	
 	/**
 		Returns a live `HTMLCollection` containing the rows in the section. The `HTMLCollection` is live and is automatically updated when rows are added or removed.

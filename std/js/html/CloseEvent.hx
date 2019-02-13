@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent>
 **/
 @:native("CloseEvent")
-extern class CloseEvent extends Event
-{
+extern class CloseEvent extends Event {
 	
 	/**
 		Returns a `Boolean` that Indicates whether or not the connection was cleanly closed.

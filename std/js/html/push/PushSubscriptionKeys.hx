@@ -24,8 +24,7 @@
 
 package js.html.push;
 
-typedef PushSubscriptionKeys =
-{
-	@:optional var auth : String;
-	@:optional var p256dh : String;
+typedef PushSubscriptionKeys = {
+	var ?auth : String;
+	var ?p256dh : String;
 }

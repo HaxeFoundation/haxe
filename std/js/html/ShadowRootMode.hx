@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ShadowRootMode(String)
-{
+enum abstract ShadowRootMode(String) {
 	var OPEN = "open";
 	var CLOSED = "closed";
 }

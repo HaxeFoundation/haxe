@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGSwitchElement>
 **/
 @:native("SVGSwitchElement")
-extern class SwitchElement extends GraphicsElement
-{
+extern class SwitchElement extends GraphicsElement {
 }

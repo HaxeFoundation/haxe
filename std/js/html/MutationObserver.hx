@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver>
 **/
 @:native("MutationObserver")
-extern class MutationObserver
-{
+extern class MutationObserver {
 	/** @throws DOMError */
 	function new( mutationCallback : Array<MutationRecord> -> MutationObserver -> Void ) : Void;
 	/** @throws DOMError */

@@ -24,9 +24,8 @@
 
 package js.html.audio;
 
-typedef OfflineAudioContextOptions =
-{
+typedef OfflineAudioContextOptions = {
 	var length : Int;
-	@:optional var numberOfChannels : Int;
+	var ?numberOfChannels : Int;
 	var sampleRate : Float;
 }

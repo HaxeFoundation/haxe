@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceAcceleration>
 **/
-typedef DeviceAcceleration =
-{
+typedef DeviceAcceleration = {
 	
 	/**
 		The amount of acceleration along the X axis. Read only.

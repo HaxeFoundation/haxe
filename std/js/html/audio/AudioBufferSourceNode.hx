@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode>
 **/
 @:native("AudioBufferSourceNode")
-extern class AudioBufferSourceNode extends AudioScheduledSourceNode
-{
+extern class AudioBufferSourceNode extends AudioScheduledSourceNode {
 	
 	/**
 		An `AudioBuffer` that defines the audio asset to be played, or when set to the value `null`, defines a single channel of silence (in which every sample is 0.0).

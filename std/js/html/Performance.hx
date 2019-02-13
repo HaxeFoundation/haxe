@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Performance>
 **/
 @:native("Performance")
-extern class Performance extends EventTarget
-{
+extern class Performance extends EventTarget {
 	
 	/**
 		Returns the high resolution timestamp of the start time of the performance measurement.
