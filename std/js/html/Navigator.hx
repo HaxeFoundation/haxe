@@ -79,6 +79,11 @@ extern class Navigator
 	var buildID(default,null) : String;
 	
 	/**
+		Returns a reference to a `MediaDevices` object which can then be used to get information about available media devices (`MediaDevices.enumerateDevices()`), find out what constrainable properties are supported for media on the user's computer and user agent (`MediaDevices.getSupportedConstraints()`), and to request access to media using `MediaDevices.getUserMedia()`.
+	**/
+	var mediaDevices(default,null) : MediaDevices;
+	
+	/**
 		Returns a `ServiceWorkerContainer` object, which provides access to registration, removal, upgrade, and communication with the `ServiceWorker` objects for the associated document.
 	**/
 	var serviceWorker(default,null) : ServiceWorkerContainer;
