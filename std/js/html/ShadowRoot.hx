@@ -52,6 +52,7 @@ extern class ShadowRoot extends DocumentFragment
 	var activeElement(default,null) : Element;
 	var styleSheets(default,null) : StyleSheetList;
 	var pointerLockElement(default,null) : Element;
+	var fullscreenElement(default,null) : Element;
 	
 	function getElementById( elementId : String ) : Element;
 	function getElementsByTagName( localName : String ) : HTMLCollection;
