@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef AudioWorkletNodeOptions =
-AudioNodeOptions & {
+typedef AudioWorkletNodeOptions = AudioNodeOptions & {
 	var ?numberOfInputs : Int;
 	var ?numberOfOutputs : Int;
 	var ?outputChannelCount : Array<Int>;

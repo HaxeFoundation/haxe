@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackSettings>
 **/
-typedef MediaTrackSettings =
-{
+typedef MediaTrackSettings = {
 	
 	/**
 		A Boolean which indicates the current value of the `MediaTrackConstraints.autoGainControl` property, which is `true` if automatic gain control is enabled and is `false` otherwise.

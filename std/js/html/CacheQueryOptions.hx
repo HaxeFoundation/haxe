@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef CacheQueryOptions =
-{
+typedef CacheQueryOptions = {
 	var ?cacheName : String;
 	var ?ignoreMethod : Bool;
 	var ?ignoreSearch : Bool;

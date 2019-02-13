@@ -32,8 +32,7 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeyStatusMap>
 **/
 @:native("MediaKeyStatusMap")
-extern class MediaKeyStatusMap
-{
+extern class MediaKeyStatusMap {
 	
 	/**
 		Returns the number of key/value pars in the status map.

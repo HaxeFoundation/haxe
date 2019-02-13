@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTextAreaElement>
 **/
 @:native("HTMLTextAreaElement")
-extern class TextAreaElement extends Element
-{
+extern class TextAreaElement extends Element {
 	var autocomplete : String;
 	var autofocus : Bool;
 	var cols : Int;

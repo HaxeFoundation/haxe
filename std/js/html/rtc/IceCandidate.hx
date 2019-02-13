@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidate>
 **/
 @:native("RTCIceCandidate")
-extern class IceCandidate
-{
+extern class IceCandidate {
 	
 	/**
 		A `DOMString` representing the transport address for the candidate that can be used for connectivity checks. The format of this address is a `candidate-attribute` as defined in {{RFC(5245)}}. This string is empty (`""`) if the `RTCIceCandidate` is an "end of candidates" indicator.

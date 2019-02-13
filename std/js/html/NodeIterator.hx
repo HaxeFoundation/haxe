@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeIterator>
 **/
 @:native("NodeIterator")
-extern class NodeIterator
-{
+extern class NodeIterator {
 	
 	/**
 		Returns a `Node` representing the root node as specified when the `NodeIterator` was created.

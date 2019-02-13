@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack>
 **/
 @:native("MediaStreamTrack")
-extern class MediaStreamTrack extends EventTarget
-{
+extern class MediaStreamTrack extends EventTarget {
 	
 	/**
 		Returns a `DOMString` set to `"audio"` if the track is an audio track and to `"video"`, if it is a video track. It doesn't change if the track is deassociated from its source.

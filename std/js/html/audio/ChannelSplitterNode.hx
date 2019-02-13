@@ -25,8 +25,7 @@
 package js.html.audio;
 
 @:native("ChannelSplitterNode")
-extern class ChannelSplitterNode extends AudioNode
-{
+extern class ChannelSplitterNode extends AudioNode {
 	/** @throws DOMError */
 	function new( context : BaseAudioContext, ?options : ChannelSplitterOptions ) : Void;
 }

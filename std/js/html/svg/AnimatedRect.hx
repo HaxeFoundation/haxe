@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedRect>
 **/
 @:native("SVGAnimatedRect")
-extern class AnimatedRect
-{
+extern class AnimatedRect {
 	var baseVal(default,null) : Rect;
 	var animVal(default,null) : Rect;
 	

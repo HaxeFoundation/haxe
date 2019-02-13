@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/VTTCue>
 **/
 @:native("VTTCue")
-extern class VTTCue extends TextTrackCue
-{
+extern class VTTCue extends TextTrackCue {
 	var region : VTTRegion;
 	var vertical : DirectionSetting;
 	var snapToLines : Bool;

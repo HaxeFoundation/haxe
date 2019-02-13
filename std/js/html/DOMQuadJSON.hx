@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef DOMQuadJSON =
-{
+typedef DOMQuadJSON = {
 	var ?p1 : DOMPoint;
 	var ?p2 : DOMPoint;
 	var ?p3 : DOMPoint;

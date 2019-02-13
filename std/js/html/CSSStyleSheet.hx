@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet>
 **/
 @:native("CSSStyleSheet")
-extern class CSSStyleSheet extends StyleSheet
-{
+extern class CSSStyleSheet extends StyleSheet {
 	
 	/**
 		If this style sheet is imported into the document using an `@import` rule, the `ownerRule` property will return that `CSSImportRule`, otherwise it returns `null`.

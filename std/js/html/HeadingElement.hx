@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHeadingElement>
 **/
 @:native("HTMLHeadingElement")
-extern class HeadingElement extends Element
-{
+extern class HeadingElement extends Element {
 	
 	/**
 		Is a `DOMString` representing an enumerated attribute indicating alignment of the heading with respect to the surrounding context. The possible values are `"left"`, `"right"`, `"justify"`, and `"center"`.

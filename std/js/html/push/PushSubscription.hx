@@ -32,8 +32,7 @@ package js.html.push;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription>
 **/
 @:native("PushSubscription")
-extern class PushSubscription
-{
+extern class PushSubscription {
 	
 	/**
 		A `USVString` containing the endpoint associated with the push subscription.

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef CloseEventInit =
-EventInit & {
+typedef CloseEventInit = EventInit & {
 	var ?code : Int;
 	var ?reason : String;
 	var ?wasClean : Bool;

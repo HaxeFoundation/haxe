@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Location>
 **/
 @:native("Location")
-extern class Location
-{
+extern class Location {
 	
 	/**
 		Is a `DOMString` containing the entire URL. If changed, the associated document navigates to the new page. It can be set from a different origin than the associated document.

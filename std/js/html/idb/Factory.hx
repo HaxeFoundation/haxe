@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory>
 **/
 @:native("IDBFactory")
-extern class Factory
-{
+extern class Factory {
 	/** @throws DOMError */
 	@:overload( function( name : String, version : Int ) : OpenDBRequest {} )
 	function open( name : String, ?options : OpenDBOptions ) : OpenDBRequest;

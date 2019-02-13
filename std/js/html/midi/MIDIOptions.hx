@@ -24,8 +24,7 @@
 
 package js.html.midi;
 
-typedef MIDIOptions =
-{
+typedef MIDIOptions = {
 	var ?software : Bool;
 	var ?sysex : Bool;
 }

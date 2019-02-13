@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLScriptElement>
 **/
 @:native("HTMLScriptElement")
-extern class ScriptElement extends Element
-{
+extern class ScriptElement extends Element {
 	var src : String;
 	var type : String;
 	var charset : String;

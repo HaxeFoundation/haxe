@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly>
 **/
 @:native("DOMMatrixReadOnly")
-extern class DOMMatrixReadOnly
-{
+extern class DOMMatrixReadOnly {
 	
 	/**
 		Are <code>double</code> representing each component of a 4x4 matrix needed for 2D rotations and translations. They are aliases for some components of the 4x4 matrix:

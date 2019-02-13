@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent>
 **/
 @:native("FetchEvent")
-extern class FetchEvent extends ExtendableEvent
-{
+extern class FetchEvent extends ExtendableEvent {
 	
 	/**
 		The `Request` the browser intends to make.

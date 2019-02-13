@@ -24,8 +24,7 @@
 
 package js.html.push;
 
-enum abstract PushEncryptionKeyName(String)
-{
+enum abstract PushEncryptionKeyName(String) {
 	var P256DH = "p256dh";
 	var AUTH = "auth";
 }

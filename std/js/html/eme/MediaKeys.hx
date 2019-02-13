@@ -32,8 +32,7 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeys>
 **/
 @:native("MediaKeys")
-extern class MediaKeys
-{
+extern class MediaKeys {
 	var keySystem(default,null) : String;
 	
 	

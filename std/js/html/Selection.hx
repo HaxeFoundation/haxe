@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Selection>
 **/
 @:native("Selection")
-extern class Selection
-{
+extern class Selection {
 	
 	/**
 		Returns the `Node` in which the selection begins.

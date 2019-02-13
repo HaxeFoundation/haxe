@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEImageElement>
 **/
 @:native("SVGFEImageElement")
-extern class FEImageElement extends Element
-{
+extern class FEImageElement extends Element {
 	
 	/**
 		An `SVGAnimatedPreserveAspectRatio` corresponding to the `preserveAspectRatio` attribute of the given element.

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PeriodicWave>
 **/
 @:native("PeriodicWave")
-extern class PeriodicWave
-{
+extern class PeriodicWave {
 	/** @throws DOMError */
 	function new( context : BaseAudioContext, ?options : PeriodicWaveOptions ) : Void;
 }

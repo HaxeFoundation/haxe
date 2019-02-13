@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Client>
 **/
 @:native("Client")
-extern class Client
-{
+extern class Client {
 	
 	/**
 		The URL of the client as a string.

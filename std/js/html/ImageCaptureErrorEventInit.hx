@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef ImageCaptureErrorEventInit =
-EventInit & {
+typedef ImageCaptureErrorEventInit = EventInit & {
 	var ?imageCaptureError : ImageCaptureError;
 }

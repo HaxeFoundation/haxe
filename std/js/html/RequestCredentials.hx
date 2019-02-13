@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract RequestCredentials(String)
-{
+enum abstract RequestCredentials(String) {
 	var OMIT = "omit";
 	var SAME_ORIGIN = "same-origin";
 	var INCLUDE = "include";

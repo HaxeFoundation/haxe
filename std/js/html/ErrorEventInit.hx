@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ErrorEventInit =
-EventInit & {
+typedef ErrorEventInit = EventInit & {
 	var ?colno : Int;
 	var ?error : Dynamic;
 	var ?filename : String;

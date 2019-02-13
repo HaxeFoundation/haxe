@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBKeyRange>
 **/
 @:native("IDBKeyRange")
-extern class KeyRange
-{
+extern class KeyRange {
 	
 	/**
 		Creates a new key range containing a single value.

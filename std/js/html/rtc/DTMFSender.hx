@@ -25,8 +25,7 @@
 package js.html.rtc;
 
 @:native("RTCDTMFSender")
-extern class DTMFSender extends js.html.EventTarget
-{
+extern class DTMFSender extends js.html.EventTarget {
 	
 	/**
 		An `EventHandler` to handle the `tonechange` event, which is sent each time an outbound tone starts or finishes playing.

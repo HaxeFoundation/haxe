@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef PageTransitionEventInit =
-EventInit & {
+typedef PageTransitionEventInit = EventInit & {
 	var ?inFrameSwap : Bool;
 	var ?persisted : Bool;
 }

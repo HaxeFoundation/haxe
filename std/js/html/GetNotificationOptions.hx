@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef GetNotificationOptions =
-{
+typedef GetNotificationOptions = {
 	var ?tag : String;
 }

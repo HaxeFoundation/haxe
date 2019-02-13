@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PageTransitionEvent>
 **/
 @:native("PageTransitionEvent")
-extern class PageTransitionEvent extends Event
-{
+extern class PageTransitionEvent extends Event {
 	
 	/**
 		Indicates if the document is loading from a cache.

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioScheduledSourceNode>
 **/
 @:native("AudioScheduledSourceNode")
-extern class AudioScheduledSourceNode extends AudioNode
-{
+extern class AudioScheduledSourceNode extends AudioNode {
 	
 	/**
 		A function to be called when the `ended` event is fired, indicating that the node has finished playing.

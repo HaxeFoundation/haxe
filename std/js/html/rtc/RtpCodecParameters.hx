@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef RtpCodecParameters =
-{
+typedef RtpCodecParameters = {
 	var ?channels : Int;
 	var ?clockRate : Int;
 	var ?mimeType : String;

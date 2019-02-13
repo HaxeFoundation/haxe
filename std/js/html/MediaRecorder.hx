@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder>
 **/
 @:native("MediaRecorder")
-extern class MediaRecorder extends EventTarget
-{
+extern class MediaRecorder extends EventTarget {
 	static function isTypeSupported( type : String ) : Bool;
 	
 	/**

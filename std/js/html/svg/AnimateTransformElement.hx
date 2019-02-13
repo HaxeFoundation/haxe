@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimateTransformElement>
 **/
 @:native("SVGAnimateTransformElement")
-extern class AnimateTransformElement extends AnimationElement
-{
+extern class AnimateTransformElement extends AnimationElement {
 }

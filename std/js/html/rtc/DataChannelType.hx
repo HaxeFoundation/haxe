@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract DataChannelType(String)
-{
+enum abstract DataChannelType(String) {
 	var ARRAYBUFFER = "arraybuffer";
 	var BLOB = "blob";
 }

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef RequestInit =
-{
+typedef RequestInit = {
 	var ?body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>;
 	var ?cache : RequestCache;
 	var ?credentials : RequestCredentials;

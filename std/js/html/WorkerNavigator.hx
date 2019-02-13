@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerNavigator>
 **/
 @:native("WorkerNavigator")
-extern class WorkerNavigator
-{
+extern class WorkerNavigator {
 	var hardwareConcurrency(default,null) : Int;
 	var appCodeName(default,null) : String;
 	var appName(default,null) : String;

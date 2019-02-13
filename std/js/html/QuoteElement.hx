@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLQuoteElement>
 **/
 @:native("HTMLQuoteElement")
-extern class QuoteElement extends Element
-{
+extern class QuoteElement extends Element {
 	
 	/**
 		Is a `DOMString` reflecting the `cite` HTML attribute, containing a URL for the source of the quotation.

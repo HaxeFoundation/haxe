@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("Audio")
-extern class Audio extends AudioElement
-{
+extern class Audio extends AudioElement {
 	/** @throws DOMError */
 	function new( ?src : String ) : Void;
 }

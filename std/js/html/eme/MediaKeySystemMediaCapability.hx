@@ -24,8 +24,7 @@
 
 package js.html.eme;
 
-typedef MediaKeySystemMediaCapability =
-{
+typedef MediaKeySystemMediaCapability = {
 	var ?contentType : String;
 	var ?robustness : String;
 }

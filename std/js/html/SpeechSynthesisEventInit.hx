@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef SpeechSynthesisEventInit =
-EventInit & {
+typedef SpeechSynthesisEventInit = EventInit & {
 	var ?charIndex : Int;
 	var ?charLength : Int;
 	var ?elapsedTime : Float;

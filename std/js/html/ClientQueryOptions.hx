@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ClientQueryOptions =
-{
+typedef ClientQueryOptions = {
 	var ?includeUncontrolled : Bool;
 	var ?type : ClientType;
 }

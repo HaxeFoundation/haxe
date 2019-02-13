@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegLinetoHorizontalRel =
-{
+typedef PathSegLinetoHorizontalRel = {
 	var x : Float;
 	
 }

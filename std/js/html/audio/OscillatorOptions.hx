@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef OscillatorOptions =
-AudioNodeOptions & {
+typedef OscillatorOptions = AudioNodeOptions & {
 	var ?detune : Float;
 	var ?frequency : Float;
 	var ?periodicWave : PeriodicWave;

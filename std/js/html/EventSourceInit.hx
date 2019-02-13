@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef EventSourceInit =
-{
+typedef EventSourceInit = {
 	var ?withCredentials : Bool;
 }

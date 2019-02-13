@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedTransformList>
 **/
 @:native("SVGAnimatedTransformList")
-extern class AnimatedTransformList
-{
+extern class AnimatedTransformList {
 	var baseVal(default,null) : TransformList;
 	var animVal(default,null) : TransformList;
 	

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef BlobPropertyBag =
-{
+typedef BlobPropertyBag = {
 	var ?endings : EndingTypes;
 	var ?type : String;
 }

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef FilePropertyBag =
-{
+typedef FilePropertyBag = {
 	var ?lastModified : Int;
 	var ?type : String;
 }

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("FetchObserver")
-extern class FetchObserver extends EventTarget
-{
+extern class FetchObserver extends EventTarget {
 	var state(default,null) : FetchState;
 	var onstatechange : haxe.Constraints.Function;
 	var onrequestprogress : haxe.Constraints.Function;

@@ -24,8 +24,7 @@
 
 package js.html.push;
 
-typedef PushSubscriptionJSON =
-{
+typedef PushSubscriptionJSON = {
 	var ?endpoint : String;
 	var ?keys : PushSubscriptionKeys;
 }

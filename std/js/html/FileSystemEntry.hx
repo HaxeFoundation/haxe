@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemEntry>
 **/
 @:native("FileSystemEntry")
-extern class FileSystemEntry
-{
+extern class FileSystemEntry {
 	
 	/**
 		A Boolean which is `true` if the entry represents a file. If it's not a file, this value is `false`.

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumberList>
 **/
 @:native("SVGAnimatedNumberList")
-extern class AnimatedNumberList
-{
+extern class AnimatedNumberList {
 	var baseVal(default,null) : NumberList;
 	var animVal(default,null) : NumberList;
 	

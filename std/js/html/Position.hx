@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Position>
 **/
-typedef Position =
-{
+typedef Position = {
 	
 	/**
 		Returns a `Coordinates` object defining the current location.

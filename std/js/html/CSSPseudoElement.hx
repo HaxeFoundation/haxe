@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CSSPseudoElement")
-extern class CSSPseudoElement
-{
+extern class CSSPseudoElement {
 	var type(default,null) : String;
 	var parentElement(default,null) : Element;
 	

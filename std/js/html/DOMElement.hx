@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Element>
 **/
 @:native("Element")
-extern class DOMElement extends Node
-{
+extern class DOMElement extends Node {
 	
 	/**
 		The namespace URI of the element, or `null` if it is no namespace.

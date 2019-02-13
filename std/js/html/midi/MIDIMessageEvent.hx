@@ -25,8 +25,7 @@
 package js.html.midi;
 
 @:native("MIDIMessageEvent")
-extern class MIDIMessageEvent extends js.html.Event
-{
+extern class MIDIMessageEvent extends js.html.Event {
 	var data(default,null) : js.html.Uint8Array;
 	
 	/** @throws DOMError */

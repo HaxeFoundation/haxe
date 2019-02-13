@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef SecurityPolicyViolationEventInit =
-EventInit & {
+typedef SecurityPolicyViolationEventInit = EventInit & {
 	var ?blockedURI : String;
 	var ?columnNumber : Int;
 	var ?disposition : SecurityPolicyViolationEventDisposition;

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGZoomAndPan>
 **/
 @:native("SVGZoomAndPan")
-extern class ZoomAndPan
-{
+extern class ZoomAndPan {
 	static inline var SVG_ZOOMANDPAN_UNKNOWN : Int = 0;
 	static inline var SVG_ZOOMANDPAN_DISABLE : Int = 1;
 	static inline var SVG_ZOOMANDPAN_MAGNIFY : Int = 2;

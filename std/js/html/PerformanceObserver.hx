@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceObserver>
 **/
 @:native("PerformanceObserver")
-extern class PerformanceObserver
-{
+extern class PerformanceObserver {
 	/** @throws DOMError */
 	function new( callback : PerformanceObserverEntryList -> PerformanceObserver -> Void ) : Void;
 	function observe( options : PerformanceObserverInit ) : Void;

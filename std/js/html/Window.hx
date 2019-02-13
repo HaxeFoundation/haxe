@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Window>
 **/
 @:native("Window")
-extern class Window extends EventTarget
-{
+extern class Window extends EventTarget {
 	
 	/**
 		Returns a reference to the current window.

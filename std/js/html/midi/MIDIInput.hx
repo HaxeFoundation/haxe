@@ -32,8 +32,7 @@ package js.html.midi;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MIDIInput>
 **/
 @:native("MIDIInput")
-extern class MIDIInput extends MIDIPort
-{
+extern class MIDIInput extends MIDIPort {
 	
 	/**
 		When the current port receives a `MIDIMessage` it triggers a call to this event handler.

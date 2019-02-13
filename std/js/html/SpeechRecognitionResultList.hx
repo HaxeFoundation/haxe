@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionResultList>
 **/
 @:native("SpeechRecognitionResultList")
-extern class SpeechRecognitionResultList implements ArrayAccess<SpeechRecognitionResult>
-{
+extern class SpeechRecognitionResultList implements ArrayAccess<SpeechRecognitionResult> {
 	
 	/**
 		Returns the length of the "array" — the number of `SpeechRecognitionResult` objects in the list.

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedNumber>
 **/
 @:native("SVGAnimatedNumber")
-extern class AnimatedNumber
-{
+extern class AnimatedNumber {
 	var baseVal : Float;
 	var animVal(default,null) : Float;
 	

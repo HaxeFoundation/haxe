@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DragEvent>
 **/
 @:native("DragEvent")
-extern class DragEvent extends MouseEvent
-{
+extern class DragEvent extends MouseEvent {
 	
 	/**
 		The data that is transferred during a drag and drop interaction.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DataTransferItemList>
 **/
 @:native("DataTransferItemList")
-extern class DataTransferItemList implements ArrayAccess<DataTransferItem>
-{
+extern class DataTransferItemList implements ArrayAccess<DataTransferItem> {
 	
 	/**
 		An `unsigned long` that is the number of drag items in the list.

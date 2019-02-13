@@ -24,8 +24,7 @@
 
 package js.html.audio;
 
-typedef DynamicsCompressorOptions =
-AudioNodeOptions & {
+typedef DynamicsCompressorOptions = AudioNodeOptions & {
 	var ?attack : Float;
 	var ?knee : Float;
 	var ?ratio : Float;

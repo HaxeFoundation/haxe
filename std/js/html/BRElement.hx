@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLBRElement>
 **/
 @:native("HTMLBRElement")
-extern class BRElement extends Element
-{
+extern class BRElement extends Element {
 	
 	/**
 		Is a `DOMString` indicating the flow of text around floating objects.

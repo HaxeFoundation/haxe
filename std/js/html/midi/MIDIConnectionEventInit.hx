@@ -24,7 +24,6 @@
 
 package js.html.midi;
 
-typedef MIDIConnectionEventInit =
-EventInit & {
+typedef MIDIConnectionEventInit = EventInit & {
 	var ?port : MIDIPort;
 }

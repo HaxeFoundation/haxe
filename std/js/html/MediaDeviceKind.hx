@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract MediaDeviceKind(String)
-{
+enum abstract MediaDeviceKind(String) {
 	var AUDIOINPUT = "audioinput";
 	var AUDIOOUTPUT = "audiooutput";
 	var VIDEOINPUT = "videoinput";

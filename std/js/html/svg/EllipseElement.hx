@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGEllipseElement>
 **/
 @:native("SVGEllipseElement")
-extern class EllipseElement extends GeometryElement
-{
+extern class EllipseElement extends GeometryElement {
 	
 	/**
 		This property returns a `SVGAnimatedLength` reflecting the `cx` attribute of the given `ellipse` element.

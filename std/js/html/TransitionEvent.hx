@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TransitionEvent>
 **/
 @:native("TransitionEvent")
-extern class TransitionEvent extends Event
-{
+extern class TransitionEvent extends Event {
 	
 	/**
 		Is a `DOMString` containing the name CSS property associated with the transition.

@@ -24,8 +24,7 @@
 
 package js.html.webgl;
 
-typedef ContextAttributes =
-{
+typedef ContextAttributes = {
 	var ?alpha : Bool;
 	var ?antialias : Bool;
 	var ?depth : Bool;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamEvent>
 **/
 @:native("MediaStreamEvent")
-extern class MediaStreamEvent extends Event
-{
+extern class MediaStreamEvent extends Event {
 	
 	/**
 		Contains the `MediaStream` containing the stream associated with the event.

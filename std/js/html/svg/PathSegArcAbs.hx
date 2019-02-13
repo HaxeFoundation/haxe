@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegArcAbs =
-{
+typedef PathSegArcAbs = {
 	var x : Float;
 	var y : Float;
 	var r1 : Float;

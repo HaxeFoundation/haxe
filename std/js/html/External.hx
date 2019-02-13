@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef External =
-{
+typedef External = {
 	function AddSearchProvider( aDescriptionURL : String ) : Void;
 	function IsSearchProviderInstalled( aSearchURL : String ) : Int;
 }

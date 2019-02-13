@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices>
 **/
 @:native("MediaDevices")
-extern class MediaDevices extends EventTarget
-{
+extern class MediaDevices extends EventTarget {
 	
 	/**
 		The event handler for the `devicechange` event. This event is delivered to the `MediaDevices` object when a media input or output device is attached to or removed from the user's computer.

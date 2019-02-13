@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMPointReadOnly>
 **/
 @:native("DOMPointReadOnly")
-extern class DOMPointReadOnly
-{
+extern class DOMPointReadOnly {
 	static function fromPoint( ?other : DOMPointInit ) : DOMPointReadOnly;
 	
 	/**

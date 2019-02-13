@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSpanElement>
 **/
 @:native("HTMLSpanElement")
-extern class SpanElement extends Element
-{
+extern class SpanElement extends Element {
 }

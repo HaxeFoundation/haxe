@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent>
 **/
 @:native("DeviceMotionEvent")
-extern class DeviceMotionEvent extends Event
-{
+extern class DeviceMotionEvent extends Event {
 	
 	/**
 		An object giving the acceleration of the device on the three axis X, Y and Z. Acceleration is expressed in m/s2.

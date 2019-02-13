@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder>
 **/
 @:native("TextDecoder")
-extern class TextDecoder
-{
+extern class TextDecoder {
 	
 	/**
 		Is a `DOMString` containing the name of the decoder, that is a string describing the method the `TextDecoder` will use.

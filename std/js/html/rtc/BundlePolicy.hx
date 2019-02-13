@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract BundlePolicy(String)
-{
+enum abstract BundlePolicy(String) {
 	var BALANCED = "balanced";
 	var MAX_COMPAT = "max-compat";
 	var MAX_BUNDLE = "max-bundle";

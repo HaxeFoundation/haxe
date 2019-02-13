@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceServerTiming>
 **/
 @:native("PerformanceServerTiming")
-extern class PerformanceServerTiming
-{
+extern class PerformanceServerTiming {
 	
 	/**
 		A `DOMString` value of the server-specified metric name.

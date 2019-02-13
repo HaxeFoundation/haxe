@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDataElement>
 **/
 @:native("HTMLDataElement")
-extern class DataElement extends Element
-{
+extern class DataElement extends Element {
 	
 	/**
 		Is a `DOMString` reflecting the `value` HTML attribute, containing a machine-readable form of the element's value.

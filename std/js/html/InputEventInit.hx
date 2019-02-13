@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef InputEventInit =
-UIEventInit & {
+typedef InputEventInit = UIEventInit & {
 	var ?isComposing : Bool;
 }

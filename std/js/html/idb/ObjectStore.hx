@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore>
 **/
 @:native("IDBObjectStore")
-extern class ObjectStore
-{
+extern class ObjectStore {
 	
 	/**
 		The name of this object store.

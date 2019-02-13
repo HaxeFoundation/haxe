@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef GetRootNodeOptions =
-{
+typedef GetRootNodeOptions = {
 	var ?composed : Bool;
 }

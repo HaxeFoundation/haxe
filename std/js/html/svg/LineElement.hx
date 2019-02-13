@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLineElement>
 **/
 @:native("SVGLineElement")
-extern class LineElement extends GeometryElement
-{
+extern class LineElement extends GeometryElement {
 	
 	/**
 		Returns an `SVGAnimatedLength` that corresponds to attribute `x1` on the given `line` element.

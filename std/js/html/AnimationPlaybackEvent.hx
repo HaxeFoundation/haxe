@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnimationPlaybackEvent>
 **/
 @:native("AnimationPlaybackEvent")
-extern class AnimationPlaybackEvent extends Event
-{
+extern class AnimationPlaybackEvent extends Event {
 	var currentTime(default,null) : Float;
 	var timelineTime(default,null) : Float;
 	

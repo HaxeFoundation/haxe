@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TimeRanges>
 **/
 @:native("TimeRanges")
-extern class TimeRanges
-{
+extern class TimeRanges {
 	
 	/**
 		Returns an `unsigned long` representing the number of time ranges represented by the time range object.

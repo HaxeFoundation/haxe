@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentType>
 **/
 @:native("DocumentType")
-extern class DocumentType extends Node
-{
+extern class DocumentType extends Node {
 	
 	/**
 		A `DOMString`, eg `"html"` for `!DOCTYPE HTML`.

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/GainNode>
 **/
 @:native("GainNode")
-extern class GainNode extends AudioNode
-{
+extern class GainNode extends AudioNode {
 	
 	/**
 		Is an a-rate `AudioParam` representing the amount of gain to apply. You have to set `AudioParam.value` or use the methods of `AudioParam` to change the effect of gain.

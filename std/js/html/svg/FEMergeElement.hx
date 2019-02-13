@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeElement>
 **/
 @:native("SVGFEMergeElement")
-extern class FEMergeElement extends Element
-{
+extern class FEMergeElement extends Element {
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;
 	var width(default,null) : AnimatedLength;

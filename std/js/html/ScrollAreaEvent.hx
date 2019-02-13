@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("ScrollAreaEvent")
-extern class ScrollAreaEvent extends UIEvent
-{
+extern class ScrollAreaEvent extends UIEvent {
 	var x(default,null) : Float;
 	var y(default,null) : Float;
 	var width(default,null) : Float;

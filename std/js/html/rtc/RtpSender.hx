@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender>
 **/
 @:native("RTCRtpSender")
-extern class RtpSender
-{
+extern class RtpSender {
 	
 	/**
 		The `MediaStreamTrack` which is being handled by the `RTCRtpSender`. If `track` is `null`, the `RTCRtpSender` doesn't transmit anything.

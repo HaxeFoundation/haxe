@@ -24,8 +24,7 @@
 
 package js.html.midi;
 
-enum abstract MIDIPortType(String)
-{
+enum abstract MIDIPortType(String) {
 	var INPUT = "input";
 	var OUTPUT = "output";
 }

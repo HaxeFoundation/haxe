@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D>
 **/
 @:native("CanvasRenderingContext2D")
-extern class CanvasRenderingContext2D
-{
+extern class CanvasRenderingContext2D {
 	var canvas(default,null) : CanvasElement;
 	var globalAlpha : Float;
 	var globalCompositeOperation : String;

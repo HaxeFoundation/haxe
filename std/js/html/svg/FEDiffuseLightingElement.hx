@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDiffuseLightingElement>
 **/
 @:native("SVGFEDiffuseLightingElement")
-extern class FEDiffuseLightingElement extends Element
-{
+extern class FEDiffuseLightingElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

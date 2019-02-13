@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer>
 **/
 @:native("ServiceWorkerContainer")
-extern class ServiceWorkerContainer extends EventTarget
-{
+extern class ServiceWorkerContainer extends EventTarget {
 	
 	/**
 		Returns a `ServiceWorker` object if its state is `activated` (the same object returned by `ServiceWorkerRegistration.active`). This property returns `null` during a force-refresh request (Shift + refresh) or if there is no active worker.

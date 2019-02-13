@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSMediaRule>
 **/
 @:native("CSSMediaRule")
-extern class CSSMediaRule extends CSSConditionRule
-{
+extern class CSSMediaRule extends CSSConditionRule {
 	
 	/**
 		Specifies a `MediaList` representing the intended destination medium for style information.

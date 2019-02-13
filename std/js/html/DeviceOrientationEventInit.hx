@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef DeviceOrientationEventInit =
-EventInit & {
+typedef DeviceOrientationEventInit = EventInit & {
 	var ?absolute : Bool;
 	var ?alpha : Float;
 	var ?beta : Float;

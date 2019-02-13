@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebSocket>
 **/
 @:native("WebSocket")
-extern class WebSocket extends EventTarget
-{
+extern class WebSocket extends EventTarget {
 	static inline var CONNECTING : Int = 0;
 	static inline var OPEN : Int = 1;
 	static inline var CLOSING : Int = 2;

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedString>
 **/
 @:native("SVGAnimatedString")
-extern class AnimatedString
-{
+extern class AnimatedString {
 	
 	/**
 		This is a `DOMString` representing the base value. The base value of the given attribute before applying any animations. Setter throws DOMException.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal>
 **/
 @:native("AbortSignal")
-extern class AbortSignal extends EventTarget
-{
+extern class AbortSignal extends EventTarget {
 	
 	/**
 		A `Boolean` that indicates whether the request(s) the signal is communicating with is/are aborted (`true`) or not (`false`).

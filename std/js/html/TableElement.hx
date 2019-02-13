@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableElement>
 **/
 @:native("HTMLTableElement")
-extern class TableElement extends Element
-{
+extern class TableElement extends Element {
 	
 	/**
 		Is a `HTMLTableCaptionElement` representing the first `caption` that is a child of the element, or `null` if none is found. When set, if the object doesn't represent a `caption`, a `DOMException` with the `HierarchyRequestError` name is thrown. If a correct object is given, it is inserted in the tree as the first child of this element and the first `caption` that is a child of this element is removed from the tree, if any.

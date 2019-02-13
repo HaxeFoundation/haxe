@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MouseEventInit =
-EventModifierInit & {
+typedef MouseEventInit = EventModifierInit & {
 	var ?button : Int;
 	var ?buttons : Int;
 	var ?clientX : Int;

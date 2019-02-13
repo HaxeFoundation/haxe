@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFETurbulenceElement>
 **/
 @:native("SVGFETurbulenceElement")
-extern class FETurbulenceElement extends Element
-{
+extern class FETurbulenceElement extends Element {
 	static inline var SVG_TURBULENCE_TYPE_UNKNOWN : Int = 0;
 	static inline var SVG_TURBULENCE_TYPE_FRACTALNOISE : Int = 1;
 	static inline var SVG_TURBULENCE_TYPE_TURBULENCE : Int = 2;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Comment>
 **/
 @:native("Comment")
-extern class Comment extends CharacterData
-{
+extern class Comment extends CharacterData {
 	/** @throws DOMError */
 	function new( data : String = "" ) : Void;
 }

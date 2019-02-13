@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLModElement>
 **/
 @:native("HTMLModElement")
-extern class ModElement extends Element
-{
+extern class ModElement extends Element {
 	
 	/**
 		Is a `DOMString` reflecting the `cite` HTML attribute, containing a URI of a resource explaining the change.

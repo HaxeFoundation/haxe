@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DocumentTimeline>
 **/
 @:native("DocumentTimeline")
-extern class DocumentTimeline extends AnimationTimeline
-{
+extern class DocumentTimeline extends AnimationTimeline {
 	/** @throws DOMError */
 	function new( ?options : DocumentTimelineOptions ) : Void;
 }

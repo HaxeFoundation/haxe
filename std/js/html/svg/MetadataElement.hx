@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMetadataElement>
 **/
 @:native("SVGMetadataElement")
-extern class MetadataElement extends Element
-{
+extern class MetadataElement extends Element {
 }

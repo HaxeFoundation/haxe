@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CDATASection>
 **/
 @:native("CDATASection")
-extern class CDATASection extends Text
-{
+extern class CDATASection extends Text {
 }

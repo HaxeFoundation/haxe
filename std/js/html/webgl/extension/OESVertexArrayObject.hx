@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OES_vertex_array_object>
 **/
 @:native("OES_vertex_array_object")
-extern class OESVertexArrayObject
-{
+extern class OESVertexArrayObject {
 	
 	/**
 		Returns a `WebGLVertexArrayObject` object when used in the `WebGLRenderingContext.getParameter()` method as the `pname` parameter.

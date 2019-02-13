@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioNode>
 **/
 @:native("AudioNode")
-extern class AudioNode extends js.html.EventTarget
-{
+extern class AudioNode extends js.html.EventTarget {
 	
 	/**
 		Returns the associated `BaseAudioContext`, that is the object representing the processing graph the node is participating in.

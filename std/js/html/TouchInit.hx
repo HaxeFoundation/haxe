@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef TouchInit =
-{
+typedef TouchInit = {
 	var ?clientX : Int;
 	var ?clientY : Int;
 	var ?force : Float;

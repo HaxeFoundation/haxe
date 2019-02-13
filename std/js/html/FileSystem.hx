@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystem>
 **/
 @:native("FileSystem")
-extern class FileSystem
-{
+extern class FileSystem {
 	
 	/**
 		A `USVString` representing the file system's name. This name is unique among the entire list of exposed file systems.

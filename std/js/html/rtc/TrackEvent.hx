@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCTrackEvent>
 **/
 @:native("RTCTrackEvent")
-extern class TrackEvent extends js.html.Event
-{
+extern class TrackEvent extends js.html.Event {
 	
 	/**
 		The `RTCRtpReceiver` used by the track that's been added to the `RTCPeerConnection`.

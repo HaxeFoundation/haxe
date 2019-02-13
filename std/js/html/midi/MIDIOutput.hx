@@ -25,8 +25,7 @@
 package js.html.midi;
 
 @:native("MIDIOutput")
-extern class MIDIOutput extends MIDIPort
-{
+extern class MIDIOutput extends MIDIPort {
 	/** @throws DOMError */
 	function send( data : Array<Int>, ?timestamp : Float ) : Void;
 	function clear() : Void;

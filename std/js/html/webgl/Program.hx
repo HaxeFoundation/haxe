@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLProgram>
 **/
 @:native("WebGLProgram")
-extern class Program
-{
+extern class Program {
 }

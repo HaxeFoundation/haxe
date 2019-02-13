@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFieldSetElement>
 **/
 @:native("HTMLFieldSetElement")
-extern class FieldSetElement extends Element
-{
+extern class FieldSetElement extends Element {
 	
 	/**
 		A `Boolean` reflecting the `disabled` HTML attribute, indicating whether the user can interact with the control.

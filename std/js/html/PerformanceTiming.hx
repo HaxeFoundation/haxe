@@ -33,8 +33,7 @@ package js.html;
 **/
 @:deprecated("PerformanceTiming is deprecated, use the PerformanceNavigationTiming interface instead")
 @:native("PerformanceTiming")
-extern class PerformanceTiming
-{
+extern class PerformanceTiming {
 	
 	/**
 		When the prompt for unload terminates on the previous document in the same browsing context. If there is no previous document, this value will be the same as `PerformanceTiming.fetchStart`.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLSlotElement>
 **/
 @:native("HTMLSlotElement")
-extern class SlotElement extends Element
-{
+extern class SlotElement extends Element {
 	
 	/**
 		`DOMString`: Can be used to get and set the slot's name.

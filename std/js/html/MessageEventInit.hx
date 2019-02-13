@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef MessageEventInit =
-EventInit & {
+typedef MessageEventInit = EventInit & {
 	var ?data : Dynamic;
 	var ?lastEventId : String;
 	var ?origin : String;

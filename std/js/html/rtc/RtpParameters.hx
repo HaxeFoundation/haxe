@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef RtpParameters =
-{
+typedef RtpParameters = {
 	var ?codecs : Array<RtpCodecParameters>;
 	var ?encodings : Array<RtpEncodingParameters>;
 	var ?headerExtensions : Array<RtpHeaderExtensionParameters>;

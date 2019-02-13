@@ -25,7 +25,6 @@
 package js.html;
 
 @:native("WorkletGlobalScope")
-extern class WorkletGlobalScope
-{
+extern class WorkletGlobalScope {
 	function dump( ?str : String ) : Void;
 }

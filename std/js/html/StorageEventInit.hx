@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef StorageEventInit =
-EventInit & {
+typedef StorageEventInit = EventInit & {
 	var ?key : String;
 	var ?newValue : String;
 	var ?oldValue : String;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
 @:native("Response")
-extern class Response
-{
+extern class Response {
 	
 	/**
 		Returns a new `Response` object associated with a network error.

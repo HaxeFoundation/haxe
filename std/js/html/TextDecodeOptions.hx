@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef TextDecodeOptions =
-{
+typedef TextDecodeOptions = {
 	var ?stream : Bool;
 }

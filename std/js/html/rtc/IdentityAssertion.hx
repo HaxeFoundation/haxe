@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef IdentityAssertion =
-{
+typedef IdentityAssertion = {
 	var ?idp : String;
 	var ?name : String;
 }

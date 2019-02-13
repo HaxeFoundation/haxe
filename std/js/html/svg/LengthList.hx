@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGLengthList>
 **/
 @:native("SVGLengthList")
-extern class LengthList implements ArrayAccess<Length>
-{
+extern class LengthList implements ArrayAccess<Length> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

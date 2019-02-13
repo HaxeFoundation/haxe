@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FormData>
 **/
 @:native("FormData")
-extern class FormData
-{
+extern class FormData {
 	/** @throws DOMError */
 	function new( ?form : FormElement ) : Void;
 	

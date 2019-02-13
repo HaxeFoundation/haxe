@@ -24,7 +24,6 @@
 
 package js.html;
 
-enum abstract AutoKeyword(String)
-{
+enum abstract AutoKeyword(String) {
 	var AUTO = "auto";
 }

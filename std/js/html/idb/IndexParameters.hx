@@ -24,8 +24,7 @@
 
 package js.html.idb;
 
-typedef IndexParameters =
-{
+typedef IndexParameters = {
 	var ?locale : String;
 	var ?multiEntry : Bool;
 	var ?unique : Bool;

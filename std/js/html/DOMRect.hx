@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRect>
 **/
 @:native("DOMRect")
-extern class DOMRect extends DOMRectReadOnly
-{
+extern class DOMRect extends DOMRectReadOnly {
 	/** @throws DOMError */
 	function new( x : Float = 0.0, y : Float = 0.0, width : Float = 0.0, height : Float = 0.0 ) : Void;
 }

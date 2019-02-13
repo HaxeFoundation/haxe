@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel>
 **/
 @:native("BroadcastChannel")
-extern class BroadcastChannel extends EventTarget
-{
+extern class BroadcastChannel extends EventTarget {
 	
 	/**
 		Returns a `DOMString`, the name of the channel.

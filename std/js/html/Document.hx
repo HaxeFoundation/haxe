@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Document>
 **/
 @:native("Document")
-extern class Document extends Node
-{
+extern class Document extends Node {
 	
 	/**
 		Returns the DOM implementation associated with the current document.

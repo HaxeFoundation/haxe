@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/UIEvent>
 **/
 @:native("UIEvent")
-extern class UIEvent extends Event
-{
+extern class UIEvent extends Event {
 	static inline var SCROLL_PAGE_UP : Int = -32768;
 	static inline var SCROLL_PAGE_DOWN : Int = 32768;
 	

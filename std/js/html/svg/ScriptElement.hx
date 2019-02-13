@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGScriptElement>
 **/
 @:native("SVGScriptElement")
-extern class ScriptElement extends Element
-{
+extern class ScriptElement extends Element {
 	
 	/**
 		A `DOMString` corresponding to the `type` attribute of the given `script` element. A `DOMException` is raised with the code `NO_MODIFICATION_ALLOWED_ERR` on an attempt to change the value of a read only attribut.

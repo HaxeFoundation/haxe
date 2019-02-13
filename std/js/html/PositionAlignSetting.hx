@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract PositionAlignSetting(String)
-{
+enum abstract PositionAlignSetting(String) {
 	var LINE_LEFT = "line-left";
 	var CENTER = "center";
 	var LINE_RIGHT = "line-right";

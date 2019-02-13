@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackSupportedConstraints>
 **/
-typedef MediaTrackSupportedConstraints =
-{
+typedef MediaTrackSupportedConstraints = {
 	
 	/**
 		A Boolean value whose value is `true` if the `aspectRatio` constraint is supported in the current environment.

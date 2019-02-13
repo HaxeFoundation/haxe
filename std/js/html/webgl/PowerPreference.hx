@@ -24,8 +24,7 @@
 
 package js.html.webgl;
 
-enum abstract PowerPreference(String)
-{
+enum abstract PowerPreference(String) {
 	var DEFAULT = "default";
 	var LOW_POWER = "low-power";
 	var HIGH_PERFORMANCE = "high-performance";

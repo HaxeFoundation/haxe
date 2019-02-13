@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceObserverEntryList>
 **/
 @:native("PerformanceObserverEntryList")
-extern class PerformanceObserverEntryList
-{
+extern class PerformanceObserverEntryList {
 	function getEntries( ?filter : PerformanceEntryFilterOptions ) : Array<PerformanceEntry>;
 	function getEntriesByType( entryType : String ) : Array<PerformanceEntry>;
 	function getEntriesByName( name : String, ?entryType : String ) : Array<PerformanceEntry>;

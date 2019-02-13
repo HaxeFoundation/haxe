@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef NotificationOptions =
-{
+typedef NotificationOptions = {
 	var ?body : String;
 	var ?data : Dynamic;
 	var ?dir : NotificationDirection;

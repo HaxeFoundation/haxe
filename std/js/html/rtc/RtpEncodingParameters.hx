@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-typedef RtpEncodingParameters =
-{
+typedef RtpEncodingParameters = {
 	var ?active : Bool;
 	var ?degradationPreference : DegradationPreference;
 	var ?fec : FecParameters;

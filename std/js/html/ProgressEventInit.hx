@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ProgressEventInit =
-EventInit & {
+typedef ProgressEventInit = EventInit & {
 	var ?lengthComputable : Bool;
 	var ?loaded : Int;
 	var ?total : Int;

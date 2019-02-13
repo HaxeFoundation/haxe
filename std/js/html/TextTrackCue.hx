@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("TextTrackCue")
-extern class TextTrackCue extends EventTarget
-{
+extern class TextTrackCue extends EventTarget {
 	var track(default,null) : TextTrack;
 	var id : String;
 	var startTime : Float;

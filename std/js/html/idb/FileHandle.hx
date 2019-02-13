@@ -25,8 +25,7 @@
 package js.html.idb;
 
 @:native("IDBFileHandle")
-extern class FileHandle extends js.html.EventTarget
-{
+extern class FileHandle extends js.html.EventTarget {
 	var mutableFile(default,null) : MutableFile;
 	var fileHandle(default,null) : MutableFile;
 	var mode(default,null) : js.html.FileMode;

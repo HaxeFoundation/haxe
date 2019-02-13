@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMRectReadOnly>
 **/
 @:native("DOMRectReadOnly")
-extern class DOMRectReadOnly
-{
+extern class DOMRectReadOnly {
 	
 	/**
 		The x coordinate of the `DOMRect`'s origin.

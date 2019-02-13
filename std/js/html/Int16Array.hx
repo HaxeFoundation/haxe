@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("Int16Array")
-extern class Int16Array implements ArrayBufferView implements ArrayAccess<Int>
-{
+extern class Int16Array implements ArrayBufferView implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 2;
 	
 	@:pure

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CryptoKey>
 **/
 @:native("CryptoKey")
-extern class CryptoKey
-{
+extern class CryptoKey {
 	
 	/**
 		Returns an enumerated value representing the type of the key, a secret key (for symmetric algorithm), a public or a private key (for an asymmetric algorithm)

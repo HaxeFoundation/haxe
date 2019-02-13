@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLSerializer>
 **/
 @:native("XMLSerializer")
-extern class XMLSerializer
-{
+extern class XMLSerializer {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */

@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef PopupBlockedEventInit =
-EventInit & {
+typedef PopupBlockedEventInit = EventInit & {
 	var ?popupWindowFeatures : String;
 	var ?popupWindowName : String;
 	var ?popupWindowURI : Dynamic/*MISSING URI*/;

@@ -24,8 +24,7 @@
 
 package js.html.push;
 
-enum abstract PushPermissionState(String)
-{
+enum abstract PushPermissionState(String) {
 	var GRANTED = "granted";
 	var DENIED = "denied";
 	var PROMPT = "prompt";
