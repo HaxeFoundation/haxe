@@ -102,6 +102,7 @@ extern class Navigator
 	var language(default,null) : String;
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
+	var storage(default,null) : StorageManager;
 	
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
