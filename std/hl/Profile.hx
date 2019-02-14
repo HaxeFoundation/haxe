@@ -28,7 +28,7 @@ class Result {
 
 @:hlNative("std")
 class Profile {
-	
+
 	public static var threadBits(get,set) : haxe.EnumFlags<TrackKind>;
 	public static var globalBits(get,set) : haxe.EnumFlags<TrackKind>;
 
@@ -36,7 +36,7 @@ class Profile {
 	public static function getData( sortBySize = false, reset = true ) {
 		var old = globalBits;
 		globalBits = new haxe.EnumFlags();
-		if( buf == null ) buf = new hl.Bytes(BUFSIZE*2); 
+		if( buf == null ) buf = new hl.Bytes(BUFSIZE*2);
 		track_lock(true);
 		var maxDepth = 0;
 		var count = track_count(maxDepth);
@@ -54,7 +54,7 @@ class Profile {
 		}
 		out.sort(function(a1,a2) {
 			if( a1.kind != a2.kind )
-				return a1.kind.getIndex() - a2.kind.getIndex();	
+				return a1.kind.getIndex() - a2.kind.getIndex();
 			if( sortBySize && a1.kind == Alloc )
 				return a2.info - a1.info;
 			return a2.count - a1.count;
@@ -91,18 +91,19 @@ class Profile {
 		if( dynCount > 0 )
 			f.writeString(dynCount+" total dynamic accesses/calls\n");
 		for( o in data ) {
+			var pcount = StringTools.lpad(""+o.count," ",5);
 			switch( o.kind ) {
 			case Alloc:
-				f.writeString("alloc       "+o.count+" "+o.t + " (" + o.info + " bytes)\n");
+				f.writeString("alloc    "+pcount+" "+o.t + " (" + o.info + " bytes)\n");
 			case Cast:
-				f.writeString("cast        "+o.count+" "+o.t + "\n");
+				f.writeString("cast     "+pcount+" "+o.t + "\n");
 			case DynCall:
-				f.writeString("dyncall     "+o.count+" "+o.t+"."+getFieldName(o.info)+"()\n");
+				f.writeString("dyncall  "+pcount+" "+o.t+"."+getFieldName(o.info)+"()\n");
 			case DynField:
-				f.writeString("dynfield    "+o.count+" "+o.t+"."+getFieldName(o.info)+"\n");
-			}				
+				f.writeString("dynfield "+pcount+" "+o.t+"."+getFieldName(o.info)+"\n");
+			}
 			for( s in o.stack )
-				f.writeString("\t\t\t" + s + "\n");
+				f.writeString("\t\t\t\t" + s + "\n");
 		}
 		f.close();
 		globalBits = old;
@@ -126,7 +127,13 @@ class Profile {
 	public static function stop() {
 		globalBits = new haxe.EnumFlags();
 	}
-	
+
+	/**
+		Set maximum stack depth for reports (default = 10)
+	**/
+	@:hlNative("std","track_set_depth") public static function setMaxDepth( v : Int ) {
+	}
+
 	static function get_threadBits() return new haxe.EnumFlags(track_get_bits(true));
 	static function set_threadBits(v:haxe.EnumFlags<TrackKind>) { track_set_bits(v.toInt(),true); return v; }
 	static function get_globalBits() return new haxe.EnumFlags(track_get_bits(false));
@@ -156,5 +163,5 @@ class Profile {
 	public static function getFieldName( hash : Int ) : Bytes {
 		return null;
 	}
-	
+
 }
