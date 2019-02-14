@@ -34,5 +34,5 @@ package js.html;
 @:native("Comment")
 extern class Comment extends CharacterData {
 	/** @throws DOMError */
-	function new( data : String = "" ) : Void;
+	function new( ?data : String ) : Void;
 }

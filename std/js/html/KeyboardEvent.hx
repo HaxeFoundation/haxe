@@ -296,7 +296,7 @@ extern class KeyboardEvent extends UIEvent {
 		Initializes a `KeyboardEvent` object. This is now deprecated. You should instead use the `KeyboardEvent.KeyboardEvent` constructor.
 		@throws DOMError
 	**/
-	function initKeyboardEvent( typeArg : String, bubblesArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, keyArg : String = "", locationArg : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false ) : Void;
+	function initKeyboardEvent( typeArg : String, bubblesArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, ?keyArg : String, locationArg : Int = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false ) : Void;
 	
 	/**
 		Initializes a `KeyboardEvent` object. This was implemented only by Firefox, and is no longer supported even there; instead, you should use the `KeyboardEvent.KeyboardEvent` constructor.

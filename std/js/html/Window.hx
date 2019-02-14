@@ -404,7 +404,7 @@ extern class Window extends EventTarget {
 		Opens a new window.
 		@throws DOMError
 	**/
-	function open( url : String = "", target : String = "", features : String = "" ) : Window;
+	function open( ?url : String, ?target : String, ?features : String ) : Window;
 	
 	/**
 		Displays an alert dialog.
@@ -417,13 +417,13 @@ extern class Window extends EventTarget {
 		Displays a dialog with a message that the user needs to respond to.
 		@throws DOMError
 	**/
-	function confirm( message : String = "" ) : Bool;
+	function confirm( ?message : String ) : Bool;
 	
 	/**
 		Returns the text entered by the user in a prompt dialog.
 		@throws DOMError
 	**/
-	function prompt( message : String = "", default_ : String = "" ) : String;
+	function prompt( ?message : String, ?default_ : String ) : String;
 	
 	/**
 		Opens the Print Dialog to print the current document.
@@ -435,7 +435,7 @@ extern class Window extends EventTarget {
 		Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, targetOrigin : String, transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, targetOrigin : String, ?transfer : Array<Dynamic> ) : Void;
 	
 	/**
 		Registers the window to capture all events of the specified type.
@@ -457,7 +457,7 @@ extern class Window extends EventTarget {
 		Gets computed style for the specified element. Computed style indicates the computed values of all CSS properties of the element.
 		@throws DOMError
 	**/
-	function getComputedStyle( elt : Element, pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getComputedStyle( elt : Element, ?pseudoElt : String ) : CSSStyleDeclaration;
 	
 	/**
 		Returns a `MediaQueryList` object representing the specified media query string.
@@ -523,7 +523,7 @@ extern class Window extends EventTarget {
 		Gets default computed style for the specified element, ignoring author stylesheets.
 		@throws DOMError
 	**/
-	function getDefaultComputedStyle( elt : Element, pseudoElt : String = "" ) : CSSStyleDeclaration;
+	function getDefaultComputedStyle( elt : Element, ?pseudoElt : String ) : CSSStyleDeclaration;
 	
 	/**
 		Scrolls the document by the given number of lines.
@@ -550,7 +550,7 @@ extern class Window extends EventTarget {
 		Searches for a given string in a window.
 		@throws DOMError
 	**/
-	function find( str : String = "", caseSensitive : Bool = false, backwards : Bool = false, wrapAround : Bool = false, wholeWord : Bool = false, searchInFrames : Bool = false, showDialog : Bool = false ) : Bool;
+	function find( ?str : String, caseSensitive : Bool = false, backwards : Bool = false, wrapAround : Bool = false, wholeWord : Bool = false, searchInFrames : Bool = false, showDialog : Bool = false ) : Bool;
 	
 	/**
 		Writes a message to the console.

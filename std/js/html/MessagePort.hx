@@ -37,7 +37,7 @@ extern class MessagePort extends EventTarget {
 	var onmessageerror : haxe.Constraints.Function;
 	
 	/** @throws DOMError */
-	function postMessage( message : Dynamic, transferable : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transferable : Array<Dynamic> ) : Void;
 	function start() : Void;
 	function close() : Void;
 }

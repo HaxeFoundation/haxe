@@ -44,7 +44,7 @@ extern class HTMLDocument extends Document {
 	var all(default,null) : HTMLAllCollection;
 	
 	/** @throws DOMError */
-	@:overload( function( ?type : String, replace : String = "" ) : HTMLDocument {} )
+	@:overload( function( ?type : String, ?replace : String ) : HTMLDocument {} )
 	function open( url : String, name : String, features : String, replace : Bool = false ) : Window;
 	/** @throws DOMError */
 	function close() : Void;
@@ -53,7 +53,7 @@ extern class HTMLDocument extends Document {
 	/** @throws DOMError */
 	function writeln( text : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
-	function execCommand( commandId : String, showUI : Bool = false, value : String = "" ) : Bool;
+	function execCommand( commandId : String, showUI : Bool = false, ?value : String ) : Bool;
 	/** @throws DOMError */
 	function queryCommandEnabled( commandId : String ) : Bool;
 	/** @throws DOMError */
