@@ -56,5 +56,5 @@ extern class DeviceMotionEvent extends Event {
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : DeviceMotionEventInit ) : Void;
-	function initDeviceMotionEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?acceleration : DeviceAccelerationInit, ?accelerationIncludingGravity : DeviceAccelerationInit, ?rotationRate : DeviceRotationRateInit, interval : Float ) : Void;
+	function initDeviceMotionEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?acceleration : DeviceAccelerationInit, ?accelerationIncludingGravity : DeviceAccelerationInit, ?rotationRate : DeviceRotationRateInit, ?interval : Float ) : Void;
 }
