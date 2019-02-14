@@ -127,10 +127,10 @@ class Profile {
 		globalBits = new haxe.EnumFlags();
 	}
 	
-	static function get_threadBits() return new haxe.EnumFlags(track_get_bits(true) >> 5);
-	static function set_threadBits(v:haxe.EnumFlags<TrackKind>) { track_set_bits(v.toInt() << 5,true); return v; }
-	static function get_globalBits() return new haxe.EnumFlags(track_get_bits(false) >> 5);
-	static function set_globalBits(v:haxe.EnumFlags<TrackKind>) { track_set_bits(v.toInt() << 5,false); return v; }
+	static function get_threadBits() return new haxe.EnumFlags(track_get_bits(true));
+	static function set_threadBits(v:haxe.EnumFlags<TrackKind>) { track_set_bits(v.toInt(),true); return v; }
+	static function get_globalBits() return new haxe.EnumFlags(track_get_bits(false));
+	static function set_globalBits(v:haxe.EnumFlags<TrackKind>) { track_set_bits(v.toInt(),false); return v; }
 
 	static var BUFSIZE = 512;
 	static var buf : hl.Bytes;
