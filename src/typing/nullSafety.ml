@@ -832,8 +832,11 @@ class expr_checker immediate_execution report =
 				| TConst TNull -> true
 				| TConst _ -> false
 				| TParenthesis e -> self#is_nullable_expr e
+				| TMeta (m, _) when contains_unsafe_meta [m] -> false
 				| TMeta (_, e) -> self#is_nullable_expr e
 				| TThrow _ -> false
+				| TReturn (Some e) -> self#is_nullable_expr e
+				| TBinop ((OpAssign | OpAssignOp _), _, right) -> self#is_nullable_expr right
 				| TBlock exprs ->
 					(match exprs with
 						| [] -> false
@@ -1212,8 +1215,8 @@ class class_checker cls immediate_execution report  =
 				self#check_var_fields;
 			let check_field f =
 				if self#is_in_safety f then begin
-					(* if f.cf_name = "closure_immediatelyExecuted_shouldInheritSafety" then
-						Option.may (fun e -> print_endline (s_expr (fun t -> "") e)) f.cf_expr; *)
+					(* if f.cf_name = "return_assignNonNullable_shouldPass" then
+						Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
 					Option.may checker#check_root_expr f.cf_expr
 				end
 			in

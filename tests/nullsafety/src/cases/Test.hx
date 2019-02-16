@@ -538,7 +538,7 @@ class Test {
 
 	static function arrayDeclaration_shouldCheck(?a:String) {
 		var s:String;
-		shouldFail([s = a]);
+		shouldFail(([s = a]:Array<Null<String>>));
 	}
 
 	static function arrayDeclaration_nullableItemInNotNullableArray_shouldFail(?s:String, ?i:Int) {
@@ -785,6 +785,11 @@ class Test {
 			var s:String = FinalNullableFields.staticVar;
 		}
 		shouldFail(var s:String = FinalNullableFields.staticVar);
+	}
+
+	// static var n:Null<String>;
+	static function return_assignNonNullable_shouldPass(?n:String):String {
+		return n = 'hello';
 	}
 }
 
