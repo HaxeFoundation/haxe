@@ -531,7 +531,7 @@ class StringTools {
 		http://msdn.microsoft.com/en-us/library/ms880421
 
 		Examples:
-		```
+		```haxe
 		quoteWinArg("abc") == "abc";
 		quoteWinArg("ab c") == '"ab c"';
 		```

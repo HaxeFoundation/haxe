@@ -80,7 +80,7 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 	/**
 	 * This is generated like:
-	 * ```
+	 * ```haxe
 	 * var _gthis = this; //problems come from here
 	 * this.v = 42;
 	 * var f = function() {

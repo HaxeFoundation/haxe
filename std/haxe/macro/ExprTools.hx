@@ -152,7 +152,7 @@ class ExprTools {
 					ExprTools.map(e, capitalizeStrings);
 			}
 		}
-		```haxe
+		```
 	**/
 	static public function map( e : Expr, f : Expr -> Expr ) : Expr {
 		return {pos: e.pos, expr: switch(e.expr) {
