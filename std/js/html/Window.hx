@@ -435,7 +435,7 @@ extern class Window extends EventTarget {
 		Provides a secure means for one window to send a string of data to another window, which need not be within the same domain as the first.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, targetOrigin : String, transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, targetOrigin : String, ?transfer : Array<Dynamic> ) : Void;
 	
 	/**
 		Registers the window to capture all events of the specified type.
