@@ -112,6 +112,14 @@ class Test {
 	var initializedInAllBranchesOfConstructor:String;
 	@:shouldFail var initializedInSomeBranchesOfConstructor:String;
 
+	var str(get,set):String;
+	function get_str() {
+		shouldFail(return (null:Null<String>));
+	}
+	function set_str(v) {
+		shouldFail(return (v:Null<String>));
+	}
+
 	/**
 	 *  Null safety should work in __init__ functions
 	 */
@@ -787,7 +795,6 @@ class Test {
 		shouldFail(var s:String = FinalNullableFields.staticVar);
 	}
 
-	// static var n:Null<String>;
 	static function return_assignNonNullable_shouldPass(?n:String):String {
 		return n = 'hello';
 	}
