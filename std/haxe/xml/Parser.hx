@@ -48,28 +48,28 @@ private enum abstract S(Int) {
 class XmlParserException
 {
 	/**
-	 * the XML parsing error message
-	 */
+		the XML parsing error message
+	**/
 	public var message:String;
 
 	/**
-	 * the line number at which the XML parsing error occurred
-	 */
+		the line number at which the XML parsing error occurred
+	**/
 	public var lineNumber:Int;
 
 	/**
-	 * the character position in the reported line at which the parsing error occurred
-	 */
+		the character position in the reported line at which the parsing error occurred
+	**/
 	public var positionAtLine:Int;
 
 	/**
-	 * the character position in the XML string at which the parsing error occurred
-	 */
+		the character position in the XML string at which the parsing error occurred
+	**/
 	public var position:Int;
 
 	/**
-	 * the invalid XML string
-	 */
+		the invalid XML string
+	**/
 	public var xml:String;
 
 	public function new(message:String, xml:String, position:Int)
@@ -111,10 +111,10 @@ class Parser
 	}
 
 	/**
-	 * Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
-	 *
-	 * @throws haxe.xml.XmlParserException
-	 */
+		Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
+		
+		@throws haxe.xml.XmlParserException
+	**/
 	static public function parse(str:String, strict = false)
 	{
 		var doc = Xml.createDocument();

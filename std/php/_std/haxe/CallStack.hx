@@ -20,7 +20,7 @@ class CallStack {
 		If defined this function will be used to transform call stack entries.
 		@param String - generated php file name.
 		@param Int - Line number in generated file.
-	*/
+	**/
 	static public var mapPosition : String->Int->Null<{?source:String, ?originalLine:Int}>;
 
 	@:ifFeature("haxe.CallStack.exceptionStack")

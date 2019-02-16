@@ -175,7 +175,7 @@ extern class Syntax {
         ```haxe
         trace(Syntax.nativeClassName(php.Web)); // outputs: php\Web
         ```
-     */
+    **/
     static function nativeClassName<T>(cls:EitherType<Class<T>, Enum<T>>) : String;
 
     /**
@@ -290,7 +290,7 @@ extern class Syntax {
     /**
         Generates `clone $value`.
         @see http://php.net/manual/en/language.oop5.cloning.php
-     */
+    **/
     static inline function clone<T>(value:T):T {
         return Syntax.code('(clone {0})', value);
     }
@@ -298,7 +298,7 @@ extern class Syntax {
     /**
         Generates `yield $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yield(value:Dynamic):Dynamic {
         return Syntax.code('yield {0}', value);
     }
@@ -306,7 +306,7 @@ extern class Syntax {
     /**
         Generates `yield $key => $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldPair(key:Dynamic, value:Dynamic):Dynamic {
         return Syntax.code('yield {0} => {1}', key, value);
     }
@@ -314,7 +314,7 @@ extern class Syntax {
     /**
         Generates `yield for $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldFrom(value:Dynamic):Dynamic {
         return Syntax.code('yield from {0}', value);
     }

@@ -229,7 +229,7 @@ class Context {
 		by calling `haxe.macro.Compiler.define`.
 
 		Modifying the returned map has no effect on the compiler.
-	 */
+	**/
 	public static function getDefines() : Map<String,String> {
 		return load("get_defines", 0)();
 	}

@@ -463,16 +463,16 @@ class Compiler {
 enum abstract IncludePosition(String) from String to String {
 	/**
 		Prepend the file content to the output file.
-	*/
+	**/
 	var Top = "top";
 	/**
 		Prepend the file content to the body of the top-level closure.
 
 		Since the closure is in strict-mode, there may be run-time error if the input is not strict-mode-compatible.
-	*/
+	**/
 	var Closure = "closure";
 	/**
 		Directly inject the file content at the call site.
-	*/
+	**/
 	var Inline = "inline";
 }

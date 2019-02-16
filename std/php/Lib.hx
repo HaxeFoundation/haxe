@@ -51,7 +51,7 @@ class Lib {
 		Displays structured information about one or more expressions
 		that includes its type and value. Arrays and objects are
 		explored recursively with values indented to show structure.
-	*/
+	**/
 	public static inline function dump(v : Dynamic) : Void {
 		Global.var_dump(v);
 	}
@@ -73,7 +73,7 @@ class Lib {
 
 	/**
 		Find out whether an extension is loaded.
-	*/
+	**/
 	public static inline function extensionLoaded(name : String) {
 		return Global.extension_loaded(name);
 	}
@@ -84,7 +84,7 @@ class Lib {
 
 	/**
 		Output file content from the given file name.
-	*/
+	**/
 	public static inline function printFile(file : String) {
 		return Global.fpassthru(Global.fopen(file,  "r"));
 	}
@@ -121,14 +121,9 @@ class Lib {
 	}
 
 	/**
-	 * See the documentation for the equivalent PHP function for details on usage:
-	 * <http://php.net/manual/en/function.mail.php>
-	 * @param	to
-	 * @param	subject
-	 * @param	message
-	 * @param	?additionalHeaders
-	 * @param	?additionalParameters
-	 */
+		See the documentation for the equivalent PHP function for details on usage:
+		<http://php.net/manual/en/function.mail.php>
+	**/
 	public static inline function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool {
 		return Global.mail(to, subject, message, additionalHeaders, additionalParameters);
 	}

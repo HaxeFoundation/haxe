@@ -282,7 +282,7 @@ extern class Global {
 
 	/**
 		@see http://php.net/manual/en/function.constant.php
-	*/
+	**/
 	static function constant( name:String ) : Dynamic;
 
 	/**

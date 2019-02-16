@@ -58,6 +58,6 @@ extern class Syntax {
 	/**
 		Generate `o.f` expression, if `f` is a constant string,
 		or `o[f]` if it's any other expression.
-	*/
+	**/
 	static function field(o:Dynamic, f:String):Dynamic;
 }

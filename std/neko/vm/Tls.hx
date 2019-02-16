@@ -34,21 +34,21 @@ class Tls<T> {
 		a value that will be different depending on the local thread. 
 		Set the tls value to `null` before exiting the thread 
 		or the memory will never be collected.
-	*/
+	**/
 	public function new() {
 		t = tls_create();
 	}
 
 	/**
 		Returns the value set by tls_set for the local thread.
-	*/
+	**/
 	function get_value() : T {
 		return tls_get(t);
 	}
 
 	/**
 		Set the value of the TLS for the local thread.
-	*/
+	**/
 	function set_value( v : T ) {
 		tls_set(t,v);
 		return v;

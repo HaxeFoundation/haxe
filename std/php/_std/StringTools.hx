@@ -124,7 +124,7 @@ import php.*;
 		Returns a String that can be used as a single command line argument
 		on Unix.
 		The input will be quoted, or escaped if necessary.
-	*/
+	**/
 	public static function quoteUnixArg(argument:String):String {
 		// Based on cpython's shlex.quote().
 		// https://hg.python.org/cpython/file/a3f076d4f54f/Lib/shlex.py#l278
@@ -142,7 +142,7 @@ import php.*;
 
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
-	*/
+	**/
 	public static var winMetaCharacters = [";".code, ",".code, " ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code];
 
 	/**
@@ -157,7 +157,7 @@ import php.*;
 		quoteWinArg("abc") == "abc";
 		quoteWinArg("ab c") == '"ab c"';
 		```
-	*/
+	**/
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
 		if (!~/^[^ \t\\"]+$/.match(argument)) {
