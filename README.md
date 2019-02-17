@@ -4,6 +4,7 @@
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Discord](https://img.shields.io/discord/162395145352904705.svg?logo=discord)](https://discordapp.com/invite/0uEuWH3spjck73Lo)
 
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
@@ -75,13 +76,14 @@ You can get help and talk with fellow Haxers from around the world via:
  * [Haxe Community Forum](http://community.haxe.org)
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
  * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
+ * [Haxe Discord server](https://discordapp.com/invite/0uEuWH3spjck73Lo)
  * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
 
 :+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
 
 ## Version compatibility
 
-Haxe            | Neko  | SWF |  Python   | HL    | PHP   | LUA  |
+Haxe            | Neko  | SWF |  Python   | HL    | PHP   | Lua  |
 ----            | ----  | ----   | ----   |  ---- | ----  | ---- |
 2.*             | 1.*   | 8-10   | -      | -     | -     | -    |
 3.0.0           | 2.0.0 |        | -      | -     | 5.1+  | -    |
