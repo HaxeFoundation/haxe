@@ -886,4 +886,8 @@ let run com main mode =
 		| x :: l -> x :: remove_meta m l
 	in
 	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
+	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields;
+	List.iter (fun mt ->
+		let mt = t_infos mt in
+		mt.mt_meta <- remove_meta Meta.Used mt.mt_meta
+	) com.types
