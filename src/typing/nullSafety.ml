@@ -1244,10 +1244,14 @@ class class_checker cls immediate_execution report  =
 							with Not_found -> None
 						in
 						match accessor with
-							| Some { cf_expr = Some ({ eexpr = TFunction fn } as accessor_expr) } ->
-								let fn = { fn with tf_type = field.cf_type } in
-								checker#check_root_expr { accessor_expr with eexpr = TFunction fn }
-							| _ -> ()
+							| None -> ()
+							| Some accessor ->
+								if self#is_in_safety accessor then
+									match accessor.cf_expr with
+										| Some ({ eexpr = TFunction fn } as accessor_expr) ->
+											let fn = { fn with tf_type = field.cf_type } in
+											checker#check_root_expr { accessor_expr with eexpr = TFunction fn }
+										| _ -> ()
 					in
 					if read_access = AccCall then check_accessor "get_";
 					if write_access = AccCall then check_accessor "set_"

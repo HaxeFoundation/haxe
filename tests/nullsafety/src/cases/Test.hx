@@ -45,6 +45,10 @@ class UnsafeFields {
 		var s:String;
 		@:nullSafety(false) cast(null, String);
 	}
+
+	var str(get,set):String;
+	@:nullSafety(false) function get_str() return (null:Null<String>);
+	@:nullSafety(false) function set_str(v) return (v:Null<String>);
 }
 
 /** Test `@:nullSafety(false)` is respected on a class */
