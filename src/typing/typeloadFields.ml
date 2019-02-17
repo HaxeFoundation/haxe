@@ -1087,8 +1087,19 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		end;
 		t
 	) "type_fun" in
-	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+	if fctx.do_bind then
+		bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
+		delay ctx PTypeField (fun () ->
+			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
+			List.iter2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
+				ignore(TypeloadFunction.process_function_arg ctx n t c fctx.is_display_field pn);
+				if DisplayPosition.encloses_display_position pn then begin
+					let v = add_local_with_origin ctx TVOArgument n t pn in
+					DisplayEmitter.display_variable ctx v pn;
+				end
+			) args fd.f_args;
+		);
 		check_field_display ctx fctx c cf;
 		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
 	end;
