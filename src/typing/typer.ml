@@ -2218,7 +2218,7 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
-		| (Meta.NullSafety, [(EConst (Ident "false"), _)],_) ->
+		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.Inline,_,_) ->

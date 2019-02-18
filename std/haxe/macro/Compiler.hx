@@ -479,7 +479,30 @@ enum abstract IncludePosition(String) from String to String {
 
 
 enum abstract NullSafetyMode(String) to String {
+	/**
+		Disable null safety.
+	**/
 	var Off;
-	var Weak;
+	/**
+		Full scale null safety.
+	**/
 	var Strict;
+	/**
+		Weak safety.
+		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
+		E.g.
+		```
+		function example(o:{field:Null<String>}) {
+			if(o.field != null) {
+				mutate(o);
+				var notNullable:String = o.field; //no error
+			}
+		}
+
+		function mutate(o:{field:Null<String>}) {
+			o.field = null;
+		}
+		```
+	**/
+	var Weak;
 }
