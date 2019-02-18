@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract PlaybackDirection(String)
-{
+enum abstract PlaybackDirection(String) {
 	var NORMAL = "normal";
 	var REVERSE = "reverse";
 	var ALTERNATE = "alternate";

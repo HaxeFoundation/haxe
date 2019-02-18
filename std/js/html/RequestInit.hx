@@ -24,18 +24,17 @@
 
 package js.html;
 
-typedef RequestInit =
-{
-	@:optional var body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>;
-	@:optional var cache : RequestCache;
-	@:optional var credentials : RequestCredentials;
-	@:optional var headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
-	@:optional var integrity : String;
-	@:optional var method : String;
-	@:optional var mode : RequestMode;
-	@:optional var observe : haxe.extern.EitherType<FetchObserver -> Void, ObserverCallback>;
-	@:optional var redirect : RequestRedirect;
-	@:optional var referrer : String;
-	@:optional var referrerPolicy : ReferrerPolicy;
-	@:optional var signal : AbortSignal;
+typedef RequestInit = {
+	var ?body : haxe.extern.EitherType<Blob,haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<FormData,haxe.extern.EitherType<URLSearchParams,String>>>>;
+	var ?cache : RequestCache;
+	var ?credentials : RequestCredentials;
+	var ?headers : haxe.extern.EitherType<Headers,haxe.extern.EitherType<Array<Array<String>>,haxe.DynamicAccess<String>>>;
+	var ?integrity : String;
+	var ?method : String;
+	var ?mode : RequestMode;
+	var ?observe : haxe.extern.EitherType<FetchObserver -> Void, ObserverCallback>;
+	var ?redirect : RequestRedirect;
+	var ?referrer : String;
+	var ?referrerPolicy : ReferrerPolicy;
+	var ?signal : AbortSignal;
 }

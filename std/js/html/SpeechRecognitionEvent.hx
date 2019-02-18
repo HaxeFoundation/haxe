@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionEvent>
 **/
 @:native("SpeechRecognitionEvent")
-extern class SpeechRecognitionEvent extends Event
-{
+extern class SpeechRecognitionEvent extends Event {
 	
 	/**
 		Returns the lowest index value result in the `SpeechRecognitionResultList` "array" that has actually changed.

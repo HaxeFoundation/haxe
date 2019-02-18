@@ -490,7 +490,7 @@ class Boot {
 
 	/**
 		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
-		```
+		```haxe
 		(new MyClass()).fieldName = 'value';
 		```
 	**/

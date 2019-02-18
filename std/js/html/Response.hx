@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
 @:native("Response")
-extern class Response
-{
+extern class Response {
 	
 	/**
 		Returns a new `Response` object associated with a network error.
@@ -44,7 +43,7 @@ extern class Response
 		Creates a new response with a different URL.
 		@throws DOMError
 	**/
-	static function redirect( url : String, ?status : Int = 302 ) : Response;
+	static function redirect( url : String, status : Int = 302 ) : Response;
 	
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).

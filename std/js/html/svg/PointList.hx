@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGPointList")
-extern class PointList implements ArrayAccess<Point>
-{
+extern class PointList implements ArrayAccess<Point> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

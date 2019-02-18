@@ -25,8 +25,7 @@
 package js.html.audio;
 
 @:native("AudioWorkletGlobalScope")
-extern class AudioWorkletGlobalScope extends js.html.WorkletGlobalScope
-{
+extern class AudioWorkletGlobalScope extends js.html.WorkletGlobalScope {
 	var currentFrame(default,null) : Int;
 	var currentTime(default,null) : Float;
 	var sampleRate(default,null) : Float;

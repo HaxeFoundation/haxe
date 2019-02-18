@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/File>
 **/
 @:native("File")
-extern class File extends Blob
-{
+extern class File extends Blob {
 	
 	/**
 		Returns the name of the file referenced by the `File` object.

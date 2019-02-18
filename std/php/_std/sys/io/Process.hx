@@ -132,7 +132,7 @@ class Process {
 		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
 
 		`close()` should be called when the `Process` is no longer used.
-	*/
+	**/
 	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
 		if( detached ) throw "Detached process is not supported on this platform";
 		var descriptors = Syntax.arrayDecl(
@@ -153,7 +153,7 @@ class Process {
 
 	/**
 		Return the process ID.
-	*/
+	**/
 	public function getPid() : Int {
 		return pid;
 	}
@@ -174,7 +174,7 @@ class Process {
 	/**
 		Close the process handle and release the associated resources.
 		All `Process` fields should not be used after `close()` is called.
-	*/
+	**/
 	public function close() : Void {
 		if (!running) return;
 
@@ -184,7 +184,7 @@ class Process {
 
 	/**
 		Kill the process.
-	*/
+	**/
 	public function kill() : Void {
 		process.proc_terminate();
 	}

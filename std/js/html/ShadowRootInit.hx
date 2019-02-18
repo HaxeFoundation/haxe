@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef ShadowRootInit =
-{
+typedef ShadowRootInit = {
 	var mode : ShadowRootMode;
 }

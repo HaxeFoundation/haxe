@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DataTransferItem>
 **/
 @:native("DataTransferItem")
-extern class DataTransferItem
-{
+extern class DataTransferItem {
 	
 	/**
 		The kind of drag data item, `string` or `file`.

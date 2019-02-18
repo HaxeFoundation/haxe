@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileList>
 **/
 @:native("FileList")
-extern class FileList implements ArrayAccess<File>
-{
+extern class FileList implements ArrayAccess<File> {
 	var length(default,null) : Int;
 	
 	function item( index : Int ) : File;

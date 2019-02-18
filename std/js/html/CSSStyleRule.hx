@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleRule>
 **/
 @:native("CSSStyleRule")
-extern class CSSStyleRule extends CSSRule
-{
+extern class CSSStyleRule extends CSSRule {
 	
 	/**
 		Gets the textual representation of the selector for this rule, e.g. `"h1,h2"`.

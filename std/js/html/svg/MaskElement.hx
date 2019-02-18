@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGMaskElement>
 **/
 @:native("SVGMaskElement")
-extern class MaskElement extends Element
-{
+extern class MaskElement extends Element {
 	static inline var SVG_MASKTYPE_LUMINANCE : Int = 0;
 	static inline var SVG_MASKTYPE_ALPHA : Int = 1;
 	

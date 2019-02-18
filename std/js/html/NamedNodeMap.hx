@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NamedNodeMap>
 **/
 @:native("NamedNodeMap")
-extern class NamedNodeMap implements ArrayAccess<Attr>
-{
+extern class NamedNodeMap implements ArrayAccess<Attr> {
 	
 	/**
 		Returns the amount of objects in the map.

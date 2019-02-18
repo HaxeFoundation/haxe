@@ -24,15 +24,13 @@
 
 package js.html;
 
-typedef KeyboardEventInit =
-{
-	> EventModifierInit,
-	@:optional var charCode : Int;
-	@:optional var code : String;
-	@:optional var isComposing : Bool;
-	@:optional var key : String;
-	@:optional var keyCode : Int;
-	@:optional var location : Int;
-	@:optional var repeat : Bool;
-	@:optional var which : Int;
+typedef KeyboardEventInit = EventModifierInit & {
+	var ?charCode : Int;
+	var ?code : String;
+	var ?isComposing : Bool;
+	var ?key : String;
+	var ?keyCode : Int;
+	var ?location : Int;
+	var ?repeat : Bool;
+	var ?which : Int;
 }

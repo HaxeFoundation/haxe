@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition>
 **/
 @:native("SpeechRecognition")
-extern class SpeechRecognition extends EventTarget
-{
+extern class SpeechRecognition extends EventTarget {
 	
 	/**
 		Returns and sets a collection of `SpeechGrammar` objects that represent the grammars that will be understood by the current `SpeechRecognition`.

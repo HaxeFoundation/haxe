@@ -35,24 +35,25 @@ extern class Context {
 
 		Sample plugin:
 
-		```
-open EvalValue
-open EvalContext
-open EvalEncode
+		```ocaml
+		open EvalValue
+		open EvalContext
+		open EvalEncode
 
-let add_int = vfun2 (fun v1 v2 -> match v1,v2 with
-	| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
-	| _ -> exc_string "Expected int + int"
-)
-;;
-EvalStdLib.StdContext.register ["add_int",add_int]
-```
+		let add_int = vfun2 (fun v1 v2 -> match v1,v2 with
+			| VInt32 i1,VInt32 i2 -> vint32 (Int32.add i1 i2)
+			| _ -> exc_string "Expected int + int"
+		)
+		;;
+		EvalStdLib.StdContext.register ["add_int",add_int]
+		```
 
 		Usage from Haxe:
 
-		```var module:TestPlugin = eval.vm.Context.loadPlugin("testPlugin.cmo");
-trace(module.add_int(4, 3));
-```
+		```haxe
+		var module:TestPlugin = eval.vm.Context.loadPlugin("testPlugin.cmo");
+		trace(module.add_int(4, 3));
+		```
 
 		Plugins have to be compiled with the same OCaml version as the Haxe compiler
 		and using the same Haxe version. If a plugin cannot be loaded, an exception

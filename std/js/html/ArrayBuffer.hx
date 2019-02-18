@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("ArrayBuffer")
-extern class ArrayBuffer
-{
+extern class ArrayBuffer {
 	static function isView( value : Dynamic ) : Bool;
 	var byteLength(default,null) : Int;
 	

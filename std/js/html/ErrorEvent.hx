@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent>
 **/
 @:native("ErrorEvent")
-extern class ErrorEvent extends Event
-{
+extern class ErrorEvent extends Event {
 	
 	/**
 		Is a `DOMString` containing a human-readable error message describing the problem.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent>
 **/
 @:native("PointerEvent")
-extern class PointerEvent extends MouseEvent
-{
+extern class PointerEvent extends MouseEvent {
 	
 	/**
 		A unique identifier for the pointer causing the event.

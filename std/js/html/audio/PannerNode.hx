@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PannerNode>
 **/
 @:native("PannerNode")
-extern class PannerNode extends AudioNode
-{
+extern class PannerNode extends AudioNode {
 	
 	/**
 		An enumerated value determining which spatialisation algorithm to use to position the audio in 3D space.

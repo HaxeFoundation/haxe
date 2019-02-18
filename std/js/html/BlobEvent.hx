@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BlobEvent>
 **/
 @:native("BlobEvent")
-extern class BlobEvent extends Event
-{
+extern class BlobEvent extends Event {
 	
 	/**
 		A `Blob` representing the data associated with the event. The event was fired on the `EventTarget` because of something happening on that specific `Blob`.

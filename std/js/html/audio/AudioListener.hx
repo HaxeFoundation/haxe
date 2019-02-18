@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioListener>
 **/
 @:native("AudioListener")
-extern class AudioListener
-{
+extern class AudioListener {
 	function setPosition( x : Float, y : Float, z : Float ) : Void;
 	function setOrientation( x : Float, y : Float, z : Float, xUp : Float, yUp : Float, zUp : Float ) : Void;
 }

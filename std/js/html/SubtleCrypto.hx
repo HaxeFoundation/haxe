@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto>
 **/
 @:native("SubtleCrypto")
-extern class SubtleCrypto
-{
+extern class SubtleCrypto {
 	
 	/**
 		Returns a `Promise` of the encrypted data corresponding to the clear text, algorithm and key given as parameters.

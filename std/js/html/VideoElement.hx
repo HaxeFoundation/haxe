@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement>
 **/
 @:native("HTMLVideoElement")
-extern class VideoElement extends MediaElement
-{
+extern class VideoElement extends MediaElement {
 	
 	/**
 		Is a `DOMString` that reflects the `width` HTML attribute, which specifies the width of the display area, in CSS pixels.

@@ -25,20 +25,20 @@ import haxe.ds.List;
 
 class Writer {
 
-	/*
-	* The next constant is required for computing the Central
-	* Directory Record(CDR) size. CDR consists of some fields
-	* of constant size and a filename. Constant represents
-	* total length of all fields with constant size for each
-	* file in archive
-	*/
+	/**
+		The next constant is required for computing the Central
+		Directory Record(CDR) size. CDR consists of some fields
+		of constant size and a filename. Constant represents
+		total length of all fields with constant size for each
+		file in archive
+	**/
 	inline static var CENTRAL_DIRECTORY_RECORD_FIELDS_SIZE = 46;
 
-	/*
-	* The following constant is the total size of all fields
-	* of Local File Header. It's required for calculating
-	* offset of start of central directory record
-	*/
+	/**
+		The following constant is the total size of all fields
+		of Local File Header. It's required for calculating
+		offset of start of central directory record
+	**/
 	inline static var LOCAL_FILE_HEADER_FIELDS_SIZE = 30;
 
 	var o : haxe.io.Output;

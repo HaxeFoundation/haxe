@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet>
 **/
 @:native("CSSStyleSheet")
-extern class CSSStyleSheet extends StyleSheet
-{
+extern class CSSStyleSheet extends StyleSheet {
 	
 	/**
 		If this style sheet is imported into the document using an `@import` rule, the `ownerRule` property will return that `CSSImportRule`, otherwise it returns `null`.
@@ -56,7 +55,7 @@ extern class CSSStyleSheet extends StyleSheet
 		Inserts a new rule at the specified position in the style sheet, given the textual representation of the rule.
 		@throws DOMError
 	**/
-	function insertRule( rule : String, ?index : Int = 0 ) : Int;
+	function insertRule( rule : String, index : Int = 0 ) : Int;
 	
 	/**
 		Deletes a rule at the specified position from the style sheet.

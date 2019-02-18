@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AnalyserNode>
 **/
 @:native("AnalyserNode")
-extern class AnalyserNode extends AudioNode
-{
+extern class AnalyserNode extends AudioNode {
 	
 	/**
 		Is an unsigned long value representing the size of the FFT (Fast Fourier Transform) to be used to determine the frequency domain.

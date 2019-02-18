@@ -31,58 +31,57 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackSettings>
 **/
-typedef MediaTrackSettings =
-{
+typedef MediaTrackSettings = {
 	
 	/**
 		A Boolean which indicates the current value of the `MediaTrackConstraints.autoGainControl` property, which is `true` if automatic gain control is enabled and is `false` otherwise.
 	**/
-	@:optional var autoGainControl : Bool;
-	@:optional var browserWindow : Int;
+	var ?autoGainControl : Bool;
+	var ?browserWindow : Int;
 	
 	/**
 		A long integer value indicating the current value of the ``MediaTrackConstraints.channelCount`` property, specifying the number of audio channels present on the track (therefore indicating how many audio samples exist in each audio frame). This is 1 for mono, 2 for stereo, and so forth.
 	**/
-	@:optional var channelCount : Int;
+	var ?channelCount : Int;
 	
 	/**
 		A `DOMString` indicating the current value of the ``MediaTrackConstraints.deviceId`` property. The device ID is a origin-unique string identifying the source of the track; this is usually a `GUID`. This value is specific to the source of the track's data and is not usable for setting constraints; it can, however, be used for initially selecting media when calling `MediaDevices.getUserMedia()`.
 	**/
-	@:optional var deviceId : String;
+	var ?deviceId : String;
 	
 	/**
 		A Boolean indicating the current value of the ``MediaTrackConstraints.echoCancellation`` property, specifying `true` if echo cancellation is enabled, otherwise `false`.
 	**/
-	@:optional var echoCancellation : Bool;
+	var ?echoCancellation : Bool;
 	
 	/**
 		
 	**/
-	@:optional var facingMode : String;
+	var ?facingMode : String;
 	
 	/**
 		A double-precision floating point value indicating the current value of the ``MediaTrackConstraints.frameRate`` property, specifying how many frames of video per second the track includes. If the value can't be determined for any reason, the value will match the vertical sync rate of the device the user agent is running on.
 	**/
-	@:optional var frameRate : Float;
+	var ?frameRate : Float;
 	
 	/**
 		A long integer value indicating the current value of the ``MediaTrackConstraints.height`` property, specifying the height of the track's video data in pixels.
 	**/
-	@:optional var height : Int;
-	@:optional var mediaSource : String;
+	var ?height : Int;
+	var ?mediaSource : String;
 	
 	/**
 		A Boolean which indicates the current value of the `MediaTrackConstraints.noiseSuppression` property, which is `true` if noise suppression is enabled and is `false` otherwise.
 	**/
-	@:optional var noiseSuppression : Bool;
-	@:optional var scrollWithPage : Bool;
-	@:optional var viewportHeight : Int;
-	@:optional var viewportOffsetX : Int;
-	@:optional var viewportOffsetY : Int;
-	@:optional var viewportWidth : Int;
+	var ?noiseSuppression : Bool;
+	var ?scrollWithPage : Bool;
+	var ?viewportHeight : Int;
+	var ?viewportOffsetX : Int;
+	var ?viewportOffsetY : Int;
+	var ?viewportWidth : Int;
 	
 	/**
 		A long integer value indicating the current value of the `MediaTrackSettings.width` property, specifying the width of the track's video data in pixels.
 	**/
-	@:optional var width : Int;
+	var ?width : Int;
 }

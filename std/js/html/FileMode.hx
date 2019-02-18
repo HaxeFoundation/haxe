@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract FileMode(String)
-{
+enum abstract FileMode(String) {
 	var READONLY = "readonly";
 	var READWRITE = "readwrite";
 }

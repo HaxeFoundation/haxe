@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammar>
 **/
 @:native("SpeechGrammar")
-extern class SpeechGrammar
-{
+extern class SpeechGrammar {
 	
 	/**
 		Sets and returns a string containing the grammar from within in the `SpeechGrammar` object instance.

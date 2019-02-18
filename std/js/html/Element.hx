@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement>
 **/
 @:native("HTMLElement")
-extern class Element extends DOMElement
-{
+extern class Element extends DOMElement {
 	
 	/**
 		Sends a mouse click event to the element.

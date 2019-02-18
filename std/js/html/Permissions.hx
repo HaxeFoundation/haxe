@@ -30,8 +30,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Permissions>
 **/
 @:native("Permissions")
-extern class Permissions
-{
+extern class Permissions {
 	
 	/**
 		Returns the user permission status for a given API.

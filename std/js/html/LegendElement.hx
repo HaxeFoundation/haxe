@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLegendElement>
 **/
 @:native("HTMLLegendElement")
-extern class LegendElement extends Element
-{
+extern class LegendElement extends Element {
 	var form(default,null) : FormElement;
 	var align : String;
 	

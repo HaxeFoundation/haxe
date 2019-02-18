@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Request>
 **/
 @:native("Request")
-extern class Request
-{
+extern class Request {
 	
 	/**
 		Contains the request's method (`GET`, `POST`, etc.)

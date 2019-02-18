@@ -24,7 +24,6 @@
 
 package js.html.audio;
 
-typedef MediaStreamAudioSourceOptions =
-{
+typedef MediaStreamAudioSourceOptions = {
 	var mediaStream : js.html.MediaStream;
 }

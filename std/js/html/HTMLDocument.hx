@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLDocument>
 **/
 @:native("HTMLDocument")
-extern class HTMLDocument extends Document
-{
+extern class HTMLDocument extends Document {
 	var domain : String;
 	var cookie : String;
 	var designMode : String;
@@ -45,8 +44,8 @@ extern class HTMLDocument extends Document
 	var all(default,null) : HTMLAllCollection;
 	
 	/** @throws DOMError */
-	@:overload( function( ?type : String, ?replace : String = "" ) : HTMLDocument {} )
-	function open( url : String, name : String, features : String, ?replace : Bool = false ) : Window;
+	@:overload( function( ?type : String, replace : String = "" ) : HTMLDocument {} )
+	function open( url : String, name : String, features : String, replace : Bool = false ) : Window;
 	/** @throws DOMError */
 	function close() : Void;
 	/** @throws DOMError */
@@ -54,7 +53,7 @@ extern class HTMLDocument extends Document
 	/** @throws DOMError */
 	function writeln( text : haxe.extern.Rest<String> ) : Void;
 	/** @throws DOMError */
-	function execCommand( commandId : String, ?showUI : Bool = false, ?value : String = "" ) : Bool;
+	function execCommand( commandId : String, showUI : Bool = false, value : String = "" ) : Bool;
 	/** @throws DOMError */
 	function queryCommandEnabled( commandId : String ) : Bool;
 	/** @throws DOMError */

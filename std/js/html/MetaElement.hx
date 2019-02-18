@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMetaElement>
 **/
 @:native("HTMLMetaElement")
-extern class MetaElement extends Element
-{
+extern class MetaElement extends Element {
 	var name : String;
 	var httpEquiv : String;
 	var content : String;

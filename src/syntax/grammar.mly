@@ -750,8 +750,8 @@ and parse_function_field doc meta al = parser
 and parse_var_field_assignment = parser
 	| [< '(Binop OpAssign,_); s >] ->
 		begin match s with parser
-		| [< '(Binop OpLt,p1); i = dollar_ident; s >] ->
-			let e = handle_xml_literal p1 i in
+		| [< '(Binop OpLt,p1); s >] ->
+			let e = handle_xml_literal p1 in
 			(* accept but don't expect semicolon *)
 			let p2 = match s with parser
 				| [< '(Semicolon,p) >] -> p
@@ -957,8 +957,8 @@ and parse_block_elt = parser
 		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
 		end
-	| [< '(Binop OpLt,p1); i = dollar_ident; s >] ->
-		let e = handle_xml_literal p1 i in
+	| [< '(Binop OpLt,p1); s >] ->
+		let e = handle_xml_literal p1 in
 		(* accept but don't expect semicolon *)
 		begin match s with parser
 			| [< '(Semicolon,_) >] -> ()
@@ -1122,8 +1122,8 @@ and expr = parser
 			let e = EConst (Ident "null"),null_pos in
 			make_meta name params e p
 		end
-	| [< '(Binop OpLt,p1); i = dollar_ident >] ->
-		handle_xml_literal p1 i
+	| [< '(Binop OpLt,p1) >] ->
+		handle_xml_literal p1
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
 		| [< b = block1; s >] ->

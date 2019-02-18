@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSKeyframeRule>
 **/
 @:native("CSSKeyframeRule")
-extern class CSSKeyframeRule extends CSSRule
-{
+extern class CSSKeyframeRule extends CSSRule {
 	var keyText : String;
 	var style(default,null) : CSSStyleDeclaration;
 	

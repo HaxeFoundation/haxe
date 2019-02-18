@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumber>
 **/
 @:native("SVGNumber")
-extern class Number
-{
+extern class Number {
 	
 	/**
 		A float representing the number.

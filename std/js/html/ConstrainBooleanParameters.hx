@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ConstrainBooleanParameters =
-{
-	@:optional var exact : Bool;
-	@:optional var ideal : Bool;
+typedef ConstrainBooleanParameters = {
+	var ?exact : Bool;
+	var ?ideal : Bool;
 }

@@ -25,6 +25,5 @@
 package js.html;
 
 @:native("CSSMozDocumentRule")
-extern class CSSMozDocumentRule extends CSSConditionRule
-{
+extern class CSSMozDocumentRule extends CSSConditionRule {
 }

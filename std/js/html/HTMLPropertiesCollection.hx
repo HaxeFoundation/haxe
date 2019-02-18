@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("HTMLPropertiesCollection")
-extern class HTMLPropertiesCollection extends HTMLCollection
-{
+extern class HTMLPropertiesCollection extends HTMLCollection {
 	var names(default,null) : DOMStringList;
 	
 	function namedItem( name : String ) : PropertyNodeList;

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("PopupBlockedEvent")
-extern class PopupBlockedEvent extends Event
-{
+extern class PopupBlockedEvent extends Event {
 	var requestingWindow(default,null) : Window;
 	var popupWindowURI(default,null) : Dynamic/*MISSING URI*/;
 	var popupWindowName(default,null) : String;

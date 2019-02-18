@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WEBGL_draw_buffers>
 **/
 @:native("WEBGL_draw_buffers")
-extern class WEBGLDrawBuffers
-{
+extern class WEBGLDrawBuffers {
 	
 	/**
 		A `GLenum` specifying a color buffer.

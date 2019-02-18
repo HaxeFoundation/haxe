@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisVoice>
 **/
 @:native("SpeechSynthesisVoice")
-extern class SpeechSynthesisVoice
-{
+extern class SpeechSynthesisVoice {
 	
 	/**
 		Returns the type of URI and location of the speech synthesis service for this voice.

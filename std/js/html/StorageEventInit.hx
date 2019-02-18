@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef StorageEventInit =
-{
-	> EventInit,
-	@:optional var key : String;
-	@:optional var newValue : String;
-	@:optional var oldValue : String;
-	@:optional var storageArea : Storage;
-	@:optional var url : String;
+typedef StorageEventInit = EventInit & {
+	var ?key : String;
+	var ?newValue : String;
+	var ?oldValue : String;
+	var ?storageArea : Storage;
+	var ?url : String;
 }

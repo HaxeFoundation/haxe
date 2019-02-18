@@ -25,8 +25,7 @@
 package js.html.eme;
 
 @:native("MediaKeyError")
-extern class MediaKeyError extends js.html.Event
-{
+extern class MediaKeyError extends js.html.Event {
 	var systemCode(default,null) : Int;
 	
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemFileEntry>
 **/
 @:native("FileSystemFileEntry")
-extern class FileSystemFileEntry extends FileSystemEntry
-{
+extern class FileSystemFileEntry extends FileSystemEntry {
 	@:overload( function( successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
 	@:overload( function( successCallback : FileCallback, ?errorCallback : ErrorCallback) : Void {} )
 	function file( successCallback : File -> Void, ?errorCallback : DOMException -> Void ) : Void;

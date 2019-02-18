@@ -25,7 +25,6 @@
 package js.html;
 
 @:native("PaintWorkletGlobalScope")
-extern class PaintWorkletGlobalScope extends WorkletGlobalScope
-{
+extern class PaintWorkletGlobalScope extends WorkletGlobalScope {
 	function registerPaint( name : String, paintCtor : Void -> Void ) : Void;
 }

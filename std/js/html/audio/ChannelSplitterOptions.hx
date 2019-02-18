@@ -24,8 +24,6 @@
 
 package js.html.audio;
 
-typedef ChannelSplitterOptions =
-{
-	> AudioNodeOptions,
-	@:optional var numberOfOutputs : Int;
+typedef ChannelSplitterOptions = AudioNodeOptions & {
+	var ?numberOfOutputs : Int;
 }

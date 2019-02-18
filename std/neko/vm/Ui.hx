@@ -31,7 +31,7 @@ class Ui {
 		Tells if the current thread is the main loop thread or not. 
 		The main loop thread is the one in which the first "ui" 
 		library primitive has been loaded.
-	*/
+	**/
 	public static function isMainThread() {
 		return _is_main_thread();
 	}
@@ -39,7 +39,7 @@ class Ui {
 	/**
 		Starts the native UI event loop. This method can only be called 
 		from the main thread.
-	*/
+	**/
 	public static function loop() {
 		_loop();
 	}
@@ -47,7 +47,7 @@ class Ui {
 	/**
 		Stop the native UI event loop. This method can only be called 
 		from the main thread.
-	*/
+	**/
 	public static function stopLoop() {
 		_sync(_stop_loop);
 	}
@@ -56,7 +56,7 @@ class Ui {
 		Queue a method call callb to be executed by the main thread while 
 		running the UI event loop. This can be used to perform UI updates 
 		in the UI thread using results processed by another thread.
-	*/
+	**/
 	public static function sync( f : Void -> Void ) {
 		_sync(f);
 	}

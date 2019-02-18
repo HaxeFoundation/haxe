@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract DirectionSetting(String)
-{
+enum abstract DirectionSetting(String) {
 	var NONE = "";
 	var RL = "rl";
 	var LR = "lr";

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("WorkerDebuggerGlobalScope")
-extern class WorkerDebuggerGlobalScope extends EventTarget
-{
+extern class WorkerDebuggerGlobalScope extends EventTarget {
 	var global(default,null) : Dynamic;
 	var onmessage : haxe.Constraints.Function;
 	

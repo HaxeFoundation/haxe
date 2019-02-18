@@ -24,7 +24,6 @@
 
 package js.html.webgl.extension;
 
-typedef WEBGLDebugShaders =
-{
+typedef WEBGLDebugShaders = {
 	function getTranslatedShaderSource( shader : js.html.webgl.Shader ) : String;
 }

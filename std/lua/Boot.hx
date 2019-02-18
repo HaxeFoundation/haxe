@@ -44,26 +44,26 @@ class Boot {
 	static function __unhtml(s : String)
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 
-	/*
+	/**
 	   Indicates if the given object is a class.
-	*/
+	**/
 	static inline public function isClass(o:Dynamic) : Bool {
 		if (Lua.type(o) != "table") return false;
 		else return untyped __define_feature__("lua.Boot.isClass", o.__name__);
 	}
 
-	/*
+	/**
 	   Indicates if the given object is a enum.
-	*/
+	**/
 	static inline public function isEnum(e:Dynamic) : Bool {
 		if (Lua.type(e) != "table") return false;
 		else return untyped __define_feature__("lua.Boot.isEnum", e.__ename__);
 	}
 
-	/*
+	/**
 	   Returns the class of a given object, and defines the getClass feature
 	   for the given class.
-	*/
+	**/
 	static inline public function getClass(o:Dynamic) : Class<Dynamic> {
 		if (Std.is(o, Array)) return Array;
 		else if (Std.is(o, String)) return String;
@@ -74,9 +74,9 @@ class Boot {
 		}
 	}
 
-	/*
+	/**
 	   Indicates if the given object is an instance of the given Type
-	*/
+	**/
 	@:ifFeature("typed_catch")
 	private static function __instanceof(o : Dynamic, cl : Dynamic) {
 		if( cl == null ) return false;
@@ -122,9 +122,9 @@ class Boot {
 			&& Lua.getmetatable(o).__index == untyped Array.prototype;
 	}
 
-	/*
+	/**
 	   Indicates if the given object inherits from the given class
-	*/
+	**/
 	static function inheritsFrom(o:Dynamic, cl:Class<Dynamic>) : Bool {
 		while (Lua.getmetatable(o) != null && Lua.getmetatable(o).__index != null){
 			if (Lua.getmetatable(o).__index == untyped cl.prototype) return true;
@@ -139,9 +139,9 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	/*
+	/**
 	   Helper method to generate a string representation of an enum
-	*/
+	**/
 	static function printEnum(o:Array<Dynamic>, s : String){
 		if (o.length == 2){
 			return o[0];
@@ -159,25 +159,25 @@ class Boot {
 		}
 	}
 
-	/*
+	/**
 	   Helper method to generate a string representation of a class
-	*/
+	**/
 	static inline function printClass(c:Table<String,Dynamic>, s : String) : String {
 		return '{${printClassRec(c,'',s)}}';
 	}
 
-	/*
+	/**
 	   Helper method to generate a string representation of a class
-	*/
+	**/
 	static function printClassRec(c:Table<String,Dynamic>, result='', s : String) : String {
 		var f = Boot.__string_rec;
 		untyped __lua__("for k,v in pairs(c) do if result ~= '' then result = result .. ', ' end result = result .. k .. ':' .. f(v, s.. '\t') end");
 		return result;
 	}
 
-	/*
+	/**
 	   Generate a string representation for arbitrary object.
-	*/
+	**/
 	@:ifFeature("has_enum")
 	static function __string_rec(o : Dynamic, s:String = "") {
 		return switch(untyped __type__(o)){
@@ -232,9 +232,9 @@ class Boot {
 
 	}
 
-	/*
+	/**
 	   Define an array from the given table
-	*/
+	**/
 	public inline static function defArray<T>(tab: Table<Int,T>, ?length : Int) : Array<T> {
 		if (length == null){
 			length = TableTools.maxn(tab);
@@ -251,16 +251,16 @@ class Boot {
 		}
 	}
 
-	/*
+	/**
 	   Create a Haxe object from the given table structure
-	*/
+	**/
 	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
 		return untyped _hx_o(t);
 	}
 
-	/*
+	/**
 	   Get Date object as string representation
-	*/
+	**/
 	public static function dateStr( date : std.Date ) : String {
 		var m = date.getMonth() + 1;
 		var d = date.getDate();
@@ -275,16 +275,16 @@ class Boot {
 			+":"+(if( s < 10 ) "0"+s else ""+s);
 	}
 
-	/*
+	/**
 	   A 32 bit clamp function for numbers
-	*/
+	**/
 	public inline static function clamp(x:Float){
 		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
 	}
 
-	/*
+	/**
 	   Create a standard date object from a lua string representation
-	*/
+	**/
 	public static function strDate( s : String ) : std.Date {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
@@ -311,9 +311,9 @@ class Boot {
 		}
 	}
 
-	/*
+	/**
 	  Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
-	*/
+	**/
 	public static function extendsOrImplements(cl1 : Class<Dynamic>, cl2 : Class<Dynamic>) : Bool {
 		if (cl1 == null || cl2 == null) return false;
 		else if (cl1 == cl2) return true;
@@ -329,9 +329,9 @@ class Boot {
 	}
 
 
-	/*
+	/**
 		Returns a shell escaped version of "cmd" along with any args
-	*/
+	**/
 	public static function shellEscapeCmd(cmd : String, ?args : Array<String>){
 		if (args != null) {
 			switch (Sys.systemName()) {
@@ -347,9 +347,9 @@ class Boot {
 		return cmd;
 	}
 
-	/*
+	/**
 	   Returns a temp file path that can be used for reading and writing
-	*/
+	**/
 	public static function tempFile() : String {
 		switch (Sys.systemName()){
 			case "Windows" : return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);

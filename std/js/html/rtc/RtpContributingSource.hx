@@ -24,9 +24,8 @@
 
 package js.html.rtc;
 
-typedef RtpContributingSource =
-{
-	@:optional var audioLevel : Float;
+typedef RtpContributingSource = {
+	var ?audioLevel : Float;
 	var source : Int;
 	var timestamp : Float;
 }

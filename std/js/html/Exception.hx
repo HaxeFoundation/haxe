@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef Exception =
-{
+typedef Exception = {
 	var name(default,null) : String;
 	var message(default,null) : String;
 	var result(default,null) : Int;

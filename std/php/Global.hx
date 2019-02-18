@@ -282,7 +282,7 @@ extern class Global {
 
 	/**
 		@see http://php.net/manual/en/function.constant.php
-	*/
+	**/
 	static function constant( name:String ) : Dynamic;
 
 	/**
@@ -1142,7 +1142,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-read.php
 	**/
-	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+	static function socket_read( resource:Resource, length:Int, ?type:Int ) : EitherType<Bool, String>;
 
 	/**
 		@see http://php.net/manual/en/function.socket-write.php

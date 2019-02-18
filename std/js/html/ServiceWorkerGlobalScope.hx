@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope>
 **/
 @:native("ServiceWorkerGlobalScope")
-extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
-{
+extern class ServiceWorkerGlobalScope extends WorkerGlobalScope {
 	
 	/**
 		Contains the `Clients` object associated with the service worker.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SecurityPolicyViolationEvent>
 **/
 @:native("SecurityPolicyViolationEvent")
-extern class SecurityPolicyViolationEvent extends Event
-{
+extern class SecurityPolicyViolationEvent extends Event {
 	
 	/**
 		A `USVString` representing the URI of the document or worker in which the violation was found.

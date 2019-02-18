@@ -133,14 +133,14 @@ class Sha1 {
 
 	/**
 		Bitwise rotate a 32-bit number to the left
-	 */
+	**/
 	inline function rol( num : Int, cnt : Int ) : Int {
 		return (num << cnt) | (num >>> (32 - cnt));
 	}
 
 	/**
 		Perform the appropriate triplet combination function for the current iteration
-	*/
+	**/
 	function ft( t : Int, b : Int, c : Int, d : Int ) : Int {
 		if ( t < 20 ) return (b & c) | ((~b) & d);
 		if ( t < 40 ) return b ^ c ^ d;
@@ -150,7 +150,7 @@ class Sha1 {
 
 	/**
 		Determine the appropriate additive constant for the current iteration
-	*/
+	**/
 	function kt( t : Int ) : Int {
 		if( t < 20)
 			return 0x5A827999;

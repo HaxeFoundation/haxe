@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLinkElement>
 **/
 @:native("HTMLLinkElement")
-extern class LinkElement extends Element
-{
+extern class LinkElement extends Element {
 	
 	/**
 		Is a `Boolean` which represents whether the link is disabled; currently only used with style sheet links.

@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("KeyEvent")
-extern class KeyEvent
-{
+extern class KeyEvent {
 	static inline var DOM_VK_CANCEL : Int = 3;
 	static inline var DOM_VK_HELP : Int = 6;
 	static inline var DOM_VK_BACK_SPACE : Int = 8;
@@ -214,5 +213,5 @@ extern class KeyEvent
 	static inline var DOM_VK_PA1 : Int = 253;
 	static inline var DOM_VK_WIN_OEM_CLEAR : Int = 254;
 	
-	function initKeyEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?ctrlKey : Bool = false, ?altKey : Bool = false, ?shiftKey : Bool = false, ?metaKey : Bool = false, ?keyCode : Int = 0, ?charCode : Int = 0 ) : Void;
+	function initKeyEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, metaKey : Bool = false, keyCode : Int = 0, charCode : Int = 0 ) : Void;
 }

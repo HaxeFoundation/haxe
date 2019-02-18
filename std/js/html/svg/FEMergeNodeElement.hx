@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEMergeNodeElement>
 **/
 @:native("SVGFEMergeNodeElement")
-extern class FEMergeNodeElement extends Element
-{
+extern class FEMergeNodeElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

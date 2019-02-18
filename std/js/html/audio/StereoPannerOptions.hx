@@ -24,8 +24,6 @@
 
 package js.html.audio;
 
-typedef StereoPannerOptions =
-{
-	> AudioNodeOptions,
-	@:optional var pan : Float;
+typedef StereoPannerOptions = AudioNodeOptions & {
+	var ?pan : Float;
 }

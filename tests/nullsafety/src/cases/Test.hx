@@ -45,6 +45,10 @@ class UnsafeFields {
 		var s:String;
 		@:nullSafety(false) cast(null, String);
 	}
+
+	var str(get,set):String;
+	@:nullSafety(false) function get_str() return (null:Null<String>);
+	@:nullSafety(false) function set_str(v) return (v:Null<String>);
 }
 
 /** Test `@:nullSafety(false)` is respected on a class */
@@ -80,7 +84,7 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 
 	/**
 	 * This is generated like:
-	 * ```
+	 * ```haxe
 	 * var _gthis = this; //problems come from here
 	 * this.v = 42;
 	 * var f = function() {
@@ -111,6 +115,14 @@ class Test {
 	var initializedInConstructor:String;
 	var initializedInAllBranchesOfConstructor:String;
 	@:shouldFail var initializedInSomeBranchesOfConstructor:String;
+
+	var str(get,set):String;
+	function get_str() {
+		shouldFail(return (null:Null<String>));
+	}
+	function set_str(v) {
+		shouldFail(return (v:Null<String>));
+	}
 
 	/**
 	 *  Null safety should work in __init__ functions
@@ -538,7 +550,7 @@ class Test {
 
 	static function arrayDeclaration_shouldCheck(?a:String) {
 		var s:String;
-		shouldFail([s = a]);
+		shouldFail(([s = a]:Array<Null<String>>));
 	}
 
 	static function arrayDeclaration_nullableItemInNotNullableArray_shouldFail(?s:String, ?i:Int) {
@@ -785,6 +797,10 @@ class Test {
 			var s:String = FinalNullableFields.staticVar;
 		}
 		shouldFail(var s:String = FinalNullableFields.staticVar);
+	}
+
+	static function return_assignNonNullable_shouldPass(?n:String):String {
+		return n = 'hello';
 	}
 }
 

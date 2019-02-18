@@ -224,13 +224,9 @@ let make_is e (t,p_t) p p_is =
 	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
 
-let handle_xml_literal p1 (name,pi) =
-	if p1.pmax <> pi.pmin then error (Custom("Unexpected <")) p1;
-	let open_tag = "<" ^ name in
-	let close_tag = "</" ^ name ^ ">" in
+let handle_xml_literal p1 =
 	Lexer.reset();
-	Buffer.add_string Lexer.buf ("<" ^ name);
-	let i = Lexer.lex_xml p1.pmin open_tag close_tag !code_ref in
+	let i = Lexer.lex_xml p1.pmin !code_ref in
 	let xml = Lexer.contents() in
 	let e = EConst (String xml),{p1 with pmax = i} in
 	let e = make_meta Meta.Markup [] e p1 in

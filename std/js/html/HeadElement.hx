@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLHeadElement>
 **/
 @:native("HTMLHeadElement")
-extern class HeadElement extends Element
-{
+extern class HeadElement extends Element {
 }

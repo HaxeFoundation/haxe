@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStyleElement>
 **/
 @:native("SVGStyleElement")
-extern class StyleElement extends Element
-{
+extern class StyleElement extends Element {
 	var xmlspace : String;
 	
 	/**

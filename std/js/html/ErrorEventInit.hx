@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef ErrorEventInit =
-{
-	> EventInit,
-	@:optional var colno : Int;
-	@:optional var error : Dynamic;
-	@:optional var filename : String;
-	@:optional var lineno : Int;
-	@:optional var message : String;
+typedef ErrorEventInit = EventInit & {
+	var ?colno : Int;
+	var ?error : Dynamic;
+	var ?filename : String;
+	var ?lineno : Int;
+	var ?message : String;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSConditionRule>
 **/
 @:native("CSSConditionRule")
-extern class CSSConditionRule extends CSSGroupingRule
-{
+extern class CSSConditionRule extends CSSGroupingRule {
 	
 	/**
 		Represents the text of the condition of the rule.

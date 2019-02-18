@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMeasure>
 **/
 @:native("PerformanceMeasure")
-extern class PerformanceMeasure extends PerformanceEntry
-{
+extern class PerformanceMeasure extends PerformanceEntry {
 }

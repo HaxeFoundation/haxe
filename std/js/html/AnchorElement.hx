@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAnchorElement>
 **/
 @:native("HTMLAnchorElement")
-extern class AnchorElement extends Element
-{
+extern class AnchorElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `target` HTML attribute, indicating where to display the linked resource.

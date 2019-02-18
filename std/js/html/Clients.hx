@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Clients>
 **/
 @:native("Clients")
-extern class Clients
-{
+extern class Clients {
 	
 	/**
 		Returns a `Promise` for a `Client` matching a given `Client.id`.

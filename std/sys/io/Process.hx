@@ -51,12 +51,12 @@ extern class Process {
 		`detached` allows the created process to be standalone. You cannot communicate with it but you can look at its exit code.
 		
 		`close()` should be called when the `Process` is no longer used.
-	*/
+	**/
 	function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void;
 
 	/**
 		Return the process ID.
-	*/
+	**/
 	function getPid() : Int;
 
 	/**
@@ -64,18 +64,18 @@ extern class Process {
 		If `block` is true or not specified, it will block until the process terminates.
 		If `block` is false, it will return either the process exit code if it's already terminated or null if it's still running.
 		If the process has already exited, return the exit code immediately.
-	*/
+	**/
 	function exitCode( block : Bool = true ) : Null<Int>;
 
 	/**
 		Close the process handle and release the associated resources.
 		All `Process` fields should not be used after `close()` is called.
-	*/
+	**/
 	function close() : Void;
 
 	/**
 		Kill the process.
-	*/
+	**/
 	function kill() : Void;
 
 }

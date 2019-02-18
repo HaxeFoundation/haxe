@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedEnumeration>
 **/
 @:native("SVGAnimatedEnumeration")
-extern class AnimatedEnumeration
-{
+extern class AnimatedEnumeration {
 	var baseVal : Int;
 	var animVal(default,null) : Int;
 	

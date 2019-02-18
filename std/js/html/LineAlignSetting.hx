@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract LineAlignSetting(String)
-{
+enum abstract LineAlignSetting(String) {
 	var START = "start";
 	var CENTER = "center";
 	var END = "end";

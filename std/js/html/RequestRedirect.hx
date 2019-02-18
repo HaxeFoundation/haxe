@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract RequestRedirect(String)
-{
+enum abstract RequestRedirect(String) {
 	var FOLLOW = "follow";
 	var ERROR = "error";
 	var MANUAL = "manual";

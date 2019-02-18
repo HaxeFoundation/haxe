@@ -24,12 +24,10 @@
 
 package js.html;
 
-typedef SpeechSynthesisEventInit =
-{
-	> EventInit,
-	@:optional var charIndex : Int;
-	@:optional var charLength : Int;
-	@:optional var elapsedTime : Float;
-	@:optional var name : String;
+typedef SpeechSynthesisEventInit = EventInit & {
+	var ?charIndex : Int;
+	var ?charLength : Int;
+	var ?elapsedTime : Float;
+	var ?name : String;
 	var utterance : SpeechSynthesisUtterance;
 }

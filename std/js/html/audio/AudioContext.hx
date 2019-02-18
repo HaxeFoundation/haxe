@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioContext>
 **/
 @:native("AudioContext")
-extern class AudioContext extends BaseAudioContext
-{
+extern class AudioContext extends BaseAudioContext {
 	/** @throws DOMError */
 	function new( ?contextOptions : AudioContextOptions ) : Void;
 	

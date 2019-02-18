@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Plugin>
 **/
 @:native("Plugin")
-extern class Plugin implements ArrayAccess<MimeType>
-{
+extern class Plugin implements ArrayAccess<MimeType> {
 	
 	/**
 		A human readable description of the plugin.

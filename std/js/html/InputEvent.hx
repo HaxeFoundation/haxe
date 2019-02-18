@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/InputEvent>
 **/
 @:native("InputEvent")
-extern class InputEvent extends UIEvent
-{
+extern class InputEvent extends UIEvent {
 	
 	/**
 		Returns a `Boolean` value indicating if the event is fired after `compositionstart` and before `compositionend`.

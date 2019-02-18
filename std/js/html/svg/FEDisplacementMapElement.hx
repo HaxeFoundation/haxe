@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDisplacementMapElement>
 **/
 @:native("SVGFEDisplacementMapElement")
-extern class FEDisplacementMapElement extends Element
-{
+extern class FEDisplacementMapElement extends Element {
 	static inline var SVG_CHANNEL_UNKNOWN : Int = 0;
 	static inline var SVG_CHANNEL_R : Int = 1;
 	static inline var SVG_CHANNEL_G : Int = 2;

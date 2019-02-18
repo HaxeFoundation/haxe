@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableCaptionElement>
 **/
 @:native("HTMLTableCaptionElement")
-extern class TableCaptionElement extends Element
-{
+extern class TableCaptionElement extends Element {
 	
 	/**
 		Is a `DOMString` which represents an enumerated attribute indicating alignment of the caption with respect to the table.

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPoint>
 **/
 @:native("SVGPoint")
-extern class Point
-{
+extern class Point {
 	var x : Float;
 	var y : Float;
 	

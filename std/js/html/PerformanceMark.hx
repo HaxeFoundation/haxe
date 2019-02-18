@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceMark>
 **/
 @:native("PerformanceMark")
-extern class PerformanceMark extends PerformanceEntry
-{
+extern class PerformanceMark extends PerformanceEntry {
 }

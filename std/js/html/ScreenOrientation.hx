@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ScreenOrientation>
 **/
 @:native("ScreenOrientation")
-extern class ScreenOrientation extends EventTarget
-{
+extern class ScreenOrientation extends EventTarget {
 	
 	/**
 		Returns the document's current orientation type, one of "portrait-primary", "portrait-secondary", "landscape-primary", or "landscape-secondary".

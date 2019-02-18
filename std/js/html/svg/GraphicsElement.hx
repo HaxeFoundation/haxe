@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGraphicsElement>
 **/
 @:native("SVGGraphicsElement")
-extern class GraphicsElement extends Element
-{
+extern class GraphicsElement extends Element {
 	
 	/**
 		An `SVGAnimatedTransformList` reflecting the computed value of the `transform` property and its corresponding `transform` attribute of the given element.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SpeechGrammarList>
 **/
 @:native("SpeechGrammarList")
-extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar>
-{
+extern class SpeechGrammarList implements ArrayAccess<SpeechGrammar> {
 	
 	/**
 		Returns the number of `SpeechGrammar` objects contained in the `SpeechGrammarList`.

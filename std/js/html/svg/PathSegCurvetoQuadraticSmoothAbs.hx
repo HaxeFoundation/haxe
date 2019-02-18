@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegCurvetoQuadraticSmoothAbs =
-{
+typedef PathSegCurvetoQuadraticSmoothAbs = {
 	var x : Float;
 	var y : Float;
 	

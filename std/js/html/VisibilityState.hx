@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract VisibilityState(String)
-{
+enum abstract VisibilityState(String) {
 	var HIDDEN = "hidden";
 	var VISIBLE = "visible";
 }

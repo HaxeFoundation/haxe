@@ -40,7 +40,7 @@ import haxe.Constraints.IMap;
 	A Map can be instantiated without explicit type parameters. Type inference
 	will then determine the type parameters from the usage.
 
-	Maps can also be created with `key1 => value1, key2 => value2` syntax.
+	Maps can also be created with `[key1 => value1, key2 => value2]` syntax.
 
 	Map is an abstract type, it is not available at runtime.
 
@@ -55,13 +55,13 @@ abstract Map<K,V>(IMap<K,V> ) {
 		This becomes a constructor call to one of the specialization types in
 		the output. The rules for that are as follows:
 
-		1. if K is a `String`, `haxe.ds.StringMap` is used
-		2. if K is an `Int`, `haxe.ds.IntMap` is used
-		3. if K is an `EnumValue`, `haxe.ds.EnumValueMap` is used
-		4. if K is any other class or structure, `haxe.ds.ObjectMap` is used
-		5. if K is any other type, it causes a compile-time error
+		1. if `K` is a `String`, `haxe.ds.StringMap` is used
+		2. if `K` is an `Int`, `haxe.ds.IntMap` is used
+		3. if `K` is an `EnumValue`, `haxe.ds.EnumValueMap` is used
+		4. if `K` is any other class or structure, `haxe.ds.ObjectMap` is used
+		5. if `K` is any other type, it causes a compile-time error
 
-		(Cpp) Map does not use weak keys on ObjectMap by default.
+		(Cpp) Map does not use weak keys on `ObjectMap` by default.
 	**/
 	public function new();
 
@@ -70,14 +70,14 @@ abstract Map<K,V>(IMap<K,V> ) {
 
 		If `key` already has a mapping, the previous value disappears.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	public inline function set(key:K, value:V) this.set(key, value);
 
 	/**
 		Returns the current mapping of `key`.
 
-		If no such mapping exists, null is returned.
+		If no such mapping exists, `null` is returned.
 
 		Note that a check like `map.get(key) == null` can hold for two reasons:
 
@@ -87,14 +87,14 @@ abstract Map<K,V>(IMap<K,V> ) {
 		If it is important to distinguish these cases, `exists()` should be
 		used.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	@:arrayAccess public inline function get(key:K) return this.get(key);
 
 	/**
 		Returns true if `key` has a mapping, false otherwise.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	public inline function exists(key:K) return this.exists(key);
 
@@ -102,7 +102,7 @@ abstract Map<K,V>(IMap<K,V> ) {
 		Removes the mapping of `key` and returns true if such a mapping existed,
 		false otherwise.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	public inline function remove(key:K) return this.remove(key);
 

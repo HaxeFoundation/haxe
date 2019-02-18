@@ -567,7 +567,7 @@ and init_meta_overloads ctx co cf =
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
-			let args = List.map (fun ((a,_),opt,_,t,_) -> a,opt,topt t) f.f_args in
+			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_value_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;

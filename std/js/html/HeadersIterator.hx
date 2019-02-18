@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef HeadersIterator =
-{
+typedef HeadersIterator = {
 	/** @throws DOMError */
 	function next() : Dynamic;
 }

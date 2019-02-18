@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLOptGroupElement>
 **/
 @:native("HTMLOptGroupElement")
-extern class OptGroupElement extends Element
-{
+extern class OptGroupElement extends Element {
 	
 	/**
 		Is a `boolean` representing whether or not the whole list of children `option` is disabled (true) or not (false).

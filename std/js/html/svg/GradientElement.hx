@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGradientElement>
 **/
 @:native("SVGGradientElement")
-extern class GradientElement extends Element
-{
+extern class GradientElement extends Element {
 	static inline var SVG_SPREADMETHOD_UNKNOWN : Int = 0;
 	static inline var SVG_SPREADMETHOD_PAD : Int = 1;
 	static inline var SVG_SPREADMETHOD_REFLECT : Int = 2;

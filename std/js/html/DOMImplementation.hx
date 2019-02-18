@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMImplementation>
 **/
 @:native("DOMImplementation")
-extern class DOMImplementation
-{
+extern class DOMImplementation {
 	
 	/**
 		Returns a `Boolean` indicating if a given feature is supported or not. This function is unreliable and kept for compatibility purpose alone: except for SVG-related queries, it always returns `true`. Old browsers are very inconsistent in their behavior.

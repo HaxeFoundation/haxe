@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmap>
 **/
 @:native("ImageBitmap")
-extern class ImageBitmap
-{
+extern class ImageBitmap {
 	
 	/**
 		Is an `unsigned` `long` representing the width, in CSS pixels, of the `ImageData`.

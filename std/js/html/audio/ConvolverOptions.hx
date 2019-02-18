@@ -24,9 +24,7 @@
 
 package js.html.audio;
 
-typedef ConvolverOptions =
-{
-	> AudioNodeOptions,
-	@:optional var buffer : AudioBuffer;
-	@:optional var disableNormalization : Bool;
+typedef ConvolverOptions = AudioNodeOptions & {
+	var ?buffer : AudioBuffer;
+	var ?disableNormalization : Bool;
 }

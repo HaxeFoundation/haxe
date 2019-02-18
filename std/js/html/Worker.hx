@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Worker>
 **/
 @:native("Worker")
-extern class Worker extends EventTarget
-{
+extern class Worker extends EventTarget {
 	
 	/**
 		An `EventListener` called whenever a `MessageEvent` of type `message` bubbles through the worker — i.e. when a message is sent to the parent document from the worker via `DedicatedWorkerGlobalScope.postMessage`. The message is stored in the event's `MessageEvent.data` property.
@@ -58,5 +57,5 @@ extern class Worker extends EventTarget
 		Sends a message — which can consist of `any` JavaScript object — to the worker's inner scope.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ExtendableMessageEvent>
 **/
 @:native("ExtendableMessageEvent")
-extern class ExtendableMessageEvent extends ExtendableEvent
-{
+extern class ExtendableMessageEvent extends ExtendableEvent {
 	
 	/**
 		Returns the event's data. It can be any data type.

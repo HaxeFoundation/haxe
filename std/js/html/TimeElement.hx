@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTimeElement>
 **/
 @:native("HTMLTimeElement")
-extern class TimeElement extends Element
-{
+extern class TimeElement extends Element {
 	
 	/**
 		Is a `DOMString` that reflects the `datetime` HTML attribute, containing a machine-readable form of the element's date and time value.

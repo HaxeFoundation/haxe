@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest>
 **/
 @:native("XMLHttpRequest")
-extern class XMLHttpRequest extends XMLHttpRequestEventTarget
-{
+extern class XMLHttpRequest extends XMLHttpRequestEventTarget {
 	static inline var UNSENT : Int = 0;
 	static inline var OPENED : Int = 1;
 	static inline var HEADERS_RECEIVED : Int = 2;

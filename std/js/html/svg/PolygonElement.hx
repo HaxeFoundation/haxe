@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGPolygonElement>
 **/
 @:native("SVGPolygonElement")
-extern class PolygonElement extends GeometryElement
-{
+extern class PolygonElement extends GeometryElement {
 	var points(default,null) : PointList;
 	var animatedPoints(default,null) : PointList;
 	

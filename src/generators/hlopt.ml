@@ -625,7 +625,7 @@ let optimize dump get_str (f:fundecl) =
 			) (fun w ->	w) op in
 			set_op i op;
 			(match op with
-			| OMov (d, v) when d = v ->
+			| OMov (d, v) | OToInt (d, v) | OToSFloat (d,v) when d = v ->
 				add_reg_moved i d v;
 				set_nop i "mov"
 			| OMov (d, v) ->

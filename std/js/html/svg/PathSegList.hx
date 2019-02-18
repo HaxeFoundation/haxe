@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGPathSegList")
-extern class PathSegList implements ArrayAccess<PathSeg>
-{
+extern class PathSegList implements ArrayAccess<PathSeg> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

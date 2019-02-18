@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AbortController>
 **/
 @:native("AbortController")
-extern class AbortController
-{
+extern class AbortController {
 	
 	/**
 		Returns a `AbortSignal` object instance, which can be used to communicate with/abort a DOM request.

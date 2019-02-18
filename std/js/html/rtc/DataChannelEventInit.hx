@@ -24,8 +24,6 @@
 
 package js.html.rtc;
 
-typedef DataChannelEventInit =
-{
-	> EventInit,
+typedef DataChannelEventInit = EventInit & {
 	var channel : DataChannel;
 }

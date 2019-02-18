@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CSSImportRule")
-extern class CSSImportRule extends CSSRule
-{
+extern class CSSImportRule extends CSSRule {
 	var href(default,null) : String;
 	var media(default,null) : MediaList;
 	var styleSheet(default,null) : CSSStyleSheet;

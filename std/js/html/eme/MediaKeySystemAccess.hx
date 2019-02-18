@@ -32,8 +32,7 @@ package js.html.eme;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemAccess>
 **/
 @:native("MediaKeySystemAccess")
-extern class MediaKeySystemAccess
-{
+extern class MediaKeySystemAccess {
 	
 	/**
 		Returns a `DOMString` identifying the key system being used.

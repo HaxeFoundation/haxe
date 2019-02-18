@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract SecurityPolicyViolationEventDisposition(String)
-{
+enum abstract SecurityPolicyViolationEventDisposition(String) {
 	var ENFORCE = "enforce";
 	var REPORT = "report";
 }

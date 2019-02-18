@@ -24,7 +24,6 @@
 
 package js.html.rtc;
 
-typedef IdentityProviderRegistrar =
-{
+typedef IdentityProviderRegistrar = {
 	function register( idp : IdentityProvider ) : Void;
 }

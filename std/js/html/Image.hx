@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("Image")
-extern class Image extends ImageElement
-{
+extern class Image extends ImageElement {
 	/** @throws DOMError */
 	function new( ?width : Int, ?height : Int ) : Void;
 }

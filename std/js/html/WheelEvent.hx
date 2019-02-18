@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WheelEvent>
 **/
 @:native("WheelEvent")
-extern class WheelEvent extends MouseEvent
-{
+extern class WheelEvent extends MouseEvent {
 	static inline var DOM_DELTA_PIXEL : Int = 0;
 	static inline var DOM_DELTA_LINE : Int = 1;
 	static inline var DOM_DELTA_PAGE : Int = 2;

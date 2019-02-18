@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XMLDocument>
 **/
 @:native("XMLDocument")
-extern class XMLDocument extends Document
-{
+extern class XMLDocument extends Document {
 	var async : Bool;
 	
 	

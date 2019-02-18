@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSS>
 **/
 @:native("CSS")
-extern class CSS
-{
+extern class CSS {
 	
 	/**
 		Returns a `Boolean` indicating if the pair property-value, or the condition, given in parameter is supported.

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Animation>
 **/
 @:native("Animation")
-extern class Animation extends EventTarget
-{
+extern class Animation extends EventTarget {
 	
 	/**
 		Gets and sets the `String` used to identify the animation.

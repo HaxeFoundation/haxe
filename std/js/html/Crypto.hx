@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Crypto>
 **/
 @:native("Crypto")
-extern class Crypto
-{
+extern class Crypto {
 	
 	/**
 		Returns a `SubtleCrypto` object providing access to common cryptographic primitives, like hashing, signing, encryption or decryption.

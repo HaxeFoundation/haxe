@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaError>
 **/
 @:native("MediaError")
-extern class MediaError
-{
+extern class MediaError {
 	static inline var MEDIA_ERR_ABORTED : Int = 1;
 	static inline var MEDIA_ERR_NETWORK : Int = 2;
 	static inline var MEDIA_ERR_DECODE : Int = 3;
