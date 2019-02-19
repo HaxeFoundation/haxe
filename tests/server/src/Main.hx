@@ -1,7 +1,7 @@
 using StringTools;
 
+@:timeout(5000)
 class ServerTests extends HaxeServerTestCase {
-	@:timeout(5000)
 	function testNoModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
@@ -12,7 +12,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertReuse("HelloWorld");
 	}
 
-	@:timeout(5000)
 	function testModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
@@ -23,7 +22,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertNotCacheModified("HelloWorld");
 	}
 
-	@:timeout(5000)
 	function testDependency() {
 		vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
 		vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
@@ -38,7 +36,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertReuse("WithDependency");
 	}
 
-	@:timeout(5000)
 	function testMacro() {
 		vfs.putContent("MacroMain.hx", getTemplate("MacroMain.hx"));
 		vfs.putContent("Macro.hx", getTemplate("Macro.hx"));
@@ -59,7 +56,6 @@ class ServerTests extends HaxeServerTestCase {
 		assertHasPrint("2");
 	}
 
-	@:timeout(5000)
 	function testDceEmpty() {
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--no-output", "-java", "java"];
