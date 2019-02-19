@@ -14,10 +14,10 @@ class AsyncMacro {
 			return if (el.length == 0) {
 				e0;
 			} else switch (e0) {
-				case macro haxe($a{args}):
+				case macro runHaxe($a{args}):
 					var e = loop(el);
 					args.push(macro () -> $e);
-					macro haxe($a{args});
+					macro runHaxe($a{args});
 				case _:
 					macro { $e0; ${loop(el)}};
 			}

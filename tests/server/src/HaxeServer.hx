@@ -62,14 +62,14 @@ private class DisplayRequest {
         return Buffer.concat(chunks, length + 4);
     }
 
-    public function processResult(data:String) {
+    public function processResult(context:Context, data:String) {
         var buf = new StringBuf();
         var hasError = false;
         for (line in data.split("\n")) {
             switch (line.fastCodeAt(0)) {
                 case 0x01: // print
                     var line = line.substring(1).replace("\x01", "\n");
-                    trace("Haxe print:\n" + line);
+					context.sendLogMessage("Haxe print: " + line + "\n");
                 case 0x02: // error
                     hasError = true;
                 default:
@@ -229,7 +229,7 @@ class HaxeServer {
             if (currentRequest != null) {
                 var request = currentRequest;
                 currentRequest = null;
-                request.processResult(msg);
+                request.processResult(context, msg);
                 checkQueue();
             }
         }

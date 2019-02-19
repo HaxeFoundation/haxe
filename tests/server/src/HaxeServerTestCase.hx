@@ -1,5 +1,6 @@
 import HaxeServer;
 import utest.Assert;
+using StringTools;
 
 class TestContext {
 	public var messages:Array<String> = []; // encapsulation is overrated
@@ -13,7 +14,10 @@ class TestContext {
 	public function sendErrorMessage(msg:String) { }
 
 	public function sendLogMessage(msg:String) {
-		messages.push(msg);
+		var split = msg.split("\n");
+		for (message in split) {
+			messages.push(message.trim());
+		}
 	}
 }
 
@@ -42,7 +46,7 @@ class HaxeServerTestCase {
 		server.stop();
 	}
 
-	function haxe(args:Array<String>, done:Void -> Void) {
+	function runHaxe(args:Array<String>, done:Void -> Void) {
 		context.messages = [];
 		server.process(args, null, function(_) {
 			done();
@@ -58,7 +62,7 @@ class HaxeServerTestCase {
 
 	function hasMessage<T>(msg:String) {
 		for (message in context.messages) {
-			if (message.indexOf(msg) != -1) {
+			if (message.endsWith(msg)) {
 				return true;
 			}
 		}
@@ -66,7 +70,7 @@ class HaxeServerTestCase {
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage("" + line), null, p);
+		Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
