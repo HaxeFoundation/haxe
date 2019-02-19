@@ -391,8 +391,8 @@ class Compiler {
 		@param path A package, module or sub-type dot path to keep.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
-	public static function nullSafety(path : String, ?recursive:Bool = true) {
-		addGlobalMetadata(path, "@:nullSafety", recursive);
+	public static function nullSafety(path : String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
+		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
 	}
 
 	/**
@@ -475,4 +475,34 @@ enum abstract IncludePosition(String) from String to String {
 		Directly inject the file content at the call site.
 	**/
 	var Inline = "inline";
+}
+
+
+enum abstract NullSafetyMode(String) to String {
+	/**
+		Disable null safety.
+	**/
+	var Off;
+	/**
+		Full scale null safety.
+	**/
+	var Strict;
+	/**
+		Loose safety.
+		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
+		E.g.
+		```
+		function example(o:{field:Null<String>}) {
+			if(o.field != null) {
+				mutate(o);
+				var notNullable:String = o.field; //no error
+			}
+		}
+
+		function mutate(o:{field:Null<String>}) {
+			o.field = null;
+		}
+		```
+	**/
+	var Loose;
 }

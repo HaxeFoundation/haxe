@@ -1,6 +1,8 @@
 -cp src
--main cases.Test
 -D analyzer-optimize
+cases.TestStrict
+cases.TestLoose
 
---macro nullSafety('cases')
+--macro nullSafety('cases.TestStrict', Strict)
+--macro nullSafety('cases.TestLoose', Loose)
 --macro Validator.register()
