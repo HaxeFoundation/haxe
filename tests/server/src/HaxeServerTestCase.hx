@@ -1,14 +1,9 @@
 import HaxeServer;
-import haxe.Json;
 import utest.Assert;
-using StringTools;
-
-typedef Message<T> = {
-	kind: String,
-	data: T
-}
 
 class TestContext {
+	public var messages:Array<String> = []; // encapsulation is overrated
+
 	public var displayServerConfig:DisplayServerConfigBase;
 
 	public function new(config:DisplayServerConfigBase) {
@@ -17,7 +12,9 @@ class TestContext {
 
 	public function sendErrorMessage(msg:String) { }
 
-	public function sendLogMessage(msg:String) { }
+	public function sendLogMessage(msg:String) {
+		messages.push(msg);
+	}
 }
 
 class HaxeServerTestCase {
@@ -25,7 +22,6 @@ class HaxeServerTestCase {
 	var server:HaxeServer;
 	var vfs:Vfs;
 	var testDir:String;
-	var messages:Array<Message<Any>>;
 
 	public function new() {
 		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
@@ -47,12 +43,8 @@ class HaxeServerTestCase {
 	}
 
 	function haxe(args:Array<String>, done:Void -> Void) {
-		args = args.concat(["-D", "compilation-server-test"]);
-		server.process(args, null, function(result) {
-			if (result == "") {
-				result = "{}";
-			}
-			messages = Json.parse(result);
+		context.messages = [];
+		server.process(args, null, function(_) {
 			done();
 		}, function(message) {
 			Assert.fail(message);
@@ -64,17 +56,9 @@ class HaxeServerTestCase {
 		return sys.io.File.getContent("test/templates/" + templateName);
 	}
 
-	function hasMessage<T>(msg:{kind: String, data:T}) {
-		function compareData(data1:Dynamic, data2:Dynamic) {
-			return switch (msg.kind) {
-				case "reusing" | "notCached": data1 == data2;
-				case "skipping": data1.skipped == data2.skipped && data1.dependency == data2.dependency;
-				case "print": Std.string(data1).trim() == Std.string(data2).trim();
-				case _: false;
-			}
-		}
-		for (message in messages) {
-			if (message.kind == msg.kind && compareData(message.data, cast msg.data)) {
+	function hasMessage<T>(msg:String) {
+		for (message in context.messages) {
+			if (message.indexOf(msg) != -1) {
 				return true;
 			}
 		}
@@ -82,18 +66,22 @@ class HaxeServerTestCase {
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "print", data: line}), null, p);
+		Assert.isTrue(hasMessage("" + line), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "reusing", data: module}), null, p);
+		Assert.isTrue(hasMessage('reusing $module'), null, p);
 	}
 
 	function assertSkipping(module:String, ?dependency:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "skipping", data: {skipped: module, dependency: dependency == null ? module : dependency}}), null, p);
+		var msg = 'skipping $module';
+		if (dependency != null) {
+			msg += '($dependency)';
+		}
+		Assert.isTrue(hasMessage(msg), null, p);
 	}
 
 	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "notCached", data: module}), null, p);
+		Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
 	}
 }
