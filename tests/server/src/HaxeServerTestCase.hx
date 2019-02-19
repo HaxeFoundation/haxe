@@ -123,6 +123,8 @@ class HaxeServerTestCase {
 				case _: false;
 			}
 		}
-		Assert.isTrue(check(type), null, p);
+		if (type != null) {
+			Assert.isTrue(check(type), null, p);
+		}
 	}
 }
