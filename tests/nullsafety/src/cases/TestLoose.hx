@@ -2,7 +2,7 @@ package cases;
 
 import Validator.shouldFail;
 
-class TestWeak {
+class TestLoose {
 	static var staticVar:Null<String>;
 	var instanceVar:Null<String>;
 

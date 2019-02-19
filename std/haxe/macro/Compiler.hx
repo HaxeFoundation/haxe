@@ -391,7 +391,7 @@ class Compiler {
 		@param path A package, module or sub-type dot path to keep.
 		@param recursive If true, recurses into sub-packages for package paths.
 	**/
-	public static function nullSafety(path : String, mode:NullSafetyMode = Weak, recursive:Bool = true) {
+	public static function nullSafety(path : String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
 		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
 	}
 
@@ -488,7 +488,7 @@ enum abstract NullSafetyMode(String) to String {
 	**/
 	var Strict;
 	/**
-		Weak safety.
+		Loose safety.
 		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
 		E.g.
 		```
@@ -504,5 +504,5 @@ enum abstract NullSafetyMode(String) to String {
 		}
 		```
 	**/
-	var Weak;
+	var Loose;
 }

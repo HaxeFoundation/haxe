@@ -122,18 +122,18 @@ type safety_subject =
 	*)
 	| SNotSuitable
 
-let rec get_subject weak_safety expr =
+let rec get_subject loose_safety expr =
 	match expr.eexpr with
 		| TLocal v ->
 			SLocalVar v.v_id
-		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when weak_safety || field.cf_final ->
+		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when loose_safety || field.cf_final ->
 			SFieldOfClass (cls.cl_path, [field.cf_name])
-		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when weak_safety || field.cf_final ->
+		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when loose_safety || field.cf_final ->
 			SFieldOfThis [field.cf_name]
-		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when weak_safety || field.cf_final ->
+		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when loose_safety || field.cf_final ->
 			SFieldOfLocalVar (v.v_id, [field.cf_name])
-		| TField (e, (FInstance (_, _, field) | FAnon field)) when weak_safety ->
-			(match get_subject weak_safety e with
+		| TField (e, (FInstance (_, _, field) | FAnon field)) when loose_safety ->
+			(match get_subject loose_safety e with
 				| SFieldOfClass (path, fields) -> SFieldOfClass (path, field.cf_name :: fields)
 				| SFieldOfThis fields -> SFieldOfThis (field.cf_name :: fields)
 				| SFieldOfLocalVar (var_id, fields) -> SFieldOfLocalVar (var_id, field.cf_name :: fields)
@@ -141,13 +141,13 @@ let rec get_subject weak_safety expr =
 			)
 		|_ -> SNotSuitable
 
-let rec is_suitable weak_safety expr =
+let rec is_suitable loose_safety expr =
 	match expr.eexpr with
 		| TField ({ eexpr = TConst TThis }, FInstance _)
 		| TField ({ eexpr = TLocal _ }, (FInstance _ | FAnon _))
 		| TField ({ eexpr = TTypeExpr _ }, FStatic _)
 		| TLocal _ -> true
-		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when weak_safety -> is_suitable weak_safety target
+		| TField (target, (FInstance _ | FStatic _ | FAnon _)) when loose_safety -> is_suitable loose_safety target
 		|_ -> false
 
 class unificator =
@@ -318,7 +318,7 @@ let rec can_pass_type src dst =
 	Collect nullable local vars which are checked against `null`.
 	Returns a tuple of (vars_checked_to_be_null * vars_checked_to_be_not_null) in case `condition` evaluates to `true`.
 *)
-let process_condition weak_safety condition (is_nullable_expr:texpr->bool) callback =
+let process_condition loose_safety condition (is_nullable_expr:texpr->bool) callback =
 	let nulls = ref []
 	and not_nulls = ref [] in
 	let add to_nulls expr =
@@ -328,17 +328,17 @@ let process_condition weak_safety condition (is_nullable_expr:texpr->bool) callb
 	let rec traverse positive e =
 		match e.eexpr with
 			| TUnop (Not, Prefix, e) -> traverse (not positive) e
-			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable weak_safety checked_expr ->
+			| TBinop (OpEq, { eexpr = TConst TNull }, checked_expr) when is_suitable loose_safety checked_expr ->
 				add positive checked_expr
-			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable weak_safety checked_expr ->
+			| TBinop (OpEq, checked_expr, { eexpr = TConst TNull }) when is_suitable loose_safety checked_expr ->
 				add positive checked_expr
-			| TBinop (OpNotEq, { eexpr = TConst TNull }, checked_expr) when is_suitable weak_safety checked_expr ->
+			| TBinop (OpNotEq, { eexpr = TConst TNull }, checked_expr) when is_suitable loose_safety checked_expr ->
 				add (not positive) checked_expr
-			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable weak_safety checked_expr ->
+			| TBinop (OpNotEq, checked_expr, { eexpr = TConst TNull }) when is_suitable loose_safety checked_expr ->
 				add (not positive) checked_expr
-			| TBinop (OpEq, e, checked_expr) when is_suitable weak_safety checked_expr && not (is_nullable_expr e) ->
+			| TBinop (OpEq, e, checked_expr) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
-			| TBinop (OpEq, checked_expr, e) when is_suitable weak_safety checked_expr && not (is_nullable_expr e) ->
+			| TBinop (OpEq, checked_expr, e) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpBoolAnd, left_expr, right_expr) when positive ->
 				traverse positive left_expr;
@@ -368,7 +368,7 @@ let rec contains_safe_meta metadata =
 	match metadata with
 		| [] -> false
 		| (Meta.NullSafety, [], _) :: _
-		| (Meta.NullSafety, [(EConst (Ident ("Weak" | "Strict")), _)], _) :: _  -> true
+		| (Meta.NullSafety, [(EConst (Ident ("Loose" | "Strict")), _)], _) :: _  -> true
 		| _ :: rest -> contains_safe_meta rest
 
 let safety_enabled meta =
@@ -381,7 +381,7 @@ let safety_mode (metadata:Ast.metadata) =
 			| _, [] -> mode
 			| None, (Meta.NullSafety, [(EConst (Ident "Off"), _)], _) :: _ ->
 				Some SMOff
-			| None, (Meta.NullSafety, ([] | [(EConst (Ident "Weak"), _)]), _) :: rest ->
+			| None, (Meta.NullSafety, ([] | [(EConst (Ident "Loose"), _)]), _) :: rest ->
 				traverse (Some SMWeak) rest
 			| Some SMWeak, (Meta.NullSafety, [(EConst (Ident "Strict"), _)], _) :: rest ->
 				traverse (Some SMStrict) rest
@@ -397,7 +397,7 @@ let rec validate_safety_meta error (metadata:Ast.metadata) =
 		| [] -> ()
 		| (Meta.NullSafety, args, pos) :: rest ->
 			(match args with
-				| ([] | [(EConst (Ident ("Off" | "Weak" | "Strict")), _)]) -> ()
+				| ([] | [(EConst (Ident ("Off" | "Loose" | "Strict")), _)]) -> ()
 				| _ -> error "Invalid argument for @:nullSafety meta" pos
 			);
 			validate_safety_meta error rest
