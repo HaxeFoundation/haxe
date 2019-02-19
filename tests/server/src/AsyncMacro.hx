@@ -7,7 +7,7 @@ class AsyncMacro {
 			case EBlock(el): el;
 			case _: Context.error("Block expression expected", e.pos);
 		}
-		el.unshift(macro var _done = utest.Assert.createAsync(1000));
+		el.unshift(macro var _done = utest.Assert.createAsync(5000));
 		el.push(macro _done());
 		function loop(el:Array<Expr>) {
 			var e0 = el.shift();
