@@ -233,6 +233,14 @@ let handler =
 			) ();
 			hctx.send_result (jarray !l)
 		);
+		(* TODO: wait till gama complains about the naming, then change it to something else *)
+		"typer/compiledTypes", (fun hctx ->
+			hctx.com.callbacks#add_after_filters (fun () ->
+				let ctx = create_context GMFull in
+				let l = List.map (generate_module_type ctx) hctx.com.types in
+				hctx.send_result (jarray l)
+			);
+		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h

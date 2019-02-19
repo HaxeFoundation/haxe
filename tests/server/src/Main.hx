@@ -71,6 +71,17 @@ class Macro extends HaxeServerTestCase {
 	}
 }
 
+class DceEmpty extends HaxeServerTestCase {
+	public function test() {
+		async({
+			vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+			var args = ["-main", "Empty", "--no-output", "-java", "java"];
+			runHaxe(args);
+			runHaxe(args, true);
+			assertHasField("", "Type", "enumIndex", true);
+		});
+	}
+}
 
 class Main {
 	static public function main() {
@@ -80,6 +91,7 @@ class Main {
 		runner.addCase(new Modification());
 		runner.addCase(new Dependency());
 		runner.addCase(new Macro());
+		runner.addCase(new DceEmpty());
 		utest.ui.Report.create(runner);
 		runner.run();
 	}

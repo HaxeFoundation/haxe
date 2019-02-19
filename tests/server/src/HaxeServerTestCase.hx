@@ -1,6 +1,9 @@
+import haxe.display.JsonModuleTypes.JsonModuleType;
+import haxe.Json;
 import HaxeServer;
 import utest.Assert;
 using StringTools;
+using Lambda;
 
 class TestContext {
 	public var messages:Array<String> = []; // encapsulation is overrated
@@ -26,6 +29,7 @@ class HaxeServerTestCase {
 	var server:HaxeServer;
 	var vfs:Vfs;
 	var testDir:String;
+	var storedTypes:Array<JsonModuleType<Any>>;
 
 	public function new() {
 		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
@@ -46,9 +50,16 @@ class HaxeServerTestCase {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, done:Void -> Void) {
+	function runHaxe(args:Array<String>, storeTypes = false, done:Void -> Void) {
 		context.messages = [];
-		server.process(args, null, function(_) {
+		storedTypes = [];
+		if (storeTypes) {
+			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
+		}
+		server.process(args, null, function(result) {
+			if (storeTypes) {
+				storedTypes = Json.parse(result).result.result;
+			}
 			done();
 		}, function(message) {
 			Assert.fail(message);
@@ -69,6 +80,15 @@ class HaxeServerTestCase {
 		return false;
 	}
 
+	function getStoredType(typePackage:String, typeName:String) {
+		for (type in storedTypes) {
+			if (type.pack.join(".") == typePackage && type.name == typeName) {
+				return type;
+			}
+		}
+		return null;
+	}
+
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
 		Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
 	}
@@ -87,5 +107,22 @@ class HaxeServerTestCase {
 
 	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
 		Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
+	}
+
+	function assertHasType(typePackage:String, typeName:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
+	}
+
+	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
+		var type = getStoredType(typePackage, typeName);
+		Assert.isTrue(type != null);
+		function check<T>(type:JsonModuleType<T>) {
+			return switch [type.kind, type.args] {
+				case [Class, c]:
+					(isStatic ? c.statics : c.fields).exists(cf -> cf.name == fieldName);
+				case _: false;
+			}
+		}
+		Assert.isTrue(check(type), null, p);
 	}
 }
