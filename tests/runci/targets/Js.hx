@@ -89,8 +89,10 @@ class Js {
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
 		haxelibInstall("utest");
-		// changeDirectory(serverDir);
-		// runCommand("haxe", ["build.hxml"]);
-		// runCommand("node", ["test.js"]);
+
+		runci.targets.Java.getJavaDependencies(); // this is awkward
+		changeDirectory(serverDir);
+		runCommand("haxe", ["build.hxml"]);
+		runCommand("node", ["test.js"]);
 	}
 }

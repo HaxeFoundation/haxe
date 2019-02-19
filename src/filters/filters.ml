@@ -904,4 +904,5 @@ let run com tctx main =
 	in
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
-	t()
+	t();
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)

@@ -105,6 +105,7 @@ class compiler_callbacks = object(self)
 	val mutable after_typing = [];
 	val mutable before_save = [];
 	val mutable after_save = [];
+	val mutable after_filters = [];
 	val mutable after_generation = [];
 	val mutable null_safety_report = [];
 
@@ -120,6 +121,9 @@ class compiler_callbacks = object(self)
 	method add_after_save (f : unit -> unit) : unit =
 		after_save <- f :: after_save
 
+	method add_after_filters (f : unit -> unit) : unit =
+		after_filters <- f :: after_filters
+
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation <- f :: after_generation
 
@@ -130,6 +134,7 @@ class compiler_callbacks = object(self)
 	method get_after_typing = after_typing
 	method get_before_save = before_save
 	method get_after_save = after_save
+	method get_after_filters = after_filters
 	method get_after_generation = after_generation
 	method get_null_safety_report = null_safety_report
 end

@@ -6,10 +6,10 @@ class NoModification extends HaxeServerTestCase {
 		async({
 			vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 			var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
-			haxe(args);
-			haxe(args);
+			runHaxe(args);
+			runHaxe(args);
 			assertReuse("HelloWorld");
-			haxe(args);
+			runHaxe(args);
 			assertReuse("HelloWorld");
 		});
 	}
@@ -20,9 +20,9 @@ class Modification extends HaxeServerTestCase {
 		async({
 			vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 			var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];
-			haxe(args);
+			runHaxe(args);
 			vfs.touchFile("HelloWorld.hx");
-			haxe(args);
+			runHaxe(args);
 			assertSkipping("HelloWorld");
 			assertNotCacheModified("HelloWorld");
 		});
@@ -35,12 +35,12 @@ class Dependency extends HaxeServerTestCase {
 			vfs.putContent("WithDependency.hx", getTemplate("WithDependency.hx"));
 			vfs.putContent("Dependency.hx", getTemplate("Dependency.hx"));
 			var args = ["-main", "WithDependency.hx", "--no-output", "-js", "no.js"];
-			haxe(args);
+			runHaxe(args);
 			vfs.touchFile("Dependency.hx");
-			haxe(args);
+			runHaxe(args);
 			assertSkipping("WithDependency", "Dependency");
 			assertNotCacheModified("Dependency");
-			haxe(args);
+			runHaxe(args);
 			assertReuse("Dependency");
 			assertReuse("WithDependency");
 		});
@@ -53,24 +53,35 @@ class Macro extends HaxeServerTestCase {
 			vfs.putContent("MacroMain.hx", getTemplate("MacroMain.hx"));
 			vfs.putContent("Macro.hx", getTemplate("Macro.hx"));
 			var args = ["-main", "MacroMain.hx", "--no-output", "-js", "no.js"];
-			haxe(args);
+			runHaxe(args);
 			assertHasPrint("1");
 			vfs.touchFile("MacroMain.hx");
-			haxe(args);
+			runHaxe(args);
 			assertHasPrint("1");
 			vfs.touchFile("Macro.hx");
-			haxe(args);
+			runHaxe(args);
 			assertHasPrint("1");
 			vfs.putContent("Macro.hx", getTemplate("Macro.hx").replace("1", "2"));
-			haxe(args);
+			runHaxe(args);
 			assertHasPrint("2");
 			vfs.touchFile("MacroMain.hx");
-			haxe(args);
+			runHaxe(args);
 			assertHasPrint("2");
 		});
 	}
 }
 
+class DceEmpty extends HaxeServerTestCase {
+	public function test() {
+		async({
+			vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+			var args = ["-main", "Empty", "--no-output", "-java", "java"];
+			runHaxe(args);
+			runHaxe(args, true);
+			assertHasField("", "Type", "enumIndex", true);
+		});
+	}
+}
 
 class Main {
 	static public function main() {
@@ -80,6 +91,7 @@ class Main {
 		runner.addCase(new Modification());
 		runner.addCase(new Dependency());
 		runner.addCase(new Macro());
+		runner.addCase(new DceEmpty());
 		utest.ui.Report.create(runner);
 		runner.run();
 	}
