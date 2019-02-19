@@ -2,19 +2,20 @@ import haxe.display.JsonModuleTypes.JsonModuleType;
 import haxe.Json;
 import HaxeServer;
 import utest.Assert;
+import utest.ITest;
+
 using StringTools;
 using Lambda;
 
 class TestContext {
 	public var messages:Array<String> = []; // encapsulation is overrated
-
 	public var displayServerConfig:DisplayServerConfigBase;
 
 	public function new(config:DisplayServerConfigBase) {
 		this.displayServerConfig = config;
 	}
 
-	public function sendErrorMessage(msg:String) { }
+	public function sendErrorMessage(msg:String) {}
 
 	public function sendLogMessage(msg:String) {
 		var split = msg.split("\n");
@@ -24,22 +25,23 @@ class TestContext {
 	}
 }
 
-class HaxeServerTestCase {
+@:autoBuild(AsyncMacro.build())
+class HaxeServerTestCase implements ITest {
 	var context:TestContext;
 	var server:HaxeServer;
 	var vfs:Vfs;
 	var testDir:String;
 	var storedTypes:Array<JsonModuleType<Any>>;
+	var i:Int = 0;
 
-	public function new() {
-		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
-	}
+	public function new() {}
 
 	public function setup() {
+		testDir = "test/cases/" + i++;
 		context = new TestContext({
 			haxePath: "haxe",
 			arguments: ["-v", "--cwd", testDir],
-			env: { }
+			env: {}
 		});
 		vfs = new Vfs(testDir);
 		server = new HaxeServer(context);
@@ -50,7 +52,7 @@ class HaxeServerTestCase {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, storeTypes = false, done:Void -> Void) {
+	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
 		context.messages = [];
 		storedTypes = [];
 		if (storeTypes) {
