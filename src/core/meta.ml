@@ -324,7 +324,7 @@ let get_info = function
 	| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 	| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 	| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
-	| NullSafety -> ":nullSafety",("Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `false` as an argument (e.g. `@:nullSafety(false)`)",[UsedOnEither [TClass;TClassField;TExpr]])
+	| NullSafety -> ":nullSafety",("Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument (e.g. `@:nullSafety(Off)`)",[UsedOnEither [TClass;TClassField;TExpr]])
 	| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
 	| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
 	| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
