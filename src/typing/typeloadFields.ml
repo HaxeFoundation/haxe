@@ -1099,7 +1099,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				else
 					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
 				end;
-				if DisplayPosition.encloses_display_position pn then begin
+				if fctx.is_display_field && DisplayPosition.encloses_display_position pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
 					DisplayEmitter.display_variable ctx v pn;
 				end
