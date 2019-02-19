@@ -1092,9 +1092,14 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	else begin
 		delay ctx PTypeField (fun () ->
 			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
-			List.iter2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-				ignore(TypeloadFunction.process_function_arg ctx n t c fctx.is_display_field pn);
-				if DisplayPosition.encloses_display_position pn then begin
+			List.iter2 (fun (n,ct,t) ((_,pn),_,m,_,_) ->
+				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
+				begin if ctx.com.platform = Flash && c.cl_extern then
+					()
+				else
+					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
+				end;
+				if fctx.is_display_field && DisplayPosition.encloses_display_position pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
 					DisplayEmitter.display_variable ctx v pn;
 				end

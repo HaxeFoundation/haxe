@@ -31,28 +31,28 @@ typedef AnonAsStruct = {
 	?optional:String
 }
 
-/** Test `@:nullSafety(false)` is respected on fields */
+/** Test `@:nullSafety(Off)` is respected on fields */
 class UnsafeFields {
-	@:nullSafety(false) var unsafeVar:String = null;
-	@:nullSafety(false) var notInitializedField:String;
+	@:nullSafety(Off) var unsafeVar:String = null;
+	@:nullSafety(Off) var notInitializedField:String;
 
-	@:nullSafety(false)
+	@:nullSafety(Off)
 	static function unsafeMethod() {
 		var s:String = null;
 	}
 
 	static function unsafeExpr() {
 		var s:String;
-		@:nullSafety(false) cast(null, String);
+		@:nullSafety(Off) cast(null, String);
 	}
 
 	var str(get,set):String;
-	@:nullSafety(false) function get_str() return (null:Null<String>);
-	@:nullSafety(false) function set_str(v) return (v:Null<String>);
+	@:nullSafety(Off) function get_str() return (null:Null<String>);
+	@:nullSafety(Off) function set_str(v) return (v:Null<String>);
 }
 
-/** Test `@:nullSafety(false)` is respected on a class */
-@:nullSafety(false)
+/** Test `@:nullSafety(Off)` is respected on a class */
+@:nullSafety(Off)
 class UnsafeClass {
 	var uninitializedVar:String;
 
@@ -63,12 +63,12 @@ class UnsafeClass {
 	function doStuff(t:UnsafeClass) {}
 }
 
-/** Test `@:nullSafety(false)` on a constructor. And that it does not disable safety checks for instance vars */
+/** Test `@:nullSafety(Off)` on a constructor. And that it does not disable safety checks for instance vars */
 @:build(Validator.checkFields())
 class UnsafeConstructor {
 	@:shouldFail var uninitializedVar:String;
 
-	@:nullSafety(false)
+	@:nullSafety(Off)
 	public function new() {
 		var s:String = null;
 	}
@@ -99,7 +99,7 @@ class AllVarsInitializedInConstructor_weHaveClosure_thisShouldBeUsable {
 }
 
 @:build(Validator.checkFields())
-class Test {
+class TestStrict {
 	public var field:Null<String>;
 	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
@@ -156,7 +156,7 @@ class Test {
 		shouldFail(s.length);
 	}
 
-	static function acceptThis(t:Test) {}
+	static function acceptThis(t:TestStrict) {}
 
 	function instanceMethod() {}
 
@@ -207,7 +207,7 @@ class Test {
 	}
 
 	static public function new_nullableValueToNotNullableArgument_shouldFail(?v:String) {
-		shouldFail(new Test(v));
+		shouldFail(new TestStrict(v));
 	}
 
 	static public function new_nullableValueToNotNullableGenericArg_shouldFail(?n:String) {
@@ -596,7 +596,7 @@ class Test {
 
 	static function objectDecl_passObjWithNullabelFieldToObjWithNotNullableField_shouldFail(?a:String) {
 		shouldFail(var o:{field:String} = {field:a});
-		shouldFail(o = new Test('')); //Test has `field:Null<String>`
+		shouldFail(o = new TestStrict('')); //Test has `field:Null<String>`
 		var arr = (['', a]:Array<Null<String>>);
 		shouldFail(var q:{field:Array<String>} = {field:arr});
 		shouldFail(var v:{value:Array<String>} = new Generic(arr));

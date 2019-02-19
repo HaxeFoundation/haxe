@@ -183,6 +183,11 @@ let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.mem m2 ml1) ml2
 let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
 
+let rec remove m = function
+	| [] -> []
+	| (m2,_,_) :: l when m = m2 -> l
+	| x :: l -> x :: remove m l
+
 type meta_usage =
 	| TClass
 	| TClassField

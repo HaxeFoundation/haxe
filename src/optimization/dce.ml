@@ -672,7 +672,10 @@ let fix_accessors com =
 	) com.types
 
 let collect_entry_points dce com =
-	List.iter (fun t -> match t with
+	List.iter (fun t ->
+		let mt = t_infos t in
+		mt.mt_meta <- Meta.remove Meta.Used mt.mt_meta;
+		match t with
 		| TClassDecl c ->
 			let keep_class = keep_whole_class dce c && (not c.cl_extern || c.cl_interface) in
 			let loop stat cf =
@@ -880,14 +883,5 @@ let run com main mode =
 	) com.types;
 
 	(* cleanup added fields metadata - compatibility with compilation server *)
-	let rec remove_meta m = function
-		| [] -> []
-		| (m2,_,_) :: l when m = m2 -> l
-		| x :: l -> x :: remove_meta m l
-	in
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.Used cf.cf_meta) dce.marked_fields;
-	List.iter (fun cf -> cf.cf_meta <- remove_meta Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields;
-	List.iter (fun mt ->
-		let mt = t_infos mt in
-		mt.mt_meta <- remove_meta Meta.Used mt.mt_meta
-	) com.types
+	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.Used cf.cf_meta) dce.marked_fields;
+	List.iter (fun cf -> cf.cf_meta <- Meta.remove Meta.MaybeUsed cf.cf_meta) dce.marked_maybe_fields
