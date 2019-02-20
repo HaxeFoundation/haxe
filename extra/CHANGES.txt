@@ -1,3 +1,14 @@
+unreleased: 4.0.0-rc.2
+
+	New features:
+	
+	all : added strictness settings for the null-safety checker, using loose checking by default (#7811)
+	js : added ES6 class generation with `-D js-es=6` (#7806)
+	
+	Bugfixes:
+	
+	all : fixed argument default value checking for externs (#7752)
+
 2019-02-01: 4.0.0-rc.1
 
 	New features:
