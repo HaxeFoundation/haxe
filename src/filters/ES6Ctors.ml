@@ -94,7 +94,7 @@ let rewrite_ctors com =
 		match t with
 		| TClassDecl ({ cl_constructor = Some { cf_expr = Some { eexpr = TFunction tf } }; cl_super = Some (cl_super,_) } as cl) ->
 			if Type.has_constructor cl_super then begin
-				(* if parent class has a constructor - for `this` accesses before calling `super()` *)
+				(* if parent class has a constructor, check for `this` accesses before calling `super()` *)
 				let this_before_super = has_this_before_super tf.tf_expr in
 				Option.may (fun e_this_access ->
 					activated := true;
