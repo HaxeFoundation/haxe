@@ -31,6 +31,7 @@ env:
 
 sudo: required
 dist: trusty
+language: node_js
 
 install_linux: &install_linux
   # Install dependencies
