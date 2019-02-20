@@ -119,8 +119,8 @@ type debug_state =
 	| DbgRunning
 	| DbgWaiting
 	| DbgContinue
-	| DbgNext of env
-	| DbgFinish of env
+	| DbgNext of env * pos
+	| DbgFinish of env (* parent env *)
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;

@@ -442,12 +442,13 @@ let handler =
 		);
 		"next",(fun hctx ->
 			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgNext (get_eval hctx.ctx).env;
+			hctx.ctx.debug.debug_state <- DbgNext(env,env.env_debug.expr.epos);
 			Run (JNull,env)
 		);
 		"stepOut",(fun hctx ->
 			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgFinish (get_eval hctx.ctx).env;
+			let penv = Option.get env.env_parent in
+			hctx.ctx.debug.debug_state <- DbgFinish penv;
 			Run (JNull,env)
 		);
 		"stackTrace",(fun hctx ->

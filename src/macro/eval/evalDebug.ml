@@ -32,13 +32,14 @@ let rec run_loop ctx wait run env : value =
 		| DbgContinue ->
 			check_breakpoint();
 			run env
-		| DbgNext env' ->
-			if env' != env then
+		| DbgNext(env',p) ->
+			let b = DisplayPosition.encloses_position (env.env_debug.expr.epos) p in
+			if env' != env || b then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
 				run_loop ctx wait run env
-			end
+			end;
 		| DbgFinish env' ->
 			if env' != env then
 				run env
