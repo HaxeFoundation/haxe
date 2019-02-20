@@ -49,7 +49,7 @@ enum ValueType {
 	}
 
 	public static inline function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		return (cast c).__super__;
+		return untyped __define_feature__("Type.getSuperClass", c.__super__);
 	}
 
 

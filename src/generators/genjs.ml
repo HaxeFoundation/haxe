@@ -1256,9 +1256,11 @@ let generate_class_es6 ctx c =
 
 	(match c.cl_super with
 	| Some (csup,_) ->
-		let psup = ctx.type_accessor (TClassDecl csup) in
-		print ctx "%s.__super__ = %s" p psup;
-		newline ctx;
+		if has_feature ctx "js.Boot.__instanceof" || has_feature ctx "Type.getSuperClass" then begin
+			let psup = ctx.type_accessor (TClassDecl csup) in
+			print ctx "%s.__super__ = %s" p psup;
+			newline ctx
+		end
 	| None -> ());
 
 	if has_feature ctx "Type.getInstanceFields" then begin
