@@ -48,6 +48,7 @@ type ctx = {
 	smap : sourcemap option;
 	js_modern : bool;
 	js_flatten : bool;
+	has_resolveClass : bool;
 	es_version : int;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -350,14 +351,14 @@ let gen_constant ctx p = function
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
-	| TSuper -> assert false
+	| TSuper -> assert (ctx.es_version >= 6); spr ctx "super"
 
 let print_deprecation_message com msg p =
 	com.warning msg p
 
 let rec gen_call ctx e el in_value =
 	match e.eexpr , el with
-	| TConst TSuper , params ->
+	| TConst TSuper , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
@@ -365,7 +366,7 @@ let rec gen_call ctx e el in_value =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TField ({ eexpr = TConst TSuper },f) , params ->
+	| TField ({ eexpr = TConst TSuper },f) , params when ctx.es_version < 6 ->
 		(match ctx.current.cl_super with
 		| None -> abort "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
@@ -588,18 +589,7 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
-		let old = ctx.in_value, ctx.in_loop in
-		ctx.in_value <- None;
-		ctx.in_loop <- false;
-		let args = List.map (fun (v,_) ->
-			check_var_declaration v;
-			ident v.v_name
-		) f.tf_args in
-		print ctx "function(%s) " (String.concat "," args);
-		gen_expr ctx (fun_block ctx f e.epos);
-		ctx.in_value <- fst old;
-		ctx.in_loop <- snd old;
-		ctx.separator <- true
+		gen_function ctx f e.epos
 	| TCall (e,el) ->
 		gen_call ctx e el false
 	| TArrayDecl el ->
@@ -752,6 +742,20 @@ and gen_expr ctx e =
 		spr ctx s
 	);
 	clear_mapping ()
+
+and gen_function ?(keyword="function") ctx f pos =
+	let old = ctx.in_value, ctx.in_loop in
+	ctx.in_value <- None;
+	ctx.in_loop <- false;
+	let args = List.map (fun (v,_) ->
+		check_var_declaration v;
+		ident v.v_name
+	) f.tf_args in
+	print ctx "%s(%s) " keyword (String.concat "," args);
+	gen_expr ctx (fun_block ctx f pos);
+	ctx.in_value <- fst old;
+	ctx.in_loop <- snd old;
+	ctx.separator <- true
 
 and gen_block_element ?(after=false) ctx e =
 	match e.eexpr with
@@ -1056,19 +1060,13 @@ let generate_class___name__ ctx c =
 		newline ctx;
 	end
 
-let generate_class ctx c =
-	ctx.current <- c;
-	ctx.id_counter <- 0;
-	(match c.cl_path with
-	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
-	| _ -> ());
+let generate_class_es3 ctx c =
 	let p = s_path ctx c.cl_path in
-	let hxClasses = has_feature ctx "Type.resolveClass" in
 	if ctx.js_flatten then
 		print ctx "var "
 	else
 		generate_package_create ctx c.cl_path;
-	if ctx.js_modern || not hxClasses then
+	if ctx.js_modern || not ctx.has_resolveClass then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p (dot_path c.cl_path);
@@ -1083,7 +1081,7 @@ let generate_class ctx c =
 			| _ -> (print ctx "function() { }"); ctx.separator <- true)
 	);
 	newline ctx;
-	if ctx.js_modern && hxClasses then begin
+	if ctx.js_modern && ctx.has_resolveClass then begin
 		print ctx "$hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
 		newline ctx;
 	end;
@@ -1149,6 +1147,174 @@ let generate_class ctx c =
 		newline ctx
 	end;
 	flush ctx
+
+let generate_class_es6 ctx c =
+	let p = s_path ctx c.cl_path in
+
+	let cls_name =
+		if not ctx.js_flatten && (fst c.cl_path) <> [] then begin
+			generate_package_create ctx c.cl_path;
+			print ctx "%s = " p;
+			Path.flat_path c.cl_path
+		end else
+			p
+	in
+	print ctx "class %s" cls_name;
+
+	Option.may (fun (csup,_) ->
+		let psup = ctx.type_accessor (TClassDecl csup) in
+		print ctx " extends %s" psup
+	) c.cl_super;
+
+	spr ctx " {";
+	let close_block = open_block ctx in
+
+	(match c.cl_constructor with
+	| Some { cf_expr = Some ({ eexpr = TFunction f; epos = p }) } ->
+		newline ctx;
+		gen_function ~keyword:"constructor" ctx f p;
+		ctx.separator <- false
+	| _ -> ());
+
+	List.iter (fun cf ->
+		match cf.cf_kind, cf.cf_expr with
+		| Method _, Some { eexpr = TFunction f; epos = pos } ->
+			check_field_name c cf;
+			newline ctx;
+			gen_function ~keyword:cf.cf_name ctx f pos;
+			ctx.separator <- false
+		| _ -> ()
+	) c.cl_ordered_fields;
+	
+	let exposed_static_methods = ref [] in
+	let nonmethod_statics =
+		List.filter (fun cf ->
+			match cf.cf_kind, cf.cf_expr with
+			| Method _, Some { eexpr = TFunction f; epos = pos } ->
+				check_field_name c cf;
+				newline ctx;
+				gen_function ~keyword:("static " ^ cf.cf_name) ctx f pos;
+				ctx.separator <- false;
+
+				(match get_exposed ctx ((dot_path c.cl_path) ^ (static_field c cf.cf_name)) cf.cf_meta with
+				| [s] -> exposed_static_methods := (s,cf.cf_name) :: !exposed_static_methods;
+				| _ -> ());
+
+				false
+			| _ -> true
+		) c.cl_ordered_statics
+	in
+
+	close_block ();
+	newline ctx;
+	spr ctx "}";
+	newline ctx;
+
+	List.iter (fun (path,name) -> 
+		print ctx "$hx_exports%s = %s.%s;" (path_to_brackets path) p name;
+		newline ctx
+	) !exposed_static_methods;
+
+	List.iter (gen_class_static_field ctx c) nonmethod_statics;
+
+	let expose = (match get_exposed ctx (dot_path c.cl_path) c.cl_meta with [s] -> "$hx_exports" ^ (path_to_brackets s) | _ -> "") in
+	if expose <> "" || ctx.has_resolveClass then begin
+		if ctx.has_resolveClass then begin
+			print ctx "$hxClasses[\"%s\"] = " (dot_path c.cl_path)
+		end;
+		if expose <> "" then begin
+			print ctx "%s = " expose
+		end;
+		spr ctx p;
+		newline ctx;
+	end;
+
+	generate_class___name__ ctx c;
+
+	(match c.cl_implements with
+	| [] -> ()
+	| l ->
+		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
+		newline ctx;
+	);
+
+	let has_property_reflection =
+		(has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty")
+	in
+	let gen_props props =
+		String.concat "," (List.map (fun (p,v) -> p ^": \""^v^"\"") props)
+	in
+
+	if has_property_reflection then begin
+		(match Codegen.get_properties nonmethod_statics with
+		| [] -> ()
+		| props ->
+			print ctx "%s.__properties__ = {%s}" p (gen_props props);
+			ctx.separator <- true;
+			newline ctx);
+	end;
+
+	(match c.cl_super with
+	| Some (csup,_) ->
+		let psup = ctx.type_accessor (TClassDecl csup) in
+		print ctx "%s.__super__ = %s" p psup;
+		newline ctx;
+	| None -> ());
+
+	if has_feature ctx "Type.getInstanceFields" then begin
+		let rec loop c acc =
+			let fields = List.filter (fun cf -> cf.cf_name <> ES6Ctors.ctor_method_name && is_physical_field cf && not (List.memq cf c.cl_overrides)) c.cl_ordered_fields in
+			let acc = acc @ List.map (fun cf -> "\"" ^ cf.cf_name ^ "\"") fields in
+			match c.cl_super with
+			| None -> acc
+			| Some (csup,_) -> loop csup acc
+		in
+		match loop c [] with
+		| [] -> ()
+		| fl ->
+			print ctx "%s.__instanceFields__ = [%s];" p (String.concat "," fl);
+			newline ctx
+	end;
+
+	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
+	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
+
+	if has_class || props_to_generate <> [] then begin
+		print ctx "Object.assign(%s.prototype, {" p;
+		let bend = open_block ctx in
+
+		if has_class then begin
+			newprop ctx;
+			print ctx "__class__: %s" p
+		end;
+
+		if props_to_generate <> [] then begin
+			newprop ctx;
+			match c.cl_super with
+			| Some (csup, _) when Codegen.has_properties csup ->
+				let psup = ctx.type_accessor (TClassDecl csup) in
+				print ctx "__properties__: Object.assign({}, %s.prototype.__properties__, {%s})" psup (gen_props props_to_generate)
+			| _ -> 
+				print ctx "__properties__: {%s}" (gen_props props_to_generate)
+		end;
+
+		bend();
+		print ctx "\n})";
+		newline ctx
+	end;
+
+	flush ctx
+
+let generate_class ctx c =
+	ctx.current <- c;
+	ctx.id_counter <- 0;
+	(match c.cl_path with
+	| [],"Function" -> abort "This class redefine a native one" c.cl_pos
+	| _ -> ());
+	if ctx.es_version >= 6 then
+		generate_class_es6 ctx c
+	else
+		generate_class_es3 ctx c
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1318,6 +1484,7 @@ let alloc_ctx com =
 		smap = smap;
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
+		has_resolveClass = Common.has_feature com "Type.resolveClass";
 		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
 		statics = [];
 		inits = [];
@@ -1359,6 +1526,9 @@ let generate com =
 	let nodejs = Common.raw_defined com "nodejs" in
 
 	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
+
+	if ctx.es_version >= 6 then
+		ES6Ctors.rewrite_ctors com;
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1486,7 +1656,7 @@ let generate com =
 
 	(* TODO: fix $estr *)
 	let vars = [] in
-	let vars = (if has_feature ctx "Type.resolveClass" || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+	let vars = (if ctx.has_resolveClass || (not enums_as_objects && has_feature ctx "Type.resolveEnum") then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
 	let vars = if has_feature ctx "has_enum"
 		then ("$estr = function() { return " ^ (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) ^ ".__string_rec(this,''); }") :: vars
 		else vars in
@@ -1504,7 +1674,7 @@ let generate com =
 		ctx.separator <- true;
 		newline ctx
 	);
-	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
+	if ctx.es_version < 6 && List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
 		let extend_code =
 			"function $extend(from, fields) {\n" ^
 			(

@@ -44,6 +44,13 @@ class RunSauceLabs {
 			!(b.browserName == "internet explorer" && Std.parseInt(b.version) <= 8);
 	}
 
+	static function isEs6(b:Dynamic):Bool {
+		return switch b.browserName {
+			case "internet explorer" | "safari": false;
+			case _: true;
+		}
+	}
+
 	static function main():Void {
 		var serveDomain = "localhost";
 		var servePort = "2000";
@@ -180,10 +187,12 @@ class RunSauceLabs {
 			}
 
 			var browserSuccess = true;
-			var urls = if (!isEs5(caps)) {
-				urls.filter(function(url:String) return url.indexOf("js-es=3") != -1);
-			} else {
-				urls;
+			var urls = urls; // localize captured var
+			if (!isEs5(caps)) {
+				urls = urls.filter(url -> url.indexOf(StringTools.urlEncode("js-es=3")) != -1);
+			}
+			if (!isEs6(caps)) {
+				urls = urls.filter(url -> url.indexOf(StringTools.urlEncode("js-es=6")) == -1);
 			}
 
 			return browser
