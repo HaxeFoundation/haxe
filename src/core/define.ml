@@ -136,7 +136,7 @@ let infos = function
 	| DllExport -> "dll_export",("GenCPP experimental linking",[Platform Cpp])
 	| DllImport -> "dll_import",("Handle Haxe-generated .NET dll imports",[Platform Cs])
 	| DocGen -> "doc_gen",("Do not perform any removal/change in order to correctly generate documentation",[])
-	| Dump -> "dump",("<mode:pretty|record|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default",[])
+	| Dump -> "dump",("<mode:pretty|record|position|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default",[])
 	| DumpDependencies -> "dump_dependencies",("Dump the classes dependencies in a dump subdirectory",[])
 	| DumpIgnoreVarIds -> "dump_ignore_var_ids",("Remove variable IDs from non-pretty dumps (helps with diff)",[])
 	| DynamicInterfaceClosures -> "dynamic_interface_closures",("Use slow path for interface closures to save space",[Platform Cpp])
