@@ -374,7 +374,7 @@ module StdBytes = struct
 	)
 
 	let setDouble = vifun2 (fun vthis pos v ->
-		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (decode_float v)) with _ -> outside_bounds());
+		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (num v)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -2467,7 +2467,7 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (decode_float f)); vnull)
+	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (num f)); vnull)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
