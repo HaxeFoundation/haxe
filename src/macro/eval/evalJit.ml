@@ -643,6 +643,17 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
 	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let exec = match ctx.debug.debug_socket with
+		| Some socket ->
+			(* This adds an implicit "return" so we get an additional step when debugging (see #7767). *)
+			let exec env =
+				let v = exec env in
+				EvalDebug.debug_loop jit socket.connection (mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}) (fun _ -> v) env
+			in
+			exec
+		| None ->
+			exec
+	in
 	let f = create_function ctx get_env hasret empty_array exec in
 	t();
 	f

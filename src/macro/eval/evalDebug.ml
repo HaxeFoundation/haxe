@@ -34,7 +34,12 @@ let rec run_loop ctx wait run env : value =
 			run env
 		| DbgNext(env',p) ->
 			let b = DisplayPosition.encloses_position (env.env_debug.expr.epos) p in
-			if env' != env || b then
+			let rec is_on_stack env =
+				match env.env_parent with
+				| Some env -> env == env' || is_on_stack env
+				| None -> false
+			in
+			if is_on_stack env || b then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
