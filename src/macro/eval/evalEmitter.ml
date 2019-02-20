@@ -196,7 +196,6 @@ let emit_do_while_break_continue exec_cond exec_body env =
 let emit_try exec catches env =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	let environment_offset = eval.environment_offset in
 	if ctx.debug.support_debugger then begin
 		List.iter (fun (_,path,_) -> Hashtbl.add ctx.debug.caught_types path true) catches
 	end;
@@ -210,8 +209,8 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		ctx.debug.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx environment_offset;
-		eval.environment_offset <- environment_offset;
+		build_exception_stack ctx env;
+		eval.env <- env;
 		let exec,_,varacc =
 			try
 				List.find (fun (_,path,i) -> path = key_Dynamic || is v path) catches

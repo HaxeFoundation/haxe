@@ -104,9 +104,17 @@ let get_exc_error_message ctx v stack p =
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
 		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
 
-let build_exception_stack ctx environment_offset =
+let build_exception_stack ctx env =
 	let eval = get_eval ctx in
-	let d = DynArray.to_list (DynArray.sub eval.environments environment_offset (eval.environment_offset - environment_offset)) in
+	let rec loop acc env' =
+		let acc = env' :: acc in
+		if env == env' then
+			List.rev acc
+		else match env'.env_parent with
+			| Some env -> loop acc env
+			| None -> assert false
+	in
+	let d = loop [] eval.env in
 	ctx.exception_stack <- List.map (fun env ->
 		env.env_debug.timer();
 		{pfile = rev_file_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
@@ -116,7 +124,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	let prev = !get_ctx_ref in
 	select ctx;
 	let eval = get_eval ctx in
-	let environment_offset = eval.environment_offset in
+	let env = eval.env in
 	let r = try
 		let v = f() in
 		get_ctx_ref := prev;
@@ -125,8 +133,8 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	with
 	| RunTimeException(v,stack,p') ->
 		ctx.debug.caught_exception <- vnull;
-		build_exception_stack ctx environment_offset;
-		eval.environment_offset <- environment_offset;
+		build_exception_stack ctx env;
+		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_message in
 			let v2 = field v key_pos in

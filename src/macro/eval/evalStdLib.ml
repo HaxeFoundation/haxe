@@ -543,6 +543,8 @@ module StdCallStack = struct
 			| EKMethod(st,sf) ->
 				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
+			| EKToplevel ->
+				()
 		) envs;
 		encode_array (DynArray.to_list l)
 
@@ -3001,7 +3003,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f () =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {environments = DynArray.create (); environment_offset = 0} in
+					let new_eval = {env = null_env} in
 					if DynArray.length ctx.evals = id then
 						DynArray.add ctx.evals new_eval
 					else
