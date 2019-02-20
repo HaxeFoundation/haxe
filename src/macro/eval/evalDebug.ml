@@ -32,15 +32,15 @@ let rec run_loop ctx wait run env : value =
 		| DbgContinue ->
 			check_breakpoint();
 			run env
-		| DbgNext env ->
-			if env != (get_eval ctx).env then
+		| DbgNext env' ->
+			if env' != env then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
 				run_loop ctx wait run env
 			end
-		| DbgFinish env ->
-			if env <= (get_eval ctx).env then
+		| DbgFinish env' ->
+			if env' != env then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
