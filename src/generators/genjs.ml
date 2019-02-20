@@ -1176,15 +1176,19 @@ let generate_class_es6 ctx c =
 		ctx.separator <- false
 	| _ -> ());
 
-	List.iter (fun cf ->
-		match cf.cf_kind, cf.cf_expr with
-		| Method _, Some { eexpr = TFunction f; epos = pos } ->
-			check_field_name c cf;
-			newline ctx;
-			gen_function ~keyword:cf.cf_name ctx f pos;
-			ctx.separator <- false
-		| _ -> ()
-	) c.cl_ordered_fields;
+	let nonmethod_fields = 
+		List.filter (fun cf ->
+			match cf.cf_kind, cf.cf_expr with
+			| Method _, Some { eexpr = TFunction f; epos = pos } ->
+				check_field_name c cf;
+				newline ctx;
+				gen_function ~keyword:cf.cf_name ctx f pos;
+				ctx.separator <- false;
+				false
+			| _ ->
+				true
+		) c.cl_ordered_fields
+	in
 	
 	let exposed_static_methods = ref [] in
 	let nonmethod_statics =
@@ -1263,31 +1267,29 @@ let generate_class_es6 ctx c =
 		end
 	| None -> ());
 
-	if has_feature ctx "Type.getInstanceFields" then begin
-		let rec loop c acc =
-			let fields = List.filter (fun cf -> cf.cf_name <> ES6Ctors.ctor_method_name && is_physical_field cf && not (List.memq cf c.cl_overrides)) c.cl_ordered_fields in
-			let acc = acc @ List.map (fun cf -> "\"" ^ cf.cf_name ^ "\"") fields in
-			match c.cl_super with
-			| None -> acc
-			| Some (csup,_) -> loop csup acc
-		in
-		match loop c [] with
-		| [] -> ()
-		| fl ->
-			print ctx "%s.__instanceFields__ = [%s];" p (String.concat "," fl);
-			newline ctx
-	end;
-
 	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
+	let fields_to_generate =
+		if has_feature ctx "Type.getInstanceFields" then
+			if c.cl_interface then
+				List.filter is_physical_field c.cl_ordered_fields
+			else
+				List.filter is_physical_var_field nonmethod_fields
+		else
+			[]
+	in
 
-	if has_class || props_to_generate <> [] then begin
+	if has_class || props_to_generate <> [] || fields_to_generate <> [] then begin
 		print ctx "Object.assign(%s.prototype, {" p;
 		let bend = open_block ctx in
 
 		if has_class then begin
 			newprop ctx;
 			print ctx "__class__: %s" p
+		end;
+
+		if fields_to_generate <> [] then begin
+			List.iter (gen_class_field ctx c) fields_to_generate;
 		end;
 
 		if props_to_generate <> [] then begin

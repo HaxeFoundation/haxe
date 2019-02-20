@@ -159,8 +159,20 @@ enum ValueType {
 
 	#if (js_es >= 6)
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var fields:Null<Array<String>> = (cast c).__instanceFields__;
-		return if (fields == null) [] else fields.copy();
+		var result = [];
+		while (c != null) {
+			for (name in js.Object.getOwnPropertyNames((cast c).prototype)) {
+				switch name {
+					case "constructor" | "__class__" | "__properties__":
+						// skip special names
+					case _:
+						if (result.indexOf(name) == -1)
+							result.push(name);
+				}
+			}
+			c = getSuperClass(c);
+		}
+		return result;
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
@@ -310,4 +322,3 @@ enum ValueType {
 	}
 
 }
-
