@@ -73,15 +73,25 @@ let rewrite_ctors com =
 		we're using a reference to the root of the inheritance chain so we can easily
 		generate RootClass._hx_skip_constructor expressions
 	*)
-	let rec mark_needs_ctor_skipping cl root_ref p = 
-		(* for non haxe-generated extern classes we can't generate any valid code, so just fail *)
-		if cl.cl_extern && not (Meta.has Meta.HxGen cl.cl_meta) then begin
-			abort "Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor" p;
-		end;
-		Hashtbl.replace needs_ctor_skipping cl.cl_path root_ref;
-		match cl.cl_super with
-		| Some ({ cl_constructor = Some _ } as cl_super,_) -> mark_needs_ctor_skipping cl_super root_ref p
-		| _ -> root_ref := cl;
+	let mark_does_ctor_skipping cl cl_super p_this_access =
+		let rec mark_needs_ctor_skipping cl = 
+			(* for non haxe-generated extern classes we can't generate any valid code, so just fail *)
+			if cl.cl_extern && not (Meta.has Meta.HxGen cl.cl_meta) then begin
+				abort "Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor" p_this_access;
+			end;
+			try
+				Hashtbl.find needs_ctor_skipping cl.cl_path
+			with Not_found ->
+				let root =
+					match cl.cl_super with
+					| Some ({ cl_constructor = Some _ } as cl_super,_) -> mark_needs_ctor_skipping cl_super
+					| _ -> cl
+				in
+				Hashtbl.add needs_ctor_skipping cl.cl_path root;
+				root
+		in
+		let root_cl = mark_needs_ctor_skipping cl_super in
+		Hashtbl.add does_ctor_skipping cl.cl_path root_cl;
 	in
 
 	let e_empty_super_call = (* super() *)
@@ -98,9 +108,7 @@ let rewrite_ctors com =
 				let this_before_super = has_this_before_super tf.tf_expr in
 				Option.may (fun e_this_access ->
 					activated := true;
-					let root_ref = ref cl_super in
-					Hashtbl.replace does_ctor_skipping cl.cl_path root_ref;
-					mark_needs_ctor_skipping cl_super root_ref e_this_access.epos;
+					mark_does_ctor_skipping cl cl_super e_this_access.epos
 				) this_before_super
 			end else begin
 				(* if there was no ctor in the parent class, we still gotta call `super` *)
@@ -153,8 +161,6 @@ let rewrite_ctors com =
 
 				(match (try Some (Hashtbl.find needs_ctor_skipping cl.cl_path) with Not_found -> None) with
 				| Some root ->
-					let root = !root in
-
 					add_hx_ctor_method ();
 					
 					if does_ctor_skipping = None && cl != root then
@@ -199,7 +205,7 @@ let rewrite_ctors com =
 
 						add_hx_ctor_method ();
 
-						let e_skip_flag = make_skip_flag !root in
+						let e_skip_flag = make_skip_flag root in
 
 						let e_ctor_replaced = { tf_ctor.tf_expr with
 							eexpr = TBlock [
