@@ -591,8 +591,13 @@ and jit_expr jit return e =
 		| None ->
 			f
 		| Some socket -> begin match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
-			| _ -> EvalDebug.debug_loop jit socket.connection e f
+			| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_)
+			| TUnop((Increment | Decrement),_,_) | TVar _
+			| TFor _ | TIf _ | TWhile _ | TSwitch _ | TTry _
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast(_,Some _) ->
+				EvalDebug.debug_loop jit socket.connection e f
+			| _ ->
+				f
 		end
 	end
 
