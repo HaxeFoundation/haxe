@@ -429,7 +429,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
+let eval_expr ctx e = eval_expr ctx EKToplevel e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in

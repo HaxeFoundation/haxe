@@ -248,8 +248,8 @@ let call_stack ctx =
 	let rec loop acc env =
 		let acc = env :: acc in
 		match env.env_parent with
-		| None -> List.rev acc
-		| Some env -> loop acc env
+		| Some env when env.env_info.kind <> EKToplevel -> loop acc env
+		| _ -> List.rev acc
 	in
 	loop [] eval.env
 
