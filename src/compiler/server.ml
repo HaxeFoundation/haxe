@@ -390,7 +390,6 @@ let rec wait_loop process_params verbose accept =
 		let was_compilation = ref false in
 		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
-				was_compilation := true;
 				CompilationServer.cache_context cs com;
 				ServerMessage.cached_modules com "" (List.length com.modules);
 			end;
@@ -407,6 +406,7 @@ let rec wait_loop process_params verbose accept =
 						ServerMessage.message s;
 					)
 					(List.rev ctx.messages);
+				was_compilation := ctx.com.display.dms_full_typing;
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"
