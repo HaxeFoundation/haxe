@@ -49,7 +49,7 @@ enum ValueType {
 	}
 
 	public static inline function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		return (cast c).__super__;
+		return untyped __define_feature__("Type.getSuperClass", c.__super__);
 	}
 
 
@@ -157,6 +157,30 @@ enum ValueType {
 		return createEnum(e,c,params);
 	}
 
+	#if (js_es >= 6)
+	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
+		var fields:Null<Array<String>> = (cast c).__instanceFields__;
+		return if (fields == null) [] else fields.copy();
+	}
+
+	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
+		var a = js.Object.getOwnPropertyNames(cast c);
+		a.remove("__id__");
+		a.remove("hx__closures__");
+		a.remove("__name__");
+		a.remove("__interfaces__");
+		a.remove("__properties__");
+		a.remove("__instanceFields__");
+		a.remove("__super__");
+		a.remove("__meta__");
+		a.remove("prototype");
+		a.remove("name");
+		a.remove("length");
+		return a;
+	}
+
+	#else
+
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		var a = [];
 		untyped __js__("for(var i in c.prototype) a.push(i)");
@@ -175,6 +199,7 @@ enum ValueType {
 		a.remove("prototype");
 		return a;
 	}
+	#end
 
 	public static inline function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
 		return ((cast e).__constructs__ : Array<String>).copy();
