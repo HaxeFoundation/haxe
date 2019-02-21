@@ -132,6 +132,16 @@ let resolve_ident ctx env s =
 	with Not_found -> try
 		(* 2. Instance *)
 		if env.env_info.static then raise Not_found;
+		let rec loop env = match env.env_info.kind with
+			| EKLocalFunction _ ->
+				begin match env.env_parent with
+					| None -> assert false
+					| Some env -> loop env
+				end
+			| EKMethod _ -> env
+			| EKToplevel -> assert false
+		in
+		let env = loop env in
 		let v = env.env_locals.(0) in
 		EvalField.field_raise v key
 	with Not_found -> try

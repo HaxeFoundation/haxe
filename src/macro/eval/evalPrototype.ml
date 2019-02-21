@@ -29,11 +29,11 @@ open EvalExceptions
 open EvalMisc
 
 (* JITs expression [e] and executes the result immediately. *)
-let eval_expr ctx key name e =
+let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true (file_hash e.epos.pfile) (EKMethod(key,name)) jit.capture_infos in
+		let info = create_env_info true (file_hash e.epos.pfile) kind jit.capture_infos in
 		let env = push_environment ctx info jit.max_num_locals num_captures in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
@@ -118,7 +118,7 @@ module PrototypeBuilder = struct
 		(* Add metadata field *)
 		begin match pctx.meta with
 			| None -> ()
-			| Some e -> DynArray.add pctx.fields (key___meta__,lazy (match eval_expr ctx pctx.key key___meta__ e with Some e -> e | None -> vnull))
+			| Some e -> DynArray.add pctx.fields (key___meta__,lazy (match eval_expr ctx (EKMethod(pctx.key,key___meta__)) e with Some e -> e | None -> vnull))
 		end;
 		(* Create the mapping from hashed name to field offset for prototype fields. *)
 		let _,pnames = DynArray.fold_left (fun (i,acc) (name,_) -> i + 1,IntMap.add name i acc) (0,IntMap.empty) pctx.fields in
@@ -204,7 +204,7 @@ let create_static_prototype ctx mt =
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
 				DynArray.add delays (persistent,(fun proto ->
-					proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull)
+					proto.pfields.(i) <- (match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull)
 				))
 			| _,None when is_physical_field cf ->
 				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (lazy vnull);
@@ -213,7 +213,7 @@ let create_static_prototype ctx mt =
 		) fields;
 		begin match c.cl_init with
 			| None -> ()
-			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx key key___init__ e)))
+			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx (EKMethod(key,key___init__)) e)))
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->

@@ -86,7 +86,7 @@ let get_call_stack_envs ctx kind p =
 		| _ :: envs when delta < 0 -> loop (delta + 1) envs
 		| _ -> envs
 	in
-	loop ctx.debug.environment_offset_delta envs
+	loop 0 envs
 
 let output_call_stack ctx kind p =
 	let envs = get_call_stack_envs ctx kind p in
@@ -402,8 +402,7 @@ type handler_context = {
 
 let handler =
 	let get_real_env ctx =
-		ctx.debug.environment_offset_delta <- 0;
-		DynArray.get (get_eval ctx).environments ((get_eval ctx).environment_offset - 1);
+		(get_eval ctx).env
 	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
@@ -418,11 +417,16 @@ let handler =
 	in
 	let rec move_frame hctx offset =
 		let eval = get_eval hctx.ctx in
-		if offset < 0 || offset >= eval.environment_offset then begin
-			hctx.send_error (Printf.sprintf "Frame out of bounds: %i (valid range is %i - %i)" offset 0 (eval.environment_offset - 1))
-		end else begin
-			hctx.ctx.debug.environment_offset_delta <- (eval.environment_offset - offset - 1);
-			Wait (JNull, (DynArray.get eval.environments offset))
+		let rec loop env i =
+			if i = 0 then env
+			else match env.env_parent with
+			| None -> hctx.send_error "Frame out of bounds"
+			| Some env -> loop env (i - 1)
+		in
+		if offset < 0 then hctx.send_error "Frame out of bounds"
+		else begin
+			let env = loop eval.env offset in
+			Wait(JNull,env)
 		end
 	in
 	let h = Hashtbl.create 0 in
@@ -438,12 +442,13 @@ let handler =
 		);
 		"next",(fun hctx ->
 			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgNext (get_eval hctx.ctx).environment_offset;
+			hctx.ctx.debug.debug_state <- DbgNext(env,env.env_debug.expr.epos);
 			Run (JNull,env)
 		);
 		"stepOut",(fun hctx ->
 			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgFinish (get_eval hctx.ctx).environment_offset;
+			let penv = Option.get env.env_parent in
+			hctx.ctx.debug.debug_state <- DbgFinish penv;
 			Run (JNull,env)
 		);
 		"stackTrace",(fun hctx ->
@@ -543,7 +548,7 @@ let handler =
 		);
 		"switchFrame",(fun hctx ->
 			let frame = hctx.jsonrpc#get_int_param "id" in
-			move_frame hctx ((get_eval hctx.ctx).environment_offset - frame - 1)
+			move_frame hctx frame
 		);
 		"setVariable",(fun hctx ->
 			let expr_s = hctx.jsonrpc#get_string_param "expr" in

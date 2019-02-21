@@ -41,6 +41,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKToplevel
 
 (* Compile-time information for environments. This information is static for all
    environments of the same kind, e.g. all environments of a specific method. *)
@@ -86,6 +87,8 @@ type env = {
 	env_captures : value ref array;
 	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
+	(* The parent of the current environment, if exists. All environments except EKToplevel have a parent. *)
+	env_parent : env option;
 }
 
 type breakpoint_state =
@@ -116,8 +119,8 @@ type debug_state =
 	| DbgRunning
 	| DbgWaiting
 	| DbgContinue
-	| DbgNext of int
-	| DbgFinish of int
+	| DbgNext of env * pos
+	| DbgFinish of env (* parent env *)
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
@@ -157,8 +160,6 @@ and debug = {
 	mutable breakpoint : breakpoint;
 	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
 	caught_types : (int,bool) Hashtbl.t;
-	(* The current environment offset. Modified by the debugger when walking up the call stack. *)
-	mutable environment_offset_delta : int;
 	(* The debugger socket *)
 	mutable debug_socket : debug_socket option;
 	(* The current exception mode *)
@@ -168,8 +169,7 @@ and debug = {
 }
 
 and eval = {
-	environments : env DynArray.t;
-	mutable environment_offset : int;
+	mutable env : env;
 }
 
 and context = {
@@ -208,17 +208,19 @@ let get_eval ctx =
     let id = Thread.id (Thread.self()) in
     if id = 0 then ctx.eval else DynArray.unsafe_get ctx.evals id
 
-let rec kind_name ctx kind =
-	let rec loop kind env_id = match kind, env_id with
-		| EKLocalFunction i, 0 ->
-			Printf.sprintf "localFunction%i" i
-		| EKLocalFunction i, env_id ->
-			let parent_id = env_id - 1 in
-			let env = DynArray.get ctx.environments parent_id in
-			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
-		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+let rec kind_name eval kind =
+	let rec loop kind env = match kind with
+		| EKMethod(i1,i2) ->
+			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKLocalFunction i ->
+			begin match env with
+			| None -> Printf.sprintf "localFunction%i" i
+			| Some env -> Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind env.env_parent) i
+			end
+		| EKToplevel ->
+			"toplevel"
 	in
-	loop kind ctx.environment_offset
+	loop kind (Some eval.env)
 
 let call_function f vl = f vl
 
@@ -243,16 +245,20 @@ exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
 	let eval = get_eval ctx in
-	List.rev (DynArray.to_list (DynArray.sub eval.environments 0 eval.environment_offset))
+	let rec loop acc env =
+		let acc = env :: acc in
+		match env.env_parent with
+		| Some env when env.env_info.kind <> EKToplevel -> loop acc env
+		| _ -> List.rev acc
+	in
+	loop [] eval.env
 
 let throw v p =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	if eval.environment_offset > 0 then begin
-		let env = DynArray.get eval.environments (eval.environment_offset - 1) in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-	end;
+	let env = eval.env in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	raise_notrace (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
@@ -276,6 +282,22 @@ let no_debug = {
 	scopes = [];
 	line = 0;
 	expr = no_expr;
+}
+
+let null_env = {
+	env_info = {
+		static = true;
+		pfile = EvalHash.hash "null-env";
+		kind = EKToplevel;
+		capture_infos = Hashtbl.create 0;
+	};
+	env_debug = no_debug;
+	env_leave_pmin = 0;
+	env_leave_pmax = 0;
+	env_locals = [||];
+	env_captures = [||];
+	env_extra_locals = IntMap.empty;
+	env_parent = None;
 }
 
 let create_env_info static pfile kind capture_infos =
@@ -317,12 +339,9 @@ let push_environment ctx info num_locals num_captures =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
+		env_parent = Some eval.env;
 	} in
-	if eval.environment_offset = DynArray.length eval.environments then
-		DynArray.add eval.environments env
-	else
-		DynArray.unsafe_set eval.environments eval.environment_offset env;
-	eval.environment_offset <- eval.environment_offset + 1;
+	eval.env <- env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
 		| Some socket,EKMethod(key_type,key_field) ->
 			begin try
@@ -340,7 +359,10 @@ let push_environment ctx info num_locals num_captures =
 
 let pop_environment ctx env =
 	let eval = get_eval ctx in
-	eval.environment_offset <- eval.environment_offset - 1;
+	begin match env.env_parent with
+		| Some env -> eval.env <- env
+		| None -> assert false
+	end;
 	env.env_debug.timer();
 	()
 

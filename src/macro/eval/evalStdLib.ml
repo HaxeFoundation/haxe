@@ -374,7 +374,7 @@ module StdBytes = struct
 	)
 
 	let setDouble = vifun2 (fun vthis pos v ->
-		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (decode_float v)) with _ -> outside_bounds());
+		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (num v)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -543,6 +543,8 @@ module StdCallStack = struct
 			| EKMethod(st,sf) ->
 				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
+			| EKToplevel ->
+				()
 		) envs;
 		encode_array (DynArray.to_list l)
 
@@ -2465,7 +2467,7 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (decode_float f)); vnull)
+	let sleep = vfun1 (fun f -> ignore(Unix.select [] [] [] (num f)); vnull)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
@@ -3001,7 +3003,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f () =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {environments = DynArray.create (); environment_offset = 0} in
+					let new_eval = {env = null_env} in
 					if DynArray.length ctx.evals = id then
 						DynArray.add ctx.evals new_eval
 					else

@@ -591,8 +591,13 @@ and jit_expr jit return e =
 		| None ->
 			f
 		| Some socket -> begin match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
-			| _ -> EvalDebug.debug_loop jit socket.connection e f
+			| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_)
+			| TUnop((Increment | Decrement),_,_) | TVar _
+			| TFor _ | TIf _ | TWhile _ | TSwitch _ | TTry _
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast(_,Some _) ->
+				EvalDebug.debug_loop jit socket.connection e f
+			| _ ->
+				f
 		end
 	end
 
@@ -638,6 +643,17 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
 	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let exec = match ctx.debug.debug_socket with
+		| Some socket ->
+			(* This adds an implicit "return" so we get an additional step when debugging (see #7767). *)
+			let exec env =
+				let v = exec env in
+				EvalDebug.debug_loop jit socket.connection (mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}) (fun _ -> v) env
+			in
+			exec
+		| None ->
+			exec
+	in
 	let f = create_function ctx get_env hasret empty_array exec in
 	t();
 	f

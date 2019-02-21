@@ -90,7 +90,6 @@ let create com api is_macro =
 				debug_state = DbgStart;
 				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 				caught_types = Hashtbl.create 0;
-				environment_offset_delta = 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
 				caught_exception = vnull;
@@ -103,8 +102,7 @@ let create com api is_macro =
 	let detail_times = Common.defined com Define.EvalTimes in
 	let evals = DynArray.create () in
 	let eval = {
-		environments = DynArray.make 32;
-		environment_offset = 0;
+		env = null_env;
 	} in
 	DynArray.add evals eval;
 	let rec ctx = {
@@ -431,7 +429,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
+let eval_expr ctx e = eval_expr ctx EKToplevel e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
