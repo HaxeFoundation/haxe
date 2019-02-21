@@ -53,6 +53,10 @@ class Js {
 			}
 		];
 
+		infoMsg("Test ES6:");
+		changeDirectory(miscDir + "es6");
+		runCommand("haxe", ["run.hxml"]);
+
 		haxelibInstall("hxnodejs");
 		var env = Sys.environment();
 		if (
@@ -84,10 +88,6 @@ class Js {
 			server.close();
 			// sc.close();
 		}
-
-		infoMsg("Test ES6:");
-		changeDirectory(miscDir + "es6");
-		runCommand("haxe", ["run.hxml"]);
 
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
