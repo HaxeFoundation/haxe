@@ -1176,7 +1176,7 @@ let generate_class_es6 ctx c =
 		ctx.separator <- false
 	| _ -> ());
 
-	let nonmethod_fields = 
+	let nonmethod_fields =
 		List.filter (fun cf ->
 			match cf.cf_kind, cf.cf_expr with
 			| Method _, Some { eexpr = TFunction f; epos = pos } ->
@@ -1189,7 +1189,7 @@ let generate_class_es6 ctx c =
 				true
 		) c.cl_ordered_fields
 	in
-	
+
 	let exposed_static_methods = ref [] in
 	let nonmethod_statics =
 		List.filter (fun cf ->
@@ -1214,7 +1214,7 @@ let generate_class_es6 ctx c =
 	spr ctx "}";
 	newline ctx;
 
-	List.iter (fun (path,name) -> 
+	List.iter (fun (path,name) ->
 		print ctx "$hx_exports%s = %s.%s;" (path_to_brackets path) p name;
 		newline ctx
 	) !exposed_static_methods;
@@ -1258,15 +1258,6 @@ let generate_class_es6 ctx c =
 			newline ctx);
 	end;
 
-	(match c.cl_super with
-	| Some (csup,_) ->
-		if has_feature ctx "js.Boot.__instanceof" || has_feature ctx "Type.getSuperClass" then begin
-			let psup = ctx.type_accessor (TClassDecl csup) in
-			print ctx "%s.__super__ = %s" p psup;
-			newline ctx
-		end
-	| None -> ());
-
 	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
 	let fields_to_generate =
@@ -1298,7 +1289,7 @@ let generate_class_es6 ctx c =
 			| Some (csup, _) when Codegen.has_properties csup ->
 				let psup = ctx.type_accessor (TClassDecl csup) in
 				print ctx "__properties__: Object.assign({}, %s.prototype.__properties__, {%s})" psup (gen_props props_to_generate)
-			| _ -> 
+			| _ ->
 				print ctx "__properties__: {%s}" (gen_props props_to_generate)
 		end;
 

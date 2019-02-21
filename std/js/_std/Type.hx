@@ -48,7 +48,12 @@ enum ValueType {
 		}
 
 	public static inline function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+		#if (js_es >= 6)
+		var proto = js.Object.getPrototypeOf(cast c);
+		return proto.name == "" ? null : cast proto;
+		#else
 		return untyped __define_feature__("Type.getSuperClass", c.__super__);
+		#end
 	}
 
 	public static inline function getClassName(c:Class<Dynamic>):String {
