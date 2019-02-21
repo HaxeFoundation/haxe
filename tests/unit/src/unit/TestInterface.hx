@@ -57,6 +57,8 @@ private class C implements I2 {
 	public function bar() {};
 }
 
+private class C2 extends C implements I1 { }
+
 class TestInterface extends Test {
 
 	public function test() {
@@ -94,5 +96,8 @@ class TestInterface extends Test {
 		eq(i1, c);
 		eq(i2, c);
 		eq(i1,i2);
+
+		var c2 = new C2();
+		t(Std.is(c2, i2));
 	}
 }
