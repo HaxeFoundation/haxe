@@ -41,6 +41,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKEntrypoint
 	| EKToplevel
 
 (* Compile-time information for environments. This information is static for all
@@ -217,6 +218,8 @@ let rec kind_name eval kind =
 			| None -> Printf.sprintf "localFunction%i" i
 			| Some env -> Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind env.env_parent) i
 			end
+		| EKEntrypoint ->
+			"entrypoint"
 		| EKToplevel ->
 			"toplevel"
 	in
