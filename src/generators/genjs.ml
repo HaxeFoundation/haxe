@@ -1258,7 +1258,6 @@ let generate_class_es6 ctx c =
 			newline ctx);
 	end;
 
-	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let props_to_generate = if has_property_reflection then Codegen.get_properties c.cl_ordered_fields else [] in
 	let fields_to_generate =
 		if has_feature ctx "Type.getInstanceFields" then
@@ -1270,14 +1269,9 @@ let generate_class_es6 ctx c =
 			[]
 	in
 
-	if has_class || props_to_generate <> [] || fields_to_generate <> [] then begin
+	if props_to_generate <> [] || fields_to_generate <> [] then begin
 		print ctx "Object.assign(%s.prototype, {" p;
 		let bend = open_block ctx in
-
-		if has_class then begin
-			newprop ctx;
-			print ctx "__class__: %s" p
-		end;
 
 		if fields_to_generate <> [] then begin
 			List.iter (gen_class_field ctx c) fields_to_generate;
