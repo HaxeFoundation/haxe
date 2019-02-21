@@ -89,7 +89,7 @@ type context = {
 	cbytes : (bytes, bytes) lookup;
 	cfloats : (float, float) lookup;
 	cints : (int32, int32) lookup;
-	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
+	cnatives : (string * int, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
@@ -762,7 +762,7 @@ let resolve_type ctx path =
 let alloc_std ctx name args ret =
 	let lib = "std" in
 	(* different from :hlNative to prevent mismatch *)
-	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib) (fun() ->
+	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib, -1) (fun() ->
 		let fid = alloc_fun_path ctx ([],"std") name in
 		Hashtbl.add ctx.defined_funs fid ();
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
@@ -3246,8 +3246,8 @@ let generate_static ctx c f =
 		()
 	| Method m ->
 		let add_native lib name =
-			ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
-				let fid = alloc_fid ctx c f in
+			let fid = alloc_fid ctx c f in
+			ignore(lookup ctx.cnatives (name ^ "@" ^ lib,fid) (fun() ->
 				Hashtbl.add ctx.defined_funs fid ();
 				(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
 			));
