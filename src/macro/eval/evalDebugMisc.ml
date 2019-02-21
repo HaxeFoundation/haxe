@@ -177,18 +177,18 @@ let find_enum_field_by_name ve name =
 	| _ ->
 		raise Not_found
 
+let safe_call ctx f a =
+	let old = ctx.debug.debug_state in
+	ctx.debug.debug_state <- DbgContinue;
+	try
+		let r = f a in
+		ctx.debug.debug_state <- old;
+		r
+	with exc ->
+		ctx.debug.debug_state <- old;
+		raise exc
+
 let rec expr_to_value ctx env e =
-	let safe_call f a =
-		let old = ctx.debug.debug_state in
-		ctx.debug.debug_state <- DbgContinue;
-		try
-			let r = f a in
-			ctx.debug.debug_state <- old;
-			r
-		with exc ->
-			ctx.debug.debug_state <- old;
-			raise exc
-	in
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
@@ -278,11 +278,11 @@ let rec expr_to_value ctx env e =
 				let vthis = loop ethis in
 				let v1 = EvalField.field vthis (hash s) in
 				let vl = List.map loop el in
-				safe_call (EvalPrinting.call_value_on vthis v1) vl
+				safe_call ctx (EvalPrinting.call_value_on vthis v1) vl
 			| _ ->
 				let v1 = loop e1 in
 				let vl = List.map loop el in
-				safe_call (call_value v1) vl
+				safe_call ctx (call_value v1) vl
 			end
 		| EBlock el ->
 			let rec loop2 el = match el with
@@ -341,7 +341,7 @@ let rec expr_to_value ctx env e =
 			let v1 = loop2 v1 [match tp.tsub with None -> tp.tname | Some s -> s] in
 			let vl = List.map loop el in
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
-			safe_call (call_value vc) [v1;encode_array vl]
+			safe_call ctx (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
 		| EDisplayNew _ | ECast(_,Some _) ->
 			raise Exit

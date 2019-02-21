@@ -69,8 +69,8 @@ let var_to_json name value access =
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
 		| VInstance vi ->
-			let class_name = rev_hash vi.iproto.ppath in
-			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
+			let class_name = EvalDebugMisc.safe_call (get_ctx()) EvalPrinting.value_string v in
+			jv class_name (class_name) true
 		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring false (* TODO: show statics *)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
 		| VLazy f -> value_string (!f())
