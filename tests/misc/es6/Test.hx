@@ -31,6 +31,24 @@ class F extends E {
 	}
 }
 
+extern class ExtNoCtor {
+	static function __init__():Void haxe.macro.Compiler.includeFile("./extern.js", "top");
+}
+
+class Base extends ExtNoCtor {
+	function new() {
+		Test.calls.push("BASE");
+	}
+}
+
+class Child extends Base {
+	public function new() {
+		Test.use(this);
+		Test.calls.push("CHILD");
+		super();
+	}
+}
+
 class Test {
 	public static var calls:Array<String>;
 	@:pure(false) public static function use(v:Any) {}
@@ -94,6 +112,23 @@ class Test {
 		// B is the last "super" ctor in the hierarchy
 		// and finally F is pushed after a super call as usual
 		assert(calls.join("") == "EDBF");
+
+
+		// we also support skipping when inheriting from extern without constructors
+		assert(!hasCtorMethod(ExtNoCtor));
+		assert(!hasSkip(ExtNoCtor));
+
+		assert(hasCtorMethod(Base));
+		assert(hasSkip(Base));
+
+		assert(hasCtorMethod(Child));
+		assert(!hasSkip(Child));
+
+		calls = [];
+		new Child();
+		assert(calls.join("|") == "CHILD|BASE");
+
+		// ---
 
 		(untyped process).exit(if (failures == 0) 0 else 1);
 	}
