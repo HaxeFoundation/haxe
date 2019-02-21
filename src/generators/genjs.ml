@@ -1464,7 +1464,7 @@ let generate_type ctx = function
 let set_current_class ctx c =
 	ctx.current <- c
 
-let alloc_ctx com =
+let alloc_ctx com es_version =
 	let smap =
 		if com.debug || Common.defined com Define.JsSourceMap || Common.defined com Define.SourceMap then
 			Some {
@@ -1489,7 +1489,7 @@ let alloc_ctx com =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		has_resolveClass = Common.has_feature com "Type.resolveClass";
-		es_version = (try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0);
+		es_version = es_version;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -1518,11 +1518,20 @@ let gen_single_expr ctx e expr =
 	ctx.id_counter <- 0;
 	str
 
+let get_es_version com = 
+	try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0
+
 let generate com =
 	(match com.js_gen with
 	| Some g -> g()
 	| None ->
-	let ctx = alloc_ctx com in
+
+	let es_version = get_es_version com in
+
+	if es_version >= 6 then
+		ES6Ctors.rewrite_ctors com;
+
+	let ctx = alloc_ctx com es_version in
 	Codegen.map_source_header com (fun s -> print ctx "// %s\n" s);
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
@@ -1530,9 +1539,6 @@ let generate com =
 	let nodejs = Common.raw_defined com "nodejs" in
 
 	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
-
-	if ctx.es_version >= 6 then
-		ES6Ctors.rewrite_ctors com;
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
