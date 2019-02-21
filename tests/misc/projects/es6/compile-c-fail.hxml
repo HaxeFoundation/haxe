@@ -1,0 +1,3 @@
+C
+-js c.js
+-D js-es=6
