@@ -85,6 +85,10 @@ class Js {
 			// sc.close();
 		}
 
+		infoMsg("Test ES6:");
+		changeDirectory(miscDir + "es6");
+		runCommand("haxe", ["run.hxml"]);
+
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
