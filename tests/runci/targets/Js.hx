@@ -53,6 +53,10 @@ class Js {
 			}
 		];
 
+		infoMsg("Test ES6:");
+		changeDirectory(miscDir + "es6");
+		runCommand("haxe", ["run.hxml"]);
+
 		haxelibInstall("hxnodejs");
 		var env = Sys.environment();
 		if (
@@ -76,6 +80,7 @@ class Js {
 			// 	Sys.sleep(0.5);
 			// }
 
+			changeDirectory(unitDir);
 			runCommand("npm", ["install", "wd", "q"], true);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			var server = new Process("nekotools", ["server"]);
