@@ -80,6 +80,7 @@ class Js {
 			// 	Sys.sleep(0.5);
 			// }
 
+			changeDirectory(unitDir);
 			runCommand("npm", ["install", "wd", "q"], true);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			var server = new Process("nekotools", ["server"]);
