@@ -82,7 +82,9 @@ let var_to_json name value env =
 			let class_name = EvalDebugMisc.safe_call (get_ctx()) EvalPrinting.value_string v in
 			let fields = instance_fields vi in
 			jv class_name (class_name) (List.length fields)
-		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring 0 (* TODO: show statics *)
+		| VPrototype proto ->
+			let fields = proto_fields proto in
+			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
 		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
 		| VLazy f -> value_string (!f())
 	in
@@ -214,7 +216,12 @@ let output_inner_vars v env =
 				let n = rev_hash n in
 				n, v
 			) fields
-		| VPrototype proto -> [] (* TODO *)
+		| VPrototype proto ->
+			let fields = proto_fields proto in
+			List.map (fun (n,v) ->
+				let n = rev_hash n in
+				n, v
+			) fields
 		| VLazy f -> loop (!f())
 	in
 	let children = loop v in
