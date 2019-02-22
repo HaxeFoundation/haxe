@@ -1637,7 +1637,7 @@ let generate_class ctx c =
     );
     newline ctx;
 
-    (match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+    (match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
     if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
     generate_class___name__ ctx c;
