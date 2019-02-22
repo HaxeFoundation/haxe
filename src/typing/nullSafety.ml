@@ -30,7 +30,7 @@ let safety_error () : unit = raise (Safety_error NullSafetyError)
 
 type safety_mode =
 	| SMOff
-	| SMWeak
+	| SMLoose
 	| SMStrict
 
 (**
@@ -379,11 +379,11 @@ let safety_mode (metadata:Ast.metadata) =
 		match mode, meta with
 			| Some SMOff, _
 			| _, [] -> mode
-			| None, (Meta.NullSafety, [(EConst (Ident "Off"), _)], _) :: _ ->
+			| _, (Meta.NullSafety, [(EConst (Ident "Off"), _)], _) :: _ ->
 				Some SMOff
 			| None, (Meta.NullSafety, ([] | [(EConst (Ident "Loose"), _)]), _) :: rest ->
-				traverse (Some SMWeak) rest
-			| Some SMWeak, (Meta.NullSafety, [(EConst (Ident "Strict"), _)], _) :: rest ->
+				traverse (Some SMLoose) rest
+			| _, (Meta.NullSafety, [(EConst (Ident "Strict"), _)], _) :: rest ->
 				traverse (Some SMStrict) rest
 			| _, _ :: rest ->
 				traverse mode rest
@@ -1250,7 +1250,7 @@ class expr_checker mode immediate_execution report =
 class class_checker cls immediate_execution report  =
 	object (self)
 			val is_safe_class = safety_enabled cls.cl_meta
-			val mutable checker = new expr_checker SMWeak immediate_execution report
+			val mutable checker = new expr_checker SMLoose immediate_execution report
 			val mutable mode = None
 		(**
 			Entry point for checking a class

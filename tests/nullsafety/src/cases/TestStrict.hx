@@ -783,6 +783,12 @@ class TestStrict {
 		a = b;
 	}
 
+	function nonFinalField_shouldFail(o:{field:Null<String>}) {
+		if(o.field != null) {
+			shouldFail(var notNullable:String = o.field);
+		}
+	}
+
 	static function anonFinalNullableField_checkedForNull() {
 		var o:{ final ?f:String; } = {};
 		if (o.f != null) {
