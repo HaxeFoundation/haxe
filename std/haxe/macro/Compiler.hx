@@ -491,7 +491,7 @@ enum abstract NullSafetyMode(String) to String {
 		Loose safety.
 		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
 		E.g.
-		```
+		```haxe
 		function example(o:{field:Null<String>}) {
 			if(o.field != null) {
 				mutate(o);

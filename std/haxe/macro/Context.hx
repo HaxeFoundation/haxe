@@ -454,7 +454,7 @@ class Context {
 		Compilation server : when using the compilation server, the resource is bound
 		to the Haxe module which calls the macro, so it will be included again if
 		that module is reused. If this resource concerns several modules, prefix its
-		name with a $ sign, this will bind it to the macro module instead.
+		name with a `$` sign, this will bind it to the macro module instead.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		load("add_resource",2)(name,data);
@@ -486,7 +486,7 @@ class Context {
 
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
-		not allowed to have `.*` wildcards or `in s` shorthands.
+		not allowed to have `.*` wildcards or `as s` shorthands.
 	**/
 	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
 		if( imports == null ) imports = [];
