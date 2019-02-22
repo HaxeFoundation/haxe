@@ -423,11 +423,15 @@ let handler =
 			| None -> hctx.send_error "Frame out of bounds"
 			| Some env -> loop env (i - 1)
 		in
-		if offset < 0 then hctx.send_error "Frame out of bounds"
+		if offset < 0 then
+			hctx.send_error "Frame out of bounds"
 		else begin
-			let env = loop eval.env offset in
-			Wait(JNull,env)
+			loop eval.env offset
 		end
+	in
+	let update_frame hctx =
+		let frame = hctx.jsonrpc#get_int_param "frameId" in
+		move_frame hctx frame
 	in
 	let h = Hashtbl.create 0 in
 	let l = [
@@ -455,18 +459,20 @@ let handler =
 			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
 		);
 		"getScopes",(fun hctx ->
-			Loop (output_scopes hctx.env.env_info.capture_infos hctx.env.env_debug.scopes);
+			let env = update_frame hctx in
+			Loop (output_scopes env.env_info.capture_infos env.env_debug.scopes);
 		);
 		"getScopeVariables",(fun hctx ->
+			let env = update_frame hctx in
 			let sid = hctx.jsonrpc#get_int_param "id" in
 			begin
 				let vars =
 					try
 						if sid = 0 then begin
-							output_capture_vars hctx.env
+							output_capture_vars env
 						end else begin
-							let scope = try List.nth hctx.env.env_debug.scopes (sid - 1) with _ -> raise Exit in
-							output_scope_vars hctx.env scope
+							let scope = try List.nth env.env_debug.scopes (sid - 1) with _ -> raise Exit in
+							output_scope_vars env scope
 						end
 					with Exit ->
 						hctx.send_error "Invalid scope id"
@@ -475,11 +481,12 @@ let handler =
 			end
 		);
 		"getStructure",(fun hctx ->
+			let env = update_frame hctx in
 			let e = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr hctx.ctx e hctx.env.env_debug.expr.epos in
+				let e = parse_expr hctx.ctx e env.env_debug.expr.epos in
 				begin try
-					let v = expr_to_value hctx.ctx hctx.env e in
+					let v = expr_to_value hctx.ctx env e in
 					Loop (output_inner_vars v (Ast.s_expr e))
 				with Exit ->
 					hctx.send_error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
@@ -546,19 +553,16 @@ let handler =
 			end;
 			Loop JNull
 		);
-		"switchFrame",(fun hctx ->
-			let frame = hctx.jsonrpc#get_int_param "id" in
-			move_frame hctx frame
-		);
 		"setVariable",(fun hctx ->
+			let env = update_frame hctx in
 			let expr_s = hctx.jsonrpc#get_string_param "expr" in
 			let value = hctx.jsonrpc#get_string_param "value" in
-			let parse s = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
+			let parse s = parse_expr hctx.ctx s env.env_debug.expr.epos in
 			begin try
 				let expr,value = parse expr_s,parse value in
 				begin try
-					let value = expr_to_value hctx.ctx hctx.env value in
-					write_expr hctx.ctx hctx.env expr value;
+					let value = expr_to_value hctx.ctx env value in
+					write_expr hctx.ctx env expr value;
 					Loop (var_to_json "" value expr_s)
 				with Exit ->
 					hctx.send_error "Don't know how to handle this expression"
@@ -576,10 +580,11 @@ let handler =
 			Loop(JNull)
 		);
 		"evaluate",(fun hctx ->
+			let env = update_frame hctx in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
-				let v = expr_to_value hctx.ctx hctx.env e in
+				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
+				let v = expr_to_value hctx.ctx env e in
 				Loop (var_to_json "" v (Ast.s_expr e))
 			with
 			| Parse_expr_error e ->
@@ -589,10 +594,11 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
+			let env = update_frame hctx in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try
-				ValueCompletion.get_completion hctx.ctx text column hctx.env
+				ValueCompletion.get_completion hctx.ctx text column env
 			with Exit ->
 				hctx.send_error "No completion point found";
 		);
