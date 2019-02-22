@@ -15,9 +15,15 @@ open EvalDebugMisc
 (* Printing *)
 
 let var_to_json name value env =
-	let jv t v structured =
-		let id = if not structured then 0 else (get_ctx()).debug.debug_context#add_value value env in
-		JObject ["id",JInt id;"name",JString name;"type",JString t;"value",JString v]
+	let jv t v num_children =
+		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
+		JObject [
+			"id",JInt id;
+			"name",JString name;
+			"type",JString t;
+			"value",JString v;
+			"numChildren",JInt num_children;
+		]
 	in
 	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
 	let rec level2_value_repr = function
@@ -49,31 +55,35 @@ let var_to_json name value env =
 		Printf.sprintf "[%s]" (String.concat ", " l)
 	in
 	let rec value_string v = match v with
-		| VNull -> jv "NULL" "null" false
-		| VTrue -> jv "Bool" "true" false
-		| VFalse -> jv "Bool" "false" false
-		| VInt32 i -> jv "Int" (Int32.to_string i) false
-		| VFloat f -> jv "Float" (string_of_float f) false
+		| VNull -> jv "NULL" "null" 0
+		| VTrue -> jv "Bool" "true" 0
+		| VFalse -> jv "Bool" "false" 0
+		| VInt32 i -> jv "Int" (Int32.to_string i) 0
+		| VFloat f -> jv "Float" (string_of_float f) 0
 		| VEnumValue ve ->
 			let type_s = rev_hash ve.epath in
 			let name = EvalPrinting.s_enum_ctor_name ve in
-			let value_s,is_structured = match ve.eargs with
-				| [||] -> name, false
+			let value_s = match ve.eargs with
+				| [||] -> name
 				| vl ->
 					let l = Array.to_list (Array.map level2_value_repr vl) in
 					let s = Printf.sprintf "%s(%s)" name (String.concat ", " l) in
-					s, true
+					s
 			in
-			jv type_s value_s is_structured
-		| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
-		| VString s -> jv "String" (string_repr s) true
-		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
-		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
+			jv type_s value_s (Array.length ve.eargs)
+		| VObject o ->
+			let fields = object_fields o in
+			jv "Anonymous" (fields_string fields) (List.length fields)
+		| VString s ->
+			jv "String" (string_repr s) 2
+		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
+		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
 			let class_name = EvalDebugMisc.safe_call (get_ctx()) EvalPrinting.value_string v in
-			jv class_name (class_name) true
-		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring false (* TODO: show statics *)
-		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
+			let fields = instance_fields vi in
+			jv class_name (class_name) (List.length fields)
+		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring 0 (* TODO: show statics *)
+		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
 		| VLazy f -> value_string (!f())
 	in
 	value_string value
