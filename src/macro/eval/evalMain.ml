@@ -93,6 +93,7 @@ let create com api is_macro =
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
 				caught_exception = vnull;
+				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
 			debug'

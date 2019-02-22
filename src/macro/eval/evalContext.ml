@@ -130,6 +130,35 @@ type builtins = {
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
 }
 
+type context_reference =
+	| Scope of scope * env
+	| CaptureScope of (int,var_info) Hashtbl.t * env
+	| Value of value * env
+	| Toplevel
+
+class eval_debug_context = object(self)
+	val lut =
+		let d = DynArray.create() in
+		DynArray.add d Toplevel;
+		d
+
+	method add_scope scope env =
+		DynArray.add lut (Scope(scope,env));
+		DynArray.length lut - 1
+
+	method add_capture_scope h env =
+		DynArray.add lut (CaptureScope(h,env));
+		DynArray.length lut - 1
+
+	method add_value v env =
+		DynArray.add lut (Value(v,env));
+		DynArray.length lut - 1
+
+	method get id =
+		DynArray.get lut id
+
+end
+
 type exception_mode =
 	| CatchAll
 	| CatchUncaught
@@ -167,6 +196,7 @@ and debug = {
 	mutable exception_mode : exception_mode;
 	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
 	mutable caught_exception : value;
+	mutable debug_context : eval_debug_context;
 }
 
 and eval = {
