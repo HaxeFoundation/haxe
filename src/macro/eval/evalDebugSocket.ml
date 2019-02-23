@@ -14,16 +14,27 @@ open EvalDebugMisc
 
 (* Printing *)
 
-let var_to_json name value env =
+let var_to_json name value vio env =
 	let jv t v num_children =
 		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
-		JObject [
+		let fields = [
 			"id",JInt id;
 			"name",JString name;
 			"type",JString t;
 			"value",JString v;
 			"numChildren",JInt num_children;
-		]
+		] in
+		let fields = match vio with
+			| Some vi ->
+				let line,col1,_,_ = Lexer.get_pos_coords vi.vi_pos in
+				("generated",JBool vi.vi_generated) ::
+				("line",JInt line) ::
+				("column",JInt col1) ::
+				fields
+			| None ->
+				fields
+		in
+		JObject fields
 	in
 	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
 	let rec level2_value_repr = function
@@ -156,17 +167,17 @@ let output_scopes ctx env =
 	JArray scopes
 
 let output_capture_vars infos env =
-	let vars = Hashtbl.fold (fun slot name acc ->
+	let vars = Hashtbl.fold (fun slot vi acc ->
 		let value = !(env.env_captures.(slot)) in
-		(var_to_json name value env) :: acc
+		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
 
 let output_scope_vars env scope =
-	let vars = Hashtbl.fold (fun local_slot name acc ->
+	let vars = Hashtbl.fold (fun local_slot vi acc ->
 		let slot = local_slot + scope.local_offset in
 		let value = env.env_locals.(slot) in
-		(var_to_json name value env) :: acc
+		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) scope.local_infos [] in
 	JArray vars
 
@@ -225,7 +236,7 @@ let output_inner_vars v env =
 		| VLazy f -> loop (!f())
 	in
 	let children = loop v in
-	let vars = List.map (fun (n,v) -> var_to_json n v env) children in
+	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
 
 type command_outcome =
@@ -274,8 +285,8 @@ module ValueCompletion = struct
 		in
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
-		Hashtbl.iter (fun slot name ->
-			add (hash name)
+		Hashtbl.iter (fun slot vi ->
+			add (hash vi.vi_name)
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
 		if not env.env_info.static then begin
@@ -581,16 +592,16 @@ let handler =
 				| _ ->
 					set_field v (hash name) value;
 				end;
-				Loop (var_to_json "" value env)
+				Loop (var_to_json "" value None env)
 			| Scope(scope,env) ->
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				env.env_locals.(slot + scope.local_offset) <- value;
-				Loop (var_to_json "" value env)
+				Loop (var_to_json "" value None env)
 			| CaptureScope(infos,env) ->
 				let slot = get_capture_slot_by_name infos name in
 				env.env_captures.(slot) := value;
-				Loop (var_to_json "" value env)
+				Loop (var_to_json "" value None env)
 			end
 		);
 		"setExceptionOptions",(fun hctx ->
@@ -607,7 +618,7 @@ let handler =
 			begin try
 				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
 				let v = expr_to_value hctx.ctx env e in
-				Loop (var_to_json "" v env)
+				Loop (var_to_json "" v None env)
 			with
 			| Parse_expr_error e ->
 				hctx.send_error e

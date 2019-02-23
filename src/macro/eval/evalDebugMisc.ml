@@ -99,8 +99,8 @@ let get_var_slot_by_name scopes name =
 let get_capture_slot_by_name capture_infos name =
 	let ret = ref None in
 	try
-		Hashtbl.iter (fun slot name' ->
-			if name = name' then begin
+		Hashtbl.iter (fun slot vi ->
+			if name = vi.vi_name then begin
 				ret := (Some slot);
 				raise Exit
 			end

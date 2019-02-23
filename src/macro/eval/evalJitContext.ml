@@ -30,6 +30,13 @@ type t = {
 	mutable capture_infos : (int,var_info) Hashtbl.t;
 }
 
+let var_info_of_var var =
+	{
+		vi_name = var.v_name;
+		vi_pos = var.v_pos;
+		vi_generated = (match var.v_kind with VUser _ -> false | _ -> true)
+	}
+
 (* Creates a new context *)
 let create ctx = {
 	ctx = ctx;
@@ -75,7 +82,7 @@ let add_capture jit var =
 	let i = Hashtbl.length jit.captures in
 	Hashtbl.add jit.captures var.v_id i;
 	if jit.ctx.debug.support_debugger then begin
-		Hashtbl.replace jit.capture_infos i var.v_name
+		Hashtbl.replace jit.capture_infos i (var_info_of_var var)
 	end;
 	i
 
@@ -90,7 +97,7 @@ let add_local jit var = match jit.scopes with
 		if jit.ctx.debug.support_debugger then begin
 			if Typecore.is_gen_local var then var.v_name <- "_g" ^ String.sub var.v_name 1 (String.length var.v_name - 1);
 			Hashtbl.replace scope.local_ids var.v_name var.v_id;
-			Hashtbl.replace scope.local_infos i var.v_name
+			Hashtbl.replace scope.local_infos i (var_info_of_var var)
 		end;
 		slot
 
@@ -123,7 +130,7 @@ let declare_local_this jit = match jit.scopes with
 		increase_num_locals jit;
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids "this" 0;
-			Hashtbl.replace scope.local_infos 0 "this"
+			Hashtbl.replace scope.local_infos 0 { vi_name = "this"; vi_pos = Globals.null_pos; vi_generated = false }
 		end;
 		Local i
 

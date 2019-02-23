@@ -23,7 +23,11 @@ open EvalValue
 open EvalHash
 open EvalString
 
-type var_info = string
+type var_info = {
+	vi_name : string;
+	vi_pos : pos;
+	vi_generated : bool;
+}
 
 type scope = {
 	(* The position of the current scope. *)
