@@ -49,6 +49,7 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	has_resolveClass : bool;
+	has_instanceof : bool;
 	es_version : int;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -1086,12 +1087,14 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
-	(match c.cl_implements with
-	| [] -> ()
-	| l ->
-		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
-		newline ctx;
-	);
+
+	if ctx.has_instanceof then
+		(match c.cl_implements with
+		| [] -> ()
+		| l ->
+			print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
+			newline ctx;
+		);
 
 	let gen_props props =
 		String.concat "," (List.map (fun (p,v) -> p ^":\""^v^"\"") props) in
@@ -1176,7 +1179,7 @@ let generate_class_es6 ctx c =
 		ctx.separator <- false
 	| _ -> ());
 
-	let nonmethod_fields = 
+	let nonmethod_fields =
 		List.filter (fun cf ->
 			match cf.cf_kind, cf.cf_expr with
 			| Method _, Some { eexpr = TFunction f; epos = pos } ->
@@ -1189,7 +1192,7 @@ let generate_class_es6 ctx c =
 				true
 		) c.cl_ordered_fields
 	in
-	
+
 	let exposed_static_methods = ref [] in
 	let nonmethod_statics =
 		List.filter (fun cf ->
@@ -1214,7 +1217,7 @@ let generate_class_es6 ctx c =
 	spr ctx "}";
 	newline ctx;
 
-	List.iter (fun (path,name) -> 
+	List.iter (fun (path,name) ->
 		print ctx "$hx_exports%s = %s.%s;" (path_to_brackets path) p name;
 		newline ctx
 	) !exposed_static_methods;
@@ -1235,12 +1238,13 @@ let generate_class_es6 ctx c =
 
 	generate_class___name__ ctx c;
 
-	(match c.cl_implements with
-	| [] -> ()
-	| l ->
-		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
-		newline ctx;
-	);
+	if ctx.has_instanceof then
+		(match c.cl_implements with
+		| [] -> ()
+		| l ->
+			print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> ctx.type_accessor (TClassDecl i)) l));
+			newline ctx;
+		);
 
 	let has_property_reflection =
 		(has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty")
@@ -1260,7 +1264,7 @@ let generate_class_es6 ctx c =
 
 	(match c.cl_super with
 	| Some (csup,_) ->
-		if has_feature ctx "js.Boot.__instanceof" || has_feature ctx "Type.getSuperClass" then begin
+		if ctx.has_instanceof || has_feature ctx "Type.getSuperClass" then begin
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx
@@ -1298,7 +1302,7 @@ let generate_class_es6 ctx c =
 			| Some (csup, _) when Codegen.has_properties csup ->
 				let psup = ctx.type_accessor (TClassDecl csup) in
 				print ctx "__properties__: Object.assign({}, %s.prototype.__properties__, {%s})" psup (gen_props props_to_generate)
-			| _ -> 
+			| _ ->
 				print ctx "__properties__: {%s}" (gen_props props_to_generate)
 		end;
 
@@ -1489,6 +1493,7 @@ let alloc_ctx com es_version =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		has_resolveClass = Common.has_feature com "Type.resolveClass";
+		has_instanceof = Common.has_feature com "js.Boot.__instanceof";
 		es_version = es_version;
 		statics = [];
 		inits = [];
@@ -1518,7 +1523,7 @@ let gen_single_expr ctx e expr =
 	ctx.id_counter <- 0;
 	str
 
-let get_es_version com = 
+let get_es_version com =
 	try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0
 
 let generate com =
