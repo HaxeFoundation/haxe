@@ -33,8 +33,19 @@ class Macro {
 				return "";
 			});
 			var markers = markers.length > 0 ? macro $a{markers} : macro new Map();
+			var filename = Context.getPosInfos(c.pos).file;
+			for (meta in field.meta) {
+				if (meta.name == ":filename") {
+					switch (meta.params[0].expr) {
+						case EConst(CString(s)):
+							filename = Path.directory(filename) + "/" + s;
+						case _:
+							throw "String expected";
+					}
+				}
+			}
 			testCases.push(macro function() {
-				ctx = new DisplayTestContext($v{Context.getPosInfos(c.pos).file}, $v{field.name}, $v{src}, $markers);
+				ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers);
 				$i{field.name}();
 			});
 		}
@@ -58,6 +69,9 @@ class Macro {
 			var path = Context.resolvePath(Path.join(pack));
 			for (file in sys.FileSystem.readDirectory(path)) {
 				if (singleCase != null && !file.endsWith(singleCase + ".hx")) {
+					continue;
+				}
+				if (file.endsWith("import.hx")) {
 					continue;
 				}
 				var p = new haxe.io.Path(file);
