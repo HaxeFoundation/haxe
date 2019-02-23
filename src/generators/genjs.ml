@@ -1439,6 +1439,11 @@ let generate_require ctx path meta =
 
 	newline ctx
 
+let need_to_generate_interface ctx cl_iface =
+	ctx.has_resolveClass (* generate so we can resolve it for whatever reason *)
+	|| ctx.has_instanceof (* generate because we need __interfaces__ for run-time type checks *)
+	|| is_directly_used ctx.com cl_iface.cl_meta (* generate because it's just directly accessed in code *)
+
 let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
@@ -1452,7 +1457,8 @@ let generate_type ctx = function
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
 		else if not c.cl_extern then
-			generate_class ctx c
+			if (not c.cl_interface) || (need_to_generate_interface ctx c) then
+				generate_class ctx c
 		else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
 			generate_require ctx c.cl_path c.cl_meta
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
