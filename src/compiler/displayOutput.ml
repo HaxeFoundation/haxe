@@ -1,6 +1,7 @@
 open Globals
 open Ast
 open Common
+open Filename
 open CompilationServer
 open Timer
 open DisplayTypes.DisplayMode
@@ -657,7 +658,8 @@ let handle_syntax_completion com kind p =
 		| SCComment ->
 			[],CRTypeRelation
 		| SCTypeDecl mode ->
-			let l = [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
+			let in_import_hx = Filename.basename p.pfile = "import.hx" in
+			let l = if in_import_hx then [] else [Private;Extern;Class;Interface;Enum;Abstract;Typedef;Final] in
 			let l = match mode with
 				| TCBeforePackage -> Package :: Import :: Using :: l
 				| TCAfterImport -> Import :: Using :: l
