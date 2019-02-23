@@ -2536,7 +2536,12 @@ let rec create com =
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
-		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
+		Error (Module_not_found ([],"StdTypes"),_) ->
+			try
+				let std_path = Sys.getenv "HAXE_STD_PATH" in
+				error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
+			with Not_found ->
+				error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	ctx.m.module_types <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;
