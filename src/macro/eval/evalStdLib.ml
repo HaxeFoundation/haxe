@@ -1131,10 +1131,6 @@ module StdFileSystem = struct
 		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
 		else remove_trailing_slash s
 
-	let absolutePath = vfun1 (fun relPath ->
-		create_unknown (Path.unique_full_path (decode_string relPath))
-	)
-
 	let createDirectory = vfun1 (fun path ->
 		(try Path.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
 		vnull
@@ -3187,7 +3183,6 @@ let init_standard_library builtins =
 		"i64ToDouble",StdFPHelper.i64ToDouble;
 	] [];
 	init_fields builtins (["sys"],"FileSystem") [
-		"absolutePath",StdFileSystem.absolutePath;
 		"createDirectory",StdFileSystem.createDirectory;
 		"deleteFile",StdFileSystem.deleteFile;
 		"deleteDirectory",StdFileSystem.deleteDirectory;

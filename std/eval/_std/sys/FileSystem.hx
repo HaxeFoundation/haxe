@@ -19,21 +19,34 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys;
 
 // This class is here so it re-shadows other FileSystem classes in macros,
 // e.g. from hxnodejs.
-
 @:coreApi
-extern class FileSystem {
-	static function exists(path:String):Bool;
-	static function rename(path:String, newPath:String):Void;
-	static function stat(path:String):FileStat;
-	static function fullPath(relPath:String):String;
-	static function absolutePath(relPath:String):String;
-	static function isDirectory(path:String):Bool;
-	static function createDirectory(path:String):Void;
-	static function deleteFile(path:String):Void;
-	static function deleteDirectory(path:String):Void;
-	static function readDirectory(path:String):Array<String>;
+class FileSystem {
+	extern static public function exists(path:String):Bool;
+
+	extern static public function rename(path:String, newPath:String):Void;
+
+	extern static public function stat(path:String):FileStat;
+
+	extern static public function fullPath(relPath:String):String;
+
+	static public function absolutePath(relPath:String):String {
+		if (haxe.io.Path.isAbsolute(relPath))
+			return relPath;
+		return haxe.io.Path.join([Sys.getCwd(), relPath]);
+	}
+
+	extern static public function isDirectory(path:String):Bool;
+
+	extern static public function createDirectory(path:String):Void;
+
+	extern static public function deleteFile(path:String):Void;
+
+	extern static public function deleteDirectory(path:String):Void;
+
+	extern static public function readDirectory(path:String):Array<String>;
 }
