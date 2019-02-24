@@ -159,7 +159,10 @@ let handler =
 			hctx.com.callbacks#add_after_init_macros (fun () ->
 				CompilationServer.set_initialized hctx.display#get_cs;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
-				hctx.send_result (jstring "class paths read");
+				let files = CompilationServer.get_files hctx.display#get_cs in
+				hctx.send_result (jobject [
+					"files", jstring (string_of_int (Hashtbl.length files))
+				]);
 			)
 		);
 		"server/contexts", (fun hctx ->
