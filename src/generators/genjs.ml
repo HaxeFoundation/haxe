@@ -1456,10 +1456,10 @@ let generate_type ctx = function
 		(* Another special case for Std because we do not want to generate it if it's empty. *)
 		if p = "Std" && c.cl_ordered_statics = [] then
 			()
-		else if not c.cl_extern then
+		else if not c.cl_extern then begin
 			if (not c.cl_interface) || (need_to_generate_interface ctx c) then
 				generate_class ctx c
-		else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
+		end else if Meta.has Meta.JsRequire c.cl_meta && is_directly_used ctx.com c.cl_meta then
 			generate_require ctx c.cl_path c.cl_meta
 		else if not ctx.js_flatten && Meta.has Meta.InitPackage c.cl_meta then
 			(match c.cl_path with
