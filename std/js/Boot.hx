@@ -210,7 +210,7 @@ class Boot {
 			#if js_enums_as_arrays
 			return o.__enum__ == cl;
 			#else
-			return (untyped $hxEnums[o.__enum__]) == cl;
+			return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
 			#end
 		}
 	}
