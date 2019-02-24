@@ -161,7 +161,7 @@ let handler =
 				DisplayToplevel.read_class_paths hctx.com ["init"];
 				let files = CompilationServer.get_files hctx.display#get_cs in
 				hctx.send_result (jobject [
-					"files", jstring (string_of_int (Hashtbl.length files))
+					"files", jint (Hashtbl.length files)
 				]);
 			)
 		);
