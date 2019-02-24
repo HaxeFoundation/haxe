@@ -93,6 +93,7 @@ let create com api is_macro =
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
 				caught_exception = vnull;
+				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
 			debug'
@@ -151,7 +152,14 @@ let call_path ctx path f vl api =
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
-			call_value_on vtype vfield vl
+			let p = api.pos in
+			let info = create_env_info true (hash p.pfile) EKEntrypoint (Hashtbl.create 0) in
+			let env = push_environment ctx info 0 0 in
+			env.env_leave_pmin <- p.pmin;
+			env.env_leave_pmax <- p.pmax;
+			let v = call_value_on vtype vfield vl in
+			pop_environment ctx env;
+			v
 		) api.pos
 	end
 

@@ -14,9 +14,27 @@ open EvalDebugMisc
 
 (* Printing *)
 
-let var_to_json name value access =
-	let jv t v structured =
-		JObject ["name",JString name;"type",JString t;"value",JString v;"structured",JBool structured;"access",JString access]
+let var_to_json name value vio env =
+	let jv t v num_children =
+		let id = if num_children = 0 then 0 else (get_ctx()).debug.debug_context#add_value value env in
+		let fields = [
+			"id",JInt id;
+			"name",JString name;
+			"type",JString t;
+			"value",JString v;
+			"numChildren",JInt num_children;
+		] in
+		let fields = match vio with
+			| Some vi ->
+				let line,col1,_,_ = Lexer.get_pos_coords vi.vi_pos in
+				("generated",JBool vi.vi_generated) ::
+				("line",JInt line) ::
+				("column",JInt col1) ::
+				fields
+			| None ->
+				fields
+		in
+		JObject fields
 	in
 	let string_repr s = "\"" ^ (StringHelper.s_escape s.sstring) ^ "\"" in
 	let rec level2_value_repr = function
@@ -48,31 +66,37 @@ let var_to_json name value access =
 		Printf.sprintf "[%s]" (String.concat ", " l)
 	in
 	let rec value_string v = match v with
-		| VNull -> jv "NULL" "null" false
-		| VTrue -> jv "Bool" "true" false
-		| VFalse -> jv "Bool" "false" false
-		| VInt32 i -> jv "Int" (Int32.to_string i) false
-		| VFloat f -> jv "Float" (string_of_float f) false
+		| VNull -> jv "NULL" "null" 0
+		| VTrue -> jv "Bool" "true" 0
+		| VFalse -> jv "Bool" "false" 0
+		| VInt32 i -> jv "Int" (Int32.to_string i) 0
+		| VFloat f -> jv "Float" (string_of_float f) 0
 		| VEnumValue ve ->
 			let type_s = rev_hash ve.epath in
 			let name = EvalPrinting.s_enum_ctor_name ve in
-			let value_s,is_structured = match ve.eargs with
-				| [||] -> name, false
+			let value_s = match ve.eargs with
+				| [||] -> name
 				| vl ->
 					let l = Array.to_list (Array.map level2_value_repr vl) in
 					let s = Printf.sprintf "%s(%s)" name (String.concat ", " l) in
-					s, true
+					s
 			in
-			jv type_s value_s is_structured
-		| VObject o -> jv "Anonymous" (fields_string (object_fields o)) true (* TODO: false for empty structures *)
-		| VString s -> jv "String" (string_repr s) true
-		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) true (* TODO: false for empty arrays *)
-		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) true
+			jv type_s value_s (Array.length ve.eargs)
+		| VObject o ->
+			let fields = object_fields o in
+			jv "Anonymous" (fields_string fields) (List.length fields)
+		| VString s ->
+			jv "String" (string_repr s) 2
+		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
+		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
-			let class_name = rev_hash vi.iproto.ppath in
-			jv class_name (class_name ^ " " ^ (fields_string (instance_fields vi))) true
-		| VPrototype proto -> jv "Anonymous" (s_proto_kind proto).sstring false (* TODO: show statics *)
-		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" false
+			let class_name = EvalDebugMisc.safe_call (get_ctx()) EvalPrinting.value_string v in
+			let fields = instance_fields vi in
+			jv class_name (class_name) (List.length fields)
+		| VPrototype proto ->
+			let fields = proto_fields proto in
+			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
+		| VFunction _ | VFieldClosure _ -> jv "Function" "<fun>" 0
 		| VLazy f -> value_string (!f())
 	in
 	value_string value
@@ -112,7 +136,9 @@ let output_call_stack ctx kind p =
 	) l envs in
 	JArray (List.rev stack)
 
-let output_scopes capture_infos scopes =
+let output_scopes ctx env =
+	let capture_infos = env.env_info.capture_infos in
+	let scopes = env.env_debug.scopes in
 	let mk_scope id name pos =
 		let fl = ["id",JInt id; "name",JString name] in
 		let fl =
@@ -130,33 +156,32 @@ let output_scopes capture_infos scopes =
 		in
 		JObject fl
 	in
-	let _,scopes = List.fold_left (fun (id,acc) scope ->
+	let scopes = List.fold_left (fun acc scope ->
 		if Hashtbl.length scope.local_infos <> 0 then
-			(id + 1), (mk_scope id "Locals" scope.pos) :: acc
+			(mk_scope (ctx.debug.debug_context#add_scope scope env) "Locals" scope.pos) :: acc
 		else
-			(id + 1), acc
-	) (1,[]) scopes in
+			acc
+	) [] scopes in
 	let scopes = List.rev scopes in
-	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope 0 "Captures" null_pos) :: scopes in
+	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
 	JArray scopes
 
-let output_capture_vars env =
-	let infos = env.env_info.capture_infos in
-	let vars = Hashtbl.fold (fun slot name acc ->
+let output_capture_vars infos env =
+	let vars = Hashtbl.fold (fun slot vi acc ->
 		let value = !(env.env_captures.(slot)) in
-		(var_to_json name value name) :: acc
+		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
 
 let output_scope_vars env scope =
-	let vars = Hashtbl.fold (fun local_slot name acc ->
+	let vars = Hashtbl.fold (fun local_slot vi acc ->
 		let slot = local_slot + scope.local_offset in
 		let value = env.env_locals.(slot) in
-		(var_to_json name value name) :: acc
+		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) scope.local_infos [] in
 	JArray vars
 
-let output_inner_vars v access =
+let output_inner_vars v env =
 	let rec loop v = match v with
 		| VNull | VTrue | VFalse | VInt32 _ | VFloat _ | VFunction _ | VFieldClosure _ -> []
 		| VEnumValue ve ->
@@ -165,9 +190,8 @@ let output_inner_vars v access =
 					let fields = snd (List.nth names ve.eindex) in
 					List.mapi (fun i n ->
 						let n = rev_hash n in
-						let a = access ^ "." ^ n in
 						let v = ve.eargs.(i) in
-						n, v, a
+						n, v
 					) fields
 				| _ -> []
 			end
@@ -175,52 +199,50 @@ let output_inner_vars v access =
 			let fields = object_fields o in
 			List.map (fun (n,v) ->
 				let n = rev_hash n in
-				let a = access ^ "." ^ n in
-				n, v, a
+				n, v
 			) fields
 		| VString s -> [
-			"length",vint s.slength,access ^ ".length";
-			"byteLength",vint (String.length s.sstring),access ^ ".byteLength";
+			"length",vint s.slength;
+			"byteLength",vint (String.length s.sstring);
 		]
 		| VArray va ->
 			let l = EvalArray.to_list va in
 			List.mapi (fun i v ->
 				let n = Printf.sprintf "[%d]" i in
-				let a = access ^ n in
-				n, v, a
+				n, v
 			) l
 		| VVector vv ->
 			let l = Array.to_list vv in
 			List.mapi (fun i v ->
 				let n = Printf.sprintf "[%d]" i in
-				let a = access ^ n in
-				n, v, a
+				n, v
 			) l
 		| VInstance {ikind = IStringMap h} ->
 			StringHashtbl.fold (fun s (_,v) acc ->
-				let n = Printf.sprintf "[%s]" s in
-				let a = access ^ n in
-				(s,v,a) :: acc
+				(s,v) :: acc
 			) h []
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->
 				let n = rev_hash n in
-				let a = access ^ "." ^ n in
-				n, v, a
+				n, v
 			) fields
-		| VPrototype proto -> [] (* TODO *)
+		| VPrototype proto ->
+			let fields = proto_fields proto in
+			List.map (fun (n,v) ->
+				let n = rev_hash n in
+				n, v
+			) fields
 		| VLazy f -> loop (!f())
 	in
 	let children = loop v in
-	let vars = List.map (fun (n,v,a) -> var_to_json n v a) children in
+	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
 
 type command_outcome =
 	| Loop of Json.t
 	| Run of Json.t * EvalContext.env
 	| Wait of Json.t * EvalContext.env
-
 
 module ValueCompletion = struct
 	let prototype_instance_fields proto =
@@ -263,8 +285,8 @@ module ValueCompletion = struct
 		in
 		loop env.env_debug.scopes;
 		(* 2. Captures *)
-		Hashtbl.iter (fun slot name ->
-			add (hash name)
+		Hashtbl.iter (fun slot vi ->
+			add (hash vi.vi_name)
 		) env.env_info.capture_infos;
 		(* 3. Instance *)
 		if not env.env_info.static then begin
@@ -423,11 +445,15 @@ let handler =
 			| None -> hctx.send_error "Frame out of bounds"
 			| Some env -> loop env (i - 1)
 		in
-		if offset < 0 then hctx.send_error "Frame out of bounds"
+		if offset < 0 then
+			hctx.send_error "Frame out of bounds"
 		else begin
-			let env = loop eval.env offset in
-			Wait(JNull,env)
+			loop eval.env offset
 		end
+	in
+	let update_frame hctx =
+		let frame = hctx.jsonrpc#get_int_param "frameId" in
+		move_frame hctx frame
 	in
 	let h = Hashtbl.create 0 in
 	let l = [
@@ -455,37 +481,30 @@ let handler =
 			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
 		);
 		"getScopes",(fun hctx ->
-			Loop (output_scopes hctx.env.env_info.capture_infos hctx.env.env_debug.scopes);
+			let env = update_frame hctx in
+			Loop (output_scopes hctx.ctx env);
 		);
 		"getScopeVariables",(fun hctx ->
 			let sid = hctx.jsonrpc#get_int_param "id" in
 			begin
 				let vars =
 					try
-						if sid = 0 then begin
-							output_capture_vars hctx.env
-						end else begin
-							let scope = try List.nth hctx.env.env_debug.scopes (sid - 1) with _ -> raise Exit in
-							output_scope_vars hctx.env scope
+						begin
+							let scope = hctx.ctx.debug.debug_context#get sid in
+							match scope with
+							| Scope(scope,env) ->
+								output_scope_vars env scope
+							| CaptureScope(infos,env) ->
+								output_capture_vars infos env
+							| Value(value,env) ->
+								output_inner_vars value env
+							| Toplevel ->
+								hctx.send_error "Invalid scope id";
 						end
 					with Exit ->
 						hctx.send_error "Invalid scope id"
 				in
 				Loop vars
-			end
-		);
-		"getStructure",(fun hctx ->
-			let e = hctx.jsonrpc#get_string_param "expr" in
-			begin try
-				let e = parse_expr hctx.ctx e hctx.env.env_debug.expr.epos in
-				begin try
-					let v = expr_to_value hctx.ctx hctx.env e in
-					Loop (output_inner_vars v (Ast.s_expr e))
-				with Exit ->
-					hctx.send_error ("Don't know how to handle this expression: " ^ (Ast.s_expr e))
-				end
-			with Parse_expr_error e ->
-				hctx.send_error e
 			end
 		);
 		"setBreakpoints",(fun hctx ->
@@ -546,25 +565,43 @@ let handler =
 			end;
 			Loop JNull
 		);
-		"switchFrame",(fun hctx ->
-			let frame = hctx.jsonrpc#get_int_param "id" in
-			move_frame hctx frame
-		);
 		"setVariable",(fun hctx ->
-			let expr_s = hctx.jsonrpc#get_string_param "expr" in
+			let env = hctx.env in
+			let id = hctx.jsonrpc#get_int_param "id" in
+			let name = hctx.jsonrpc#get_string_param "name" in
 			let value = hctx.jsonrpc#get_string_param "value" in
-			let parse s = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
-			begin try
-				let expr,value = parse expr_s,parse value in
-				begin try
-					let value = expr_to_value hctx.ctx hctx.env value in
-					write_expr hctx.ctx hctx.env expr value;
-					Loop (var_to_json "" value expr_s)
-				with Exit ->
-					hctx.send_error "Don't know how to handle this expression"
-				end
+			let value = try
+				let e = parse_expr hctx.ctx value env.env_debug.expr.epos in
+				expr_to_value hctx.ctx env e
 			with Parse_expr_error e ->
 				hctx.send_error e
+			in
+			begin match hctx.ctx.debug.debug_context#get id with
+			| Toplevel ->
+				hctx.send_error "Invalid id";
+			| Value(v,env) ->
+				let name_as_index () = try
+					(* The name is [1] so we have to extract the number. This is quite stupid but not really our fault... *)
+					int_of_string (String.sub name 1 (String.length name - 2))
+				with _ ->
+					hctx.send_error "integer expected"
+				in
+				begin match v with
+				| VArray va -> EvalArray.set va (name_as_index()) value
+				| VVector vv -> Array.set vv (name_as_index()) value
+				| _ ->
+					set_field v (hash name) value;
+				end;
+				Loop (var_to_json "" value None env)
+			| Scope(scope,env) ->
+				let id = Hashtbl.find scope.local_ids name in
+				let slot = Hashtbl.find scope.locals id in
+				env.env_locals.(slot + scope.local_offset) <- value;
+				Loop (var_to_json "" value None env)
+			| CaptureScope(infos,env) ->
+				let slot = get_capture_slot_by_name infos name in
+				env.env_captures.(slot) := value;
+				Loop (var_to_json "" value None env)
 			end
 		);
 		"setExceptionOptions",(fun hctx ->
@@ -576,11 +613,12 @@ let handler =
 			Loop(JNull)
 		);
 		"evaluate",(fun hctx ->
+			let env = update_frame hctx in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr hctx.ctx s hctx.env.env_debug.expr.epos in
-				let v = expr_to_value hctx.ctx hctx.env e in
-				Loop (var_to_json "" v (Ast.s_expr e))
+				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
+				let v = expr_to_value hctx.ctx env e in
+				Loop (var_to_json "" v None env)
 			with
 			| Parse_expr_error e ->
 				hctx.send_error e
@@ -589,10 +627,11 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
+			let env = hctx.env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try
-				ValueCompletion.get_completion hctx.ctx text column hctx.env
+				ValueCompletion.get_completion hctx.ctx text column env
 			with Exit ->
 				hctx.send_error "No completion point found";
 		);
@@ -601,10 +640,12 @@ let handler =
 	h
 
 let make_connection socket =
-	let output_breakpoint_stop _ _ =
+	let output_breakpoint_stop ctx _ =
+		ctx.debug.debug_context <- new eval_debug_context;
 		send_event socket "breakpointStop" None
 	in
-	let output_exception_stop _ v _ =
+	let output_exception_stop ctx v _ =
+		ctx.debug.debug_context <- new eval_debug_context;
 		send_event socket "exceptionStop" (Some (JObject ["text",JString (value_string v)]))
 	in
 	let rec wait ctx (run : env -> value) env =
