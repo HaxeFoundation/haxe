@@ -30,7 +30,7 @@ import haxe.macro.Expr;
 #end
 class Compiler {
 	/**
-		A conditional compiler flag can be set command line using
+		A conditional compilation flag can be set on the command line using
 		`-D key=value`.
 
 		Returns the value of a compiler flag.

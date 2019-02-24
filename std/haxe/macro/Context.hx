@@ -96,9 +96,9 @@ class Context {
 		Returns the type which is expected at the place the macro is called.
 
 		This affects usages such as `var x:Int = macroCall()`, where the
-		expected type will be reported as Int.
+		expected type will be reported as `Int`.
 
-		Might return null if no specific type is expected or if the calling
+		Might return `null` if no specific type is expected or if the calling
 		macro is not an expression-macro.
 	**/
 	@:require(haxe_ver >= 3.1)
@@ -120,7 +120,7 @@ class Context {
 	/**
 		Returns the current class in which the macro was called.
 
-		If no such class exists, null is returned.
+		If no such class exists, `null` is returned.
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
 		var l : Type = load("get_local_type", 0)();
@@ -141,7 +141,7 @@ class Context {
 	/**
 		Returns the current type in/on which the macro was called.
 
-		If no such type exists, null is returned.
+		If no such type exists, `null` is returned.
 	**/
 	public static function getLocalType() : Null<Type> {
 		return load("get_local_type", 0)();
@@ -150,7 +150,7 @@ class Context {
 	/**
 		Returns the name of the method from which the macro was called.
 
-		If no such method exists, null is returned.
+		If no such method exists, `null` is returned.
 	**/
 	public static function getLocalMethod() : Null<String> {
 		return load("get_local_method", 0)();
@@ -199,36 +199,42 @@ class Context {
 	}
 
 	/**
-		Tells if compiler directive `s` has been set.
+		Tells if the conditional compilation flag `s` has been set.
 
-		Compiler directives are set using the `-D` command line parameter, or
+		Compiler flags are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(s);
 	}
 
 	/**
-		Returns the value defined for compiler directive `key`.
+		Returns the value defined for the conditional compilation flag `key`.
 
-		If no value is defined for `key`, null is returned.
+		If no value is defined for `key`, `null` is returned.
 
-		Compiler directive values are set using the `-D key=value` command line
+		Compiler flags values are set using the `-D key=value` command line
 		parameter, or by calling `haxe.macro.Compiler.define`.
 
 		The default value is `"1"`.
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	public static function definedValue( key : String ) : String {
 		return load("defined_value", 1)(key);
 	}
 
 	/**
-		Returns a map of all compiler directives that have been set.
+		Returns a map of all conditional compilation flags that have been set.
 
-		Compiler directives are set using the `-D` command line parameter, or
+		Compiler flags are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
 
 		Modifying the returned map has no effect on the compiler.
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	public static function getDefines() : Map<String,String> {
 		return load("get_defines", 0)();
@@ -253,7 +259,7 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no module can be found, null is returned.
+		If no module can be found, `null` is returned.
 	**/
 	public static function getModule( name : String ) : Array<Type> {
 		return load("get_module", 1)(name);
@@ -346,7 +352,7 @@ class Context {
 		cannot be resolved.
 
 		The callback may return a type definition, which is then used for the
-		expected type. If it returns null, the type is considered to still not
+		expected type. If it returns `null`, the type is considered to still not
 		exist.
 	**/
 	public static function onTypeNotFound ( callback : String -> TypeDefinition ) {
@@ -509,7 +515,7 @@ class Context {
 		that can be returned from a macro and will be replaced by the stored
 		typed expression.
 
-		If `t` is null or invalid, an exception is thrown.
+		If `t` is `null` or invalid, an exception is thrown.
 
 		NOTE: the returned value references an internally stored typed expression
 		that is reset between compilations, so care should be taken when storing
@@ -526,7 +532,7 @@ class Context {
 		returns a syntax-level expression that can be returned from a macro and
 		will be replaced by the stored typed expression.
 
-		If `e` is null or invalid, an exception is thrown.
+		If `e` is `null` or invalid, an exception is thrown.
 
 		A call to `storeExpr(e)` is equivalent to `storeTypedExpr(typeExpr(e))` without
 		the overhead of encoding and decoding between regular and macro runtime.
