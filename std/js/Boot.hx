@@ -185,7 +185,7 @@ class Boot {
 		case String:
 			return js.Syntax.typeof(o) == "string";
 		case Array:
-			return js.Syntax.instanceof(o, Array) && o.__enum__ == null;
+			return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
 		case Dynamic:
 			return o != null;
 		default:
