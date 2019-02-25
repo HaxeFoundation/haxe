@@ -129,7 +129,7 @@ let valid_js_ident s =
 	with Exit ->
 		false
 
-let field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
+let field s = if not (valid_js_ident s) then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$" ^ v.v_name
 

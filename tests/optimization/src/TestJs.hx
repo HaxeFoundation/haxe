@@ -494,13 +494,13 @@ class TestJs {
 
 	#if js_enums_as_arrays
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
 	#else
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g._hx_index == 6 && _g.c == String;
 		TestJs.use(v);
 	')
