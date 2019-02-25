@@ -117,17 +117,17 @@ let output_call_stack ctx kind p =
 	let id = ref (-1) in
 	let stack_item kind p =
 		incr id;
-		let artificial,p = match kind with
-			| EKMethod _ | EKLocalFunction _ -> false,p
-			| EKEntrypoint p -> true,p
-			| EKToplevel -> true,p
-		in
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 		let path = Path.get_real_path p.pfile in
+		let artificial,name = match kind with
+			| EKMethod _ | EKLocalFunction _ -> false,kind_name (get_eval ctx) kind
+			| EKEntrypoint _ -> true,path
+			| EKToplevel -> true,kind_name (get_eval ctx) kind
+		in
 		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
 			"id",JInt !id;
-			"name",JString (kind_name (get_eval ctx) kind);
+			"name",JString name;
 			"source",source;
 			"line",JInt line1;
 			"column",JInt col1;
