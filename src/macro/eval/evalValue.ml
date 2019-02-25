@@ -79,6 +79,7 @@ end
 
 type vregex = {
 	r : Pcre.regexp;
+	r_rex_string : vstring;
 	r_global : bool;
 	mutable r_string : string;
 	mutable r_groups : Pcre.substrings array;

@@ -755,9 +755,10 @@ module StdEReg = struct
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
 		let flags = `UTF8 :: `UCP :: flags in
-		let r = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
+		let rex = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
-			r = r;
+			r = rex;
+			r_rex_string = create_ascii (Printf.sprintf "~/%s/%s" r opt);
 			r_global = !global;
 			r_string = "";
 			r_groups = [||]
@@ -3019,7 +3020,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
-	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
+	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
 	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
