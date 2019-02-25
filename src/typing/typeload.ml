@@ -32,6 +32,7 @@ open Type
 open Typecore
 open Error
 open Globals
+open Filename
 
 let build_count = ref 0
 
@@ -457,7 +458,9 @@ and load_complex_type' ctx allow_display (t,p) =
 				match fst a with
 				| APublic -> ()
 				| APrivate ->
-					ctx.com.warning "private structure fields are deprecated" (pos a);
+					let p = pos a in
+					if Filename.basename p.pfile <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
+						ctx.com.warning "private structure fields are deprecated" p;
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
