@@ -115,13 +115,20 @@ let get_call_stack_envs ctx kind p =
 let output_call_stack ctx kind p =
 	let envs = get_call_stack_envs ctx kind p in
 	let id = ref (-1) in
-	let stack_item kind p artificial =
+	let stack_item kind p =
 		incr id;
+		let artificial,p = match kind with
+			| EKMethod _ | EKLocalFunction _ -> false,p
+			| EKEntrypoint p -> true,p
+			| EKToplevel -> true,p
+		in
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
+		let path = Path.get_real_path p.pfile in
+		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
 			"id",JInt !id;
 			"name",JString (kind_name (get_eval ctx) kind);
-			"source",JString (Path.get_real_path p.pfile);
+			"source",source;
 			"line",JInt line1;
 			"column",JInt col1;
 			"endLine",JInt line2;
@@ -129,10 +136,10 @@ let output_call_stack ctx kind p =
 			"artificial",JBool artificial;
 		]
 	in
-	let l = [stack_item kind p false] in
+	let l = [stack_item kind p] in
 	let stack = List.fold_left (fun acc env ->
 		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_file_hash env.env_info.pfile} in
-		(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
+		(stack_item env.env_info.kind p) :: acc
 	) l envs in
 	JArray (List.rev stack)
 

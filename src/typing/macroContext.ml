@@ -232,10 +232,10 @@ let make_macro_api ctx p =
 				| Some _ -> tp.tp_type <- Option.map fst v
 			);
 		);
-		MacroApi.meta_patch = (fun m t f s ->
-			let m = parse_metadata m p in
+		MacroApi.meta_patch = (fun m t f s p ->
+			let ml = parse_metadata m p in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
-			tp.tp_meta <- tp.tp_meta @ m;
+			tp.tp_meta <- tp.tp_meta @ (List.map (fun (m,el,_) -> (m,el,p)) ml);
 		);
 		MacroApi.set_js_generator = (fun gen ->
 			Path.mkdir_from_path ctx.com.file;
@@ -361,9 +361,10 @@ let make_macro_api ctx p =
 					false
 			)
 		);
-		MacroApi.add_global_metadata = (fun s1 s2 config ->
+		MacroApi.add_global_metadata = (fun s1 s2 config p ->
 			let meta = parse_metadata s2 p in
-			List.iter (fun m ->
+			List.iter (fun (m,el,_) ->
+				let m = (m,el,p) in
 				ctx.g.global_metadata <- (ExtString.String.nsplit s1 ".",m,config) :: ctx.g.global_metadata;
 			) meta;
 		);

@@ -25,7 +25,7 @@ type 'value compiler_api = {
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> unit;
+	meta_patch : string -> string -> string option -> bool -> pos -> unit;
 	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
@@ -44,7 +44,7 @@ type 'value compiler_api = {
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
-	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
+	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
@@ -145,6 +145,7 @@ module type InterpApi = sig
 
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
+	val get_api_call_pos : unit -> pos
 end
 
 let enum_name = function
@@ -1586,11 +1587,11 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"meta_patch", vfun4 (fun m t f s ->
-			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s);
+			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s) (get_api_call_pos ());
 			vnull
 		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
-			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3);
+			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
 		);
 		"set_custom_js_generator", vfun1 (fun f ->

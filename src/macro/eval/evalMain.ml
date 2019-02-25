@@ -541,3 +541,12 @@ let handle_decoding_error f v t =
 	in
 	loop "" t v;
 	!errors
+
+let get_api_call_pos () =
+	let eval = get_eval (get_ctx()) in
+	let env = eval.env in
+	let env = match env.env_parent with
+		| None -> env
+		| Some env -> env
+	in
+	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }
