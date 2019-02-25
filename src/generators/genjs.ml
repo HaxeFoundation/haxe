@@ -1179,13 +1179,17 @@ let generate_class_es6 ctx c =
 		ctx.separator <- false
 	| _ -> ());
 
+	let method_def_name cf =
+		if valid_js_ident cf.cf_name then cf.cf_name else "\"" ^ cf.cf_name ^ "\""
+	in
+
 	let nonmethod_fields =
 		List.filter (fun cf ->
 			match cf.cf_kind, cf.cf_expr with
 			| Method _, Some { eexpr = TFunction f; epos = pos } ->
 				check_field_name c cf;
 				newline ctx;
-				gen_function ~keyword:cf.cf_name ctx f pos;
+				gen_function ~keyword:(method_def_name cf) ctx f pos;
 				ctx.separator <- false;
 				false
 			| _ ->
@@ -1200,7 +1204,7 @@ let generate_class_es6 ctx c =
 			| Method _, Some { eexpr = TFunction f; epos = pos } ->
 				check_field_name c cf;
 				newline ctx;
-				gen_function ~keyword:("static " ^ cf.cf_name) ctx f pos;
+				gen_function ~keyword:("static " ^ (method_def_name cf)) ctx f pos;
 				ctx.separator <- false;
 
 				(match get_exposed ctx ((dot_path c.cl_path) ^ (static_field c cf.cf_name)) cf.cf_meta with
