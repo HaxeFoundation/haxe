@@ -732,7 +732,7 @@ let call_macro ctx path meth args p =
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
-	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
+	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
 		ParserEntry.parse_expr_string ctx.com.defines e p error false
 	with err ->

@@ -153,7 +153,7 @@ let call_path ctx path f vl api =
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in
-			let info = create_env_info true (hash p.pfile) EKEntrypoint (Hashtbl.create 0) in
+			let info = create_env_info true (hash p.pfile) (EKEntrypoint p) (Hashtbl.create 0) in
 			let env = push_environment ctx info 0 0 in
 			env.env_leave_pmin <- p.pmin;
 			env.env_leave_pmax <- p.pmax;
