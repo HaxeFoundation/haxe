@@ -278,8 +278,9 @@ let traverse gen ?tparam_anon_decl ?tparam_anon_acc (handle_anon_func:texpr->tfu
 
 let rec get_type_params acc t =
 	match t with
-		| TInst(( { cl_kind = KTypeParameter _ } as cl), []) ->
-			if List.memq cl acc then acc else cl :: acc
+		| TInst(( { cl_kind = KTypeParameter constraints } as cl), []) ->
+			let params = List.fold_left get_type_params acc constraints in
+			List.filter (fun t -> not (List.memq t acc)) (cl :: params) @ acc;
 		| TFun (params,tret) ->
 			List.fold_left get_type_params acc ( tret :: List.map (fun (_,_,t) -> t) params )
 		| TDynamic t ->
@@ -412,6 +413,12 @@ let configure gen ft =
 		let path = (fst gen.gcurrent_path, name) in
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
+
+		(* Forward native type constraints meta *)
+		if Meta.has(Meta.Custom(":nativeTypeConstraints")) (get gen.gcurrent_class).cl_meta then begin
+			cls.cl_meta <- (Meta.NativeGen, [], null_pos) :: cls.cl_meta;
+			cls.cl_meta <- (Meta.Custom ":nativeTypeConstraints", [], null_pos) :: cls.cl_meta;
+		end;
 
 		if Common.defined gen.gcon Define.EraseGenerics then begin
 			cls.cl_meta <- (Meta.HaxeGeneric,[],null_pos) :: cls.cl_meta
