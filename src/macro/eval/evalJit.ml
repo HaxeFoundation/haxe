@@ -590,12 +590,23 @@ and jit_expr jit return e =
 	begin match ctx.debug.debug_socket with
 		| None ->
 			f
-		| Some socket -> begin match e.eexpr with
-			| TCall _ | TNew _ | TBinop((OpAssign | OpAssignOp _),_,_)
-			| TUnop((Increment | Decrement),_,_) | TVar _
+		| Some socket ->
+			let wrap () =
+				EvalDebug.debug_loop jit socket.connection e f
+			in
+			begin match e.eexpr with
+			| TCall _ | TNew _
+			| TVar({v_kind = VUser _},_)
 			| TFor _ | TIf _ | TWhile _ | TSwitch _ | TTry _
 			| TReturn _ | TBreak | TContinue | TThrow _ | TCast(_,Some _) ->
-				EvalDebug.debug_loop jit socket.connection e f
+				wrap()
+			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->
+				begin match (Texpr.skip e1).eexpr with
+				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable | VExtractorVariable} ->
+					f
+				| _ ->
+					wrap()
+				end
 			| _ ->
 				f
 		end
