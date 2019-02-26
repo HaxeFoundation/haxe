@@ -516,7 +516,7 @@ let load_macro ctx display cpath f p =
 		| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 		| _ -> cpath, None
 	) in
-	let meth = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
+	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
 		let mloaded = load_macro_module ctx cpath display p in
 		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
@@ -529,7 +529,7 @@ let load_macro ctx display cpath f p =
 		api.MacroApi.current_macro_module <- (fun() -> mloaded);
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 			DeprecationCheck.check_cf mctx.com meth p;
-		let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,cl,meth | _ -> error "Macro call should be a method" p) in
+		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
 		mctx.com.display <- DisplayTypes.DisplayMode.create DMNone;
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
@@ -544,6 +544,7 @@ let load_macro ctx display cpath f p =
 		t();
 		meth
 	in
+	add_dependency ctx.m.curmod mloaded;
 	let call args =
 		if ctx.com.verbose then Common.log ctx.com ("Calling macro " ^ s_type_path cpath ^ "." ^ f ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
 		let t = macro_timer ctx ["execution";s_type_path cpath ^ "." ^ f] in

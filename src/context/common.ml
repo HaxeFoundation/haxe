@@ -184,7 +184,7 @@ type context = {
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
-	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
