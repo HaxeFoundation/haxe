@@ -46,7 +46,11 @@ import haxe.Int64;
 
 	public inline function getTime() : Float
 	{
+		#if (net_ver < 35)
 		return cast(cs.system.TimeZone.CurrentTimeZone.ToUniversalTime(date).Ticks - epochTicks, Float) / cast(TimeSpan.TicksPerMillisecond, Float);
+		#else
+		return cast(cs.system.TimeZoneInfo.ConvertTimeToUtc(date).Ticks - epochTicks, Float) / cast(TimeSpan.TicksPerMillisecond, Float);
+		#end
 	}
 
 	public inline function getHours() : Int
@@ -106,7 +110,14 @@ import haxe.Int64;
 
 	static public inline function fromTime( t : Float ) : Date
 	{
+		#if (net_ver < 35)
 		return new Date(cs.system.TimeZone.CurrentTimeZone.ToLocalTime(new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64) + epochTicks)));
+		#else
+		return new Date(cs.system.TimeZoneInfo.ConvertTimeFromUtc(
+			new DateTime(cast(t * cast(TimeSpan.TicksPerMillisecond, Float), Int64) + epochTicks),
+			cs.system.TimeZoneInfo.Local
+		));
+		#end
 	}
 
 	static public function fromString( s : String ) : Date

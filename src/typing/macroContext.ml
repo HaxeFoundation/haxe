@@ -44,7 +44,7 @@ end
 let macro_enable_cache = ref false
 let macro_interp_cache = ref None
 
-let safe_decode v t p f =
+let safe_decode v expected t p f =
 	try
 		f ()
 	with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
@@ -53,7 +53,7 @@ let safe_decode v t p f =
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
 		List.iter (fun (s,i) -> Printf.fprintf ch "\nline %i: %s" i s) (List.rev errors);
 		close_out ch;
-		error (Printf.sprintf "There was a problem decoding (see %s.txt for details)" (String.concat "/" path)) p
+		error (Printf.sprintf "Expected %s but got %s (see %s.txt for details)" expected (Interp.value_string v) (String.concat "/" path)) p
 
 let get_next_stored_typed_expr_id =
 	let uid = ref 0 in
@@ -296,7 +296,7 @@ let make_macro_api ctx p =
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in
 			let ttype = Typeload.load_instance mctx (cttype,p) false in
 			let f () = Interp.decode_type_def v in
-			let m, tdef, pos = safe_decode v ttype p f in
+			let m, tdef, pos = safe_decode v "TypeDefinition" ttype p f in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
 				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
@@ -693,32 +693,35 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		match call_macro args with
 		| None -> None
 		| Some v ->
-			let process () =
-				Some (match mode with
-				| MExpr | MDisplay -> Interp.decode_expr v
+			let expected,process = match mode with
+				| MExpr | MDisplay ->
+					"Expr",(fun () -> Some (Interp.decode_expr v))
 				| MBuild ->
-					let fields = if v = Interp.vnull then
-							(match ctx.get_build_infos() with
-							| None -> assert false
-							| Some (_,_,fields) -> fields)
-						else
-							List.map Interp.decode_field (Interp.decode_array v)
-					in
-					(EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
+					"Array<Field>",(fun () ->
+						let fields = if v = Interp.vnull then
+								(match ctx.get_build_infos() with
+								| None -> assert false
+								| Some (_,_,fields) -> fields)
+							else
+								List.map Interp.decode_field (Interp.decode_array v)
+						in
+						Some (EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
+					)
 				| MMacroType ->
-					let t = if v = Interp.vnull then
-						mk_mono()
-					else try
-						let ct = Interp.decode_ctype v in
-						Typeload.load_complex_type ctx false ct;
-					with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
-						Interp.decode_type v
-					in
-					ctx.ret <- t;
-					(EBlock [],p)
-				)
+					"ComplexType",(fun () ->
+						let t = if v = Interp.vnull then
+							mk_mono()
+						else try
+							let ct = Interp.decode_ctype v in
+							Typeload.load_complex_type ctx false ct;
+						with MacroApi.Invalid_expr | EvalContext.RunTimeException _ ->
+							Interp.decode_type v
+						in
+						ctx.ret <- t;
+						Some (EBlock [],p)
+					)
 			in
-			safe_decode v mret p process
+			safe_decode v expected mret p process
 	in
 	let e = if ctx.in_macro then
 		Some (EThrow((EConst(String "macro-in-macro")),p),p)

@@ -543,6 +543,27 @@ class TestStrict {
 		while(a == null) shouldFail(b = a);
 	}
 
+	static function while_checkAgainstNullInConditionAndReassignInBody(?a:{value:String, ?parent:Dynamic}) {
+		while (a != null) {
+			var s:String = a.value;
+			a = a.parent;
+			shouldFail(a.value);
+		}
+
+		do {
+			a = shouldFail(a.parent);
+		} while (a != null);
+
+		a = {value:'hello', parent:null};
+		do {
+			var s:String = a.value;
+			a = a.parent;
+			shouldFail(a.value);
+		} while (a != null);
+
+		shouldFail(a.value);
+	}
+
 	static function throw_nullableValue_shouldFail() {
 		var s:Null<String> = null;
 		shouldFail(throw s);
