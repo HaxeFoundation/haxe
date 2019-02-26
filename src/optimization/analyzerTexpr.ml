@@ -671,7 +671,9 @@ module Fusion = struct
 				block_element acc (el1 @ el2)
 			| {eexpr = TObjectDecl fl} :: el ->
 				block_element acc ((List.map snd fl) @ el)
-			| {eexpr = TIf(e1,{eexpr = TBlock []},(Some {eexpr = TBlock []} | None))} :: el ->
+			| {eexpr = TIf(e1,e2,None)} :: el when not (has_side_effect e2) ->
+				block_element acc (e1 :: el)
+			| {eexpr = TIf(e1,e2,Some e3)} :: el when not (has_side_effect e2) && not (has_side_effect e3) ->
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock [e1]} :: el ->
 				block_element acc (e1 :: el)
