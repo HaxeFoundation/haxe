@@ -186,10 +186,14 @@ let output_capture_vars infos env =
 	JArray vars
 
 let output_scope_vars env scope =
+	let p = env.env_debug.expr.epos in
 	let vars = Hashtbl.fold (fun local_slot vi acc ->
-		let slot = local_slot + scope.local_offset in
-		let value = env.env_locals.(slot) in
-		(var_to_json vi.vi_name value (Some vi) env) :: acc
+		if vi.vi_pos.pmin < p.pmin then begin
+			let slot = local_slot + scope.local_offset in
+			let value = env.env_locals.(slot) in
+			(var_to_json vi.vi_name value (Some vi) env) :: acc
+		end else
+			acc
 	) scope.local_infos [] in
 	JArray vars
 
