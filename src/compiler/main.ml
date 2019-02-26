@@ -893,7 +893,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro false with
+		(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
+		   macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
+		if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
+			match load_display_module_in_macro false with
 			| None -> ()
 			| Some mctx ->
 				(* We don't need a full macro flush here because we're not going to run any macros. *)
