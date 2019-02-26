@@ -45,7 +45,7 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
-	| EKEntrypoint of pos
+	| EKEntrypoint
 	| EKToplevel
 
 (* Compile-time information for environments. This information is static for all
@@ -55,6 +55,8 @@ type env_info = {
 	static : bool;
 	(* Hash of the source file of this environment. *)
 	pfile : int;
+	(* Hash of the unique source file of this environment. *)
+	pfile_unique : int;
 	(* The environment kind. *)
 	kind : env_kind;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
@@ -252,8 +254,11 @@ let rec kind_name eval kind =
 			| None -> Printf.sprintf "localFunction%i" i
 			| Some env -> Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind env.env_parent) i
 			end
-		| EKEntrypoint p ->
-			p.pfile
+		| EKEntrypoint ->
+			begin match env with
+			| None -> "entrypoint"
+			| Some env -> rev_hash env.env_info.pfile
+			end
 		| EKToplevel ->
 			"toplevel"
 	in
@@ -325,6 +330,7 @@ let null_env = {
 	env_info = {
 		static = true;
 		pfile = EvalHash.hash "null-env";
+		pfile_unique = EvalHash.hash "null-env";
 		kind = EKToplevel;
 		capture_infos = Hashtbl.create 0;
 	};
@@ -341,7 +347,8 @@ let create_env_info static pfile kind capture_infos =
 	let info = {
 		static = static;
 		kind = kind;
-		pfile = pfile;
+		pfile = hash pfile;
+		pfile_unique = hash (Path.unique_full_path pfile);
 		capture_infos = capture_infos;
 	} in
 	info

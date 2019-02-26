@@ -220,7 +220,7 @@ and jit_expr jit return e =
 		let exec = jit_tfunction jit_closure true e.epos tf in
 		let num_captures = Hashtbl.length jit.captures in
 		let hasret = jit_closure.has_nonfinal_return in
-		let get_env = get_env jit_closure false (file_hash tf.tf_expr.epos.pfile) (EKLocalFunction jit.num_closures) in
+		let get_env = get_env jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
 		emit_closure ctx num_captures get_env hasret exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
@@ -642,7 +642,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	let exec = jit_tfunction jit static pos tf in
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
-	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let get_env = get_env jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
 	let exec = match ctx.debug.debug_socket with
 		| Some socket ->
 			(* This adds an implicit "return" so we get an additional step when debugging (see #7767). *)

@@ -139,7 +139,7 @@ let resolve_ident ctx env s =
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
-			| EKToplevel | EKEntrypoint _ -> assert false
+			| EKToplevel | EKEntrypoint -> assert false
 		in
 		let env = loop env in
 		let v = env.env_locals.(0) in

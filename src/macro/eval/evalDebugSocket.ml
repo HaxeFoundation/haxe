@@ -121,7 +121,7 @@ let output_call_stack ctx kind p =
 		let path = Path.get_real_path p.pfile in
 		let artificial,name = match kind with
 			| EKMethod _ | EKLocalFunction _ -> false,kind_name (get_eval ctx) kind
-			| EKEntrypoint _ -> true,path
+			| EKEntrypoint -> true,p.pfile
 			| EKToplevel -> true,kind_name (get_eval ctx) kind
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
@@ -138,7 +138,7 @@ let output_call_stack ctx kind p =
 	in
 	let l = [stack_item kind p] in
 	let stack = List.fold_left (fun acc env ->
-		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_file_hash env.env_info.pfile} in
+		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash env.env_info.pfile} in
 		(stack_item env.env_info.kind p) :: acc
 	) l envs in
 	JArray (List.rev stack)
