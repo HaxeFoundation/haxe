@@ -20,6 +20,7 @@ class DisplayTestCase {
 	inline function range(pos1, pos2) return ctx.range(pos1, pos2);
 	inline function signature(pos1) return ctx.signature(pos1);
 	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
+	inline function diagnostics() return ctx.diagnostics();
 
 	inline function noCompletionPoint(f) return ctx.noCompletionPoint(f);
 
@@ -35,20 +36,20 @@ class DisplayTestCase {
 		}
 	}
 
-	function arrayEq(expected:Array<String>, actual:Array<String>, ?pos:haxe.PosInfos) {
+	function arrayEq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
 		numTests++;
 		var leftover = expected.copy();
 		for (actual in actual) {
 			if (!leftover.remove(actual)) {
 				numFailures++;
 				report("Result not part of expected Array:", pos);
-				report(actual, pos);
+				report(Std.string(actual), pos);
 			}
 		}
 		for (leftover in leftover) {
 			numFailures++;
 			report("Expected result was not part of actual Array:", pos);
-			report(leftover, pos);
+			report(Std.string(leftover), pos);
 			return;
 		}
 	}

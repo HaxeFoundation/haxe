@@ -77,6 +77,11 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
+	public function diagnostics():Array<Diagnostic<Any>> {
+		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
+		return if (result == null) [] else result.diagnostics;
+	}
+
 	public function noCompletionPoint(f:Void -> Void):Bool {
 		return try {
 			f();
