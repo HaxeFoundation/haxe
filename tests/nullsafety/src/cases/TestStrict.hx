@@ -267,6 +267,15 @@ class TestStrict {
 		shouldFail((true ? 'hello' : v).length);
 	}
 
+	static function ternary_returnedFromInlinedFunction_shouldPass() {
+		var str:String = inlinedNullableSafeString([null]);
+	}
+
+	static inline function inlinedNullableSafeString(nullables:Array<Null<String>>):String {
+		var s = nullables[0];
+		return (s != null ? s : 'hello' );
+	}
+
 	static function arrayAccess_nullableArray_shouldFail() {
 		var a:Null<Array<Int>> = null;
 		shouldFail(a[0]);

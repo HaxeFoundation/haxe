@@ -1026,7 +1026,7 @@ class expr_checker mode immediate_execution report =
 		*)
 		method private check_while e =
 			match e.eexpr with
-				| TWhile (_, _, while_flag) ->
+				| TWhile _ ->
 					let check_condition condition =
 						if self#is_nullable_expr condition then
 							self#error "Cannot use nullable value as a condition in \"while\"." condition.epos;
@@ -1175,16 +1175,11 @@ class expr_checker mode immediate_execution report =
 				| OpBoolOr ->
 					local_safety#process_or left_expr right_expr self#is_nullable_expr self#check_expr
 				| OpAssign ->
+					check_both();
 					if not (self#can_pass_expr right_expr left_expr.etype p) then
-						begin
-							self#error "Cannot assign nullable value here." p;
-							check_both()
-						end
+						self#error "Cannot assign nullable value here." p
 					else
-						begin
-							check_both();
-							local_safety#handle_assignment self#is_nullable_expr left_expr right_expr;
-						end
+						local_safety#handle_assignment self#is_nullable_expr left_expr right_expr;
 				| _->
 					if self#is_nullable_expr left_expr || self#is_nullable_expr right_expr then
 						self#error "Cannot perform binary operation on nullable value." p;
@@ -1288,7 +1283,7 @@ class class_checker cls immediate_execution report  =
 			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field is_static f =
-				(* if f.cf_name = "return_assignNonNullable_shouldPass" then
+				(* if f.cf_name = "ternary_returnedFromInlinedFunction_shouldPass" then
 					Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
 				match (safety_mode (cls.cl_meta @ f.cf_meta)) with
 					| SMOff -> ()
