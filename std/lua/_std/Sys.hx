@@ -25,7 +25,6 @@ import lua.Boot;
 import lua.Io;
 import lua.Lua;
 import lua.Os;
-import lua.lib.luautf8.Utf8;
 import lua.lib.luv.Misc;
 import sys.io.FileInput;
 import sys.io.FileOutput;
