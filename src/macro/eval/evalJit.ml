@@ -615,6 +615,16 @@ and jit_tfunction jit static pos tf =
 		| None -> e
 		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
 	) tf.tf_expr tf.tf_args in
+	let has_final_return el = match List.rev el with
+		| {eexpr = TReturn _} :: _ -> true
+		| _ -> false
+	in
+	let e = match e.eexpr with
+		| TBlock el when ctx.debug.support_debugger && (ExtType.is_void (follow tf.tf_type)) && not (has_final_return el) ->
+			{e with eexpr = TBlock (el @ [mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}])}
+		| _ ->
+			e
+	in
 	(* Jit the function expression. *)
 	let exec = jit_expr jit true e in
 	(* Deal with captured arguments, if necessary. *)
@@ -643,17 +653,6 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
 	let get_env = get_env jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
-	let exec = match ctx.debug.debug_socket with
-		| Some socket ->
-			(* This adds an implicit "return" so we get an additional step when debugging (see #7767). *)
-			let exec env =
-				let v = exec env in
-				EvalDebug.debug_loop jit socket.connection (mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}) (fun _ -> v) env
-			in
-			exec
-		| None ->
-			exec
-	in
 	let f = create_function ctx get_env hasret empty_array exec in
 	t();
 	f
