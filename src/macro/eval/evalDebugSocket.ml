@@ -83,8 +83,13 @@ let var_to_json name value vio env =
 			in
 			jv type_s value_s (Array.length ve.eargs)
 		| VObject o ->
-			let fields = object_fields o in
-			jv "Anonymous" (fields_string fields) (List.length fields)
+			begin try
+				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
+				jv "Expr" (Ast.s_expr e) 2
+			with _ ->
+				let fields = object_fields o in
+				jv "Anonymous" (fields_string fields) (List.length fields)
+			end
 		| VString s ->
 			jv "String" (string_repr s) 2
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
