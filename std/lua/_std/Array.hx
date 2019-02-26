@@ -223,9 +223,5 @@ class Array<T> {
 			this.length = len;
 		}
 	}
-	private static function __init__() : Void{
-		// table-to-array helper
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_tab_array.lua");
-	}
 
 }
