@@ -148,6 +148,8 @@ let output_call_stack ctx kind p =
 	) l envs in
 	JArray (List.rev stack)
 
+let is_simn = false
+
 let output_scopes ctx env =
 	let capture_infos = env.env_info.capture_infos in
 	let scopes = env.env_debug.scopes in
@@ -174,6 +176,15 @@ let output_scopes ctx env =
 		else
 			acc
 	) [] scopes in
+	let scopes = if not is_simn then
+		scopes
+	else begin
+		let dbg = {
+			ds_expr = env.env_debug.expr;
+			ds_return = ctx.debug.last_return;
+		} in
+		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
+	end in
 	let scopes = List.rev scopes in
 	let scopes = if Hashtbl.length capture_infos = 0 then scopes else (mk_scope (ctx.debug.debug_context#add_capture_scope capture_infos env) "Captures" null_pos) :: scopes in
 	JArray scopes
@@ -184,6 +195,13 @@ let output_capture_vars infos env =
 		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
+
+let output_debug_scope dbg env =
+	let ja = [
+		var_to_json "expr" (VString (EvalString.create_ascii (Type.s_expr_pretty true "" false (s_type (print_context())) env.env_debug.expr))) None env;
+		var_to_json "last return" (match dbg.ds_return with None -> vnull | Some v -> v) None env;
+	] in
+	JArray ja
 
 let output_scope_vars env scope =
 	let p = env.env_debug.expr.epos in
@@ -512,6 +530,8 @@ let handler =
 								output_scope_vars env scope
 							| CaptureScope(infos,env) ->
 								output_capture_vars infos env
+							| DebugScope(dbg,env) ->
+								output_debug_scope dbg env
 							| Value(value,env) ->
 								output_inner_vars value env
 							| Toplevel ->
@@ -618,6 +638,8 @@ let handler =
 				let slot = get_capture_slot_by_name infos name in
 				env.env_captures.(slot) := value;
 				Loop (var_to_json "" value None env)
+			| DebugScope(_,env) ->
+				Loop JNull
 			end
 		);
 		"setExceptionOptions",(fun hctx ->

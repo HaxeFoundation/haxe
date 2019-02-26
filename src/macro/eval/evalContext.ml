@@ -136,9 +136,15 @@ type builtins = {
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
 }
 
+type debug_scope_info = {
+	ds_expr : texpr;
+	ds_return : value option;
+}
+
 type context_reference =
 	| Scope of scope * env
 	| CaptureScope of (int,var_info) Hashtbl.t * env
+	| DebugScope of debug_scope_info * env
 	| Value of value * env
 	| Toplevel
 
@@ -158,6 +164,10 @@ class eval_debug_context = object(self)
 
 	method add_value v env =
 		DynArray.add lut (Value(v,env));
+		DynArray.length lut - 1
+
+	method add_debug_scope scope env =
+		DynArray.add lut (DebugScope(scope,env));
 		DynArray.length lut - 1
 
 	method get id =
@@ -202,6 +212,9 @@ and debug = {
 	mutable exception_mode : exception_mode;
 	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
 	mutable caught_exception : value;
+	(* The value which was last returned. *)
+	mutable last_return : value option;
+	(* The debug context which manages scopes and variables. *)
 	mutable debug_context : eval_debug_context;
 }
 

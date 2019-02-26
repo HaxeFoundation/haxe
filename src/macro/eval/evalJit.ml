@@ -333,14 +333,16 @@ and jit_expr jit return e =
 		pop_scope jit;
 		f
 	| TReturn None ->
-		if return then emit_null
+		if return && not jit.ctx.debug.support_debugger then
+			emit_null
 		else begin
 			jit.has_nonfinal_return <- true;
 			emit_return_null
 		end
 	| TReturn (Some e1) ->
 		let exec = jit_expr jit false e1 in
-		if return then emit_value exec
+		if return && not jit.ctx.debug.support_debugger then
+			emit_value exec
 		else begin
 			jit.has_nonfinal_return <- true;
 			emit_return_value exec
