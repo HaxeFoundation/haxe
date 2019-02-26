@@ -198,7 +198,26 @@ let type_function ctx args ret fmode f do_display p =
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
-			| TBlock l -> { e with eexpr = TBlock (ev::l) }
+			| TBlock l ->
+				if ctx.com.config.pf_this_before_super then
+					{ e with eexpr = TBlock (ev :: l) }
+				else begin
+					let rec has_v e = match e.eexpr with
+						| TLocal v' when v == v -> true
+						| _ -> check_expr has_v e
+					in
+					let rec loop el = match el with
+						| e :: el ->
+							if has_v e then
+								ev :: e :: el
+							else
+								e :: loop el
+						| [] ->
+							(* should not happen... *)
+							[]
+					in
+					{ e with eexpr = TBlock (loop l) }
+				end
 			| _ -> mk (TBlock [ev;e]) e.etype p)
 		| _ -> e
 	in

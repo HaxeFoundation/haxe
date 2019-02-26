@@ -98,6 +98,8 @@ type platform_config = {
 	pf_supports_function_equality : bool;
 	(** uses utf16 encoding with ucs2 api **)
 	pf_uses_utf16 : bool;
+	(** target supports `this` before `super` **)
+	pf_this_before_super : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -273,6 +275,7 @@ let default_config =
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
 		pf_uses_utf16 = true;
+		pf_this_before_super = true;
 	}
 
 let get_config com =
@@ -287,6 +290,7 @@ let get_config com =
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_this_before_super = false; (* check ES6 flag? meh... *)
 		}
 	| Lua ->
 		{
