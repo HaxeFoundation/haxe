@@ -83,8 +83,13 @@ let var_to_json name value vio env =
 			in
 			jv type_s value_s (Array.length ve.eargs)
 		| VObject o ->
-			let fields = object_fields o in
-			jv "Anonymous" (fields_string fields) (List.length fields)
+			begin try
+				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
+				jv "Expr" (Ast.s_expr e) 2
+			with _ ->
+				let fields = object_fields o in
+				jv "Anonymous" (fields_string fields) (List.length fields)
+			end
 		| VString s ->
 			jv "String" (string_repr s) 2
 		| VArray va -> jv "Array" (array_elems (EvalArray.to_list va)) va.alength
@@ -115,13 +120,20 @@ let get_call_stack_envs ctx kind p =
 let output_call_stack ctx kind p =
 	let envs = get_call_stack_envs ctx kind p in
 	let id = ref (-1) in
-	let stack_item kind p artificial =
+	let stack_item kind p =
 		incr id;
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
+		let path = Path.get_real_path p.pfile in
+		let artificial,name = match kind with
+			| EKMethod _ | EKLocalFunction _ -> false,kind_name (get_eval ctx) kind
+			| EKEntrypoint -> true,p.pfile
+			| EKToplevel -> true,kind_name (get_eval ctx) kind
+		in
+		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
 			"id",JInt !id;
-			"name",JString (kind_name (get_eval ctx) kind);
-			"source",JString (Path.get_real_path p.pfile);
+			"name",JString name;
+			"source",source;
 			"line",JInt line1;
 			"column",JInt col1;
 			"endLine",JInt line2;
@@ -129,10 +141,10 @@ let output_call_stack ctx kind p =
 			"artificial",JBool artificial;
 		]
 	in
-	let l = [stack_item kind p false] in
+	let l = [stack_item kind p] in
 	let stack = List.fold_left (fun acc env ->
-		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_file_hash env.env_info.pfile} in
-		(stack_item env.env_info.kind p (env.env_leave_pmin < 0)) :: acc
+		let p = {pmin = env.env_leave_pmin; pmax = env.env_leave_pmax; pfile = rev_hash env.env_info.pfile} in
+		(stack_item env.env_info.kind p) :: acc
 	) l envs in
 	JArray (List.rev stack)
 
@@ -174,10 +186,14 @@ let output_capture_vars infos env =
 	JArray vars
 
 let output_scope_vars env scope =
+	let p = env.env_debug.expr.epos in
 	let vars = Hashtbl.fold (fun local_slot vi acc ->
-		let slot = local_slot + scope.local_offset in
-		let value = env.env_locals.(slot) in
-		(var_to_json vi.vi_name value (Some vi) env) :: acc
+		if vi.vi_pos.pmin < p.pmin then begin
+			let slot = local_slot + scope.local_offset in
+			let value = env.env_locals.(slot) in
+			(var_to_json vi.vi_name value (Some vi) env) :: acc
+		end else
+			acc
 	) scope.local_infos [] in
 	JArray vars
 
@@ -484,7 +500,7 @@ let handler =
 			let env = update_frame hctx in
 			Loop (output_scopes hctx.ctx env);
 		);
-		"getScopeVariables",(fun hctx ->
+		"getVariables",(fun hctx ->
 			let sid = hctx.jsonrpc#get_int_param "id" in
 			begin
 				let vars =

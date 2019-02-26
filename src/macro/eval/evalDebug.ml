@@ -77,7 +77,7 @@ let debug_loop jit conn e f =
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try
-			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
+			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile_unique in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
 				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
