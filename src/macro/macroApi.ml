@@ -563,6 +563,8 @@ let decode_import t = (List.map (fun o -> ((decode_string (field o "name")), (de
 
 let maybe_decode_pos p = try decode_pos p with Invalid_expr -> Globals.null_pos
 
+let decode_pos_default p pd = try decode_pos p with Invalid_expr -> pd
+
 let decode_placed_name vp v =
 	decode_string v,maybe_decode_pos vp
 
@@ -646,10 +648,11 @@ and decode_field v =
 		| _ ->
 			raise Invalid_expr
 	in
+	let pos = decode_pos (field v "pos") in
 	{
-		cff_name = decode_placed_name (field v "name_pos") (field v "name");
+		cff_name = (decode_string (field v "name"),decode_pos_default (field v "name_pos") pos);
 		cff_doc = opt decode_string (field v "doc");
-		cff_pos = decode_pos (field v "pos");
+		cff_pos = pos;
 		cff_kind = fkind;
 		cff_access = List.map decode_access (opt_list decode_array (field v "access"));
 		cff_meta = opt_list decode_meta_content (field v "meta");
