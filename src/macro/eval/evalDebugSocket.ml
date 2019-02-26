@@ -496,7 +496,7 @@ let handler =
 			let env = update_frame hctx in
 			Loop (output_scopes hctx.ctx env);
 		);
-		"getScopeVariables",(fun hctx ->
+		"getVariables",(fun hctx ->
 			let sid = hctx.jsonrpc#get_int_param "id" in
 			begin
 				let vars =
