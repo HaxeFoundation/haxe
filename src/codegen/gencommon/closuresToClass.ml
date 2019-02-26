@@ -414,11 +414,9 @@ let configure gen ft =
 		let cls = mk_class (get gen.gcurrent_class).cl_module path tfunc.tf_expr.epos in
 		if in_unsafe then cls.cl_meta <- (Meta.Unsafe,[],null_pos) :: cls.cl_meta;
 
-		(* Forward native type constraints meta *)
-		if Meta.has(Meta.Custom(":nativeTypeConstraints")) (get gen.gcurrent_class).cl_meta then begin
-			cls.cl_meta <- (Meta.NativeGen, [], null_pos) :: cls.cl_meta;
-			cls.cl_meta <- (Meta.Custom ":nativeTypeConstraints", [], null_pos) :: cls.cl_meta;
-		end;
+		(* forward NativeGen meta for Cs target *)
+		if (Common.platform gen.gcon Cs) && not(is_hxgen (TClassDecl (get gen.gcurrent_class))) && Meta.has(Meta.NativeGen) (get gen.gcurrent_class).cl_meta then
+			cls.cl_meta <- (Meta.NativeGen,[],null_pos) :: cls.cl_meta;
 
 		if Common.defined gen.gcon Define.EraseGenerics then begin
 			cls.cl_meta <- (Meta.HaxeGeneric,[],null_pos) :: cls.cl_meta
