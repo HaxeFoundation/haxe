@@ -318,6 +318,8 @@ class Context {
 		If `persistent` is set to `false`, changes to types made by the callback only
 		affect the current compilation. If no compilation server is used, this flag has
 		no effect.
+
+		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
 	public static function onGenerate( callback : Array<Type> -> Void, persistent:Bool = true ) {
 		load("on_generate",2)(callback, persistent);
@@ -329,6 +331,8 @@ class Context {
 
 		Compilation has completed at this point and cannot be influenced
 		anymore. However, contextual information is still available.
+
+		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
 	@:require(haxe_ver >= 3.1)
 	public static function onAfterGenerate( callback : Void -> Void ) {
