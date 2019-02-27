@@ -802,8 +802,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf_kind = Var kind;
 		cf_public = is_public (ctx,cctx) f.cff_access None;
 		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -1029,8 +1029,8 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		cf_public = is_public (ctx,cctx) f.cff_access parent;
 		cf_params = params;
 		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p

@@ -508,8 +508,8 @@ and load_complex_type' ctx allow_display (t,p) =
 				cf_params = !params;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
-				cf_final = !final;
 			} in
+			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;

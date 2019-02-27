@@ -895,7 +895,7 @@ and encode_cfield f =
 		"doc", null encode_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
 		"isExtern", vbool f.cf_extern;
-		"isFinal", vbool f.cf_final;
+		"isFinal", vbool (has_class_field_flag f CfFinal);
 	]
 
 and encode_field_kind k =
@@ -1274,7 +1274,6 @@ let decode_cfield v =
 		cf_overloads = decode_ref (field v "overloads");
 		cf_public = public;
 		cf_extern = extern;
-		cf_final = final;
 		cf_flags = 0;
 	} in
 	if not public then add_class_field_flag cf CfPrivate;

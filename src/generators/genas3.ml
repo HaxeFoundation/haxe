@@ -1005,7 +1005,7 @@ let generate_field ctx static f =
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s%s " rights (if static || not f.cf_final then "" else " final ");
+		print ctx "%s%s " rights (if static || not (has_class_field_flag f CfFinal) then "" else " final ");
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()

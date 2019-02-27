@@ -190,7 +190,6 @@ and tclass_field = {
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
 	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
-	mutable cf_final : bool;
 	mutable cf_flags : int;
 }
 
@@ -515,7 +514,6 @@ let mk_field name t p name_pos = {
 	cf_params = [];
 	cf_overloads = [];
 	cf_extern = false;
-	cf_final = false;
 	cf_flags = 0;
 }
 
@@ -1451,7 +1449,6 @@ module Printer = struct
 			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
 			"cf_public",string_of_bool cf.cf_public;
-			"cf_final",string_of_bool cf.cf_final;
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
@@ -2392,7 +2389,7 @@ and unify_with_access f1 t1 f2 =
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify f2.cf_type t1
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
-		if f1.cf_final <> f2.cf_final then raise (Unify_error [FinalInvariance]);
+		if (has_class_field_flag f1 CfFinal) <> (has_class_field_flag f2 CfFinal) then raise (Unify_error [FinalInvariance]);
 		unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
