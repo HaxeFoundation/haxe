@@ -41,9 +41,12 @@ class Compiler {
 		If the compiler flag is not defined, `Compiler.getDefine` returns
 		`null`.
 
+		Note: This is a macro and cannot be called from within other macros. Refer
+		to `haxe.macro.Context.definedValue` to obtain defined values in macro context.
+
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	macro static public function getDefine( key : String ) {
+	macro /* <-- ! */ static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
