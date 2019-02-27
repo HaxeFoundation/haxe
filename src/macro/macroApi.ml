@@ -882,7 +882,7 @@ and encode_cfield f =
 	encode_obj [
 		"name", encode_string f.cf_name;
 		"type", encode_lazy_type f.cf_type;
-		"isPublic", vbool f.cf_public;
+		"isPublic", vbool (has_class_field_flag f CfPublic);
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
@@ -1272,7 +1272,6 @@ let decode_cfield v =
 		cf_expr = None;
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
-		cf_public = public;
 		cf_flags = 0;
 	} in
 	if public then add_class_field_flag cf CfPublic;

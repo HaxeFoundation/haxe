@@ -388,7 +388,7 @@ let unify_field_call ctx fa el args ret p inline =
 					Some e
 			);
 			cf2.cf_kind <- cf.cf_kind;
-			cf2.cf_public <- cf.cf_public;
+			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
 			let metadata = List.filter (fun (m,_,_) -> match m with
 				| Meta.Generic -> false
 				| _ -> true

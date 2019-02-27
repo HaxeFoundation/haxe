@@ -996,7 +996,7 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
+	let public = (has_class_field_flag f CfPublic) || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
 		|| f.cf_name = "resolve" || Meta.has Meta.Public f.cf_meta
 		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
@@ -1114,7 +1114,7 @@ let generate_class ctx c =
 	| Some f ->
 		let f = { f with
 			cf_name = snd c.cl_path;
-			cf_public = true;
+			cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic);
 			cf_kind = Method MethNormal;
 		} in
 		ctx.constructor_block <- true;

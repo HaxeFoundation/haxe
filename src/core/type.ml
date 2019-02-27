@@ -179,7 +179,6 @@ and texpr = {
 and tclass_field = {
 	mutable cf_name : string;
 	mutable cf_type : t;
-	mutable cf_public : bool;
 	cf_pos : pos;
 	cf_name_pos : pos;
 	mutable cf_doc : Ast.documentation;
@@ -518,7 +517,6 @@ let mk_field name t p name_pos = {
 	cf_name_pos = name_pos;
 	cf_doc = None;
 	cf_meta = [];
-	cf_public = true;
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
 	cf_expr_unoptimized = None;
@@ -1458,7 +1456,6 @@ module Printer = struct
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
-			"cf_public",string_of_bool cf.cf_public;
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
@@ -1909,7 +1906,7 @@ let rec type_eq param a b =
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq param a b with Unify_error l -> error (invalid_field n :: l));
-					if f1.cf_public != f2.cf_public then error [invalid_visibility n];
+					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -2082,7 +2079,7 @@ let rec unify a b =
 				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
 				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
-				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+				if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 
 				(match f2.cf_kind with
 				| Var { v_read = AccNo } | Var { v_read = AccNever } ->
@@ -2167,7 +2164,7 @@ let rec unify a b =
 					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
-					if not cf.cf_public then error [invalid_visibility "new"];
+					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
 					begin try unify t t1
 					with Unify_error l -> error (cannot_unify a b :: l) end
 			end
@@ -2250,7 +2247,7 @@ and unify_anons a b a1 a2 =
 				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
 					f1.cf_kind <- f2.cf_kind;
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
-			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
 				unify_with_access f1 (field_type f1) f2;
 				(match !(a1.a_status) with

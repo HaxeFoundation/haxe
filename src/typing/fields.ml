@@ -155,13 +155,13 @@ let field_access ctx mode f fmode t e p =
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_public = false } false -> normal()
+			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Opened when mode = MSet ->
 					f.cf_kind <- Var { v with v_write = AccNormal };
 					normal()
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_public = false } true -> normal()
+				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
@@ -416,7 +416,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 		(try
 			let f = PMap.find i a.a_fields in
 			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
-			if not f.cf_public && not ctx.untyped then begin
+			if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
 				| Statics c when can_access ctx c f true -> ()

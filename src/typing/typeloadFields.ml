@@ -511,7 +511,7 @@ let is_public (ctx,cctx) access parent =
 	else if List.mem_assoc APublic access then
 		true
 	else match parent with
-		| Some { cf_public = p } -> p
+		| Some cf -> (has_class_field_flag cf CfPublic)
 		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
 
 let rec get_parent c name =
@@ -800,8 +800,8 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var kind;
-		cf_public = is_public (ctx,cctx) f.cff_access None;
 	} in
+	if not (is_public (ctx,cctx) f.cff_access None) then remove_class_field_flag cf CfPublic;
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
@@ -1026,9 +1026,9 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
-		cf_public = is_public (ctx,cctx) f.cff_access parent;
 		cf_params = params;
 	} in
+	if not (is_public (ctx,cctx) f.cff_access parent) then remove_class_field_flag cf CfPublic;
 	if fctx.is_final then add_class_field_flag cf CfFinal;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
@@ -1247,8 +1247,8 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var { v_read = get; v_write = set };
-		cf_public = is_public (ctx,cctx) f.cff_access None;
 	} in
+	if not (is_public (ctx,cctx) f.cff_access None) then remove_class_field_flag cf CfPublic;
 	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
