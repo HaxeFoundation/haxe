@@ -47,7 +47,7 @@ class Macro {
 
 			switch (field.kind) {
 				case FFun(f) if (f.expr != null):
-					f.expr = macro { ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers); ${f.expr} };
+					f.expr = macro @:pos(f.expr.pos) { ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers); ${f.expr} };
 				case _:
 			}
 		}
