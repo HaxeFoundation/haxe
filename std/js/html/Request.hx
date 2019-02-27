@@ -101,7 +101,7 @@ extern class Request {
 	**/
 	function clone() : Request;
 	/** @throws DOMError */
-	function arrayBuffer() : Promise<ArrayBuffer>;
+	function arrayBuffer() : Promise<js.lib.ArrayBuffer>;
 	/** @throws DOMError */
 	function blob() : Promise<Blob>;
 	/** @throws DOMError */

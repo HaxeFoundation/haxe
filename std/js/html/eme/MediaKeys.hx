@@ -45,6 +45,6 @@ extern class MediaKeys {
 	/**
 		Returns a `Promise` to a server certificate to be used to encrypt messages to the license server.
 	**/
-	@:overload( function( serverCertificate : js.html.ArrayBuffer) : Promise<Void> {} )
-	function setServerCertificate( serverCertificate : js.html.ArrayBufferView ) : Promise<Void>;
+	@:overload( function( serverCertificate : js.lib.ArrayBuffer) : Promise<Void> {} )
+	function setServerCertificate( serverCertificate : js.lib.ArrayBufferView ) : Promise<Void>;
 }

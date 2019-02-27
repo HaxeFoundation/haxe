@@ -98,6 +98,6 @@ extern class WebSocket extends EventTarget {
 	/** @throws DOMError */
 	@:overload( function( data : String ) : Void {} )
 	@:overload( function( data : Blob ) : Void {} )
-	@:overload( function( data : ArrayBuffer ) : Void {} )
-	function send( data : ArrayBufferView ) : Void;
+	@:overload( function( data : js.lib.ArrayBuffer ) : Void {} )
+	function send( data : js.lib.ArrayBufferView ) : Void;
 }

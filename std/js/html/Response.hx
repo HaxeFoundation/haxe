@@ -82,8 +82,8 @@ extern class Response {
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	@:overload( function( ?body : ArrayBufferView, ?init : ResponseInit) : Response {} )
-	@:overload( function( ?body : ArrayBuffer, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : js.lib.ArrayBufferView, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : js.lib.ArrayBuffer, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : FormData, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : URLSearchParams, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : Dynamic/*MISSING ReadableStream*/, ?init : ResponseInit) : Response {} )
@@ -96,7 +96,7 @@ extern class Response {
 	**/
 	function clone() : Response;
 	/** @throws DOMError */
-	function arrayBuffer() : Promise<ArrayBuffer>;
+	function arrayBuffer() : Promise<js.lib.ArrayBuffer>;
 	/** @throws DOMError */
 	function blob() : Promise<Blob>;
 	/** @throws DOMError */
