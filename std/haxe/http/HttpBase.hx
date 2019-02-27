@@ -43,7 +43,7 @@ class HttpBase {
 		Urls.
 	**/
 	public var url:String;
-	public var responseData(default, null):Null<Any>;
+	public var responseData(default, null):Null<String>;
 	var postData:String;
 	var headers:Array<StringKeyValue>;
 	var params:Array<StringKeyValue>;
@@ -155,7 +155,7 @@ class HttpBase {
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onData = function(data) { // handle result }`
 	**/
-	public dynamic function onData(data:Any) {
+	public dynamic function onData(data:String) {
 	}
 
 	/**
