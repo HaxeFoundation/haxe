@@ -2135,10 +2135,9 @@ let generate_class ctx c =
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
 		let cf = {
-			(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
+			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic)) c.cl_pos null_pos) with
 			cf_kind = Method MethNormal;
 		} in
-		if not (ctx.swc && ctx.swf_protected) then remove_class_field_flag cf CfPublic;
 		{
 			hlf_name = make_name cf false;
 			hlf_slot = 0;

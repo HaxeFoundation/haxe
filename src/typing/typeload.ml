@@ -502,13 +502,12 @@ and load_complex_type' ctx allow_display (t,p) =
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
-				(mk_field n t p (pos f.cff_name)) with
+				(mk_field n ~public:!pub t p (pos f.cff_name)) with
 				cf_kind = access;
 				cf_params = !params;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
 			} in
-			if not !pub then remove_class_field_flag cf CfPublic;
 			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
