@@ -44,20 +44,13 @@ class Macro {
 					}
 				}
 			}
-			testCases.push(macro function() {
-				ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers);
-				$i{field.name}();
-			});
-		}
 
-		fields.push((macro class {
-			public function new() {
-				testName = $v{c.name};
-				numTests = 0;
-				numFailures = 0;
-				this.methods = $a{testCases};
+			switch (field.kind) {
+				case FFun(f) if (f.expr != null):
+					f.expr = macro { ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers); ${f.expr} };
+				case _:
 			}
-		}).fields[0]);
+		}
 
 		return fields;
 	}
@@ -77,7 +70,7 @@ class Macro {
 				var p = new haxe.io.Path(file);
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};
-					cases.push(macro { name:$v{tp.name}, exec:new $tp() });
+					cases.push(macro new $tp());
 				} else if(Path.join([path, file]).isDirectory()) {
 					loop(pack.concat([file]));
 				}

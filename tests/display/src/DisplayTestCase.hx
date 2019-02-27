@@ -1,14 +1,13 @@
+import utest.Assert;
 import Types;
 
 using Lambda;
 
 @:autoBuild(Macro.buildTestCase())
-class DisplayTestCase {
+class DisplayTestCase implements utest.ITest {
 	var ctx:DisplayTestContext;
-	var methods:Array<Void->Void>;
-	var numTests:Int;
-	var numFailures:Int;
-	var testName:String;
+
+	public function new() { }
 
 	// api
 	inline function pos(name) return ctx.pos(name);
@@ -24,34 +23,14 @@ class DisplayTestCase {
 
 	inline function noCompletionPoint(f) return ctx.noCompletionPoint(f);
 
-	function assert(v:Bool) if (!v) throw "assertion failed";
+	function assert(v:Bool) Assert.isTrue(v);
 
 	function eq<T>(expected:T, actual:T, ?pos:haxe.PosInfos) {
-		numTests++;
-		if (expected != actual) {
-			numFailures++;
-			report("Assertion failed", pos);
-			report("Expected: " + expected, pos);
-			report("Actual:   " + actual, pos);
-		}
+		Assert.equals(expected, actual, pos);
 	}
 
 	function arrayEq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
-		numTests++;
-		var leftover = expected.copy();
-		for (actual in actual) {
-			if (!leftover.remove(actual)) {
-				numFailures++;
-				report("Result not part of expected Array:", pos);
-				report(Std.string(actual), pos);
-			}
-		}
-		for (leftover in leftover) {
-			numFailures++;
-			report("Expected result was not part of actual Array:", pos);
-			report(Std.string(leftover), pos);
-			return;
-		}
+		Assert.same(expected, actual, pos);
 	}
 
 	function arrayCheck<T>(expected:Array<T>, actual:Array<T>, f : T -> String, ?pos:haxe.PosInfos) {
@@ -59,7 +38,6 @@ class DisplayTestCase {
 		for (actual in actual) {
 			var key = f(actual);
 			if (!expected.exists(key)) {
-				numFailures++;
 				report("Result not part of expected Array:", pos);
 				report(Std.string(actual), pos);
 			}
@@ -67,7 +45,6 @@ class DisplayTestCase {
 		}
 
 		for (expected in expected) {
-			numFailures++;
 			report("Expected result was not part of actual Array:", pos);
 			report(Std.string(expected), pos);
 			return;
@@ -100,17 +77,6 @@ class DisplayTestCase {
 	}
 
 	function report(message, pos:haxe.PosInfos) {
-		haxe.Log.trace(message, pos);
-	}
-
-	public function run() {
-		for (method in methods) {
-			method();
-		}
-		return {
-			testName: testName,
-			numTests: numTests,
-			numFailures: numFailures
-		}
+		Assert.fail(message, pos);
 	}
 }
