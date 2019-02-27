@@ -441,7 +441,7 @@ module TypePathHandler = struct
 			in
 			let fields = match !statics with
 				| None -> types
-				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> cf.cf_public) c.cl_ordered_statics))
+				| Some c -> types @ (List.map (make_field_doc c) (List.filter (fun cf -> has_class_field_flag cf CfPublic) c.cl_ordered_statics))
 			in
 			let fields = match !enum_statics with
 				| None -> fields

@@ -511,7 +511,7 @@ let is_public (ctx,cctx) access parent =
 	else if List.mem_assoc APublic access then
 		true
 	else match parent with
-		| Some { cf_public = p } -> p
+		| Some cf -> (has_class_field_flag cf CfPublic)
 		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
 
 let rec get_parent c name =
@@ -796,14 +796,13 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		{ v_read = AccNormal ; v_write = AccNormal }
 	in
 	let cf = {
-		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
+		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access None) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var kind;
-		cf_public = is_public (ctx,cctx) f.cff_access None;
-		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -1022,15 +1021,14 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let args = loop fd.f_args in
 	let t = TFun (fun_args args,ret) in
 	let cf = {
-		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
+		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
-		cf_public = is_public (ctx,cctx) f.cff_access parent;
 		cf_params = params;
-		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
@@ -1243,13 +1241,12 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	) in
 	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
 	let cf = {
-		(mk_field name ret f.cff_pos (pos f.cff_name)) with
+		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var { v_read = get; v_write = set };
-		cf_public = is_public (ctx,cctx) f.cff_access None;
-		cf_extern = fctx.is_extern;
 	} in
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf

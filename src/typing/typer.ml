@@ -1612,7 +1612,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if cf.cf_final then is_final := true;
+						if (has_class_field_flag cf CfFinal) then is_final := true;
 						if ctx.in_display && DisplayPosition.encloses_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
@@ -1628,7 +1628,7 @@ and type_object_decl ctx fl with_type p =
 			if is_valid then begin
 				if starts_with n '$' then error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then cf.cf_final <- true;
+				if !is_final then add_class_field_flag cf CfFinal;
 				fields := PMap.add n cf !fields;
 			end;
 			((n,pn,qs),e)

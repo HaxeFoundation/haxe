@@ -126,11 +126,11 @@ let rec get_subject loose_safety expr =
 	match expr.eexpr with
 		| TLocal v ->
 			SLocalVar v.v_id
-		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when loose_safety || field.cf_final ->
+		| TField ({ eexpr = TTypeExpr _ }, FStatic (cls, field)) when loose_safety || (has_class_field_flag field CfFinal) ->
 			SFieldOfClass (cls.cl_path, [field.cf_name])
-		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when loose_safety || field.cf_final ->
+		| TField ({ eexpr = TConst TThis }, (FInstance (_, _, field) | FAnon field)) when loose_safety || (has_class_field_flag field CfFinal) ->
 			SFieldOfThis [field.cf_name]
-		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when loose_safety || field.cf_final ->
+		| TField ({ eexpr = TLocal v }, (FInstance (_, _, field) | FAnon field)) when loose_safety || (has_class_field_flag field CfFinal) ->
 			SFieldOfLocalVar (v.v_id, [field.cf_name])
 		| TField (e, (FInstance (_, _, field) | FAnon field)) when loose_safety ->
 			(match get_subject loose_safety e with
@@ -466,7 +466,7 @@ class immediate_execution =
 							(* known to be pure *)
 							| { cl_path = ([], "Array") }, _ -> true
 							(* try to analyze function code *)
-							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) when field.cf_final || not (is_overridden cls field) ->
+							| _, ({ cf_expr = (Some { eexpr = TFunction fn }) } as field) when (has_class_field_flag field CfFinal) || not (is_overridden cls field) ->
 								if arg_num < 0 || arg_num >= List.length fn.tf_args then
 									false
 								else begin

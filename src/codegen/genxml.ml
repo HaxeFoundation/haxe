@@ -121,7 +121,7 @@ let rec gen_type ?(values=None) t =
 			if opt then follow_param t else t
 		) args in
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
-	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
+	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (lazy_type f)
 
@@ -171,8 +171,8 @@ and gen_field att f =
 		with Not_found ->
 			cf.cf_name
 	in
-	let att = if f.cf_public then ("public","1") :: att else att in
-	let att = if f.cf_final then ("final","1") :: att else att in
+	let att = if has_class_field_flag f CfPublic then ("public","1") :: att else att in
+	let att = if has_class_field_flag f CfFinal then ("final","1") :: att else att in
 	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
@@ -500,7 +500,7 @@ let generate_type com t =
 		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.memq f c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> has_class_field_flag f CfPublic && not (List.memq f c.cl_overrides)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

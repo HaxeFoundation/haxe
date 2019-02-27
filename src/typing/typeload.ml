@@ -502,14 +502,13 @@ and load_complex_type' ctx allow_display (t,p) =
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
-				(mk_field n t p (pos f.cff_name)) with
-				cf_public = !pub;
+				(mk_field n ~public:!pub t p (pos f.cff_name)) with
 				cf_kind = access;
 				cf_params = !params;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
-				cf_final = !final;
 			} in
+			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
@@ -785,7 +784,7 @@ let init_core_api ctx c =
 		with Unify_error l ->
 			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
 			display_error ctx (error_msg (Unify l)) p);
-		if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with
 		| None -> f2.cf_doc <- f.cf_doc
 		| Some _ -> ());
@@ -806,22 +805,22 @@ let init_core_api ctx c =
 	in
 	let check_fields fcore fl =
 		PMap.iter (fun i f ->
-			if not f.cf_public then () else
+			if not (has_class_field_flag f CfPublic) then () else
 			let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
 			compare_fields f f2;
 		) fcore;
 		PMap.iter (fun i f ->
 			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
 	check_fields ccore.cl_fields c.cl_fields;
 	check_fields ccore.cl_statics c.cl_statics;
 	(match ccore.cl_constructor, c.cl_constructor with
 	| None, None -> ()
-	| Some { cf_public = false }, _ -> ()
+	| Some cf, _ when not (has_class_field_flag cf CfPublic) -> ()
 	| Some f, Some f2 -> compare_fields f f2
-	| None, Some { cf_public = false } -> ()
+	| None, Some cf when not (has_class_field_flag cf CfPublic) -> ()
 	| _ -> error "Constructor differs from core type" c.cl_pos)
 
 let string_list_of_expr_path (e,p) =
