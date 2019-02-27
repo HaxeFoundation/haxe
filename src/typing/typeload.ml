@@ -543,7 +543,7 @@ and load_complex_type ctx allow_display (t,pn) =
 		if Diagnostics.is_diagnostics_run p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
-		end else if ctx.com.display.dms_display then
+		end else if ctx.com.display.dms_display && not (DisplayPosition.encloses_display_position pn) then
 			t_dynamic
 		else
 			raise exc

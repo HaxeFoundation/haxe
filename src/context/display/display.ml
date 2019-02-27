@@ -133,6 +133,12 @@ module ExprPreprocessing = struct
 				raise Exit
 			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
 				raise Exit
+			| EVars vl when is_annotated (pos e) ->
+				(* We only want to mark EVars if we're on a var name. *)
+				if List.exists (fun ((_,pn),_,_,_) -> is_annotated pn) vl then
+					annotate_marked e
+				else
+					raise Exit
 			| _ ->
 				if is_annotated (pos e) then
 					annotate_marked e
