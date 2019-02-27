@@ -513,8 +513,8 @@ and generate_class_field' ctx cfs cf =
 	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
-		"isPublic",jbool cf.cf_public;
-		"isFinal",jbool cf.cf_final;
+		"isPublic",jbool (has_class_field_flag cf CfPublic);
+		"isFinal",jbool (has_class_field_flag cf CfFinal);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();

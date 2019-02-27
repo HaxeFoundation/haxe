@@ -179,7 +179,6 @@ and texpr = {
 and tclass_field = {
 	mutable cf_name : string;
 	mutable cf_type : t;
-	mutable cf_public : bool;
 	cf_pos : pos;
 	cf_name_pos : pos;
 	mutable cf_doc : Ast.documentation;
@@ -189,8 +188,7 @@ and tclass_field = {
 	mutable cf_expr : texpr option;
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
-	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
-	mutable cf_final : bool;
+	mutable cf_flags : int;
 }
 
 and tclass_kind =
@@ -381,6 +379,34 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+type flag_tclass_field =
+	| CfPublic
+	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
+	| CfFinal
+
+(* Flags *)
+
+let has_flag flags flag =
+	flags land (1 lsl flag) > 0
+
+let set_flag flags flag =
+	flags lor (1 lsl flag)
+
+let unset_flag flags flag =
+	flags land (lnot (1 lsl flag))
+
+let int_of_class_field_flag (flag : flag_tclass_field) =
+	Obj.magic flag
+
+let add_class_field_flag cf (flag : flag_tclass_field) =
+	cf.cf_flags <- set_flag cf.cf_flags (int_of_class_field_flag flag)
+
+let remove_class_field_flag cf (flag : flag_tclass_field) =
+	cf.cf_flags <- unset_flag cf.cf_flags (int_of_class_field_flag flag)
+
+let has_class_field_flag cf (flag : flag_tclass_field) =
+	has_flag cf.cf_flags (int_of_class_field_flag flag)
+
 (* ======= General utility ======= *)
 
 let alloc_var =
@@ -484,21 +510,19 @@ let module_extra file sign time kind policy =
 	}
 
 
-let mk_field name t p name_pos = {
+let mk_field name ?(public = true) t p name_pos = {
 	cf_name = name;
 	cf_type = t;
 	cf_pos = p;
 	cf_name_pos = name_pos;
 	cf_doc = None;
 	cf_meta = [];
-	cf_public = true;
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
-	cf_extern = false;
-	cf_final = false;
+	cf_flags = if public then set_flag 0 (int_of_class_field_flag CfPublic) else 0;
 }
 
 let null_module = {
@@ -1432,8 +1456,6 @@ module Printer = struct
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
 			"cf_type",s_type_kind (follow cf.cf_type);
-			"cf_public",string_of_bool cf.cf_public;
-			"cf_final",string_of_bool cf.cf_final;
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
@@ -1884,7 +1906,7 @@ let rec type_eq param a b =
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq param a b with Unify_error l -> error (invalid_field n :: l));
-					if f1.cf_public != f2.cf_public then error [invalid_visibility n];
+					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];
 				with
 					Not_found ->
 						if is_closed a2 then error [has_no_field b n];
@@ -2057,7 +2079,7 @@ let rec unify a b =
 				let _, ft, f1 = (try raw_class_field make_type c tl n with Not_found -> error [has_no_field a n]) in
 				let ft = apply_params c.cl_params tl ft in
 				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
-				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+				if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 
 				(match f2.cf_kind with
 				| Var { v_read = AccNo } | Var { v_read = AccNever } ->
@@ -2109,7 +2131,7 @@ let rec unify a b =
 				end;
 				(match f1.cf_kind with
 				| Method MethInline ->
-					if (c.cl_extern || f1.cf_extern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					if (c.cl_extern || has_class_field_flag f1 CfExtern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
@@ -2142,7 +2164,7 @@ let rec unify a b =
 					if not (List.exists (fun t -> match follow t with TAbstract({a_path = ["haxe"],"Constructible"},[t2]) -> type_iseq t1 t2 | _ -> false) tl) then error [cannot_unify a b]
 				| _ ->
 					let _,t,cf = class_field c tl "new" in
-					if not cf.cf_public then error [invalid_visibility "new"];
+					if not (has_class_field_flag cf CfPublic) then error [invalid_visibility "new"];
 					begin try unify t t1
 					with Unify_error l -> error (cannot_unify a b :: l) end
 			end
@@ -2225,7 +2247,7 @@ and unify_anons a b a1 a2 =
 				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
 					f1.cf_kind <- f2.cf_kind;
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
-			if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
+			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
 				unify_with_access f1 (field_type f1) f2;
 				(match !(a1.a_status) with
@@ -2374,7 +2396,7 @@ and unify_with_access f1 t1 f2 =
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify f2.cf_type t1
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
-		if f1.cf_final <> f2.cf_final then raise (Unify_error [FinalInvariance]);
+		if (has_class_field_flag f1 CfFinal) <> (has_class_field_flag f2 CfFinal) then raise (Unify_error [FinalInvariance]);
 		unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type

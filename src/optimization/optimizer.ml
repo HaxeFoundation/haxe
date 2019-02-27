@@ -407,7 +407,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || cf.cf_extern in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let rec find_locals e = match e.eexpr with
 		| TVar(v,Some e1) ->
 			find_locals e1;

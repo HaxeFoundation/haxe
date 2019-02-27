@@ -207,7 +207,7 @@ let run ~explicit_fn_name ~get_vmtype gen =
 								f.cf_meta <- (Meta.Overload, [], f.cf_pos) :: f.cf_meta;
 							if Meta.has Meta.Overload f.cf_meta then begin
 								(* if it is overload, create another field with the requested type *)
-								let f3 = mk_class_field f.cf_name t f.cf_public f.cf_pos f.cf_kind f.cf_params in
+								let f3 = mk_class_field f.cf_name t (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params in
 								let p = f.cf_pos in
 								let old_args, old_ret = get_fun f.cf_type in
 								let args, ret = get_fun t in
