@@ -1257,10 +1257,12 @@ let decode_field_kind v =
 	| _ -> raise Invalid_expr
 
 let decode_cfield v =
-	{
+	let public = decode_bool (field v "isPublic") in
+	let extern = decode_bool (field v "isExtern") in
+	let final = decode_bool (field v "isFinal") in
+	let cf = {
 		cf_name = decode_string (field v "name");
 		cf_type = decode_type (field v "type");
-		cf_public = decode_bool (field v "isPublic");
 		cf_pos = decode_pos (field v "pos");
 		cf_name_pos = decode_pos (field v "namePos");
 		cf_doc = opt decode_string (field v "doc");
@@ -1270,9 +1272,15 @@ let decode_cfield v =
 		cf_expr = None;
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
-		cf_extern = decode_bool (field v "isExtern");
-		cf_final = decode_bool (field v "isFinal");
-	}
+		cf_public = public;
+		cf_extern = extern;
+		cf_final = final;
+		cf_flags = 0;
+	} in
+	if not public then add_class_field_flag cf CfPrivate;
+	if extern then add_class_field_flag cf CfExtern;
+	if final then add_class_field_flag cf CfFinal;
+	cf
 
 let decode_efield v =
 	{

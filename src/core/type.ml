@@ -191,6 +191,7 @@ and tclass_field = {
 	mutable cf_overloads : tclass_field list;
 	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
 	mutable cf_final : bool;
+	mutable cf_flags : int;
 }
 
 and tclass_kind =
@@ -381,6 +382,22 @@ type class_field_scope =
 	| CFSMember
 	| CFSConstructor
 
+type flag_tclass_field =
+	| CfPrivate
+	| CfExtern
+	| CfFinal
+
+(* Flags *)
+
+let has_flag flags flag =
+	flags land flag > 0
+
+let add_class_field_flag cf (flag : flag_tclass_field) =
+	cf.cf_flags <- (Obj.magic flag) lor cf.cf_flags
+
+let has_class_field_flag cf (flag : flag_tclass_field) =
+	has_flag cf.cf_flags (Obj.magic flag)
+
 (* ======= General utility ======= *)
 
 let alloc_var =
@@ -499,6 +516,7 @@ let mk_field name t p name_pos = {
 	cf_overloads = [];
 	cf_extern = false;
 	cf_final = false;
+	cf_flags = 0;
 }
 
 let null_module = {
