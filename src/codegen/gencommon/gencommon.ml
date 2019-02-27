@@ -1251,7 +1251,7 @@ let rec field_access gen (t:t) (field:string) : (tfield_access) =
 		| _ -> FNotFound
 
 let field_access_esp gen t field = match field with
-	| FStatic(cl,cf) | FInstance(cl,_,cf) when cf.cf_extern ->
+	| FStatic(cl,cf) | FInstance(cl,_,cf) when has_class_field_flag cf CfExtern ->
 		let static = match field with
 			| FStatic _ -> true
 			| _ -> false

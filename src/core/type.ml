@@ -189,7 +189,6 @@ and tclass_field = {
 	mutable cf_expr : texpr option;
 	mutable cf_expr_unoptimized : tfunc option;
 	mutable cf_overloads : tclass_field list;
-	mutable cf_extern : bool; (* this is only true if the field itself is extern, not its class *)
 	mutable cf_flags : int;
 }
 
@@ -383,7 +382,7 @@ type class_field_scope =
 
 type flag_tclass_field =
 	| CfPrivate
-	| CfExtern
+	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 
 (* Flags *)
@@ -513,7 +512,6 @@ let mk_field name t p name_pos = {
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
-	cf_extern = false;
 	cf_flags = 0;
 }
 
@@ -2124,7 +2122,7 @@ let rec unify a b =
 				end;
 				(match f1.cf_kind with
 				| Method MethInline ->
-					if (c.cl_extern || f1.cf_extern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					if (c.cl_extern || has_class_field_flag f1 CfExtern) && not (Meta.has Meta.Runtime f1.cf_meta) then error [Has_no_runtime_field (a,n)];
 				| _ -> ());
 			) an.a_fields;
 			(match !(an.a_status) with
