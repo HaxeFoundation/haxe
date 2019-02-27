@@ -58,12 +58,20 @@ class Http extends haxe.http.HttpBase {
 			onError(e);
 		}
 		customRequest(post,output);
-		if(!err)
+		if(!err){
 		#if neko
 			onData(responseData = neko.Lib.stringReference(output.getBytes()));
 		#else
-			onData(responseData = output.getBytes().toString());
+			var respType = responseHeaders.get("Accept-Ranges");
+			if(respType != null && respType == "bytes"){
+				responseData = output.getBytes();
+			}
+			else{
+				responseData = output.getBytes().toString();
+			}
+			onData(responseData);
 		#end
+		}
 	}
 
 	@:noCompletion
