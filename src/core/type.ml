@@ -381,7 +381,7 @@ type class_field_scope =
 	| CFSConstructor
 
 type flag_tclass_field =
-	| CfPrivate
+	| CfPublic
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 
@@ -512,7 +512,7 @@ let mk_field name t p name_pos = {
 	cf_expr_unoptimized = None;
 	cf_params = [];
 	cf_overloads = [];
-	cf_flags = 0;
+	cf_flags = Obj.magic CfPublic; (* match previous cf_public = true behavior *)
 }
 
 let null_module = {

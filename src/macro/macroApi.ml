@@ -1275,7 +1275,7 @@ let decode_cfield v =
 		cf_public = public;
 		cf_flags = 0;
 	} in
-	if not public then add_class_field_flag cf CfPrivate;
+	if public then add_class_field_flag cf CfPublic;
 	if extern then add_class_field_flag cf CfExtern;
 	if final then add_class_field_flag cf CfFinal;
 	cf
