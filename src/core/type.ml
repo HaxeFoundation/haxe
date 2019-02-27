@@ -388,13 +388,25 @@ type flag_tclass_field =
 (* Flags *)
 
 let has_flag flags flag =
-	flags land flag > 0
+	flags land (1 lsl flag) > 0
+
+let set_flag flags flag =
+	flags lor (1 lsl flag)
+
+let unset_flag flags flag =
+	flags land (lnot (1 lsl flag))
+
+let int_of_class_field_flag (flag : flag_tclass_field) =
+	Obj.magic flag
 
 let add_class_field_flag cf (flag : flag_tclass_field) =
-	cf.cf_flags <- (Obj.magic flag) lor cf.cf_flags
+	cf.cf_flags <- set_flag cf.cf_flags (int_of_class_field_flag flag)
+
+let remove_class_field_flag cf (flag : flag_tclass_field) =
+	cf.cf_flags <- unset_flag cf.cf_flags (int_of_class_field_flag flag)
 
 let has_class_field_flag cf (flag : flag_tclass_field) =
-	has_flag cf.cf_flags (Obj.magic flag)
+	has_flag cf.cf_flags (int_of_class_field_flag flag)
 
 (* ======= General utility ======= *)
 
