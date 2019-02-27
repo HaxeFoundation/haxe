@@ -662,7 +662,7 @@ module StdCrc32 = struct
 	let make = vfun1 (fun data ->
 		let data = decode_bytes data in
 		let crc32 = Extc.zlib_crc32 data (Bytes.length data) in
-		vint crc32
+		vint32 crc32
 	)
 end
 
