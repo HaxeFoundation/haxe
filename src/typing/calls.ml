@@ -412,7 +412,7 @@ let rec acc_get ctx g p =
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
-	| AKUsing (et,c,cf,e) when ctx.in_display ->
+	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
 		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
@@ -421,7 +421,7 @@ let rec acc_get ctx g p =
 			| _ -> et.etype
 		in
 		mk (TField(ec,FStatic(c,cf))) t et.epos
-	| AKUsing (et,_,cf,e) ->
+	| AKUsing (et,_,cf,e,_) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
@@ -523,12 +523,12 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
-	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
+	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
 		| _ -> assert false)
-	| AKUsing (et,cl,ef,eparam) ->
+	| AKUsing (et,cl,ef,eparam,force_inline) ->
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
@@ -553,7 +553,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 					end
 				| _ -> assert false
 			in
-			make_call ctx et (eparam :: params) r p
+			make_call ctx ~force_inline et (eparam :: params) r p
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;
