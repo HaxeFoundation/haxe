@@ -95,6 +95,7 @@ class DisplayTestContext {
 		var args = [
 			"-cp", "src",
 			"-D", "display-stdin",
+			"-lib", "utest",
 			"--display",
 			source.path + "@" + displayPart,
 		];
