@@ -641,7 +641,7 @@ let check_cs_events com t = match t with
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
-				if f.cf_public then error "@:event fields must be private" f.cf_pos;
+				if (has_class_field_flag f CfPublic) then error "@:event fields must be private" f.cf_pos;
 
 				(* prevent generating reflect helpers for the event in gencommon *)
 				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;

@@ -22,6 +22,16 @@ private class InlinePoint {
 	}
 }
 
+private abstract InlineAbstract(Int) {
+	public function new(x:Int) {
+		this = x;
+	}
+
+	public function twice() {
+		return this * 2;
+	}
+}
+
 class IssueInline {
 	@:js('
 		TestJs.use(4);
@@ -53,6 +63,14 @@ class IssueInline {
 		var x = inline new InlinePoint(1, 2);
 		use(x.x);
 		use(x.y);
+	}
+
+	@:js('
+		TestJs.use(24);
+	')
+	static function testAbstract() {
+		var a = inline new InlineAbstract(12);
+		use(inline a.twice());
 	}
 
 	@:pure(false)

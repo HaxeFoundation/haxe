@@ -98,7 +98,7 @@ type platform_config = {
 	pf_supports_function_equality : bool;
 	(** uses utf16 encoding with ucs2 api **)
 	pf_uses_utf16 : bool;
-	(** target supports `this` before `super` **)
+	(** target supports accessing `this` before calling `super(...)` **)
 	pf_this_before_super : bool;
 }
 
@@ -241,6 +241,9 @@ let define_value com k v =
 let raw_defined_value com k =
 	Define.raw_defined_value com.defines k
 
+let get_es_version com =
+	try int_of_string (defined_value com Define.JsEs) with _ -> 0
+
 let short_platform_name = function
 	| Cross -> "x"
 	| Js -> "js"
@@ -290,7 +293,7 @@ let get_config com =
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
-			pf_this_before_super = false; (* check ES6 flag? meh... *)
+			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
 		}
 	| Lua ->
 		{

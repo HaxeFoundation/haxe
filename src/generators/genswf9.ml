@@ -1994,7 +1994,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || f.cf_final;
+				hlm_final = stat || (has_class_field_flag f CfFinal);
 				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})
@@ -2097,7 +2097,7 @@ let generate_class ctx c =
 		in
 		let rec loop_meta = function
 			| [] ->
-				if not f.cf_public && ctx.swf_protected then
+				if not (has_class_field_flag f CfPublic) && ctx.swf_protected then
 					protect()
 				else
 					ident f.cf_name
@@ -2134,12 +2134,12 @@ let generate_class ctx c =
 			} :: acc
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
+		let cf = {
+			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic)) c.cl_pos null_pos) with
+			cf_kind = Method MethNormal;
+		} in
 		{
-			hlf_name = make_name {
-				(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
-				cf_public = ctx.swc && ctx.swf_protected;
-				cf_kind = Method MethNormal;
-			} false;
+			hlf_name = make_name cf false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
 				hlm_type = generate_inits ctx;

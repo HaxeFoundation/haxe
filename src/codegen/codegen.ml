@@ -190,7 +190,7 @@ let fix_override com c f fd =
 				);
 			} in
 			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
+			if Common.defined com Define.As3 && has_class_field_flag f CfPublic then add_class_field_flag f2 CfPublic;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -303,7 +303,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "

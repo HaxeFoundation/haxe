@@ -720,7 +720,7 @@ struct
 							not (has_type_params cf_type)
 						) cl.cl_ordered_fields
 					in
-					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type f.cf_public f.cf_pos f.cf_kind f.cf_params) fields in
+					let fields = List.map (fun f -> mk_class_field f.cf_name f.cf_type (has_class_field_flag f CfPublic) f.cf_pos f.cf_kind f.cf_params) fields in
 					let fields = iface_cf :: fields in
 					iface.cl_ordered_fields <- fields;
 					List.iter (fun f -> iface.cl_fields <- PMap.add f.cf_name f iface.cl_fields) fields;

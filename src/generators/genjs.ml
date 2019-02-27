@@ -1533,9 +1533,6 @@ let gen_single_expr ctx e expr =
 	ctx.id_counter <- 0;
 	str
 
-let get_es_version com =
-	try int_of_string (Common.defined_value com Define.JsEs) with _ -> 0
-
 let generate com =
 	(match com.js_gen with
 	| Some g -> g()

@@ -1944,13 +1944,24 @@ let generate com =
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+    let print_file path =
+        let file_content = Std.input_file ~bin:true path in
+        print ctx "%s\n" file_content;
+    in
+
+    (* table-to-array helper *)
+    print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
+
+    (* lua workarounds for basic anonymous object functionality *)
+    print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* class reflection metadata *)
+    print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
+
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
         match file with
-        | path, "top" ->
-            let file_content = Std.input_file ~bin:true (fst file) in
-            print ctx "%s\n" file_content;
-            ()
+        | path, "top" -> print_file path
         | _ -> ()
     ) include_files;
 

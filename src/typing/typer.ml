@@ -499,7 +499,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ -> assert false
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
-		| AKUsing(ef,_,_,et) ->
+		| AKUsing(ef,_,_,et,_) ->
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
@@ -582,7 +582,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsing(ef,c,cf,et) ->
+		| AKUsing(ef,c,cf,et,_) ->
 			(* abstract setter + getter *)
 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
 			let ret = match follow ef.etype with
@@ -1612,7 +1612,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if cf.cf_final then is_final := true;
+						if (has_class_field_flag cf CfFinal) then is_final := true;
 						if ctx.in_display && DisplayPosition.encloses_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
@@ -1628,7 +1628,7 @@ and type_object_decl ctx fl with_type p =
 			if is_valid then begin
 				if starts_with n '$' then error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then cf.cf_final <- true;
+				if !is_final then add_class_field_flag cf CfFinal;
 				fields := PMap.add n cf !fields;
 			end;
 			((n,pn,qs),e)
@@ -1704,7 +1704,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
-and type_new ctx path el with_type p =
+and type_new ctx path el with_type force_inline p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -1775,7 +1775,7 @@ and type_new ctx path el with_type p =
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
-		make_call ctx e el t p
+		make_call ctx e el t ~force_inline p
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 		let el,_,_ = build_constructor_call c params in
 		mk (TNew (c,params,el)) t p
@@ -2226,7 +2226,7 @@ and type_meta ctx m e1 with_type p =
 			| ECall(e1,el) ->
 				type_call ctx e1 el WithType.value true p
 			| ENew (t,el) ->
-				let e = type_new ctx t el with_type p in
+				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| EFunction(Some(_) as name,e1) ->
 				type_local_function ctx name true e1 with_type p
@@ -2253,14 +2253,15 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 				| None ->
 					e
 				end;
+			| AKUsing(e,c,cf,ef,_) ->
+				AKUsing(e,c,cf,ef,true)
 			| AKExpr {eexpr = TLocal _} ->
 				display_error ctx "Cannot force inline on local functions" p;
 				e
 			| _ ->
 				e
 		in
-		let e = build_call ctx e el with_type p in
-		e
+		build_call ctx e el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2435,7 +2436,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 	| ECall (e,el) ->
 		type_call ctx e el with_type false p
 	| ENew (t,el) ->
-		type_new ctx t el with_type p
+		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
