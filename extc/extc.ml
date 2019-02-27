@@ -47,7 +47,7 @@ external get_real_path : string -> string = "get_real_path"
 
 external zlib_deflate_bound : zstream -> int -> int = "zlib_deflate_bound"
 
-external zlib_crc32 : bytes -> int -> int = "zlib_crc32"
+external zlib_crc32 : bytes -> int -> int32 = "zlib_crc32"
 
 external time : unit -> float = "sys_time"
 

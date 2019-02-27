@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <caml/alloc.h>
+#include <caml/memory.h>
 #include <caml/callback.h>
 #include <caml/custom.h>
 #include <caml/mlvalues.h>
@@ -356,8 +357,11 @@ CAMLprim value zlib_deflate_bound(value zv,value len) {
 }
 
 CAMLprim value zlib_crc32( value src, value len ) {
+	CAMLparam2(src,len);
+	CAMLlocal1(result);
 	uLong crc = crc32(0L, (Bytef*)(String_val(src)), Int_val(len));
-	return Val_int(crc);
+	result = caml_copy_int32(crc);
+	CAMLreturn(result);
 }
 
 CAMLprim value executable_path(value u) {
