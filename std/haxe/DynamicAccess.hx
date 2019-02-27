@@ -21,6 +21,7 @@
  */
 package haxe;
 
+import haxe.iterators.DynamicAccessIterator;
 import haxe.iterators.DynamicAccessKeyValueIterator;
 
 /**
@@ -98,6 +99,15 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 		Returns a shallow copy of the structure
 	**/
 	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
+
+	/**
+		Returns an Iterator over the values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function iterator():DynamicAccessIterator<T> {
+		return new DynamicAccessIterator(this);
+	}	
 
 	/**
 		Returns an Iterator over the keys and values of this `DynamicAccess`.
