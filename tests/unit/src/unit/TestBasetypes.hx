@@ -122,7 +122,7 @@ class TestBasetypes extends Test {
 		try {
 			"" + x.iterator();
 		} catch (e:Dynamic)	{
-			Test.report("Could not convert Iterator to String");
+			assert("Could not convert Iterator to String");
 		}
 
 		var str = "he\nlo\"'";
