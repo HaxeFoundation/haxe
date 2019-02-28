@@ -116,6 +116,7 @@ class Toplevel extends DisplayTestCase {
 		// var typesCompletion = toplevel(pos(1));
 		// eq(true, hasToplevel(typesCompletion, "type", "Array"));
 		// eq(true, hasToplevel(typesCompletion, "package", "haxe"));
+		eq(true, true); // TODO
 	}
 
 	/**

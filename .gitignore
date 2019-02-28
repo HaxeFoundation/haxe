@@ -117,3 +117,4 @@ tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/
 tests/benchs/dump/
+tests/display/.unittest/

@@ -10,6 +10,8 @@ class Macro {
 	static public function run(args:Array<String>) {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
+		haxelibInstall("utest");
+
 		changeDirectory(displayDir);
 		runCommand("haxe", ["build.hxml"]);
 
@@ -25,7 +27,6 @@ class Macro {
 		runCommand("haxe", ["compile.hxml"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-macro.hxml"]);
 		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 	}

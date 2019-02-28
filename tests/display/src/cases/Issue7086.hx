@@ -9,6 +9,6 @@ class Issue7086 extends DisplayTestCase {
 	}
 	**/
 	function test() {
-		noCompletionPoint(toplevel.bind(pos(1)));
+		assert(noCompletionPoint(toplevel.bind(pos(1))));
 	}
 }
