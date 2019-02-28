@@ -42,6 +42,15 @@ map["a"] = 1;
 map["b"] = 2;
 map["c"] = 3;
 
+var values = [];
+for (value in map) {
+	values.push(value);
+}
+values.length == 3;
+values[0] in [1, 2, 3];
+values[1] in [1, 2, 3];
+values[2] in [1, 2, 3];
+
 var keys = [];
 var values = [];
 for (key => value in map) {
