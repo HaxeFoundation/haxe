@@ -116,7 +116,6 @@ let build_exception_stack ctx env =
 	in
 	let d = loop [] eval.env in
 	ctx.exception_stack <- List.map (fun env ->
-		env.env_debug.timer();
 		{pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
 

@@ -210,7 +210,7 @@ let emit_try exec catches env =
 		ctx.debug.caught_exception <- vnull;
 		restore();
 		build_exception_stack ctx env;
-		eval.env <- env;
+		while eval.env != env do pop_environment ctx eval.env done;
 		let exec,_,varacc =
 			try
 				List.find (fun (_,path,i) -> path = key_Dynamic || is v path) catches
