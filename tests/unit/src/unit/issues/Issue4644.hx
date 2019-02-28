@@ -20,5 +20,6 @@ class Issue4644 extends Test {
 		);
 		f(isHaxeError);
 		#end
+		noAssert();
 	}
 }

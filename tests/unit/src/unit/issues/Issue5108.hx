@@ -3,10 +3,11 @@ package unit.issues;
 class Issue5108 extends Test {
 	function test() {
 		// nothing to do here
+		noAssert();
 	}
 }
 
-class Signal implements ISignal {   
+class Signal implements ISignal {
 	public function add(listener:Void->Void):Void {}
 	public function destroy():Void {}
 }

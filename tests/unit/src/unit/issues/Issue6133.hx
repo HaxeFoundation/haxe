@@ -13,5 +13,6 @@ class Issue6133 extends unit.Test {
 			case { b: 5 }:
 			case { b: _ }:
 		}
+		noAssert();
 	}
 }

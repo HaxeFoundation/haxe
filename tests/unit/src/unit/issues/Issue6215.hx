@@ -5,6 +5,7 @@ class Issue6215 extends unit.Test {
 		var a:Action<Issue6215> = null;
 		var signal:Abstr<Child> = null;
 		signal += a;
+		noAssert();
 	}
 }
 

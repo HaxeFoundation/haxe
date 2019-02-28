@@ -121,43 +121,46 @@ class TestMain {
 
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
-		var current = null;
-		#if (!fail_eager)
-		try
-		#end
-		{
-			asyncWaits.push(null);
-			for( inst in classes ) {
-				current = Type.getClass(inst);
-			if (verbose)
-			   logVerbose("Class " + Std.string(current) );
-				for( f in Type.getInstanceFields(current) )
-					if( f.substr(0,4) == "test" ) {
-				  if (verbose)
-					 logVerbose("   " + f);
-						#if fail_eager
-						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						#else
-						try {
-							Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						}
-						#if !as3
-						catch( e : Dynamic ) {
-							onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
-						}
-						#end
-						#end
-						reportInfos = null;
-					}
-			}
-			asyncWaits.remove(null);
-			checkDone();
-		}
-		#if (!as3 && !(fail_eager))
-		catch( e : Dynamic ) {
-			asyncWaits.remove(null);
-			onError(e,"ABORTED",Type.getClassName(current));
-		}
-		#end
+
+		utest.UTest.run(classes);
+
+		// var current = null;
+		// #if (!fail_eager)
+		// try
+		// #end
+		// {
+		// 	asyncWaits.push(null);
+		// 	for( inst in classes ) {
+		// 		current = Type.getClass(inst);
+		// 	if (verbose)
+		// 	   logVerbose("Class " + Std.string(current) );
+		// 		for( f in Type.getInstanceFields(current) )
+		// 			if( f.substr(0,4) == "test" ) {
+		// 		  if (verbose)
+		// 			 logVerbose("   " + f);
+		// 				#if fail_eager
+		// 				Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+		// 				#else
+		// 				try {
+		// 					Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+		// 				}
+		// 				#if !as3
+		// 				catch( e : Dynamic ) {
+		// 					onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
+		// 				}
+		// 				#end
+		// 				#end
+		// 				reportInfos = null;
+		// 			}
+		// 	}
+		// 	asyncWaits.remove(null);
+		// 	checkDone();
+		// }
+		// #if (!as3 && !(fail_eager))
+		// catch( e : Dynamic ) {
+		// 	asyncWaits.remove(null);
+		// 	onError(e,"ABORTED",Type.getClassName(current));
+		// }
+		// #end
 	}
 }

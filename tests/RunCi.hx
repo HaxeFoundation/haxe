@@ -43,7 +43,7 @@ class RunCi {
 			var success = true;
 			try {
 				changeDirectory(unitDir);
-
+				haxelibInstall("utest");
 
 				var args = switch (ci) {
 					case TravisCI:

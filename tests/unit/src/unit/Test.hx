@@ -1,5 +1,7 @@
 package unit;
 
+import utest.Assert;
+
 #if (!macro && emscripten)
 import cpp.link.StaticStd;
 import cpp.link.StaticRegexp;
@@ -11,7 +13,7 @@ import cpp.link.StaticZlib;
 #if as3
 @:publicFields
 #end
-class Test {
+class Test implements utest.ITest {
 
 	public function new() {
 	}
@@ -23,67 +25,40 @@ class Test {
 		//out.writeString(pos.methodName +":" +pos.lineNumber + "\n");
 	}
 
-	function eq<T>( v : T, v2 : T, ?pos ) {
-		incrCount(pos);
-		if( v != v2 ) {
-			report(Std.string(v)+" should be "+Std.string(v2),pos);
-			success = false;
-		}
+	function eq<T>( v : T, v2 : T, ?pos:haxe.PosInfos ) {
+		Assert.equals(v, v2, pos);
 	}
 
-	function feq( v : Float, v2 : Float, ?pos ) {
-		incrCount(pos);
-		if (!Math.isFinite(v) || !Math.isFinite(v2))
-			eq(v, v2, pos);
-		else if ( Math.abs(v - v2) > 1e-10 ) {
-			report(v+" should be "+v2,pos);
-			success = false;
-		}
+	function feq( v : Float, v2 : Float, ?pos:haxe.PosInfos ) {
+		Assert.floatEquals(v, v2, pos);
 	}
 
 	function aeq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
-		if (expected.length != actual.length) {
-			report('Array length differs (${actual.length} should be ${expected.length})', pos);
-			success = false;
-		} else {
-			for (i in 0...expected.length) {
-				if (expected[i] != actual[i]) {
-					report('[${i}] ${actual[i]} should be ${expected[i]}', pos);
-					success = false;
-				}
-			}
-		}
+		Assert.same(expected, actual, pos);
 	}
 
-	function t( v, ?pos ) {
-		eq(v,true,pos);
+	function t( v, ?pos:haxe.PosInfos ) {
+		Assert.isTrue(v, pos);
 	}
 
-	function f( v, ?pos ) {
-		eq(v,false,pos);
+	function f( v, ?pos:haxe.PosInfos ) {
+		Assert.isFalse(v, pos);
 	}
 
-	function assert( ?pos ) {
-		report("Assert",pos);
-		success = false;
+	function assert( ?pos:haxe.PosInfos ) {
+		Assert.fail(pos);
 	}
 
-	function exc( f : Void -> Void, ?pos ) {
-		incrCount(pos);
-		try {
-			f();
-			report("No exception occurred",pos);
-			success = false;
-		} catch( e : Dynamic ) {
-		}
+	function exc( f : Void -> Void, ?pos:haxe.PosInfos ) {
+		Assert.raises(f, pos);
 	}
 
 	function unspec( f : Void -> Void, ?pos ) {
-		incrCount(pos);
 		try {
 			f();
 		} catch( e : Dynamic ) {
 		}
+		noAssert();
 	}
 
 	function allow<T>( v : T, values : Array<T>, ?pos ) {
@@ -95,36 +70,24 @@ class Test {
 		success = false;
 	}
 
+	function noAssert(?pos:haxe.PosInfos) {
+		t(true, pos);
+	}
+
 	function hf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.incrCount(pos);
-		if (!Lambda.has(Type.getInstanceFields(c), n)) {
-			Test.report(Type.getClassName(c) + " should have member field " +n, pos);
-			success = false;
-		}
+		t(Lambda.has(Type.getInstanceFields(c), n));
 	}
 
 	function nhf(c:Class<Dynamic>, n:String, ?pos:haxe.PosInfos) {
-		Test.incrCount(pos);
-		if (Lambda.has(Type.getInstanceFields(c), n)) {
-			Test.report(Type.getClassName(c) + " should not have member field " +n, pos);
-			success = false;
-		}
+		f(Lambda.has(Type.getInstanceFields(c), n));
 	}
 
 	function hsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.incrCount(pos);
-		if (!Lambda.has(Type.getClassFields(c), n)) {
-			Test.report(Type.getClassName(c) + " should have static field " +n, pos);
-			success = false;
-		}
+		t(Lambda.has(Type.getClassFields(c), n));
 	}
 
 	function nhsf(c:Class<Dynamic> , n:String, ?pos:haxe.PosInfos) {
-		Test.incrCount(pos);
-		if (Lambda.has(Type.getClassFields(c), n)) {
-			Test.report(Type.getClassName(c) + " should not have static field " +n, pos);
-			success = false;
-		}
+		f(Lambda.has(Type.getClassFields(c), n));
 	}
 
 	function infos( m : String ) {

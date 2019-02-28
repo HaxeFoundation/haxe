@@ -118,3 +118,4 @@ tests/sourcemaps/bin
 tests/benchs/export/
 tests/benchs/dump/
 tests/display/.unittest/
+tests/unit/.unittest/

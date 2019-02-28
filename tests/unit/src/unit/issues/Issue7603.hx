@@ -14,5 +14,6 @@ private enum Bar {
 class Issue7603 extends unit.Test {
 	function test() {
 		var bar:Foo = A(200);
+		noAssert();
 	}
 }

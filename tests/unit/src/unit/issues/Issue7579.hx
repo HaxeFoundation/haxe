@@ -34,5 +34,6 @@ private class B<T>
 class Issue7579 extends unit.Test {
 	function test() {
 		var b = new B<Int>();
+		noAssert();
 	}
 }

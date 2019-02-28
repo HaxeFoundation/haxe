@@ -1,0 +1,1586 @@
+test-adapter is recording results...
+
+src/unit/TestMain.hx:50: Generated at: 2019-02-28 18:20:30
+src/unit/TestMain.hx:52: START
+utest/ui/text/PrintReport.hx:52: 
+assertations: 4972
+successes: 4972
+errors: 0
+failures: 0
+warnings: 0
+execution time: 0.278
+
+results: ALL TESTS OK (success: true)
+unit.TestArrowFunctions
+  testSyntax: OK ..........
+unit.TestBasetypes
+  testAbstract: OK ....
+  testAbstractCast: OK .......................
+  testAbstractInline: OK ......
+  testAbstractMemberCall: OK .
+  testAbstractMultitypeInline: OK .
+  testAbstractOperatorOverload: OK .............
+  testAbstractSetter: OK .
+  testAbstractToAbstractCast: OK .
+  testAbstractToString: OK ....
+  testAbstractTypeParameters: OK ....
+  testArray: OK ..............
+  testFormat: OK ..........
+  testIntMap: OK ..................
+  testMap: OK ..
+  testMath: OK .....................
+  testObjectKeyword: OK ...
+  testOptionalStructureFields: OK ....
+  testString: OK .........................................................
+  testStringMap: OK ...............
+unit.TestBytes
+  test: OK .........................................................................................................................................................................
+  testBytesDataEquality: OK .
+  testFastGet: OK ..................
+  testHex: OK .......
+  testInput: OK .
+unit.TestCasts
+  testCasts: OK .
+  testInterfaces: OK ..........
+unit.TestEReg
+  test: OK ...........................................................................
+unit.TestGADT
+  testBasic: OK ......
+unit.TestGeneric
+  testBasic: OK ....
+  testConstraints: OK .
+  testGenericAnon: OK ..
+unit.TestIO
+  test: OK ..........................................................................................
+  testBytesBounds: OK ...........
+  testBytesInputSeek: OK ..........
+unit.TestInt64
+  testAdd: OK ....
+  testAddition: OK ....
+  testBackwardsCompat: OK .....................
+  testBinaryOps: OK ....
+  testBits: OK ..........
+  testCapture: OK .....
+  testCompare: OK .....
+  testComparison: OK ....................................
+  testDivision: OK ........................
+  testFromFloat: OK .....
+  testGen: OK ........
+  testIncrement: OK ........
+  testMake: OK ...............
+  testMath: OK .....
+  testMultiplication: OK ........
+  testNeg: OK ...
+  testNegateOverflow_Issue7485: OK .....
+  testParseString: OK ......
+  testShifts: OK ..........
+  testSubtraction: OK .....
+  testToString: OK ........
+unit.TestInterface
+  test: OK .....................
+unit.TestJson
+  test3690: OK ..
+  testHaxeJson: OK ............................
+  testNativeJson: OK .........................
+unit.TestKeyValueIterator
+  testError1: OK .
+  testError2: OK .
+  testError3: OK .
+  testIterable: OK .
+  testIterator: OK .
+  testStaticExtension: OK .
+unit.TestLocals
+  testCapture: OK ...............................
+  testIncrDecr: OK ........
+  testParallelCapture: OK ..........
+  testPossibleBug: OK .....
+  testScope: OK .............
+  testSubCapture: OK .....
+unit.TestMacro
+  testPrinter: OK ...........................................................
+unit.TestMapComprehension
+  testBasic: OK ..........
+unit.TestMatch
+  testBasic: OK .......................................
+  testClassSwitch: OK ...
+  testExtractors: OK .................................
+  testFakeEnumAbstract: OK ..
+  testGadt: OK ...
+  testGrouping: OK ...........
+  testInvalidBinding: OK ......
+  testNonExhaustiveness: OK ......
+  testNullPattern: OK ........
+  testOr: OK ................
+  testStaticNull: OK .
+  testSubtyping: OK .....
+  testTuple: OK .........
+unit.TestMeta
+  testExprMeta: OK ........
+  testMeta: OK .....................
+unit.TestMisc
+  testBaseCode: OK ............
+  testCaptureUnique: OK ..
+  testCaptureUnique2: OK ..
+  testClosure: OK ...........
+  testConstructorsOpts: OK ...............
+  testDate: OK ........
+  testDefArgs: OK ...
+  testDynamicClosure: OK .................
+  testEvalAccessOrder: OK ....
+  testFormat: OK .
+  testHiddenType: OK ....
+  testHiddenTypeCapture: OK ....
+  testHiddenTypeScope: OK ....
+  testIncr: OK ......................
+  testInitOrder: OK ....
+  testInline: OK ..
+  testInlineClosure: OK ..
+  testMD5: OK ....
+  testMakeVarArgs: OK ..
+  testNoReturnThrow: OK ..
+  testOptionalParams: OK ..................................
+  testPackageConflict: OK ..
+  testPropertyInit: OK .
+  testSHA1: OK ...
+  testSelfRef: OK .
+  testStaticVarFun: OK .
+  testStringBuf: OK ...
+  testToString: OK .
+  testUrlEncode: OK ....
+unit.TestNaN
+  testNanIfs: OK .
+unit.TestNull
+  test: OK ..
+unit.TestOps
+  testOps: OK ...............................................................
+unit.TestOrder
+  testUsing: OK ...
+unit.TestReflect
+  testCompare: OK .........
+  testCompareMethods: OK .......
+  testConv: OK .................
+  testCreate: OK ............
+  testGetProp: OK ....................
+  testIs: OK ................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+  testTypeEq: OK ...
+  testTypeof: OK ................................
+  testTypes: OK .......................................
+unit.TestResource
+  testResources: OK ......................................
+unit.TestSerialize
+  test: OK ........................................................................................................................................................................................................................................................
+unit.TestSerializerCrossTarget
+  testCrossTarget: OK ...........................
+unit.TestType
+  testAbstractCastConstraints: OK ....
+  testAbstractClosure: OK ...
+  testAbstractGeneric: OK ......
+  testAbstractOverload: OK ........
+  testAbstractTypeParameterVariance: OK .
+  testAbstractUnop: OK ........
+  testAllField: OK .
+  testCallback: OK ..................................
+  testConstantAnonCovariance: OK ...............
+  testContravariantArgs: OK ..
+  testCovariantReturn: OK ..........
+  testCustomArrayAccess: OK ............
+  testEnumEq: OK ..........
+  testExposingAbstract: OK .
+  testFields: OK ......
+  testGADTEnumAbstract: OK ..
+  testGenericFunction: OK .........
+  testInitFields: OK ...................
+  testInline: OK ..
+  testInlineCast: OK .
+  testInlineInit: OK .....
+  testMacroFollowWithAbstracts: OK ...
+  testMacroRest: OK ......................
+  testMapComprehension: OK ....
+  testOpArrow: OK ..............
+  testOptionalParamsSkip: OK ....
+  testParamConstraints: OK ........
+  testPossibleBug: OK ...
+  testReturnFlow: OK .
+  testSuperPropAccess: OK ....
+  testType: OK ...
+  testUnifyMin: OK .....................................
+  testUsing: OK ...
+  testVoidFunc: OK ......
+  testWiderVisibility: OK ..
+unit.TestXML
+  testBasic: OK .....................
+  testComplex: OK .
+  testCreate: OK ...............
+  testCustomXmlParser: OK ...........
+  testFormat: OK ..
+  testIssue2299: OK ..
+  testIssue2739: OK .
+  testIssue3058: OK ..
+  testIssue3630: OK ....
+  testIssue4139: OK ..
+  testIssue7454: OK .
+  testMore: OK .
+  testNS: OK ............
+  testNicolas: OK ...
+  testNodetype: OK ................................
+  testWhitespaces: OK .......
+unit.hxcpp_issues.Issue173
+  test: OK .
+unit.hxcpp_issues.Issue189
+  test: OK ..
+unit.hxcpp_issues.Issue192
+  test: OK .
+unit.hxcpp_issues.Issue225
+  test: OK ..
+unit.hxcpp_issues.String
+  test: OK ...
+unit.issues.Issue1492
+  test: OK ....
+unit.issues.Issue1497
+  test: OK .
+unit.issues.Issue1810
+  test: OK .
+unit.issues.Issue1827
+  test: OK ..
+  test2: OK ......
+  test3: OK ............
+  test4: OK ....
+unit.issues.Issue1845
+  test: OK ..
+unit.issues.Issue1997
+  test: OK ....
+unit.issues.Issue2003
+  test: OK .
+unit.issues.Issue2016
+  test: OK ..
+unit.issues.Issue2042
+  test: OK ......
+unit.issues.Issue2044
+  test: OK ...
+unit.issues.Issue2048
+  testNullableInt: OK .
+unit.issues.Issue2061
+  test: OK .....
+unit.issues.Issue2063
+  test: OK .........
+unit.issues.Issue2085
+  test: OK .
+unit.issues.Issue2086
+  test: OK .
+unit.issues.Issue2130
+  test: OK ....
+unit.issues.Issue2157
+  test: OK .
+unit.issues.Issue2184
+  test: OK .
+unit.issues.Issue2224
+  test: OK ....
+unit.issues.Issue2235
+  test: OK ....
+unit.issues.Issue2236
+  test: OK .
+unit.issues.Issue2244
+  test: OK .
+unit.issues.Issue2254
+  test: OK ..
+unit.issues.Issue2271
+  test: OK .
+unit.issues.Issue2272
+  test: OK .
+unit.issues.Issue2281
+  test: OK ............
+unit.issues.Issue2282
+  test: OK .
+unit.issues.Issue2304
+  test: OK .
+unit.issues.Issue2308
+  test: OK .
+unit.issues.Issue2317
+  test: OK .
+unit.issues.Issue2343
+  test: OK .
+unit.issues.Issue2378
+  test: OK ...
+unit.issues.Issue2380
+  test: OK .
+unit.issues.Issue2396
+  test: OK ....
+unit.issues.Issue2401
+  test: OK .
+unit.issues.Issue2409
+  test: OK .
+unit.issues.Issue2478
+  test: OK .
+unit.issues.Issue2497
+  test: OK .
+unit.issues.Issue2521
+  test: OK ...
+unit.issues.Issue2540
+  test: OK ..
+unit.issues.Issue2558
+  test: OK .
+unit.issues.Issue2564
+  test: OK ..
+unit.issues.Issue2570
+  test: OK ..
+unit.issues.Issue2580
+  test: OK ....
+unit.issues.Issue2581
+  test: OK .
+unit.issues.Issue2584
+  test: OK ...
+  test2: OK .
+unit.issues.Issue2587
+  test: OK ......
+unit.issues.Issue2604
+  test: OK .
+unit.issues.Issue2607
+  test: OK ..
+unit.issues.Issue2610
+  test: OK ..........
+unit.issues.Issue2614
+  test: OK ....
+unit.issues.Issue2619
+  test: OK ...
+unit.issues.Issue2622
+  test: OK .
+unit.issues.Issue2623
+  test: OK ....
+unit.issues.Issue2625
+  test: OK ...
+unit.issues.Issue2627
+  test1: OK ..
+  test2: OK ..
+unit.issues.Issue2629
+  test: OK .....
+  testTypeParameter: OK .
+unit.issues.Issue2633
+  test: OK ....
+unit.issues.Issue2634
+  test: OK ..
+unit.issues.Issue2639
+  test: OK ..
+unit.issues.Issue2640
+  test: OK .
+unit.issues.Issue2645
+  test: OK ..
+unit.issues.Issue2646
+  test: OK ............
+unit.issues.Issue2653
+  test: OK ..
+unit.issues.Issue2661
+  test: OK ..............
+unit.issues.Issue2663
+  test: OK ...................
+unit.issues.Issue2664
+  test: OK ...
+unit.issues.Issue2668
+  test: OK .
+unit.issues.Issue2675
+  test: OK ...
+unit.issues.Issue2676
+  test: OK .........
+unit.issues.Issue2685
+  test: OK ..
+unit.issues.Issue2696
+  test: OK ..
+unit.issues.Issue2698
+  test: OK ................
+unit.issues.Issue2712
+  test: OK .
+unit.issues.Issue2713
+  test: OK .....
+unit.issues.Issue2716
+  test: OK ..
+unit.issues.Issue2718
+  test: OK ...
+unit.issues.Issue2720
+  test: OK .
+unit.issues.Issue2722
+  test: OK .
+unit.issues.Issue2725
+  test: OK .
+unit.issues.Issue2728
+  test: OK .
+unit.issues.Issue2735
+  test: OK .
+unit.issues.Issue2736
+  test: OK ...............
+unit.issues.Issue2752
+  test: OK ..
+unit.issues.Issue2755
+  test: OK .
+unit.issues.Issue2763
+  test: OK ..
+unit.issues.Issue2766
+  test: OK .
+unit.issues.Issue2767
+  test: OK .
+unit.issues.Issue2776
+  test: OK ...
+unit.issues.Issue2778
+  test: OK .......
+unit.issues.Issue2786
+  test: OK ..
+unit.issues.Issue2792
+  test: OK ...
+unit.issues.Issue2809
+  test: OK .
+unit.issues.Issue2810
+  test: OK .
+unit.issues.Issue2813
+  test: OK ..
+unit.issues.Issue2823
+  test: OK .
+unit.issues.Issue2828
+  test: OK .
+unit.issues.Issue2835
+  test: OK ...
+unit.issues.Issue2844
+  test: OK .
+unit.issues.Issue2845
+  test: OK .
+unit.issues.Issue2846
+  test: OK .
+unit.issues.Issue2859
+  test: OK .
+unit.issues.Issue2871
+  test: OK ..
+unit.issues.Issue2874
+  test: OK ..
+  testArray: OK ..
+unit.issues.Issue2881
+  test: OK .
+unit.issues.Issue2889
+  test: OK ..
+  testDynamic: OK .....
+  testFilterStructure: OK ..
+  testMapStructure: OK ...
+unit.issues.Issue2900
+  test: OK ..
+unit.issues.Issue2902
+  test: OK ..
+unit.issues.Issue2907
+  test: OK ...
+unit.issues.Issue2914
+  test: OK ...
+unit.issues.Issue2917
+  test: OK ..
+unit.issues.Issue2928
+  test: OK ...
+unit.issues.Issue2933
+  test: OK ..
+unit.issues.Issue2936
+  test: OK ........
+unit.issues.Issue2937
+  test: OK .
+unit.issues.Issue2939
+  test: OK ...
+unit.issues.Issue2941
+  test: OK .
+unit.issues.Issue2951
+  test: OK .
+unit.issues.Issue2957
+  test: OK .
+unit.issues.Issue2958
+  test: OK .
+unit.issues.Issue2960
+  test: OK .
+unit.issues.Issue2963
+  test: OK ....
+unit.issues.Issue2979
+  test: OK ..
+unit.issues.Issue2982
+  test: OK .
+unit.issues.Issue2988
+  test: OK .
+unit.issues.Issue2989
+  test: OK .
+unit.issues.Issue2990
+  test: OK ...............................
+unit.issues.Issue2999
+  test1: OK ..
+  test2: OK ..
+unit.issues.Issue3005
+  test: OK .
+unit.issues.Issue3008
+  test: OK .
+unit.issues.Issue3023
+  test: OK ..
+unit.issues.Issue3024
+  test: OK .
+unit.issues.Issue3029
+  test: OK .
+unit.issues.Issue3030
+  test: OK .
+unit.issues.Issue3031
+  testArty: OK .
+  testHeinz: OK ....
+unit.issues.Issue3039
+  test: OK .
+unit.issues.Issue3042
+  test: OK .
+unit.issues.Issue3054
+  test: OK .
+unit.issues.Issue3061
+  test: OK ..
+unit.issues.Issue3063
+  test: OK ....
+unit.issues.Issue3071
+  test: OK ..............
+unit.issues.Issue3081
+  test: OK ..
+unit.issues.Issue3088
+  test: OK .
+  testCrazyJuraj: OK ..
+unit.issues.Issue3089
+  test: OK ...
+unit.issues.Issue3090
+  test: OK .
+unit.issues.Issue3094
+  test: OK ..
+unit.issues.Issue3109
+  test: OK .
+unit.issues.Issue3110
+  test: OK .
+unit.issues.Issue3113
+  test: OK ..
+unit.issues.Issue3115
+  test: OK ..
+unit.issues.Issue3118
+  test: OK ..
+unit.issues.Issue3123
+  test: OK .
+unit.issues.Issue3127
+  test: OK .
+unit.issues.Issue3132
+  test: OK .
+unit.issues.Issue3133
+  test: OK .
+unit.issues.Issue3138
+  test: OK .
+unit.issues.Issue3150
+  test: OK .
+unit.issues.Issue3155
+  test: OK .
+unit.issues.Issue3159
+  test: OK ...
+unit.issues.Issue3178
+  test: OK ..
+unit.issues.Issue3183
+  test: OK .........
+unit.issues.Issue3191
+  test: OK ......
+unit.issues.Issue3192
+  test: OK ..
+unit.issues.Issue3197
+  test: OK ...
+unit.issues.Issue3198
+  test: OK ....
+unit.issues.Issue3203
+  test: OK ..
+unit.issues.Issue3205
+  test: OK .
+unit.issues.Issue3212
+  test: OK .
+unit.issues.Issue3214
+  test: OK .
+unit.issues.Issue3217
+  test: OK .
+unit.issues.Issue3218
+  test: OK ..
+unit.issues.Issue3244
+  test: OK ..
+unit.issues.Issue3247
+  test: OK .....
+unit.issues.Issue3248
+  test: OK .
+unit.issues.Issue3254
+  test: OK .
+unit.issues.Issue3263
+  test: OK ....
+unit.issues.Issue3280
+  test: OK .
+unit.issues.Issue3292
+  test: OK ..
+unit.issues.Issue3303
+  test: OK .
+unit.issues.Issue3333
+  test: OK .
+unit.issues.Issue3338
+  test: OK ...
+unit.issues.Issue3344
+  test: OK ..
+unit.issues.Issue3345
+  test: OK ..
+unit.issues.Issue3346
+  test: OK .
+unit.issues.Issue3347
+  test: OK ...........
+unit.issues.Issue3348
+  test: OK ....
+unit.issues.Issue3360
+  test: OK ..........
+unit.issues.Issue3361
+  test: OK ..
+unit.issues.Issue3364
+  test: OK .
+unit.issues.Issue3365
+  test: OK .
+unit.issues.Issue3370
+  test: OK .
+unit.issues.Issue3376
+  test: OK ......
+unit.issues.Issue3377
+  test: OK ........
+  testAtry: OK .
+unit.issues.Issue3380
+  test: OK .
+unit.issues.Issue3387
+  test: OK .
+unit.issues.Issue3389
+  test: OK ..
+unit.issues.Issue3390
+  test: OK .
+unit.issues.Issue3391
+  test: OK .
+unit.issues.Issue3396
+  test: OK ..
+unit.issues.Issue3403
+  test: OK ..........
+unit.issues.Issue3431
+  test: OK .
+unit.issues.Issue3432
+  test: OK ......
+unit.issues.Issue3437
+  test: OK .
+unit.issues.Issue3440
+  test: OK .
+unit.issues.Issue3447
+  test: OK .
+unit.issues.Issue3448
+  test: OK .
+unit.issues.Issue3450
+  test: OK .
+unit.issues.Issue3460
+  test: OK .
+unit.issues.Issue3461
+  test: OK .
+unit.issues.Issue3462
+  test: OK ..........................................................................................................................................................................................................................................................................................................................................................................
+unit.issues.Issue3466
+  test: OK .
+unit.issues.Issue3480
+  test: OK .
+unit.issues.Issue3486
+  test: OK .
+unit.issues.Issue3494
+  test: OK ..
+  test2: OK ..
+  test3: OK ..
+unit.issues.Issue3504
+  test: OK ......
+unit.issues.Issue3507
+  test: OK ....
+unit.issues.Issue3512
+  test: OK ..........
+unit.issues.Issue3513
+  test: OK ..
+unit.issues.Issue3516
+  test: OK ..
+unit.issues.Issue3528
+  test: OK .
+unit.issues.Issue3531
+  test: OK .
+unit.issues.Issue3535
+  test: OK ..
+unit.issues.Issue3539
+  test: OK .
+unit.issues.Issue3543
+  test: OK .
+unit.issues.Issue3545
+  test: OK .
+unit.issues.Issue3547
+  test: OK .
+unit.issues.Issue3554
+  test: OK .
+unit.issues.Issue3560
+  test: OK ...
+unit.issues.Issue3563
+  test: OK ...
+unit.issues.Issue3575
+  test: OK ..
+unit.issues.Issue3577
+  test: OK .
+unit.issues.Issue3578
+  test: OK ..
+unit.issues.Issue3579
+  test: OK ........
+unit.issues.Issue3586
+  test: OK .
+unit.issues.Issue3588
+  test: OK .
+unit.issues.Issue3592
+  test: OK ...
+unit.issues.Issue3596
+  test: OK ..........
+unit.issues.Issue3615
+  test: OK .
+unit.issues.Issue3616
+  test: OK ....
+unit.issues.Issue3635
+  test: OK ..
+unit.issues.Issue3637
+  test: OK ......
+unit.issues.Issue3639
+  test: OK .
+unit.issues.Issue3649
+  test: OK ...
+unit.issues.Issue3658
+  test: OK ..
+unit.issues.Issue3665
+  test: OK .
+unit.issues.Issue3679
+  test: OK .
+unit.issues.Issue3680
+  test: OK .
+unit.issues.Issue3681
+  test: OK .
+unit.issues.Issue3687
+  test: OK .
+unit.issues.Issue3702
+  test: OK .............
+unit.issues.Issue3711
+  test: OK ..
+unit.issues.Issue3713
+  test: OK .
+unit.issues.Issue3714
+  test: OK ....
+unit.issues.Issue3717
+  test: OK ..
+unit.issues.Issue3719
+  test: OK .
+unit.issues.Issue3725
+  testMemberArgs: OK .....
+  testMemberFields: OK .....
+  testStaticArgs: OK .....
+  testStaticFields: OK .....
+unit.issues.Issue3731
+  test: OK ..
+unit.issues.Issue3732
+  test: OK ..
+unit.issues.Issue3742
+  test: OK ...
+unit.issues.Issue3753
+  test: OK ........
+unit.issues.Issue3762
+  test: OK ........
+unit.issues.Issue3777
+  test: OK .
+unit.issues.Issue3781
+  test: OK .
+unit.issues.Issue3788
+  test: OK .
+unit.issues.Issue3792
+  test: OK .
+unit.issues.Issue3799
+  test: OK .
+unit.issues.Issue3804
+  test: OK .
+unit.issues.Issue3806
+  test: OK .
+unit.issues.Issue3818
+  test: OK .
+unit.issues.Issue3822
+  test: OK ...
+unit.issues.Issue3826
+  test: OK ...........
+  testOpt: OK .......
+  testReflect: OK ........
+unit.issues.Issue3844
+  test: OK .
+unit.issues.Issue3845
+  test: OK .
+unit.issues.Issue3846
+  test: OK ..
+unit.issues.Issue3852
+  test: OK ........................................
+unit.issues.Issue3860
+  test: OK ....
+unit.issues.Issue3861
+  test: OK .
+unit.issues.Issue3892
+  test: OK .
+unit.issues.Issue3894
+  test: OK .
+unit.issues.Issue3914
+  test: OK .
+  test2: OK .
+  test3: OK .
+unit.issues.Issue3921
+  test: OK .
+unit.issues.Issue3935
+  test: OK .
+  testFail: OK ....
+  testMap: OK .
+unit.issues.Issue3948
+  test: OK .....
+unit.issues.Issue3950
+  test: OK .
+unit.issues.Issue3967
+  testAndy: OK ...
+  testNicolas: OK .
+unit.issues.Issue3970
+  test: OK .
+unit.issues.Issue4000
+  test: OK .....
+unit.issues.Issue4001
+  test: OK ..
+unit.issues.Issue4002
+  test: OK .
+unit.issues.Issue4014
+  test: OK ....
+unit.issues.Issue4050
+  test: OK ....
+unit.issues.Issue4051
+  test: OK .
+unit.issues.Issue4068
+  test: OK ..........
+unit.issues.Issue4076
+  test: OK .
+unit.issues.Issue4086
+  test: OK .
+unit.issues.Issue4089
+  test: OK ..
+unit.issues.Issue4094
+  test: OK ............
+unit.issues.Issue4096
+  test: OK ...
+unit.issues.Issue4100
+  test: OK ..
+unit.issues.Issue4103
+  test: OK .
+unit.issues.Issue4121
+  test: OK ......
+unit.issues.Issue4122
+  test: OK ........
+unit.issues.Issue4126
+  test: OK .....
+unit.issues.Issue4134
+  test: OK ..
+unit.issues.Issue4149
+  test: OK .
+unit.issues.Issue4158
+  test: OK .
+unit.issues.Issue4180
+  test: OK ..
+unit.issues.Issue4196
+  test: OK .
+unit.issues.Issue4203
+  test: OK ..
+unit.issues.Issue4222
+  test: OK .
+unit.issues.Issue4232
+  test: OK .
+unit.issues.Issue4246
+  test: OK .
+unit.issues.Issue4254
+  test: OK .
+unit.issues.Issue4260
+  test: OK ...
+unit.issues.Issue4273
+  test: OK .
+unit.issues.Issue4277
+  test: OK .
+unit.issues.Issue4284
+  test: OK ..
+unit.issues.Issue4285
+  test: OK .
+unit.issues.Issue4286
+  test: OK .
+unit.issues.Issue4287
+  test: OK ..
+unit.issues.Issue4295
+  test: OK ..
+unit.issues.Issue4306
+  test: OK ..........
+unit.issues.Issue4310
+  test: OK .
+unit.issues.Issue4312
+  test: OK .
+unit.issues.Issue4313
+  test: OK .
+unit.issues.Issue4322
+  test: OK ..
+unit.issues.Issue4323
+  test: OK .
+unit.issues.Issue4324
+  test: OK .
+unit.issues.Issue4327
+  test: OK .
+unit.issues.Issue4329
+  test: OK .
+unit.issues.Issue4337
+  test: OK .
+unit.issues.Issue4343
+  test: OK .
+unit.issues.Issue4353
+  test: OK .
+  test2: OK .
+unit.issues.Issue4357
+  test: OK .
+unit.issues.Issue4360
+  test: OK .
+unit.issues.Issue4363
+  test: OK ..
+unit.issues.Issue4384
+  test: OK .
+unit.issues.Issue4388
+  test: OK .
+unit.issues.Issue4407
+  test: OK .
+unit.issues.Issue4421
+  test: OK .
+unit.issues.Issue4426
+  test: OK ..
+unit.issues.Issue4436
+  test: OK .
+unit.issues.Issue4450
+  test: OK .
+unit.issues.Issue4457
+  test: OK .
+unit.issues.Issue4460
+  test: OK .
+unit.issues.Issue4466
+  test: OK .
+unit.issues.Issue4473
+  test1: OK ......
+  test2: OK ....
+unit.issues.Issue4501
+  test: OK .
+unit.issues.Issue4526
+  test: OK .........
+  testOrder: OK .
+unit.issues.Issue4557
+  test: OK .
+unit.issues.Issue4578
+  test: OK .
+unit.issues.Issue4591
+  test: OK .
+unit.issues.Issue4592
+  test: OK .
+unit.issues.Issue4593
+  test: OK .
+unit.issues.Issue4608
+  test: OK .
+unit.issues.Issue4617
+  test: OK .
+unit.issues.Issue4644
+  test: OK .
+unit.issues.Issue4653
+  test: OK ..
+unit.issues.Issue4666
+  test: OK .
+unit.issues.Issue4667
+  test: OK .
+unit.issues.Issue4668
+  test: OK ..
+unit.issues.Issue4672
+  test: OK .
+unit.issues.Issue4675
+  test: OK .
+unit.issues.Issue4677
+  test: OK .
+unit.issues.Issue4681
+  testArray: OK ..
+  testArray2: OK ..
+  testField: OK ..
+  testField2: OK ..
+  testNested: OK ..
+  testNested2: OK ..
+  testNormal: OK .
+  testNormal2: OK .
+unit.issues.Issue4690
+  test: OK .
+unit.issues.Issue4695
+  testNull: OK ....
+unit.issues.Issue4702
+  test: OK .
+unit.issues.Issue4703
+  test: OK .
+unit.issues.Issue4723
+  test: OK ...
+unit.issues.Issue4729
+  test: OK ..
+unit.issues.Issue4740
+  test: OK .
+unit.issues.Issue4743
+  test: OK ..
+unit.issues.Issue4751
+  testGama: OK .
+  testNadako: OK .
+unit.issues.Issue4757
+  test: OK .
+  test2: OK .
+unit.issues.Issue4772
+  test: OK .
+unit.issues.Issue4777
+  test: OK .
+unit.issues.Issue4798
+  test: OK .
+unit.issues.Issue4799
+  test: OK ..........
+unit.issues.Issue4809
+  test: OK .
+unit.issues.Issue4810
+  test: OK .
+unit.issues.Issue4819
+  test: OK ........
+unit.issues.Issue4841
+  test: OK .
+unit.issues.Issue4842
+  test: OK ...
+unit.issues.Issue4843
+  test: OK .
+unit.issues.Issue4867
+  test: OK .
+unit.issues.Issue4870
+  test: OK ..
+unit.issues.Issue4885
+  test: OK .
+unit.issues.Issue4886
+  test: OK .
+unit.issues.Issue4889
+  test: OK .
+unit.issues.Issue4904
+  test: OK ...
+unit.issues.Issue4910
+  test: OK ...
+unit.issues.Issue4917
+  test: OK .
+unit.issues.Issue4918
+  test: OK .
+unit.issues.Issue4940
+  test: OK .
+  testResolutionOrder: OK .
+unit.issues.Issue4949
+  test: OK .
+unit.issues.Issue4953
+  test: OK .
+unit.issues.Issue4962
+  test: OK ..
+unit.issues.Issue4966
+  test: OK ..
+unit.issues.Issue4968
+  test: OK ..
+unit.issues.Issue4977
+  test: OK ..
+unit.issues.Issue4979
+  test: OK .
+unit.issues.Issue4986
+  test: OK .
+unit.issues.Issue4987
+  test: OK .
+unit.issues.Issue4988
+  test: OK .
+unit.issues.Issue4997
+  test: OK .
+unit.issues.Issue5000
+  test: OK .
+unit.issues.Issue5009
+  test: OK .
+unit.issues.Issue5015
+  test: OK .
+unit.issues.Issue5016
+  test: OK .
+unit.issues.Issue5025
+  test: OK .
+unit.issues.Issue5027
+  test: OK .
+unit.issues.Issue5028
+  test: OK .
+unit.issues.Issue5029
+  test: OK .
+unit.issues.Issue5030
+  test: OK .
+unit.issues.Issue5031
+  testFormatProblem: OK .
+  testHscriptProblem: OK .
+unit.issues.Issue5044
+  test: OK .
+unit.issues.Issue5053
+  test: OK ..
+unit.issues.Issue5064
+  test: OK ....
+unit.issues.Issue5073
+  test: OK .
+unit.issues.Issue5078
+  test: OK .
+unit.issues.Issue5082
+  test: OK .
+unit.issues.Issue5086
+  test: OK .
+unit.issues.Issue5090
+  test: OK ..
+unit.issues.Issue5108
+  test: OK .
+unit.issues.Issue5113
+  test: OK .
+unit.issues.Issue5124
+  test: OK ....
+unit.issues.Issue5135
+  test: OK .
+unit.issues.Issue5155
+  test: OK .
+unit.issues.Issue5160
+  test: OK .
+unit.issues.Issue5162
+  test: OK ..
+unit.issues.Issue5179
+  test: OK .
+unit.issues.Issue5192
+  test: OK .
+unit.issues.Issue5218
+  test: OK ...
+unit.issues.Issue5221
+  test: OK ..
+unit.issues.Issue5226
+  test: OK ..
+unit.issues.Issue523
+  test: OK .
+unit.issues.Issue5231
+  test: OK .
+unit.issues.Issue5234
+  test: OK .
+unit.issues.Issue5242
+  test: OK .
+  test2: OK .
+unit.issues.Issue5248
+  test: OK .
+unit.issues.Issue5249
+  test: OK ..
+unit.issues.Issue5253
+  test: OK .
+unit.issues.Issue5255
+  test: OK .
+unit.issues.Issue5260
+  test: OK .
+unit.issues.Issue5274
+  test: OK ..
+unit.issues.Issue5288
+  test: OK .
+unit.issues.Issue5290
+  test: OK .
+unit.issues.Issue5293
+  test: OK .
+unit.issues.Issue5303
+  test: OK .
+unit.issues.Issue5309
+  test: OK .
+unit.issues.Issue5322
+  test: OK .......
+unit.issues.Issue5323
+  test: OK .
+unit.issues.Issue5340
+  test: OK .
+unit.issues.Issue5351
+  test: OK .................
+unit.issues.Issue5358
+  test: OK .
+unit.issues.Issue5384
+  test: OK .
+unit.issues.Issue5385
+  test: OK ..
+unit.issues.Issue5389
+  test: OK ...
+unit.issues.Issue5392
+  test: OK .
+unit.issues.Issue5425
+  test: OK .
+unit.issues.Issue5432
+  test: OK ..
+unit.issues.Issue5449
+  test: OK ....
+unit.issues.Issue5455
+  test: OK .
+unit.issues.Issue5466
+  test: OK .
+unit.issues.Issue5469
+  test: OK .
+unit.issues.Issue5470
+  test: OK .
+unit.issues.Issue5477
+  test: OK .
+  testArray: OK .............
+  testField: OK .............
+  testStringBuf: OK ..
+unit.issues.Issue5481
+  test: OK .
+unit.issues.Issue5493
+  test: OK ....
+unit.issues.Issue5508
+  test: OK ..
+unit.issues.Issue5520
+  test: OK .
+unit.issues.Issue5540
+  test: OK .
+unit.issues.Issue5543
+  test: OK .
+unit.issues.Issue5544
+  test: OK .
+unit.issues.Issue5555
+  testFieldWrite: OK ..
+  testStateWrite: OK ..
+  testVarWrite: OK ..
+unit.issues.Issue5556
+  test: OK .
+unit.issues.Issue5557
+  test: OK .
+unit.issues.Issue5558
+  test: OK .
+unit.issues.Issue5569
+  test: OK .
+unit.issues.Issue5572
+  test: OK ......
+unit.issues.Issue5599
+  test: OK ..
+unit.issues.Issue5608
+  test: OK .
+unit.issues.Issue5691
+  test: OK .......
+unit.issues.Issue5693
+  test: OK .
+unit.issues.Issue5742
+  test: OK ..
+unit.issues.Issue5757
+  test: OK .
+unit.issues.Issue5764
+  test: OK .
+unit.issues.Issue5783
+  test: OK .
+unit.issues.Issue5793
+  test: OK ..
+unit.issues.Issue5848
+  test: OK .
+unit.issues.Issue5851
+  test: OK .
+unit.issues.Issue5873
+  test: OK .........
+unit.issues.Issue5894
+  test: OK .
+unit.issues.Issue5911
+  test: OK .
+unit.issues.Issue5945
+  test: OK .
+unit.issues.Issue5957
+  test: OK .
+unit.issues.Issue5973
+  test: OK ......
+unit.issues.Issue6007
+  test: OK ..
+unit.issues.Issue6016
+  test: OK .
+unit.issues.Issue6036
+  test: OK ..
+unit.issues.Issue6043
+  test: OK .
+unit.issues.Issue6062
+  test: OK ..
+unit.issues.Issue6067
+  test: OK .
+unit.issues.Issue6070
+  test: OK .
+unit.issues.Issue6090
+  test: OK .
+unit.issues.Issue6093
+  test: OK ..
+unit.issues.Issue6106
+  test: OK .
+unit.issues.Issue6121
+  test: OK ..
+unit.issues.Issue6133
+  test: OK .
+unit.issues.Issue6135
+  test: OK .
+unit.issues.Issue6145
+  test: OK .
+unit.issues.Issue6147
+  test: OK .....
+unit.issues.Issue6158
+  test: OK .
+unit.issues.Issue6159
+  test: OK .
+unit.issues.Issue6169
+  test: OK .
+unit.issues.Issue6175
+  test: OK .
+unit.issues.Issue6177
+  test: OK .
+unit.issues.Issue6208
+  test: OK ..
+unit.issues.Issue6211
+  test: OK .
+unit.issues.Issue6215
+  test: OK .
+unit.issues.Issue6224
+  test: OK .
+unit.issues.Issue6257
+  test: OK .
+unit.issues.Issue6259
+  test: OK ..
+unit.issues.Issue6266
+  test: OK .
+unit.issues.Issue6267
+  test: OK .
+unit.issues.Issue6276
+  test: OK ...........
+unit.issues.Issue6281
+  test: OK .
+unit.issues.Issue6285
+  test: OK .
+unit.issues.Issue6290
+  test: OK .
+unit.issues.Issue6291
+  test: OK .
+unit.issues.Issue6294
+  test: OK .
+unit.issues.Issue6298
+  test: OK .
+unit.issues.Issue6299
+  test: OK .
+unit.issues.Issue6304
+  test: OK .
+unit.issues.Issue6315
+  test: OK .
+unit.issues.Issue6325
+  test: OK .......
+unit.issues.Issue6342
+  test: OK ..
+unit.issues.Issue6349
+  test: OK .
+unit.issues.Issue6369
+  test: OK .
+unit.issues.Issue6375
+  test: OK ....
+unit.issues.Issue6376
+  test: OK .
+unit.issues.Issue6379
+  test: OK .
+unit.issues.Issue6406
+  test: OK ..
+unit.issues.Issue6413
+  test: OK .
+unit.issues.Issue6446
+  test: OK .
+unit.issues.Issue6457
+  test: OK ........
+unit.issues.Issue6480
+  test: OK ..
+unit.issues.Issue6482
+  test: OK .
+unit.issues.Issue6486
+  test: OK ..
+unit.issues.Issue6499
+  test: OK .
+unit.issues.Issue6502
+  test: OK .
+unit.issues.Issue6520
+  test: OK ....
+unit.issues.Issue6531
+  test: OK ........................
+unit.issues.Issue6532
+  test: OK .
+unit.issues.Issue6533
+  test: OK .
+unit.issues.Issue6548
+  test: OK .
+unit.issues.Issue6549
+  test: OK ..
+unit.issues.Issue6551
+  test: OK .
+unit.issues.Issue6555
+  test: OK .
+unit.issues.Issue6559
+  test: OK .
+unit.issues.Issue6560
+  test: OK .
+unit.issues.Issue6561
+  test: OK .
+unit.issues.Issue6562
+  test: OK .
+unit.issues.Issue6587
+  test: OK ..
+unit.issues.Issue6606
+  test: OK .
+unit.issues.Issue6609
+  test: OK .
+unit.issues.Issue6630
+  test: OK ...
+unit.issues.Issue6635
+  test: OK .
+unit.issues.Issue6637
+  test: OK .
+unit.issues.Issue6643
+  test: OK ..
+unit.issues.Issue6656
+  test: OK .
+unit.issues.Issue6660
+  test: OK ..
+unit.issues.Issue6674
+  test: OK ..
+unit.issues.Issue6675
+  test: OK .
+unit.issues.Issue6703
+  test: OK .
+unit.issues.Issue6706
+  test: OK .
+unit.issues.Issue6707
+  test: OK .
+unit.issues.Issue6710
+  test: OK .....
+unit.issues.Issue6711
+  test: OK .
+unit.issues.Issue6717
+  test: OK ..
+unit.issues.Issue6720
+  test: OK ..
+unit.issues.Issue6722
+  test: OK .
+unit.issues.Issue6724
+  test: OK .
+unit.issues.Issue6751
+  test: OK ..
+unit.issues.Issue6752
+  test: OK .
+unit.issues.Issue6776
+  test1: OK .
+  test2: OK .
+unit.issues.Issue6784
+  test: OK .
+unit.issues.Issue6801
+  test: OK .....
+unit.issues.Issue6807
+  test: OK .
+unit.issues.Issue6822
+  test: OK ..
+unit.issues.Issue6830
+  test: OK .
+unit.issues.Issue6833
+  test: OK .
+unit.issues.Issue6836
+  test: OK ....
+unit.issues.Issue6838
+  test: OK .
+unit.issues.Issue6871
+  test: OK ..
+unit.issues.Issue6873
+  test: OK .
+unit.issues.Issue6896
+  test: OK .
+unit.issues.Issue6948
+  test: OK .
+unit.issues.Issue6952
+  test: OK .....
+unit.issues.Issue6972
+  test: OK ................
+unit.issues.Issue6979
+  test: OK ..
+unit.issues.Issue7007
+  test: OK .
+unit.issues.Issue7106
+  testClosure: OK .....
+  testStatic: OK ...
+unit.issues.Issue7115
+  testCast: OK .......
+  testCatch: OK .......
+  testIs: OK .........
+unit.issues.Issue7120
+  test1: OK .
+  test2: OK .
+unit.issues.Issue7132
+  test: OK .
+unit.issues.Issue7139
+  test: OK .........
+unit.issues.Issue7142
+  test: OK ....
+unit.issues.Issue7179
+  test: OK .
+unit.issues.Issue7182
+  test: OK ..
+unit.issues.Issue7187
+  test: OK .
+unit.issues.Issue7207
+  test: OK .
+unit.issues.Issue7209
+  test: OK ...
+unit.issues.Issue7220
+  test: OK .
+unit.issues.Issue7230
+  test: OK .
+unit.issues.Issue7233
+  test: OK .
+unit.issues.Issue7247
+  test: OK ........
+unit.issues.Issue7286
+  test: OK .
+unit.issues.Issue7298
+  test: OK .
+unit.issues.Issue7334
+  test: OK .
+unit.issues.Issue7335
+  test: OK ........
+unit.issues.Issue7359
+  test: OK ..
+unit.issues.Issue7367
+  test: OK .
+unit.issues.Issue7388
+  test: OK .
+unit.issues.Issue7391
+  test: OK .
+unit.issues.Issue7394
+  test: OK .
+unit.issues.Issue7443
+  test: OK .
+unit.issues.Issue7449
+  test: OK .
+unit.issues.Issue7466
+  test: OK .
+unit.issues.Issue7476
+  test: OK .
+unit.issues.Issue7492
+  test: OK .
+unit.issues.Issue7499
+  test: OK .
+unit.issues.Issue7531
+  test: OK ..
+unit.issues.Issue7533
+  test: OK .
+unit.issues.Issue7536
+  test: OK .
+unit.issues.Issue7540
+  test: OK .
+unit.issues.Issue7579
+  test: OK .
+unit.issues.Issue7590
+  test: OK .
+unit.issues.Issue7600
+  test: OK .
+unit.issues.Issue7603
+  test: OK .
+unit.issues.Issue7653
+  test: OK .
+unit.issues.Issue7716
+  test: OK .
+unit.issues.Issue7727
+  test: OK .
+unit.issues.Issue7728
+  test: OK .
+unit.issues.Issue7743
+  test: OK .
+unit.issues.Issue7844
+  test: OK .
+unit.issues.Issue7869
+  test: OK .
+unit.issues.Issue7890
+  test: OK .
+

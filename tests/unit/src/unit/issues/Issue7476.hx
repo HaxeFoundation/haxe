@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue7476 extends unit.Test {
 	function test() {
-
+		noAssert();
 	}
 }
 

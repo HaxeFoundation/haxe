@@ -15,6 +15,6 @@ private enum abstract TP_KIND<T>(Int) {
 
 class Issue5179 extends unit.Test {
 	function test() {
-
+		noAssert();
 	}
 }

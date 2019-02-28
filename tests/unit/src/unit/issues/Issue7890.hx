@@ -12,5 +12,6 @@ class Issue7890 extends unit.Test {
 				trace(error);
 			});
 		#end
+		noAssert();
 	}
 }
