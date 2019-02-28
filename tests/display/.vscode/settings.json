@@ -8,5 +8,6 @@
 		"build.hxml",
 		"-lib",
 		"test-adapter"
-	]
+	],
+	"haxeTestExplorer.launchConfiguration": "Haxe-eval"
 }

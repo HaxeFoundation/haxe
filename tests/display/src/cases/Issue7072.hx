@@ -22,5 +22,6 @@ class Issue7072 extends DisplayTestCase {
 		// eq("foo", results[0].name);
 		// eq("bar", results[1].name);
 		// eq("foobar", results[2].name);
+		eq(true, true); // TODO
 	}
 }

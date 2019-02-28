@@ -9,6 +9,6 @@ class IssueTemplate extends DisplayTestCase {
 	}
 	**/
 	function test() {
-
+		eq(true, true);
 	}
 }

@@ -11,5 +11,6 @@ class Issue7082 extends DisplayTestCase {
 	**/
 	function test() {
 		fields(pos(1));
+		eq(true, true); // TODO
 	}
 }

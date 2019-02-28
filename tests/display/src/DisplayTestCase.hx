@@ -21,7 +21,8 @@ class DisplayTestCase implements utest.ITest {
 	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
 	inline function diagnostics() return ctx.diagnostics();
 
-	inline function noCompletionPoint(f) return ctx.noCompletionPoint(f);
+	inline function noCompletionPoint(f) return ctx.hasErrorMessage(f, "No completion point");
+	inline function typeNotFound(f, typeName) return ctx.hasErrorMessage(f, "Type not found : " + typeName);
 
 	function assert(v:Bool) Assert.isTrue(v);
 
@@ -37,16 +38,12 @@ class DisplayTestCase implements utest.ITest {
 		var expected = [for (expected in expected) f(expected) => expected];
 		for (actual in actual) {
 			var key = f(actual);
-			if (!expected.exists(key)) {
-				report("Result not part of expected Array:", pos);
-				report(Std.string(actual), pos);
-			}
+			Assert.isTrue(expected.exists(key), "Result not part of expected Array: " + Std.string(actual), pos);
 			expected.remove(key);
 		}
 
 		for (expected in expected) {
-			report("Expected result was not part of actual Array:", pos);
-			report(Std.string(expected), pos);
+			Assert.fail("Expected result was not part of actual Array: " + Std.string(expected), pos);
 			return;
 		}
 	}

@@ -9,6 +9,6 @@ class Issue7878 extends DisplayTestCase {
 }
 	**/
 	function test() {
-		// TODO: need assertError or something
+		assert(typeNotFound(type.bind(pos(1)), "SomethingUnknown"));
 	}
 }
