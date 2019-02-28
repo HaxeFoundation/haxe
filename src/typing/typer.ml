@@ -2103,12 +2103,16 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e p =
+and type_return ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
-		mk (TReturn None) t_dynamic p
+		let expect_void = match with_type with
+			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| _ -> false
+		in
+		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
 			let e = type_expr ctx e (WithType.with_type ctx.ret) in
@@ -2423,7 +2427,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		let e = Matcher.Match.match_expr ctx e1 cases def with_type p in
 		wrap e
 	| EReturn e ->
-		type_return ctx e p
+		type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
 		mk TBreak t_dynamic p
