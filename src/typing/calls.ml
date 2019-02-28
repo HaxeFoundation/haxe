@@ -28,7 +28,13 @@ let make_call ctx e params t ?(force_inline=false) p =
 			| _ ->
 				raise Exit
 		in
-		if not force_inline && f.cf_kind <> Method MethInline then raise Exit;
+		if not force_inline then begin
+			if f.cf_kind <> Method MethInline then raise Exit;
+		end else begin
+			delay ctx PFinal (fun () ->
+				if has_class_field_flag f CfOverridden then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
+			);
+		end;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
 				let t = if f.cf_name = "_new" then
