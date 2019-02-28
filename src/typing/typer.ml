@@ -1767,9 +1767,13 @@ and type_new ctx path el with_type force_inline p =
 	try begin match t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
-		let el = List.map (fun e -> type_expr ctx e WithType.value) el in
- 		if not (has_constructible_constraint ctx tl el p) then raise_error (No_constructor (TClassDecl c)) p;
-		mk (TNew (c,params,el)) t p
+ 		begin match get_constructible_constraint ctx tl p with
+		| None ->
+			raise_error (No_constructor (TClassDecl c)) p
+		| Some(tl,tr) ->
+			let el,_ = unify_call_args ctx el tl tr p false false in
+			mk (TNew (c,params,el)) t p
+		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
