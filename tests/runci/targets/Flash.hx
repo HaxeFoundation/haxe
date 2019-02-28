@@ -99,8 +99,8 @@ class Flash {
 			try {
 				line = traceProcess.stdout.readLine();
 				Sys.println(line);
-				if (line.indexOf("SUCCESS: ") >= 0) {
-					return line.indexOf("SUCCESS: true") >= 0;
+				if (line.indexOf("success: ") >= 0) {
+					return line.indexOf("success: true") >= 0;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;

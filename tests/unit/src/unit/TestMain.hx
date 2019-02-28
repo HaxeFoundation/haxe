@@ -1,5 +1,7 @@
 package unit;
 
+import utest.ui.Report;
+import utest.Runner;
 import unit.Test.*;
 import haxe.ds.List;
 
@@ -119,6 +121,13 @@ class TestMain {
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 
-		utest.UTest.run(classes);
+		var runner = new Runner();
+		for (c in classes) {
+			runner.addCase(c);
+		}
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
+		runner.run();
 	}
 }
