@@ -105,7 +105,7 @@ class TestReflect extends Test {
 				eq( Type.resolveEnum(name), t );
 			} else {
 				eq( Type.getClassName(t), name );
-				eq( Type.resolveClass(name), t );
+				utest.Assert.isTrue( Type.resolveClass(name) == t );
 			}
 		}
 	}
