@@ -12,8 +12,9 @@ class Macro {
 
 		haxelibInstall("utest");
 
-		changeDirectory(displayDir);
-		runCommand("haxe", ["build.hxml"]);
+		// TODO: enable this again at some point
+		// changeDirectory(displayDir);
+		// runCommand("haxe", ["build.hxml"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
