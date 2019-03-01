@@ -265,6 +265,8 @@ class TestPhp extends Test
 		}
 		aeq([for(i in 0...expected.length) i], indexes);
 		aeq(expected, values);
+
+		eq('[10,20,30]', Std.string(a));
 	}
 
 	function testNativeAssocArray() {

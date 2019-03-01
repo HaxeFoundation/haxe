@@ -170,8 +170,7 @@ final class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function toString():String {
-		var strings = Global.implode(',', Global.array_map(Syntax.nativeClassName(Boot) + '::stringify', arr));
-		return '[' + strings + ']';
+		return inline Boot.stringifyNativeIndexedArray(arr);
 	}
 
 	public function resize( len:Int ) : Void {
