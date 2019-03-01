@@ -10,7 +10,6 @@ class Neko {
 		runCommand("neko", ["bin/unit.n"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-neko.hxml"]);
 		runCommand("neko", ["bin/neko/sys.n"]);
 	}

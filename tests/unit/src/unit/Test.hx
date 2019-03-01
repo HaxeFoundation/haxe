@@ -19,7 +19,7 @@ class Test implements utest.ITest {
 	}
 
 	function eq<T>( v : T, v2 : T, ?pos:haxe.PosInfos ) {
-		Assert.isTrue(v == v2, pos);
+		Assert.equals(v, v2, pos);
 	}
 
 	function feq( v : Float, v2 : Float, ?pos:haxe.PosInfos ) {

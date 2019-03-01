@@ -93,7 +93,6 @@ class Js {
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
-		haxelibInstall("utest");
 
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		changeDirectory(serverDir);
