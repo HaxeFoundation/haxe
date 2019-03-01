@@ -16,7 +16,7 @@ class TestMain {
 	#if js
 	static function nodejsMain() {
 		main();
-		(untyped process).exit(Test.success ? 0 : 1);
+		(untyped process).exit(0);
 	}
 	#end
 
