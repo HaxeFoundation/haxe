@@ -121,6 +121,13 @@ class TestMain {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
+		#if js
+		if (js.Browser.supported) {
+			runner.onComplete.add(function(_) {
+				untyped js.Browser.window.success = true; // TODO: need utest success state for this
+			});
+		};
+		#end
 		runner.run();
 	}
 }
