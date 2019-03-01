@@ -2986,6 +2986,20 @@ module TClass = struct
 
 	let get_all_fields c tl =
 		get_member_fields' true c tl
+
+	let get_overridden_fields c cf =
+		let rec loop acc c = match c.cl_super with
+			| None ->
+				acc
+			| Some(c,_) ->
+				begin try
+					let cf' = PMap.find cf.cf_name c.cl_fields in
+					loop (cf' :: acc) c
+				with Not_found ->
+					loop acc c
+				end
+		in
+		loop [] c
 end
 
 let s_class_path c =
