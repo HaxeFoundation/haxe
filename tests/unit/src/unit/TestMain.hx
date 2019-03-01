@@ -13,13 +13,6 @@ class TestMain {
 	static var asyncWaits = new Array<haxe.PosInfos>();
 	static var asyncCache = new Array<Void -> Void>();
 
-	#if js
-	static function nodejsMain() {
-		main();
-		(untyped process).exit(0);
-	}
-	#end
-
 	static function main() {
 		#if js
 		if (js.Browser.supported) {
