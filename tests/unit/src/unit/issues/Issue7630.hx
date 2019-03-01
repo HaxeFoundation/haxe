@@ -6,6 +6,7 @@ class Issue7630 extends unit.Test {
 		var r = Math.random();
 
     	func(inlineMe(if (r > 0.5) 42 else 21));
+		noAssert();
 	}
 
 	@:pure(false)

@@ -35,12 +35,8 @@ class Issue3826 extends Test {
 		#end
 	}
 
+	#if !(java || cs || flash)
 	public function testReflect() {
-		#if (java || cs)
-		return; // TODO
-		#end
-
-		#if !flash
 		eq( Reflect.callMethod(this, get, []), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );
 		eq( Reflect.callMethod(this, get, [5,8.5]), "5/8.5" );
@@ -50,8 +46,8 @@ class Issue3826 extends Test {
 		eq( Reflect.callMethod(this, get, [null,null]), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [ival,fval]), "5/8.5" );
 		eq( Reflect.callMethod(this, get, [dval,dval]), "6/6" );
-		#end
 	}
+	#end
 
 	function getOpt( ?a = 2, ?b = 4.25 ) {
 		return ""+a+"/"+b;

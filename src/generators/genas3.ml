@@ -996,10 +996,13 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
+	let cfl_overridden = TClass.get_overridden_fields ctx.curclass f in
+	let overrides_public = List.exists (fun cf -> Meta.has Meta.Public cf.cf_meta) cfl_overridden in
 	let public = (has_class_field_flag f CfPublic) || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
 		|| f.cf_name = "resolve" || Meta.has Meta.Public f.cf_meta
 		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
+		|| overrides_public
 	in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in

@@ -468,11 +468,7 @@ class TestInt64 extends Test {
 	}
 
 	function int64eq( v : Int64, v2 : Int64, ?pos ) {
-		Test.count++;
-		if( v != v2 ) {
-			Test.report(Std.string(v)+" should be "+Std.string(v2),pos);
-			Test.success = false;
-		}
+		t(v == v2);
 	}
 
 	public function testParseString()

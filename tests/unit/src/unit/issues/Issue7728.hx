@@ -11,7 +11,7 @@ private abstract S(String) {
 
 class Issue7728 extends unit.Test {
 	function test() {
-
+		noAssert();
 	}
 
 	static function doTest(e:E):Void {

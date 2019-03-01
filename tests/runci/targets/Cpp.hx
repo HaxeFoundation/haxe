@@ -65,7 +65,6 @@ class Cpp {
 		}
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-cpp.hxml"]);
 		runCpp("bin/cpp/Main-debug", []);
 

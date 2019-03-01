@@ -66,7 +66,6 @@ class Lua {
 			runCommand("lua", ["bin/unit.lua"]);
 
 			changeDirectory(sysDir);
-			haxelibInstall("utest");
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/lua/sys.lua"]);
 

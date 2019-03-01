@@ -20,7 +20,6 @@ class Java {
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-java.hxml"]);
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 

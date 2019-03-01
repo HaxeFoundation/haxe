@@ -12,6 +12,7 @@ class Issue5384 extends unit.Test {
         var d:Dynamic = myFunc() ? myFunc() : "string";
 
         var e:Dynamic = try myFunc() catch(e:Dynamic) "string";
+		noAssert();
 	}
 
     static function myFunc():Bool {

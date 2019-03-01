@@ -14,5 +14,6 @@ class Issue4329 extends Test {
 
 	function test() {
 		foo(12);
+		noAssert();
 	}
 }

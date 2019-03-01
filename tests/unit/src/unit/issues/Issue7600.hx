@@ -6,5 +6,6 @@ class Issue7600 extends unit.Test {
 			public static function foo<E:EnumValue>(e:E):E
 				return e;
 		}
+		noAssert();
 	}
 }

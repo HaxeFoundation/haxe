@@ -44,5 +44,6 @@ class TestNaN extends Test {
 
 		if( a < 0 || a > 0 ) assert();
 		if( a < 0 && a > 0 ) assert();
+		noAssert();
 	}
 }

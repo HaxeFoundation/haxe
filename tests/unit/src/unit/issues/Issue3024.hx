@@ -23,6 +23,7 @@ class Issue3024 extends Test {
 
 	function test() {
 		create(new Vector(1), new StringMap());
+		noAssert();
 	}
 
 	function create(myVector:MyVector, myMap:MyMap) {

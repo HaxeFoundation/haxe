@@ -48,7 +48,7 @@ class Js {
 				}
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.nodejsMain();"]);
+				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
 				output;
 			}
 		];
@@ -93,7 +93,6 @@ class Js {
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
-		haxelibInstall("utest");
 
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		changeDirectory(serverDir);

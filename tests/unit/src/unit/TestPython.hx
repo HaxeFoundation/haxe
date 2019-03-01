@@ -99,6 +99,7 @@ class TestPython extends Test {
 
 	public function testKeywords () {
 		var list = new Array();
+		noAssert();
 	}
 
 	public function testStringMethod() {
@@ -309,6 +310,7 @@ class TestPython extends Test {
 		catch (e:Dynamic) {
 			e = 1;
 		}
+		noAssert();
 	}
 
 	var _s:String;

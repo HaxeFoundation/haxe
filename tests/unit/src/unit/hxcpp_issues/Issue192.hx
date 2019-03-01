@@ -5,6 +5,8 @@ class ConstuctorWithArgCalledResult {
 }
 
 class Issue192 extends Test {
-	function test() new ConstuctorWithArgCalledResult(1);
+	function test() {
+		t(new ConstuctorWithArgCalledResult(1) != null);
+	}
 }
 

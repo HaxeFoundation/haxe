@@ -5,8 +5,8 @@ import java.vm.Mutex;
 #end
 
 class Issue4878 extends Test {
+	#if java
   function test() {
-#if java
     var mutex = new Mutex();
     var thread = Thread.create(function() {
       mutex.acquire();
@@ -19,6 +19,6 @@ class Issue4878 extends Test {
     f(mutex.tryAcquire());
     Sys.sleep(.3);
     t(mutex.tryAcquire());
-#end
   }
+  #end
 }

@@ -3,6 +3,7 @@ package unit.issues;
 class Issue6833 extends unit.Test {
 	function test() {
 		for(p in new KeyValueIterator([1 => 'hello'])) {}
+		noAssert();
 	}
 }
 

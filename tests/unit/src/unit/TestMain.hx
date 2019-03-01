@@ -1,5 +1,7 @@
 package unit;
 
+import utest.ui.Report;
+import utest.Runner;
 import unit.Test.*;
 import haxe.ds.List;
 
@@ -11,16 +13,7 @@ class TestMain {
 	static var asyncWaits = new Array<haxe.PosInfos>();
 	static var asyncCache = new Array<Void -> Void>();
 
-	#if js
-	static function nodejsMain() {
-		main();
-		(untyped process).exit(Test.success ? 0 : 1);
-	}
-	#end
-
 	static function main() {
-		Test.startStamp = haxe.Timer.stamp();
-
 		#if js
 		if (js.Browser.supported) {
 			var oTrace = haxe.Log.trace;
@@ -45,7 +38,6 @@ class TestMain {
 		if( php.Web.isModNeko )
 			php.Web.setHeader("Content-Type","text/plain");
 		#end
-		resetTimer();
 		#if !macro
 		trace("Generated at: " + HelperMacros.getCompilationDate());
 		#end
@@ -121,43 +113,14 @@ class TestMain {
 
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
-		var current = null;
-		#if (!fail_eager)
-		try
-		#end
-		{
-			asyncWaits.push(null);
-			for( inst in classes ) {
-				current = Type.getClass(inst);
-			if (verbose)
-			   logVerbose("Class " + Std.string(current) );
-				for( f in Type.getInstanceFields(current) )
-					if( f.substr(0,4) == "test" ) {
-				  if (verbose)
-					 logVerbose("   " + f);
-						#if fail_eager
-						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						#else
-						try {
-							Reflect.callMethod(inst,Reflect.field(inst,f),[]);
-						}
-						#if !as3
-						catch( e : Dynamic ) {
-							onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
-						}
-						#end
-						#end
-						reportInfos = null;
-					}
-			}
-			asyncWaits.remove(null);
-			checkDone();
+
+		var runner = new Runner();
+		for (c in classes) {
+			runner.addCase(c);
 		}
-		#if (!as3 && !(fail_eager))
-		catch( e : Dynamic ) {
-			asyncWaits.remove(null);
-			onError(e,"ABORTED",Type.getClassName(current));
-		}
-		#end
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
+		runner.run();
 	}
 }

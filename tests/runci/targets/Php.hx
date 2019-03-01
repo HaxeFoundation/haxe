@@ -34,7 +34,6 @@ class Php {
 		runCommand("php", ["bin/php/index.php"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-php.hxml"]);
 		runCommand("php", ["bin/php/Main/index.php"]);
 	}

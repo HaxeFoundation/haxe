@@ -240,11 +240,7 @@ function test(left:String, middle:String, right:String, ?rex:EReg) {
 		eq(pos.len, middle.length + 2);
 	}
 
-	if (!rex.match(s)) {
-		assert();
-		infos("For " + s);
-		return;
-	}
+	t(rex.match(s));
 	check(rex);
 
 	var split = rex.split(s);
