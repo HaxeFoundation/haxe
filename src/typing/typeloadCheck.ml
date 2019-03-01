@@ -172,9 +172,14 @@ let check_overriding ctx c f =
 				if List.memq f c.cl_overrides then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
-					else
-						("Field " ^ i ^ " is declared 'override' but doesn't override any field")
-					in
+					else begin
+						let fields = TClass.get_all_super_fields c in
+						let fields = PMap.fold (fun (_,cf) acc -> match cf.cf_kind with
+							| Method MethNormal when not (has_class_field_flag cf CfFinal) -> cf.cf_name :: acc
+							| _ -> acc
+						) fields [] in
+						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+					end in
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
