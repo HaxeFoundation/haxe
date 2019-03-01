@@ -43,7 +43,7 @@ class RunCi {
 			var success = true;
 			try {
 				changeDirectory(unitDir);
-				haxelibInstallGit("haxe-utest", "utest");
+				haxelibInstallGit("Simn", "utest", "cppia_dodge");
 
 				var args = switch (ci) {
 					case TravisCI:
