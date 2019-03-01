@@ -325,7 +325,10 @@ class Boot {
 	/**
 		Returns string representation of `value`
 	**/
-	public static function stringify( value : Dynamic ) : String {
+	public static function stringify( value : Dynamic, maxRecursion:Int = 10 ) : String {
+		if(maxRecursion <= 0) {
+			return '<...>';
+		}
 		if (value == null) {
 			return 'null';
 		}
@@ -341,11 +344,14 @@ class Boot {
 		if (value.is_array()) {
 			var strings = Syntax.arrayDecl();
 			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
-				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+				strings.push(Syntax.string(key) + ' => ' + stringify(item, maxRecursion - 1));
 			});
 			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
+			if(Std.is(value, Array)) {
+				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
+			}
 			if (value.method_exists('toString')) {
 				return value.toString();
 			}
@@ -359,7 +365,7 @@ class Boot {
 				var result = new NativeIndexedArray<String>();
 				var data = Global.get_object_vars(value);
 				for (key in data.array_keys()) {
-					result.array_push('$key : ' + stringify(data[key]));
+					result.array_push('$key : ' + stringify(data[key], maxRecursion - 1));
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
@@ -373,6 +379,14 @@ class Boot {
 			}
 		}
 		throw "Unable to stringify value";
+	}
+
+	static public function stringifyNativeIndexedArray<T>( arr : NativeIndexedArray<T>, maxRecursion : Int = 10 ) : String {
+		var strings = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			strings[index] = Boot.stringify(value, maxRecursion - 1);
+		});
+		return '[' + Global.implode(',', strings) + ']';
 	}
 
 	static public inline function isNumber( value:Dynamic ) {
