@@ -157,10 +157,7 @@ let handler =
 			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,(jo,_)) -> jobject [
-				"signature",jstring (Digest.to_hex sign);
-				"context",jo;
-			]) (CompilationServer.get_signs hctx.display#get_cs) in
+			let l = List.map (fun (sign,(jo,_)) -> jo) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
@@ -216,6 +213,10 @@ let handler =
 				()
 			) ();
 			hctx.send_result (jarray !l)
+		);
+		"server/memory",(fun hctx ->
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs in
+			hctx.send_result j
 		);
 		(* TODO: wait till gama complains about the naming, then change it to something else *)
 		"typer/compiledTypes", (fun hctx ->

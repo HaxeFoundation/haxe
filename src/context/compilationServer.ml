@@ -86,6 +86,7 @@ let add_sign cs sign com =
 		"index",JInt i;
 		"platform",JString (platform_name com.platform);
 		"classPaths",JArray (List.map (fun s -> JString s) com.class_path);
+		"signature",JString (Digest.to_hex sign);
 		"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 			"key",JString k;
 			"value",JString v;

@@ -175,33 +175,10 @@ let print_positions pl =
 	Buffer.add_string b "</list>";
 	Buffer.contents b
 
-let display_memory com =
-	let verbose = com.verbose in
-	let print = print_endline in
-	let fmt_size sz =
-		if sz < 1024 then
-			string_of_int sz ^ " B"
-		else if sz < 1024*1024 then
-			string_of_int (sz asr 10) ^ " KB"
-		else
-			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
-	in
-	let size v =
-		fmt_size (mem_size v)
-	in
-	Gc.full_major();
-	Gc.compact();
-	let mem = Gc.stat() in
-	print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
-	print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
-	(match CompilationServer.get() with
-	| None ->
-		print "No cache found";
-	| Some {CompilationServer.cache = c} ->
-		print ("Total cache size " ^ size c);
-		print ("  haxelib " ^ size c.CompilationServer.c_haxelib);
-		print ("  parsed ast " ^ size c.CompilationServer.c_files ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_files) ^ " files stored)");
-		print ("  typed modules " ^ size c.CompilationServer.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.CompilationServer.c_modules) ^ " modules stored)");
+module Memory = struct
+	open CompilationServer
+
+	let collect_memory_stats cs =
 		let rec scan_module_deps m h =
 			if Hashtbl.mem h m.m_id then
 				()
@@ -210,7 +187,7 @@ let display_memory com =
 				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
 			end
 		in
-		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) c.CompilationServer.c_modules PMap.empty in
+		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
 			scan_module_deps m mdeps;
@@ -238,49 +215,127 @@ let display_memory com =
 			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
 			let inf = Objsize.objsize m !deps chk in
 			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
-		) c.CompilationServer.c_modules [] in
-		let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
+		) cs.c_modules [] in
+		modules
+
+	let fmt_size sz =
+		if sz < 1024 then
+			string_of_int sz ^ " B"
+		else if sz < 1024*1024 then
+			string_of_int (sz asr 10) ^ " KB"
+		else
+			Printf.sprintf "%.1f MB" ((float_of_int sz) /. (1024.*.1024.))
+
+	let size v =
+		fmt_size (mem_size v)
+
+	let get_memory_json cs =
+		Gc.full_major();
+		Gc.compact();
+		let contexts = Hashtbl.create 0 in
+		let add_context sign =
+			let ctx = (sign,ref [],ref 0) in
+			Hashtbl.add contexts sign ctx;
+			ctx
+		in
+		let get_context sign =
+			try
+				Hashtbl.find contexts sign
+			with Not_found ->
+				add_context sign
+		in
+		let modules = collect_memory_stats cs.cache in
 		List.iter (fun (m,size,(reached,deps,out)) ->
-			let key = m.m_extra.m_sign in
-			if key <> !cur_key then begin
-				print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
-				cur_key := key;
-			end;
-			let sign md =
-				if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
-			in
-			print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
-			(if reached then try
-				incr mcount;
-				let lcount = ref 0 in
-				let leak l =
-					incr lcount;
-					incr tcount;
-					print (Printf.sprintf "      LEAK %s" l);
-					if !lcount >= 3 && !tcount >= 100 && not verbose then begin
-						print (Printf.sprintf "      ...");
-						raise Exit;
-					end;
+			let (_,l,mem) = get_context m.m_extra.m_sign in
+			l := (m,size) :: !l;
+			mem := !mem + size;
+		 ) modules;
+		let ja = Hashtbl.fold (fun key (sign,modules,size) l ->
+			let modules = List.sort (fun (_,size1) (_,size2)  -> compare size2 size1) !modules in
+			let modules = List.map (fun (m,size) ->
+				jobject [
+					"path",jstring (s_type_path m.m_path);
+					"size",jint size;
+				]
+			) modules in
+			let j = try fst (List.assoc sign cs.signs) with Not_found -> jnull in
+			let jo = jobject [
+				"context",j;
+				"size",jint !size;
+				"modules",jarray modules;
+			] in
+			jo :: l
+		) contexts [] in
+		jobject [
+			"contexts",jarray ja;
+			"memory",jobject [
+				"totalCache",jint (mem_size cs.cache);
+				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
+				"parserCache",jint (mem_size cs.cache.c_files);
+				"moduleCache",jint (mem_size cs.cache.c_modules);
+			]
+		]
+
+	let display_memory com =
+		let verbose = com.verbose in
+		let print = print_endline in
+		Gc.full_major();
+		Gc.compact();
+		let mem = Gc.stat() in
+		print ("Total Allocated Memory " ^ fmt_size (mem.Gc.heap_words * (Sys.word_size asr 8)));
+		print ("Free Memory " ^ fmt_size (mem.Gc.free_words * (Sys.word_size asr 8)));
+		(match get() with
+		| None ->
+			print "No cache found";
+		| Some {cache = c} ->
+			print ("Total cache size " ^ size c);
+			print ("  haxelib " ^ size c.c_haxelib);
+			print ("  parsed ast " ^ size c.c_files ^ " (" ^ string_of_int (Hashtbl.length c.c_files) ^ " files stored)");
+			print ("  typed modules " ^ size c.c_modules ^ " (" ^ string_of_int (Hashtbl.length c.c_modules) ^ " modules stored)");
+			let modules = collect_memory_stats c in
+			let cur_key = ref "" and tcount = ref 0 and mcount = ref 0 in
+			List.iter (fun (m,size,(reached,deps,out)) ->
+				let key = m.m_extra.m_sign in
+				if key <> !cur_key then begin
+					print (Printf.sprintf ("    --- CONFIG %s ----------------------------") (Digest.to_hex key));
+					cur_key := key;
+				end;
+				let sign md =
+					if md.m_extra.m_sign = key then "" else "(" ^ (try Digest.to_hex md.m_extra.m_sign with _ -> "???" ^ md.m_extra.m_sign) ^ ")"
 				in
-				if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
-				PMap.iter (fun _ md ->
-					if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
-				) out;
-			with Exit ->
-				());
-			if verbose then begin
-				print (Printf.sprintf "      %d total deps" (List.length deps));
-				PMap.iter (fun _ md ->
-					print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
-				) m.m_extra.m_deps;
-			end;
-			flush stdout
-		) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
-			let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
-			if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
-		) modules);
-		if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
-		print "Cache dump complete")
+				print (Printf.sprintf "    %s : %s" (s_type_path m.m_path) (fmt_size size));
+				(if reached then try
+					incr mcount;
+					let lcount = ref 0 in
+					let leak l =
+						incr lcount;
+						incr tcount;
+						print (Printf.sprintf "      LEAK %s" l);
+						if !lcount >= 3 && !tcount >= 100 && not verbose then begin
+							print (Printf.sprintf "      ...");
+							raise Exit;
+						end;
+					in
+					if (Objsize.objsize m deps [Obj.repr Common.memory_marker]).Objsize.reached then leak "common";
+					PMap.iter (fun _ md ->
+						if (Objsize.objsize m deps [Obj.repr md]).Objsize.reached then leak (s_type_path md.m_path ^ sign md);
+					) out;
+				with Exit ->
+					());
+				if verbose then begin
+					print (Printf.sprintf "      %d total deps" (List.length deps));
+					PMap.iter (fun _ md ->
+						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
+					) m.m_extra.m_deps;
+				end;
+				flush stdout
+			) (List.sort (fun (m1,s1,_) (m2,s2,_) ->
+				let k1 = m1.m_extra.m_sign and k2 = m2.m_extra.m_sign in
+				if k1 = k2 then s1 - s2 else if k1 > k2 then 1 else -1
+			) modules);
+			if !mcount > 0 then print ("*** " ^ string_of_int !mcount ^ " modules have leaks !");
+			print "Cache dump complete")
+end
 
 module TypePathHandler = struct
 	let unique l =
@@ -501,7 +556,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		raise (Completion (print_keywords ()))
 	| "memory" ->
 		did_something := true;
-		(try display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
+		(try Memory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
 	| "diagnostics" ->
 		Common.define com Define.NoCOpt;
 		com.display <- DisplayMode.create (DMDiagnostics true);
