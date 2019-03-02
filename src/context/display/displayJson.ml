@@ -44,19 +44,10 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-let debug_context_sign = ref None
-
 class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 	val cs = cs;
 
 	method get_cs = cs
-
-	method set_debug_context_sign sign =
-		debug_context_sign := sign
-
-	method get_sign = match !debug_context_sign with
-		| None -> Define.get_signature com.defines
-		| Some sign -> sign
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -172,25 +163,15 @@ let handler =
 			]) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.send_result (jarray l)
 		);
-		"server/select", (fun hctx ->
-			let i = hctx.jsonrpc#get_int_param "index" in
-			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs i
-			with Not_found ->
-				hctx.send_error [jstring "No such context"]
-			in
-			hctx.display#set_debug_context_sign (Some sign);
-			hctx.send_result (jstring (Printf.sprintf "Context %i selected" i))
-		 );
-		 "server/modules", (fun hctx ->
-			let sign = hctx.display#get_sign in
+		"server/modules", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let l = Hashtbl.fold (fun (_,sign') m acc ->
 				if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
 			) hctx.display#get_cs.cache.c_modules [] in
 			hctx.send_result (jarray l)
-		 );
+		);
 		"server/module", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let m = try
 				CompilationServer.find_module hctx.display#get_cs (path,sign)
@@ -200,7 +181,7 @@ let handler =
 			hctx.send_result (generate_module () m)
 		);
 		"server/files", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
 			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
 			let files = List.map (fun (file,cfile) ->
