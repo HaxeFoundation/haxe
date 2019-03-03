@@ -258,7 +258,7 @@ module Memory = struct
 					"size",jint size;
 				]
 			) modules in
-			let j = try fst (List.assoc sign cs.signs) with Not_found -> jnull in
+			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
 			let jo = jobject [
 				"context",j;
 				"size",jint !size;

@@ -827,14 +827,13 @@ try
 		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
+		let add_signature desc =
+			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
+		in
+		add_signature "before_init_macros";
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
+		add_signature "after_init_macros";
 		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-		begin match CompilationServer.get () with
-		| None -> ()
-		| Some cs ->
-			let sign = Define.get_signature com.defines in
-			try ignore(CompilationServer.get_sign cs sign) with Not_found -> ignore(CompilationServer.add_sign cs sign com)
-		end;
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Finalization.finalize tctx;
 		(* If we are trying to find references, let's syntax-explore everything we know to check for the

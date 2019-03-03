@@ -157,7 +157,7 @@ let handler =
 			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,(jo,_)) -> jo) (CompilationServer.get_signs hctx.display#get_cs) in
+			let l = List.map (fun (sign,csign) -> csign.cs_json) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.send_result (jarray l)
 		);
 		"server/modules", (fun hctx ->
