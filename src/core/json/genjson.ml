@@ -666,7 +666,10 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		"dependencies",jarray (PMap.fold (fun m acc -> generate_module_path m.m_path :: acc) m.m_extra.m_deps []);
+		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
+			"path",jstring (s_type_path m.m_path);
+			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		]) :: acc) m.m_extra.m_deps []);
 	]
 
 let create_context gm = {
