@@ -159,7 +159,7 @@ and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
 		let fl,p2 = match s with parser
 			| [< '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] -> fl,p2
-			| [< >] -> if !in_display then [],last_pos s else serror()
+			| [< >] -> syntax_error (Expected ["{"]) s ([],last_pos s)
 		in
 		let flags = List.map decl_flag_to_abstract_flag flags in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
@@ -208,10 +208,8 @@ and parse_type_decl mode s =
 					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
-					if not (!in_display) then serror() else begin
-						check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
-						List.rev acc
-					end
+					check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+					syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
 			in
 			let hl = loop false (last_pos s) [] in
 			let fl, p2 = parse_class_fields false p1 s in
@@ -272,10 +270,8 @@ and parse_import s p1 =
 			| [< '(Binop OpMult,_); '(Semicolon,p2) >] ->
 				p2, List.rev acc, IAll
 			| [< >] ->
-				if !in_display then begin
-					ignore(popt semicolon s);
-					p,List.rev acc,INormal
-				end else serror()
+				ignore(popt semicolon s);
+				syntax_error (Expected ["identifier"]) s (p,List.rev acc,INormal)
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2, List.rev acc, INormal
@@ -284,11 +280,11 @@ and parse_import s p1 =
 		| [< '(Const (Ident "as"),_); '(Const (Ident name),pname); '(Semicolon,p2) >] ->
 			p2, List.rev acc, IAsName(name,pname)
 		| [< >] ->
-			if !in_display then (last_pos s),List.rev acc,INormal else serror()
+			syntax_error (Expected [".";";";"as"]) s ((last_pos s),List.rev acc,INormal)
 	in
 	let p2, path, mode = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> if would_skip_display_position p1 s then p1, [], INormal else serror()
+		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[],INormal)
 	) in
 	(EImport (path,mode),punion p1 p2)
 
@@ -305,16 +301,16 @@ and parse_using s p1 =
 			| [< '(Kwd Extern,p) >] ->
 				loop pn (("extern",p) :: acc)
 			| [< >] ->
-				if !in_display then p,List.rev acc else serror()
+				syntax_error (Expected ["identifier"]) s (p,List.rev acc);
 			end
 		| [< '(Semicolon,p2) >] ->
 			p2,List.rev acc
 		| [< >] ->
-			if !in_display then (last_pos s),List.rev acc else serror()
+			syntax_error (Expected [".";";"]) s ((last_pos s),List.rev acc)
 	in
 	let p2, path = (match s with parser
 		| [< '(Const (Ident name),p) >] -> loop p [name,p]
-		| [< >] -> if would_skip_display_position p1 s then p1, [] else serror()
+		| [< >] -> syntax_error (Expected ["identifier"]) s (p1,[])
 	) in
 	(EUsing path,punion p1 p2)
 
@@ -342,7 +338,7 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> if !in_display then pos (last_token s) else serror()
+		| [< >] -> syntax_error (Expected ["}"]) s (pos (last_token s))
 	) in
 	l, p2
 
@@ -525,7 +521,7 @@ and parse_structural_extension = parser
 		| [< t = parse_type_path >] ->
 			begin match s with parser
 				| [< '(Comma,_) >] -> t
-				| [< >] -> if !in_display then t else serror()
+				| [< >] -> syntax_error (Expected [","]) s t
 			end;
 		| [< >] ->
 			if would_skip_display_position p1 s then begin
@@ -594,8 +590,7 @@ and parse_type_path2 p0 pack name p1 s =
 				begin match s with parser
 				| [<'(Binop OpGt,p2) >] -> l,p2
 				| [< >] ->
-					if !in_display then l,pos (last_token s)
-					else serror()
+					syntax_error (Expected [">"]) s (l,pos (last_token s))
 				end
 			| [< >] -> [],p2
 		) in
@@ -696,8 +691,7 @@ and parse_type_anonymous s =
 			| [< l,p2 = parse_type_anonymous >] -> next l,punion p1 p2
 			| [< >] -> serror());
 		| [< >] ->
-			if !in_display then next [],p2
-			else serror()
+			syntax_error (Expected [",";"}"]) s (next [],p2)
 		end
 	| [< >] ->
 		if p0 = None then raise Stream.Failure else serror()
@@ -981,8 +975,7 @@ and parse_obj_decl name e p0 s =
 				| [< '(DblDot,_) >] ->
 					next_expr key
 				| [< >] ->
-					if !in_display then next_expr key
-					else serror()
+					syntax_error (Expected [":"]) s (next_expr key)
 			in
 			begin match s with parser
 				| [< name,p = ident >] -> next (name,p,NoQuotes)
@@ -997,10 +990,10 @@ and parse_obj_decl name e p0 s =
 
 and parse_array_decl p1 s =
 	let resume_or_fail p1 =
-		if !in_display then begin
+		syntax_error (Expected ["expr";"]"]) s (
 			let p = punion_next p1 s in
 			[mk_null_expr p],p
-		end else serror()
+		)
 	in
 	let el,p2 = match s with parser
 		| [< '(BkClose,p2) >] -> [],p2
@@ -1011,11 +1004,11 @@ and parse_array_decl p1 s =
 						| [< '(BkClose,p2) >] -> acc,p2
 						| [< e = secure_expr >] -> loop (e :: acc)
 						| [< >] ->
-							if !in_display then acc,pk else serror()
+							syntax_error (Expected ["expr";"]"]) s (acc,pk)
 					end
 				| [< '(BkClose,p2) >] -> acc,p2
 				| [< >] ->
-					if !in_display then acc,next_pos s else serror()
+					syntax_error (Expected [",";"]"]) s (acc,next_pos s)
 			in
 			loop [e0]
 		| [< >] -> resume_or_fail p1
@@ -1131,7 +1124,7 @@ and expr = parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] ->
 					(* Ignore missing } if we are resuming and "guess" the last position. *)
-					if !in_display then pos (next_token s) else serror()
+					syntax_error (Expected ["}"]) s (pos (next_token s))
 			in
 			let e = (b,punion p1 p2) in
 			(match b with
@@ -1176,8 +1169,7 @@ and expr = parser
 		begin match s with parser
 		| [< '(POpen,po); e = parse_call_params (fun el p2 -> (ENew(t,el)),punion p1 p2) po >] -> expr_next e s
 		| [< >] ->
-			if !in_display then (ENew(t,[]),punion p1 (pos t))
-			else serror()
+			syntax_error (Expected ["("]) s (ENew(t,[]),punion p1 (pos t))
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
 		| [< '(PClose,p2); er = arrow_expr; >] ->
@@ -1209,8 +1201,7 @@ and expr = parser
 				| [< >] -> serror())
 			| [< '(Const (Ident "is"),p_is); t = parse_type_path; '(PClose,p2); >] -> expr_next (make_is e t (punion p1 p2) p_is) s
 			| [< >] ->
-				if !in_display then expr_next (EParenthesis e, punion p1 (pos e)) s
-				else serror())
+				syntax_error (Expected [")";",";":";"is"]) s (expr_next (EParenthesis e, punion p1 (pos e)) s))
 		)
 	| [< '(BkOpen,p1); e = parse_array_decl p1; s >] -> expr_next e s
 	| [< '(Kwd Function,p1); e = parse_function p1 false; >] -> e
@@ -1228,16 +1219,14 @@ and expr = parser
 		let e = match s with parser
 			| [< '(PClose,_); e = secure_expr >] -> e
 			| [< >] ->
-				if !in_display then mk_null_expr (pos it)
-				else serror()
+				syntax_error (Expected [")"]) s (mk_null_expr (pos it))
 		in
 		(EFor (it,e),punion p (pos e))
 	| [< '(Kwd If,p); '(POpen,_); cond = secure_expr; s >] ->
 		let e1 = match s with parser
 			| [< '(PClose,_); e1 = secure_expr >] -> e1
 			| [< >] ->
-				if !in_display then mk_null_expr (pos cond)
-				else serror()
+				syntax_error (Expected [")"]) s (mk_null_expr (pos cond))
 		in
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
@@ -1264,8 +1253,7 @@ and expr = parser
 		let e = match s with parser
 			| [< '(PClose,_); e = secure_expr >] -> e
 			| [< >] ->
-				if !in_display then mk_null_expr (pos cond)
-				else serror()
+				syntax_error (Expected [")"]) s (mk_null_expr (pos cond))
 		in
 		(EWhile (cond,e,NormalWhile),punion p1 (pos e))
 	| [< '(Kwd Do,p1); e = secure_expr; s >] ->
@@ -1274,15 +1262,13 @@ and expr = parser
 				let p2 = expect_unless_resume_p pclose s in
 				(EWhile (cond,e,DoWhile),punion p1 p2)
 			| [< >] ->
-				if !in_display then e (* ignore do *)
-				else serror()
+				syntax_error (Expected ["while"]) s e (* ignore do *)
 		end
 	| [< '(Kwd Switch,p1); e = secure_expr; s >] ->
 		begin match s with parser
 			| [< '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
 			| [< >] ->
-				if !in_display then (ESwitch(e,[],None),punion p1 (pos e))
-				else serror()
+				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
 	| [< '(Kwd Try,p1); e = secure_expr; cl,p2 = parse_catches e [] (pos e) >] -> (ETry (e,cl),punion p1 p2)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
@@ -1330,7 +1316,7 @@ and expr_next' e1 = parser
 	| [< '(Question,_); e2 = expr; s >] ->
 		begin match s with parser
 		| [< '(DblDot,_); e3 = expr >] -> (ETernary (e1,e2,e3),punion (pos e1) (pos e3))
-		| [< >] -> if !in_display then e2 else serror()
+		| [< >] -> syntax_error (Expected [":"]) s e2
 		end
 	| [< '(Kwd In,_); e2 = expr >] ->
 		make_binop OpIn e1 e2

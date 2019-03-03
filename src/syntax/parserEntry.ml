@@ -81,6 +81,7 @@ let parse ctx code file =
 	code_ref := code;
 	in_display := !display_position <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
+	syntax_errors := [];
 	let restore =
 		(fun () ->
 			restore_cache ();
