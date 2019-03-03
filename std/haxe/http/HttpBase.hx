@@ -157,7 +157,15 @@ class HttpBase {
 	**/
 	public dynamic function onData(data:String) {
 	}
+	/**
+		This method is called upon a successful request, with `bytes` containing
+		the result Bytes.
 
+		The intended usage is to bind it to a custom function:
+		`httpInstance.onBytes = function(bytes) { // handle result }`
+	**/
+	public dynamic function onBytes(bytes:haxe.io.Bytes) {
+	}
 	/**
 		This method is called upon a request error, with `msg` containing the
 		error description.
