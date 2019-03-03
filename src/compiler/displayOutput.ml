@@ -178,15 +178,34 @@ let print_positions pl =
 module Memory = struct
 	open CompilationServer
 
+	let update_module_type_deps deps md =
+		deps := Obj.repr md :: !deps;
+		List.iter (fun t ->
+			match t with
+			| TClassDecl c ->
+				deps := Obj.repr c :: !deps;
+				c.cl_descendants <- []; (* prevent false positive *)
+				List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
+				List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
+			| TEnumDecl e ->
+				deps := Obj.repr e :: !deps;
+				List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
+			| TTypeDecl t -> deps := Obj.repr t :: !deps;
+			| TAbstractDecl a -> deps := Obj.repr a :: !deps;
+		) md.m_types
+
+	let rec scan_module_deps m h =
+		if Hashtbl.mem h m.m_id then
+			()
+		else begin
+			Hashtbl.add h m.m_id m;
+			PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+		end
+
+	let get_out out =
+		Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) out []
+
 	let collect_memory_stats cs =
-		let rec scan_module_deps m h =
-			if Hashtbl.mem h m.m_id then
-				()
-			else begin
-				Hashtbl.add h m.m_id m;
-				PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
-			end
-		in
 		let all_modules = Hashtbl.fold (fun _ m acc -> PMap.add m.m_id m acc) cs.c_modules PMap.empty in
 		let modules = Hashtbl.fold (fun (path,key) m acc ->
 			let mdeps = Hashtbl.create 0 in
@@ -195,24 +214,12 @@ module Memory = struct
 			let out = ref all_modules in
 			Hashtbl.iter (fun _ md ->
 				out := PMap.remove md.m_id !out;
-				if m == md then () else begin
-				deps := Obj.repr md :: !deps;
-				List.iter (fun t ->
-					match t with
-					| TClassDecl c ->
-						deps := Obj.repr c :: !deps;
-						c.cl_descendants <- []; (* prevent false positive *)
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_statics;
-						List.iter (fun f -> deps := Obj.repr f :: !deps) c.cl_ordered_fields;
-					| TEnumDecl e ->
-						deps := Obj.repr e :: !deps;
-						List.iter (fun n -> deps := Obj.repr (PMap.find n e.e_constrs) :: !deps) e.e_names;
-					| TTypeDecl t -> deps := Obj.repr t :: !deps;
-					| TAbstractDecl a -> deps := Obj.repr a :: !deps;
-				) md.m_types;
-				end
+				if m == md then
+					()
+				else
+					update_module_type_deps deps md;
 			) mdeps;
-			let chk = Obj.repr Common.memory_marker :: PMap.fold (fun m acc -> Obj.repr m :: acc) !out [] in
+			let chk = get_out !out in
 			let inf = Objsize.objsize m !deps chk in
 			(m,Objsize.size_with_headers inf, (inf.Objsize.reached,!deps,!out)) :: acc
 		) cs.c_modules [] in
@@ -245,17 +252,65 @@ module Memory = struct
 				add_context sign
 		in
 		let modules = collect_memory_stats cs.cache in
-		List.iter (fun (m,size,(reached,deps,out)) ->
+		List.iter (fun (m,size,(reached,deps,_)) ->
 			let (_,l,mem) = get_context m.m_extra.m_sign in
-			l := (m,size) :: !l;
+			let deps = ref deps in
+			update_module_type_deps deps m;
+			let deps = !deps in
+			let types = List.map (fun md ->
+				let fields,inf = match md with
+					| TClassDecl c ->
+						let field acc cf =
+							let repr = Obj.repr cf in
+							let deps = List.filter (fun repr' -> repr' != repr) deps in
+							let size = Objsize.size_with_headers (Objsize.objsize cf deps []) in
+							(cf.cf_name,size) :: acc
+						in
+						let fields = List.fold_left field [] c.cl_ordered_fields in
+						let fields = List.fold_left field fields c.cl_ordered_statics in
+						let fields = List.sort (fun (_,size1) (_,size2) -> compare size2 size1) fields in
+						let fields = List.map (fun (name,size) ->
+							jobject [
+								"path",jstring name;
+								"size",jint size;
+							]
+						) fields in
+						let repr = Obj.repr c in
+						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						fields,Objsize.objsize c deps []
+					| TEnumDecl en ->
+						let repr = Obj.repr en in
+						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						[],Objsize.objsize en deps []
+					| TTypeDecl td ->
+						let repr = Obj.repr td in
+						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						[],Objsize.objsize td deps []
+					| TAbstractDecl a ->
+						let repr = Obj.repr a in
+						let deps = List.filter (fun repr' -> repr' != repr) deps in
+						[],Objsize.objsize a deps []
+				in
+				md,Objsize.size_with_headers inf,fields
+			) m.m_types in
+			let types = List.sort (fun (_,size1,_) (_,size2,_) -> compare size2 size1) types in
+			let ja = List.map (fun (md,size,fields) ->
+				jobject [
+					"path",jstring (s_type_path (t_infos md).mt_path);
+					"size",jint size;
+					"fields",jarray fields;
+				]
+			) types in
+			l := (m,size,jarray ja) :: !l;
 			mem := !mem + size;
-		 ) modules;
+		) modules;
 		let ja = Hashtbl.fold (fun key (sign,modules,size) l ->
-			let modules = List.sort (fun (_,size1) (_,size2)  -> compare size2 size1) !modules in
-			let modules = List.map (fun (m,size) ->
+			let modules = List.sort (fun (_,size1,_) (_,size2,_)  -> compare size2 size1) !modules in
+			let modules = List.map (fun (m,size,jmt) ->
 				jobject [
 					"path",jstring (s_type_path m.m_path);
 					"size",jint size;
+					"types",jmt;
 				]
 			) modules in
 			let j = try (List.assoc sign cs.signs).cs_json with Not_found -> jnull in
