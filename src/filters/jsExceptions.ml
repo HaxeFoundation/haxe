@@ -186,24 +186,27 @@ let inject_callstack com type_filters =
 	in
 	match cCallStack with
 	| Some cCallStack ->
-		let rec loop e =
-			match e.eexpr with
-			| TTry (etry,[(v,ecatch)]) ->
-				let etry = loop etry in
-				let ecatch = loop ecatch in
-
-				let eCallStack = make_static_this cCallStack ecatch.epos in
-				let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
-				let elocal = make_local v ecatch.epos in
-				let eStoreException = mk (TBinop (Ast.OpAssign, elastException, elocal)) ecatch.etype ecatch.epos in
-				let ecatch = Type.concat eStoreException ecatch in
-				{ e with eexpr = TTry (etry,[(v,ecatch)]) }
-			| TTry _ ->
-				(* this should be handled by the filter above *)
-				assert false
-			| _ ->
-				Type.map_expr loop e
+		let run mt e =
+			let rec loop e =
+				match e.eexpr with
+				| TTry (etry,[(v,ecatch)]) ->
+					let etry = loop etry in
+					let ecatch = loop ecatch in
+					add_dependency (t_infos mt).mt_module cCallStack.cl_module;
+					let eCallStack = make_static_this cCallStack ecatch.epos in
+					let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
+					let elocal = make_local v ecatch.epos in
+					let eStoreException = mk (TBinop (Ast.OpAssign, elastException, elocal)) ecatch.etype ecatch.epos in
+					let ecatch = Type.concat eStoreException ecatch in
+					{ e with eexpr = TTry (etry,[(v,ecatch)]) }
+				| TTry _ ->
+					(* this should be handled by the filter above *)
+					assert false
+				| _ ->
+					Type.map_expr loop e
+			in
+			loop e
 		in
-		type_filters @ [ fun ctx t -> FiltersCommon.run_expression_filters ctx [loop] t ]
+		type_filters @ [ fun ctx t -> FiltersCommon.run_expression_filters ctx [run t] t ]
 	| None ->
 		type_filters
