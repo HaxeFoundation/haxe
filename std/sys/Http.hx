@@ -59,11 +59,12 @@ class Http extends haxe.http.HttpBase {
 		}
 		customRequest(post,output);
 		if(!err){
-			onBytes(output.getBytes());
+			var bytes:haxe.io.Bytes = output.getBytes();
+			onBytes(bytes);
 		#if neko
-			onData(responseData = neko.Lib.stringReference(output.getBytes()));
+			onData(responseData = neko.Lib.stringReference(bytes));
 		#else
-			onData(responseData = output.getBytes().toString());
+			onData(responseData = bytes.toString());
 		#end
 		}
 	}
