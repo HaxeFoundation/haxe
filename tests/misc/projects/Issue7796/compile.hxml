@@ -1,0 +1,4 @@
+-main Main
+-swf-lib glsl2agal.swc
+-swf main.swf
+--no-output
