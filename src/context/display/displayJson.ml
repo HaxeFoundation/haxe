@@ -185,7 +185,7 @@ let handler =
 				jobject [
 					"file",jstring file;
 					"time",jfloat cfile.c_time;
-					"package",jstring (String.concat "." cfile.c_package);
+					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
 				]
 			) files in
