@@ -201,6 +201,8 @@ let parse_string com s p error inlined =
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = !display_position in
 	let old_in_display_file = !in_display_file in
+	let old_syntax_errors = !syntax_errors in
+	syntax_errors := [];
 	let restore() =
 		(match old_file with
 		| None -> ()
@@ -209,6 +211,7 @@ let parse_string com s p error inlined =
 			display_position := old_display;
 			in_display_file := old_in_display_file;
 		end;
+		syntax_errors := old_syntax_errors;
 		Lexer.restore old
 	in
 	Lexer.init p.pfile true;
