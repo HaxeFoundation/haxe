@@ -86,7 +86,7 @@ let questionable_dollar_ident s =
 		| None ->
 			false,(name,p)
 		| Some p' ->
-			if p.pmin <> p'.pmax then error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) p';
+			if p.pmin <> p'.pmax then syntax_error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) s ~pos:(Some p') ();
 			true,(name,p)
 
 let question_mark = parser
@@ -591,9 +591,9 @@ and parse_type_path2 p0 pack name p1 s =
 		},punion (match p0 with None -> p1 | Some p -> p) p2
 
 and type_name = parser
-	| [< '(Const (Ident name),p) >] ->
+	| [< '(Const (Ident name),p); s >] ->
 		if is_lower_ident name then
-			error (Custom "Type name should start with an uppercase letter") p
+			syntax_error (Custom "Type name should start with an uppercase letter") ~pos:(Some p) s (name,p)
 		else
 			name,p
 	| [< '(Dollar name,p) >] -> "$" ^ name,p
@@ -753,7 +753,7 @@ and parse_class_field tdecl s =
 	| [< meta = parse_meta; al = plist parse_cf_rights; s >] ->
 		let check_optional opt name =
 			if opt then begin
-				if not tdecl then error (Custom "?var syntax is only allowed in structures") (pos name);
+				if not tdecl then syntax_error (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
 				(Meta.Optional,[],null_pos) :: meta
 			end else
 				meta
@@ -921,7 +921,6 @@ and block_with_pos' acc f p s =
 		| Stream.Error msg when !in_display_file ->
 			syntax_error (StreamError msg) s (block_with_pos acc (next_pos s) s)
 		| Error (e,p) when !in_display_file ->
-			(* (!display_error) e p; *) (* TODO: ??? *)
 			block_with_pos acc p s
 
 and block_with_pos acc p s =
@@ -1079,10 +1078,10 @@ and arrow_ident_checktype e = (match e with
 	| ECheckType((EConst(Ident n),p),(t,pt)),_ -> (n,p),(Some (t,pt))
 	| _ -> serror())
 
-and arrow_first_param e =
+and arrow_first_param e s =
 	(match fst e with
 	| EConst(Ident ("true" | "false" | "null" | "this" | "super")) ->
-		error (Custom "Invalid argument name") (pos e)
+		syntax_error (Custom "Invalid argument name") ~pos:(Some (pos e)) s (("",null_pos),false,[],None,None)
 	| EConst(Ident n) ->
 		(n,snd e),false,[],None,None
 	| EBinop(OpAssign,e1,e2)
@@ -1167,7 +1166,7 @@ and expr = parser
 		| [<  e = expr; s >] -> (match s with parser
 			| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 			| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
-				arrow_function p1 ((arrow_first_param e) :: al) er
+				arrow_function p1 ((arrow_first_param e s) :: al) er
 			| [< t,pt = parse_type_hint; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
 				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
@@ -1282,7 +1281,7 @@ and expr_next' e1 = parser
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
 		let er = expr s in
-		arrow_function (snd e1) [arrow_first_param e1] er
+		arrow_function (snd e1) [arrow_first_param e1 s] er
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
 		| [< '(Binop OpGt,p2) when p1.pmax = p2.pmin; s >] ->
@@ -1342,13 +1341,13 @@ and parse_switch_cases eswitch cases = parser
 			| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 		in
 		let l , def = parse_switch_cases eswitch cases s in
-		(match def with None -> () | Some _ -> error Duplicate_default p1);
+		(match def with None -> () | Some _ -> syntax_error Duplicate_default ~pos:(Some p1) s ());
 		l , Some b
 	| [< '(Kwd Case,p1); el = psep Comma expr_or_var; eg = popt parse_guard; s >] ->
 		let pdot = expect_unless_resume_p DblDot s in
 		if !was_auto_triggered then check_resume pdot (fun () -> ()) (fun () -> ());
 		(match el with
-		| [] -> error (Custom "case without a pattern is not allowed") p1
+		| [] -> syntax_error (Custom "case without a pattern is not allowed") ~pos:(Some p1) s ([],None)
 		| _ ->
 			let b,p2 = (block_with_pos [] p1 s) in
 			let b,p = match b with
