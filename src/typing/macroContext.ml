@@ -125,12 +125,20 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
+		typing_timer ctx false (fun() ->
+			try
+				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
+					| ParseSuccess data | ParseDisplayFile(data,_) -> data (* PARSERTODO *)
+					| ParseError _ -> raise MacroApi.Invalid_expr
+				end
+			with Exit ->
+				raise MacroApi.Invalid_expr)
 	in
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
-			| _,[ETypedef t,_] -> t.d_meta
+			| ParseSuccess(_,[ETypedef t,_]) -> t.d_meta
+			| ParseError(_,_,_) -> [] (* PARSERTODO *)
 			| _ -> assert false
 		with _ ->
 			error "Malformed metadata string" p
@@ -223,7 +231,8 @@ let make_macro_api ctx p =
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
-					| _,[ETypedef { d_data = ct },_] -> Some ct
+					| ParseSuccess(_,[ETypedef { d_data = ct },_]) -> Some ct
+					| ParseError(_,_,_) -> None (* PARSERTODO *)
 					| _ -> assert false
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
@@ -734,7 +743,11 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
-		ParserEntry.parse_expr_string ctx.com.defines e p error false
+		begin match ParserEntry.parse_expr_string ctx.com.defines e p error false with
+		| ParseSuccess data -> data
+		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
+		| ParseDisplayFile _ -> assert false (* cannot happen *)
+		end
 	with err ->
 		display_error ctx ("Could not parse `" ^ e ^ "`") p;
 		raise err

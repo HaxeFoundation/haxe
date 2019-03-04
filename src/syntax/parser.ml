@@ -66,6 +66,18 @@ let error_msg = function
 	| StreamError s -> s
 	| Custom s -> s
 
+type parse_data = string list * (type_def * pos) list
+
+type parse_error = (error_msg * pos)
+
+type 'a parse_result =
+	(* Parsed display file. There can be errors. *)
+	| ParseDisplayFile of 'a * parse_error list
+	(* Parsed non-display-file without errors. *)
+	| ParseSuccess of 'a
+	(* Parsed non-display file with errors *)
+	| ParseError of 'a * parse_error * parse_error list
+
 let syntax_completion kind p =
 	raise (SyntaxCompletion(kind,p))
 
@@ -140,9 +152,10 @@ let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
 let syntax_errors = ref []
 
-let syntax_error (error_msg : error_msg) ?(pos=None) s v =
-	if not !in_display_file then error error_msg (match pos with Some p -> p | None -> next_pos s);
-	syntax_errors := error_msg :: !syntax_errors;
+let syntax_error error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos s) in
+	if not !in_display then error error_msg p;
+	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
 
 let get_doc s =

@@ -175,9 +175,15 @@ let parse ctx code file =
 	try
 		let l = parse_file s in
 		(match !mstack with p :: _ -> syntax_error Unclosed_macro ~pos:(Some p) sraw () | _ -> ());
+		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
-		l
+		if was_display_file then
+			ParseDisplayFile(l,!syntax_errors)
+		else begin match List.rev !syntax_errors with
+			| [] -> ParseSuccess l
+			| error :: errors -> ParseError(l,error,errors)
+		end
 	with
 		| Stream.Error _
 		| Stream.Failure ->
@@ -210,7 +216,7 @@ let parse_string com s p error inlined =
 		display_position := null_pos;
 		in_display_file := false;
 	end;
-	let pack, decls = try
+	let result = try
 		parse com (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
@@ -220,12 +226,17 @@ let parse_string com s p error inlined =
 		error (Lexer.error_msg e) (if inlined then pe else p)
 	in
 	restore();
-	pack,decls
+	result
 
 let parse_expr_string com s p error inl =
 	let head = "class X{static function main() " in
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+	let extract_expr (_,decls) = match decls with
+		| [EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> (if inl then e else loop e)
+		| _ -> raise Exit
+	in
 	match parse_string com (head ^ s ^ ";}") p error inl with
-	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
-	| _ -> raise Exit
+	| ParseSuccess data -> ParseSuccess(extract_expr data)
+	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
+	| ParseDisplayFile(data,errors) -> ParseDisplayFile(extract_expr data,errors)

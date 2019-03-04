@@ -920,7 +920,7 @@ and block_with_pos' acc f p s =
 			List.rev acc,p
 		| Stream.Error msg when !in_display_file ->
 			syntax_error (StreamError msg) s (block_with_pos acc (next_pos s) s)
-		| Error (e,p) ->
+		| Error (e,p) when !in_display_file ->
 			(* (!display_error) e p; *) (* TODO: ??? *)
 			block_with_pos acc p s
 
@@ -1007,7 +1007,7 @@ and parse_var_decl_head final = parser
 
 and parse_var_assignment = parser
 	| [< '(Binop OpAssign,p1); s >] ->
-		Some (expr_or_fail (fun () -> error (Custom "expression expected after =") p1) s)
+		Some (secure_expr s)
 	| [< >] -> None
 
 and parse_var_assignment_resume final vl name pn t s =
@@ -1403,16 +1403,12 @@ and parse_call_params f p1 s =
 		| [< >] -> parse_next_param [] p1
 	end
 
-and secure_expr s =
-	expr_or_fail serror s
-
 (* Tries to parse a toplevel expression and defaults to a null expression when in display mode.
    This function always accepts in display mode and should only be used for expected expressions,
    not accepted ones! *)
-and expr_or_fail fail s =
-	match s with parser
+and secure_expr = parser
 	| [< e = expr >] -> e
-	| [< >] ->
+	| [< s >] ->
 		syntax_error (Expected ["expression"]) s (
 			let last = last_token s in
 			let plast = pos last in
