@@ -23,6 +23,7 @@
  // ported from NekoVM
 
 #include <caml/alloc.h>
+#include <caml/memory.h>
 #include <caml/callback.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
@@ -242,12 +243,13 @@ static void free_process( value vp ) {
 	<doc>
 	Start a process using a command and the specified arguments.
 	When args is not null, cmd and args will be auto-quoted/escaped.
-	If no auto-quoting/escaping is desired, you should append necessary 
+	If no auto-quoting/escaping is desired, you should append necessary
 	arguments to cmd as if it is inputted to the shell directly, and pass
 	null as args.
 	</doc>
 **/
 CAMLprim value process_run( value cmd, value vargs ) {
+	CAMLparam2(cmd,vargs);
 	int i, isRaw;
 	vprocess *p;
 	val_check(cmd,string);
@@ -338,7 +340,7 @@ CAMLprim value process_run( value cmd, value vargs ) {
 		CloseHandle(oread);
 		CloseHandle(eread);
 		CloseHandle(iwrite);
-		
+
 		if( !CreateProcess(NULL,val_string(sargs),NULL,NULL,TRUE,0,NULL,NULL,&sinf,&p->pinf) ) {
 			CloseHandle(p->eread);
 			CloseHandle(p->oread);
@@ -405,9 +407,10 @@ CAMLprim value process_run( value cmd, value vargs ) {
 	p->eread = error[0];
 #	endif
 	{
-		value vp = alloc_abstract(k_process,p);
+		CAMLlocal1(vp);
+		vp = alloc_abstract(k_process,p);
 		val_gc(vp,free_process);
-		return vp;
+		CAMLreturn(vp);
 	}
 }
 
