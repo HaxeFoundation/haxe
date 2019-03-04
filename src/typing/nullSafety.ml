@@ -718,7 +718,7 @@ class local_safety (mode:safety_mode) =
 							traverse scopes
 						| _ -> false
 				in
-				not captured && self#get_current_scope#is_safe expr
+				(mode = SMLoose || not captured) && self#get_current_scope#is_safe expr
 		(**
 			This method should be called upon passing `while`.
 			It collects locals which are checked against `null` and executes callbacks for expressions with proper statuses of locals.

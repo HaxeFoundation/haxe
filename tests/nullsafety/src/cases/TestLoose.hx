@@ -55,4 +55,13 @@ class TestLoose {
 			var notNullable:String = o.o2.field;
 		}
 	}
+
+	function checkedAgainstNullInLocalFunction_shouldPass(?callback:()->Void) {
+		function bar() {
+			if (callback != null) {
+				callback();
+			}
+		}
+		bar();
+	}
 }
