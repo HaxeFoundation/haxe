@@ -21,6 +21,7 @@
 
 open Globals
 open Ast
+open DisplayTypes.DiagnosticsSeverity
 open DisplayTypes.DisplayMode
 open Common
 open Typecore
@@ -146,9 +147,24 @@ let resolve_module_file com m remap p =
 let parse_module' com m p =
 	let remap = ref (fst m) in
 	let file = resolve_module_file com m remap p in
+	let handle_parser_error msg p =
+		let msg = Parser.error_msg msg in
+		match com.display.dms_error_policy with
+			| EPShow -> error msg p
+			| EPIgnore -> ()
+			| EPCollect -> add_diagnostics_message com msg p Error
+	in
 	let pack,decls = match (!parse_hook) com file p with
-		| ParseSuccess data | ParseDisplayFile(data,_) -> data
-		| ParseError(_,(msg,p),_) -> Parser.error msg p
+		| ParseSuccess data -> data
+		| ParseDisplayFile(data,errors) ->
+			begin match errors with
+			| (msg,p) :: _ -> handle_parser_error msg p
+			| [] -> ()
+			end;
+			data
+		| ParseError(data,(msg,p),_) ->
+			handle_parser_error msg p;
+			data
 	in
 	file,remap,pack,decls
 
