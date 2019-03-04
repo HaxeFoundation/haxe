@@ -18,7 +18,10 @@ class Macro {
 		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(nullSafetyDir);
+		infoMsg("No-target null safety:");
 		runCommand("haxe", ["test.hxml"]);
+		infoMsg("Js-es6 null safety:");
+		runCommand("haxe", ["test-js-es6.hxml"]);
 
 		changeDirectory(miscDir);
 		getCsDependencies();

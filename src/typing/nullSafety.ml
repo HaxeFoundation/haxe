@@ -996,6 +996,10 @@ class expr_checker mode immediate_execution report =
 				| { eexpr = TVar (v1, Some { eexpr = TConst TNull }) }
 					:: ({ eexpr = TBinop (OpAssign, { eexpr = TLocal v2 }, { eexpr = TFunction _ }) } as e)
 					:: rest
+				| { eexpr = TVar (v1, Some { eexpr = TConst TNull }) }
+					:: { eexpr = TVar ({ v_kind = VGenerated }, Some { eexpr = TConst TThis }) }
+					:: ({ eexpr = TBinop (OpAssign, { eexpr = TLocal v2 }, { eexpr = TFunction _ }) } as e)
+					:: rest
 						when v1.v_id = v2.v_id && (match v1.v_type with TFun _ -> true | _ -> false) ->
 					self#check_expr e;
 					self#check_block rest p
@@ -1291,7 +1295,7 @@ class class_checker cls immediate_execution report  =
 			if is_safe_class && (not cls.cl_extern) && (not cls.cl_interface) then
 				self#check_var_fields;
 			let check_field is_static f =
-				(* if f.cf_name = "ternary_returnedFromInlinedFunction_shouldPass" then
+				(* if f.cf_name = "wtf_foo" then
 					Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
 				match (safety_mode (cls.cl_meta @ f.cf_meta)) with
 					| SMOff -> ()

@@ -64,6 +64,8 @@
 /tests/unit/unit.n
 /tests/unit/node_modules/
 
+/tests/nullsafety/bin
+
 /haxe.sublime*
 .idea
 build.bat

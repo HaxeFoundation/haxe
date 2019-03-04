@@ -742,9 +742,12 @@ class TestStrict {
 		}
 	}
 
-	static public function localNamedFunction_shouldPass() {
+	var foo:Null<String>;
+	public function localNamedFunction_shouldPass() {
 		function cb() {
-			cb();
+			if(foo != null) {
+				cb();
+			}
 		}
 	}
 
