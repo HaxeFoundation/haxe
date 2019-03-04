@@ -1543,7 +1543,7 @@ and format_string ctx s p =
 				try
 					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
 						| ParseSuccess data | ParseDisplayFile(data,_) -> data
-						| ParseError _ -> raise Exit (* PARSERTODO: keep message? *)
+						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
 					end
 				with Exit ->
 					error "Invalid interpolated expression" ep
