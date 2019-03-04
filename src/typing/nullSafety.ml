@@ -883,9 +883,17 @@ class expr_checker mode immediate_execution report =
 		(**
 			Register an error
 		*)
-		method error msg (p:Globals.pos) =
-			if not is_pretending then
-				add_error report msg p
+		method error msg (positions:Globals.pos list) =
+			if not is_pretending then begin
+				let rec get_first_valid_pos positions =
+					match positions with
+						| [] -> null_pos
+						| p :: rest ->
+							if p <> null_pos then p
+							else get_first_valid_pos rest
+				in
+				add_error report msg (get_first_valid_pos positions)
+			end
 		(**
 			Check if `e` is nullable even if the type is reported not-nullable.
 			Haxe type system lies sometimes.
@@ -927,7 +935,7 @@ class expr_checker mode immediate_execution report =
 					true
 				with
 					| Safety_error err ->
-						self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) p;
+						self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
 						(* returning `true` because error is already logged in the line above *)
 						true
 					| e ->
@@ -956,7 +964,7 @@ class expr_checker mode immediate_execution report =
 				| TParenthesis e -> self#check_expr e
 				| TObjectDecl fields -> List.iter (fun (_, e) -> self#check_expr e) fields
 				| TArrayDecl items -> self#check_array_decl items e.etype e.epos
-				| TCall (callee, args) -> self#check_call callee args
+				| TCall (callee, args) -> self#check_call callee args e.epos
 				| TNew _ -> self#check_new e
 				| TUnop (_, _, expr) -> self#check_unop expr e.epos
 				| TFunction fn -> self#check_function fn
@@ -965,7 +973,7 @@ class expr_checker mode immediate_execution report =
 				| TFor _ -> self#check_for e
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
-				| TSwitch (target, cases, default) -> self#check_switch target cases default
+				| TSwitch (target, cases, default) -> self#check_switch target cases default e.epos
 				| TTry (try_block, catches) -> self#check_try try_block catches
 				| TReturn (Some expr) -> self#check_return expr e.epos
 				| TReturn None -> ()
@@ -975,7 +983,7 @@ class expr_checker mode immediate_execution report =
 				| TCast (expr, _) -> self#check_cast expr e.etype e.epos
 				| TMeta (m, _) when contains_unsafe_meta [m] -> ()
 				| TMeta (_, e) -> self#check_expr e
-				| TEnumIndex idx -> self#check_enum_index idx
+				| TEnumIndex idx -> self#check_enum_index idx e.epos
 				| TEnumParameter (e, _, _) -> self#check_expr e (** Checking enum value itself is not needed here because this expr always follows after TEnumIndex *)
 				| TIdent _ -> ()
 		(**
@@ -1003,7 +1011,7 @@ class expr_checker mode immediate_execution report =
 					List.iter
 						(fun e ->
 							if not (self#can_pass_expr e item_type e.epos) then
-								self#error ("Cannot use nullable value of " ^ (str_type e.etype) ^ " as an item in Array<" ^ (str_type item_type) ^ ">") e.epos
+								self#error ("Cannot use nullable value of " ^ (str_type e.etype) ^ " as an item in Array<" ^ (str_type item_type) ^ ">") [e.epos; p]
 						)
 						items;
 				| _ -> ()
@@ -1012,9 +1020,9 @@ class expr_checker mode immediate_execution report =
 		(**
 			Deal with nullable enum values
 		*)
-		method private check_enum_index idx =
+		method private check_enum_index idx p =
 			if self#is_nullable_expr idx then
-				self#error "Cannot access nullable enum value." idx.epos;
+				self#error "Cannot access nullable enum value." [idx.epos; p];
 			self#check_expr idx
 		(**
 			Check try...catch
@@ -1029,7 +1037,7 @@ class expr_checker mode immediate_execution report =
 				| TWhile _ ->
 					let check_condition condition =
 						if self#is_nullable_expr condition then
-							self#error "Cannot use nullable value as a condition in \"while\"." condition.epos;
+							self#error "Cannot use nullable value as a condition in \"while\"." [condition.epos; e.epos];
 						self#check_expr condition
 					in
 					local_safety#loop_declared e;
@@ -1052,7 +1060,7 @@ class expr_checker mode immediate_execution report =
 			match e.eexpr with
 				| TFor (v, iterable, body) ->
 					if self#is_nullable_expr iterable then
-						self#error "Cannot iterate over nullable value." iterable.epos;
+						self#error "Cannot iterate over nullable value." [iterable.epos; e.epos];
 					self#check_expr iterable;
 					local_safety#declare_var v;
 					local_safety#loop_declared e;
@@ -1080,7 +1088,7 @@ class expr_checker mode immediate_execution report =
 		*)
 		method private check_throw e p =
 			if self#is_nullable_expr e then
-				self#error "Cannot throw nullable value." p;
+				self#error "Cannot throw nullable value." [p; e.epos];
 			self#check_expr e
 		(**
 			Don't cast nullable expressions to not-nullable types
@@ -1093,7 +1101,7 @@ class expr_checker mode immediate_execution report =
 				(* typed cast and type check *)
 				| _ ->
 					if not (self#can_pass_expr expr to_type p) then
-						self#error "Cannot cast nullable value to not nullable type." p
+						self#error "Cannot cast nullable value to not nullable type." [p; expr.epos]
 		(**
 			Check safety in a function
 		*)
@@ -1120,14 +1128,14 @@ class expr_checker mode immediate_execution report =
 			self#check_expr e;
 			match return_types with
 				| t :: _ when not (self#can_pass_expr e t p) ->
-					self#error ("Cannot return nullable value of " ^ (str_type e.etype) ^ " as " ^ (str_type t)) p
+					self#error ("Cannot return nullable value of " ^ (str_type e.etype) ^ " as " ^ (str_type t)) [p; e.epos]
 				| _ -> ()
 		(**
 			Check safety in `switch` expressions.
 		*)
-		method private check_switch target cases default =
+		method private check_switch target cases default p =
 			if self#is_nullable_expr target then
-				self#error "Cannot switch on nullable value." target.epos;
+				self#error "Cannot switch on nullable value." [target.epos; p];
 			self#check_expr target;
 			let rec traverse_cases cases =
 				match cases with
@@ -1143,21 +1151,21 @@ class expr_checker mode immediate_execution report =
 		(**
 			Check safety in `if` expressions
 		*)
-		method private check_if e =
+		method private check_if expr =
 			let check_condition e =
 				if self#is_nullable_expr e then
-					self#error "Cannot use nullable value as condition in \"if\"." e.epos;
+					self#error "Cannot use nullable value as condition in \"if\"." [e.epos; expr.epos];
 				self#check_expr e
 			in
-			local_safety#process_if e self#is_nullable_expr check_condition self#check_expr
+			local_safety#process_if expr self#is_nullable_expr check_condition self#check_expr
 		(**
 			Check array access on nullable values or using nullable indexes
 		*)
 		method private check_array_access arr idx p =
 			if self#is_nullable_expr arr then
-				self#error "Cannot perform array access on nullable value." p;
+				self#error "Cannot perform array access on nullable value." [p; arr.epos];
 			if self#is_nullable_expr idx then
-				self#error "Cannot use nullable value as an index for array access." p;
+				self#error "Cannot use nullable value as an index for array access." [p; idx.epos];
 			self#check_expr arr;
 			self#check_expr idx
 		(**
@@ -1177,19 +1185,19 @@ class expr_checker mode immediate_execution report =
 				| OpAssign ->
 					check_both();
 					if not (self#can_pass_expr right_expr left_expr.etype p) then
-						self#error "Cannot assign nullable value here." p
+						self#error "Cannot assign nullable value here." [p; right_expr.epos; left_expr.epos]
 					else
 						local_safety#handle_assignment self#is_nullable_expr left_expr right_expr;
 				| _->
 					if self#is_nullable_expr left_expr || self#is_nullable_expr right_expr then
-						self#error "Cannot perform binary operation on nullable value." p;
+						self#error "Cannot perform binary operation on nullable value." [p; left_expr.epos; right_expr.epos];
 					check_both()
 		(**
 			Don't perform unops on nullable values
 		*)
 		method private check_unop e p =
 			if self#is_nullable_expr e then
-				self#error "Cannot perform unary operation on nullable value." p;
+				self#error "Cannot perform unary operation on nullable value." [p; e.epos];
 			self#check_expr e
 		(**
 			Don't assign nullable value to not-nullable variable on var declaration
@@ -1210,7 +1218,7 @@ class expr_checker mode immediate_execution report =
 		*)
 		method private check_field target access p =
 			if self#is_nullable_expr target then
-				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") p;
+				self#error ("Cannot access \"" ^ accessed_field_name access ^ "\" of a nullable value.") [p; target.epos];
 			self#check_expr target
 		(**
 			Check constructor invocation: don't pass nulable values to not-nullable arguments
@@ -1239,9 +1247,9 @@ class expr_checker mode immediate_execution report =
 		(**
 			Check calls: don't call a nullable value, dont' pass nulable values to not-nullable arguments
 		*)
-		method private check_call callee args =
+		method private check_call callee args p =
 			if self#is_nullable_expr callee then
-				self#error "Cannot call a nullable value." callee.epos;
+				self#error "Cannot call a nullable value." [callee.epos; p];
 			self#check_expr callee;
 			match follow callee.etype with
 				| TFun (types, _) ->
@@ -1256,9 +1264,8 @@ class expr_checker mode immediate_execution report =
 				| (arg :: args, (arg_name, optional, t) :: types) ->
 					if not optional && not (self#can_pass_expr arg t arg.epos) then begin
 						let fn_str = match symbol_name callee with "" -> "" | name -> " of function \"" ^ name ^ "\""
-						and arg_str = if arg_name = "" then "" else " \"" ^ arg_name ^ "\""
-						and pos = if arg.epos = null_pos then callee.epos else arg.epos in
-						self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") pos
+						and arg_str = if arg_name = "" then "" else " \"" ^ arg_name ^ "\"" in
+						self#error ("Cannot pass nullable value to not-nullable argument" ^ arg_str ^ fn_str ^ ".") [arg.epos; callee.epos]
 					end;
 					(match arg.eexpr with
 						| TFunction fn ->
@@ -1361,10 +1368,10 @@ class class_checker cls immediate_execution report  =
 								if is_static then
 									checker#error
 										("Field \"" ^ field.cf_name ^ "\" is not nullable thus should have an initial value.")
-										field.cf_pos
+										[field.cf_pos]
 							| Some e ->
 								if not (checker#can_pass_expr e field.cf_type e.epos) then
-									checker#error ("Cannot set nullable initial value for not-nullable field \"" ^ field.cf_name ^ "\".") field.cf_pos
+									checker#error ("Cannot set nullable initial value for not-nullable field \"" ^ field.cf_name ^ "\".") [field.cf_pos]
 			in
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
@@ -1393,16 +1400,16 @@ class class_checker cls immediate_execution report  =
 					match e.eexpr with
 						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) ->
 							if Hashtbl.mem init_list field.cf_name then
-								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") e.epos
+								checker#error ("Cannot use field " ^ field.cf_name ^ " until initialization.") [e.epos]
 						| TField ({ eexpr = TConst TThis }, FClosure (_, field)) ->
-							checker#error ("Cannot use method " ^ field.cf_name ^ " until all instance fields are initialized.") e.epos;
+							checker#error ("Cannot use method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 						| TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) }, args) ->
-							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") e.epos;
+							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 							List.iter (check_unsafe_usage init_list) args
 						| TConst TThis ->
-							checker#error "Cannot use \"this\" until all instance fields are initialized." e.epos
+							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| TLocal v when Hashtbl.mem this_vars v.v_id ->
-							checker#error "Cannot use \"this\" until all instance fields are initialized." e.epos
+							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| _ ->
 							iter (check_unsafe_usage init_list) e
 			in
@@ -1439,7 +1446,7 @@ class class_checker cls immediate_execution report  =
 				(fun name field ->
 					checker#error
 						("Field \"" ^ name ^ "\" is not nullable thus should have an initial value or should be initialized in constructor.")
-						field.cf_pos
+						[field.cf_pos]
 				)
 				fields_to_initialize
 	end
