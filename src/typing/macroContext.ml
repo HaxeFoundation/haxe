@@ -140,7 +140,8 @@ let make_macro_api ctx p =
 		try
 			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
 			| ParseSuccess(_,[ETypedef t,_]) -> t.d_meta
-			| ParseError(_,_,_) -> [] (* PARSERTODO *)
+			| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+			| ParseError(_,_,_) -> error "Malformed metadata string" p
 			| _ -> assert false
 		with _ ->
 			error "Malformed metadata string" p
