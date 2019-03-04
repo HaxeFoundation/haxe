@@ -148,7 +148,7 @@ let parse_module' com m p =
 	let file = resolve_module_file com m remap p in
 	let pack,decls = match (!parse_hook) com file p with
 		| ParseSuccess data | ParseDisplayFile(data,_) -> data
-		| ParseError(data,_,_) -> data (* PARSERTODO *)
+		| ParseError(_,(msg,p),_) -> Parser.error msg p
 	in
 	file,remap,pack,decls
 
