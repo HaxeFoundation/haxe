@@ -226,6 +226,25 @@ class TestPhp extends Test
 		eq("unit\\Annotation", Syntax.nativeClassName(enm));
 	}
 
+	function testNativeString() {
+		var expected:php.NativeString = '123456';
+
+		var actual = '';
+		for(c in expected) {
+			actual += c;
+		}
+		eq(expected, actual);
+
+		var actual = '';
+		var keys = [];
+		for(i => c in expected) {
+			keys.push(i);
+			actual += c;
+		}
+		eq(expected, actual);
+		aeq([0, 1, 2, 3, 4, 5], keys);
+	}
+
 	function testNativeArray() {
 		var keys:Array<Dynamic> = ['hello', 12];
 		var values:Array<Dynamic> = [10, 'world'];
