@@ -998,17 +998,6 @@ class expr_checker mode immediate_execution report =
 		method private check_block exprs p =
 			match exprs with
 				| [] -> ()
-				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
-				| { eexpr = TVar (v1, Some { eexpr = TConst TNull }) }
-					:: ({ eexpr = TBinop (OpAssign, { eexpr = TLocal v2 }, { eexpr = TFunction _ }) } as e)
-					:: rest
-				| { eexpr = TVar (v1, Some { eexpr = TConst TNull }) }
-					:: { eexpr = TVar ({ v_kind = VGenerated }, Some { eexpr = TConst TThis }) }
-					:: ({ eexpr = TBinop (OpAssign, { eexpr = TLocal v2 }, { eexpr = TFunction _ }) } as e)
-					:: rest
-						when v1.v_id = v2.v_id && (match v1.v_type with TFun _ -> true | _ -> false) ->
-					self#check_expr e;
-					self#check_block rest p
 				| e :: rest ->
 					self#check_expr e;
 					self#check_block rest p
@@ -1222,6 +1211,8 @@ class expr_checker mode immediate_execution report =
 			local_safety#declare_var v;
 			match init with
 				| None -> ()
+				(* Local named functions like `function fn() {}`, which are generated as `var fn = null; fn = function(){}` *)
+				| Some { eexpr = TConst TNull } when v.v_kind = VUser TVOLocalFunction -> ()
 				| Some e ->
 					let local = { eexpr = TLocal v; epos = v.v_pos; etype = v.v_type } in
 					self#check_binop OpAssign local e p
