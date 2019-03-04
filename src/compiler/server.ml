@@ -109,7 +109,6 @@ let ssend sock str =
 let rec wait_loop process_params verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
-	let has_parse_error = ref false in
 	let cs = CompilationServer.create () in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
@@ -130,7 +129,6 @@ let rec wait_loop process_params verbose accept =
 					if cfile.c_time <> ftime then raise Not_found;
 					Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
 				with Not_found ->
-					has_parse_error := false;
 					let parse_result = TypeloadParse.parse_file com2 file p in
 					let info,is_unusual = match parse_result with
 						| ParseError(_,_,_) -> "not cached, has parse error",true
