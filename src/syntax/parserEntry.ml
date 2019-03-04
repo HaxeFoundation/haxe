@@ -160,7 +160,7 @@ let parse ctx code file =
 		| Sharp "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
-			if !in_display then tk else error Unclosed_macro p
+			syntax_error Unclosed_macro ~pos:(Some p) sraw tk
 		| _ ->
 			skip_tokens p test
 
@@ -174,7 +174,7 @@ let parse ctx code file =
 	) in
 	try
 		let l = parse_file s in
-		(match !mstack with p :: _ when not !in_display -> error Unclosed_macro p | _ -> ());
+		(match !mstack with p :: _ -> syntax_error Unclosed_macro ~pos:(Some p) sraw () | _ -> ());
 		restore();
 		Lexer.restore old;
 		l

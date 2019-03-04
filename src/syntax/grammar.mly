@@ -45,9 +45,12 @@ let pignore f =
 	with Stream.Error _ | Stream.Failure ->
 		()
 
-let expect_unless_resume_p f = parser
-	| [< p = f >] -> p
-	| [< s >] -> if !in_display then pos (next_token s) else serror()
+let expect_unless_resume_p t s = match Stream.peek s with
+	| Some (t',p) when t' = t ->
+		Stream.junk s;
+		p
+	| _ ->
+		syntax_error (Expected [s_token t]) s (next_pos s)
 
 let ident = parser
 	| [< '(Const (Ident i),p) >] -> i,p
@@ -86,21 +89,6 @@ let questionable_dollar_ident s =
 			if p.pmin <> p'.pmax then error (Custom (Printf.sprintf "Invalid usage of ?, use ?%s instead" name)) p';
 			true,(name,p)
 
-let bropen = parser
-	| [< '(BrOpen,_) >] -> ()
-
-let comma = parser
-	| [< '(Comma,_) >] -> ()
-
-let colon = parser
-	| [< '(DblDot,p) >] -> p
-
-let pclose = parser
-	| [< '(PClose,p) >] -> p
-
-let bkclose = parser
-	| [< '(BkClose,p) >] -> p
-
 let question_mark = parser
 	| [< '(Question,p) >] -> p
 
@@ -113,8 +101,7 @@ let semicolon s =
 		match s with parser
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] ->
-			let pos = snd (last_token s) in
-			if !in_display then pos else error Missing_semicolon pos
+			syntax_error Missing_semicolon s (next_pos s)
 
 let parsing_macro_cond = ref false
 
@@ -151,9 +138,11 @@ and parse_type_decls mode pmax pack acc s =
 			| _ -> ()
 		) acc;
 		raise (TypePath (pack,Some(name,true),b,p))
-	| Stream.Error _ when !in_display ->
-		ignore(resume false false s);
-		parse_type_decls mode (last_pos s).pmax pack acc s
+	| Stream.Error msg when !in_display_file ->
+		syntax_error (StreamError msg) s (
+			ignore(resume false false s);
+			parse_type_decls mode (last_pos s).pmax pack acc s
+		)
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
@@ -405,7 +394,7 @@ and resume tdecl fdecl s =
 	loop 1
 
 and parse_class_field_resume tdecl s =
-	if not (!in_display) then
+	if not (!in_display_file) then
 		plist (parse_class_field tdecl) s
 	else try
 		let c = parse_class_field tdecl s in
@@ -434,7 +423,7 @@ and parse_meta_argument_expr s =
 
 and parse_meta_params pname s = match s with parser
 	| [< '(POpen,p) when p.pmin = pname.pmax; params = psep Comma parse_meta_argument_expr; >] ->
-		ignore(expect_unless_resume_p pclose s);
+		ignore(expect_unless_resume_p PClose s);
 		params
 	| [< >] -> []
 
@@ -617,7 +606,7 @@ and parse_type_path_or_const = parser
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
 	| [< e = expr >] -> TPExpr e
-	| [< >] -> if !in_display then raise Stream.Failure else serror()
+	| [< >] -> if !in_display_file then raise Stream.Failure else serror()
 
 and parse_complex_type_next (t : type_hint) s =
 	let make_fun t2 p2 = match t2 with
@@ -728,7 +717,7 @@ and parse_function_field doc meta al = parser
 	| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); args = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
 		let e, p2 = (match s with parser
 			| [< e = expr; s >] ->
-				(try ignore(semicolon s) with Error (Missing_semicolon,p) -> !display_error Missing_semicolon p);
+				ignore(semicolon s);
 				Some e, pos e
 			| [< p = semicolon >] -> None, p
 			| [< >] -> serror()
@@ -929,12 +918,10 @@ and block_with_pos' acc f p s =
 	with
 		| Stream.Failure ->
 			List.rev acc,p
-		| Stream.Error _ when !in_display ->
-			let tk , pos = next_token s in
-			(!display_error) (Unexpected tk) pos;
-			block_with_pos acc pos s
+		| Stream.Error msg when !in_display_file ->
+			syntax_error (StreamError msg) s (block_with_pos acc (next_pos s) s)
 		| Error (e,p) ->
-			(!display_error) e p;
+			(* (!display_error) e p; *) (* TODO: ??? *)
 			block_with_pos acc p s
 
 and block_with_pos acc p s =
@@ -1259,7 +1246,7 @@ and expr = parser
 	| [< '(Kwd Do,p1); e = secure_expr; s >] ->
 		begin match s with parser
 			| [< '(Kwd While,_); '(POpen,_); cond = secure_expr; s >] ->
-				let p2 = expect_unless_resume_p pclose s in
+				let p2 = expect_unless_resume_p PClose s in
 				(EWhile (cond,e,DoWhile),punion p1 p2)
 			| [< >] ->
 				syntax_error (Expected ["while"]) s e (* ignore do *)
@@ -1279,8 +1266,8 @@ and expr = parser
 and expr_next e1 s =
 	try
 		expr_next' e1 s
-	with Stream.Error _ when !in_display ->
-		e1
+	with Stream.Error msg ->
+		syntax_error (StreamError msg) s e1
 
 and expr_next' e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
@@ -1290,7 +1277,7 @@ and expr_next' e1 = parser
 	| [< '(Dot,p); e = parse_field e1 p >] -> e
 	| [< '(POpen,p1); e = parse_call_params (fun el p2 -> (ECall(e1,el)),punion (pos e1) p2) p1; s >] -> expr_next e s
 	| [< '(BkOpen,p1); e2 = secure_expr; s >] ->
-		let p2 = expect_unless_resume_p bkclose s in
+		let p2 = expect_unless_resume_p BkClose s in
 		let e2 = check_signature_mark e2 p1 p2 in
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
@@ -1358,7 +1345,7 @@ and parse_switch_cases eswitch cases = parser
 		(match def with None -> () | Some _ -> error Duplicate_default p1);
 		l , Some b
 	| [< '(Kwd Case,p1); el = psep Comma expr_or_var; eg = popt parse_guard; s >] ->
-		let pdot = expect_unless_resume_p colon s in
+		let pdot = expect_unless_resume_p DblDot s in
 		if !was_auto_triggered then check_resume pdot (fun () -> ()) (fun () -> ());
 		(match el with
 		| [] -> error (Custom "case without a pattern is not allowed") p1
@@ -1425,16 +1412,17 @@ and secure_expr s =
 and expr_or_fail fail s =
 	match s with parser
 	| [< e = expr >] -> e
-	| [< >] -> if !in_display then begin
-		let last = last_token s in
-		let plast = pos last in
-		let offset = match fst last with
-			| Const _ | Kwd _ | Dollar _ -> 1
-			| _ -> 0
-		in
-		let plast = {plast with pmin = plast.pmax + offset} in
-		mk_null_expr (punion_next plast s)
-	end else fail()
+	| [< >] ->
+		syntax_error (Expected ["expression"]) s (
+			let last = last_token s in
+			let plast = pos last in
+			let offset = match fst last with
+				| Const _ | Kwd _ | Dollar _ -> 1
+				| _ -> 0
+			in
+			let plast = {plast with pmin = plast.pmax + offset} in
+			mk_null_expr (punion_next plast s)
+		)
 
 let rec validate_macro_cond e = match fst e with
 	| EConst (Ident _)

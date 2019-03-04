@@ -31,6 +31,7 @@ type error_msg =
 	| Unimplemented
 	| Missing_type
 	| Expected of string list
+	| StreamError of string
 	| Custom of string
 
 type decl_flag =
@@ -62,6 +63,7 @@ let error_msg = function
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Expected sl -> "Expected " ^ (String.concat " or " sl)
+	| StreamError s -> s
 	| Custom s -> s
 
 let syntax_completion kind p =
@@ -139,8 +141,8 @@ let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
 let syntax_errors = ref []
 
-let syntax_error (error_msg : error_msg) s v =
-	if not !in_display_file then error error_msg (next_pos s);
+let syntax_error (error_msg : error_msg) ?(pos=None) s v =
+	if not !in_display_file then error error_msg (match pos with Some p -> p | None -> next_pos s);
 	syntax_errors := error_msg :: !syntax_errors;
 	v
 
