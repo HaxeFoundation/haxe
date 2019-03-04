@@ -70,7 +70,6 @@ let syntax_completion kind p =
 	raise (SyntaxCompletion(kind,p))
 
 let error m p = raise (Error (m,p))
-let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
 let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
 

@@ -194,7 +194,6 @@ let parse_string com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = !display_position in
-	let old_de = !display_error in
 	let old_in_display_file = !in_display_file in
 	let restore() =
 		(match old_file with
@@ -204,11 +203,9 @@ let parse_string com s p error inlined =
 			display_position := old_display;
 			in_display_file := old_in_display_file;
 		end;
-		Lexer.restore old;
-		display_error := old_de
+		Lexer.restore old
 	in
 	Lexer.init p.pfile true;
-	display_error := (fun e p -> raise (Error (e,p)));
 	if not inlined then begin
 		display_position := null_pos;
 		in_display_file := false;

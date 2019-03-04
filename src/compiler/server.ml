@@ -416,7 +416,6 @@ let rec wait_loop process_params verbose accept =
 				ServerMessage.defines ctx.com "";
 				ServerMessage.signature ctx.com "" sign;
 				ServerMessage.display_position ctx.com "" (!DisplayPosition.display_position);
-				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 				   current file in order to run diagnostics on it again. *)
 				if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin
