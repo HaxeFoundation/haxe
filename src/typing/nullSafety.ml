@@ -53,6 +53,12 @@ let fail ?msg hxpos mlpos =
 *)
 let str_type t = s_type (print_context()) t
 
+let is_string_type t =
+	match t with
+		| TInst ({ cl_path = ([], "String")}, _)
+		| TAbstract ({ a_path = ([],"Null") },[TInst ({ cl_path = ([], "String")}, _)]) -> true
+		| _ -> false
+
 (**
 	Check for explicit `Null<>` typing
 *)
@@ -1186,6 +1192,12 @@ class expr_checker mode immediate_execution report =
 					local_safety#process_and left_expr right_expr self#is_nullable_expr self#check_expr
 				| OpBoolOr ->
 					local_safety#process_or left_expr right_expr self#is_nullable_expr self#check_expr
+				(* String concatination is safe if one of operands is safe *)
+				| OpAdd
+				| OpAssignOp OpAdd when is_string_type left_expr.etype || is_string_type right_expr.etype  ->
+					check_both();
+					if is_nullable_type left_expr.etype && is_nullable_type right_expr.etype then
+						self#error "Cannot concatenate two nullable values." [p; left_expr.epos; right_expr.epos]
 				| OpAssign ->
 					check_both();
 					if not (self#can_pass_expr right_expr left_expr.etype p) then
