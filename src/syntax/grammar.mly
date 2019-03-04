@@ -327,7 +327,9 @@ and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
-		| [< >] -> syntax_error (Expected ["}"]) s (pos (last_token s))
+		| [< >] ->
+			(* We don't want to register this as a syntax error because it's part of the logic in display mode *)
+			if !in_display then (pos (last_token s)) else error (Expected ["}"]) (next_pos s)
 	) in
 	l, p2
 
