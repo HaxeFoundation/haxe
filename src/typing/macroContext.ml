@@ -235,7 +235,8 @@ let make_macro_api ctx p =
 				let v = (match v with None -> None | Some s ->
 					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
 					| ParseSuccess(_,[ETypedef { d_data = ct },_]) -> Some ct
-					| ParseError(_,_,_) -> None (* PARSERTODO *)
+					| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
 					| _ -> assert false
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
