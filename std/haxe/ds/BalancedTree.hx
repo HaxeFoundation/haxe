@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -116,6 +116,13 @@ class BalancedTree<K,V> implements haxe.Constraints.IMap<K,V> {
 		var ret = [];
 		iteratorLoop(root, ret);
 		return ret.iterator();
+	}
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
 	/**

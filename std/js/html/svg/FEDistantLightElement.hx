@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEDistantLightElement>
 **/
 @:native("SVGFEDistantLightElement")
-extern class FEDistantLightElement extends Element
-{
+extern class FEDistantLightElement extends Element {
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the `azimuth` attribute of the given element.

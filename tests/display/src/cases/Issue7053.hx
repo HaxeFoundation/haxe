@@ -144,4 +144,17 @@ class Issue7053 extends DisplayTestCase {
 			eq(false, hasField(fields, unexpected, null, "keyword"));
 		}
 	}
+
+	/**
+	{-1-}
+	**/
+	@:filename("import.hx")
+	function testInImportHx() {
+		var keywords = toplevel(pos(1));
+		var expectedKeywords = ["import", "using"];
+		for (expected in expectedKeywords) {
+			eq(true, hasField(keywords, expected, null, "keyword"));
+		}
+		eq(expectedKeywords.length, keywords.length);
+	}
 }

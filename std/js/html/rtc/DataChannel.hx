@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel>
 **/
 @:native("RTCDataChannel")
-extern class DataChannel extends js.html.EventTarget
-{
+extern class DataChannel extends js.html.EventTarget {
 	var label(default,null) : String;
 	var reliable(default,null) : Bool;
 	var maxPacketLifeTime(default,null) : Int;

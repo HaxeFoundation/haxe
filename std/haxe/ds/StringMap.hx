@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -65,6 +65,17 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String,T> {
 		See `Map.iterator`
 	**/
 	public function iterator() : Iterator<T>;
+
+	/**
+		See `Map.keyValueIterator`
+	**/
+#if eval
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+#else
+	public function keyValueIterator() : KeyValueIterator<String, T>;
+#end
 
 	/**
 		See `Map.copy`

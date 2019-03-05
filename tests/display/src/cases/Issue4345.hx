@@ -6,7 +6,7 @@ class Issue4345 extends DisplayTestCase {
 	typedef Tag1 = { tag: TagE<Tag1>, name: String, count: Int }
 	typedef Tag2 = { tag: TagE<Tag2>, name: String, brand: String, liters: Float};
 
-	@:enum abstract TagE<T>(Int) {
+	enum abstract TagE<T>(Int) {
 		var fruit:   TagE<Tag1> = 1;
 		var beverage:TagE<Tag2> = 2;
 	}

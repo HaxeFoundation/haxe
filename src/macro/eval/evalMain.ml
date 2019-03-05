@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -90,10 +90,11 @@ let create com api is_macro =
 				debug_state = DbgStart;
 				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 				caught_types = Hashtbl.create 0;
-				environment_offset_delta = 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
 				caught_exception = vnull;
+				last_return = None;
+				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
 			debug'
@@ -102,8 +103,7 @@ let create com api is_macro =
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
 	let eval = {
-		environments = DynArray.make 32;
-		environment_offset = 0;
+		env = null_env;
 		thread = {
 			tthread = Thread.self();
 			tchannel = Event.new_channel();
@@ -129,6 +129,7 @@ let create com api is_macro =
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
+		static_inits = IntMap.empty;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
@@ -156,7 +157,14 @@ let call_path ctx path f vl api =
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
-			call_value_on vtype vfield vl
+			let p = api.pos in
+			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
+			let env = push_environment ctx info 0 0 in
+			env.env_leave_pmin <- p.pmin;
+			env.env_leave_pmax <- p.pmax;
+			let v = call_value_on vtype vfield vl in
+			pop_environment ctx env;
+			v
 		) api.pos
 	end
 
@@ -348,7 +356,7 @@ let setup get_api =
 			let f vl = try
 				f vl
 			with
-			| Sys_error msg | Failure msg ->
+			| Sys_error msg | Failure msg | Invalid_argument msg ->
 				exc_string msg
 			| MacroApi.Invalid_expr ->
 				exc_string "Invalid expression"
@@ -359,10 +367,9 @@ let setup get_api =
 	) api;
 	Globals.macro_platform := Globals.Eval
 
-let can_reuse ctx types = true
-
 let do_reuse ctx api =
-	ctx.curapi <- api
+	ctx.curapi <- api;
+	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
@@ -435,7 +442,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
+let eval_expr ctx e = eval_expr ctx EKToplevel e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
@@ -539,3 +546,12 @@ let handle_decoding_error f v t =
 	in
 	loop "" t v;
 	!errors
+
+let get_api_call_pos () =
+	let eval = get_eval (get_ctx()) in
+	let env = eval.env in
+	let env = match env.env_parent with
+		| None -> env
+		| Some env -> env
+	in
+	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }

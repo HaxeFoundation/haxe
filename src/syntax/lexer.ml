@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -30,8 +30,15 @@ type error_msg =
 	| Unclosed_code
 	| Invalid_escape of char
 	| Invalid_option
+	| Unterminated_xml
 
 exception Error of error_msg * pos
+
+type xml_lexing_context = {
+	open_tag : string;
+	close_tag : string;
+	lexbuf : Sedlexing.lexbuf;
+}
 
 let error_msg = function
 	| Invalid_character c when c > 32 && c < 128 -> Printf.sprintf "Invalid character '%c'" (char_of_int c)
@@ -42,6 +49,7 @@ let error_msg = function
 	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
 	| Invalid_option -> "Invalid regular expression option"
+	| Unterminated_xml -> "Unterminated XML literal"
 
 type lexer_file = {
 	lfile : string;
@@ -252,7 +260,6 @@ let mk_keyword lexbuf kwd =
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
 
-
 let ident = [%sedlex.regexp?
 	(
 		Star '_',
@@ -272,6 +279,11 @@ let ident = [%sedlex.regexp?
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
+
+(* https://www.w3.org/TR/xml/#sec-common-syn plus '$' for JSX *)
+let xml_name_start_char = [%sedlex.regexp? '$' | ':' | 'A'..'Z' | '_' | 'a'..'z' | 0xC0 .. 0xD6 | 0xD8 .. 0xF6 | 0xF8 .. 0x2FF | 0x370 .. 0x37D | 0x37F .. 0x1FFF | 0x200C .. 0x200D | 0x2070 .. 0x218F | 0x2C00 .. 0x2FEF | 0x3001 .. 0xD7FF | 0xF900 .. 0xFDCF | 0xFDF0 .. 0xFFFD | 0x10000 .. 0xEFFFF]
+let xml_name_char = [%sedlex.regexp? xml_name_start_char | '-' | '.' | '0'..'9' | 0xB7 | 0x0300 .. 0x036F | 0x203F .. 0x2040]
+let xml_name = [%sedlex.regexp? Opt(xml_name_start_char, Star xml_name_char)]
 
 let rec skip_header lexbuf =
 	match%sedlex lexbuf with
@@ -531,3 +543,66 @@ and regexp_options lexbuf =
 	| 'a'..'z' -> error Invalid_option (lexeme_start lexbuf)
 	| "" -> ""
 	| _ -> assert false
+
+and not_xml ctx depth in_open =
+	let lexbuf = ctx.lexbuf in
+	match%sedlex lexbuf with
+	| eof ->
+		raise Exit
+	| '\n' | '\r' | "\r\n" ->
+		newline lexbuf;
+		store lexbuf;
+		not_xml ctx depth in_open
+	(* closing tag *)
+	| '<','/',xml_name,'>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document close tag, finish or decrease depth. *)
+		if s = ctx.close_tag then begin
+			if depth = 0 then lexeme_end lexbuf
+			else not_xml ctx (depth - 1) false
+		end else
+			not_xml ctx depth false
+	(* opening tag *)
+	| '<',xml_name ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* If it matches our document open tag, increase depth and set in_open to true. *)
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
+		not_xml ctx depth in_open
+	(* /> *)
+	| '/','>' ->
+		let s = lexeme lexbuf in
+		Buffer.add_string buf s;
+		(* We only care about this if we are still in the opening tag, i.e. if it wasn't closed yet.
+		   In that case, decrease depth and finish if it's 0. *)
+		let depth = if in_open then depth - 1 else depth in
+		if depth < 0 then lexeme_end lexbuf
+		else not_xml ctx depth false
+	| '<' | '/' | '>' ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
+		store lexbuf;
+		not_xml ctx depth in_open
+	| _ ->
+		assert false
+
+let lex_xml p lexbuf =
+	let name,pmin = match%sedlex lexbuf with
+	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
+	| _ -> invalid_char lexbuf
+	in
+	if p + 1 <> pmin then invalid_char lexbuf;
+	Buffer.add_string buf ("<" ^ name);
+	let open_tag = "<" ^ name in
+	let close_tag = "</" ^ name ^ ">" in
+	let ctx = {
+		open_tag = open_tag;
+		close_tag = close_tag;
+		lexbuf = lexbuf;
+	} in
+	try
+		not_xml ctx 0 (name <> "") (* don't allow self-closing fragments *)
+	with Exit ->
+		error Unterminated_xml p

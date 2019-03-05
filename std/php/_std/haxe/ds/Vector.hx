@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -121,9 +121,9 @@ abstract Vector<T>(VectorData<T>) {
 
 	public inline function map<S>(f:T->S):Vector<S> {
 		var result = new Vector(this.length);
-		for(i in 0...this.length) {
-			result[i] = f(get(i));
-		}
+		Syntax.foreach(this.data, function(key:Int, value:T) {
+			result[key] = f(value);
+		});
 		return result;
 	}
 

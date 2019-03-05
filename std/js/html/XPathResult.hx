@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathResult>
 **/
 @:native("XPathResult")
-extern class XPathResult
-{
+extern class XPathResult {
 	static inline var ANY_TYPE : Int = 0;
 	static inline var NUMBER_TYPE : Int = 1;
 	static inline var STRING_TYPE : Int = 2;

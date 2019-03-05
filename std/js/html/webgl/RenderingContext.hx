@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext>
 **/
 @:native("WebGLRenderingContext")
-extern class RenderingContext
-{
+extern class RenderingContext {
 	static inline var DEPTH_BUFFER_BIT : Int = 256;
 	static inline var STENCIL_BUFFER_BIT : Int = 1024;
 	static inline var COLOR_BUFFER_BIT : Int = 16384;

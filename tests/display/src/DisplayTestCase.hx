@@ -1,14 +1,13 @@
+import utest.Assert;
 import Types;
 
 using Lambda;
 
 @:autoBuild(Macro.buildTestCase())
-class DisplayTestCase {
+class DisplayTestCase implements utest.ITest {
 	var ctx:DisplayTestContext;
-	var methods:Array<Void->Void>;
-	var numTests:Int;
-	var numFailures:Int;
-	var testName:String;
+
+	public function new() { }
 
 	// api
 	inline function pos(name) return ctx.pos(name);
@@ -20,55 +19,31 @@ class DisplayTestCase {
 	inline function range(pos1, pos2) return ctx.range(pos1, pos2);
 	inline function signature(pos1) return ctx.signature(pos1);
 	inline function metadataDoc(pos1) return ctx.metadataDoc(pos1);
+	inline function diagnostics() return ctx.diagnostics();
 
-	inline function noCompletionPoint(f) return ctx.noCompletionPoint(f);
+	inline function noCompletionPoint(f) return ctx.hasErrorMessage(f, "No completion point");
+	inline function typeNotFound(f, typeName) return ctx.hasErrorMessage(f, "Type not found : " + typeName);
 
-	function assert(v:Bool) if (!v) throw "assertion failed";
+	function assert(v:Bool) Assert.isTrue(v);
 
 	function eq<T>(expected:T, actual:T, ?pos:haxe.PosInfos) {
-		numTests++;
-		if (expected != actual) {
-			numFailures++;
-			report("Assertion failed", pos);
-			report("Expected: " + expected, pos);
-			report("Actual:   " + actual, pos);
-		}
+		Assert.equals(expected, actual, pos);
 	}
 
-	function arrayEq(expected:Array<String>, actual:Array<String>, ?pos:haxe.PosInfos) {
-		numTests++;
-		var leftover = expected.copy();
-		for (actual in actual) {
-			if (!leftover.remove(actual)) {
-				numFailures++;
-				report("Result not part of expected Array:", pos);
-				report(actual, pos);
-			}
-		}
-		for (leftover in leftover) {
-			numFailures++;
-			report("Expected result was not part of actual Array:", pos);
-			report(leftover, pos);
-			return;
-		}
+	function arrayEq<T>(expected:Array<T>, actual:Array<T>, ?pos:haxe.PosInfos) {
+		Assert.same(expected, actual, pos);
 	}
 
 	function arrayCheck<T>(expected:Array<T>, actual:Array<T>, f : T -> String, ?pos:haxe.PosInfos) {
 		var expected = [for (expected in expected) f(expected) => expected];
 		for (actual in actual) {
 			var key = f(actual);
-			if (!expected.exists(key)) {
-				numFailures++;
-				report("Result not part of expected Array:", pos);
-				report(Std.string(actual), pos);
-			}
+			Assert.isTrue(expected.exists(key), "Result not part of expected Array: " + Std.string(actual), pos);
 			expected.remove(key);
 		}
 
 		for (expected in expected) {
-			numFailures++;
-			report("Expected result was not part of actual Array:", pos);
-			report(Std.string(expected), pos);
+			Assert.fail("Expected result was not part of actual Array: " + Std.string(expected), pos);
 			return;
 		}
 	}
@@ -99,17 +74,6 @@ class DisplayTestCase {
 	}
 
 	function report(message, pos:haxe.PosInfos) {
-		haxe.Log.trace(message, pos);
-	}
-
-	public function run() {
-		for (method in methods) {
-			method();
-		}
-		return {
-			testName: testName,
-			numTests: numTests,
-			numFailures: numFailures
-		}
+		Assert.fail(message, pos);
 	}
 }

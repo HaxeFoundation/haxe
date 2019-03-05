@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,6 +41,9 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	public inline function iterator():NativeIndexedArrayIterator<T>
 		return new NativeIndexedArrayIterator(this);
 
+	public inline function keyValueIterator():NativeIndexedArrayKeyValueIterator<T>
+		return new NativeIndexedArrayKeyValueIterator(this);
+
 	@:to
 	inline function toHaxeArray():Array<T>
 		return @:privateAccess Array.wrap(this);
@@ -48,6 +51,10 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:from
 	static inline function fromHaxeArray<T>(a:Array<T>):NativeIndexedArray<T>
 		return @:privateAccess a.arr;
+
+	public inline function toString():String {
+		return Boot.stringifyNativeIndexedArray(this);
+	}
 }
 
 private class NativeIndexedArrayIterator<T> {
@@ -66,5 +73,24 @@ private class NativeIndexedArrayIterator<T> {
 
 	public inline function next():T {
 		return data[current++];
+	}
+}
+
+private class NativeIndexedArrayKeyValueIterator<T> {
+	var length:Int;
+	var current:Int = 0;
+	var data:NativeIndexedArray<T>;
+
+	public inline function new(data:NativeIndexedArray<T>) {
+		length = Global.count(data);
+		this.data = data;
+	}
+
+	public inline function hasNext():Bool {
+		return current < length;
+	}
+
+	public inline function next():{key:Int, value:T} {
+		return {key:current, value:data[current++]};
 	}
 }

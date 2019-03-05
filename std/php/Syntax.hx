@@ -15,11 +15,11 @@ extern class Syntax {
         `php` should be a string literal with php code.
         It can contain placeholders like `{0}`, `{1}` which will be replaced with corresponding arguments from `args`.
         E.g.:
-        ```
+        ```haxe
         Syntax.code("var_dump({0}, {1})", a, b);
         ```
         will generate
-        ```
+        ```haxe
         var_dump($a, $b);
         ```
     **/
@@ -172,24 +172,36 @@ extern class Syntax {
 
     /**
         Generates PHP class name for a provided Haxe class.
-        ```
+        ```haxe
         trace(Syntax.nativeClassName(php.Web)); // outputs: php\Web
         ```
-     */
+    **/
     static function nativeClassName<T>(cls:EitherType<Class<T>, Enum<T>>) : String;
 
     /**
-        ```
+        ```haxe
         Syntax.foreach(collection, function(key, value) trace(key, value));
         ```
         generates:
-        ```
+        ```haxe
         foreach($collection as $key => $value) {
             trace($key, $value);
         }
         ```
     **/
-    static function foreach<TCollection,TKey,TValue>( collection:TCollection, body:TKey->TValue->Void ) : Void;
+    static inline function foreach<TCollection,TKey,TValue>(collection:TCollection, body:TKey->TValue->Void) : Void {
+        while(Syntax.foreachCondition) {
+            Syntax.foreachCollection(collection);
+            var key:TKey = Syntax.foreachKey();
+            var value:TValue = Syntax.foreachValue();
+            Syntax.keepVar(key, value, key, value);
+            body(key, value);
+        }
+    }
+    static private var foreachCondition:Bool;
+    static private function foreachCollection<T>(collection:T):Void;
+    static private function foreachKey<T>():T;
+    static private function foreachValue<T>():T;
 
     /**
         Generates `new $className($arg1, ...$argN)`
@@ -233,22 +245,22 @@ extern class Syntax {
     static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
 
     /**
-        ```
+        ```haxe
         Syntax.arrayDecl(arg1, arg2, arg3);
         ```
         Generates native array declaration:
-        ```
+        ```haxe
         [$arg1, $arg2, $arg3]
         ```
     **/
     static function arrayDecl<T>( args:Rest<T> ) : NativeIndexedArray<T>;
 
     /**
-        ```
+        ```haxe
         Syntax.assocDecl({field1:'first', field2:2}});
         ```
         Generates native associative array declaration:
-        ```
+        ```haxe
         ["field1" => "first", "field2" => 2];
         ```
         This method is not recursive.
@@ -261,7 +273,7 @@ extern class Syntax {
     /**
         Don't let compiler to optimize away local var passed to this method.
     **/
-    static function keepVar( localVar:Dynamic ) : Void;
+    static function keepVar( localVar:Rest<Dynamic> ) : Void;
 
     /**
         Adds `...` operator before `args`
@@ -278,15 +290,15 @@ extern class Syntax {
     /**
         Generates `clone $value`.
         @see http://php.net/manual/en/language.oop5.cloning.php
-     */
+    **/
     static inline function clone<T>(value:T):T {
-        return Syntax.code('clone {0}', value);
+        return Syntax.code('(clone {0})', value);
     }
 
     /**
         Generates `yield $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yield(value:Dynamic):Dynamic {
         return Syntax.code('yield {0}', value);
     }
@@ -294,7 +306,7 @@ extern class Syntax {
     /**
         Generates `yield $key => $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldPair(key:Dynamic, value:Dynamic):Dynamic {
         return Syntax.code('yield {0} => {1}', key, value);
     }
@@ -302,7 +314,7 @@ extern class Syntax {
     /**
         Generates `yield for $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldFrom(value:Dynamic):Dynamic {
         return Syntax.code('yield from {0}', value);
     }

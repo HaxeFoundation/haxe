@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -672,6 +672,9 @@ let end_fun ctx args dparams tret =
 		hlmt_function = None;
 	}
 
+let gen_expr_ref = ref (fun _ _ _ -> assert false)
+let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
+
 let begin_fun ctx args tret el stat p =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
@@ -708,18 +711,18 @@ let begin_fun ctx args tret el stat p =
 		let v = (match classify ctx t, c with
 		| _, None -> HVNone
 		| (KInt | KFloat | KUInt | KBool) as kind, Some c ->
-			(match c with
-			| TInt i -> if kind = KUInt then HVUInt i else HVInt i
-			| TFloat s -> HVFloat (float_of_string s)
-			| TBool b -> HVBool b
-			| TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			(match c.eexpr with
+			| TConst (TInt i) -> if kind = KUInt then HVUInt i else HVInt i
+			| TConst (TFloat s) -> HVFloat (float_of_string s)
+			| TConst (TBool b) -> HVBool b
+			| TConst TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
 			| _ -> assert false)
-		| _, Some TNull -> HVNone
+		| _, Some {eexpr = TConst TNull} -> HVNone
 		| k, Some c ->
 			write ctx (HReg r.rid);
 			write ctx HNull;
 			let j = jump ctx J3Neq in
-			gen_constant ctx c t p;
+			gen_expr ctx true c;
 			coerce ctx k;
 			write ctx (HSetReg r.rid);
 			j();
@@ -867,9 +870,6 @@ let pop_value ctx retval =
 	   branch value *)
 	if retval then ctx.infos.istack <- ctx.infos.istack - 1
 
-let gen_expr_ref = ref (fun _ _ _ -> assert false)
-let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
-
 let rec gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
@@ -902,14 +902,17 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
-			let is_type_parameter_field = match fa with
+			let requires_cast = match fa with
+				| FInstance({cl_interface=true},_,{cf_kind = Var _}) ->
+					(* we have to cast var access on interfaces *)
+					true
 				| FInstance(_,_,cf) ->
+					(* if the return type is one of the type-parameters, then we need to cast it *)
 					(match follow cf.cf_type with TInst({cl_kind = KTypeParameter _},_) -> true | _ -> false)
 				| _ ->
 					List.exists (fun t -> follow t == et) tl
 			in
-			(* if the return type is one of the type-parameters, then we need to cast it *)
-			if is_type_parameter_field then
+			if requires_cast then
 				VCast (id, classify ctx e.etype)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
@@ -1777,10 +1780,10 @@ let generate_construct ctx fdata c =
 	let cargs = if not ctx.need_ctor_skip then fdata.tf_args else List.map (fun (v,c) ->
 		let c = (match c with Some _ -> c | None ->
 			Some (match classify ctx v.v_type with
-			| KInt | KUInt -> TInt 0l
-			| KFloat -> TFloat "0"
-			| KBool -> TBool false
-			| KType _ | KDynamic | KNone -> TNull)
+			| KInt | KUInt -> mk (TConst (TInt 0l)) ctx.com.basic.tint v.v_pos
+			| KFloat -> mk (TConst (TFloat "0")) ctx.com.basic.tfloat v.v_pos
+			| KBool -> mk (TConst (TBool false)) ctx.com.basic.tbool v.v_pos
+			| KType _ | KDynamic | KNone -> mk (TConst TNull) t_dynamic v.v_pos)
 		) in
 		v,c
 	) fdata.tf_args in
@@ -1991,7 +1994,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || f.cf_final;
+				hlm_final = stat || (has_class_field_flag f CfFinal);
 				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})
@@ -2094,7 +2097,7 @@ let generate_class ctx c =
 		in
 		let rec loop_meta = function
 			| [] ->
-				if not f.cf_public && ctx.swf_protected then
+				if not (has_class_field_flag f CfPublic) && ctx.swf_protected then
 					protect()
 				else
 					ident f.cf_name
@@ -2131,12 +2134,12 @@ let generate_class ctx c =
 			} :: acc
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
+		let cf = {
+			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic)) c.cl_pos null_pos) with
+			cf_kind = Method MethNormal;
+		} in
 		{
-			hlf_name = make_name {
-				(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
-				cf_public = ctx.swc && ctx.swf_protected;
-				cf_kind = Method MethNormal;
-			} false;
+			hlf_name = make_name cf false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
 				hlm_type = generate_inits ctx;
@@ -2230,7 +2233,7 @@ let generate_enum ctx e meta =
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var VGenerated a t e.e_pos, (if opt then Some TNull else None)) args) (TEnum (e,[])) [] true f.ef_pos in
+					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> alloc_var VGenerated a t e.e_pos, (if opt then Some (mk (TConst TNull) t_dynamic null_pos) else None)) args) (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (HFindPropStrict name_id);
 					write ctx (HString f.ef_name);
 					write ctx (HInt f.ef_index);

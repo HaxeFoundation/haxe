@@ -25,6 +25,7 @@ class Issue3084 extends Test
 			Sys.sleep(0.01);
 			m.release();
 		}
+		noAssert();
 	}
 #end
 }

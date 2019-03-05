@@ -32,15 +32,21 @@ let rec run_loop ctx wait run env : value =
 		| DbgContinue ->
 			check_breakpoint();
 			run env
-		| DbgNext offset ->
-			if offset < (get_eval ctx).environment_offset then
+		| DbgNext(env',p) ->
+			let b = DisplayPosition.encloses_position (env.env_debug.expr.epos) p in
+			let rec is_on_stack env =
+				match env.env_parent with
+				| Some env -> env == env' || is_on_stack env
+				| None -> false
+			in
+			if is_on_stack env || b then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
 				run_loop ctx wait run env
-			end
-		| DbgFinish offset ->
-			if offset <= (get_eval ctx).environment_offset then
+			end;
+		| DbgFinish env' ->
+			if env' != env then
 				run env
 			else begin
 				ctx.debug.debug_state <- DbgWaiting;
@@ -71,7 +77,7 @@ let debug_loop jit conn e f =
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
 		try
-			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile in
+			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile_unique in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
 				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
@@ -95,6 +101,9 @@ let debug_loop jit conn e f =
 			conn.bp_stop ctx env;
 			ctx.debug.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
+		| Return v as exc ->
+			ctx.debug.last_return <- Some v;
+			raise exc
 		(* | Return _ | Break | Continue | Sys_exit _ | RunTimeException _ as exc ->
 			raise exc
 		| exc ->

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -63,6 +63,7 @@ interface IMap<K,V> {
 	public function remove(k:K):Bool;
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
+	public function keyValueIterator():KeyValueIterator<K, V>;
 	public function copy():IMap<K,V>;
 	public function toString():String;
 }

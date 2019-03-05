@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder>
 **/
 @:native("TextDecoder")
-extern class TextDecoder
-{
+extern class TextDecoder {
 	
 	/**
 		Is a `DOMString` containing the name of the decoder, that is a string describing the method the `TextDecoder` will use.
@@ -51,7 +50,7 @@ extern class TextDecoder
 	var ignoreBOM(default,null) : Bool;
 	
 	/** @throws DOMError */
-	function new( ?label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
+	function new( label : String = "utf-8", ?options : TextDecoderOptions ) : Void;
 	
 	/**
 		Returns a `DOMString` containing the text decoded with the method of the specific `TextDecoder` object.

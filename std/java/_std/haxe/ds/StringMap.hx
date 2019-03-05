@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -144,7 +144,7 @@ import java.NativeArray;
 #end
 	}
 
-	@:final private function lookup( key : String ) : Int
+	private final function lookup( key : String ) : Int
 	{
 		if (nBuckets != 0)
 		{
@@ -175,7 +175,7 @@ import java.NativeArray;
 		return -1;
 	}
 
-	@:final @:private function resize(newNBuckets:Int) : Void
+	@:private final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
@@ -390,6 +390,10 @@ import java.NativeArray;
 		return new StringMapKeyIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<String, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	/**
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
@@ -489,9 +493,8 @@ import java.NativeArray;
 
 private typedef HashType = Int;
 
-@:final
 @:access(haxe.ds.StringMap)
-private class StringMapKeyIterator<T>
+private final class StringMapKeyIterator<T>
 {
 	var m:StringMap<T>;
 	var i:Int;
@@ -529,9 +532,8 @@ private class StringMapKeyIterator<T>
 	}
 }
 
-@:final
 @:access(haxe.ds.StringMap)
-private class StringMapValueIterator<T>
+private final class StringMapValueIterator<T>
 {
 	var m:StringMap<T>;
 	var i:Int;

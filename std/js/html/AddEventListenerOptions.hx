@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,9 +24,7 @@
 
 package js.html;
 
-typedef AddEventListenerOptions =
-{
-	> EventListenerOptions,
-	@:optional var once : Bool;
-	@:optional var passive : Bool;
+typedef AddEventListenerOptions = EventListenerOptions & {
+	var ?once : Bool;
+	var ?passive : Bool;
 }

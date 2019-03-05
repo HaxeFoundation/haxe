@@ -36,3 +36,32 @@ map["test"] == 2;
 
 var d:Dynamic<Int> = map;
 d.test == 2;
+
+var map = new haxe.DynamicAccess();
+map["a"] = 1;
+map["b"] = 2;
+map["c"] = 3;
+
+var values = [];
+for (value in map) {
+	values.push(value);
+}
+values.length == 3;
+values[0] in [1, 2, 3];
+values[1] in [1, 2, 3];
+values[2] in [1, 2, 3];
+
+var keys = [];
+var values = [];
+for (key => value in map) {
+	keys.push(key);
+	values.push(value);
+}
+keys.length == 3;
+keys[0] in ["a", "b", "c"];
+keys[1] in ["a", "b", "c"];
+keys[2] in ["a", "b", "c"];
+values.length == 3;
+values[0] in [1, 2, 3];
+values[1] in [1, 2, 3];
+values[2] in [1, 2, 3];

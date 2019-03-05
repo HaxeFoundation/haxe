@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -95,14 +95,17 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 		begin match follow t1, follow t2 with
 		| TFun (args1,r1) , TFun (args2,r2) -> (
 			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
+			let i = ref 0 in
 			try
+				valid r1 r2;
 				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+					incr i;
 					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
 				) args1 args2;
-				valid r1 r2
 			with Unify_error l ->
-				raise (Unify_error (Cannot_unify (t1,t2) :: l)))
+				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
+				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
 		| _ ->
 			assert false
 		end
@@ -144,7 +147,7 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
 			else if not (List.memq f c.cl_overrides) then
 				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
-			else if not f.cf_public && f2.cf_public then
+			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
@@ -154,10 +157,11 @@ let check_overriding ctx c f =
 				() (* allow to redefine a method as inlined *)
 			| _ ->
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if f2.cf_final then display_error ctx ("Cannot override final method " ^ i) p;
+			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t
+				valid_redefinition ctx f f.cf_type f2 t;
+				add_class_field_flag f2 CfOverridden;
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
@@ -168,9 +172,14 @@ let check_overriding ctx c f =
 				if List.memq f c.cl_overrides then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
-					else
-						("Field " ^ i ^ " is declared 'override' but doesn't override any field")
-					in
+					else begin
+						let fields = TClass.get_all_super_fields c in
+						let fields = PMap.fold (fun (_,cf) acc -> match cf.cf_kind with
+							| Method MethNormal when not (has_class_field_flag cf CfFinal) -> cf.cf_name :: acc
+							| _ -> acc
+						) fields [] in
+						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+					end in
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
@@ -321,7 +330,7 @@ module Inheritance = struct
 					| MethDynamic -> 1
 					| MethMacro -> 2
 				in
-				if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
+				if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 					display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 				else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 					display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
@@ -483,7 +492,7 @@ end
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
 	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when cf.cf_final && cf.cf_expr = None ->
+		| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None ->
 			Hashtbl.add final_vars cf.cf_name cf
 		| _ ->
 			()

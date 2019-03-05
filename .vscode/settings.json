@@ -9,5 +9,6 @@
 	"files.exclude": {
 		"**/_build": true
 	},
-	"reason.server.languages": ["ocaml"]
+	"reason.server.languages": ["ocaml"],
+	"haxe.diagnosticsPathFilter": "${workspaceRoot}/std"
 }

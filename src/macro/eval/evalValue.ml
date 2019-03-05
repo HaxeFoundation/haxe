@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -79,6 +79,7 @@ end
 
 type vregex = {
 	r : Pcre.regexp;
+	r_rex_string : vstring;
 	r_global : bool;
 	mutable r_string : string;
 	mutable r_groups : Pcre.substrings array;

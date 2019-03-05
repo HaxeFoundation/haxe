@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class TextBlock {
+extern final class TextBlock {
 	var applyNonLinearFontScaling : Bool;
 	var baselineFontDescription : FontDescription;
 	var baselineFontSize : Float;

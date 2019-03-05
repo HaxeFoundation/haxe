@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -671,7 +671,9 @@ module Fusion = struct
 				block_element acc (el1 @ el2)
 			| {eexpr = TObjectDecl fl} :: el ->
 				block_element acc ((List.map snd fl) @ el)
-			| {eexpr = TIf(e1,{eexpr = TBlock []},(Some {eexpr = TBlock []} | None))} :: el ->
+			| {eexpr = TIf(e1,e2,None)} :: el when not (has_side_effect e2) ->
+				block_element acc (e1 :: el)
+			| {eexpr = TIf(e1,e2,Some e3)} :: el when not (has_side_effect e2) && not (has_side_effect e3) ->
 				block_element acc (e1 :: el)
 			| {eexpr = TBlock [e1]} :: el ->
 				block_element acc (e1 :: el)
@@ -687,7 +689,7 @@ module Fusion = struct
 			let num_writes = state#get_writes v in
 			let can_be_used_as_value = can_be_used_as_value com e in
 			let is_compiler_generated = match v.v_kind with VUser _ | VInlined -> false | _ -> true in
-			let has_type_params = match v.v_extra with Some (tl,_,_) when tl <> [] -> true | _ -> false in
+			let has_type_params = match v.v_extra with Some (tl,_) when tl <> [] -> true | _ -> false in
 			let b = num_uses <= 1 &&
 			        num_writes = 0 &&
 			        can_be_used_as_value &&
@@ -789,7 +791,7 @@ module Fusion = struct
 						blocked := old;
 						e
 					in
-					let handle_el el =
+					let handle_el' el =
 						(* This mess deals with the fact that the order of evaluation is undefined for call
 							arguments on these targets. Even if we find a replacement, we pretend that we
 							didn't in order to find possible interferences in later call arguments. *)
@@ -804,7 +806,7 @@ module Fusion = struct
 						found := !really_found;
 						el
 					in
-					let handle_el = if not (target_handles_side_effect_order com) then handle_el else List.map replace in
+					let handle_el = if not (target_handles_side_effect_order com) then handle_el' else List.map replace in
 					let handle_call e2 el = match com.platform with
 						| Neko ->
 							(* Neko has this reversed at the moment (issue #4787) *)
@@ -925,7 +927,8 @@ module Fusion = struct
 							if not !found && (((has_state_read ir || has_any_field_read ir)) || has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TCall(e1,el)}
 						| TObjectDecl fl ->
-							let el = handle_el (List.map snd fl) in
+							(* The C# generator has trouble with evaluation order in structures (#7531). *)
+							let el = (match com.platform with Cs -> handle_el' | _ -> handle_el) (List.map snd fl) in
 							if not !found && (has_state_write ir || has_any_field_write ir) then raise Exit;
 							{e with eexpr = TObjectDecl (List.map2 (fun (s,_) e -> s,e) fl el)}
 						| TArrayDecl el ->
@@ -988,7 +991,8 @@ module Fusion = struct
 				begin try
 					let e2,f = match e2.eexpr with
 						| TReturn (Some e2) -> e2,(fun e -> {e2 with eexpr = TReturn (Some e)})
-						| TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)})
+						(* This is not sound if e21 contains the variable (issue #7704) *)
+						(* | TBinop(OpAssign,e21,e22) -> e22,(fun e -> {e2 with eexpr = TBinop(OpAssign,e21,e)}) *)
 						| TVar(v,Some e2) -> e2,(fun e -> {e2 with eexpr = TVar(v,Some e)})
 						| _ -> raise Exit
 					in
@@ -1118,7 +1122,6 @@ module Cleanup = struct
 			| TField({eexpr = TTypeExpr _},_) ->
 				e
 			| TTypeExpr (TClassDecl c) ->
-				List.iter (fun cf -> if not (Meta.has Meta.MaybeUsed cf.cf_meta) then cf.cf_meta <- (Meta.MaybeUsed,[],cf.cf_pos) :: cf.cf_meta;) c.cl_ordered_statics;
 				e
 			| TMeta((Meta.Ast,_,_),e1) when (match e1.eexpr with TSwitch _ -> false | _ -> true) ->
 				loop e1
@@ -1249,7 +1252,7 @@ module Purity = struct
 				| None ->
 					if not (is_pure c cf) then taint node
 				(* TODO: The function code check shouldn't be here I guess. *)
-				| Some _ when (cf.cf_extern || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
+				| Some _ when (has_class_field_flag cf CfExtern || Meta.has Meta.FunctionCode cf.cf_meta || Meta.has (Meta.HlNative) cf.cf_meta || Meta.has (Meta.HlNative) c.cl_meta) ->
 					if not (is_pure c cf) then taint node
 				| Some e ->
 					try

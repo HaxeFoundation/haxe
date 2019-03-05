@@ -134,7 +134,7 @@ let field_access ctx mode f fmode t e p =
 			let e = mk (TField(e,fmode)) t p in
 			let ethis = get_this ctx p in
 			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_params)} in
-			AKUsing(e,ctx.curclass,f,ethis)
+			AKUsing(e,ctx.curclass,f,ethis,false)
 		| _ ->
 			(match m, mode with
 			| MethInline, _ -> AKInline (e,f,fmode,t)
@@ -155,13 +155,13 @@ let field_access ctx mode f fmode t e p =
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_public = false } false -> normal()
+			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Opened when mode = MSet ->
 					f.cf_kind <- Var { v with v_write = AccNormal };
 					normal()
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_public = false } true -> normal()
+				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
@@ -208,7 +208,7 @@ let field_access ctx mode f fmode t e p =
 					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
 					let t = (field_type ctx c [] f p) in
 					let ef = mk (TField (e,FStatic (c,f))) t p in
-					AKUsing (ef,c,f,this)
+					AKUsing (ef,c,f,this,false)
 				end else
 					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
 			end else if mode = MSet then
@@ -263,7 +263,7 @@ let rec using_field ctx mode e i p =
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
 					ImportHandling.maybe_mark_import_position ctx pc;
-					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
+					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
 				| _ ->
 					raise Not_found
 			end
@@ -284,7 +284,7 @@ let rec using_field ctx mode e i p =
 		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsing (_,c,_,_) -> add_dependency ctx.m.curmod c.cl_module
+		| AKUsing (_,c,_,_,_) -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> assert false);
 		acc
 	with Not_found ->
@@ -416,7 +416,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 		(try
 			let f = PMap.find i a.a_fields in
 			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
-			if not f.cf_public && not ctx.untyped then begin
+			if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
 				| Statics c when can_access ctx c f true -> ()
@@ -496,7 +496,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
+				AKUsing (ef,c,f,e,false)
 			| (MGet | MCall), Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
@@ -519,7 +519,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 				end;
 				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
+				AKUsing (ef,c,f,e,false)
 			| MSet, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
@@ -549,7 +549,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 				if is_write then
 					AKFieldSet(e,ef,i,r)
 				else
-					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
+					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String i),p] NoValue p)
 			in
 			get_resolve (mode = MSet)
 		with Not_found ->

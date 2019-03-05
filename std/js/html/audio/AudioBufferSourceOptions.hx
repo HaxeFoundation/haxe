@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,11 @@
 
 package js.html.audio;
 
-typedef AudioBufferSourceOptions =
-{
-	@:optional var buffer : AudioBuffer;
-	@:optional var detune : Float;
-	@:optional var loop : Bool;
-	@:optional var loopEnd : Float;
-	@:optional var loopStart : Float;
-	@:optional var playbackRate : Float;
+typedef AudioBufferSourceOptions = {
+	var ?buffer : AudioBuffer;
+	var ?detune : Float;
+	var ?loop : Bool;
+	var ?loopEnd : Float;
+	var ?loopStart : Float;
+	var ?playbackRate : Float;
 }

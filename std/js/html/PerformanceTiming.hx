@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,8 +33,7 @@ package js.html;
 **/
 @:deprecated("PerformanceTiming is deprecated, use the PerformanceNavigationTiming interface instead")
 @:native("PerformanceTiming")
-extern class PerformanceTiming
-{
+extern class PerformanceTiming {
 	
 	/**
 		When the prompt for unload terminates on the previous document in the same browsing context. If there is no previous document, this value will be the same as `PerformanceTiming.fetchStart`.

@@ -63,7 +63,6 @@ class Python {
 		}
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-python.hxml"]);
 		for (py in pys) {
 			runCommand(py, ["bin/python/sys.py"]);

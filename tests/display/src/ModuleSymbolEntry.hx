@@ -17,5 +17,5 @@ private enum abstract ModuleSymbolKind(Int) {
 typedef ModuleSymbolEntry = {
     var name:String;
     var kind:ModuleSymbolKind;
-    @:optional var containerName:String;
+    var ?containerName:String;
 }

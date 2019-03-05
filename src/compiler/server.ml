@@ -124,30 +124,29 @@ let rec wait_loop process_params verbose accept =
 			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
-			let t = Timer.timer ["server";"parser cache"] in
-			let data = try
-				let cfile = CompilationServer.find_file cs fkey in
-				if cfile.c_time <> ftime then raise Not_found;
-				cfile.c_package,cfile.c_decls
-			with Not_found ->
-				has_parse_error := false;
-				let data = TypeloadParse.parse_file com2 file p in
-				let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
-					else if is_display_file then "not cached, is display file",true
-					else begin try
-						(* We assume that when not in display mode it's okay to cache stuff that has #if display
-						   checks. The reasoning is that non-display mode has more information than display mode. *)
-						if not com2.display.dms_display then raise Not_found;
-						let ident = Hashtbl.find Parser.special_identifier_files ffile in
-						Printf.sprintf "not cached, using \"%s\" define" ident,true
-					with Not_found ->
-						CompilationServer.cache_file cs fkey ftime data;
-						"cached",false
-				end in
-				if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
-				data
-			in
-			t();
+			let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+				try
+					let cfile = CompilationServer.find_file cs fkey in
+					if cfile.c_time <> ftime then raise Not_found;
+					cfile.c_package,cfile.c_decls
+				with Not_found ->
+					has_parse_error := false;
+					let data = TypeloadParse.parse_file com2 file p in
+					let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
+						else if is_display_file then "not cached, is display file",true
+						else begin try
+							(* We assume that when not in display mode it's okay to cache stuff that has #if display
+							   checks. The reasoning is that non-display mode has more information than display mode. *)
+							if not com2.display.dms_display then raise Not_found;
+							let ident = Hashtbl.find Parser.special_identifier_files ffile in
+							Printf.sprintf "not cached, using \"%s\" define" ident,true
+						with Not_found ->
+							CompilationServer.cache_file cs fkey ftime data;
+							"cached",false
+					end in
+					if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
+					data
+			) () in
 			data
 	);
 	let check_module_shadowing com paths m =
@@ -260,7 +259,7 @@ let rec wait_loop process_params verbose accept =
 				| MFake | MImport -> () (* don't get classpath *)
 				| MExtern ->
 					(* if we have a file then this will override our extern type *)
-					let has_file = (try check_module_shadowing com2 directories m; true with Not_found -> false) in
+					let has_file = (try check_module_shadowing com2 directories m; false with Not_found -> true) in
 					if has_file then begin
 						if verbose then print_endline ("A file is masking the library file " ^ s_type_path m.m_path); (* TODO *)
 						raise Not_found;
@@ -360,8 +359,7 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
-					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_reuse_macro_calls
+					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
 				)
 			end
 		in
@@ -391,7 +389,6 @@ let rec wait_loop process_params verbose accept =
 		let was_compilation = ref false in
 		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
-				was_compilation := true;
 				CompilationServer.cache_context cs com;
 				ServerMessage.cached_modules com "" (List.length com.modules);
 			end;
@@ -408,6 +405,7 @@ let rec wait_loop process_params verbose accept =
 						ServerMessage.message s;
 					)
 					(List.rev ctx.messages);
+				was_compilation := ctx.com.display.dms_full_typing;
 				if ctx.has_error then begin
 					measure_times := false;
 					write "\x02\n"

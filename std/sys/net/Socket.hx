@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -98,7 +98,7 @@ extern class Socket {
 	function host() : { host : Host, port : Int };
 
 	/**
-		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
+		Gives a timeout (in seconds) after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	function setTimeout( timeout : Float ) : Void;
 

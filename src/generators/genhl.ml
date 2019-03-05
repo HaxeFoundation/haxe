@@ -86,9 +86,10 @@ type context = {
 	com : Common.context;
 	cglobals : (string, ttype) lookup;
 	cstrings : (string, string) lookup;
+	cbytes : (bytes, bytes) lookup;
 	cfloats : (float, float) lookup;
 	cints : (int32, int32) lookup;
-	cnatives : (string, (string index * string index * ttype * functable index)) lookup;
+	cnatives : (string * int, (string index * string index * ttype * functable index)) lookup;
 	cfids : (string * path, unit) lookup;
 	cfunctions : fundecl DynArray.t;
 	cconstants : (constval, (global * int array)) lookup;
@@ -139,7 +140,7 @@ let is_to_string t =
 	| _ -> false
 
 let is_extern_field f =
-	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || f.cf_extern
+	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || has_class_field_flag f CfExtern
 
 let is_array_class name =
 	match name with
@@ -265,6 +266,9 @@ let alloc_i32 ctx i =
 
 let alloc_string ctx s =
 	lookup ctx.cstrings s (fun() -> s)
+
+let alloc_bytes ctx s =
+	lookup ctx.cbytes s (fun() -> s)
 
 let array_class ctx t =
 	match t with
@@ -398,16 +402,7 @@ let rec to_type ?tref ctx t =
 			| None -> ()
 			| Some r -> r := Some t);
 			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
-			let fields = PMap.fold (fun cf acc ->
-				match cf.cf_kind with
-				| Var _ when (match follow cf.cf_type with TFun _ -> true | _ -> false) ->
-					(* allowing functions will crash unit tests *)
-					acc
-				| Method _ ->
-					acc
-				| _ ->
-					(cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc
-			) a.a_fields [] in
+			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			if fields = [] then
 				let t = HDyn in
 				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
@@ -438,7 +433,7 @@ let rec to_type ?tref ctx t =
 		| _ -> class_type ~tref ctx c pl false)
 	| TAbstract ({a_path = [],"Null"},[t1]) ->
 		let t = to_type ?tref ctx t1 in
-		if not (is_nullable t) then HNull t else t
+		if not (is_nullable t) && t <> HVoid then HNull t else t
 	| TAbstract (a,pl) ->
 		if Meta.has Meta.CoreType a.a_meta then
 			(match a.a_path with
@@ -478,6 +473,14 @@ and resolve_class ctx c pl statics =
 		not_supported()
 	| _ ->
 		c
+
+and cfield_type ctx cf =
+	let t = to_type ctx cf.cf_type in
+	let t = (match cf.cf_kind, t with
+		| Method (MethNormal|MethInline), HFun (args,ret) -> HMethod (args,ret)
+		| _ -> t
+	) in
+	(cf.cf_name,alloc_string ctx cf.cf_name,t)
 
 and field_type ctx f p =
 	match f with
@@ -549,7 +552,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
-			PMap.fold (fun cf acc -> (cf.cf_name,alloc_string ctx cf.cf_name,to_type ctx cf.cf_type) :: acc) c.cl_fields fields
+			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
 		in
 		let fields = loop c in
 		vp.vfields <- Array.of_list fields;
@@ -759,7 +762,7 @@ let resolve_type ctx path =
 let alloc_std ctx name args ret =
 	let lib = "std" in
 	(* different from :hlNative to prevent mismatch *)
-	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib) (fun() ->
+	let nid = lookup ctx.cnatives ("$" ^ name ^ "@" ^ lib, -1) (fun() ->
 		let fid = alloc_fun_path ctx ([],"std") name in
 		Hashtbl.add ctx.defined_funs fid ();
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
@@ -1185,6 +1188,18 @@ and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	| HObj _, HObj _ when is_array_type rt && is_array_type t ->
 		let out = alloc_tmp ctx t in
 		op ctx (OSafeCast (out, r));
+		out
+	| HNull _, HRef t2 ->
+		let out = alloc_tmp ctx t in
+		op ctx (OJNotNull (r,2));
+		op ctx (ONull out);
+		let j = jump ctx (fun n -> OJAlways n) in
+		let r = cast_to ctx r t2 p in
+		let r2 = alloc_tmp ctx t2 in
+		op ctx (OMov (r2, r));
+		hold ctx r2; (* retain *)
+		op ctx (ORef (out,r2));
+		j();
 		out
 	| _, HRef t2 ->
 		let r = cast_to ctx r t2 p in
@@ -1954,7 +1969,9 @@ and eval_expr ctx e =
 				op ctx (ONew ro);
 				op ctx (OString (rb,alloc_string ctx k));
 				op ctx (OSetField (ro,0,rb));
-				op ctx (OBytes (rb,alloc_string ctx (v ^ "\x00"))); (* add a \x00 to prevent clashing with existing string *)
+				(* fix for Resource.getString *)
+				let str = try ignore(String.index v '\x00'); v with Not_found -> v ^ "\x00" in
+				op ctx (OBytes (rb,alloc_bytes ctx (Bytes.of_string str)));
 				op ctx (OSetField (ro,1,rb));
 				if has_len then op ctx (OSetField (ro,2,reg_int ctx (String.length v)));
 				op ctx (OSetArray (arr,ridx,ro));
@@ -1988,7 +2005,7 @@ and eval_expr ctx e =
 			let rt = HAbstract ("macro_pos",alloc_string ctx "macro_pos") in
 			let r = alloc_tmp ctx rt in
 			let rfile = alloc_tmp ctx HBytes in
-			op ctx (OBytes (rfile, alloc_string ctx file));
+			op ctx (OBytes (rfile, alloc_bytes ctx (Bytes.of_string file)));
 			hold ctx rfile;
 			let min = eval_expr ctx min in hold ctx min;
 			let max = eval_expr ctx max in
@@ -2137,7 +2154,7 @@ and eval_expr ctx e =
 				let eargs, et = (match follow ef.ef_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 				let ct = ctx.com.basic in
 				let p = ef.ef_pos in
-				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some TNull else None) eargs in
+				let eargs = List.map (fun (n,o,t) -> Type.alloc_var VGenerated n t en.e_pos, if o then Some (mk (TConst TNull) t_dynamic null_pos) else None) eargs in
 				let ecall = mk (TCall (e,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) eargs)) et p in
 				let f = {
 					tf_args = eargs;
@@ -2833,12 +2850,27 @@ and eval_expr ctx e =
 	| TCast (ev,Some _) ->
 		let t = to_type ctx e.etype in
 		let re = eval_expr ctx ev in
-		let r = alloc_tmp ctx t in
+		let rt = alloc_tmp ctx t in
 		if safe_cast (rtype ctx re) t then
-			op ctx (OMov (r,re))
-		else
-			op ctx (OSafeCast (r,re));
-		r
+			op ctx (OMov (rt,re))
+		else (match Abstract.follow_with_abstracts e.etype with
+		| TInst({ cl_interface = true } as c,_) ->
+			hold ctx re;
+			let c = eval_to ctx { eexpr = TTypeExpr(TClassDecl c); epos = e.epos; etype = t_dynamic } (class_type ctx ctx.base_type [] false) in
+			hold ctx c;
+			let rb = alloc_tmp ctx HBool in
+			op ctx (OCall2 (rb, alloc_fun_path ctx (["hl"],"BaseType") "check",c,re));
+			let jnext = jump ctx (fun n -> OJTrue (rb,n)) in
+			let jnext2 = jump ctx (fun n -> OJNull (re,n)) in
+			op ctx (OThrow (make_string ctx "Cast error" e.epos));
+			jnext();
+			jnext2();
+			op ctx (OMov (rt, unsafe_cast_to ~debugchk:false ctx re (to_type ctx e.etype) e.epos));
+			free ctx c;
+			free ctx re;
+		| _ ->
+			op ctx (OSafeCast (rt,re)));
+		rt
 	| TIdent s ->
 		abort ("Unbound identifier " ^ s) e.epos
 
@@ -3089,25 +3121,25 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		let vt = to_type ctx v.v_type in
 		let capt = captured_index ctx v in
 		(match o with
-		| None | Some TNull -> ()
+		| None | Some {eexpr = TConst TNull} -> ()
 		| Some c when not (is_nullable vt) ->
 			(* if optional but not null, turn into a not nullable here *)
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
 			let t = alloc_tmp ctx vt in
 			(match vt with
 			| HUI8 | HUI16 | HI32 | HI64 ->
-				(match c with
-				| TInt i -> op ctx (OInt (t,alloc_i32 ctx i))
-				| TFloat s -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
+				(match c.eexpr with
+				| TConst (TInt i) -> op ctx (OInt (t,alloc_i32 ctx i))
+				| TConst (TFloat s) -> op ctx (OInt (t,alloc_i32 ctx  (Int32.of_float (float_of_string s))))
 				| _ -> assert false)
 			| HF32 | HF64 ->
-				(match c with
-				| TInt i -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
-				| TFloat s -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
+				(match c.eexpr with
+				| TConst (TInt i) -> op ctx (OFloat (t,alloc_float ctx (Int32.to_float i)))
+				| TConst (TFloat s) -> op ctx (OFloat (t,alloc_float ctx  (float_of_string s)))
 				| _ -> assert false)
 			| HBool ->
-				(match c with
-				| TBool b -> op ctx (OBool (t,b))
+				(match c.eexpr with
+				| TConst (TBool b) -> op ctx (OBool (t,b))
 				| _ -> assert false)
 			| _ ->
 				assert false);
@@ -3122,30 +3154,32 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 			hold ctx t
 		| Some c ->
 			let j = jump ctx (fun n -> OJNotNull (r,n)) in
-			(match c with
-			| TNull | TThis | TSuper -> assert false
-			| TInt i when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
+			(match c.eexpr with
+			| TConst (TNull | TThis | TSuper) -> assert false
+			| TConst (TInt i) when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 | HDyn -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx i));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
+			| TConst (TFloat s) when (match to_type ctx (Abstract.follow_with_abstracts v.v_type) with HUI8 | HUI16 | HI32 | HI64 -> true | _ -> false) ->
 				let tmp = alloc_tmp ctx HI32 in
 				op ctx (OInt (tmp, alloc_i32 ctx (Int32.of_float (float_of_string s))));
 				op ctx (OToDyn (r, tmp));
-			| TInt i ->
+			| TConst (TInt i) ->
 				let tmp = alloc_tmp ctx HF64 in
 				op ctx (OFloat (tmp, alloc_float ctx (Int32.to_float i)));
 				op ctx (OToDyn (r, tmp));
-			| TFloat s ->
+			| TConst (TFloat s) ->
 				let tmp = alloc_tmp ctx HF64 in
 				op ctx (OFloat (tmp, alloc_float ctx (float_of_string s)));
 				op ctx (OToDyn (r, tmp));
-			| TBool b ->
+			| TConst (TBool b) ->
 				let tmp = alloc_tmp ctx HBool in
 				op ctx (OBool (tmp, b));
 				op ctx (OToDyn (r, tmp));
-			| TString s ->
+			| TConst (TString s) ->
 				op ctx (OMov (r, make_string ctx s f.tf_expr.epos))
+			| _ ->
+				op ctx (OMov (r, eval_to ctx c vt))
 			);
 			j();
 		);
@@ -3193,7 +3227,14 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) f else f in
+	let f = if ctx.optimize then begin
+		let t = Timer.timer ["generate";"hl";"opt"] in
+		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) f in
+		t();
+		f
+	end else
+		f
+	in
 	DynArray.add ctx.cfunctions f;
 	capt
 
@@ -3201,12 +3242,12 @@ let generate_static ctx c f =
 	match f.cf_kind with
 	| Var _ ->
 		()
-	| Method _ when f.cf_extern ->
+	| Method _ when has_class_field_flag f CfExtern ->
 		()
 	| Method m ->
 		let add_native lib name =
-			ignore(lookup ctx.cnatives (name ^ "@" ^ lib) (fun() ->
-				let fid = alloc_fid ctx c f in
+			let fid = alloc_fid ctx c f in
+			ignore(lookup ctx.cnatives (name ^ "@" ^ lib,fid) (fun() ->
 				Hashtbl.add ctx.defined_funs fid ();
 				(alloc_string ctx lib, alloc_string ctx name,to_type ctx f.cf_type,fid)
 			));
@@ -3638,6 +3679,7 @@ let write_code ch code debug =
 	write_index (Array.length code.ints);
 	write_index (Array.length code.floats);
 	write_index (Array.length code.strings);
+	if code.version >= 5 then write_index (Array.length code.bytes);
 	write_index (Array.length all_types);
 	write_index (Array.length code.globals);
 	write_index (Array.length code.natives);
@@ -3657,6 +3699,19 @@ let write_code ch code debug =
 	in
 	write_strings code.strings;
 
+	let write_bytes bytes =
+		let bytes_length = ref 0 in
+		Array.iter (fun b -> bytes_length := !bytes_length + Bytes.length b) bytes;
+		IO.write_i32 ch !bytes_length;
+		Array.iter (IO.nwrite ch) bytes;
+		let bytes_pos = ref 0 in
+		Array.iter (fun b ->
+			write_index (!bytes_pos);
+			bytes_pos := !bytes_pos + Bytes.length b
+		) bytes;
+	in
+	if code.version >= 5 then write_bytes code.bytes;
+
 	if debug then begin
 		write_index (Array.length code.debugfiles);
 		write_strings code.debugfiles;
@@ -3674,10 +3729,10 @@ let write_code ch code debug =
 		| HBool -> byte 7
 		| HBytes -> byte 8
 		| HDyn -> byte 9
-		| HFun (args,ret) ->
+		| HFun (args,ret) | HMethod (args,ret) ->
 			let n = List.length args in
 			if n > 0xFF then assert false;
-			byte 10;
+			byte (match t with HFun _ -> 10 | _ -> 20);
 			byte n;
 			List.iter write_type args;
 			write_type ret
@@ -3831,6 +3886,7 @@ let create_context com is_macro dump =
 		m = method_context 0 HVoid null_capture false;
 		cints = new_lookup();
 		cstrings = new_lookup();
+		cbytes = new_lookup();
 		cfloats = new_lookup();
 		cglobals = new_lookup();
 		cnatives = new_lookup();
@@ -3909,10 +3965,12 @@ let add_types ctx types =
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
+	let bytes = DynArray.to_array ctx.cbytes.arr in
 	{
-		version = 4;
+		version = if Array.length bytes = 0 then 4 else 5;
 		entrypoint = ep;
 		strings = DynArray.to_array ctx.cstrings.arr;
+		bytes = bytes;
 		ints = DynArray.to_array ctx.cints.arr;
 		floats = DynArray.to_array ctx.cfloats.arr;
 		globals = DynArray.to_array ctx.cglobals.arr;

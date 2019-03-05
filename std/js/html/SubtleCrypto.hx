@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto>
 **/
 @:native("SubtleCrypto")
-extern class SubtleCrypto
-{
+extern class SubtleCrypto {
 	
 	/**
 		Returns a `Promise` of the encrypted data corresponding to the clear text, algorithm and key given as parameters.

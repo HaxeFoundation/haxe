@@ -1,0 +1,1 @@
+C.hx:6: characters 2-12 : Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -31,8 +31,32 @@ open EvalMisc
 (* Helper *)
 
 let unexpected_value_p v s p =
-	let str = Printf.sprintf "Unexpected value %s, expected %s" (value_string v) s in
+	let str = match v with
+		| VNull -> "Null Access"
+		| _ -> Printf.sprintf "Unexpected value %s, expected %s" (value_string v) s
+	in
 	throw_string str p
+
+let as_array p = function
+	| VArray va -> va
+	| v -> unexpected_value_p v "Array" p
+
+let as_bytes p = function
+	| VInstance {ikind = IBytes s} -> s
+	| v -> unexpected_value_p v "Bytes" p
+
+let as_enum_value p = function
+	| VEnumValue ve -> ve
+	| v -> unexpected_value_p v "enum value" p
+
+let as_int p = function
+	| VInt32 i -> Int32.to_int i
+	| VFloat f -> int_of_float f
+	| v -> unexpected_value_p v "int" p
+
+let as_vector p = function
+	| VVector vv -> vv
+	| v -> unexpected_value_p v "Vector" p
 
 let cannot_call v p =
 	throw (EvalString.create_unknown ("Cannot call " ^ (value_string v))) p
@@ -172,7 +196,6 @@ let emit_do_while_break_continue exec_cond exec_body env =
 let emit_try exec catches env =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	let environment_offset = eval.environment_offset in
 	if ctx.debug.support_debugger then begin
 		List.iter (fun (_,path,_) -> Hashtbl.add ctx.debug.caught_types path true) catches
 	end;
@@ -186,11 +209,11 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		ctx.debug.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx environment_offset;
-		eval.environment_offset <- environment_offset;
+		build_exception_stack ctx env;
+		while eval.env != env do pop_environment ctx eval.env done;
 		let exec,_,varacc =
 			try
-				List.find (fun (_,path,i) -> is v path) catches
+				List.find (fun (_,path,i) -> path = key_Dynamic || is v path) catches
 			with Not_found ->
 				raise_notrace exc
 		in
@@ -220,8 +243,9 @@ let emit_throw exec p env = throw (exec env) p
 
 let emit_safe_cast exec t p env =
 	let v1 = exec env in
-	if not (is v1 t) then throw_string "Class cast error" p;
-	v1
+	match vresolve v1 with
+	| VNull -> v1
+	| _ -> if not (is v1 t) then throw_string "Class cast error" p else v1
 
 (* Calls *)
 
@@ -316,25 +340,20 @@ let emit_local_read i env = env.env_locals.(i)
 
 let emit_capture_read i env = !(env.env_captures.(i))
 
-let emit_array_length_read exec env = match exec env with
-	| VArray va -> vint (va.alength)
-	| v -> unexpected_value v "Array"
+let emit_array_length_read exec p env = vint (as_array p (exec env)).alength
 
-let emit_vector_length_read exec env = match exec env with
-	| VVector vv -> vint (Array.length vv)
-	| v -> unexpected_value v "Vector"
+let emit_vector_length_read exec p env = vint (Array.length (as_vector p (exec env)))
 
-let emit_bytes_length_read exec env = match exec env with
-	| VInstance {ikind = IBytes s} -> vint (Bytes.length s)
-	| v -> unexpected_value v "Bytes"
+let emit_bytes_length_read exec p env = vint (Bytes.length (as_bytes p (exec env)))
 
 let emit_proto_field_read proto i env =
 	proto.pfields.(i)
 
-let emit_instance_field_read exec i env = match exec env with
+let emit_instance_field_read exec p i env = match exec env with
 	| VInstance vi -> vi.ifields.(i)
 	| VString s -> vint (s.slength)
-	| v -> unexpected_value v "instance"
+	| VNull -> throw_string "field access on null" p
+	| v -> unexpected_value_p v "instance" p
 
 let emit_this_field_read iv i env = match env.env_locals.(iv) with
 	| VInstance vi -> vi.ifields.(i)
@@ -356,23 +375,19 @@ let emit_field_read exec name p env = match exec env with
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
-let emit_array_read exec1 exec2 p env =
-	let va = exec1 env in
-	let vi = exec2 env in
-	let i = decode_int_p vi p in
+let emit_array_read exec1 p1 exec2 p2 env =
+	let a = as_array p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
 	if i < 0 then vnull
-	else EvalArray.get (decode_varray va) i
+	else EvalArray.get a i
 
-let emit_vector_read exec1 exec2 p env =
-	let vv = exec1 env in
-	let vi = exec2 env in
-	let i = decode_int_p vi p in
+let emit_vector_read exec1 p1 exec2 p2 env =
+	let v = as_vector p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
 	if i < 0 then vnull
-	else Array.unsafe_get (decode_vector vv) i
+	else Array.unsafe_get v i
 
-let emit_enum_index exec env = match exec env with
-	| VEnumValue ev -> vint ev.eindex
-	| v -> unexpected_value v "enum value"
+let emit_enum_index exec p env = vint (as_enum_value p (exec env)).eindex
 
 let emit_enum_parameter_read exec i env = match exec env with
 	| VEnumValue ev -> (try ev.eargs.(i) with Not_found -> vnull)
@@ -407,14 +422,14 @@ let emit_proto_field_write proto i exec2 env =
 	proto.pfields.(i) <- v;
 	v
 
-let emit_instance_field_write exec1 i exec2 env = match exec1 env with
+let emit_instance_field_write exec1 p i exec2 env = match exec1 env with
 	| VInstance vi ->
 		let v = exec2 env in
 		vi.ifields.(i) <- v;
 		v
-	| v -> unexpected_value v "instance"
+	| v -> unexpected_value_p v "instance" p
 
-let emit_anon_field_write exec1 proto i name exec2 env =
+let emit_anon_field_write exec1 p proto i name exec2 env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	begin match vresolve v1 with
@@ -422,33 +437,32 @@ let emit_anon_field_write exec1 proto i name exec2 env =
 			if proto == o.oproto then begin
 				o.ofields.(i) <- v2;
 			end else set_object_field o name v2
+		| VNull -> throw_string "field access on null" p
 		| _ ->
 			set_field v1 name v2;
 	end;
 	v2
 
-let emit_field_write exec1 name exec2 p env =
+let emit_field_write exec1 p1 name exec2 env =
 	let v1 = exec1 env in
 	let v2 = exec2 env in
-	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
+	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p1)));
 	v2
 
-let emit_array_write exec1 exec2 exec3 p env =
-	let va = exec1 env in
-	let vi = exec2 env in
+let emit_array_write exec1 p1 exec2 p2 exec3 p env =
+	let a = as_array p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
 	let v3 = exec3 env in
-	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
-	EvalArray.set (decode_varray va) i v3;
+	EvalArray.set a i v3;
 	v3
 
-let emit_vector_write exec1 exec2 exec3 p env =
-	let vv = exec1 env in
-	let vi = exec2 env in
+let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
+	let vv = as_vector p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
 	let v3 = exec3 env in
-	let i = decode_int_p vi p in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
-	Array.unsafe_set (decode_vector vv) i v3;
+	Array.unsafe_set vv i v3;
 	v3
 
 (* Read + write *)
@@ -481,11 +495,11 @@ let instance_field_read_write vi i exec2 fop prefix env =
 	vi.ifields.(i) <- v;
 	if prefix then v else vf
 
-let emit_instance_field_read_write exec1 i exec2 fop prefix env = match exec1 env with
+let emit_instance_field_read_write exec1 p1 i exec2 fop prefix env = match exec1 env with
 	| VInstance vi -> instance_field_read_write vi i exec2 fop prefix env
-	| v -> unexpected_value v "instance"
+	| v -> unexpected_value_p v "instance" p1
 
-let emit_field_read_write exec1 name exec2 fop prefix p env =
+let emit_field_read_write exec1 p1 name exec2 fop prefix env =
 	let v1 = exec1 env in
 	match vresolve v1 with
 	| VObject o ->
@@ -504,27 +518,23 @@ let emit_field_read_write exec1 name exec2 fop prefix p env =
 		let vf = field v1 name in
 		let v2 = exec2 env in
 		let v = fop vf v2 in
-		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p)));
+		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p1)));
 		if prefix then v else vf
 
-let emit_array_read_write exec1 exec2 exec3 fop prefix p env =
-	let va1 = exec1 env in
-	let va2 = exec2 env in
-	let va = decode_varray va1 in
-	let i = decode_int_p va2 p in
-	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p;
+let emit_array_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
+	let va = as_array p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
+	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p2;
 	let v = EvalArray.get va i in
 	let v2 = exec3 env in
 	let v3 = fop v v2 in
 	EvalArray.set va i v3;
 	if prefix then v3 else v
 
-let emit_vector_read_write exec1 exec2 exec3 fop prefix p env =
-	let va1 = exec1 env in
-	let va2 = exec2 env in
-	let va = decode_vector va1 in
-	let i = decode_int_p va2 p in
-	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p;
+let emit_vector_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
+	let va = as_vector p1 (exec1 env) in
+	let i = as_int p2 (exec2 env) in
+	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p2;
 	let v = Array.unsafe_get va i in
 	let v2 = exec3 env in
 	let v3 = fop v v2 in

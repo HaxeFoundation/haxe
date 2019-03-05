@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent>
 **/
 @:native("MessageEvent")
-extern class MessageEvent extends Event
-{
+extern class MessageEvent extends Event {
 	
 	/**
 		The data sent by the message emitter.
@@ -66,7 +65,7 @@ extern class MessageEvent extends Event
 	/**
 		Initializes a message event. Do not use this anymore — use the `MessageEvent.MessageEvent` constructor instead.
 	**/
-	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort> = []) : Void {} )
-	@:overload( function( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort> = []) : Void {} )
-	function initMessageEvent( type : String, ?bubbles : Bool = false, ?cancelable : Bool = false, ?data : Dynamic, ?origin : String = "", ?lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> = [] ) : Void;
+	@:overload( function( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : MessagePort, ?ports : Array<MessagePort>) : Void {} )
+	@:overload( function( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : ServiceWorker, ?ports : Array<MessagePort>) : Void {} )
+	function initMessageEvent( type : String, bubbles : Bool = false, cancelable : Bool = false, ?data : Dynamic, origin : String = "", lastEventId : String = "", ?source : Window, ?ports : Array<MessagePort> ) : Void;
 }

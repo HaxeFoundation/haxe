@@ -4,6 +4,7 @@
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
 [![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Discord](https://img.shields.io/discord/162395145352904705.svg?logo=discord)](https://discordapp.com/invite/0uEuWH3spjck73Lo)
 
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
@@ -16,18 +17,19 @@ Haxe allows you to compile for the following targets:
  * JavaScript
  * C++
  * C#
- * [HashLink](http://hashlink.haxe.org/)
  * Java
  * Lua
  * PHP
  * Python 3
- * [NekoVM](http://nekovm.org/)
- * Flash
+ * [HashLink](https://hashlink.haxe.org/)
+ * [NekoVM](https://nekovm.org/)
+ * Flash (SWF Bytecode)
  * ActionScript 3
+ * And its own [interpreter](https://haxe.org/blog/eval/)
 
 You can try Haxe directly from your browser at [try.haxe.org](https://try.haxe.org)!
 
-For more information about Haxe, head to the [offical Haxe website](https://haxe.org).
+For more information about Haxe, head to the [official Haxe website](https://haxe.org).
 
 ## License
 
@@ -59,7 +61,7 @@ See [extra/BUILDING.md](extra/BUILDING.md).
 
 ## Using Haxe
 
-For information on on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
+For information on using Haxe, consult the [Haxe documentation](https://haxe.org/documentation/):
 
  * [Haxe Introduction](https://haxe.org/documentation/introduction/), an introduction to the Haxe toolkit
  * [The Haxe Manual](https://haxe.org/manual/), the reference manual for the Haxe language
@@ -74,22 +76,25 @@ You can get help and talk with fellow Haxers from around the world via:
  * [Haxe Community Forum](http://community.haxe.org)
  * [Haxe on Stack Overflow](https://stackoverflow.com/questions/tagged/haxe)
  * [Haxe Gitter chatroom](https://gitter.im/HaxeFoundation/haxe/)
+ * [Haxe Discord server](https://discordapp.com/invite/0uEuWH3spjck73Lo)
  * [#haxe on Twitter](https://twitter.com/hashtag/haxe?src=hash)
 
 :+1: Get notified of the latest Haxe news, follow us on [Twitter](https://twitter.com/haxelang), [Facebook](https://www.facebook.com/haxe.org) and don't forget to read the [Haxe roundups](https://haxe.io/).
 
 ## Version compatibility
 
-Haxe          | Neko  | SWF |  Python   | HL    | PHP   | LUA  | 
-----          | ----  | ----   | ----   |  ---- | ----  | ---- |
-2.*           | 1.*   | 8-10   | -      | -     | -     | -    |
-3.0.0         | 2.0.0 |        | -      | -     | 5.1+  | -    |
-3.2.0         |       | 12-14  | 3.2+   | -     |       | -    |
-3.3.0         | 2.1.0 | 21     |        | -     |       | 5.1, 5.2, 5.3, LuaJIT 2.0, LuaJIT 2.1 |
-3.4.0         |       |        |        | 1.1   | 5.1 and 7.0 (with `-D php7`)   |      |
-4.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
-4.0 preview 3 |       |        |        | 1.3   |       |      |
-4.0 preview 4 |       |        |        | 1.6   |       |      |
+Haxe            | Neko  | SWF |  Python   | HL    | PHP   | Lua  |
+----            | ----  | ----   | ----   |  ---- | ----  | ---- |
+2.*             | 1.*   | 8-10   | -      | -     | -     | -    |
+3.0.0           | 2.0.0 |        | -      | -     | 5.1+  | -    |
+3.2.0           |       | 12-14  | 3.2+   | -     |       | -    |
+3.3.0           | 2.1.0 | 21     |        | -     |       | 5.1, 5.2, 5.3, LuaJIT 2.0, LuaJIT 2.1 |
+3.4.0           |       |        |        | 1.1   | 5.4+ and 7.0+ (with `-D php7`)   |      |
+4.0.0 preview 1 |       |        |        | 1.2   | 7.0+  |      |
+4.0.0 preview 3 |       |        |        | 1.3   |       |      |
+4.0.0 preview 4 |       |        |        | 1.6   |       |      |
+4.0.0 preview 5 |       |        |        | 1.8   |       |      |
+4.0.0 rc 1      |       |        |        | 1.9   |       |      |
 
 
 ## Contributing

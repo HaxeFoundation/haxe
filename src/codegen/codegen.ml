@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -190,7 +190,7 @@ let fix_override com c f fd =
 				);
 			} in
 			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
+			if Common.defined com Define.As3 && has_class_field_flag f CfPublic then add_class_field_flag f2 CfPublic;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -303,7 +303,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -387,11 +387,34 @@ module Dump = struct
 			close();
 		) com.types
 
+	let dump_position com =
+		List.iter (fun mt ->
+			match mt with
+				| TClassDecl c ->
+					let buf,close = create_dumpfile_from_path com (t_path mt) in
+					Printf.bprintf buf "%s\n" (s_type_path c.cl_path);
+					let field cf =
+						Printf.bprintf buf "\t%s\n" cf.cf_name;
+						begin match cf.cf_expr with
+						| None -> ()
+						| Some e ->
+							Printf.bprintf buf "%s\n" (Texpr.dump_with_pos "\t" e);
+						end
+					in
+					Option.may field c.cl_constructor;
+					List.iter field c.cl_ordered_statics;
+					List.iter field c.cl_ordered_fields;
+					close();
+				| _ ->
+					()
+		) com.types
+
 	let dump_types com =
 		match Common.defined_value_safe com Define.Dump with
 			| "pretty" -> dump_types com (Type.s_expr_pretty false "\t" true)
 			| "legacy" -> dump_types com Type.s_expr
 			| "record" -> dump_record com
+			| "position" -> dump_position com
 			| _ -> dump_types com (Type.s_expr_ast (not (Common.defined com Define.DumpIgnoreVarIds)) "\t")
 
 	let dump_dependencies ?(target_override=None) com =
@@ -448,12 +471,15 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let enull = Texpr.Builder.make_null vexpr.etype p in
+	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
+	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent echeck,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct
-	let tf_stack = ref []
+	let tf_stack = new_rec_stack()
 
 	let check_call_params f el tl =
 		let rec loop acc el tl = match el,tl with
@@ -521,7 +547,7 @@ module UnificationCallback = struct
 					| _ -> e
 				end
 			| TReturn (Some e1) ->
-				begin match !tf_stack with
+				begin match tf_stack.rec_stack with
 					| tf :: _ -> { e with eexpr = TReturn (Some (f e1 tf.tf_type))}
 					| _ -> e
 				end
@@ -530,10 +556,7 @@ module UnificationCallback = struct
 		in
 		match e.eexpr with
 			| TFunction tf ->
-				tf_stack := tf :: !tf_stack;
-				let etf = {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})} in
-				tf_stack := List.tl !tf_stack;
-				etf
+				rec_stack_loop tf_stack tf (fun() -> {e with eexpr = TFunction({tf with tf_expr = run f tf.tf_expr})}) ()
 			| _ ->
 				check (Type.map_expr (run ff) e)
 end;;

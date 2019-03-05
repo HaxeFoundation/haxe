@@ -15,5 +15,6 @@ class Issue6562 extends unit.Test {
 
 	function test() {
 		inlineTry(1);
+		noAssert();
 	}
 }

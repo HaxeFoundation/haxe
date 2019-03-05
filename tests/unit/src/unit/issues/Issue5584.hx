@@ -5,6 +5,7 @@ import cpp.Object;
 import haxe.io.Bytes;
 
 class Issue5584 extends Test {
+	#if false
 	function test() {
 		var callable = new Callable<Object->Object>(cffi_decompress);
 		var bytes = Bytes.alloc (100);
@@ -14,4 +15,5 @@ class Issue5584 extends Test {
 	function cffi_decompress(a:Dynamic):Dynamic {
 		return null;
 	}
+	#end
 }

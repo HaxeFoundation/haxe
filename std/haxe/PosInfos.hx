@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,5 +37,5 @@ typedef PosInfos = {
 	var lineNumber : Int;
 	var className : String;
 	var methodName : String;
-	@:optional var customParams : Array<Dynamic>;
+	var ?customParams : Array<Dynamic>;
 }

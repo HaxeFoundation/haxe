@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class LocaleID {
+@:require(flash10_1) extern final class LocaleID {
 	var lastOperationStatus(default,never) : LastOperationStatus;
 	var name(default,never) : String;
 	function new(name : String) : Void;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -81,11 +81,6 @@ import lua.NativeStringTools;
 	}
 
 	static function __init__() : Void untyped {
-		// lua workarounds for basic anonymous object functionality
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_anon.lua");
-
-		// class reflection metadata
-		haxe.macro.Compiler.includeFile("lua/_lua/_hx_classes.lua");
 		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
 		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));

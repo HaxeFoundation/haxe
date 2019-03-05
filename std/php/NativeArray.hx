@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,6 +21,8 @@
  */
 package php;
 
+import haxe.extern.EitherType;
+
 using php.Global;
 
 /**
@@ -40,5 +42,29 @@ using php.Global;
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
-		return (this:NativeIndexedArray<Dynamic>).iterator();
+		return Global.array_values(this).iterator();
+
+	public inline function keyValueIterator():NativeArrayKeyValueIterator
+		return new NativeArrayKeyValueIterator(this);
+}
+
+private class NativeArrayKeyValueIterator {
+	var length:Int;
+	var current:Int = 0;
+	var keys:NativeIndexedArray<EitherType<String,Int>>;
+	var values:NativeIndexedArray<Dynamic>;
+
+	public inline function new(data:NativeArray) {
+		length = Global.count(data);
+		this.keys = Global.array_keys(data);
+		this.values = Global.array_values(data);
+	}
+
+	public inline function hasNext():Bool {
+		return current < length;
+	}
+
+	public inline function next():{key:EitherType<String,Int>, value:Dynamic} {
+		return {key:keys[current], value:values[current++]};
+	}
 }

@@ -5,7 +5,7 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = ref []
+let cast_stack = new_rec_stack()
 
 let make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
@@ -26,11 +26,8 @@ let make_static_call ctx c cf a pl args t p =
 
 let do_check_cast ctx tleft eright p =
 	let recurse cf f =
-		if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
-		cast_stack := cf :: !cast_stack;
-		let r = f() in
-		cast_stack := List.tl !cast_stack;
-		r
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
+		rec_stack_loop cast_stack cf f ()
 	in
 	let find a tl f =
 		let tcf,cf = f() in
@@ -237,7 +234,7 @@ let handle_abstract_casts ctx e =
 				let rec find_abstract e t = match follow t,e.eexpr with
 					| TAbstract(a,pl),_ when Meta.has Meta.MultiType a.a_meta -> a,pl,e
 					| _,TCast(e1,None) -> find_abstract e1 e1.etype
-					| _,TLocal {v_extra = Some(_,e',true)} ->
+					| _,TLocal {v_extra = Some(_,Some e')} ->
 						begin match follow e'.etype with
 						| TAbstract(a,pl) when Meta.has Meta.MultiType a.a_meta -> a,pl,mk (TCast(e,None)) e'.etype e.epos
 						| _ -> raise Not_found

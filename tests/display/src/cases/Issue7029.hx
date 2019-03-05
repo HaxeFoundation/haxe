@@ -114,7 +114,7 @@ class Issue7029 extends DisplayTestCase {
 	}
 
 	/**
-	@:final class C1 { }
+	final class C1 { }
 	class C2 extends {-1-} { }
 	**/
 	function test8() {
@@ -123,7 +123,7 @@ class Issue7029 extends DisplayTestCase {
 	}
 
 	/**
-	@:final class C1 { }
+	final class C1 { }
 	@:hack class C2 extends {-1-} { }
 	**/
 	function test9() {

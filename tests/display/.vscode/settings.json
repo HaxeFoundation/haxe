@@ -2,5 +2,12 @@
 	"haxe.displayConfigurations": [
 		{"label": "IssueTemplate", "args": ["build.hxml", "-D", "test=IssueTemplate"]}
 	],
-	"haxe.enableCompilationServer": false
+	"haxe.enableCompilationServer": false,
+	"haxeTestExplorer.testCommand": [
+		"${haxe}",
+		"build.hxml",
+		"-lib",
+		"test-adapter"
+	],
+	"haxeTestExplorer.launchConfiguration": "Haxe-eval"
 }

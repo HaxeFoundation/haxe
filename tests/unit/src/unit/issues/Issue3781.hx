@@ -14,6 +14,7 @@ class Issue3781 extends Test {
 
 	function test() {
 		call(new Ab());
+		noAssert();
 	}
 
 	static function call<T:Ab>(v:T) {

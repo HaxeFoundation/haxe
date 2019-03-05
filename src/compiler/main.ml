@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -406,7 +406,7 @@ let rec process_params create pl =
 			ctx.flush()
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) ->
+			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
 				let acc, l =
 					(try
 						let parsed = parse_hxml arg in
@@ -444,20 +444,20 @@ and process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
-and usage_string arg_spec usage =
+and usage_string ?(print_cat=true) arg_spec usage =
 	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
 	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
 	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
 	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
 	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
-	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> ["\n"^cat^":"] @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
+	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> (if print_cat then ["\n"^cat^":"] else []) @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
 		let label = make_label ok hint in
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
 and init ctx =
 	let usage = Printf.sprintf
-		"Haxe Compiler %s - (C)2005-2018 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
+		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
 		s_version (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
@@ -478,6 +478,7 @@ try
 	let swf_version = ref false in
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
+	Common.raw_define com "haxe4";
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
@@ -564,10 +565,7 @@ try
 			Common.raw_define com l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
-			begin match var with
-				| "no_copt" | "no-copt" -> com.foptimize <- false;
-				| _ -> 	if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
-			end;
+			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
 			Common.raw_define com var;
 		),"<var[=value]>","define a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
@@ -597,9 +595,6 @@ try
 			did_something := true
 		),"","print help for all compiler metadatas");
 		("Misc",["--run"],[], Arg.Unit (fun() -> assert false), "<module> [args...]","compile and execute a Haxe module with command line arguments");
-		("Miscellaneous",["--"],[], Arg.Rest (fun arg ->
-			com.sys_args <- com.sys_args @ [arg];
-		),"[args...]","args that will be passed to the macro interpreter");
 	] in
 	let adv_args_spec = [
 		("Optimization",["--dce"],["-dce"],Arg.String (fun mode ->
@@ -748,7 +743,7 @@ try
 	let args_callback cl =
 		begin try
 			let path,name = Path.parse_path cl in
-			if Path.starts_uppercase name then
+			if StringHelper.starts_uppercase name then
 				classes := (path,name) :: !classes
 			else begin
 				force_typing := true;
@@ -770,14 +765,22 @@ try
 			raise (HelpMessage (usage_string all_args usage))
 		| Arg.Bad msg ->
 			let first_line = List.nth (Str.split (Str.regexp "\n") msg) 0 in
-			let new_msg = (Printf.sprintf "%s\n\n%s" first_line (usage_string all_args usage)) in
-			let r = Str.regexp "unknown option `\\([-A-Za-z]+\\)'" in
+			let new_msg = (Printf.sprintf "%s" first_line) in
+			let r = Str.regexp "unknown option [`']?\\([-A-Za-z]+\\)[`']?" in
 			try
 				ignore(Str.search_forward r msg 0);
 				let s = Str.matched_group 1 msg in
 				let sl = List.map (fun (s,_,_) -> s) all_args_spec in
-				let msg = StringError.string_error_raise s sl (Printf.sprintf "Invalid command: %s" s) in
-				raise (Arg.Bad msg)
+				let sl = StringError.get_similar s sl in
+				begin match sl with
+				| [] -> raise Not_found
+				| _ ->
+					let spec = List.filter (fun (_,sl',sl'',_,_,_) ->
+						List.exists (fun s -> List.mem s sl) (sl' @ sl'')
+					) all_args in
+					let new_msg = (Printf.sprintf "%s\nDid you mean:\n%s" first_line (usage_string ~print_cat:false spec "")) in
+					raise (Arg.Bad new_msg)
+				end;
 			with Not_found ->
 				raise (Arg.Bad new_msg));
 		arg_delays := []
@@ -824,14 +827,13 @@ try
 		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
 		let tctx = Typer.create com in
+		let add_signature desc =
+			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
+		in
+		add_signature "before_init_macros";
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
-		List.iter (fun f -> f ()) (List.rev com.callbacks.after_init_macros);
-		begin match CompilationServer.get () with
-		| None -> ()
-		| Some cs ->
-			let sign = Define.get_signature com.defines in
-			try ignore(CompilationServer.get_sign cs sign) with Not_found -> ignore(CompilationServer.add_sign cs sign com)
-		end;
+		add_signature "after_init_macros";
+		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
 		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
 		Finalization.finalize tctx;
 		(* If we are trying to find references, let's syntax-explore everything we know to check for the
@@ -890,7 +892,10 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if ctx.com.display.dms_force_macro_typing then begin match load_display_module_in_macro false with
+		(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
+		   macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
+		if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
+			match load_display_module_in_macro false with
 			| None -> ()
 			| Some mctx ->
 				(* We don't need a full macro flush here because we're not going to run any macros. *)
@@ -923,7 +928,7 @@ try
 		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
 	end;
 	Sys.catch_break false;
-	List.iter (fun f -> f()) (List.rev com.callbacks.after_generation);
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
 	if not !no_output then begin
 		List.iter (fun c ->
 			let r = run_command ctx c in

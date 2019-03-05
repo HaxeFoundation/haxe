@@ -84,7 +84,7 @@ let dot_path = Globals.s_type_path
 let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
-(* provided by Ast.s_escape *)
+(* provided by StringHelper.s_escape *)
 let s_escape_lua ?(dec=true) s =
     let b = Buffer.create (String.length s) in
     for i = 0 to (String.length s) - 1 do
@@ -190,7 +190,7 @@ let rec concat ctx s f = function
 let fun_block ctx f p =
     let e = List.fold_left (fun e (a,c) ->
         match c with
-        | None | Some TNull -> e
+        | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
     ) f.tf_expr f.tf_args in
     e
@@ -206,23 +206,6 @@ let is_dot_access e cf =
     match follow(e.etype), cf with
     | TInst (c,_), FInstance(_,_,icf)  when (Meta.has Meta.LuaDotMethod c.cl_meta || Meta.has Meta.LuaDotMethod icf.cf_meta)->
         true;
-    | _ ->
-        false
-
-let is_dynamic_iterator ctx e =
-    let check x =
-        has_feature ctx "HxOverrides.iter" && (match follow x.etype with
-            | TInst ({ cl_path = [],"Array" },_)
-            | TInst ({ cl_kind = KTypeParameter _}, _)
-            | TAnon _
-            | TDynamic _
-            | TMono _ ->
-                true
-            | _ -> false
-        )
-    in
-    match e.eexpr with
-    | TField (x,f) when field_name f = "iterator" -> check x
     | _ ->
         false
 
@@ -347,15 +330,25 @@ let rec is_function_type t =
     | TAbstract({a_path=["haxe"],"Function" },_) -> true
     | _ -> false
 
-and gen_argument ctx e = begin
+and gen_argument ?(reflect=false) ctx e = begin
     match e.eexpr with
-    | TField (x,(FInstance (_,_,f) | FAnon(f)))  when (is_function_type e.etype) ->
+    | TField (x,((FInstance (_,_,f)| FAnon(f) | FClosure(_,f))))  when (is_function_type e.etype) ->
+            (
+            if reflect then (
+              add_feature ctx "use._hx_funcToField";
+              spr ctx "_hx_funcToField(";
+            );
+
             add_feature ctx "use._hx_bind";
             print ctx "_hx_bind(";
             gen_value ctx x;
             print ctx ",";
             gen_value ctx x;
-            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name))
+            print ctx "%s)" (if Meta.has Meta.SelfCall f.cf_meta then "" else (field f.cf_name));
+
+            if reflect then
+                print ctx ")";
+            );
     | _ ->
         gen_value ctx e;
 end
@@ -386,6 +379,15 @@ and gen_call ctx e el =
               List.iter (fun p -> print ctx ","; gen_argument ctx p) params;
               spr ctx ")";
          );
+     | TField (_, FStatic( { cl_path = ([],"Reflect") }, { cf_name = "callMethod" })), (obj :: fld :: args :: rest) ->
+         gen_expr ctx e;
+         spr ctx "(";
+         gen_argument ctx obj;
+         spr ctx ",";
+         gen_argument ~reflect:true ctx fld;
+         spr ctx ",";
+         gen_argument ctx args;
+         spr ctx ")";
      | TCall (x,_) , el when (match x.eexpr with TIdent "__lua__" -> false | _ -> true) ->
          gen_paren ctx [e];
          gen_paren_arguments ctx el;
@@ -623,11 +625,6 @@ and gen_expr ?(local=true) ctx e = begin
         spr ctx "]";
     | TBinop (op,e1,e2) ->
         gen_tbinop ctx op e1 e2;
-    | TField (x,f) when field_name f = "iterator" && is_dynamic_iterator ctx e ->
-        add_feature ctx "use._iterator";
-        print ctx "_iterator(";
-        gen_value ctx x;
-        print ctx ")";
     | TField (x,FClosure (_,f)) ->
         add_feature ctx "use._hx_bind";
         (match x.eexpr with
@@ -1047,7 +1044,13 @@ and gen_block_element ctx e  =
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
-        | TCast (e',_) | TParenthesis e' | TMeta (_,e') ->
+        | TCast (e1, Some t)->
+            print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
+            gen_expr ctx e1;
+            spr ctx " , ";
+            spr ctx (ctx.type_accessor t);
+            spr ctx ")"
+        | TCast (e', None) | TParenthesis e' | TMeta (_,e') ->
             gen_block_element ctx e'
         | TArray (e1,e2) ->
             gen_block_element ctx e1;
@@ -1634,7 +1637,7 @@ let generate_class ctx c =
     );
     newline ctx;
 
-    (match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+    (match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
     if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
     generate_class___name__ ctx c;
@@ -1941,13 +1944,24 @@ let generate com =
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+    let print_file path =
+        let file_content = Std.input_file ~bin:true path in
+        print ctx "%s\n" file_content;
+    in
+
+    (* table-to-array helper *)
+    print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
+
+    (* lua workarounds for basic anonymous object functionality *)
+    print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* class reflection metadata *)
+    print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
+
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
         match file with
-        | path, "top" ->
-            let file_content = Std.input_file ~bin:true (fst file) in
-            print ctx "%s\n" file_content;
-            ()
+        | path, "top" -> print_file path
         | _ -> ()
     ) include_files;
 
@@ -2044,8 +2058,8 @@ let generate com =
         println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
         println ctx "if bit then";
         println ctx "  _hx_bit = bit";
-        println ctx "elseif bit32 then";
-        println ctx "  local _hx_bit_raw = bit32";
+        println ctx "else";
+        println ctx "  local _hx_bit_raw = _G.require('bit32')";
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
@@ -2068,11 +2082,6 @@ let generate com =
     newline ctx;
     println ctx "end";
     newline ctx;
-
-    if has_feature ctx "use._iterator" then begin
-        add_feature ctx "use._hx_bind";
-        println ctx "function _hx_iterator(o)  if ( lua.Boot.__instanceof(o, Array) ) then return function() return HxOverrides.iter(o) end elseif (typeof(o.iterator) == 'function') then return  _hx_bind(o,o.iterator) else return  o.iterator end end";
-    end;
 
     if has_feature ctx "use._hx_bind" then begin
         println ctx "_hx_bind = function(o,m)";

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -18,7 +18,6 @@
  *)
 
 let reverse_map = Hashtbl.create 0
-let file_map = Hashtbl.create 0
 
 let rev_hash i = Hashtbl.find reverse_map i
 
@@ -28,15 +27,6 @@ let hash f =
 	i
 
 let path_hash path = hash (Globals.s_type_path path)
-
-let file_hash file =
-	let unique_file = Path.unique_full_path file in
-	Hashtbl.replace file_map unique_file file;
-	hash unique_file
-
-let rev_file_hash i =
-	let s = rev_hash i in
-	try Hashtbl.find file_map s with Not_found -> s
 
 let key_length = hash "length"
 let key_toString = hash "toString"
@@ -131,6 +121,7 @@ let key_haxe_zip_Compress = hash "haxe.zip.Compress"
 let key_haxe_zip_Uncompress = hash "haxe.zip.Uncompress"
 let key_done = hash "done"
 let key_eval_toplevel = hash "eval-toplevel"
+let key_haxe_iterators_map_key_value_iterator = hash "haxe.iterators.MapKeyValueIterator"
 let key_eval_vm_Mutex = hash "eval.vm.Mutex"
 let key_eval_vm_Lock = hash "eval.vm.Lock"
 let key_eval_vm_Tls = hash "eval.vm.Tls"

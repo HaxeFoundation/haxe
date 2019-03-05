@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,8 +31,7 @@ package js.html;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Coordinates>
 **/
-typedef Coordinates =
-{
+typedef Coordinates = {
 	
 	/**
 		Returns a `double` representing the position's latitude in decimal degrees.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -194,7 +194,7 @@ class ArrayDyn extends ArrayAccess {
 			return array;
 		if( !allowReinterpret )
 			return null;
-		if( t == Type.get(new ArrayBytes.ArrayI32()) ) {
+		if( t == Type.get((null : ArrayBytes.ArrayI32)) ) {
 			var a : BytesAccess<Int> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )
@@ -204,7 +204,7 @@ class ArrayDyn extends ArrayAccess {
 			allowReinterpret = false;
 			return arr;
 		}
-		if( t == Type.get(new ArrayBytes.ArrayF64()) ) {
+		if( t == Type.get((null : ArrayBytes.ArrayF64)) ) {
 			var a : BytesAccess<Float> = null;
 			a = new Bytes(array.length << a.sizeBits);
 			for( i in 0...array.length )

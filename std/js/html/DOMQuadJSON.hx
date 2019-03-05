@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,9 @@
 
 package js.html;
 
-typedef DOMQuadJSON =
-{
-	@:optional var p1 : DOMPoint;
-	@:optional var p2 : DOMPoint;
-	@:optional var p3 : DOMPoint;
-	@:optional var p4 : DOMPoint;
+typedef DOMQuadJSON = {
+	var ?p1 : DOMPoint;
+	var ?p2 : DOMPoint;
+	var ?p3 : DOMPoint;
+	var ?p4 : DOMPoint;
 }

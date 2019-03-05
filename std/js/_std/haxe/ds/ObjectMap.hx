@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of h software and associated documentation files (the "Software"),
@@ -86,6 +86,10 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 			hasNext : function() { return __this__.it.hasNext(); },
 			next : function() { var i = __this__.it.next(); return __this__.ref[getId(i)]; }
 		};
+	}
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
 	public function copy() : ObjectMap<K,V> {

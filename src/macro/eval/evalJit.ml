@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -51,6 +51,12 @@ let is_string t = match follow t with
 	| TInst({cl_path=[],"String"},_) -> true
 	| _ -> false
 
+let is_const_int_pattern (el,_) =
+	List.for_all (fun e -> match e.eexpr with
+		| TConst (TInt _) -> true
+		| _ -> false
+	) el
+
 open EvalJitContext
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with
@@ -71,19 +77,19 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
-				emit_instance_field_write exec1 i exec2
+				emit_instance_field_write exec1 ef.epos i exec2
 			| FAnon cf ->
 				begin match follow ef.etype with
 					| TAnon an ->
 						let l = PMap.foldi (fun k _ acc -> (hash k,()) :: acc) an.a_fields [] in
 						let proto,_ = ctx.get_object_prototype ctx l in
 						let i = get_instance_field_index proto name ef.epos in
-						emit_anon_field_write exec1 proto i name exec2
+						emit_anon_field_write exec1 ef.epos proto i name exec2
 					| _ ->
-						emit_field_write exec1 name exec2 e1.epos
+						emit_field_write exec1 e1.epos name exec2
 				end
 			| _ ->
-				emit_field_write exec1 name exec2 e1.epos
+				emit_field_write exec1 e1.epos name exec2
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with
@@ -91,12 +97,12 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_vector_write exec1 exec2 exec3 ea2.epos
+				emit_vector_write exec1 ea1.epos exec2 ea2.epos exec3 ea2.epos
 			| _ ->
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_array_write exec1 exec2 exec3 ea2.epos
+				emit_array_write exec1 ea1.epos exec2 ea2.epos exec3 ea2.epos
 		end
 
 	| _ ->
@@ -118,9 +124,9 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 			| FInstance(c,_,_) when not c.cl_interface ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
-				emit_instance_field_read_write exec1 i exec2 op prefix
+				emit_instance_field_read_write exec1 ef.epos i exec2 op prefix
 			| _ ->
-				emit_field_read_write exec1 name exec2 op prefix e1.epos
+				emit_field_read_write exec1 e1.epos name exec2 op prefix
 		end
 	| TArray(ea1,ea2) ->
 		begin match (follow ea1.etype) with
@@ -128,12 +134,12 @@ and op_assign_op jit op e1 e2 prefix = match e1.eexpr with
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_vector_read_write exec1 exec2 exec3 op prefix ea2.epos
+				emit_vector_read_write exec1 ea1.epos exec2 ea2.epos exec3 op prefix
 			| _ ->
 				let exec1 = jit_expr jit false ea1 in
 				let exec2 = jit_expr jit false ea2 in
 				let exec3 = jit_expr jit false e2 in
-				emit_array_read_write exec1 exec2 exec3 op prefix ea2.epos
+				emit_array_read_write exec1 ea1.epos exec2 ea2.epos exec3 op prefix
 		end
 	| _ ->
 		assert false
@@ -214,7 +220,7 @@ and jit_expr jit return e =
 		let exec = jit_tfunction jit_closure true e.epos tf in
 		let num_captures = Hashtbl.length jit.captures in
 		let hasret = jit_closure.has_nonfinal_return in
-		let get_env = get_env jit_closure false (file_hash tf.tf_expr.epos.pfile) (EKLocalFunction jit.num_closures) in
+		let get_env = get_env jit_closure false tf.tf_expr.epos.pfile (EKLocalFunction jit.num_closures) in
 		emit_closure ctx num_captures get_env hasret exec
 	(* branching *)
 	| TIf(e1,e2,eo) ->
@@ -225,7 +231,7 @@ and jit_expr jit return e =
 			| Some e -> jit_expr jit return e
 		in
 		emit_if exec_cond exec_then exec_else
-	| TSwitch(e1,cases,def) when is_int e1.etype ->
+	| TSwitch(e1,cases,def) when is_int e1.etype && List.for_all is_const_int_pattern cases ->
 		let exec = jit_expr jit false e1 in
 		let h = ref IntMap.empty in
 		let max = ref 0 in
@@ -245,7 +251,7 @@ and jit_expr jit return e =
 		) cases;
 		let exec_def = jit_default jit return def in
 		let l = !max - !min + 1 in
-		if l < 256 then begin
+		if l > 0 && l < 256 then begin
 			let cases = Array.init l (fun i -> try IntMap.find (i + !min) !h with Not_found -> exec_def) in
 			emit_int_switch_array (- !min) exec cases exec_def e1.epos
 		end else
@@ -327,14 +333,16 @@ and jit_expr jit return e =
 		pop_scope jit;
 		f
 	| TReturn None ->
-		if return then emit_null
+		if return && not jit.ctx.debug.support_debugger then
+			emit_null
 		else begin
 			jit.has_nonfinal_return <- true;
 			emit_return_null
 		end
 	| TReturn (Some e1) ->
 		let exec = jit_expr jit false e1 in
-		if return then emit_value exec
+		if return && not jit.ctx.debug.support_debugger then
+			emit_value exec
 		else begin
 			jit.has_nonfinal_return <- true;
 			emit_return_value exec
@@ -364,7 +372,7 @@ and jit_expr jit return e =
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
 			let is_final c cf =
-				c.cl_final || cf.cf_final ||
+				c.cl_final || (has_class_field_flag cf CfFinal) ||
 				(* In interp mode we can assume that a field is final if it is not overridden.
 				   We cannot do that in macro mode because overriding fields might be added
 				   after jitting this call. *)
@@ -397,7 +405,7 @@ and jit_expr jit return e =
 					end
 				| FEnum({e_path=path},ef) ->
 					let key = path_hash path in
-					let pos = Some ef.ef_pos in
+					let pos = Some e.epos in
 					emit_enum_construction key ef.ef_index (Array.of_list execs) pos
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
@@ -476,9 +484,9 @@ and jit_expr jit return e =
 	| TField(e1,fa) ->
 		let name = hash (field_name fa) in
 		begin match fa with
-			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1)
-			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1)
-			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1)
+			| FInstance({cl_path=([],"Array")},_,{cf_name="length"}) -> emit_array_length_read (jit_expr jit false e1) e1.epos
+			| FInstance({cl_path=(["eval"],"Vector")},_,{cf_name="length"}) -> emit_vector_length_read (jit_expr jit false e1) e1.epos
+			| FInstance({cl_path=(["haxe";"io"],"Bytes")},_,{cf_name="length"}) -> emit_bytes_length_read (jit_expr jit false e1) e1.epos
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_)
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->
 				let proto = get_static_prototype ctx (path_hash path) e1.epos in
@@ -488,7 +496,7 @@ and jit_expr jit return e =
 				let i = get_instance_field_index proto name e1.epos in
 				begin match e1.eexpr with
 					| TConst TThis -> emit_this_field_read (get_slot jit 0 e.epos) i
-					| _ -> emit_instance_field_read (jit_expr jit false e1) i
+					| _ -> emit_instance_field_read (jit_expr jit false e1) e1.epos i
 				end
 			| FAnon _ ->
 				begin match follow e1.etype with
@@ -512,18 +520,18 @@ and jit_expr jit return e =
 			| TInst({cl_path=(["eval"],"Vector")}, _) ->
 				let exec1 = jit_expr jit false e1 in
 				let exec2 = jit_expr jit false e2 in
-				emit_vector_read exec1 exec2 e2.epos
+				emit_vector_read exec1 e1.epos exec2 e2.epos
 			| _ ->
 				let exec1 = jit_expr jit false e1 in
 				let exec2 = jit_expr jit false e2 in
-				emit_array_read exec1 exec2 e2.epos
+				emit_array_read exec1 e1.epos exec2 e2.epos
 		end
 	| TEnumParameter(e1,_,i) ->
 		let exec = jit_expr jit false e1 in
 		emit_enum_parameter_read exec i
 	| TEnumIndex e1 ->
 		let exec = jit_expr jit false e1 in
-		emit_enum_index exec
+		emit_enum_index exec e1.epos
 	(* ops *)
 	| TBinop(OpEq,e1,{eexpr = TConst TNull}) | TBinop(OpEq,{eexpr = TConst TNull},e1) ->
 		let exec = jit_expr jit false e1 in
@@ -584,9 +592,25 @@ and jit_expr jit return e =
 	begin match ctx.debug.debug_socket with
 		| None ->
 			f
-		| Some socket -> begin match e.eexpr with
-			| TConst _ | TLocal _ | TTypeExpr _ | TBlock _ | TField _ -> f
-			| _ -> EvalDebug.debug_loop jit socket.connection e f
+		| Some socket ->
+			let wrap () =
+				EvalDebug.debug_loop jit socket.connection e f
+			in
+			begin match e.eexpr with
+			| TCall _ | TNew _
+			| TVar({v_kind = VUser _},_)
+			| TFor _ | TIf _ | TWhile _ | TSwitch _ | TTry _
+			| TReturn _ | TBreak | TContinue | TThrow _ | TCast(_,Some _) ->
+				wrap()
+			| TUnop((Increment | Decrement),_,e1) | TBinop((OpAssign | OpAssignOp _),e1,_) ->
+				begin match (Texpr.skip e1).eexpr with
+				| TLocal {v_kind = VGenerated | VInlined | VInlinedConstructorVariable | VExtractorVariable} ->
+					f
+				| _ ->
+					wrap()
+				end
+			| _ ->
+				f
 		end
 	end
 
@@ -604,6 +628,16 @@ and jit_tfunction jit static pos tf =
 		| None -> e
 		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
 	) tf.tf_expr tf.tf_args in
+	let has_final_return el = match List.rev el with
+		| {eexpr = TReturn _} :: _ -> true
+		| _ -> false
+	in
+	let e = match e.eexpr with
+		| TBlock el when ctx.debug.support_debugger && (ExtType.is_void (follow tf.tf_type)) && not (has_final_return el) ->
+			{e with eexpr = TBlock (el @ [mk (TReturn None) t_dynamic {pos with pmin = pos.pmax}])}
+		| _ ->
+			e
+	in
 	(* Jit the function expression. *)
 	let exec = jit_expr jit true e in
 	(* Deal with captured arguments, if necessary. *)
@@ -631,7 +665,7 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	let exec = jit_tfunction jit static pos tf in
 	(* Create the [vfunc] instance depending on the number of arguments. *)
 	let hasret = jit.has_nonfinal_return in
-	let get_env = get_env jit static (file_hash tf.tf_expr.epos.pfile) (EKMethod(key_type,key_field)) in
+	let get_env = get_env jit static tf.tf_expr.epos.pfile (EKMethod(key_type,key_field)) in
 	let f = create_function ctx get_env hasret empty_array exec in
 	t();
 	f

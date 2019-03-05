@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -53,6 +53,9 @@ extern class Date
 	/**
 		Returns the timestamp (in milliseconds) of the date. It might
 		only have a per-second precision depending on the platforms.
+
+		For measuring time differences with millisecond accuracy on
+		all platforms, see `haxe.Timer.stamp`.
 	**/
 	function getTime() : Float;
 

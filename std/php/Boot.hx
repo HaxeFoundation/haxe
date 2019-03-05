@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,7 @@
 package php;
 
 import haxe.PosInfos;
+import haxe.extern.EitherType;
 
 using php.Global;
 
@@ -193,6 +194,13 @@ class Boot {
 	}
 
 	/**
+		Check if provided value is an anonymous object
+	**/
+	public static inline function isAnon(v:Any) : Bool {
+		return Std.is(v, HxAnon);
+	}
+
+	/**
 		Returns Class<HxClass>
 	**/
 	public static inline function getHxClass() : HxClass {
@@ -291,6 +299,7 @@ class Boot {
 		@throws HxException if `value` cannot be casted to this type
 	**/
 	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		if (value == null) return null;
 		switch (hxClass.phpClassName) {
 			case 'Int':
 				if (Boot.isNumber(value)) {
@@ -323,7 +332,10 @@ class Boot {
 	/**
 		Returns string representation of `value`
 	**/
-	public static function stringify( value : Dynamic ) : String {
+	public static function stringify( value : Dynamic, maxRecursion:Int = 10 ) : String {
+		if(maxRecursion <= 0) {
+			return '<...>';
+		}
 		if (value == null) {
 			return 'null';
 		}
@@ -339,11 +351,14 @@ class Boot {
 		if (value.is_array()) {
 			var strings = Syntax.arrayDecl();
 			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
-				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+				strings.push(Syntax.string(key) + ' => ' + stringify(item, maxRecursion - 1));
 			});
 			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
+			if(Std.is(value, Array)) {
+				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
+			}
 			if (value.method_exists('toString')) {
 				return value.toString();
 			}
@@ -357,7 +372,7 @@ class Boot {
 				var result = new NativeIndexedArray<String>();
 				var data = Global.get_object_vars(value);
 				for (key in data.array_keys()) {
-					result.array_push('$key : ' + stringify(data[key]));
+					result.array_push('$key : ' + stringify(data[key], maxRecursion - 1));
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
@@ -371,6 +386,14 @@ class Boot {
 			}
 		}
 		throw "Unable to stringify value";
+	}
+
+	static public function stringifyNativeIndexedArray<T>( arr : NativeIndexedArray<T>, maxRecursion : Int = 10 ) : String {
+		var strings = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			strings[index] = Boot.stringify(value, maxRecursion - 1);
+		});
+		return '[' + Global.implode(',', strings) + ']';
 	}
 
 	static public inline function isNumber( value:Dynamic ) {
@@ -410,7 +433,7 @@ class Boot {
 		var phpType = type.phpClassName;
 		switch (phpType) {
 			case 'Dynamic':
-				return true;
+				return value != null;
 			case 'Int':
 				return (
 						value.is_int()
@@ -480,7 +503,7 @@ class Boot {
 		if (right == 0) {
 			return left;
 		} else if (left >= 0) {
-			return (left >> right);
+			return ((left >> right) & ~(1 << ( 8*Const.PHP_INT_SIZE-1 ) >> (right-1)));
 		} else {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
@@ -488,7 +511,7 @@ class Boot {
 
 	/**
 		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
-		```
+		```haxe
 		(new MyClass()).fieldName = 'value';
 		```
 	**/
@@ -709,23 +732,43 @@ private class HxString {
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0 && Const.PHP_VERSION_ID < 70100) { //negative indexes are supported since 7.1.0
-			startIndex += str.length;
+		} else {
+			var length = str.length;
+			if (startIndex < 0) {
+				startIndex += length;
+				if(startIndex < 0) {
+					startIndex = 0;
+				}
+			}
+			if(startIndex >= length && search != '') {
+				return -1;
+			}
 		}
-		var index = Global.mb_strpos(str, search, startIndex);
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex > length ? length : startIndex;
+		} else{
+			Global.mb_strpos(str, search, startIndex);
+		}
 		return (index == false ? -1 : index);
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
-		if(startIndex == null) {
-			startIndex = 0;
+		var start = startIndex;
+		if(start == null) {
+			start = 0;
 		} else {
-			startIndex = startIndex - str.length;
-			if(startIndex > 0) {
-				startIndex = 0;
+			start = start - str.length;
+			if(start > 0) {
+				start = 0;
 			}
 		}
-		var index = Global.mb_strrpos(str, search, startIndex);
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex == null || startIndex > length ? length : startIndex;
+		} else {
+			Global.mb_strrpos(str, search, start);
+		}
 		if (index == false) {
 			return -1;
 		} else {
@@ -875,9 +918,7 @@ private class HxAnon extends StdClass {
 
 	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.field(this, name);
-		Syntax.keepVar(method);
-		return method(Syntax.splat(args));
+		return Syntax.code("($this->{0})(...{1})", name, args);
 	}
 }
 

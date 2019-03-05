@@ -386,7 +386,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				let dynamic_e = follow e.etype == t_dynamic in
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
-					| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
+					| TConst TNull , Some c -> c
 					| _ -> e
 				in
 				if has_side_effect e then begin
@@ -394,11 +394,15 @@ class inline_state ctx ethis params cf f p = object(self)
 					_had_side_effect <- true;
 					l.i_force_temp <- true;
 				end;
-				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],e,true);
+				(* We use a null expression because we only care about the type (for abstract casts). *)
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some {e with eexpr = TConst TNull});
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
-				let e = mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p in
+				let e = match opt with
+					| None -> mk (TConst TNull) v.v_type v.v_pos
+					| Some e -> e
+				in
 				loop ((l,e) :: acc) [] al false
 		in
 		(*
@@ -501,14 +505,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let map_var v =
+		let rec map_var v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
-				if not (self#read v).i_outside then v.v_type <- map_type v.v_type;
+				if not (self#read v).i_outside then begin
+					v.v_type <- map_type v.v_type;
+					match v.v_extra with
+					| Some(tl,Some e) ->
+						v.v_extra <- Some(tl,Some (map_expr_type e));
+					| _ ->
+						()
+				end
 			end;
 			v
-		in
-		let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
+		and map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
 		map_expr_type e
 end
 

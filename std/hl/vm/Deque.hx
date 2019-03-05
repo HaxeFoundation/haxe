@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,27 +29,27 @@ abstract Deque<T>(hl.Abstract<"hl_deque">) {
 
 	/**
 		Create a message queue for multithread access.
-	*/
+	**/
 	public function new() {
 		this = alloc();
 	}
 
 	/**
 		Add a message at the end of the queue.
-	*/
+	**/
 	public function add( i : T ) {
 	}
 
 	/**
 		Add a message at the head of the queue.
-	*/
+	**/
 	public function push( i : T ) {
 	}
 
 	/**
 		Pop a message from the queue head. Either block until a message
 		is available or return immediately with `null`.
-	*/
+	**/
 	public function pop( block : Bool ) : Null<T> {
 		return null;
 	}

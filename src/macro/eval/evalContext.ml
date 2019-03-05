@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -23,7 +23,11 @@ open EvalValue
 open EvalHash
 open EvalString
 
-type var_info = string
+type var_info = {
+	vi_name : string;
+	vi_pos : pos;
+	vi_generated : bool;
+}
 
 type scope = {
 	(* The position of the current scope. *)
@@ -41,6 +45,8 @@ type scope = {
 type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
+	| EKEntrypoint
+	| EKToplevel
 
 (* Compile-time information for environments. This information is static for all
    environments of the same kind, e.g. all environments of a specific method. *)
@@ -49,6 +55,8 @@ type env_info = {
 	static : bool;
 	(* Hash of the source file of this environment. *)
 	pfile : int;
+	(* Hash of the unique source file of this environment. *)
+	pfile_unique : int;
 	(* The environment kind. *)
 	kind : env_kind;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
@@ -86,6 +94,8 @@ type env = {
 	env_captures : value ref array;
 	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
+	(* The parent of the current environment, if exists. All environments except EKToplevel have a parent. *)
+	env_parent : env option;
 }
 
 type breakpoint_state =
@@ -116,8 +126,8 @@ type debug_state =
 	| DbgRunning
 	| DbgWaiting
 	| DbgContinue
-	| DbgNext of int
-	| DbgFinish of int
+	| DbgNext of env * pos
+	| DbgFinish of env (* parent env *)
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
@@ -125,6 +135,45 @@ type builtins = {
 	constructor_builtins : (int,value list -> value) Hashtbl.t;
 	empty_constructor_builtins : (int,unit -> value) Hashtbl.t;
 }
+
+type debug_scope_info = {
+	ds_expr : texpr;
+	ds_return : value option;
+}
+
+type context_reference =
+	| Scope of scope * env
+	| CaptureScope of (int,var_info) Hashtbl.t * env
+	| DebugScope of debug_scope_info * env
+	| Value of value * env
+	| Toplevel
+
+class eval_debug_context = object(self)
+	val lut =
+		let d = DynArray.create() in
+		DynArray.add d Toplevel;
+		d
+
+	method add_scope scope env =
+		DynArray.add lut (Scope(scope,env));
+		DynArray.length lut - 1
+
+	method add_capture_scope h env =
+		DynArray.add lut (CaptureScope(h,env));
+		DynArray.length lut - 1
+
+	method add_value v env =
+		DynArray.add lut (Value(v,env));
+		DynArray.length lut - 1
+
+	method add_debug_scope scope env =
+		DynArray.add lut (DebugScope(scope,env));
+		DynArray.length lut - 1
+
+	method get id =
+		DynArray.get lut id
+
+end
 
 type exception_mode =
 	| CatchAll
@@ -157,20 +206,21 @@ and debug = {
 	mutable breakpoint : breakpoint;
 	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
 	caught_types : (int,bool) Hashtbl.t;
-	(* The current environment offset. Modified by the debugger when walking up the call stack. *)
-	mutable environment_offset_delta : int;
 	(* The debugger socket *)
 	mutable debug_socket : debug_socket option;
 	(* The current exception mode *)
 	mutable exception_mode : exception_mode;
 	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
 	mutable caught_exception : value;
+	(* The value which was last returned. *)
+	mutable last_return : value option;
+	(* The debug context which manages scopes and variables. *)
+	mutable debug_context : eval_debug_context;
 }
 
 and eval = {
-	environments : env DynArray.t;
+	mutable env : env;
 	thread : vthread;
-	mutable environment_offset : int;
 }
 
 and context = {
@@ -191,6 +241,7 @@ and context = {
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
+	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
@@ -208,17 +259,24 @@ let get_eval ctx =
     let id = Thread.id (Thread.self()) in
     if id = 0 then ctx.eval else IntMap.find id ctx.evals
 
-let rec kind_name ctx kind =
-	let rec loop kind env_id = match kind, env_id with
-		| EKLocalFunction i, 0 ->
-			Printf.sprintf "localFunction%i" i
-		| EKLocalFunction i, env_id ->
-			let parent_id = env_id - 1 in
-			let env = DynArray.get ctx.environments parent_id in
-			Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind parent_id) i
-		| EKMethod(i1,i2),_ -> Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+let rec kind_name eval kind =
+	let rec loop kind env = match kind with
+		| EKMethod(i1,i2) ->
+			Printf.sprintf "%s.%s" (rev_hash i1) (rev_hash i2)
+		| EKLocalFunction i ->
+			begin match env with
+			| None -> Printf.sprintf "localFunction%i" i
+			| Some env -> Printf.sprintf "%s.localFunction%i" (loop env.env_info.kind env.env_parent) i
+			end
+		| EKEntrypoint ->
+			begin match env with
+			| None -> "entrypoint"
+			| Some env -> rev_hash env.env_info.pfile
+			end
+		| EKToplevel ->
+			"toplevel"
 	in
-	loop kind ctx.environment_offset
+	loop kind (Some eval.env)
 
 let call_function f vl = f vl
 
@@ -243,16 +301,20 @@ exception RunTimeException of value * env list * pos
 
 let call_stack ctx =
 	let eval = get_eval ctx in
-	List.rev (DynArray.to_list (DynArray.sub eval.environments 0 eval.environment_offset))
+	let rec loop acc env =
+		let acc = env :: acc in
+		match env.env_parent with
+		| Some env when env.env_info.kind <> EKToplevel -> loop acc env
+		| _ -> List.rev acc
+	in
+	loop [] eval.env
 
 let throw v p =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	if eval.environment_offset > 0 then begin
-		let env = DynArray.get eval.environments (eval.environment_offset - 1) in
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
-	end;
+	let env = eval.env in
+	env.env_leave_pmin <- p.pmin;
+	env.env_leave_pmax <- p.pmax;
 	raise_notrace (RunTimeException(v,call_stack ctx,p))
 
 let exc v = throw v null_pos
@@ -278,11 +340,29 @@ let no_debug = {
 	expr = no_expr;
 }
 
+let null_env = {
+	env_info = {
+		static = true;
+		pfile = EvalHash.hash "null-env";
+		pfile_unique = EvalHash.hash "null-env";
+		kind = EKToplevel;
+		capture_infos = Hashtbl.create 0;
+	};
+	env_debug = no_debug;
+	env_leave_pmin = 0;
+	env_leave_pmax = 0;
+	env_locals = [||];
+	env_captures = [||];
+	env_extra_locals = IntMap.empty;
+	env_parent = None;
+}
+
 let create_env_info static pfile kind capture_infos =
 	let info = {
 		static = static;
 		kind = kind;
-		pfile = pfile;
+		pfile = hash pfile;
+		pfile_unique = hash (Path.unique_full_path pfile);
 		capture_infos = capture_infos;
 	} in
 	info
@@ -317,12 +397,9 @@ let push_environment ctx info num_locals num_captures =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
+		env_parent = Some eval.env;
 	} in
-	if eval.environment_offset = DynArray.length eval.environments then
-		DynArray.add eval.environments env
-	else
-		DynArray.unsafe_set eval.environments eval.environment_offset env;
-	eval.environment_offset <- eval.environment_offset + 1;
+	eval.env <- env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
 		| Some socket,EKMethod(key_type,key_field) ->
 			begin try
@@ -340,7 +417,10 @@ let push_environment ctx info num_locals num_captures =
 
 let pop_environment ctx env =
 	let eval = get_eval ctx in
-	eval.environment_offset <- eval.environment_offset - 1;
+	begin match env.env_parent with
+		| Some env -> eval.env <- env
+		| None -> assert false
+	end;
 	env.env_debug.timer();
 	()
 

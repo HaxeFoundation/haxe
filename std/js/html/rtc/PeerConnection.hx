@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection>
 **/
 @:native("RTCPeerConnection")
-extern class PeerConnection extends js.html.EventTarget
-{
+extern class PeerConnection extends js.html.EventTarget {
 	/** @throws DOMError */
 	@:overload( function( keygenAlgorithm : String) : Promise<Certificate> {} )
 	static function generateCertificate( keygenAlgorithm : Dynamic ) : Promise<Certificate>;

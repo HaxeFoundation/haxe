@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class SpaceJustifier extends TextJustifier {
+extern final class SpaceJustifier extends TextJustifier {
 	var letterSpacing : Bool;
 	@:require(flash10_1) var maximumSpacing : Float;
 	@:require(flash10_1) var minimumSpacing : Float;

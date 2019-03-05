@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement>
 **/
 @:native("HTMLFormElement")
-extern class FormElement extends Element implements ArrayAccess<Element>
-{
+extern class FormElement extends Element implements ArrayAccess<Element> {
 	
 	/**
 		A `DOMString` reflecting the value of the form's `accept-charset` HTML attribute, representing the character encoding that the server accepts.

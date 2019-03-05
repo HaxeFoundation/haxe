@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -748,7 +748,19 @@ and parse_function_field doc meta al = parser
 		name,punion p1 p2,FFun f,al,meta
 
 and parse_var_field_assignment = parser
-	| [< '(Binop OpAssign,_); e = expr; p2 = semicolon >] -> Some e , p2
+	| [< '(Binop OpAssign,_); s >] ->
+		begin match s with parser
+		| [< '(Binop OpLt,p1); s >] ->
+			let e = handle_xml_literal p1 in
+			(* accept but don't expect semicolon *)
+			let p2 = match s with parser
+				| [< '(Semicolon,p) >] -> p
+				| [< >] -> pos e
+			in
+			Some e,p2
+		| [< e = expr; p2 = semicolon >] -> Some e , p2
+		| [< >] -> serror()
+		end
 	| [< p2 = semicolon >] -> None , p2
 	| [< >] -> serror()
 
@@ -945,6 +957,14 @@ and parse_block_elt = parser
 		| [< e = secure_expr; _ = semicolon >] -> make_meta Meta.Inline [] e p1
 		| [< >] -> serror()
 		end
+	| [< '(Binop OpLt,p1); s >] ->
+		let e = handle_xml_literal p1 in
+		(* accept but don't expect semicolon *)
+		begin match s with parser
+			| [< '(Semicolon,_) >] -> ()
+			| [< >] -> ()
+		end;
+		e
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl name e p0 s =
@@ -1102,6 +1122,8 @@ and expr = parser
 			let e = EConst (Ident "null"),null_pos in
 			make_meta name params e p
 		end
+	| [< '(Binop OpLt,p1) >] ->
+		handle_xml_literal p1
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
 		| [< b = block1; s >] ->

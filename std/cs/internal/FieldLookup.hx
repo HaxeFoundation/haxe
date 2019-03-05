@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,8 +22,8 @@
 package cs.internal;
 
 @:native('haxe.lang.FieldHashConflict')
-@:final @:nativeGen
-@:keep class FieldHashConflict {
+@:nativeGen @:keep
+final class FieldHashConflict {
 	@:readOnly public var hash(default,never):Int;
 	@:readOnly public var name(default,never):String;
 	public var value:Dynamic;
@@ -37,9 +37,9 @@ package cs.internal;
 }
 
 @:native('haxe.lang.FieldLookup')
-@:final @:nativeGen
 @:classCode("#pragma warning disable 628\n")
-@:keep @:static class FieldLookup
+@:nativeGen @:keep @:static 
+final class FieldLookup
 {
 	@:protected private static var fieldIds:cs.NativeArray<Int>;
 	@:protected private static var fields:cs.NativeArray<String>;

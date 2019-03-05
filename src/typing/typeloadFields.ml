@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -359,11 +359,11 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				) in
 				let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
 				if ctx.in_macro then error "You cannot use @:build inside a macro : make sure that your type is not used in macro" p;
-				let old = ctx.g.get_build_infos in
-				ctx.g.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
+				let old = ctx.get_build_infos in
+				ctx.get_build_infos <- (fun() -> Some (mt, List.map snd (t_infos mt).mt_params, fvars()));
 				context_init();
-				let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
-				ctx.g.get_build_infos <- old;
+				let r = try apply_macro ctx MBuild s el p with e -> ctx.get_build_infos <- old; raise e in
+				ctx.get_build_infos <- old;
 				(match r with
 				| None -> error "Build failure" p
 				| Some e -> fbuild e)
@@ -511,7 +511,7 @@ let is_public (ctx,cctx) access parent =
 	else if List.mem_assoc APublic access then
 		true
 	else match parent with
-		| Some { cf_public = p } -> p
+		| Some cf -> (has_class_field_flag cf CfPublic)
 		| _ -> c.cl_extern || c.cl_interface || cctx.extends_public
 
 let rec get_parent c name =
@@ -796,14 +796,13 @@ let create_variable (ctx,cctx,fctx) c f t eo p =
 		{ v_read = AccNormal ; v_write = AccNormal }
 	in
 	let cf = {
-		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
+		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access None) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var kind;
-		cf_public = is_public (ctx,cctx) f.cff_access None;
-		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -1022,19 +1021,26 @@ let create_method (ctx,cctx,fctx) c f fd p =
 	let args = loop fd.f_args in
 	let t = TFun (fun_args args,ret) in
 	let cf = {
-		(mk_field (fst f.cff_name) t f.cff_pos (pos f.cff_name)) with
+		(mk_field (fst f.cff_name) ~public:(is_public (ctx,cctx) f.cff_access parent) t f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
-		cf_public = is_public (ctx,cctx) f.cff_access parent;
 		cf_params = params;
-		cf_extern = fctx.is_extern;
-		cf_final = fctx.is_final;
 	} in
+	if fctx.is_final then add_class_field_flag cf CfFinal;
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	cf.cf_meta <- List.map (fun (m,el,p) -> match m,el with
 		| Meta.AstSource,[] -> (m,(match fd.f_expr with None -> [] | Some e -> [e]),p)
 		| _ -> m,el,p
 	) cf.cf_meta;
+	Option.may (fun cf_parent ->
+		if not (Meta.has Meta.Native cf.cf_meta) then
+			try
+				let native_meta = Meta.get Meta.Native cf_parent.cf_meta in
+				cf.cf_meta <- native_meta :: cf.cf_meta;
+			with Not_found ->
+				()
+	) parent;
 	generate_value_meta ctx.com (Some c) (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) fd.f_args;
 	check_abstract (ctx,cctx,fctx) c cf fd t ret p;
 	init_meta_overloads ctx (Some c) cf;
@@ -1087,8 +1093,24 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		end;
 		t
 	) "type_fun" in
-	if fctx.do_bind then bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
+	if fctx.do_bind then
+		bind_type (ctx,cctx,fctx) cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos)
 	else begin
+		delay ctx PTypeField (fun () ->
+			(* We never enter type_function so we're missing out on the argument processing there. Let's do it here. *)
+			List.iter2 (fun (n,ct,t) ((_,pn),_,m,_,_) ->
+				(* dirty dodge to avoid flash extern problems until somebody fixes that *)
+				begin if ctx.com.platform = Flash && c.cl_extern then
+					()
+				else
+					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
+				end;
+				if fctx.is_display_field && DisplayPosition.encloses_display_position pn then begin
+					let v = add_local_with_origin ctx TVOArgument n t pn in
+					DisplayEmitter.display_variable ctx v pn;
+				end
+			) args fd.f_args;
+		);
 		check_field_display ctx fctx c cf;
 		if fd.f_expr <> None && not (fctx.is_inline || fctx.is_macro) then ctx.com.warning "Extern non-inline function may not have an expression" p;
 	end;
@@ -1195,7 +1217,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get);
 			AccCall
 		| _,pget ->
-			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use get") p;
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `get`") pget;
 			AccCall
 	) in
 	let set = (match set with
@@ -1214,18 +1236,17 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set);
 			AccCall
 		| _,pset ->
-			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use set") p;
+			display_error ctx (name ^ ": Custom property accessor is no longer supported, please use `set`") pset;
 			AccCall
 	) in
 	if (set = AccNormal && get = AccCall) || (set = AccNever && get = AccNever)  then error (name ^ ": Unsupported property combination") p;
 	let cf = {
-		(mk_field name ret f.cff_pos (pos f.cff_name)) with
+		(mk_field name ~public:(is_public (ctx,cctx) f.cff_access None) ret f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
 		cf_meta = f.cff_meta;
 		cf_kind = Var { v_read = get; v_write = set };
-		cf_public = is_public (ctx,cctx) f.cff_access None;
-		cf_extern = fctx.is_extern;
 	} in
+	if fctx.is_extern then add_class_field_flag cf CfExtern;
 	ctx.curfield <- cf;
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
@@ -1357,7 +1378,7 @@ let init_class ctx c p context_init herits fields =
 						(if not (Meta.has Meta.Overload mainf.cf_meta) then display_error ctx ("Overloaded methods must have @:overload metadata") mainf.cf_pos);
 						mainf.cf_overloads <- cf :: mainf.cf_overloads
 					else
-						display_error ctx ("Duplicate class field declaration : " ^ cf.cf_name) p
+						display_error ctx ("Duplicate class field declaration : " ^ s_type_path c.cl_path ^ "." ^ cf.cf_name) p
 				else
 				if fctx.do_add then add_field c cf (fctx.is_static || fctx.is_macro && ctx.in_macro)
 			end
@@ -1400,6 +1421,9 @@ let init_class ctx c p context_init herits fields =
 	(*
 		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
+	let has_struct_init = Meta.has Meta.StructInit c.cl_meta in
+	if has_struct_init then
+		ensure_struct_init_constructor ctx c fields p;
 	begin match cctx.uninitialized_final with
 		| Some pf when c.cl_constructor = None ->
 			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
@@ -1407,9 +1431,7 @@ let init_class ctx c p context_init herits fields =
 		| _ ->
 			()
 	end;
-	if Meta.has Meta.StructInit c.cl_meta then
-		ensure_struct_init_constructor ctx c fields p
-	else
+	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
 		if not ctx.com.config.pf_overload then TypeloadFunction.add_constructor ctx c cctx.force_constructor p;
 	(* check overloaded constructors *)

@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,6 +37,7 @@ type output_options =
 	| OODecreaseIndent
 	| OOBeginBlock
 	| OOEndBlock
+	| OOBreak
 
 type function_entry = {
 	mutable fe_name : string;
@@ -100,7 +101,7 @@ let tname str =
 	if Hashtbl.mem keywords ("_" ^ n) then "__" ^ n else n
 
 let is_gc_ptr = function
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ -> false
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ -> false
 	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
 
 let is_ptr = function
@@ -128,6 +129,7 @@ let rec ctype_no_ptr = function
 	| HAbstract (name,_) -> name,1
 	| HEnum _ -> "venum",1
 	| HNull _ -> "vdynamic",1
+	| HMethod _ -> "void",1
 
 let ctype t =
 	let t, nptr = ctype_no_ptr t in
@@ -172,6 +174,7 @@ let type_id t =
 	| HAbstract _ -> "HABSTRACT"
 	| HEnum _ -> "HENUM"
 	| HNull _ -> "HNULL"
+	| HMethod _ -> "HMETHOD"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -260,7 +263,7 @@ let string_data_limit = 64
 let string ctx sid =
 	let s = ctx.hlcode.strings.(sid) in
 	if String.length s < string_data_limit then
-		sprintf "USTR(\"%s\")" (Ast.s_escape ~hex:false s)
+		sprintf "USTR(\"%s\")" (StringHelper.s_escape ~hex:false s)
 	else
 		sprintf "string$%d" sid
 
@@ -274,6 +277,7 @@ let generate_reflection ctx =
 		| HVoid | HF32 | HF64 | HI64 -> t
 		| HBool | HUI8 | HUI16 | HI32 -> HI32
 		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
+		| HMethod _ -> assert false
 	in
 	let type_kind_id t =
 		match t with
@@ -532,9 +536,7 @@ let generate_function ctx f =
 		| HVirtual vp ->
 			let name, nid, t = vp.vfields.(fid) in
 			let dset = sprintf "hl_dyn_set%s(%s->value,%ld/*%s*/%s,%s)" (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt (rtype v)) (reg v) in
-			(match t with
-			| HFun _ -> expr dset
-			| _ -> sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset)
+			sexpr "if( hl_vfields(%s)[%d] ) *(%s*)(hl_vfields(%s)[%d]) = (%s)%s; else %s" (reg obj) fid (ctype t) (reg obj) fid (ctype t) (reg v) dset
 		| _ ->
 			assert false
 	in
@@ -547,9 +549,7 @@ let generate_function ctx f =
 		| HVirtual v ->
 			let name, nid, t = v.vfields.(fid) in
 			let dget = sprintf "(%s)hl_dyn_get%s(%s->value,%ld/*%s*/%s)" (ctype t) (dyn_prefix t) (reg obj) (hash ctx nid) name (type_value_opt t) in
-			(match t with
-			| HFun _ -> sexpr "%s%s" (rassign r t) dget
-			| _ -> sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget)
+			sexpr "%shl_vfields(%s)[%d] ? (*(%s*)(hl_vfields(%s)[%d])) : %s" (rassign r t) (reg obj) fid (ctype t) (reg obj) fid dget
 		| _ ->
 			assert false
 	in
@@ -606,6 +606,7 @@ let generate_function ctx f =
 				| OOLabel -> sline "%s:" (label i)
 				| OOCase i -> sline "case %i:" i
 				| OODefault -> line "default:"
+				| OOBreak -> line "break;";
 				| OOIncreaseIndent -> block()
 				| OODecreaseIndent -> unblock()
 				| OOBeginBlock ->  line "{"
@@ -940,12 +941,17 @@ let generate_function ctx f =
 		| OSwitch (r,idx,eend) ->
 			sline "switch(%s) {" (reg r);
 			block();
-			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
-			Array.iteri (fun k delta -> output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent]) idx;
 			let pend = i+1+eend in
 			(* insert at end if we have another switch case here *)
 			let old = output_options.(pend) in
 			output_options.(pend) <- [];
+			(* insert cases *)
+			output_at2 (i + 1) [OODefault;OOIncreaseIndent];
+			Array.iteri (fun k delta ->
+				output_at2 (delta + i + 1) [OODecreaseIndent;OOCase k;OOIncreaseIndent];
+				if delta = eend then output_at pend OOBreak;
+			) idx;
+			(* insert end switch *)
 			output_at2 pend ([OODecreaseIndent;OODecreaseIndent;OOEndBlock] @ List.rev old);
 		| ONullCheck r ->
 			sexpr "if( %s == NULL ) hl_null_access()" (reg r)
@@ -1008,14 +1014,11 @@ let write_c com file (code:code) =
 	line "#endif";
 
 	let used_closures = Hashtbl.create 0 in
-	let bytes_strings = Hashtbl.create 0 in
 	Array.iter (fun f ->
 		Array.iteri (fun i op ->
 			match op with
 			| OStaticClosure (_,fid) ->
 				Hashtbl.replace used_closures fid ()
-			| OBytes (_,sid) ->
-				Hashtbl.replace bytes_strings sid ()
 			| _ ->
 				()
 		) f.code
@@ -1138,11 +1141,10 @@ let write_c com file (code:code) =
 	) code.globals;
 
 	Array.iteri (fun i str ->
-		if Hashtbl.mem bytes_strings i then
-			sexpr "extern vbyte bytes$%d[]" i
-		else if String.length str >= string_data_limit then
+		if String.length str >= string_data_limit then
 			sexpr "extern vbyte string$%d[]" i
 	) code.strings;
+	Array.iteri (fun i _ -> sexpr "extern vbyte bytes$%d[]" i) code.bytes;
 
 	Hashtbl.iter (fun fid _ -> sexpr "extern vclosure cl$%d" fid) used_closures;
 	line "";
@@ -1189,38 +1191,40 @@ let write_c com file (code:code) =
 	unblock ctx;
 	line "}";
 
+	let output_bytes f str =
+		for i = 0 to String.length str - 1 do
+			if (i+1) mod 0x80 = 0 then f "\\\n\t";
+			if i > 0 then f ",";
+			f (string_of_int (int_of_char str.[i]));
+		done
+	in
 	Array.iteri (fun i str ->
-		let output_bytes f str =
-			for i = 0 to String.length str - 1 do
-				if (i+1) mod 0x80 = 0 then f "\\\n\t";
-				if i > 0 then f ",";
-				f (string_of_int (int_of_char str.[i]));
-			done
-		in
-		if Hashtbl.mem bytes_strings i then begin
-			if String.length str > 1000 then begin
-				let bytes_file = "hl/bytes_" ^ (Digest.to_hex (Digest.string str)) ^ ".h" in
-				let abs_file = ctx.dir ^ "/" ^ bytes_file in
-				if not (Sys.file_exists abs_file) then begin
-					let ch = open_out_bin abs_file in
-					output_bytes (output_string ch) str;
-					close_out ch;
-				end;
-				sline "vbyte bytes$%d[] = {" i;
-				output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
-				sexpr "}";
-			end else begin
-				output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
-				output_bytes (output ctx) str;
-				sexpr "}";
-			end
-		end else if String.length str >= string_data_limit then
+		if String.length str >= string_data_limit then begin
 			let s = Common.utf8_to_utf16 str true in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
 			output ctx (Printf.sprintf "vbyte string$%d[] = {" i);
 			output_bytes (output ctx) s;
-			sexpr "}"
+			sexpr "}";
+		end
 	) code.strings;
+	Array.iteri (fun i bytes ->
+		if Bytes.length bytes > 1000 then begin
+			let bytes_file = "hl/bytes_" ^ (Digest.to_hex (Digest.bytes bytes)) ^ ".h" in
+			let abs_file = ctx.dir ^ "/" ^ bytes_file in
+			if not (Sys.file_exists abs_file) then begin
+				let ch = open_out_bin abs_file in
+				output_bytes (output_string ch) (Bytes.to_string bytes);
+				close_out ch;
+			end;
+			sline "vbyte bytes$%d[] = {" i;
+			output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
+			sexpr "}";
+		end else begin
+			output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
+			output_bytes (output ctx) (Bytes.to_string bytes);
+			sexpr "}";
+		end
+	) code.bytes;
 
 	Hashtbl.iter (fun fid _ ->
 		let ft = ctx.ftable.(fid) in
@@ -1291,7 +1295,7 @@ let write_c com file (code:code) =
 				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
 				sprintf "{(const uchar*)%s, %d, %s, %s, %s, %s}" (string ctx nid) (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
-			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
+			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (if Array.length e.efields = 0 then "NULL" else String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 			let efields = [
 				if e.eid = 0 then "NULL" else sprintf "(const uchar*)%s" (string ctx e.eid);
 				string_of_int (Array.length e.efields);
@@ -1310,7 +1314,7 @@ let write_c com file (code:code) =
 				string_of_int (Array.length v.vfields)
 			] in
 			sexpr "static hl_type_virtual virt$%d = {%s}" i (String.concat "," vfields);
-		| HFun (args,t) ->
+		| HFun (args,t) | HMethod(args,t) ->
 			let aname = if args = [] then "NULL" else
 				let name = sprintf "fargs$%d" i in
 				sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map (type_value ctx) args));
@@ -1339,7 +1343,7 @@ let write_c com file (code:code) =
 		| HVirtual _ ->
 			sexpr "type$%d.virt = &virt$%d" i i;
 			sexpr "hl_init_virtual(&type$%d,ctx)" i;
-		| HFun _ ->
+		| HFun _ | HMethod _ ->
 			sexpr "type$%d.fun = &tfun$%d" i i
 		| _ ->
 			()

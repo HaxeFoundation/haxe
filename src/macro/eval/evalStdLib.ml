@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -374,7 +374,7 @@ module StdBytes = struct
 	)
 
 	let setDouble = vifun2 (fun vthis pos v ->
-		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (decode_float v)) with _ -> outside_bounds());
+		(try write_i64 (this vthis) (decode_int pos) (Int64.bits_of_float (num v)) with _ -> outside_bounds());
 		vnull
 	)
 
@@ -543,6 +543,8 @@ module StdCallStack = struct
 			| EKMethod(st,sf) ->
 				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
+			| EKToplevel | EKEntrypoint ->
+				()
 		) envs;
 		encode_array (DynArray.to_list l)
 
@@ -553,7 +555,7 @@ module StdCallStack = struct
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
 		in
-		make_stack (List.map (fun env -> {pfile = rev_file_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
+		make_stack (List.map (fun env -> {pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind) envs)
 	)
 
 	let getExceptionStack = vfun0 (fun () ->
@@ -660,7 +662,7 @@ module StdCrc32 = struct
 	let make = vfun1 (fun data ->
 		let data = decode_bytes data in
 		let crc32 = Extc.zlib_crc32 data (Bytes.length data) in
-		vint crc32
+		vint32 crc32
 	)
 end
 
@@ -791,9 +793,10 @@ module StdEReg = struct
 			| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 		) (ExtString.String.explode opt) in
 		let flags = `UTF8 :: `UCP :: flags in
-		let r = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
+		let rex = try regexp ~flags r with Error error -> failwith (string_of_pcre_error error) in
 		let pcre = {
-			r = r;
+			r = rex;
+			r_rex_string = create_ascii (Printf.sprintf "~/%s/%s" r opt);
 			r_global = !global;
 			r_string = "";
 			r_groups = [||]
@@ -1167,10 +1170,6 @@ module StdFileSystem = struct
 		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
 		else remove_trailing_slash s
 
-	let absolutePath = vfun1 (fun relPath ->
-		create_unknown (Path.unique_full_path (decode_string relPath))
-	)
-
 	let createDirectory = vfun1 (fun path ->
 		(try Path.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
 		vnull
@@ -1446,6 +1445,14 @@ let encode_list_iterator l =
 		)
 	]
 
+let map_key_value_iterator path = vifun0 (fun vthis ->
+	let ctx = get_ctx() in
+	let vit = encode_instance path in
+	let fnew = get_instance_constructor ctx path null_pos in
+	ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+	vit
+)
+
 module StdIntMap = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = IIntMap h} -> h
@@ -1474,6 +1481,8 @@ module StdIntMap = struct
 		let keys = IntHashtbl.fold (fun k _ acc -> vint k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -1527,6 +1536,8 @@ module StdStringMap = struct
 		encode_list_iterator keys
 	)
 
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
+
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
 		let key = decode_vstring vkey in
@@ -1578,6 +1589,8 @@ module StdObjectMap = struct
 		let keys = ValueHashtbl.fold (fun k _ acc -> k :: acc) (this vthis) [] in
 		encode_list_iterator keys
 	)
+
+	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
 		let this = this vthis in
@@ -2036,9 +2049,17 @@ module StdSocket = struct
 		vnull
 	)
 
+	let setBroadcast = vifun1 (fun vthis b ->
+		let this = this vthis in
+		let b = decode_bool b in
+		setsockopt this SO_BROADCAST b;
+		vnull
+	)
+
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = timeout *. 1000. in
 		setsockopt_float this SO_RCVTIMEO timeout;
 		setsockopt_float this SO_SNDTIMEO timeout;
 		vnull
@@ -2129,6 +2150,11 @@ module StdString = struct
 			if str.slength = 0 then
 				vint (max 0 (min i this.slength))
 			else begin
+				let i =
+					if i >= this.slength then raise Not_found
+					else if i < 0 then max (this.slength + i) 0
+					else i
+				in
 				let b = get_offset this i in
 				let offset,_,_ = find_substring this str false i b in
 				vint offset
@@ -2145,8 +2171,8 @@ module StdString = struct
 				let i = default_int startIndex this.slength in
 				vint (max 0 (min i this.slength))
 			end else begin
-				let i = default_int startIndex (this.slength - 1) in
-				let i = if i < 0 then raise Not_found else if i >= this.slength then this.slength - 1 else i in
+				let i = default_int startIndex (this.slength - str.slength) in
+				let i = if i < 0 then raise Not_found else if i >= this.slength - str.slength then this.slength - str.slength else i in
 				let b = get_offset this i in
 				let offset,_,_ = find_substring this str true i b in
 				vint offset
@@ -2986,6 +3012,7 @@ let init_maps builtins =
 		"get",StdIntMap.get;
 		"iterator",StdIntMap.iterator;
 		"keys",StdIntMap.keys;
+		"keyValueIterator",StdIntMap.keyValueIterator;
 		"remove",StdIntMap.remove;
 		"set",StdIntMap.set;
 		"toString",StdIntMap.toString;
@@ -2996,6 +3023,7 @@ let init_maps builtins =
 		"get",StdObjectMap.get;
 		"iterator",StdObjectMap.iterator;
 		"keys",StdObjectMap.keys;
+		"keyValueIterator",StdObjectMap.keyValueIterator;
 		"remove",StdObjectMap.remove;
 		"set",StdObjectMap.set;
 		"toString",StdObjectMap.toString;
@@ -3006,6 +3034,7 @@ let init_maps builtins =
 		"get",StdStringMap.get;
 		"iterator",StdStringMap.iterator;
 		"keys",StdStringMap.keys;
+		"keyValueIterator",StdStringMap.keyValueIterator;
 		"remove",StdStringMap.remove;
 		"set",StdStringMap.set;
 		"toString",StdStringMap.toString;
@@ -3103,8 +3132,7 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f thread =
 					let new_eval = {
-						environments = DynArray.create ();
-						environment_offset = 0;
+						env = null_env;
 						thread = thread;
 					} in
 					let thread = Thread.self() in
@@ -3160,7 +3188,7 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Array (fun () -> encode_array_instance (EvalArray.create [||]));
 	Hashtbl.add h key_eval_Vector (fun () -> encode_vector_instance (Array.make 0 vnull));
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
-	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_global = false; r_string = ""; r_groups = [||]}));
+	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
 	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
@@ -3329,7 +3357,6 @@ let init_standard_library builtins =
 		"i64ToDouble",StdFPHelper.i64ToDouble;
 	] [];
 	init_fields builtins (["sys"],"FileSystem") [
-		"absolutePath",StdFileSystem.absolutePath;
 		"createDirectory",StdFileSystem.createDirectory;
 		"deleteFile",StdFileSystem.deleteFile;
 		"deleteDirectory",StdFileSystem.deleteDirectory;
@@ -3458,6 +3485,7 @@ let init_standard_library builtins =
 		"send",StdSocket.send;
 		"sendChar",StdSocket.sendChar;
 		"setFastSend",StdSocket.setFastSend;
+		"setBroadcast", StdSocket.setBroadcast;
 		"setTimeout",StdSocket.setTimeout;
 		"shutdown",StdSocket.shutdown;
 	];

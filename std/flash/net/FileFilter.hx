@@ -1,6 +1,6 @@
 package flash.net;
 
-@:final extern class FileFilter {
+extern final class FileFilter {
 	var description : String;
 	var extension : String;
 	var macType : String;

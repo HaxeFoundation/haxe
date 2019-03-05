@@ -13,11 +13,11 @@ extern class Syntax {
 		`code` must be a string constant.
 
 		Additional `args` are supported to provide code interpolation, for example:
-		```
+		```haxe
 		Syntax.code("console.log({0}, {1})", "hi", 42);
 		```
 		will generate
-		```
+		```haxe
 		console.log("hi", 42);
 		```
 	**/
@@ -58,6 +58,6 @@ extern class Syntax {
 	/**
 		Generate `o.f` expression, if `f` is a constant string,
 		or `o[f]` if it's any other expression.
-	*/
+	**/
 	static function field(o:Dynamic, f:String):Dynamic;
 }

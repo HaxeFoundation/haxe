@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,14 +24,13 @@
 
 package js.html;
 
-typedef OptionalEffectTiming =
-{
-	@:optional var delay : Float;
-	@:optional var direction : PlaybackDirection;
-	@:optional var duration : haxe.extern.EitherType<Float,String>;
-	@:optional var easing : String;
-	@:optional var endDelay : Float;
-	@:optional var fill : FillMode;
-	@:optional var iterationStart : Float;
-	@:optional var iterations : Float;
+typedef OptionalEffectTiming = {
+	var ?delay : Float;
+	var ?direction : PlaybackDirection;
+	var ?duration : haxe.extern.EitherType<Float,String>;
+	var ?easing : String;
+	var ?endDelay : Float;
+	var ?fill : FillMode;
+	var ?iterationStart : Float;
+	var ?iterations : Float;
 }

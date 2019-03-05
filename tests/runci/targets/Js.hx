@@ -28,12 +28,12 @@ class Js {
 		getJSDependencies();
 
 		var jsOutputs = [
-			for (es3 in       [[], ["-D", "js-es=3"]])
+			for (es_ver in    [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
 			{
-				var extras = args.concat(es3).concat(unflatten).concat(classic).concat(enums_as_objects);
+				var extras = args.concat(es_ver).concat(unflatten).concat(classic).concat(enums_as_objects);
 
 				runCommand("haxe", ["compile-js.hxml"].concat(extras));
 
@@ -48,10 +48,14 @@ class Js {
 				}
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.nodejsMain();"]);
+				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
 				output;
 			}
 		];
+
+		infoMsg("Test ES6:");
+		changeDirectory(miscDir + "es6");
+		runCommand("haxe", ["run.hxml"]);
 
 		haxelibInstall("hxnodejs");
 		var env = Sys.environment();
@@ -76,6 +80,7 @@ class Js {
 			// 	Sys.sleep(0.5);
 			// }
 
+			changeDirectory(unitDir);
 			runCommand("npm", ["install", "wd", "q"], true);
 			runCommand("haxe", ["compile-saucelabs-runner.hxml"]);
 			var server = new Process("nekotools", ["server"]);
@@ -88,9 +93,10 @@ class Js {
 		infoMsg("Test optimization:");
 		changeDirectory(optDir);
 		runCommand("haxe", ["run.hxml"]);
-		haxelibInstall("utest");
-		// changeDirectory(serverDir);
-		// runCommand("haxe", ["build.hxml"]);
-		// runCommand("node", ["test.js"]);
+
+		runci.targets.Java.getJavaDependencies(); // this is awkward
+		changeDirectory(serverDir);
+		runCommand("haxe", ["build.hxml"]);
+		runCommand("node", ["test.js"]);
 	}
 }

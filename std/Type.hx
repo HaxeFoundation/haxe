@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -182,11 +182,12 @@ extern class Type {
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T;
 
 	/**
-		Returns a list of the instance fields of class `c`.
+		Returns a list of the instance fields of class `c`, including
+		inherited fields.
 
 		This only includes fields which are known at compile-time. In
-		particular, using getInstanceFields(getClass(obj)) will not include
-		any fields which were added to obj at runtime.
+		particular, using `getInstanceFields(getClass(obj))` will not include
+		any fields which were added to `obj` at runtime.
 
 		The order of the fields in the returned Array is unspecified.
 

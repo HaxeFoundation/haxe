@@ -12,6 +12,9 @@ exception BreakHere
 
 let createInstance_ref : value ref = Obj.magic ()
 
+let declared_before vi p =
+	vi.vi_pos.pmin < p.pmin
+
 (* Breakpoints *)
 
 let breakpoint_id = ref (-1)
@@ -81,12 +84,14 @@ let parse_expr ctx s p =
 
 (* Vars *)
 
-let get_var_slot_by_name scopes name =
+let get_var_slot_by_name env is_read scopes name =
 	let rec loop scopes = match scopes with
 		| scope :: scopes ->
 			begin try
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
+				let vi = Hashtbl.find scope.local_infos slot in
+				if is_read && not (declared_before vi env.env_debug.expr.epos) then raise Not_found;
 				slot + scope.local_offset
 			with Not_found ->
 				loop scopes
@@ -99,8 +104,8 @@ let get_var_slot_by_name scopes name =
 let get_capture_slot_by_name capture_infos name =
 	let ret = ref None in
 	try
-		Hashtbl.iter (fun slot name' ->
-			if name = name' then begin
+		Hashtbl.iter (fun slot vi ->
+			if name = vi.vi_name then begin
 				ret := (Some slot);
 				raise Exit
 			end
@@ -109,9 +114,9 @@ let get_capture_slot_by_name capture_infos name =
 	with Exit ->
 		match !ret with None -> assert false | Some name -> name
 
-let get_variable capture_infos scopes name env =
+let get_variable env capture_infos scopes name env =
 	try
-		let slot = get_var_slot_by_name scopes name in
+		let slot = get_var_slot_by_name env true scopes name in
 		let value = env.env_locals.(slot) in
 		value
 	with Not_found ->
@@ -128,10 +133,20 @@ let resolve_ident ctx env s =
 		IntMap.find key env.env_extra_locals
 	with Not_found -> try
 		(* 1. Variable *)
-		get_variable env.env_info.capture_infos env.env_debug.scopes s env
+		get_variable ctx env.env_info.capture_infos env.env_debug.scopes s env
 	with Not_found -> try
 		(* 2. Instance *)
 		if env.env_info.static then raise Not_found;
+		let rec loop env = match env.env_info.kind with
+			| EKLocalFunction _ ->
+				begin match env.env_parent with
+					| None -> assert false
+					| Some env -> loop env
+				end
+			| EKMethod _ -> env
+			| EKToplevel | EKEntrypoint -> assert false
+		in
+		let env = loop env in
 		let v = env.env_locals.(0) in
 		EvalField.field_raise v key
 	with Not_found -> try
@@ -167,18 +182,18 @@ let find_enum_field_by_name ve name =
 	| _ ->
 		raise Not_found
 
+let safe_call ctx f a =
+	let old = ctx.debug.debug_state in
+	ctx.debug.debug_state <- DbgContinue;
+	try
+		let r = f a in
+		ctx.debug.debug_state <- old;
+		r
+	with exc ->
+		ctx.debug.debug_state <- old;
+		raise exc
+
 let rec expr_to_value ctx env e =
-	let safe_call f a =
-		let old = ctx.debug.debug_state in
-		ctx.debug.debug_state <- DbgContinue;
-		try
-			let r = f a in
-			ctx.debug.debug_state <- old;
-			r
-		with exc ->
-			ctx.debug.debug_state <- old;
-			raise exc
-	in
 	let rec loop e = match fst e with
 		| EConst cst ->
 			begin match cst with
@@ -268,11 +283,11 @@ let rec expr_to_value ctx env e =
 				let vthis = loop ethis in
 				let v1 = EvalField.field vthis (hash s) in
 				let vl = List.map loop el in
-				safe_call (EvalPrinting.call_value_on vthis v1) vl
+				safe_call ctx (EvalPrinting.call_value_on vthis v1) vl
 			| _ ->
 				let v1 = loop e1 in
 				let vl = List.map loop el in
-				safe_call (call_value v1) vl
+				safe_call ctx (call_value v1) vl
 			end
 		| EBlock el ->
 			let rec loop2 el = match el with
@@ -331,7 +346,7 @@ let rec expr_to_value ctx env e =
 			let v1 = loop2 v1 [match tp.tsub with None -> tp.tname | Some s -> s] in
 			let vl = List.map loop el in
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
-			safe_call (call_value vc) [v1;encode_array vl]
+			safe_call ctx (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
 		| EDisplayNew _ | ECast(_,Some _) ->
 			raise Exit
@@ -356,7 +371,7 @@ and write_expr ctx env expr value =
 			end
 		| EConst (Ident s) ->
 			begin try
-				let slot = get_var_slot_by_name env.env_debug.scopes s in
+				let slot = get_var_slot_by_name env false env.env_debug.scopes s in
 				env.env_locals.(slot) <- value;
 			with Not_found ->
 				raise Exit

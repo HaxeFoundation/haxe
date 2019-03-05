@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,7 +30,7 @@ import haxe.macro.Expr;
 #end
 class Compiler {
 	/**
-		A conditional compiler flag can be set command line using
+		A conditional compilation flag can be set on the command line using
 		`-D key=value`.
 
 		Returns the value of a compiler flag.
@@ -41,9 +41,12 @@ class Compiler {
 		If the compiler flag is not defined, `Compiler.getDefine` returns
 		`null`.
 
+		Note: This is a macro and cannot be called from within other macros. Refer
+		to `haxe.macro.Context.definedValue` to obtain defined values in macro context.
+
 		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
-	macro static public function getDefine( key : String ) {
+	macro /* <-- ! */ static public function getDefine( key : String ) {
 		return macro $v{haxe.macro.Context.definedValue(key)};
 	}
 
@@ -278,7 +281,7 @@ class Compiler {
 				if( (p == pack || name == pack) || (rec && StringTools.startsWith(p, pack + ".")) )
 					excludeBaseType(b);
 			}
-		});
+		}, false);
 	}
 
 	/**
@@ -386,6 +389,16 @@ class Compiler {
 	}
 
 	/**
+		Enables null safety for a type or a package.
+
+		@param path A package, module or sub-type dot path to keep.
+		@param recursive If true, recurses into sub-packages for package paths.
+	**/
+	public static function nullSafety(path : String, mode:NullSafetyMode = Loose, recursive:Bool = true) {
+		addGlobalMetadata(path, '@:nullSafety($mode)', recursive);
+	}
+
+	/**
 		Adds metadata `meta` to all types (if `toTypes = true`) or fields (if
 		`toFields = true`) whose dot-path matches `pathFilter`.
 
@@ -453,16 +466,46 @@ class Compiler {
 enum abstract IncludePosition(String) from String to String {
 	/**
 		Prepend the file content to the output file.
-	*/
+	**/
 	var Top = "top";
 	/**
 		Prepend the file content to the body of the top-level closure.
 
 		Since the closure is in strict-mode, there may be run-time error if the input is not strict-mode-compatible.
-	*/
+	**/
 	var Closure = "closure";
 	/**
 		Directly inject the file content at the call site.
-	*/
+	**/
 	var Inline = "inline";
+}
+
+
+enum abstract NullSafetyMode(String) to String {
+	/**
+		Disable null safety.
+	**/
+	var Off;
+	/**
+		Full scale null safety.
+	**/
+	var Strict;
+	/**
+		Loose safety.
+		If an expression is checked ` != null`, then it's considered safe even if it could be modified after the check.
+		E.g.
+		```haxe
+		function example(o:{field:Null<String>}) {
+			if(o.field != null) {
+				mutate(o);
+				var notNullable:String = o.field; //no error
+			}
+		}
+
+		function mutate(o:{field:Null<String>}) {
+			o.field = null;
+		}
+		```
+	**/
+	var Loose;
 }

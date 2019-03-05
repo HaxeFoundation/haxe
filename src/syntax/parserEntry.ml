@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -77,6 +77,8 @@ let parse ctx code file =
 	let restore_cache = TokenCache.clear () in
 	let was_display = !in_display in
 	let was_display_file = !in_display_file in
+	let old_code = !code_ref in
+	code_ref := code;
 	in_display := !display_position <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
 	let restore =
@@ -84,6 +86,7 @@ let parse ctx code file =
 			restore_cache ();
 			in_display := was_display;
 			in_display_file := was_display_file;
+			code_ref := old_code;
 		)
 	in
 	let mstack = ref [] in

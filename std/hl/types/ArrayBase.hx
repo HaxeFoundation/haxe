@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -106,7 +106,7 @@ class ArrayBase extends ArrayAccess {
 	}
 
 	function __cast( t : Type ) : Dynamic {
-		if( t == Type.get(new ArrayDyn()) )
+		if( t == Type.get((null : ArrayDyn)) )
 			return ArrayDyn.alloc(this, false);
 		return null;
 	}

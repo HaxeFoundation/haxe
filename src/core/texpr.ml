@@ -219,7 +219,7 @@ module Builder = struct
 
 	let make_typeexpr mt pos =
 		let t =
-			match mt with
+			match resolve_typedef mt with
 			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
 			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
@@ -284,7 +284,7 @@ let set_default basic a c p =
 	let t = a.v_type in
 	let ve = mk (TLocal a) t p in
 	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) basic.tvoid p
+	mk (TIf (Builder.mk_parent (mk cond basic.tbool p), mk (TBinop (OpAssign,ve,c)) t p,None)) basic.tvoid p
 
 (*
 	Tells if the constructor might be called without any issue whatever its parameters
@@ -389,3 +389,114 @@ let build_metadata api t =
 		let meta_obj = (if statics = [] then meta_obj else (("statics",null_pos,NoQuotes),make_meta statics) :: meta_obj) in
 		let meta_obj = (try (("obj",null_pos,NoQuotes), make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
 		Some (mk (TObjectDecl meta_obj) t_dynamic p)
+
+let dump_with_pos tabs e =
+	let buf = Buffer.create 0 in
+	let add = Buffer.add_string buf in
+	let rec loop' tabs e =
+		let p = e.epos in
+		let add s = add (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs s) in
+		let loop e = loop' (tabs ^ "  ") e in
+		match e.eexpr with
+		| TConst ct -> add (s_const ct)
+		| TLocal v -> add ("TLocal " ^ v.v_name)
+		| TTypeExpr mt -> add ("TTypeExpr " ^ (s_type_path (t_infos mt).mt_path))
+		| TIdent s -> add ("TIdent " ^ s)
+		| TEnumParameter(e1,ef,_) ->
+			add ("TEnumParameter " ^ ef.ef_name);
+			loop e1
+		| TEnumIndex e1 ->
+			add "TEnumIndex";
+			loop e1
+		| TArray(e1,e2) ->
+			add "TArray";
+			loop e1;
+			loop e2;
+		| TBinop(op,e1,e2) ->
+			add ("TBinop " ^ (s_binop op));
+			loop e1;
+			loop e2;
+		| TField(e1,s) ->
+			add ("TField " ^ (field_name s));
+			loop e1
+		| TParenthesis e1 ->
+			add "TParenthesis";
+			loop e1
+		| TObjectDecl fl ->
+			add "TObjectDecl";
+			List.iter (fun ((n,p,_),e1) ->
+				Buffer.add_string buf (Printf.sprintf "%4i-%4i %s%s\n" p.pmin p.pmax tabs n);
+				loop e1
+			) fl;
+		| TArrayDecl el ->
+			add "TArrayDecl";
+			List.iter loop el
+		| TCall(e1,el) ->
+			add "TCall";
+			loop e1;
+			List.iter loop el
+		| TNew(c,_,el) ->
+			add ("TNew " ^ s_type_path c.cl_path);
+			List.iter loop el
+		| TUnop(op,_,e1) ->
+			add ("TUnop " ^ (s_unop op));
+			loop e1
+		| TVar(v,eo) ->
+			add ("TVar " ^ v.v_name);
+			begin match eo with
+				| None -> ()
+				| Some e ->
+					loop' (Printf.sprintf "%s  " tabs) e
+			end
+		| TFunction tf ->
+			add "TFunction";
+			loop tf.tf_expr;
+		| TBlock el ->
+			add "TBlock";
+			List.iter loop el
+		| TFor(v,e1,e2) ->
+			add ("TFor " ^ v.v_name);
+			loop e1;
+			loop e2;
+		| TIf(e1,e2,eo) ->
+			add "TIf";
+			loop e1;
+			loop e2;
+			Option.may loop eo;
+		| TWhile(e1,e2,_) ->
+			add "TWhile";
+			loop e1;
+			loop e2;
+		| TSwitch(e1,cases,def) ->
+			add "TSwitch";
+			loop e1;
+			List.iter (fun (el,e) ->
+				List.iter (loop' (tabs ^ "    ")) el;
+				loop' (tabs ^ "      ") e;
+			) cases;
+			Option.may (loop' (tabs ^ "      ")) def
+		| TTry(e1,catches) ->
+			add "TTry";
+			loop e1;
+			List.iter (fun (v,e) ->
+				loop' (tabs ^ "    ") e
+			) catches
+		| TReturn eo ->
+			add "TReturn";
+			Option.may loop eo;
+		| TBreak ->
+			add "TBreak";
+		| TContinue ->
+			add "TContinue"
+		| TThrow e1 ->
+			add "EThrow";
+			loop e1
+		| TCast(e1,_) ->
+			add "TCast";
+			loop e1;
+		| TMeta((m,_,_),e1) ->
+			add ("TMeta " ^ fst (Meta.get_info m));
+			loop e1
+	in
+	loop' tabs e;
+	Buffer.contents buf

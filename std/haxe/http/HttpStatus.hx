@@ -3,7 +3,7 @@ package haxe.http;
 /**
     HTTP Request Status
  **/
-@:enum abstract HttpStatus(Int) from Int to Int {
+enum abstract HttpStatus(Int) from Int to Int {
     var Continue = 100;
     var SwitchingProtocols = 101;
     var Processing = 102;

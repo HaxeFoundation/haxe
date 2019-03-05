@@ -1,5 +1,6 @@
 import sys.FileSystem;
 import utest.Assert;
+using StringTools;
 
 class TestFileSystem extends utest.Test {
 	/**
@@ -120,5 +121,29 @@ class TestFileSystem extends utest.Test {
 		FileSystem.createDirectory(testDir);
 		FileSystem.createDirectory(testDir); // shouldn't throw
 		Assert.isTrue(FileSystem.isDirectory(testDir));
+	}
+
+	function testAbsolutePath() {
+		var paths = [
+			{ input: "c:\\nadako",   expected: "c:\\nadako" },
+			{ input: "nadako.js",    expected: haxe.io.Path.join([Sys.getCwd(), "nadako.js"]) },
+			{ input: "./nadako.js",  expected: haxe.io.Path.join([Sys.getCwd(), "/./nadako.js"]) },
+			{ input: "/nadako",      expected: "/nadako" }
+		];
+		for (path in paths) {
+			Assert.equals(normPath(path.expected), normPath(FileSystem.absolutePath(path.input)));
+		}
+	}
+
+	static function normPath(p:String, properCase = false):String {
+		if (Sys.systemName() == "Windows")
+		{
+			// on windows, haxe returns lowercase paths with backslashes, drive letter uppercased
+			p = p.substr(0, 1).toUpperCase() + p.substr(1);
+			p = p.replace("/", "\\");
+			if (!properCase)
+				p = p.toLowerCase();
+		}
+		return p;
 	}
 }

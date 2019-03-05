@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleDeclaration>
 **/
 @:native("CSSStyleDeclaration")
-extern class CSSStyleDeclaration implements ArrayAccess<String>
-{
+extern class CSSStyleDeclaration implements ArrayAccess<String> {
 	var cssText : String;
 	var length(default,null) : Int;
 	var parentRule(default,null) : CSSRule;
@@ -958,7 +957,7 @@ extern class CSSStyleDeclaration implements ArrayAccess<String>
 	function getPropertyValue( property : String ) : String;
 	function getPropertyPriority( property : String ) : String;
 	/** @throws DOMError */
-	function setProperty( property : String, value : String, ?priority : String = "" ) : Void;
+	function setProperty( property : String, value : String, priority : String = "" ) : Void;
 	/** @throws DOMError */
 	function removeProperty( property : String ) : String;
 }

@@ -91,6 +91,7 @@ type strict_meta =
 	| LoopLabel
 	| LuaRequire
 	| LuaDotMethod
+	| Markup
 	| Meta
 	| Macro
 	| MaybeUsed
@@ -115,6 +116,7 @@ type strict_meta =
 	| NotNull
 	| NoUsing
 	| Ns
+	| NullSafety
 	| Objc
 	| ObjcProtocol
 	| Op
@@ -178,7 +180,13 @@ type strict_meta =
 	| Custom of string
 
 let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.mem m2 ml1) ml2
 let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
+
+let rec remove m = function
+	| [] -> []
+	| (m2,_,_) :: l when m = m2 -> l
+	| x :: l -> x :: remove m l
 
 type meta_usage =
 	| TClass
@@ -291,6 +299,7 @@ let get_info = function
 	| KeepSub -> ":keepSub",("Extends @:keep metadata to all implementing and extending classes",[UsedOn TClass])
 	| LibType -> ":libType",("Used by -net-lib and -java-lib to mark a class that shouldn't be checked (overrides, interfaces, etc) by the type loader",[UsedInternally; UsedOn TClass; Platforms [Java;Cs]])
 	| LoopLabel -> ":loopLabel",("Mark loop and break expressions with a label to support breaking from within switch",[UsedInternally])
+	| Markup -> ":markup",("Used as a result of inline XML parsing",[])
 	| Meta -> ":meta",("Internally used to mark a class field as being the metadata field",[])
 	| Macro -> ":macro",("(deprecated)",[])
 	| MaybeUsed -> ":maybeUsed",("Internally used by DCE to mark fields that might be kept",[UsedInternally])
@@ -315,6 +324,7 @@ let get_info = function
 	| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 	| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 	| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
+	| NullSafety -> ":nullSafety",("Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument (e.g. `@:nullSafety(Off)`)",[UsedOnEither [TClass;TClassField;TExpr]])
 	| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
 	| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
 	| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])

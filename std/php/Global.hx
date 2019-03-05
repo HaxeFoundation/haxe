@@ -282,7 +282,7 @@ extern class Global {
 
 	/**
 		@see http://php.net/manual/en/function.constant.php
-	*/
+	**/
 	static function constant( name:String ) : Dynamic;
 
 	/**
@@ -1132,7 +1132,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-set-option.php
 	**/
-	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Bool ) : Bool;
+	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Any ) : Bool;
 
 	/**
 		@see http://php.net/manual/en/function.socket-select.php
@@ -1142,7 +1142,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-read.php
 	**/
-	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+	static function socket_read( resource:Resource, length:Int, ?type:Int ) : EitherType<Bool, String>;
 
 	/**
 		@see http://php.net/manual/en/function.socket-write.php
@@ -1374,4 +1374,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.is-uploaded-file.php
 	**/
 	static function is_uploaded_file( filename:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.gc-collect-cycles.php
+	**/
+	static function gc_collect_cycles() : Int;
 }

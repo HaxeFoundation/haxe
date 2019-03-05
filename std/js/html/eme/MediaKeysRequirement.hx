@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html.eme;
 
-enum abstract MediaKeysRequirement(String)
-{
+enum abstract MediaKeysRequirement(String) {
 	var REQUIRED = "required";
 	var OPTIONAL = "optional";
 	var NOT_ALLOWED = "not-allowed";

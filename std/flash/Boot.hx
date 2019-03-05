@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -99,7 +99,7 @@ class Boot extends flash.display.MovieClip {
 	public static function __instanceof( v : Dynamic, t : Dynamic ) {
 		try {
 			if( t == Dynamic )
-				return true;
+				return v != null;
 			return untyped __is__(v,t);
 		} catch( e : Dynamic ) {
 		}

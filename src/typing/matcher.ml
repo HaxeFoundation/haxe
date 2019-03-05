@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -246,28 +246,27 @@ module Pattern = struct
 					pat
 		in
 		let handle_ident s p =
-			let save =
-				let old = ctx.locals in
-				ctx.locals <- (try PMap.add "this" (PMap.find "this" old) PMap.empty with Not_found -> PMap.empty);
-				(fun () ->
-					ctx.locals <- old;
-				)
-			in
 			try
-				let pat = try_typing (EConst (Ident s),p) in
-				save();
-				pat
+				try_typing (EConst (Ident s),p)
 			with
 			| Exit | Bad_pattern _ ->
+				let restore =
+					let old = ctx.on_error in
+					ctx.on_error <- (fun _ _ _ ->
+						raise Exit
+					);
+					(fun () ->
+						ctx.on_error <- old
+					)
+				in
 				begin try
 					let mt = module_type_of_type t in
 					let e_mt = TyperBase.type_module_type ctx mt None p in
 					let e = type_field_access ctx ~resume:true e_mt s in
-					let pat = check_expr e in
-					save();
-					pat
+					restore();
+					check_expr e
 				with _ ->
-					save();
+					restore();
 					if not (is_lower_ident s) && (match s.[0] with '`' | '_' -> false | _ -> true) then begin
 						display_error ctx "Capture variables must be lower-case" p;
 					end;
@@ -291,9 +290,6 @@ module Pattern = struct
 					let v = add_local false s p in
 					PatVariable v
 				end
-			| exc ->
-				save();
-				raise exc
 		in
 		let rec loop e = match fst e with
 			| EParenthesis e1 | ECast(e1,None) ->
@@ -1167,11 +1163,17 @@ module Compile = struct
 				let ev = mk (TLocal v) e.etype e.epos in
 				(ev :: subjects,(v,e.epos,e) :: vars)
 		) ([],[]) subjects in
-		let dt = compile mctx subjects cases in
-		Useless.check mctx.ctx.com cases;
-		match vars with
-			| [] -> dt
-			| _ -> bind mctx vars dt
+		begin match cases,subjects with
+		| [],(subject :: _) ->
+			let dt_fail = fail mctx subject.epos in
+			switch mctx subject [] dt_fail
+		| _ ->
+			let dt = compile mctx subjects cases in
+			Useless.check mctx.ctx.com cases;
+			match vars with
+				| [] -> dt
+				| _ -> bind mctx vars dt
+		end
 end
 
 module TexprConverter = struct
@@ -1253,7 +1255,7 @@ module TexprConverter = struct
 					| ConTypeExpr mt -> get_general_module_type ctx mt e.epos
 					| ConFields _ | ConStatic _ -> fail()
 				in
-				mk (TCast(e,None)) t e.epos,t,true
+				e,t,true
 		in
 		let e,t,inferred = match follow e.etype with
 			| TDynamic _ | TMono _ ->
@@ -1519,8 +1521,15 @@ module Match = struct
 			match with_type with
 				| WithType.NoValue -> ctx.t.tvoid
 				| WithType.Value(_) ->
-					let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
-					unify_min ctx el
+					begin match cases with
+					| [] ->
+						(* If there are no cases we assume Void. This then causes a "Cannot use Void as value" error.
+						   Note that we cannot rely on an exhaustiveness error because the switch could be over an empty enum. *)
+						ctx.t.tvoid
+					| _ ->
+						let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
+						unify_min ctx el
+					end
 				| WithType.WithType(t,_) -> t
 		in
 		if match_debug then begin

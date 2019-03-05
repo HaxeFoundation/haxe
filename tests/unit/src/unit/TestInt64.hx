@@ -38,6 +38,29 @@ class TestInt64 extends Test {
 		exc( tryOverflow.bind(a) );	// Throws Overflow
 	}
 
+	public function testNegateOverflow_Issue7485()
+	{
+		// Guarantee two's complement overflow (-min == min)
+		//  - discussion: https://github.com/HaxeFoundation/haxe/pull/7491
+		var min = haxe.Int64.parseString('-9223372036854775808');
+		eq( min==(-min), true);
+
+		// 0x7fffffff - 0x7fffffffffffffff = -7fffffff80000000
+		var a = haxe.Int64.parseString('2147483647');
+		var b = haxe.Int64.parseString('9223372036854775807');
+		var z = haxe.Int64.sub(a, b);
+		eq(haxe.Int64.toStr(z), "-9223372034707292160");
+
+		// This fails because the first division fails:
+		var ten = haxe.Int64.make(0, 10);
+		var modulus = haxe.Int64.divMod( z, ten ).modulus.low;
+		eq( modulus, 0 );
+
+		// The first division failed because of negate:
+		eq( (-z).low, -2147483648 );
+		eq( (-z).high, 2147483647 );
+	}
+
 	// Some tests of how it generates Int64 when used as Null<Int64> or as type parameters
 	function testGen()
 	{
@@ -445,11 +468,7 @@ class TestInt64 extends Test {
 	}
 
 	function int64eq( v : Int64, v2 : Int64, ?pos ) {
-		Test.count++;
-		if( v != v2 ) {
-			Test.report(Std.string(v)+" should be "+Std.string(v2),pos);
-			Test.success = false;
-		}
+		t(v == v2);
 	}
 
 	public function testParseString()

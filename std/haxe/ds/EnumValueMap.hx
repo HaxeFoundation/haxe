@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -58,4 +58,11 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 			Reflect.compare(v1, v2);
 		}
 	}
+	
+	override function copy():EnumValueMap<K, V> {
+		var copied = new EnumValueMap<K, V>();
+		copied.root = root;
+		return copied;
+	}
+	
 }

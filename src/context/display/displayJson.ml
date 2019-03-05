@@ -44,19 +44,10 @@ let send_string j =
 let send_json json =
 	send_string (string_of_json json)
 
-let debug_context_sign = ref None
-
 class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 	val cs = cs;
 
 	method get_cs = cs
-
-	method set_debug_context_sign sign =
-		debug_context_sign := sign
-
-	method get_sign = match !debug_context_sign with
-		| None -> Define.get_signature com.defines
-		| Some sign -> sign
 
 	method enable_display mode =
 		com.display <- create mode;
@@ -108,7 +99,7 @@ let handler =
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
-					"minor",jint 1;
+					"minor",jint 2;
 					"patch",jint 0;
 				]
 			])
@@ -156,38 +147,28 @@ let handler =
 			hctx.display#enable_display DMSignature
 		);
 		"server/readClassPaths", (fun hctx ->
-			hctx.com.callbacks.after_init_macros <- (fun () ->
+			hctx.com.callbacks#add_after_init_macros (fun () ->
 				CompilationServer.set_initialized hctx.display#get_cs;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
-				hctx.send_result (jstring "class paths read");
-			) :: hctx.com.callbacks.after_init_macros;
+				let files = CompilationServer.get_files hctx.display#get_cs in
+				hctx.send_result (jobject [
+					"files", jint (Hashtbl.length files)
+				]);
+			)
 		);
 		"server/contexts", (fun hctx ->
-			let l = List.map (fun (sign,(jo,_)) -> jobject [
-				"signature",jstring (Digest.to_hex sign);
-				"context",jo;
-			]) (CompilationServer.get_signs hctx.display#get_cs) in
+			let l = List.map (fun (sign,csign) -> csign.cs_json) (CompilationServer.get_signs hctx.display#get_cs) in
 			hctx.send_result (jarray l)
 		);
-		"server/select", (fun hctx ->
-			let i = hctx.jsonrpc#get_int_param "index" in
-			let (sign,_) = try
-				CompilationServer.get_sign_by_index hctx.display#get_cs i
-			with Not_found ->
-				hctx.send_error [jstring "No such context"]
-			in
-			hctx.display#set_debug_context_sign (Some sign);
-			hctx.send_result (jstring (Printf.sprintf "Context %i selected" i))
-		 );
-		 "server/modules", (fun hctx ->
-			let sign = hctx.display#get_sign in
+		"server/modules", (fun hctx ->
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let l = Hashtbl.fold (fun (_,sign') m acc ->
 				if sign = sign' && m.m_extra.m_kind <> MFake then jstring (s_type_path m.m_path) :: acc else acc
 			) hctx.display#get_cs.cache.c_modules [] in
 			hctx.send_result (jarray l)
-		 );
+		);
 		"server/module", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let m = try
 				CompilationServer.find_module hctx.display#get_cs (path,sign)
@@ -197,14 +178,14 @@ let handler =
 			hctx.send_result (generate_module () m)
 		);
 		"server/files", (fun hctx ->
-			let sign = hctx.display#get_sign in
+			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
 			let files = Hashtbl.fold (fun (file,sign') decls acc -> if sign = sign' then (file,decls) :: acc else acc) files [] in
 			let files = List.map (fun (file,cfile) ->
 				jobject [
 					"file",jstring file;
 					"time",jfloat cfile.c_time;
-					"package",jstring (String.concat "." cfile.c_package);
+					"pack",jstring (String.concat "." cfile.c_package);
 					"moduleName",jopt jstring cfile.c_module_name;
 				]
 			) files in
@@ -232,6 +213,18 @@ let handler =
 				()
 			) ();
 			hctx.send_result (jarray !l)
+		);
+		"server/memory",(fun hctx ->
+			let j = DisplayOutput.Memory.get_memory_json hctx.display#get_cs in
+			hctx.send_result j
+		);
+		(* TODO: wait till gama complains about the naming, then change it to something else *)
+		"typer/compiledTypes", (fun hctx ->
+			hctx.com.callbacks#add_after_filters (fun () ->
+				let ctx = create_context GMFull in
+				let l = List.map (generate_module_type ctx) hctx.com.types in
+				hctx.send_result (jarray l)
+			);
 		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileSystemDirectoryReader>
 **/
 @:native("FileSystemDirectoryReader")
-extern class FileSystemDirectoryReader
-{
+extern class FileSystemDirectoryReader {
 	/** @throws DOMError */
 	@:overload( function( successCallback : haxe.Constraints.Function, ?errorCallback : haxe.Constraints.Function) : Void {} )
 	@:overload( function( successCallback : FileSystemEntriesCallback, ?errorCallback : ErrorCallback) : Void {} )

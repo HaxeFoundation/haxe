@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -69,7 +69,11 @@ class WeakMap<K:{},V> extends flash.utils.Dictionary implements haxe.Constraints
 	}
 
 	#end
-	
+
+	public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : WeakMap<K,V> {
 		var copied = new WeakMap();
 		for(key in keys()) copied.set(key, get(key));

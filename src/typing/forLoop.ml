@@ -75,8 +75,8 @@ module IterationKind = struct
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
 					let unroll = unroll (abs diff) in
-					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff < 0)
-					else IteratorIntConst(efrom,eto,diff < 0)
+					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
+					else IteratorIntConst(efrom,eto,diff <= 0)
 				| _ ->
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
@@ -97,6 +97,7 @@ module IterationKind = struct
 		| _,TAbstract({a_impl = Some c} as a,tl) ->
 			begin try
 				let cf_length = PMap.find "get_length" c.cl_statics in
+				if PMap.exists "iterator" c.cl_statics then raise Not_found;
 				let get_length e p =
 					make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
 				in
@@ -161,6 +162,19 @@ module IterationKind = struct
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
 		in
+		let check_loop_var_modification vl e =
+			let rec loop e =
+				match e.eexpr with
+				| TBinop (OpAssign,{ eexpr = TLocal l },_)
+				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
+				| TUnop (Increment,_,{ eexpr = TLocal l })
+				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
+					error "Loop variable cannot be modified" e.epos
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
+		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
 			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
@@ -191,10 +205,12 @@ module IterationKind = struct
 		in
 		match iterator.it_kind with
 		| IteratorIntUnroll(offset,length,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
-					| TLocal v' when v == v' -> ei
+					| TLocal v' when v == v' -> {ei with epos = e.epos}
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in
@@ -202,6 +218,8 @@ module IterationKind = struct
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
@@ -216,6 +234,7 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
+			check_loop_var_modification [v] e2;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in

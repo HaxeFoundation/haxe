@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -133,6 +133,11 @@ let string_of_char_code i =
 let from_char_code i =
 	create_with_length (string_of_char_code i) 1
 
+type scan_result =
+	| ScanHit
+	| ScanAscii
+	| ScanOther
+
 let find_substring this sub reverse =
 	let cl_this = this.slength in
 	let cl_sub = sub.slength in
@@ -141,25 +146,34 @@ let find_substring this sub reverse =
 	let s_this = this.sstring in
 	let s_sub = sub.sstring in
 	let rec scan b_index b_len =
-		if b_len = bl_sub then true
-		else if String.unsafe_get s_this (b_index + b_len) = String.unsafe_get s_sub b_len then scan b_index (b_len + 1)
-		else false
+		let c = String.unsafe_get s_this (b_index + b_len) in
+		if c = String.unsafe_get s_sub b_len then begin
+			if b_len + 1 = bl_sub then ScanHit
+			else scan b_index (b_len + 1)
+		end else if c <= '\127' then
+			ScanAscii
+		else
+			ScanOther
 	in
 	if not reverse then begin
 		let rec loop c_index b_index =
 			if c_index > cl_this - cl_sub || b_index >= bl_this then raise Not_found;
-			if scan b_index 0 then
+			match scan b_index 0 with
+			| ScanHit ->
 				c_index,b_index,b_index + bl_sub
-			else
+			| ScanAscii ->
+				loop (c_index + 1) (b_index + 1)
+			| ScanOther ->
 				loop (c_index + 1) (UTF8.next s_this b_index)
 		in
 		loop
 	end else begin
 		let rec loop c_index b_index =
-			if b_index < 0 then raise Not_found;
-			if scan b_index 0 then
+			if c_index > cl_this - cl_sub || b_index < 0 then raise Not_found;
+			match scan b_index 0 with
+			| ScanHit ->
 				c_index,b_index,b_index + bl_sub
-			else
+			| _ ->
 				loop (c_index - 1) (UTF8.prev s_this b_index)
 		in
 		loop

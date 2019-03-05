@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -354,24 +354,10 @@ let parse_path s =
 	| [] -> [],"" (* This is how old extlib behaved. *)
 	| x :: l -> List.rev l, x
 
-let s_escape ?(hex=true) s =
-	let b = Buffer.create (String.length s) in
-	for i = 0 to (String.length s) - 1 do
-		match s.[i] with
-		| '\n' -> Buffer.add_string b "\\n"
-		| '\t' -> Buffer.add_string b "\\t"
-		| '\r' -> Buffer.add_string b "\\r"
-		| '"' -> Buffer.add_string b "\\\""
-		| '\\' -> Buffer.add_string b "\\\\"
-		| c when int_of_char c < 32 && hex -> Buffer.add_string b (Printf.sprintf "\\x%.2X" (int_of_char c))
-		| c -> Buffer.add_char b c
-	done;
-	Buffer.contents b
-
 let s_constant = function
 	| Int s -> s
 	| Float s -> s
-	| String s -> "\"" ^ s_escape s ^ "\""
+	| String s -> "\"" ^ StringHelper.s_escape s ^ "\""
 	| Ident s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
@@ -515,8 +501,8 @@ let unescape s =
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'x' ->
-					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
-					Buffer.add_char b c;
+					let u = (try (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
+					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
 					let (u, a) =
@@ -531,9 +517,7 @@ let unescape s =
 						with _ ->
 							fail()
 					in
-					let ub = UTF8.Buf.create 0 in
-					UTF8.Buf.add_char ub (UChar.uchar_of_int u);
-					Buffer.add_string b (UTF8.Buf.contents ub);
+					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
 					fail());
@@ -715,7 +699,7 @@ let iter_expr loop (e,p) =
 	| EVars vl -> List.iter (fun (_,_,_,eo) -> opt eo) vl
 
 let s_object_key_name name =  function
-	| DoubleQuotes -> "\"" ^ s_escape name ^ "\""
+	| DoubleQuotes -> "\"" ^ StringHelper.s_escape name ^ "\""
 	| NoQuotes -> name
 
 let s_display_kind = function

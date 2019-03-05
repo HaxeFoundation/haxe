@@ -1,6 +1,6 @@
 package flash.filters;
 
-@:final extern class GradientBevelFilter extends BitmapFilter {
+extern final class GradientBevelFilter extends BitmapFilter {
 	var alphas : Array<Dynamic>;
 	var angle : Float;
 	var blurX : Float;

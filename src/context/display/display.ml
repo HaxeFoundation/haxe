@@ -126,11 +126,19 @@ module ExprPreprocessing = struct
 				annotate e DKStructure
 			| EDisplay _ ->
 				raise Exit
+			| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->
+				annotate_marked e
 			| EConst (String _) when (not (Lexer.is_fmt_string (pos e)) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
 				(* TODO: check if this makes any sense *)
 				raise Exit
 			| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
 				raise Exit
+			| EVars vl when is_annotated (pos e) ->
+				(* We only want to mark EVars if we're on a var name. *)
+				if List.exists (fun ((_,pn),_,_,_) -> is_annotated pn) vl then
+					annotate_marked e
+				else
+					raise Exit
 			| _ ->
 				if is_annotated (pos e) then
 					annotate_marked e

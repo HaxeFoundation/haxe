@@ -1,6 +1,6 @@
 package flash.media;
 
-@:final @:require(flash10_2) extern class MicrophoneEnhancedOptions {
+@:require(flash10_2) extern final class MicrophoneEnhancedOptions {
 	var autoGain : Bool;
 	var echoPath : Int;
 	var isVoiceDetected : Int;

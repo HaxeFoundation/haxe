@@ -77,12 +77,17 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
-	public function noCompletionPoint(f:Void -> Void):Bool {
+	public function diagnostics():Array<Diagnostic<Any>> {
+		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
+		return if (result == null) [] else result.diagnostics;
+	}
+
+	public function hasErrorMessage(f:Void -> Void, message:String) {
 		return try {
 			f();
 			false;
 		} catch(exc:HaxeInvocationException) {
-			return exc.message.indexOf("No completion point") != -1;
+			return exc.message.indexOf(message) != -1;
 		}
 	}
 
@@ -90,6 +95,7 @@ class DisplayTestContext {
 		var args = [
 			"-cp", "src",
 			"-D", "display-stdin",
+			"-lib", "utest",
 			"--display",
 			source.path + "@" + displayPart,
 		];

@@ -1,5 +1,5 @@
 (*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -625,7 +625,7 @@ let optimize dump get_str (f:fundecl) =
 			) (fun w ->	w) op in
 			set_op i op;
 			(match op with
-			| OMov (d, v) when d = v ->
+			| OMov (d, v) | OToInt (d, v) | OToSFloat (d,v) when d = v ->
 				add_reg_moved i d v;
 				set_nop i "mov"
 			| OMov (d, v) ->
@@ -646,6 +646,10 @@ let optimize dump get_str (f:fundecl) =
 				let s = state.(r) in
 				do_write r;
 				s.rnullcheck <- true;
+			| OToVirtual (v,o) ->
+				do_read o;
+				do_write v;
+				state.(v).rnullcheck <- state.(o).rnullcheck
 			| _ ->
 				opcode_fx (fun r read ->
 					if read then do_read r else do_write r

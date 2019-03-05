@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode>
 **/
 @:native("BiquadFilterNode")
-extern class BiquadFilterNode extends AudioNode
-{
+extern class BiquadFilterNode extends AudioNode {
 	
 	/**
 		Is a string value defining the kind of filtering algorithm the node is implementing.<br>

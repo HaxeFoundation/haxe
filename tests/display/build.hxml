@@ -1,5 +1,5 @@
 -p src
 --main Main
+-lib utest
 --interp
 -D use-rtti-doc
-# -D test=Issue7326

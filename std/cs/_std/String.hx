@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +25,8 @@ import cs.StdTypes;
 
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
+
+	private static function CompareOrdinal(s1:String, s2:String):Int;
 
 	var length(default,null) : Int;
 

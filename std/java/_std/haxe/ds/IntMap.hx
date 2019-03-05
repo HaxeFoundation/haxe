@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -124,7 +124,7 @@ import java.NativeArray;
 		}
 	}
 
-	@:final private function lookup( key : Int ) : Int
+	private final function lookup( key : Int ) : Int
 	{
 		if (nBuckets != 0)
 		{
@@ -264,7 +264,7 @@ import java.NativeArray;
 		}
 	}
 
-	@:final private function resize(newNBuckets:Int) : Void
+	private final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newFlags = null;
@@ -397,6 +397,11 @@ import java.NativeArray;
 		return new IntMapValueIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> 
+	{
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
+
 	public function copy() : IntMap<T> {
 		var copied = new IntMap();
 		for(key in keys()) copied.set(key, get(key));
@@ -501,8 +506,7 @@ import java.NativeArray;
 }
 
 @:access(haxe.ds.IntMap)
-@:final
-private class IntMapKeyIterator<T>
+private final class IntMapKeyIterator<T>
 {
 	var m:IntMap<T>;
 	var i:Int;
@@ -541,8 +545,7 @@ private class IntMapKeyIterator<T>
 }
 
 @:access(haxe.ds.IntMap)
-@:final
-private class IntMapValueIterator<T>
+private final class IntMapValueIterator<T>
 {
 	var m:IntMap<T>;
 	var i:Int;

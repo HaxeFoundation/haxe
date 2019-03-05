@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -102,6 +102,7 @@ let was_auto_triggered = ref false
 let display_mode = ref DMNone
 let in_macro = ref false
 let had_resume = ref false
+let code_ref = ref (Sedlexing.Utf8.from_string "")
 let delayed_syntax_completion : (syntax_completion * pos) option ref = ref None
 
 let reset_state () =
@@ -111,6 +112,7 @@ let reset_state () =
 	display_position := null_pos;
 	in_macro := false;
 	had_resume := false;
+	code_ref := Sedlexing.Utf8.from_string "";
 	delayed_syntax_completion := None
 
 (* Per-file state *)
@@ -221,6 +223,14 @@ let make_is e (t,p_t) p p_is =
 	let e_is = EField((EConst(Ident "Std"),null_pos),"is"),p_is in
 	let e2 = expr_of_type_path (t.tpackage,t.tname) p_t in
 	ECall(e_is,[e;e2]),p
+
+let handle_xml_literal p1 =
+	Lexer.reset();
+	let i = Lexer.lex_xml p1.pmin !code_ref in
+	let xml = Lexer.contents() in
+	let e = EConst (String xml),{p1 with pmax = i} in
+	let e = make_meta Meta.Markup [] e p1 in
+	e
 
 let next_token s = match Stream.peek s with
 	| Some (Eof,p) ->

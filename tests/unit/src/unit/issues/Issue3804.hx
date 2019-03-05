@@ -8,5 +8,6 @@ private class C<T> {
 class Issue3804 extends Test {
 	function test() {
 		var v:C<Int> = new C();
+		noAssert();
 	}
 }

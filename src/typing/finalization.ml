@@ -45,7 +45,7 @@ let get_main ctx types =
 
 let finalize ctx =
 	flush_pass ctx PFinal "final";
-	match ctx.com.callbacks.after_typing with
+	match ctx.com.callbacks#get_after_typing with
 		| [] ->
 			()
 		| fl ->
