@@ -3001,10 +3001,7 @@ let init_constructors builtins =
 				let f () =
 					let id = Thread.id (Thread.self()) in
 					let new_eval = {env = null_env} in
-					if DynArray.length ctx.evals = id then
-						DynArray.add ctx.evals new_eval
-					else
-						DynArray.set ctx.evals id new_eval;
+					ctx.evals <- IntMap.add id new_eval ctx.evals;
 					try
 						ignore(call_value f []);
 					with RunTimeException(v,stack,p) ->

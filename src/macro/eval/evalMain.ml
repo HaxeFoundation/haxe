@@ -102,11 +102,10 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let evals = DynArray.create () in
 	let eval = {
 		env = null_env;
 	} in
-	DynArray.add evals eval;
+	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
