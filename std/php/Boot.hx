@@ -194,6 +194,13 @@ class Boot {
 	}
 
 	/**
+		Check if provided value is an anonymous object
+	**/
+	public static inline function isAnon(v:Any) : Bool {
+		return Std.is(v, HxAnon);
+	}
+
+	/**
 		Returns Class<HxClass>
 	**/
 	public static inline function getHxClass() : HxClass {

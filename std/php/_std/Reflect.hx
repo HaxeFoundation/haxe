@@ -153,10 +153,8 @@ using php.Global;
 	}
 
 	public static function copy<T>( o : T ) : T {
-		if (Global.is_object(o)) {
-			var fields = Global.get_object_vars(cast o);
-			var hxAnon = Boot.getHxAnon().phpClassName;
-			return Syntax.construct(hxAnon, fields);
+		if (Boot.isAnon(o)) {
+			return Syntax.clone(o);
 		} else {
 			return null;
 		}
