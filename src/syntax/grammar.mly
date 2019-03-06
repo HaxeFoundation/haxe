@@ -30,13 +30,16 @@ let rec plist f = parser
 	| [< v = f; l = plist f >] -> v :: l
 	| [< >] -> []
 
-let rec psep sep f = parser
+let rec psep_nonempty sep f = parser
 	| [< v = f; s >] ->
 		let rec loop = parser
 			| [< '(sep2,_) when sep2 = sep; v = f; l = loop >] -> v :: l
 			| [< >] -> []
 		in
 		v :: loop s
+
+let rec psep sep f = parser
+	| [< r = psep_nonempty sep f >] -> r
 	| [< >] -> []
 
 let pignore f =
@@ -751,8 +754,9 @@ and parse_var_field_assignment = parser
 
 and parse_class_field tdecl s =
 	let doc = get_doc s in
+	let meta = parse_meta s in
 	match s with parser
-	| [< meta = parse_meta; al = plist parse_cf_rights; s >] ->
+	| [< al = plist parse_cf_rights; s >] ->
 		let check_optional opt name =
 			if opt then begin
 				if not tdecl then syntax_error (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
@@ -851,11 +855,22 @@ and parse_fun_param_type = parser
 	| [< name = ident; t = parse_type_hint >] -> (name,false,t)
 
 and parse_constraint_params = parser
-	| [< '(Binop OpLt,_); l = psep Comma parse_constraint_param; '(Binop OpGt,_) >] -> l
+	| [< '(Binop OpLt,p); s >] ->
+		begin match s with parser
+		| [< l = psep_nonempty Comma parse_constraint_param; '(Binop OpGt,_) >] -> l
+		| [< >] ->
+			let pos = match s with parser
+			| [< '(Binop OpGt,p) >] -> Some p (* junk > so we don't get weird follow-up errors *)
+			| [< >] -> None
+			in
+			syntax_error (Expected ["type parameter"]) ~pos s [];
+		end
 	| [< >] -> []
 
-and parse_constraint_param = parser
-	| [< meta = parse_meta; name = type_name; s >] ->
+and parse_constraint_param s =
+	let meta = parse_meta s in
+	match s with parser
+	| [< name = type_name; s >] ->
 		let params = (match s with parser
 			| [< >] -> []
 		) in
@@ -872,6 +887,10 @@ and parse_constraint_param = parser
 			tp_constraints = cto;
 			tp_meta = meta;
 		}
+	| [< >] ->
+		(* If we have a metadata but no name afterwards, we have to fail hard. *)
+		if meta <> [] then syntax_error (Expected ["type name"]) s ();
+		raise Stream.Failure;
 
 and parse_type_path_or_resume p1 s =
 	let pnext = next_pos s in
