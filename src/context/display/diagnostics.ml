@@ -185,7 +185,7 @@ module Printer = struct
 		) com.shared.shared_display_information.import_positions;
 		List.iter (fun (s,p,kind,sev) ->
 			add kind p sev (JString s)
-		) com.shared.shared_display_information.diagnostics_messages;
+		) (List.rev com.shared.shared_display_information.diagnostics_messages);
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) dctx.removable_code;
