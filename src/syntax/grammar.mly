@@ -1404,7 +1404,7 @@ and parse_call_params f p1 s =
 		match s with parser
 		| [< '(PClose,p2) >] -> f el p2
 		| [< >] ->
-			let expected = if el = [] then ["expression"] else [",";")"] in
+			let expected = if el = [] then ["expression";")"] else [",";")"] in
 			syntax_error (Expected expected) s (f el (last_pos s))
 	end else begin
 		let rec parse_next_param acc p1 =
@@ -1412,7 +1412,7 @@ and parse_call_params f p1 s =
 				expr s
 			with
 			| Stream.Failure ->
-				syntax_error (Expected ["expression"]) s ();
+				syntax_error (Expected ["expression";")"]) s ();
 				mk_null_expr (punion_next p1 s)
 			| Stream.Error msg ->
 				syntax_error (StreamError msg) s ();
