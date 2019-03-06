@@ -301,9 +301,6 @@ let make_macro_api ctx p =
 			| None -> Interp.vnull
 			| Some (_,_,fields) -> Interp.encode_array (List.map Interp.encode_field fields)
 		);
-		MacroApi.get_pattern_locals = (fun e t ->
-			!get_pattern_locals_ref ctx e t
-		);
 		MacroApi.define_type = (fun v mdep ->
 			let cttype = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some ("TypeDefinition") } in
 			let mctx = (match ctx.g.macros with None -> assert false | Some (_,mctx) -> mctx) in

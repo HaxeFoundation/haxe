@@ -2313,11 +2313,7 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		let et = type_expr ctx e WithType.value in
 		(match follow et.etype with
 			| TEnum _ ->
-				let e = Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) p in
-				(* TODO: add that back *)
-(* 				let locals = !get_pattern_locals_ref ctx epat t in
-				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals; *)
-				e
+				Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 			| _ -> def ())
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
@@ -2429,7 +2425,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
-		let e = Matcher.Match.match_expr ctx e1 cases def with_type p in
+		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
 		type_return ctx e with_type p
