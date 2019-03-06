@@ -159,6 +159,15 @@ let syntax_error error_msg ?(pos=None) s v =
 	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
 
+let handle_stream_error msg s =
+	let err,pos = if msg = "" then begin
+		let tk,pos = next_token s in
+		(Unexpected tk),Some pos
+	end else
+		(StreamError msg),None
+	in
+	syntax_error err ~pos s ()
+
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
 	match Stream.peek s with

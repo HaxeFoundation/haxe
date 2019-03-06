@@ -143,8 +143,7 @@ module Printer = struct
 	open CompletionItem
 	open CompletionModuleType
 
-	let print_diagnostics dctx ctx global =
-		let com = dctx.com in
+	let print_diagnostics dctx com global =
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
 			let file = Path.get_real_path p.pfile in

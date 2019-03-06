@@ -724,7 +724,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMDiagnostics global ->
 		let dctx = Diagnostics.prepare com global in
 		(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
-		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx tctx global)
+		raise_diagnostics (Diagnostics.Printer.print_diagnostics dctx com global)
 	| DMStatistics ->
 		let stats = Statistics.collect_statistics tctx (SFFile !DisplayPosition.display_position.pfile) in
 		raise_statistics (Statistics.Printer.print_statistics stats)

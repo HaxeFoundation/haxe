@@ -142,10 +142,9 @@ and parse_type_decls mode pmax pack acc s =
 		) acc;
 		raise (TypePath (pack,Some(name,true),b,p))
 	| Stream.Error msg when !in_display_file ->
-		syntax_error (StreamError msg) s (
-			ignore(resume false false s);
-			parse_type_decls mode (last_pos s).pmax pack acc s
-		)
+		handle_stream_error msg s;
+		ignore(resume false false s);
+		parse_type_decls mode (last_pos s).pmax pack acc s
 
 and parse_abstract doc meta flags = parser
 	| [< '(Kwd Abstract,p1); name = type_name; tl = parse_constraint_params; st = parse_abstract_subtype; sl = plist parse_abstract_relations; s >] ->
@@ -404,7 +403,11 @@ and parse_class_field_resume tdecl s =
 	else try
 		let c = parse_class_field tdecl s in
 		c :: parse_class_field_resume tdecl s
-	with Stream.Error _ | Stream.Failure ->
+	with
+	| Stream.Error msg ->
+		handle_stream_error msg s;
+		if resume tdecl true s then parse_class_field_resume tdecl s else []
+	| Stream.Failure ->
 		if resume tdecl true s then parse_class_field_resume tdecl s else []
 
 and parse_common_flags = parser
@@ -940,13 +943,8 @@ and block_with_pos' acc f p s =
 		| Stream.Failure ->
 			List.rev acc,p
 		| Stream.Error msg when !in_display_file ->
-			let err,pos = if msg = "" then begin
-				let tk,pos = next_token s in
-				(Unexpected tk),Some pos
-			end else
-				(StreamError msg),None
-			in
-			syntax_error err ~pos s (block_with_pos acc (next_pos s) s)
+			handle_stream_error msg s;
+			(block_with_pos acc (next_pos s) s)
 		| Error (e,p) when !in_display_file ->
 			block_with_pos acc p s
 
@@ -1293,7 +1291,8 @@ and expr_next e1 s =
 	try
 		expr_next' e1 s
 	with Stream.Error msg when !in_display ->
-		syntax_error (StreamError msg) s e1
+		handle_stream_error msg s;
+		e1
 
 and expr_next' e1 = parser
 	| [< '(BrOpen,p1) when is_dollar_ident e1; eparam = expr; '(BrClose,p2); s >] ->
@@ -1416,7 +1415,7 @@ and parse_call_params f p1 s =
 				syntax_error (Expected expected) s ();
 				mk_null_expr (punion_next p1 s)
 			| Stream.Error msg ->
-				syntax_error (StreamError msg) s ();
+				handle_stream_error msg s;
 				mk_null_expr (punion_next p1 s)
 			in
 			match s with parser
