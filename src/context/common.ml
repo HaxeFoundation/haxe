@@ -143,7 +143,7 @@ end
 
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
-	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
@@ -703,9 +703,9 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p sev =
+let add_diagnostics_message com s p kind sev =
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
+	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 

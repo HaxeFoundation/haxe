@@ -6,26 +6,11 @@ open Common
 open Display
 open DisplayTypes.DisplayMode
 
-module DiagnosticsKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerError
-		| DKRemovableCode
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerError -> 2
-		| DKRemovableCode -> 3
-end
-
 type diagnostics_context = {
 	com : Common.context;
 	mutable removable_code : (string * pos * pos) list;
 }
 
-open DiagnosticsKind
 open DisplayTypes
 
 let add_removable_code ctx s p prange =
@@ -58,10 +43,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DiagnosticsSeverity.Warning;
+		add_diagnostics_message com "This code has no effect" p DKCompilerError DiagnosticsSeverity.Warning;
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DiagnosticsSeverity.Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerError DiagnosticsSeverity.Warning;
 	in
 	let rec compound s el p =
 		let old = !had_effect in
@@ -199,8 +184,8 @@ module Printer = struct
 		PMap.iter (fun p (r,_) ->
 			if not !r then add DKUnusedImport p DiagnosticsSeverity.Warning (JArray [])
 		) com.shared.shared_display_information.import_positions;
-		List.iter (fun (s,p,sev) ->
-			add DKCompilerError p sev (JString s)
+		List.iter (fun (s,p,kind,sev) ->
+			add kind p sev (JString s)
 		) com.shared.shared_display_information.diagnostics_messages;
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])

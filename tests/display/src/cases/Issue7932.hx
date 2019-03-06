@@ -8,7 +8,7 @@ class Issue7932 extends DisplayTestCase {
 	**/
 	function test() {
 		arrayEq([{
-			kind: DKCompilerError,
+			kind: DKParserError,
 			range: diagnosticsRange(pos(1), pos(2)),
 			severity: Error,
 			args: "Expected type parameter"

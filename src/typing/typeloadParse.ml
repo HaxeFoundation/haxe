@@ -152,7 +152,7 @@ let parse_module' com m p =
 		match com.display.dms_error_policy with
 			| EPShow -> error msg p
 			| EPIgnore -> ()
-			| EPCollect -> add_diagnostics_message com msg p Error
+			| EPCollect -> add_diagnostics_message com msg p DKParserError Error
 	in
 	let pack,decls = match (!parse_hook) com file p with
 		| ParseSuccess data -> data

@@ -12,6 +12,7 @@ enum abstract DiagnosticKind<T>(Int) from Int to Int {
 	var DKUnresolvedIdentifier:DiagnosticKind<Array<{kind:UnresolvedIdentifierSuggestion, name:String}>>;
 	var DKCompilerError:DiagnosticKind<String>;
 	var DKRemovableCode:DiagnosticKind<{description:String, range:Range}>;
+	var DKParserError:DiagnosticKind<String>;
 }
 
 enum abstract DiagnosticSeverity(Int) {

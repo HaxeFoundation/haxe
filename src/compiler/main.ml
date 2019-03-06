@@ -790,7 +790,7 @@ try
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
-				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)
+				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
 				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
