@@ -9,6 +9,7 @@ using Lambda;
 
 class TestContext {
 	public var messages:Array<String> = []; // encapsulation is overrated
+	public var errorMessages = [];
 	public var displayServerConfig:DisplayServerConfigBase;
 
 	public function new(config:DisplayServerConfigBase) {
@@ -54,6 +55,7 @@ class HaxeServerTestCase implements ITest {
 
 	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
 		context.messages = [];
+		context.errorMessages = [];
 		storedTypes = [];
 		if (storeTypes) {
 			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
@@ -64,7 +66,7 @@ class HaxeServerTestCase implements ITest {
 			}
 			done();
 		}, function(message) {
-			Assert.fail(message);
+			context.errorMessages.push(message);
 			done();
 		});
 	}
@@ -82,6 +84,15 @@ class HaxeServerTestCase implements ITest {
 		return false;
 	}
 
+	function hasErrorMessage<T>(msg:String) {
+		for (message in context.errorMessages) {
+			if (message.endsWith(msg)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	function getStoredType(typePackage:String, typeName:String) {
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {
@@ -89,6 +100,10 @@ class HaxeServerTestCase implements ITest {
 			}
 		}
 		return null;
+	}
+
+	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasErrorMessage(message), p);
 	}
 
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {

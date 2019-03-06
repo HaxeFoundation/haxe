@@ -125,12 +125,23 @@ let load_macro_ref : (typer -> bool -> path -> string -> pos -> (typer * ((strin
 
 let make_macro_api ctx p =
 	let parse_expr_string s p inl =
-		typing_timer ctx false (fun() -> try ParserEntry.parse_expr_string ctx.com.defines s p error inl with Exit -> raise MacroApi.Invalid_expr)
+		typing_timer ctx false (fun() ->
+			try
+				begin match ParserEntry.parse_expr_string ctx.com.defines s p error inl with
+					| ParseSuccess data -> data
+					| ParseDisplayFile(data,_) when inl -> data (* ignore errors when inline-parsing in display file *)
+					| ParseDisplayFile _ -> assert false (* cannot happen because ParserEntry.parse_string sets `display_position := null_pos;` *)
+					| ParseError _ -> raise MacroApi.Invalid_expr
+				end
+			with Exit ->
+				raise MacroApi.Invalid_expr)
 	in
 	let parse_metadata s p =
 		try
 			match ParserEntry.parse_string ctx.com.defines (s ^ " typedef T = T") null_pos error false with
-			| _,[ETypedef t,_] -> t.d_meta
+			| ParseSuccess(_,[ETypedef t,_]) -> t.d_meta
+			| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+			| ParseError(_,_,_) -> error "Malformed metadata string" p
 			| _ -> assert false
 		with _ ->
 			error "Malformed metadata string" p
@@ -223,7 +234,9 @@ let make_macro_api ctx p =
 			typing_timer ctx false (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match ParserEntry.parse_string ctx.com.defines ("typedef T = " ^ s) null_pos error false with
-					| _,[ETypedef { d_data = ct },_] -> Some ct
+					| ParseSuccess(_,[ETypedef { d_data = ct },_]) -> Some ct
+					| ParseDisplayFile _ -> assert false (* cannot happen because null_pos is used *)
+					| ParseError(_,(msg,p),_) -> Parser.error msg p (* p is null_pos, but we don't have anything else here... *)
 					| _ -> assert false
 				) in
 				let tp = get_type_patch ctx t (Some (f,s)) in
@@ -470,7 +483,8 @@ let get_macro_context ctx p =
 		ctx.com.get_macros <- (fun() -> Some com2);
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
-		com2.display <- DisplayTypes.DisplayMode.create DMNone;
+		(* Inherit most display settings, but require normal typing. *)
+		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true };
 		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
 		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
@@ -491,6 +505,7 @@ let load_macro_module ctx cpath display p =
 	let api, mctx = get_macro_context ctx p in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	(* Temporarily enter display mode while typing the macro. *)
+	let old = mctx.com.display in
 	if display then mctx.com.display <- ctx.com.display;
 	let mloaded = TypeloadModule.load_module mctx m p in
 	api.MacroApi.current_macro_module <- (fun() -> mloaded);
@@ -502,7 +517,7 @@ let load_macro_module ctx cpath display p =
 		wildcard_packages = [];
 		module_imports = [];
 	};
-	mloaded
+	mloaded,(fun () -> mctx.com.display <- old)
 
 let load_macro ctx display cpath f p =
 	let api, mctx = get_macro_context ctx p in
@@ -513,7 +528,7 @@ let load_macro ctx display cpath f p =
 	) in
 	let (meth,mloaded) = try Hashtbl.find mctx.com.cached_macros (cpath,f) with Not_found ->
 		let t = macro_timer ctx ["typing";s_type_path cpath ^ "." ^ f] in
-		let mloaded = load_macro_module ctx cpath display p in
+		let mloaded,restore = load_macro_module ctx cpath display p in
 		let mt = Typeload.load_type_def mctx p { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = sub } in
 		let cl, meth = (match mt with
 			| TClassDecl c ->
@@ -525,7 +540,7 @@ let load_macro ctx display cpath f p =
 		if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
 			DeprecationCheck.check_cf mctx.com meth p;
 		let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> error "Macro call should be a method" p) in
-		mctx.com.display <- DisplayTypes.DisplayMode.create DMNone;
+		restore();
 		if not ctx.in_macro then flush_macro_context mint ctx;
 		Hashtbl.add mctx.com.cached_macros (cpath,f) meth;
 		mctx.m <- {
@@ -734,7 +749,11 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro " ^ e; pmin = -1; pmax = -1 } in
 	let e = try
-		ParserEntry.parse_expr_string ctx.com.defines e p error false
+		begin match ParserEntry.parse_expr_string ctx.com.defines e p error false with
+		| ParseSuccess data -> data
+		| ParseError(_,(msg,p),_) -> (Parser.error msg p)
+		| ParseDisplayFile _ -> assert false (* cannot happen *)
+		end
 	with err ->
 		display_error ctx ("Could not parse `" ^ e ^ "`") p;
 		raise err

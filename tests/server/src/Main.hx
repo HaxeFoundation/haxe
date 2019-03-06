@@ -77,6 +77,17 @@ class ServerTests extends HaxeServerTestCase {
 		assertSkipping("BuiltClass", "BuildMacro");
 		assertSkipping("BuildMacro");
 	}
+
+	function testBrokenSyntaxDiagnostics() {
+		vfs.putContent("BrokenSyntax.hx", getTemplate("BrokenSyntax.hx"));
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		var args = ["-main", "BrokenSyntax.hx", "--interp", "--no-output"];
+		runHaxe(args);
+		assertErrorMessage("Expected }");
+		runHaxe(args.concat(["--display", "Empty.hx@0@diagnostics"]));
+		runHaxe(args);
+		assertErrorMessage("Expected }");
+	}
 }
 
 class Main {

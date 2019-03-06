@@ -30,6 +30,8 @@ type error_msg =
 	| Unclosed_macro
 	| Unimplemented
 	| Missing_type
+	| Expected of string list
+	| StreamError of string
 	| Custom of string
 
 type decl_flag =
@@ -60,13 +62,26 @@ let error_msg = function
 	| Unclosed_macro -> "Unclosed macro"
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
+	| Expected sl -> "Expected " ^ (String.concat " or " sl)
+	| StreamError s -> s
 	| Custom s -> s
+
+type parse_data = string list * (type_def * pos) list
+
+type parse_error = (error_msg * pos)
+
+type 'a parse_result =
+	(* Parsed display file. There can be errors. *)
+	| ParseDisplayFile of 'a * parse_error list
+	(* Parsed non-display-file without errors. *)
+	| ParseSuccess of 'a
+	(* Parsed non-display file with errors *)
+	| ParseError of 'a * parse_error * parse_error list
 
 let syntax_completion kind p =
 	raise (SyntaxCompletion(kind,p))
 
 let error m p = raise (Error (m,p))
-let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
 let special_identifier_files : (string,string) Hashtbl.t = Hashtbl.create 0
 
@@ -95,6 +110,22 @@ module TokenCache = struct
 		(fun () -> cache := old_cache)
 end
 
+let last_token s =
+	let n = Stream.count s in
+	TokenCache.get (if n = 0 then 0 else n - 1)
+
+let last_pos s = pos (last_token s)
+
+let next_token s = match Stream.peek s with
+	| Some (Eof,p) ->
+		(Eof,{p with pmax = max_int})
+	| Some tk -> tk
+	| None ->
+		let last_pos = pos (last_token s) in
+		(Eof,{last_pos with pmax = max_int})
+
+let next_pos s = pos (next_token s)
+
 (* Global state *)
 
 let in_display = ref false
@@ -119,12 +150,13 @@ let reset_state () =
 
 let in_display_file = ref false
 let last_doc : (string * int) option ref = ref None
+let syntax_errors = ref []
 
-let last_token s =
-	let n = Stream.count s in
-	TokenCache.get (if n = 0 then 0 else n - 1)
-
-let last_pos s = pos (last_token s)
+let syntax_error error_msg ?(pos=None) s v =
+	let p = (match pos with Some p -> p | None -> next_pos s) in
+	if not !in_display then error error_msg p;
+	syntax_errors := (error_msg,p) :: !syntax_errors;
+	v
 
 let get_doc s =
 	(* do the peek first to make sure we fetch the doc *)
@@ -231,16 +263,6 @@ let handle_xml_literal p1 =
 	let e = EConst (String xml),{p1 with pmax = i} in
 	let e = make_meta Meta.Markup [] e p1 in
 	e
-
-let next_token s = match Stream.peek s with
-	| Some (Eof,p) ->
-		(Eof,{p with pmax = max_int})
-	| Some tk -> tk
-	| None ->
-		let last_pos = pos (last_token s) in
-		(Eof,{last_pos with pmax = max_int})
-
-let next_pos s = pos (next_token s)
 
 let punion_next p1 s =
 	let _,p2 = next_token s in

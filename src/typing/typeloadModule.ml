@@ -899,7 +899,11 @@ let handle_import_hx ctx m decls p =
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let _,r = TypeloadParse.parse_file ctx.com path p in
+				let _,r = match TypeloadParse.parse_file ctx.com path p with
+					| ParseSuccess data -> data
+					| ParseDisplayFile(data,_) -> data
+					| ParseError(_,(msg,p),_) -> Parser.error msg p
+				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
 				add_dependency m (make_import_module path r);
 				r

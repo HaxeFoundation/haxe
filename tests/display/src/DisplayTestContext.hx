@@ -14,6 +14,10 @@ class HaxeInvocationException {
 		this.arguments = arguments;
 		this.source = source;
 	}
+
+	public function toString() {
+		return 'HaxeInvocationException($message, $fieldName, $arguments, $source])';
+	}
 }
 
 class DisplayTestContext {
