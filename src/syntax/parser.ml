@@ -154,6 +154,7 @@ let syntax_errors = ref []
 
 let syntax_error error_msg ?(pos=None) s v =
 	let p = (match pos with Some p -> p | None -> next_pos s) in
+	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not !in_display then error error_msg p;
 	syntax_errors := (error_msg,p) :: !syntax_errors;
 	v
