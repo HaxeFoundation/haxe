@@ -1,3 +1,5 @@
+import haxe.io.BytesBuffer;
+
 using StringTools;
 
 import Types;
@@ -21,6 +23,8 @@ class HaxeInvocationException {
 }
 
 class DisplayTestContext {
+	static var haxeServer = new sys.io.Process("haxe", ["--wait", "stdio"]);
+
 	var markers:Map<Int, Int>;
 	var fieldName:String;
 
@@ -108,20 +112,31 @@ class DisplayTestContext {
 			"--display",
 			source.path + "@" + displayPart,
 		];
-		var stdin = source.content;
-		var proc = new sys.io.Process("haxe", args);
-		proc.stdin.writeString(stdin);
-		proc.stdin.close();
-		var stderr = proc.stderr.readAll();
-		var stdout = proc.stdout.readAll();
-		var exit = proc.exitCode();
-		proc.close();
-		var success = exit == 0;
-		var s = stderr.toString();
-		if (!success || s == "") {
-			throw new HaxeInvocationException(s, fieldName, args, stdin);
+		var bb = new BytesBuffer();
+		bb.addString(args.join("\n"));
+		bb.addByte(1);
+		bb.addString(source.content);
+		var b = bb.getBytes();
+		haxeServer.stdin.writeInt32(b.length);
+		haxeServer.stdin.write(b);
+		var data = haxeServer.stderr.readString(haxeServer.stderr.readInt32());
+		var buf = new StringBuf();
+		var hasError = false;
+		for (line in data.split("\n")) {
+			switch (line.fastCodeAt(0)) {
+				case 0x01: // print
+				case 0x02: // error
+					hasError = true;
+				default:
+					buf.add(line);
+					buf.addChar("\n".code);
+			}
 		}
-		return s;
+		var s = buf.toString().trim();
+		if (hasError || s == "") {
+			throw new HaxeInvocationException(s, fieldName, args, source.content);
+		}
+		return s.toString();
 	}
 
 	static function extractType(result:String) {
