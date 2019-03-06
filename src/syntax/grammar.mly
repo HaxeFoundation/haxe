@@ -1412,7 +1412,8 @@ and parse_call_params f p1 s =
 				expr s
 			with
 			| Stream.Failure ->
-				syntax_error (Expected ["expression";")"]) s ();
+				let expected = "expression" :: (if acc = [] then [")"] else []) in
+				syntax_error (Expected expected) s ();
 				mk_null_expr (punion_next p1 s)
 			| Stream.Error msg ->
 				syntax_error (StreamError msg) s ();
