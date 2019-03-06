@@ -310,7 +310,7 @@ let check_resume_range p s fyes fno =
 		fno()
 
 let check_type_decl_flag_completion mode flags s =
-	if not !in_display_file then raise Stream.Failure;
+	if not !in_display_file || not (is_completion()) then raise Stream.Failure;
 	let check_type_completion () = match Stream.peek s with
 		(* If there's an identifier coming up, it's probably an incomplete type
 			declaration. Let's just raise syntax completion in that case because
@@ -328,7 +328,7 @@ let check_type_decl_flag_completion mode flags s =
 		check_type_completion()
 
 let check_type_decl_completion mode pmax s =
-	if !in_display_file then begin
+	if !in_display_file && is_completion() then begin
 		let pmin = match Stream.peek s with
 			| Some (Eof,_) | None -> max_int
 			| Some tk -> (pos tk).pmin
