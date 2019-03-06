@@ -818,8 +818,8 @@ try
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
 	let run_or_diagnose f arg =
-		let handle_diagnostics global msg p =
-			add_diagnostics_message com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error;
+		let handle_diagnostics global msg p kind =
+			add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
 			Diagnostics.run com global;
 		in
 		match com.display.dms_kind with
@@ -828,11 +828,11 @@ try
 				f arg
 			with
 			| Error.Error(msg,p) ->
-				handle_diagnostics global (Error.error_msg msg) p
+				handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
 			| Parser.Error(msg,p) ->
-				handle_diagnostics global (Parser.error_msg msg) p
+				handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 			| Lexer.Error(msg,p) ->
-				handle_diagnostics global (Lexer.error_msg msg) p
+				handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
 			end
 		| _ ->
 			f arg
