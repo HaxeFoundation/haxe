@@ -1,8 +1,9 @@
 import haxe.display.Position;
 
 class File {
-	public var content(default,null):String;
-	public var path(default,null):String;
+	public var content(default, null):String;
+	public var path(default, null):String;
+
 	var lines:Array<Int>;
 
 	public function new(path:String, content:String) {
@@ -16,8 +17,12 @@ class File {
 		// составляем массив позиций начала строк
 		var s = 0, p = 0;
 		while (p < content.length) {
-			inline function nextChar() return StringTools.fastCodeAt(content, p++);
-			inline function line() { lines.push(s); s = p; };
+			inline function nextChar()
+				return StringTools.fastCodeAt(content, p++);
+			inline function line() {
+				lines.push(s);
+				s = p;
+			};
 			switch (nextChar()) {
 				case "\n".code:
 					line();
@@ -32,13 +37,12 @@ class File {
 		function loop(min, max) {
 			var mid = (min + max) >> 1;
 			var start = lines[mid];
-			return
-				if (mid == min)
-					{line: mid, character: pos - start + 1};
-				else if (start > pos)
-					loop(min, mid);
-				else
-					loop(mid, max);
+			return if (mid == min)
+				{line: mid, character: pos - start + 1};
+			else if (start > pos)
+				loop(min, mid);
+			else
+				loop(mid, max);
 		}
 		return loop(0, lines.length);
 	}
@@ -54,15 +58,14 @@ class File {
 		var range = findRange(min, max);
 		var start = range.start;
 		var end = range.end;
-		var pos =
-			if (start.line == end.line) {
-				if (start.character == end.character)
-					'character ${start.character}';
-				else
-					'characters ${start.character}-${end.character}';
-			} else {
-				'lines ${start.line + 1}-${end.line + 1}';
-			}
+		var pos = if (start.line == end.line) {
+			if (start.character == end.character)
+				'character ${start.character}';
+			else
+				'characters ${start.character}-${end.character}';
+		} else {
+			'lines ${start.line + 1}-${end.line + 1}';
+		}
 		return '$path:${start.line + 1}: $pos';
 	}
 

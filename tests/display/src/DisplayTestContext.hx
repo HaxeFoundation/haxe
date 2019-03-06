@@ -1,8 +1,8 @@
 using StringTools;
+
 import Types;
 
 class HaxeInvocationException {
-
 	public var message:String;
 	public var fieldName:String;
 	public var arguments:Array<String>;
@@ -21,12 +21,12 @@ class HaxeInvocationException {
 }
 
 class DisplayTestContext {
-	var markers:Map<Int,Int>;
+	var markers:Map<Int, Int>;
 	var fieldName:String;
 
 	public final source:File;
 
-	public function new(path:String, fieldName:String, source:String, markers:Map<Int,Int>) {
+	public function new(path:String, fieldName:String, source:String, markers:Map<Int, Int>) {
 		this.fieldName = fieldName;
 		this.source = new File(path, source);
 		this.markers = markers;
@@ -34,7 +34,8 @@ class DisplayTestContext {
 
 	public function pos(id:Int):Position {
 		var r = markers[id];
-		if (r == null) throw "No such marker: " + id;
+		if (r == null)
+			throw "No such marker: " + id;
 		return new Position(r);
 	}
 
@@ -87,20 +88,23 @@ class DisplayTestContext {
 		return if (result == null) [] else result.diagnostics;
 	}
 
-	public function hasErrorMessage(f:Void -> Void, message:String) {
+	public function hasErrorMessage(f:Void->Void, message:String) {
 		return try {
 			f();
 			false;
-		} catch(exc:HaxeInvocationException) {
+		} catch (exc:HaxeInvocationException) {
 			return exc.message.indexOf(message) != -1;
 		}
 	}
 
 	function callHaxe(displayPart:String):String {
 		var args = [
-			"-cp", "src",
-			"-D", "display-stdin",
-			"-lib", "utest",
+			"-cp",
+			"src",
+			"-D",
+			"display-stdin",
+			"-lib",
+			"utest",
 			"--display",
 			source.path + "@" + displayPart,
 		];
@@ -129,7 +133,7 @@ class DisplayTestContext {
 		return StringTools.trim(xml.firstChild().nodeValue);
 	}
 
-	static function  extractSignatures(result:String) {
+	static function extractSignatures(result:String) {
 		var xml = Xml.parse('<x>$result</x>');
 		xml = xml.firstElement();
 		var ret = [];

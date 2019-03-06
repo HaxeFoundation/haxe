@@ -2,30 +2,30 @@ package cases;
 
 class Issue7281 extends DisplayTestCase {
 	/**
-	extern class PrivateExternConstructor {
-		function new() { }
-	}
-
-	class PrivateConstructor {
-		function new() { }
-
-		static function test() {
-			new {-1-}
+		extern class PrivateExternConstructor {
+			function new() { }
 		}
-	}
 
-	class Ext1 extends PrivateConstructor {
-		static function test() {
-			new {-2-}
-		}
-	}
+		class PrivateConstructor {
+			function new() { }
 
-	class Main {
-		static function main() {
-			new {-3-}
-			@:privateAccess new {-4-}
+			static function test() {
+				new {-1-}
+			}
 		}
-	}
+
+		class Ext1 extends PrivateConstructor {
+			static function test() {
+				new {-2-}
+			}
+		}
+
+		class Main {
+			static function main() {
+				new {-3-}
+				@:privateAccess new {-4-}
+			}
+		}
 	**/
 	function test() {
 		var items = toplevel(pos(1));

@@ -2,19 +2,19 @@ package cases;
 
 class Issue7072 extends DisplayTestCase {
 	/**
-	typedef Struct = {
-		var foo:Int;
-		var bar:Int;
-		var foobar:Int;
-	}
+		typedef Struct = {
+			var foo:Int;
+			var bar:Int;
+			var foobar:Int;
+		}
 
-	class Main {
-		public static function main() {
-			var s:Struct = {
-				{-1-}
+		class Main {
+			public static function main() {
+				var s:Struct = {
+					{-1-}
+				}
 			}
 		}
-	}
 	**/
 	function test() {
 		var results = fields(pos(1));

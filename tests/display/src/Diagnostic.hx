@@ -1,5 +1,4 @@
 // from vshaxe
-
 import haxe.display.Position.Range;
 
 enum abstract UnresolvedIdentifierSuggestion(Int) {

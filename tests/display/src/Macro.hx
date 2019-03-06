@@ -47,7 +47,10 @@ class Macro {
 
 			switch (field.kind) {
 				case FFun(f) if (f.expr != null):
-					f.expr = macro @:pos(f.expr.pos) { ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers); ${f.expr} };
+					f.expr = macro @:pos(f.expr.pos) {
+						ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers);
+						${f.expr}
+					};
 				case _:
 			}
 		}
@@ -71,7 +74,7 @@ class Macro {
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};
 					cases.push(macro new $tp());
-				} else if(Path.join([path, file]).isDirectory()) {
+				} else if (Path.join([path, file]).isDirectory()) {
 					loop(pack.concat([file]));
 				}
 			}
