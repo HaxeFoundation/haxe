@@ -4,7 +4,8 @@
 		{
 			"name": "Interpreter",
 			"type": "haxe-eval",
-			"request": "launch"
+			"request": "launch",
+			"args": ["build.hxml", "-lib", "test-adapter"]
 		}
 	]
 }
