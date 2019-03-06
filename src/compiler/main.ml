@@ -818,14 +818,24 @@ try
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
 	let run_or_diagnose f arg =
-		try
+		let handle_diagnostics global msg p =
+			add_diagnostics_message com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error;
+			Diagnostics.run com global;
+		in
+		match com.display.dms_kind with
+		| DMDiagnostics global ->
+			begin try
+				f arg
+			with
+			| Error.Error(msg,p) ->
+				handle_diagnostics global (Error.error_msg msg) p
+			| Parser.Error(msg,p) ->
+				handle_diagnostics global (Parser.error_msg msg) p
+			| Lexer.Error(msg,p) ->
+				handle_diagnostics global (Lexer.error_msg msg) p
+			end
+		| _ ->
 			f arg
-		with Error.Error(msg,p) as exc ->
-			match com.display.dms_kind with
-			| DMDiagnostics global ->
-				Diagnostics.run com global;
-			| _ ->
-				raise exc;
 	in
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
