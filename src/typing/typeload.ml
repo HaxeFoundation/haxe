@@ -521,7 +521,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		| None ->
 			()
 		| Some cf ->
-			DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos;
+			delay ctx PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
 		end;
 		TAnon a
 	| CTFunction (args,r) ->
