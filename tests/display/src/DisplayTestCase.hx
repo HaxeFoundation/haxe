@@ -1,3 +1,4 @@
+import haxe.display.Position.Range;
 import utest.Assert;
 import Types;
 
@@ -58,6 +59,14 @@ class DisplayTestCase implements utest.ITest {
 
 	function hasPath(a:Array<FieldElement>, name:String):Bool {
 		return a.exists(function(t) return t.name == name);
+	}
+
+	function diagnosticsRange(start:Position, end:Position):Range {
+		var range = ctx.source.findRange(start, end);
+		// this is probably correct...?
+		range.start.character--;
+		range.end.character--;
+		return range;
 	}
 
 	function sigEq(arg:Int, params:Array<Array<String>>, sig:SignatureHelp, ?pos:haxe.PosInfos) {

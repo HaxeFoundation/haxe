@@ -1,3 +1,5 @@
+import haxe.display.Position;
+
 class File {
 	public var content(default,null):String;
 	public var path(default,null):String;
@@ -26,13 +28,13 @@ class File {
 		}
 	}
 
-	function findLine(pos:Int):{line:Int, pos:Int} {
+	function findPosition(pos:Int):Position {
 		function loop(min, max) {
 			var mid = (min + max) >> 1;
 			var start = lines[mid];
 			return
 				if (mid == min)
-					{line: mid, pos: pos - start + 1};
+					{line: mid, character: pos - start + 1};
 				else if (start > pos)
 					loop(min, mid);
 				else
@@ -41,15 +43,23 @@ class File {
 		return loop(0, lines.length);
 	}
 
-	public function formatPosition(min:Int, max:Int):String {
-		var start = findLine(min);
-		var end = findLine(max);
+	public function findRange(min:Int, max:Int):Range {
+		return {
+			start: findPosition(min),
+			end: findPosition(max)
+		}
+	}
+
+	public function formatRange(min:Int, max:Int):String {
+		var range = findRange(min, max);
+		var start = range.start;
+		var end = range.end;
 		var pos =
 			if (start.line == end.line) {
-				if (start.pos == end.pos)
-					'character ${start.pos}';
+				if (start.character == end.character)
+					'character ${start.character}';
 				else
-					'characters ${start.pos}-${end.pos}';
+					'characters ${start.character}-${end.character}';
 			} else {
 				'lines ${start.line + 1}-${end.line + 1}';
 			}

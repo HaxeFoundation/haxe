@@ -21,9 +21,10 @@ class HaxeInvocationException {
 }
 
 class DisplayTestContext {
-	var source:File;
 	var markers:Map<Int,Int>;
 	var fieldName:String;
+
+	public final source:File;
 
 	public function new(path:String, fieldName:String, source:String, markers:Map<Int,Int>) {
 		this.fieldName = fieldName;
@@ -38,7 +39,7 @@ class DisplayTestContext {
 	}
 
 	public function range(pos1:Int, pos2:Int) {
-		return normalizePath(source.formatPosition(pos(pos1), pos(pos2)));
+		return normalizePath(source.formatRange(pos(pos1), pos(pos2)));
 	}
 
 	public function fields(pos:Position):Array<FieldElement> {
@@ -81,7 +82,7 @@ class DisplayTestContext {
 		return extractMetadata(callHaxe('$pos@type'));
 	}
 
-	public function diagnostics():Array<Diagnostic<Any>> {
+	public function diagnostics():Array<Diagnostic<Dynamic>> {
 		var result = haxe.Json.parse(callHaxe('0@diagnostics'))[0];
 		return if (result == null) [] else result.diagnostics;
 	}
