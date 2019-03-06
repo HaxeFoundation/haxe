@@ -484,7 +484,7 @@ let get_macro_context ctx p =
 		com2.package_rules <- PMap.empty;
 		com2.main_class <- None;
 		(* Inherit most display settings, but require normal typing. *)
-		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true };
+		com2.display <- {ctx.com.display with dms_kind = DMNone; dms_display = false; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
 		List.iter (fun p -> com2.defines.Define.values <- PMap.remove (Globals.platform_name p) com2.defines.Define.values) Globals.platforms;
 		com2.defines.Define.defines_signature <- None;
 		com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
