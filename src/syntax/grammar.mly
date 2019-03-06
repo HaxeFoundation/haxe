@@ -940,7 +940,13 @@ and block_with_pos' acc f p s =
 		| Stream.Failure ->
 			List.rev acc,p
 		| Stream.Error msg when !in_display_file ->
-			syntax_error (StreamError msg) s (block_with_pos acc (next_pos s) s)
+			let err,pos = if msg = "" then begin
+				let tk,pos = next_token s in
+				(Unexpected tk),Some pos
+			end else
+				(StreamError msg),None
+			in
+			syntax_error err ~pos s (block_with_pos acc (next_pos s) s)
 		| Error (e,p) when !in_display_file ->
 			block_with_pos acc p s
 
@@ -1286,7 +1292,7 @@ and expr = parser
 and expr_next e1 s =
 	try
 		expr_next' e1 s
-	with Stream.Error msg ->
+	with Stream.Error msg when !in_display ->
 		syntax_error (StreamError msg) s e1
 
 and expr_next' e1 = parser
@@ -1397,13 +1403,19 @@ and parse_call_params f p1 s =
 		let el = psep Comma expr s in
 		match s with parser
 		| [< '(PClose,p2) >] -> f el p2
-		| [< >] -> serror()
+		| [< >] ->
+			let expected = if el = [] then ["expression"] else [",";")"] in
+			syntax_error (Expected expected) s (f el (last_pos s))
 	end else begin
 		let rec parse_next_param acc p1 =
 			let e = try
 				expr s
 			with
-			| Stream.Error _ | Stream.Failure ->
+			| Stream.Failure ->
+				syntax_error (Expected ["expression"]) s ();
+				mk_null_expr (punion_next p1 s)
+			| Stream.Error msg ->
+				syntax_error (StreamError msg) s ();
 				mk_null_expr (punion_next p1 s)
 			in
 			match s with parser
@@ -1415,6 +1427,7 @@ and parse_call_params f p1 s =
 				parse_next_param (e :: acc) p2
 			| [< >] ->
 				let p2 = next_pos s in
+				syntax_error (Expected [",";")"]) s ();
 				let e = check_signature_mark e p1 p2 in
 				f (List.rev (e :: acc)) p2
 		in

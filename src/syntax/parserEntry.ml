@@ -179,7 +179,7 @@ let parse ctx code file =
 		restore();
 		Lexer.restore old;
 		if was_display_file then
-			ParseDisplayFile(l,!syntax_errors)
+			ParseDisplayFile(l,List.rev !syntax_errors)
 		else begin match List.rev !syntax_errors with
 			| [] -> ParseSuccess l
 			| error :: errors -> ParseError(l,error,errors)
