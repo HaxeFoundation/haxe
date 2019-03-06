@@ -899,7 +899,7 @@ let handle_import_hx ctx m decls p =
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let _,r = match TypeloadParse.parse_file ctx.com path p with
+				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
 					| ParseSuccess data -> data
 					| ParseDisplayFile(data,_) -> data
 					| ParseError(_,(msg,p),_) -> Parser.error msg p
