@@ -817,6 +817,16 @@ try
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
+	let run_or_diagnose f arg =
+		try
+			f arg
+		with Error.Error(msg,p) as exc ->
+			match com.display.dms_kind with
+			| DMDiagnostics global ->
+				Diagnostics.run com global;
+			| _ ->
+				raise exc;
+	in
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
@@ -833,8 +843,10 @@ try
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		add_signature "after_init_macros";
 		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
-		Finalization.finalize tctx;
+		run_or_diagnose (fun () ->
+			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
+			Finalization.finalize tctx;
+		) ();
 		(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		   identifier we are interested in. We then type only those modules that contain the identifier. *)
 		begin match !CompilationServer.instance,com.display.dms_kind with
@@ -887,7 +899,7 @@ try
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
-		let main, types, modules = Finalization.generate tctx in
+		let main, types, modules = run_or_diagnose Finalization.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

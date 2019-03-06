@@ -206,3 +206,8 @@ module Printer = struct
 		let js = JArray jl in
 		string_of_json js
 end
+
+let run com global =
+	let dctx = prepare com global in
+	(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
+	DisplayException.raise_diagnostics (Printer.print_diagnostics dctx com global)
