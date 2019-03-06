@@ -1867,7 +1867,7 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
+		(try Unix.connect this (ADDR_INET (StdHost.int32_addr host,port)) with Unix_error(err,cmd,args) -> exc_string (Printf.sprintf "%s(%s, %s)" (Unix.error_message err) cmd args));
 		vnull
 	)
 
