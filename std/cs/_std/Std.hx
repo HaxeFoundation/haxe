@@ -24,7 +24,7 @@ import cs.Lib;
 import cs.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool
+	public static function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool
 	{
 		if (v == null)
 			return false;

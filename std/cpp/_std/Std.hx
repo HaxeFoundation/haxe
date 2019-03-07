@@ -22,7 +22,7 @@
 
 @:headerClassCode("\t\tstatic inline String string(String &s) { return s; }")
 @:coreApi class Std {
-	@:keep public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	@:keep public static function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		return untyped __global__.__instanceof(v,t);
 	}
 

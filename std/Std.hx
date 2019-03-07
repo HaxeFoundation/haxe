@@ -31,7 +31,7 @@ extern class Std {
 	/**
 		Tells if a value `v` is of the type `t`. Returns `false` if `v` or `t` are null.
 	**/
-	public static function is( v : Dynamic, t : Dynamic ) : Bool;
+	public static function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool;
 
 	/**
 		Checks if object `value` is an instance of class `c`.

@@ -23,7 +23,7 @@ import flash.Boot;
 
 @:coreApi class Std {
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		return untyped flash.Boot.__instanceof(v,t);
 	}
 

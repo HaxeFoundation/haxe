@@ -25,7 +25,7 @@ import lua.NativeStringTools;
 @:keepInit
 @:coreApi class Std {
 
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		return untyped lua.Boot.__instanceof(v,t);
 	}
 

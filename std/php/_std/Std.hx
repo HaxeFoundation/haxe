@@ -28,7 +28,7 @@ import php.Syntax;
 
 @:coreApi class Std {
 
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		return Boot.is(v, t);
 	}
 

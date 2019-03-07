@@ -40,7 +40,7 @@ class Std {
 		return x <= 0 ? 0 : (rnd_int(rnd) & 0x3FFFFFFF) % x;
 	}
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		var t : hl.BaseType = t;
 		if( t == null ) return false;
 		switch( t.__type__.kind ) {

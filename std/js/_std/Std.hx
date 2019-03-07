@@ -24,7 +24,7 @@ import js.Boot;
 @:keepInit
 @:coreApi class Std {
 
-	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Null<Dynamic>, t : Null<Dynamic> ) : Bool {
 		return @:privateAccess js.Boot.__instanceof(v,t);
 	}
 
