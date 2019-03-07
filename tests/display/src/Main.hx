@@ -17,5 +17,6 @@ class Main {
 		api.server.readClassPaths();
 		DisplayTestContext.runHaxe([]);
 		runner.run();
+		haxeServer.close();
 	}
 }
