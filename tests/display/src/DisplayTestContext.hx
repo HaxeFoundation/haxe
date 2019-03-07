@@ -101,21 +101,31 @@ class DisplayTestContext {
 		}
 	}
 
-	function callHaxe(displayPart:String):String {
+	function callHaxe(displayPart:String) {
 		var args = [
 			"-cp",
 			"src",
 			"-D",
 			"display-stdin",
-			"-lib",
-			"utest",
 			"--display",
 			source.path + "@" + displayPart,
+			"-lib",
+			"utest"
 		];
+		var result = runHaxe(args, source.content);
+		if (result.hasError || result.stderr == "") {
+			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
+		}
+		return result.stderr;
+	}
+
+	static public function runHaxe(args:Array<String>, ?stdin:String) {
 		var bb = new BytesBuffer();
 		bb.addString(args.join("\n"));
-		bb.addByte(1);
-		bb.addString(source.content);
+		if (stdin != null) {
+			bb.addByte(1);
+			bb.addString(stdin);
+		}
 		var b = bb.getBytes();
 		haxeServer.stdin.writeInt32(b.length);
 		haxeServer.stdin.write(b);
@@ -133,10 +143,10 @@ class DisplayTestContext {
 			}
 		}
 		var s = buf.toString().trim();
-		if (hasError || s == "") {
-			throw new HaxeInvocationException(s, fieldName, args, source.content);
+		return {
+			hasError: hasError,
+			stderr: s
 		}
-		return s.toString();
 	}
 
 	static function extractType(result:String) {

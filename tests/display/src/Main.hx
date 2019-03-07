@@ -10,6 +10,7 @@ class Main {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
+		DisplayTestContext.runHaxe(["-cp", "src", "--no-output", "-lib", "utest"]);
 		runner.run();
 	}
 }
