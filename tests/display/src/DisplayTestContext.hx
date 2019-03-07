@@ -1,3 +1,4 @@
+import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
 
 using StringTools;
@@ -23,7 +24,7 @@ class HaxeInvocationException {
 }
 
 class DisplayTestContext {
-	static var haxeServer = new sys.io.Process("haxe", ["--wait", "stdio"]);
+	static var haxeServer = haxeserver.sync.HaxeServer.launch([]);
 
 	var markers:Map<Int, Int>;
 	var fieldName:String;
@@ -102,16 +103,7 @@ class DisplayTestContext {
 	}
 
 	function callHaxe(displayPart:String) {
-		var args = [
-			"-cp",
-			"src",
-			"-D",
-			"display-stdin",
-			"--display",
-			source.path + "@" + displayPart,
-			"-lib",
-			"utest"
-		];
+		var args = ["--display", source.path + "@" + displayPart];
 		var result = runHaxe(args, source.content);
 		if (result.hasError || result.stderr == "") {
 			throw new HaxeInvocationException(result.stderr, fieldName, args, source.content);
@@ -120,33 +112,7 @@ class DisplayTestContext {
 	}
 
 	static public function runHaxe(args:Array<String>, ?stdin:String) {
-		var bb = new BytesBuffer();
-		bb.addString(args.join("\n"));
-		if (stdin != null) {
-			bb.addByte(1);
-			bb.addString(stdin);
-		}
-		var b = bb.getBytes();
-		haxeServer.stdin.writeInt32(b.length);
-		haxeServer.stdin.write(b);
-		var data = haxeServer.stderr.readString(haxeServer.stderr.readInt32());
-		var buf = new StringBuf();
-		var hasError = false;
-		for (line in data.split("\n")) {
-			switch (line.fastCodeAt(0)) {
-				case 0x01: // print
-				case 0x02: // error
-					hasError = true;
-				default:
-					buf.add(line);
-					buf.addChar("\n".code);
-			}
-		}
-		var s = buf.toString().trim();
-		return {
-			hasError: hasError,
-			stderr: s
-		}
+		return haxeServer.rawRequest(args, stdin == null ? null : Bytes.ofString(stdin));
 	}
 
 	static function extractType(result:String) {

@@ -10,6 +10,8 @@ class Macro {
 	static public function run(args:Array<String>) {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
+		haxelibInstallGit("Simn", "haxeserver");
+
 		changeDirectory(displayDir);
 		runCommand("haxe", ["build.hxml"]);
 
