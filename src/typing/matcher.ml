@@ -1534,9 +1534,9 @@ module Match = struct
 							match case.Case.case_expr with
 							| Some e ->
 								(* If we have a block, use the position of the last element. *)
-								begin match Texpr.skip e with
-								| {eexpr = TBlock el} when el <> [] -> List.hd (List.rev el)
-								| e -> e
+								begin match e.eexpr with
+								| TBlock el when el <> [] -> List.hd (List.rev el)
+								| _ -> e
 								end
 							| None ->
 								(* If we have no block we have to use the `case pattern` position because that's all we have. *)
