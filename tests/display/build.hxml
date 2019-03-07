@@ -2,5 +2,6 @@
 --main Main
 -lib utest
 -lib haxeserver
+-lib json-rpc
 --interp
 -D use-rtti-doc
