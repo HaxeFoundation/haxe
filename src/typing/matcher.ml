@@ -1530,7 +1530,18 @@ module Match = struct
 						   Note that we cannot rely on an exhaustiveness error because the switch could be over an empty enum. *)
 						ctx.t.tvoid
 					| _ ->
-						let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
+						let el = List.map (fun (case,_,_) ->
+							match case.Case.case_expr with
+							| Some e ->
+								(* If we have a block, use the position of the last element. *)
+								begin match Texpr.skip e with
+								| {eexpr = TBlock el} when el <> [] -> List.hd (List.rev el)
+								| e -> e
+								end
+							| None ->
+								(* If we have no block we have to use the `case pattern` position because that's all we have. *)
+								mk (TBlock []) ctx.t.tvoid case.Case.case_pos
+						) cases in
 						unify_min ctx el
 					end
 				| WithType.WithType(t,_) -> t
