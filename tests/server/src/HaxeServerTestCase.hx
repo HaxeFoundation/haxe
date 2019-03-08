@@ -89,7 +89,7 @@ class HaxeServerTestCase implements ITest {
 				}
 			}
 			done();
-		});
+		}, context.sendErrorMessage);
 	}
 
 	function getTemplate(templateName:String) {
