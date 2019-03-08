@@ -32,9 +32,22 @@ let s_version =
 	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
-let maybe_handle_json_out ctx f_otherwise = match ctx.com.json_out with
+let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		f_otherwise ()
+		begin match ctx.com.display.dms_kind with
+		| DMDiagnostics global->
+			List.iter (fun msg ->
+				let msg,p,kind = match msg with
+					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
+					| CMWarning(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Warning
+					| CMError(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Error
+				in
+				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
+			) (List.rev ctx.messages);
+			raise (Completion (Diagnostics.print ctx.com global))
+		| _ ->
+			f_otherwise ()
+		end
 	| Some(_,f) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
@@ -53,7 +66,7 @@ let maybe_handle_json_out ctx f_otherwise = match ctx.com.json_out with
 		end
 
 let default_flush ctx =
-	maybe_handle_json_out ctx (fun () ->
+	check_display_flush ctx (fun () ->
 		List.iter
 			(fun msg -> match msg with
 				| CMInfo _ -> print_endline (compiler_message_string msg)
@@ -404,7 +417,7 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				maybe_handle_json_out ctx (fun () ->
+				check_display_flush ctx (fun () ->
 					List.iter
 						(fun msg ->
 							let s = compiler_message_string msg in
