@@ -32,5 +32,8 @@ class Js {
 
 		haxelibInstallGit("vshaxe", "json-rpc");
 		haxelibInstallGit("Simn", "haxeserver");
+
+        runCommand("haxe", ["build.hxml"]);
+        runCommand("node", ["test.js"]);
 	}
 }
