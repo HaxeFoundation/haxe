@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef UInt8ArrayData = js.html.Uint8Array;
+typedef UInt8ArrayData = js.lib.Uint8Array;
 
 @:coreApi
 abstract UInt8Array(UInt8ArrayData) {

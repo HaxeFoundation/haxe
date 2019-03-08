@@ -38,31 +38,31 @@ extern class SubtleCrypto {
 		Returns a `Promise` of the encrypted data corresponding to the clear text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function encrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
+	function encrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of the clear data corresponding to the encrypted text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function decrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
+	function decrypt( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of the signature corresponding to the text, algorithm and key given as parameters.
 		@throws DOMError
 	**/
-	function sign( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
+	function sign( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, data : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a `Boolean` value indicating if the signature given as parameter matches the text, algorithm and key also given as parameters.
 		@throws DOMError
 	**/
-	function verify( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, signature : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
+	function verify( algorithm : haxe.extern.EitherType<Dynamic,String>, key : CryptoKey, signature : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer>, data : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a digest generated from the algorithm and text given as parameters.
 		@throws DOMError
 	**/
-	function digest( algorithm : haxe.extern.EitherType<Dynamic,String>, data : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer> ) : Promise<Dynamic>;
+	function digest( algorithm : haxe.extern.EitherType<Dynamic,String>, data : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer> ) : Promise<Dynamic>;
 	
 	/**
 		Returns a `Promise` of a newly generated `CryptoKey`, for symmetrical algorithms, or a `CryptoKeyPair`, containing two newly generated keys, for asymmetrical algorithm, that matches the algorithm, the usages and the extractability given as parameters.
@@ -108,5 +108,5 @@ extern class SubtleCrypto {
 		Returns a `Promise` of a `CryptoKey` corresponding to the wrapped key given in parameter.
 		@throws DOMError
 	**/
-	function unwrapKey( format : String, wrappedKey : haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.extern.EitherType<Dynamic,String>, unwrappedKeyAlgorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
+	function unwrapKey( format : String, wrappedKey : haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer>, unwrappingKey : CryptoKey, unwrapAlgorithm : haxe.extern.EitherType<Dynamic,String>, unwrappedKeyAlgorithm : haxe.extern.EitherType<Dynamic,String>, extractable : Bool, keyUsages : Array<String> ) : Promise<Dynamic>;
 }

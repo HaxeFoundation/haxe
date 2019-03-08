@@ -44,5 +44,5 @@ extern class Crypto {
 		Fills the passed `TypedArray` with cryptographically sound random values.
 		@throws DOMError
 	**/
-	function getRandomValues( array : ArrayBufferView ) : ArrayBufferView;
+	function getRandomValues( array : js.lib.ArrayBufferView ) : js.lib.ArrayBufferView;
 }

@@ -42,13 +42,13 @@ extern class FileHandle extends js.html.EventTarget {
 	/** @throws DOMError */
 	function readAsText( size : Int, ?encoding : String ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
-	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
 	@:overload( function( value : js.html.Blob) : FileRequest {} )
 	function write( value : String ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
-	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
 	@:overload( function( value : js.html.Blob) : FileRequest {} )
 	function append( value : String ) : FileRequest;
 	/** @throws DOMError */

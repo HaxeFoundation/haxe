@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef Int32ArrayData = js.html.Int32Array;
+typedef Int32ArrayData = js.lib.Int32Array;
 
 @:coreApi
 abstract Int32Array(Int32ArrayData) {

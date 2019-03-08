@@ -56,6 +56,6 @@ extern class TextDecoder {
 		Returns a `DOMString` containing the text decoded with the method of the specific `TextDecoder` object.
 		@throws DOMError
 	**/
-	@:overload( function( ?input : ArrayBuffer, ?options : TextDecodeOptions) : String {} )
-	function decode( ?input : ArrayBufferView, ?options : TextDecodeOptions ) : String;
+	@:overload( function( ?input : js.lib.ArrayBuffer, ?options : TextDecodeOptions) : String {} )
+	function decode( ?input : js.lib.ArrayBufferView, ?options : TextDecodeOptions ) : String;
 }

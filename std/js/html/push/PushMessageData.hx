@@ -38,7 +38,7 @@ extern class PushMessageData {
 		Extracts the data as an `ArrayBuffer` object.
 		@throws DOMError
 	**/
-	function arrayBuffer() : js.html.ArrayBuffer;
+	function arrayBuffer() : js.lib.ArrayBuffer;
 	
 	/**
 		Extracts the data as a `Blob` object.

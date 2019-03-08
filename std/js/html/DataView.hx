@@ -20,40 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.html;
 
-@:native("DataView")
-extern class DataView implements ArrayBufferView {
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
-	
-	/** @throws DOMError */
-	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;
-	@:pure
-	function getInt8( byteOffset : Int ) : Int;
-	@:pure
-	function getUint8( byteOffset : Int ) : Int;
-	@:pure
-	function getInt16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure
-	function getUint16( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure
-	function getInt32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure
-	function getUint32( byteOffset : Int, ?littleEndian : Bool ) : Int;
-	@:pure
-	function getFloat32( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	@:pure
-	function getFloat64( byteOffset : Int, ?littleEndian : Bool ) : Float;
-	function setInt8( byteOffset : Int, value : Int ) : Void;
-	function setUint8( byteOffset : Int, value : Int ) : Void;
-	function setInt16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint16( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setInt32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setUint32( byteOffset : Int, value : Int, ?littleEndian : Bool ) : Void;
-	function setFloat32( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
-	function setFloat64( byteOffset : Int, value : Float, ?littleEndian : Bool ) : Void;
-}
+@:deprecated typedef DataView = js.lib.DataView;

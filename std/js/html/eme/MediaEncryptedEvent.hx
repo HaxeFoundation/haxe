@@ -27,7 +27,7 @@ package js.html.eme;
 @:native("MediaEncryptedEvent")
 extern class MediaEncryptedEvent extends js.html.Event {
 	var initDataType(default,null) : String;
-	var initData(default,null) : js.html.ArrayBuffer;
+	var initData(default,null) : js.lib.ArrayBuffer;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MediaKeyNeededEventInit ) : Void;

@@ -351,36 +351,36 @@ extern class RenderingContext {
 		Updates buffer data.
 	**/
 	@:overload( function( target : Int, size : Int, usage : Int ) : Void {} )
-	@:overload( function( target : Int, data : js.html.ArrayBuffer, usage : Int ) : Void {} )
-	function bufferData( target : Int, data : js.html.ArrayBufferView, usage : Int ) : Void;
+	@:overload( function( target : Int, data : js.lib.ArrayBuffer, usage : Int ) : Void {} )
+	function bufferData( target : Int, data : js.lib.ArrayBufferView, usage : Int ) : Void;
 	
 	/**
 		Updates buffer data starting at a passed offset.
 	**/
-	@:overload( function( target : Int, offset : Int, data : js.html.ArrayBuffer ) : Void {} )
-	function bufferSubData( target : Int, offset : Int, data : js.html.ArrayBufferView ) : Void;
+	@:overload( function( target : Int, offset : Int, data : js.lib.ArrayBuffer ) : Void {} )
+	function bufferSubData( target : Int, offset : Int, data : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Specifies a 2D texture image in a compressed format.
 	**/
-	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, data : js.html.ArrayBufferView ) : Void;
+	function compressedTexImage2D( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, data : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Specifies a 2D texture sub-image in a compressed format.
 	**/
-	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, data : js.html.ArrayBufferView ) : Void;
+	function compressedTexSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, data : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Reads a block of pixels from the `WebGLFrameBuffer`.
 		@throws DOMError
 	**/
-	function readPixels( x : Int, y : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void;
+	function readPixels( x : Int, y : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Specifies a 2D texture image.
 		@throws DOMError
 	**/
-	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
+	@:overload( function( target : Int, level : Int, internalformat : Int, width : Int, height : Int, border : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, internalformat : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
@@ -391,34 +391,34 @@ extern class RenderingContext {
 		Updates a sub-rectangle of the current `WebGLTexture`.
 		@throws DOMError
 	**/
-	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.html.ArrayBufferView ) : Void {} )
+	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, width : Int, height : Int, format : Int, type : Int, pixels : js.lib.ArrayBufferView ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageBitmap ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, pixels : js.html.ImageData ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, image : js.html.ImageElement ) : Void {} )
 	@:overload( function( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, canvas : js.html.CanvasElement ) : Void {} )
 	function texSubImage2D( target : Int, level : Int, xoffset : Int, yoffset : Int, format : Int, type : Int, video : js.html.VideoElement ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
-	function uniform1fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	function uniform1fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
-	function uniform2fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	function uniform2fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
-	function uniform3fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	function uniform3fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Float>) : Void {} )
-	function uniform4fv( location : UniformLocation, data : js.html.Float32Array ) : Void;
+	function uniform4fv( location : UniformLocation, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
-	function uniform1iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	function uniform1iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
-	function uniform2iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	function uniform2iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
-	function uniform3iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	function uniform3iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
 	@:overload( function( location : UniformLocation, data : Array<Int>) : Void {} )
-	function uniform4iv( location : UniformLocation, data : js.html.Int32Array ) : Void;
+	function uniform4iv( location : UniformLocation, data : js.lib.Int32Array ) : Void;
 	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
-	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
+	function uniformMatrix2fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
-	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
+	function uniformMatrix3fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
 	@:overload( function( location : UniformLocation, transpose : Bool, data : Array<Float>) : Void {} )
-	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.html.Float32Array ) : Void;
+	function uniformMatrix4fv( location : UniformLocation, transpose : Bool, data : js.lib.Float32Array ) : Void;
 	
 	/**
 		Returns a `WebGLContextAttributes` object that contains the actual context parameters. Might return `null`, if the context is lost.
@@ -925,16 +925,16 @@ extern class RenderingContext {
 	function validateProgram( program : Program ) : Void;
 	function vertexAttrib1f( indx : Int, x : Float ) : Void;
 	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
-	function vertexAttrib1fv( indx : Int, values : js.html.Float32Array ) : Void;
+	function vertexAttrib1fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib2f( indx : Int, x : Float, y : Float ) : Void;
 	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
-	function vertexAttrib2fv( indx : Int, values : js.html.Float32Array ) : Void;
+	function vertexAttrib2fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib3f( indx : Int, x : Float, y : Float, z : Float ) : Void;
 	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
-	function vertexAttrib3fv( indx : Int, values : js.html.Float32Array ) : Void;
+	function vertexAttrib3fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	function vertexAttrib4f( indx : Int, x : Float, y : Float, z : Float, w : Float ) : Void;
 	@:overload( function( indx : Int, values : Array<Float>) : Void {} )
-	function vertexAttrib4fv( indx : Int, values : js.html.Float32Array ) : Void;
+	function vertexAttrib4fv( indx : Int, values : js.lib.Float32Array ) : Void;
 	
 	/**
 		Specifies the data formats and locations of vertex attributes in a vertex attributes array.

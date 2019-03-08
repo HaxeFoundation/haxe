@@ -25,12 +25,12 @@ package haxe.io;
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : js.html.Uint8Array;
-	var data : js.html.DataView;
+	var b : js.lib.Uint8Array;
+	var data : js.lib.DataView;
 
 	function new(data:BytesData) {
 		this.length = data.byteLength;
-		this.b = new js.html.Uint8Array(data);
+		this.b = new js.lib.Uint8Array(data);
 		untyped {
 			b.bufferValue = data; // some impl does not return the same instance in .buffer
 			data.hxBytes = this;
@@ -75,7 +75,7 @@ class Bytes {
 	}
 
 	inline function initData() : Void {
-		if( data == null ) data = new js.html.DataView(b.buffer, b.byteOffset, b.byteLength);
+		if( data == null ) data = new js.lib.DataView(b.buffer, b.byteOffset, b.byteLength);
 	}
 
 	public function getDouble( pos : Int ) : Float {
@@ -198,7 +198,7 @@ class Bytes {
 
 	public static function ofString( s : String, ?encoding : Encoding ) : Bytes {
 		if( encoding == RawNative ) {
-			var buf = new js.html.Uint8Array(s.length << 1);
+			var buf = new js.lib.Uint8Array(s.length << 1);
 			for( i in 0...s.length ) {
 				var c : Int = StringTools.fastCodeAt(s,i);
 				buf[i << 1] = c & 0xFF;
@@ -230,7 +230,7 @@ class Bytes {
 				a.push( 0x80 | (c & 63) );
 			}
 		}
-		return new Bytes(new js.html.Uint8Array(a).buffer);
+		return new Bytes(new js.lib.Uint8Array(a).buffer);
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
@@ -253,7 +253,7 @@ class Bytes {
 			i++;
 		}
 
-		return new Bytes(new js.html.Uint8Array(a).buffer);
+		return new Bytes(new js.lib.Uint8Array(a).buffer);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

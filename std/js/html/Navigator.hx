@@ -111,8 +111,8 @@ extern class Navigator {
 	/** @throws DOMError */
 	function requestMIDIAccess( ?options : js.html.midi.MIDIOptions ) : Promise<js.html.midi.MIDIAccess>;
 	/** @throws DOMError */
-	@:overload( function( url : String, ?data : ArrayBufferView) : Bool {} )
-	@:overload( function( url : String, ?data : ArrayBuffer) : Bool {} )
+	@:overload( function( url : String, ?data : js.lib.ArrayBufferView) : Bool {} )
+	@:overload( function( url : String, ?data : js.lib.ArrayBuffer) : Bool {} )
 	@:overload( function( url : String, ?data : FormData) : Bool {} )
 	@:overload( function( url : String, ?data : URLSearchParams) : Bool {} )
 	@:overload( function( url : String, ?data : String) : Bool {} )

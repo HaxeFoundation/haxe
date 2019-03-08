@@ -94,8 +94,8 @@ extern class SourceBuffer extends EventTarget {
 		Appends media segment data from an `ArrayBuffer` or `ArrayBufferView` object to the `SourceBuffer`.
 		@throws DOMError
 	**/
-	@:overload( function( data : ArrayBuffer ) : Void {} )
-	function appendBuffer( data : ArrayBufferView ) : Void;
+	@:overload( function( data : js.lib.ArrayBuffer ) : Void {} )
+	function appendBuffer( data : js.lib.ArrayBufferView ) : Void;
 	
 	/**
 		Aborts the current segment and resets the segment parser.

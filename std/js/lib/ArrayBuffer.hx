@@ -20,11 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-// This file is generated from mozilla\MediaKeyMessageEvent.webidl. Do not edit!
+// This file is generated from typedarray.webidl. Do not edit!
 
-package js.html.eme;
+package js.lib;
 
-typedef MediaKeyMessageEventInit = EventInit & {
-	var message : js.lib.ArrayBuffer;
-	var messageType : MediaKeyMessageType;
+@:native("ArrayBuffer")
+extern class ArrayBuffer {
+	static function isView( value : Dynamic ) : Bool;
+	var byteLength(default,null) : Int;
+	
+	/** @throws DOMError */
+	function new( length : Int ) : Void;
+	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
 }
+
+#if (js_es <= 5)
+@:ifFeature('js.lib.ArrayBuffer.slice')
+private class ArrayBufferCompat {
+
+	static function sliceImpl(begin, ?end) {	
+		var u = new js.lib.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : (end - begin));
+		var resultArray = new js.lib.Uint8Array(u.byteLength);	
+		resultArray.set(u);	
+		return resultArray.buffer;
+	}
+
+	static function __init__(): Void untyped {
+		// IE10 ArrayBuffer.slice polyfill
+		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl;
+	}
+
+}
+#end
