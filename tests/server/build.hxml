@@ -3,3 +3,4 @@
 -js test.js
 -lib hxnodejs
 -lib utest
+-lib haxeserver

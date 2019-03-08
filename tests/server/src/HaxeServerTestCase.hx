@@ -1,11 +1,18 @@
 import haxe.display.JsonModuleTypes.JsonModuleType;
 import haxe.Json;
-import HaxeServer;
+import haxeserver.process.HaxeServerProcessNode;
+import haxeserver.HaxeServerAsync;
 import utest.Assert;
 import utest.ITest;
 
 using StringTools;
 using Lambda;
+
+typedef DisplayServerConfigBase = {
+	var haxePath:String;
+	var arguments:Array<String>;
+	var env:haxe.DynamicAccess<String>;
+}
 
 class TestContext {
 	public var messages:Array<String> = []; // encapsulation is overrated
@@ -16,7 +23,12 @@ class TestContext {
 		this.displayServerConfig = config;
 	}
 
-	public function sendErrorMessage(msg:String) {}
+	public function sendErrorMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			errorMessages.push(message.trim());
+		}
+	}
 
 	public function sendLogMessage(msg:String) {
 		var split = msg.split("\n");
@@ -29,7 +41,7 @@ class TestContext {
 @:autoBuild(AsyncMacro.build())
 class HaxeServerTestCase implements ITest {
 	var context:TestContext;
-	var server:HaxeServer;
+	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
 	var storedTypes:Array<JsonModuleType<Any>>;
@@ -45,8 +57,7 @@ class HaxeServerTestCase implements ITest {
 			env: {}
 		});
 		vfs = new Vfs(testDir);
-		server = new HaxeServer(context);
-		server.start();
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode(["-v", "--cwd", testDir]));
 	}
 
 	public function teardown() {
@@ -60,13 +71,18 @@ class HaxeServerTestCase implements ITest {
 		if (storeTypes) {
 			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
 		}
-		server.process(args, null, function(result) {
-			if (storeTypes) {
-				storedTypes = Json.parse(result).result.result;
+		server.rawRequest(args, null, function(result) {
+			context.sendLogMessage(result.stdout);
+			for (print in result.prints) {
+				var line = print.trim();
+				context.messages.push('Haxe print: $line');
 			}
-			done();
-		}, function(message) {
-			context.errorMessages.push(message);
+			if (result.hasError) {
+				context.sendErrorMessage(result.stderr);
+			}
+			if (storeTypes) {
+				storedTypes = Json.parse(result.stderr).result.result;
+			}
 			done();
 		});
 	}

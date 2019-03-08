@@ -24,7 +24,7 @@ class HaxeInvocationException {
 }
 
 class DisplayTestContext {
-	static var haxeServer = haxeserver.sync.HaxeServer.launch([]);
+	static var haxeServer = haxeserver.HaxeServerSync.launch([]);
 
 	var markers:Map<Int, Int>;
 	var fieldName:String;
