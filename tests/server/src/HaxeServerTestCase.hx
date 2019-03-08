@@ -81,7 +81,12 @@ class HaxeServerTestCase implements ITest {
 				context.sendErrorMessage(result.stderr);
 			}
 			if (storeTypes) {
-				storedTypes = Json.parse(result.stderr).result.result;
+				storedTypes = try {
+					Json.parse(result.stderr).result.result;
+				} catch (e:Dynamic) {
+					trace(e);
+					[];
+				}
 			}
 			done();
 		});
