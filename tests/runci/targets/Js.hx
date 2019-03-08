@@ -96,6 +96,10 @@ class Js {
 
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		changeDirectory(serverDir);
+
+		haxelibInstallGit("vshaxe", "json-rpc");
+		haxelibInstallGit("Simn", "haxeserver");
+
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
 	}
