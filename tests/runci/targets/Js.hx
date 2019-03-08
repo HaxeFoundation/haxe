@@ -30,7 +30,7 @@ class Js {
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		changeDirectory(serverDir);
 
-        haxelibInstall("hxnodejs");
+        haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		haxelibInstallGit("vshaxe", "json-rpc");
 		haxelibInstallGit("Simn", "haxeserver");
 
