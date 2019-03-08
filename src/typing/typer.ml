@@ -1726,9 +1726,10 @@ and type_new ctx path el with_type force_inline p =
 	else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 		let t = Typeload.load_instance ctx path true in
+		let t_follow = follow t in
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
-		begin match follow t with
+		begin match t_follow with
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end

@@ -158,7 +158,7 @@ module Printer = struct
 				Hashtbl.add diag p (dk,p,sev,args)
 		in
 		let add dk p sev args =
-			if global || DisplayPosition.is_display_file p.pfile then add dk p sev args
+			if global || p = null_pos || DisplayPosition.is_display_file p.pfile then add dk p sev args
 		in
 		List.iter (fun (s,p,suggestions) ->
 			let suggestions = ExtList.List.filter_map (fun (s,item,r) ->
@@ -207,7 +207,9 @@ module Printer = struct
 		string_of_json js
 end
 
-let run com global =
+let print com global =
 	let dctx = prepare com global in
-	(* Option.may (fun cs -> CompilationServer.cache_context cs com) (CompilationServer.get()); *)
-	DisplayException.raise_diagnostics (Printer.print_diagnostics dctx com global)
+	Printer.print_diagnostics dctx com global
+
+let run com global =
+	DisplayException.raise_diagnostics (print com global)

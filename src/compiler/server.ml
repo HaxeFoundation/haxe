@@ -32,19 +32,22 @@ let s_version =
 	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
-let default_flush ctx = match ctx.com.json_out with
+let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		List.iter
-			(fun msg -> match msg with
-				| CMInfo _ -> print_endline (compiler_message_string msg)
-				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-			)
-			(List.rev ctx.messages);
-		if ctx.has_error && !prompt then begin
-			print_endline "Press enter to exit...";
-			ignore(read_line());
-		end;
-		if ctx.has_error then exit 1
+		begin match ctx.com.display.dms_kind with
+		| DMDiagnostics global->
+			List.iter (fun msg ->
+				let msg,p,kind = match msg with
+					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
+					| CMWarning(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Warning
+					| CMError(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Error
+				in
+				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
+			) (List.rev ctx.messages);
+			raise (Completion (Diagnostics.print ctx.com global))
+		| _ ->
+			f_otherwise ()
+		end
 	| Some(_,f) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
@@ -61,6 +64,21 @@ let default_flush ctx = match ctx.com.json_out with
 			) (List.rev ctx.messages) in
 			f errors
 		end
+
+let default_flush ctx =
+	check_display_flush ctx (fun () ->
+		List.iter
+			(fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			)
+			(List.rev ctx.messages);
+		if ctx.has_error && !prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		if ctx.has_error then exit 1
+	)
 
 let create_context params =
 	let ctx = {
@@ -399,18 +417,20 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				List.iter
-					(fun msg ->
-						let s = compiler_message_string msg in
-						write (s ^ "\n");
-						ServerMessage.message s;
-					)
-					(List.rev ctx.messages);
-				was_compilation := ctx.com.display.dms_full_typing;
-				if ctx.has_error then begin
-					measure_times := false;
-					write "\x02\n"
-				end else maybe_cache_context ctx.com;
+				check_display_flush ctx (fun () ->
+					List.iter
+						(fun msg ->
+							let s = compiler_message_string msg in
+							write (s ^ "\n");
+							ServerMessage.message s;
+						)
+						(List.rev ctx.messages);
+					was_compilation := ctx.com.display.dms_full_typing;
+					if ctx.has_error then begin
+						measure_times := false;
+						write "\x02\n"
+					end else maybe_cache_context ctx.com;
+				)
 			);
 			ctx.setup <- (fun() ->
 				let sign = Define.get_signature ctx.com.defines in
