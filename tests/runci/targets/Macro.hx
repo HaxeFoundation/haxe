@@ -15,23 +15,5 @@ class Macro {
 
 		changeDirectory(displayDir);
 		runCommand("haxe", ["build.hxml"]);
-
-		changeDirectory(sourcemapsDir);
-		runCommand("haxe", ["run.hxml"]);
-
-		changeDirectory(nullSafetyDir);
-		infoMsg("No-target null safety:");
-		runCommand("haxe", ["test.hxml"]);
-		infoMsg("Js-es6 null safety:");
-		runCommand("haxe", ["test-js-es6.hxml"]);
-
-		changeDirectory(miscDir);
-		getCsDependencies();
-		getPythonDependencies();
-		runCommand("haxe", ["compile.hxml"]);
-
-		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-macro.hxml"]);
-		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 	}
 }
