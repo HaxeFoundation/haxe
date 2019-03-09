@@ -57,7 +57,7 @@ class HaxeServerTestCase implements ITest {
 			env: {}
 		});
 		vfs = new Vfs(testDir);
-		server = new HaxeServerAsync(() -> new HaxeServerProcessNode(["-v", "--cwd", testDir]));
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
 	}
 
 	public function teardown() {
