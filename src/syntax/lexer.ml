@@ -30,7 +30,7 @@ type error_msg =
 	| Unclosed_code
 	| Invalid_escape of char
 	| Invalid_option
-	| Unterminated_xml
+	| Unterminated_markup
 
 exception Error of error_msg * pos
 
@@ -49,7 +49,7 @@ let error_msg = function
 	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape c -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
 	| Invalid_option -> "Invalid regular expression option"
-	| Unterminated_xml -> "Unterminated XML literal"
+	| Unterminated_markup -> "Unterminated markup literal"
 
 type lexer_file = {
 	lfile : string;
@@ -605,4 +605,4 @@ let lex_xml p lexbuf =
 	try
 		not_xml ctx 0 (name <> "") (* don't allow self-closing fragments *)
 	with Exit ->
-		error Unterminated_xml p
+		error Unterminated_markup p

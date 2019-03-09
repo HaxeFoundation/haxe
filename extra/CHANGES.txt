@@ -30,7 +30,7 @@ unreleased: 4.0.0-rc.2
 
 	all : improved unification error messages (#7547)
 	all : added `haxe4` define
-	all : do not require semicolon for XML literals (#7438)
+	all : do not require semicolon for markup literals (#7438)
 	all : made `@:expose` imply `@:keep` (#7695)
 	all : unified cast, catch and Std.is behavior of null-values (#7532)
 	macro : static variables are now always re-initialized when using the compilation server (#5746)
@@ -66,7 +66,7 @@ unreleased: 4.0.0-rc.2
 	all : added support for write-mode `@:op(a.b)`
 	all : support `inline call()` and `inline new` expressions (#7425)
 	all : support `@:using` on type declarations (#7462)
-	all : support XML literal strings but require them to be macro-processed (#7438)
+	all : support markup literal strings but require them to be macro-processed (#7438)
 	all : allow enum values without arguments as default function argument values (#7439)
 	lua : add -D lua-vanilla, which emits code with reduced functionality but no additional lib dependencies
 
