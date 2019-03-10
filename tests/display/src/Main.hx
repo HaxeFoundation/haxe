@@ -13,8 +13,6 @@ class Main {
 
 		var haxeServer = @:privateAccess DisplayTestContext.haxeServer;
 		haxeServer.setDefaultRequestArguments(["-cp", "src", "--no-output", "-lib", "utest"]);
-		var api = new haxeserver.sync.HaxeMethods(haxeServer);
-		api.server.readClassPaths();
 		DisplayTestContext.runHaxe([]);
 		runner.run();
 		haxeServer.close();
