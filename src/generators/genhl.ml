@@ -1027,8 +1027,14 @@ let type_value ctx t p =
 		assert false
 
 let rec eval_to ctx e (t:ttype) =
-	let r = eval_expr ctx e in
-	cast_to ctx r t e.epos
+	match e.eexpr, t with
+	| TConst (TInt i), HF64 ->
+		let r = alloc_tmp ctx t in
+		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
+		r
+	| _ ->
+		let r = eval_expr ctx e in
+		cast_to ctx r t e.epos
 
 and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
