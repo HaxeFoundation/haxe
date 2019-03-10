@@ -225,6 +225,11 @@ type code = {
 	constants : (global * int array) array;
 }
 
+module IMap = Map.Make(struct
+	let compare a b = b - a
+	type t = int
+end)
+
 let null_proto =
 	{
 		pname = "";

@@ -55,6 +55,7 @@ let rec filter_param t =
 		TAbstract(a, List.map filter_param tl)
 	| TAnon a ->
 		TAnon {
+			a_id = mk_aid();
 			a_fields = PMap.map (fun f -> { f with cf_type = filter_param f.cf_type }) a.a_fields;
 			a_status = a.a_status;
 		}

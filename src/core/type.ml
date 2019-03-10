@@ -127,6 +127,7 @@ and anon_status =
 	| AbstractStatics of tabstract
 
 and tanon = {
+	a_id : int;
 	mutable a_fields : (string, tclass_field) PMap.t;
 	a_status : anon_status ref;
 }
@@ -451,7 +452,8 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_anon fl = TAnon { a_fields = fl; a_status = ref Closed; }
+let mk_aid = let uid = ref 0 in (fun() -> incr uid; !uid)
+let mk_anon fl = TAnon { a_id = mk_aid(); a_fields = fl; a_status = ref Closed; }
 
 (* We use this for display purposes because otherwise we never see the Dynamic type that
    is defined in StdTypes.hx. This is set each time a typer is created, but this is fine
@@ -633,6 +635,7 @@ let map loop t =
 				t
 			| _ ->
 				TAnon {
+					a_id = mk_aid();
 					a_fields = fields;
 					a_status = a.a_status;
 				}
@@ -719,6 +722,7 @@ let apply_params cparams params t =
 					t
 				| _ ->
 					TAnon {
+						a_id = mk_aid();
 						a_fields = fields;
 						a_status = a.a_status;
 					}
@@ -2938,6 +2942,7 @@ let class_module_type c = {
 	t_pos = c.cl_pos;
 	t_name_pos = null_pos;
 	t_type = TAnon {
+		a_id = mk_aid();
 		a_fields = c.cl_statics;
 		a_status = ref (Statics c);
 	};
@@ -2969,6 +2974,7 @@ let abstract_module_type a tl = {
 	t_pos = a.a_pos;
 	t_name_pos = null_pos;
 	t_type = TAnon {
+		a_id = mk_aid();
 		a_fields = PMap.empty;
 		a_status = ref (AbstractStatics a);
 	};

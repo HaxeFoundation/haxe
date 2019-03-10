@@ -153,7 +153,7 @@ let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 let unify_min ctx el = (!unify_min_ref) ctx el
 
 let make_static_this c p =
-	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+	let ta = TAnon { a_id = mk_aid(); a_fields = c.cl_statics; a_status = ref (Statics c) } in
 	mk (TTypeExpr (TClassDecl c)) ta p
 
 let make_static_field_access c cf t p =

@@ -214,15 +214,15 @@ let foldmap f acc e =
 (* Collection of functions that return expressions *)
 module Builder = struct
 	let make_static_this c p =
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ta = TAnon { a_id = mk_aid(); a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		mk (TTypeExpr (TClassDecl c)) ta p
 
 	let make_typeexpr mt pos =
 		let t =
 			match resolve_typedef mt with
-			| TClassDecl c -> TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) }
-			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-			| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+			| TClassDecl c -> TAnon { a_id = mk_aid(); a_fields = c.cl_statics; a_status = ref (Statics c) }
+			| TEnumDecl e -> TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+			| TAbstractDecl a -> TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 			| _ -> assert false
 		in
 		mk (TTypeExpr mt) t pos
@@ -328,7 +328,7 @@ let rec type_constant_value basic (e,p) =
 	| EParenthesis e ->
 		type_constant_value basic e
 	| EObjectDecl el ->
-		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		mk (TObjectDecl (List.map (fun (k,e) -> k,type_constant_value basic e) el)) (TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref Closed }) p
 	| EArrayDecl el ->
 		mk (TArrayDecl (List.map (type_constant_value basic) el)) (basic.tarray t_dynamic) p
 	| _ ->

@@ -930,7 +930,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"void"; "volatile"; "while"; ];
 	res
 
-let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
+let dynamic_anon = TAnon( { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref Closed } )
 
 let rec get_class_modifiers meta cl_type cl_access cl_modifiers =
 	match meta with
@@ -2308,7 +2308,7 @@ let generate con =
 
 	let empty_en = match get_type gen (["haxe";"lang"], "EmptyObject") with TEnumDecl e -> e | _ -> assert false in
 	let empty_ctor_type = TEnum(empty_en, []) in
-	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
+	let empty_en_expr = mk (TTypeExpr (TEnumDecl empty_en)) (TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (EnumStatics empty_en) }) null_pos in
 	let empty_ctor_expr = mk (TField (empty_en_expr, FEnum(empty_en, PMap.find "EMPTY" empty_en.e_constrs))) empty_ctor_type null_pos in
 	OverloadingConstructor.configure ~empty_ctor_type:empty_ctor_type ~empty_ctor_expr:empty_ctor_expr gen;
 

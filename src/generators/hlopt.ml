@@ -26,11 +26,6 @@ module ISet = Set.Make(struct
 	type t = int
 end)
 
-module IMap = Map.Make(struct
-	let compare a b = b - a
-	type t = int
-end)
-
 type cur_value =
 	| VUndef
 	| VReg of int

@@ -673,6 +673,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		e.e_extern <- e.e_extern;
 		e.e_type.t_params <- e.e_params;
 		e.e_type.t_type <- TAnon {
+			a_id = mk_aid();
 			a_fields = !fields;
 			a_status = ref (EnumStatics e);
 		};

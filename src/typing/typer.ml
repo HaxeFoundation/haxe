@@ -245,7 +245,7 @@ let rec unify_min_raise basic (el:texpr list) : t =
 				let t = try unify_min_raise basic el with Unify_error _ -> raise Not_found in
 				PMap.add n (mk_field n t (List.hd el).epos null_pos) acc
 			) fields PMap.empty in
-			TAnon { a_fields = fields; a_status = ref Closed }
+			TAnon { a_id = mk_aid(); a_fields = fields; a_status = ref Closed }
 		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
@@ -1593,6 +1593,7 @@ and type_object_decl ctx fl with_type p =
 			| TDynamic t when (follow t != t_dynamic) ->
 				dynamic_parameter := Some t;
 				ODKWithStructure {
+					a_id = mk_aid();
 					a_status = ref Closed;
 					a_fields = PMap.empty;
 				}
@@ -1638,7 +1639,7 @@ and type_object_decl ctx fl with_type p =
 			end;
 			((n,pn,qs),e)
 		) fl in
-		let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
+		let t = (TAnon { a_id = mk_aid(); a_fields = !fields; a_status = ref Const }) in
 		if not ctx.untyped then begin
 			(match PMap.foldi (fun n cf acc -> if not (Meta.has Meta.Optional cf.cf_meta) && not (PMap.mem n !fields) then n :: acc else acc) field_map [] with
 				| [] -> ()
@@ -1666,7 +1667,7 @@ and type_object_decl ctx fl with_type p =
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in
 		ctx.opened <- x :: ctx.opened;
-		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
+		mk (TObjectDecl (List.rev fields)) (TAnon { a_id = mk_aid(); a_fields = types; a_status = x }) p
 	in
 	(match a with
 	| ODKPlain -> type_plain_fields()
@@ -1783,7 +1784,7 @@ and type_new ctx path el with_type force_inline p =
 		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
-		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
+		let ta = TAnon { a_id = mk_aid(); a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
 		make_call ctx e el t ~force_inline p

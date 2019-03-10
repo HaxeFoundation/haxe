@@ -667,7 +667,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			let fl = List.map (fun (s,e) -> s,map false false e) fl in
 			begin match follow e.etype with
 				| TAnon an when (match !(an.a_status) with Const -> true | _ -> false) ->
-					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_status = ref Closed}}
+					{e with eexpr = TObjectDecl fl; etype = TAnon { an with a_id = mk_aid(); a_status = ref Closed}}
 				| _ ->
 					{e with eexpr = TObjectDecl fl}
 			end

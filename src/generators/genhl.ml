@@ -98,9 +98,9 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	is_macro : bool;
 	mutable dump_out : (unit IO.output) option;
-	mutable cached_types : ttype Hlopt.IMap.t;
+	mutable cached_types : ttype IMap.t;
 	mutable m : method_context;
-	mutable anons_cache : (tanon * ttype) list;
+	mutable anons_cache : ttype IMap.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -389,10 +389,9 @@ let rec to_type ?tref ctx t =
 		| _ -> assert false)
 	| TAnon a ->
 		(try
-			(* can't use physical comparison in PMap since addresses might change in GC compact,
-				maybe add an uid to tanon if too slow ? *)
-			List.assq a ctx.anons_cache
+			IMap.find a.a_id ctx.anons_cache
 		with Not_found ->
+			if PMap.is_empty a.a_fields then HDyn else
 			let vp = {
 				vfields = [||];
 				vindex = PMap.empty;
@@ -401,17 +400,12 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
+			ctx.anons_cache <- IMap.add a.a_id t ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
-			if fields = [] then
-				let t = HDyn in
-				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
-				t
-			else
-				let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
-				vp.vfields <- Array.of_list fields;
-				Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-				t
+			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
+			vp.vfields <- Array.of_list fields;
+			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+			t
 		)
 	| TDynamic _ ->
 		HDyn
@@ -542,14 +536,14 @@ and class_type ?(tref=None) ctx c pl statics =
 	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then c.cl_uid lsl 1 else (c.cl_uid lsl 1) lor 1) in
 	try
-		Hlopt.IMap.find key_path ctx.cached_types
+		IMap.find key_path ctx.cached_types
 	with Not_found when c.cl_interface && not statics ->
 		let vp = {
 			vfields = [||];
 			vindex = PMap.empty;
 		} in
 		let t = HVirtual vp in
-		ctx.cached_types <- Hlopt.IMap.add key_path t ctx.cached_types;
+		ctx.cached_types <- IMap.add key_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
 			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
@@ -579,7 +573,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		| None -> ()
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
-		ctx.cached_types <- Hlopt.IMap.add key_path t ctx.cached_types;
+		ctx.cached_types <- IMap.add key_path t ctx.cached_types;
 		if c.cl_path = ([],"Array") then assert false;
 		if c == ctx.base_class then begin
 			if statics then assert false;
@@ -678,7 +672,7 @@ and class_type ?(tref=None) ctx c pl statics =
 
 and enum_type ?(tref=None) ctx e =
 	try
-		Hlopt.IMap.find (e.e_uid lsl 1) ctx.cached_types
+		IMap.find (e.e_uid lsl 1) ctx.cached_types
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
@@ -691,7 +685,7 @@ and enum_type ?(tref=None) ctx e =
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
-		ctx.cached_types <- Hlopt.IMap.add (e.e_uid lsl 1) t ctx.cached_types;
+		ctx.cached_types <- IMap.add (e.e_uid lsl 1) t ctx.cached_types;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -707,7 +701,7 @@ and enum_type ?(tref=None) ctx e =
 and enum_class ctx e =
 	let key_path = (e.e_uid lsl 1) lor 1 in
 	try
-		Hlopt.IMap.find key_path ctx.cached_types
+		IMap.find key_path ctx.cached_types
 	with Not_found ->
 		let cpath = (fst e.e_path,"$" ^ snd e.e_path) in
 		let pname = s_type_path cpath in
@@ -726,7 +720,7 @@ and enum_class ctx e =
 			pbindings = [];
 		} in
 		let t = HObj p in
-		ctx.cached_types <- Hlopt.IMap.add key_path t ctx.cached_types;
+		ctx.cached_types <- IMap.add key_path t ctx.cached_types;
 		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> assert false);
 		t
 
@@ -3907,7 +3901,7 @@ let create_context com is_macro dump =
 		cconstants = new_lookup();
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
-		cached_types = Hlopt.IMap.empty;
+		cached_types = IMap.empty;
 		cached_tuples = PMap.empty;
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
@@ -3927,7 +3921,7 @@ let create_context com is_macro dump =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = [];
+		anons_cache = IMap.empty;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

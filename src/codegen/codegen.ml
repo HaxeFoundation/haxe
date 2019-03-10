@@ -452,9 +452,9 @@ end
 let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.basic in
 	let mk_texpr = function
-		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
-		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
-		| TAbstractDecl a -> TAnon { a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
+		| TClassDecl c -> TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (Statics c) }
+		| TEnumDecl e -> TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+		| TAbstractDecl a -> TAnon { a_id = mk_aid(); a_fields = PMap.empty; a_status = ref (AbstractStatics a) }
 		| TTypeDecl _ -> assert false
 	in
 	let vtmp = alloc_var VGenerated vtmp e.etype e.epos in
