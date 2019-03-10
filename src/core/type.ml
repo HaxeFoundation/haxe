@@ -204,6 +204,7 @@ and tclass_kind =
 and metadata = Ast.metadata
 
 and tinfos = {
+	mt_uid : int;
 	mt_path : path;
 	mt_module : module_def;
 	mt_pos : pos;
@@ -216,6 +217,7 @@ and tinfos = {
 }
 
 and tclass = {
+	cl_uid : int;
 	mutable cl_path : path;
 	mutable cl_module : module_def;
 	mutable cl_pos : pos;
@@ -263,6 +265,7 @@ and tenum_field = {
 }
 
 and tenum = {
+	e_uid : int;
 	mutable e_path : path;
 	e_module : module_def;
 	e_pos : pos;
@@ -280,6 +283,7 @@ and tenum = {
 }
 
 and tdef = {
+	t_uid : int;
 	t_path : path;
 	t_module : module_def;
 	t_pos : pos;
@@ -294,6 +298,7 @@ and tdef = {
 }
 
 and tabstract = {
+	a_uid : int;
 	mutable a_path : path;
 	a_module : module_def;
 	a_pos : pos;
@@ -458,8 +463,13 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
+let mk_uid =
+	let uid = ref 0 in
+	(fun() -> incr uid; !uid)
+
 let mk_class m path pos name_pos =
 	{
+		cl_uid = mk_uid();
 		cl_path = path;
 		cl_module = m;
 		cl_pos = pos;
@@ -541,6 +551,7 @@ let null_class =
 let null_field = mk_field "" t_dynamic null_pos null_pos
 
 let null_abstract = {
+	a_uid = mk_uid();
 	a_path = ([],"");
 	a_module = null_module;
 	a_pos = null_pos;
@@ -2920,6 +2931,7 @@ module StringError = struct
 end
 
 let class_module_type c = {
+	t_uid = mk_uid();
 	t_path = [],"Class<" ^ (s_type_path c.cl_path) ^ ">" ;
 	t_module = c.cl_module;
 	t_doc = None;
@@ -2936,6 +2948,7 @@ let class_module_type c = {
 }
 
 let enum_module_type m path p  = {
+	t_uid = mk_uid();
 	t_path = [], "Enum<" ^ (s_type_path path) ^ ">";
 	t_module = m;
 	t_doc = None;
@@ -2949,6 +2962,7 @@ let enum_module_type m path p  = {
 }
 
 let abstract_module_type a tl = {
+	t_uid = mk_uid();
 	t_path = [],Printf.sprintf "Abstract<%s%s>" (s_type_path a.a_path) (s_type_params (ref []) tl);
 	t_module = a.a_module;
 	t_doc = None;

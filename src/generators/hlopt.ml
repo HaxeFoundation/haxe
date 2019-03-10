@@ -26,6 +26,11 @@ module ISet = Set.Make(struct
 	type t = int
 end)
 
+module IMap = Map.Make(struct
+	let compare a b = b - a
+	type t = int
+end)
+
 type cur_value =
 	| VUndef
 	| VReg of int
@@ -46,7 +51,7 @@ type block = {
 	mutable bstate : reg_state array option;
 	mutable bneed : ISet.t;
 	mutable bneed_all : ISet.t option;
-	mutable bwrite : (int, int) PMap.t;
+	mutable bwrite : int IMap.t;
 }
 
 type control =
@@ -456,7 +461,7 @@ let code_graph (f:fundecl) =
 				bloop = false;
 				bstate = None;
 				bneed = ISet.empty;
-				bwrite = PMap.empty;
+				bwrite = IMap.empty;
 				bneed_all = None;
 			} in
 			Hashtbl.add blocks_pos pos b;
@@ -608,7 +613,7 @@ let optimize dump get_str (f:fundecl) =
 				s.rbind <- [];
 				s.rnullcheck <- false;
 				last_write.(r) <- i;
-				b.bwrite <- PMap.add r i b.bwrite;
+				b.bwrite <- IMap.add r i b.bwrite;
 				write_count r;
 				unalias s
 			in
@@ -704,7 +709,7 @@ let optimize dump get_str (f:fundecl) =
 			) ISet.empty b.bnext in
 			let need_sub = ISet.filter (fun r ->
 				try
-					let w = PMap.find r b.bwrite in
+					let w = IMap.find r b.bwrite in
 					set_live r (w + 1) b.bend;
 					false
 				with Not_found ->
@@ -789,7 +794,7 @@ let optimize dump get_str (f:fundecl) =
 				if reg < nargs then [(i,-reg-1)] else
 				let b = resolve_block p in
 				if last_w >= b.bstart && last_w < b.bend && last_w < p then loop last_w else
-				let wp = try PMap.find reg b.bwrite with Not_found -> -1 in
+				let wp = try IMap.find reg b.bwrite with Not_found -> -1 in
 				let rec gather b =
 					if Hashtbl.mem gmap b.bstart then [] else begin
 						Hashtbl.add gmap b.bstart ();
@@ -797,7 +802,7 @@ let optimize dump get_str (f:fundecl) =
 						List.fold_left (fun acc bp ->
 							if bp.bstart > b.bstart then acc else
 							try
-								let wp = PMap.find reg bp.bwrite in
+								let wp = IMap.find reg bp.bwrite in
 								if wp > p then assert false;
 								loop wp @ acc
 							with Not_found ->
@@ -847,7 +852,8 @@ let optimize dump get_str (f:fundecl) =
 					b.bend
 				);
 				let need = String.concat "," (List.map string_of_int (ISet.elements b.bneed)) in
-				let wr = String.concat " " (List.rev (PMap.foldi (fun r p acc -> Printf.sprintf "%d@%X" r p :: acc) b.bwrite [])) in
+				let reg_count = ref (-1) in
+				let wr = String.concat " " (List.rev (IMap.fold (fun p _ acc -> incr reg_count; let r = !reg_count in Printf.sprintf "%d@%X" r p :: acc) b.bwrite [])) in
 				write ("\t" ^ (if b.bloop then "LOOP " else "") ^ "NEED=" ^ need ^ "\tWRITE=" ^ wr);
 				b
 			with Not_found ->
