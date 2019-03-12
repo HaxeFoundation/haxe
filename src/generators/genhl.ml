@@ -98,9 +98,9 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	is_macro : bool;
 	mutable dump_out : (unit IO.output) option;
-	mutable cached_types : (path, ttype) PMap.t;
+	mutable cached_types : (string list, ttype) PMap.t;
 	mutable m : method_context;
-	mutable anons_cache : (tanon * ttype) list;
+	mutable anons_cache : (tanon, ttype) PMap.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -388,10 +388,11 @@ let rec to_type ?tref ctx t =
 			enum_class ctx e
 		| _ -> assert false)
 	| TAnon a ->
+		if PMap.is_empty a.a_fields then HDyn else
 		(try
 			(* can't use physical comparison in PMap since addresses might change in GC compact,
 				maybe add an uid to tanon if too slow ? *)
-			List.assq a ctx.anons_cache
+			PMap.find a ctx.anons_cache
 		with Not_found ->
 			let vp = {
 				vfields = [||];
@@ -401,17 +402,12 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- (a,t) :: ctx.anons_cache;
+			ctx.anons_cache <- PMap.add a t ctx.anons_cache;
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
-			if fields = [] then
-				let t = HDyn in
-				ctx.anons_cache <- (a,t) :: List.tl ctx.anons_cache;
-				t
-			else
-				let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
-				vp.vfields <- Array.of_list fields;
-				Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-				t
+			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
+			vp.vfields <- Array.of_list fields;
+			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
+			t
 		)
 	| TDynamic _ ->
 		HDyn
@@ -540,7 +536,7 @@ and real_type ctx e =
 
 and class_type ?(tref=None) ctx c pl statics =
 	let c = if c.cl_extern then resolve_class ctx c pl statics else c in
-	let key_path = (if statics then fst c.cl_path, "$" ^ snd c.cl_path else c.cl_path) in
+	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
 		PMap.find key_path ctx.cached_types
 	with Not_found when c.cl_interface && not statics ->
@@ -549,7 +545,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			vindex = PMap.empty;
 		} in
 		let t = HVirtual vp in
-		ctx.cached_types <- PMap.add c.cl_path t ctx.cached_types;
+		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		let rec loop c =
 			let fields = List.fold_left (fun acc (i,_) -> loop i @ acc) [] c.cl_implements in
 			PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) c.cl_fields fields
@@ -559,7 +555,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 		t
 	| Not_found ->
-		let pname = s_type_path key_path in
+		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
 			pname = pname;
 			pid = alloc_string ctx pname;
@@ -677,8 +673,9 @@ and class_type ?(tref=None) ctx c pl statics =
 		t
 
 and enum_type ?(tref=None) ctx e =
+	let key_path = snd e.e_path :: fst e.e_path in
 	try
-		PMap.find e.e_path ctx.cached_types
+		PMap.find key_path ctx.cached_types
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
@@ -691,7 +688,7 @@ and enum_type ?(tref=None) ctx e =
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
-		ctx.cached_types <- PMap.add e.e_path t ctx.cached_types;
+		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -705,11 +702,11 @@ and enum_type ?(tref=None) ctx e =
 		t
 
 and enum_class ctx e =
-	let cpath = (fst e.e_path,"$" ^ snd e.e_path) in
+	let key_path = ("$" ^ snd e.e_path) :: fst e.e_path in
 	try
-		PMap.find cpath ctx.cached_types
+		PMap.find key_path ctx.cached_types
 	with Not_found ->
-		let pname = s_type_path cpath in
+		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
 			pname = pname;
 			pid = alloc_string ctx pname;
@@ -725,7 +722,7 @@ and enum_class ctx e =
 			pbindings = [];
 		} in
 		let t = HObj p in
-		ctx.cached_types <- PMap.add cpath t ctx.cached_types;
+		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
 		p.psuper <- Some (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> assert false);
 		t
 
@@ -1027,8 +1024,26 @@ let type_value ctx t p =
 		assert false
 
 let rec eval_to ctx e (t:ttype) =
-	let r = eval_expr ctx e in
-	cast_to ctx r t e.epos
+	match e.eexpr, t with
+	| TConst (TInt i), HF64 ->
+		let r = alloc_tmp ctx t in
+		op ctx (OFloat (r,alloc_float ctx (Int32.to_float i)));
+		r
+	(* this causes a bug with NG, to be reviewed later
+	| TConst (TInt i), HF32 ->
+		let r = alloc_tmp ctx t in
+		let bits = Int32.bits_of_float (Int32.to_float i) in
+		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		r
+	*)
+	| TConst (TFloat f), HF32 ->
+		let r = alloc_tmp ctx t in
+		let bits = Int32.bits_of_float (float_of_string f) in
+		op ctx (OFloat (r,alloc_float ctx (Int64.float_of_bits (Int64.of_int32 bits))));
+		r
+	| _ ->
+		let r = eval_expr ctx e in
+		cast_to ctx r t e.epos
 
 and cast_to ?(force=false) ctx (r:reg) (t:ttype) p =
 	let rt = rtype ctx r in
@@ -3913,7 +3928,7 @@ let create_context com is_macro dump =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = [];
+		anons_cache = PMap.empty;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();

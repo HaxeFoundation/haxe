@@ -65,20 +65,20 @@ extern class AnalyserNode extends AudioNode {
 	/**
 		Copies the current frequency data into a `Float32Array` array passed into it.
 	**/
-	function getFloatFrequencyData( array : js.html.Float32Array ) : Void;
+	function getFloatFrequencyData( array : js.lib.Float32Array ) : Void;
 	
 	/**
 		Copies the current frequency data into a `Uint8Array` (unsigned byte array) passed into it.
 	**/
-	function getByteFrequencyData( array : js.html.Uint8Array ) : Void;
+	function getByteFrequencyData( array : js.lib.Uint8Array ) : Void;
 	
 	/**
 		Copies the current waveform, or time-domain, data into a `Float32Array` array passed into it.
 	**/
-	function getFloatTimeDomainData( array : js.html.Float32Array ) : Void;
+	function getFloatTimeDomainData( array : js.lib.Float32Array ) : Void;
 	
 	/**
 		Copies the current waveform, or time-domain, data into a `Uint8Array` (unsigned byte array) passed into it.
 	**/
-	function getByteTimeDomainData( array : js.html.Uint8Array ) : Void;
+	function getByteTimeDomainData( array : js.lib.Uint8Array ) : Void;
 }

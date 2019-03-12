@@ -122,8 +122,8 @@ extern class XMLHttpRequest extends XMLHttpRequestEventTarget {
 		@throws DOMError
 	**/
 	@:overload( function( ?body : Blob) : Void {} )
-	@:overload( function( ?body : ArrayBufferView) : Void {} )
-	@:overload( function( ?body : ArrayBuffer) : Void {} )
+	@:overload( function( ?body : js.lib.ArrayBufferView) : Void {} )
+	@:overload( function( ?body : js.lib.ArrayBuffer) : Void {} )
 	@:overload( function( ?body : FormData) : Void {} )
 	@:overload( function( ?body : URLSearchParams) : Void {} )
 	@:overload( function( ?body : String) : Void {} )

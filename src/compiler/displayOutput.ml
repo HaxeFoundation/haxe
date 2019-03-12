@@ -435,7 +435,7 @@ module TypePathHandler = struct
 						else
 							packages := f :: !packages
 					end;
-				end else if file_extension f = "hx" then begin
+				end else if file_extension f = "hx" && f <> "import.hx" then begin
 					let c = Filename.chop_extension f in
 					try
 						ignore(String.index c '.')
@@ -486,7 +486,7 @@ module TypePathHandler = struct
 	let complete_type_path com p =
 		let packs, modules = read_type_path com p in
 		if packs = [] && modules = [] then
-			(abort ("No classes found in " ^ String.concat "." p) null_pos)
+			(abort ("No modules found in " ^ String.concat "." p) null_pos)
 		else
 			let packs = List.map (fun n -> make_ci_package (p,n) []) packs in
 			let modules = List.map (fun n -> make_ci_module (p,n)) modules in

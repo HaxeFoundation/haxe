@@ -37,7 +37,7 @@ extern class WaveShaperNode extends AudioNode {
 	/**
 		Is a `Float32Array` of numbers describing the distortion to apply.
 	**/
-	var curve : js.html.Float32Array;
+	var curve : js.lib.Float32Array;
 	
 	/**
 		Is an enumerated value indicating if oversampling must be used. Oversampling is a technique for creating more samples (up-sampling) before applying the distortion effect to the audio signal.

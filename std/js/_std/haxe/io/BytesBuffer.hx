@@ -24,9 +24,9 @@ package haxe.io;
 @:coreApi
 class BytesBuffer {
 
-	var buffer : js.html.ArrayBuffer;
-	var view : js.html.DataView;
-	var u8 : js.html.Uint8Array;
+	var buffer : js.lib.ArrayBuffer;
+	var view : js.lib.DataView;
+	var u8 : js.lib.Uint8Array;
 	var pos : Int;
 	var size : Int;
 
@@ -49,7 +49,7 @@ class BytesBuffer {
 	public function add( src : Bytes ) : Void {
 		if( pos + src.length > size ) grow(src.length);
 		if( size == 0 ) return;
-		var sub = new js.html.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset, src.length);
+		var sub = new js.lib.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset, src.length);
 		u8.set(sub, pos);
 		pos += src.length;
 	}
@@ -87,7 +87,7 @@ class BytesBuffer {
 		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
 		if( this.pos + len > size ) grow(len);
 		if( size == 0 ) return;
-		var sub = new js.html.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset + pos, len);
+		var sub = new js.lib.Uint8Array(@:privateAccess src.b.buffer, @:privateAccess src.b.byteOffset + pos, len);
 		u8.set(sub, this.pos);
 		this.pos += len;
 	}
@@ -97,14 +97,14 @@ class BytesBuffer {
 		var nsize = size == 0 ? 16 : size;
 		while( nsize < req )
 			nsize = (nsize * 3) >> 1;
-		var nbuf = new js.html.ArrayBuffer(nsize);
-		var nu8 = new js.html.Uint8Array(nbuf);
+		var nbuf = new js.lib.ArrayBuffer(nsize);
+		var nu8 = new js.lib.Uint8Array(nbuf);
 		if( size > 0 )
 			nu8.set(u8);
 		size = nsize;
 		buffer = nbuf;
 		u8 = nu8;
-		view = new js.html.DataView(buffer);
+		view = new js.lib.DataView(buffer);
 	}
 
 	public function getBytes() : Bytes @:privateAccess {

@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef UInt16ArrayData = js.html.Uint16Array;
+typedef UInt16ArrayData = js.lib.Uint16Array;
 
 @:coreApi
 abstract UInt16Array(UInt16ArrayData) {

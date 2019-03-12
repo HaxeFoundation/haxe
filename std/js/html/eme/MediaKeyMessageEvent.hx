@@ -42,7 +42,7 @@ extern class MediaKeyMessageEvent extends js.html.Event {
 	/**
 		Returns an `ArrayBuffer` with a message from the content decryption module. Messages vary by key system.
 	**/
-	var message(default,null) : js.html.ArrayBuffer;
+	var message(default,null) : js.lib.ArrayBuffer;
 	
 	/** @throws DOMError */
 	function new( type : String, eventInitDict : MediaKeyMessageEventInit ) : Void;

@@ -36,7 +36,7 @@ extern class FileReaderSync {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
-	function readAsArrayBuffer( blob : Blob ) : ArrayBuffer;
+	function readAsArrayBuffer( blob : Blob ) : js.lib.ArrayBuffer;
 	/** @throws DOMError */
 	function readAsBinaryString( blob : Blob ) : String;
 	/** @throws DOMError */

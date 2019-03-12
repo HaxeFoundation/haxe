@@ -45,5 +45,5 @@ extern class File extends Blob {
 	var lastModified(default,null) : Int;
 	
 	/** @throws DOMError */
-	function new( fileBits : Array<haxe.extern.EitherType<haxe.extern.EitherType<ArrayBufferView,ArrayBuffer>,haxe.extern.EitherType<Blob,String>>>, fileName : String, ?options : FilePropertyBag ) : Void;
+	function new( fileBits : Array<haxe.extern.EitherType<haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer>,haxe.extern.EitherType<Blob,String>>>, fileName : String, ?options : FilePropertyBag ) : Void;
 }

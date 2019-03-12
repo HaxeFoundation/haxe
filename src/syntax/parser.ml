@@ -27,7 +27,7 @@ type error_msg =
 	| Unexpected of token
 	| Duplicate_default
 	| Missing_semicolon
-	| Unclosed_macro
+	| Unclosed_conditional
 	| Unimplemented
 	| Missing_type
 	| Expected of string list
@@ -59,7 +59,7 @@ let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
-	| Unclosed_macro -> "Unclosed macro"
+	| Unclosed_conditional -> "Unclosed conditional compilation block"
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
 	| Expected sl -> "Expected " ^ (String.concat " or " sl)

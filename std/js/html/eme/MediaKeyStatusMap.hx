@@ -43,15 +43,15 @@ extern class MediaKeyStatusMap {
 	/**
 		Returns a boolean asserting whether a value has been associated with the given key.
 	**/
-	@:overload( function( keyId : js.html.ArrayBuffer) : Bool {} )
-	function has( keyId : js.html.ArrayBufferView ) : Bool;
+	@:overload( function( keyId : js.lib.ArrayBuffer) : Bool {} )
+	function has( keyId : js.lib.ArrayBufferView ) : Bool;
 	
 	/**
 		Returns the value associated with the given key, or `undefined` if there is none.
 		@throws DOMError
 	**/
-	@:overload( function( keyId : js.html.ArrayBuffer) : Dynamic {} )
-	function get( keyId : js.html.ArrayBufferView ) : Dynamic;
+	@:overload( function( keyId : js.lib.ArrayBuffer) : Dynamic {} )
+	function get( keyId : js.lib.ArrayBufferView ) : Dynamic;
 	
 	/**
 		Returns a new `Iterator` object containing an array of `[key, value]` for each element in the status map, in insertion order.

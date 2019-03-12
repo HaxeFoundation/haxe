@@ -21,7 +21,7 @@
  */
  package haxe.io;
 
-typedef ArrayBufferViewData = js.html.ArrayBufferView;
+typedef ArrayBufferViewData = js.lib.ArrayBufferView;
 
 abstract ArrayBufferView(ArrayBufferViewData) {
 
@@ -30,7 +30,7 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	public var byteLength(get, never) : Int;
 
 	public inline function new( size : Int ) {
-		this = new js.html.Uint8Array(size);
+		this = new js.lib.Uint8Array(size);
 	}
 
 	inline function get_byteOffset() return this.byteOffset;
@@ -40,7 +40,7 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	}
 
 	public inline function sub( begin : Int, ?length : Int ) {
-		return fromData(new js.html.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
+		return fromData(new js.lib.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
 	}
 
 	public inline function getData() : ArrayBufferViewData {

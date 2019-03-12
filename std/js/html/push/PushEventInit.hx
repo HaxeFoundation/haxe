@@ -25,5 +25,5 @@
 package js.html.push;
 
 typedef PushEventInit = ExtendableEventInit & {
-	var ?data : haxe.extern.EitherType<haxe.extern.EitherType<js.html.ArrayBufferView,js.html.ArrayBuffer>,String>;
+	var ?data : haxe.extern.EitherType<haxe.extern.EitherType<js.lib.ArrayBufferView,js.lib.ArrayBuffer>,String>;
 }

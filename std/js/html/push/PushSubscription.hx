@@ -51,7 +51,7 @@ extern class PushSubscription {
 		Returns an `ArrayBuffer` which contains the client's public key, which can then be sent to a server and used in encrypting push message data.
 		@throws DOMError
 	**/
-	function getKey( name : PushEncryptionKeyName ) : js.html.ArrayBuffer;
+	function getKey( name : PushEncryptionKeyName ) : js.lib.ArrayBuffer;
 	
 	/**
 		Starts the asynchronous process of unsubscribing from the push service, returning a `Promise` that resolves to a `Boolean` when the current subscription is successfully unregistered.

@@ -81,8 +81,8 @@ extern class BaseAudioContext extends js.html.EventTarget {
 		Asynchronously decodes audio file data contained in an `ArrayBuffer`. In this case, the ArrayBuffer is usually loaded from an `XMLHttpRequest`'s `response` attribute after setting the `responseType` to `arraybuffer`. This method only works on complete files, not fragments of audio files.
 		@throws DOMError
 	**/
-	@:overload( function( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer> {} )
-	function decodeAudioData( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : js.html.DOMException -> Void ) : Promise<AudioBuffer>;
+	@:overload( function( audioData : js.lib.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer> {} )
+	function decodeAudioData( audioData : js.lib.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : js.html.DOMException -> Void ) : Promise<AudioBuffer>;
 	
 	/**
 		Creates an `AudioBufferSourceNode`, which can be used to play and manipulate audio data contained within an `AudioBuffer` object. `AudioBuffer`s are created using `AudioContext.createBuffer` or returned by `AudioContext.decodeAudioData` when it successfully decodes an audio track.
@@ -184,5 +184,5 @@ extern class BaseAudioContext extends js.html.EventTarget {
 		Creates a `PeriodicWave`, used to define a periodic waveform that can be used to determine the output of an `OscillatorNode`.
 		@throws DOMError
 	**/
-	function createPeriodicWave( real : js.html.Float32Array, imag : js.html.Float32Array, ?constraints : PeriodicWaveConstraints ) : PeriodicWave;
+	function createPeriodicWave( real : js.lib.Float32Array, imag : js.lib.Float32Array, ?constraints : PeriodicWaveConstraints ) : PeriodicWave;
 }

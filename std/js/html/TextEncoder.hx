@@ -45,5 +45,5 @@ extern class TextEncoder {
 	/**
 		Returns a `Uint8Array` containing utf-8 encoded text.
 	**/
-	function encode( input : String = "" ) : Uint8Array;
+	function encode( input : String = "" ) : js.lib.Uint8Array;
 }

@@ -146,7 +146,7 @@ module Printer = struct
 	let print_diagnostics dctx com global =
 		let diag = Hashtbl.create 0 in
 		let add dk p sev args =
-			let file = Path.get_real_path p.pfile in
+			let file = if p = null_pos then p.pfile else Path.get_real_path p.pfile in
 			let diag = try
 				Hashtbl.find diag file
 			with Not_found ->
@@ -199,7 +199,7 @@ module Printer = struct
 				]) :: acc
 			) diag [] in
 			(JObject [
-				"file",JString file;
+				"file",if file = "?" then JNull else JString file;
 				"diagnostics",JArray jl
 			]) :: acc
 		) diag [] in
