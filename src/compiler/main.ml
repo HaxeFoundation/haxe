@@ -87,19 +87,25 @@ let reserved_flags = [
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let expand_env ?(h=None) path  =
-	let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-	Str.global_substitute r (fun s ->
-		let key = Str.matched_group 1 s in
-		try
-			Sys.getenv key
-		with Not_found -> try
-			match h with
-			| None -> raise Not_found
-			| Some h -> Hashtbl.find h key
-		with Not_found ->
-			"%" ^ key ^ "%"
-	) path
+let expand_env is_arg ?(h=None) path =
+	try
+		if not is_arg then raise Not_found;
+		(* If we have an argument with line breaks, don't expand env. *)
+		ignore(String.index path '\n');
+		path
+	with Not_found ->
+		let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
+		Str.global_substitute r (fun s ->
+			let key = Str.matched_group 1 s in
+			try
+				Sys.getenv key
+			with Not_found -> try
+				match h with
+				| None -> raise Not_found
+				| Some h -> Hashtbl.find h key
+			with Not_found ->
+				"%" ^ key ^ "%"
+		) path
 
 let add_libs com libs =
 	let call_haxelib() =
@@ -153,7 +159,7 @@ let run_command ctx cmd =
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
 	let t = Timer.timer ["command"] in
-	let cmd = expand_env ~h:(Some h) cmd in
+	let cmd = expand_env false ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
 		Sys.chdir (String.sub cmd 3 (len - 3));
@@ -755,7 +761,7 @@ try
 	let process args =
 		let current = ref 0 in
 		(try
-			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback "";
+			Arg.parse_argv ~current (Array.of_list ("" :: List.map (expand_env true) args)) all_args_spec args_callback "";
 			List.iter (fun fn -> fn()) !arg_delays
 		with
 		| Arg.Help _ ->
