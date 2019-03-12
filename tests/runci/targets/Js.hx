@@ -97,10 +97,7 @@ class Js {
 		runci.targets.Java.getJavaDependencies(); // this is awkward
 		haxelibInstallGit("Simn", "haxeserver");
 		changeDirectory(serverDir);
-
-		haxelibInstallGit("Simn", "haxeserver");
-
-        runCommand("haxe", ["build.hxml"]);
-        runCommand("node", ["test.js"]);
+		runCommand("haxe", ["build.hxml"]);
+		runCommand("node", ["test.js"]);
 	}
 }
