@@ -21,22 +21,17 @@ open EvalValue
 
 let vstring s = VString s
 
-let get_offset s =
-	let l = String.length s in
-	if l > 5 then VSOOne (ref (0,0))
-	else VSONone
-
 let create_ascii s =
 	{
 		sstring = s;
 		slength = String.length s;
-		soffset = get_offset s;
+		soffsets = [];
 	}
 
 let create_with_length s length = {
 	sstring = s;
 	slength = length;
-	soffset = get_offset s;
+	soffsets = [];
 }
 
 let create_unknown s =
@@ -66,11 +61,14 @@ let get_offset s c_index =
 		if c_len = 0 then b_offset else
 		rget_b_offset (c_len + 1) (UTF8.prev s.sstring b_offset)
 	in
-	match s.soffset with
-	| VSONone ->
-		get_b_offset c_index 0
-	| VSOOne r1 ->
-		let (c_index1,b_offset1) = !r1 in
+	match s.soffsets with
+	| [] ->
+		let b_offset = get_b_offset c_index 0 in
+		if s.slength > 5 then s.soffsets <- (ref c_index,ref b_offset) :: s.soffsets;
+		b_offset;
+	| [(cr_index1,br_offset1)] ->
+		let c_index1 = !cr_index1 in
+		let b_offset1 = !br_offset1 in
 		let diff = c_index - c_index1 in
 		let b_offset = match diff with
 			| 0 -> b_offset1
@@ -87,12 +85,16 @@ let get_offset s c_index =
 		in
 		(* If our jump is larger than the scientifically determined value 20, upgrade
 		   to two offset pointers. *)
-		if abs diff > 20 then s.soffset <- VSOTwo(r1,ref (c_index,b_offset))
-		else r1 := (c_index,b_offset);
+		if diff > 20 || diff < -20 then
+			s.soffsets <- (ref c_index,ref b_offset) :: s.soffsets
+		else begin
+			cr_index1 := c_index;
+			br_offset1 := b_offset;
+		end;
 		b_offset
-	| VSOTwo(r1,r2) ->
-		let (c_index1,b_offset1) = !r1 in
-		let (c_index2,b_offset2) = !r2 in
+	| [(cr_index1,br_offset1);(cr_index2,br_offset2)] ->
+		let (c_index1,b_offset1) = !cr_index1,!br_offset1 in
+		let (c_index2,b_offset2) = !cr_index2,!br_offset2 in
 		let diff1 = c_index - c_index1 in
 		let diff2 = c_index - c_index2 in
 		let first,b_offset = match diff1,diff2 with
@@ -118,9 +120,11 @@ let get_offset s c_index =
 				in
 				first,b_offset
 		in
-		if first then r1 := (c_index,b_offset)
-		else r2 := (c_index,b_offset);
+		if first then (cr_index1 := c_index;br_offset1 := b_offset)
+		else (cr_index2 := c_index;br_offset2 := b_offset);
 		b_offset
+	| _ ->
+		assert false
 
 let char_at s c_index =
 	let b_offset = get_offset s c_index in
