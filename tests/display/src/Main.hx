@@ -10,7 +10,11 @@ class Main {
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
 		report.displaySuccessResults = NeverShowSuccessResults;
-		DisplayTestContext.runHaxe(["-cp", "src", "--no-output", "-lib", "utest"]);
+
+		var haxeServer = @:privateAccess DisplayTestContext.haxeServer;
+		haxeServer.setDefaultRequestArguments(["-cp", "src", "--no-output", "-lib", "utest"]);
+		DisplayTestContext.runHaxe([]);
 		runner.run();
+		haxeServer.close();
 	}
 }

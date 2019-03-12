@@ -1,52 +1,29 @@
 import haxe.display.JsonModuleTypes.JsonModuleType;
 import haxe.Json;
-import HaxeServer;
+import haxeserver.process.HaxeServerProcessNode;
+import haxeserver.HaxeServerAsync;
 import utest.Assert;
 import utest.ITest;
 
 using StringTools;
 using Lambda;
 
-class TestContext {
-	public var messages:Array<String> = []; // encapsulation is overrated
-	public var errorMessages = [];
-	public var displayServerConfig:DisplayServerConfigBase;
-
-	public function new(config:DisplayServerConfigBase) {
-		this.displayServerConfig = config;
-	}
-
-	public function sendErrorMessage(msg:String) {}
-
-	public function sendLogMessage(msg:String) {
-		var split = msg.split("\n");
-		for (message in split) {
-			messages.push(message.trim());
-		}
-	}
-}
-
 @:autoBuild(AsyncMacro.build())
 class HaxeServerTestCase implements ITest {
-	var context:TestContext;
-	var server:HaxeServer;
+	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
 	var storedTypes:Array<JsonModuleType<Any>>;
+	var messages:Array<String> = [];
+	var errorMessages = [];
 	var i:Int = 0;
 
 	public function new() {}
 
 	public function setup() {
 		testDir = "test/cases/" + i++;
-		context = new TestContext({
-			haxePath: "haxe",
-			arguments: ["-v", "--cwd", testDir],
-			env: {}
-		});
 		vfs = new Vfs(testDir);
-		server = new HaxeServer(context);
-		server.start();
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
 	}
 
 	public function teardown() {
@@ -54,21 +31,45 @@ class HaxeServerTestCase implements ITest {
 	}
 
 	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
-		context.messages = [];
-		context.errorMessages = [];
+		messages = [];
+		errorMessages = [];
 		storedTypes = [];
 		if (storeTypes) {
 			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
 		}
-		server.process(args, null, function(result) {
+		server.rawRequest(args, null, function(result) {
+			sendLogMessage(result.stdout);
+			for (print in result.prints) {
+				var line = print.trim();
+				messages.push('Haxe print: $line');
+			}
+			if (result.hasError) {
+				sendErrorMessage(result.stderr);
+			}
 			if (storeTypes) {
-				storedTypes = Json.parse(result).result.result;
+				storedTypes = try {
+					Json.parse(result.stderr).result.result;
+				} catch (e:Dynamic) {
+					trace(e);
+					[];
+				}
 			}
 			done();
-		}, function(message) {
-			context.errorMessages.push(message);
-			done();
-		});
+		}, sendErrorMessage);
+	}
+
+	function sendErrorMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			errorMessages.push(message.trim());
+		}
+	}
+
+	function sendLogMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			messages.push(message.trim());
+		}
 	}
 
 	function getTemplate(templateName:String) {
@@ -76,7 +77,7 @@ class HaxeServerTestCase implements ITest {
 	}
 
 	function hasMessage<T>(msg:String) {
-		for (message in context.messages) {
+		for (message in messages) {
 			if (message.endsWith(msg)) {
 				return true;
 			}
@@ -85,7 +86,7 @@ class HaxeServerTestCase implements ITest {
 	}
 
 	function hasErrorMessage<T>(msg:String) {
-		for (message in context.errorMessages) {
+		for (message in errorMessages) {
 			if (message.endsWith(msg)) {
 				return true;
 			}

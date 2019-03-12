@@ -11,6 +11,7 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
 		changeDirectory(displayDir);
+		haxelibInstallGit("Simn", "haxeserver");
 		runCommand("haxe", ["build.hxml"]);
 
 		changeDirectory(sourcemapsDir);
