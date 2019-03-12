@@ -418,7 +418,7 @@ module Inheritance = struct
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
-		let check_herit t is_extends =
+		let check_herit t is_extends p =
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -464,10 +464,10 @@ module Inheritance = struct
 					error "Should implement by using an interface" p
 			end
 		in
-		let fl = ExtList.List.filter_map (fun (is_extends,t) ->
+		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx t false
+					Typeload.load_instance ~allow_display:true ctx (ct,p) false
 				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
@@ -481,7 +481,7 @@ module Inheritance = struct
 					) l in
 					raise_fields l (if is_extends then CRExtends else CRImplements) p
 				in
-				Some (check_herit t is_extends)
+				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
