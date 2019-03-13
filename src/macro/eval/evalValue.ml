@@ -199,7 +199,7 @@ and vthread = {
 }
 
 and vdeque = {
-	mutable dvalues : value list; (* TODO: lol *)
+	mutable dvalues : value list;
 	dchannel : value Event.channel;
 }
 

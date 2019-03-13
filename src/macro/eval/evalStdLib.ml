@@ -744,7 +744,7 @@ module StdDeque = struct
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
 		Mutex.lock lock_mutex;
-		this.dvalues <- this.dvalues @ [i]; (* TODO: bad bad bad *)
+		this.dvalues <- this.dvalues @ [i];
 		ignore(Event.poll(Event.send this.dchannel i));
 		Mutex.unlock lock_mutex;
 		vnull;
