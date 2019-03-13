@@ -58,7 +58,7 @@ class TestThreads extends Test
 									}
 									catch(e:Dynamic)
 									{
-										Test.report('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
+										utest.Assert.fail('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 									}
 								}
 	}

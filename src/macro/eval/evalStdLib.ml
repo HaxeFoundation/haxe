@@ -739,24 +739,32 @@ module StdDeque = struct
 		| VInstance {ikind = IDeque d} -> d
 		| _ -> unexpected_value vthis "Deque"
 
+	let lock_mutex = Mutex.create ()
+
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
+		Mutex.lock lock_mutex;
 		this.dvalues <- this.dvalues @ [i]; (* TODO: bad bad bad *)
 		ignore(Event.poll(Event.send this.dchannel i));
+		Mutex.unlock lock_mutex;
 		vnull;
 	)
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
 		let rec loop () =
+			Mutex.lock lock_mutex;
 			match this.dvalues with
 			| v :: vl ->
 				this.dvalues <- vl;
+				Mutex.unlock lock_mutex;
 				v
 			| [] ->
-				if blocking <> VTrue then
+				if blocking <> VTrue then begin
+					Mutex.unlock lock_mutex;
 					vnull
-				else begin
+				end else begin
+					Mutex.unlock lock_mutex;
 					ignore(Event.sync(Event.receive this.dchannel));
 					loop()
 				end
@@ -766,8 +774,10 @@ module StdDeque = struct
 
 	let push = vifun1 (fun vthis i ->
 		let this = this vthis in
+		Mutex.lock lock_mutex;
 		this.dvalues <- i :: this.dvalues;
 		ignore(Event.poll(Event.send this.dchannel i));
+		Mutex.unlock lock_mutex;
 		vnull;
 	)
 end
@@ -1396,18 +1406,21 @@ module StdLock = struct
 		let lock = this vthis in
 		Mutex.lock lock_mutex;
 		lock.lcounter <- lock.lcounter + 1;
+		if lock.lcounter >= 0 then
+			ignore(Event.poll(Event.send lock.lchannel ()));
 		Mutex.unlock lock_mutex;
-		ignore(Event.poll(Event.send lock.lchannel ()));
 		vnull
 	)
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
-		if lock.lcounter <= 0 then
-			Event.sync(Event.receive lock.lchannel);
 		Mutex.lock lock_mutex;
 		lock.lcounter <- lock.lcounter - 1;
-		Mutex.unlock lock_mutex;
+		if lock.lcounter < 0 then begin
+			Mutex.unlock lock_mutex;
+			Event.sync(Event.receive lock.lchannel);
+		end else
+			Mutex.unlock lock_mutex;
 		vbool true
 	)
 end
