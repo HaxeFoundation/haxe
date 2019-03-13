@@ -111,6 +111,7 @@ let create com api is_macro =
 			tstorage = IntMap.empty;
 		}
 	} in
+	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
@@ -136,7 +137,7 @@ let create com api is_macro =
 			oproto = fake_proto key_eval_toplevel;
 		};
 		eval = eval;
-		evals = IntMap.singleton 0 eval;
+		evals = evals;
 		exception_stack = [];
 	} in
 	t();
