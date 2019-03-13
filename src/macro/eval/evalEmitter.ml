@@ -180,6 +180,13 @@ let rec run_while_continue exec_cond exec_body env =
 	with Continue ->
 		run_while_continue exec_cond exec_body env
 
+let rec run_while exec_cond exec_body env =
+	while is_true (exec_cond env) do exec_body env done
+
+let emit_while_break exec_cond exec_body env =
+	(try run_while_continue exec_cond exec_body env with Break -> ());
+	vnull
+
 let emit_while_break_continue exec_cond exec_body env =
 	(try run_while_continue exec_cond exec_body env with Break -> ());
 	vnull

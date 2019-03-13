@@ -292,10 +292,17 @@ and jit_expr jit return e =
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
 	| TWhile(e1,e2,flag) ->
+		let rec has_continue e = match e.eexpr with
+			| TContinue -> true
+			| TWhile _ | TFor _ | TFunction _ -> false
+			| _ -> check_expr has_continue e
+		in
 		let exec_cond = jit_expr jit false e1 in
 		let exec_body = jit_expr jit false e2 in
 		begin match flag with
-			| NormalWhile -> emit_while_break_continue exec_cond exec_body
+			| NormalWhile ->
+				if has_continue e2 then emit_while_break_continue exec_cond exec_body
+				else emit_while_break exec_cond exec_body
 			| DoWhile -> emit_do_while_break_continue exec_cond exec_body
 		end
 	| TTry(e1,catches) ->
