@@ -180,6 +180,13 @@ let rec run_while_continue exec_cond exec_body env =
 	with Continue ->
 		run_while_continue exec_cond exec_body env
 
+let rec run_while exec_cond exec_body env =
+	while is_true (exec_cond env) do exec_body env done
+
+let emit_while_break exec_cond exec_body env =
+	(try run_while_continue exec_cond exec_body env with Break -> ());
+	vnull
+
 let emit_while_break_continue exec_cond exec_body env =
 	(try run_while_continue exec_cond exec_body env with Break -> ());
 	vnull
@@ -227,9 +234,25 @@ let emit_try exec catches env =
 let emit_value exec env =
 	exec env
 
-let emit_seq exec1 exec2 env =
+let emit_seq2 exec1 exec2 env =
 	ignore(exec1 env);
 	exec2 env
+
+let emit_seq4 exec1 exec2 exec3 exec4 env =
+	ignore (exec1 env);
+	ignore (exec2 env);
+	ignore (exec3 env);
+	exec4 env
+
+let emit_seq8 exec1 exec2 exec3 exec4 exec5 exec6 exec7 exec8 env =
+	ignore (exec1 env);
+	ignore (exec2 env);
+	ignore (exec3 env);
+	ignore (exec4 env);
+	ignore (exec5 env);
+	ignore (exec6 env);
+	ignore (exec7 env);
+	exec8 env
 
 let emit_return_null _ = raise_notrace (Return vnull)
 
@@ -466,6 +489,23 @@ let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
 	v3
 
 (* Read + write *)
+
+let do_incr v p = match v with
+	| VInt32 i32 -> vint32 (Int32.add i32 Int32.one)
+	| VFloat f -> vfloat (f +. 1.)
+	| v -> unexpected_value_p v "number" p
+
+let emit_local_incr_prefix slot p env =
+	let v0 = env.env_locals.(slot) in
+	let v = do_incr v0 p in
+	env.env_locals.(slot) <- v;
+	v
+
+let emit_local_incr_postfix slot p env =
+	let v0 = env.env_locals.(slot) in
+	let v = do_incr v0 p in
+	env.env_locals.(slot) <- v;
+	v0
 
 let emit_local_read_write slot exec fop prefix env =
 	let v1 = env.env_locals.(slot) in
