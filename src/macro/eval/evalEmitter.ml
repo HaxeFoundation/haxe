@@ -227,9 +227,25 @@ let emit_try exec catches env =
 let emit_value exec env =
 	exec env
 
-let emit_seq exec1 exec2 env =
+let emit_seq2 exec1 exec2 env =
 	ignore(exec1 env);
 	exec2 env
+
+let emit_seq4 exec1 exec2 exec3 exec4 env =
+	ignore (exec1 env);
+	ignore (exec2 env);
+	ignore (exec3 env);
+	exec4 env
+
+let emit_seq8 exec1 exec2 exec3 exec4 exec5 exec6 exec7 exec8 env =
+	ignore (exec1 env);
+	ignore (exec2 env);
+	ignore (exec3 env);
+	ignore (exec4 env);
+	ignore (exec5 env);
+	ignore (exec6 env);
+	ignore (exec7 env);
+	exec8 env
 
 let emit_return_null _ = raise_notrace (Return vnull)
 

@@ -314,24 +314,42 @@ and jit_expr jit return e =
 		let exec = jit_expr jit return e1 in
 		pop_scope jit;
 		exec
-	| TBlock (e1 :: el) ->
-		let rec loop f el =
-			match el with
-				| [e] ->
-					let f' = jit_expr jit return e in
-					emit_seq f f'
-				| e1 :: el ->
-					let f' = jit_expr jit false e1 in
-					let f = emit_seq f f' in
-					loop f el
-				| [] ->
-					assert false
-		in
+	| TBlock el ->
 		push_scope jit e.epos;
-		let f0 = jit_expr jit false e1 in
-		let f = loop f0 el in
+		let rec loop acc el = match el with
+			| [e] ->
+				List.rev ((jit_expr jit return e) :: acc)
+			| e :: el ->
+				loop (jit_expr jit false e :: acc) el
+			| [] ->
+				assert false
+		in
+		let el = loop [] el in
 		pop_scope jit;
-		f
+		let rec step el =
+			let a = Array.of_list el in
+			let rec loop i acc =
+				if i >= 7 then begin
+					let f8 = emit_seq8 a.(i - 7) a.(i - 6) a.(i - 5) a.(i - 4) a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 8) (f8 :: acc)
+				end else if i >= 3 then begin
+					let f4 = emit_seq4 a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 4) (f4 :: acc)
+				end else if i >= 1 then begin
+					let f2 = emit_seq2 a.(i - 1) a.(i) in
+					loop (i - 2) (f2 :: acc)
+				end else if i = 0 then
+					((a.(i)) :: acc)
+				else
+					acc
+			in
+			let length = Array.length a in
+			match loop (length - 1) [] with
+			| [] -> assert false
+			| [f] -> f
+			| fl -> step fl
+		in
+		step el
 	| TReturn None ->
 		if return && not jit.ctx.debug.support_debugger then
 			emit_null
