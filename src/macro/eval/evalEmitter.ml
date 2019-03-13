@@ -483,6 +483,23 @@ let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
 
 (* Read + write *)
 
+let do_incr v p = match v with
+	| VInt32 i32 -> vint32 (Int32.add i32 Int32.one)
+	| VFloat f -> vfloat (f +. 1.)
+	| v -> unexpected_value_p v "number" p
+
+let emit_local_incr_prefix slot p env =
+	let v0 = env.env_locals.(slot) in
+	let v = do_incr v0 p in
+	env.env_locals.(slot) <- v;
+	v
+
+let emit_local_incr_postfix slot p env =
+	let v0 = env.env_locals.(slot) in
+	let v = do_incr v0 p in
+	env.env_locals.(slot) <- v;
+	v0
+
 let emit_local_read_write slot exec fop prefix env =
 	let v1 = env.env_locals.(slot) in
 	let v2 = exec env in

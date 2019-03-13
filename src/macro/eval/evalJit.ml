@@ -162,7 +162,14 @@ and unop jit op flag e1 p =
 		let exec = jit_expr jit false e1 in
 		emit_op_sub p (fun _ -> vint32 (Int32.minus_one)) exec
 	| Increment ->
-		op_incr jit e1 (flag = Prefix) p
+		begin match Texpr.skip e1 with
+		| {eexpr = TLocal v} when not v.v_capture ->
+			let slot = get_slot jit v.v_id e1.epos in
+			if flag = Prefix then emit_local_incr_prefix slot e1.epos
+			else emit_local_incr_postfix slot e1.epos
+		| _ ->
+			op_incr jit e1 (flag = Prefix) p
+		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
 
