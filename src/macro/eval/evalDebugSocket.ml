@@ -235,10 +235,15 @@ let output_inner_vars v env =
 				let n = rev_hash n in
 				n, v
 			) fields
-		| VString s -> [
-			"length",vint s.slength;
-			"byteLength",vint (String.length s.sstring);
-		]
+		| VString s ->
+			let _,l = List.fold_left (fun (i,acc) (cr_index,br_offset) ->
+				(i + 1),(Printf.sprintf "index%i" i,vint !cr_index) ::
+				(Printf.sprintf "offset%i" i,vint !br_offset) ::
+				acc
+			) (0,[]) (List.rev s.soffsets) in
+			("length",vint s.slength) ::
+			("byteLength",vint (String.length s.sstring)) ::
+			l
 		| VArray va ->
 			let l = EvalArray.to_list va in
 			List.mapi (fun i v ->
