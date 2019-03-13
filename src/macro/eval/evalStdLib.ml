@@ -1414,14 +1414,38 @@ module StdLock = struct
 
 	let wait = vifun1 (fun vthis timeout ->
 		let lock = this vthis in
+		let timeout = match timeout with
+			| VNull -> None
+			| _ -> Some (num timeout)
+		in
 		Mutex.lock lock_mutex;
 		lock.lcounter <- lock.lcounter - 1;
 		if lock.lcounter < 0 then begin
+			begin match timeout with
+			| None ->
+				Mutex.unlock lock_mutex;
+				Event.sync(Event.receive lock.lchannel);
+				vtrue
+			| Some timeout ->
+				let target_time = (Sys.time()) +. timeout in
+				let rec loop () =
+					(* This isn't really correct. There could be a release + wait inbetween, which
+					   should resolve this wait but won't because lcounter is going to be < 0 again.
+					   I don't know how to solve this accurately though. *)
+					if lock.lcounter >= 0 then vtrue
+					else if Sys.time() >= target_time then vfalse
+					else begin
+						Thread.delay 0.01;
+						loop()
+					end;
+				in
+				Mutex.unlock lock_mutex;
+				loop()
+			end
+		end else begin
 			Mutex.unlock lock_mutex;
-			Event.sync(Event.receive lock.lchannel);
-		end else
-			Mutex.unlock lock_mutex;
-		vbool true
+			vtrue
+		end
 	)
 end
 

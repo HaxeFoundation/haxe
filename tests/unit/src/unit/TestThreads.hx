@@ -1,4 +1,5 @@
 package unit;
+import utest.Assert;
 #if neko
 import neko.vm.Thread;
 import neko.vm.Deque;
@@ -56,7 +57,7 @@ class TestThreads extends Test
 									}
 									catch(e:Dynamic)
 									{
-										utest.Assert.fail('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
+										Assert.fail('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 									}
 								}
 	}
@@ -242,9 +243,9 @@ private class LockSemaphore implements SemaphoreStrategy
 
 	public function block()
 	{
-		for(i in 0...c)
+		for(_ in 0...c)
 		{
-			l.wait();
+			Assert.isTrue(l.wait(1.));
 		}
 		this.c = 0;
 	}
