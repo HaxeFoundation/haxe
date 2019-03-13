@@ -36,7 +36,7 @@ class TestThreads extends Test
 #end
 		var testCounter = 0;
 		for (creatorWait in [.02, .05, 0])
-			for (creatorLoad in [false])
+			for (creatorLoad in [false,true])
 				for (consumerWait in [.02,.05,0])
 					for (useTls in [false,true])
 						for (q in [new QDeque() #if java, new QLockFree()#end])
@@ -137,7 +137,9 @@ class ThreadSort
 						finishedMutex.release();
 						break;
 					}
-					Thread.yield();
+					#if eval
+					Thread.yield(); // no system threads, we need this or the scheduler has issues
+					#end
 					if (++i % Std.int(maxVal / 10) == 0 && consumerLoad)
 						Sys.sleep(.01);
 				}
