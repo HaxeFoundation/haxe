@@ -162,7 +162,14 @@ and unop jit op flag e1 p =
 		let exec = jit_expr jit false e1 in
 		emit_op_sub p (fun _ -> vint32 (Int32.minus_one)) exec
 	| Increment ->
-		op_incr jit e1 (flag = Prefix) p
+		begin match Texpr.skip e1 with
+		| {eexpr = TLocal v} when not v.v_capture ->
+			let slot = get_slot jit v.v_id e1.epos in
+			if flag = Prefix then emit_local_incr_prefix slot e1.epos
+			else emit_local_incr_postfix slot e1.epos
+		| _ ->
+			op_incr jit e1 (flag = Prefix) p
+		end
 	| Decrement ->
 		op_decr jit e1 (flag = Prefix) p
 
@@ -285,10 +292,17 @@ and jit_expr jit return e =
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
 	| TWhile(e1,e2,flag) ->
+		let rec has_continue e = match e.eexpr with
+			| TContinue -> true
+			| TWhile _ | TFor _ | TFunction _ -> false
+			| _ -> check_expr has_continue e
+		in
 		let exec_cond = jit_expr jit false e1 in
 		let exec_body = jit_expr jit false e2 in
 		begin match flag with
-			| NormalWhile -> emit_while_break_continue exec_cond exec_body
+			| NormalWhile ->
+				if has_continue e2 then emit_while_break_continue exec_cond exec_body
+				else emit_while_break exec_cond exec_body
 			| DoWhile -> emit_do_while_break_continue exec_cond exec_body
 		end
 	| TTry(e1,catches) ->
@@ -314,24 +328,42 @@ and jit_expr jit return e =
 		let exec = jit_expr jit return e1 in
 		pop_scope jit;
 		exec
-	| TBlock (e1 :: el) ->
-		let rec loop f el =
-			match el with
-				| [e] ->
-					let f' = jit_expr jit return e in
-					emit_seq f f'
-				| e1 :: el ->
-					let f' = jit_expr jit false e1 in
-					let f = emit_seq f f' in
-					loop f el
-				| [] ->
-					assert false
-		in
+	| TBlock el ->
 		push_scope jit e.epos;
-		let f0 = jit_expr jit false e1 in
-		let f = loop f0 el in
+		let rec loop acc el = match el with
+			| [e] ->
+				List.rev ((jit_expr jit return e) :: acc)
+			| e :: el ->
+				loop (jit_expr jit false e :: acc) el
+			| [] ->
+				assert false
+		in
+		let el = loop [] el in
 		pop_scope jit;
-		f
+		let rec step el =
+			let a = Array.of_list el in
+			let rec loop i acc =
+				if i >= 7 then begin
+					let f8 = emit_seq8 a.(i - 7) a.(i - 6) a.(i - 5) a.(i - 4) a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 8) (f8 :: acc)
+				end else if i >= 3 then begin
+					let f4 = emit_seq4 a.(i - 3) a.(i - 2) a.(i - 1) a.(i) in
+					loop (i - 4) (f4 :: acc)
+				end else if i >= 1 then begin
+					let f2 = emit_seq2 a.(i - 1) a.(i) in
+					loop (i - 2) (f2 :: acc)
+				end else if i = 0 then
+					((a.(i)) :: acc)
+				else
+					acc
+			in
+			let length = Array.length a in
+			match loop (length - 1) [] with
+			| [] -> assert false
+			| [f] -> f
+			| fl -> step fl
+		in
+		step el
 	| TReturn None ->
 		if return && not jit.ctx.debug.support_debugger then
 			emit_null
