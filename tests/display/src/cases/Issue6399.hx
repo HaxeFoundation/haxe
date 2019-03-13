@@ -2,15 +2,15 @@ package cases;
 
 class Issue6399 extends DisplayTestCase {
 	/**
-	class Main {
-		public static function main() {}
+		class Main {
+			public static function main() {}
 
-		macro function foo({-1-}name{-2-}:String, {-3-}struct{-4-}:Expr, {-5-}defaults{-6-}:Expr) {
-			return macro {
-				if ($str{-7-}uct.$n{-8-}ame == null) $str{-9-}uct.$n{-10-}ame = $defa{-11-}ults.$n{-12-}ame;
+			macro function foo({-1-}name{-2-}:String, {-3-}struct{-4-}:Expr, {-5-}defaults{-6-}:Expr) {
+				return macro {
+					if ($str{-7-}uct.$n{-8-}ame == null) $str{-9-}uct.$n{-10-}ame = $defa{-11-}ults.$n{-12-}ame;
+				}
 			}
 		}
-	}
 	**/
 	function test() {
 		for (i in [8, 10, 12]) {

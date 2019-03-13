@@ -147,6 +147,7 @@ module Pattern = struct
 		ctx_locals : (string, tvar) PMap.t;
 		mutable current_locals : (string, tvar * pos) PMap.t;
 		mutable in_reification : bool;
+		is_postfix_match : bool;
 	}
 
 	exception Bad_pattern of string
@@ -180,6 +181,7 @@ module Pattern = struct
 		in
 		let add_local final name p =
 			let is_wildcard_local = name = "_" in
+			if not is_wildcard_local && pctx.is_postfix_match then error "Capture variables are not allowed in .match patterns" p;
 			if not is_wildcard_local && PMap.mem name pctx.current_locals then error (Printf.sprintf "Variable %s is bound multiple times" name) p;
 			match pctx.or_locals with
 			| Some map when not is_wildcard_local ->
@@ -195,8 +197,10 @@ module Pattern = struct
 				v
 		in
 		let con_enum en ef p =
-			DeprecationCheck.check_enum pctx.ctx.com en p;
-			DeprecationCheck.check_ef pctx.ctx.com ef p;
+			if not (Common.defined ctx.com Define.NoDeprecationWarnings) then begin
+				DeprecationCheck.check_enum pctx.ctx.com en p;
+				DeprecationCheck.check_ef pctx.ctx.com ef p;
+			end;
 			ConEnum(en,ef),p
 		in
 		let con_static c cf p = ConStatic(c,cf),p in
@@ -505,13 +509,14 @@ module Pattern = struct
 		let pat = loop e in
 		pat,p
 
-	let make ctx t e =
+	let make ctx t e postfix_match =
 		let pctx = {
 			ctx = ctx;
 			current_locals = PMap.empty;
 			ctx_locals = ctx.locals;
 			or_locals = None;
 			in_reification = false;
+			is_postfix_match = postfix_match;
 		} in
 		make pctx true t e
 end
@@ -525,7 +530,7 @@ module Case = struct
 		case_pos : pos;
 	}
 
-	let make ctx t el eg eo_ast with_type p =
+	let make ctx t el eg eo_ast with_type postfix_match p =
 		let rec collapse_case el = match el with
 			| e :: [] ->
 				e
@@ -546,7 +551,7 @@ module Case = struct
 		) ctx.locals [] in
 		let old_ret = ctx.ret in
 		ctx.ret <- map ctx.ret;
-		let pat = Pattern.make ctx (map t) e in
+		let pat = Pattern.make ctx (map t) e postfix_match in
 		unapply_type_parameters ctx.type_params monos;
 		let eg = match eg with
 			| None -> None
@@ -1489,7 +1494,7 @@ end
 module Match = struct
 	open Typecore
 
-	let match_expr ctx e cases def with_type p =
+	let match_expr ctx e cases def with_type postfix_match p =
 		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
@@ -1514,7 +1519,7 @@ module Match = struct
 		in
 		let cases = List.map (fun (el,eg,eo,p) ->
 			let p = match eo with Some e when p = null_pos -> pos e | _ -> p in
-			let case,bindings,pat = Case.make ctx t el eg eo with_type p in
+			let case,bindings,pat = Case.make ctx t el eg eo with_type postfix_match p in
 			case,bindings,[pat]
 		) cases in
 		let infer_switch_type () =
@@ -1527,7 +1532,18 @@ module Match = struct
 						   Note that we cannot rely on an exhaustiveness error because the switch could be over an empty enum. *)
 						ctx.t.tvoid
 					| _ ->
-						let el = List.map (fun (case,_,_) -> match case.Case.case_expr with Some e -> e | None -> mk (TBlock []) ctx.t.tvoid p) cases in
+						let el = List.map (fun (case,_,_) ->
+							match case.Case.case_expr with
+							| Some e ->
+								(* If we have a block, use the position of the last element. *)
+								begin match e.eexpr with
+								| TBlock el when el <> [] -> List.hd (List.rev el)
+								| _ -> e
+								end
+							| None ->
+								(* If we have no block we have to use the `case pattern` position because that's all we have. *)
+								mk (TBlock []) ctx.t.tvoid case.Case.case_pos
+						) cases in
 						unify_min ctx el
 					end
 				| WithType.WithType(t,_) -> t

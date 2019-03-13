@@ -25,6 +25,6 @@
 package js.html.eme;
 
 typedef MediaKeyNeededEventInit = EventInit & {
-	var ?initData : js.html.ArrayBuffer;
+	var ?initData : js.lib.ArrayBuffer;
 	var ?initDataType : String;
 }

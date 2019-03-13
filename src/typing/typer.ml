@@ -1540,8 +1540,13 @@ and format_string ctx s p =
 		if slen > 0 then begin
 			let e =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
-				try ParserEntry.parse_expr_string ctx.com.defines scode ep error true
-				with Exit -> error "Invalid interpolated expression" ep
+				try
+					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
+						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
+					end
+				with Exit ->
+					error "Invalid interpolated expression" ep
 			in
 			add_expr e slen
 		end;
@@ -1717,13 +1722,14 @@ and type_new ctx path el with_type force_inline p =
 			error "Constructor is not a function" p
 	in
 	let t = if (fst path).tparams <> [] then
-		follow (Typeload.load_instance ctx path false)
+		Typeload.load_instance ctx path false
 	else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		let t = follow (Typeload.load_instance ctx path true) in
+		let t = Typeload.load_instance ctx path true in
+		let t_follow = follow t in
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
-		begin match t with
+		begin match t_follow with
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
@@ -1755,6 +1761,7 @@ and type_new ctx path el with_type force_inline p =
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
 	DisplayEmitter.check_display_type ctx t (pos path);
+	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		check_constructor_access ctx c f p;
@@ -2308,11 +2315,7 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		let et = type_expr ctx e WithType.value in
 		(match follow et.etype with
 			| TEnum _ ->
-				let e = Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) p in
-				(* TODO: add that back *)
-(* 				let locals = !get_pattern_locals_ref ctx epat t in
-				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals; *)
-				e
+				Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 			| _ -> def ())
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
@@ -2424,7 +2427,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
-		let e = Matcher.Match.match_expr ctx e1 cases def with_type p in
+		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
 		type_return ctx e with_type p

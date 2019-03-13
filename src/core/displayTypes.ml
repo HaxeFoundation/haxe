@@ -63,6 +63,22 @@ module DiagnosticsSeverity = struct
 		| Hint -> 4
 end
 
+module DiagnosticsKind = struct
+	type t =
+		| DKUnusedImport
+		| DKUnresolvedIdentifier
+		| DKCompilerError
+		| DKRemovableCode
+		| DKParserError
+
+	let to_int = function
+		| DKUnusedImport -> 0
+		| DKUnresolvedIdentifier -> 1
+		| DKCompilerError -> 2
+		| DKRemovableCode -> 3
+		| DKParserError -> 4
+end
+
 module CompletionResultKind = struct
 	type t =
 		| CRField of CompletionItem.t * pos

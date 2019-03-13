@@ -10,9 +10,9 @@ class Macro {
 	static public function run(args:Array<String>) {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
-		// TODO: enable this again at some point
-		// changeDirectory(displayDir);
-		// runCommand("haxe", ["build.hxml"]);
+		changeDirectory(displayDir);
+		haxelibInstallGit("Simn", "haxeserver");
+		runCommand("haxe", ["build.hxml"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);

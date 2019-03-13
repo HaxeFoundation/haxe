@@ -1735,10 +1735,11 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
+		let value = if not ctx.js_modern then "typeof $fid == \"undefined\" ? 0 : $fid" else "0" in
 		if has_dollar_underscore then
-			print ctx "var $fid = 0"
+			print ctx "var $fid = %s" value
 		else
-			print ctx "var $_, $fid = 0";
+			print ctx "var $_, $fid = %s" value;
 		newline ctx;
 		(if ctx.es_version < 5 then
 			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"

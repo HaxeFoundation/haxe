@@ -418,23 +418,29 @@ let handle_display ctx e_ast dk with_type =
 		let mono = mk_mono() in
 		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
 		let arg = ["expression",false,mono] in
+		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
-		| _ ->
+		| DMHover ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "expression")) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "expression")) p
+		| _ ->
+			error "Unsupported method" p
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
 		let arg = ["value",false,t_dynamic] in
 		let ret = ctx.com.basic.tvoid in
+		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
-		| _ ->
+		| DMHover ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "value")) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
+		| _ ->
+			error "Unsupported method" p
 		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)

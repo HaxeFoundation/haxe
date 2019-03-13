@@ -87,19 +87,25 @@ let reserved_flags = [
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let expand_env ?(h=None) path  =
-	let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-	Str.global_substitute r (fun s ->
-		let key = Str.matched_group 1 s in
-		try
-			Sys.getenv key
-		with Not_found -> try
-			match h with
-			| None -> raise Not_found
-			| Some h -> Hashtbl.find h key
-		with Not_found ->
-			"%" ^ key ^ "%"
-	) path
+let expand_env is_arg ?(h=None) path =
+	try
+		if not is_arg then raise Not_found;
+		(* If we have an argument with line breaks, don't expand env. *)
+		ignore(String.index path '\n');
+		path
+	with Not_found ->
+		let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
+		Str.global_substitute r (fun s ->
+			let key = Str.matched_group 1 s in
+			try
+				Sys.getenv key
+			with Not_found -> try
+				match h with
+				| None -> raise Not_found
+				| Some h -> Hashtbl.find h key
+			with Not_found ->
+				"%" ^ key ^ "%"
+		) path
 
 let add_libs com libs =
 	let call_haxelib() =
@@ -153,7 +159,7 @@ let run_command ctx cmd =
 	Hashtbl.add h "__file__" ctx.com.file;
 	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
 	let t = Timer.timer ["command"] in
-	let cmd = expand_env ~h:(Some h) cmd in
+	let cmd = expand_env false ~h:(Some h) cmd in
 	let len = String.length cmd in
 	if len > 3 && String.sub cmd 0 3 = "cd " then begin
 		Sys.chdir (String.sub cmd 3 (len - 3));
@@ -407,11 +413,7 @@ let rec process_params create pl =
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ when (match acc with "-cmd" :: _ | "--cmd" :: _ -> false | _ -> true) ->
-				let acc, l =
-					(try
-						let parsed = parse_hxml arg in
-						if (List.mem "--" parsed) then raise (Arg.Bad "Rest arguments (--) are not allowed in hxml files") else (acc, parsed @ l)
-					with Not_found -> (arg ^ " (file not found)") :: acc, l) in
+				let acc, l = (try acc, parse_hxml arg @ l with Not_found -> (arg ^ " (file not found)") :: acc, l) in
 				loop acc l
 			| _ -> loop (arg :: acc) l
 	in
@@ -483,7 +485,6 @@ try
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
-	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -680,6 +681,8 @@ try
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
+				did_something := true;
+				force_typing := true;
 				DisplayJson.parse_input com input measure_times
 			end else
 				DisplayOutput.handle_display_argument com input pre_compilation did_something;
@@ -758,7 +761,7 @@ try
 	let process args =
 		let current = ref 0 in
 		(try
-			Arg.parse_argv ~current (Array.of_list ("" :: List.map expand_env args)) all_args_spec args_callback "";
+			Arg.parse_argv ~current (Array.of_list ("" :: List.map (expand_env true) args)) all_args_spec args_callback "";
 			List.iter (fun fn -> fn()) !arg_delays
 		with
 		| Arg.Help _ ->
@@ -791,7 +794,7 @@ try
 	if com.display.dms_kind <> DMNone then begin
 		com.warning <-
 			if com.display.dms_error_policy = EPCollect then
-				(fun s p -> add_diagnostics_message com s p DisplayTypes.DiagnosticsSeverity.Warning)
+				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
 				(fun msg p -> message ctx (CMWarning(msg,p)));
 		com.error <- error ctx;
@@ -818,6 +821,26 @@ try
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
+	let run_or_diagnose f arg =
+		let handle_diagnostics global msg p kind =
+			add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
+			Diagnostics.run com global;
+		in
+		match com.display.dms_kind with
+		| DMDiagnostics global ->
+			begin try
+				f arg
+			with
+			| Error.Error(msg,p) ->
+				handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+			| Parser.Error(msg,p) ->
+				handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			| Lexer.Error(msg,p) ->
+				handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+			end
+		| _ ->
+			f arg
+	in
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
@@ -834,8 +857,10 @@ try
 		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
 		add_signature "after_init_macros";
 		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
-		Finalization.finalize tctx;
+		run_or_diagnose (fun () ->
+			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
+			Finalization.finalize tctx;
+		) ();
 		(* If we are trying to find references, let's syntax-explore everything we know to check for the
 		   identifier we are interested in. We then type only those modules that contain the identifier. *)
 		begin match !CompilationServer.instance,com.display.dms_kind with
@@ -888,7 +913,7 @@ try
 			failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
-		let main, types, modules = Finalization.generate tctx in
+		let main, types, modules = run_or_diagnose Finalization.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

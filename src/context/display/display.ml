@@ -150,7 +150,7 @@ module ExprPreprocessing = struct
 		in
 		let rec map e = match fst e with
 			| ESwitch(e1,cases,def) when is_annotated (pos e) ->
-				let e1 = loop e1 in
+				let e1 = map e1 in
 				let cases = List.map (fun (el,eg,e,p) ->
 					let old = !in_pattern in
 					in_pattern := true;

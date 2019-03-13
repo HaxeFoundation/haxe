@@ -22,7 +22,7 @@
 open Hlcode
 
 module ISet = Set.Make(struct
-	let compare = Pervasives.compare
+	let compare a b = b - a
 	type t = int
 end)
 

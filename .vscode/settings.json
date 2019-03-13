@@ -1,7 +1,8 @@
 {
 	"files.associations": {
 		"*.mly": "ocaml",
-		"*.ml": "ocaml"
+		"*.ml": "ocaml",
+		"Makefile.*": "makefile"
 	},
 	"[ocaml]": {
 		"editor.tabSize": 4

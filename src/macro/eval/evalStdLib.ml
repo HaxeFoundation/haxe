@@ -31,6 +31,12 @@ open EvalString
 
 let macro_lib = Hashtbl.create 0
 
+let catch_unix_error f arg =
+	try
+		f arg
+	with Unix.Unix_error(err,cmd,args) ->
+		exc_string (Printf.sprintf "%s(%s, %s)" (Unix.error_message err) cmd args)
+
 let ptmap_keys h =
 	IntMap.fold (fun k _ acc -> k :: acc) h []
 
@@ -667,8 +673,6 @@ module StdCrc32 = struct
 end
 
 module StdDate = struct
-	open Unix
-
 	let encode_date d = encode_instance key_Date ~kind:(IDate d)
 
 	let this vthis = match vthis with
@@ -683,7 +687,7 @@ module StdDate = struct
 		| 19 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\) \\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = Unix.localtime (Unix.time()) in
+			let t = catch_unix_error Unix.localtime (Unix.time()) in
 			let t = { t with
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
@@ -692,11 +696,11 @@ module StdDate = struct
 				tm_min = int_of_string (Str.matched_group 5 s);
 				tm_sec = int_of_string (Str.matched_group 6 s);
 			} in
-			encode_date (fst (Unix.mktime t))
+			encode_date (fst (catch_unix_error Unix.mktime t))
 		| 10 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = Unix.localtime (Unix.time()) in
+			let t = catch_unix_error Unix.localtime (Unix.time()) in
 			let t = { t with
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
@@ -705,7 +709,7 @@ module StdDate = struct
 				tm_min = 0;
 				tm_sec = 0;
 			} in
-			encode_date (fst (Unix.mktime t))
+			encode_date (fst (catch_unix_error Unix.mktime t))
 		| 8 ->
 			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
@@ -718,15 +722,15 @@ module StdDate = struct
 			exc_string ("Invalid date format : " ^ s)
 	)
 
-	let getDate = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_mday)
-	let getDay = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_wday)
-	let getFullYear = vifun0 (fun vthis -> vint (((localtime (this vthis)).tm_year) + 1900))
-	let getHours = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_hour)
-	let getMinutes = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_min)
-	let getMonth = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_mon)
-	let getSeconds = vifun0 (fun vthis -> vint (localtime (this vthis)).tm_sec)
+	let getDate = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mday)
+	let getDay = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_wday)
+	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error Unix.localtime (this vthis)).tm_year) + 1900))
+	let getHours = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_hour)
+	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_min)
+	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mon)
+	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_sec)
 	let getTime = vifun0 (fun vthis -> vfloat ((this vthis) *. 1000.))
-	let now = vfun0 (fun () -> encode_date (time()))
+	let now = vfun0 (fun () -> encode_date (catch_unix_error Unix.time()))
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
@@ -1171,12 +1175,12 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
-		(try Path.mkdir_from_path (Path.add_trailing_slash (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
+		catch_unix_error Path.mkdir_from_path (Path.add_trailing_slash (decode_string path));
 		vnull
 	)
 
 	let deleteDirectory = vfun1 (fun path ->
-		(try Unix.rmdir (decode_string path) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg));
+		catch_unix_error Unix.rmdir (decode_string path);
 		vnull
 	)
 
@@ -1210,8 +1214,7 @@ module StdFileSystem = struct
 	)
 
 	let stat = vfun1 (fun path ->
-		let s = try Unix.stat (patch_path (decode_string path)) with Unix.Unix_error (_,cmd,msg) -> exc_string (cmd ^ " " ^ msg) in
-		let open Unix in
+		let s = catch_unix_error Unix.stat (patch_path (decode_string path)) in
 		encode_obj [
 			key_gid,vint s.st_gid;
 			key_uid,vint s.st_uid;
@@ -1354,31 +1357,29 @@ module StdGc = struct
 end
 
 module StdHost = struct
-	open Unix
-
 	let int32_addr h =
 		let base = Int32.to_int (Int32.logand h 0xFFFFFFl) in
 		let str = Printf.sprintf "%ld.%d.%d.%d" (Int32.shift_right_logical h 24) (base lsr 16) ((base lsr 8) land 0xFF) (base land 0xFF) in
-		inet_addr_of_string str
+		catch_unix_error Unix.inet_addr_of_string str
 
 	let localhost = vfun0 (fun () ->
-		create_unknown (gethostname())
+		create_unknown (catch_unix_error Unix.gethostname())
 	)
 
 	let hostReverse = vfun1 (fun ip ->
 		let ip = decode_i32 ip in
-		try create_unknown (gethostbyaddr (int32_addr ip)).h_name with Not_found -> exc_string "Could not reverse host"
+		try create_unknown (catch_unix_error Unix.gethostbyaddr (int32_addr ip)).h_name with Not_found -> exc_string "Could not reverse host"
 	)
 
 	let hostToString = vfun1 (fun ip ->
 		let ip = decode_i32 ip in
-		create_unknown (string_of_inet_addr (int32_addr ip))
+		create_unknown (catch_unix_error Unix.string_of_inet_addr (int32_addr ip))
 	)
 
 	let resolve = vfun1 (fun name ->
 		let name = decode_string name in
-		let h = try gethostbyname name with Not_found -> exc_string ("Could not resolve host " ^ name) in
-		let addr = string_of_inet_addr h.h_addr_list.(0) in
+		let h = catch_unix_error Unix.gethostbyname name in
+		let addr = catch_unix_error Unix.string_of_inet_addr h.h_addr_list.(0) in
 		let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
 		vint32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16))))
 	)
@@ -1920,10 +1921,8 @@ module StdSha1 = struct
 end
 
 module StdSocket = struct
-	open Unix
-
 	let inet_addr_to_int32 addr =
-		let s = string_of_inet_addr addr in
+		let s = catch_unix_error Unix.string_of_inet_addr addr in
 		match List.map Int32.of_string (ExtString.String.nsplit s ".") with
 			| [a;b;c;d] -> Int32.add (Int32.add (Int32.add (Int32.shift_left a 24) (Int32.shift_left b 16)) (Int32.shift_left c 8)) d
 			| _ -> assert false
@@ -1934,7 +1933,7 @@ module StdSocket = struct
 
 	let accept = vifun0 (fun vthis ->
 		let this = this vthis in
-		let socket,_ = Unix.accept this in
+		let socket,_ = catch_unix_error Unix.accept this in
 		encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket socket)
 	)
 
@@ -1942,12 +1941,12 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		(try Unix.bind this (ADDR_INET (StdHost.int32_addr host,port)) with Unix_error _ -> exc_string (Printf.sprintf "Could not bind port %i" port));
+		catch_unix_error Unix.bind this (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
 	let close = vifun0 (fun vthis ->
-		Unix.close (this vthis);
+		catch_unix_error Unix.close (this vthis);
 		vnull
 	)
 
@@ -1955,12 +1954,12 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
 	let host = vifun0 (fun vthis ->
-		match getsockname (this vthis) with
+		match catch_unix_error Unix.getsockname (this vthis) with
 		| ADDR_INET (addr,port) ->
 			encode_obj [
 				key_ip,vint32 (inet_addr_to_int32 addr);
@@ -1972,12 +1971,12 @@ module StdSocket = struct
 	let listen = vifun1 (fun vthis connections ->
 		let this = this vthis in
 		let connections = decode_int connections in
-		Unix.listen this connections;
+		catch_unix_error Unix.listen this connections;
 		vnull
 	)
 
 	let peer = vifun0 (fun vthis ->
-		match getpeername (this vthis) with
+		match catch_unix_error Unix.getpeername (this vthis) with
 		| ADDR_INET (addr,port) ->
 			encode_obj [
 				key_ip,vint32 (inet_addr_to_int32 addr);
@@ -1991,12 +1990,12 @@ module StdSocket = struct
 		let buf = decode_bytes buf in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		vint (try recv this buf pos len [] with Unix_error(error,msg,_) -> exc_string (Printf.sprintf "%s: %s" msg (error_message error)))
+		vint (catch_unix_error Unix.recv this buf pos len [])
 	)
 
 	let receiveChar = vifun0 (fun vthis ->
 		let buf = Bytes.make 1 '\000' in
-		ignore(Unix.recv (this vthis) buf 0 1 []);
+		ignore(catch_unix_error Unix.recv (this vthis) buf 0 1 []);
 		vint (int_of_char (Bytes.unsafe_get buf 0))
 	)
 
@@ -2016,7 +2015,7 @@ module StdSocket = struct
 		let write = List.map pair (decode_optional_array write) in
 		let others = List.map pair (decode_optional_array others) in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
-		let read',write',others' = Unix.select (List.map fst read) (List.map fst write) (List.map fst others) timeout in
+		let read',write',others' = catch_unix_error Unix.select (List.map fst read) (List.map fst write) (List.map fst others) timeout in
 		let read = List.map (fun sock -> List.assq sock read) read' in
 		let write = List.map (fun sock -> List.assq sock write) write' in
 		let others = List.map (fun sock -> List.assq sock others) others' in
@@ -2032,27 +2031,27 @@ module StdSocket = struct
 		let buf = decode_bytes buf in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		vint (send this buf pos len [])
+		vint (catch_unix_error Unix.send this buf pos len [])
 	)
 
 	let sendChar = vifun1 (fun vthis char ->
 		let this = this vthis in
 		let char = decode_int char in
-		ignore(Unix.send this (Bytes.make 1 (char_of_int char)) 0 1 []);
+		ignore(catch_unix_error Unix.send this (Bytes.make 1 (char_of_int char)) 0 1 []);
 		VNull
 	)
 
 	let setFastSend = vifun1 (fun vthis b ->
 		let this = this vthis in
 		let b = decode_bool b in
-		setsockopt this TCP_NODELAY b;
+		catch_unix_error Unix.setsockopt this TCP_NODELAY b;
 		vnull
 	)
 
 	let setBroadcast = vifun1 (fun vthis b ->
 		let this = this vthis in
 		let b = decode_bool b in
-		setsockopt this SO_BROADCAST b;
+		catch_unix_error Unix.setsockopt this SO_BROADCAST b;
 		vnull
 	)
 
@@ -2060,20 +2059,22 @@ module StdSocket = struct
 		let this = this vthis in
 		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let timeout = timeout *. 1000. in
-		setsockopt_float this SO_RCVTIMEO timeout;
-		setsockopt_float this SO_SNDTIMEO timeout;
+		catch_unix_error (fun () ->
+			Unix.setsockopt_float this SO_RCVTIMEO timeout;
+			Unix.setsockopt_float this SO_SNDTIMEO timeout;
+		) ();
 		vnull
 	)
 
 	let shutdown = vifun2 (fun vthis read write ->
 		let this = this vthis in
 		let mode = match read,write with
-			| VTrue,VTrue -> SHUTDOWN_ALL
+			| VTrue,VTrue -> Unix.SHUTDOWN_ALL
 			| VTrue,_ -> SHUTDOWN_RECEIVE
 			| _,VTrue -> SHUTDOWN_SEND
 			| _ -> exc_string "Nothing to shut down"
 		in
-		Unix.shutdown this mode;
+		catch_unix_error Unix.shutdown this mode;
 		vnull
 	)
 end
@@ -2476,7 +2477,7 @@ module StdSys = struct
 	let cpuTime = vfun0 (fun () -> vfloat (Sys.time()))
 
 	let environment = vfun0 (fun () ->
-		let env = Unix.environment() in
+		let env = catch_unix_error Unix.environment() in
 		let h = StringHashtbl.create () in
 		Array.iter(fun s ->
 			let k, v = ExtString.String.split s "=" in
@@ -2497,7 +2498,7 @@ module StdSys = struct
 	)
 
 	let getCwd = vfun0 (fun () ->
-		let dir = Unix.getcwd() in
+		let dir = catch_unix_error Unix.getcwd() in
 		let l = String.length dir in
 		if l = 0 then
 			encode_string "./"
@@ -2510,7 +2511,7 @@ module StdSys = struct
 
 	let getEnv = vfun1 (fun s ->
 		let s = decode_string s in
-		try create_unknown (Unix.getenv s) with _ -> vnull
+		try create_unknown (catch_unix_error Unix.getenv s) with _ -> vnull
 	)
 
 	let print = vfun1 (fun v ->
@@ -2541,12 +2542,12 @@ module StdSys = struct
 	let putEnv = vfun2 (fun s v ->
 		let s = decode_string s in
 		let v = decode_string v in
-		Unix.putenv s v;
+		catch_unix_error Unix.putenv s v;
 		vnull
 	)
 
 	let setCwd = vfun1 (fun s ->
-		Unix.chdir (decode_string s);
+		catch_unix_error Unix.chdir (decode_string s);
 		vnull
 	)
 
@@ -2574,7 +2575,7 @@ module StdSys = struct
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic = Unix.open_process_in "uname" in
+						let ic = catch_unix_error Unix.open_process_in "uname" in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
@@ -2588,7 +2589,7 @@ module StdSys = struct
 			encode_string s
 		)
 
-	let time = vfun0 (fun () -> vfloat (Unix.gettimeofday()))
+	let time = vfun0 (fun () -> vfloat (catch_unix_error Unix.gettimeofday()))
 end
 
 module StdThread = struct
@@ -3054,9 +3055,10 @@ let init_constructors builtins =
 		(fun vl ->
 			begin match List.map decode_int vl with
 			| [y;m;d;h;mi;s] ->
-				let open Unix in
-				let t = localtime 0. in
-				let f = mktime {t with tm_sec=s;tm_min=mi;tm_hour=h;tm_mday=d;tm_mon=m;tm_year=y - 1900} in
+				let f = catch_unix_error (fun () ->
+					let t = Unix.localtime 0. in
+					Unix.mktime {t with tm_sec=s;tm_min=mi;tm_hour=h;tm_mday=d;tm_mon=m;tm_year=y - 1900}
+				) () in
 				encode_instance key_Date ~kind:(IDate (fst f))
 			| _ -> assert false
 			end
@@ -3107,7 +3109,7 @@ let init_constructors builtins =
 		);
 	add key_sys_net__Socket_NativeSocket
 		(fun _ ->
-			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
+			encode_instance key_sys_net__Socket_NativeSocket ~kind:(ISocket ((catch_unix_error Unix.socket Unix.PF_INET Unix.SOCK_STREAM) 0))
 		);
 	add key_haxe_zip_Compress
 		(fun vl -> match vl with
@@ -3131,14 +3133,9 @@ let init_constructors builtins =
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f thread =
-					let new_eval = {
-						env = null_env;
-						thread = thread;
-					} in
-					let thread = Thread.self() in
-					let id = Thread.id thread in
+					let id = Thread.id (Thread.self()) in
+					let new_eval = {env = null_env; thread = thread} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
-					Thread.yield();
 					try
 						ignore(call_value f []);
 					with RunTimeException(v,stack,p) ->

@@ -127,7 +127,7 @@ class FPHelper {
 			b;
 		}
 	#elseif js
-		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
+		static var helper = new js.lib.DataView(new js.lib.ArrayBuffer(8));
 	#end
 
 	#if neko_v21 inline #end

@@ -37,8 +37,8 @@ extern class DOMMatrix extends DOMMatrixReadOnly {
 	@:overload( function() : Void {} )
 	@:overload( function( transformList : String ) : Void {} )
 	@:overload( function( other : DOMMatrixReadOnly ) : Void {} )
-	@:overload( function( array32 : Float32Array ) : Void {} )
-	@:overload( function( array64 : Float64Array ) : Void {} )
+	@:overload( function( array32 : js.lib.Float32Array ) : Void {} )
+	@:overload( function( array64 : js.lib.Float64Array ) : Void {} )
 	function new( numberSequence : Array<Float> ) : Void;
 	function multiplySelf( other : DOMMatrix ) : DOMMatrix;
 	function preMultiplySelf( other : DOMMatrix ) : DOMMatrix;

@@ -69,8 +69,8 @@ extern class MediaKeySession extends js.html.EventTarget {
 	/**
 		Returns a `Promise` after generating a media request based on initialization data.
 	**/
-	@:overload( function( initDataType : String, initData : js.html.ArrayBuffer) : Promise<Void> {} )
-	function generateRequest( initDataType : String, initData : js.html.ArrayBufferView ) : Promise<Void>;
+	@:overload( function( initDataType : String, initData : js.lib.ArrayBuffer) : Promise<Void> {} )
+	function generateRequest( initDataType : String, initData : js.lib.ArrayBufferView ) : Promise<Void>;
 	
 	/**
 		Returns a `Promise` that resolves to a boolean value after loading data for a specified session object. 
@@ -80,8 +80,8 @@ extern class MediaKeySession extends js.html.EventTarget {
 	/**
 		Returns a `Promise` after loading messages and licenses to the CDM.
 	**/
-	@:overload( function( response : js.html.ArrayBuffer) : Promise<Void> {} )
-	function update( response : js.html.ArrayBufferView ) : Promise<Void>;
+	@:overload( function( response : js.lib.ArrayBuffer) : Promise<Void> {} )
+	function update( response : js.lib.ArrayBufferView ) : Promise<Void>;
 	
 	/**
 		
