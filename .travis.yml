@@ -170,7 +170,7 @@ matrix:
 
     - os: linux
       env:
-        - TEST=macro,hl,js,php,flash9,as3,java,cs,python,lua
+        - TEST=macro,js,php,flash9,as3,java,cs,python,lua
         - SAUCE=1
       addons:
         sauce_connect: true
