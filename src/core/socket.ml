@@ -4,6 +4,8 @@ type t = {
 	addr : Unix.inet_addr;
 	port : int;
 	mutable socket : Unix.file_descr option;
+	send_mutex : Mutex.t;
+	read_mutex : Mutex.t;
 }
 
 let create host port =
@@ -14,6 +16,8 @@ let create host port =
 		addr = host;
 		port = port;
 		socket = Some socket;
+		send_mutex = Mutex.create();
+		read_mutex = Mutex.create();
 	}
 
 let read_byte this i = int_of_char (Bytes.get this i)
@@ -35,6 +39,10 @@ let read_string socket =
 			let _ = recv socket buf 0 i [] in
 			Bytes.to_string buf
 
+let read_string socket =
+	Mutex.lock socket.read_mutex;
+	Std.finally (fun () -> Mutex.unlock socket.read_mutex) read_string socket
+
 let send_string socket s =
 	match socket.socket with
 	| None ->
@@ -55,3 +63,7 @@ let send_string socket s =
 			end
 		in
 		loop l 0
+
+let send_string socket s =
+	Mutex.lock socket.send_mutex;
+	Std.finally (fun () -> Mutex.unlock socket.send_mutex) (send_string socket) s
