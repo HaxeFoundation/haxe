@@ -45,12 +45,12 @@ let make_generic ctx ps pt p =
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
 				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false f.cf_type)) :: acc) a.a_fields [])
 				| TType(t,tl) -> (s_type_path_underscore t.t_path) ^ (loop_tl tl)
-				| TLazy(f) -> loop false (lazy_type f)
+				| TLazy(f) -> loop top (lazy_type f)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
 				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono(r) ->
 					(match !r with
-					| Some t -> loop false t
+					| Some t -> loop top t
 					| _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p)))
 				| TDynamic _ -> "Dynamic"
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
