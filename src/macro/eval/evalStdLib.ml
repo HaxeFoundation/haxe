@@ -3173,11 +3173,20 @@ let init_constructors builtins =
 					let id = Thread.id (Thread.self()) in
 					let new_eval = {env = null_env; thread = thread} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
+					let close () =
+						ctx.evals <- IntMap.remove id ctx.evals
+					in
 					try
 						ignore(call_value f []);
-					with RunTimeException(v,stack,p) ->
+						close();
+					with
+					| RunTimeException(v,stack,p) ->
 						let msg = get_exc_error_message ctx v stack p in
-						prerr_endline msg
+						prerr_endline msg;
+						close();
+					| exc ->
+						close();
+						raise exc
 				in
 				let thread = {
 					tthread = Obj.magic ();
