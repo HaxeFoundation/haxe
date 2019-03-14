@@ -3175,6 +3175,7 @@ let init_constructors builtins =
 						env = null_env;
 						thread = thread;
 						debug_state = DbgRunning;
+						debug_channel = Event.new_channel ();
 						breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 					} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;

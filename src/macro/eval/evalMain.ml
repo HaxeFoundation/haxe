@@ -41,6 +41,8 @@ let sid = ref (-1)
 let stdlib = ref None
 let debug = ref None
 
+let debug_hack = ref false
+
 let create com api is_macro =
 	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr sid;
@@ -109,9 +111,11 @@ let create com api is_macro =
 			tqueue = Queue.create ();
 			tstorage = IntMap.empty;
 		};
-		debug_state = DbgStart;
+		debug_state = if !debug_hack then DbgRunning else DbgStart;
+		debug_channel = Event.new_channel ();
 		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 	} in
+	debug_hack := true;
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
 		ctx_id = !sid;

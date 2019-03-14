@@ -105,6 +105,7 @@ and eval = {
 	mutable debug_state : debug_state;
 	(* The currently active breakpoint. Set to a dummy value initially. *)
 	mutable breakpoint : breakpoint;
+	debug_channel : unit Event.channel;
 }
 
 and debug_state =
@@ -151,6 +152,7 @@ type debug_scope_info = {
 }
 
 type context_reference =
+	| StackFrame of env
 	| Scope of scope * env
 	| CaptureScope of (int,var_info) Hashtbl.t * env
 	| DebugScope of debug_scope_info * env
@@ -162,6 +164,10 @@ class eval_debug_context = object(self)
 		let d = DynArray.create() in
 		DynArray.add d Toplevel;
 		d
+
+	method add_stack_frame env =
+		DynArray.add lut (StackFrame env);
+		DynArray.length lut - 1
 
 	method add_scope scope env =
 		DynArray.add lut (Scope(scope,env));
@@ -190,7 +196,6 @@ type exception_mode =
 	| CatchNone
 
 type debug_connection = {
-	wait : context -> (env -> value) -> env -> value;
 	bp_stop : context -> env -> unit;
 	exc_stop : context -> value -> pos -> unit;
 }
