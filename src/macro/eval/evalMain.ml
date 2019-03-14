@@ -87,8 +87,6 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				debug_state = DbgStart;
-				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 				caught_types = Hashtbl.create 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
@@ -110,7 +108,9 @@ let create com api is_macro =
 			tchannel = Event.new_channel();
 			tqueue = Queue.create ();
 			tstorage = IntMap.empty;
-		}
+		};
+		debug_state = DbgStart;
+		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 	} in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {

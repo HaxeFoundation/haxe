@@ -22,10 +22,12 @@ let is_caught ctx v =
 
 (* Checks debug state and calls what's needed. *)
 let rec run_loop ctx wait run env : value =
+	let eval = env.env_eval in
 	let check_breakpoint () =
-		if ctx.debug.breakpoint.bpstate = BPHit && env.env_debug.line <> ctx.debug.breakpoint.bpline then ctx.debug.breakpoint.bpstate <- BPEnabled
+		if eval.breakpoint.bpstate = BPHit && env.env_debug.line <> eval.breakpoint.bpline then eval.breakpoint.bpstate <- BPEnabled
 	in
-	match ctx.debug.debug_state with
+	print_endline (Printf.sprintf "[%i] run_loop: %s" (Thread.id (Thread.self())) (s_debug_state eval.debug_state));
+	match eval.debug_state with
 		| DbgRunning ->
 			check_breakpoint();
 			run env
@@ -42,14 +44,14 @@ let rec run_loop ctx wait run env : value =
 			if is_on_stack env || b then
 				run env
 			else begin
-				ctx.debug.debug_state <- DbgWaiting;
+				eval.debug_state <- DbgWaiting;
 				run_loop ctx wait run env
 			end;
 		| DbgFinish env' ->
 			if env' != env then
 				run env
 			else begin
-				ctx.debug.debug_state <- DbgWaiting;
+				eval.debug_state <- DbgWaiting;
 				run_loop ctx wait run env
 			end
 		| DbgWaiting | DbgStart ->
@@ -76,15 +78,16 @@ let debug_loop jit conn e f =
 	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
 	let rec run_check_breakpoint env =
+		let eval = env.env_eval in
 		try
 			let h = Hashtbl.find ctx.debug.breakpoints env.env_info.pfile_unique in
 			let breakpoint = Hashtbl.find h env.env_debug.line in
 			begin match breakpoint.bpstate with
 				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
 					breakpoint.bpstate <- BPHit;
-					ctx.debug.breakpoint <- breakpoint;
+					eval.breakpoint <- breakpoint; (* TODO: per-thread... *)
 					conn.bp_stop ctx env;
-					ctx.debug.debug_state <- DbgWaiting;
+					eval.debug_state <- DbgWaiting;
 					run_loop ctx conn.wait run_check_breakpoint env
 				| _ ->
 					raise Not_found
@@ -95,11 +98,11 @@ let debug_loop jit conn e f =
 		| RunTimeException(v,_,_) when debugger_catches v && ctx.debug.caught_exception != v ->
 			ctx.debug.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
-			ctx.debug.debug_state <- DbgWaiting;
+			eval.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
 		| BreakHere ->
 			conn.bp_stop ctx env;
-			ctx.debug.debug_state <- DbgWaiting;
+			eval.debug_state <- DbgWaiting;
 			run_loop ctx conn.wait run_check_breakpoint env
 		| Return v as exc ->
 			ctx.debug.last_return <- Some v;

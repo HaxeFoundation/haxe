@@ -105,7 +105,7 @@ let get_exc_error_message ctx v stack p =
 		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
 
 let build_exception_stack ctx env =
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	let rec loop acc env' =
 		let acc = env' :: acc in
 		if env == env' then

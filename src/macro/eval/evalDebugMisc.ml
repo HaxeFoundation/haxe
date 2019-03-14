@@ -185,14 +185,15 @@ let find_enum_field_by_name ve name =
 		raise Not_found
 
 let safe_call ctx f a =
-	let old = ctx.debug.debug_state in
-	ctx.debug.debug_state <- DbgContinue;
+	let eval = get_eval ctx in
+	let old = eval.debug_state in
+	eval.debug_state <- DbgContinue;
 	try
 		let r = f a in
-		ctx.debug.debug_state <- old;
+		eval.debug_state <- old;
 		r
 	with exc ->
-		ctx.debug.debug_state <- old;
+		eval.debug_state <- old;
 		raise exc
 
 let rec expr_to_value ctx env e =

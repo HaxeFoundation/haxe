@@ -96,18 +96,35 @@ type env = {
 	mutable env_extra_locals : value IntMap.t;
 	(* The parent of the current environment, if exists. All environments except EKToplevel have a parent. *)
 	env_parent : env option;
+	env_eval : eval;
 }
 
-type breakpoint_state =
+and eval = {
+	mutable env : env;
+	thread : vthread;
+	mutable debug_state : debug_state;
+	(* The currently active breakpoint. Set to a dummy value initially. *)
+	mutable breakpoint : breakpoint;
+}
+
+and debug_state =
+	| DbgStart
+	| DbgRunning
+	| DbgWaiting
+	| DbgContinue
+	| DbgNext of env * pos
+	| DbgFinish of env (* parent env *)
+
+and breakpoint_state =
 	| BPEnabled
 	| BPDisabled
 	| BPHit
 
-type breakpoint_column =
+and breakpoint_column =
 	| BPAny
 	| BPColumn of int
 
-type breakpoint = {
+and breakpoint = {
 	bpid : int;
 	bpfile : int;
 	bpline : int;
@@ -120,14 +137,6 @@ type function_breakpoint = {
 	fbpid : int;
 	mutable fbpstate : breakpoint_state;
 }
-
-type debug_state =
-	| DbgStart
-	| DbgRunning
-	| DbgWaiting
-	| DbgContinue
-	| DbgNext of env * pos
-	| DbgFinish of env (* parent env *)
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
@@ -200,10 +209,6 @@ and debug = {
 	(* Whether or not debugging is supported. Has various effects on the amount of
 	   data being retained at run-time. *)
 	mutable support_debugger : bool;
-	(* The current debug state. Managed by the debugger. *)
-	mutable debug_state : debug_state;
-	(* The currently active breakpoint. Set to a dummy value initially. *)
-	mutable breakpoint : breakpoint;
 	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
 	caught_types : (int,bool) Hashtbl.t;
 	(* The debugger socket *)
@@ -216,11 +221,6 @@ and debug = {
 	mutable last_return : value option;
 	(* The debug context which manages scopes and variables. *)
 	mutable debug_context : eval_debug_context;
-}
-
-and eval = {
-	mutable env : env;
-	thread : vthread;
 }
 
 and context = {
@@ -252,6 +252,14 @@ and context = {
 let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
 let get_ctx () = (!get_ctx_ref)()
 let select ctx = get_ctx_ref := (fun() -> ctx)
+
+let s_debug_state = function
+	| DbgStart -> "DbgStart"
+	| DbgRunning -> "DbgRunning"
+	| DbgWaiting -> "DbgWaiting"
+	| DbgContinue -> "DbgContinue"
+	| DbgNext _ -> "DbgNext"
+	| DbgFinish _ -> "DbgFinish"
 
 (* Misc *)
 
@@ -299,8 +307,7 @@ let proto_fields proto =
 
 exception RunTimeException of value * env list * pos
 
-let call_stack ctx =
-	let eval = get_eval ctx in
+let call_stack eval =
 	let rec loop acc env =
 		let acc = env :: acc in
 		match env.env_parent with
@@ -315,7 +322,7 @@ let throw v p =
 	let env = eval.env in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
-	raise_notrace (RunTimeException(v,call_stack ctx,p))
+	raise_notrace (RunTimeException(v,call_stack eval,p))
 
 let exc v = throw v null_pos
 
@@ -355,6 +362,7 @@ let null_env = {
 	env_captures = [||];
 	env_extra_locals = IntMap.empty;
 	env_parent = None;
+	env_eval = Obj.magic ();
 }
 
 let create_env_info static pfile kind capture_infos =
@@ -398,6 +406,7 @@ let push_environment ctx info num_locals num_captures =
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
 		env_parent = Some eval.env;
+		env_eval = eval;
 	} in
 	eval.env <- env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
@@ -406,7 +415,7 @@ let push_environment ctx info num_locals num_captures =
 				let bp = Hashtbl.find ctx.debug.function_breakpoints (key_type,key_field) in
 				if bp.fbpstate <> BPEnabled then raise Not_found;
 				socket.connection.bp_stop ctx env;
-				ctx.debug.debug_state <- DbgWaiting;
+				eval.debug_state <- DbgWaiting;
 			with Not_found ->
 				()
 			end
@@ -416,7 +425,7 @@ let push_environment ctx info num_locals num_captures =
 	env
 
 let pop_environment ctx env =
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	begin match env.env_parent with
 		| Some env -> eval.env <- env
 		| None -> assert false

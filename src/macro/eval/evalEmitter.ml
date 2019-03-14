@@ -202,7 +202,7 @@ let emit_do_while_break_continue exec_cond exec_body env =
 
 let emit_try exec catches env =
 	let ctx = get_ctx() in
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	if ctx.debug.support_debugger then begin
 		List.iter (fun (_,path,_) -> Hashtbl.add ctx.debug.caught_types path true) catches
 	end;

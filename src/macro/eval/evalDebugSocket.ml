@@ -106,8 +106,8 @@ let var_to_json name value vio env =
 	in
 	value_string value
 
-let get_call_stack_envs ctx kind p =
-	let envs = match call_stack ctx with
+let get_call_stack_envs eval kind p =
+	let envs = match call_stack eval with
 		| _ :: envs -> envs
 		| [] -> []
 	in
@@ -117,17 +117,17 @@ let get_call_stack_envs ctx kind p =
 	in
 	loop 0 envs
 
-let output_call_stack ctx kind p =
-	let envs = get_call_stack_envs ctx kind p in
+let output_call_stack eval kind p =
+	let envs = get_call_stack_envs eval kind p in
 	let id = ref (-1) in
 	let stack_item kind p =
 		incr id;
 		let line1,col1,line2,col2 = Lexer.get_pos_coords p in
 		let path = Path.get_real_path p.pfile in
 		let artificial,name = match kind with
-			| EKMethod _ | EKLocalFunction _ -> false,kind_name (get_eval ctx) kind
+			| EKMethod _ | EKLocalFunction _ -> false,kind_name eval kind
 			| EKEntrypoint -> true,p.pfile
-			| EKToplevel -> true,kind_name (get_eval ctx) kind
+			| EKToplevel -> true,kind_name eval kind
 		in
 		let source = if Sys.file_exists path then JString path else JNull in
 		JObject [
@@ -472,9 +472,6 @@ type handler_context = {
 }
 
 let handler =
-	let get_real_env ctx =
-		(get_eval ctx).env
-	in
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
 		let obj = j#get_object "breakpoint" jo in
@@ -504,33 +501,43 @@ let handler =
 		let frame = hctx.jsonrpc#get_int_param "frameId" in
 		move_frame hctx frame
 	in
+	let select_thread hctx =
+		let id = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "threadId") 0 in
+		let eval = IntMap.find id hctx.ctx.evals in
+		eval
+	in
 	let h = Hashtbl.create 0 in
 	let l = [
 		"continue",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- (if hctx.ctx.debug.debug_state = DbgStart then DbgRunning else DbgContinue);
-			Run (JNull,env)
+			let eval = select_thread hctx in
+			eval.debug_state <- (if eval.debug_state = DbgStart then DbgRunning else DbgContinue);
+			Run (JNull,eval.env)
 		);
 		"stepIn",(fun hctx ->
-			let env = get_real_env hctx.ctx in
+			let eval = select_thread hctx in
+			let env = eval.env in
 			Run (JNull,env)
 		);
 		"next",(fun hctx ->
-			let env = get_real_env hctx.ctx in
-			hctx.ctx.debug.debug_state <- DbgNext(env,env.env_debug.expr.epos);
+			let eval = select_thread hctx in
+			let env = eval.env in
+			eval.debug_state <- DbgNext(env,env.env_debug.expr.epos);
 			Run (JNull,env)
 		);
 		"stepOut",(fun hctx ->
-			let env = get_real_env hctx.ctx in
+			let eval = select_thread hctx in
+			let env = eval.env in
 			let penv = Option.get env.env_parent in
-			hctx.ctx.debug.debug_state <- DbgFinish penv;
+			eval.debug_state <- DbgFinish penv;
 			Run (JNull,env)
 		);
 		"getThreads",(fun hctx ->
 			Loop (output_threads hctx.ctx);
 		);
 		"stackTrace",(fun hctx ->
-			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
+			let eval = select_thread hctx in
+			let env = eval.env in
+			Loop (output_call_stack eval env.env_info.kind env.env_debug.expr.epos)
 		);
 		"getScopes",(fun hctx ->
 			let env = update_frame hctx in

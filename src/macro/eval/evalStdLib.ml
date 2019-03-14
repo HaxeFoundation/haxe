@@ -556,7 +556,7 @@ module StdCallStack = struct
 
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = call_stack ctx in
+		let envs = call_stack (get_eval ctx) in
 		let envs = match envs with
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
@@ -3171,7 +3171,12 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f thread =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {env = null_env; thread = thread} in
+					let new_eval = {
+						env = null_env;
+						thread = thread;
+						debug_state = DbgRunning;
+						breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
+					} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
 					let close () =
 						ctx.evals <- IntMap.remove id ctx.evals
