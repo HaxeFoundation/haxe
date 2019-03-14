@@ -148,6 +148,16 @@ let output_call_stack ctx kind p =
 	) l envs in
 	JArray (List.rev stack)
 
+let output_threads ctx =
+	let fold id eval acc =
+		(JObject [
+			"id",JInt id;
+			"name",JString eval.thread.tname
+		]) :: acc
+	in
+	let threads = IntMap.fold fold ctx.evals [] in
+	JArray threads
+
 let is_simn = false
 
 let output_scopes ctx env =
@@ -516,6 +526,9 @@ let handler =
 			hctx.ctx.debug.debug_state <- DbgFinish penv;
 			Run (JNull,env)
 		);
+		"getThreads",(fun hctx ->
+			Loop (output_threads hctx.ctx);
+		);
 		"stackTrace",(fun hctx ->
 			Loop (output_call_stack hctx.ctx hctx.env.env_info.kind hctx.env.env_debug.expr.epos)
 		);
@@ -685,11 +698,11 @@ let handler =
 let make_connection socket =
 	let output_breakpoint_stop ctx _ =
 		ctx.debug.debug_context <- new eval_debug_context;
-		send_event socket "breakpointStop" None
+		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
 	in
 	let output_exception_stop ctx v _ =
 		ctx.debug.debug_context <- new eval_debug_context;
-		send_event socket "exceptionStop" (Some (JObject ["text",JString (value_string v)]))
+		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
 	in
 	let rec wait ctx (run : env -> value) env =
 		let rec process_outcome id outcome =
