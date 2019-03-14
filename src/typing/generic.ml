@@ -43,6 +43,7 @@ let make_generic ctx ps pt p =
 					| KExpr e -> ident_safe (Ast.s_expr e)
 					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl tl))
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
+				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false f.cf_type)) :: acc) a.a_fields [])
 				| TType(t,tl) -> (s_type_path_underscore t.t_path) ^ (loop_tl tl)
 				| TLazy(f) -> loop false (lazy_type f)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
