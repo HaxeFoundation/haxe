@@ -489,6 +489,11 @@ let handler =
 	in
 	let h = Hashtbl.create 0 in
 	let l = [
+		"pause",(fun hctx ->
+			let eval = select_thread hctx in
+			eval.debug_state <- DbgWaiting;
+			JNull
+		);
 		"continue",(fun hctx ->
 			let eval = select_thread hctx in
 			eval.debug_state <- (if eval.debug_state = DbgStart then DbgRunning else DbgContinue);
