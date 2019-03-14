@@ -691,6 +691,9 @@ let handler =
 	h
 
 let make_connection socket =
+	let output_thread_event thread_id reason =
+		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
+	in
 	let output_breakpoint_stop ctx _ =
 		ctx.debug.debug_context <- new eval_debug_context;
 		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
@@ -744,4 +747,5 @@ let make_connection socket =
 	{
 		bp_stop = output_breakpoint_stop;
 		exc_stop = output_exception_stop;
+		send_thread_event = output_thread_event;
 	}

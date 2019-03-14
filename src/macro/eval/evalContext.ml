@@ -198,6 +198,7 @@ type exception_mode =
 type debug_connection = {
 	bp_stop : context -> env -> unit;
 	exc_stop : context -> value -> pos -> unit;
+	send_thread_event : int -> string -> unit;
 }
 
 and debug_socket = {

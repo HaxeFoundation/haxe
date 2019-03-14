@@ -3171,6 +3171,12 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f thread =
 					let id = Thread.id (Thread.self()) in
+					let maybe_send_thread_event reason = match ctx.debug.debug_socket with
+						| Some socket ->
+							socket.connection.send_thread_event id reason
+						| None ->
+							()
+					in
 					let new_eval = {
 						env = null_env;
 						thread = thread;
@@ -3180,9 +3186,11 @@ let init_constructors builtins =
 					} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
 					let close () =
-						ctx.evals <- IntMap.remove id ctx.evals
+						ctx.evals <- IntMap.remove id ctx.evals;
+						maybe_send_thread_event "exited";
 					in
 					try
+						maybe_send_thread_event "started";
 						ignore(call_value f []);
 						close();
 					with
