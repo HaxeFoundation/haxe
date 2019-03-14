@@ -734,6 +734,54 @@ module StdDate = struct
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
+module StdDeque = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = IDeque d} -> d
+		| _ -> unexpected_value vthis "Deque"
+
+	let lock_mutex = Mutex.create ()
+
+	let add = vifun1 (fun vthis i ->
+		let this = this vthis in
+		Mutex.lock lock_mutex;
+		this.dvalues <- this.dvalues @ [i];
+		ignore(Event.poll(Event.send this.dchannel i));
+		Mutex.unlock lock_mutex;
+		vnull;
+	)
+
+	let pop = vifun1 (fun vthis blocking ->
+		let this = this vthis in
+		let rec loop () =
+			Mutex.lock lock_mutex;
+			match this.dvalues with
+			| v :: vl ->
+				this.dvalues <- vl;
+				Mutex.unlock lock_mutex;
+				v
+			| [] ->
+				if blocking <> VTrue then begin
+					Mutex.unlock lock_mutex;
+					vnull
+				end else begin
+					Mutex.unlock lock_mutex;
+					ignore(Event.sync(Event.receive this.dchannel));
+					loop()
+				end
+		in
+		loop()
+	)
+
+	let push = vifun1 (fun vthis i ->
+		let this = this vthis in
+		Mutex.lock lock_mutex;
+		this.dvalues <- i :: this.dvalues;
+		ignore(Event.poll(Event.send this.dchannel i));
+		Mutex.unlock lock_mutex;
+		vnull;
+	)
+end
+
 module StdEReg = struct
 	open Pcre
 
@@ -1347,6 +1395,60 @@ module StdHost = struct
 	)
 end
 
+module StdLock = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = ILock lock} -> lock
+		| v -> unexpected_value v "Lock"
+
+	let lock_mutex = Mutex.create ()
+
+	let release = vifun0 (fun vthis ->
+		let lock = this vthis in
+		Mutex.lock lock_mutex;
+		lock.lcounter <- lock.lcounter + 1;
+		if lock.lcounter >= 0 then
+			ignore(Event.poll(Event.send lock.lchannel ()));
+		Mutex.unlock lock_mutex;
+		vnull
+	)
+
+	let wait = vifun1 (fun vthis timeout ->
+		let lock = this vthis in
+		let timeout = match timeout with
+			| VNull -> None
+			| _ -> Some (num timeout)
+		in
+		Mutex.lock lock_mutex;
+		lock.lcounter <- lock.lcounter - 1;
+		if lock.lcounter < 0 then begin
+			begin match timeout with
+			| None ->
+				Mutex.unlock lock_mutex;
+				Event.sync(Event.receive lock.lchannel);
+				vtrue
+			| Some timeout ->
+				let target_time = (Sys.time()) +. timeout in
+				let rec loop () =
+					(* This isn't really correct. There could be a release + wait inbetween, which
+					   should resolve this wait but won't because lcounter is going to be < 0 again.
+					   I don't know how to solve this accurately though. *)
+					if lock.lcounter >= 0 then vtrue
+					else if Sys.time() >= target_time then vfalse
+					else begin
+						Thread.delay 0.01;
+						loop()
+					end;
+				in
+				Mutex.unlock lock_mutex;
+				loop()
+			end
+		end else begin
+			Mutex.unlock lock_mutex;
+			vtrue
+		end
+	)
+end
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -1616,6 +1718,29 @@ module StdMd5 = struct
 	let make = vfun1 (fun b ->
 		let b = decode_bytes b in
 		encode_bytes (Bytes.unsafe_of_string (Digest.string (Bytes.unsafe_to_string b)))
+	)
+end
+
+module StdMutex = struct
+	let this vthis = match vthis with
+		| VInstance {ikind=IMutex mutex} -> mutex
+		| _ -> unexpected_value vthis "Mutex"
+
+	let acquire = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		Mutex.lock mutex;
+		vnull
+	)
+
+	let release = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		Mutex.unlock mutex;
+		vnull
+	)
+
+	let tryAcquire = vifun0 (fun vthis ->
+		let mutex = this vthis in
+		vbool (Mutex.try_lock mutex)
 	)
 end
 
@@ -2465,7 +2590,7 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> ignore(catch_unix_error Unix.select [] [] [] (num f)); vnull)
+	let sleep = vfun1 (fun f -> Thread.delay (num f); vnull)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
@@ -2520,26 +2645,70 @@ module StdThread = struct
 	)
 
 	let id = vifun0 (fun vthis ->
-		vint (Thread.id (this vthis))
+		vint (Thread.id (this vthis).tthread)
 	)
 
 	let join = vfun1 (fun thread ->
-		Thread.join (this thread);
+		Thread.join (this thread).tthread;
 		vnull
 	)
 
 	let kill = vifun0 (fun vthis ->
-		Thread.kill (this vthis);
+		Thread.kill (this vthis).tthread;
 		vnull
 	)
 
 	let self = vfun0 (fun () ->
-		encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.self()))
+		let eval = get_eval (get_ctx()) in
+		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
+	)
+
+	let readMessage = vifun1 (fun vthis blocking ->
+		let this = this vthis in
+		if not (Queue.is_empty this.tqueue) then
+			Queue.pop this.tqueue
+		else if blocking <> VTrue then
+			vnull
+		else begin
+			let event = Event.receive this.tchannel in
+			ignore(Event.sync event);
+			Queue.pop this.tqueue
+		end
+	)
+
+	let sendMessage = vifun1 (fun vthis msg ->
+		let this = this vthis in
+		Queue.add msg this.tqueue;
+		ignore(Event.poll (Event.send this.tchannel msg));
+		vnull
 	)
 
 	let yield = vfun0 (fun () ->
 		Thread.yield();
 		vnull
+	)
+end
+
+module StdTls = struct
+	let this vthis = match vthis with
+		| VInstance {ikind = ITls i} -> i
+		| _ -> unexpected_value vthis "Thread"
+
+	let get_value = vifun0 (fun vthis ->
+		let this = this vthis in
+		try
+			let id = Thread.id (Thread.self()) in
+			let eval = IntMap.find id (get_ctx()).evals in
+			IntMap.find this eval.thread.tstorage
+		with Not_found ->
+			vnull
+	)
+
+	let set_value = vifun1 (fun vthis v ->
+		let this = this vthis in
+		let eval = get_eval (get_ctx()) in
+		eval.thread.tstorage <- IntMap.add this v eval.thread.tstorage;
+		v
 	)
 end
 
@@ -3000,9 +3169,9 @@ let init_constructors builtins =
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
-				let f () =
+				let f thread =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {env = null_env} in
+					let new_eval = {env = null_env; thread = thread} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
 					try
 						ignore(call_value f []);
@@ -3010,8 +3179,42 @@ let init_constructors builtins =
 						let msg = get_exc_error_message ctx v stack p in
 						prerr_endline msg
 				in
-				encode_instance key_eval_vm_Thread ~kind:(IThread (Thread.create f ()))
+				let thread = {
+					tthread = Obj.magic ();
+					tchannel = Event.new_channel ();
+					tqueue = Queue.create ();
+					tstorage = IntMap.empty;
+				} in
+				thread.tthread <- Thread.create f thread;
+				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> assert false
+		);
+	add key_eval_vm_Mutex
+		(fun _ ->
+			encode_instance key_eval_vm_Mutex ~kind:(IMutex (Mutex.create ()))
+		);
+	add key_eval_vm_Lock
+		(fun _ ->
+			let ch = Event.new_channel () in
+			let lock = {
+				lcounter = 0;
+				lchannel = ch;
+			} in
+			encode_instance key_eval_vm_Lock ~kind:(ILock lock)
+		);
+	let tls_counter = ref (-1) in
+	add key_eval_vm_Tls
+		(fun _ ->
+			incr tls_counter;
+			encode_instance key_eval_vm_Tls ~kind:(ITls !tls_counter)
+		);
+	add key_eval_vm_Deque
+		(fun _ ->
+			let deque = {
+				dvalues = [];
+				dchannel = Event.new_channel();
+			} in
+			encode_instance key_eval_vm_Deque ~kind:(IDeque deque)
 		)
 
 let init_empty_constructors builtins =
@@ -3137,6 +3340,11 @@ let init_standard_library builtins =
 		"getTime",StdDate.getTime;
 		"toString",StdDate.toString;
 	];
+	init_fields builtins (["eval";"vm"],"Deque") [] [
+		"add",StdDeque.add;
+		"push",StdDeque.push;
+		"pop",StdDeque.pop;
+	];
 	init_fields builtins ([],"EReg") [
 		"escape",StdEReg.escape;
 	] [
@@ -3215,6 +3423,10 @@ let init_standard_library builtins =
 		"hostToString",StdHost.hostToString;
 		"resolve",StdHost.resolve;
 	] [];
+	init_fields builtins (["eval";"vm"],"Lock") [] [
+		"release",StdLock.release;
+		"wait",StdLock.wait;
+	];
 	init_fields builtins (["haxe"],"Log") [
 		"trace",StdLog.trace;
 	] [];
@@ -3251,6 +3463,11 @@ let init_standard_library builtins =
 		"encode",StdMd5.encode;
 		"make",StdMd5.make;
 	] [];
+	init_fields builtins (["eval";"vm"],"Mutex") [] [
+		"acquire",StdMutex.acquire;
+		"tryAcquire",StdMutex.tryAcquire;
+		"release",StdMutex.release;
+	];
 	init_fields builtins (["sys";"io";"_Process"],"NativeProcess") [ ] [
 		"close",StdNativeProcess.close;
 		"exitCode",StdNativeProcess.exitCode;
@@ -3374,6 +3591,12 @@ let init_standard_library builtins =
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
+		"readMessage",StdThread.readMessage;
+		"sendMessage",StdThread.sendMessage;
+	];
+	init_fields builtins (["eval";"vm"],"Tls") [] [
+		"get_value",StdTls.get_value;
+		"set_value",StdTls.set_value;
 	];
 	init_fields builtins ([],"Type") [
 		"allEnums",StdType.allEnums;

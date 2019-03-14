@@ -104,6 +104,12 @@ let create com api is_macro =
 	let detail_times = Common.defined com Define.EvalTimes in
 	let eval = {
 		env = null_env;
+		thread = {
+			tthread = Thread.self();
+			tchannel = Event.new_channel();
+			tqueue = Queue.create ();
+			tstorage = IntMap.empty;
+		}
 	} in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {

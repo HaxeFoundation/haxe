@@ -220,6 +220,7 @@ and debug = {
 
 and eval = {
 	mutable env : env;
+	thread : vthread;
 }
 
 and context = {

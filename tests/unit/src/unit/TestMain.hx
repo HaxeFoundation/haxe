@@ -103,13 +103,16 @@ class TestMain {
 			#end
 			new TestMapComprehension(),
 			new TestMacro(),
-			new TestKeyValueIterator(),
-			// #if ( (java || neko) && !macro && !interp)
-			// new TestThreads(),
-			// #end
+			new TestKeyValueIterator()
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
+
+		#if ( (java || neko || cpp || eval) && !macro)
+		if (Sys.getEnv("TRAVIS") != null) {
+			classes.push(new TestThreads());
+		}
+		#end
 
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");

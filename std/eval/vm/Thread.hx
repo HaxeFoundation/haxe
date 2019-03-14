@@ -76,4 +76,12 @@ extern class Thread {
 		to other threads.
 	**/
 	static function yield():Void;
+
+	// neko API
+
+	function readMessage<T>(block:Bool):T;
+	function sendMessage<T>(msg:T):Void;
+
+	static inline function create(f:Void -> Void):Thread return new Thread(f);
+	static inline function current():Thread return self();
 }

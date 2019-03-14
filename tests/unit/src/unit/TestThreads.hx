@@ -1,4 +1,5 @@
 package unit;
+import utest.Assert;
 #if neko
 import neko.vm.Thread;
 import neko.vm.Deque;
@@ -17,6 +18,12 @@ import java.vm.Deque;
 import java.vm.Lock;
 import java.vm.Tls;
 import java.vm.Mutex;
+#elseif eval
+import eval.vm.Thread;
+import eval.vm.Deque;
+import eval.vm.Lock;
+import eval.vm.Tls;
+import eval.vm.Mutex;
 #end
 
 class TestThreads extends Test
@@ -50,7 +57,7 @@ class TestThreads extends Test
 									}
 									catch(e:Dynamic)
 									{
-										Test.report('Error $e for parameters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
+										Assert.fail('Error $e for para\\meters: $creatorWait, $creatorLoad, $consumerWait, $useTls, $q, $lock1, $lock2');
 									}
 								}
 	}
@@ -129,6 +136,9 @@ class ThreadSort
 						finishedMutex.release();
 						break;
 					}
+					#if eval
+					Thread.yield(); // no system threads, we need this or the scheduler has issues
+					#end
 					if (++i % Std.int(maxVal / 10) == 0 && consumerLoad)
 						Sys.sleep(.01);
 				}
@@ -233,9 +243,9 @@ private class LockSemaphore implements SemaphoreStrategy
 
 	public function block()
 	{
-		for(i in 0...c)
+		for(_ in 0...c)
 		{
-			l.wait();
+			Assert.isTrue(l.wait(1.));
 		}
 		this.c = 0;
 	}
