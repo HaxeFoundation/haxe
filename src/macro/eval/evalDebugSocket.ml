@@ -496,7 +496,7 @@ let handler =
 		);
 		"continue",(fun hctx ->
 			let eval = select_thread hctx in
-			eval.debug_state <- (if eval.debug_state = DbgStart then DbgRunning else DbgContinue);
+			eval.debug_state <- DbgRunning;
 			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
 		);
@@ -698,12 +698,12 @@ let make_connection socket =
 	let output_thread_event thread_id reason =
 		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
 	in
-	let output_breakpoint_stop ctx _ =
-		ctx.debug.debug_context <- new eval_debug_context;
+	let output_breakpoint_stop debug =
+		debug.debug_context <- new eval_debug_context;
 		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
 	in
-	let output_exception_stop ctx v _ =
-		ctx.debug.debug_context <- new eval_debug_context;
+	let output_exception_stop debug v _ =
+		debug.debug_context <- new eval_debug_context;
 		send_event socket "exceptionStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()));"text",JString (value_string v)]))
 	in
 	let rec wait () : unit =

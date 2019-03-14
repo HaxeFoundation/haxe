@@ -117,10 +117,8 @@ and eval = {
 }
 
 and debug_state =
-	| DbgStart
 	| DbgRunning
 	| DbgWaiting
-	| DbgContinue
 	| DbgStep
 	| DbgNext of env * pos
 	| DbgFinish of env (* parent env *)
@@ -174,25 +172,29 @@ class eval_debug_context = object(self)
 		DynArray.add d Toplevel;
 		d
 
+	val mutex = Mutex.create()
+
+	method private add reference =
+		Mutex.lock mutex;
+		DynArray.add lut reference;
+		let i = DynArray.length lut - 1 in
+		Mutex.unlock mutex;
+		i
+
 	method add_stack_frame env =
-		DynArray.add lut (StackFrame env);
-		DynArray.length lut - 1
+		self#add (StackFrame env)
 
 	method add_scope scope env =
-		DynArray.add lut (Scope(scope,env));
-		DynArray.length lut - 1
+		self#add (Scope(scope,env))
 
 	method add_capture_scope h env =
-		DynArray.add lut (CaptureScope(h,env));
-		DynArray.length lut - 1
+		self#add (CaptureScope(h,env))
 
 	method add_value v env =
-		DynArray.add lut (Value(v,env));
-		DynArray.length lut - 1
+		self#add (Value(v,env))
 
 	method add_debug_scope scope env =
-		DynArray.add lut (DebugScope(scope,env));
-		DynArray.length lut - 1
+		self#add (DebugScope(scope,env))
 
 	method get id =
 		DynArray.get lut id
@@ -205,8 +207,8 @@ type exception_mode =
 	| CatchNone
 
 type debug_connection = {
-	bp_stop : context -> env -> unit;
-	exc_stop : context -> value -> pos -> unit;
+	bp_stop : debug -> unit;
+	exc_stop : debug -> value -> pos -> unit;
 	send_thread_event : int -> string -> unit;
 }
 
@@ -263,10 +265,8 @@ let get_ctx () = (!get_ctx_ref)()
 let select ctx = get_ctx_ref := (fun() -> ctx)
 
 let s_debug_state = function
-	| DbgStart -> "DbgStart"
 	| DbgRunning -> "DbgRunning"
 	| DbgWaiting -> "DbgWaiting"
-	| DbgContinue -> "DbgContinue"
 	| DbgStep -> "DbgStep"
 	| DbgNext _ -> "DbgNext"
 	| DbgFinish _ -> "DbgFinish"
@@ -424,7 +424,7 @@ let push_environment ctx info num_locals num_captures =
 			begin try
 				let bp = Hashtbl.find ctx.debug.function_breakpoints (key_type,key_field) in
 				if bp.fbpstate <> BPEnabled then raise Not_found;
-				socket.connection.bp_stop ctx env;
+				socket.connection.bp_stop ctx.debug;
 				eval.debug_state <- DbgWaiting;
 			with Not_found ->
 				()

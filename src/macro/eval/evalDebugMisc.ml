@@ -188,7 +188,7 @@ let find_enum_field_by_name ve name =
 
 let safe_call eval f a =
 	let old = eval.debug_state in
-	eval.debug_state <- DbgContinue;
+	eval.debug_state <- DbgRunning;
 	try
 		let r = f a in
 		eval.debug_state <- old;

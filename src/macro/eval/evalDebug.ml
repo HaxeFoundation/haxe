@@ -21,16 +21,13 @@ let is_caught eval v =
 		true
 
 (* Checks debug state and calls what's needed. *)
-let rec run_loop ctx run env : value =
+let rec run_loop run env : value =
 	let eval = env.env_eval in
 	let check_breakpoint () =
 		if eval.breakpoint.bpstate = BPHit && env.env_debug.line <> eval.breakpoint.bpline then eval.breakpoint.bpstate <- BPEnabled
 	in
 	match eval.debug_state with
 		| DbgRunning ->
-			check_breakpoint();
-			run env
-		| DbgContinue ->
 			check_breakpoint();
 			run env
 		| DbgNext(env',p) ->
@@ -44,21 +41,21 @@ let rec run_loop ctx run env : value =
 				run env
 			else begin
 				eval.debug_state <- DbgWaiting;
-				run_loop ctx run env
+				run_loop run env
 			end;
 		| DbgFinish env' ->
 			if env' != env then
 				run env
 			else begin
 				eval.debug_state <- DbgWaiting;
-				run_loop ctx run env
+				run_loop run env
 			end
 		| DbgStep ->
 			eval.debug_state <- DbgWaiting;
 			run env
-		| DbgWaiting | DbgStart ->
+		| DbgWaiting ->
 			ignore(Event.sync(Event.receive eval.debug_channel));
-			run_loop ctx run env
+			run_loop run env
 
 let debug_loop jit conn e f =
 	let ctx = jit.ctx in
@@ -89,9 +86,9 @@ let debug_loop jit conn e f =
 				| BPEnabled when column_matches breakpoint && condition_holds env breakpoint ->
 					breakpoint.bpstate <- BPHit;
 					eval.breakpoint <- breakpoint; (* TODO: per-thread... *)
-					conn.bp_stop ctx env;
+					conn.bp_stop ctx.debug;
 					eval.debug_state <- DbgWaiting;
-					run_loop ctx run_check_breakpoint env
+					run_loop run_check_breakpoint env
 				| _ ->
 					raise Not_found
 			end
@@ -100,13 +97,13 @@ let debug_loop jit conn e f =
 		with
 		| RunTimeException(v,_,_) when debugger_catches env.env_eval v && eval.caught_exception != v ->
 			eval.caught_exception <- v;
-			conn.exc_stop ctx v e.epos;
+			conn.exc_stop ctx.debug v e.epos;
 			eval.debug_state <- DbgWaiting;
-			run_loop ctx run_check_breakpoint env
+			run_loop run_check_breakpoint env
 		| BreakHere ->
-			conn.bp_stop ctx env;
+			conn.bp_stop ctx.debug;
 			eval.debug_state <- DbgWaiting;
-			run_loop ctx (fun _ -> vnull) env
+			run_loop (fun _ -> vnull) env
 		| Return v as exc ->
 			eval.last_return <- Some v;
 			raise exc
@@ -120,6 +117,6 @@ let debug_loop jit conn e f =
 		env.env_debug.scopes <- scopes;
 		env.env_debug.line <- line;
 		env.env_debug.expr <- e;
-		run_loop ctx run_check_breakpoint env;
+		run_loop run_check_breakpoint env;
 	in
 	run_set
