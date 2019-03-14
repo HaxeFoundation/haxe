@@ -39,9 +39,9 @@ let rec replace_super_call e =
 exception Accessed_this of texpr
 
 (* return whether given expression has `this` access before calling `super` *)
-let has_this_before_super e = 
+let has_this_before_super e =
 	let rec loop e =
-		match e.eexpr with 
+		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper }, args) ->
 			List.iter loop args;
 			raise Exit
@@ -56,6 +56,10 @@ let has_this_before_super e =
 		| Exit -> None
 		| Accessed_this e -> Some e
 
+let get_num_args cf =
+	match follow cf.cf_type with
+	| TFun (args, _) -> List.length args
+	| _ -> assert false
 
 (*
 	the filter works in two passes:
@@ -74,7 +78,7 @@ let rewrite_ctors com =
 		generate RootClass._hx_skip_constructor expressions
 	*)
 	let mark_does_ctor_skipping cl cl_super p_this_access =
-		let rec mark_needs_ctor_skipping cl = 
+		let rec mark_needs_ctor_skipping cl =
 			(* for non haxe-generated extern classes we can't generate any valid code, so just fail *)
 			if cl.cl_extern && not (Meta.has Meta.HxGen cl.cl_meta) then begin
 				abort "Must call `super()` constructor before accessing `this` in classes derived from an extern class with constructor" p_this_access;
@@ -84,8 +88,16 @@ let rewrite_ctors com =
 			with Not_found ->
 				let root =
 					match cl.cl_super with
-					| Some ({ cl_constructor = Some _ } as cl_super,_) -> mark_needs_ctor_skipping cl_super
-					| _ -> cl
+					| Some ({ cl_constructor = Some ctor_super } as cl_super,_) ->
+						let root = mark_needs_ctor_skipping cl_super in
+						Option.may (fun ctor ->
+							(* if parent's constructor receives less arguments than needed for this - we need to override the constructor *)
+							if get_num_args ctor > get_num_args ctor_super then
+								Hashtbl.add does_ctor_skipping cl.cl_path root;
+						) cl.cl_constructor;
+						root
+					| _ ->
+						cl
 				in
 				Hashtbl.add needs_ctor_skipping cl.cl_path root;
 				root
@@ -112,7 +124,7 @@ let rewrite_ctors com =
 				) this_before_super
 			end else begin
 				(* if there was no ctor in the parent class, we still gotta call `super` *)
-				Hashtbl.add inject_super cl.cl_path cl; 
+				Hashtbl.add inject_super cl.cl_path cl;
 			end
 		| _ -> ()
 	in
@@ -120,7 +132,7 @@ let rewrite_ctors com =
 
 	if !activated then begin
 		(* just some helper common exprs *)
-		let e_false = (make_bool com.basic false null_pos) in 
+		let e_false = (make_bool com.basic false null_pos) in
 		let e_true = (make_bool com.basic true null_pos) in
 		let e_hx_ctor = (* this._hx_constructor *)
 			let ethis = mk (TConst TThis) t_dynamic null_pos  in
@@ -162,13 +174,13 @@ let rewrite_ctors com =
 				(match (try Some (Hashtbl.find needs_ctor_skipping cl.cl_path) with Not_found -> None) with
 				| Some root ->
 					add_hx_ctor_method ();
-					
+
 					if does_ctor_skipping = None && cl != root then
 						(* for intermediate classes that support skipping but don't do skipping themselves, we can just remove the constructor altogether,
 						because the skipping logic is implemented in the parent constructor, and the actual constructor body is moved into _hx_constructor *)
 						cf_ctor.cf_expr <- None
 					else begin
-						let e_skip = 
+						let e_skip =
 							let e_return = (mk (TReturn None) t_dynamic null_pos) in
 							if cl.cl_super = None || (Hashtbl.mem inject_super cl.cl_path)  then
 								(* just `return` *)
@@ -189,7 +201,7 @@ let rewrite_ctors com =
 								make_hx_ctor_call e_skip_flag
 							]
 						} in
-						
+
 						cf_ctor.cf_expr <- Some { ctor_expr with eexpr = TFunction { tf_ctor with tf_expr = e_ctor_replaced } };
 					end;
 
