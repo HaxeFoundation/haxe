@@ -640,7 +640,8 @@ module StdContext = struct
 	)
 
 	let breakHere = vfun0 (fun () ->
-		raise (EvalDebugMisc.BreakHere)
+		if not ((get_ctx()).debug.support_debugger) then vnull
+		else raise (EvalDebugMisc.BreakHere)
 	)
 
 	let callMacroApi = vfun1 (fun f ->
