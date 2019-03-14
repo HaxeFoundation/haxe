@@ -38,15 +38,19 @@ let make_generic ctx ps pt p =
 			let rec subst s = "_" ^ string_of_int (Char.code (String.get (Str.matched_string s) 0)) ^ "_" in
 			let ident_safe = Str.global_substitute (Str.regexp "[^a-zA-Z0-9_]") subst in
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
-			let rec loop top t = match follow t with
+			let rec loop top t = match t with
 				| TInst(c,tl) -> (match c.cl_kind with
 					| KExpr e -> ident_safe (Ast.s_expr e)
 					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl tl))
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
-				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false (follow f.cf_type))) :: acc) a.a_fields [])
+				| TType(t,tl) -> (s_type_path_underscore t.t_path) ^ (loop_tl tl)
+				| TLazy(f) -> loop false (lazy_type f)
 				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
 				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
-				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
+				| TMono(r) ->
+					(match !r with
+					| Some t -> loop false t
+					| _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p)))
 				| TDynamic _ -> "Dynamic"
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
 			and loop_tl tl = match tl with
