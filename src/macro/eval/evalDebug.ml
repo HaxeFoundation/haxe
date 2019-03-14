@@ -106,7 +106,7 @@ let debug_loop jit conn e f =
 		| BreakHere ->
 			conn.bp_stop ctx env;
 			eval.debug_state <- DbgWaiting;
-			run_loop ctx run_check_breakpoint env
+			run_loop ctx (fun _ -> vnull) env
 		| Return v as exc ->
 			eval.last_return <- Some v;
 			raise exc

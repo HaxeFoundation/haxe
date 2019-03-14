@@ -617,11 +617,10 @@ let handler =
 			JNull
 		);
 		"setVariable",(fun hctx ->
-			let env = (get_eval hctx.ctx).env in
 			let id = hctx.jsonrpc#get_int_param "id" in
 			let name = hctx.jsonrpc#get_string_param "name" in
 			let value = hctx.jsonrpc#get_string_param "value" in
-			let value = try
+			let get_value env = try
 				let e = parse_expr hctx.ctx value env.env_debug.expr.epos in
 				expr_to_value hctx.ctx env e
 			with Parse_expr_error e ->
@@ -631,6 +630,7 @@ let handler =
 			| Toplevel ->
 				hctx.send_error "Invalid id";
 			| Value(v,env) ->
+				let value = get_value env in
 				let name_as_index () = try
 					(* The name is [1] so we have to extract the number. This is quite stupid but not really our fault... *)
 					int_of_string (String.sub name 1 (String.length name - 2))
@@ -645,11 +645,13 @@ let handler =
 				end;
 				var_to_json "" value None env
 			| Scope(scope,env) ->
+				let value = get_value env in
 				let id = Hashtbl.find scope.local_ids name in
 				let slot = Hashtbl.find scope.locals id in
 				env.env_locals.(slot + scope.local_offset) <- value;
 				var_to_json "" value None env
 			| CaptureScope(infos,env) ->
+				let value = get_value env in
 				let slot = get_capture_slot_by_name infos name in
 				env.env_captures.(slot) := value;
 				var_to_json "" value None env
@@ -666,7 +668,7 @@ let handler =
 			JNull
 		);
 		"evaluate",(fun hctx ->
-			let env = select_frame hctx in
+			let env = try select_frame hctx with _ -> hctx.ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
 				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
@@ -680,7 +682,7 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
-			let env = (get_eval hctx.ctx).env in
+			let env = hctx.ctx.eval.env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try
