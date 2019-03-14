@@ -13,9 +13,9 @@ open EvalMisc
 open EvalDebugMisc
 open MacroApi
 
-let is_caught ctx v =
+let is_caught eval v =
 	try
-		Hashtbl.iter (fun path _ -> if is v path then raise Exit) ctx.debug.caught_types;
+		Hashtbl.iter (fun path _ -> if is v path then raise Exit) eval.caught_types;
 		false
 	with Exit ->
 		true
@@ -74,9 +74,9 @@ let debug_loop jit conn e f =
 			| VTrue -> true
 			| _ -> false
 	in
-	let debugger_catches v = match ctx.debug.exception_mode with
+	let debugger_catches eval v = match ctx.debug.exception_mode with
 		| CatchAll -> true
-		| CatchUncaught -> not (is_caught ctx v)
+		| CatchUncaught -> not (is_caught eval v)
 		| CatchNone -> false
 	in
 	(* Checks if we hit a breakpoint, runs the code if not. *)
@@ -98,7 +98,7 @@ let debug_loop jit conn e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when debugger_catches v && ctx.debug.caught_exception != v ->
+		| RunTimeException(v,_,_) when debugger_catches env.env_eval v && ctx.debug.caught_exception != v ->
 			ctx.debug.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
 			eval.debug_state <- DbgWaiting;

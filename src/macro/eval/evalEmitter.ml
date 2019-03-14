@@ -204,10 +204,10 @@ let emit_try exec catches env =
 	let ctx = get_ctx() in
 	let eval = env.env_eval in
 	if ctx.debug.support_debugger then begin
-		List.iter (fun (_,path,_) -> Hashtbl.add ctx.debug.caught_types path true) catches
+		List.iter (fun (_,path,_) -> Hashtbl.add eval.caught_types path true) catches
 	end;
 	let restore () =
-		List.iter (fun (_,path,_) -> Hashtbl.remove ctx.debug.caught_types path) catches
+		List.iter (fun (_,path,_) -> Hashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
 		let v = exec env in

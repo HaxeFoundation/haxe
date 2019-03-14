@@ -89,7 +89,6 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				caught_types = Hashtbl.create 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
 				caught_exception = vnull;
@@ -114,6 +113,7 @@ let create com api is_macro =
 		debug_state = if !debug_hack then DbgRunning else DbgStart;
 		debug_channel = Event.new_channel ();
 		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
+		caught_types = Hashtbl.create 0;
 	} in
 	debug_hack := true;
 	let evals = IntMap.singleton 0 eval in

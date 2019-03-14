@@ -102,9 +102,13 @@ type env = {
 and eval = {
 	mutable env : env;
 	thread : vthread;
+	(* The threads current debug state *)
 	mutable debug_state : debug_state;
 	(* The currently active breakpoint. Set to a dummy value initially. *)
 	mutable breakpoint : breakpoint;
+	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
+	caught_types : (int,bool) Hashtbl.t;
+	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
 }
 
@@ -216,8 +220,6 @@ and debug = {
 	(* Whether or not debugging is supported. Has various effects on the amount of
 	   data being retained at run-time. *)
 	mutable support_debugger : bool;
-	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
-	caught_types : (int,bool) Hashtbl.t;
 	(* The debugger socket *)
 	mutable debug_socket : debug_socket option;
 	(* The current exception mode *)

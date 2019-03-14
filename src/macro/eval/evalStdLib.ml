@@ -3183,6 +3183,7 @@ let init_constructors builtins =
 						debug_state = DbgRunning;
 						debug_channel = Event.new_channel ();
 						breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
+						caught_types = Hashtbl.create 0;
 					} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
 					let close () =
