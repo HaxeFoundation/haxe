@@ -3188,7 +3188,10 @@ let init_constructors builtins =
 						close();
 						raise exc
 				in
+				let eval = get_eval ctx in
+				let name = kind_name eval eval.env.env_info.kind in
 				let thread = {
+					tname = name;
 					tthread = Obj.magic ();
 					tchannel = Event.new_channel ();
 					tqueue = Queue.create ();

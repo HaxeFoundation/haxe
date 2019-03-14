@@ -105,6 +105,7 @@ let create com api is_macro =
 	let eval = {
 		env = null_env;
 		thread = {
+			tname = "mainThread";
 			tthread = Thread.self();
 			tchannel = Event.new_channel();
 			tqueue = Queue.create ();
