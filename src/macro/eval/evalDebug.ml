@@ -98,8 +98,8 @@ let debug_loop jit conn e f =
 		with Not_found -> try
 			f env
 		with
-		| RunTimeException(v,_,_) when debugger_catches env.env_eval v && ctx.debug.caught_exception != v ->
-			ctx.debug.caught_exception <- v;
+		| RunTimeException(v,_,_) when debugger_catches env.env_eval v && eval.caught_exception != v ->
+			eval.caught_exception <- v;
 			conn.exc_stop ctx v e.epos;
 			eval.debug_state <- DbgWaiting;
 			run_loop ctx run_check_breakpoint env
@@ -108,7 +108,7 @@ let debug_loop jit conn e f =
 			eval.debug_state <- DbgWaiting;
 			run_loop ctx run_check_breakpoint env
 		| Return v as exc ->
-			ctx.debug.last_return <- Some v;
+			eval.last_return <- Some v;
 			raise exc
 		(* | Return _ | Break | Continue | Sys_exit _ | RunTimeException _ as exc ->
 			raise exc

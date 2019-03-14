@@ -214,7 +214,7 @@ let emit_try exec catches env =
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
-		ctx.debug.caught_exception <- vnull;
+		eval.caught_exception <- vnull;
 		restore();
 		build_exception_stack ctx env;
 		while eval.env != env do pop_environment ctx eval.env done;

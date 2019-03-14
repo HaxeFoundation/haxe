@@ -187,7 +187,7 @@ let output_scopes ctx env =
 	else begin
 		let dbg = {
 			ds_expr = env.env_debug.expr;
-			ds_return = ctx.debug.last_return;
+			ds_return = env.env_eval.last_return;
 		} in
 		(mk_scope (ctx.debug.debug_context#add_debug_scope dbg env) "Eval" null_pos) :: scopes
 	end in

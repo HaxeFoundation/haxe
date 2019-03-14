@@ -108,6 +108,10 @@ and eval = {
 	mutable breakpoint : breakpoint;
 	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
 	caught_types : (int,bool) Hashtbl.t;
+	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
+	mutable caught_exception : value;
+	(* The value which was last returned. *)
+	mutable last_return : value option;
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
 }
@@ -224,10 +228,6 @@ and debug = {
 	mutable debug_socket : debug_socket option;
 	(* The current exception mode *)
 	mutable exception_mode : exception_mode;
-	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
-	mutable caught_exception : value;
-	(* The value which was last returned. *)
-	mutable last_return : value option;
 	(* The debug context which manages scopes and variables. *)
 	mutable debug_context : eval_debug_context;
 }

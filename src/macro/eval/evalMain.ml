@@ -91,8 +91,6 @@ let create com api is_macro =
 				support_debugger = support_debugger;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
-				caught_exception = vnull;
-				last_return = None;
 				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
@@ -114,6 +112,8 @@ let create com api is_macro =
 		debug_channel = Event.new_channel ();
 		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
 		caught_types = Hashtbl.create 0;
+		last_return = None;
+		caught_exception = vnull;
 	} in
 	debug_hack := true;
 	let evals = IntMap.singleton 0 eval in
