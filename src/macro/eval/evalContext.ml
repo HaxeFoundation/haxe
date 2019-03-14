@@ -165,6 +165,7 @@ type context_reference =
 	| DebugScope of debug_scope_info * env
 	| Value of value * env
 	| Toplevel
+	| NoSuchReference
 
 class eval_debug_context = object(self)
 	val lut =
@@ -197,7 +198,7 @@ class eval_debug_context = object(self)
 		self#add (DebugScope(scope,env))
 
 	method get id =
-		DynArray.get lut id
+		try DynArray.get lut id with _ -> NoSuchReference
 
 end
 

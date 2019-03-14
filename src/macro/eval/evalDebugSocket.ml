@@ -478,7 +478,7 @@ let handler =
 		let frame_id = hctx.jsonrpc#get_int_param "frameId" in
 		let env = match hctx.ctx.debug.debug_context#get frame_id with
 			| StackFrame env -> env
-			| _ -> assert false
+			| _ -> hctx.send_error (Printf.sprintf "Bad frame ID: %i" frame_id);
 		in
 		env
 	in
@@ -549,8 +549,8 @@ let handler =
 								output_debug_scope dbg env
 							| Value(value,env) ->
 								output_inner_vars value env
-							| Toplevel | StackFrame _ ->
-								hctx.send_error "Invalid scope id";
+							| Toplevel | StackFrame _ | NoSuchReference ->
+								hctx.send_error (Printf.sprintf "Bad ID: %i" sid);
 						end
 					with Exit ->
 						hctx.send_error "Invalid scope id"
@@ -627,8 +627,8 @@ let handler =
 				hctx.send_error e
 			in
 			begin match hctx.ctx.debug.debug_context#get id with
-			| Toplevel ->
-				hctx.send_error "Invalid id";
+			| Toplevel | NoSuchReference ->
+				hctx.send_error (Printf.sprintf "Bad ID: %i" id);
 			| Value(v,env) ->
 				let value = get_value env in
 				let name_as_index () = try
@@ -699,6 +699,7 @@ let make_connection socket =
 		send_event socket "threadEvent" (Some (JObject ["threadId",JInt thread_id;"reason",JString reason]))
 	in
 	let output_breakpoint_stop debug =
+		(* TODO: this isn't thread-safe. We should only creates these anew if all threads continued *)
 		debug.debug_context <- new eval_debug_context;
 		send_event socket "breakpointStop" (Some (JObject ["threadId",JInt (Thread.id (Thread.self()))]))
 	in
