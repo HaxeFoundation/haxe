@@ -53,6 +53,9 @@ let rec run_loop ctx run env : value =
 				eval.debug_state <- DbgWaiting;
 				run_loop ctx run env
 			end
+		| DbgStep ->
+			eval.debug_state <- DbgWaiting;
+			run env
 		| DbgWaiting | DbgStart ->
 			ignore(Event.sync(Event.receive eval.debug_channel));
 			run_loop ctx run env

@@ -113,6 +113,7 @@ and debug_state =
 	| DbgRunning
 	| DbgWaiting
 	| DbgContinue
+	| DbgStep
 	| DbgNext of env * pos
 	| DbgFinish of env (* parent env *)
 
@@ -264,6 +265,7 @@ let s_debug_state = function
 	| DbgRunning -> "DbgRunning"
 	| DbgWaiting -> "DbgWaiting"
 	| DbgContinue -> "DbgContinue"
+	| DbgStep -> "DbgStep"
 	| DbgNext _ -> "DbgNext"
 	| DbgFinish _ -> "DbgFinish"
 

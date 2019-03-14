@@ -484,7 +484,7 @@ let handler =
 	in
 	let select_thread hctx =
 		let id = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "threadId") 0 in
-		let eval = IntMap.find id hctx.ctx.evals in
+		let eval = try IntMap.find id hctx.ctx.evals with Not_found -> hctx.send_error "Invalid thread id" in
 		eval
 	in
 	let h = Hashtbl.create 0 in
@@ -501,7 +501,9 @@ let handler =
 			JNull
 		);
 		"stepIn",(fun hctx ->
-			(* let eval = select_thread hctx in *)
+			let eval = select_thread hctx in
+			eval.debug_state <- DbgStep;
+			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
 		);
 		"next",(fun hctx ->
