@@ -2683,10 +2683,10 @@ module StdThread = struct
 		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
 	)
 
-	let readMessage = vifun1 (fun vthis blocking ->
-		let this = this vthis in
+	let readMessage = vfun1 (fun blocking ->
+		let eval = get_eval (get_ctx()) in
 		let blocking = decode_bool blocking in
-		Deque.pop this.tdeque blocking
+		Deque.pop eval.thread.tdeque blocking
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
@@ -3622,12 +3622,12 @@ let init_standard_library builtins =
 		"delay",StdThread.delay;
 		"exit",StdThread.exit;
 		"join",StdThread.join;
+		"readMessage",StdThread.readMessage;
 		"self",StdThread.self;
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
-		"readMessage",StdThread.readMessage;
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["eval";"vm"],"Tls") [] [

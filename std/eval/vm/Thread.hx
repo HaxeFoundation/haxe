@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package eval.vm;
 
 /**
@@ -33,7 +34,7 @@ extern class Thread {
 		Exceptions caused while executing `f` are printed to stderr and are not
 		propagated to the parent thread.
 	**/
-	function new(f:Void -> Void):Void;
+	function new(f:Void->Void):Void;
 
 	/**
 		Return the identifier of the given thread. A thread identifier is an integer
@@ -76,12 +77,11 @@ extern class Thread {
 		to other threads.
 	**/
 	static function yield():Void;
-
 	// neko API
-
-	function readMessage<T>(block:Bool):T;
+	static function readMessage<T>(block:Bool):T;
 	function sendMessage<T>(msg:T):Void;
-
-	static inline function create(f:Void -> Void):Thread return new Thread(f);
-	static inline function current():Thread return self();
+	static inline function create(f:Void->Void):Thread
+		return new Thread(f);
+	static inline function current():Thread
+		return self();
 }
