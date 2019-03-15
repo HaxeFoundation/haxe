@@ -41,12 +41,12 @@ let make_generic ctx ps pt p =
 			let rec loop top t = match t with
 				| TInst(c,tl) -> (match c.cl_kind with
 					| KExpr e -> ident_safe (Ast.s_expr e)
-					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl tl))
-				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
+					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl top tl))
+				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl top tl)
 				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false f.cf_type)) :: acc) a.a_fields [])
-				| TType(t,tl) -> (s_type_path_underscore t.t_path) ^ (loop_tl tl)
+				| TType(t,tl) -> (s_type_path_underscore t.t_path) ^ (loop_tl top tl)
 				| TLazy(f) -> loop top (lazy_type f)
-				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl tl)
+				| TAbstract(a,tl) -> (s_type_path_underscore a.a_path) ^ (loop_tl top tl)
 				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono(r) ->
 					(match !r with
@@ -54,9 +54,9 @@ let make_generic ctx ps pt p =
 					| _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p)))
 				| TDynamic _ -> "Dynamic"
 				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
-			and loop_tl tl = match tl with
+			and loop_tl top tl = match tl with
 				| [] -> ""
-				| tl -> "_" ^ String.concat "_" (List.map (loop false) tl)
+				| tl -> "_" ^ String.concat "_" (List.map (loop top) tl)
 			in
 			loop true t
 		) ps pt)

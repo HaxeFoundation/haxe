@@ -554,8 +554,10 @@ class TestType extends Test {
 
 		eq("foo[1,2]", gf2("foo", [1, 2]));
 		eq("foo[[1,2]]", gf2("foo", [[1, 2]]));
+		eq("foo[[true,false]]", gf2("foo", [[true, false]]));
 		hsf(TestType, "gf2_String_Int");
 		hsf(TestType, "gf2_String_Array_Int");
+		hsf(TestType, "gf2_String_Array_Bool");
 
 		var a = gf3("foo", ["bar", "baz"]);
 		eq(a[0], "bar");
