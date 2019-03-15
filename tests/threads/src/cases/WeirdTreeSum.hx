@@ -62,7 +62,7 @@ class WeirdTreeSum implements utest.ITest {
 		var fileContent = File.getContent("res/tree1.txt");
 		var buf = new StringBuf();
 		buf.add("(1)\n");
-		for (i in 0...50) {
+		for (i in 0...10) {
 			buf.add(fileContent + "\n");
 		}
 		var tree = parseTree(buf.toString().trim())[0];
