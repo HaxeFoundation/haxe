@@ -155,7 +155,7 @@ let output_threads ctx =
 	let fold id eval acc =
 		(JObject [
 			"id",JInt id;
-			"name",JString eval.thread.tname
+			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
 		]) :: acc
 	in
 	let threads = IntMap.fold fold ctx.evals [] in
@@ -204,8 +204,8 @@ let output_scopes ctx env =
 
 let output_capture_vars infos env =
 	let vars = Hashtbl.fold (fun slot vi acc ->
-		let value = !(env.env_captures.(slot)) in
-		(var_to_json vi.vi_name value (Some vi) env) :: acc
+			let value = !(env.env_captures.(slot)) in
+			(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
 

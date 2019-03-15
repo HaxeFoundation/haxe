@@ -2685,22 +2685,13 @@ module StdThread = struct
 
 	let readMessage = vifun1 (fun vthis blocking ->
 		let this = this vthis in
-		if not (Queue.is_empty this.tqueue) then
-			Queue.pop this.tqueue
-		else if blocking <> VTrue then
-			vnull
-		else begin
-			let event = Event.receive this.tchannel in
-			ignore(Event.sync event);
-			Queue.pop this.tqueue
-		end
+		let blocking = decode_bool blocking in
+		Deque.pop this.tdeque blocking
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Queue.add msg this.tqueue;
-		ignore(Event.poll (Event.send this.tchannel msg));
-		vnull
+		Deque.push this.tdeque msg
 	)
 
 	let yield = vfun0 (fun () ->
@@ -3225,14 +3216,10 @@ let init_constructors builtins =
 						close();
 						raise exc
 				in
-				let eval = get_eval ctx in
-				let name = kind_name eval eval.env.env_info.kind in
 				let thread = {
-					tname = name;
 					tthread = Obj.magic ();
-					tchannel = Event.new_channel ();
-					tqueue = Queue.create ();
 					tstorage = IntMap.empty;
+					tdeque = Deque.create();
 				} in
 				thread.tthread <- Thread.create f thread;
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
