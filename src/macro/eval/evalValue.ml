@@ -155,7 +155,7 @@ and vinstance_kind =
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
-	| IMutex of Mutex.t
+	| IMutex of vmutex
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -202,6 +202,11 @@ and vthread = {
 and vdeque = {
 	mutable dvalues : value list;
 	dchannel : value Event.channel;
+}
+
+and vmutex = {
+	mmutex : Mutex.t;
+	mutable mowner : int option; (* thread ID *)
 }
 
 and vlock = {

@@ -1729,19 +1729,25 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex;
+		Mutex.lock mutex.mmutex;
+		mutex.mowner <- Some (Thread.id (Thread.self()));
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.unlock mutex;
+		mutex.mowner <- None;
+		Mutex.unlock mutex.mmutex;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		vbool (Mutex.try_lock mutex)
+		if Mutex.try_lock mutex.mmutex then begin
+			mutex.mowner <- Some (Thread.id (Thread.self()));
+			vtrue
+		end else
+			vfalse
 	)
 end
 
@@ -3221,7 +3227,11 @@ let init_constructors builtins =
 		);
 	add key_eval_vm_Mutex
 		(fun _ ->
-			encode_instance key_eval_vm_Mutex ~kind:(IMutex (Mutex.create ()))
+			let mutex = {
+				mmutex = Mutex.create();
+				mowner = None;
+			} in
+			encode_instance key_eval_vm_Mutex ~kind:(IMutex mutex)
 		);
 	add key_eval_vm_Lock
 		(fun _ ->
