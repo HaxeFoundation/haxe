@@ -97,12 +97,9 @@ let var_to_json name value vio env =
 		| VInstance vi ->
 			let class_name = EvalDebugMisc.safe_call env.env_eval EvalPrinting.value_string v in
 			let num_children = match vi.ikind with
-			| IMutex _ ->
-				1
-			| IThread _ ->
-				1
-			| _ ->
-				List.length (instance_fields vi)
+			| IMutex _ -> 1
+			| IThread _ -> 1
+			| _ -> List.length (instance_fields vi)
 			in
 			jv class_name (class_name) num_children
 		| VPrototype proto ->
@@ -204,8 +201,8 @@ let output_scopes ctx env =
 
 let output_capture_vars infos env =
 	let vars = Hashtbl.fold (fun slot vi acc ->
-			let value = !(env.env_captures.(slot)) in
-			(var_to_json vi.vi_name value (Some vi) env) :: acc
+		let value = !(env.env_captures.(slot)) in
+		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
 

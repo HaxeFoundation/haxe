@@ -7,7 +7,9 @@ class Main {
 		var runner = new Runner();
 		runner.addCase(new cases.WeirdTreeSum());
 		#if !hl // no Lock
+		#if !java // Deque broken?
 		runner.addCase(new cases.DequeBrackets());
+		#end
 		#end
 		var report = Report.create(runner);
 		report.displayHeader = AlwaysShowHeader;
