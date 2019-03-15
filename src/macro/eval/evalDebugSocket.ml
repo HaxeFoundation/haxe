@@ -96,8 +96,12 @@ let var_to_json name value vio env =
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
 			let class_name = EvalDebugMisc.safe_call env.env_eval EvalPrinting.value_string v in
-			let fields = instance_fields vi in
-			jv class_name (class_name) (List.length fields)
+			let num_children = match vi.ikind with
+			| IMutex _ -> 1
+			| IThread _ -> 1
+			| _ -> List.length (instance_fields vi)
+			in
+			jv class_name (class_name) num_children
 		| VPrototype proto ->
 			let fields = proto_fields proto in
 			jv "Anonymous" (s_proto_kind proto).sstring (List.length fields)
@@ -148,7 +152,7 @@ let output_threads ctx =
 	let fold id eval acc =
 		(JObject [
 			"id",JInt id;
-			"name",JString eval.thread.tname
+			"name",JString (Printf.sprintf "Thread %i" (Thread.id eval.thread.tthread));
 		]) :: acc
 	in
 	let threads = IntMap.fold fold ctx.evals [] in
@@ -266,6 +270,10 @@ let output_inner_vars v env =
 			StringHashtbl.fold (fun s (_,v) acc ->
 				(s,v) :: acc
 			) h []
+		| VInstance {ikind = IMutex mutex} ->
+			["owner",match mutex.mowner with None -> vnull | Some id -> vint id]
+		| VInstance {ikind = IThread thread} ->
+			["id",vint (Thread.id thread.tthread)]
 		| VInstance vi ->
 			let fields = instance_fields vi in
 			List.map (fun (n,v) ->

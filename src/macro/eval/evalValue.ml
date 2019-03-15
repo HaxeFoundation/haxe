@@ -155,7 +155,7 @@ and vinstance_kind =
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
-	| IMutex of Mutex.t
+	| IMutex of vmutex
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -192,16 +192,19 @@ and venum_value = {
 }
 
 and vthread = {
-	tname : string;
 	mutable tthread : Thread.t;
-	tchannel : value Event.channel;
-	tqueue : value Queue.t;
+	tdeque : vdeque;
 	mutable tstorage : value IntMap.t;
 }
 
 and vdeque = {
 	mutable dvalues : value list;
-	dchannel : value Event.channel;
+	dmutex : Mutex.t;
+}
+
+and vmutex = {
+	mmutex : Mutex.t;
+	mutable mowner : int option; (* thread ID *)
 }
 
 and vlock = {

@@ -54,6 +54,45 @@ let encode_i64_direct i64 =
 	let high = Int64.to_int32 (Int64.shift_right_logical i64 32) in
 	encode_i64 low high
 
+module Deque = struct
+	let create () = {
+		dvalues = [];
+		dmutex = Mutex.create();
+	}
+
+	let add this i =
+		Mutex.lock this.dmutex;
+		this.dvalues <- this.dvalues @ [i];
+		Mutex.unlock this.dmutex;
+		vnull
+
+	let pop this blocking =
+		let rec loop () =
+			Mutex.lock this.dmutex;
+			match this.dvalues with
+			| v :: vl ->
+				this.dvalues <- vl;
+				Mutex.unlock this.dmutex;
+				v
+			| [] ->
+				if not blocking then begin
+					Mutex.unlock this.dmutex;
+					vnull
+				end else begin
+					Mutex.unlock this.dmutex;
+					Thread.yield();
+					loop()
+				end
+		in
+		loop()
+
+	let push this i =
+		Mutex.lock this.dmutex;
+		this.dvalues <- i :: this.dvalues;
+		Mutex.unlock this.dmutex;
+		vnull
+end
+
 
 module StdEvalVector = struct
 	let this this = match this with
@@ -740,46 +779,20 @@ module StdDeque = struct
 		| VInstance {ikind = IDeque d} -> d
 		| _ -> unexpected_value vthis "Deque"
 
-	let lock_mutex = Mutex.create ()
-
 	let add = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Mutex.lock lock_mutex;
-		this.dvalues <- this.dvalues @ [i];
-		ignore(Event.poll(Event.send this.dchannel i));
-		Mutex.unlock lock_mutex;
-		vnull;
+		Deque.add this i
 	)
 
 	let pop = vifun1 (fun vthis blocking ->
 		let this = this vthis in
-		let rec loop () =
-			Mutex.lock lock_mutex;
-			match this.dvalues with
-			| v :: vl ->
-				this.dvalues <- vl;
-				Mutex.unlock lock_mutex;
-				v
-			| [] ->
-				if blocking <> VTrue then begin
-					Mutex.unlock lock_mutex;
-					vnull
-				end else begin
-					Mutex.unlock lock_mutex;
-					ignore(Event.sync(Event.receive this.dchannel));
-					loop()
-				end
-		in
-		loop()
+		let blocking = decode_bool blocking in
+		Deque.pop this blocking
 	)
 
 	let push = vifun1 (fun vthis i ->
 		let this = this vthis in
-		Mutex.lock lock_mutex;
-		this.dvalues <- i :: this.dvalues;
-		ignore(Event.poll(Event.send this.dchannel i));
-		Mutex.unlock lock_mutex;
-		vnull;
+		Deque.push this i
 	)
 end
 
@@ -1729,19 +1742,25 @@ module StdMutex = struct
 
 	let acquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.lock mutex;
+		Mutex.lock mutex.mmutex;
+		mutex.mowner <- Some (Thread.id (Thread.self()));
 		vnull
 	)
 
 	let release = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		Mutex.unlock mutex;
+		mutex.mowner <- None;
+		Mutex.unlock mutex.mmutex;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
 		let mutex = this vthis in
-		vbool (Mutex.try_lock mutex)
+		if Mutex.try_lock mutex.mmutex then begin
+			mutex.mowner <- Some (Thread.id (Thread.self()));
+			vtrue
+		end else
+			vfalse
 	)
 end
 
@@ -2664,24 +2683,15 @@ module StdThread = struct
 		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
 	)
 
-	let readMessage = vifun1 (fun vthis blocking ->
-		let this = this vthis in
-		if not (Queue.is_empty this.tqueue) then
-			Queue.pop this.tqueue
-		else if blocking <> VTrue then
-			vnull
-		else begin
-			let event = Event.receive this.tchannel in
-			ignore(Event.sync event);
-			Queue.pop this.tqueue
-		end
+	let readMessage = vfun1 (fun blocking ->
+		let eval = get_eval (get_ctx()) in
+		let blocking = decode_bool blocking in
+		Deque.pop eval.thread.tdeque blocking
 	)
 
 	let sendMessage = vifun1 (fun vthis msg ->
 		let this = this vthis in
-		Queue.add msg this.tqueue;
-		ignore(Event.poll (Event.send this.tchannel msg));
-		vnull
+		Deque.push this.tdeque msg
 	)
 
 	let yield = vfun0 (fun () ->
@@ -3206,14 +3216,10 @@ let init_constructors builtins =
 						close();
 						raise exc
 				in
-				let eval = get_eval ctx in
-				let name = kind_name eval eval.env.env_info.kind in
 				let thread = {
-					tname = name;
 					tthread = Obj.magic ();
-					tchannel = Event.new_channel ();
-					tqueue = Queue.create ();
 					tstorage = IntMap.empty;
+					tdeque = Deque.create();
 				} in
 				thread.tthread <- Thread.create f thread;
 				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
@@ -3221,7 +3227,11 @@ let init_constructors builtins =
 		);
 	add key_eval_vm_Mutex
 		(fun _ ->
-			encode_instance key_eval_vm_Mutex ~kind:(IMutex (Mutex.create ()))
+			let mutex = {
+				mmutex = Mutex.create();
+				mowner = None;
+			} in
+			encode_instance key_eval_vm_Mutex ~kind:(IMutex mutex)
 		);
 	add key_eval_vm_Lock
 		(fun _ ->
@@ -3240,11 +3250,7 @@ let init_constructors builtins =
 		);
 	add key_eval_vm_Deque
 		(fun _ ->
-			let deque = {
-				dvalues = [];
-				dchannel = Event.new_channel();
-			} in
-			encode_instance key_eval_vm_Deque ~kind:(IDeque deque)
+			encode_instance key_eval_vm_Deque ~kind:(IDeque (Deque.create()))
 		)
 
 let init_empty_constructors builtins =
@@ -3616,12 +3622,12 @@ let init_standard_library builtins =
 		"delay",StdThread.delay;
 		"exit",StdThread.exit;
 		"join",StdThread.join;
+		"readMessage",StdThread.readMessage;
 		"self",StdThread.self;
 		"yield",StdThread.yield;
 	] [
 		"id",StdThread.id;
 		"kill",StdThread.kill;
-		"readMessage",StdThread.readMessage;
 		"sendMessage",StdThread.sendMessage;
 	];
 	init_fields builtins (["eval";"vm"],"Tls") [] [

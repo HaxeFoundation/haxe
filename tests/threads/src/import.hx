@@ -1,0 +1,31 @@
+#if neko
+import neko.vm.Thread;
+import neko.vm.Deque;
+import neko.vm.Lock;
+import neko.vm.Tls;
+import neko.vm.Mutex;
+#elseif cpp
+import cpp.vm.Thread;
+import cpp.vm.Deque;
+import cpp.vm.Lock;
+import cpp.vm.Tls;
+import cpp.vm.Mutex;
+#elseif java
+import java.vm.Thread;
+import java.vm.Deque;
+import java.vm.Lock;
+import java.vm.Tls;
+import java.vm.Mutex;
+#elseif eval
+import eval.vm.Thread;
+import eval.vm.Deque;
+import eval.vm.Lock;
+import eval.vm.Tls;
+import eval.vm.Mutex;
+#elseif hl
+import hl.vm.Thread;
+import hl.vm.Deque;
+// import hl.vm.Lock; // TODO
+import hl.vm.Tls;
+import hl.vm.Mutex;
+#end
