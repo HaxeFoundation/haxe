@@ -81,7 +81,7 @@ end
 
 module CompletionResultKind = struct
 	type t =
-		| CRField of CompletionItem.t * pos
+		| CRField of CompletionItem.t * pos * bool * bool
 		| CRStructureField
 		| CRToplevel of (CompletionItem.CompletionType.t * CompletionItem.CompletionType.t) option
 		| CRMetadata
@@ -106,7 +106,7 @@ module CompletionResultKind = struct
 				]
 		in
 		let i,args = match kind with
-			| CRField(item,p) ->
+			| CRField(item,p,iterable,keyValueIterable) ->
 				let t = CompletionItem.get_type item in
 				let t = match t with
 					| None ->
@@ -122,6 +122,8 @@ module CompletionResultKind = struct
 				let fields =
 					("item",CompletionItem.to_json ctx item) ::
 					("range",generate_pos_as_range p) ::
+					("isIterable",jbool iterable) ::
+					("isKeyValueIterable",jbool keyValueIterable) ::
 					(match t with
 						| None -> []
 						| Some (mt,ct) -> ["type",ct;"moduleType",mt]

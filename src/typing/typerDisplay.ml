@@ -373,14 +373,28 @@ and display_expr ctx e_ast e dk with_type p =
 			| EField(e1,s),TField(e2,_) ->
 				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
 				let item = completion_item_of_expr ctx e2 in
-				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
+				raise_fields fields (CRField(item,e2.epos,false,false)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
 			| _ ->
 				raise_toplevel ctx dk with_type None p
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
-		raise_fields fields (CRField(item,e.epos)) None
+		let iterable =
+			try begin
+				ignore (ForLoop.IterationKind.of_texpr ~resume:true ctx e (fun _ -> false) e.epos);
+				true
+			end with _ ->
+				false
+		in
+		let keyValueIterable =
+			try begin
+				ignore (ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e e.epos);
+				true
+			end with _ ->
+				false
+		in
+		raise_fields fields (CRField(item,e.epos,iterable,keyValueIterable)) None
 
 let handle_structure_display ctx e fields origin =
 	let p = pos e in
@@ -451,7 +465,7 @@ let handle_display ctx e_ast dk with_type =
 		else raise_toplevel ctx dk with_type (Some p) p
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p)) None
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,false,false)) None
 		with Not_found ->
 			raise err
 		end else

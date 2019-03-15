@@ -48,12 +48,12 @@ module IterationKind = struct
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
-	let check_iterator ctx s e p =
+	let check_iterator ?(resume=false) ctx s e p =
 		let t,pt = Typeload.t_iterator ctx in
 		let e1 = try
 			AbstractCast.cast_or_unify_raise ctx t e p
 		with Error (Unify _,_) ->
-			let acc = !build_call_ref ctx (type_field ctx e s e.epos MCall) [] WithType.value e.epos in
+			let acc = !build_call_ref ctx (type_field ~resume ctx e s e.epos MCall) [] WithType.value e.epos in
 			try
 				unify_raise ctx acc.etype t acc.epos;
 				acc
@@ -64,9 +64,9 @@ module IterationKind = struct
 		in
 		e1,pt
 
-	let of_texpr ctx e unroll p =
+	let of_texpr ?(resume=false) ctx e unroll p =
 		let check_iterator () =
-			let e1,pt = check_iterator ctx "iterator" e p in
+			let e1,pt = check_iterator ~resume ctx "iterator" e p in
 			(IteratorIterator,e1,pt)
 		in
 		let it,e1,pt = match e.eexpr,follow e.etype with

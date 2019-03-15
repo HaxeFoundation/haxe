@@ -1067,7 +1067,7 @@ with
 					| name :: pack -> List.rev pack,name
 					| [] -> [],""
 				in
-				let kind = CRField ((CompletionItem.make_ci_module path,pos)) in
+				let kind = CRField ((CompletionItem.make_ci_module path,pos,false,false)) in
 				f (DisplayException.fields_to_json ctx fields kind None);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
