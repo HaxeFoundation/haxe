@@ -11,5 +11,6 @@
 		"**/_build": true
 	},
 	"reason.server.languages": ["ocaml"],
-	"haxe.diagnosticsPathFilter": "${workspaceRoot}/std"
+	"haxe.diagnosticsPathFilter": "${workspaceRoot}/std",
+	"npm.autoDetect": "off"
 }
