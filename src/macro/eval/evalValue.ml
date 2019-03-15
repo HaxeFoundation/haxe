@@ -201,7 +201,7 @@ and vthread = {
 
 and vdeque = {
 	mutable dvalues : value list;
-	dchannel : value Event.channel;
+	dmutex : Mutex.t;
 }
 
 and vmutex = {
