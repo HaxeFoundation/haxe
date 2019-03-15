@@ -202,19 +202,19 @@ let emit_do_while_break_continue exec_cond exec_body env =
 
 let emit_try exec catches env =
 	let ctx = get_ctx() in
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	if ctx.debug.support_debugger then begin
-		List.iter (fun (_,path,_) -> Hashtbl.add ctx.debug.caught_types path true) catches
+		List.iter (fun (_,path,_) -> Hashtbl.add eval.caught_types path true) catches
 	end;
 	let restore () =
-		List.iter (fun (_,path,_) -> Hashtbl.remove ctx.debug.caught_types path) catches
+		List.iter (fun (_,path,_) -> Hashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
 		let v = exec env in
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
-		ctx.debug.caught_exception <- vnull;
+		eval.caught_exception <- vnull;
 		restore();
 		build_exception_stack ctx env;
 		while eval.env != env do pop_environment ctx eval.env done;

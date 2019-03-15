@@ -96,18 +96,43 @@ type env = {
 	mutable env_extra_locals : value IntMap.t;
 	(* The parent of the current environment, if exists. All environments except EKToplevel have a parent. *)
 	env_parent : env option;
+	env_eval : eval;
 }
 
-type breakpoint_state =
+and eval = {
+	mutable env : env;
+	thread : vthread;
+	(* The threads current debug state *)
+	mutable debug_state : debug_state;
+	(* The currently active breakpoint. Set to a dummy value initially. *)
+	mutable breakpoint : breakpoint;
+	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
+	caught_types : (int,bool) Hashtbl.t;
+	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
+	mutable caught_exception : value;
+	(* The value which was last returned. *)
+	mutable last_return : value option;
+	(* The debug channel used to synchronize with the debugger. *)
+	debug_channel : unit Event.channel;
+}
+
+and debug_state =
+	| DbgRunning
+	| DbgWaiting
+	| DbgStep
+	| DbgNext of env * pos
+	| DbgFinish of env (* parent env *)
+
+and breakpoint_state =
 	| BPEnabled
 	| BPDisabled
 	| BPHit
 
-type breakpoint_column =
+and breakpoint_column =
 	| BPAny
 	| BPColumn of int
 
-type breakpoint = {
+and breakpoint = {
 	bpid : int;
 	bpfile : int;
 	bpline : int;
@@ -120,14 +145,6 @@ type function_breakpoint = {
 	fbpid : int;
 	mutable fbpstate : breakpoint_state;
 }
-
-type debug_state =
-	| DbgStart
-	| DbgRunning
-	| DbgWaiting
-	| DbgContinue
-	| DbgNext of env * pos
-	| DbgFinish of env (* parent env *)
 
 type builtins = {
 	mutable instance_builtins : (int * value) list IntMap.t;
@@ -142,11 +159,13 @@ type debug_scope_info = {
 }
 
 type context_reference =
+	| StackFrame of env
 	| Scope of scope * env
 	| CaptureScope of (int,var_info) Hashtbl.t * env
 	| DebugScope of debug_scope_info * env
 	| Value of value * env
 	| Toplevel
+	| NoSuchReference
 
 class eval_debug_context = object(self)
 	val lut =
@@ -154,24 +173,32 @@ class eval_debug_context = object(self)
 		DynArray.add d Toplevel;
 		d
 
+	val mutex = Mutex.create()
+
+	method private add reference =
+		Mutex.lock mutex;
+		DynArray.add lut reference;
+		let i = DynArray.length lut - 1 in
+		Mutex.unlock mutex;
+		i
+
+	method add_stack_frame env =
+		self#add (StackFrame env)
+
 	method add_scope scope env =
-		DynArray.add lut (Scope(scope,env));
-		DynArray.length lut - 1
+		self#add (Scope(scope,env))
 
 	method add_capture_scope h env =
-		DynArray.add lut (CaptureScope(h,env));
-		DynArray.length lut - 1
+		self#add (CaptureScope(h,env))
 
 	method add_value v env =
-		DynArray.add lut (Value(v,env));
-		DynArray.length lut - 1
+		self#add (Value(v,env))
 
 	method add_debug_scope scope env =
-		DynArray.add lut (DebugScope(scope,env));
-		DynArray.length lut - 1
+		self#add (DebugScope(scope,env))
 
 	method get id =
-		DynArray.get lut id
+		try DynArray.get lut id with _ -> NoSuchReference
 
 end
 
@@ -181,9 +208,9 @@ type exception_mode =
 	| CatchNone
 
 type debug_connection = {
-	wait : context -> (env -> value) -> env -> value;
-	bp_stop : context -> env -> unit;
-	exc_stop : context -> value -> pos -> unit;
+	bp_stop : debug -> unit;
+	exc_stop : debug -> value -> pos -> unit;
+	send_thread_event : int -> string -> unit;
 }
 
 and debug_socket = {
@@ -200,27 +227,12 @@ and debug = {
 	(* Whether or not debugging is supported. Has various effects on the amount of
 	   data being retained at run-time. *)
 	mutable support_debugger : bool;
-	(* The current debug state. Managed by the debugger. *)
-	mutable debug_state : debug_state;
-	(* The currently active breakpoint. Set to a dummy value initially. *)
-	mutable breakpoint : breakpoint;
-	(* Map of all types that are currently being caught. Updated by `emit_try`. *)
-	caught_types : (int,bool) Hashtbl.t;
 	(* The debugger socket *)
 	mutable debug_socket : debug_socket option;
 	(* The current exception mode *)
 	mutable exception_mode : exception_mode;
-	(* The most recently caught exception. Used by `debug_loop` to avoid getting stuck. *)
-	mutable caught_exception : value;
-	(* The value which was last returned. *)
-	mutable last_return : value option;
 	(* The debug context which manages scopes and variables. *)
 	mutable debug_context : eval_debug_context;
-}
-
-and eval = {
-	mutable env : env;
-	thread : vthread;
 }
 
 and context = {
@@ -252,6 +264,13 @@ and context = {
 let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
 let get_ctx () = (!get_ctx_ref)()
 let select ctx = get_ctx_ref := (fun() -> ctx)
+
+let s_debug_state = function
+	| DbgRunning -> "DbgRunning"
+	| DbgWaiting -> "DbgWaiting"
+	| DbgStep -> "DbgStep"
+	| DbgNext _ -> "DbgNext"
+	| DbgFinish _ -> "DbgFinish"
 
 (* Misc *)
 
@@ -299,8 +318,7 @@ let proto_fields proto =
 
 exception RunTimeException of value * env list * pos
 
-let call_stack ctx =
-	let eval = get_eval ctx in
+let call_stack eval =
 	let rec loop acc env =
 		let acc = env :: acc in
 		match env.env_parent with
@@ -315,7 +333,7 @@ let throw v p =
 	let env = eval.env in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
-	raise_notrace (RunTimeException(v,call_stack ctx,p))
+	raise_notrace (RunTimeException(v,call_stack eval,p))
 
 let exc v = throw v null_pos
 
@@ -355,6 +373,7 @@ let null_env = {
 	env_captures = [||];
 	env_extra_locals = IntMap.empty;
 	env_parent = None;
+	env_eval = Obj.magic ();
 }
 
 let create_env_info static pfile kind capture_infos =
@@ -398,6 +417,7 @@ let push_environment ctx info num_locals num_captures =
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
 		env_parent = Some eval.env;
+		env_eval = eval;
 	} in
 	eval.env <- env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
@@ -405,8 +425,8 @@ let push_environment ctx info num_locals num_captures =
 			begin try
 				let bp = Hashtbl.find ctx.debug.function_breakpoints (key_type,key_field) in
 				if bp.fbpstate <> BPEnabled then raise Not_found;
-				socket.connection.bp_stop ctx env;
-				ctx.debug.debug_state <- DbgWaiting;
+				socket.connection.bp_stop ctx.debug;
+				eval.debug_state <- DbgWaiting;
 			with Not_found ->
 				()
 			end
@@ -416,7 +436,7 @@ let push_environment ctx info num_locals num_captures =
 	env
 
 let pop_environment ctx env =
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	begin match env.env_parent with
 		| Some env -> eval.env <- env
 		| None -> assert false

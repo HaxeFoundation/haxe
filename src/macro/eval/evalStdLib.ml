@@ -556,7 +556,7 @@ module StdCallStack = struct
 
 	let getCallStack = vfun0 (fun () ->
 		let ctx = get_ctx() in
-		let envs = call_stack ctx in
+		let envs = call_stack (get_eval ctx) in
 		let envs = match envs with
 			| _ :: _ :: envs -> envs (* Skip calls to callStack() and getCallStack() *)
 			| _ -> envs
@@ -640,7 +640,8 @@ module StdContext = struct
 	)
 
 	let breakHere = vfun0 (fun () ->
-		raise (EvalDebugMisc.BreakHere)
+		if not ((get_ctx()).debug.support_debugger) then vnull
+		else raise (EvalDebugMisc.BreakHere)
 	)
 
 	let callMacroApi = vfun1 (fun f ->
@@ -3171,15 +3172,44 @@ let init_constructors builtins =
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let f thread =
 					let id = Thread.id (Thread.self()) in
-					let new_eval = {env = null_env; thread = thread} in
+					let maybe_send_thread_event reason = match ctx.debug.debug_socket with
+						| Some socket ->
+							socket.connection.send_thread_event id reason
+						| None ->
+							()
+					in
+					let new_eval = {
+						env = null_env;
+						thread = thread;
+						debug_state = DbgRunning;
+						debug_channel = Event.new_channel ();
+						breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
+						caught_types = Hashtbl.create 0;
+						last_return = None;
+						caught_exception = vnull;
+					} in
 					ctx.evals <- IntMap.add id new_eval ctx.evals;
+					let close () =
+						ctx.evals <- IntMap.remove id ctx.evals;
+						maybe_send_thread_event "exited";
+					in
 					try
+						maybe_send_thread_event "started";
 						ignore(call_value f []);
-					with RunTimeException(v,stack,p) ->
+						close();
+					with
+					| RunTimeException(v,stack,p) ->
 						let msg = get_exc_error_message ctx v stack p in
-						prerr_endline msg
+						prerr_endline msg;
+						close();
+					| exc ->
+						close();
+						raise exc
 				in
+				let eval = get_eval ctx in
+				let name = kind_name eval eval.env.env_info.kind in
 				let thread = {
+					tname = name;
 					tthread = Obj.magic ();
 					tchannel = Event.new_channel ();
 					tqueue = Queue.create ();

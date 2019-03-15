@@ -146,7 +146,9 @@ let resolve_ident ctx env s =
 					| Some env -> loop env
 				end
 			| EKMethod _ -> env
-			| EKToplevel | EKEntrypoint -> assert false
+			| EKToplevel | EKEntrypoint ->
+				(* This can happen due to threads. Have to check what we can do here... *)
+				raise Not_found
 		in
 		let env = loop env in
 		let v = env.env_locals.(0) in
@@ -184,15 +186,15 @@ let find_enum_field_by_name ve name =
 	| _ ->
 		raise Not_found
 
-let safe_call ctx f a =
-	let old = ctx.debug.debug_state in
-	ctx.debug.debug_state <- DbgContinue;
+let safe_call eval f a =
+	let old = eval.debug_state in
+	eval.debug_state <- DbgRunning;
 	try
 		let r = f a in
-		ctx.debug.debug_state <- old;
+		eval.debug_state <- old;
 		r
 	with exc ->
-		ctx.debug.debug_state <- old;
+		eval.debug_state <- old;
 		raise exc
 
 let rec expr_to_value ctx env e =
@@ -285,11 +287,11 @@ let rec expr_to_value ctx env e =
 				let vthis = loop ethis in
 				let v1 = EvalField.field vthis (hash s) in
 				let vl = List.map loop el in
-				safe_call ctx (EvalPrinting.call_value_on vthis v1) vl
+				safe_call env.env_eval (EvalPrinting.call_value_on vthis v1) vl
 			| _ ->
 				let v1 = loop e1 in
 				let vl = List.map loop el in
-				safe_call ctx (call_value v1) vl
+				safe_call env.env_eval (call_value v1) vl
 			end
 		| EBlock el ->
 			let rec loop2 el = match el with
@@ -348,7 +350,7 @@ let rec expr_to_value ctx env e =
 			let v1 = loop2 v1 [match tp.tsub with None -> tp.tname | Some s -> s] in
 			let vl = List.map loop el in
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
-			safe_call ctx (call_value vc) [v1;encode_array vl]
+			safe_call env.env_eval (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
 		| EDisplayNew _ | ECast(_,Some _) ->
 			raise Exit

@@ -192,6 +192,7 @@ and venum_value = {
 }
 
 and vthread = {
+	tname : string;
 	mutable tthread : Thread.t;
 	tchannel : value Event.channel;
 	tqueue : value Queue.t;

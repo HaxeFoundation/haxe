@@ -41,6 +41,8 @@ let sid = ref (-1)
 let stdlib = ref None
 let debug = ref None
 
+let debugger_initialized = ref false
+
 let create com api is_macro =
 	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr sid;
@@ -87,13 +89,8 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				debug_state = DbgStart;
-				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
-				caught_types = Hashtbl.create 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
-				caught_exception = vnull;
-				last_return = None;
 				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
@@ -105,11 +102,18 @@ let create com api is_macro =
 	let eval = {
 		env = null_env;
 		thread = {
+			tname = "mainThread";
 			tthread = Thread.self();
 			tchannel = Event.new_channel();
 			tqueue = Queue.create ();
 			tstorage = IntMap.empty;
-		}
+		};
+		debug_channel = Event.new_channel ();
+		debug_state = DbgRunning;
+		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
+		caught_types = Hashtbl.create 0;
+		last_return = None;
+		caught_exception = vnull;
 	} in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
@@ -140,6 +144,16 @@ let create com api is_macro =
 		evals = evals;
 		exception_stack = [];
 	} in
+	if debug.support_debugger && not !debugger_initialized then begin
+		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
+		   Note that configuration is shared between macro and interpreter contexts, which is why the check
+		   is governed by a global variable. *)
+		debugger_initialized := true;
+		 (* There's select_ctx in the json-rpc handling, so let's select this one. It's fine because it's the
+		    first context anyway. *)
+		select ctx;
+		ignore(Event.sync(Event.receive eval.debug_channel));
+	end;
 	t();
 	ctx
 

@@ -105,7 +105,7 @@ let get_exc_error_message ctx v stack p =
 		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
 
 let build_exception_stack ctx env =
-	let eval = get_eval ctx in
+	let eval = env.env_eval in
 	let rec loop acc env' =
 		let acc = env' :: acc in
 		if env == env' then
@@ -131,7 +131,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		Some v
 	with
 	| RunTimeException(v,stack,p') ->
-		ctx.debug.caught_exception <- vnull;
+		eval.caught_exception <- vnull;
 		build_exception_stack ctx env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
