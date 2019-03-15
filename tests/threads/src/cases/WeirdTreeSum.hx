@@ -58,6 +58,7 @@ class WeirdTreeSum implements utest.ITest {
 	public function new() {}
 
 	public function test() {
+		Sys.println("Running WeirdTreeSum");
 		var fileContent = File.getContent("res/tree1.txt");
 		var buf = new StringBuf();
 		buf.add("(1)\n");

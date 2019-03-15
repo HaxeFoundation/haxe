@@ -13,6 +13,7 @@ class DequeBrackets implements ITest {
 		to result in something like `([{<>}])` which we check for at the end.
 	**/
 	public function test() {
+		Sys.println("Running DequeBrackets");
 		var deque = new Deque();
 		var dequeMutex = new Mutex();
 		function add(open:String, close:String) {
@@ -34,7 +35,7 @@ class DequeBrackets implements ITest {
 		var self = Thread.current();
 		Thread.create(() -> {
 			for (_ in 0...pairs.length) {
-				lock.wait();
+				Assert.isTrue(lock.wait(2.));
 			}
 			self.sendMessage("done");
 		});
