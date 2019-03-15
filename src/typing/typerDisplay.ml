@@ -380,12 +380,12 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
-		let iterator =
+		let iterator = try
 			let it = (ForLoop.IterationKind.of_texpr ~resume:true ctx e (fun _ -> false) e.epos) in
-			try match follow it.it_type with
+			match follow it.it_type with
 				| TDynamic _ ->  None
 				| t -> Some t
-			with _ ->
+			with Not_found ->
 				None
 		in
 		let keyValueIterator =
@@ -398,7 +398,7 @@ and display_expr ctx e_ast e dk with_type p =
 						Some (key.cf_type,value.cf_type)
 					| _ ->
 						None
-			end with _ ->
+			end with Not_found ->
 				None
 		in
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) None

@@ -58,6 +58,7 @@ module IterationKind = struct
 				unify_raise ctx acc.etype t acc.epos;
 				acc
 			with Error (Unify(l),p) ->
+				if resume then raise Not_found;
 				display_error ctx "Field iterator has an invalid type" acc.epos;
 				display_error ctx (error_msg (Unify l)) p;
 				mk (TConst TNull) t_dynamic p
