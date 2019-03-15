@@ -53,7 +53,7 @@ let make_generic ctx ps pt p =
 					| Some t -> loop top t
 					| _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p)))
 				| TDynamic _ -> "Dynamic"
-				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
+				| TFun(params,ret) -> "fun_" ^ String.concat "_" (List.map (loop top) (List.map (fun (_,_,t) -> t) params)) ^ (loop top ret)
 			and loop_tl top tl = match tl with
 				| [] -> ""
 				| tl -> "_" ^ String.concat "_" (List.map (loop top) tl)
