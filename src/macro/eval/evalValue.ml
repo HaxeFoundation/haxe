@@ -208,8 +208,7 @@ and vmutex = {
 }
 
 and vlock = {
-	mutable lcounter : int;
-	lchannel : unit Event.channel;
+	ldeque : vdeque;
 }
 
 let rec equals a b = match a,b with
