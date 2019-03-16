@@ -262,12 +262,15 @@ let defined_value_safe ?default ctx v =
 	try defined_value ctx v
 	with Not_found -> match default with Some s -> s | None -> ""
 
-let raw_define ctx v =
-	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+let raw_define_value ctx k v =
 	ctx.values <- PMap.add k v ctx.values;
 	let k = String.concat "_" (ExtString.String.nsplit k "-") in
 	ctx.values <- PMap.add k v ctx.values;
 	ctx.defines_signature <- None
+
+let raw_define ctx v =
+	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+	raw_define_value ctx k v
 
 let define_value ctx k v =
 	raw_define ctx (fst (infos k) ^ "=" ^ v)
