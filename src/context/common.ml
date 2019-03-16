@@ -370,6 +370,7 @@ let get_config com =
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
+			pf_supports_threads = true;
 		}
 	| Eval ->
 		{

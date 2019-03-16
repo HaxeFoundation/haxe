@@ -19,14 +19,18 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
+#if (!target.threaded)
+#error "This target is not available on this target"
+#end
 
 /**
 	Creates thread local storage.
-*/
+ */
 extern class Tls<T> {
-
-	public var value(get,set) : T;
+	public var value(get, set):T;
 
 	/**
 		Creates thread local storage. This is placeholder that can store

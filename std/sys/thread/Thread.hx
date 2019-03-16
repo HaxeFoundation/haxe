@@ -19,14 +19,17 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
+#if (!target.threaded)
+#error "This target is not available on this target"
+#end
 extern class Thread {
 	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
 	public function sendMessage(msg:Dynamic):Void;
-
 
 	/**
 		Returns the current thread.

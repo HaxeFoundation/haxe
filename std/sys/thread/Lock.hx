@@ -19,7 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
+#if (!target.threaded)
+#error "This target is not available on this target"
+#end
 
 /**
 	A Lock allows blocking execution until it has been unlocked. It keeps track
@@ -62,7 +67,7 @@ extern class Lock {
 		to expire. Returns `true` if the lock is released and `false`
 		if a time-out occurs.
 	**/
-	public function wait( ?timeout : Float ) : Bool;
+	public function wait(?timeout:Float):Bool;
 
 	/**
 		Releases the lock once.
