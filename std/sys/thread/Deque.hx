@@ -22,28 +22,34 @@
 package sys.thread;
 
 /**
-	A message queue for multithread access.
+	A Deque is a double-ended queue with a `pop` method that can block until
+	an element is available. It is commonly used to synchronize threads.
 */
 @:coreApi extern class Deque<T> {
 
 	/**
-		Create a message queue for multithread access.
+		Create a new Deque instance which is initially empty.
 	**/
 	public function new():Void;
 
 	/**
-		Add a message at the end of the queue.
+		Adds an element at the end of `this` Deque.
 	**/
 	public function add( i : T ):Void;
 
 	/**
-		Add a message at the head of the queue.
+		Adds an element at the front of `this` Deque.
 	**/
 	public function push( i : T ):Void;
 
 	/**
-		Pop a message from the queue head. Either block until a message
-		is available or return immediately with `null`.
+		Tries to retrieve an element from the front of `this` Deque.
+
+		If an element is available, it is removed from the queue and returned.
+
+		If no element is available and `block` is `false`, `null` is returned.
+
+		Otherwise, execution blocks until an element is available and returns it.
 	**/
 	public function pop( block : Bool ) : Null<T>;
 }
