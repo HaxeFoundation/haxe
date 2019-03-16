@@ -25,6 +25,7 @@ import java.Lib;
 /**
 	A Lock-free Queue implementation
 **/
+@:coreApi
 @:native('haxe.java.vm.Deque')
 @:nativeGen class Deque<T>
 {
@@ -36,7 +37,7 @@ import java.Lib;
 		this.head = this.tail = new Node(null);
 	}
 
-	public function add(i : T)
+	public function add(i : T):Void
 	{
 		var n = new Node(i);
 		untyped __lock__(this,
@@ -47,7 +48,7 @@ import java.Lib;
 		});
 	}
 
-	public function push(i : T)
+	public function push(i : T):Void
 	{
 		var n = new Node(i);
 		untyped __lock__(this,

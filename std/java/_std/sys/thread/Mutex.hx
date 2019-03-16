@@ -22,6 +22,7 @@
 package sys.thread;
 import java.util.concurrent.locks.ReentrantLock;
 
+@:coreApi
 @:native('haxe.java.vm.Mutex') class Mutex
 {
 	@:private var lock:ReentrantLock;

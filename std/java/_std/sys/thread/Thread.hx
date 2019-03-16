@@ -22,6 +22,7 @@
 package sys.thread;
 import java.Lib;
 
+@:coreApi
 @:native('haxe.java.vm.Thread') class Thread
 {
 
@@ -68,9 +69,9 @@ import java.Lib;
 		this.messages = new Deque();
 	}
 
-	public function sendMessage(obj:Dynamic)
+	public function sendMessage(msg:Dynamic):Void
 	{
-		messages.add(obj);
+		messages.add(msg);
 	}
 
 	public static function current():Thread
@@ -83,10 +84,10 @@ import java.Lib;
 		return current().messages.pop(block);
 	}
 
-	public static function create(fn:Void->Void):Thread
+	public static function create(callb:Void->Void):Thread
 	{
 		var ret = new Thread();
-		var t = new HaxeThread(ret, fn);
+		var t = new HaxeThread(ret, callb);
 		t.start();
 		return ret;
 	}

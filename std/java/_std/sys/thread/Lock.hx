@@ -24,6 +24,7 @@ import java.Lib;
 import java.lang.System;
 using haxe.Int64;
 
+@:coreApi
 @:native('haxe.java.vm.Lock') class Lock
 {
 	@:private @:volatile var releasedCount = 0;
@@ -92,7 +93,7 @@ using haxe.Int64;
 		Release a lock. The thread does not need to own the lock to be able to release it.
 		If a lock is released several times, it can be acquired as many times
 	**/
-	public function release()
+	public function release():Void
 	{
 		untyped __lock__(this,
 		{
