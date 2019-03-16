@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package java.vm;
+package sys.thread;
 import java.Lib;
 
 @:native('haxe.java.vm.Thread') class Thread
 {
 
-	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, java.vm.Thread>();
+	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, sys.thread.Thread>();
 	@:private static var mainJavaThread = java.lang.Thread.currentThread();
 	@:private static var mainHaxeThread = {
 		var ret = new Thread();

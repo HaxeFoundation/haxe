@@ -19,22 +19,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.vm;
+package sys.thread;
 
-class Mutex {
-	var m : Dynamic;
+/**
+	Creates thread local storage.
+*/
+class Tls<T> {
 
+	var t : Dynamic;
+	public var value(get,set) : T;
+
+	/**
+		Creates thread local storage. This is placeholder that can store
+		a value that will be different depending on the local thread.
+		Set the tls value to `null` before exiting the thread
+		or the memory will never be collected.
+	**/
 	public function new() {
-		m = untyped __global__.__hxcpp_mutex_create();
+		t = tls_create();
 	}
-	public function acquire() {
-		untyped __global__.__hxcpp_mutex_acquire(m);
-	}
-	public function tryAcquire() : Bool {
-		return untyped __global__.__hxcpp_mutex_try(m);
-	}
-	public function release() {
-		untyped __global__.__hxcpp_mutex_release(m);
-	}
-}
 
+	/**
+		Returns the value set by tls_set for the local thread.
+	**/
+	function get_value() : T {
+		return tls_get(t);
+	}
+
+	/**
+		Set the value of the TLS for the local thread.
+	**/
+	function set_value( v : T ) {
+		tls_set(t,v);
+		return v;
+	}
+
+	static var tls_create = neko.Lib.load("std","tls_create",0);
+	static var tls_get = neko.Lib.load("std","tls_get",1);
+	static var tls_set = neko.Lib.load("std","tls_set",2);
+}

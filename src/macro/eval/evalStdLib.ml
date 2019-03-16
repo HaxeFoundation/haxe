@@ -2680,7 +2680,7 @@ module StdThread = struct
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
-		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
+		encode_instance key_sys_net_Thread ~kind:(IThread eval.thread)
 	)
 
 	let readMessage = vfun1 (fun blocking ->
@@ -3175,7 +3175,7 @@ let init_constructors builtins =
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
 			| _ -> assert false
 		);
-	add key_eval_vm_Thread
+	add key_sys_net_Thread
 		(fun vl -> match vl with
 			| [f] ->
 				let ctx = get_ctx() in
@@ -3222,35 +3222,35 @@ let init_constructors builtins =
 					tdeque = Deque.create();
 				} in
 				thread.tthread <- Thread.create f thread;
-				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
+				encode_instance key_sys_net_Thread ~kind:(IThread thread)
 			| _ -> assert false
 		);
-	add key_eval_vm_Mutex
+	add key_sys_net_Mutex
 		(fun _ ->
 			let mutex = {
 				mmutex = Mutex.create();
 				mowner = None;
 			} in
-			encode_instance key_eval_vm_Mutex ~kind:(IMutex mutex)
+			encode_instance key_sys_net_Mutex ~kind:(IMutex mutex)
 		);
-	add key_eval_vm_Lock
+	add key_sys_net_Lock
 		(fun _ ->
 			let ch = Event.new_channel () in
 			let lock = {
 				lcounter = 0;
 				lchannel = ch;
 			} in
-			encode_instance key_eval_vm_Lock ~kind:(ILock lock)
+			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
 	let tls_counter = ref (-1) in
-	add key_eval_vm_Tls
+	add key_sys_net_Tls
 		(fun _ ->
 			incr tls_counter;
-			encode_instance key_eval_vm_Tls ~kind:(ITls !tls_counter)
+			encode_instance key_sys_net_Tls ~kind:(ITls !tls_counter)
 		);
-	add key_eval_vm_Deque
+	add key_sys_net_Deque
 		(fun _ ->
-			encode_instance key_eval_vm_Deque ~kind:(IDeque (Deque.create()))
+			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
 		)
 
 let init_empty_constructors builtins =
@@ -3376,7 +3376,7 @@ let init_standard_library builtins =
 		"getTime",StdDate.getTime;
 		"toString",StdDate.toString;
 	];
-	init_fields builtins (["eval";"vm"],"Deque") [] [
+	init_fields builtins (["sys";"thread"],"Deque") [] [
 		"add",StdDeque.add;
 		"push",StdDeque.push;
 		"pop",StdDeque.pop;
@@ -3459,7 +3459,7 @@ let init_standard_library builtins =
 		"hostToString",StdHost.hostToString;
 		"resolve",StdHost.resolve;
 	] [];
-	init_fields builtins (["eval";"vm"],"Lock") [] [
+	init_fields builtins (["sys";"thread"],"Lock") [] [
 		"release",StdLock.release;
 		"wait",StdLock.wait;
 	];
@@ -3499,7 +3499,7 @@ let init_standard_library builtins =
 		"encode",StdMd5.encode;
 		"make",StdMd5.make;
 	] [];
-	init_fields builtins (["eval";"vm"],"Mutex") [] [
+	init_fields builtins (["sys";"thread"],"Mutex") [] [
 		"acquire",StdMutex.acquire;
 		"tryAcquire",StdMutex.tryAcquire;
 		"release",StdMutex.release;
@@ -3618,7 +3618,7 @@ let init_standard_library builtins =
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
 	] [];
-	init_fields builtins (["eval";"vm"],"Thread") [
+	init_fields builtins (["sys";"thread"],"Thread") [
 		"delay",StdThread.delay;
 		"exit",StdThread.exit;
 		"join",StdThread.join;
@@ -3630,7 +3630,7 @@ let init_standard_library builtins =
 		"kill",StdThread.kill;
 		"sendMessage",StdThread.sendMessage;
 	];
-	init_fields builtins (["eval";"vm"],"Tls") [] [
+	init_fields builtins (["sys";"thread"],"Tls") [] [
 		"get_value",StdTls.get_value;
 		"set_value",StdTls.set_value;
 	];

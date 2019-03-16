@@ -19,30 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package java.vm;
+package sys.thread;
 
-/**
-	Thread-local Storage implementation
-**/
-@:native('haxe.java.vm.Tls') class Tls<T>
-{
-	var t : java.lang.ThreadLocal<T>;
-	public var value(get,set):T;
+extern class Lock {
+	/**
+		Creates a lock which is initially locked.
+	**/
+	public function new():Void;
+	/**
+		Waits for a lock to be released and acquire it. If timeout
+		(in seconds) is not `null` and expires then the returned
+		value is `false`.
+	**/
+	public function wait( ?timeout : Float ) : Bool;
 
-	public function new()
-	{
-		this.t = new java.lang.ThreadLocal();
-	}
-
-	inline private function get_value():T
-	{
-		return t.get();
-	}
-
-	inline private function set_value(v:T):T
-	{
-		t.set(v);
-		return v;
-	}
-
+	/**
+		Release a lock. The thread does not need to own the lock
+		to be able to release it. If a lock is released several
+		times, it can be acquired as many times.
+	**/
+	public function release():Void;
 }

@@ -19,26 +19,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.vm;
+package sys.thread;
 
-class Tls<T> {
+extern class Thread {
+	/**
+		Send a message to the thread queue. This message can be read by using `readMessage`.
+	**/
+	public function sendMessage(msg:Dynamic):Void;
 
-	static var sFreeSlot = 0;
-	var mTLSID : Int;
-	public var value(get,set) : T;
 
-	public function new() {
-		mTLSID = sFreeSlot++;
-	}
+	/**
+		Returns the current thread.
+	**/
+	public static function current():Thread;
 
-	function get_value() : T {
-		return untyped __global__.__hxcpp_tls_get(mTLSID);
-	}
+	/**
+		Creates a new thread that will execute the `f` function, then exit.
+	**/
+	public static function create(callb:Void->Void):Thread;
 
-	function set_value( v : T ) {
-		untyped __global__.__hxcpp_tls_set(mTLSID,v);
-		return v;
-	}
-
+	/**
+		Reads a message from the thread queue. If `block` is true, the function
+		blocks until a message is available. If `block` is false, the function
+		returns `null` if no message is available.
+	**/
+	public static function readMessage(block:Bool):Dynamic;
 }
-

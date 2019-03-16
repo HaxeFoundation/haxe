@@ -19,42 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
 /**
-	Creates thread local storage.
+	A message queue for multithread access.
 */
-class Tls<T> {
-
-	var t : Dynamic;
-	public var value(get,set) : T;
+@:hlNative("std","deque_")
+abstract Deque<T>(hl.Abstract<"hl_deque">) {
 
 	/**
-		Creates thread local storage. This is placeholder that can store
-		a value that will be different depending on the local thread. 
-		Set the tls value to `null` before exiting the thread 
-		or the memory will never be collected.
+		Create a message queue for multithread access.
 	**/
 	public function new() {
-		t = tls_create();
+		this = alloc();
 	}
 
 	/**
-		Returns the value set by tls_set for the local thread.
+		Add a message at the end of the queue.
 	**/
-	function get_value() : T {
-		return tls_get(t);
+	public function add( i : T ) {
 	}
 
 	/**
-		Set the value of the TLS for the local thread.
+		Add a message at the head of the queue.
 	**/
-	function set_value( v : T ) {
-		tls_set(t,v);
-		return v;
+	public function push( i : T ) {
 	}
 
-	static var tls_create = neko.Lib.load("std","tls_create",0);
-	static var tls_get = neko.Lib.load("std","tls_get",1);
-	static var tls_set = neko.Lib.load("std","tls_set",2);
+	/**
+		Pop a message from the queue head. Either block until a message
+		is available or return immediately with `null`.
+	**/
+	public function pop( block : Bool ) : Null<T> {
+		return null;
+	}
+
+	static function alloc() { return null; }
 }

@@ -19,45 +19,51 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
 /**
-	A message queue for multithread access.
+	Creates a mutex, which can be used to acquire a temporary lock
+	to access some ressource. The main difference with a lock is
+	that a mutex must always be released by the owner thread.
 */
-class Deque<T> {
-	var q : Dynamic;
+class Mutex {
+	var m : Dynamic;
 
 	/**
-		Create a message queue for multithread access.
+		Creates a mutex.
 	**/
 	public function new() {
-		q = deque_create();
+		m = mutex_create();
 	}
 
 	/**
-		Add a message at the end of the queue.
+		The current thread acquire the mutex or wait if not available.
+		The same thread can acquire several times the same mutex but
+		must release it as many times it has been acquired.
 	**/
-	public function add( i : T ) {
-		deque_add(q,i);
+	public function acquire() {
+		mutex_acquire(m);
 	}
 
 	/**
-		Add a message at the head of the queue.
+		Try to acquire the mutex, returns true if acquire or false
+		if it's already locked by another thread.
 	**/
-	public function push( i : T ) {
-		deque_push(q,i);
+	public function tryAcquire() : Bool {
+		return mutex_try(m);
 	}
 
 	/**
-		Pop a message from the queue head. Either block until a message 
-		is available or return immediately with `null`.
+		Release a mutex that has been acquired by the current thread.
+		The behavior is undefined if the current thread does not own
+		the mutex.
 	**/
-	public function pop( block : Bool ) : Null<T> {
-		return deque_pop(q,block);
+	public function release() {
+		mutex_release(m);
 	}
 
-	static var deque_create = neko.Lib.loadLazy("std","deque_create",0);
-	static var deque_add = neko.Lib.loadLazy("std","deque_add",2);
-	static var deque_push = neko.Lib.loadLazy("std","deque_push",2);
-	static var deque_pop = neko.Lib.loadLazy("std","deque_pop",2);
+	static var mutex_create = neko.Lib.loadLazy("std","mutex_create",0);
+	static var mutex_release = neko.Lib.loadLazy("std","mutex_release",1);
+	static var mutex_acquire = neko.Lib.loadLazy("std","mutex_acquire",1);
+	static var mutex_try = neko.Lib.loadLazy("std","mutex_try",1);
 }

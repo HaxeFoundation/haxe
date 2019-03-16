@@ -1,13 +1,13 @@
 package haxe;
 
 #if (neko && !macro && !interp)
-import neko.vm.Lock;
-import neko.vm.Mutex;
-import neko.vm.Thread;
+import sys.thread.Lock;
+import sys.thread.Mutex;
+import sys.thread.Thread;
 #elseif cpp
-import cpp.vm.Lock;
-import cpp.vm.Mutex;
-import cpp.vm.Thread;
+import sys.thread.Lock;
+import sys.thread.Mutex;
+import sys.thread.Thread;
 #elseif java
 import java.vm.Lock;
 import java.vm.Mutex;

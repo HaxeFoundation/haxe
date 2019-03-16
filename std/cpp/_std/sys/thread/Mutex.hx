@@ -19,50 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+package sys.thread;
 
-typedef ThreadHandle = hl.Abstract<"hl_thread">;
+class Mutex {
+	var m : Dynamic;
 
-abstract Thread(ThreadHandle) {
-
-	public function sendMessage( msg : Dynamic ) {
-		getQueue(this).add(msg);
+	public function new() {
+		m = untyped __global__.__hxcpp_mutex_create();
 	}
-
-	public static function readMessage( block = true ) : Dynamic {
-		return getQueue(cast current()).pop(block);
+	public function acquire() {
+		untyped __global__.__hxcpp_mutex_acquire(m);
 	}
-
-	static var queue_mutex : Mutex = null;
-	static var threads_queues : Array<{ t : ThreadHandle, q : Deque<Dynamic> }> = null;
-	static function getQueue( t : ThreadHandle ) {
-		if( queue_mutex == null ) {
-			queue_mutex = new Mutex();
-			threads_queues = [];
-		}
-		queue_mutex.acquire();
-		var q = null;
-		for( tq in threads_queues )
-			if( tq.t == t ) {
-				q = tq.q;
-				break;
-			}
-		if( q == null ) {
-			q = new Deque<Dynamic>();
-			threads_queues.push({ t : t, q : q });
-		}
-		queue_mutex.release();
-		return q;
+	public function tryAcquire() : Bool {
+		return untyped __global__.__hxcpp_mutex_try(m);
 	}
-
-	@:hlNative("std","thread_create")
-	public static function create( callb : Void -> Void ) : Thread {
-		return null;
+	public function release() {
+		untyped __global__.__hxcpp_mutex_release(m);
 	}
-
-	@:hlNative("std","thread_current")
-	public static function current() : Thread {
-		return null;
-	}
-
 }
+

@@ -19,22 +19,36 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.vm;
+package sys.thread;
 
+/**
+	Creates a mutex, which can be used to acquire a temporary lock
+	to access some ressource. The main difference with a lock is
+	that a mutex must always be released by the owner thread.
+*/
+extern class Mutex {
+	/**
+		Creates a mutex.
+	**/
+	public function new():Void;
 
-class Deque<T> {
-	var q : Dynamic;
-	public function new() {
-		q = untyped __global__.__hxcpp_deque_create();
-	}
-	public function add( i : T ) {
-		untyped __global__.__hxcpp_deque_add(q,i);
-	}
-	public function push( i : T ) {
-		untyped __global__.__hxcpp_deque_push(q,i);
-	}
-	public function pop( block : Bool ) : Null<T> {
-		return untyped __global__.__hxcpp_deque_pop(q,block);
-	}
+	/**
+		The current thread acquire the mutex or wait if not available.
+		The same thread can acquire several times the same mutex but
+		must release it as many times it has been acquired.
+	**/
+	public function acquire():Void;
+
+	/**
+		Try to acquire the mutex, returns true if acquire or false
+		if it's already locked by another thread.
+	**/
+	public function tryAcquire() : Bool;
+
+	/**
+		Release a mutex that has been acquired by the current thread.
+		The behavior is undefined if the current thread does not own
+		the mutex.
+	**/
+	public function release():Void;
 }
-

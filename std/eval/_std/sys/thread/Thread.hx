@@ -20,7 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package eval.vm;
+package sys.thread;
 
 /**
 	Experimental Thread API.

@@ -19,43 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+package sys.thread;
 
-/**
-	Creates thread local storage.
-	Warning : ATM Tls does not protect the value from being GC'ed. Keep the value reachable to avoid crashes.
-*/
-@:hlNative("std")
-abstract Tls<T>(hl.Abstract<"hl_tls">) {
 
-	public var value(get,set) : T;
-
-	/**
-		Creates thread local storage. This is placeholder that can store
-		a value that will be different depending on the local thread. 
-		Set the tls value to `null` before exiting the thread 
-		or the memory will never be collected.
-	**/
+class Deque<T> {
+	var q : Dynamic;
 	public function new() {
-		this = tls_alloc(true);
+		q = untyped __global__.__hxcpp_deque_create();
 	}
-
-	/**
-		Returns the value set by tls_set for the local thread.
-	**/
-	function get_value() : T {
-		return tls_get(this);
+	public function add( i : T ) {
+		untyped __global__.__hxcpp_deque_add(q,i);
 	}
-
-	/**
-		Set the value of the TLS for the local thread.
-	**/
-	function set_value( v : T ) {
-		tls_set(this, v);
-		return v;
+	public function push( i : T ) {
+		untyped __global__.__hxcpp_deque_push(q,i);
 	}
-
-	static function tls_alloc( gcValue : Bool ) return null;
-	static function tls_get(t) : Dynamic return null;
-	static function tls_set(t,v:Dynamic) {}
+	public function pop( block : Bool ) : Null<T> {
+		return untyped __global__.__hxcpp_deque_pop(q,block);
+	}
 }
+

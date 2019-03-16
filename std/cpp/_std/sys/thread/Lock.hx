@@ -19,52 +19,19 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cpp.vm;
+package sys.thread;
 
-typedef ThreadHandle = Dynamic;
 
-class Thread {
-
-	public var handle(default,null) : ThreadHandle;
-
-	function new(h) {
-		handle = h;
+class Lock {
+	var l : Dynamic;
+	public function new() {
+		l = untyped __global__.__hxcpp_lock_create();
 	}
-
-	/**
-		Send a message to the thread queue. This message can be read by using `readMessage`.
-	**/
-	public function sendMessage( msg : Dynamic ) {
-		untyped __global__.__hxcpp_thread_send(handle,msg);
+	public function wait( ?timeout : Float = -1) : Bool {
+		return untyped __global__.__hxcpp_lock_wait(l,timeout);
 	}
-
-
-	/**
-		Returns the current thread.
-	**/
-	public static function current() {
-		return new Thread(untyped __global__.__hxcpp_thread_current());
+	public function release() {
+		untyped __global__.__hxcpp_lock_release(l);
 	}
-
-	/**
-		Creates a new thread that will execute the `callb` function, then exit.
-	**/
-	public static function create( callb : Void -> Void ) {
-		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
-	}
-
-	/**
-		Reads a message from the thread queue. If `block` is true, the function
-		blocks until a message is available. If `block` is false, the function
-		returns `null` if no message is available.
-	**/
-	public static function readMessage( block : Bool ) : Dynamic {
-		return untyped __global__.__hxcpp_thread_read_message(block);
-	}
-
-	@:keep function __compare(t:Thread) : Int {
-		return handle == t.handle ? 0 : 1;
-	}
-
 }
 
