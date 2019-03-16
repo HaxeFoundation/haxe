@@ -100,6 +100,8 @@ type platform_config = {
 	pf_uses_utf16 : bool;
 	(** target supports accessing `this` before calling `super(...)` **)
 	pf_this_before_super : bool;
+	(** target supports threads **)
+	pf_supports_threads : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -279,6 +281,7 @@ let default_config =
 		pf_supports_function_equality = true;
 		pf_uses_utf16 = true;
 		pf_this_before_super = true;
+		pf_supports_threads = false;
 	}
 
 let get_config com =
@@ -308,6 +311,7 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -337,6 +341,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
+			pf_supports_threads = true;
 		}
 	| Cs ->
 		{
@@ -351,6 +356,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_overload = true;
+			pf_supports_threads = true;
 		}
 	| Python ->
 		{
@@ -371,6 +377,7 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
 		}
 
 let memory_marker = [|Unix.time()|]
@@ -514,9 +521,23 @@ let init_platform com pf =
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
-	if com.config.pf_static then define com Define.Static;
-	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
-	if com.config.pf_uses_utf16 then define com Define.Utf16;
+	if com.config.pf_static then begin
+		raw_define_value com.defines "target.static" "true";
+		define com Define.Static;
+	end;
+	if com.config.pf_sys then begin
+		raw_define_value com.defines "target.sys" "true";
+		define com Define.Sys
+	end else
+		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then begin
+		raw_define_value com.defines "target.utf16" "true";
+		define com Define.Utf16;
+	end;
+	if com.config.pf_supports_threads then begin
+		raw_define_value com.defines "target.threaded" "true";
+	end;
+	raw_define_value com.defines "target.name" name;
 	raw_define com name
 
 let add_feature com f =

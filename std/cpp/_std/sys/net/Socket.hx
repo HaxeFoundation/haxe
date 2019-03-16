@@ -117,6 +117,14 @@ private class SocketOutput extends haxe.io.Output {
 class Socket {
 
    private var __s : Dynamic;
+
+   // We need to keep these values so that we can restore
+   // them if we re-create the socket for ipv6 as in 
+   // connect() and bind() below.
+   private var __timeout:Float = 0.0;
+   private var __blocking:Bool = true;
+   private var __fastSend:Bool = false;
+
    public var input(default,null) : haxe.io.Input;
    public var output(default,null) : haxe.io.Output;
    public var custom : Dynamic;
@@ -127,6 +135,11 @@ class Socket {
 
    private function init() : Void {
       if( __s == null )__s = NativeSocket.socket_new(false);
+      // Restore these values if they changed. This can happen
+      // in connect() and bind() if using an ipv6 address.
+      setTimeout(__timeout);
+      setBlocking(__blocking);
+      setFastSend(__fastSend);
       input = new SocketInput(__s);
       output = new SocketOutput(__s);
    }
@@ -239,6 +252,7 @@ class Socket {
    }
 
    public function setTimeout( timeout : Float ) : Void {
+      __timeout = timeout;
       NativeSocket.socket_set_timeout(__s, timeout);
    }
 
@@ -247,10 +261,12 @@ class Socket {
    }
 
    public function setBlocking( b : Bool ) : Void {
+      __blocking = b;
       NativeSocket.socket_set_blocking(__s,b);
    }
 
    public function setFastSend( b : Bool ) : Void {
+      __fastSend = b;
       NativeSocket.socket_set_fast_send(__s,b);
    }
 

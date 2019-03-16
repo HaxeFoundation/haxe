@@ -64,4 +64,15 @@ class TestLoose {
 		}
 		bar();
 	}
+
+	static var struct:Null<{foo:String}>;
+
+	static function checkAgainstNull_checkAndFieldAccess() {
+		struct == null
+			|| struct.foo != ""
+			|| struct.foo != "";
+		struct != null
+			&& struct.foo != ""
+			&& struct.foo != "";
+	}
 }

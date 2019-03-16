@@ -68,6 +68,14 @@ let rec eval ctx (e,p) =
 		| OpLt -> compare (<)
 		| OpLte -> compare (<=)
 		| _ -> error (Custom "Unsupported operation") p)
+	| EField _ ->
+		begin try
+			let sl = string_list_of_expr_path_raise (e,p) in
+			let i = String.concat "." (List.rev sl) in
+			(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
+		with Exit ->
+			error (Custom "Invalid condition expression") p
+		end
 	| _ ->
 		error (Custom "Invalid condition expression") p
 

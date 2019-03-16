@@ -345,27 +345,35 @@ class TestStrict {
 		}
 	}
 
-	static function checkAgainstNull_checkAndFieldAccess(?a:String) {
-		var s:Null<String> = null;
+	static function checkAgainstNull_checkAndFieldAccess(?a:String, ?s:String) {
 		if(s != null && s.length == 0) {}
 		if(s == null || s.length == 0) {}
-		s != null && s.length == 0;
-		s == null || s.length == 0;
+		s != null
+			&& s.length == 0
+			&& s.length == 0;
+		s == null
+			|| s.length == 0
+			|| s.length == 0;
 		!(s == null || a == null) && s.length == a.length;
 
 		shouldFail(if(s != null || s.length == 0) {});
 		shouldFail(if(s == null && s.length == 0) {});
 		shouldFail(s != null || s.length == 0);
 		shouldFail(s == null && s.length == 0);
+	}
 
-		//checked against not-nullable value, so it's not null
-		var nullable:Null<String> = null;
+	static function checkedAgainstNotNullableValue(?a:String) {
 		var s = 'world';
-		if(nullable == s) {
-			s = nullable;
+		if(a == s) {
+			a.charAt(0);
 		} else {
-			shouldFail(s = nullable);
+			shouldFail(a.charAt(0));
 		}
+		// if(a != s) {
+		// 	shouldFail(a.charAt(0));
+		// } else {
+		// 	a.charAt(0);
+		// }
 	}
 
 	static function checkedAgainstNull_nullifiedAfterCheck_shouldFail(?a:String) {
