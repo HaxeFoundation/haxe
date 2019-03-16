@@ -21,6 +21,7 @@
  */
 package sys.thread;
 
+@:coreApi
 class Lock {
 	var l : Dynamic;
 
@@ -45,7 +46,7 @@ class Lock {
 		to be able to release it. If a lock is released several
 		times, it can be acquired as many times.
 	**/
-	public function release() {
+	public function release():Void {
 		lock_release(l);
 	}
 

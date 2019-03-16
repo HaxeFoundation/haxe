@@ -26,18 +26,19 @@ package sys.thread;
 abstract ThreadHandle {
 }
 
+@:coreApi
 class Thread {
 
 	var handle : ThreadHandle;
 
-	function new(h) {
+	function new(h:ThreadHandle):Void {
 		handle = h;
 	}
 
 	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
-	public function sendMessage( msg : Dynamic ) {
+	public function sendMessage( msg : Dynamic ):Void {
 		thread_send(handle,msg);
 	}
 
@@ -45,14 +46,14 @@ class Thread {
 	/**
 		Returns the current thread.
 	**/
-	public static function current() {
+	public static function current():Thread {
 		return new Thread(thread_current());
 	}
 
 	/**
 		Creates a new thread that will execute the `callb` function, then exit.
 	**/
-	public static function create( callb : Void -> Void ) {
+	public static function create( callb : Void -> Void ):Thread {
 		return new Thread(thread_create(function(_) { return callb(); },null));
 	}
 
@@ -65,7 +66,7 @@ class Thread {
 		return thread_read_message(block);
 	}
 
-	@:keep function __compare(t:Dynamic) {
+	@:keep function __compare(t:Dynamic):Int {
 		return untyped __dollar__compare(handle,t.handle);
 	}
 

@@ -24,6 +24,7 @@ package sys.thread;
 /**
 	Creates thread local storage.
 */
+@:coreApi
 class Tls<T> {
 
 	var t : Dynamic;
@@ -49,7 +50,7 @@ class Tls<T> {
 	/**
 		Set the value of the TLS for the local thread.
 	**/
-	function set_value( v : T ) {
+	function set_value( v : T ):T {
 		tls_set(t,v);
 		return v;
 	}

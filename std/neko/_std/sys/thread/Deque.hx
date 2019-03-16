@@ -24,6 +24,7 @@ package sys.thread;
 /**
 	A message queue for multithread access.
 */
+@:coreApi
 class Deque<T> {
 	var q : Dynamic;
 
@@ -37,14 +38,14 @@ class Deque<T> {
 	/**
 		Add a message at the end of the queue.
 	**/
-	public function add( i : T ) {
+	public function add( i : T ):Void {
 		deque_add(q,i);
 	}
 
 	/**
 		Add a message at the head of the queue.
 	**/
-	public function push( i : T ) {
+	public function push( i : T ):Void {
 		deque_push(q,i);
 	}
 
