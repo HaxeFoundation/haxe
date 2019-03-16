@@ -385,7 +385,7 @@ and display_expr ctx e_ast e dk with_type p =
 			match follow it.it_type with
 				| TDynamic _ ->  None
 				| t -> Some t
-			with Not_found ->
+			with Error _ | Not_found ->
 				None
 		in
 		let keyValueIterator =
@@ -398,7 +398,7 @@ and display_expr ctx e_ast e dk with_type p =
 						Some (key.cf_type,value.cf_type)
 					| _ ->
 						None
-			end with Not_found ->
+			end with Error _ | Not_found ->
 				None
 		in
 		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) None
