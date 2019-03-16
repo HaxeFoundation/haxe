@@ -108,20 +108,20 @@ module CompletionResultKind = struct
 		let i,args = match kind with
 			| CRField(item,p,iterator,keyValueIterator) ->
 				let t = CompletionItem.get_type item in
-				let get_type t should_follow = match t with
+				let t = match t with
 					| None ->
 						None
 					| Some (t,ct) ->
 						try
-							let t = if should_follow then follow t else t in
 							let mt = module_type_of_type t in
 							let ctx = {ctx with generate_abstract_impl = true} in
-							Some (generate_module_type ctx mt,CompletionItem.CompletionType.to_json ctx ct)
+							let make mt = generate_module_type ctx mt in
+							let j_mt = make mt in
+							let j_mt_followed = if t == follow t then jnull else make (module_type_of_type (follow t)) in
+							Some (j_mt,j_mt_followed,CompletionItem.CompletionType.to_json ctx ct)
 						with _ ->
 							None
 				in
-				let regular_type = get_type t false in
-				let followed_type = get_type t true in
 				let fields =
 					("item",CompletionItem.to_json ctx item) ::
 					("range",generate_pos_as_range p) ::
@@ -136,14 +136,10 @@ module CompletionResultKind = struct
 							"value",generate_type ctx value
 						]
 					) ::
-					(match regular_type with
+					(match t with
 						| None -> []
-						| Some (mt,ct) -> ["type",ct;"moduleType",mt]
+						| Some (mt,mt_followed,ct) -> ["type",ct;"moduleType",mt;"moduleTypeFollowed",mt_followed]
 					)
-				in
-				let fields = if regular_type = followed_type then fields else fields @ (match followed_type with
-					| None -> []
-					| Some (mt,_) -> ["moduleTypeFollowed",mt])
 				in
 				0,Some (jobject fields)
 			| CRStructureField -> 1,None
