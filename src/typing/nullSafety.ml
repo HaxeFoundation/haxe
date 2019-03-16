@@ -347,18 +347,18 @@ let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) 
 			| TBinop (OpEq, checked_expr, e) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpBoolAnd, left_expr, right_expr) when positive ->
-					traverse positive left_expr;
-					traverse positive right_expr
+				traverse positive left_expr;
+				traverse positive right_expr
 			| TBinop (OpBoolAnd, left_expr, right_expr) when not positive ->
-					List.iter
-						(fun e ->
-							let _, not_nulls = process_condition loose_safety left_expr is_nullable_expr callback in
-							List.iter (add true) not_nulls
-						)
-						[left_expr; right_expr]
+				List.iter
+					(fun e ->
+						let _, not_nulls = process_condition loose_safety left_expr is_nullable_expr callback in
+						List.iter (add true) not_nulls
+					)
+					[left_expr; right_expr]
 			| TBinop (OpBoolOr, left_expr, right_expr) when not positive ->
-					traverse positive left_expr;
-					traverse positive right_expr
+				traverse positive left_expr;
+				traverse positive right_expr
 			| TBinop (OpBoolOr, left_expr, right_expr) when positive ->
 				List.iter
 					(fun e ->
