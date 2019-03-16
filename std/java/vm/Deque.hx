@@ -21,4 +21,4 @@
  */
 package java.vm;
 
-@:deprecated typedef Deque = sys.thread.Deque;
+@:deprecated typedef Deque<T> = sys.thread.Deque<T>;
