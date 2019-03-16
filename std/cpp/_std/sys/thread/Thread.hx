@@ -23,18 +23,19 @@ package sys.thread;
 
 typedef ThreadHandle = Dynamic;
 
+@:coreApi
 class Thread {
 
-	public var handle(default,null) : ThreadHandle;
+	var handle(default,null) : ThreadHandle;
 
-	function new(h) {
+	function new(h:ThreadHandle):Void {
 		handle = h;
 	}
 
 	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/
-	public function sendMessage( msg : Dynamic ) {
+	public function sendMessage( msg : Dynamic ):Void {
 		untyped __global__.__hxcpp_thread_send(handle,msg);
 	}
 
@@ -42,14 +43,14 @@ class Thread {
 	/**
 		Returns the current thread.
 	**/
-	public static function current() {
+	public static function current():Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_current());
 	}
 
 	/**
 		Creates a new thread that will execute the `callb` function, then exit.
 	**/
-	public static function create( callb : Void -> Void ) {
+	public static function create( callb : Void -> Void ):Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
 	}
 

@@ -21,16 +21,16 @@
  */
 package sys.thread;
 
-
+@:coreApi
 class Deque<T> {
 	var q : Dynamic;
 	public function new() {
 		q = untyped __global__.__hxcpp_deque_create();
 	}
-	public function add( i : T ) {
+	public function add( i : T ):Void {
 		untyped __global__.__hxcpp_deque_add(q,i);
 	}
-	public function push( i : T ) {
+	public function push( i : T ):Void {
 		untyped __global__.__hxcpp_deque_push(q,i);
 	}
 	public function pop( block : Bool ) : Null<T> {

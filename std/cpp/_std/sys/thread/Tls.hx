@@ -21,6 +21,7 @@
  */
 package sys.thread;
 
+@:coreApi
 class Tls<T> {
 
 	static var sFreeSlot = 0;
@@ -35,7 +36,7 @@ class Tls<T> {
 		return untyped __global__.__hxcpp_tls_get(mTLSID);
 	}
 
-	function set_value( v : T ) {
+	function set_value( v : T ):T {
 		untyped __global__.__hxcpp_tls_set(mTLSID,v);
 		return v;
 	}

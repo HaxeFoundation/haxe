@@ -21,7 +21,7 @@
  */
 package sys.thread;
 
-
+@:coreApi
 class Lock {
 	var l : Dynamic;
 	public function new() {
@@ -30,7 +30,7 @@ class Lock {
 	public function wait( ?timeout : Float = -1) : Bool {
 		return untyped __global__.__hxcpp_lock_wait(l,timeout);
 	}
-	public function release() {
+	public function release():Void {
 		untyped __global__.__hxcpp_lock_release(l);
 	}
 }
