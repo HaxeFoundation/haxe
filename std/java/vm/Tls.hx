@@ -21,4 +21,4 @@
  */
 package java.vm;
 
-@:deprecated typedef Tls = sys.thread.Tls;
+@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
