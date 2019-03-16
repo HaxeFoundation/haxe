@@ -324,7 +324,7 @@ let rec can_pass_type src dst =
 	Collect nullable local vars which are checked against `null`.
 	Returns a tuple of (vars_checked_to_be_null * vars_checked_to_be_not_null) in case `condition` evaluates to `true`.
 *)
-let process_condition loose_safety condition (is_nullable_expr:texpr->bool) callback =
+let rec process_condition loose_safety condition (is_nullable_expr:texpr->bool) callback =
 	let nulls = ref []
 	and not_nulls = ref [] in
 	let add to_nulls expr =
@@ -347,11 +347,25 @@ let process_condition loose_safety condition (is_nullable_expr:texpr->bool) call
 			| TBinop (OpEq, checked_expr, e) when is_suitable loose_safety checked_expr && not (is_nullable_expr e) ->
 				if positive then not_nulls := checked_expr :: !not_nulls
 			| TBinop (OpBoolAnd, left_expr, right_expr) when positive ->
-				traverse positive left_expr;
-				traverse positive right_expr
+					traverse positive left_expr;
+					traverse positive right_expr
+			| TBinop (OpBoolAnd, left_expr, right_expr) when not positive ->
+					List.iter
+						(fun e ->
+							let _, not_nulls = process_condition loose_safety left_expr is_nullable_expr callback in
+							List.iter (add true) not_nulls
+						)
+						[left_expr; right_expr]
 			| TBinop (OpBoolOr, left_expr, right_expr) when not positive ->
-				traverse positive left_expr;
-				traverse positive right_expr
+					traverse positive left_expr;
+					traverse positive right_expr
+			| TBinop (OpBoolOr, left_expr, right_expr) when positive ->
+				List.iter
+					(fun e ->
+						let nulls, _ = process_condition loose_safety left_expr is_nullable_expr callback in
+						List.iter (add true) nulls
+					)
+					[left_expr; right_expr]
 			| TParenthesis e -> traverse positive e
 			| _ -> callback e
 	in
@@ -831,7 +845,8 @@ class local_safety (mode:safety_mode) =
 			Handle boolean AND outside of `if` condition.
 		*)
 		method process_and left_expr right_expr is_nullable_expr (callback:texpr->unit) =
-			let (_, not_nulls) = process_condition (mode <> SMStrict) left_expr is_nullable_expr callback in
+			callback left_expr;
+			let (_, not_nulls) = process_condition (mode <> SMStrict) left_expr is_nullable_expr (fun e -> ()) in
 			List.iter self#get_current_scope#add_to_safety not_nulls;
 			callback right_expr;
 			List.iter self#get_current_scope#remove_from_safety not_nulls

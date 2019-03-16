@@ -65,6 +65,7 @@
 /tests/unit/node_modules/
 
 /tests/nullsafety/bin
+/tests/nullsafety/dump
 
 /haxe.sublime*
 .idea
