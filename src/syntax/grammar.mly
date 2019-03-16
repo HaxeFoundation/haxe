@@ -1453,16 +1453,16 @@ and secure_expr = parser
 			mk_null_expr (punion_next plast s)
 		)
 
-let rec validate_macro_cond e = match fst e with
+let rec validate_macro_cond s e = match fst e with
 	| EConst (Ident _)
 	| EConst (String _)
 	| EConst (Int _)
 	| EConst (Float _)
 		-> e
-	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond e1), snd e)
-	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond e1), (validate_macro_cond e2)), snd e)
-	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond e1), snd e)
-	| _ -> serror()
+	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
+	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
+	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond s e1), snd e)
+	| _ -> syntax_error (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
 let parse_macro_ident t p s =
 	if t = "display" then Hashtbl.replace special_identifier_files (Path.unique_full_path p.pfile) t;
@@ -1486,7 +1486,7 @@ let rec parse_macro_cond s =
 			| [< '(Unop op,p); tk, e = parse_macro_cond >] ->
 				tk, make_unop op e p
 			| [< '(POpen,p1); (e,p) = expr; '(PClose,_) >] ->
-				None, (EParenthesis(validate_macro_cond (e,p)),p1)) in
+				None, (EParenthesis(validate_macro_cond s (e,p)),p1)) in
 		parsing_macro_cond := false;
 		cond
 	with e ->
