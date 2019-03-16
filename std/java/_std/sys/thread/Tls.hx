@@ -21,9 +21,6 @@
  */
 package sys.thread;
 
-/**
-	Thread-local Storage implementation
-**/
 // @:coreApi // causes some overload error...
 @:native('haxe.java.vm.Tls') class Tls<T>
 {

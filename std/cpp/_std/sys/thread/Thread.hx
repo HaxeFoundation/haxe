@@ -32,33 +32,18 @@ class Thread {
 		handle = h;
 	}
 
-	/**
-		Send a message to the thread queue. This message can be read by using `readMessage`.
-	**/
 	public function sendMessage( msg : Dynamic ):Void {
 		untyped __global__.__hxcpp_thread_send(handle,msg);
 	}
 
-
-	/**
-		Returns the current thread.
-	**/
 	public static function current():Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_current());
 	}
 
-	/**
-		Creates a new thread that will execute the `callb` function, then exit.
-	**/
 	public static function create( callb : Void -> Void ):Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
 	}
 
-	/**
-		Reads a message from the thread queue. If `block` is true, the function
-		blocks until a message is available. If `block` is false, the function
-		returns `null` if no message is available.
-	**/
 	public static function readMessage( block : Bool ) : Dynamic {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}

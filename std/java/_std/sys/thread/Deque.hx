@@ -22,9 +22,6 @@
 package sys.thread;
 import java.Lib;
 
-/**
-	A Lock-free Queue implementation
-**/
 @:coreApi
 @:native('haxe.java.vm.Deque')
 @:nativeGen class Deque<T>

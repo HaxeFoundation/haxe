@@ -29,17 +29,10 @@ using haxe.Int64;
 {
 	@:private @:volatile var releasedCount = 0;
 
-	/**
-		Creates a new lock, which is initially locked
-	**/
 	public function new()
 	{
 	}
 
-	/**
-		Waits for a lock to be released and acquire it.
-		If `timeout` (in seconds) is not null and expires then the returned value is false
-	**/
 	public function wait(?timeout : Float) : Bool
 	{
 		var ret = false;
@@ -89,10 +82,6 @@ using haxe.Int64;
 		return ret;
 	}
 
-	/**
-		Release a lock. The thread does not need to own the lock to be able to release it.
-		If a lock is released several times, it can be acquired as many times
-	**/
 	public function release():Void
 	{
 		untyped __lock__(this,
