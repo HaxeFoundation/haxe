@@ -1440,7 +1440,8 @@ module StdLock = struct
 		| None ->
 			begin match timeout with
 				| VNull ->
-					Option.get (Deque.pop lock.ldeque true)
+					ignore(Deque.pop lock.ldeque true);
+					vtrue
 				| _ ->
 					let target_time = (Sys.time()) +. num timeout in
 					loop target_time
@@ -2597,7 +2598,13 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> Thread.delay (num f); vnull)
+	let sleep = vfun1 (fun f ->
+		let time = Sys.time() in
+		Thread.yield();
+		let diff = Sys.time() -. time in
+		Thread.delay ((num f) -. diff);
+		vnull
+	)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
@@ -3200,6 +3207,9 @@ let init_constructors builtins =
 						let msg = get_exc_error_message ctx v stack p in
 						prerr_endline msg;
 						close();
+					| Sys_exit i ->
+						close();
+						exit i;
 					| exc ->
 						close();
 						raise exc

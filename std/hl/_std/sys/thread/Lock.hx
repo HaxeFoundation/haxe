@@ -22,30 +22,29 @@
 
 package sys.thread;
 
-import java.Lib;
-
 @:coreApi
-@:native('haxe.java.vm.Deque')
-@:nativeGen class Deque<T> {
-	var lbd:java.util.concurrent.LinkedBlockingDeque<T>;
+class Lock {
+	var deque:sys.thread.Deque<Bool>;
 
-	public function new() {
-		lbd = new java.util.concurrent.LinkedBlockingDeque<T>();
+	public function new():Void {
+		deque = new Deque<Null<Bool>>();
 	}
 
-	public function add(i:T):Void {
-		lbd.add(i);
-	}
-
-	public function push(i:T):Void {
-		lbd.push(i);
-	}
-
-	public inline function pop(block:Bool):Null<T> {
-		return if (block) {
-			lbd.take();
-		} else {
-			lbd.poll();
+	public function wait(?timeout:Float):Bool {
+		if (timeout == null) {
+			deque.pop(true);
+			return true;
 		}
+		var targetTime = haxe.Timer.stamp() + timeout;
+		do {
+			if (deque.pop(false) != null) {
+				return true;
+			}
+		} while (haxe.Timer.stamp() < targetTime);
+		return false;
+	}
+
+	public function release():Void {
+		deque.push(true);
 	}
 }
