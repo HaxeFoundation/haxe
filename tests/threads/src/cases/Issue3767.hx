@@ -6,6 +6,8 @@ import utest.ITest;
 class Issue3767 implements ITest {
 	public function new() { }
 
+	#if java
+
 	@:timeout(5000)
 	function testBasicLock(async:utest.Async) {
 		Thread.create(() -> {
@@ -44,4 +46,6 @@ class Issue3767 implements ITest {
 			async.done();
 		});
 	}
+
+	#end
 }

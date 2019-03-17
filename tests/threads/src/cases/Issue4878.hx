@@ -7,6 +7,8 @@ import utest.ITest;
 class Issue4878 implements ITest {
 	public function new() { }
 
+	#if java
+
 	@:timeout(5000)
 	function test(async:Async) {
 		Thread.create(() -> {
@@ -25,4 +27,6 @@ class Issue4878 implements ITest {
 			async.done();
 		});
 	}
+
+	#end
 }
