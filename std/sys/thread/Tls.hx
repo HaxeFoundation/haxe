@@ -19,6 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+package sys.thread;
+
+#if (!target.threaded)
+#error "This class is not available on this target"
+#end
+
+/**
+	Creates thread local storage.
+ */
+extern class Tls<T> {
+	public var value(get, set):T;
+
+	/**
+		Creates thread local storage. This is placeholder that can store
+		a value that will be different depending on the local thread.
+		Set the tls value to `null` before exiting the thread
+		or the memory will never be collected.
+	**/
+	public function new():Void;
+}

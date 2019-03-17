@@ -21,20 +21,4 @@
  */
 package cpp.vm;
 
-
-class Deque<T> {
-	var q : Dynamic;
-	public function new() {
-		q = untyped __global__.__hxcpp_deque_create();
-	}
-	public function add( i : T ) {
-		untyped __global__.__hxcpp_deque_add(q,i);
-	}
-	public function push( i : T ) {
-		untyped __global__.__hxcpp_deque_push(q,i);
-	}
-	public function pop( block : Bool ) : Null<T> {
-		return untyped __global__.__hxcpp_deque_pop(q,block);
-	}
-}
-
+@:deprecated typedef Deque<T> = sys.thread.Deque<T>;

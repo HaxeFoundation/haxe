@@ -19,43 +19,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+package sys.thread;
 
-/**
-	Creates thread local storage.
-	Warning : ATM Tls does not protect the value from being GC'ed. Keep the value reachable to avoid crashes.
-*/
-@:hlNative("std")
-abstract Tls<T>(hl.Abstract<"hl_tls">) {
+typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
-	public var value(get,set) : T;
+abstract Thread(ThreadHandle) {
 
-	/**
-		Creates thread local storage. This is placeholder that can store
-		a value that will be different depending on the local thread. 
-		Set the tls value to `null` before exiting the thread 
-		or the memory will never be collected.
-	**/
-	public function new() {
-		this = tls_alloc(true);
+	public function sendMessage( msg : Dynamic ) {
+		getQueue(this).add(msg);
 	}
 
-	/**
-		Returns the value set by tls_set for the local thread.
-	**/
-	function get_value() : T {
-		return tls_get(this);
+	public static function readMessage( block = true ) : Dynamic {
+		return getQueue(cast current()).pop(block);
 	}
 
-	/**
-		Set the value of the TLS for the local thread.
-	**/
-	function set_value( v : T ) {
-		tls_set(this, v);
-		return v;
+	static var queue_mutex : Mutex = null;
+	static var threads_queues : Array<{ t : ThreadHandle, q : Deque<Dynamic> }> = null;
+	static function getQueue( t : ThreadHandle ) {
+		if( queue_mutex == null ) {
+			queue_mutex = new Mutex();
+			threads_queues = [];
+		}
+		queue_mutex.acquire();
+		var q = null;
+		for( tq in threads_queues )
+			if( tq.t == t ) {
+				q = tq.q;
+				break;
+			}
+		if( q == null ) {
+			q = new Deque<Dynamic>();
+			threads_queues.push({ t : t, q : q });
+		}
+		queue_mutex.release();
+		return q;
 	}
 
-	static function tls_alloc( gcValue : Bool ) return null;
-	static function tls_get(t) : Dynamic return null;
-	static function tls_set(t,v:Dynamic) {}
+	@:hlNative("std","thread_create")
+	public static function create( callb : Void -> Void ) : Thread {
+		return null;
+	}
+
+	@:hlNative("std","thread_current")
+	public static function current() : Thread {
+		return null;
+	}
+
 }

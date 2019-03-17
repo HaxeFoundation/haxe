@@ -19,6 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+@:coreApi
+class Mutex {
+	var m : Dynamic;
+
+	public function new() {
+		m = untyped __global__.__hxcpp_mutex_create();
+	}
+	public function acquire():Void {
+		untyped __global__.__hxcpp_mutex_acquire(m);
+	}
+	public function tryAcquire() : Bool {
+		return untyped __global__.__hxcpp_mutex_try(m);
+	}
+	public function release():Void {
+		untyped __global__.__hxcpp_mutex_release(m);
+	}
+}
+

@@ -19,50 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+package sys.thread;
 
-typedef ThreadHandle = hl.Abstract<"hl_thread">;
+// @:coreApi // causes some overload error...
+@:native('haxe.java.vm.Tls') class Tls<T>
+{
+	var t : java.lang.ThreadLocal<T>;
+	public var value(get,set):T;
 
-abstract Thread(ThreadHandle) {
-
-	public function sendMessage( msg : Dynamic ) {
-		getQueue(this).add(msg);
+	public function new()
+	{
+		this.t = new java.lang.ThreadLocal();
 	}
 
-	public static function readMessage( block = true ) : Dynamic {
-		return getQueue(cast current()).pop(block);
+	inline private function get_value():T
+	{
+		return t.get();
 	}
 
-	static var queue_mutex : Mutex = null;
-	static var threads_queues : Array<{ t : ThreadHandle, q : Deque<Dynamic> }> = null;
-	static function getQueue( t : ThreadHandle ) {
-		if( queue_mutex == null ) {
-			queue_mutex = new Mutex();
-			threads_queues = [];
-		}
-		queue_mutex.acquire();
-		var q = null;
-		for( tq in threads_queues )
-			if( tq.t == t ) {
-				q = tq.q;
-				break;
-			}
-		if( q == null ) {
-			q = new Deque<Dynamic>();
-			threads_queues.push({ t : t, q : q });
-		}
-		queue_mutex.release();
-		return q;
-	}
-
-	@:hlNative("std","thread_create")
-	public static function create( callb : Void -> Void ) : Thread {
-		return null;
-	}
-
-	@:hlNative("std","thread_current")
-	public static function current() : Thread {
-		return null;
+	inline private function set_value(v:T):T
+	{
+		t.set(v);
+		return v;
 	}
 
 }

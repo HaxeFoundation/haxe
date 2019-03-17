@@ -19,40 +19,31 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+package sys.thread;
+import java.util.concurrent.locks.ReentrantLock;
 
-/**
-	A message queue for multithread access.
-*/
-@:hlNative("std","deque_")
-abstract Deque<T>(hl.Abstract<"hl_deque">) {
+@:coreApi
+@:native('haxe.java.vm.Mutex') class Mutex
+{
+	@:private var lock:ReentrantLock;
 
-	/**
-		Create a message queue for multithread access.
-	**/
-	public function new() {
-		this = alloc();
+	public function new()
+	{
+		this.lock = new ReentrantLock();
 	}
 
-	/**
-		Add a message at the end of the queue.
-	**/
-	public function add( i : T ) {
+	public function tryAcquire():Bool
+	{
+		return this.lock.tryLock();
 	}
 
-	/**
-		Add a message at the head of the queue.
-	**/
-	public function push( i : T ) {
+	public function acquire():Void
+	{
+		this.lock.lock();
 	}
 
-	/**
-		Pop a message from the queue head. Either block until a message
-		is available or return immediately with `null`.
-	**/
-	public function pop( block : Bool ) : Null<T> {
-		return null;
+	public function release():Void
+	{
+		this.lock.unlock();
 	}
-
-	static function alloc() { return null; }
 }

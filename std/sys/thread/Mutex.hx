@@ -19,48 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package hl.vm;
+
+package sys.thread;
+
+#if (!target.threaded)
+#error "This class is not available on this target"
+#end
 
 /**
-	Creates a mutex, which can be used to acquire a temporary lock 
-	to access some ressource. The main difference with a lock is 
+	Creates a mutex, which can be used to acquire a temporary lock
+	to access some ressource. The main difference with a lock is
 	that a mutex must always be released by the owner thread.
-**/
-abstract Mutex(hl.Abstract<"hl_mutex">) {
-
+ */
+extern class Mutex {
 	/**
 		Creates a mutex.
 	**/
-	public function new() {
-		this = alloc(true);
-	}
+	public function new():Void;
 
 	/**
 		The current thread acquire the mutex or wait if not available.
-		The same thread can acquire several times the same mutex but 
+		The same thread can acquire several times the same mutex but
 		must release it as many times it has been acquired.
 	**/
-	@:hlNative("std","mutex_acquire") public function acquire() {
-	}
+	public function acquire():Void;
 
 	/**
-		Try to acquire the mutex, returns true if acquire or false 
+		Try to acquire the mutex, returns true if acquire or false
 		if it's already locked by another thread.
 	**/
-	@:hlNative("std","mutex_try_acquire") public function tryAcquire() : Bool {
-		return false;
-	}
+	public function tryAcquire():Bool;
 
 	/**
-		Release a mutex that has been acquired by the current thread. 
+		Release a mutex that has been acquired by the current thread.
 		The behavior is undefined if the current thread does not own
 		the mutex.
 	**/
-	@:hlNative("std","mutex_release") public function release() {
-	}
-
-	@:hlNative("std","mutex_alloc") public static function alloc( b : Bool ) {
-		return null;
-	}
-	
+	public function release():Void;
 }

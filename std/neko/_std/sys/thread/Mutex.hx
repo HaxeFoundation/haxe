@@ -19,6 +19,30 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+@:coreApi
+class Mutex {
+	var m : Dynamic;
+
+	public function new():Void {
+		m = mutex_create();
+	}
+
+	public function acquire():Void {
+		mutex_acquire(m);
+	}
+
+	public function tryAcquire() : Bool {
+		return mutex_try(m);
+	}
+
+	public function release():Void {
+		mutex_release(m);
+	}
+
+	static var mutex_create = neko.Lib.loadLazy("std","mutex_create",0);
+	static var mutex_release = neko.Lib.loadLazy("std","mutex_release",1);
+	static var mutex_acquire = neko.Lib.loadLazy("std","mutex_acquire",1);
+	static var mutex_try = neko.Lib.loadLazy("std","mutex_try",1);
+}

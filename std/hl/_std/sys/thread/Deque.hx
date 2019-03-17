@@ -19,6 +19,40 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+/**
+	A message queue for multithread access.
+*/
+@:hlNative("std","deque_")
+abstract Deque<T>(hl.Abstract<"hl_deque">) {
+
+	/**
+		Create a message queue for multithread access.
+	**/
+	public function new() {
+		this = alloc();
+	}
+
+	/**
+		Add a message at the end of the queue.
+	**/
+	public function add( i : T ) {
+	}
+
+	/**
+		Add a message at the head of the queue.
+	**/
+	public function push( i : T ) {
+	}
+
+	/**
+		Pop a message from the queue head. Either block until a message
+		is available or return immediately with `null`.
+	**/
+	public function pop( block : Bool ) : Null<T> {
+		return null;
+	}
+
+	static function alloc() { return null; }
+}

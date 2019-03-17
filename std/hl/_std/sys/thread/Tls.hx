@@ -19,6 +19,43 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+/**
+	Creates thread local storage.
+	Warning : ATM Tls does not protect the value from being GC'ed. Keep the value reachable to avoid crashes.
+*/
+@:hlNative("std")
+abstract Tls<T>(hl.Abstract<"hl_tls">) {
+
+	public var value(get,set) : T;
+
+	/**
+		Creates thread local storage. This is placeholder that can store
+		a value that will be different depending on the local thread.
+		Set the tls value to `null` before exiting the thread
+		or the memory will never be collected.
+	**/
+	public function new() {
+		this = tls_alloc(true);
+	}
+
+	/**
+		Returns the value set by tls_set for the local thread.
+	**/
+	function get_value() : T {
+		return tls_get(this);
+	}
+
+	/**
+		Set the value of the TLS for the local thread.
+	**/
+	function set_value( v : T ) {
+		tls_set(this, v);
+		return v;
+	}
+
+	static function tls_alloc( gcValue : Bool ) return null;
+	static function tls_get(t) : Dynamic return null;
+	static function tls_set(t,v:Dynamic) {}
+}

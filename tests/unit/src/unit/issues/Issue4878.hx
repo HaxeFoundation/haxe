@@ -1,7 +1,7 @@
 package unit.issues;
 #if java
-import java.vm.Thread;
-import java.vm.Mutex;
+import sys.thread.Thread;
+import sys.thread.Mutex;
 #end
 
 class Issue4878 extends Test {

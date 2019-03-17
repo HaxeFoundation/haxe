@@ -19,6 +19,38 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package neko.vm;
+package sys.thread;
 
-@:deprecated typedef Tls<T> = sys.thread.Tls<T>;
+typedef ThreadHandle = Dynamic;
+
+@:coreApi
+class Thread {
+
+	var handle(default,null) : ThreadHandle;
+
+	function new(h:ThreadHandle):Void {
+		handle = h;
+	}
+
+	public function sendMessage( msg : Dynamic ):Void {
+		untyped __global__.__hxcpp_thread_send(handle,msg);
+	}
+
+	public static function current():Thread {
+		return new Thread(untyped __global__.__hxcpp_thread_current());
+	}
+
+	public static function create( callb : Void -> Void ):Thread {
+		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
+	}
+
+	public static function readMessage( block : Bool ) : Dynamic {
+		return untyped __global__.__hxcpp_thread_read_message(block);
+	}
+
+	@:keep function __compare(t:Thread) : Int {
+		return handle == t.handle ? 0 : 1;
+	}
+
+}
+

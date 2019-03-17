@@ -1,11 +1,7 @@
 package unit.issues;
 import unit.Test;
-#if java
-import java.vm.*;
-#elseif neko
-import neko.vm.*;
-#elseif cpp
-import cpp.vm.*;
+#if (java || neko || cpp)
+import sys.thread.*;
 #end
 
 class Issue3767 extends Test
