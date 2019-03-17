@@ -57,16 +57,20 @@ typedef TreeNode<T> = {
 class WeirdTreeSum implements utest.ITest {
 	public function new() {}
 
-	public function test() {
-		Sys.println("Running WeirdTreeSum");
-		var fileContent = File.getContent("res/tree1.txt");
-		var buf = new StringBuf();
-		buf.add("(1)\n");
-		for (i in 0...10) {
-			buf.add(fileContent + "\n");
-		}
-		var tree = parseTree(buf.toString().trim())[0];
-		compare(tree);
+	@:timeout(2000)
+	public function test(async:utest.Async) {
+		Thread.create(() -> {
+			Sys.println("Running WeirdTreeSum");
+			var fileContent = File.getContent("res/tree1.txt");
+			var buf = new StringBuf();
+			buf.add("(1)\n");
+			for (i in 0...10) {
+				buf.add(fileContent + "\n");
+			}
+			var tree = parseTree(buf.toString().trim())[0];
+			compare(tree);
+			async.done();
+		});
 	}
 
 	static function compare(tree:Tree<Int>) {

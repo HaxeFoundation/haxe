@@ -12,7 +12,8 @@ class DequeBrackets implements ITest {
 		one is placed in front, the closing one in the back. This is going
 		to result in something like `([{<>}])` which we check for at the end.
 	**/
-	public function test() {
+	@:timeout(2000)
+	public function test(async:utest.Async) {
 		Sys.println("Running DequeBrackets");
 		var deque = new Deque();
 		var dequeMutex = new Mutex();
@@ -77,5 +78,6 @@ class DequeBrackets implements ITest {
 			}
 			Assert.equals(expected, pop());
 		}
+		async.done();
 	}
 }
