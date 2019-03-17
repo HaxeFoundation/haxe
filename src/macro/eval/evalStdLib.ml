@@ -3200,6 +3200,8 @@ let init_constructors builtins =
 						let msg = get_exc_error_message ctx v stack p in
 						prerr_endline msg;
 						close();
+					| Sys_exit i ->
+						close()
 					| exc ->
 						close();
 						raise exc
