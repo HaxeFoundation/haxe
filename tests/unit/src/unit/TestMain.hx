@@ -108,7 +108,7 @@ class TestMain {
 			//new TestRemoting(),
 		];
 
-		#if ( (java || neko || cpp || eval) && !macro)
+		#if (target.threaded)
 		if (Sys.getEnv("TRAVIS") != null) {
 			classes.push(new TestThreads());
 		}
