@@ -3202,7 +3202,8 @@ let init_constructors builtins =
 						prerr_endline msg;
 						close();
 					| Sys_exit i ->
-						close()
+						close();
+						exit i;
 					| exc ->
 						close();
 						raise exc
