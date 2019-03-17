@@ -2598,7 +2598,13 @@ module StdSys = struct
 
 	let setTimeLocale = vfun1 (fun _ -> vfalse)
 
-	let sleep = vfun1 (fun f -> Thread.delay (num f); vnull)
+	let sleep = vfun1 (fun f ->
+		let time = Sys.time() in
+		Thread.yield();
+		let diff = Sys.time() -. time in
+		Thread.delay ((num f) -. diff);
+		vnull
+	)
 
 	let stderr = vfun0 (fun () ->
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel stderr)
