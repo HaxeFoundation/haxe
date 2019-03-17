@@ -36,7 +36,7 @@ class DequeBrackets implements ITest {
 		var self = Thread.current();
 		Thread.create(() -> {
 			for (_ in 0...pairs.length) {
-				Assert.isTrue(lock.wait(2.));
+				Assert.isTrue(lock.wait());
 			}
 			self.sendMessage("done");
 		});
