@@ -108,12 +108,6 @@ class TestMain {
 			//new TestRemoting(),
 		];
 
-		#if (target.threaded)
-		if (Sys.getEnv("TRAVIS") != null) {
-			classes.push(new TestThreads());
-		}
-		#end
-
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 

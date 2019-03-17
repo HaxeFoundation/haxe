@@ -1,16 +1,23 @@
-package unit;
+package cases;
+
+import utest.Async;
 import utest.Assert;
-import sys.thread.Thread;
-import sys.thread.Deque;
-import sys.thread.Lock;
-import sys.thread.Tls;
-import sys.thread.Mutex;
 
-class TestThreads extends Test
+class TestThreads implements utest.ITest
 {
+	public function new() { }
 
-	private function testSort()
+	@:timeout(20000)
+	function testSort(async:Async) {
+		Thread.create(() -> {
+			doTestSort();
+			async.done();
+		});
+	}
+
+	private function doTestSort()
 	{
+		Sys.println("Running TestThreads");
 		var ts = new ThreadSort();
 #if java
 		ts.maxVal *= 10;
@@ -33,7 +40,7 @@ class TestThreads extends Test
 									try
 									{
 										ts.run();
-										t(true);
+										Assert.pass("ok");
 									}
 									catch(e:Dynamic)
 									{

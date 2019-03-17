@@ -1440,7 +1440,8 @@ module StdLock = struct
 		| None ->
 			begin match timeout with
 				| VNull ->
-					Option.get (Deque.pop lock.ldeque true)
+					ignore(Deque.pop lock.ldeque true);
+					vtrue
 				| _ ->
 					let target_time = (Sys.time()) +. num timeout in
 					loop target_time
