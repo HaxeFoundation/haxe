@@ -23,7 +23,7 @@
 package sys.thread;
 
 #if (!target.threaded)
-#error "This target is not available on this target"
+#error "This class is not available on this target"
 #end
 extern class Thread {
 	/**
