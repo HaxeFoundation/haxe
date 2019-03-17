@@ -41,7 +41,7 @@ class Host {
 	/**
 		The provided host string.
 	**/
-	var host(default,null) : String;
+	public var host(default,null) : String;
 
 	/**
 		The actual IP corresponding to the host.
