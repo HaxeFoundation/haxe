@@ -114,7 +114,10 @@ let build_exception_stack ctx env =
 			| Some env -> loop acc env
 			| None -> assert false
 	in
-	let d = loop [] eval.env in
+	let d = match eval.env with
+	| Some env -> loop [] env
+	| None -> []
+	in
 	ctx.exception_stack <- List.map (fun env ->
 		{pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
@@ -132,7 +135,7 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	with
 	| RunTimeException(v,stack,p') ->
 		eval.caught_exception <- vnull;
-		build_exception_stack ctx env;
+		Option.may (build_exception_stack ctx) env;
 		eval.env <- env;
 		if is v key_haxe_macro_Error then begin
 			let v1 = field v key_message in

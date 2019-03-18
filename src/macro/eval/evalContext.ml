@@ -46,7 +46,6 @@ type env_kind =
 	| EKLocalFunction of int
 	| EKMethod of int * int
 	| EKEntrypoint
-	| EKToplevel
 
 (* Compile-time information for environments. This information is static for all
    environments of the same kind, e.g. all environments of a specific method. *)
@@ -94,13 +93,13 @@ type env = {
 	env_captures : value ref array;
 	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
-	(* The parent of the current environment, if exists. All environments except EKToplevel have a parent. *)
+	(* The parent of the current environment, if exists. *)
 	env_parent : env option;
 	env_eval : eval;
 }
 
 and eval = {
-	mutable env : env;
+	mutable env : env option;
 	thread : vthread;
 	(* The threads current debug state *)
 	mutable debug_state : debug_state;
@@ -292,10 +291,10 @@ let rec kind_name eval kind =
 			| None -> "entrypoint"
 			| Some env -> rev_hash env.env_info.pfile
 			end
-		| EKToplevel ->
-			"toplevel"
 	in
-	loop kind (Some eval.env)
+	match eval.env with
+	| None -> "toplevel"
+	| Some env -> loop kind (Some env)
 
 let call_function f vl = f vl
 
@@ -322,18 +321,23 @@ let call_stack eval =
 	let rec loop acc env =
 		let acc = env :: acc in
 		match env.env_parent with
-		| Some env when env.env_info.kind <> EKToplevel -> loop acc env
+		| Some env -> loop acc env
 		| _ -> List.rev acc
 	in
-	loop [] eval.env
+	match eval.env with
+	| None -> []
+	| Some env -> loop [] env
 
 let throw v p =
 	let ctx = get_ctx() in
 	let eval = get_eval ctx in
-	let env = eval.env in
-	env.env_leave_pmin <- p.pmin;
-	env.env_leave_pmax <- p.pmax;
-	raise_notrace (RunTimeException(v,call_stack eval,p))
+	match eval.env with
+	| Some env ->
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		raise_notrace (RunTimeException(v,call_stack eval,p))
+	| None ->
+		assert false
 
 let exc v = throw v null_pos
 
@@ -356,24 +360,6 @@ let no_debug = {
 	scopes = [];
 	line = 0;
 	expr = no_expr;
-}
-
-let null_env = {
-	env_info = {
-		static = true;
-		pfile = EvalHash.hash "null-env";
-		pfile_unique = EvalHash.hash "null-env";
-		kind = EKToplevel;
-		capture_infos = Hashtbl.create 0;
-	};
-	env_debug = no_debug;
-	env_leave_pmin = 0;
-	env_leave_pmax = 0;
-	env_locals = [||];
-	env_captures = [||];
-	env_extra_locals = IntMap.empty;
-	env_parent = None;
-	env_eval = Obj.magic ();
 }
 
 let create_env_info static pfile kind capture_infos =
@@ -416,10 +402,10 @@ let push_environment ctx info num_locals num_captures =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = Some eval.env;
+		env_parent = eval.env;
 		env_eval = eval;
 	} in
-	eval.env <- env;
+	eval.env <- Some env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
 		| Some socket,EKMethod(key_type,key_field) ->
 			begin try
@@ -437,10 +423,7 @@ let push_environment ctx info num_locals num_captures =
 
 let pop_environment ctx env =
 	let eval = env.env_eval in
-	begin match env.env_parent with
-		| Some env -> eval.env <- env
-		| None -> assert false
-	end;
+	eval.env <- env.env_parent;
 	env.env_debug.timer();
 	()
 

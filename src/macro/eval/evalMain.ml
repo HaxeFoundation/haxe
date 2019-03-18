@@ -100,7 +100,7 @@ let create com api is_macro =
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
 	let eval = {
-		env = null_env;
+		env = None;
 		thread = {
 			tthread = Thread.self();
 			tstorage = IntMap.empty;
@@ -455,7 +455,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx EKToplevel e
+let eval_expr ctx e = eval_expr ctx EKEntrypoint e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
@@ -562,7 +562,7 @@ let handle_decoding_error f v t =
 
 let get_api_call_pos () =
 	let eval = get_eval (get_ctx()) in
-	let env = eval.env in
+	let env = Option.get eval.env in
 	let env = match env.env_parent with
 		| None -> env
 		| Some env -> env

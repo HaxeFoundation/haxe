@@ -586,7 +586,7 @@ module StdCallStack = struct
 			| EKMethod(st,sf) ->
 				let local_function = encode_enum_value key_haxe_StackItem 3 [|create_unknown (rev_hash st); create_unknown (rev_hash sf)|] None in
 				DynArray.add l (file_pos local_function);
-			| EKToplevel | EKEntrypoint ->
+			| EKEntrypoint ->
 				()
 		) envs;
 		encode_array (DynArray.to_list l)
@@ -3184,7 +3184,7 @@ let init_constructors builtins =
 							()
 					in
 					let new_eval = {
-						env = null_env;
+						env = None;
 						thread = thread;
 						debug_state = DbgRunning;
 						debug_channel = Event.new_channel ();
