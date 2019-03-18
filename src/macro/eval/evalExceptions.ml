@@ -102,7 +102,7 @@ let get_exc_error_message ctx v stack p =
 		uncaught_exception_string v p ""
 	| _ ->
 		let sstack = String.concat "\n" (List.map (fun p -> Printf.sprintf "%s : Called from here" (format_pos p)) pl) in
-		Printf.sprintf "%s : Uncaught exception %s\n%s" (format_pos p) (value_string v) sstack
+		Printf.sprintf "%sUncaught exception %s\n%s" (if p = null_pos then "" else format_pos p ^ " : ") (value_string v) sstack
 
 let build_exception_stack ctx env =
 	let eval = env.env_eval in
@@ -149,7 +149,12 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 					Error.error "Something went wrong" null_pos
 		end else begin
 			(* Careful: We have to get the message before resetting the context because toString() might access it. *)
-			let msg = get_exc_error_message ctx v (match stack with [] -> [] | _ :: l -> l) (if p' = null_pos then p else p') in
+			let stack = match stack with
+				| [] -> []
+				| l when p' = null_pos -> l (* If the exception position is null_pos, we're "probably" in a built-in function. *)
+				| _ :: l -> l (* Otherwise, ignore topmost frame position. *)
+			in
+			let msg = get_exc_error_message ctx v stack (if p' = null_pos then p else p') in
 			get_ctx_ref := prev;
 			final();
 			Error.error msg null_pos

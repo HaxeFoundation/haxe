@@ -333,8 +333,10 @@ let throw v p =
 	let eval = get_eval ctx in
 	match eval.env with
 	| Some env ->
-		env.env_leave_pmin <- p.pmin;
-		env.env_leave_pmax <- p.pmax;
+		if p <> null_pos then begin
+			env.env_leave_pmin <- p.pmin;
+			env.env_leave_pmax <- p.pmax;
+		end;
 		raise_notrace (RunTimeException(v,call_stack eval,p))
 	| None ->
 		assert false
