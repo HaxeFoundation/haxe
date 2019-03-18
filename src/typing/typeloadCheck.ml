@@ -115,6 +115,9 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 	| _,(Var { v_read = AccNo | AccNever }) ->
 		(* read variance *)
 		valid t2 t1
+	| _,_ when has_class_field_flag f2 CfFinal ->
+		(* write variance *)
+		valid t1 t2
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
