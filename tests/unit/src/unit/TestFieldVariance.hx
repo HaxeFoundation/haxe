@@ -18,20 +18,55 @@ private typedef NullField = {
 	var aField(default, null):Int;
 }
 
-private class PublicFieldClass {
+private interface PublicFieldInterface {
 	public var aField:Int;
 }
 
-
-private class FinalFieldClass {
-	public final aField:Int = 0;
+private interface FinalFieldInterface {
+	public final aField:Int;
 }
 
-private class NeverFieldClass {
+private interface NeverFieldInterface {
 	public var aField(default, never):Int;
 }
 
-private class NullFieldClass {
+private interface NullFieldInterface {
+	public var aField(default, null):Int;
+}
+
+private class PublicFieldClass
+	implements PublicFieldInterface // ok, same
+	implements NullFieldInterface // ok, narrowing access
+	implements NeverFieldInterface // ok, narrowing access
+	/* implements FinalFieldInterface */ // not ok, final invariance
+	{
+	public var aField:Int;
+}
+
+private class FinalFieldClass
+	implements FinalFieldInterface // ok,same
+	implements NeverFieldInterface // ok, no write-access
+	implements NullFieldInterface // ok, no write-access
+	/* implements PublicFieldInterface */ // not ok, final invariance
+	{
+	public final aField:Int = 0;
+}
+
+private class NeverFieldClass
+	implements NeverFieldInterface // ok, same
+	implements NullFieldInterface // ok, no write-access
+	/* implements PublicFieldInterface */ // not ok, widening access
+	/* implements FinalFieldInterface */ // not ok, final invariance
+	{
+	public var aField(default, never):Int;
+}
+
+private class NullFieldClass
+	implements NullFieldInterface // ok, same
+	implements NeverFieldInterface // ok, no write-access
+	/* implements PublicFieldInterface */ // not ok, widening access
+	/* implements FinalFieldInterface */ // not ok, final invariance
+	{
 	public var aField(default, null):Int;
 }
 
