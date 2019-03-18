@@ -185,21 +185,27 @@ and parse_type_decl mode s =
 			end
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
-				let check_display p0 p1 =
+				let check_display p1 =
 					if not had_display && !in_display_file && encloses_display_position p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
-					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
-					loop (had_display || b) (pos t) ((HExtends t) :: acc)
+					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					let p0 = pos t in
+					(* If we don't have type parameters, we have to offset by one so to not complete `extends`
+					   and `implements` after the identifier. *)
+					let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
+					loop (had_display || b) p0 ((HExtends t) :: acc)
 				| [< '(Kwd Implements,p1); t,b = parse_type_path_or_resume p1 >] ->
-					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
-					loop (had_display || b) (pos t) ((HImplements t) :: acc)
+					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					let p0 = pos t in
+					let p0 = {p0 with pmax = p0.pmax + (if (fst t).tparams = [] then 1 else 0)} in
+					loop (had_display || b) p0 ((HImplements t) :: acc)
 				| [< '(BrOpen,p1) >] ->
-					check_display p0 {p1 with pmin = p0.pmax; pmax = p1.pmin};
+					check_display {p1 with pmin = p0.pmax; pmax = p1.pmin};
 					List.rev acc
 				| [< >] ->
-					check_display p0 {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
+					check_display {p1 with pmin = p0.pmax; pmax = (next_pos s).pmax};
 					syntax_error (Expected ["extends";"implements";"{"]) s (List.rev acc)
 			in
 			let hl = loop false (last_pos s) [] in
