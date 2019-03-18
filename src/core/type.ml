@@ -2397,7 +2397,15 @@ and unify_with_access f1 t1 f2 =
 	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify f2.cf_type t1
 	(* read only *)
 	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } ->
-		if (has_class_field_flag f1 CfFinal) <> (has_class_field_flag f2 CfFinal) then raise (Unify_error [FinalInvariance]);
+		begin match (has_class_field_flag f1 CfFinal),(has_class_field_flag f2 CfFinal) with
+		| true,true
+		| false,false ->
+			()
+		| true,false ->
+			()
+		| false,true ->
+			raise (Unify_error [FinalInvariance]);
+		end;
 		unify t1 f2.cf_type
 	(* read/write *)
 	| _ -> with_variance (type_eq EqBothDynamic) t1 f2.cf_type
