@@ -389,7 +389,7 @@ let set_error ctx b =
 	ctx.had_error <- b
 
 let add_types ctx types ready =
-	ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
+	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
 let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
@@ -455,7 +455,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx EKEntrypoint e
+let eval_expr ctx e = if ctx.had_error then None else eval_expr ctx EKEntrypoint e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
