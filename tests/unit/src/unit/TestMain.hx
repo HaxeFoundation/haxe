@@ -103,7 +103,8 @@ class TestMain {
 			#end
 			new TestMapComprehension(),
 			new TestMacro(),
-			new TestKeyValueIterator()
+			new TestKeyValueIterator(),
+			new TestFieldVariance()
 			//new TestUnspecified(),
 			//new TestRemoting(),
 		];
