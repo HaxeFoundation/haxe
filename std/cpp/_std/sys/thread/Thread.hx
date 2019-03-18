@@ -19,38 +19,36 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
-typedef ThreadHandle = Dynamic;
+private typedef ThreadHandle = Dynamic;
 
 @:coreApi
 class Thread {
-
-	var handle(default,null) : ThreadHandle;
+	var handle(default, null):ThreadHandle;
 
 	function new(h:ThreadHandle):Void {
 		handle = h;
 	}
 
-	public function sendMessage( msg : Dynamic ):Void {
-		untyped __global__.__hxcpp_thread_send(handle,msg);
+	public function sendMessage(msg:Dynamic):Void {
+		untyped __global__.__hxcpp_thread_send(handle, msg);
 	}
 
 	public static function current():Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_current());
 	}
 
-	public static function create( callb : Void -> Void ):Thread {
+	public static function create(callb:Void->Void):Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
 	}
 
-	public static function readMessage( block : Bool ) : Dynamic {
+	public static function readMessage(block:Bool):Dynamic {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}
 
-	@:keep function __compare(t:Thread) : Int {
+	@:keep function __compare(t:Thread):Int {
 		return handle == t.handle ? 0 : 1;
 	}
-
 }
-
