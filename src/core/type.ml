@@ -2245,7 +2245,7 @@ and unify_anons a b a1 a2 =
 			let f1 = PMap.find n a1.a_fields in
 			if not (unify_kind f1.cf_kind f2.cf_kind) then
 				(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
-				| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
+				| Opened, Var { v_read = AccNormal; v_write = AccNever }, Var { v_read = AccNormal; v_write = AccNormal } ->
 					f1.cf_kind <- f2.cf_kind;
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
