@@ -46,7 +46,7 @@ class ResultPrinter {
 			if (buf.length > 0) {
 				buf.add(",");
 			}
-			buf.addSub(s, k, 3);
+			buf.addSub(s, i, 3);
 			i += 3;
 		}
 		return buf.toString();
