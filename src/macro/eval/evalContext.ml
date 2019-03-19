@@ -90,7 +90,7 @@ type env = {
 	env_locals : value array;
 	(* The reference to the environment's captured local variables. Indices are determined during compile-time,
 	   or can be obtained through `env_info.capture_infos`. *)
-	env_captures : value ref array;
+	env_captures : value array;
 	(* Map of extra variables added while debugging. Keys are hashed variable names. *)
 	mutable env_extra_locals : value IntMap.t;
 	(* The parent of the current environment, if exists. *)
@@ -394,7 +394,7 @@ let push_environment ctx info num_locals num_captures =
 	let captures = if num_captures = 0 then
 		empty_array
 	else
-		Array.make num_captures (ref vnull)
+		Array.make num_captures vnull
 	in
 	let env = {
 		env_info = info;
