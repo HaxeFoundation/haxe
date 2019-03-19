@@ -379,6 +379,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
+			pf_capture_policy = CPWrapRef;
 		}
 
 let memory_marker = [|Unix.time()|]

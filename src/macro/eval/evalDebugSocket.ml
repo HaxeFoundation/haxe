@@ -200,7 +200,7 @@ let output_scopes ctx env =
 
 let output_capture_vars infos env =
 	let vars = Hashtbl.fold (fun slot vi acc ->
-		let value = !(env.env_captures.(slot)) in
+		let value = (env.env_captures.(slot)) in
 		(var_to_json vi.vi_name value (Some vi) env) :: acc
 	) infos [] in
 	JArray vars
@@ -660,7 +660,7 @@ let handler =
 			| CaptureScope(infos,env) ->
 				let value = get_value env in
 				let slot = get_capture_slot_by_name infos name in
-				env.env_captures.(slot) := value;
+				env.env_captures.(slot) <- value;
 				var_to_json "" value None env
 			| DebugScope _ | StackFrame _ ->
 				JNull

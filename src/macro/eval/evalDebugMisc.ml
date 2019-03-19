@@ -124,7 +124,7 @@ let get_variable env capture_infos scopes name env =
 	with Not_found ->
 		let slot = get_capture_slot_by_name capture_infos name in
 		let value = try env.env_captures.(slot) with _ -> raise Not_found in
-		!value
+		value
 
 (* Expr to value *)
 

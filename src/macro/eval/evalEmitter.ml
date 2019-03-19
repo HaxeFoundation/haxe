@@ -80,7 +80,7 @@ let emit_local_declaration i exec env =
 	vnull
 
 let emit_capture_declaration i exec env =
-	env.env_captures.(i) <- ref (exec env);
+	env.env_captures.(i) <- exec env;
 	vnull
 
 let emit_const v _ = v
@@ -368,7 +368,7 @@ let emit_call exec execs p env =
 
 let emit_local_read i env = env.env_locals.(i)
 
-let emit_capture_read i env = !(env.env_captures.(i))
+let emit_capture_read i env = env.env_captures.(i)
 
 let emit_array_length_read exec p env = vint (as_array p (exec env)).alength
 
@@ -444,7 +444,7 @@ let emit_local_write slot exec env =
 
 let emit_capture_write slot exec env =
 	let v = exec env in
-	env.env_captures.(slot) := v;
+	env.env_captures.(slot) <- v;
 	v
 
 let emit_proto_field_write proto i exec2 env =
@@ -522,10 +522,10 @@ let emit_local_read_write slot exec fop prefix env =
 	if prefix then v else v1
 
 let emit_capture_read_write slot exec fop prefix env =
-	let v1 = !(env.env_captures.(slot)) in
+	let v1 = (env.env_captures.(slot)) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
-	env.env_captures.(slot) := v;
+	env.env_captures.(slot) <- v;
 	if prefix then v else v1
 
 let emit_proto_field_read_write proto i exec2 fop prefix env =
@@ -702,42 +702,78 @@ let emit_neg exec p env = match exec env with
 
 (* Function *)
 
-let handle_capture_arguments exec varaccs env =
-	List.iter (fun (slot,i) ->
-		env.env_captures.(i) <- ref env.env_locals.(slot)
-	) varaccs;
-	exec env
+type env_creation = {
+	ec_info : env_info;
+	ec_num_locals : int;
+	ec_num_captures : int;
+}
 
-let get_normal_env ctx info num_locals num_captures _ =
-	push_environment ctx info num_locals num_captures
-
-let get_closure_env ctx info num_locals num_captures refs =
-	let env = push_environment ctx info num_locals num_captures in
-	Array.iteri (fun i vr -> env.env_captures.(i) <- vr) refs;
-	env
-
-let execute_set_local env i v =
+let execute_set_local i env v =
 	env.env_locals.(i) <- v
 
-let emit_function_ret ctx get_env refs exec vl =
-	let env = get_env refs in
-	List.iteri (execute_set_local env) vl;
+let execute_set_capture i env v =
+	env.env_captures.(i) <- v
+
+let process_arguments fl vl env =
+	let rec loop fl vl = match fl,vl with
+		| f :: fl,v :: vl ->
+			f env v;
+			loop fl vl
+		| f :: fl,[] ->
+			f env vnull;
+			loop fl []
+		| [],[] ->
+			()
+		| _ ->
+			exc_string "Something went wrong"
+	in
+	loop fl vl
+[@@inline]
+
+let emit_function_ret ctx eci refs exec fl vl =
+	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+	process_arguments fl vl env;
 	let v = try exec env with Return v -> v in
 	pop_environment ctx env;
 	v
 
-let emit_function_noret ctx get_env refs exec vl =
-	let env = get_env refs in
-	List.iteri (execute_set_local env) vl;
+let create_function_noret ctx eci exec fl vl =
+	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	process_arguments fl vl env;
 	let v = exec env in
 	pop_environment ctx env;
 	v
 
-let create_function ctx get_env hasret refs exec =
-	if hasret || ctx.debug.support_debugger then (emit_function_ret ctx get_env refs exec)
-	else (emit_function_noret ctx get_env refs exec)
+let create_function ctx eci exec fl vl =
+	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	process_arguments fl vl env;
+	let v = try exec env with Return v -> v in
+	pop_environment ctx env;
+	v
 
-let emit_closure ctx num_captures get_env hasret exec env =
-	let refs = Array.sub env.env_captures 0 num_captures in
-	let f = create_function ctx get_env hasret refs exec in
+let create_closure_noret ctx eci refs exec fl vl =
+	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+	process_arguments fl vl env;
+	let v = exec env in
+	pop_environment ctx env;
+	v
+
+let create_closure refs ctx eci exec fl vl =
+	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
+	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+	process_arguments fl vl env;
+	let v = try exec env with Return v -> v in
+	pop_environment ctx env;
+	v
+
+let emit_closure ctx mapping eci hasret exec fl env =
+	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in
+	let create = match hasret,eci.ec_num_captures with
+		| true,0 -> create_function
+		| false,0 -> create_function_noret
+		| _ -> create_closure refs
+	in
+	let f = create ctx eci exec fl in
 	vstatic_function f
