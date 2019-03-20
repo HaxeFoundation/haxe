@@ -1922,7 +1922,7 @@ module StdReflect = struct
 	)
 
 	let setField = vfun3 (fun o name v ->
-		set_field o (hash (decode_vstring name).sstring) v; vnull
+		(try set_field o (hash (decode_vstring name).sstring) v with Not_found -> ()); vnull
 	)
 
 	let setProperty = vfun3 (fun o name v ->
@@ -1931,7 +1931,7 @@ module StdReflect = struct
 		let vset = field o name_set in
 		if vset <> VNull then call_value_on o vset [v]
 		else begin
-			set_field o (hash name.sstring) v;
+			(try set_field o (hash name.sstring) v with Not_found -> ());
 			vnull
 		end
 	)
