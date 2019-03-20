@@ -677,7 +677,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| None -> Interp.vnull
 				end
 			| MAOther -> match Interp.eval_expr ictx et with
-				| None -> assert false
+				| None -> Interp.vnull
 				| Some v -> v
 		) eargs elt
 	in
