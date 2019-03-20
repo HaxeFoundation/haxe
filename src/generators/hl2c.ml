@@ -263,7 +263,7 @@ let string_data_limit = 64
 let string ctx sid =
 	let s = ctx.hlcode.strings.(sid) in
 	if String.length s < string_data_limit then
-		sprintf "USTR(\"%s\")" (StringHelper.s_escape ~hex:false s)
+		sprintf "USTR(\"%s\")" (StringHelper.s_escape s)
 	else
 		sprintf "string$%d" sid
 
@@ -1279,7 +1279,6 @@ let write_c com file (code:code) =
 			] in
 			sexpr "static hl_type_obj obj$%d = {%s}" i (String.concat "," ofields);
 		| HEnum e ->
-			let constr_name = sprintf "econstructs$%d" i in
 			let constr_value cid (name,nid,tl) =
 				let tval = if Array.length tl = 0 then "NULL" else
 					let name = sprintf "econstruct$%d_%d" i cid in
@@ -1295,7 +1294,11 @@ let write_c com file (code:code) =
 				let has_ptr = List.exists is_gc_ptr (Array.to_list tl) in
 				sprintf "{(const uchar*)%s, %d, %s, %s, %s, %s}" (string ctx nid) (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
-			sexpr "static hl_enum_construct %s[] = {%s}" constr_name (if Array.length e.efields = 0 then "NULL" else String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
+			let constr_name = if Array.length e.efields = 0 then "NULL" else begin
+				let name = sprintf "econstructs$%d" i in
+				sexpr "static hl_enum_construct %s[] = {%s}" name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
+				name;
+			end in
 			let efields = [
 				if e.eid = 0 then "NULL" else sprintf "(const uchar*)%s" (string ctx e.eid);
 				string_of_int (Array.length e.efields);
