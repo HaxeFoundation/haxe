@@ -85,6 +85,8 @@ let reserved_flags = [
 	"as3";"swc";"macro";"sys";"static";"utf16"
 	]
 
+let reserved_flag_namespaces = ["target"]
+
 let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env ?(h=None) path  =
@@ -560,7 +562,13 @@ try
 			Common.raw_define com l;
 		),"<name[:ver]>","use a haxelib library");
 		("Compilation",["-D";"--define"],[],Arg.String (fun var ->
-			if List.mem var reserved_flags then raise (Arg.Bad (var ^ " is a reserved compiler flag and cannot be defined from command line"));
+			let raise_reserved description =
+				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
+			in
+			if List.mem var reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved copiler flag" var);
+			List.iter (fun ns ->
+				if ExtString.String.starts_with var ns then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" var ns)
+			) reserved_flag_namespaces;
 			Common.raw_define com var;
 		),"<var[=value]>","define a conditional compilation flag");
 		("Debug",["-v";"--verbose"],[],Arg.Unit (fun () ->
