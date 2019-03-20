@@ -468,6 +468,10 @@ type handler_context = {
 	send_error : 'a . string -> 'a;
 }
 
+let expect_env hctx env = match env with
+	| Some env -> env
+	| None -> hctx.send_error "No frame found"
+
 let handler =
 	let parse_breakpoint hctx jo =
 		let j = hctx.jsonrpc in
@@ -476,7 +480,7 @@ let handler =
 		let column = j#get_opt_param (fun () -> BPColumn (j#get_int_field "column" "column" obj)) BPAny in
 		let condition = j#get_opt_param (fun () ->
 			let s = j#get_string_field "condition" "condition" obj in
-			let env = Option.get hctx.ctx.eval.env in (* Use the main env, we only care about the position anyway *)
+			let env = expect_env hctx hctx.ctx.eval.env in (* Use the main env, we only care about the position anyway *)
 			Some (parse_expr hctx.ctx s env.env_debug.expr.epos)
 		) None in
 		(line,column,condition)
@@ -515,15 +519,15 @@ let handler =
 		);
 		"next",(fun hctx ->
 			let eval = select_thread hctx in
-			let env = Option.get eval.env in
+			let env = expect_env hctx eval.env in
 			eval.debug_state <- DbgNext(env,env.env_debug.expr.epos);
 			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
 		);
 		"stepOut",(fun hctx ->
 			let eval = select_thread hctx in
-			let env = Option.get eval.env in
-			let penv = Option.get env.env_parent in
+			let env = expect_env hctx eval.env in
+			let penv = expect_env hctx env.env_parent in
 			eval.debug_state <- DbgFinish penv;
 			ignore(Event.poll (Event.send eval.debug_channel ()));
 			JNull
@@ -533,7 +537,7 @@ let handler =
 		);
 		"stackTrace",(fun hctx ->
 			let eval = select_thread hctx in
-			let env = Option.get eval.env in
+			let env = expect_env hctx eval.env in
 			output_call_stack hctx.ctx eval env.env_debug.expr.epos
 		);
 		"getScopes",(fun hctx ->
@@ -675,7 +679,7 @@ let handler =
 			JNull
 		);
 		"evaluate",(fun hctx ->
-			let env = try select_frame hctx with _ -> Option.get hctx.ctx.eval.env in
+			let env = try select_frame hctx with _ -> expect_env hctx hctx.ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
 				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
@@ -689,7 +693,7 @@ let handler =
 			end
 		);
 		"getCompletion",(fun hctx ->
-			let env = Option.get hctx.ctx.eval.env in
+			let env = expect_env hctx hctx.ctx.eval.env in
 			let text = hctx.jsonrpc#get_string_param "text" in
 			let column = hctx.jsonrpc#get_int_param "column" in
 			try
