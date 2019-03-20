@@ -19,14 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
+#if doc_gen
+@:coreApi extern class Deque<T> {
+	public function new():Void;
+	public function add(i:T):Void;
+	public function push(i:T):Void;
+	public function pop(block:Bool):Null<T>;
+}
+#else
 
 /**
 	A message queue for multithread access.
-*/
-@:hlNative("std","deque_")
+ */
+@:hlNative("std", "deque_")
 abstract Deque<T>(hl.Abstract<"hl_deque">) {
-
 	/**
 		Create a message queue for multithread access.
 	**/
@@ -37,22 +46,23 @@ abstract Deque<T>(hl.Abstract<"hl_deque">) {
 	/**
 		Add a message at the end of the queue.
 	**/
-	public function add( i : T ) {
-	}
+	public function add(i:T) {}
 
 	/**
 		Add a message at the head of the queue.
 	**/
-	public function push( i : T ) {
-	}
+	public function push(i:T) {}
 
 	/**
 		Pop a message from the queue head. Either block until a message
 		is available or return immediately with `null`.
 	**/
-	public function pop( block : Bool ) : Null<T> {
+	public function pop(block:Bool):Null<T> {
 		return null;
 	}
 
-	static function alloc() { return null; }
+	static function alloc() {
+		return null;
+	}
 }
+#end

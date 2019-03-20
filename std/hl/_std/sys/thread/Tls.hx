@@ -19,16 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
+
+#if doc_gen
+@:coreApi
+extern class Tls<T> {
+	public var value(get, set):T;
+	public function new():Void;
+}
+#else
 
 /**
 	Creates thread local storage.
 	Warning : ATM Tls does not protect the value from being GC'ed. Keep the value reachable to avoid crashes.
-*/
+ */
 @:hlNative("std")
 abstract Tls<T>(hl.Abstract<"hl_tls">) {
-
-	public var value(get,set) : T;
+	public var value(get, set):T;
 
 	/**
 		Creates thread local storage. This is placeholder that can store
@@ -43,19 +51,24 @@ abstract Tls<T>(hl.Abstract<"hl_tls">) {
 	/**
 		Returns the value set by tls_set for the local thread.
 	**/
-	function get_value() : T {
+	function get_value():T {
 		return tls_get(this);
 	}
 
 	/**
 		Set the value of the TLS for the local thread.
 	**/
-	function set_value( v : T ) {
+	function set_value(v:T) {
 		tls_set(this, v);
 		return v;
 	}
 
-	static function tls_alloc( gcValue : Bool ) return null;
-	static function tls_get(t) : Dynamic return null;
-	static function tls_set(t,v:Dynamic) {}
+	static function tls_alloc(gcValue:Bool)
+		return null;
+
+	static function tls_get(t):Dynamic
+		return null;
+
+	static function tls_set(t, v:Dynamic) {}
 }
+#end

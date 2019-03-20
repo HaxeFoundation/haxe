@@ -19,50 +19,60 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.thread;
 
+#if doc_gen
+@:coreApi
+extern class Thread {
+	public function sendMessage(msg:Dynamic):Void;
+	public static function current():Thread;
+	public static function create(callb:Void->Void):Thread;
+	public static function readMessage(block:Bool):Dynamic;
+}
+#else
 typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
 abstract Thread(ThreadHandle) {
-
-	public function sendMessage( msg : Dynamic ) {
+	public function sendMessage(msg:Dynamic) {
 		getQueue(this).add(msg);
 	}
 
-	public static function readMessage( block = true ) : Dynamic {
+	public static function readMessage(block = true):Dynamic {
 		return getQueue(cast current()).pop(block);
 	}
 
-	static var queue_mutex : Mutex = null;
-	static var threads_queues : Array<{ t : ThreadHandle, q : Deque<Dynamic> }> = null;
-	static function getQueue( t : ThreadHandle ) {
-		if( queue_mutex == null ) {
+	static var queue_mutex:Mutex = null;
+	static var threads_queues:Array<{t:ThreadHandle, q:Deque<Dynamic>}> = null;
+
+	static function getQueue(t:ThreadHandle) {
+		if (queue_mutex == null) {
 			queue_mutex = new Mutex();
 			threads_queues = [];
 		}
 		queue_mutex.acquire();
 		var q = null;
-		for( tq in threads_queues )
-			if( tq.t == t ) {
+		for (tq in threads_queues)
+			if (tq.t == t) {
 				q = tq.q;
 				break;
 			}
-		if( q == null ) {
+		if (q == null) {
 			q = new Deque<Dynamic>();
-			threads_queues.push({ t : t, q : q });
+			threads_queues.push({t: t, q: q});
 		}
 		queue_mutex.release();
 		return q;
 	}
 
-	@:hlNative("std","thread_create")
-	public static function create( callb : Void -> Void ) : Thread {
+	@:hlNative("std", "thread_create")
+	public static function create(callb:Void->Void):Thread {
 		return null;
 	}
 
-	@:hlNative("std","thread_current")
-	public static function current() : Thread {
+	@:hlNative("std", "thread_current")
+	public static function current():Thread {
 		return null;
 	}
-
 }
+#end
