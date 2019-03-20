@@ -291,6 +291,25 @@ let output_inner_vars v env =
 	let vars = List.map (fun (n,v) -> var_to_json n v None env) children in
 	JArray vars
 
+let handle_in_temp_thread ctx env f =
+	let channel = Event.new_channel () in
+	let _ = EvalThread.spawn ctx (fun () ->
+		let eval = get_eval ctx in
+		eval.env <- Some env;
+		let v = try
+			f()
+		with
+		| RunTimeException(v,stack,p) ->
+			prerr_endline (EvalExceptions.get_exc_error_message ctx v stack p);
+			vnull
+		| exc ->
+			prerr_endline (Printexc.to_string exc);
+			vnull
+		in
+		Event.poll (Event.send channel v)
+	) in
+	Event.sync (Event.receive channel)
+
 module ValueCompletion = struct
 	let prototype_instance_fields proto =
 		let rec loop acc proto =
@@ -426,11 +445,11 @@ module ValueCompletion = struct
 			save();
 			let rec loop e = match fst e with
 			| EDisplay(e1,DKDot) ->
-				let v = expr_to_value ctx env e1 in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e1) in
 				let json = output_completion ctx column v in
 				raise (JsonException json)
 			| EArray(e1,(EDisplay((EConst (Ident "null"),_),DKMarked),_)) ->
-				let v = expr_to_value ctx env e1 in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e1) in
 				begin match v with
 				| VArray va ->
 					let l = EvalArray.to_list va in
@@ -679,11 +698,12 @@ let handler =
 			JNull
 		);
 		"evaluate",(fun hctx ->
-			let env = try select_frame hctx with _ -> expect_env hctx hctx.ctx.eval.env in
+			let ctx = hctx.ctx in
+			let env = try select_frame hctx with _ -> expect_env hctx ctx.eval.env in
 			let s = hctx.jsonrpc#get_string_param "expr" in
 			begin try
-				let e = parse_expr hctx.ctx s env.env_debug.expr.epos in
-				let v = expr_to_value hctx.ctx env e in
+				let e = parse_expr ctx s env.env_debug.expr.epos in
+				let v = handle_in_temp_thread ctx env (fun () -> expr_to_value ctx env e) in
 				var_to_json "" v None env
 			with
 			| Parse_expr_error e ->
