@@ -99,20 +99,12 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let eval = {
-		env = None;
-		thread = {
-			tthread = Thread.self();
-			tstorage = IntMap.empty;
-			tdeque = EvalStdLib.Deque.create();
-		};
-		debug_channel = Event.new_channel ();
-		debug_state = DbgRunning;
-		breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
-		caught_types = Hashtbl.create 0;
-		last_return = None;
-		caught_exception = vnull;
+	let thread = {
+		tthread = Thread.self();
+		tstorage = IntMap.empty;
+		tdeque = EvalThread.Deque.create();
 	} in
+	let eval = EvalThread.create_eval thread in
 	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
 		ctx_id = !sid;
