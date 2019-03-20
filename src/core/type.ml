@@ -1905,6 +1905,7 @@ let rec type_eq param a b =
 				try
 					let f2 = PMap.find n a2.a_fields in
 					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+					if has_class_field_flag f1 CfFinal <> has_class_field_flag f2 CfFinal then raise (Unify_error [FinalInvariance]);
 					let a = f1.cf_type and b = f2.cf_type in
 					(try type_eq param a b with Unify_error l -> error (invalid_field n :: l));
 					if (has_class_field_flag f1 CfPublic) != (has_class_field_flag f2 CfPublic) then error [invalid_visibility n];

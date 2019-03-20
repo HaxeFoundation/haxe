@@ -85,7 +85,7 @@ class TestFieldVariance extends Test {
 		// anon to final anon
 
 		t(typeError(finalField = publicField));
-		finalField = neverField;
+		t(typeError(finalField = neverField));
 		t(typeError(finalField = nullField));
 
 		// anon to never anon
