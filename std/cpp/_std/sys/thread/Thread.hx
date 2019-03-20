@@ -22,7 +22,9 @@
 
 package sys.thread;
 
-private typedef ThreadHandle = Dynamic;
+@:callable
+@:coreType
+private abstract ThreadHandle {}
 
 @:coreApi
 class Thread {
