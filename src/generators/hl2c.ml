@@ -196,6 +196,7 @@ let hash ctx sid =
 		in
 		let h = loop (hl_hash ctx.hlcode.strings.(sid)) in
 		Hashtbl.add ctx.hash_cache sid h;
+		Hashtbl.add ctx.hash_mem h true;
 		ctx.hash_cache_list <- sid :: ctx.hash_cache_list;
 		h
 
