@@ -35,14 +35,13 @@ dist: trusty
 install_linux: &install_linux
   # Install dependencies
   - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
-  - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:haxe/ocaml'. Please check that the PPA name or format is correct."
-  - sudo add-apt-repository ppa:haxe/ocaml -y
+  - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:...'. Please check that the PPA name or format is correct."
+  - sudo add-apt-repository ppa:avsm/ppa -y # provides newer version of OCaml and OPAM
   - sudo apt-get update -y
   - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
-      ocaml
-      ocaml-native-compilers
-      ocaml-findlib
-      aspcud
+      ocaml-nox
+      camlp4-extra
+      opam
       libpcre3-dev
       zlib1g-dev
       libgtk2.0-dev
@@ -81,7 +80,7 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # ocaml dependencies
-  - wget -nv https://raw.githubusercontent.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - opam init
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
