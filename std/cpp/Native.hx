@@ -76,7 +76,16 @@ extern class Native
          nativeFree(cast ptr);
    }
 
+   @:native("hx::StarOf")
+   public static function addressOf<T>(inVariable:Reference<T>) : Star<T>;
+
    #else
+
+   public static inline function addressOf<T>(inVariable:Reference<T>) : Star<T>
+   {
+      throw "Native.addressOf not available in cppia";
+   }
+
    public static inline function set<T>(ptr:cpp.Star<T>,value:T) : Void
    {
       throw "Native.set not available in cppia";

@@ -2663,7 +2663,13 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
-                    CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
+                    let rawType = match arg.cpptype with | TCppReference(x) -> x | x -> x in
+                    CppAddressOf(arg), TCppRawPointer("", rawType)
+
+               | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::StarOf" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    let rawType = match arg.cpptype with | TCppReference(x) -> x | x -> x in
+                    CppAddressOf(arg), TCppStar(rawType,false)
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "_hx_create_array_length" ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -3201,8 +3207,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
 
          | TCppStar(t,const), TCppInst _
-         | TCppStar(t,const), TCppStruct _
-         | TCppStar(t,const), TCppReference _ ->
+         | TCppStar(t,const), TCppStruct _ ->
              mk_cppexpr (CppDereference(cppExpr)) return_type
 
          | TCppInst _, TCppStar(p,const)
