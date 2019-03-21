@@ -96,15 +96,16 @@ let var_to_json name value vio env =
 		| VVector vv -> jv "Vector" (array_elems (Array.to_list vv)) (Array.length vv)
 		| VInstance vi ->
 			let class_name () = EvalDebugMisc.safe_call env.env_eval EvalPrinting.value_string v in
-            let num_children,class_name = match vi.ikind with
-            | IMutex _ -> 1,class_name()
-            | IThread _ -> 1,class_name()
-            | IBytes bytes ->
+			let num_children,class_name = match vi.ikind with
+			| IMutex _ -> 1,class_name()
+			| IThread _ -> 1,class_name()
+			| IBytes bytes ->
 				let max = 40 in
 				let s = Bytes.to_string bytes in
-				List.length (instance_fields vi),String.sub s 0 max ^ (if String.length s > max then "..." else "")
-            | _ -> List.length (instance_fields vi),class_name()
-            in
+				let s = (try String.sub s 0 max ^ "..." with Invalid_argument _ -> s) in
+				List.length (instance_fields vi),s
+			| _ -> List.length (instance_fields vi),class_name()
+			in
 			let num_children = match vi.ikind with
 			| IMutex _ -> 1
 			| IThread _ -> 1
