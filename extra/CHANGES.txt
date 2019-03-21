@@ -26,6 +26,9 @@
 	Standard Library:
 
 	all : unified various Thread APIs in sys.thread (#7999)
+	all : moved typed arrays from `js.html` to `js.lib` (#7894)
+	all : added `iterator()` to `haxe.DynamicAccess` (#7892)
+	all : added `keyValueIterator()` to `haxe.DynamicAccess` (#7769)
 	eval : completed Thread API
 
 	Bugfixes:
@@ -38,8 +41,9 @@
 	all : fixed Constructible not checking constraints properly (#6714)
 	all : fixed @:structInit not being compatible with `final` fields (#7182)
 	all : fixed capture variables being allowed in `.match` (#7921)
-	all : fixed bad stack handling on `Map` constraint checks (#7781)
 	all : fixed infinite recursion on `@:generic` field access (#6430)
+	all : fixed `-D no-deprecation-warnings` for typedefs and enums
+	js : fixed bad stack handling on `Map` constraint checks (#7781)
 	js : fixed DCE issues related to haxe.CallStack (#7908)
 	cpp : fixed Socket flags not being preserved (#7989)
 	lua : fixed broken output when compiling through the compilation server (#7851)
