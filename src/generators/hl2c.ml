@@ -51,6 +51,8 @@ type context = {
 	out : Buffer.t;
 	mutable tabs : string;
 	hash_cache : (int, int32) Hashtbl.t;
+	hash_mem : (int32, bool) Hashtbl.t;
+	mutable hash_cache_list : int list;
 	hlcode : code;
 	dir : string;
 	mutable curfile : string;
@@ -189,8 +191,12 @@ let hash ctx sid =
 	try
 		Hashtbl.find ctx.hash_cache sid
 	with Not_found ->
-		let h = hl_hash ctx.hlcode.strings.(sid) in
+		let rec loop h =
+			if Hashtbl.mem ctx.hash_mem h then loop (Int32.add h Int32.one) else h
+		in
+		let h = loop (hl_hash ctx.hlcode.strings.(sid)) in
 		Hashtbl.add ctx.hash_cache sid h;
+		ctx.hash_cache_list <- sid :: ctx.hash_cache_list;
 		h
 
 let type_value ctx t =
@@ -989,6 +995,8 @@ let write_c com file (code:code) =
 		tabs = "";
 		hlcode = code;
 		hash_cache = Hashtbl.create 0;
+		hash_mem = Hashtbl.create 0;
+		hash_cache_list = [];
 		dir = (match Filename.dirname file with "" -> "." | dir -> String.concat "/" (ExtString.String.nsplit dir "\\"));
 		curfile = "";
 		cfiles = [];
@@ -1427,7 +1435,7 @@ let write_c com file (code:code) =
 	line "";
 	line "void hl_init_hashes() {";
 	block ctx;
-	Hashtbl.iter (fun i _ -> sexpr "hl_hash((vbyte*)%s)" (string ctx i)) ctx.hash_cache;
+	List.iter (fun i -> sexpr "hl_hash((vbyte*)%s)" (string ctx i)) (List.rev ctx.hash_cache_list);
 	unblock ctx;
 	line "}";
 
