@@ -406,6 +406,18 @@ class StringTools {
 	}
 
 	/**
+		Replace all occurrences of the String `sub` in the String `s` by the
+		empty String `""`.
+
+		If `sub` is the empty String `""`,  `s` remains unchanged.
+
+		If `sub` is null, the result is unspecified.
+	**/
+	public static inline function remove( s : String, sub : String ) : String {
+		return StringTools.replace(s, sub, "");
+	}
+
+	/**
 		Encodes `n` into a hexadecimal representation.
 
 		If `digits` is specified, the resulting String is padded with "0" until

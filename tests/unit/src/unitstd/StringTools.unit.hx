@@ -95,6 +95,10 @@ StringTools.replace(s, "x", "") == "foofoobarbar";
 StringTools.replace(s, "", "") == "xfooxfooxxbarxbarxx";
 StringTools.replace(s, "", "x") == "xxfxoxoxxxfxoxoxxxxxbxaxrxxxbxaxrxxxx";
 
+// remove
+StringTools.remove(s, "x") == "foofoobarbar";
+StringTools.remove(s, "") == "xfooxfooxxbarxbarxx";
+
 // hex
 StringTools.hex(0, 0) == "0";
 StringTools.hex(0, 1) == "0";
