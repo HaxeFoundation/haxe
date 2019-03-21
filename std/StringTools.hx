@@ -414,7 +414,7 @@ class StringTools {
 		If `sub` is null, the result is unspecified.
 	**/
 	public static inline function remove( s : String, sub : String ) : String {
-		return StringTools.replace(s, sub, "");
+		return replace(s, sub, "");
 	}
 
 	/**

@@ -100,6 +100,10 @@ import php.*;
 		return Global.str_replace(sub, by, s);
 	}
 
+	public static inline function remove( s : String, sub : String ) : String {
+		return replace(s, sub, "");
+	}
+
 	public static function hex( n : Int, ?digits : Int ) : String {
 		var s = Global.dechex(n);
 		var len = 8;
