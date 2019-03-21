@@ -3336,8 +3336,8 @@ class class_builder ctx (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			if self#is_final then writer#write "final ";
 			self#write_doc (DocClass cls.cl_doc);
+			if self#is_final then writer#write "final ";
 			writer#write (if cls.cl_interface then "interface " else "class ");
 			writer#write self#get_name;
 			(
