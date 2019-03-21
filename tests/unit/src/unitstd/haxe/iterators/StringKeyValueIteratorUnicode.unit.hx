@@ -18,4 +18,7 @@ var r = traverse("aa😂éé");
 r.k == [0, 1, 2, 3, 4];
 r.v == ["a".code, "a".code, "😂".code, "é".code, "é".code];
 
+#else
+1 == 1;
+
 #end
