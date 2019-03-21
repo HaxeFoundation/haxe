@@ -74,7 +74,6 @@ class TestMain {
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
-			new TestSpecification(),
 			#if cs
 			new TestCSharp(),
 			#end
@@ -109,6 +108,9 @@ class TestMain {
 			//new TestRemoting(),
 		];
 
+		for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
+			classes.push(specClass);
+		}
 		TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 		TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 

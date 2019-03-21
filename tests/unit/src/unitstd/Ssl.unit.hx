@@ -102,4 +102,6 @@ cert.issuer("O") == "Test Dev CA";
 var cert2 = cert.next();
 cert2.commonName == "localhost";
 
+#else
+1 == 1;
 #end
