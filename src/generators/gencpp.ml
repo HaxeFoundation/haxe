@@ -2671,6 +2671,10 @@ let retype_expression ctx request_type function_args function_type expression_tr
                     let rawType = match arg.cpptype with | TCppReference(x) -> x | x -> x in
                     CppAddressOf(arg), TCppStar(rawType,false)
 
+               | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::Dereference" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    CppDereference(arg), arg.cpptype
+
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "_hx_create_array_length" ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
                   (* gc_stack - not needed yet *)
