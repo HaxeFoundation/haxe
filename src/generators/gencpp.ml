@@ -387,7 +387,7 @@ let keyword_remap name =
    | "_Complex" | "INFINITY" | "NAN"
    | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
-   | "asm" | "near" | "far"
+   | "asm" | "near" | "far" | "_w64"
    | "HX_" | "HXLINE" | "HXDLIN"
    | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
