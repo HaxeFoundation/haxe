@@ -61,7 +61,7 @@ let rec s_object depth o =
 	) fields;
 	Buffer.add_string buf "}";
 	let s = Buffer.contents buf in
-	create_with_length s (UTF8.length s)
+	create_with_length s (try UTF8.length s with _ -> String.length s)
 
 and s_array depth va =
 	join rempty [
