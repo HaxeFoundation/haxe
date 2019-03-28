@@ -1310,30 +1310,31 @@ let write_c com file (code:code) =
 
 	line "";
 	line "// Types values data";
-	Array.iteri (fun i t ->
+	Array.iter (fun t ->
 		let field_value (_,name_id,t) =
 			sprintf "{(const uchar*)%s, %s, %ld}" (string ctx name_id) (type_value ctx t) (hash ctx name_id)
 		in
 		match t with
 		| HObj o ->
+			let name = type_name ctx t in
 			let proto_value p =
 				sprintf "{(const uchar*)%s, %d, %d, %ld}" (string ctx p.fid) p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash ctx p.fid)
 			in
 			let fields =
 				if Array.length o.pfields = 0 then "NULL" else
-				let name = sprintf "fields$%d" i in
+				let name = sprintf "fields%s" name in
 				sexpr "static hl_obj_field %s[] = {%s}" name (String.concat "," (List.map field_value (Array.to_list o.pfields)));
 				name
 			in
 			let proto =
 				if Array.length o.pproto = 0 then "NULL" else
-				let name = sprintf "proto$%d" i in
+				let name = sprintf "proto%s" name in
 				sexpr "static hl_obj_proto %s[] = {%s}" name (String.concat "," (List.map proto_value (Array.to_list o.pproto)));
 				name
 			in
 			let bindings =
 				if o.pbindings = [] then "NULL" else
-				let name = sprintf "bindings$%d" i in
+				let name = sprintf "bindings%s" name in
 				sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun (fid,fidx) -> string_of_int fid ^ "," ^ string_of_int fidx) o.pbindings));
 				name
 			in
@@ -1347,17 +1348,18 @@ let write_c com file (code:code) =
 				proto;
 				bindings
 			] in
-			sexpr "static hl_type_obj obj$%d = {%s}" i (String.concat "," ofields);
+			sexpr "static hl_type_obj obj%s = {%s}" name (String.concat "," ofields);
 		| HEnum e ->
+			let ename = type_name ctx t in
 			let constr_value cid (name,nid,tl) =
 				let tval = if Array.length tl = 0 then "NULL" else
-					let name = sprintf "econstruct$%d_%d" i cid in
+					let name = sprintf "econstruct%s_%d" ename cid in
 					sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map (type_value ctx) (Array.to_list tl)));
 					name
 				in
 				let size = if Array.length tl = 0 then "0" else sprintf "sizeof(%s)" (enum_constr_type ctx e cid) in
 				let offsets = if Array.length tl = 0 then "NULL" else
-					let name = sprintf "eoffsets$%d_%d" i cid in
+					let name = sprintf "eoffsets%s_%d" ename cid in
 					sexpr "static int %s[] = {%s}" name (String.concat "," (List.map (fun _ -> "0") (Array.to_list tl)));
 					name
 				in
@@ -1365,7 +1367,7 @@ let write_c com file (code:code) =
 				sprintf "{(const uchar*)%s, %d, %s, %s, %s, %s}" (string ctx nid) (Array.length tl) tval size (if has_ptr then "true" else "false") offsets
 			in
 			let constr_name = if Array.length e.efields = 0 then "NULL" else begin
-				let name = sprintf "econstructs$%d" i in
+				let name = sprintf "econstruct%s" ename in
 				sexpr "static hl_enum_construct %s[] = {%s}" name (String.concat "," (Array.to_list (Array.mapi constr_value e.efields)));
 				name;
 			end in
@@ -1374,11 +1376,12 @@ let write_c com file (code:code) =
 				string_of_int (Array.length e.efields);
 				constr_name
 			] in
-			sexpr "static hl_type_enum enum$%d = {%s}" i (String.concat "," efields);
+			sexpr "static hl_type_enum enum%s = {%s}" ename (String.concat "," efields);
 		| HVirtual v ->
+			let vname = type_name ctx t in
 			let fields_name =
 				if Array.length v.vfields = 0 then "NULL" else
-				let name = sprintf "vfields$%d" i in
+				let name = sprintf "vfields%s" vname in
 				sexpr "static hl_obj_field %s[] = {%s}" name (String.concat "," (List.map field_value (Array.to_list v.vfields)));
 				name
 			in
@@ -1386,14 +1389,15 @@ let write_c com file (code:code) =
 				fields_name;
 				string_of_int (Array.length v.vfields)
 			] in
-			sexpr "static hl_type_virtual virt$%d = {%s}" i (String.concat "," vfields);
-		| HFun (args,t) | HMethod(args,t) ->
+			sexpr "static hl_type_virtual virt%s = {%s}" vname (String.concat "," vfields);
+		| HFun (args,ret) | HMethod(args,ret) ->
+			let fname = type_name ctx t in
 			let aname = if args = [] then "NULL" else
-				let name = sprintf "fargs$%d" i in
+				let name = sprintf "fargs%s" fname in
 				sexpr "static hl_type *%s[] = {%s}" name (String.concat "," (List.map (type_value ctx) args));
 				name
 			in
-			sexpr "static hl_type_fun tfun$%d = {%s,%s,%d}" i aname (type_value ctx t) (List.length args)
+			sexpr "static hl_type_fun tfun%s = {%s,%s,%d}" fname aname (type_value ctx ret) (List.length args)
 		| _ ->
 			()
 	) all_types;
@@ -1401,26 +1405,27 @@ let write_c com file (code:code) =
 	line "";
 	line "void hl_init_types( hl_module_context *ctx ) {";
 	block ctx;
-	Array.iteri (fun i t ->
+	Array.iter (fun t ->
 		match t with
 		| HObj o ->
-			sexpr "obj$%d.m = ctx" i;
-			(match o.pclassglobal with None -> () | Some g -> sexpr "obj$%d.global_value = (void**)&global$%d" i g);
-			sexpr "%s.obj = &obj$%d" (type_name ctx t) i
+			let name = type_name ctx t in
+			sexpr "obj%s.m = ctx" name;
+			(match o.pclassglobal with None -> () | Some g -> sexpr "obj%s.global_value = (void**)&global$%d" name g);
+			sexpr "%s.obj = &obj%s" name name
 		| HNull r | HRef r ->
 			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
 			let name = type_name ctx t in
-			sexpr "%s.tenum = &enum$%d" name i;
-			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
+			sexpr "%s.tenum = &enum%s" name name;
+			(match e.eglobal with None -> () | Some g -> sexpr "enum%s.global_value = (void**)&global$%d" name g);
 			sexpr "hl_init_enum(&%s,ctx)" name;
 		| HVirtual _ ->
 			let name = type_name ctx t in
-			sexpr "%s.virt = &virt$%d" name i;
+			sexpr "%s.virt = &virt%s" name name;
 			sexpr "hl_init_virtual(&%s,ctx)" name;
 		| HFun _ | HMethod _ ->
 			let name = type_name ctx t in
-			sexpr "%s.fun = &tfun$%d" name i
+			sexpr "%s.fun = &tfun%s" name name
 		| _ ->
 			()
 	) all_types;
