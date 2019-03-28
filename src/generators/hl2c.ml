@@ -59,6 +59,7 @@ type context = {
 	mutable cfiles : string list;
 	ftable : function_entry array;
 	htypes : (ttype, string) PMap.t;
+	gnames : string array;
 }
 
 let sprintf = Printf.sprintf
@@ -269,12 +270,15 @@ let open_file ctx file =
 
 let string_data_limit = 64
 
+let short_digest str =
+	String.sub (Digest.to_hex (Digest.string str)) 0 7
+
 let string ctx sid =
 	let s = ctx.hlcode.strings.(sid) in
 	if String.length s < string_data_limit then
 		sprintf "USTR(\"%s\")" (StringHelper.s_escape s)
 	else
-		sprintf "string$%d" sid
+		sprintf "string$%s" (short_digest s)
 
 let generate_reflection ctx =
 	let line = line ctx and expr = expr ctx in
@@ -796,9 +800,9 @@ let generate_function ctx f =
 			| _ ->
 				todo())
 		| OGetGlobal (r,g) ->
-			sexpr "%s = (%s)global$%d" (reg r) (ctype (rtype r)) g
+			sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) ctx.gnames.(g)
 		| OSetGlobal (g,r) ->
-			sexpr "global$%d = (%s)%s" g (ctype code.globals.(g)) (reg r)
+			sexpr "%s = (%s)%s" ctx.gnames.(g) (ctype code.globals.(g)) (reg r)
 		| ORet r ->
 			if rtype r = HVoid then expr "return" else sexpr "return %s" (rcast r fret)
 		| OJTrue (r,d) | OJNotNull (r,d) ->
@@ -995,6 +999,10 @@ type type_desc =
 	| DVirtual of (string * type_desc) array
 	| DContext of type_desc array
 
+let valid_ident =
+	let e = Str.regexp "[^A-Za-z0-9_]+" in
+	(fun str -> Str.global_replace e "_" str)
+
 let make_types_idents htypes =
 	let types_descs = ref PMap.empty in
 	let rec make_desc t =
@@ -1046,11 +1054,40 @@ let make_types_idents htypes =
 	in
 	PMap.mapi (fun t _ -> desc_string (make_desc t)) htypes
 
+let make_global_names code gnames =
+	let hstrings = Hashtbl.create 0 in
+	let is_cstr = Hashtbl.create 0 in
+	Array.iter (fun (g,vl) ->
+		match code.globals.(g) with
+		| HObj { pname = "String" } ->
+			let str = code.strings.(vl.(0)) in
+			let v = valid_ident str in
+			Hashtbl.replace hstrings v (Hashtbl.mem hstrings v);
+			Hashtbl.add is_cstr g ();
+			gnames.(g) <- str
+		| _ -> ()
+	) code.constants;
+	let gids = Array.mapi (fun i n -> (n,i)) gnames in
+	Array.sort (fun (n1,g1) (n2,g2) -> let d = compare n1 n2 in if d = 0 then compare g1 g2 else d) gids;
+	let gnames_used = Hashtbl.create 0 in
+	let gnames = Hashtbl.create 0 in
+	Array.iter (fun (str,g) ->
+		let id = (if Hashtbl.mem is_cstr g then "$s_" else "$g_") ^ (if String.length str > 32 then short_digest str else let i = valid_ident str in if i = "_" || (try Hashtbl.find hstrings i with Not_found -> false) then short_digest str else i) in
+		let rec loop id k =
+			let rid = if k = 0 then id else id ^ "_" ^ string_of_int k in
+			if Hashtbl.mem gnames_used rid then loop id (k+1) else rid
+		in
+		let id = loop id 0 in
+		Hashtbl.add gnames_used id ();
+		Hashtbl.add gnames g id;
+	) gids;
+	Array.init (Array.length code.globals) (fun i -> Hashtbl.find gnames i)
 
-let write_c com file (code:code) =
+let write_c com file (code:code) gnames =
 
 	let all_types, htypes = gather_types code in
 	let types_ids = make_types_idents htypes in
+	let gnames = make_global_names code gnames in
 
 	let ctx = {
 		version = com.Common.version;
@@ -1065,6 +1102,7 @@ let write_c com file (code:code) =
 		cfiles = [];
 		ftable = Array.init (Array.length code.functions + Array.length code.natives) (fun _ -> { fe_args = []; fe_ret = HVoid; fe_name = ""; fe_decl = None; });
 		htypes = types_ids;
+		gnames = gnames;
 	} in
 
 	let line = line ctx and expr = expr ctx in
@@ -1202,13 +1240,13 @@ let write_c com file (code:code) =
 	open_file ctx "hl/globals.h";
 	line "// Globals";
 	Array.iteri (fun i t ->
-		let name = "global$" ^ string_of_int i in
+		let name = gnames.(i) in
 		sexpr "extern %s" (var_type name t)
 	) code.globals;
 
 	Array.iteri (fun i str ->
 		if String.length str >= string_data_limit then
-			sexpr "extern vbyte string$%d[]" i
+			sexpr "extern vbyte string$%s[]" (short_digest str)
 	) code.strings;
 	Array.iteri (fun i _ -> sexpr "extern vbyte bytes$%d[]" i) code.bytes;
 
@@ -1220,12 +1258,12 @@ let write_c com file (code:code) =
 	line "#include <hl/code.h>";
 	line "// Globals";
 	Array.iteri (fun i t ->
-		let name = "global$" ^ string_of_int i in
+		let name = gnames.(i) in
 		sexpr "%s = 0" (var_type name t)
 	) code.globals;
 	Array.iter (fun (g,fields) ->
 		let t = code.globals.(g) in
-		let name = "constant$" ^ string_of_int g in
+		let name = "const_" ^ gnames.(g) in
 		let field_value t idx =
 			match t with
 			| HI32 ->
@@ -1248,11 +1286,11 @@ let write_c com file (code:code) =
 	block ctx;
 	let is_const = Hashtbl.create 0 in
 	Array.iter (fun (g,fields) ->
-		sexpr "global$%d = &constant$%d" g g;
+		sexpr "%s = &const_%s" gnames.(g) gnames.(g);
 		Hashtbl.add is_const g true;
 	) code.constants;
 	Array.iteri (fun i t ->
-		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&global$%d)" i;
+		if is_ptr t && not (Hashtbl.mem is_const i) then sexpr "hl_add_root((void**)&%s)" gnames.(i);
 	) code.globals;
 	unblock ctx;
 	line "}";
@@ -1268,7 +1306,7 @@ let write_c com file (code:code) =
 		if String.length str >= string_data_limit then begin
 			let s = Common.utf8_to_utf16 str true in
 			sline "// %s..." (String.escaped (String.sub str 0 (string_data_limit-4)));
-			output ctx (Printf.sprintf "vbyte string$%d[] = {" i);
+			output ctx (Printf.sprintf "vbyte string$%s[] = {" (short_digest str));
 			output_bytes (output ctx) s;
 			sexpr "}";
 		end
@@ -1410,14 +1448,14 @@ let write_c com file (code:code) =
 		| HObj o ->
 			let name = type_name ctx t in
 			sexpr "obj%s.m = ctx" name;
-			(match o.pclassglobal with None -> () | Some g -> sexpr "obj%s.global_value = (void**)&global$%d" name g);
+			(match o.pclassglobal with None -> () | Some g -> sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "%s.obj = &obj%s" name name
 		| HNull r | HRef r ->
 			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
 			let name = type_name ctx t in
 			sexpr "%s.tenum = &enum%s" name name;
-			(match e.eglobal with None -> () | Some g -> sexpr "enum%s.global_value = (void**)&global$%d" name g);
+			(match e.eglobal with None -> () | Some g -> sexpr "enum%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "hl_init_enum(&%s,ctx)" name;
 		| HVirtual _ ->
 			let name = type_name ctx t in

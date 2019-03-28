@@ -4036,7 +4036,9 @@ let generate com =
 	in
 
 	if file_extension com.file = "c" then begin
-		Hl2c.write_c com com.file code;
+		let gnames = Array.create (Array.length code.globals) "" in
+		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
+		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
 		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
 		t();
