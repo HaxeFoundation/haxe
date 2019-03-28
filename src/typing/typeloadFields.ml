@@ -1007,7 +1007,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 			let t, ct = TypeloadFunction.type_function_arg ctx (type_opt (ctx,cctx) p t) ct opt p in
 			delay ctx PTypeField (fun() -> match follow t with
 				| TAbstract({a_path = ["haxe";"extern"],"Rest"},_) ->
-					if not c.cl_extern then error "Rest argument are only supported for extern methods" p;
+					if not fctx.is_extern && not c.cl_extern then error "Rest argument are only supported for extern methods" p;
 					if opt then error "Rest argument cannot be optional" p;
 					begin match ct with None -> () | Some (_,p) -> error "Rest argument cannot have default value" p end;
 					if args <> [] then error "Rest should only be used for the last function argument" p;
