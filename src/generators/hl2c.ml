@@ -60,6 +60,7 @@ type context = {
 	ftable : function_entry array;
 	htypes : (ttype, string) PMap.t;
 	gnames : string array;
+	bytes_names : string array;
 }
 
 let sprintf = Printf.sprintf
@@ -710,7 +711,7 @@ let generate_function ctx f =
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
-			sexpr "%s = bytes$%d" (reg r) idx
+			sexpr "%s = %s" (reg r) ctx.bytes_names.(idx)
 		| OString (r,idx) ->
 			sexpr "%s = (vbyte*)%s" (reg r) (string ctx idx)
 		| ONull r ->
@@ -1088,6 +1089,7 @@ let write_c com file (code:code) gnames =
 	let all_types, htypes = gather_types code in
 	let types_ids = make_types_idents htypes in
 	let gnames = make_global_names code gnames in
+	let bnames = Array.map (fun b -> "bytes$" ^ short_digest (Digest.to_hex (Digest.bytes b))) code.bytes in
 
 	let ctx = {
 		version = com.Common.version;
@@ -1103,6 +1105,7 @@ let write_c com file (code:code) gnames =
 		ftable = Array.init (Array.length code.functions + Array.length code.natives) (fun _ -> { fe_args = []; fe_ret = HVoid; fe_name = ""; fe_decl = None; });
 		htypes = types_ids;
 		gnames = gnames;
+		bytes_names = bnames;
 	} in
 
 	let line = line ctx and expr = expr ctx in
@@ -1248,7 +1251,7 @@ let write_c com file (code:code) gnames =
 		if String.length str >= string_data_limit then
 			sexpr "extern vbyte string$%s[]" (short_digest str)
 	) code.strings;
-	Array.iteri (fun i _ -> sexpr "extern vbyte bytes$%d[]" i) code.bytes;
+	Array.iter (fun n -> sexpr "extern vbyte %s[]" n) bnames;
 
 	Hashtbl.iter (fun fid _ -> sexpr "extern vclosure cl$%d" fid) used_closures;
 	line "";
@@ -1320,11 +1323,11 @@ let write_c com file (code:code) gnames =
 				output_bytes (output_string ch) (Bytes.to_string bytes);
 				close_out ch;
 			end;
-			sline "vbyte bytes$%d[] = {" i;
+			sline "vbyte %s[] = {" ctx.bytes_names.(i);
 			output ctx (Printf.sprintf "#%s  include \"%s\"\n" ctx.tabs bytes_file);
 			sexpr "}";
 		end else begin
-			output ctx (Printf.sprintf "vbyte bytes$%d[] = {" i);
+			output ctx (Printf.sprintf "vbyte %s[] = {" ctx.bytes_names.(i));
 			output_bytes (output ctx) (Bytes.to_string bytes);
 			sexpr "}";
 		end
