@@ -209,7 +209,7 @@ class StringTools {
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
 		#else
-		return( s.length >= start.length && s.substr(0, start.length) == start );
+		return( s.length >= start.length && s.lastIndexOf(start, 0) == 0 );
 		#end
 	}
 
@@ -243,7 +243,7 @@ class StringTools {
 		#else
 		var elen = end.length;
 		var slen = s.length;
-		return( slen >= elen && s.substr(slen - elen, elen) == end );
+		return( slen >= elen && s.indexOf(end, (slen - elen)) == (slen - elen) );
 		#end
 	}
 
