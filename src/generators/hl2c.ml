@@ -58,7 +58,7 @@ type context = {
 	mutable curfile : string;
 	mutable cfiles : string list;
 	ftable : function_entry array;
-	htypes : (ttype, int) PMap.t;
+	htypes : (ttype, string) PMap.t;
 }
 
 let sprintf = Printf.sprintf
@@ -200,9 +200,11 @@ let hash ctx sid =
 		ctx.hash_cache_list <- sid :: ctx.hash_cache_list;
 		h
 
+let type_name ctx t =
+	try PMap.find t ctx.htypes with Not_found -> assert false
+
 let type_value ctx t =
-	let index = (try PMap.find t ctx.htypes with Not_found -> assert false) in
-	"&type$" ^ string_of_int index
+	"&" ^ type_name ctx t
 
 let enum_constr_type ctx e i =
 	let cname,_, tl = e.efields.(i) in
@@ -210,8 +212,8 @@ let enum_constr_type ctx e i =
 		"venum"
 	else
 	let name = if e.eid = 0 then
-		let index = (try PMap.find (HEnum e) ctx.htypes with Not_found -> assert false) in
-		"Enum$" ^ string_of_int index
+		let name = (try PMap.find (HEnum e) ctx.htypes with Not_found -> assert false) in
+		"Enum" ^ name
 	else
 		String.concat "_" (ExtString.String.nsplit e.ename ".")
 	in
@@ -858,7 +860,7 @@ let generate_function ctx f =
 			sexpr "%s = (int)%s" (reg r) (reg v)
 		| ONew r ->
 			(match rtype r with
-			| HObj o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (tname o.pname ^ "__val")
+			| HObj o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (type_value (HObj o))
 			| HDynObj -> sexpr "%s = hl_alloc_dynobj()" (reg r)
 			| HVirtual _ as t -> sexpr "%s = hl_alloc_virtual(%s)" (reg r) (type_value t)
 			| _ -> assert false)
@@ -986,9 +988,69 @@ let generate_function ctx f =
 	line "}";
 	line ""
 
+type type_desc =
+	| DSimple of ttype
+	| DFun of type_desc list * type_desc * bool
+	| DNamed of string
+	| DVirtual of (string * type_desc) array
+	| DContext of type_desc array
+
+let make_types_idents htypes =
+	let types_descs = ref PMap.empty in
+	let rec make_desc t =
+		match t with
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HRef _ | HDynObj | HNull _ ->
+			DSimple t
+		| HFun (tl,t) ->
+			DFun (List.map make_desc tl, make_desc t, true)
+		| HMethod (tl, t) ->
+			DFun (List.map make_desc tl, make_desc t, false)
+		| HObj p ->
+			DNamed p.pname
+		| HAbstract (n,_) ->
+			DNamed n
+		| HEnum e when e.ename = "" ->
+			let _,_,tl = e.efields.(0) in
+			DContext (Array.map make_desc tl)
+		| HEnum e ->
+			DNamed e.ename
+		| HVirtual vp ->
+			try
+				PMap.find vp (!types_descs)
+			with Not_found ->
+				let arr = Array.create (Array.length vp.vfields) ("",DSimple HVoid) in
+				let td = DVirtual arr in
+				types_descs := PMap.add vp td (!types_descs);
+				Array.iteri (fun i (f,_,t) -> arr.(i) <- (f,make_desc t)) vp.vfields;
+				td
+	in
+	let make_sign d =
+		String.sub (Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32]))) 0 7
+	in
+	let desc_string d =
+		match d with
+		| DSimple (HNull t) ->
+			"$t_nul_" ^ tstr t
+		| DSimple (HRef t) ->
+			"$t_ref_" ^ tstr t
+		| DSimple t ->
+			"$t_" ^ tstr t
+		| DFun _ ->
+			"$t_fun_" ^ make_sign d
+		| DNamed n ->
+			"$t_" ^ (String.concat "_" (ExtString.String.nsplit n "."))
+		| DVirtual _ ->
+			"$t_vrt_" ^ (make_sign d)
+		| DContext _ ->
+			"$t_ctx_" ^ (make_sign d)
+	in
+	PMap.mapi (fun t _ -> desc_string (make_desc t)) htypes
+
+
 let write_c com file (code:code) =
 
 	let all_types, htypes = gather_types code in
+	let types_ids = make_types_idents htypes in
 
 	let ctx = {
 		version = com.Common.version;
@@ -1002,7 +1064,7 @@ let write_c com file (code:code) =
 		curfile = "";
 		cfiles = [];
 		ftable = Array.init (Array.length code.functions + Array.length code.natives) (fun _ -> { fe_args = []; fe_ret = HVoid; fe_name = ""; fe_decl = None; });
-		htypes = htypes;
+		htypes = types_ids;
 	} in
 
 	let line = line ctx and expr = expr ctx in
@@ -1090,13 +1152,8 @@ let write_c com file (code:code) =
 
 	open_file ctx "hl/types.h";
 	line "// Types values declaration";
-	Array.iteri (fun i t ->
-		sexpr "extern hl_type type$%d" i;
-		match t with
-		| HObj o ->
-			sline "#define %s__val &type$%d" (tname o.pname) i
-		| _ ->
-			()
+	Array.iter (fun t ->
+		sexpr "extern hl_type %s" (try PMap.find t ctx.htypes with Not_found -> assert false);
 	) all_types;
 	line "";
 	sexpr "void hl_init_types( hl_module_context *ctx )";
@@ -1244,7 +1301,11 @@ let write_c com file (code:code) =
 	line "#include <hl/code.h>";
 	line "// Types values";
 	Array.iteri (fun i t ->
-		sexpr "hl_type type$%d = { %s } /* %s */" i (type_id t) (tstr t);
+		match t with
+		| HMethod _ | HFun _ | HVirtual _ ->
+			sexpr "hl_type %s = { %s } /* %s */" (type_name ctx t) (type_id t) (tstr t);
+		| _ ->
+			sexpr "hl_type %s = { %s }" (type_name ctx t) (type_id t);
 	) all_types;
 
 	line "";
@@ -1281,7 +1342,7 @@ let write_c com file (code:code) =
 				string_of_int (Array.length o.pproto);
 				string_of_int (List.length o.pbindings);
 				sprintf "(const uchar*)%s" (string ctx o.pid);
-				(match o.psuper with None -> "NULL" | Some c -> sprintf "%s__val" (tname c.pname));
+				(match o.psuper with None -> "NULL" | Some c -> type_value ctx (HObj c));
 				fields;
 				proto;
 				bindings
@@ -1345,18 +1406,21 @@ let write_c com file (code:code) =
 		| HObj o ->
 			sexpr "obj$%d.m = ctx" i;
 			(match o.pclassglobal with None -> () | Some g -> sexpr "obj$%d.global_value = (void**)&global$%d" i g);
-			sexpr "type$%d.obj = &obj$%d" i i
-		| HNull t | HRef t ->
-			sexpr "type$%d.tparam = %s" i (type_value ctx t)
+			sexpr "%s.obj = &obj$%d" (type_name ctx t) i
+		| HNull r | HRef r ->
+			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
-			sexpr "type$%d.tenum = &enum$%d" i i;
+			let name = type_name ctx t in
+			sexpr "%s.tenum = &enum$%d" name i;
 			(match e.eglobal with None -> () | Some g -> sexpr "enum$%d.global_value = (void**)&global$%d" i g);
-			sexpr "hl_init_enum(&type$%d,ctx)" i;
+			sexpr "hl_init_enum(&%s,ctx)" name;
 		| HVirtual _ ->
-			sexpr "type$%d.virt = &virt$%d" i i;
-			sexpr "hl_init_virtual(&type$%d,ctx)" i;
+			let name = type_name ctx t in
+			sexpr "%s.virt = &virt$%d" name i;
+			sexpr "hl_init_virtual(&%s,ctx)" name;
 		| HFun _ | HMethod _ ->
-			sexpr "type$%d.fun = &tfun$%d" i i
+			let name = type_name ctx t in
+			sexpr "%s.fun = &tfun$%d" name i
 		| _ ->
 			()
 	) all_types;
