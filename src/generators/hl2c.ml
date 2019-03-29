@@ -71,9 +71,9 @@ type context = {
 	gnames : string array;
 	bytes_names : string array;
 	mutable defines : string list;
+	defined_funs : (int, unit) Hashtbl.t;
 	hdefines : (string, unit) Hashtbl.t;
 	mutable file_prefix : string;
-	mutable uid : int;
 	mutable fun_index : int;
 }
 
@@ -203,11 +203,6 @@ let block ctx =
 let unblock ctx =
 	ctx.tabs <- String.sub ctx.tabs 0 (String.length ctx.tabs - 1)
 
-let unique_id ctx =
-	let id = ctx.uid in
-	ctx.uid <- ctx.uid + 1;
-	ctx.file_prefix ^ string_of_int id
-
 let hash ctx sid =
 	try
 		Hashtbl.find ctx.hash_cache sid
@@ -278,6 +273,7 @@ let close_file ctx =
 	let str = (match defines with [] -> str | l -> String.concat "\n" l ^ "\n\n" ^ str) in
 	ctx.defines <- [];
 	Hashtbl.clear ctx.hdefines;
+	Hashtbl.clear ctx.defined_funs;
 	Buffer.reset ctx.out;
 	let fpath = ctx.dir ^ "/" ^ ctx.curfile in
 	if String.sub ctx.curfile (String.length ctx.curfile - 2) 2 = ".c" then ctx.cfiles <- ctx.curfile :: ctx.cfiles;
@@ -294,6 +290,14 @@ let bom = "\xEF\xBB\xBF"
 
 let define_global ctx g =
 	define ctx (sprintf "extern %s;" (var_type ctx.gnames.(g) ctx.hlcode.globals.(g)))
+
+let define_function ctx fid =
+	let ft = ctx.ftable.(fid) in
+	if ft.fe_decl <> None && not (Hashtbl.mem ctx.defined_funs fid) then begin
+		Hashtbl.add ctx.defined_funs fid ();
+		ctx.defines <- sprintf "%s %s(%s);" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args) :: ctx.defines;
+	end;
+	ft.fe_name
 
 let short_digest str =
 	String.sub (Digest.to_hex (Digest.string str)) 0 7
@@ -485,14 +489,16 @@ let generate_function ctx f =
 	let code = ctx.hlcode in
 
 	let rid = ref (-1) in
+	let cl_id = ref 0 in
 	let reg id = "r" ^ string_of_int id in
 
 	let label p = sprintf "label$%s%d_%d" ctx.file_prefix ctx.fun_index p in
 	ctx.fun_index <- ctx.fun_index + 1;
+	Hashtbl.add ctx.defined_funs f.findex ();
 
 	let rtype r = f.regs.(r) in
 
-	let funname fid = ctx.ftable.(fid).fe_name in
+	let funname fid = define_function ctx fid in
 
 	let rcast r t =
 		if tsame (rtype r) t then (reg r)
@@ -515,7 +521,7 @@ let generate_function ctx f =
 	let ocall r fid args =
 		let ft = ctx.ftable.(fid) in
 		let rstr = rassign r ft.fe_ret in
-		sexpr "%s%s(%s)" rstr ft.fe_name (String.concat "," (List.map2 rcast args ft.fe_args))
+		sexpr "%s%s(%s)" rstr (funname fid) (String.concat "," (List.map2 rcast args ft.fe_args))
 	in
 
 
@@ -643,12 +649,17 @@ let generate_function ctx f =
 			if !trap_depth > !max_trap_depth then max_trap_depth := !trap_depth
 		| OEndTrap true ->
 			decr trap_depth
+		| OStaticClosure (_, fid) ->
+			let ft = ctx.ftable.(fid) in
+			sexpr "static vclosure cl$%d = { %s, %s, 0 }" (!cl_id) (type_value (HFun (ft.fe_args,ft.fe_ret))) (funname fid);
+			incr cl_id;
 		| _ ->
 			()
 	) f.code;
 	for i = 0 to !max_trap_depth - 1 do
 		sexpr "hl_trap_ctx trap$%d" i;
 	done;
+	cl_id := 0;
 
 	let flush_options i =
 		match output_options.(i) with
@@ -830,10 +841,8 @@ let generate_function ctx f =
 			| _ ->
 				assert false)
 		| OStaticClosure (r,fid) ->
-			let ft = ctx.ftable.(fid) in
-			let uid = unique_id ctx in
-			define "static vclosure cl$%s = { %s, %s, 0 };" uid (type_value (HFun (ft.fe_args,ft.fe_ret))) ft.fe_name;
-			sexpr "%s = &cl$%s" (reg r) uid
+			sexpr "%s = &cl$%d" (reg r) (!cl_id);
+			incr cl_id
 		| OInstanceClosure (r,fid,ptr) ->
 			let ft = ctx.ftable.(fid) in
 			sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value (HFun (ft.fe_args,ft.fe_ret))) (funname fid) (reg ptr)
@@ -1274,8 +1283,8 @@ let write_c com file (code:code) gnames =
 		bytes_names = bnames;
 		defines = [];
 		hdefines = Hashtbl.create 0;
+		defined_funs = Hashtbl.create 0;
 		file_prefix = "";
-		uid = 0;
 		fun_index = 0;
 	} in
 	let modules = make_modules ctx all_types in
@@ -1290,7 +1299,6 @@ let write_c com file (code:code) gnames =
 	line "#define HLC_BOOT";
 	line "#include <hlc.h>";
 	line "#include \"typedefs.h\"";
-	line "#include \"functions.h\"";
 	line "#include \"natives.h\"";
 	line "";
 	line "#endif";
@@ -1360,14 +1368,6 @@ let write_c com file (code:code) gnames =
 		let ft = ctx.ftable.(idx) in
 		sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) sorted_natives;
-
-	open_file ctx "hl/functions.h";
-	line "// Functions declaration";
-	Array.iter (fun f ->
-		let ft = ctx.ftable.(f.findex) in
-		sexpr "%s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
-	) code.functions;
-	line "";
 
 	open_file ctx "hl/globals.c";
 	define ctx "#include <hl/code.h>";
@@ -1604,7 +1604,7 @@ let write_c com file (code:code) gnames =
 
 	open_file ctx "hl/functions.c";
 	define ctx "#include <hl/code.h>";
-	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat "," (List.map (fun f -> f.fe_name) (Array.to_list ctx.ftable)));
+	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat "," (List.map (fun f -> define_function ctx f.fe_index) (Array.to_list ctx.ftable)));
 	let rec loop i =
 		if i = Array.length ctx.ftable then [] else
 		let ft = ctx.ftable.(i) in
@@ -1651,7 +1651,7 @@ let write_c com file (code:code) gnames =
 	expr "hl_init_types(&ctx)";
 	expr "hl_init_hashes()";
 	expr "hl_init_roots()";
-	if code.entrypoint >= 0 then sexpr "%s()" ctx.ftable.(code.entrypoint).fe_name;
+	if code.entrypoint >= 0 then sexpr "%s()" (define_function ctx code.entrypoint);
 	unblock ctx;
 	line "}";
 	line "";
