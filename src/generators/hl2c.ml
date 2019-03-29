@@ -224,8 +224,16 @@ let hash ctx sid =
 let type_name ctx t =
 	try PMap.find t ctx.htypes with Not_found -> assert false
 
+let define ctx s =
+	if not (Hashtbl.mem ctx.hdefines s) then begin
+		ctx.defines <- s :: ctx.defines;
+		Hashtbl.add ctx.hdefines s ();
+	end
+
 let type_value ctx t =
-	"&" ^ type_name ctx t
+	let n = type_name ctx t in
+	define ctx (sprintf "extern hl_type %s;" n);
+	"&" ^ n
 
 let enum_constr_type ctx e i =
 	let cname,_, tl = e.efields.(i) in
@@ -283,12 +291,6 @@ let close_file ctx =
 	end
 
 let bom = "\xEF\xBB\xBF"
-
-let define ctx s =
-	if not (Hashtbl.mem ctx.hdefines s) then begin
-		ctx.defines <- s :: ctx.defines;
-		Hashtbl.add ctx.hdefines s ();
-	end
 
 let define_global ctx g =
 	define ctx (sprintf "extern %s;" (var_type ctx.gnames.(g) ctx.hlcode.globals.(g)))
@@ -1288,7 +1290,6 @@ let write_c com file (code:code) gnames =
 	line "#define HLC_BOOT";
 	line "#include <hlc.h>";
 	line "#include \"typedefs.h\"";
-	line "#include \"types.h\"";
 	line "#include \"functions.h\"";
 	line "#include \"natives.h\"";
 	line "";
@@ -1348,14 +1349,6 @@ let write_c com file (code:code) gnames =
 		| _ ->
 			()
 	) all_types;
-
-	open_file ctx "hl/types.h";
-	line "// Types values declaration";
-	Array.iter (fun t ->
-		sexpr "extern hl_type %s" (try PMap.find t ctx.htypes with Not_found -> assert false);
-	) all_types;
-	line "";
-	sexpr "void hl_init_types( hl_module_context *ctx )";
 
 	open_file ctx "hl/natives.h";
 	line "// Natives functions";
@@ -1452,6 +1445,7 @@ let write_c com file (code:code) gnames =
 		end
 	) code.bytes;
 
+	let type_value ctx t = "&" ^ type_name ctx t in (* no auto import *)
 	open_file ctx "hl/types.c";
 	define ctx "#include <hl/code.h>";
 	line "// Types values";
@@ -1614,7 +1608,9 @@ let write_c com file (code:code) gnames =
 	let rec loop i =
 		if i = Array.length ctx.ftable then [] else
 		let ft = ctx.ftable.(i) in
-		(type_value ctx (HFun (ft.fe_args,ft.fe_ret))) :: loop (i + 1)
+		let n = type_name ctx (HFun (ft.fe_args,ft.fe_ret)) in
+		define ctx (sprintf "extern hl_type %s;" n);
+		("&" ^ n) :: loop (i + 1)
 	in
 	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat "," (loop 0));
 	line "";
@@ -1641,6 +1637,7 @@ let write_c com file (code:code) gnames =
 	line "";
 	expr "void hl_init_hashes()";
 	expr "void hl_init_roots()";
+	expr "void hl_init_types( hl_module_context *ctx )";
 	expr "extern void *hl_functions_ptrs[]";
 	expr "extern hl_type *hl_functions_types[]";
 	line "";
