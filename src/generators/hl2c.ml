@@ -39,9 +39,10 @@ type output_options =
 	| OOEndBlock
 	| OOBreak
 
-type functions_module = {
-	fm_name : string;
-	mutable fm_functions : function_entry list;
+type code_module = {
+	m_name : string;
+	mutable m_functions : function_entry list;
+	mutable m_types : ttype list;
 }
 
 and function_entry = {
@@ -50,7 +51,7 @@ and function_entry = {
 	mutable fe_decl : fundecl option;
 	mutable fe_args : ttype list;
 	mutable fe_ret : ttype;
-	mutable fe_module : functions_module option;
+	mutable fe_module : code_module option;
 	mutable fe_called_by : function_entry list;
 	mutable fe_calling : function_entry list;
 }
@@ -73,8 +74,10 @@ type context = {
 	mutable defines : string list;
 	defined_funs : (int, unit) Hashtbl.t;
 	hdefines : (string, unit) Hashtbl.t;
+	mutable defined_types : (ttype, unit) PMap.t;
 	mutable file_prefix : string;
 	mutable fun_index : int;
+	mutable type_module : (ttype, code_module) PMap.t;
 }
 
 let sprintf = Printf.sprintf
@@ -225,12 +228,30 @@ let define ctx s =
 		Hashtbl.add ctx.hdefines s ();
 	end
 
+let rec define_type ctx t =
+	match t with
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray | HType | HDynObj | HNull _ | HRef _ -> ()
+	| HAbstract _ ->
+		define ctx "#include <hl/natives.h>";
+	| HFun (args,ret) | HMethod (args,ret) ->
+		List.iter (define_type ctx) args;
+		define_type ctx ret
+	| HEnum _ | HObj _ when not (PMap.exists t ctx.defined_types) ->
+		ctx.defined_types <- PMap.add t () ctx.defined_types;
+		define ctx (sprintf "#include <%s.h>" (try PMap.find t ctx.type_module with Not_found -> assert false).m_name)
+	| HVirtual vp when not (PMap.exists t ctx.defined_types) ->
+		ctx.defined_types <- PMap.add t () ctx.defined_types;
+		Array.iter (fun (_,_,t) -> define_type ctx t) vp.vfields
+	| HEnum _ | HObj _ | HVirtual _ ->
+		()
+
 let type_value ctx t =
 	let n = type_name ctx t in
 	define ctx (sprintf "extern hl_type %s;" n);
 	"&" ^ n
 
 let enum_constr_type ctx e i =
+	define_type ctx (HEnum e);
 	let cname,_, tl = e.efields.(i) in
 	if Array.length tl = 0 then
 		"venum"
@@ -272,6 +293,7 @@ let close_file ctx =
 	let defines = List.rev ctx.defines in
 	let str = (match defines with [] -> str | l -> String.concat "\n" l ^ "\n\n" ^ str) in
 	ctx.defines <- [];
+	ctx.defined_types <- PMap.empty;
 	Hashtbl.clear ctx.hdefines;
 	Hashtbl.clear ctx.defined_funs;
 	Buffer.reset ctx.out;
@@ -289,13 +311,21 @@ let close_file ctx =
 let bom = "\xEF\xBB\xBF"
 
 let define_global ctx g =
-	define ctx (sprintf "extern %s;" (var_type ctx.gnames.(g) ctx.hlcode.globals.(g)))
+	let t = ctx.hlcode.globals.(g) in
+	define_type ctx t;
+	define ctx (sprintf "extern %s;" (var_type ctx.gnames.(g) t))
 
 let define_function ctx fid =
 	let ft = ctx.ftable.(fid) in
-	if ft.fe_decl <> None && not (Hashtbl.mem ctx.defined_funs fid) then begin
+	let fid = if ft.fe_decl = None then -1 else fid in
+	if not (Hashtbl.mem ctx.defined_funs fid) then begin
 		Hashtbl.add ctx.defined_funs fid ();
-		ctx.defines <- sprintf "%s %s(%s);" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args) :: ctx.defines;
+		(match ft.fe_decl with
+		| None ->
+			define ctx "#include <hl/natives.h>"
+		| Some f ->
+			define_type ctx f.ftype;
+			ctx.defines <- sprintf "%s %s(%s);" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args) :: ctx.defines);
 	end;
 	ft.fe_name
 
@@ -495,6 +525,8 @@ let generate_function ctx f =
 	let label p = sprintf "label$%s%d_%d" ctx.file_prefix ctx.fun_index p in
 	ctx.fun_index <- ctx.fun_index + 1;
 	Hashtbl.add ctx.defined_funs f.findex ();
+	Array.iter (define_type ctx) f.regs;
+	define_type ctx f.ftype;
 
 	let rtype r = f.regs.(r) in
 
@@ -1198,8 +1230,9 @@ let make_modules ctx all_types =
 			Hashtbl.find modules name
 		with Not_found ->
 			let m = {
-				fm_name = name;
-				fm_functions = [];
+				m_name = name;
+				m_functions = [];
+				m_types = [];
 			} in
 			Hashtbl.add modules name m;
 			all_modules := m :: !all_modules;
@@ -1209,23 +1242,34 @@ let make_modules ctx all_types =
 		let f = ctx.ftable.(fid) in
 		if f.fe_module <> None then assert false;
 		f.fe_module <- Some m;
-		m.fm_functions <- f :: m.fm_functions;
+		m.m_functions <- f :: m.m_functions;
+	in
+	let add_type m t =
+		m.m_types <- t :: m.m_types;
+		ctx.type_module <- PMap.add t m ctx.type_module;
+	in
+	let mk_name path =
+		let base_name, path = match List.rev (ExtString.String.nsplit path ".") with
+			| [] -> "enums", ["hl"]
+			| name :: acc -> (if name.[0] = '$' then String.sub name 1 (String.length name - 1) else name), List.rev acc
+		in
+		let path = path @ [base_name] in
+		let path = List.map (fun n -> if String.length n > 128 then Digest.to_hex (Digest.string n) else n) path in
+		let path = (match path with [name] -> ["_std";name] | _ -> path) in
+		String.concat "/" path
 	in
 	Array.iter (fun t ->
 		match t with
 		| HObj o ->
-			let base_name, path = match List.rev (ExtString.String.nsplit o.pname ".") with
-				| [] -> assert false
-				| name :: acc -> (if name.[0] = '$' then String.sub name 1 (String.length name - 1) else name), List.rev acc
-			in
-			let path = path @ [base_name] in
-			let path = List.map (fun n -> if String.length n > 128 then Digest.to_hex (Digest.string n) else n) path in
-			let path = (match path with [name] -> ["_std";name] | _ -> path) in
-			let name = String.concat "/" path in
-			let m = get_module name in
+			let m = get_module (mk_name o.pname) in
 			Array.iter (fun p -> add m p.fmethod) o.pproto;
 			List.iter (fun (_,mid) -> add m mid) o.pbindings;
-		| _ -> ()
+			add_type m t
+		| HEnum e ->
+			let m = get_module (mk_name e.ename) in
+			add_type m t
+		| _ ->
+			()
 	) all_types;
 	let ep = ctx.hlcode.entrypoint in
 	if ep >= 0 then begin
@@ -1252,12 +1296,71 @@ let make_modules ctx all_types =
 				in
 				get_deps (append fm acc) fl
 		in
-		m.fm_functions <- get_deps [] m.fm_functions
+		m.m_functions <- get_deps [] m.m_functions
 	) !all_modules;
 	Array.iter (fun f ->
 		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> assert false | Some f -> f.ftype)
 	) ctx.ftable;
 	!all_modules
+
+let generate_module_types ctx m =
+	let def_name = "INC_" ^ String.concat "__" (ExtString.String.nsplit m.m_name "/") in
+	let line = line ctx and expr = expr ctx and sexpr fmt = Printf.ksprintf (expr ctx) fmt in
+	define ctx (sprintf "#ifndef %s" def_name);
+	define ctx (sprintf "#define %s" def_name);
+	List.iter (fun t ->
+		match t with
+		| HObj o ->
+			let name = tname o.pname in
+			ctx.defined_types <- PMap.add t () ctx.defined_types;
+			define ctx (sprintf "typedef struct _%s *%s;" name name);
+		| _ -> ()
+	) m.m_types;
+	line "";
+	List.iter (fun t ->
+		match t with
+		| HObj op ->
+			let name = tname op.pname in
+			line ("struct _" ^ name ^ " {");
+			block ctx;
+			let rec loop o =
+				(match o.psuper with
+				| None -> expr ("hl_type *$type");
+				| Some c ->
+					define_type ctx (HObj c);
+					loop c);
+				Array.iteri (fun i (n,_,t) ->
+					let rec abs_index p v =
+						match p with
+						| None -> v
+						| Some o -> abs_index o.psuper (Array.length o.pfields + v)
+					in
+					define_type ctx t;
+					expr (var_type (if n = "" then unamed_field (abs_index o.psuper i) else n) t)
+				) o.pfields;
+			in
+			loop op;
+			unblock ctx;
+			expr "}";
+		| HEnum e ->
+			Array.iteri (fun i (_,_,pl) ->
+				if Array.length pl <> 0 then begin
+					line ("typedef struct {");
+					block ctx;
+					line "HL__ENUM_CONSTRUCT__";
+					Array.iteri (fun i t ->
+						define_type ctx t;
+						expr (var_type ("p" ^ string_of_int i) t)
+					) pl;
+					unblock ctx;
+					sexpr "} %s" (enum_constr_type ctx e i);
+				end;
+			) e.efields
+		| _ ->
+			()
+	) m.m_types;
+	line "#endif";
+	line ""
 
 let write_c com file (code:code) gnames =
 
@@ -1284,81 +1387,28 @@ let write_c com file (code:code) gnames =
 		defines = [];
 		hdefines = Hashtbl.create 0;
 		defined_funs = Hashtbl.create 0;
+		defined_types = PMap.empty;
 		file_prefix = "";
 		fun_index = 0;
+		type_module = PMap.empty;
 	} in
 	let modules = make_modules ctx all_types in
 
 	let line = line ctx and expr = expr ctx in
 	let sline fmt = Printf.ksprintf line fmt and sexpr fmt = Printf.ksprintf expr fmt in
 
-	open_file ctx "hl/code.h";
-	line "#ifndef HL_CODE_H";
-	line "#define HL_CODE_H";
-	line "";
-	line "#define HLC_BOOT";
-	line "#include <hlc.h>";
-	line "#include \"typedefs.h\"";
-	line "#include \"natives.h\"";
-	line "";
-	line "#endif";
-
-	open_file ctx "hl/typedefs.h";
-	line "// Types definitions";
-	Array.iter (fun t ->
-		match t with
-		| HObj o ->
-			let name = tname o.pname in
-			expr ("typedef struct _" ^ name ^ " *" ^ name);
-		| HAbstract (name,_) ->
-			expr ("typedef struct _" ^ name ^ " "  ^ name);
-		| _ ->
-			()
-	) all_types;
-
-	line "";
-	line "// Types implementation";
-
-	Array.iter (fun t ->
-		match t with
-		| HObj o ->
-			let name = tname o.pname in
-			line ("struct _" ^ name ^ " {");
-			block ctx;
-			let rec loop o =
-				(match o.psuper with
-				| None -> expr ("hl_type *$type");
-				| Some c -> loop c);
-				Array.iteri (fun i (n,_,t) ->
-					let rec abs_index p v =
-						match p with
-						| None -> v
-						| Some o -> abs_index o.psuper (Array.length o.pfields + v)
-					in
-					expr (var_type (if n = "" then unamed_field (abs_index o.psuper i) else n) t)
-				) o.pfields;
-			in
-			loop o;
-			unblock ctx;
-			expr "}";
-		| HEnum e ->
-			Array.iteri (fun i (_,_,pl) ->
-				if Array.length pl <> 0 then begin
-					line ("typedef struct {");
-					block ctx;
-					line "HL__ENUM_CONSTRUCT__";
-					Array.iteri (fun i t ->
-						expr (var_type ("p" ^ string_of_int i) t)
-					) pl;
-					unblock ctx;
-					sexpr "} %s" (enum_constr_type ctx e i);
-				end;
-			) e.efields
-		| _ ->
-			()
-	) all_types;
-
 	open_file ctx "hl/natives.h";
+	define ctx "#ifndef HL_NATIVES_H";
+	define ctx "#define HL_NATIVES_H";
+	define ctx "// Abstract decls";
+	let rec get_abstracts = function
+		| [] -> []
+		| HAbstract (name,_) :: l -> name :: get_abstracts l
+		| _ :: l -> get_abstracts l
+	in
+	let abstracts = List.sort compare (get_abstracts (Array.to_list all_types)) in
+	List.iter (fun name -> define ctx (sprintf "typedef struct _%s %s;" name name)) abstracts;
+	define ctx "";
 	line "// Natives functions";
 	let native_libs = Hashtbl.create 0 in
 	let sorted_natives = Array.copy code.natives in
@@ -1366,14 +1416,19 @@ let write_c com file (code:code) gnames =
 	Array.iter (fun (lib,_,_,idx) ->
 		Hashtbl.replace native_libs code.strings.(lib) ();
 		let ft = ctx.ftable.(idx) in
+		define_type ctx (HFun (ft.fe_args,ft.fe_ret));
 		sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) sorted_natives;
+	line "#endif";
+	line "";
 
 	open_file ctx "hl/globals.c";
-	define ctx "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	line "// Globals";
 	Array.iteri (fun i t ->
 		let name = gnames.(i) in
+		define_type ctx t;
 		sexpr "%s = 0" (var_type name t)
 	) code.globals;
 	Array.iter (fun (g,fields) ->
@@ -1447,7 +1502,8 @@ let write_c com file (code:code) gnames =
 
 	let type_value ctx t = "&" ^ type_name ctx t in (* no auto import *)
 	open_file ctx "hl/types.c";
-	define ctx "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	line "// Types values";
 	Array.iteri (fun i t ->
 		match t with
@@ -1590,20 +1646,31 @@ let write_c com file (code:code) gnames =
 	line "}";
 
 	open_file ctx "hl/reflect.c";
-	line "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	line "// Reflection helpers";
 	generate_reflection ctx;
 
 	List.iter (fun m ->
-		if m.fm_functions <> [] then begin
-			open_file ctx (m.fm_name ^ ".c");
-			define ctx "#include <hl/code.h>";
-			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) m.fm_functions;
+		let defined_types = ref PMap.empty in
+		if m.m_types <> [] then begin
+			open_file ctx (m.m_name ^ ".h");
+			generate_module_types ctx m;
+			defined_types := ctx.defined_types;
+		end;
+		if m.m_functions <> [] then begin
+			open_file ctx (m.m_name ^ ".c");
+			ctx.defined_types <- !defined_types;
+			define ctx "#define HLC_BOOT";
+			define ctx "#include <hlc.h>";
+			if m.m_types <> [] then define ctx (sprintf "#include <%s.h>" m.m_name);
+			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) m.m_functions;
 		end;
 	) modules;
 
 	open_file ctx "hl/functions.c";
-	define ctx "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	sexpr "void *hl_functions_ptrs[] = {%s}" (String.concat "," (List.map (fun f -> define_function ctx f.fe_index) (Array.to_list ctx.ftable)));
 	let rec loop i =
 		if i = Array.length ctx.ftable then [] else
@@ -1619,7 +1686,8 @@ let write_c com file (code:code) gnames =
 	) ctx.ftable;
 
 	open_file ctx "hl/hashes.c";
-	line "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	line "";
 	line "void hl_init_hashes() {";
 	block ctx;
@@ -1628,7 +1696,8 @@ let write_c com file (code:code) gnames =
 	line "}";
 
 	open_file ctx (Filename.basename file);
-	line "#include <hl/code.h>";
+	define ctx "#define HLC_BOOT";
+	define ctx "#include <hlc.h>";
 	line "#include <hlc_main.c>";
 	line "";
 	line "#ifndef HL_MAKE";
