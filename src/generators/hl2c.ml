@@ -39,11 +39,20 @@ type output_options =
 	| OOEndBlock
 	| OOBreak
 
-type function_entry = {
+type functions_module = {
+	fm_name : string;
+	mutable fm_functions : function_entry list;
+}
+
+and function_entry = {
+	fe_index : int;
 	mutable fe_name : string;
 	mutable fe_decl : fundecl option;
 	mutable fe_args : ttype list;
 	mutable fe_ret : ttype;
+	mutable fe_module : functions_module option;
+	mutable fe_called_by : function_entry list;
+	mutable fe_calling : function_entry list;
 }
 
 type context = {
@@ -1120,6 +1129,125 @@ let make_global_names code gnames =
 	) gids;
 	Array.init (Array.length code.globals) (fun i -> Hashtbl.find gnames i)
 
+let make_function_table code =
+	let new_entry i = { fe_index = i; fe_args = []; fe_ret = HVoid; fe_name = ""; fe_module = None; fe_calling = []; fe_called_by = []; fe_decl = None; } in
+	let ftable = Array.init (Array.length code.functions + Array.length code.natives) new_entry in
+	Array.iter (fun (lib,name,t,idx) ->
+		let fname =
+			let lib = code.strings.(lib) in
+			let lib = if lib = "std" then "hl" else lib in
+			lib ^ "_" ^ code.strings.(name)
+		in
+		match t with
+		| HFun (args, t) ->
+			let ft = ftable.(idx) in
+			ft.fe_name <- fname;
+			ft.fe_args <- args;
+			ft.fe_ret <- t
+		| _ ->
+			assert false
+	) code.natives;
+	Array.iter (fun f ->
+		let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
+		let ft = ftable.(f.findex) in
+		ft.fe_name <- fname;
+		(match f.ftype with
+		| HFun (args,t) ->
+			ft.fe_args <- args;
+			ft.fe_ret <- t;
+		| _ ->
+			assert false);
+		ft.fe_decl <- Some f;
+		Array.iter (fun op ->
+			match op with
+			| OCall0 (_,fid)
+			| OCall1 (_,fid,_)
+			| OCall2 (_,fid,_,_)
+			| OCall3 (_,fid,_,_,_)
+			| OCall4 (_,fid,_,_,_,_)
+			| OCallN (_,fid,_)
+			| OStaticClosure (_,fid)
+			| OInstanceClosure (_,fid,_) ->
+				let ft2 = ftable.(fid) in
+				if not (List.memq ft ft2.fe_called_by) then begin
+					ft2.fe_called_by <- ft :: ft2.fe_called_by;
+					ft.fe_calling <- ft2 :: ft.fe_calling;
+				end;
+			| _ ->
+				()
+		) f.code;
+	) code.functions;
+	ftable
+
+let make_modules ctx all_types =
+	let modules = Hashtbl.create 0 in
+	let all_modules = ref [] in
+	let get_module name =
+		try
+			Hashtbl.find modules name
+		with Not_found ->
+			let m = {
+				fm_name = name;
+				fm_functions = [];
+			} in
+			Hashtbl.add modules name m;
+			all_modules := m :: !all_modules;
+			m
+	in
+	let add m fid =
+		let f = ctx.ftable.(fid) in
+		if f.fe_module <> None then assert false;
+		f.fe_module <- Some m;
+		m.fm_functions <- f :: m.fm_functions;
+	in
+	Array.iter (fun t ->
+		match t with
+		| HObj o ->
+			let base_name, path = match List.rev (ExtString.String.nsplit o.pname ".") with
+				| [] -> assert false
+				| name :: acc -> (if name.[0] = '$' then String.sub name 1 (String.length name - 1) else name), List.rev acc
+			in
+			let path = path @ [base_name] in
+			let path = List.map (fun n -> if String.length n > 128 then Digest.to_hex (Digest.string n) else n) path in
+			let path = (match path with [name] -> ["_std";name] | _ -> path) in
+			let name = String.concat "/" path in
+			let m = get_module name in
+			Array.iter (fun p -> add m p.fmethod) o.pproto;
+			List.iter (fun (_,mid) -> add m mid) o.pbindings;
+		| _ -> ()
+	) all_types;
+	let ep = ctx.hlcode.entrypoint in
+	if ep >= 0 then begin
+		let m = get_module "hl/init" in
+		add m ep;
+		ctx.ftable.(ep).fe_name <- "$init";
+	end;
+	List.iter (fun m ->
+		let rec get_deps acc = function
+			| [] -> acc
+			| fm :: fl ->
+				let counter = ref 1 in
+				let rec loop acc = function
+					| [] -> acc
+					| f :: l when f.fe_module = None && List.length f.fe_called_by = 1 && f.fe_decl <> None ->
+						f.fe_name <- fm.fe_name ^ "__$" ^ (string_of_int !counter);
+						incr counter;
+						f.fe_module <- Some m;
+						loop (append f acc) l
+					| _ :: l ->
+						loop acc l
+				and append f acc =
+					loop (f :: acc) (List.rev f.fe_calling)
+				in
+				get_deps (append fm acc) fl
+		in
+		m.fm_functions <- get_deps [] m.fm_functions
+	) !all_modules;
+	Array.iter (fun f ->
+		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> assert false | Some f -> f.ftype)
+	) ctx.ftable;
+	!all_modules
+
 let write_c com file (code:code) gnames =
 
 	let all_types, htypes = gather_types code in
@@ -1138,7 +1266,7 @@ let write_c com file (code:code) gnames =
 		dir = (match Filename.dirname file with "" -> "." | dir -> String.concat "/" (ExtString.String.nsplit dir "\\"));
 		curfile = "";
 		cfiles = [];
-		ftable = Array.init (Array.length code.functions + Array.length code.natives) (fun _ -> { fe_args = []; fe_ret = HVoid; fe_name = ""; fe_decl = None; });
+		ftable = make_function_table code;
 		htypes = types_ids;
 		gnames = gnames;
 		bytes_names = bnames;
@@ -1148,6 +1276,7 @@ let write_c com file (code:code) gnames =
 		uid = 0;
 		fun_index = 0;
 	} in
+	let modules = make_modules ctx all_types in
 
 	let line = line ctx and expr = expr ctx in
 	let sline fmt = Printf.ksprintf line fmt and sexpr fmt = Printf.ksprintf expr fmt in
@@ -1233,42 +1362,19 @@ let write_c com file (code:code) gnames =
 	let native_libs = Hashtbl.create 0 in
 	let sorted_natives = Array.copy code.natives in
 	Array.sort (fun n1 n2 -> let mk (lib,name,_,_) = code.strings.(lib), code.strings.(name) in compare (mk n1) (mk n2)) sorted_natives;
-	Array.iter (fun (lib,name,t,idx) ->
-		match t with
-		| HFun (args,t) ->
-			let fname =
-				let lib = code.strings.(lib) in
-				Hashtbl.replace native_libs lib ();
-				let lib = if lib = "std" then "hl" else lib in
-				lib ^ "_" ^ code.strings.(name)
-			in
-			sexpr "HL_API %s %s(%s)" (ctype t) fname (args_repr args);
-			let ft = ctx.ftable.(idx) in
-			ft.fe_name <- fname;
-			ft.fe_args <- args;
-			ft.fe_ret <- t;
-		| _ ->
-			assert false
+	Array.iter (fun (lib,_,_,idx) ->
+		Hashtbl.replace native_libs code.strings.(lib) ();
+		let ft = ctx.ftable.(idx) in
+		sexpr "HL_API %s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) sorted_natives;
 
 	open_file ctx "hl/functions.h";
 	line "// Functions declaration";
 	Array.iter (fun f ->
-		match f.ftype with
-		| HFun (args,t) ->
-			let fname = String.concat "_" (ExtString.String.nsplit (fundecl_name f) ".") in
-			sexpr "%s %s(%s)" (ctype t) fname (args_repr args);
-			let ft = ctx.ftable.(f.findex) in
-			ft.fe_name <- fname;
-			ft.fe_args <- args;
-			ft.fe_ret <- t;
-			ft.fe_decl <- Some f;
-		| _ ->
-			assert false
+		let ft = ctx.ftable.(f.findex) in
+		sexpr "%s %s(%s)" (ctype ft.fe_ret) ft.fe_name (args_repr ft.fe_args);
 	) code.functions;
 	line "";
-	sexpr "extern void *hl_functions_ptrs[]";
-	sexpr "extern hl_type *hl_functions_types[]";
 
 	open_file ctx "hl/globals.c";
 	define ctx "#include <hl/code.h>";
@@ -1494,52 +1600,13 @@ let write_c com file (code:code) gnames =
 	line "// Reflection helpers";
 	generate_reflection ctx;
 
-	let gen_functions = Hashtbl.create 0 in
-	let all_protos = Hashtbl.create 0 in
-	Array.iter (fun t ->
-		match t with
-		| HObj o ->
-			Hashtbl.add all_protos o.pname o
-		| _ -> ()
-	) all_types;
-
-	Array.iter (fun t ->
-		match t with
-		| HObj o when Hashtbl.mem all_protos o.pname ->
-			let file = ref false in
-			let base_name, path = match List.rev (ExtString.String.nsplit o.pname ".") with
-				| [] -> assert false
-				| name :: acc -> (if name.[0] = '$' then String.sub name 1 (String.length name - 1) else name), List.rev acc
-			in
-			let generate fid =
-				match ctx.ftable.(fid).fe_decl with
-				| None -> ()
-				| Some f ->
-					if not !file then begin
-						file := true;
-						let path = path @ [base_name] in
-						let path = List.map (fun n -> if String.length n > 128 then Digest.to_hex (Digest.string n) else n) path in
-						let path = (match path with [name] -> ["_std";name] | _ -> path) in
-						open_file ctx (String.concat "/" path ^ ".c");
-						define ctx "#include <hl/code.h>";
-					end;
-					Hashtbl.replace gen_functions f.findex ();
-					generate_function ctx f
-			in
-			let gen_proto name =
-				try
-					let full_name = String.concat "." (path @ [name]) in
-					let o = Hashtbl.find all_protos full_name in
-					Array.iter (fun p -> generate p.fmethod) o.pproto;
-					List.iter (fun (_,mid) -> generate mid) o.pbindings;
-					Hashtbl.remove all_protos full_name;
-				with Not_found ->
-					()
-			in
-			gen_proto base_name;
-			gen_proto ("$" ^ base_name);
-		| _ -> ()
-	) all_types;
+	List.iter (fun m ->
+		if m.fm_functions <> [] then begin
+			open_file ctx (m.fm_name ^ ".c");
+			define ctx "#include <hl/code.h>";
+			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) m.fm_functions;
+		end;
+	) modules;
 
 	open_file ctx "hl/functions.c";
 	define ctx "#include <hl/code.h>";
@@ -1552,8 +1619,8 @@ let write_c com file (code:code) gnames =
 	sexpr "hl_type *hl_functions_types[] = {%s}" (String.concat "," (loop 0));
 	line "";
 	Array.iter (fun f ->
-		if not (Hashtbl.mem gen_functions f.findex) then generate_function ctx f;
-	) code.functions;
+		if f.fe_module = None then (match f.fe_decl with None -> () | Some f -> generate_function ctx f);
+	) ctx.ftable;
 
 	open_file ctx "hl/hashes.c";
 	line "#include <hl/code.h>";
@@ -1574,6 +1641,8 @@ let write_c com file (code:code) gnames =
 	line "";
 	expr "void hl_init_hashes()";
 	expr "void hl_init_roots()";
+	expr "extern void *hl_functions_ptrs[]";
+	expr "extern hl_type *hl_functions_types[]";
 	line "";
 	line "// Entry point";
 	line "void hl_entry_point() {";
@@ -1585,7 +1654,7 @@ let write_c com file (code:code) gnames =
 	expr "hl_init_types(&ctx)";
 	expr "hl_init_hashes()";
 	expr "hl_init_roots()";
-	sexpr "%s()" ctx.ftable.(code.entrypoint).fe_name;
+	if code.entrypoint >= 0 then sexpr "%s()" ctx.ftable.(code.entrypoint).fe_name;
 	unblock ctx;
 	line "}";
 	line "";
