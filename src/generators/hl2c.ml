@@ -281,6 +281,9 @@ let define ctx s =
 		Hashtbl.add ctx.hdefines s ();
 	end
 
+let define_global ctx g =
+	define ctx (sprintf "extern %s;" (var_type ctx.gnames.(g) ctx.hlcode.globals.(g)))
+
 let short_digest str =
 	String.sub (Digest.to_hex (Digest.string str)) 0 7
 
@@ -300,8 +303,11 @@ let string ctx sid =
 	let s = ctx.hlcode.strings.(sid) in
 	if String.length s < string_data_limit then
 		sprintf "USTR(\"%s\")" (StringHelper.s_escape s)
-	else
-		sprintf "string$%s" (short_digest s)
+	else begin
+		let id = short_digest s in
+		define ctx (sprintf "extern vbyte string$%s[];" id);
+		sprintf "string$%s" id
+	end
 
 let generate_reflection ctx =
 	let line = line ctx and expr = expr ctx in
@@ -735,6 +741,7 @@ let generate_function ctx f =
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
+			define "extern vbyte %s;" ctx.bytes_names.(idx);
 			sexpr "%s = %s" (reg r) ctx.bytes_names.(idx)
 		| OString (r,idx) ->
 			sexpr "%s = (vbyte*)%s" (reg r) (string ctx idx)
@@ -828,8 +835,10 @@ let generate_function ctx f =
 			| _ ->
 				todo())
 		| OGetGlobal (r,g) ->
+			define_global ctx g;
 			sexpr "%s = (%s)%s" (reg r) (ctype (rtype r)) ctx.gnames.(g)
 		| OSetGlobal (g,r) ->
+			define_global ctx g;
 			sexpr "%s = (%s)%s" ctx.gnames.(g) (ctype code.globals.(g)) (reg r)
 		| ORet r ->
 			if rtype r = HVoid then expr "return" else sexpr "return %s" (rcast r fret)
@@ -1152,7 +1161,6 @@ let write_c com file (code:code) gnames =
 	line "#include \"typedefs.h\"";
 	line "#include \"types.h\"";
 	line "#include \"functions.h\"";
-	line "#include \"globals.h\"";
 	line "#include \"natives.h\"";
 	line "";
 	line "#endif";
@@ -1223,6 +1231,8 @@ let write_c com file (code:code) gnames =
 	open_file ctx "hl/natives.h";
 	line "// Natives functions";
 	let native_libs = Hashtbl.create 0 in
+	let sorted_natives = Array.copy code.natives in
+	Array.sort (fun n1 n2 -> let mk (lib,name,_,_) = code.strings.(lib), code.strings.(name) in compare (mk n1) (mk n2)) sorted_natives;
 	Array.iter (fun (lib,name,t,idx) ->
 		match t with
 		| HFun (args,t) ->
@@ -1239,7 +1249,7 @@ let write_c com file (code:code) gnames =
 			ft.fe_ret <- t;
 		| _ ->
 			assert false
-	) code.natives;
+	) sorted_natives;
 
 	open_file ctx "hl/functions.h";
 	line "// Functions declaration";
@@ -1260,25 +1270,8 @@ let write_c com file (code:code) gnames =
 	sexpr "extern void *hl_functions_ptrs[]";
 	sexpr "extern hl_type *hl_functions_types[]";
 
-
-	open_file ctx "hl/globals.h";
-	line "// Globals";
-	Array.iteri (fun i t ->
-		let name = gnames.(i) in
-		sexpr "extern %s" (var_type name t)
-	) code.globals;
-
-	Array.iteri (fun i str ->
-		if String.length str >= string_data_limit then
-			sexpr "extern vbyte string$%s[]" (short_digest str)
-	) code.strings;
-	Array.iter (fun n -> sexpr "extern vbyte %s[]" n) bnames;
-
-	line "";
-	sexpr "void hl_init_roots()";
-
 	open_file ctx "hl/globals.c";
-	line "#include <hl/code.h>";
+	define ctx "#include <hl/code.h>";
 	line "// Globals";
 	Array.iteri (fun i t ->
 		let name = gnames.(i) in
@@ -1354,7 +1347,7 @@ let write_c com file (code:code) gnames =
 	) code.bytes;
 
 	open_file ctx "hl/types.c";
-	line "#include <hl/code.h>";
+	define ctx "#include <hl/code.h>";
 	line "// Types values";
 	Array.iteri (fun i t ->
 		match t with
@@ -1466,14 +1459,22 @@ let write_c com file (code:code) gnames =
 		| HObj o ->
 			let name = type_name ctx t in
 			sexpr "obj%s.m = ctx" name;
-			(match o.pclassglobal with None -> () | Some g -> sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
+			(match o.pclassglobal with
+			| None -> ()
+			| Some g ->
+				define_global ctx g;
+				sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "%s.obj = &obj%s" name name
 		| HNull r | HRef r ->
 			sexpr "%s.tparam = %s" (type_name ctx t) (type_value ctx r)
 		| HEnum e ->
 			let name = type_name ctx t in
 			sexpr "%s.tenum = &enum%s" name name;
-			(match e.eglobal with None -> () | Some g -> sexpr "enum%s.global_value = (void**)&%s" name gnames.(g));
+			(match e.eglobal with
+			| None -> ()
+			| Some g ->
+				define_global ctx g;
+				sexpr "enum%s.global_value = (void**)&%s" name gnames.(g));
 			sexpr "hl_init_enum(&%s,ctx)" name;
 		| HVirtual _ ->
 			let name = type_name ctx t in
@@ -1572,6 +1573,7 @@ let write_c com file (code:code) gnames =
 	line "#endif";
 	line "";
 	expr "void hl_init_hashes()";
+	expr "void hl_init_roots()";
 	line "";
 	line "// Entry point";
 	line "void hl_entry_point() {";
