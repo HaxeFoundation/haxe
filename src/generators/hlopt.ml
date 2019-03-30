@@ -503,9 +503,7 @@ type rctx = {
 }
 
 let remap_fun ctx f dump get_str =
-	let aget = Array.unsafe_get in
-	let aset = Array.unsafe_set in
-	let op index = aget f.code index in
+	let op index = Array.unsafe_get f.code index in
 	let nregs = Array.length f.regs in
 	let reg_remap = ctx.r_used_regs <> nregs in
 	let assigns = ref f.assigns in
@@ -571,7 +569,7 @@ let remap_fun ctx f dump get_str =
 							gather b
 						else
 							let found = ref false in
-							opcode_fx (fun r read -> if r = reg && not read then found := true) (aget old_code p);
+							opcode_fx (fun r read -> if r = reg && not read then found := true) (Array.unsafe_get old_code p);
 							if !found then loop p else find_w (p - 1)
 					in
 					find_w (p - 1)
@@ -608,7 +606,7 @@ let remap_fun ctx f dump get_str =
 			with Not_found ->
 				block
 			in
-			let old = aget old_code i in
+			let old = Array.unsafe_get old_code i in
 			let op = op i in
 			let rec live_loop r l =
 				if r = nregs then List.rev l else
@@ -657,17 +655,17 @@ let remap_fun ctx f dump get_str =
 				| OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _  | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJNotLt _ | OJNotGte _ | OJULt _ | OJUGte _ | OJEq _ | OJNotEq _ | OJAlways _ | OSwitch _  | OTrap _ ->
 					jumps := i :: !jumps
 				| _ -> ());
-				let op = if reg_remap then opcode_map (fun r -> aget reg_map r) (fun r -> aget reg_map r) op else op in
-				aset out_code (!out_pos) op;
-				aset new_debug (!out_pos) (aget f.debug i);
+				let op = if reg_remap then opcode_map (fun r -> Array.unsafe_get reg_map r) (fun r -> Array.unsafe_get reg_map r) op else op in
+				Array.unsafe_set out_code (!out_pos) op;
+				Array.unsafe_set new_debug (!out_pos) (Array.unsafe_get f.debug i);
 				incr out_pos
 		) f.code;
 		List.iter (fun j ->
 			let pos d =
-				aget new_pos (j + 1 + d) - aget new_pos (j + 1)
+				Array.unsafe_get new_pos (j + 1 + d) - Array.unsafe_get new_pos (j + 1)
 			in
 			let p = new_pos.(j) in
-			aset out_code p (match aget out_code p with
+			Array.unsafe_set out_code p (match Array.unsafe_get out_code p with
 			| OJTrue (r,d) -> OJTrue (r,pos d)
 			| OJFalse (r,d) -> OJFalse (r,pos d)
 			| OJNull (r,d) -> OJNull (r, pos d)
@@ -689,15 +687,15 @@ let remap_fun ctx f dump get_str =
 		) !jumps;
 
 		let assigns = !assigns in
-		Array.iteri (fun idx (i,p) -> if p >= 0 then aset assigns idx (i, aget new_pos p)) assigns;
+		Array.iteri (fun idx (i,p) -> if p >= 0 then Array.unsafe_set assigns idx (i, Array.unsafe_get new_pos p)) assigns;
 
 		code := out_code;
 		debug := new_debug;
 		if reg_remap then begin
 			let new_regs = Array.make ctx.r_used_regs HVoid in
 			for i=0 to nregs-1 do
-				let p = aget reg_map i in
-				if p >= 0 then aset new_regs p  (aget f.regs i)
+				let p = Array.unsafe_get reg_map i in
+				if p >= 0 then Array.unsafe_set new_regs p  (Array.unsafe_get f.regs i)
 			done;
 			regs := new_regs;
 		end;
