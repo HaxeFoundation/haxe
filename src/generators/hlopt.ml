@@ -984,24 +984,23 @@ let _optimize (f:fundecl) =
 	}
 
 type cache_elt = {
-	c_hfx : Type.tfunc;
 	c_code : opcode array;
 	c_rctx : rctx;
+	c_remap_indexes : int array;
 	mutable c_last_used : int;
 }
 
-let opt_cache = Hashtbl.create 0
+let opt_cache = ref PMap.empty
 let used_mark = ref 0
 
-let optimize dump get_str (f:fundecl) hxf =
+let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 	try
-		let c = Hashtbl.find opt_cache f.fpath in
-		if c.c_hfx != hxf then raise Not_found;
+		let c = PMap.find hxf (!opt_cache) in
 		c.c_last_used <- !used_mark;
 		if Array.length f.code <> Array.length c.c_code then assert false;
-		let f = { f with code = Array.mapi (fun i op ->
-			match op, Array.unsafe_get f.code i with
-			(* only regs : ok ! *)
+		let code = c.c_code in
+		Array.iter (fun i ->
+			let op = (match Array.unsafe_get code i, Array.unsafe_get f.code i with
 			| OInt (r,_), OInt (_,idx) -> OInt (r,idx)
 			| OFloat (r,_), OFloat (_,idx) -> OFloat (r,idx)
 			| OBytes (r,_), OBytes (_,idx) -> OBytes (r,idx)
@@ -1019,28 +1018,40 @@ let optimize dump get_str (f:fundecl) hxf =
 			| ODynGet (r,o,_), ODynGet (_,_,idx) -> ODynGet (r,o,idx)
 			| ODynSet (o,_,v), ODynSet (_,idx,_) -> ODynSet (o,idx,v)
 			| OType (r,_), OType (_,t) -> OType (r,t)
-			| (ONop _ | OMov _ | OBool _ | ONull _
-			  | OAdd _ | OSub _ | OMul _ | OSDiv _ | OUDiv _ | OSMod _ | OUMod _ | OShl _ | OSShr _ | OUShr _ | OAnd _ | OOr _ | OXor _
-			  | ONeg _ | ONot _ | OIncr _ | ODecr _ | OCallMethod _ | OCallThis _ | OCallClosure _ | OVirtualClosure _
-			  | OField _ | OSetField _ | OGetThis _ | OSetThis _
-			  | OJTrue _ | OJFalse _ | OJNull _ | OJNotNull _ | OJSLt _ | OJSGte _ | OJSGt _ | OJSLte _ | OJULt _ | OJUGte _ | OJNotLt _ | OJNotGte _ | OJEq _ | OJNotEq _ | OJAlways _
-			  | OToDyn _ | OToSFloat _ | OToUFloat _ | OToInt _ | OSafeCast _ | OUnsafeCast _ | OToVirtual _ | OLabel _ | ORet _ | OThrow _ | ORethrow _ | OSwitch _ | ONullCheck _
-			  | OTrap _ | OEndTrap _ | OGetUI8 _ | OGetUI16 _ | OGetMem _ | OGetArray _ | OSetUI8 _ | OSetUI16 _ | OSetMem _ | OSetArray _ | ONew _ | OArraySize _ | OGetType _
-			  | OGetTID _ | ORef _ | OUnref _ | OSetref _ | OMakeEnum _ | OEnumAlloc _ | OEnumIndex _ | OEnumField _ | OSetEnumField _ | OAssert _ | ORefData _ | ORefOffset _)
-			  , _ -> op
-			| a, b ->
-				prerr_endline (ostr get_str a);
-				prerr_endline (ostr get_str b);
-				assert false
-		) c.c_code } in
-		remap_fun c.c_rctx f dump get_str
+			| _ -> assert false) in
+			Array.unsafe_set code i op
+		) c.c_remap_indexes;
+		remap_fun c.c_rctx { f with code = code } dump get_str
 	with Not_found ->
 		let rctx = _optimize f in
+		let old_code = f.code in
 		let fopt = remap_fun rctx f dump get_str in
-		if f.fpath <> ("","") then Hashtbl.replace opt_cache f.fpath {
-			c_hfx = hxf;
-			c_code = f.code;
+		Hashtbl.iter (fun _ b ->
+			b.bstate <- None;
+			if dump = None then begin
+				b.bneed <- ISet.empty;
+				b.bneed_all <- None;
+			end;
+		) rctx.r_blocks_pos;
+		let idxs = DynArray.create() in
+		Array.iteri (fun i op ->
+			match op with
+			| OInt _ | OFloat _ | OBytes _ | OString _
+			| OCall0 _ | OCall1 _ | OCall2 _ | OCall3 _ | OCall4 _ | OCallN _ | OStaticClosure _
+			| OInstanceClosure _ | OGetGlobal _	| OSetGlobal _ | ODynGet _ | ODynSet _	| OType _ ->
+				DynArray.add idxs i
+			| _ -> ()
+		) old_code;
+		opt_cache := PMap.add hxf {
+			c_code = old_code;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
-		};
+			c_remap_indexes = DynArray.to_array idxs;
+		} (!opt_cache);
 		fopt
+
+let clean_cache() =
+	PMap.iter (fun k c ->
+		if !used_mark - c.c_last_used > 3 then opt_cache := PMap.remove k !opt_cache;
+	) (!opt_cache);
+	incr used_mark
