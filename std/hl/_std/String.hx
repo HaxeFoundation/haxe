@@ -77,13 +77,16 @@ class String {
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var last = 0;
-		var start = this.length;
-		if( startIndex != null )
-			start = startIndex;
-		start <<= 1;
+		var max = this.length;
+		if( startIndex != null ) {
+			max = startIndex + str.length;
+			if( max < 0 ) max = 0;
+			if( max > this.length ) max = this.length;
+		}
+		max <<= 1;
 		while( true ) {
-			var p = findChar(last, length << 1, str.bytes, str.length << 1);
-			if( p < 0 || p > start )
+			var p = findChar(last, max, str.bytes, str.length << 1);
+			if( p < 0 )
 				return (last >> 1) - 1;
 			last = p + 2;
 		}
