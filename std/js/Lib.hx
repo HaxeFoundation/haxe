@@ -133,4 +133,12 @@ class Lib {
 	public static function getOriginalException():Dynamic {
 		return null; // function is implemented in the compiler
 	}
+
+	/**
+		Get shared global state available for all Haxe-compiled js modules.
+	**/
+	@:allow(haxe.ds.ObjectMap.assignId)
+	static inline function getGlobalHaxe():{ function nextId(counterName:String):Int; } {
+		return js.Syntax.code("{0}.$haxe", untyped __define_feature__("$global.$haxe", global));
+	}
 }
