@@ -201,7 +201,7 @@ class Web {
 
 		if(function_exists('getallheaders')) {
 			foreach(getallheaders(), function(key:String, value:Dynamic) {
-				_clientHeaders.set(Global.strtoupper(key), Std.string(value));
+				_clientHeaders.set(str_replace('-', '_', strtoupper(key)), Std.string(value));
 			});
 			return _clientHeaders;
 		}
