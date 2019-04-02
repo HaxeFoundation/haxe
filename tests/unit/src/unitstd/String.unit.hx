@@ -167,7 +167,7 @@ String.fromCharCode(65) == "A";
 
 // iterators
 var s = 'zя𠜎';
-#if neko
+#if (neko || (cpp && !cppia && !hxcpp_smart_strings))
 var expectedCodes = [122, 209, 143, 240, 160, 156, 142];
 #elseif utf16
 var expectedCodes = [122, 1103, 55361, 57102];
