@@ -37,5 +37,6 @@ class Issue2236 extends Test {
 		for( x in a ) {
 
 		}
+		noAssert();
 	}
 }

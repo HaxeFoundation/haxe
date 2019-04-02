@@ -21,6 +21,7 @@
 
 open Globals
 open Ast
+open Filename
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
@@ -348,7 +349,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
+		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
 			ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics ->
 			ImportHandling.add_import_position ctx.com p path;
@@ -844,6 +845,7 @@ let type_types_into_module ctx m tdecls p =
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
+		get_build_infos = (fun() -> None);
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = null_class;
@@ -897,7 +899,11 @@ let handle_import_hx ctx m decls p =
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let _,r = TypeloadParse.parse_file ctx.com path p in
+				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
+					| ParseSuccess data -> data
+					| ParseDisplayFile(data,_) -> data
+					| ParseError(_,(msg,p),_) -> Parser.error msg p
+				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
 				add_dependency m (make_import_module path r);
 				r

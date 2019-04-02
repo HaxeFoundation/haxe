@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement>
 **/
 @:native("HTMLLabelElement")
-extern class LabelElement extends Element
-{
+extern class LabelElement extends Element {
 	
 	/**
 		Is a `HTMLFormElement` object representing the form with which the labeled control is associated, or `null` if there is no associated control, or if that control isn't associated with a form. In other words, this is just a shortcut for `HTMLLabelElement.control.form`.

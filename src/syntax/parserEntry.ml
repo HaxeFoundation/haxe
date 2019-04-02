@@ -68,6 +68,14 @@ let rec eval ctx (e,p) =
 		| OpLt -> compare (<)
 		| OpLte -> compare (<=)
 		| _ -> error (Custom "Unsupported operation") p)
+	| EField _ ->
+		begin try
+			let sl = string_list_of_expr_path_raise (e,p) in
+			let i = String.concat "." (List.rev sl) in
+			(try TString (Define.raw_defined_value ctx i) with Not_found -> TNull)
+		with Exit ->
+			error (Custom "Invalid condition expression") p
+		end
 	| _ ->
 		error (Custom "Invalid condition expression") p
 
@@ -81,6 +89,7 @@ let parse ctx code file =
 	code_ref := code;
 	in_display := !display_position <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
+	syntax_errors := [];
 	let restore =
 		(fun () ->
 			restore_cache ();
@@ -159,7 +168,7 @@ let parse ctx code file =
 		| Sharp "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
-			if !in_display then tk else error Unclosed_macro p
+			syntax_error Unclosed_conditional ~pos:(Some p) sraw tk
 		| _ ->
 			skip_tokens p test
 
@@ -173,10 +182,16 @@ let parse ctx code file =
 	) in
 	try
 		let l = parse_file s in
-		(match !mstack with p :: _ when not !in_display -> error Unclosed_macro p | _ -> ());
+		(match !mstack with p :: _ -> syntax_error Unclosed_conditional ~pos:(Some p) sraw () | _ -> ());
+		let was_display_file = !in_display_file in
 		restore();
 		Lexer.restore old;
-		l
+		if was_display_file then
+			ParseDisplayFile(l,List.rev !syntax_errors)
+		else begin match List.rev !syntax_errors with
+			| [] -> ParseSuccess l
+			| error :: errors -> ParseError(l,error,errors)
+		end
 	with
 		| Stream.Error _
 		| Stream.Failure ->
@@ -193,8 +208,9 @@ let parse_string com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
 	let old_display = !display_position in
-	let old_de = !display_error in
 	let old_in_display_file = !in_display_file in
+	let old_syntax_errors = !syntax_errors in
+	syntax_errors := [];
 	let restore() =
 		(match old_file with
 		| None -> ()
@@ -203,16 +219,15 @@ let parse_string com s p error inlined =
 			display_position := old_display;
 			in_display_file := old_in_display_file;
 		end;
-		Lexer.restore old;
-		display_error := old_de
+		syntax_errors := old_syntax_errors;
+		Lexer.restore old
 	in
 	Lexer.init p.pfile true;
-	display_error := (fun e p -> raise (Error (e,p)));
 	if not inlined then begin
 		display_position := null_pos;
 		in_display_file := false;
 	end;
-	let pack, decls = try
+	let result = try
 		parse com (Sedlexing.Utf8.from_string s) p.pfile
 	with Error (e,pe) ->
 		restore();
@@ -222,12 +237,17 @@ let parse_string com s p error inlined =
 		error (Lexer.error_msg e) (if inlined then pe else p)
 	in
 	restore();
-	pack,decls
+	result
 
 let parse_expr_string com s p error inl =
 	let head = "class X{static function main() " in
 	let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 	let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+	let extract_expr (_,decls) = match decls with
+		| [EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> (if inl then e else loop e)
+		| _ -> raise Exit
+	in
 	match parse_string com (head ^ s ^ ";}") p error inl with
-	| _,[EClass { d_data = [{ cff_name = "main",null_pos; cff_kind = FFun { f_expr = Some e } }]},_] -> if inl then e else loop e
-	| _ -> raise Exit
+	| ParseSuccess data -> ParseSuccess(extract_expr data)
+	| ParseError(data,error,errors) -> ParseError(extract_expr data,error,errors)
+	| ParseDisplayFile(data,errors) -> ParseDisplayFile(extract_expr data,errors)

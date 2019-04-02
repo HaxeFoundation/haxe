@@ -28,7 +28,7 @@ import java.internal.Exceptions;
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
-			return t == Dynamic;
+			return false;
 		if (t == null)
 			return false;
 		var clt:java.lang.Class<Dynamic> = cast t;

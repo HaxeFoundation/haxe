@@ -152,7 +152,7 @@ class ExprTools {
 					ExprTools.map(e, capitalizeStrings);
 			}
 		}
-		```haxe
+		```
 	**/
 	static public function map( e : Expr, f : Expr -> Expr ) : Expr {
 		return {pos: e.pos, expr: switch(e.expr) {
@@ -301,7 +301,7 @@ class ExprTools {
 /**
 	This class provides functions on expression arrays for convenience. For a
 	detailed reference on each method, see the documentation of ExprTools.
- */
+**/
 class ExprArrayTools {
 	static public function map( el : Array<Expr>, f : Expr -> Expr):Array<Expr> {
 		var ret = [];

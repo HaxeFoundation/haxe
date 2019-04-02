@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract RequestCache(String)
-{
+enum abstract RequestCache(String) {
 	var DEFAULT = "default";
 	var NO_STORE = "no-store";
 	var RELOAD = "reload";

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CaretPosition>
 **/
 @:native("CaretPosition")
-extern class CaretPosition
-{
+extern class CaretPosition {
 	
 	/**
 		Returns a `Node` containing the found node at the caret's position.

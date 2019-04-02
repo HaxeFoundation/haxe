@@ -24,11 +24,9 @@
 
 package js.html;
 
-typedef WheelEventInit =
-{
-	> MouseEventInit,
-	@:optional var deltaMode : Int;
-	@:optional var deltaX : Float;
-	@:optional var deltaY : Float;
-	@:optional var deltaZ : Float;
+typedef WheelEventInit = MouseEventInit & {
+	var ?deltaMode : Int;
+	var ?deltaX : Float;
+	var ?deltaY : Float;
+	var ?deltaZ : Float;
 }

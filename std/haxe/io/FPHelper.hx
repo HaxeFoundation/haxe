@@ -30,7 +30,7 @@ class FPHelper {
 	#if neko_v21
 	// stored in helper
 	#elseif neko
-	static var i64tmp = new neko.vm.Tls<Int64>();
+	static var i64tmp = new sys.thread.Tls<Int64>();
 	#elseif !(java || cs || cpp)
 	static var i64tmp = Int64.ofInt(0);
 
@@ -111,10 +111,10 @@ class FPHelper {
 
 	#if neko
 		#if neko_v21
-		static var helpers = new neko.vm.Tls<neko.NativeArray<Dynamic>>();
+		static var helpers = new sys.thread.Tls<neko.NativeArray<Dynamic>>();
 		#else
-		static var helperf = new neko.vm.Tls<neko.NativeString>();
-		static var helperd = new neko.vm.Tls<neko.NativeString>();
+		static var helperf = new sys.thread.Tls<neko.NativeString>();
+		static var helperd = new sys.thread.Tls<neko.NativeString>();
 		static var _float_of_bytes = neko.Lib.load("std","float_of_bytes",2);
 		static var _double_of_bytes = neko.Lib.load("std","double_of_bytes",2);
 		static var _float_bytes = neko.Lib.load("std","float_bytes",2);
@@ -127,7 +127,7 @@ class FPHelper {
 			b;
 		}
 	#elseif js
-		static var helper = new js.html.DataView(new js.html.ArrayBuffer(8));
+		static var helper = new js.lib.DataView(new js.lib.ArrayBuffer(8));
 	#end
 
 	#if neko_v21 inline #end

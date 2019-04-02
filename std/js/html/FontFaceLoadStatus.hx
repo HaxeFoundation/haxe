@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract FontFaceLoadStatus(String)
-{
+enum abstract FontFaceLoadStatus(String) {
 	var UNLOADED = "unloaded";
 	var LOADING = "loading";
 	var LOADED = "loaded";

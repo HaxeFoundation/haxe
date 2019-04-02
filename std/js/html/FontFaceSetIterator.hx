@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef FontFaceSetIterator =
-{
+typedef FontFaceSetIterator = {
 	/** @throws DOMError */
 	function next() : FontFaceSetIteratorResult;
 }

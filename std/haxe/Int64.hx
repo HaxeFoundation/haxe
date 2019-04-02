@@ -446,10 +446,10 @@ abstract Int64(__Int64) from __Int64 to __Int64
 }
 
 /**
-  * This typedef will fool @:coreApi into thinking that we are using
-  * the same underlying type, even though it might be different on
-  * specific platforms.
-  */
+	This typedef will fool `@:coreApi` into thinking that we are using
+	the same underlying type, even though it might be different on
+	specific platforms.
+**/
 private typedef __Int64 = ___Int64;
 
 private class ___Int64 {
@@ -463,8 +463,8 @@ private class ___Int64 {
 
 	/**
 		We also define toString here to ensure we always get a pretty string
-		when tracing or calling Std.string. This tends not to happen when
-		toString is only in the abstract.
+		when tracing or calling `Std.string`. This tends not to happen when
+		`toString` is only in the abstract.
 	**/
 	public function toString() : String
 		return Int64.toStr( cast this );

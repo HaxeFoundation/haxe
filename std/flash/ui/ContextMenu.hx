@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:final extern class ContextMenu extends flash.display.NativeMenu {
+extern final class ContextMenu extends flash.display.NativeMenu {
 	var builtInItems : ContextMenuBuiltInItems;
 	@:require(flash10) var clipboardItems : ContextMenuClipboardItems;
 	@:require(flash10) var clipboardMenu : Bool;

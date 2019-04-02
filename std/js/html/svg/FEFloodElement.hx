@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEFloodElement>
 **/
 @:native("SVGFEFloodElement")
-extern class FEFloodElement extends Element
-{
+extern class FEFloodElement extends Element {
 	var x(default,null) : AnimatedLength;
 	var y(default,null) : AnimatedLength;
 	var width(default,null) : AnimatedLength;

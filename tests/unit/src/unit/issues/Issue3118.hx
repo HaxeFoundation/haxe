@@ -20,7 +20,6 @@ class Base<A>
 
 }
 
-@:final
-class Final extends Base<Array<Int>>
+final class Final extends Base<Array<Int>>
 {
 }

@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract CompositeOperation(String)
-{
+enum abstract CompositeOperation(String) {
 	var REPLACE = "replace";
 	var ADD = "add";
 	var ACCUMULATE = "accumulate";

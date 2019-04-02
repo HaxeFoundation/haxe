@@ -138,11 +138,11 @@ enum abstract LoopResult(Int) {
 }
 
 typedef FileOptions = {
-	@:optional var window : Window;
-	@:optional var filters : Array<{ name : String, exts : Array<String> }>;
-	@:optional var filterIndex : Int;
-	@:optional var fileName : String;
-	@:optional var title : String;
+	var ?window : Window;
+	var ?filters : Array<{ name : String, exts : Array<String> }>;
+	var ?filterIndex : Int;
+	var ?fileName : String;
+	var ?title : String;
 }
 
 /**

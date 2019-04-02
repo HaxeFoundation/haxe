@@ -1,11 +1,12 @@
 package cases;
 
 import Types;
+
 using Lambda;
 
 class IImport extends DisplayTestCase {
 	/**
-	import ha{-1-}xe.{-6-}ma{-2-}cro.{-7-}Exp{-3-}rTools.{-8-}Expr{-4-}ArrayTools.{-9-}it{-5-}er;
+		import ha{-1-}xe.{-6-}ma{-2-}cro.{-7-}Exp{-3-}rTools.{-8-}Expr{-4-}ArrayTools.{-9-}it{-5-}er;
 	**/
 	function testImport1() {
 		eq(true, hasPath(fields(pos(2)), "Serializer"));
@@ -21,14 +22,14 @@ class IImport extends DisplayTestCase {
 	}
 
 	/**
-	import haxe.{-1-}
+		import haxe.{-1-}
 	**/
 	function testImport2() {
 		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
 
 	/**
-	import haxe.Serializer.{-1-}
+		import haxe.Serializer.{-1-}
 	**/
 	function testImport3() {
 		eq(true, hasPath(fields(pos(1)), "run"));
@@ -36,7 +37,7 @@ class IImport extends DisplayTestCase {
 	}
 
 	/**
-	using ha{-1-}xe.{-5-}ma{-2-}cro.{-6-}Exp{-3-}rTools.{-7-}Expr{-4-}ArrayTools;
+		using ha{-1-}xe.{-5-}ma{-2-}cro.{-6-}Exp{-3-}rTools.{-7-}Expr{-4-}ArrayTools;
 	**/
 	function testUsing1() {
 		eq(true, hasPath(fields(pos(2)), "Serializer"));
@@ -50,14 +51,14 @@ class IImport extends DisplayTestCase {
 	}
 
 	/**
-	using haxe.{-1-}
+		using haxe.{-1-}
 	**/
 	function testUsing2() {
 		eq(true, hasPath(fields(pos(1)), "Serializer"));
 	}
 
 	/**
-	using haxe.Serializer.{-1-}
+		using haxe.Serializer.{-1-}
 	**/
 	function testUsing3() {
 		eq(false, hasPath(fields(pos(1)), "run"));
@@ -65,7 +66,7 @@ class IImport extends DisplayTestCase {
 	}
 
 	/**
-	import haxe.macro.{-1-}
+		import haxe.macro.{-1-}
 	**/
 	function testIssue6408() {
 		eq(true, hasPath(fields(pos(1)), "Context"));

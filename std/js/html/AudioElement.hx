@@ -32,6 +32,5 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement>
 **/
 @:native("HTMLAudioElement")
-extern class AudioElement extends MediaElement
-{
+extern class AudioElement extends MediaElement {
 }

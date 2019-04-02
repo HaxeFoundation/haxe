@@ -73,7 +73,7 @@ class TestJs {
 		return try a[i] catch (e:Dynamic) null;
 	}
 
-	@:js("var a_v_0_b = 1;a_v_0_b == 1;")
+	@:js("var a_v_0_b = 1;a_v_0_b;")
 	@:analyzer(no_const_propagation, no_local_dce)
 	static function testDeepMatchingWithoutClosures() {
 		var a = {v: [{b: 1}]};
@@ -494,13 +494,13 @@ class TestJs {
 
 	#if js_enums_as_arrays
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g[1] == 6 && _g[2] == String;
 		TestJs.use(v);
 	')
 	#else
 	@:js('
-		var _g = Type["typeof"]("");
+		var _g = Type.typeof("");
 		var v = _g._hx_index == 6 && _g.c == String;
 		TestJs.use(v);
 	')
@@ -539,6 +539,13 @@ class TestJs {
 		Extern.test(x);
 		var closure = Extern.test;
 		closure("baz");
+	}
+
+	static var v = false;
+
+	@:js('')
+	static function testIssue7874() {
+		if (v && v) {}
 	}
 }
 

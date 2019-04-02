@@ -40,16 +40,19 @@ extern class Native
    public static function sizeof<T>(t:T) : Int;
 
    #if !cppia
+   @:native("hx::Dereference")
+   public static function star<T>(ptr:cpp.Star<T>) : cpp.Reference<T>;
+
    @:generic
    public static inline function set<T>(ptr:cpp.Star<T>,value:T) : Void
    {
-      var ref: cpp.Reference<T> = ptr;
+      var ref: cpp.Reference<T> = star(ptr);
       ref = value;
    }
    @:generic
    public static inline function get<T>(ptr:cpp.Star<T>) : T
    {
-      var ref: cpp.Reference<T> = ptr;
+      var ref: cpp.Reference<T> = star(ptr);
       return ref;
    }
 
@@ -76,7 +79,20 @@ extern class Native
          nativeFree(cast ptr);
    }
 
+   @:native("hx::StarOf")
+   public static function addressOf<T>(inVariable:Reference<T>) : Star<T>;
+
    #else
+
+   public static inline function addressOf<T>(inVariable:Reference<T>) : Star<T>
+   {
+      throw "Native.addressOf not available in cppia";
+   }
+   public static inline function star<T>(ptr:cpp.Star<T>) : cpp.Reference<T>
+   {
+      throw "Native.star not available in cppia";
+   }
+
    public static inline function set<T>(ptr:cpp.Star<T>,value:T) : Void
    {
       throw "Native.set not available in cppia";

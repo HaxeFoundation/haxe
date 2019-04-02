@@ -1,99 +1,148 @@
-import HaxeServer;
+import haxe.display.JsonModuleTypes.JsonModuleType;
 import haxe.Json;
+import haxeserver.process.HaxeServerProcessNode;
+import haxeserver.HaxeServerAsync;
 import utest.Assert;
+import utest.ITest;
+
 using StringTools;
+using Lambda;
 
-typedef Message<T> = {
-	kind: String,
-	data: T
-}
-
-class TestContext {
-	public var displayServerConfig:DisplayServerConfigBase;
-
-	public function new(config:DisplayServerConfigBase) {
-		this.displayServerConfig = config;
-	}
-
-	public function sendErrorMessage(msg:String) { }
-
-	public function sendLogMessage(msg:String) { }
-}
-
-class HaxeServerTestCase {
-	var context:TestContext;
-	var server:HaxeServer;
+@:autoBuild(AsyncMacro.build())
+class HaxeServerTestCase implements ITest {
+	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
-	var messages:Array<Message<Any>>;
+	var storedTypes:Array<JsonModuleType<Any>>;
+	var messages:Array<String> = [];
+	var errorMessages = [];
+	var i:Int = 0;
 
-	public function new() {
-		testDir = "test/cases/" + Type.getClassName(Type.getClass(this));
-	}
+	public function new() {}
 
 	public function setup() {
-		context = new TestContext({
-			haxePath: "haxe",
-			arguments: ["-v", "--cwd", testDir],
-			env: { }
-		});
+		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		server = new HaxeServer(context);
-		server.start();
+		server = new HaxeServerAsync(() -> new HaxeServerProcessNode("haxe", ["-v", "--cwd", testDir]));
 	}
 
 	public function teardown() {
 		server.stop();
 	}
 
-	function haxe(args:Array<String>, done:Void -> Void) {
-		args = args.concat(["-D", "compilation-server-test"]);
-		server.process(args, null, function(result) {
-			if (result == "") {
-				result = "{}";
+	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
+		messages = [];
+		errorMessages = [];
+		storedTypes = [];
+		if (storeTypes) {
+			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
+		}
+		server.rawRequest(args, null, function(result) {
+			sendLogMessage(result.stdout);
+			for (print in result.prints) {
+				var line = print.trim();
+				messages.push('Haxe print: $line');
 			}
-			messages = Json.parse(result);
+			if (result.hasError) {
+				sendErrorMessage(result.stderr);
+			}
+			if (storeTypes) {
+				storedTypes = try {
+					Json.parse(result.stderr).result.result;
+				} catch (e:Dynamic) {
+					trace(e);
+					[];
+				}
+			}
 			done();
-		}, function(message) {
-			Assert.fail(message);
-			done();
-		});
+		}, sendErrorMessage);
+	}
+
+	function sendErrorMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			errorMessages.push(message.trim());
+		}
+	}
+
+	function sendLogMessage(msg:String) {
+		var split = msg.split("\n");
+		for (message in split) {
+			messages.push(message.trim());
+		}
 	}
 
 	function getTemplate(templateName:String) {
 		return sys.io.File.getContent("test/templates/" + templateName);
 	}
 
-	function hasMessage<T>(msg:{kind: String, data:T}) {
-		function compareData(data1:Dynamic, data2:Dynamic) {
-			return switch (msg.kind) {
-				case "reusing" | "notCached": data1 == data2;
-				case "skipping": data1.skipped == data2.skipped && data1.dependency == data2.dependency;
-				case "print": Std.string(data1).trim() == Std.string(data2).trim();
-				case _: false;
-			}
-		}
+	function hasMessage<T>(msg:String) {
 		for (message in messages) {
-			if (message.kind == msg.kind && compareData(message.data, cast msg.data)) {
+			if (message.endsWith(msg)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	function hasErrorMessage<T>(msg:String) {
+		for (message in errorMessages) {
+			if (message.endsWith(msg)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function getStoredType(typePackage:String, typeName:String) {
+		for (type in storedTypes) {
+			if (type.pack.join(".") == typePackage && type.name == typeName) {
+				return type;
+			}
+		}
+		return null;
+	}
+
+	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(hasErrorMessage(message), p);
+	}
+
 	function assertHasPrint(line:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "print", data: line}), null, p);
+		Assert.isTrue(hasMessage("Haxe print: " + line), null, p);
 	}
 
 	function assertReuse(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "reusing", data: module}), null, p);
+		Assert.isTrue(hasMessage('reusing $module'), null, p);
 	}
 
 	function assertSkipping(module:String, ?dependency:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "skipping", data: {skipped: module, dependency: dependency == null ? module : dependency}}), null, p);
+		var msg = 'skipping $module';
+		if (dependency != null) {
+			msg += '($dependency)';
+		}
+		Assert.isTrue(hasMessage(msg), null, p);
 	}
 
 	function assertNotCacheModified(module:String, ?p:haxe.PosInfos) {
-		Assert.isTrue(hasMessage({kind: "notCached", data: module}), null, p);
+		Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
+	}
+
+	function assertHasType(typePackage:String, typeName:String, ?p:haxe.PosInfos) {
+		Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
+	}
+
+	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
+		var type = getStoredType(typePackage, typeName);
+		Assert.isTrue(type != null);
+		function check<T>(type:JsonModuleType<T>) {
+			return switch [type.kind, type.args] {
+				case [Class, c]:
+					(isStatic ? c.statics : c.fields).exists(cf -> cf.name == fieldName);
+				case _: false;
+			}
+		}
+		if (type != null) {
+			Assert.isTrue(check(type), null, p);
+		}
 	}
 }

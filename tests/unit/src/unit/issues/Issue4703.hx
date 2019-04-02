@@ -19,6 +19,7 @@ class Issue4703 extends Test {
 			m.y = 2;
 		}
 		useeeee(m.y);
+		noAssert();
 	}
 
 	static function useeeee(d:Dynamic) { }

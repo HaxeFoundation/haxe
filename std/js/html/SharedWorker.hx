@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker>
 **/
 @:native("SharedWorker")
-extern class SharedWorker extends EventTarget
-{
+extern class SharedWorker extends EventTarget {
 	
 	/**
 		Returns a `MessagePort` object used to communicate and control the shared worker.

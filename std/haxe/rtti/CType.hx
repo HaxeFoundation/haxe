@@ -560,7 +560,7 @@ class CTypeTools {
 					"Dynamic<" + toString(d) + ">";
 				}
 			case CAnonymous(fields):
-				"{ " + fields.map(classField).join(", ");
+				"{ " + fields.map(classField).join(", ") + "}";
 		}
 	}
 

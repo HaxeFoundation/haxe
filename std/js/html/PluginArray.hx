@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PluginArray>
 **/
 @:native("PluginArray")
-extern class PluginArray implements ArrayAccess<Plugin>
-{
+extern class PluginArray implements ArrayAccess<Plugin> {
 	
 	/**
 		The number of plugins in the array.
@@ -42,5 +41,5 @@ extern class PluginArray implements ArrayAccess<Plugin>
 	
 	function item( index : Int ) : Plugin;
 	function namedItem( name : String ) : Plugin;
-	function refresh( ?reloadDocuments : Bool = false ) : Void;
+	function refresh( reloadDocuments : Bool = false ) : Void;
 }

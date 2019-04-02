@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGNumberList>
 **/
 @:native("SVGNumberList")
-extern class NumberList implements ArrayAccess<Number>
-{
+extern class NumberList implements ArrayAccess<Number> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

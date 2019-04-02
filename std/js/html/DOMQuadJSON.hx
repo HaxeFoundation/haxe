@@ -24,10 +24,9 @@
 
 package js.html;
 
-typedef DOMQuadJSON =
-{
-	@:optional var p1 : DOMPoint;
-	@:optional var p2 : DOMPoint;
-	@:optional var p3 : DOMPoint;
-	@:optional var p4 : DOMPoint;
+typedef DOMQuadJSON = {
+	var ?p1 : DOMPoint;
+	var ?p2 : DOMPoint;
+	var ?p3 : DOMPoint;
+	var ?p4 : DOMPoint;
 }

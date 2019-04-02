@@ -10,5 +10,7 @@ typedef T2<T:Constraint> = {
 
 class Issue3545 extends Test {
 	// if it compiles it works
-	function test() { }
+	function test() {
+		noAssert();
+	}
 }

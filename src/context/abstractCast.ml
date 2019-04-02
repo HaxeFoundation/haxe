@@ -169,22 +169,23 @@ let find_multitype_specialization com a pl p =
 			) a.a_params pl in
 			if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
 				| t1 :: _ ->
-					let rec loop stack t =
-						if List.exists (fun t2 -> fast_eq t t2) stack then
+					let stack = ref [] in
+					let rec loop t =
+						if List.exists (fun t2 -> fast_eq t t2) !stack then
 							t
 						else begin
-							let stack = t :: stack in
+							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
 								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
-								PMap.iter (fun _ ef -> ignore(loop stack ef.ef_type)) en.e_constrs;
-								Type.map (loop stack) t
+								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
+								Type.map loop t
 							| t ->
-								Type.map (loop stack) t
+								Type.map loop t
 						end
 					in
-					ignore(loop [] t1)
+					ignore(loop t1)
 				| _ -> assert false
 			end;
 			tl

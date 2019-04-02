@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGStopElement>
 **/
 @:native("SVGStopElement")
-extern class StopElement extends Element
-{
+extern class StopElement extends Element {
 	
 	/**
 		An `SVGAnimatedNumber` corresponding to the `offset` of the given element.

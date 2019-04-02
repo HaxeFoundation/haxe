@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class Collator {
+@:require(flash10_1) extern final class Collator {
 	var actualLocaleIDName(default,never) : String;
 	var ignoreCase : Bool;
 	var ignoreCharacterWidth : Bool;

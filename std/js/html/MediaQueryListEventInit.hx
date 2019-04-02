@@ -24,9 +24,7 @@
 
 package js.html;
 
-typedef MediaQueryListEventInit =
-{
-	> EventInit,
-	@:optional var matches : Bool;
-	@:optional var media : String;
+typedef MediaQueryListEventInit = EventInit & {
+	var ?matches : Bool;
+	var ?media : String;
 }

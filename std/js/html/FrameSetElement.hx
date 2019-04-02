@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLFrameSetElement>
 **/
 @:native("HTMLFrameSetElement")
-extern class FrameSetElement extends Element
-{
+extern class FrameSetElement extends Element {
 	
 	/**
 		Is a `DOMString` structured as a comma-seperated list specifing the width of each column inside a frameset.

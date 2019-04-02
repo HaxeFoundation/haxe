@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_color_buffer_half_float>
 **/
 @:native("EXT_color_buffer_half_float")
-extern class EXTColorBufferHalfFloat
-{
+extern class EXTColorBufferHalfFloat {
 	
 	/**
 		RGBA 16-bit floating-point color-renderable format.

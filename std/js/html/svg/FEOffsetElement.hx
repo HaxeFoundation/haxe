@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEOffsetElement>
 **/
 @:native("SVGFEOffsetElement")
-extern class FEOffsetElement extends Element
-{
+extern class FEOffsetElement extends Element {
 	
 	/**
 		An `SVGAnimatedString` corresponding to the `in` attribute of the given element.

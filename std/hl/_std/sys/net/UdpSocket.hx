@@ -57,8 +57,12 @@ class UdpSocket extends Socket {
 		return ret;
 	}
 
-	@:hlNative("std","socket_send_to") static function socket_send_to( s : SocketHandle, bytes : hl.Bytes, len : Int, host : Int, port : Int ) : Int { return 0; }
+	public function setBroadcast( b : Bool ) : Void {
+		if( !socket_set_broadcast(__s,b) ) throw new Sys.SysError("setBroadcast() failure");
+	}
 
+	@:hlNative("std","socket_send_to") static function socket_send_to( s : SocketHandle, bytes : hl.Bytes, len : Int, host : Int, port : Int ) : Int { return 0; }
+	@:hlNative("std", "socket_set_broadcast") static function socket_set_broadcast( s : SocketHandle, b : Bool ) : Bool { return true; }
 	@:hlNative("std","socket_recv_from") static function socket_recv_from( s : SocketHandle, bytes : hl.Bytes, len : Int, host : hl.Ref<Int>, port : hl.Ref<Int> ) : Int { return 0; }
 	
 }

@@ -23,7 +23,7 @@
 import haxe.iterators.StringIterator;
 import haxe.iterators.StringKeyValueIterator;
 
-@:coreApi @:final class String {
+@:coreApi final class String {
 
 	static var __is_String = true;
 	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);

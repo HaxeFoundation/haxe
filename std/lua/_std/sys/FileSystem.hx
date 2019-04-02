@@ -68,6 +68,9 @@ class FileSystem {
 	}
 
 	public inline static function absolutePath( relPath : String ) : String {
+		if (haxe.io.Path.isAbsolute(relPath)) {
+			return relPath;
+		}
 		var pwd = lua.lib.luv.Misc.cwd();
 		if (pwd == null) return relPath;
 		return Path.join([pwd, relPath]);

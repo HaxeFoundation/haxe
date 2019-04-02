@@ -37,6 +37,6 @@ typedef Entry =  {
 	var dataSize : Int;
 	var data : Null<haxe.io.Bytes>;
 	var crc32 : Null<Int>;
-	@:optional var extraFields : Null<List<ExtraField>>;
+	var ?extraFields : Null<List<ExtraField>>;
 }
 

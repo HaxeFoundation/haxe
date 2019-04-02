@@ -13,5 +13,6 @@ class Rec {
 class Issue6169 extends unit.Test {
 	function test() {
 		var r = new Rec(false);
+		noAssert();
 	}
 }

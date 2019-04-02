@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract PermissionState(String)
-{
+enum abstract PermissionState(String) {
 	var GRANTED = "granted";
 	var DENIED = "denied";
 	var PROMPT = "prompt";

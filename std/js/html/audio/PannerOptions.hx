@@ -24,21 +24,19 @@
 
 package js.html.audio;
 
-typedef PannerOptions =
-{
-	> AudioNodeOptions,
-	@:optional var coneInnerAngle : Float;
-	@:optional var coneOuterAngle : Float;
-	@:optional var coneOuterGain : Float;
-	@:optional var distanceModel : DistanceModelType;
-	@:optional var maxDistance : Float;
-	@:optional var orientationX : Float;
-	@:optional var orientationY : Float;
-	@:optional var orientationZ : Float;
-	@:optional var panningModel : PanningModelType;
-	@:optional var positionX : Float;
-	@:optional var positionY : Float;
-	@:optional var positionZ : Float;
-	@:optional var refDistance : Float;
-	@:optional var rolloffFactor : Float;
+typedef PannerOptions = AudioNodeOptions & {
+	var ?coneInnerAngle : Float;
+	var ?coneOuterAngle : Float;
+	var ?coneOuterGain : Float;
+	var ?distanceModel : DistanceModelType;
+	var ?maxDistance : Float;
+	var ?orientationX : Float;
+	var ?orientationY : Float;
+	var ?orientationZ : Float;
+	var ?panningModel : PanningModelType;
+	var ?positionX : Float;
+	var ?positionY : Float;
+	var ?positionZ : Float;
+	var ?refDistance : Float;
+	var ?rolloffFactor : Float;
 }

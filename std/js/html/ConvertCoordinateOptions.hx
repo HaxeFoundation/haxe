@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef ConvertCoordinateOptions =
-{
-	@:optional var fromBox : CSSBoxType;
-	@:optional var toBox : CSSBoxType;
+typedef ConvertCoordinateOptions = {
+	var ?fromBox : CSSBoxType;
+	var ?toBox : CSSBoxType;
 }

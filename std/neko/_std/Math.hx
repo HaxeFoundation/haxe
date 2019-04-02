@@ -63,8 +63,7 @@ private class MathImpl {
 }
 
 @:coreApi
-@:final
-extern class Math {
+extern final class Math {
 
 	public static var PI(default,null) : Float;
 	public static var NaN(default,null) : Float;

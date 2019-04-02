@@ -139,7 +139,7 @@ import java.NativeArray;
 #end
 	}
 
-	@:final private function lookup( key : K ) : Int
+	private final function lookup( key : K ) : Int
 	{
 		if (nBuckets != 0)
 		{
@@ -170,7 +170,7 @@ import java.NativeArray;
 		return -1;
 	}
 
-	@:final @:private function resize(newNBuckets:Int) : Void
+	@:private final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
@@ -488,8 +488,7 @@ import java.NativeArray;
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final
-private class ObjectMapKeyIterator<T:{},V> {
+private final class ObjectMapKeyIterator<T:{},V> {
 	var m:ObjectMap<T,V>;
 	var i:Int;
 	var len:Int;
@@ -526,8 +525,7 @@ private class ObjectMapKeyIterator<T:{},V> {
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final
-private class ObjectMapValueIterator<K:{},T> {
+private final class ObjectMapValueIterator<K:{},T> {
 	var m:ObjectMap<K,T>;
 	var i:Int;
 	var len:Int;

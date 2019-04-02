@@ -52,6 +52,8 @@ class ImportAll {
 			return;
 		case "sys":
 			if(!isSysTarget()) return;
+		case "sys.thread":
+			if ( !Context.defined("target.threaded") ) return;
 		case "java":
 			if( !Context.defined("java") ) return;
 		case "cs":

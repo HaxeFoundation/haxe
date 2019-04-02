@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef Float32ArrayData = js.html.Float32Array;
+typedef Float32ArrayData = js.lib.Float32Array;
 
 @:coreApi
 abstract Float32Array(Float32ArrayData) {

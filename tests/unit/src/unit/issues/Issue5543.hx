@@ -3,6 +3,7 @@ package unit.issues;
 class Issue5543 extends Test {
 	function test() {
 		f1({ i: 5 });
+		noAssert();
 	}
 
 	static function f1(n:NullableInt) {

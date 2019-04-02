@@ -33,20 +33,27 @@ class Macro {
 				return "";
 			});
 			var markers = markers.length > 0 ? macro $a{markers} : macro new Map();
-			testCases.push(macro function() {
-				ctx = new DisplayTestContext($v{Context.getPosInfos(c.pos).file}, $v{field.name}, $v{src}, $markers);
-				$i{field.name}();
-			});
-		}
-
-		fields.push((macro class {
-			public function new() {
-				testName = $v{c.name};
-				numTests = 0;
-				numFailures = 0;
-				this.methods = $a{testCases};
+			var filename = Context.getPosInfos(c.pos).file;
+			for (meta in field.meta) {
+				if (meta.name == ":filename") {
+					switch (meta.params[0].expr) {
+						case EConst(CString(s)):
+							filename = Path.directory(filename) + "/" + s;
+						case _:
+							throw "String expected";
+					}
+				}
 			}
-		}).fields[0]);
+
+			switch (field.kind) {
+				case FFun(f) if (f.expr != null):
+					f.expr = macro @:pos(f.expr.pos) {
+						ctx = new DisplayTestContext($v{filename}, $v{field.name}, $v{src}, $markers);
+						${f.expr}
+					};
+				case _:
+			}
+		}
 
 		return fields;
 	}
@@ -60,11 +67,14 @@ class Macro {
 				if (singleCase != null && !file.endsWith(singleCase + ".hx")) {
 					continue;
 				}
+				if (file.endsWith("import.hx")) {
+					continue;
+				}
 				var p = new haxe.io.Path(file);
 				if (p.ext == "hx") {
 					var tp = {pack: pack, name: p.file};
-					cases.push(macro { name:$v{tp.name}, exec:new $tp() });
-				} else if(Path.join([path, file]).isDirectory()) {
+					cases.push(macro new $tp());
+				} else if (Path.join([path, file]).isDirectory()) {
 					loop(pack.concat([file]));
 				}
 			}

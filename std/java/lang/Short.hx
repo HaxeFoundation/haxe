@@ -40,10 +40,10 @@
 	@:overload function equals(param1 : Dynamic) : Bool;
 	@:overload function hashCode() : Int;
 	@:overload function toString() : String;
-	@:final static var MAX_VALUE(default,null) : java.types.Int16;
-	@:final static var MIN_VALUE(default,null) : java.types.Int16;
-	@:final static var SIZE(default,null) : Int;
-	@:final static var TYPE : Class<Short>;
+	static final MAX_VALUE : java.types.Int16;
+	static final MIN_VALUE : java.types.Int16;
+	static final SIZE : Int;
+	static final TYPE : Class<Short>;
 	@:overload static function compare(param1 : java.types.Int16, param2 : java.types.Int16) : Int;
 	@:overload @:throws("java.lang.NumberFormatException") static function decode(param1 : String) : Short;
 	@:overload @:throws("java.lang.NumberFormatException") static function parseShort(param1 : String, param2 : Int) : java.types.Int16;

@@ -23,9 +23,14 @@ type cache = {
 	c_directories : (string, cached_directory list) Hashtbl.t;
 }
 
+type context_sign = {
+	cs_json : Json.t;
+	cs_index : int;
+}
+
 type t = {
 	cache : cache;
-	mutable signs : (string * (Json.t * int)) list;
+	mutable signs : (string * context_sign) list;
 	mutable initialized : bool;
 }
 
@@ -77,22 +82,28 @@ let get_context_files cs signs =
 let get_sign cs sign =
 	List.assoc sign cs.signs
 
-let get_sign_by_index cs index =
-	List.find (fun (_,(_,i)) -> i = index) cs.signs
+let has_sign cs sign =
+	List.mem_assoc sign cs.signs
 
-let add_sign cs sign com =
+let add_sign cs sign desc com =
 	let i = List.length cs.signs in
 	let jo = JObject [
 		"index",JInt i;
+		"desc",JString desc;
 		"platform",JString (platform_name com.platform);
 		"classPaths",JArray (List.map (fun s -> JString s) com.class_path);
+		"signature",JString (Digest.to_hex sign);
 		"defines",JArray (PMap.foldi (fun k v acc -> JObject [
 			"key",JString k;
 			"value",JString v;
 		] :: acc) com.defines.values []);
 	] in
-	cs.signs <- (sign,(jo,i)) :: cs.signs;
+	cs.signs <- (sign,{cs_json = jo;cs_index = i}) :: cs.signs;
 	i
+
+let maybe_add_context_sign cs com desc =
+	let sign = Define.get_signature com.defines in
+	if not (has_sign cs sign) then ignore (add_sign cs sign desc com)
 
 let get_signs cs =
 	cs.signs

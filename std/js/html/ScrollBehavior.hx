@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ScrollBehavior(String)
-{
+enum abstract ScrollBehavior(String) {
 	var AUTO = "auto";
 	var INSTANT = "instant";
 	var SMOOTH = "smooth";

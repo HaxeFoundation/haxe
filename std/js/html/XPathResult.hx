@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/XPathResult>
 **/
 @:native("XPathResult")
-extern class XPathResult
-{
+extern class XPathResult {
 	static inline var ANY_TYPE : Int = 0;
 	static inline var NUMBER_TYPE : Int = 1;
 	static inline var STRING_TYPE : Int = 2;

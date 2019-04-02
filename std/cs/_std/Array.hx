@@ -24,7 +24,7 @@ import cs.NativeArray;
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-@:final class Array<T> implements ArrayAccess<T> {
+final class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
@@ -480,8 +480,7 @@ import cs.NativeArray;
 	}
 }
 
-@:final
-private class ArrayIterator<T>
+private final class ArrayIterator<T>
 {
 	var arr:Array<T>;
 	var len:Int;

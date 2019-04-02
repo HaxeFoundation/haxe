@@ -24,8 +24,6 @@
 
 package js.html.audio;
 
-typedef ChannelMergerOptions =
-{
-	> AudioNodeOptions,
-	@:optional var numberOfInputs : Int;
+typedef ChannelMergerOptions = AudioNodeOptions & {
+	var ?numberOfInputs : Int;
 }

@@ -30,8 +30,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ScriptProcessorNode>
 **/
 @:native("ScriptProcessorNode")
-extern class ScriptProcessorNode extends AudioNode
-{
+extern class ScriptProcessorNode extends AudioNode {
 	
 	/**
 		Represents the `EventHandler` to be called.

@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract FetchState(String)
-{
+enum abstract FetchState(String) {
 	var REQUESTING = "requesting";
 	var RESPONDING = "responding";
 	var ABORTED = "aborted";

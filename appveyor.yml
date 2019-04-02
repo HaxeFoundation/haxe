@@ -38,14 +38,16 @@ install:
     - curl -fsSL -o cygwin-setup.exe --retry 3 https://cygwin.com/setup-x86_64.exe
     - 'cygwin-setup.exe -g -q -R "%CYG_ROOT%" -P make -P git -P zlib-devel -P mingw64-x86_64-zlib -P mingw64-i686-zlib -P rsync -P patch -P diffutils -P curl -P unzip -P m4 -P perl -P mingw64-x86_64-gcc-core -P mingw64-i686-gcc-core -P libpcre-devel -P mingw64-x86_64-pcre -P mingw64-i686-pcre'
     - if not exist "opam.tar.xz" (
-        curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.1/opam%ARCH%.tar.xz
+        curl -fsSL -o "opam.tar.xz" --retry 3 https://github.com/fdopen/opam-repository-mingw/releases/download/0.0.0.2/opam%ARCH%.tar.xz
       )
     - 7z x "opam.tar.xz" -so | 7z x -aoa -si -ttar
     - '%CYG_ROOT%/bin/bash -lc "cd \"$OLDPWD\" && bash opam${ARCH}/install.sh"'
-    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git\" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam init mingw \"https://github.com/fdopen/opam-repository-mingw.git#opam2\" --comp 4.07.0+mingw${ARCH}c --switch 4.07.0+mingw${ARCH}c --auto-setup --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam update --yes"'
-    - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --no-action --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam pin add haxe \"$APPVEYOR_BUILD_FOLDER\" --kind=path --no-action --yes"'
     - '%CYG_ROOT%/bin/bash -lc "opam install haxe --deps-only --yes"'
+    - '%CYG_ROOT%/bin/bash -lc "opam list"'
+    - '%CYG_ROOT%/bin/bash -lc "ocamlopt -v"'
     # Install php
     - choco install php --version 7.2.0 -y
     - echo extension=php_openssl.dll >> C:\tools\php72\php.ini

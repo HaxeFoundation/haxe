@@ -124,6 +124,8 @@ extern class NativeSocket
    @:native("_hx_std_socket_set_fast_send")
    public static function socket_set_fast_send(o:Dynamic,b:Bool) : Void;
 
+   @:native("_hx_std_socket_set_broadcast")
+   public static function socket_set_broadcast(o:Dynamic,b:Bool) : Void;
 
    @:native("_hx_std_socket_poll_alloc")
    public static function socket_poll_alloc(nsocks:Int) : Dynamic;

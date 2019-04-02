@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFace>
 **/
 @:native("FontFace")
-extern class FontFace
-{
+extern class FontFace {
 	
 	/**
 		Is a `CSSOMString` that contains the family of the font. It is equivalent to the `@font-face/font-family` descriptor.
@@ -81,8 +80,8 @@ extern class FontFace
 	var loaded(default,null) : Promise<FontFace>;
 	
 	/** @throws DOMError */
-	@:overload( function( family : String, source : ArrayBuffer, ?descriptors : FontFaceDescriptors) : FontFace {} )
-	@:overload( function( family : String, source : ArrayBufferView, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	@:overload( function( family : String, source : js.lib.ArrayBuffer, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	@:overload( function( family : String, source : js.lib.ArrayBufferView, ?descriptors : FontFaceDescriptors) : FontFace {} )
 	function new( family : String, source : String, ?descriptors : FontFaceDescriptors ) : Void;
 	
 	/**

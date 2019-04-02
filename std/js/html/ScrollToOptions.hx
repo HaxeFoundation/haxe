@@ -24,9 +24,7 @@
 
 package js.html;
 
-typedef ScrollToOptions =
-{
-	> ScrollOptions,
-	@:optional var left : Float;
-	@:optional var top : Float;
+typedef ScrollToOptions = ScrollOptions & {
+	var ?left : Float;
+	var ?top : Float;
 }

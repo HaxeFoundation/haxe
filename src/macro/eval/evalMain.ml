@@ -41,6 +41,8 @@ let sid = ref (-1)
 let stdlib = ref None
 let debug = ref None
 
+let debugger_initialized = ref false
+
 let create com api is_macro =
 	let t = Timer.timer [(if is_macro then "macro" else "interp");"create"] in
 	incr sid;
@@ -87,13 +89,9 @@ let create com api is_macro =
 				breakpoints = Hashtbl.create 0;
 				function_breakpoints = Hashtbl.create 0;
 				support_debugger = support_debugger;
-				debug_state = DbgStart;
-				breakpoint = EvalDebugMisc.make_breakpoint 0 0 BPDisabled BPAny None;
-				caught_types = Hashtbl.create 0;
-				environment_offset_delta = 0;
 				debug_socket = socket;
 				exception_mode = CatchUncaught;
-				caught_exception = vnull;
+				debug_context = new eval_debug_context;
 			} in
 			debug := Some debug';
 			debug'
@@ -101,12 +99,13 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let evals = DynArray.create () in
-	let eval = {
-		environments = DynArray.make 32;
-		environment_offset = 0;
+	let thread = {
+		tthread = Thread.self();
+		tstorage = IntMap.empty;
+		tdeque = EvalThread.Deque.create();
 	} in
-	DynArray.add evals eval;
+	let eval = EvalThread.create_eval thread in
+	let evals = IntMap.singleton 0 eval in
 	let rec ctx = {
 		ctx_id = !sid;
 		is_macro = is_macro;
@@ -135,6 +134,16 @@ let create com api is_macro =
 		evals = evals;
 		exception_stack = [];
 	} in
+	if debug.support_debugger && not !debugger_initialized then begin
+		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
+		   Note that configuration is shared between macro and interpreter contexts, which is why the check
+		   is governed by a global variable. *)
+		debugger_initialized := true;
+		 (* There's select_ctx in the json-rpc handling, so let's select this one. It's fine because it's the
+		    first context anyway. *)
+		select ctx;
+		ignore(Event.sync(Event.receive eval.debug_channel));
+	end;
 	t();
 	ctx
 
@@ -153,7 +162,14 @@ let call_path ctx path f vl api =
 		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
-			call_value_on vtype vfield vl
+			let p = api.pos in
+			let info = create_env_info true p.pfile EKEntrypoint (Hashtbl.create 0) in
+			let env = push_environment ctx info 0 0 in
+			env.env_leave_pmin <- p.pmin;
+			env.env_leave_pmax <- p.pmax;
+			let v = call_value_on vtype vfield vl in
+			pop_environment ctx env;
+			v
 		) api.pos
 	end
 
@@ -345,7 +361,7 @@ let setup get_api =
 			let f vl = try
 				f vl
 			with
-			| Sys_error msg | Failure msg ->
+			| Sys_error msg | Failure msg | Invalid_argument msg ->
 				exc_string msg
 			| MacroApi.Invalid_expr ->
 				exc_string "Invalid expression"
@@ -365,7 +381,7 @@ let set_error ctx b =
 	ctx.had_error <- b
 
 let add_types ctx types ready =
-	ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
+	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
 let compiler_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
@@ -431,7 +447,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = eval_expr ctx key_questionmark key_questionmark e
+let eval_expr ctx e = if ctx.had_error then None else eval_expr ctx EKEntrypoint e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in
@@ -535,3 +551,12 @@ let handle_decoding_error f v t =
 	in
 	loop "" t v;
 	!errors
+
+let get_api_call_pos () =
+	let eval = get_eval (get_ctx()) in
+	let env = Option.get eval.env in
+	let env = match env.env_parent with
+		| None -> env
+		| Some env -> env
+	in
+	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }

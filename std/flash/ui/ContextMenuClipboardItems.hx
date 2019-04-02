@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:final extern class ContextMenuClipboardItems {
+extern final class ContextMenuClipboardItems {
 	var clear : Bool;
 	var copy : Bool;
 	var cut : Bool;

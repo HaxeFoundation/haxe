@@ -2,6 +2,7 @@ package unit.issues;
 
 class Issue6315 extends unit.Test {
 	function test() {
+		noAssert();
 		try if(throw "ok") { } catch(e:Dynamic) { }
 		try if(throw "ok") { } else { } catch(e:Dynamic) { }
 		try switch throw "ok" { case _: } catch(e:Dynamic) { }
@@ -19,7 +20,6 @@ class Issue6315 extends unit.Test {
 			try if(continue) { } else { } catch(e:Dynamic) { }
 			try switch continue { case _: } catch(e:Dynamic) { }
 		}
-
 		return "";
 	}
 }

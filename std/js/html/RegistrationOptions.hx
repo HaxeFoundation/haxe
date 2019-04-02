@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef RegistrationOptions =
-{
-	@:optional var scope : String;
-	@:optional var updateViaCache : ServiceWorkerUpdateViaCache;
+typedef RegistrationOptions = {
+	var ?scope : String;
+	var ?updateViaCache : ServiceWorkerUpdateViaCache;
 }

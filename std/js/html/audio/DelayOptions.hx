@@ -24,9 +24,7 @@
 
 package js.html.audio;
 
-typedef DelayOptions =
-{
-	> AudioNodeOptions,
-	@:optional var delayTime : Float;
-	@:optional var maxDelayTime : Float;
+typedef DelayOptions = AudioNodeOptions & {
+	var ?delayTime : Float;
+	var ?maxDelayTime : Float;
 }

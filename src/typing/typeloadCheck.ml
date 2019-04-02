@@ -115,6 +115,9 @@ let valid_redefinition ctx f1 t1 f2 t2 = (* child, parent *)
 	| _,(Var { v_read = AccNo | AccNever }) ->
 		(* read variance *)
 		valid t2 t1
+	| _,_ when has_class_field_flag f2 CfFinal ->
+		(* write variance *)
+		valid t1 t2
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
 		type_eq EqStrict t1 t2;
@@ -147,7 +150,7 @@ let check_overriding ctx c f =
 				display_error ctx ("Field " ^ i ^ " should be declared with @:overload since it was already declared as @:overload in superclass") p
 			else if not (List.memq f c.cl_overrides) then
 				display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass " ^ s_type_path csup.cl_path) p
-			else if not f.cf_public && f2.cf_public then
+			else if not (has_class_field_flag f CfPublic) && (has_class_field_flag f2 CfPublic) then
 				display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 			else (match f.cf_kind, f2.cf_kind with
 			| _, Method MethInline ->
@@ -157,10 +160,11 @@ let check_overriding ctx c f =
 				() (* allow to redefine a method as inlined *)
 			| _ ->
 				display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
-			if f2.cf_final then display_error ctx ("Cannot override final method " ^ i) p;
+			if (has_class_field_flag f2 CfFinal) then display_error ctx ("Cannot override final method " ^ i) p;
 			try
 				let t = apply_params csup.cl_params params t in
-				valid_redefinition ctx f f.cf_type f2 t
+				valid_redefinition ctx f f.cf_type f2 t;
+				add_class_field_flag f2 CfOverridden;
 			with
 				Unify_error l ->
 					display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
@@ -171,9 +175,14 @@ let check_overriding ctx c f =
 				if List.memq f c.cl_overrides then
 					let msg = if is_overload then
 						("Field " ^ i ^ " is declared 'override' but no compatible overload was found")
-					else
-						("Field " ^ i ^ " is declared 'override' but doesn't override any field")
-					in
+					else begin
+						let fields = TClass.get_all_super_fields c in
+						let fields = PMap.fold (fun (_,cf) acc -> match cf.cf_kind with
+							| Method MethNormal when not (has_class_field_flag cf CfFinal) -> cf.cf_name :: acc
+							| _ -> acc
+						) fields [] in
+						StringError.string_error i fields ("Field " ^ i ^ " is declared 'override' but doesn't override any field")
+					end in
 					display_error ctx msg p
 		in
 		if ctx.com.config.pf_overload && Meta.has Meta.Overload f.cf_meta then begin
@@ -324,7 +333,7 @@ module Inheritance = struct
 					| MethDynamic -> 1
 					| MethMacro -> 2
 				in
-				if f.cf_public && not f2.cf_public && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
+				if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 					display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 				else if not (unify_kind f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
 					display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
@@ -412,7 +421,7 @@ module Inheritance = struct
 		) herits in
 		let herits = List.filter (ctx.g.do_inherit ctx c p) herits in
 		(* Pass 1: Check and set relations *)
-		let check_herit t is_extends =
+		let check_herit t is_extends p =
 			if is_extends then begin
 				if c.cl_super <> None then error "Cannot extend several classes" p;
 				let csup,params = check_extends ctx c t p in
@@ -458,10 +467,10 @@ module Inheritance = struct
 					error "Should implement by using an interface" p
 			end
 		in
-		let fl = ExtList.List.filter_map (fun (is_extends,t) ->
+		let fl = ExtList.List.filter_map (fun (is_extends,(ct,p)) ->
 			try
 				let t = try
-					Typeload.load_instance ~allow_display:true ctx t false
+					Typeload.load_instance ~allow_display:true ctx (ct,p) false
 				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
@@ -475,7 +484,7 @@ module Inheritance = struct
 					) l in
 					raise_fields l (if is_extends then CRExtends else CRImplements) p
 				in
-				Some (check_herit t is_extends)
+				Some (check_herit t is_extends p)
 			with Error(Module_not_found(([],name)),p) when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.is_diagnostics_run p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
@@ -486,7 +495,7 @@ end
 let check_final_vars ctx e =
 	let final_vars = Hashtbl.create 0 in
 	List.iter (fun cf -> match cf.cf_kind with
-		| Var _ when cf.cf_final && cf.cf_expr = None ->
+		| Var _ when (has_class_field_flag cf CfFinal) && cf.cf_expr = None ->
 			Hashtbl.add final_vars cf.cf_name cf
 		| _ ->
 			()

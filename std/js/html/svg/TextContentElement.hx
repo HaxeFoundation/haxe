@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTextContentElement>
 **/
 @:native("SVGTextContentElement")
-extern class TextContentElement extends GraphicsElement
-{
+extern class TextContentElement extends GraphicsElement {
 	static inline var LENGTHADJUST_UNKNOWN : Int = 0;
 	static inline var LENGTHADJUST_SPACING : Int = 1;
 	static inline var LENGTHADJUST_SPACINGANDGLYPHS : Int = 2;

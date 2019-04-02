@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimatedAngle>
 **/
 @:native("SVGAnimatedAngle")
-extern class AnimatedAngle
-{
+extern class AnimatedAngle {
 	var baseVal(default,null) : Angle;
 	var animVal(default,null) : Angle;
 	

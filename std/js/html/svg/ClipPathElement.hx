@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGClipPathElement>
 **/
 @:native("SVGClipPathElement")
-extern class ClipPathElement extends Element
-{
+extern class ClipPathElement extends Element {
 	
 	/**
 		An `SVGAnimatedEnumeration` corresponding to the `clipPathUnits` attribute of the given `clipPath` element. Takes one of the constants defined in `SVGUnitTypes`.

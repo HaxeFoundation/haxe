@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef Float64ArrayData = js.html.Float64Array;
+typedef Float64ArrayData = js.lib.Float64Array;
 
 @:coreApi
 abstract Float64Array(Float64ArrayData) {

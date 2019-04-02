@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PermissionStatus>
 **/
 @:native("PermissionStatus")
-extern class PermissionStatus extends EventTarget
-{
+extern class PermissionStatus extends EventTarget {
 	
 	/**
 		Returns the state of a requested permission; one of `'granted'`, `'denied'`, or `'prompt'`.

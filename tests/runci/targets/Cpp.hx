@@ -65,9 +65,12 @@ class Cpp {
 		}
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-cpp.hxml"]);
 		runCpp("bin/cpp/Main-debug", []);
+
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+		runCpp("export/cpp/Main");
 
 		// if (Sys.systemName() == "Mac")
 		// {

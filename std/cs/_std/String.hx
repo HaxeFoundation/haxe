@@ -29,6 +29,8 @@ import haxe.iterators.StringKeyValueIterator;
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
 
+	private static function CompareOrdinal(s1:String, s2:String):Int;
+
 	var length(default,null) : Int;
 
 	function new(string:String) : Void;

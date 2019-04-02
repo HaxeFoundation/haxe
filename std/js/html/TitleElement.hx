@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTitleElement>
 **/
 @:native("HTMLTitleElement")
-extern class TitleElement extends Element
-{
+extern class TitleElement extends Element {
 	
 	/**
 		Is a `DOMString` representing the text of the document's title.

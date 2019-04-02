@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannelEvent>
 **/
 @:native("RTCDataChannelEvent")
-extern class DataChannelEvent extends js.html.Event
-{
+extern class DataChannelEvent extends js.html.Event {
 	var channel(default,null) : DataChannel;
 	
 	/** @throws DOMError */

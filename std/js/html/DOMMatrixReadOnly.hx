@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMMatrixReadOnly>
 **/
 @:native("DOMMatrixReadOnly")
-extern class DOMMatrixReadOnly
-{
+extern class DOMMatrixReadOnly {
 	
 	/**
 		Are <code>double</code> representing each component of a 4x4 matrix needed for 2D rotations and translations. They are aliases for some components of the 4x4 matrix:
@@ -117,27 +116,27 @@ extern class DOMMatrixReadOnly
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix being translated by the given vector. The original matrix is not modified.
 	**/
-	function translate( tx : Float, ty : Float, ?tz : Float = 0.0 ) : DOMMatrix;
+	function translate( tx : Float, ty : Float, tz : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x and y dimensions being scaled by the given factor, centered on the origin given. The original matrix is not modified.
 	**/
-	function scale( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function scale( scale : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x, y and z dimension being scaled by the given factor, centered on the origin given. The original matrix is not modified.
 	**/
-	function scale3d( scale : Float, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scale3d( scale : Float, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the matrix x, y and z dimension being scaled by the given factor for each dimension, centered on the origin given. The original matrix is not modified.
 	**/
-	function scaleNonUniform( scaleX : Float, ?scaleY : Float = 1.0, ?scaleZ : Float = 1.0, ?originX : Float = 0.0, ?originY : Float = 0.0, ?originZ : Float = 0.0 ) : DOMMatrix;
+	function scaleNonUniform( scaleX : Float, scaleY : Float = 1.0, scaleZ : Float = 1.0, originX : Float = 0.0, originY : Float = 0.0, originZ : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the given angle, with the rotation centered on the origin given. The original matrix is not modified.
 	**/
-	function rotate( angle : Float, ?originX : Float = 0.0, ?originY : Float = 0.0 ) : DOMMatrix;
+	function rotate( angle : Float, originX : Float = 0.0, originY : Float = 0.0 ) : DOMMatrix;
 	
 	/**
 		Returns a `DOMMatrix` containing a new matrix being the result of the original matrix being rotated by the angle between the given vector and (1,0), centered on the origin given. The original matrix is not modified.
@@ -188,13 +187,13 @@ extern class DOMMatrixReadOnly
 		Returns a `Float32Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
 		@throws DOMError
 	**/
-	function toFloat32Array() : Float32Array;
+	function toFloat32Array() : js.lib.Float32Array;
 	
 	/**
 		Returns a `Float64Array` containing the 6 components (`a`, `b`, `c`, `d`, `e`, `f`) in the case of a 2D matrix or the 16 components (`m11`, `m12`, `m13`, `m14`, `m21`, `m22`, `m23`, `m24`, `m31`, `m32`, `m33`, `m34`, `m41`, `m42`, `m43`, `m44`) for a 3D matrix.
 		@throws DOMError
 	**/
-	function toFloat64Array() : Float64Array;
+	function toFloat64Array() : js.lib.Float64Array;
 	
 	/**
 		Returns a JSON representation of the `DOMMatrixReadOnly` object.

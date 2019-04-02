@@ -32,12 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FileReaderSync>
 **/
 @:native("FileReaderSync")
-extern class FileReaderSync
-{
+extern class FileReaderSync {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
-	function readAsArrayBuffer( blob : Blob ) : ArrayBuffer;
+	function readAsArrayBuffer( blob : Blob ) : js.lib.ArrayBuffer;
 	/** @throws DOMError */
 	function readAsBinaryString( blob : Blob ) : String;
 	/** @throws DOMError */

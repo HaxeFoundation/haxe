@@ -74,7 +74,6 @@ type typer_globals = {
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
-	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	mutable global_using : (tclass * pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
@@ -108,6 +107,7 @@ and typer = {
 	mutable curclass : tclass;
 	mutable tthis : t;
 	mutable type_params : (string * t) list;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
@@ -132,7 +132,6 @@ let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> 
 let type_expr_ref : (typer -> expr -> WithType.t -> texpr) ref = ref (fun _ _ _ -> assert false)
 let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let get_pattern_locals_ref : (typer -> expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
 
 let pass_name = function
@@ -145,7 +144,7 @@ let pass_name = function
 
 let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
 	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
-	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
+	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
@@ -308,7 +307,7 @@ let push_this ctx e = match e.eexpr with
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field ctx f =
-	f.cf_extern || Meta.has Meta.Generic f.cf_meta
+	has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
 	|| (match f.cf_kind with
 		| Var {v_read = AccRequire (s,_)} -> true
 		| Method MethMacro -> not ctx.in_macro
@@ -316,7 +315,7 @@ let is_removable_field ctx f =
 
 (** checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
-	if cf.cf_public then
+	if (has_class_field_flag cf CfPublic) then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true

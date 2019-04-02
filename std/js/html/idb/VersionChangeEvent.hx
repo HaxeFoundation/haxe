@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBVersionChangeEvent>
 **/
 @:native("IDBVersionChangeEvent")
-extern class VersionChangeEvent extends js.html.Event
-{
+extern class VersionChangeEvent extends js.html.Event {
 	
 	/**
 		Returns the old version of the database.

@@ -15,7 +15,7 @@ type 'value compiler_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	after_typing : (module_type list -> unit) -> unit;
-	on_generate : (Type.t list -> unit) -> unit;
+	on_generate : (Type.t list -> unit) -> bool -> unit;
 	after_generate : (unit -> unit) -> unit;
 	on_type_not_found : (string -> 'value) -> unit;
 	parse_string : string -> Globals.pos -> bool -> Ast.expr;
@@ -25,7 +25,7 @@ type 'value compiler_api = {
 	store_typed_expr : Type.texpr -> Ast.expr;
 	allow_package : string -> unit;
 	type_patch : string -> string -> bool -> string option -> unit;
-	meta_patch : string -> string -> string option -> bool -> unit;
+	meta_patch : string -> string -> string option -> bool -> pos -> unit;
 	set_js_generator : (Genjs.ctx -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_expected_type : unit -> t option;
@@ -35,7 +35,6 @@ type 'value compiler_api = {
 	get_local_using : unit -> tclass list;
 	get_local_vars : unit -> (string, Type.tvar) PMap.t;
 	get_build_fields : unit -> 'value;
-	get_pattern_locals : Ast.expr -> Type.t -> (string,Type.tvar * Globals.pos) PMap.t;
 	define_type : 'value -> string option -> unit;
 	define_module : string -> 'value list -> ((string * Globals.pos) list * Ast.import_mode) list -> Ast.type_path list -> unit;
 	module_dependency : string -> string -> unit;
@@ -44,7 +43,7 @@ type 'value compiler_api = {
 	use_cache : unit -> bool;
 	format_string : string -> Globals.pos -> Ast.expr;
 	cast_or_unify : Type.t -> texpr -> Globals.pos -> bool;
-	add_global_metadata : string -> string -> (bool * bool * bool) -> unit;
+	add_global_metadata : string -> string -> (bool * bool * bool) -> pos -> unit;
 	add_module_check_policy : string list -> int list -> bool -> int -> unit;
 	decode_expr : 'value -> Ast.expr;
 	encode_expr : Ast.expr -> 'value;
@@ -145,6 +144,7 @@ module type InterpApi = sig
 
 	val handle_decoding_error : (string -> unit) -> value -> Type.t -> (string * int) list
 
+	val get_api_call_pos : unit -> pos
 end
 
 let enum_name = function
@@ -562,6 +562,8 @@ let decode_import t = (List.map (fun o -> ((decode_string (field o "name")), (de
 
 let maybe_decode_pos p = try decode_pos p with Invalid_expr -> Globals.null_pos
 
+let decode_pos_default p pd = try decode_pos p with Invalid_expr -> pd
+
 let decode_placed_name vp v =
 	decode_string v,maybe_decode_pos vp
 
@@ -645,10 +647,11 @@ and decode_field v =
 		| _ ->
 			raise Invalid_expr
 	in
+	let pos = decode_pos (field v "pos") in
 	{
-		cff_name = decode_placed_name (field v "name_pos") (field v "name");
+		cff_name = (decode_string (field v "name"),decode_pos_default (field v "name_pos") pos);
 		cff_doc = opt decode_string (field v "doc");
-		cff_pos = decode_pos (field v "pos");
+		cff_pos = pos;
 		cff_kind = fkind;
 		cff_access = List.map decode_access (opt_list decode_array (field v "access"));
 		cff_meta = opt_list decode_meta_content (field v "meta");
@@ -878,7 +881,7 @@ and encode_cfield f =
 	encode_obj [
 		"name", encode_string f.cf_name;
 		"type", encode_lazy_type f.cf_type;
-		"isPublic", vbool f.cf_public;
+		"isPublic", vbool (has_class_field_flag f CfPublic);
 		"params", encode_type_params f.cf_params;
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", vfun0 (fun() ->
@@ -890,8 +893,8 @@ and encode_cfield f =
 		"namePos",encode_pos f.cf_name_pos;
 		"doc", null encode_string f.cf_doc;
 		"overloads", encode_ref f.cf_overloads (encode_and_map_array encode_cfield) (fun() -> "overloads");
-		"isExtern", vbool f.cf_extern;
-		"isFinal", vbool f.cf_final;
+		"isExtern", vbool (has_class_field_flag f CfExtern);
+		"isFinal", vbool (has_class_field_flag f CfFinal);
 	]
 
 and encode_field_kind k =
@@ -1253,10 +1256,12 @@ let decode_field_kind v =
 	| _ -> raise Invalid_expr
 
 let decode_cfield v =
-	{
+	let public = decode_bool (field v "isPublic") in
+	let extern = decode_bool (field v "isExtern") in
+	let final = decode_bool (field v "isFinal") in
+	let cf = {
 		cf_name = decode_string (field v "name");
 		cf_type = decode_type (field v "type");
-		cf_public = decode_bool (field v "isPublic");
 		cf_pos = decode_pos (field v "pos");
 		cf_name_pos = decode_pos (field v "namePos");
 		cf_doc = opt decode_string (field v "doc");
@@ -1266,9 +1271,12 @@ let decode_cfield v =
 		cf_expr = None;
 		cf_expr_unoptimized = None;
 		cf_overloads = decode_ref (field v "overloads");
-		cf_extern = decode_bool (field v "isExtern");
-		cf_final = decode_bool (field v "isFinal");
-	}
+		cf_flags = 0;
+	} in
+	if public then add_class_field_flag cf CfPublic;
+	if extern then add_class_field_flag cf CfExtern;
+	if final then add_class_field_flag cf CfFinal;
+	cf
 
 let decode_efield v =
 	{
@@ -1521,9 +1529,9 @@ let macro_api ccom get_api =
 			(get_api()).after_typing (fun tl -> ignore(f [encode_array (List.map encode_module_type tl)]));
 			vnull
 		);
-		"on_generate", vfun1 (fun f ->
+		"on_generate", vfun2 (fun f b ->
 			let f = prepare_callback f 1 in
-			(get_api()).on_generate (fun tl -> ignore(f [encode_array (List.map encode_type tl)]));
+			(get_api()).on_generate (fun tl -> ignore(f [encode_array (List.map encode_type tl)])) (decode_bool b);
 			vnull
 		);
 		"on_after_generate", vfun1 (fun f ->
@@ -1586,11 +1594,11 @@ let macro_api ccom get_api =
 			vnull
 		);
 		"meta_patch", vfun4 (fun m t f s ->
-			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s);
+			(get_api()).meta_patch (decode_string m) (decode_string t) (opt decode_string f) (decode_bool s) (get_api_call_pos ());
 			vnull
 		);
 		"add_global_metadata_impl", vfun5 (fun s1 s2 b1 b2 b3 ->
-			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3);
+			(get_api()).add_global_metadata (decode_string s1) (decode_string s2) (decode_bool b1,decode_bool b2,decode_bool b3) (get_api_call_pos());
 			vnull
 		);
 		"set_custom_js_generator", vfun1 (fun f ->
@@ -1617,7 +1625,7 @@ let macro_api ccom get_api =
 						vnull
 					);
 					"quoteString", vfun1 (fun v ->
-						encode_string ("\"" ^ Ast.s_escape (decode_string v) ^ "\"")
+						encode_string ("\"" ^ StringHelper.s_escape (decode_string v) ^ "\"")
 					);
 					"buildMetaData", vfun1 (fun t ->
 						match Texpr.build_metadata com.basic (decode_type_decl t) with
@@ -1816,10 +1824,6 @@ let macro_api ccom get_api =
 			else
 				encode_obj ["file",encode_string p.Globals.pfile;"pos",vint p.Globals.pmin]
 		);
-		"pattern_locals", vfun2 (fun e t ->
-			let loc = (get_api()).get_pattern_locals (decode_expr e) (decode_type t) in
-			encode_string_map (fun (v,_) -> encode_type v.v_type) loc
-		);
 		"apply_params", vfun3 (fun tpl tl t ->
 			let tl = List.map decode_type (decode_array tl) in
 			let tpl = List.map (fun v -> decode_string (field v "name"), decode_type (field v "t")) (decode_array tpl) in
@@ -1884,6 +1888,16 @@ let macro_api ccom get_api =
 				"range",range
 			] in
 			location
+		);
+		"on_null_safety_report", vfun1 (fun f ->
+			let f = prepare_callback f 1 in
+			(ccom()).callbacks#add_null_safety_report (fun (errors:(string*pos) list) ->
+				let encode_item (msg,pos) =
+					encode_obj [("msg", encode_string msg); ("pos", encode_pos pos)]
+				in
+				ignore(f [encode_array (List.map encode_item errors)])
+			);
+			vnull
 		);
 	]
 

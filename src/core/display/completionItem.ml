@@ -163,14 +163,14 @@ module CompletionModuleType = struct
 			| Some c ->
 				try
 					let cf = PMap.find "_new" c.cl_statics in
-					if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+					if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 				with Not_found ->
 					No
 		in
 		let ctor c =
 			try
 				let _,cf = get_constructor (fun cf -> cf.cf_type) c in
-				if c.cl_extern || cf.cf_public then Yes else YesButPrivate
+				if c.cl_extern || (has_class_field_flag cf CfPublic) then Yes else YesButPrivate
 			with Not_found ->
 				No
 		in

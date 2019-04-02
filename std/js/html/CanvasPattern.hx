@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern>
 **/
 @:native("CanvasPattern")
-extern class CanvasPattern
-{
+extern class CanvasPattern {
 	
 	/**
 		Applies an `SVGMatrix` representing a linear transform to the pattern.

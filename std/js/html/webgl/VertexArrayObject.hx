@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLVertexArrayObject>
 **/
 @:native("WebGLVertexArrayObject")
-extern class VertexArrayObject
-{
+extern class VertexArrayObject {
 }

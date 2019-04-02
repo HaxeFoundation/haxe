@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioDestinationNode>
 **/
 @:native("AudioDestinationNode")
-extern class AudioDestinationNode extends AudioNode
-{
+extern class AudioDestinationNode extends AudioNode {
 	
 	/**
 		Is an `unsigned long` defining the maximum number of channels that the physical device can handle.

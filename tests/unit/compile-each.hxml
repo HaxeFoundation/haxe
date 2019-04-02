@@ -6,5 +6,6 @@
 --resource res2.bin@re/s?!%[]))("'1.bin
 --resource serializedValues.txt
 --dce full
+-lib utest
 -D analyzer-optimize
 -D analyzer-user-var-fusion

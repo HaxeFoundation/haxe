@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("HTMLMenuElement")
-extern class MenuElement extends Element
-{
+extern class MenuElement extends Element {
 	var type : String;
 	var label : String;
 	var compact : Bool;

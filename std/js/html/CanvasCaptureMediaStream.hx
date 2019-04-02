@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CanvasCaptureMediaStream")
-extern class CanvasCaptureMediaStream extends MediaStream
-{
+extern class CanvasCaptureMediaStream extends MediaStream {
 	var canvas(default,null) : CanvasElement;
 	
 	function requestFrame() : Void;

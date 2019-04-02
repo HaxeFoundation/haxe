@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef IntlUtils =
-{
+typedef IntlUtils = {
 	/** @throws DOMError */
 	function getDisplayNames( locales : Array<String>, ?options : DisplayNameOptions ) : DisplayNameResult;
 	/** @throws DOMError */

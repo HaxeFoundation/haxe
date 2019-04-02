@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("CSSFontFeatureValuesRule")
-extern class CSSFontFeatureValuesRule extends CSSRule
-{
+extern class CSSFontFeatureValuesRule extends CSSRule {
 	var fontFamily : String;
 	var valueText : String;
 	

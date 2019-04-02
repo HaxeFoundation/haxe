@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Headers>
 **/
 @:native("Headers")
-extern class Headers
-{
+extern class Headers {
 	/** @throws DOMError */
 	@:overload( function( ?init : Array<Array<String>>) : Headers {} )
 	@:overload( function( ?init : haxe.DynamicAccess<String>) : Headers {} )

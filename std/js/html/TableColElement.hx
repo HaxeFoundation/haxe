@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLTableColElement>
 **/
 @:native("HTMLTableColElement")
-extern class TableColElement extends Element
-{
+extern class TableColElement extends Element {
 	var span : Int;
 	var align : String;
 	var ch : String;

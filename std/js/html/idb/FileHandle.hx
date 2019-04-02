@@ -25,8 +25,7 @@
 package js.html.idb;
 
 @:native("IDBFileHandle")
-extern class FileHandle extends js.html.EventTarget
-{
+extern class FileHandle extends js.html.EventTarget {
 	var mutableFile(default,null) : MutableFile;
 	var fileHandle(default,null) : MutableFile;
 	var mode(default,null) : js.html.FileMode;
@@ -43,13 +42,13 @@ extern class FileHandle extends js.html.EventTarget
 	/** @throws DOMError */
 	function readAsText( size : Int, ?encoding : String ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
-	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
 	@:overload( function( value : js.html.Blob) : FileRequest {} )
 	function write( value : String ) : FileRequest;
 	/** @throws DOMError */
-	@:overload( function( value : js.html.ArrayBuffer) : FileRequest {} )
-	@:overload( function( value : js.html.ArrayBufferView) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBuffer) : FileRequest {} )
+	@:overload( function( value : js.lib.ArrayBufferView) : FileRequest {} )
 	@:overload( function( value : js.html.Blob) : FileRequest {} )
 	function append( value : String ) : FileRequest;
 	/** @throws DOMError */

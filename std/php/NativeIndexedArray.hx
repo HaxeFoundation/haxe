@@ -51,6 +51,10 @@ abstract NativeIndexedArray<T>(NativeArray) from NativeArray to NativeArray {
 	@:from
 	static inline function fromHaxeArray<T>(a:Array<T>):NativeIndexedArray<T>
 		return @:privateAccess a.arr;
+
+	public inline function toString():String {
+		return Boot.stringifyNativeIndexedArray(this);
+	}
 }
 
 private class NativeIndexedArrayIterator<T> {

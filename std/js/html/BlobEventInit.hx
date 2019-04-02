@@ -24,8 +24,6 @@
 
 package js.html;
 
-typedef BlobEventInit =
-{
-	> EventInit,
-	@:optional var data : Blob;
+typedef BlobEventInit = EventInit & {
+	var ?data : Blob;
 }

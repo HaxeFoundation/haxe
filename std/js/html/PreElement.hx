@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLPreElement>
 **/
 @:native("HTMLPreElement")
-extern class PreElement extends Element
-{
+extern class PreElement extends Element {
 	
 	/**
 		Is a `long` value reflecting the obsolete `width` attribute, containing a fixed-size length for the `pre` element.

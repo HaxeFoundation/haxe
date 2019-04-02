@@ -24,9 +24,8 @@
 
 package js.html.rtc;
 
-typedef RtpHeaderExtensionParameters =
-{
-	@:optional var encrypted : Bool;
-	@:optional var id : Int;
-	@:optional var uri : String;
+typedef RtpHeaderExtensionParameters = {
+	var ?encrypted : Bool;
+	var ?id : Int;
+	var ?uri : String;
 }

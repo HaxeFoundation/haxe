@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NotificationEvent>
 **/
 @:native("NotificationEvent")
-extern class NotificationEvent extends ExtendableEvent
-{
+extern class NotificationEvent extends ExtendableEvent {
 	
 	/**
 		Returns a `Notification` object representing the notification that was clicked to fire the event.

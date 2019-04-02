@@ -24,8 +24,7 @@
 
 package js.html.eme;
 
-enum abstract MediaKeysRequirement(String)
-{
+enum abstract MediaKeysRequirement(String) {
 	var REQUIRED = "required";
 	var OPTIONAL = "optional";
 	var NOT_ALLOWED = "not-allowed";

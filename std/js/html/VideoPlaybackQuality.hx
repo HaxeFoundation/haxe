@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/VideoPlaybackQuality>
 **/
 @:native("VideoPlaybackQuality")
-extern class VideoPlaybackQuality
-{
+extern class VideoPlaybackQuality {
 	
 	/**
 		A `DOMHighResTimeStamp` containing the time in miliseconds since the start of the navigation and the creation of the object.

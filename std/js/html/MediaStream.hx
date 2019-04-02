@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaStream>
 **/
 @:native("MediaStream")
-extern class MediaStream extends EventTarget
-{
+extern class MediaStream extends EventTarget {
 	
 	/**
 		A `DOMString` containing 36 characters denoting a universally unique identifier (UUID) for the object.

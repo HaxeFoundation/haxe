@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEntry>
 **/
 @:native("PerformanceEntry")
-extern class PerformanceEntry
-{
+extern class PerformanceEntry {
 	
 	/**
 		A value that further specifies the value returned by the `PerformanceEntry.entryType` property. The value of both depends on the subtype. See property page for valid values.

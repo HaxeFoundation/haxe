@@ -24,8 +24,7 @@
 
 package js.html.rtc;
 
-enum abstract IceTransportPolicy(String)
-{
+enum abstract IceTransportPolicy(String) {
 	var RELAY = "relay";
 	var ALL = "all";
 }

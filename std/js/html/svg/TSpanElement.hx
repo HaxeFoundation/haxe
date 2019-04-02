@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTSpanElement>
 **/
 @:native("SVGTSpanElement")
-extern class TSpanElement extends TextPositioningElement
-{
+extern class TSpanElement extends TextPositioningElement {
 }

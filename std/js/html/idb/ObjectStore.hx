@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore>
 **/
 @:native("IDBObjectStore")
-extern class ObjectStore
-{
+extern class ObjectStore {
 	
 	/**
 		The name of this object store.
@@ -101,7 +100,7 @@ extern class ObjectStore
 		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursorWithValue` object. Used for iterating through an object store by primary key with a cursor.
 		@throws DOMError
 	**/
-	function openCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
+	function openCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 	
 	/**
 		Creates a new index during a version upgrade, returning a new `IDBIndex` object in the connected database.
@@ -144,5 +143,5 @@ extern class ObjectStore
 		Returns an `IDBRequest` object, and, in a separate thread, returns a new `IDBCursor`. Used for iterating through an object store with a key.
 		@throws DOMError
 	**/
-	function openKeyCursor( ?range : Dynamic, ?direction : CursorDirection = "next" ) : Request;
+	function openKeyCursor( ?range : Dynamic, direction : CursorDirection = NEXT ) : Request;
 }

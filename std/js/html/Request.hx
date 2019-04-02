@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Request>
 **/
 @:native("Request")
-extern class Request
-{
+extern class Request {
 	
 	/**
 		Contains the request's method (`GET`, `POST`, etc.)
@@ -102,7 +101,7 @@ extern class Request
 	**/
 	function clone() : Request;
 	/** @throws DOMError */
-	function arrayBuffer() : Promise<ArrayBuffer>;
+	function arrayBuffer() : Promise<js.lib.ArrayBuffer>;
 	/** @throws DOMError */
 	function blob() : Promise<Blob>;
 	/** @throws DOMError */

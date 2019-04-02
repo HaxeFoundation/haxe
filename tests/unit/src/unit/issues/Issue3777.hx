@@ -13,5 +13,6 @@ class Issue3777 extends unit.Test {
 	function test() {
 		// if it compiles, it works
 		new B();
+		noAssert();
 	}
 }

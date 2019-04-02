@@ -42,7 +42,7 @@ using php.Global;
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
-		return (this:NativeIndexedArray<Dynamic>).iterator();
+		return Global.array_values(this).iterator();
 
 	public inline function keyValueIterator():NativeArrayKeyValueIterator
 		return new NativeArrayKeyValueIterator(this);

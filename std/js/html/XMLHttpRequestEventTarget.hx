@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("XMLHttpRequestEventTarget")
-extern class XMLHttpRequestEventTarget extends EventTarget
-{
+extern class XMLHttpRequestEventTarget extends EventTarget {
 	var onloadstart : haxe.Constraints.Function;
 	var onprogress : haxe.Constraints.Function;
 	var onabort : haxe.Constraints.Function;

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/DOMQuad>
 **/
 @:native("DOMQuad")
-extern class DOMQuad
-{
+extern class DOMQuad {
 	
 	/**
 		are `DOMPoint` objects for each of the `DOMQuad` object's four corners.

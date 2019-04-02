@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TouchList>
 **/
 @:native("TouchList")
-extern class TouchList implements ArrayAccess<Touch>
-{
+extern class TouchList implements ArrayAccess<Touch> {
 	
 	/**
 		The number of `Touch` objects in the `TouchList`.

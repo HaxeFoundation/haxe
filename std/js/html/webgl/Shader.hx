@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLShader>
 **/
 @:native("WebGLShader")
-extern class Shader
-{
+extern class Shader {
 }

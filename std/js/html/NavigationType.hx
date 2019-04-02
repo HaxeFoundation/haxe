@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract NavigationType(String)
-{
+enum abstract NavigationType(String) {
 	var NAVIGATE = "navigate";
 	var RELOAD = "reload";
 	var BACK_FORWARD = "back_forward";

@@ -902,14 +902,17 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
-			let is_type_parameter_field = match fa with
+			let requires_cast = match fa with
+				| FInstance({cl_interface=true},_,{cf_kind = Var _}) ->
+					(* we have to cast var access on interfaces *)
+					true
 				| FInstance(_,_,cf) ->
+					(* if the return type is one of the type-parameters, then we need to cast it *)
 					(match follow cf.cf_type with TInst({cl_kind = KTypeParameter _},_) -> true | _ -> false)
 				| _ ->
 					List.exists (fun t -> follow t == et) tl
 			in
-			(* if the return type is one of the type-parameters, then we need to cast it *)
-			if is_type_parameter_field then
+			if requires_cast then
 				VCast (id, classify ctx e.etype)
 			else if Codegen.is_volatile e.etype then
 				VVolatile (id,None)
@@ -1991,7 +1994,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat || f.cf_final;
+				hlm_final = stat || (has_class_field_flag f CfFinal);
 				hlm_override = not stat && (loop c name || loop c f.cf_name);
 				hlm_kind = kind;
 			})
@@ -2094,7 +2097,7 @@ let generate_class ctx c =
 		in
 		let rec loop_meta = function
 			| [] ->
-				if not f.cf_public && ctx.swf_protected then
+				if not (has_class_field_flag f CfPublic) && ctx.swf_protected then
 					protect()
 				else
 					ident f.cf_name
@@ -2131,12 +2134,12 @@ let generate_class ctx c =
 			} :: acc
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else begin
+		let cf = {
+			(mk_field "init" ~public:(ctx.swc && ctx.swf_protected) (TFun ([],t_dynamic)) c.cl_pos null_pos) with
+			cf_kind = Method MethNormal;
+		} in
 		{
-			hlf_name = make_name {
-				(mk_field "init" (TFun ([],t_dynamic)) c.cl_pos null_pos) with
-				cf_public = ctx.swc && ctx.swf_protected;
-				cf_kind = Method MethNormal;
-			} false;
+			hlf_name = make_name cf false;
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
 				hlm_type = generate_inits ctx;

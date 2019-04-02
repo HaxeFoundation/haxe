@@ -373,14 +373,35 @@ and display_expr ctx e_ast e dk with_type p =
 			| EField(e1,s),TField(e2,_) ->
 				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
 				let item = completion_item_of_expr ctx e2 in
-				raise_fields fields (CRField(item,e2.epos)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
+				raise_fields fields (CRField(item,e2.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
 			| _ ->
 				raise_toplevel ctx dk with_type None p
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
 		let item = completion_item_of_expr ctx e in
-		raise_fields fields (CRField(item,e.epos)) None
+		let iterator = try
+			let it = (ForLoop.IterationKind.of_texpr ~resume:true ctx e (fun _ -> false) e.epos) in
+			match follow it.it_type with
+				| TDynamic _ ->  None
+				| t -> Some t
+			with Error _ | Not_found ->
+				None
+		in
+		let keyValueIterator =
+			try begin
+				let _,pt = ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e e.epos in
+				match follow pt with
+					| TAnon a -> 
+						let key = PMap.find "key" a.a_fields in
+						let value = PMap.find "value" a.a_fields in
+						Some (key.cf_type,value.cf_type)
+					| _ ->
+						None
+			end with Error _ | Not_found ->
+				None
+		in
+		raise_fields fields (CRField(item,e.epos,iterator,keyValueIterator)) None
 
 let handle_structure_display ctx e fields origin =
 	let p = pos e in
@@ -418,23 +439,29 @@ let handle_display ctx e_ast dk with_type =
 		let mono = mk_mono() in
 		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
 		let arg = ["expression",false,mono] in
+		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
-		| _ ->
+		| DMHover ->
 			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "expression")) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "expression")) p
+		| _ ->
+			error "Unsupported method" p
 		end
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
 		let arg = ["value",false,t_dynamic] in
 		let ret = ctx.com.basic.tvoid in
+		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
 			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
-		| _ ->
+		| DMHover ->
 			let t = TFun(arg,ret) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t (pos e_ast)) (tpair t)) (Some (WithType.named_argument "value")) (pos e_ast);
+			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
+		| _ ->
+			error "Unsupported method" p
 		end
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
@@ -445,7 +472,7 @@ let handle_display ctx e_ast dk with_type =
 		else raise_toplevel ctx dk with_type (Some p) p
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p)) None
+			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) None
 		with Not_found ->
 			raise err
 		end else
@@ -488,7 +515,7 @@ let handle_display ctx e_ast dk with_type =
 						false
 					end
 				end
-			| ITTypeParameter {cl_kind = KTypeParameter tl} when has_constructible_constraint ctx tl [] null_pos ->
+			| ITTypeParameter {cl_kind = KTypeParameter tl} when get_constructible_constraint ctx tl null_pos <> None ->
 				true
 			| _ -> false
 		) l in

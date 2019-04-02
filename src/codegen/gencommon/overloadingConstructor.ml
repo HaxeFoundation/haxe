@@ -146,7 +146,8 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 		) cur_tf_args in
 
 		let static_ctor = mk_class_field static_ctor_name fn_type false ctor.cf_pos (Method MethNormal) ctor_types in
-		static_ctor.cf_meta <- (Meta.Protected,[],ctor.cf_pos) :: static_ctor.cf_meta;
+		let static_ctor_meta = if cl.cl_final then Meta.Private else Meta.Protected in
+		static_ctor.cf_meta <- (static_ctor_meta,[],ctor.cf_pos) :: static_ctor.cf_meta;
 
 		(* change ctor contents to reference the 'me' var instead of 'this' *)
 		let actual_super_call = ref None in
@@ -221,7 +222,7 @@ let create_static_ctor com ~empty_ctor_expr cl ctor follow_type =
 (* makes constructors that only call super() for the 'ctor' argument *)
 let clone_ctors com ctor sup stl cl =
 	let rec clone cf =
-		let ncf = mk_class_field "new" (apply_params sup.cl_params stl cf.cf_type) cf.cf_public cf.cf_pos cf.cf_kind cf.cf_params in
+		let ncf = mk_class_field "new" (apply_params sup.cl_params stl cf.cf_type) (has_class_field_flag cf CfPublic) cf.cf_pos cf.cf_kind cf.cf_params in
 		if Meta.has Meta.Protected cf.cf_meta then
 			ncf.cf_meta <- (Meta.Protected,[],ncf.cf_pos) :: ncf.cf_meta;
 		let args, ret = get_fun ncf.cf_type in

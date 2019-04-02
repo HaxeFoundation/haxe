@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef FileSystemEntriesCallback =
-{
+typedef FileSystemEntriesCallback = {
 	function handleEvent( entries : Array<FileSystemEntry> ) : Void;
 }

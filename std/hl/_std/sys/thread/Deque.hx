@@ -1,0 +1,68 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+package sys.thread;
+
+#if doc_gen
+@:coreApi extern class Deque<T> {
+	public function new():Void;
+	public function add(i:T):Void;
+	public function push(i:T):Void;
+	public function pop(block:Bool):Null<T>;
+}
+#else
+
+/**
+	A message queue for multithread access.
+ */
+@:hlNative("std", "deque_")
+abstract Deque<T>(hl.Abstract<"hl_deque">) {
+	/**
+		Create a message queue for multithread access.
+	**/
+	public function new() {
+		this = alloc();
+	}
+
+	/**
+		Add a message at the end of the queue.
+	**/
+	public function add(i:T) {}
+
+	/**
+		Add a message at the head of the queue.
+	**/
+	public function push(i:T) {}
+
+	/**
+		Pop a message from the queue head. Either block until a message
+		is available or return immediately with `null`.
+	**/
+	public function pop(block:Bool):Null<T> {
+		return null;
+	}
+
+	static function alloc() {
+		return null;
+	}
+}
+#end

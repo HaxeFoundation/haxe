@@ -31,33 +31,32 @@ package js.html.eme;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaKeySystemConfiguration>
 **/
-typedef MediaKeySystemConfiguration =
-{
+typedef MediaKeySystemConfiguration = {
 	
 	/**
 		Returns a list of supported audio type and capability pairs.
 	**/
-	@:optional var audioCapabilities : Array<MediaKeySystemMediaCapability>;
+	var ?audioCapabilities : Array<MediaKeySystemMediaCapability>;
 	
 	/**
 		Indicates whether a persistent distinctive identifier is required.
 	**/
-	@:optional var distinctiveIdentifier : MediaKeysRequirement;
+	var ?distinctiveIdentifier : MediaKeysRequirement;
 	
 	/**
 		Returns a list of supported initialization data type names. An initialization data type is a string indicating the format of the initialization data.
 	**/
-	@:optional var initDataTypes : Array<String>;
-	@:optional var label : String;
+	var ?initDataTypes : Array<String>;
+	var ?label : String;
 	
 	/**
 		Indicates whether the ability to persist state is required.
 	**/
-	@:optional var persistentState : MediaKeysRequirement;
-	@:optional var sessionTypes : Array<String>;
+	var ?persistentState : MediaKeysRequirement;
+	var ?sessionTypes : Array<String>;
 	
 	/**
 		Returns a list of supported video type and capability pairs.
 	**/
-	@:optional var videoCapabilities : Array<MediaKeySystemMediaCapability>;
+	var ?videoCapabilities : Array<MediaKeySystemMediaCapability>;
 }

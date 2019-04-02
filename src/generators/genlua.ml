@@ -84,7 +84,7 @@ let dot_path = Globals.s_type_path
 let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
-(* provided by Ast.s_escape *)
+(* provided by StringHelper.s_escape *)
 let s_escape_lua ?(dec=true) s =
     let b = Buffer.create (String.length s) in
     for i = 0 to (String.length s) - 1 do
@@ -1650,7 +1650,7 @@ let generate_class ctx c =
     );
     newline ctx;
 
-    (match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+    (match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
     if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
     generate_class___name__ ctx c;
@@ -1957,13 +1957,24 @@ let generate com =
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+    let print_file path =
+        let file_content = Std.input_file ~bin:true path in
+        print ctx "%s\n" file_content;
+    in
+
+    (* table-to-array helper *)
+    print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
+
+    (* lua workarounds for basic anonymous object functionality *)
+    print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* class reflection metadata *)
+    print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
+
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
         match file with
-        | path, "top" ->
-            let file_content = Std.input_file ~bin:true (fst file) in
-            print ctx "%s\n" file_content;
-            ()
+        | path, "top" -> print_file path
         | _ -> ()
     ) include_files;
 

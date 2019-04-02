@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CSSPageRule>
 **/
 @:native("CSSPageRule")
-extern class CSSPageRule extends CSSRule
-{
+extern class CSSPageRule extends CSSRule {
 	
 	/**
 		Returns the declaration block associated with the at-rule.

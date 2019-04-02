@@ -32,8 +32,7 @@ package js.html.rtc;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel>
 **/
 @:native("RTCDataChannel")
-extern class DataChannel extends js.html.EventTarget
-{
+extern class DataChannel extends js.html.EventTarget {
 	var label(default,null) : String;
 	var reliable(default,null) : Bool;
 	var maxPacketLifeTime(default,null) : Int;
@@ -55,6 +54,6 @@ extern class DataChannel extends js.html.EventTarget
 	/** @throws DOMError */
 	@:overload( function( data : String ) : Void {} )
 	@:overload( function( data : js.html.Blob ) : Void {} )
-	@:overload( function( data : js.html.ArrayBuffer ) : Void {} )
-	function send( data : js.html.ArrayBufferView ) : Void;
+	@:overload( function( data : js.lib.ArrayBuffer ) : Void {} )
+	function send( data : js.lib.ArrayBufferView ) : Void;
 }

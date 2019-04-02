@@ -24,7 +24,6 @@
 
 package js.html.rtc;
 
-typedef RtxParameters =
-{
-	@:optional var ssrc : Int;
+typedef RtxParameters = {
+	var ?ssrc : Int;
 }

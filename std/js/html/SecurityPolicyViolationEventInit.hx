@@ -24,19 +24,17 @@
 
 package js.html;
 
-typedef SecurityPolicyViolationEventInit =
-{
-	> EventInit,
-	@:optional var blockedURI : String;
-	@:optional var columnNumber : Int;
-	@:optional var disposition : SecurityPolicyViolationEventDisposition;
-	@:optional var documentURI : String;
-	@:optional var effectiveDirective : String;
-	@:optional var lineNumber : Int;
-	@:optional var originalPolicy : String;
-	@:optional var referrer : String;
-	@:optional var sample : String;
-	@:optional var sourceFile : String;
-	@:optional var statusCode : Int;
-	@:optional var violatedDirective : String;
+typedef SecurityPolicyViolationEventInit = EventInit & {
+	var ?blockedURI : String;
+	var ?columnNumber : Int;
+	var ?disposition : SecurityPolicyViolationEventDisposition;
+	var ?documentURI : String;
+	var ?effectiveDirective : String;
+	var ?lineNumber : Int;
+	var ?originalPolicy : String;
+	var ?referrer : String;
+	var ?sample : String;
+	var ?sourceFile : String;
+	var ?statusCode : Int;
+	var ?violatedDirective : String;
 }

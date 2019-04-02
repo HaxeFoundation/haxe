@@ -21,7 +21,7 @@
  */
 import hl.Ref;
 
-@:coreApi @:final class Date {
+@:coreApi final class Date {
 
 	private var t : Int;
 

@@ -24,7 +24,6 @@
 
 package js.html;
 
-typedef WorkerOptions =
-{
-	@:optional var name : String;
+typedef WorkerOptions = {
+	var ?name : String;
 }

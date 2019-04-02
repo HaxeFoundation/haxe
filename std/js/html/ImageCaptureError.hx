@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("ImageCaptureError")
-extern class ImageCaptureError
-{
+extern class ImageCaptureError {
 	static inline var FRAME_GRAB_ERROR : Int = 1;
 	static inline var SETTINGS_ERROR : Int = 2;
 	static inline var PHOTO_ERROR : Int = 3;

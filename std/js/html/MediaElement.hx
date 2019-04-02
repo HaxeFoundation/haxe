@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement>
 **/
 @:native("HTMLMediaElement")
-extern class MediaElement extends Element
-{
+extern class MediaElement extends Element {
 	static inline var NETWORK_EMPTY : Int = 0;
 	static inline var NETWORK_IDLE : Int = 1;
 	static inline var NETWORK_LOADING : Int = 2;
@@ -233,7 +232,7 @@ extern class MediaElement extends Element
 	/**
 		Adds a text track (such as a track for subtitles) to a media element.
 	**/
-	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
+	function addTextTrack( kind : TextTrackKind, label : String = "", language : String = "" ) : TextTrack;
 	
 	/**
 		Returns `Promise`. Sets the `MediaKeys` keys to use when decrypting media during playback.

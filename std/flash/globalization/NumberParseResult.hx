@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class NumberParseResult {
+@:require(flash10_1) extern final class NumberParseResult {
 	var endIndex(default,never) : Int;
 	var startIndex(default,never) : Int;
 	var value(default,never) : Float;

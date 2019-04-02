@@ -794,6 +794,7 @@ class TestType extends Test {
 	function testAbstractTypeParameterVariance() {
 		var a:Array<unit.MyAbstract.MyInt> = [1, 2, 3];
 		var b:Array<unit.MyAbstract.MyInt2> = a;
+		t(true);
 	}
 
 	function testExposingAbstract() {

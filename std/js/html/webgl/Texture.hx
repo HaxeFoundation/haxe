@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLTexture>
 **/
 @:native("WebGLTexture")
-extern class Texture
-{
+extern class Texture {
 }

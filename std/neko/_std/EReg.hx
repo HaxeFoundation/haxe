@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi @:final class EReg {
+@:coreApi final class EReg {
 
 	var r : Dynamic;
 	var last : String;

@@ -8,6 +8,8 @@ class Issue2224 extends unit.Test {
 		eq("opt=null", getEF2());
 		eq("opt=null", getInt());
 		eq("opt=null", getClass());
+		#else
+		noAssert();
 		#end
 	}
 

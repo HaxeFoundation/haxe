@@ -1,6 +1,7 @@
 package unit.issues;
 import haxe.io.*;
 class Issue5693 extends Test{
+	#if !lua
 	function test(){
 		var original:Float = 0.012755102040816;
 		var btOutput:BytesOutput = new BytesOutput();
@@ -11,9 +12,7 @@ class Issue5693 extends Test{
 		var btInput:BytesInput = new BytesInput(byteArray);
 		var copyVal:Float = btInput.readDouble();
 
-#if !lua
-//TODO
 		eq(original, copyVal);
-#end
 	}
+	#end
 }

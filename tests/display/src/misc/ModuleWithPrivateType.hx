@@ -1,4 +1,4 @@
 package misc;
 
-class PublicClass { }
-private class PrivateClass { }
+class PublicClass {}
+private class PrivateClass {}

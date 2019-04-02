@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGAngle>
 **/
 @:native("SVGAngle")
-extern class Angle
-{
+extern class Angle {
 	
 	/**
 		Some unknown type of value.

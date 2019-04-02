@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegCurvetoCubicSmoothRel =
-{
+typedef PathSegCurvetoCubicSmoothRel = {
 	var x : Float;
 	var y : Float;
 	var x2 : Float;

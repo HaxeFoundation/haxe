@@ -1,6 +1,6 @@
 package flash.media;
 
-@:final extern class SoundChannel extends flash.events.EventDispatcher {
+extern final class SoundChannel extends flash.events.EventDispatcher {
 	var leftPeak(default,never) : Float;
 	var position(default,never) : Float;
 	var rightPeak(default,never) : Float;

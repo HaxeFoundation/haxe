@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigation>
 **/
 @:native("PerformanceNavigation")
-extern class PerformanceNavigation
-{
+extern class PerformanceNavigation {
 	static inline 
 	/**
 		

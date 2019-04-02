@@ -1099,7 +1099,7 @@ let generate con =
 				let cur_line = Lexer.get_error_line p in
 				let file = Path.get_full_path p.pfile in
 				if cur_line <> ((!last_line)+1) then
-					let line = Ast.s_escape file in
+					let line = StringHelper.s_escape file in
 					if String.length line <= 256 then
 						begin print w "#line %d \"%s\"" cur_line line; newline w end
 					else (* Compiler Error CS1560 https://msdn.microsoft.com/en-us/library/z3t5e5sw(v=vs.90).aspx *)
@@ -1911,10 +1911,10 @@ let generate con =
 			let fn_is_final = function
 				| None -> true
 				| Some ({ cf_kind = Method mkind } as m) ->
-					(match mkind with | MethInline -> true | _ -> false) || m.cf_final
+					(match mkind with | MethInline -> true | _ -> false) || (has_class_field_flag m CfFinal)
 				| _ -> assert false
 			in
-			let is_virtual = not (is_interface || is_final || prop.cf_final || fn_is_final get || fn_is_final set) in
+			let is_virtual = not (is_interface || is_final || (has_class_field_flag prop CfFinal) || fn_is_final get || fn_is_final set) in
 
 			let fn_is_override = function
 				| Some cf -> List.memq cf cl.cl_overrides
@@ -2049,7 +2049,7 @@ let generate con =
 					end (* TODO see how (get,set) variable handle when they are interfaces *)
 				| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 					List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
-						gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 					) cf.cf_overloads
 				| Var _ | Method MethDynamic -> ()
 				| Method _ when is_new && Meta.has Meta.Struct cl.cl_meta && fst (get_fun cf.cf_type) = [] ->
@@ -2069,15 +2069,15 @@ let generate con =
 							| _ -> ());
 						List.iter (fun cf ->
 							if cl.cl_interface || cf.cf_expr <> None then
-								gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+								gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 						) cf.cf_overloads;
 				| Method mkind ->
 					List.iter (fun cf ->
 						if cl.cl_interface || cf.cf_expr <> None then
-							gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+							gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 					) cf.cf_overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
-					let is_virtual = if not is_virtual || cf.cf_final then false else is_virtual in
+					let is_virtual = if not is_virtual || (has_class_field_flag cf CfFinal) then false else is_virtual in
 					let is_override = List.memq cf cl.cl_overrides in
 					let is_override = is_override || match cf.cf_name, follow cf.cf_type with
 						| "Equals", TFun([_,_,targ], tret) ->
@@ -3077,7 +3077,7 @@ let generate con =
 						{ e with eexpr = TBinop(op, e1, mk_cast t2 e2) }
 					| _ ->
 							let handler = if is_string e1.etype then begin
-									{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "Compare" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
+									{ e1 with eexpr = TCall(mk_static_field_access_infer string_cl "CompareOrdinal" e1.epos [], [ e1; e2 ]); etype = gen.gcon.basic.tint }
 								end else begin
 									let static = mk_static_field_access_infer (runtime_cl) "compare" e1.epos [] in
 									{ eexpr = TCall(static, [e1; e2]); etype = gen.gcon.basic.tint; epos=e1.epos }

@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext>
 **/
 @:native("ImageBitmapRenderingContext")
-extern class ImageBitmapRenderingContext
-{
+extern class ImageBitmapRenderingContext {
 	
 	/**
 		

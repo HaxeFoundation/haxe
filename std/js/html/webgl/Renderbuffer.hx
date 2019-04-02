@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderbuffer>
 **/
 @:native("WebGLRenderbuffer")
-extern class Renderbuffer
-{
+extern class Renderbuffer {
 }

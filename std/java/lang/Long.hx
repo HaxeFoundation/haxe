@@ -40,10 +40,10 @@
 	@:overload function equals(param1 : Dynamic) : Bool;
 	@:overload function hashCode() : Int;
 	@:overload function toString() : String;
-	@:final static var MAX_VALUE(default,null) : haxe.Int64;
-	@:final static var MIN_VALUE(default,null) : haxe.Int64;
-	@:final static var SIZE(default,null) : Int;
-	@:final static var TYPE : Class<Long>;
+	static final MAX_VALUE : haxe.Int64;
+	static final MIN_VALUE : haxe.Int64;
+	static final SIZE : Int;
+	static final TYPE : Class<Long>;
 	@:overload static function bitCount(param1 : haxe.Int64) : Int;
 	@:overload static function compare(param1 : haxe.Int64, param2 : haxe.Int64) : Int;
 	@:overload @:throws("java.lang.NumberFormatException") static function decode(param1 : String) : Long;

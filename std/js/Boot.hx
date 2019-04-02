@@ -161,13 +161,14 @@ class Boot {
 			return false;
 		if( cc == cl )
 			return true;
-		var intf : Dynamic = cc.__interfaces__;
-		if( intf != null )
+		if( js.Object.prototype.hasOwnProperty.call(cc, "__interfaces__") ) {
+			var intf : Dynamic = cc.__interfaces__;
 			for( i in 0...intf.length ) {
 				var i : Dynamic = intf[i];
 				if( i == cl || __interfLoop(i,cl) )
 					return true;
 			}
+		}
 		return __interfLoop(cc.__super__,cl);
 	}
 
@@ -184,9 +185,9 @@ class Boot {
 		case String:
 			return js.Syntax.typeof(o) == "string";
 		case Array:
-			return js.Syntax.instanceof(o, Array) && o.__enum__ == null;
+			return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
 		case Dynamic:
-			return true;
+			return o != null;
 		default:
 			if( o != null ) {
 				// Check if o is an instance of a Haxe class or a native JS object
@@ -209,7 +210,7 @@ class Boot {
 			#if js_enums_as_arrays
 			return o.__enum__ == cl;
 			#else
-			return (untyped $hxEnums[o.__enum__]) == cl;
+			return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
 			#end
 		}
 	}
@@ -219,10 +220,14 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr = untyped ({}).toString;
+	static var __toStr:js.Function;
+	static function __init__() {
+		Boot.__toStr = (cast {}).toString;
+	}
+
 	// get native JS [[Class]]
 	static function __nativeClassName(o:Dynamic):String {
-		var name = untyped __toStr.call(o).slice(8, -1);
+		var name:String = __toStr.call(o).slice(8, -1);
 		// exclude general Object and Function
 		// also exclude Math and JSON, because instanceof cannot be called on them
 		if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")

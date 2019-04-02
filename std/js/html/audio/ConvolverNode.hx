@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ConvolverNode>
 **/
 @:native("ConvolverNode")
-extern class ConvolverNode extends AudioNode
-{
+extern class ConvolverNode extends AudioNode {
 	
 	/**
 		A mono, stereo, or 4-channel `AudioBuffer` containing the (possibly multichannel) impulse response used by the `ConvolverNode` to create the reverb effect.

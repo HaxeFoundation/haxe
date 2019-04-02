@@ -70,7 +70,7 @@ let collect_static_extensions ctx items e p =
 								acc
 							else begin
 								let f = prepare_using_field f in
-								let f = { f with cf_params = []; cf_public = true; cf_type = TFun(args,ret) } in
+								let f = { f with cf_params = []; cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic); cf_type = TFun(args,ret) } in
 								let decl = match c.cl_kind with
 									| KAbstractImpl a -> TAbstractDecl a
 									| _ -> TClassDecl c
@@ -107,7 +107,7 @@ let collect ctx e_ast e dk with_type p =
 	let opt_args args ret = TFun(List.map(fun (n,o,t) -> n,true,t) args,ret) in
 	let should_access c cf stat =
 		if Meta.has Meta.NoCompletion cf.cf_meta then false
-		else if c != ctx.curclass && not cf.cf_public && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
+		else if c != ctx.curclass && not (has_class_field_flag cf CfPublic) && String.length cf.cf_name > 4 then begin match String.sub cf.cf_name 0 4 with
 			| "get_" | "set_" -> false
 			| _ -> can_access ctx c cf stat
 		end else

@@ -85,11 +85,14 @@ let type_function_arg_value ctx t c do_display =
 			in
 			loop e
 
+let process_function_arg ctx n t c do_display p =
+	if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
+	type_function_arg_value ctx t c do_display
+
 let type_function ctx args ret fmode f do_display p =
 	let fargs = List.map2 (fun (n,c,t) ((_,pn),_,m,_,_) ->
-		if starts_with n '$' then error "Function argument names starting with a dollar are not allowed" p;
-		let c = type_function_arg_value ctx t c do_display in
-		let v,c = add_local_with_origin ctx TVOArgument n t pn , c in
+		let c = process_function_arg ctx n t c do_display pn in
+		let v = add_local_with_origin ctx TVOArgument n t pn in
 		v.v_meta <- v.v_meta @ m;
 		if do_display && DisplayPosition.encloses_display_position pn then
 			DisplayEmitter.display_variable ctx v pn;
@@ -195,7 +198,26 @@ let type_function ctx args ret fmode f do_display p =
 		| (FunMember|FunConstructor), Some v ->
 			let ev = mk (TVar (v,Some (mk (TConst TThis) ctx.tthis p))) ctx.t.tvoid p in
 			(match e.eexpr with
-			| TBlock l -> { e with eexpr = TBlock (ev::l) }
+			| TBlock l ->
+				if ctx.com.config.pf_this_before_super then
+					{ e with eexpr = TBlock (ev :: l) }
+				else begin
+					let rec has_v e = match e.eexpr with
+						| TLocal v' when v == v -> true
+						| _ -> check_expr has_v e
+					in
+					let rec loop el = match el with
+						| e :: el ->
+							if has_v e then
+								ev :: e :: el
+							else
+								e :: loop el
+						| [] ->
+							(* should not happen... *)
+							[]
+					in
+					{ e with eexpr = TBlock (loop l) }
+				end
 			| _ -> mk (TBlock [ev;e]) e.etype p)
 		| _ -> e
 	in

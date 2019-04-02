@@ -20,9 +20,12 @@ class Java {
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-java.hxml"]);
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
+
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
+		runCommand("java", ["-jar", "export/java/Main.jar"]);
 
 		infoMsg("Testing java-lib extras");
 		changeDirectory('$unitDir/bin');

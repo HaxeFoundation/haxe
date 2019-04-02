@@ -190,7 +190,7 @@ let fix_override com c f fd =
 				);
 			} in
 			(* as3 does not allow wider visibility, so the base method has to be made public *)
-			if Common.defined com Define.As3 && f.cf_public then f2.cf_public <- true;
+			if Common.defined com Define.As3 && has_class_field_flag f CfPublic then add_class_field_flag f2 CfPublic;
 			let targs = List.map (fun(v,c) -> (v.v_name, Option.is_some c, v.v_type)) nargs in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			f.cf_expr <- Some { fde with eexpr = TFunction fd2 };
@@ -303,7 +303,7 @@ module Dump = struct
 				let rec print_field stat f =
 					print "\n\t%s%s%s%s%s %s%s"
 						(s_metas f.cf_meta "\t")
-						(if (f.cf_public && not (c.cl_extern || c.cl_interface)) then "public " else "")
+						(if (has_class_field_flag f CfPublic && not (c.cl_extern || c.cl_interface)) then "public " else "")
 						(if stat then "static " else "")
 						(match f.cf_kind with
 							| Var v when (is_inline_var f.cf_kind) -> "inline "
@@ -471,8 +471,11 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,fis)) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let enull = Texpr.Builder.make_null vexpr.etype p in
+	let eop = Texpr.Builder.binop OpEq vexpr enull api.tbool p in
+	let echeck = Texpr.Builder.binop OpBoolOr is eop api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (Texpr.Builder.mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (Texpr.Builder.mk_parent echeck,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
 
 module UnificationCallback = struct

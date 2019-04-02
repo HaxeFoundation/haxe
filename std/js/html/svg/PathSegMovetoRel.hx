@@ -24,8 +24,7 @@
 
 package js.html.svg;
 
-typedef PathSegMovetoRel =
-{
+typedef PathSegMovetoRel = {
 	var x : Float;
 	var y : Float;
 	

@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/OfflineAudioContext>
 **/
 @:native("OfflineAudioContext")
-extern class OfflineAudioContext extends BaseAudioContext
-{
+extern class OfflineAudioContext extends BaseAudioContext {
 	
 	/**
 		An integer representing the size of the buffer in sample-frames.

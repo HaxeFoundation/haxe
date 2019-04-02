@@ -24,8 +24,7 @@
 
 package js.html;
 
-typedef GetUserMediaRequest =
-{
+typedef GetUserMediaRequest = {
 	var windowID(default,null) : Int;
 	var innerWindowID(default,null) : Int;
 	var callID(default,null) : String;

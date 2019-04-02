@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationEvent>
 **/
 @:native("MutationEvent")
-extern class MutationEvent extends Event
-{
+extern class MutationEvent extends Event {
 	static inline var MODIFICATION : Int = 1;
 	static inline var ADDITION : Int = 2;
 	static inline var REMOVAL : Int = 3;
@@ -45,5 +44,5 @@ extern class MutationEvent extends Event
 	var attrChange(default,null) : Int;
 	
 	/** @throws DOMError */
-	function initMutationEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?relatedNode : Node, ?prevValue : String = "", ?newValue : String = "", ?attrName : String = "", ?attrChange : Int = 0 ) : Void;
+	function initMutationEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?relatedNode : Node, prevValue : String = "", newValue : String = "", attrName : String = "", attrChange : Int = 0 ) : Void;
 }

@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGeometryElement>
 **/
 @:native("SVGGeometryElement")
-extern class GeometryElement extends GraphicsElement
-{
+extern class GeometryElement extends GraphicsElement {
 	
 	/**
 		This property reflects the `pathLength` attribute.

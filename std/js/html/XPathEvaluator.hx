@@ -25,8 +25,7 @@
 package js.html;
 
 @:native("XPathEvaluator")
-extern class XPathEvaluator
-{
+extern class XPathEvaluator {
 	/** @throws DOMError */
 	function new() : Void;
 	/** @throws DOMError */
@@ -36,7 +35,7 @@ extern class XPathEvaluator
 	@:pure
 	function createNSResolver( nodeResolver : Node ) : Node;
 	/** @throws DOMError */
-	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, ?type : Int = 0, ?result : Dynamic) : XPathResult {} )
-	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, ?type : Int = 0, ?result : Dynamic ) : XPathResult;
+	@:overload( function( expression : String, contextNode : Node, ?resolver : haxe.Constraints.Function, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	@:overload( function( expression : String, contextNode : Node, ?resolver : XPathNSResolver, type : Int = 0, ?result : Dynamic) : XPathResult {} )
+	function evaluate( expression : String, contextNode : Node, ?resolver : String -> Null<String>, type : Int = 0, ?result : Dynamic ) : XPathResult;
 }

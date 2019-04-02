@@ -21,7 +21,7 @@
  */
 package haxe.io;
 
-typedef UInt32ArrayData = js.html.Uint32Array;
+typedef UInt32ArrayData = js.lib.Uint32Array;
 
 @:coreApi
 abstract UInt32Array(UInt32ArrayData) {

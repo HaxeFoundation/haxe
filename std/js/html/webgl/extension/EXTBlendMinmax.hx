@@ -32,8 +32,7 @@ package js.html.webgl.extension;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/EXT_blend_minmax>
 **/
 @:native("EXT_blend_minmax")
-extern class EXTBlendMinmax
-{
+extern class EXTBlendMinmax {
 	
 	/**
 		Produces the minimum color components of the source and destination colors.

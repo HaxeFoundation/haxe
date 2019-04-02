@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MutationRecord>
 **/
 @:native("MutationRecord")
-extern class MutationRecord
-{
+extern class MutationRecord {
 	var type(default,null) : String;
 	var target(default,null) : Node;
 	var addedNodes(default,null) : NodeList;

@@ -25,6 +25,5 @@
 package js.html;
 
 @:native("XMLHttpRequestUpload")
-extern class XMLHttpRequestUpload extends XMLHttpRequestEventTarget
-{
+extern class XMLHttpRequestUpload extends XMLHttpRequestEventTarget {
 }

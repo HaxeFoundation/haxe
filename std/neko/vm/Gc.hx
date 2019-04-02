@@ -27,7 +27,7 @@ package neko.vm;
 class Gc {
 	/**
 		Run the Neko garbage collector.
-	*/
+	**/
 	public static function run( major : Bool ) {
 		_run(major);
 	}
@@ -35,7 +35,7 @@ class Gc {
 	/**
 		Return the size of the GC heap and the among of free space, 
 		in bytes.
-	*/
+	**/
 	public static function stats() : { heap : Int, free : Int } {
 		return _stats();
 	}

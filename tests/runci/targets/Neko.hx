@@ -10,8 +10,11 @@ class Neko {
 		runCommand("neko", ["bin/unit.n"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-neko.hxml"]);
 		runCommand("neko", ["bin/neko/sys.n"]);
+
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "-neko", "export/threads.n"]);
+		// runCommand("neko", ["export/threads.n"]);
 	}
 }

@@ -15,10 +15,10 @@ remove: [make "uninstall" "INSTALL_DIR=%{prefix}%"]
 depends: [
   "ocamlfind"           {build}
   "camlp4"              {build}
-  "sedlex"              {build}
+  "sedlex"              {build & <= "1.99.4"} #https://github.com/HaxeFoundation/haxe/issues/7958
   "ppx_tools_versioned" {build & != "5.2.1"} #https://github.com/alainfrisch/sedlex/issues/64
   "xml-light"           {build}
-  "extlib"              {build & >= "1.7"}
+  "extlib"              {build & >= "1.7.6"}
   "ptmap"               {build}
   "sha"                 {build}
   "conf-libpcre"

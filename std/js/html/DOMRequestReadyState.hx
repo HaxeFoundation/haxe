@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract DOMRequestReadyState(String)
-{
+enum abstract DOMRequestReadyState(String) {
 	var PENDING = "pending";
 	var DONE = "done";
 }

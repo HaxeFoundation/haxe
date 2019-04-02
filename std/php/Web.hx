@@ -22,6 +22,7 @@
 package php;
 
 import haxe.io.Bytes;
+import haxe.ds.Map;
 import php.Syntax.*;
 import php.Global.*;
 import php.SuperGlobal.*;
@@ -185,7 +186,7 @@ class Web {
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) : String {
-		return loadClientHeaders().get(k);
+		return loadClientHeaders().get(str_replace('-', '_', strtoupper(k)));
 	}
 
 
@@ -200,35 +201,34 @@ class Web {
 
 		if(function_exists('getallheaders')) {
 			foreach(getallheaders(), function(key:String, value:Dynamic) {
-				_clientHeaders.set(key, Std.string(value));
+				_clientHeaders.set(Global.strtoupper(key), Std.string(value));
 			});
 			return _clientHeaders;
 		}
 
-		var copyServer = [
-			'CONTENT_TYPE'   => 'Content-Type',
-			'CONTENT_LENGTH' => 'Content-Length',
-			'CONTENT_MD5'    => 'Content-Md5'
-		];
+		var copyServer = Syntax.assocDecl({
+			CONTENT_TYPE   : 'Content-Type',
+			CONTENT_LENGTH : 'Content-Length',
+			CONTENT_MD5    : 'Content-Md5'
+		});
 		foreach(_SERVER, function(key:String, value:Dynamic) {
 			if((substr(key, 0, 5):String) == 'HTTP_') {
 				key = substr(key, 5);
-				if(!copyServer.exists(key) || !isset(_SERVER[key])) {
-					key = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', key))));
+				if(!isset(copyServer[key]) || !isset(_SERVER[key])) {
 					_clientHeaders[key] = Std.string(value);
 				}
-			} else if(copyServer[key] != null) {
-				_clientHeaders[copyServer[key]] = Std.string(value);
+			} else if(isset(copyServer[key])) {
+				_clientHeaders[key] = Std.string(value);
 			}
 		});
-		if(!_clientHeaders.exists('Authorization')) {
+		if(!_clientHeaders.exists('AUTHORIZATION')) {
 			if(isset(_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-				_clientHeaders['Authorization'] = Std.string(_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+				_clientHeaders['AUTHORIZATION'] = Std.string(_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
 			} else if(isset(_SERVER['PHP_AUTH_USER'])) {
 				var basic_pass = isset(_SERVER['PHP_AUTH_PW']) ? Std.string(_SERVER['PHP_AUTH_PW']) : '';
-				_clientHeaders['Authorization'] = 'Basic ' + base64_encode(_SERVER['PHP_AUTH_USER'] + ':' + basic_pass);
+				_clientHeaders['AUTHORIZATION'] = 'Basic ' + base64_encode(_SERVER['PHP_AUTH_USER'] + ':' + basic_pass);
 			} else if(isset(_SERVER['PHP_AUTH_DIGEST'])) {
-				_clientHeaders['Authorization'] = Std.string(_SERVER['PHP_AUTH_DIGEST']);
+				_clientHeaders['AUTHORIZATION'] = Std.string(_SERVER['PHP_AUTH_DIGEST']);
 			}
 		}
 
@@ -245,6 +245,13 @@ class Web {
 			result.push({value:headers.get(key), header:key});
 		}
 		return result;
+	}
+
+	/**
+		Retrieve all the client headers as `haxe.ds.Map`.
+	**/
+	public static function getClientHeadersMap():Map<String,String> {
+		return loadClientHeaders().copy();
 	}
 
 	/**

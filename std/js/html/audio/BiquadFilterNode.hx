@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode>
 **/
 @:native("BiquadFilterNode")
-extern class BiquadFilterNode extends AudioNode
-{
+extern class BiquadFilterNode extends AudioNode {
 	
 	/**
 		Is a string value defining the kind of filtering algorithm the node is implementing.<br>
@@ -138,5 +137,5 @@ extern class BiquadFilterNode extends AudioNode
 	/**
 		From the current filter parameter settings this method calculates the frequency response for frequencies specified in the provided array of frequencies.
 	**/
-	function getFrequencyResponse( frequencyHz : js.html.Float32Array, magResponse : js.html.Float32Array, phaseResponse : js.html.Float32Array ) : Void;
+	function getFrequencyResponse( frequencyHz : js.lib.Float32Array, magResponse : js.lib.Float32Array, phaseResponse : js.lib.Float32Array ) : Void;
 }

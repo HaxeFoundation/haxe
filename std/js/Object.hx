@@ -181,7 +181,7 @@ typedef ObjectPropertyDescriptor = {
 		
 		Defaults to `false`.
 	**/
-	@:optional var configurable:Bool;
+	var ?configurable:Bool;
 
 	/**
 		`true` if and only if this property shows up during enumeration of the
@@ -189,13 +189,13 @@ typedef ObjectPropertyDescriptor = {
 		
 		Defaults to `false`.
 	**/
-	@:optional var enumerable:Bool;
+	var ?enumerable:Bool;
 
 	/**
 		The value associated with the property. 
 		Can be any valid JavaScript value (number, object, function, etc).
 	**/
-	@:optional var value:Any;
+	var ?value:Any;
 
 	/**
 		`true` if and only if the value associated with the property may be 
@@ -203,7 +203,7 @@ typedef ObjectPropertyDescriptor = {
 		
 		Defaults to `false`.
 	**/
-	@:optional var writable:Bool;
+	var ?writable:Bool;
 
 	/**
 		A function which serves as a getter for the property, or `undefined` if 
@@ -213,7 +213,7 @@ typedef ObjectPropertyDescriptor = {
 		property is defined due to inheritance). 
 		The return value will be used as the value of the property.
 	**/
-	@:optional var get:Void->Any;
+	var ?get:Void->Any;
 
 	/**
 		A function which serves as a setter for the property, or undefined if
@@ -221,5 +221,5 @@ typedef ObjectPropertyDescriptor = {
 		is called with one argument (the value being assigned to the property)
 		and with `this` set to the object through which the property is assigned.
 	**/
-	@:optional var set:Any->Void;
+	var ?set:Any->Void;
 }

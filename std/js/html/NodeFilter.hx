@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter>
 **/
 @:native("NodeFilter")
-extern class NodeFilter
-{
+extern class NodeFilter {
 	static inline var FILTER_ACCEPT : Int = 1;
 	static inline var FILTER_REJECT : Int = 2;
 	static inline var FILTER_SKIP : Int = 3;

@@ -32,6 +32,5 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGGElement>
 **/
 @:native("SVGGElement")
-extern class GElement extends GraphicsElement
-{
+extern class GElement extends GraphicsElement {
 }

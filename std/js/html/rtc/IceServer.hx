@@ -24,11 +24,10 @@
 
 package js.html.rtc;
 
-typedef IceServer =
-{
-	@:optional var credential : String;
-	@:optional var credentialType : IceCredentialType;
-	@:optional var url : String;
-	@:optional var urls : haxe.extern.EitherType<String,Array<String>>;
-	@:optional var username : String;
+typedef IceServer = {
+	var ?credential : String;
+	var ?credentialType : IceCredentialType;
+	var ?url : String;
+	var ?urls : haxe.extern.EitherType<String,Array<String>>;
+	var ?username : String;
 }

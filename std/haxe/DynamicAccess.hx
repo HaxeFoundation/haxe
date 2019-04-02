@@ -21,6 +21,9 @@
  */
 package haxe;
 
+import haxe.iterators.DynamicAccessIterator;
+import haxe.iterators.DynamicAccessKeyValueIterator;
+
 /**
 	DynamicAccess is an abstract type for working with anonymous structures
 	that are intended to hold collections of objects by the string key.
@@ -39,9 +42,9 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	/**
 		Returns a value by specified `key`.
 
-		If the structure does not contain the given key, null is returned.
+		If the structure does not contain the given key, `null` is returned.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	@:arrayAccess
 	public inline function get(key:String):Null<T> {
@@ -59,7 +62,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		Returns the given value.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	@:arrayAccess
 	public inline function set(key:String, value:T):T {
@@ -74,7 +77,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 	/**
 		Tells if the structure contains a specified `key`.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	public inline function exists(key:String):Bool return Reflect.hasField(this, key);
 
@@ -83,7 +86,7 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 
 		Returns true, if `key` was present in structure, or false otherwise.
 
-		If `key` is null, the result is unspecified.
+		If `key` is `null`, the result is unspecified.
 	**/
 	public inline function remove(key:String):Bool return Reflect.deleteField(this, key);
 
@@ -96,4 +99,22 @@ abstract DynamicAccess<T>(Dynamic<T>) from Dynamic<T> to Dynamic<T> {
 		Returns a shallow copy of the structure
 	**/
 	public inline function copy():DynamicAccess<T> return Reflect.copy(this);
+
+	/**
+		Returns an Iterator over the values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function iterator():DynamicAccessIterator<T> {
+		return new DynamicAccessIterator(this);
+	}	
+
+	/**
+		Returns an Iterator over the keys and values of this `DynamicAccess`.
+
+		The order of values is undefined.
+	**/
+	public inline function keyValueIterator():DynamicAccessKeyValueIterator<T> {
+		return new DynamicAccessKeyValueIterator(this);
+	}
 }

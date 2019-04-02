@@ -25,12 +25,11 @@
 package js.html;
 
 @:native("ScrollAreaEvent")
-extern class ScrollAreaEvent extends UIEvent
-{
+extern class ScrollAreaEvent extends UIEvent {
 	var x(default,null) : Float;
 	var y(default,null) : Float;
 	var width(default,null) : Float;
 	var height(default,null) : Float;
 	
-	function initScrollAreaEvent( type : String, ?canBubble : Bool = false, ?cancelable : Bool = false, ?view : Window, ?detail : Int = 0, ?x : Float = 0.0, ?y : Float = 0.0, ?width : Float = 0.0, ?height : Float = 0.0 ) : Void;
+	function initScrollAreaEvent( type : String, canBubble : Bool = false, cancelable : Bool = false, ?view : Window, detail : Int = 0, x : Float = 0.0, y : Float = 0.0, width : Float = 0.0, height : Float = 0.0 ) : Void;
 }

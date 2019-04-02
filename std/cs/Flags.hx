@@ -27,8 +27,8 @@
 	Usage example:
 
 	```haxe
-		import cs.system.reflection.BindingFlags;
-		var binding = new Flags(BindingFlags.Public) | BindingFlags.Static | BindingFlags.NonPublic;
+	import cs.system.reflection.BindingFlags;
+	var binding = new Flags(BindingFlags.Public) | BindingFlags.Static | BindingFlags.NonPublic;
 	```
  **/
 abstract Flags<T : EnumValue>(T) from T to T

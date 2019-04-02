@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer>
 **/
 @:native("AudioBuffer")
-extern class AudioBuffer
-{
+extern class AudioBuffer {
 	
 	/**
 		Returns a float representing the sample rate, in samples per second, of the PCM data stored in the buffer.
@@ -62,17 +61,17 @@ extern class AudioBuffer
 		Returns a `Float32Array` containing the PCM data associated with the channel, defined by the `channel` parameter (with `0` representing the first channel).
 		@throws DOMError
 	**/
-	function getChannelData( channel : Int ) : js.html.Float32Array;
+	function getChannelData( channel : Int ) : js.lib.Float32Array;
 	
 	/**
 		Copies the samples from the specified channel of the `AudioBuffer` to the `destination` array.
 		@throws DOMError
 	**/
-	function copyFromChannel( destination : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
+	function copyFromChannel( destination : js.lib.Float32Array, channelNumber : Int, startInChannel : Int = 0 ) : Void;
 	
 	/**
 		Copies the samples to the specified channel of the `AudioBuffer`, from the `source` array.
 		@throws DOMError
 	**/
-	function copyToChannel( source : js.html.Float32Array, channelNumber : Int, ?startInChannel : Int = 0 ) : Void;
+	function copyToChannel( source : js.lib.Float32Array, channelNumber : Int, startInChannel : Int = 0 ) : Void;
 }

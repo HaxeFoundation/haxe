@@ -32,6 +32,5 @@ package js.html.webgl;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WebGLQuery>
 **/
 @:native("WebGLQuery")
-extern class Query
-{
+extern class Query {
 }

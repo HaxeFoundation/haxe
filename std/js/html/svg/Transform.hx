@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGTransform>
 **/
 @:native("SVGTransform")
-extern class Transform
-{
+extern class Transform {
 	static inline var SVG_TRANSFORM_UNKNOWN : Int = 0;
 	static inline var SVG_TRANSFORM_MATRIX : Int = 1;
 	static inline var SVG_TRANSFORM_TRANSLATE : Int = 2;
