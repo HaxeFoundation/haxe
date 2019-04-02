@@ -488,22 +488,33 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
-     | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
+     | TField (field_owner, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
              add_feature ctx "use._hx_apply_self";
              spr ctx "_hx_apply_self(";
-             gen_value ctx e;
+             gen_value ctx field_owner;
              print ctx ",\"%s\"" (field_name ef);
              if List.length(el) > 0 then spr ctx ",";
              concat ctx "," (gen_argument ctx) el;
              spr ctx ")";
          end else begin
-             gen_value ctx e;
-             if is_dot_access e ef then
-                 print ctx ".%s" (field_name ef)
-             else
-                 print ctx ":%s" (field_name ef);
+             let el =
+                if (match ef with FAnon _ | FDynamic _ -> true | _ -> false) && is_possible_string_field field_owner s then
+                    begin
+                        gen_expr ctx e;
+                        field_owner :: el
+                    end
+                else
+                    begin
+                        gen_value ctx field_owner;
+                        if is_dot_access field_owner ef then
+                            print ctx ".%s" (field_name ef)
+                        else
+                            print ctx ":%s" (field_name ef);
+                        el
+                    end
+             in
              gen_paren_arguments ctx el;
          end;
      | _ ->
@@ -585,6 +596,8 @@ and is_possible_string_field e field_name=
         | "toString"
         | "substring"
         | "substr"
+        | "iterator"
+        | "keyValueIterator"
         | "charCodeAt" ->
             true
         | _ ->

@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi final class String {
 
 	static var __is_String = true;
@@ -55,6 +59,14 @@
 		untyped {
 			return __dollar__sget(this.__s,index);
 		}
+	}
+
+	public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {

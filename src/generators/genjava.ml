@@ -722,7 +722,8 @@ struct
 					let field = field.cf_name in
 					(match field with
 						| "charAt" | "charCodeAt" | "split" | "indexOf"
-						| "lastIndexOf" | "substring" | "substr" ->
+						| "lastIndexOf" | "substring" | "substr"
+						| "iterator" | "keyValueIterator" ->
 							{ e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
 						| _ ->
 							{ e with eexpr = TCall(run efield, List.map run args) }
