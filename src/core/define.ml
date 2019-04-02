@@ -19,6 +19,7 @@ type strict_defined =
 	| Dce
 	| DceDebug
 	| Debug
+	| DisableUnicodeStrings
 	| Display
 	| DisplayStdin
 	| DllExport
@@ -131,6 +132,7 @@ let infos = function
 	| Dce -> "dce",("<mode:std|full|no> Set the dead code elimination mode (default std)",[])
 	| DceDebug -> "dce_debug",("Show DCE log",[])
 	| Debug -> "debug",("Activated when compiling with -debug",[])
+	| DisableUnicodeStrings -> "disable_unicode_strings",("Disable unicode support in String type on some platforms",[Platform Cpp])
 	| Display -> "display",("Activated during completion",[])
 	| DisplayStdin -> "display_stdin",("Read the contents of a file specified in --display from standard input",[])
 	| DllExport -> "dll_export",("GenCPP experimental linking",[Platform Cpp])

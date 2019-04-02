@@ -1,13 +1,16 @@
 compile-each.hxml
+--define disable-unicode-strings
 --main Main
 -cpp bin/cpp
 
 --next
 compile-each.hxml
+--define disable-unicode-strings
 --main TestArguments
 -cpp bin/cpp
 
 --next
 compile-each.hxml
+--define disable-unicode-strings
 --main ExitCode
 -cpp bin/cpp
