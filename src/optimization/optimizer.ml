@@ -672,6 +672,32 @@ let optimize_completion_expr e args =
 			let efor = loop efor in
 			old();
 			(EFor ((EBinop (OpIn,id,it),p),efor),p)
+		| EFor ((EBinop (OpArrow,((EConst (Ident key),_) as kid),(EBinop (OpIn,((EConst (Ident value),_) as vid),it),_)),p),efor) ->
+			(* log (Ast.s_expr for_data); *)
+			let it = loop it in
+			let old = save() in
+			let etmp = (EConst (Ident "$tmp"),p) in
+			let rebuild_for body_expr =
+				(
+					EFor (
+						(EBinop (OpArrow,kid,(EBinop (OpIn,vid,it),p)),p),
+						body_expr
+					),
+					p
+				)
+			in
+			let decl ident =
+				decl ident None (Some (EBlock [
+					(EVars [("$tmp",null_pos),false,None,None],p);
+					rebuild_for (EBinop (OpAssign,etmp,(EConst (Ident ident),p)),p);
+					etmp
+				],p));
+			in
+			decl key;
+			decl value;
+			let efor = loop efor in
+			old();
+			rebuild_for efor
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
