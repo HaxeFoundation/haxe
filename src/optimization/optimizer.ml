@@ -673,7 +673,6 @@ let optimize_completion_expr e args =
 			old();
 			(EFor ((EBinop (OpIn,id,it),p),efor),p)
 		| EFor ((EBinop (OpArrow,((EConst (Ident key),_) as kid),(EBinop (OpIn,((EConst (Ident value),_) as vid),it),_)),p),efor) ->
-			(* log (Ast.s_expr for_data); *)
 			let it = loop it in
 			let old = save() in
 			let etmp = (EConst (Ident "$tmp"),p) in
