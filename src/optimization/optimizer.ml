@@ -660,18 +660,39 @@ let optimize_completion_expr e args =
 			let e = map e in
 			old();
 			e
-		| EFor ((EBinop (OpIn,((EConst (Ident n),_) as id),it),p),efor) ->
-			let it = loop it in
-			let old = save() in
-			let etmp = (EConst (Ident "$tmp"),p) in
-			decl n None (Some (EBlock [
-				(EVars [("$tmp",null_pos),false,None,None],p);
-				(EFor ((EBinop (OpIn,id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
-				etmp
-			],p));
-			let efor = loop efor in
-			old();
-			(EFor ((EBinop (OpIn,id,it),p),efor),p)
+		| EFor (header,body) ->
+			let idents = ref []
+			and has_in = ref false in
+			let rec collect_idents e =
+				match e with
+					| EConst (Ident name), p ->
+						idents := (name,p) :: !idents;
+						e
+					| EBinop (OpIn, e, it), p ->
+						has_in := true;
+						(EBinop (OpIn, collect_idents e, loop it), p)
+					| _ ->
+						Ast.map_expr collect_idents e
+			in
+			let header = collect_idents header in
+			(match !idents,!has_in with
+				| [],_ | _,false -> map e
+				| idents,true ->
+					let old = save() in
+					List.iter
+						(fun (name, pos) ->
+							let etmp = (EConst (Ident "$tmp"),pos) in
+							decl name None (Some (EBlock [
+								(EVars [("$tmp",null_pos),false,None,None],p);
+								(EFor(header,(EBinop (OpAssign,etmp,(EConst (Ident name),p)),p)), p);
+								etmp
+							],p));
+						)
+						idents;
+					let body = loop body in
+					old();
+					(EFor(header,body),p)
+			)
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
