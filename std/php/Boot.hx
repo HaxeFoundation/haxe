@@ -505,7 +505,7 @@ class Boot {
 		if (right == 0) {
 			return left;
 		} else if (left >= 0) {
-			return ((left >> right) & ~(1 << ( 8*Const.PHP_INT_SIZE-1 ) >> (right-1)));
+			return (left >> right) & ~( (1 << (8 * Const.PHP_INT_SIZE - 1)) >> (right - 1) );
 		} else {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}

@@ -873,6 +873,16 @@ extern class Global {
 	static function hexdec( hex_string:String ) : Int;
 
 	/**
+		@see http://php.net/manual/en/function.decbin.php
+	**/
+	static function decbin( number:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.bindec.php
+	**/
+	static function bindec( binary_string:String ) : Float;
+
+	/**
 		@see http://php.net/manual/en/function.bin2hex.php
 	**/
 	static function bin2hex( str:String ) : String;
