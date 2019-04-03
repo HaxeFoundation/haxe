@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi
 class String {
 
@@ -52,7 +56,7 @@ class String {
 			return null;
 		return bytes.getUI16(index << 1);
 	}
-	
+
 	inline function findChar(start:Int,len:Int,src:hl.Bytes,srcLen:Int) : Int {
 		var p = 0;
 		while( true ) {
@@ -167,6 +171,14 @@ class String {
 
 	public function toString() : String {
 		return this;
+	}
+
+	public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
 	}
 
 	public static function fromCharCode( code : Int ) : String {

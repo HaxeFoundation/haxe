@@ -21,6 +21,9 @@
  */
 import cs.StdTypes;
 
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi extern class String implements ArrayAccess<Char16> {
 
 	@:overload private static function Compare(s1:String, s2:String):Int;
@@ -51,6 +54,14 @@ import cs.StdTypes;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	function toString() : String;
+
+	@:pure @:runtime inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
+	}
 
 	static function fromCharCode( code : Int ) : String;
 

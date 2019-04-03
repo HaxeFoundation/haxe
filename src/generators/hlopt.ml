@@ -1042,12 +1042,12 @@ let optimize dump get_str (f:fundecl) (hxf:Type.tfunc) =
 				DynArray.add idxs i
 			| _ -> ()
 		) old_code;
-		opt_cache := PMap.add hxf {
+		(*opt_cache := PMap.add hxf {
 			c_code = old_code;
 			c_rctx = rctx;
 			c_last_used = !used_mark;
 			c_remap_indexes = DynArray.to_array idxs;
-		} (!opt_cache);
+		} (!opt_cache);*)
 		fopt
 
 let clean_cache() =

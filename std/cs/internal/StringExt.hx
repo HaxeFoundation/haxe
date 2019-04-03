@@ -20,7 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package cs.internal;
+
 import cs.internal.Function;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 private typedef NativeString = cs.system.String;
 
 @:keep @:nativeGen @:native("haxe.lang.StringExt") class StringExt
@@ -192,6 +196,16 @@ private typedef NativeString = cs.system.String;
 	{
 		return cs.system.Char.ConvertFromUtf32(code);
 		// return new NativeString( cast(code,cs.StdTypes.Char16), 1 );
+	}
+
+	public static function iterator(me:String):StringIterator
+	{
+		return new StringIterator(me);
+	}
+
+	public static function keyValueIterator(me:String):StringKeyValueIterator
+	{
+		return new StringKeyValueIterator(me);
 	}
 }
 

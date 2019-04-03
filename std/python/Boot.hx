@@ -30,6 +30,8 @@ import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 
 import python.Syntax;
 
@@ -311,6 +313,10 @@ class Boot {
 					createClosure(o, StringImpl.charAt);
 				case "charCodeAt":
 					createClosure(o, StringImpl.charCodeAt);
+				case "iterator":
+					createClosure(o, StringImpl.iterator);
+				case "keyValueIterator":
+					createClosure(o, StringImpl.keyValueIterator);
 				case "indexOf":
 					createClosure(o, StringImpl.indexOf);
 				case "lastIndexOf":

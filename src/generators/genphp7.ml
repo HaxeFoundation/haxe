@@ -2305,6 +2305,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "toString"
 				| "substring"
 				| "substr"
+				| "iterator"
+				| "keyValueIterator"
 				| "charCodeAt" ->
 					self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
 					self#write_expr expr;

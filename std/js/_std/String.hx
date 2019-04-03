@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi extern class String {
 	var length(default,null) : Int;
 
@@ -36,6 +40,16 @@
 		return @:privateAccess HxOverrides.cca(this, index);
 	}
 
+	@:pure @:runtime inline function iterator() : StringIterator {
+		untyped __define_feature__("String.iterator", {});
+		return new StringIterator(this);
+	}
+
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+		untyped __define_feature__("String.keyValueIterator", {});
+		return new StringKeyValueIterator(this);
+	}
+
 	@:pure inline function substr( pos : Int, ?len : Int ) : String {
 		return @:privateAccess HxOverrides.substr(this, pos, len);
 	}
@@ -43,9 +57,9 @@
 	@:pure static inline function fromCharCode( code : Int ) : String {
 		return untyped __define_feature__('String.fromCharCode', js.Syntax.code("String.fromCodePoint({0})", code));
 	}
-	
+
 	static function __init__() : Void {
 		untyped __feature__('String.fromCharCode', js.Syntax.code("if( String.fromCodePoint == null ) String.fromCodePoint = function(c) { return c < 0x10000 ? String.fromCharCode(c) : String.fromCharCode((c>>10)+0xD7C0)+String.fromCharCode((c&0x3FF)+0xDC00); }"));
 	}
-	
+
 }
