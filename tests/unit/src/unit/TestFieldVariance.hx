@@ -85,7 +85,7 @@ class TestFieldVariance extends Test {
 		// anon to final anon
 
 		t(typeError(finalField = publicField));
-		t(typeError(finalField = neverField));
+		finalField = neverField;
 		t(typeError(finalField = nullField));
 
 		// anon to never anon
@@ -97,7 +97,7 @@ class TestFieldVariance extends Test {
 		// anon to null anon
 
 		nullField = publicField;
-		nullField = finalField;
+		t(typeError(nullField = finalField));
 		nullField = neverField;
 
 		// class to final anon
@@ -110,14 +110,14 @@ class TestFieldVariance extends Test {
 		// class to never anon
 
 		neverField = publicFieldClass;
-		neverField = finalFieldClass;
+		t(typeError(neverField = finalFieldClass));
 		neverField = neverFieldClass;
 		neverField = nullFieldClass;
 
 		// class to null anon
 
 		nullField = publicFieldClass;
-		nullField = finalFieldClass;
+		t(typeError(nullField = finalFieldClass));
 		nullField = neverFieldClass;
 		nullField = nullFieldClass;
 	}
