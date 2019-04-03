@@ -363,7 +363,7 @@ let get_info = function
 	| StaticExtension -> "haxe.internal.static_extension",("Used internally to mark static extension fields",[UsedInternally])
 	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
-	| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
+	| Struct -> ":struct",("Marks a class definition as a struct",[Platforms [Cs;Hl]; UsedOn TClass])
 	| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 	| StructInit -> ":structInit",("Allows one to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 	| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])
