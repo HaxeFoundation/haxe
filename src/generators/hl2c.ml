@@ -115,7 +115,7 @@ let s_comp = function
 let core_types =
 	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
-	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid]
+	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
 
 let tname str =
 	let n = String.concat "__" (ExtString.String.nsplit str ".") in
@@ -123,7 +123,7 @@ let tname str =
 
 let is_gc_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HType | HRef _ | HMethod _ -> false
-	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> true
+	| HBytes | HDyn | HFun _ | HObj _ | HArray | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ | HStruct _ -> true
 
 let is_ptr = function
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool -> false
@@ -141,7 +141,7 @@ let rec ctype_no_ptr = function
 	| HBytes -> "vbyte",1
 	| HDyn -> "vdynamic",1
 	| HFun _ -> "vclosure",1
-	| HObj p -> tname p.pname,0
+	| HObj p | HStruct p -> tname p.pname,0
 	| HArray -> "varray",1
 	| HType -> "hl_type",1
 	| HRef t -> let s,i = ctype_no_ptr t in s,i + 1
@@ -196,6 +196,7 @@ let type_id t =
 	| HEnum _ -> "HENUM"
 	| HNull _ -> "HNULL"
 	| HMethod _ -> "HMETHOD"
+	| HStruct _  -> "HSTRUCT"
 
 let var_type n t =
 	ctype t ^ " " ^ ident n
@@ -236,13 +237,13 @@ let rec define_type ctx t =
 	| HFun (args,ret) | HMethod (args,ret) ->
 		List.iter (define_type ctx) args;
 		define_type ctx ret
-	| HEnum _ | HObj _ when not (PMap.exists t ctx.defined_types) ->
+	| HEnum _ | HObj _ | HStruct _ when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
 		define ctx (sprintf "#include <%s.h>" (try PMap.find t ctx.type_module with Not_found -> assert false).m_name)
 	| HVirtual vp when not (PMap.exists t ctx.defined_types) ->
 		ctx.defined_types <- PMap.add t () ctx.defined_types;
 		Array.iter (fun (_,_,t) -> define_type ctx t) vp.vfields
-	| HEnum _ | HObj _ | HVirtual _ ->
+	| HEnum _ | HObj _ | HStruct _ | HVirtual _ ->
 		()
 
 let type_value ctx t =
@@ -363,8 +364,7 @@ let generate_reflection ctx =
 		match t with
 		| HVoid | HF32 | HF64 | HI64 -> t
 		| HBool | HUI8 | HUI16 | HI32 -> HI32
-		| HBytes | HDyn | HFun _ | HObj _ | HArray | HType | HRef _ | HVirtual _ | HDynObj | HAbstract _ | HEnum _ | HNull _ -> HDyn
-		| HMethod _ -> assert false
+		| _ -> HDyn
 	in
 	let type_kind_id t =
 		match t with
@@ -594,7 +594,7 @@ let generate_function ctx f =
 		| [] -> assert false
 		| o :: args ->
 			match rtype o with
-			| HObj _ ->
+			| HObj _ | HStruct _ ->
 				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 			| HVirtual vp ->
@@ -623,7 +623,7 @@ let generate_function ctx f =
 
 	let set_field obj fid v =
 		match rtype obj with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let name, t = resolve_field o fid in
 			sexpr "%s->%s = %s" (reg obj) (obj_field fid name) (rcast v t)
 		| HVirtual vp ->
@@ -636,7 +636,7 @@ let generate_function ctx f =
 
 	let get_field r obj fid =
 		match rtype obj with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let name, t = resolve_field o fid in
 			sexpr "%s%s->%s" (rassign r t) (reg obj) (obj_field fid name)
 		| HVirtual v ->
@@ -760,6 +760,8 @@ let generate_function ctx f =
 						sexpr "if( %s && %s && %s(%s,(vdynamic*)%s) %s 0 ) goto %s" (reg a) (reg b) (funname fid) (reg a) (reg b) (s_comp op) (label d)
 				with Not_found ->
 					phys_compare())
+			| HStruct _, HStruct _ ->
+				phys_compare()
 			| HVirtual _, HVirtual _ ->
 				if op = CEq then
 					sexpr "if( %s == %s || (%s && %s && %s->value && %s->value && %s->value == %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
@@ -953,7 +955,7 @@ let generate_function ctx f =
 			sexpr "%s = (int)%s" (reg r) (reg v)
 		| ONew r ->
 			(match rtype r with
-			| HObj o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (type_value (HObj o))
+			| HObj o | HStruct o -> sexpr "%s = (%s)hl_alloc_obj(%s)" (reg r) (tname o.pname) (type_value (rtype r))
 			| HDynObj -> sexpr "%s = hl_alloc_dynobj()" (reg r)
 			| HVirtual _ as t -> sexpr "%s = hl_alloc_virtual(%s)" (reg r) (type_value t)
 			| _ -> assert false)
@@ -1102,7 +1104,7 @@ let make_types_idents htypes =
 			DFun (List.map make_desc tl, make_desc t, true)
 		| HMethod (tl, t) ->
 			DFun (List.map make_desc tl, make_desc t, false)
-		| HObj p ->
+		| HObj p | HStruct p ->
 			DNamed p.pname
 		| HAbstract (n,_) ->
 			DNamed n
@@ -1260,7 +1262,7 @@ let make_modules ctx all_types =
 	in
 	Array.iter (fun t ->
 		match t with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let m = get_module (mk_name o.pname) in
 			Array.iter (fun p -> add m p.fmethod) o.pproto;
 			List.iter (fun (_,mid) -> add m mid) o.pbindings;
@@ -1310,7 +1312,7 @@ let generate_module_types ctx m =
 	define ctx (sprintf "#define %s" def_name);
 	List.iter (fun t ->
 		match t with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let name = tname o.pname in
 			ctx.defined_types <- PMap.add t () ctx.defined_types;
 			define ctx (sprintf "typedef struct _%s *%s;" name name);
@@ -1319,15 +1321,16 @@ let generate_module_types ctx m =
 	line "";
 	List.iter (fun t ->
 		match t with
-		| HObj op ->
+		| HObj op | HStruct op ->
 			let name = tname op.pname in
 			line ("struct _" ^ name ^ " {");
 			block ctx;
 			let rec loop o =
 				(match o.psuper with
-				| None -> expr ("hl_type *$type");
+				| None ->
+					if not (is_struct t) then expr ("hl_type *$type");
 				| Some c ->
-					define_type ctx (HObj c);
+					define_type ctx (if is_struct t then HStruct c else HObj c);
 					loop c);
 				Array.iteri (fun i (n,_,t) ->
 					let rec abs_index p v =
@@ -1444,8 +1447,9 @@ let write_c com file (code:code) gnames =
 				assert false
 		in
 		let fields = match t with
-			| HObj o ->
-				type_value ctx t :: List.map2 field_value (List.map (fun (_,_,t) -> t) (Array.to_list o.pfields)) (Array.to_list fields)
+			| HObj o | HStruct o ->
+				let fields = List.map2 field_value (List.map (fun (_,_,t) -> t) (Array.to_list o.pfields)) (Array.to_list fields) in
+				if is_struct t then fields else type_value ctx t :: fields
 			| _ ->
 				assert false
 		in
@@ -1520,7 +1524,7 @@ let write_c com file (code:code) gnames =
 			sprintf "{(const uchar*)%s, %s, %ld}" (string ctx name_id) (type_value ctx t) (hash ctx name_id)
 		in
 		match t with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let name = type_name ctx t in
 			let proto_value p =
 				sprintf "{(const uchar*)%s, %d, %d, %ld}" (string ctx p.fid) p.fmethod (match p.fvirtual with None -> -1 | Some i -> i) (hash ctx p.fid)
@@ -1612,7 +1616,7 @@ let write_c com file (code:code) gnames =
 	block ctx;
 	Array.iter (fun t ->
 		match t with
-		| HObj o ->
+		| HObj o | HStruct o ->
 			let name = type_name ctx t in
 			sexpr "obj%s.m = ctx" name;
 			(match o.pclassglobal with

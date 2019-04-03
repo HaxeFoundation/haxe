@@ -41,6 +41,7 @@ type value =
 	| VEnum of enum_proto * int * value array
 	| VAbstract of vabstract
 	| VVarArgs of vfunction * value option
+	| VStruct of vobject
 
 and ref_value =
 	| RStack of int
@@ -163,6 +164,7 @@ let rec is_compatible v t =
 	| VRef (_,t1), HRef t2 -> tsame t1 t2
 	| VAbstract _, HAbstract _ -> true
 	| VEnum _, HEnum _ -> true
+	| VStruct v, HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
 	| _ -> false
 
 type cast =
@@ -204,6 +206,10 @@ let alloc_obj ctx t =
 		let obj = VObj { oproto = p; ofields = ftable } in
 		List.iter (fun (fid,mk) -> ftable.(fid) <- mk obj) bindings;
 		obj
+	| HStruct p ->
+		let p, fields, bindings = get_proto ctx p in
+		let ftable = Array.map default fields in
+		VStruct { oproto = p; ofields = ftable }
 	| HVirtual v ->
 		let o = {
 			dfields = Hashtbl.create 0;
@@ -346,7 +352,7 @@ let rec vstr_d ctx v =
 	| VBool b -> if b then "true" else "false"
 	| VDyn (v,t) -> "dyn(" ^ vstr_d v ^ ":" ^ tstr t ^ ")"
 	| VObj o ->
-		let p = "#" ^ o.oproto.pclass.pname in
+		let p = o.oproto.pclass.pname in
 		(match get_to_string ctx o.oproto.pclass with
 		| Some f -> p ^ ":" ^ vstr_d (ctx.fcall f [v])
 		| None -> p)
@@ -364,6 +370,7 @@ let rec vstr_d ctx v =
 	| VEnum (e,i,vals) -> let n, _, _ = e.efields.(i) in if Array.length vals = 0 then n else n ^ "(" ^ String.concat "," (Array.to_list (Array.map vstr_d vals)) ^ ")"
 	| VAbstract _ -> "abstract"
 	| VVarArgs _ -> "varargs"
+	| VStruct v -> "@" ^ v.oproto.pclass.pname
 
 let rec to_virtual ctx v vp =
 	match v with
@@ -563,7 +570,7 @@ let rec dyn_get_field ctx obj field rt =
 			get_with d.dvalues.(idx) d.dtypes.(idx)
 		with Not_found ->
 			default rt)
-	| VObj o ->
+	| VObj o | VDyn (VStruct o, HStruct _) ->
 		let default rt =
 			match get_method o.oproto.pclass "__get_field" with
 			| None -> default rt
@@ -705,7 +712,7 @@ let rec vstr ctx v t =
 		vstr v t
 	| VObj o ->
 		(match get_to_string ctx o.oproto.pclass with
-		| None -> "#" ^ o.oproto.pclass.pname
+		| None -> o.oproto.pclass.pname
 		| Some f -> vstr (ctx.fcall f [v]) HBytes)
 	| VBytes b -> (try hl_to_caml b with _ -> "?" ^ String.escaped b)
 	| VClosure (f,_) -> fstr f
@@ -738,6 +745,7 @@ let rec vstr ctx v t =
 			in
 			n ^ "(" ^ String.concat "," (loop 0) ^ ")"
 	| VVarArgs _ -> "varargs"
+	| VStruct s -> "@" ^ s.oproto.pclass.pname
 
 let interp ctx f args =
 	let func = get_function ctx in
@@ -897,7 +905,7 @@ let interp ctx f args =
 			set r (alloc_obj ctx (rtype r))
 		| OField (r,o,fid) ->
 			set r (match get o with
-				| VObj v -> v.ofields.(fid)
+				| VObj v | VStruct v -> v.ofields.(fid)
 				| VVirtual v as obj ->
 					(match v.vindexes.(fid) with
 					| VFNone -> dyn_get_field ctx obj (let n,_,_ = v.vtype.vfields.(fid) in n) (rtype r)
@@ -908,7 +916,7 @@ let interp ctx f args =
 			let rv = get r in
 			let o = get o in
 			(match o with
-			| VObj v ->
+			| VObj v | VStruct v ->
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
 			| VVirtual v ->
@@ -921,10 +929,10 @@ let interp ctx f args =
 			| VNull -> null_access()
 			| _ -> assert false)
 		| OGetThis (r, fid) ->
-			set r (match get 0 with VObj v -> v.ofields.(fid) | _ -> assert false)
+			set r (match get 0 with VObj v | VStruct v -> v.ofields.(fid) | _ -> assert false)
 		| OSetThis (fid, r) ->
 			(match get 0 with
-			| VObj v as o ->
+			| (VObj v | VStruct v) as o ->
 				let rv = get r in
 				check_obj rv o fid;
 				v.ofields.(fid) <- rv
@@ -1073,7 +1081,8 @@ let interp ctx f args =
 					| HAbstract _ -> 17
 					| HEnum _ -> 18
 					| HNull _ -> 19
-					| HMethod _ -> 20)))
+					| HMethod _ -> 20
+					| HStruct _ -> 21)))
 				| _ -> assert false);
 		| ORef (r,v) ->
 			set r (VRef (RStack (v + spos),rtype v))
@@ -2251,11 +2260,16 @@ let check code macros =
 		let is_dyn r =
 			if not (is_dynamic (rtype r)) then error (reg_inf r ^ " should be castable to dynamic")
 		in
+		let get_field r p fid =
+			try snd (resolve_field p fid) with Not_found -> error (reg_inf r ^ " does not have field " ^ string_of_int fid)
+		in
 		let tfield o fid proto =
 			if fid < 0 then error (reg_inf o ^ " does not have " ^ (if proto then "proto " else "") ^ "field " ^ string_of_int fid);
 			match rtype o with
 			| HObj p ->
-				if proto then ftypes.(p.pvirtuals.(fid)) else (try snd (resolve_field p fid) with Not_found -> error (reg_inf o ^ " does not have field " ^ string_of_int fid))
+				if proto then ftypes.(p.pvirtuals.(fid)) else get_field o p fid
+			| HStruct p when not proto ->
+				get_field o p fid
 			| HVirtual v when not proto ->
 				let _,_, t = v.vfields.(fid) in
 				t
@@ -2384,7 +2398,7 @@ let check code macros =
 				()
 			| ONew r ->
 				(match rtype r with
-				| HDynObj | HVirtual _ -> ()
+				| HDynObj | HVirtual _ | HStruct _ -> ()
 				| _ -> is_obj r)
 			| OField (r,o,fid) ->
 				check (tfield o fid false) (rtype r)
