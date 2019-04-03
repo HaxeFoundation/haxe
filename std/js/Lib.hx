@@ -135,10 +135,10 @@ class Lib {
 	}
 
 	/**
-		Get shared global state available for all Haxe-compiled js modules.
+		Generate next unique id
 	**/
 	@:allow(haxe.ds.ObjectMap.assignId)
-	static inline function getGlobalHaxe():{ function nextId(counterName:String):Int; } {
-		return js.Syntax.code("{0}.$haxe", untyped __define_feature__("$global.$haxe", global));
+	static inline function getNextHaxeUID():{ function nextId(counterName:String):Int; } {
+		return js.Syntax.code("{0}.$haxeUID++", untyped __define_feature__("$global.$haxeUID", global));
 	}
 }

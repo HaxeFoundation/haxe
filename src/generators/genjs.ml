@@ -1760,19 +1760,14 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
-		add_feature ctx "$global.$haxe";
-		(* let value = if not ctx.js_modern then "typeof $fid == \"undefined\" ? 0 : $fid" else "0" in
-		if has_dollar_underscore then
-			print ctx "var $fid = %s" value
-		else
-			print ctx "var $_, $fid = %s" value; *)
+		add_feature ctx "$global.$haxeUID";
 		if not has_dollar_underscore then
 			print ctx "var $_";
 		newline ctx;
 		(if ctx.es_version < 5 then
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxe.nextId('fid'); var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
 		else
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxe.nextId('fid'); var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
 		);
 		newline ctx;
 	end;
@@ -1780,17 +1775,9 @@ let generate com =
 		print ctx "function $arrayPush(x) { this.push(x); }";
 		newline ctx
 	end;
-	if has_feature ctx "$global.$haxe" then begin
+	if has_feature ctx "$global.$haxeUID" then begin
 		add_feature ctx "js.Lib.global";
-		print ctx "$global.$haxe = $global.$haxe || (function() {\n";
-		print ctx "	var ids = {};\n";
-		print ctx "	return {\n";
-		print ctx "		nextId:function(name) {\n";
-		print ctx "			if(ids[name] == null) ids[name] = 0;\n";
-		print ctx "			return ids[name]++;\n";
-		print ctx "		}\n";
-		print ctx "	}\n";
-		print ctx "})();\n";
+		print ctx "if(typeof $global.$haxeUID == \"undefined\") $global.$haxeUID = 0;\n";
 	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
