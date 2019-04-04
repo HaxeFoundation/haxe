@@ -965,7 +965,10 @@ module StdFile = struct
 		let perms = 0o666 in
 		let l = Open_creat :: flags in
 		let l = if binary then Open_binary :: l else l in
-		let ch = open_out_gen l perms path in
+		let ch =
+			try open_out_gen l perms path
+			with Sys_error msg -> exc_string msg
+		in
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel ch)
 
 	let write_out path content =
@@ -1001,7 +1004,10 @@ module StdFile = struct
 			| VTrue | VNull -> true
 			| _ -> false
 		in
-		let ch = open_in_gen (Open_rdonly :: (if binary then [Open_binary] else [])) 0 path in
+		let ch =
+			try open_in_gen (Open_rdonly :: (if binary then [Open_binary] else [])) 0 path
+			with Sys_error msg -> exc_string msg
+		in
 		encode_instance key_sys_io_FileInput ~kind:(IInChannel(ch,ref false))
 	)
 
