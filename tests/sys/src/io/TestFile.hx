@@ -26,6 +26,7 @@ class TestFile extends utest.Test {
 			File.copy('non-existent-src', 'non-existent-dst');
 		} catch(e:Dynamic) {
 			//see https://github.com/HaxeFoundation/haxe/issues/8098
+			Assert.pass();
 		}
 	}
 }
