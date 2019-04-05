@@ -114,6 +114,7 @@ let pop a =
 		vnull
 	else begin
 		let v = get a (a.alength - 1) in
+		unsafe_set a (a.alength - 1) vnull;
 		a.alength <- a.alength - 1;
 		v
 	end
