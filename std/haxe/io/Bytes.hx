@@ -189,7 +189,7 @@ class Bytes {
 		var len = (length < other.length) ? length : other.length;
 		for( i in 0...len )
 			if( b1[i] != b2[i] )
-				return untyped b1[i] - untyped b2[i];
+				return untyped b1[i] - b2[i];
 		return length - other.length;
 		#end
 	}
@@ -578,7 +578,7 @@ class Bytes {
 		return new Bytes(b.length,b);
 		#end
 	}
-	
+
 	/**
 		Convert hexadecimal string to Bytes.
 		Support only straight hex string ( Example: "0FDA14058916052309" )
@@ -594,7 +594,7 @@ class Bytes {
 			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
 			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
 			ret.set( i ,( (high << 4) | low)  & 0xFF );
-		}  
+		}
 
 		return ret;
 	}
