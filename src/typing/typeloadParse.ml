@@ -175,7 +175,7 @@ let parse_module ctx m p =
 		if p == null_pos then
 			display_error ctx ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) {p with pmax = p.pmin}
+			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack ^ " in " ^ file) {p with pmax = p.pmin}
 	end;
 	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
