@@ -339,7 +339,7 @@ let throw v p =
 		end;
 		raise_notrace (RunTimeException(v,call_stack eval,p))
 	| None ->
-		assert false
+		raise_notrace (RunTimeException(v,[],p))
 
 let exc v = throw v null_pos
 

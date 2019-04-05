@@ -570,7 +570,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			pinterfaces = PMap.empty;
 			pbindings = [];
 		} in
-		let t = HObj p in
+		let t = (if Meta.has Meta.Struct c.cl_meta && not statics then HStruct p else HObj p) in
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
@@ -587,7 +587,8 @@ and class_type ?(tref=None) ctx c pl statics =
 		) in
 		let start_field, virtuals = (match tsup with
 			| None -> 0, [||]
-			| Some (HObj psup) ->
+			| Some ((HObj psup | HStruct psup) as pt) ->
+				if is_struct t <> is_struct pt then abort (if is_struct t then "Struct cannot extend a not struct class" else "Class cannot extend a struct") c.cl_pos;
 				if psup.pnfields < 0 then assert false;
 				p.psuper <- Some psup;
 				psup.pnfields, psup.pvirtuals
@@ -1266,7 +1267,7 @@ and unsafe_cast_to ?(debugchk=true) ctx (r:reg) (t:ttype) p =
 
 and object_access ctx eobj t f =
 	match t with
-	| HObj p ->
+	| HObj p | HStruct p ->
 		(try
 			let fid = fst (get_index f.cf_name p) in
 			if f.cf_kind = Method MethNormal then
@@ -3231,7 +3232,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		op ctx (ORet r)
 	end;
 	let fargs = (match tthis with None -> [] | Some t -> [t]) @ (match rcapt with None -> [] | Some r -> [rtype ctx r]) @ args in
-	let f = {
+	let hlf = {
 		fpath = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
@@ -3242,13 +3243,13 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	} in
 	ctx.m <- old;
 	Hashtbl.add ctx.defined_funs fidx ();
-	let f = if ctx.optimize then begin
+	let f = if ctx.optimize && (gen_content = None || name <> ("","")) then begin
 		let t = Timer.timer ["generate";"hl";"opt"] in
-		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) f in
+		let f = Hlopt.optimize ctx.dump_out (DynArray.get ctx.cstrings.arr) hlf f in
 		t();
 		f
 	end else
-		f
+		hlf
 	in
 	DynArray.add ctx.cfunctions f;
 	capt
@@ -3292,7 +3293,7 @@ let rec generate_member ctx c f =
 		let gen_content = if f.cf_name <> "new" then None else Some (fun() ->
 
 			let o = (match class_type ctx c (List.map snd c.cl_params) false with
-				| HObj o -> o
+				| HObj o | HStruct o -> o
 				| _ -> assert false
 			) in
 
@@ -3751,8 +3752,8 @@ let write_code ch code debug =
 			byte n;
 			List.iter write_type args;
 			write_type ret
-		| HObj p ->
-			byte 11;
+		| HObj p | HStruct p ->
+			byte (if is_struct t then 21 else 11);
 			write_index p.pid;
 			(match p.psuper with
 			| None -> write_index (-1)
@@ -4036,7 +4037,9 @@ let generate com =
 	in
 
 	if file_extension com.file = "c" then begin
-		Hl2c.write_c com com.file code;
+		let gnames = Array.create (Array.length code.globals) "" in
+		PMap.iter (fun n i -> gnames.(i) <- n) ctx.cglobals.map;
+		Hl2c.write_c com com.file code gnames;
 		let t = Timer.timer ["nativecompile";"hl"] in
 		if not (Common.defined com Define.NoCompilation) && com.run_command ("haxelib run hashlink build " ^ escape_command com.file) <> 0 then failwith "Build failed";
 		t();
@@ -4048,6 +4051,7 @@ let generate com =
 		output_string ch str;
 		close_out ch;
 	end;
+	Hlopt.clean_cache();
 	t();
 	if Common.raw_defined com "run" then begin
 		if com.run_command ("haxelib run hashlink run " ^ escape_command com.file) <> 0 then failwith "Failed to run HL";

@@ -565,9 +565,9 @@ try
 			let raise_reserved description =
 				raise (Arg.Bad (description ^ " and cannot be defined from the command line"))
 			in
-			if List.mem var reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved copiler flag" var);
+			if List.mem var reserved_flags then raise_reserved (Printf.sprintf "`%s` is a reserved compiler flag" var);
 			List.iter (fun ns ->
-				if ExtString.String.starts_with var ns then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" var ns)
+				if ExtString.String.starts_with var (ns ^ ".") then raise_reserved (Printf.sprintf "`%s` uses the reserved compiler flag namespace `%s.*`" var ns)
 			) reserved_flag_namespaces;
 			Common.raw_define com var;
 		),"<var[=value]>","define a conditional compilation flag");

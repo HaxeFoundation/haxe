@@ -133,4 +133,12 @@ class Lib {
 	public static function getOriginalException():Dynamic {
 		return null; // function is implemented in the compiler
 	}
+
+	/**
+		Generate next unique id
+	**/
+	@:allow(haxe.ds.ObjectMap.assignId)
+	static inline function getNextHaxeUID():{ function nextId(counterName:String):Int; } {
+		return js.Syntax.code("{0}.$haxeUID++", untyped __define_feature__("$global.$haxeUID", global));
+	}
 }

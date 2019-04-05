@@ -965,7 +965,10 @@ module StdFile = struct
 		let perms = 0o666 in
 		let l = Open_creat :: flags in
 		let l = if binary then Open_binary :: l else l in
-		let ch = open_out_gen l perms path in
+		let ch =
+			try open_out_gen l perms path
+			with Sys_error msg -> exc_string msg
+		in
 		encode_instance key_sys_io_FileOutput ~kind:(IOutChannel ch)
 
 	let write_out path content =
@@ -1001,7 +1004,10 @@ module StdFile = struct
 			| VTrue | VNull -> true
 			| _ -> false
 		in
-		let ch = open_in_gen (Open_rdonly :: (if binary then [Open_binary] else [])) 0 path in
+		let ch =
+			try open_in_gen (Open_rdonly :: (if binary then [Open_binary] else [])) 0 path
+			with Sys_error msg -> exc_string msg
+		in
 		encode_instance key_sys_io_FileInput ~kind:(IInChannel(ch,ref false))
 	)
 
@@ -2140,6 +2146,24 @@ module StdString = struct
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
 		else vint (char_at this i)
+	)
+
+	let iterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_string_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
+	)
+
+	let keyValueIterator = vifun0 (fun vthis ->
+		let ctx = get_ctx() in
+		let path = key_haxe_iterators_string_key_value_iterator in
+		let vit = encode_instance path in
+		let fnew = get_instance_constructor ctx path null_pos in
+		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
+		vit
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -3488,6 +3512,8 @@ let init_standard_library builtins =
 	] [
 		"charAt",StdString.charAt;
 		"charCodeAt",StdString.charCodeAt;
+		"iterator",StdString.iterator;
+		"keyValueIterator",StdString.keyValueIterator;
 		"indexOf",StdString.indexOf;
 		"lastIndexOf",StdString.lastIndexOf;
 		"split",StdString.split;

@@ -22,6 +22,8 @@
 package php;
 
 import haxe.PosInfos;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 import haxe.extern.EitherType;
 
 using php.Global;
@@ -503,7 +505,7 @@ class Boot {
 		if (right == 0) {
 			return left;
 		} else if (left >= 0) {
-			return ((left >> right) & ~(1 << ( 8*Const.PHP_INT_SIZE-1 ) >> (right-1)));
+			return (left >> right) & ~( (1 << (8 * Const.PHP_INT_SIZE - 1)) >> (right - 1) );
 		} else {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
@@ -727,6 +729,14 @@ private class HxString {
 		}
 		var char = Global.mb_substr(str, index, 1);
 		return char == '' ? null : Boot.unsafeOrd(char);
+	}
+
+	public static function iterator( str:String ):StringIterator {
+		return new StringIterator(str);
+	}
+
+	public static function keyValueIterator( str:String ):StringKeyValueIterator {
+		return new StringKeyValueIterator(str);
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {

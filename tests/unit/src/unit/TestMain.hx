@@ -128,6 +128,12 @@ class TestMain {
 			});
 		};
 		#end
+		#if sys
+		if (verbose)
+			runner.onTestStart.add(function(test) {
+				Sys.println(' $test...'); // TODO: need utest success state for this
+			});
+		#end
 		runner.run();
 	}
 }

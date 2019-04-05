@@ -289,7 +289,8 @@ let get_signature def =
 			   Parser.parse_macro_ident as well (issue #5682).
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
+			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
 		let str = String.concat "@" (List.sort compare defines) in

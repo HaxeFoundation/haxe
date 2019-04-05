@@ -143,6 +143,8 @@ class HostClasses
    "haxe.ds.IntMap",
    "haxe.ds.StringMap",
 
+   "haxe.iterators.MapKeyValueIterator",
+
    "StdTypes",
    "Array",
    "Class",

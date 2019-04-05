@@ -43,6 +43,16 @@ class StringImpl {
 		return if (index < 0 || index >= s.length) "" else Syntax.arrayAccess(s,index);
 	}
 
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "python.internal.StringImpl.iterator")
+	public static inline function iterator(s:String) {
+		return new haxe.iterators.StringIterator(s);
+	}
+
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "python.internal.StringImpl.keyValueIterator")
+	public static inline function keyValueIterator(s:String) {
+		return new haxe.iterators.StringKeyValueIterator(s);
+	}
+
 	@:ifFeature("dynamic_read.lastIndexOf", "anon_optional_read.lastIndexOf", "python.internal.StringImpl.lastIndexOf")
 	public static inline function lastIndexOf(s:String, str:String, ?startIndex:Int):Int {
 		if (startIndex == null) {

@@ -329,6 +329,7 @@ let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
+			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
@@ -338,12 +339,32 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		has_feature ctx "HxOverrides.iter" && loop x.etype
+		(has_feature ctx "HxOverrides.iter" || has_feature ctx "String.iterator") && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
+
+let is_dynamic_key_value_iterator ctx e =
+	let check x =
+		let rec loop t = match follow t with
+			| TInst ({ cl_path = [],"String" },_)
+			| TInst ({ cl_kind = KTypeParameter _}, _)
+			| TAnon _
+			| TDynamic _
+			| TMono _ ->
+				true
+			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
+				loop (Abstract.get_underlying_type a tl)
+			| _ ->
+				false
+		in
+		has_feature ctx "String.keyValueIterator" && loop x.etype
+	in
+	match e.eexpr with
+	| TField (x,f) when field_name f = "keyValueIterator" -> check x
+	| _ -> false
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -446,6 +467,11 @@ let rec gen_call ctx e el in_value =
 	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$getIterator";
 		print ctx "$getIterator(";
+		gen_value ctx x;
+		print ctx ")";
+	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_key_value_iterator ctx e ->
+		add_feature ctx "use.$getKeyValueIterator";
+		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
@@ -1611,12 +1637,7 @@ let generate com =
 		"typeof window != \"undefined\" ? window : typeof global != \"undefined\" ? global : typeof self != \"undefined\" ? self : this"
 	) in
 
-	let closureArgs = [] in
-	let closureArgs = if has_feature ctx "js.Lib.global" then
-		var_global :: closureArgs
-	else
-		closureArgs
-	in
+	let closureArgs = [var_global] in
 	let closureArgs = if (anyExposed && not (Common.defined com Define.ShallowExpose)) then
 		var_exports :: closureArgs
 	else
@@ -1668,7 +1689,7 @@ let generate com =
 	if (not ctx.js_modern) && (ctx.es_version < 5) then
 		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
 
-	if (not ctx.js_modern) && (has_feature ctx "js.Lib.global") then
+	if (not ctx.js_modern) then
 		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
 
 	if (not ctx.js_modern) && (ctx.es_version < 5) then
@@ -1731,20 +1752,23 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else if (typeof o == 'string') return HxOverrides.strIter(o); else return o.iterator(); }";
+		newline ctx;
+	end;
+	if has_feature ctx "use.$getKeyValueIterator" then begin
+		print ctx "function $getKeyValueIterator(o) { if (typeof o == 'string') return HxOverrides.strKVIter(o); else return o.keyValueIterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
-		let value = if not ctx.js_modern then "typeof $fid == \"undefined\" ? 0 : $fid" else "0" in
-		if has_dollar_underscore then
-			print ctx "var $fid = %s" value
-		else
-			print ctx "var $_, $fid = %s" value;
-		newline ctx;
+		add_feature ctx "$global.$haxeUID";
+		if not has_dollar_underscore then begin
+			print ctx "var $_";
+			newline ctx;
+		end;
 		(if ctx.es_version < 5 then
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
 		else
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
+			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
 		);
 		newline ctx;
 	end;
@@ -1752,12 +1776,27 @@ let generate com =
 		print ctx "function $arrayPush(x) { this.push(x); }";
 		newline ctx
 	end;
+	if has_feature ctx "$global.$haxeUID" then begin
+		add_feature ctx "js.Lib.global";
+		print ctx "if(typeof $global.$haxeUID == \"undefined\") $global.$haxeUID = 0;\n";
+	end;
 	List.iter (gen_block_element ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e; newline ctx);
 	if ctx.js_modern then begin
+		let closureArgs =
+			if has_feature ctx "js.Lib.global" then
+				closureArgs
+			else
+				(* no need for `typeof window != "undefined" ? window : typeof global != "undefined" ? <...>` *)
+				match List.rev closureArgs with
+					| (global_name,global_value) :: rest ->
+						List.rev ((global_name,"{}") :: rest)
+					| _ ->
+						closureArgs
+		in
 		print ctx "})(%s)" (String.concat ", " (List.map snd closureArgs));
 		newline ctx;
 	end;

@@ -387,7 +387,7 @@ let keyword_remap name =
    | "_Complex" | "INFINITY" | "NAN"
    | "INT_MIN" | "INT_MAX" | "INT8_MIN" | "INT8_MAX" | "UINT8_MAX" | "INT16_MIN"
    | "INT16_MAX" | "UINT16_MAX" | "INT32_MIN" | "INT32_MAX" | "UINT32_MAX"
-   | "asm" | "near" | "far"
+   | "asm" | "near" | "far" | "_w64"
    | "HX_" | "HXLINE" | "HXDLIN"
    | "NO" | "YES"
    | "abstract" | "decltype" | "finally" | "nullptr" | "static_assert"
@@ -2663,7 +2663,17 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::AddressOf" ->
                     let arg = retype TCppUnchanged (List.hd args) in
-                    CppAddressOf(arg), TCppRawPointer("", arg.cpptype)
+                    let rawType = match arg.cpptype with | TCppReference(x) -> x | x -> x in
+                    CppAddressOf(arg), TCppRawPointer("", rawType)
+
+               | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::StarOf" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    let rawType = match arg.cpptype with | TCppReference(x) -> x | x -> x in
+                    CppAddressOf(arg), TCppStar(rawType,false)
+
+               | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "hx::Dereference" ->
+                    let arg = retype TCppUnchanged (List.hd args) in
+                    CppDereference(arg), arg.cpptype
 
                | CppFunction( FuncStatic(obj, false, member), _ ) when member.cf_name = "_hx_create_array_length" ->
                   let retypedArgs = List.map (retype TCppDynamic ) args in
@@ -3201,8 +3211,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
 
 
          | TCppStar(t,const), TCppInst _
-         | TCppStar(t,const), TCppStruct _
-         | TCppStar(t,const), TCppReference _ ->
+         | TCppStar(t,const), TCppStruct _ ->
              mk_cppexpr (CppDereference(cppExpr)) return_type
 
          | TCppInst _, TCppStar(p,const)
@@ -3388,7 +3397,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
    let class_hash = gen_hash_small 0 class_name in
    (*let genGc = Common.defined ctx.ctx_common Define.HxcppGcGenerational in*)
 
-   let rec gen_with_injection injection expr =
+   let rec gen_with_injection injection expr new_line =
       (match expr.cppexpr with
       | CppBlock(exprs,closures,gc_stack) ->
          writer#begin_block;
@@ -3406,7 +3415,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          ) exprs;
          (match injection with Some inject -> out inject.inj_tail | _ -> () );
          out spacer;
-         writer#end_block;
+         if new_line then writer#end_block else writer#end_block_line;
 
       | CppInt i -> out (Printf.sprintf (if i> Int32.of_int(-1000000000) && i< Int32.of_int(1000000000) then "%ld" else "(int)%ld") i)
       | CppFloat float_as_string -> out ("((Float)" ^ float_as_string ^")")
@@ -3909,8 +3918,8 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
           | DoWhile ->
               out ("do ");
               lastLine := -1;
-              gen block;
-              out "while("; gen condition; out ")"
+              gen_with_injection None block false;
+              out " while("; gen condition; out ");\n"
           );
           if loop_id > -1 then output_i ((label_name loop_id) ^ ":");
 
@@ -3936,7 +3945,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          let prologue = fun _ ->
             output_i ( varType ^ " " ^ (cpp_var_name_of tvar) ^ " = __it->next();\n" );
          in
-         gen_with_injection (mk_injection prologue "" "") loop;
+         gen_with_injection (mk_injection prologue "" "") loop true;
 
 
       | CppTry(block,catches) ->
@@ -3946,9 +3955,9 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
              ) catches
           in
           out ("try ");
-          gen_with_injection (mk_injection prologue "" "" ) block;
+          gen_with_injection (mk_injection prologue "" "" ) block (List.length catches < 0);
           if (List.length catches > 0 ) then begin
-             output_i "catch( ::Dynamic _hx_e)";
+             out " catch( ::Dynamic _hx_e) ";
              writer#begin_block;
 
              let seen_dynamic = ref false in
@@ -3973,7 +3982,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
                    output_i "HX_STACK_BEGIN_CATCH\n";
                    output_i (type_name ^ " " ^ (cpp_var_name_of v) ^ " = _hx_e;\n");
                 in
-                gen_with_injection (mk_injection prologue "" "") catch;
+                gen_with_injection (mk_injection prologue "" "") catch true;
                 else_str := "else ";
                 ) catches;
 
@@ -4052,7 +4061,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
          out ("/* " ^ (s_tcpp expr.cppexpr) ^ ":" ^ tcpp_to_string expr.cpptype ^ " */")
 
    and gen expr =
-      gen_with_injection None expr
+      gen_with_injection None expr true
 
    and gen_lvalue lvalue =
       match lvalue with
@@ -4174,8 +4183,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
              out ("HXLINE(" ^ lineName ^ ")\n" );
           end
       in
-
-      gen_with_injection (mk_injection prologue "" "") closure.close_expr;
+      gen_with_injection (mk_injection prologue "" "") closure.close_expr true;
 
       let return = match closure.close_type with TCppVoid -> "(void)" | _ -> "return" in
 
@@ -4185,7 +4193,7 @@ let gen_cpp_ast_expression_tree ctx class_name func_name function_args function_
 
    (*out "\t";*)
 
-   gen_with_injection injection cppTree;
+   gen_with_injection injection cppTree true;
 
 ;;
 
