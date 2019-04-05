@@ -48,10 +48,13 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		switch (Sys.systemName()) {
+		var result = switch (Sys.systemName()) {
 			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
 			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
 		};
+		if(#if (lua_ver >= 5.2) result.status #else result #end != 0) {
+			throw 'Failed to copy $srcPath to $dstPath';
+		}
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
