@@ -247,7 +247,9 @@ let rec build_generic ctx c p tl =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
 				r := lazy_processing (fun() -> t);
-				unify_raise ctx (f()) t p;
+				let t0 = f() in
+				unify_raise ctx t0 t p;
+				link_dynamic t0 t;
 				t
 			) "build_generic" in
 			cf_new.cf_type <- TLazy r;
