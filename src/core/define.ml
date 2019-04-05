@@ -39,7 +39,6 @@ type strict_defined =
 	| FlashUseStage
 	| ForceLibCheck
 	| ForceNativeProperty
-	| FormatWarning
 	| GencommonDebug
 	| Haxe3Compat
 	| HaxeBoot
@@ -152,7 +151,6 @@ let infos = function
 	(* force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily *)
 	| ForceLibCheck -> "force_lib_check",("Force the compiler to check -net-lib and -java-lib added classes (internal)",[Platforms [Cs;Java]])
 	| ForceNativeProperty -> "force_native_property",("Tag all properties with :nativeProperty metadata for 3.1 compatibility",[Platform Cpp])
-	| FormatWarning -> "format_warning",("Print a warning for each formatted string, for 2.x compatibility",[])
 	| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
 	| Haxe3Compat -> "haxe3compat", ("Gives warnings about transition from Haxe 3.x to Haxe 4.0",[])
 	| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
