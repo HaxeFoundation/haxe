@@ -58,7 +58,7 @@ class File {
 			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
 			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
 		};
-		if(#if (lua_ver >= 5.2) !result.success #else result != 0 ) {
+		if(#if (lua_ver >= 5.2) !result.success #else result != 0 #end ) {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
 	}
