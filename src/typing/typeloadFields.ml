@@ -164,10 +164,10 @@ let ensure_struct_init_constructor ctx c ast_fields p =
 				let opt = has_default_expr || (Meta.has Meta.Optional cf.cf_meta) in
 				let t = if opt then ctx.t.tnull cf.cf_type else cf.cf_type in
 				let v = alloc_var VGenerated cf.cf_name t p in
-				let ef = mk (TField(ethis,FInstance(c,params,cf))) t p in
+				let ef = mk (TField(ethis,FInstance(c,params,cf))) cf.cf_type p in
 				let ev = mk (TLocal v) v.v_type p in
 				(* this.field = <constructor_argument> *)
-				let assign_expr = mk (TBinop(OpAssign,ef,ev)) ev.etype p in
+				let assign_expr = mk (TBinop(OpAssign,ef,ev)) cf.cf_type p in
 				let e =
 					if has_default_expr then
 						begin
