@@ -461,7 +461,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 	| TMono r ->
 		let f = {
 			(mk_field i (mk_mono()) p null_pos) with
-			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNever) };
+			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 		} in
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
