@@ -27,6 +27,8 @@ class TestFile extends utest.Test {
 		} catch(e:Dynamic) {
 			//see https://github.com/HaxeFoundation/haxe/issues/8098
 			Assert.pass();
+			return;
 		}
+		Assert.fail();
 	}
 }
