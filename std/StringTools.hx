@@ -507,6 +507,7 @@ class StringTools {
 		on Unix.
 		The input will be quoted, or escaped if necessary.
 	**/
+	@:noCompletion
 	public static function quoteUnixArg(argument:String):String {
 		// Based on cpython's shlex.quote().
 		// https://hg.python.org/cpython/file/a3f076d4f54f/Lib/shlex.py#l278
@@ -525,6 +526,7 @@ class StringTools {
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
 	**/
+	@:noCompletion
 	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
@@ -540,6 +542,7 @@ class StringTools {
 		quoteWinArg("ab c") == '"ab c"';
 		```
 	**/
+	@:noCompletion
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
 		if (!~/^[^ \t\\"]+$/.match(argument)) {
