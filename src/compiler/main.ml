@@ -797,7 +797,9 @@ try
 				end;
 			with Not_found ->
 				raise (Arg.Bad new_msg));
-		arg_delays := []
+		arg_delays := [];
+		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then
+			Define.define com.defines HxcppSmartStings;
 	in
 	process_ref := process;
 	process ctx.com.args;
