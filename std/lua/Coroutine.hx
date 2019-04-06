@@ -79,8 +79,7 @@ extern class Coroutine<T:Function> extends Thread {
 /**
 	A enumerator that describes the output of `Coroutine.status()`.
 **/
-enum
-abstract CoroutineState(String) {
+enum abstract CoroutineState(String) {
 	/**
 		If the coroutine is suspended in a call to yield, or if it has not started
 		running yet.

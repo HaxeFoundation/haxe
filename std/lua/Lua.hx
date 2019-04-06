@@ -178,8 +178,7 @@ extern class Lua {
 /**
 	Enum for describing garbage collection options
 **/
-enum
-abstract CollectGarbageOption(String) {
+enum abstract CollectGarbageOption(String) {
 	var Stop = "stop";
 	var Restart = "restart";
 	var Collect = "collect";

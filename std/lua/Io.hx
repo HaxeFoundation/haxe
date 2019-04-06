@@ -116,8 +116,7 @@ extern class Io {
 /**
 	A enumerator that describes the output of `Io.type()`.
 **/
-enum
-abstract IoType(String) {
+enum abstract IoType(String) {
 	var File = "file";
 	var ClosedFile = "closed file";
 	var NotAFile = null;
