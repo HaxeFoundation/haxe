@@ -40,6 +40,10 @@ import php.*;
 		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES);
 	}
 
+	public inline static function contains(s : String, value : String) : Bool {
+		return s.indexOf(value) != -1;
+	}
+
 	public static function startsWith( s : String, start : String ) : Bool {
 		return start == '' || Global.strpos(s, start) == 0;
 	}
@@ -218,13 +222,5 @@ import php.*;
 		} else {
 			return argument;
 		}
-	}
-
-	public static inline function eregReplace(str:String, ereg:EReg, by:String ) : String {
-		return ereg.replace(str, by);
-	}
-
-	public static inline function contains(str:String, value:String) : Bool {
-		return if (str == null) false else str.indexOf(value) != -1;
 	}
 }
