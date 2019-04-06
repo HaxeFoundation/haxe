@@ -184,6 +184,15 @@ class StringTools {
 	}
 
 	/**
+		Returns `true` if `s` contains `value` and  `false` otherwise.
+
+		When `value` is `null`, the result is unspecified.
+	**/
+	public static inline function contains(s : String, value : String) : Bool {
+		return s.indexOf(value) != -1;
+	}
+
+	/**
 		Tells if the string `s` starts with the string `start`.
 
 		If `start` is `null`, the result is unspecified.
