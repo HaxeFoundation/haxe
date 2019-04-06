@@ -184,7 +184,7 @@ class StringTools {
 	}
 
 	/**
-		Returns `true` if `s` contains `value` and returns `false` otherwise.
+		Returns `true` if `s` contains `value` and  `false` otherwise.
 
 		When `value` is `null`, the result is unspecified.
 	**/
