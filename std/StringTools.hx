@@ -184,6 +184,15 @@ class StringTools {
 	}
 
 	/**
+		Returns `true` if `s` contains `value` and returns `false` otherwise.
+
+		When `value` is `null`, the result is unspecified.
+	**/
+	public static inline function contains(s : String, value : String) : Bool {
+		return s.indexOf(value) != -1;
+	}
+
+	/**
 		Tells if the string `s` starts with the string `start`.
 
 		If `start` is `null`, the result is unspecified.
@@ -603,25 +612,6 @@ class StringTools {
 		} else {
 			return argument;
 		}
-	}
-
-	/**
-		This is a convenience function for `ereg.replace(str, by)`.
-
-		See `EReg.replace` for implementation details.  
-		@see https://haxe.org/manual/std-regex-replace.html
-	**/
-	public static inline function eregReplace(str : String, ereg : EReg, by : String ) : String {
-		return ereg.replace(str, by);
-	}
-
-	/**
-		Returns `true` if `str` contains `value` and returns `false` otherwise.
-		Returns `false` if `str` is `null`.
-		When `value` is `null`, the result is undefined.
-	**/
-	public static inline function contains(str : String, value : String) : Bool {
-		return if (str == null) false else str.indexOf(value) != -1;
 	}
 
 	#if java

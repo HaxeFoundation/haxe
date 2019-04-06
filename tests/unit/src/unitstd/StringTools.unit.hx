@@ -109,21 +109,11 @@ StringTools.hex(0xABCDEF, 7) == "0ABCDEF";
 StringTools.hex( -1, 8) == "FFFFFFFF";
 StringTools.hex( -481400000, 8) == "E34E6B40";
 
-// eregReplace
-var s = "foo1bar";
-StringTools.eregReplace(s, ~/bar/, '') == 'foo1';
-StringTools.eregReplace(s, ~/(b)(a)(r)/, '$3$2$1') == 'foo1rab';
-StringTools.eregReplace(s, ~/nothing/, s) == s;
-StringTools.eregReplace(s, ~/(foo1bar)/, s) == s;
-StringTools.eregReplace(s, new EReg(s,'g'), '') == '';
-
 // contains
 var s = "foo1bar";
 StringTools.contains(s, '') == true;
 StringTools.contains(s, 'bar') == true;
 StringTools.contains(s, 'test') == false;
-StringTools.contains(null, 'bar') == false;
-StringTools.contains(null, null) == false;
 
 // fastCodeAt
 var s = "foo1bar";
