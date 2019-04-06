@@ -1,10 +1,16 @@
+<p align="center">
+  <a href="https://haxe.org/" title="haxe.org"><img src="extra/images/Readme.png" /></a>
+</p>
 
-# [<img src="https://haxe.org/img/haxe-logo-horizontal.svg" alt="Haxe logo" width="140">](https://haxe.org) - [The Cross-Platform Toolkit](https://haxe.org)
-[![TravisCI Build Status](https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development)](https://travis-ci.org/HaxeFoundation/haxe)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&svg=true)](https://ci.appveyor.com/project/HaxeFoundation/haxe)
-[![SauceLabs Test Status](https://saucelabs.com/buildstatus/haxe)](https://saucelabs.com/u/haxe)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/HaxeFoundation/haxe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![Discord](https://img.shields.io/discord/162395145352904705.svg?logo=discord)](https://discordapp.com/invite/0uEuWH3spjck73Lo)
+<p align="center">
+	<a href="https://travis-ci.org/HaxeFoundation/haxe"><img src="https://travis-ci.org/HaxeFoundation/haxe.svg?branch=development" alt="TravisCI Build Status"></a>
+	<a href="https://ci.appveyor.com/project/HaxeFoundation/haxe"><img src="https://ci.appveyor.com/api/projects/status/github/HaxeFoundation/haxe?branch=development&amp;svg=true" alt="AppVeyor Build Status"></a>
+	<a href="https://saucelabs.com/u/haxe"><img src="https://saucelabs.com/buildstatus/haxe" alt="SauceLabs Test Status"></a>
+	<a href="https://gitter.im/HaxeFoundation/haxe?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge"><img src="https://badges.gitter.im/Join%20Chat.svg" alt="Gitter"></a>
+	<a href="https://discordapp.com/invite/0uEuWH3spjck73Lo"><img src="https://img.shields.io/discord/162395145352904705.svg?logo=discord" alt="Discord"></a>
+</p>
+
+---
 
 Haxe is an open source toolkit that allows you to easily build cross-platform tools and applications that target many mainstream platforms. The Haxe toolkit includes:
 
