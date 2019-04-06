@@ -54,11 +54,18 @@ extern class Socket {
 
 	/**
 		Read the whole data available on the socket.
+
+		*Note*: this is **not** meant to be used together with `setBlocking(false)`,
+		as it will always throw `haxe.io.Error.Blocked`. `input` methods should be used directly instead.
 	**/
 	function read() : String;
 
 	/**
 		Write the whole data to the socket output.
+
+		*Note*: this is **not** meant to be used together with `setBlocking(false)`, as
+		`haxe.io.Error.Blocked` may be thrown mid-write with no indication of how many bytes have been written.
+		`output.writeBytes()` should be used instead as it returns this information.
 	**/
 	function write( content : String ) : Void;
 
