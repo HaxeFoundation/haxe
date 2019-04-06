@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -97,8 +97,13 @@ class Http extends haxe.http.HttpBase {
 				#else
 				throw "Https is only supported with -lib hxssl";
 				#end
-			} else
+			} else {
+				#if php
+				sock = new php.net.Socket();
+				#else
 				sock = new Socket();
+				#end
+			}
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
@@ -360,6 +365,7 @@ class Http extends haxe.http.HttpBase {
 			try {
 				while(true) {
 					var len = sock.input.readBytes(buf,0,bufsize);
+					if (len == 0) break;
 					api.writeBytes(buf,0,len);
 				}
 			} catch(e:haxe.io.Eof) {

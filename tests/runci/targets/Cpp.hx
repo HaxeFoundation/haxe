@@ -61,16 +61,16 @@ class Cpp {
 					runCommand("haxe", ["compile-cppia.hxml"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
-					runCommand("haxe", ["compile-cppia.hxml", "-D", "nocppiaast"]);
-					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
-					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 				}
 		}
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-cpp.hxml"]);
 		runCpp("bin/cpp/Main-debug", []);
+
+		changeDirectory(threadsDir);
+		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+		runCpp("export/cpp/Main");
 
 		// if (Sys.systemName() == "Mac")
 		// {

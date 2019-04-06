@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -134,7 +134,8 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| AKExpr e ->
 					begin match follow e.etype with
 						| TFun(_,t') when is_enum ->
-							unify ctx t' t e.epos;
+							(* TODO: this is a dodge for #7603 *)
+							(try Type.unify t' t with Unify_error _ -> ());
 							AKExpr e
 						| _ ->
 							if iscall then
@@ -498,7 +499,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				| _ -> assert false
 			end;
 			make_call ctx e1 [ethis;Texpr.Builder.make_string ctx.t fname null_pos;e2] t p
-		| AKUsing(ef,_,_,et) ->
+		| AKUsing(ef,_,_,et,_) ->
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
@@ -581,7 +582,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 				mk (TVar (v,Some e)) ctx.t.tvoid p;
 				e'
 			]) t p
-		| AKUsing(ef,c,cf,et) ->
+		| AKUsing(ef,c,cf,et,_) ->
 			(* abstract setter + getter *)
 			let ta = match c.cl_kind with KAbstractImpl a -> TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) | _ -> assert false in
 			let ret = match follow ef.etype with
@@ -1474,10 +1475,6 @@ and format_string ctx s p =
 		let len = pos - start in
 		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
 	in
-	let warn_escape = Common.defined ctx.com Define.FormatWarning in
-	let warn pos len =
-		ctx.com.warning "This string is formatted" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
-	in
 	let len = String.length s in
 	let rec parse start pos =
 		if pos = len then add_sub start pos else
@@ -1490,7 +1487,6 @@ and format_string ctx s p =
 		if c <> '$' || pos = len then parse start pos else
 		match String.unsafe_get s pos with
 		| '$' ->
-			if warn_escape then warn pos 1;
 			(* double $ *)
 			add_sub start pos;
 			parse (pos + 1) (pos + 1)
@@ -1508,7 +1504,6 @@ and format_string ctx s p =
 			in
 			let iend = loop (pos + 1) in
 			let len = iend - pos in
-			if warn_escape then warn pos len;
 			add (EConst (Ident (String.sub s pos len))) len;
 			parse (pos + len) (pos + len)
 		| _ ->
@@ -1534,13 +1529,17 @@ and format_string ctx s p =
 		let send = loop [pos] (pos + 1) in
 		let slen = send - pos - 1 in
 		let scode = String.sub s (pos + 1) slen in
-		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
 		if slen > 0 then begin
 			let e =
 				let ep = { p with pmin = !pmin + pos + 2; pmax = !pmin + send + 1 } in
-				try ParserEntry.parse_expr_string ctx.com.defines scode ep error true
-				with Exit -> error "Invalid interpolated expression" ep
+				try
+					begin match ParserEntry.parse_expr_string ctx.com.defines scode ep error true with
+						| ParseSuccess data | ParseDisplayFile(data,_) -> data
+						| ParseError(_,(msg,p),_) -> error (Parser.error_msg msg) p
+					end
+				with Exit ->
+					error "Invalid interpolated expression" ep
 			in
 			add_expr e slen
 		end;
@@ -1611,7 +1610,7 @@ and type_object_decl ctx fl with_type p =
 					| Some t -> t
 					| None ->
 						let cf = PMap.find n field_map in
-						if cf.cf_final then is_final := true;
+						if (has_class_field_flag cf CfFinal) then is_final := true;
 						if ctx.in_display && DisplayPosition.encloses_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
@@ -1627,7 +1626,7 @@ and type_object_decl ctx fl with_type p =
 			if is_valid then begin
 				if starts_with n '$' then error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
-				if !is_final then cf.cf_final <- true;
+				if !is_final then add_class_field_flag cf CfFinal;
 				fields := PMap.add n cf !fields;
 			end;
 			((n,pn,qs),e)
@@ -1703,7 +1702,7 @@ and type_object_decl ctx fl with_type p =
 		mk (TBlock (List.rev (e :: (List.rev evars)))) e.etype e.epos
 	)
 
-and type_new ctx path el with_type p =
+and type_new ctx path el with_type force_inline p =
 	let unify_constructor_call c params f ct = match follow ct with
 		| TFun (args,r) ->
 			(try
@@ -1716,13 +1715,14 @@ and type_new ctx path el with_type p =
 			error "Constructor is not a function" p
 	in
 	let t = if (fst path).tparams <> [] then
-		follow (Typeload.load_instance ctx path false)
+		Typeload.load_instance ctx path false
 	else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
-		let t = follow (Typeload.load_instance ctx path true) in
+		let t = Typeload.load_instance ctx path true in
+		let t_follow = follow t in
 		ctx.call_argument_stack <- List.tl ctx.call_argument_stack;
 		(* Try to properly build @:generic classes here (issue #2016) *)
-		begin match t with
+		begin match t_follow with
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
@@ -1754,6 +1754,7 @@ and type_new ctx path el with_type p =
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
 	in
 	DisplayEmitter.check_display_type ctx t (pos path);
+	let t = follow t in
 	let build_constructor_call c tl =
 		let ct, f = get_constructor ctx c tl p in
 		check_constructor_access ctx c f p;
@@ -1766,15 +1767,19 @@ and type_new ctx path el with_type p =
 	try begin match t with
 	| TInst ({cl_kind = KTypeParameter tl} as c,params) ->
 		if not (TypeloadCheck.is_generic_parameter ctx c) then error "Only generic type parameters can be constructed" p;
-		let el = List.map (fun e -> type_expr ctx e WithType.value) el in
- 		if not (has_constructible_constraint ctx tl el p) then raise_error (No_constructor (TClassDecl c)) p;
-		mk (TNew (c,params,el)) t p
+ 		begin match get_constructible_constraint ctx tl p with
+		| None ->
+			raise_error (No_constructor (TClassDecl c)) p
+		| Some(tl,tr) ->
+			let el,_ = unify_call_args ctx el tl tr p false false in
+			mk (TNew (c,params,el)) t p
+		end
 	| TAbstract({a_impl = Some c} as a,tl) when not (Meta.has Meta.MultiType a.a_meta) ->
 		let el,cf,ct = build_constructor_call c tl in
 		let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
 		let e = mk (TTypeExpr (TClassDecl c)) ta p in
 		let e = mk (TField (e,(FStatic (c,cf)))) ct p in
-		make_call ctx e el t p
+		make_call ctx e el t ~force_inline p
 	| TInst (c,params) | TAbstract({a_impl = Some c},params) ->
 		let el,_,_ = build_constructor_call c params in
 		mk (TNew (c,params,el)) t p
@@ -2009,11 +2014,12 @@ and type_local_function ctx name inline f with_type p =
 		let is_rec = (try local_usage loop e; false with Exit -> true) in
 		let decl = (if is_rec then begin
 			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			let e = (mk (TBlock [
-				mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p;
-				mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
-				mk (TLocal v) ft p
-			]) ft p) in
+			let el =
+				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
+				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
+				(if with_type = WithType.NoValue then [] else [mk (TLocal v) ft p])
+			in
+			let e = mk (TBlock el) ft p in
 			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
 		end else if inline && not ctx.com.display.dms_display then
 			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
@@ -2097,12 +2103,16 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e p =
+and type_return ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
-		mk (TReturn None) t_dynamic p
+		let expect_void = match with_type with
+			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| _ -> false
+		in
+		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
 			let e = type_expr ctx e (WithType.with_type ctx.ret) in
@@ -2216,12 +2226,15 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
+			let e = e() in
+			{e with eexpr = TMeta(m,e)}
 		| (Meta.Inline,_,_) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
 				type_call ctx e1 el WithType.value true p
 			| ENew (t,el) ->
-				let e = type_new ctx t el with_type p in
+				let e = type_new ctx t el with_type true p in
 				{e with eexpr = TMeta((Meta.Inline,[],null_pos),e)}
 			| EFunction(Some(_) as name,e1) ->
 				type_local_function ctx name true e1 with_type p
@@ -2248,14 +2261,15 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 				| None ->
 					e
 				end;
+			| AKUsing(e,c,cf,ef,_) ->
+				AKUsing(e,c,cf,ef,true)
 			| AKExpr {eexpr = TLocal _} ->
 				display_error ctx "Cannot force inline on local functions" p;
 				e
 			| _ ->
 				e
 		in
-		let e = build_call ctx e el with_type p in
-		e
+		build_call ctx e el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2294,11 +2308,7 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		let et = type_expr ctx e WithType.value in
 		(match follow et.etype with
 			| TEnum _ ->
-				let e = Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) p in
-				(* TODO: add that back *)
-(* 				let locals = !get_pattern_locals_ref ctx epat t in
-				PMap.iter (fun _ (_,p) -> display_error ctx "Capture variables are not allowed" p) locals; *)
-				e
+				Matcher.Match.match_expr ctx e [[epat],None,Some (EConst(Ident "true"),p),p] (Some (Some (EConst(Ident "false"),p),p)) (WithType.with_type ctx.t.tbool) true p
 			| _ -> def ())
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e WithType.value in
@@ -2410,10 +2420,10 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e1,cases,def) ->
 		let wrap e1 = mk (TMeta((Meta.Ast,[e,p],p),e1)) e1.etype e1.epos in
-		let e = Matcher.Match.match_expr ctx e1 cases def with_type p in
+		let e = Matcher.Match.match_expr ctx e1 cases def with_type false p in
 		wrap e
 	| EReturn e ->
-		type_return ctx e p
+		type_return ctx e with_type p
 	| EBreak ->
 		if not ctx.in_loop then display_error ctx "Break outside loop" p;
 		mk TBreak t_dynamic p
@@ -2430,7 +2440,7 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 	| ECall (e,el) ->
 		type_call ctx e el with_type false p
 	| ENew (t,el) ->
-		type_new ctx t el with_type p
+		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
@@ -2482,7 +2492,6 @@ let rec create com =
 			debug_delayed = [];
 			doinline = com.display.dms_inline && not (Common.defined com Define.NoInline);
 			hook_generate = [];
-			get_build_infos = (fun() -> None);
 			std = null_module;
 			global_using = [];
 			do_inherit = MagicTypes.on_inherit;
@@ -2516,6 +2525,7 @@ let rec create com =
 		curfun = FunStatic;
 		in_loop = false;
 		in_display = false;
+		get_build_infos = (fun() -> None);
 		in_macro = Common.defined com Define.Macro;
 		ret = mk_mono();
 		locals = PMap.empty;
@@ -2531,7 +2541,12 @@ let rec create com =
 	ctx.g.std <- (try
 		TypeloadModule.load_module ctx ([],"StdTypes") null_pos
 	with
-		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
+		Error (Module_not_found ([],"StdTypes"),_) ->
+			try
+				let std_path = Sys.getenv "HAXE_STD_PATH" in
+				error ("Standard library not found. Please check your `HAXE_STD_PATH` environment variable (current value: \"" ^ std_path ^ "\")") null_pos
+			with Not_found ->
+				error "Standard library not found. You may need to set your `HAXE_STD_PATH` environment variable" null_pos
 	);
 	(* We always want core types to be available so we add them as default imports (issue #1904 and #3131). *)
 	ctx.m.module_types <- List.map (fun t -> t,null_pos) ctx.g.std.m_types;

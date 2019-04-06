@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi @:final class String {
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
+@:coreApi final class String {
 
 	static var __is_String = true;
 	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);
@@ -55,6 +59,14 @@
 		untyped {
 			return __dollar__sget(this.__s,index);
 		}
+	}
+
+	public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
 	}
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {

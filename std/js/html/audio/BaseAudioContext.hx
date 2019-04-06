@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext>
 **/
 @:native("BaseAudioContext")
-extern class BaseAudioContext extends js.html.EventTarget
-{
+extern class BaseAudioContext extends js.html.EventTarget {
 	
 	/**
 		Returns an `AudioDestinationNode` representing the final destination of all audio in the context. It can be thought of as the audio-rendering device.
@@ -82,8 +81,8 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Asynchronously decodes audio file data contained in an `ArrayBuffer`. In this case, the ArrayBuffer is usually loaded from an `XMLHttpRequest`'s `response` attribute after setting the `responseType` to `arraybuffer`. This method only works on complete files, not fragments of audio files.
 		@throws DOMError
 	**/
-	@:overload( function( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer> {} )
-	function decodeAudioData( audioData : js.html.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : js.html.DOMException -> Void ) : Promise<AudioBuffer>;
+	@:overload( function( audioData : js.lib.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : Void -> Void ) : Promise<AudioBuffer> {} )
+	function decodeAudioData( audioData : js.lib.ArrayBuffer, ?successCallback : AudioBuffer -> Void, ?errorCallback : js.html.DOMException -> Void ) : Promise<AudioBuffer>;
 	
 	/**
 		Creates an `AudioBufferSourceNode`, which can be used to play and manipulate audio data contained within an `AudioBuffer` object. `AudioBuffer`s are created using `AudioContext.createBuffer` or returned by `AudioContext.decodeAudioData` when it successfully decodes an audio track.
@@ -101,7 +100,7 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `ScriptProcessorNode`, which can be used for direct audio processing via JavaScript.
 		@throws DOMError
 	**/
-	function createScriptProcessor( ?bufferSize : Int = 0, ?numberOfInputChannels : Int = 2, ?numberOfOutputChannels : Int = 2 ) : ScriptProcessorNode;
+	function createScriptProcessor( bufferSize : Int = 0, numberOfInputChannels : Int = 2, numberOfOutputChannels : Int = 2 ) : ScriptProcessorNode;
 	
 	/**
 		Creates an `AnalyserNode`, which can be used to expose audio time and frequency data and for example to create data visualisations.
@@ -119,7 +118,7 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `DelayNode`, which is used to delay the incoming audio signal by a certain amount. This node is also useful to create feedback loops in a Web Audio API graph.
 		@throws DOMError
 	**/
-	function createDelay( ?maxDelayTime : Float = 1.0 ) : DelayNode;
+	function createDelay( maxDelayTime : Float = 1.0 ) : DelayNode;
 	
 	/**
 		Creates a `BiquadFilterNode`, which represents a second order filter configurable as several different common filter types: high-pass, low-pass, band-pass, etc
@@ -161,13 +160,13 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `ChannelSplitterNode`, which is used to access the individual channels of an audio stream and process them separately.
 		@throws DOMError
 	**/
-	function createChannelSplitter( ?numberOfOutputs : Int = 6 ) : ChannelSplitterNode;
+	function createChannelSplitter( numberOfOutputs : Int = 6 ) : ChannelSplitterNode;
 	
 	/**
 		Creates a `ChannelMergerNode`, which is used to combine channels from multiple audio streams into a single audio stream.
 		@throws DOMError
 	**/
-	function createChannelMerger( ?numberOfInputs : Int = 6 ) : ChannelMergerNode;
+	function createChannelMerger( numberOfInputs : Int = 6 ) : ChannelMergerNode;
 	
 	/**
 		Creates a `DynamicsCompressorNode`, which can be used to apply acoustic compression to an audio signal.
@@ -185,5 +184,5 @@ extern class BaseAudioContext extends js.html.EventTarget
 		Creates a `PeriodicWave`, used to define a periodic waveform that can be used to determine the output of an `OscillatorNode`.
 		@throws DOMError
 	**/
-	function createPeriodicWave( real : js.html.Float32Array, imag : js.html.Float32Array, ?constraints : PeriodicWaveConstraints ) : PeriodicWave;
+	function createPeriodicWave( real : js.lib.Float32Array, imag : js.lib.Float32Array, ?constraints : PeriodicWaveConstraints ) : PeriodicWave;
 }

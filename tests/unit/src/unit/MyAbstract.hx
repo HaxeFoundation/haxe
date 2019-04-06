@@ -306,8 +306,7 @@ abstract MyDebugString(String) to String {
 }
 
 #if !macro
-enum
-abstract FakeEnumAbstract(Int) {
+enum abstract FakeEnumAbstract(Int) {
 	var NotFound = 404;
 	var MethodNotAllowed = 405;
 }

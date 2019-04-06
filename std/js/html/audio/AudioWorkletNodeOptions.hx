@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,12 +24,10 @@
 
 package js.html.audio;
 
-typedef AudioWorkletNodeOptions =
-{
-	> AudioNodeOptions,
-	@:optional var numberOfInputs : Int;
-	@:optional var numberOfOutputs : Int;
-	@:optional var outputChannelCount : Array<Int>;
-	@:optional var parameterData : haxe.DynamicAccess<Float>;
-	@:optional var processorOptions : Dynamic;
+typedef AudioWorkletNodeOptions = AudioNodeOptions & {
+	var ?numberOfInputs : Int;
+	var ?numberOfOutputs : Int;
+	var ?outputChannelCount : Array<Int>;
+	var ?parameterData : haxe.DynamicAccess<Float>;
+	var ?processorOptions : Dynamic;
 }

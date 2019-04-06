@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,7 +41,7 @@ class Host {
 	/**
 		The provided host string.
 	**/
-	var host(default,null) : String;
+	public var host(default,null) : String;
 
 	/**
 		The actual IP corresponding to the host.

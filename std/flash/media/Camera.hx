@@ -1,6 +1,6 @@
 package flash.media;
 
-@:final extern class Camera extends flash.events.EventDispatcher {
+extern final class Camera extends flash.events.EventDispatcher {
 	var activityLevel(default,never) : Float;
 	var bandwidth(default,never) : Int;
 	var currentFPS(default,never) : Float;

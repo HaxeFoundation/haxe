@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -195,7 +195,7 @@ class BytesBuffer {
 		var buf = new python.Bytearray(b);
 		var bytes = new Bytes(buf.length, buf);
 		#elseif js
-		var bytes = new Bytes(new js.html.Uint8Array(b).buffer);
+		var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

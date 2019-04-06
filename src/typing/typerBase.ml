@@ -15,7 +15,7 @@ type access_kind =
 	| AKSet of texpr * t * tclass_field
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr
+	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
 	| AKFieldSet of texpr * texpr * string * t
 
@@ -144,24 +144,37 @@ let s_access_kind acc =
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
 	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2) -> Printf.sprintf "AKMacro(%s, %s, %s, %s)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2)
+	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
 	| AKFieldSet(_) -> ""
 
-let has_constructible_constraint ctx tl el p =
-	let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-	let rec loop t = match follow t with
-		| TAnon a ->
-			(try
-				unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
-				true
-			with Not_found ->
-					false)
-		| TAbstract({a_path = ["haxe"],"Constructible"},_) -> true
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
-		| _ -> false
+let get_constructible_constraint ctx tl p =
+	let extract_function t = match follow t with
+		| TFun(tl,tr) -> tl,tr
+		| _ -> error "Constructible type parameter should be function" p
 	in
-	List.exists loop tl
+	let rec loop tl = match tl with
+		| [] -> None
+		| t :: tl ->
+			begin match follow t with
+			| TAnon a ->
+				begin try
+					Some (extract_function (PMap.find "new" a.a_fields).cf_type);
+				with Not_found ->
+					loop tl
+				end;
+			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
+				Some (extract_function t1)
+			| TInst({cl_kind = KTypeParameter tl1},_) ->
+				begin match loop tl1 with
+				| None -> loop tl
+				| Some _ as t -> t
+				end
+			| _ ->
+				loop tl
+			end
+	in
+	loop tl
 
 let unify_static_extension ctx e t p =
 	let multitype_involed t1 t2 =

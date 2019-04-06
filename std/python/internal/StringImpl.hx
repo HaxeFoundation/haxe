@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -41,6 +41,16 @@ class StringImpl {
 	@:ifFeature("dynamic_read.charAt", "anon_optional_read.charAt", "python.internal.StringImpl.charAt")
 	public static inline function charAt(s:String, index:Int) {
 		return if (index < 0 || index >= s.length) "" else Syntax.arrayAccess(s,index);
+	}
+
+	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "python.internal.StringImpl.iterator")
+	public static inline function iterator(s:String) {
+		return new haxe.iterators.StringIterator(s);
+	}
+
+	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "python.internal.StringImpl.keyValueIterator")
+	public static inline function keyValueIterator(s:String) {
+		return new haxe.iterators.StringKeyValueIterator(s);
 	}
 
 	@:ifFeature("dynamic_read.lastIndexOf", "anon_optional_read.lastIndexOf", "python.internal.StringImpl.lastIndexOf")

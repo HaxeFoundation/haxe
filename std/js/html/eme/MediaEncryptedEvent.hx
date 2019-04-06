@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,10 +25,9 @@
 package js.html.eme;
 
 @:native("MediaEncryptedEvent")
-extern class MediaEncryptedEvent extends js.html.Event
-{
+extern class MediaEncryptedEvent extends js.html.Event {
 	var initDataType(default,null) : String;
-	var initData(default,null) : js.html.ArrayBuffer;
+	var initData(default,null) : js.lib.ArrayBuffer;
 	
 	/** @throws DOMError */
 	function new( type : String, ?eventInitDict : MediaKeyNeededEventInit ) : Void;

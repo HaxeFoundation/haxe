@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent>
 **/
 @:native("MouseEvent")
-extern class MouseEvent extends UIEvent
-{
+extern class MouseEvent extends UIEvent {
 	
 	/**
 		The X coordinate of the mouse pointer in global (screen) coordinates.
@@ -135,11 +134,11 @@ extern class MouseEvent extends UIEvent
 	/**
 		Initializes the value of a `MouseEvent` created. If the event has already being dispatched, this method does nothing.
 	**/
-	function initMouseEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?detailArg : Int = 0, ?screenXArg : Int = 0, ?screenYArg : Int = 0, ?clientXArg : Int = 0, ?clientYArg : Int = 0, ?ctrlKeyArg : Bool = false, ?altKeyArg : Bool = false, ?shiftKeyArg : Bool = false, ?metaKeyArg : Bool = false, ?buttonArg : Int = 0, ?relatedTargetArg : EventTarget ) : Void;
+	function initMouseEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, detailArg : Int = 0, screenXArg : Int = 0, screenYArg : Int = 0, clientXArg : Int = 0, clientYArg : Int = 0, ctrlKeyArg : Bool = false, altKeyArg : Bool = false, shiftKeyArg : Bool = false, metaKeyArg : Bool = false, buttonArg : Int = 0, ?relatedTargetArg : EventTarget ) : Void;
 	
 	/**
 		Returns the current state of the specified modifier key. See the `KeyboardEvent.getModifierState`() for details.
 	**/
 	function getModifierState( keyArg : String ) : Bool;
-	function initNSMouseEvent( typeArg : String, ?canBubbleArg : Bool = false, ?cancelableArg : Bool = false, ?viewArg : Window, ?detailArg : Int = 0, ?screenXArg : Int = 0, ?screenYArg : Int = 0, ?clientXArg : Int = 0, ?clientYArg : Int = 0, ?ctrlKeyArg : Bool = false, ?altKeyArg : Bool = false, ?shiftKeyArg : Bool = false, ?metaKeyArg : Bool = false, ?buttonArg : Int = 0, ?relatedTargetArg : EventTarget, ?pressure : Float = 0.0, ?inputSourceArg : Int = 0 ) : Void;
+	function initNSMouseEvent( typeArg : String, canBubbleArg : Bool = false, cancelableArg : Bool = false, ?viewArg : Window, detailArg : Int = 0, screenXArg : Int = 0, screenYArg : Int = 0, clientXArg : Int = 0, clientYArg : Int = 0, ctrlKeyArg : Bool = false, altKeyArg : Bool = false, shiftKeyArg : Bool = false, metaKeyArg : Bool = false, buttonArg : Int = 0, ?relatedTargetArg : EventTarget, pressure : Float = 0.0, inputSourceArg : Int = 0 ) : Void;
 }

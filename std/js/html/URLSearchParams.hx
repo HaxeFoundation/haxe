@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,12 +32,11 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams>
 **/
 @:native("URLSearchParams")
-extern class URLSearchParams
-{
+extern class URLSearchParams {
 	/** @throws DOMError */
-	@:overload( function( ?init : haxe.DynamicAccess<String> = "") : URLSearchParams {} )
-	@:overload( function( ?init : String = "") : URLSearchParams {} )
-	function new( ?init : Array<Array<String>> = "" ) : Void;
+	@:overload( function( ?init : haxe.DynamicAccess<String>) : URLSearchParams {} )
+	@:overload( function( init : String = "") : URLSearchParams {} )
+	function new( ?init : Array<Array<String>> ) : Void;
 	
 	/**
 		Appends a specified key/value pair as a new search parameter.

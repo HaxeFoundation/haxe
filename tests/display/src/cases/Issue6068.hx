@@ -2,14 +2,14 @@ package cases;
 
 class Issue6068 extends DisplayTestCase {
 	/**
-	class Main {
-		static function main() {
-			var a:{i:Int};
-			a({-1-});
+		class Main {
+			static function main() {
+				var a:{i:Int};
+				a({-1-});
 
-			Main({-2-});
+				Main({-2-});
+			}
 		}
-	}
 	**/
 	function test() {
 		check(function() signature(pos(1)));
@@ -17,13 +17,12 @@ class Issue6068 extends DisplayTestCase {
 	}
 
 	function check(fn) {
-		numTests++;
 		var result = try {
-				fn();
-				false;
-			} catch (e:DisplayTestContext.HaxeInvocationException) {
-				e.message.indexOf("Not a callable type") != -1;
-			}
+			fn();
+			false;
+		} catch (e:DisplayTestContext.HaxeInvocationException) {
+			e.message.indexOf("Not a callable type") != -1;
+		}
 		assert(result);
 	}
 }

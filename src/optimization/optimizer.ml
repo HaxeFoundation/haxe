@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -255,7 +255,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 	| _ ->
 		e
 
-let inline_stack = ref []
+let inline_stack = new_rec_stack()
 
 let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
@@ -270,7 +270,7 @@ let rec reduce_loop ctx e =
 				(match inl with
 				| None -> reduce_expr ctx e
 				| Some e -> reduce_loop ctx e)
-			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline ->
+			| {eexpr = TField(ef,(FStatic(_,cf) | FInstance(_,_,cf)))} when cf.cf_kind = Method MethInline && not (rec_stack_memq cf inline_stack) ->
 				begin match cf.cf_expr with
 				| Some {eexpr = TFunction tf} ->
 					let rt = (match follow e1.etype with TFun (_,rt) -> rt | _ -> assert false) in
@@ -293,7 +293,12 @@ let rec reduce_loop ctx e =
 		reduce_expr ctx (reduce_control_flow ctx e))
 
 let reduce_expression ctx e =
-	if ctx.com.foptimize then reduce_loop ctx e else e
+	if ctx.com.foptimize then
+		(* We go through rec_stack_default here so that the current field is on inline_stack. This prevents self-recursive
+		   inlining (#7569). *)
+		rec_stack_default inline_stack ctx.curfield (fun cf' -> cf' == ctx.curfield) (fun () -> reduce_loop ctx e) e
+	else
+		e
 
 let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
@@ -402,7 +407,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || cf.cf_extern in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let rec find_locals e = match e.eexpr with
 		| TVar(v,Some e1) ->
 			find_locals e1;
@@ -655,18 +660,39 @@ let optimize_completion_expr e args =
 			let e = map e in
 			old();
 			e
-		| EFor ((EBinop (OpIn,((EConst (Ident n),_) as id),it),p),efor) ->
-			let it = loop it in
-			let old = save() in
-			let etmp = (EConst (Ident "$tmp"),p) in
-			decl n None (Some (EBlock [
-				(EVars [("$tmp",null_pos),false,None,None],p);
-				(EFor ((EBinop (OpIn,id,it),p),(EBinop (OpAssign,etmp,(EConst (Ident n),p)),p)),p);
-				etmp
-			],p));
-			let efor = loop efor in
-			old();
-			(EFor ((EBinop (OpIn,id,it),p),efor),p)
+		| EFor (header,body) ->
+			let idents = ref []
+			and has_in = ref false in
+			let rec collect_idents e =
+				match e with
+					| EConst (Ident name), p ->
+						idents := (name,p) :: !idents;
+						e
+					| EBinop (OpIn, e, it), p ->
+						has_in := true;
+						(EBinop (OpIn, collect_idents e, loop it), p)
+					| _ ->
+						Ast.map_expr collect_idents e
+			in
+			let header = collect_idents header in
+			(match !idents,!has_in with
+				| [],_ | _,false -> map e
+				| idents,true ->
+					let old = save() in
+					List.iter
+						(fun (name, pos) ->
+							let etmp = (EConst (Ident "$tmp"),pos) in
+							decl name None (Some (EBlock [
+								(EVars [("$tmp",null_pos),false,None,None],p);
+								(EFor(header,(EBinop (OpAssign,etmp,(EConst (Ident name),p)),p)), p);
+								etmp
+							],p));
+						)
+						idents;
+					let body = loop body in
+					old();
+					(EFor(header,body),p)
+			)
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e

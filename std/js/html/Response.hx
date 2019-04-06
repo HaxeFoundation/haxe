@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Response>
 **/
 @:native("Response")
-extern class Response
-{
+extern class Response {
 	
 	/**
 		Returns a new `Response` object associated with a network error.
@@ -44,7 +43,7 @@ extern class Response
 		Creates a new response with a different URL.
 		@throws DOMError
 	**/
-	static function redirect( url : String, ?status : Int = 302 ) : Response;
+	static function redirect( url : String, status : Int = 302 ) : Response;
 	
 	/**
 		Contains the type of the response (e.g., `basic`, `cors`).
@@ -83,8 +82,8 @@ extern class Response
 	var bodyUsed(default,null) : Bool;
 	
 	/** @throws DOMError */
-	@:overload( function( ?body : ArrayBufferView, ?init : ResponseInit) : Response {} )
-	@:overload( function( ?body : ArrayBuffer, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : js.lib.ArrayBufferView, ?init : ResponseInit) : Response {} )
+	@:overload( function( ?body : js.lib.ArrayBuffer, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : FormData, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : URLSearchParams, ?init : ResponseInit) : Response {} )
 	@:overload( function( ?body : Dynamic/*MISSING ReadableStream*/, ?init : ResponseInit) : Response {} )
@@ -97,7 +96,7 @@ extern class Response
 	**/
 	function clone() : Response;
 	/** @throws DOMError */
-	function arrayBuffer() : Promise<ArrayBuffer>;
+	function arrayBuffer() : Promise<js.lib.ArrayBuffer>;
 	/** @throws DOMError */
 	function blob() : Promise<Blob>;
 	/** @throws DOMError */

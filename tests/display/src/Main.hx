@@ -1,25 +1,20 @@
+import utest.Runner;
+import utest.ui.Report;
+
 class Main {
 	static function main() {
-		var tests = Macro.getCases("cases");
-		var numTests = 0;
-		var numFailures = 0;
-		for (test in tests) {
-			try {
-				Sys.print(test.name);
-				var result = test.exec.run();
-				numTests += result.numTests;
-				numFailures += result.numFailures;
-			    Sys.println(' ${result.numTests} tests, ${result.numFailures} failures');
-			} catch(e:DisplayTestContext.HaxeInvocationException) {
-				Sys.println("Error:      " + e.message);
-				Sys.println("Field name: " + e.fieldName);
-				Sys.println("Arguments:  " + e.arguments.join(" "));
-				Sys.println("Source: " + e.source);
-				numTests++;
-				numFailures++;
-			}
+		var runner = new Runner();
+		for (c in Macro.getCases("cases")) {
+			runner.addCase(c);
 		}
-		Sys.println('Finished with $numTests tests, $numFailures failures');
-		Sys.exit(numFailures == 0 ? 0 : 1);
+		var report = Report.create(runner);
+		report.displayHeader = AlwaysShowHeader;
+		report.displaySuccessResults = NeverShowSuccessResults;
+
+		var haxeServer = @:privateAccess DisplayTestContext.haxeServer;
+		haxeServer.setDefaultRequestArguments(["-cp", "src", "--no-output", "-lib", "utest"]);
+		DisplayTestContext.runHaxe([]);
+		runner.run();
+		haxeServer.close();
 	}
 }

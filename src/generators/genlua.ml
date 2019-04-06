@@ -84,7 +84,7 @@ let dot_path = Globals.s_type_path
 let s_path ctx = flat_path
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
-(* provided by Ast.s_escape *)
+(* provided by StringHelper.s_escape *)
 let s_escape_lua ?(dec=true) s =
     let b = Buffer.create (String.length s) in
     for i = 0 to (String.length s) - 1 do
@@ -488,22 +488,33 @@ and gen_call ctx e el =
          spr ctx ")(";
          concat ctx "," (gen_argument ctx) (e::el);
          spr ctx ")";
-     | TField (e, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
+     | TField (field_owner, ((FInstance _ | FAnon _ | FDynamic _) as ef)), el ->
          let s = (field_name ef) in
          if Hashtbl.mem kwds s || not (valid_lua_ident s) then begin
              add_feature ctx "use._hx_apply_self";
              spr ctx "_hx_apply_self(";
-             gen_value ctx e;
+             gen_value ctx field_owner;
              print ctx ",\"%s\"" (field_name ef);
              if List.length(el) > 0 then spr ctx ",";
              concat ctx "," (gen_argument ctx) el;
              spr ctx ")";
          end else begin
-             gen_value ctx e;
-             if is_dot_access e ef then
-                 print ctx ".%s" (field_name ef)
-             else
-                 print ctx ":%s" (field_name ef);
+             let el =
+                if (match ef with FAnon _ | FDynamic _ -> true | _ -> false) && is_possible_string_field field_owner s then
+                    begin
+                        gen_expr ctx e;
+                        field_owner :: el
+                    end
+                else
+                    begin
+                        gen_value ctx field_owner;
+                        if is_dot_access field_owner ef then
+                            print ctx ".%s" (field_name ef)
+                        else
+                            print ctx ":%s" (field_name ef);
+                        el
+                    end
+             in
              gen_paren_arguments ctx el;
          end;
      | _ ->
@@ -585,6 +596,8 @@ and is_possible_string_field e field_name=
         | "toString"
         | "substring"
         | "substr"
+        | "iterator"
+        | "keyValueIterator"
         | "charCodeAt" ->
             true
         | _ ->
@@ -1044,7 +1057,13 @@ and gen_block_element ctx e  =
     begin match e.eexpr with
         | TTypeExpr _ | TConst _ | TLocal _ | TFunction _ ->
             ()
-        | TCast (e',_) | TParenthesis e' | TMeta (_,e') ->
+        | TCast (e1, Some t)->
+            print ctx "%s.__cast(" (ctx.type_accessor (TClassDecl { null_class with cl_path = ["lua"],"Boot" }));
+            gen_expr ctx e1;
+            spr ctx " , ";
+            spr ctx (ctx.type_accessor t);
+            spr ctx ")"
+        | TCast (e', None) | TParenthesis e' | TMeta (_,e') ->
             gen_block_element ctx e'
         | TArray (e1,e2) ->
             gen_block_element ctx e1;
@@ -1631,7 +1650,7 @@ let generate_class ctx c =
     );
     newline ctx;
 
-    (match (get_exposed ctx (s_path ctx c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
+    (match (get_exposed ctx (dot_path c.cl_path) c.cl_meta) with [s] -> (print ctx "_hx_exports%s = %s" (path_to_brackets s) p; newline ctx) | _ -> ());
 
     if hxClasses then println ctx "_hxClasses[\"%s\"] = %s" (dot_path c.cl_path) p;
     generate_class___name__ ctx c;
@@ -1938,13 +1957,24 @@ let generate com =
     if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "lua.Boot.isClass";
     if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "lua.Boot.isEnum";
 
+    let print_file path =
+        let file_content = Std.input_file ~bin:true path in
+        print ctx "%s\n" file_content;
+    in
+
+    (* table-to-array helper *)
+    print_file (Common.find_file com "lua/_lua/_hx_tab_array.lua");
+
+    (* lua workarounds for basic anonymous object functionality *)
+    print_file (Common.find_file com "lua/_lua/_hx_anon.lua");
+
+    (* class reflection metadata *)
+    print_file (Common.find_file com "lua/_lua/_hx_classes.lua");
+
     let include_files = List.rev com.include_files in
     List.iter (fun file ->
         match file with
-        | path, "top" ->
-            let file_content = Std.input_file ~bin:true (fst file) in
-            print ctx "%s\n" file_content;
-            ()
+        | path, "top" -> print_file path
         | _ -> ()
     ) include_files;
 
@@ -2041,8 +2071,8 @@ let generate com =
         println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
         println ctx "if bit then";
         println ctx "  _hx_bit = bit";
-        println ctx "elseif bit32 then";
-        println ctx "  local _hx_bit_raw = bit32";
+        println ctx "else";
+        println ctx "  local _hx_bit_raw = _G.require('bit32')";
         println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
         println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
         println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)

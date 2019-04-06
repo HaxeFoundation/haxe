@@ -2,7 +2,7 @@ package cases;
 
 class Issue7471 extends DisplayTestCase {
 	/**
-	return "foo" == null ? "foo".{-1-}
+		return "foo" == null ? "foo".{-1-}
 	**/
 	@:funcCode
 	function test() {

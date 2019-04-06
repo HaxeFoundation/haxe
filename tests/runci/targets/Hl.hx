@@ -44,7 +44,7 @@ class Hl {
         runCommand("cmake", [
             "--build", hlBuild
         ]);
-        
+
         addToPATH(Path.join([hlBuild, "bin"]));
         runCommand("hl", ["--version"]);
     }
@@ -53,6 +53,10 @@ class Hl {
         getHlDependencies();
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
         runCommand("hl", ["bin/unit.hl"]);
+
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
+		// runCommand("hl", ["export/threads.hl"]);
 
         // TODO sys test
     }

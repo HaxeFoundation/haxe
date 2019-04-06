@@ -225,7 +225,7 @@ module BetterErrors = struct
 				let s1,s2 = loop() in
 				let sl1 = fill s1 i [] 1 l in
 				let sl2 = fill s2 i [] 1 l in
-				Printf.sprintf "(%s) -> ..." (String.concat ", " sl1),Printf.sprintf "(%s) -> ..." (String.concat ", " sl2)
+				Printf.sprintf "(%s) -> ..." (String.concat ", " sl2),Printf.sprintf "(%s) -> ..." (String.concat ", " sl1)
 			| FunctionReturn ->
 				let s1,s2 = loop() in
 				Printf.sprintf "(...) -> %s" s1,Printf.sprintf "(...) -> %s" s2

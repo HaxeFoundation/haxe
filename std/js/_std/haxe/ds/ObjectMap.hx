@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of h software and associated documentation files (the "Software"),
@@ -22,6 +22,9 @@
 
 package haxe.ds;
 
+import js.Syntax;
+import js.Lib;
+
 @:coreApi
 class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 
@@ -33,7 +36,7 @@ class ObjectMap<K:{ }, V> implements haxe.Constraints.IMap<K,V> {
 	static inline function __init__():Void count = 0;
 
 	static inline function assignId(obj: { } ):Int {
-		return untyped obj.__id__ = ++count;
+		return Syntax.code('({0}.__id__ = {1})', obj, Lib.getNextHaxeUID());
 	}
 
 	static inline function getId(obj: { } ):Int {

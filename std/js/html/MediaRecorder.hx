@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder>
 **/
 @:native("MediaRecorder")
-extern class MediaRecorder extends EventTarget
-{
+extern class MediaRecorder extends EventTarget {
 	static function isTypeSupported( type : String ) : Bool;
 	
 	/**
@@ -58,7 +57,7 @@ extern class MediaRecorder extends EventTarget
 	
 	/** @throws DOMError */
 	@:overload( function( stream : MediaStream, ?options : MediaRecorderOptions ) : Void {} )
-	function new( node : js.html.audio.AudioNode, ?output : Int = 0, ?options : MediaRecorderOptions ) : Void;
+	function new( node : js.html.audio.AudioNode, output : Int = 0, ?options : MediaRecorderOptions ) : Void;
 	
 	/**
 		Begins recording media; this method can optionally be passed a `timeslice` argument with a value in milliseconds. If this is specified, the media will be captured in separate chunks of that duration, rather than the default behavior of recording the media in a single large chunk.

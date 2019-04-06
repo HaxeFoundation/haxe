@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Navigator>
 **/
 @:native("Navigator")
-extern class Navigator
-{
+extern class Navigator {
 	
 	/**
 		Returns a `Permissions` object that can be used to query and update permission status of APIs covered by the Permissions API.
@@ -79,6 +78,11 @@ extern class Navigator
 	var buildID(default,null) : String;
 	
 	/**
+		Returns a reference to a `MediaDevices` object which can then be used to get information about available media devices (`MediaDevices.enumerateDevices()`), find out what constrainable properties are supported for media on the user's computer and user agent (`MediaDevices.getSupportedConstraints()`), and to request access to media using `MediaDevices.getUserMedia()`.
+	**/
+	var mediaDevices(default,null) : MediaDevices;
+	
+	/**
 		Returns a `ServiceWorkerContainer` object, which provides access to registration, removal, upgrade, and communication with the `ServiceWorker` objects for the associated document.
 	**/
 	var serviceWorker(default,null) : ServiceWorkerContainer;
@@ -97,6 +101,7 @@ extern class Navigator
 	var language(default,null) : String;
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
+	var storage(default,null) : StorageManager;
 	
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
@@ -104,8 +109,10 @@ extern class Navigator
 	/** @throws DOMError */
 	function getGamepads() : Array<Gamepad>;
 	/** @throws DOMError */
-	@:overload( function( url : String, ?data : ArrayBufferView) : Bool {} )
-	@:overload( function( url : String, ?data : ArrayBuffer) : Bool {} )
+	function requestMIDIAccess( ?options : js.html.midi.MIDIOptions ) : Promise<js.html.midi.MIDIAccess>;
+	/** @throws DOMError */
+	@:overload( function( url : String, ?data : js.lib.ArrayBufferView) : Bool {} )
+	@:overload( function( url : String, ?data : js.lib.ArrayBuffer) : Bool {} )
 	@:overload( function( url : String, ?data : FormData) : Bool {} )
 	@:overload( function( url : String, ?data : URLSearchParams) : Bool {} )
 	@:overload( function( url : String, ?data : String) : Bool {} )

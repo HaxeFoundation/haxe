@@ -2,18 +2,18 @@ package cases;
 
 class Issue6405 extends DisplayTestCase {
 	/**
-	import haxe.macro.Expr;
-	import haxe.macro.Context;
-	using haxe.macro.ExprTools;
+		import haxe.macro.Expr;
+		import haxe.macro.Context;
+		using haxe.macro.ExprTools;
 
-	class Macros {
+		class Macros {
 
-		public static macro function makeTypeDef( {-2-}e{-3-} : Expr ) {
-			var t = Context.getType({-1-}e{-5-}.{-4-}toString());
-			return macro {};
+			public static macro function makeTypeDef( {-2-}e{-3-} : Expr ) {
+				var t = Context.getType({-1-}e{-5-}.{-4-}toString());
+				return macro {};
+			}
+
 		}
-
-	}
 	**/
 	function test() {
 		eq(range(2, 3), position(pos(1)));

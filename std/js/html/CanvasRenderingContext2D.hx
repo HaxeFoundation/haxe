@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D>
 **/
 @:native("CanvasRenderingContext2D")
-extern class CanvasRenderingContext2D
-{
+extern class CanvasRenderingContext2D {
 	var canvas(default,null) : CanvasElement;
 	var globalAlpha : Float;
 	var globalCompositeOperation : String;
@@ -71,14 +70,14 @@ extern class CanvasRenderingContext2D
 	@:overload( function( image : ImageElement, dx : Float, dy : Float, dw : Float, dh : Float ) : Void {} )
 	function drawImage( image : ImageElement, sx : Float, sy : Float, sw : Float, sh : Float, dx : Float, dy : Float, dw : Float, dh : Float ) : Void;
 	function beginPath() : Void;
-	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
-	function fill( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
+	@:overload( function( winding : CanvasWindingRule = NONZERO ) : Void {} )
+	function fill( path : Path2D, winding : CanvasWindingRule = NONZERO ) : Void;
 	@:overload( function() : Void {} )
 	function stroke( path : Path2D ) : Void;
-	@:overload( function( ?winding : CanvasWindingRule = "nonzero" ) : Void {} )
-	function clip( path : Path2D, ?winding : CanvasWindingRule = "nonzero" ) : Void;
-	@:overload( function( x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool {} )
-	function isPointInPath( path : Path2D, x : Float, y : Float, ?winding : CanvasWindingRule = "nonzero" ) : Bool;
+	@:overload( function( winding : CanvasWindingRule = NONZERO ) : Void {} )
+	function clip( path : Path2D, winding : CanvasWindingRule = NONZERO ) : Void;
+	@:overload( function( x : Float, y : Float, winding : CanvasWindingRule = NONZERO ) : Bool {} )
+	function isPointInPath( path : Path2D, x : Float, y : Float, winding : CanvasWindingRule = NONZERO ) : Bool;
 	@:overload( function( x : Float, y : Float ) : Bool {} )
 	function isPointInStroke( path : Path2D, x : Float, y : Float ) : Bool;
 	function createLinearGradient( x0 : Float, y0 : Float, x1 : Float, y1 : Float ) : CanvasGradient;
@@ -114,9 +113,9 @@ extern class CanvasRenderingContext2D
 	function arcTo( x1 : Float, y1 : Float, x2 : Float, y2 : Float, radius : Float ) : Void;
 	function rect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	/** @throws DOMError */
-	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	function arc( x : Float, y : Float, radius : Float, startAngle : Float, endAngle : Float, anticlockwise : Bool = false ) : Void;
 	/** @throws DOMError */
-	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, ?anticlockwise : Bool = false ) : Void;
+	function ellipse( x : Float, y : Float, radiusX : Float, radiusY : Float, rotation : Float, startAngle : Float, endAngle : Float, anticlockwise : Bool = false ) : Void;
 	function clearRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function fillRect( x : Float, y : Float, w : Float, h : Float ) : Void;
 	function strokeRect( x : Float, y : Float, w : Float, h : Float ) : Void;

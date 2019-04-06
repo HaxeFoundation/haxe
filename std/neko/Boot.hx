@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -70,7 +70,7 @@ class Boot {
 	private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		untyped {
 			if( cl == Dynamic )
-				return true;
+				return o != null;
 			switch( __dollar__typeof(o) ) {
 			case 1: return (cl == Int || cl == Float);
 			case 2: return cl == Float || (cl == Int && __dollar__int(o) == o);

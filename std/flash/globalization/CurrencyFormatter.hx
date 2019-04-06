@@ -1,6 +1,6 @@
 package flash.globalization;
 
-@:final @:require(flash10_1) extern class CurrencyFormatter {
+@:require(flash10_1) extern final class CurrencyFormatter {
 	var actualLocaleIDName(default,never) : String;
 	var currencyISOCode(default,never) : String;
 	var currencySymbol(default,never) : String;

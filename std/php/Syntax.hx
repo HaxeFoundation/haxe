@@ -15,11 +15,11 @@ extern class Syntax {
         `php` should be a string literal with php code.
         It can contain placeholders like `{0}`, `{1}` which will be replaced with corresponding arguments from `args`.
         E.g.:
-        ```
+        ```haxe
         Syntax.code("var_dump({0}, {1})", a, b);
         ```
         will generate
-        ```
+        ```haxe
         var_dump($a, $b);
         ```
     **/
@@ -172,18 +172,18 @@ extern class Syntax {
 
     /**
         Generates PHP class name for a provided Haxe class.
-        ```
+        ```haxe
         trace(Syntax.nativeClassName(php.Web)); // outputs: php\Web
         ```
-     */
+    **/
     static function nativeClassName<T>(cls:EitherType<Class<T>, Enum<T>>) : String;
 
     /**
-        ```
+        ```haxe
         Syntax.foreach(collection, function(key, value) trace(key, value));
         ```
         generates:
-        ```
+        ```haxe
         foreach($collection as $key => $value) {
             trace($key, $value);
         }
@@ -245,22 +245,22 @@ extern class Syntax {
     static function staticCall( className:AsVar<EitherType<Class<Dynamic>,String>>, methodName:String, args:Rest<Dynamic> ) : Dynamic;
 
     /**
-        ```
+        ```haxe
         Syntax.arrayDecl(arg1, arg2, arg3);
         ```
         Generates native array declaration:
-        ```
+        ```haxe
         [$arg1, $arg2, $arg3]
         ```
     **/
     static function arrayDecl<T>( args:Rest<T> ) : NativeIndexedArray<T>;
 
     /**
-        ```
+        ```haxe
         Syntax.assocDecl({field1:'first', field2:2}});
         ```
         Generates native associative array declaration:
-        ```
+        ```haxe
         ["field1" => "first", "field2" => 2];
         ```
         This method is not recursive.
@@ -290,15 +290,15 @@ extern class Syntax {
     /**
         Generates `clone $value`.
         @see http://php.net/manual/en/language.oop5.cloning.php
-     */
+    **/
     static inline function clone<T>(value:T):T {
-        return Syntax.code('clone {0}', value);
+        return Syntax.code('(clone {0})', value);
     }
 
     /**
         Generates `yield $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yield(value:Dynamic):Dynamic {
         return Syntax.code('yield {0}', value);
     }
@@ -306,7 +306,7 @@ extern class Syntax {
     /**
         Generates `yield $key => $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldPair(key:Dynamic, value:Dynamic):Dynamic {
         return Syntax.code('yield {0} => {1}', key, value);
     }
@@ -314,7 +314,7 @@ extern class Syntax {
     /**
         Generates `yield for $value`.
         @see http://php.net/manual/en/language.generators.syntax.php
-     */
+    **/
     static inline function yieldFrom(value:Dynamic):Dynamic {
         return Syntax.code('yield from {0}', value);
     }

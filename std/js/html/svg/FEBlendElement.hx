@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.svg;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/SVGFEBlendElement>
 **/
 @:native("SVGFEBlendElement")
-extern class FEBlendElement extends Element
-{
+extern class FEBlendElement extends Element {
 	static inline var SVG_FEBLEND_MODE_UNKNOWN : Int = 0;
 	static inline var SVG_FEBLEND_MODE_NORMAL : Int = 1;
 	static inline var SVG_FEBLEND_MODE_MULTIPLY : Int = 2;

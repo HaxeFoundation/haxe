@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -98,18 +98,54 @@ type platform_config = {
 	pf_supports_function_equality : bool;
 	(** uses utf16 encoding with ucs2 api **)
 	pf_uses_utf16 : bool;
+	(** target supports accessing `this` before calling `super(...)` **)
+	pf_this_before_super : bool;
+	(** target supports threads **)
+	pf_supports_threads : bool;
 }
 
-type compiler_callback = {
-	mutable after_init_macros : (unit -> unit) list;
-	mutable after_typing : (module_type list -> unit) list;
-	mutable before_dce : (unit -> unit) list;
-	mutable after_generation : (unit -> unit) list;
-}
+class compiler_callbacks = object(self)
+	val mutable after_init_macros = [];
+	val mutable after_typing = [];
+	val mutable before_save = [];
+	val mutable after_save = [];
+	val mutable after_filters = [];
+	val mutable after_generation = [];
+	val mutable null_safety_report = [];
+
+	method add_after_init_macros (f : unit -> unit) : unit =
+		after_init_macros <- f :: after_init_macros
+
+	method add_after_typing (f : module_type list -> unit) : unit =
+		after_typing <- f :: after_typing
+
+	method add_before_save (f : unit -> unit) : unit =
+		before_save <- f :: before_save
+
+	method add_after_save (f : unit -> unit) : unit =
+		after_save <- f :: after_save
+
+	method add_after_filters (f : unit -> unit) : unit =
+		after_filters <- f :: after_filters
+
+	method add_after_generation (f : unit -> unit) : unit =
+		after_generation <- f :: after_generation
+
+	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
+		null_safety_report <- f :: null_safety_report
+
+	method get_after_init_macros = after_init_macros
+	method get_after_typing = after_typing
+	method get_before_save = before_save
+	method get_after_save = after_save
+	method get_after_filters = after_filters
+	method get_after_generation = after_generation
+	method get_null_safety_report = null_safety_report
+end
 
 type shared_display_information = {
 	mutable import_positions : (pos,bool ref * placed_name list) PMap.t;
-	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsSeverity.t) list;
+	mutable diagnostics_messages : (string * pos * DisplayTypes.DiagnosticsKind.t * DisplayTypes.DiagnosticsSeverity.t) list;
 }
 
 type display_information = {
@@ -142,7 +178,7 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
-	callbacks : compiler_callback;
+	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
@@ -150,7 +186,7 @@ type context = {
 	file_lookup_cache : (string,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
-	cached_macros : (path * string,((string * bool * t) list * t * tclass * Type.tclass_field)) Hashtbl.t;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	(* output *)
 	mutable file : string;
@@ -207,6 +243,9 @@ let define_value com k v =
 let raw_defined_value com k =
 	Define.raw_defined_value com.defines k
 
+let get_es_version com =
+	try int_of_string (defined_value com Define.JsEs) with _ -> 0
+
 let short_platform_name = function
 	| Cross -> "x"
 	| Js -> "js"
@@ -241,6 +280,8 @@ let default_config =
 		pf_reserved_type_paths = [];
 		pf_supports_function_equality = true;
 		pf_uses_utf16 = true;
+		pf_this_before_super = true;
+		pf_supports_threads = false;
 	}
 
 let get_config com =
@@ -255,6 +296,7 @@ let get_config com =
 			pf_sys = false;
 			pf_capture_policy = CPLoopVars;
 			pf_reserved_type_paths = [([],"Object");([],"Error")];
+			pf_this_before_super = (get_es_version com) < 6; (* cannot access `this` before `super()` when generating ES6 classes *)
 		}
 	| Lua ->
 		{
@@ -269,6 +311,7 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -298,6 +341,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
+			pf_supports_threads = true;
 		}
 	| Cs ->
 		{
@@ -312,6 +356,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_overload = true;
+			pf_supports_threads = true;
 		}
 	| Python ->
 		{
@@ -325,6 +370,7 @@ let get_config com =
 			default_config with
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
+			pf_supports_threads = true;
 		}
 	| Eval ->
 		{
@@ -332,17 +378,11 @@ let get_config com =
 			pf_static = false;
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
+			pf_supports_threads = true;
+			pf_capture_policy = CPWrapRef;
 		}
 
 let memory_marker = [|Unix.time()|]
-
-let create_callbacks () =
-	{
-		after_init_macros = [];
-		after_typing = [];
-		before_dce = [];
-		after_generation = [];
-	}
 
 let create version s_version args =
 	let m = Type.mk_mono() in
@@ -380,7 +420,7 @@ let create version s_version args =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
-		callbacks = create_callbacks();
+		callbacks = new compiler_callbacks;
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -432,7 +472,7 @@ let clone com =
 		file_lookup_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
-		callbacks = create_callbacks();
+		callbacks = new compiler_callbacks;
 		display_information = {
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
@@ -483,9 +523,23 @@ let init_platform com pf =
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
 	com.config <- get_config com;
-	if com.config.pf_static then define com Define.Static;
-	if com.config.pf_sys then define com Define.Sys else com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
-	if com.config.pf_uses_utf16 then define com Define.Utf16;
+	if com.config.pf_static then begin
+		raw_define_value com.defines "target.static" "true";
+		define com Define.Static;
+	end;
+	if com.config.pf_sys then begin
+		raw_define_value com.defines "target.sys" "true";
+		define com Define.Sys
+	end else
+		com.package_rules <- PMap.add "sys" Forbidden com.package_rules;
+	if com.config.pf_uses_utf16 then begin
+		raw_define_value com.defines "target.utf16" "true";
+		define com Define.Utf16;
+	end;
+	if com.config.pf_supports_threads then begin
+		raw_define_value com.defines "target.threaded" "true";
+	end;
+	raw_define_value com.defines "target.name" name;
 	raw_define com name
 
 let add_feature com f =
@@ -513,22 +567,22 @@ let rec has_feature com f =
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] -> assert false
 		| [cl] -> has_feature com (cl ^ ".*")
-		| meth :: cl :: pack ->
+		| field :: cl :: pack ->
 			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path && not (Meta.has Meta.RealPath (t_infos t).mt_meta)) com.types with
-				| t when meth = "*" -> (match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ ->
-					Meta.has Meta.Used (t_infos t).mt_meta)
+				| t when field = "*" ->
+					not (has_dce com) ||
+					(match t with TAbstractDecl a -> Meta.has Meta.ValueUsed a.a_meta | _ -> Meta.has Meta.Used (t_infos t).mt_meta)
 				| TClassDecl ({cl_extern = true} as c) when com.platform <> Js || cl <> "Array" && cl <> "Math" ->
-					Meta.has Meta.Used (try PMap.find meth c.cl_statics with Not_found -> PMap.find meth c.cl_fields).cf_meta
+					not (has_dce com) || Meta.has Meta.Used (try PMap.find field c.cl_statics with Not_found -> PMap.find field c.cl_fields).cf_meta
 				| TClassDecl c ->
-					PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+					PMap.exists field c.cl_statics || PMap.exists field c.cl_fields
 				| _ ->
 					false)
 			with Not_found ->
 				false
 			) in
-			let r = r || not (has_dce com) in
 			Hashtbl.add com.features f r;
 			r
 
@@ -541,15 +595,6 @@ let allow_package ctx s =
 let abort msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
-
-let add_typing_filter ctx f =
-	ctx.callbacks.after_typing <- f :: ctx.callbacks.after_typing
-
-let add_filter ctx f =
-	ctx.callbacks.before_dce <- f :: ctx.callbacks.before_dce
-
-let add_final_filter ctx f =
-	ctx.callbacks.after_generation <- f :: ctx.callbacks.after_generation
 
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
@@ -681,9 +726,9 @@ let utf16_to_utf8 str =
 	loop 0;
 	Buffer.contents b
 
-let add_diagnostics_message com s p sev =
+let add_diagnostics_message com s p kind sev =
 	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (s,p,sev) :: di.diagnostics_messages
+	di.diagnostics_messages <- (s,p,kind,sev) :: di.diagnostics_messages
 
 open Printer
 

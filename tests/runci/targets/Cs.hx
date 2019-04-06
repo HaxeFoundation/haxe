@@ -69,7 +69,6 @@ class Cs {
 		runCs("bin/cs/bin/TestMain-Debug.exe");
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 

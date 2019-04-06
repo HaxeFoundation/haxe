@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,8 +30,7 @@ extern class Exception implements Throwable {
 	private var file : String;
 	private var line : Int;
 
-	@:final
-	function getPrevious() : Throwable;   // Returns previous Throwable
+	final function getPrevious() : Throwable;   // Returns previous Throwable
     function getMessage() : String;       // message of the exception
     function getCode() : Int;             // code of the exception
     function getFile() : String;          // source filename

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope>
 **/
 @:native("WorkerGlobalScope")
-extern class WorkerGlobalScope extends EventTarget
-{
+extern class WorkerGlobalScope extends EventTarget {
 	
 	/**
 		Returns a reference to the `WorkerGlobalScope` itself. Most of the time it is a specific scope like `DedicatedWorkerGlobalScope`,  `SharedWorkerGlobalScope` or `ServiceWorkerGlobalScope`.
@@ -69,6 +68,7 @@ extern class WorkerGlobalScope extends EventTarget
 	var origin(default,null) : String;
 	var isSecureContext(default,null) : Bool;
 	var indexedDB(default,null) : js.html.idb.Factory;
+	var caches(default,null) : CacheStorage;
 	
 	
 	/**
@@ -86,13 +86,13 @@ extern class WorkerGlobalScope extends EventTarget
 	/** @throws DOMError */
 	function atob( atob : String ) : String;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
-	function setTimeout( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	function clearTimeout( ?handle : Int = 0 ) : Void;
+	@:overload( function( handler : haxe.Constraints.Function, timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setTimeout( handler : String, timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
+	function clearTimeout( handle : Int = 0 ) : Void;
 	/** @throws DOMError */
-	@:overload( function( handler : haxe.Constraints.Function, ?timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
-	function setInterval( handler : String, ?timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
-	function clearInterval( ?handle : Int = 0 ) : Void;
+	@:overload( function( handler : haxe.Constraints.Function, timeout : Int = 0, arguments : haxe.extern.Rest<Dynamic> ) : Int {} )
+	function setInterval( handler : String, timeout : Int = 0, unused : haxe.extern.Rest<Dynamic> ) : Int;
+	function clearInterval( handle : Int = 0 ) : Void;
 	/** @throws DOMError */
 	@:overload( function( aImage : VideoElement) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasElement) : Promise<ImageBitmap> {} )
@@ -100,24 +100,24 @@ extern class WorkerGlobalScope extends EventTarget
 	@:overload( function( aImage : ImageData) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasRenderingContext2D) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageBitmap) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBufferView) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBuffer) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBufferView) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBuffer) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : VideoElement, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasElement, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : Blob, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageData, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasRenderingContext2D, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageBitmap, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBufferView, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBuffer, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBufferView, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBuffer, aSx : Int, aSy : Int, aSw : Int, aSh : Int) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : VideoElement, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasElement, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : Blob, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageData, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : CanvasRenderingContext2D, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageBitmap, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBufferView, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
-	@:overload( function( aImage : ArrayBuffer, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBufferView, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
+	@:overload( function( aImage : js.lib.ArrayBuffer, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout>) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageElement ) : Promise<ImageBitmap> {} )
 	@:overload( function( aImage : ImageElement, aSx : Int, aSy : Int, aSw : Int, aSh : Int ) : Promise<ImageBitmap> {} )
 	function createImageBitmap( aImage : ImageElement, aOffset : Int, aLength : Int, aFormat : ImageBitmapFormat, aLayout : Array<ChannelPixelLayout> ) : Promise<ImageBitmap>;

@@ -32,19 +32,22 @@ let s_version =
 	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
-let default_flush ctx = match ctx.com.json_out with
+let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 	| None ->
-		List.iter
-			(fun msg -> match msg with
-				| CMInfo _ -> print_endline (compiler_message_string msg)
-				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
-			)
-			(List.rev ctx.messages);
-		if ctx.has_error && !prompt then begin
-			print_endline "Press enter to exit...";
-			ignore(read_line());
-		end;
-		if ctx.has_error then exit 1
+		begin match ctx.com.display.dms_kind with
+		| DMDiagnostics global->
+			List.iter (fun msg ->
+				let msg,p,kind = match msg with
+					| CMInfo(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Information
+					| CMWarning(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Warning
+					| CMError(msg,p) -> msg,p,DisplayTypes.DiagnosticsSeverity.Error
+				in
+				add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError kind
+			) (List.rev ctx.messages);
+			raise (Completion (Diagnostics.print ctx.com global))
+		| _ ->
+			f_otherwise ()
+		end
 	| Some(_,f) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
@@ -61,6 +64,21 @@ let default_flush ctx = match ctx.com.json_out with
 			) (List.rev ctx.messages) in
 			f errors
 		end
+
+let default_flush ctx =
+	check_display_flush ctx (fun () ->
+		List.iter
+			(fun msg -> match msg with
+				| CMInfo _ -> print_endline (compiler_message_string msg)
+				| CMWarning _ | CMError _ -> prerr_endline (compiler_message_string msg)
+			)
+			(List.rev ctx.messages);
+		if ctx.has_error && !prompt then begin
+			print_endline "Press enter to exit...";
+			ignore(read_line());
+		end;
+		if ctx.has_error then exit 1
+	)
 
 let create_context params =
 	let ctx = {
@@ -109,7 +127,6 @@ let ssend sock str =
 let rec wait_loop process_params verbose accept =
 	if verbose then ServerMessage.enable_all ();
 	Sys.catch_break false; (* Sys can never catch a break *)
-	let has_parse_error = ref false in
 	let cs = CompilationServer.create () in
 	MacroContext.macro_enable_cache := true;
 	let current_stdin = ref None in
@@ -124,30 +141,31 @@ let rec wait_loop process_params verbose accept =
 			let sign = Define.get_signature com2.defines in
 			let ftime = file_time ffile in
 			let fkey = (ffile,sign) in
-			let t = Timer.timer ["server";"parser cache"] in
-			let data = try
-				let cfile = CompilationServer.find_file cs fkey in
-				if cfile.c_time <> ftime then raise Not_found;
-				cfile.c_package,cfile.c_decls
-			with Not_found ->
-				has_parse_error := false;
-				let data = TypeloadParse.parse_file com2 file p in
-				let info,is_unusual = if !has_parse_error then "not cached, has parse error",true
-					else if is_display_file then "not cached, is display file",true
-					else begin try
-						(* We assume that when not in display mode it's okay to cache stuff that has #if display
-						   checks. The reasoning is that non-display mode has more information than display mode. *)
-						if not com2.display.dms_display then raise Not_found;
-						let ident = Hashtbl.find Parser.special_identifier_files ffile in
-						Printf.sprintf "not cached, using \"%s\" define" ident,true
-					with Not_found ->
-						CompilationServer.cache_file cs fkey ftime data;
-						"cached",false
-				end in
-				if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
-				data
-			in
-			t();
+			let data = Std.finally (Timer.timer ["server";"parser cache"]) (fun () ->
+				try
+					let cfile = CompilationServer.find_file cs fkey in
+					if cfile.c_time <> ftime then raise Not_found;
+					Parser.ParseSuccess(cfile.c_package,cfile.c_decls)
+				with Not_found ->
+					let parse_result = TypeloadParse.parse_file com2 file p in
+					let info,is_unusual = match parse_result with
+						| ParseError(_,_,_) -> "not cached, has parse error",true
+						| ParseDisplayFile _ -> "not cached, is display file",true
+						| ParseSuccess data ->
+							begin try
+								(* We assume that when not in display mode it's okay to cache stuff that has #if display
+								checks. The reasoning is that non-display mode has more information than display mode. *)
+								if not com2.display.dms_display then raise Not_found;
+								let ident = Hashtbl.find Parser.special_identifier_files ffile in
+								Printf.sprintf "not cached, using \"%s\" define" ident,true
+							with Not_found ->
+								CompilationServer.cache_file cs fkey ftime data;
+								"cached",false
+							end
+					in
+					if is_unusual then ServerMessage.parsed com2 "" (ffile,info);
+					parse_result
+			) () in
 			data
 	);
 	let check_module_shadowing com paths m =
@@ -360,8 +378,7 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps;
-					List.iter (MacroContext.call_init_macro ctx) m.m_extra.m_reuse_macro_calls
+					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
 				)
 			end
 		in
@@ -391,7 +408,6 @@ let rec wait_loop process_params verbose accept =
 		let was_compilation = ref false in
 		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
-				was_compilation := true;
 				CompilationServer.cache_context cs com;
 				ServerMessage.cached_modules com "" (List.length com.modules);
 			end;
@@ -401,24 +417,26 @@ let rec wait_loop process_params verbose accept =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				List.iter
-					(fun msg ->
-						let s = compiler_message_string msg in
-						write (s ^ "\n");
-						ServerMessage.message s;
-					)
-					(List.rev ctx.messages);
-				if ctx.has_error then begin
-					measure_times := false;
-					write "\x02\n"
-				end else maybe_cache_context ctx.com;
+				check_display_flush ctx (fun () ->
+					List.iter
+						(fun msg ->
+							let s = compiler_message_string msg in
+							write (s ^ "\n");
+							ServerMessage.message s;
+						)
+						(List.rev ctx.messages);
+					was_compilation := ctx.com.display.dms_full_typing;
+					if ctx.has_error then begin
+						measure_times := false;
+						write "\x02\n"
+					end else maybe_cache_context ctx.com;
+				)
 			);
 			ctx.setup <- (fun() ->
 				let sign = Define.get_signature ctx.com.defines in
 				ServerMessage.defines ctx.com "";
 				ServerMessage.signature ctx.com "" sign;
 				ServerMessage.display_position ctx.com "" (!DisplayPosition.display_position);
-				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
 				(* Special case for diagnostics: It's not treated as a display mode, but we still want to invalidate the
 				   current file in order to run diagnostics on it again. *)
 				if ctx.com.display.dms_display || (match ctx.com.display.dms_kind with DMDiagnostics _ -> true | _ -> false) then begin

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@ using php.Global;
 	@:arrayAccess function setByBool(key:Bool, val:Dynamic):Dynamic;
 
 	public inline function iterator()
-		return (this:NativeIndexedArray<Dynamic>).iterator();
+		return Global.array_values(this).iterator();
 
 	public inline function keyValueIterator():NativeArrayKeyValueIterator
 		return new NativeArrayKeyValueIterator(this);

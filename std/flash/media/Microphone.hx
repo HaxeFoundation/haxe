@@ -1,6 +1,6 @@
 package flash.media;
 
-@:final extern class Microphone extends flash.events.EventDispatcher {
+extern final class Microphone extends flash.events.EventDispatcher {
 	var activityLevel(default,never) : Float;
 	@:require(flash10) var codec : SoundCodec;
 	@:require(flash10_1) var enableVAD : Bool;

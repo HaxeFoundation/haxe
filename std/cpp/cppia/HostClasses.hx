@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -142,6 +142,8 @@ class HostClasses
    "haxe.ds.EnumValueMap",
    "haxe.ds.IntMap",
    "haxe.ds.StringMap",
+
+   "haxe.iterators.MapKeyValueIterator",
 
    "StdTypes",
    "Array",

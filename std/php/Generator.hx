@@ -6,7 +6,7 @@ package php;
 	Generator is not a Haxe Iterable. It can be iterated one time only.
 	Unfortunately Haxe does not know that in PHP generators may have no `return` expression or `return value` with any type of `value`.
 	Use `return null` or untyped cast to workaround this issue:
-	```
+	```haxe
 	function generatorWithoutReturn():Generator {
 		php.Syntax.yield(1);
 		return null;

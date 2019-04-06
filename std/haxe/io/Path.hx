@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,7 +40,7 @@ class Path {
 
 		If the path has no directory, the value is `null`.
 	**/
-	public var dir : String;
+	public var dir : Null<String>;
 
 	/**
 		The file name.
@@ -60,7 +60,7 @@ class Path {
 
 		If the path has no extension, the value is `null`.
 	**/
-	public var ext : String;
+	public var ext : Null<String>;
 
 	/**
 		`true` if the last directory separator is a backslash, `false` otherwise.
@@ -154,7 +154,7 @@ class Path {
 	/**
 		Returns the extension of `path`.
 
-		If the extension is `null`, the empty String `""` is returned.
+		If `path` has no extension, the empty String `""` is returned.
 
 		If `path` is `null`, the result is unspecified.
 	**/

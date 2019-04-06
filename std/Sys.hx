@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -100,6 +100,9 @@ extern class Sys {
 
 	/**
 		Exit the current process with the given error code.
+
+		(macro)(eval) Being invoked in a macro or eval context (e.g. with `-x` or `--run`) immediately terminates
+		the compilation process also preventing the execution of any `--next` section of compilation arguments.
 	**/
 	static function exit( code : Int ) : Void;
 

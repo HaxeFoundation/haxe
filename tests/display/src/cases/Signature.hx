@@ -4,13 +4,13 @@ import SignatureHelp;
 
 class Signature extends DisplayTestCase {
 	/**
-	class Some {
-		function main() {
-			test({-1-}"foo"{-2-},{-3-}12{-4-})
-		}
+		class Some {
+			function main() {
+				test({-1-}"foo"{-2-},{-3-}12{-4-})
+			}
 
-		static function test(a:String, b:Int) { }
-	}
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testGoodAst() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
@@ -20,13 +20,13 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
-	class Some {
-		function main() {
-			test({-1-}"foo"{-2-}
-		}
+		class Some {
+			function main() {
+				test({-1-}"foo"{-2-}
+			}
 
-		static function test(a:String, b:Int) { }
-	}
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testBadAst() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
@@ -49,75 +49,71 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
-	class Some {
-		function main() {
-			test({-1-}
-		}
+		class Some {
+			function main() {
+				test({-1-}
+			}
 
-		@:overload(function (a:String, b:Bool):Void { })
-		static function test(a:String, b:Int) { }
-	}
+			@:overload(function (a:String, b:Bool):Void { })
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testOverloads1() {
 		sigEq(0, [["a:String", "b:Bool"], ["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		function main() {
-			test("foo",{-1-}
-		}
+		class Some {
+			function main() {
+				test("foo",{-1-}
+			}
 
-		@:overload(function (a:String, b:Bool):Void { })
-		static function test(a:String, b:Int) { }
-	}
+			@:overload(function (a:String, b:Bool):Void { })
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testOverloads2() {
 		sigEq(1, [["a:String", "b:Bool"], ["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		function main() {
-			test("foo", 12{-1-}
-		}
+		class Some {
+			function main() {
+				test("foo", 12{-1-}
+			}
 
-		@:overload(function (a:String, b:Bool):Void { })
-		static function test(a:String, b:Int) { }
-	}
+			@:overload(function (a:String, b:Bool):Void { })
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testOverloads3() {
 		sigEq(1, [["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		function main() {
-			q({-1-})
-		}
+		class Some {
+			function main() {
+				q({-1-})
+			}
 
-		@:overload(function():Void {})
-		@:overload(function(foo:Int, bar:Int):Void {})
-		static function q(foo:Int) {}
-	}
+			@:overload(function():Void {})
+			@:overload(function(foo:Int, bar:Int):Void {})
+			static function q(foo:Int) {}
+		}
 	**/
 	function testOverloads4() {
-		sigEq(0, [
-			[],
-			["foo:Int", "bar:Int"],
-			["foo:Int"]
-		], signature(pos(1)));
+		sigEq(0, [[], ["foo:Int", "bar:Int"], ["foo:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		function main() {
-			test({-1-} {-2-}
-			var x = 12;
-		}
+		class Some {
+			function main() {
+				test({-1-} {-2-}
+				var x = 12;
+			}
 
-		static function test(a:String, b:Int) { }
-	}
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testInsert1() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
@@ -125,14 +121,14 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
-	class Some {
-		function main() {
-			test("foo",{-1-} {-2-}
-			var x = 12;
-		}
+		class Some {
+			function main() {
+				test("foo",{-1-} {-2-}
+				var x = 12;
+			}
 
-		static function test(a:String, b:Int) { }
-	}
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testInsert2() {
 		sigEq(1, [["a:String", "b:Int"]], signature(pos(1)));
@@ -140,20 +136,20 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
-	class SomeBase {
-		function new(a:Bool, b:Float) { }
-	}
-
-	class Some extends SomeBase {
-		function new(a:String, b:Int) {
-			super({-1-});
-			super(true, 1{-2-});
+		class SomeBase {
+			function new(a:Bool, b:Float) { }
 		}
 
-		static function main() {
-			new Some({-3-}"fo{-4-}o"{-5-},{-6-} {-7-}12{-8-});
+		class Some extends SomeBase {
+			function new(a:String, b:Int) {
+				super({-1-});
+				super(true, 1{-2-});
+			}
+
+			static function main() {
+				new Some({-3-}"fo{-4-}o"{-5-},{-6-} {-7-}12{-8-});
+			}
 		}
-	}
 	**/
 	function testConstructorGood() {
 		sigEq(0, [["a:Bool", "b:Float"]], signature(pos(1)));
@@ -167,56 +163,56 @@ class Signature extends DisplayTestCase {
 	}
 
 	/**
-	class Some {
-		function new(a:String, b:Int) { }
+		class Some {
+			function new(a:String, b:Int) { }
 
-		static function main() {
-			new Some({-1-}
+			static function main() {
+				new Some({-1-}
+			}
 		}
-	}
 	**/
 	function testConstructorBad() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		static function main() {
-			test(test({-1-}
-		}
+		class Some {
+			static function main() {
+				test(test({-1-}
+			}
 
-		static function test(a:String, b:Int) { }
-	}
+			static function test(a:String, b:Int) { }
+		}
 	**/
 	function testNested() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Some {
-		static function main() {
-			test2(test({-1-}
-		}
+		class Some {
+			static function main() {
+				test2(test({-1-}
+			}
 
-		static function test(a:String, b:Int) { }
-		static function test2(a:Int, b:String) { }
-	}
+			static function test(a:String, b:Int) { }
+			static function test2(a:Int, b:String) { }
+		}
 	**/
 	function testNestedNotPointless() {
 		sigEq(0, [["a:String", "b:Int"]], signature(pos(1)));
 	}
 
 	/**
-	class Main {
+		class Main {
 
-		static function main() {
-			lotsOfArgs({-1-}  "f{-2-}oo" {-3-} {-4-},{-5-}  12{-6-},{-7-} {-8-}   {-9-},{-10-} {-11-} [{-12-}]{-13-},{-14-}
+			static function main() {
+				lotsOfArgs({-1-}  "f{-2-}oo" {-3-} {-4-},{-5-}  12{-6-},{-7-} {-8-}   {-9-},{-10-} {-11-} [{-12-}]{-13-},{-14-}
 
-	{-15-}
+		{-15-}
+			}
+
+			static function lotsOfArgs(a:String, b:Int, c:Bool, d:Array<Int>, e:Dynamic) { }
 		}
-
-		static function lotsOfArgs(a:String, b:Int, c:Bool, d:Array<Int>, e:Dynamic) { }
-	}
 	**/
 	function testBroken() {
 		var sig = [["a:String", "b:Int", "c:Bool", "d:Array<Int>", "e:Dynamic"]];

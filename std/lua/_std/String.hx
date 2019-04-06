@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,6 +23,8 @@
 import lua.Lua;
 import lua.Table;
 import lua.Boot;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 
 #if lua_vanilla
 	typedef BaseString = lua.NativeStringTools;
@@ -31,7 +33,6 @@ import lua.Boot;
 #end
 
 @:coreApi
-@:extern
 class String {
 	static var __oldindex : String->String->Dynamic;
 	public var length(default,null) : Int;
@@ -121,6 +122,14 @@ class String {
 	}
 	public inline function charCodeAt( index : Int) : Null<Int> {
 		return BaseString.byte(this,index+1);
+	}
+
+	@:runtime public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	@:runtime public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
 	}
 
 	public inline function substr( pos : Int, ?len : Int ) : String {

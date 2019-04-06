@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -146,7 +146,7 @@ let valid_as3_ident s =
 
 let anon_field s =
 	let s = s_ident s in
-	if not (valid_as3_ident s) then "\"" ^ (Ast.s_escape s) ^ "\"" else s
+	if not (valid_as3_ident s) then "\"" ^ (StringHelper.s_escape s) ^ "\"" else s
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -230,6 +230,18 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
+
+(**
+	Returns `true` is `expr` represent a constant string.
+	Recursively looks through casts, metas and parentheses.
+*)
+let rec is_const_string expr =
+	match expr.eexpr with
+		| TConst (TString _) -> true
+		| TCast (e, _) -> is_const_string e
+		| TMeta (_, e) -> is_const_string e
+		| TParenthesis e -> is_const_string e
+		| _ -> false
 
 let parent e =
 	match e.eexpr with
@@ -352,7 +364,7 @@ let generate_resources infos =
 			k := !k + 1;
 			print ctx "\t\t[Embed(source = \"__res/%s\", mimeType = \"application/octet-stream\")]\n" (Bytes.unsafe_to_string (Base64.str_encode name));
 			print ctx "\t\tpublic static var %s:Class;\n" varname;
-			inits := ("list[\"" ^ Ast.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
+			inits := ("list[\"" ^ StringHelper.s_escape name ^ "\"] = " ^ varname ^ ";") :: !inits;
 		) infos.com.resources;
 		spr ctx "\t\tstatic public function __init__():void {\n";
 		spr ctx "\t\t\tlist = new Dictionary();\n";
@@ -368,7 +380,7 @@ let generate_resources infos =
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> print ctx "\"%s\"" (StringHelper.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -638,6 +650,14 @@ and gen_expr ctx e =
 	| TEnumParameter (e,_,i) ->
 		gen_value ctx e;
 		print ctx ".params[%i]" i;
+	| TField (e, ((FDynamic "iterator") | (FAnon { cf_name = "iterator" }))) when is_const_string e ->
+		print ctx "new haxe.iterators.StringIterator(";
+		gen_value ctx e;
+		print ctx ")"
+	| TField (e, ((FDynamic "keyValueIterator") | (FAnon { cf_name = "keyValueIterator" }))) when is_const_string e ->
+		print ctx "new haxe.iterators.StringKeyValueIterator(";
+		gen_value ctx e;
+		print ctx ")"
 	| TField (e,s) ->
 		gen_value ctx e;
 		gen_field_access ctx e.etype (field_name s)
@@ -996,16 +1016,19 @@ let generate_field ctx static f =
 			print ctx "]";
 		| _ -> ()
 	) f.cf_meta;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
+	let cfl_overridden = TClass.get_overridden_fields ctx.curclass f in
+	let overrides_public = List.exists (fun cf -> Meta.has Meta.Public cf.cf_meta) cfl_overridden in
+	let public = (has_class_field_flag f CfPublic) || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static)
 		|| f.cf_name = "resolve" || Meta.has Meta.Public f.cf_meta
 		(* consider all abstract methods public to avoid issues with inlined private access *)
 	    || (match ctx.curclass.cl_kind with KAbstractImpl _ -> true | _ -> false)
+		|| overrides_public
 	in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s%s " rights (if static || not f.cf_final then "" else " final ");
+		print ctx "%s%s " rights (if static || not (has_class_field_flag f CfFinal) then "" else " final ");
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -1114,7 +1137,7 @@ let generate_class ctx c =
 	| Some f ->
 		let f = { f with
 			cf_name = snd c.cl_path;
-			cf_public = true;
+			cf_flags = set_flag f.cf_flags (int_of_class_field_flag CfPublic);
 			cf_kind = Method MethNormal;
 		} in
 		ctx.constructor_block <- true;
@@ -1209,7 +1232,7 @@ let generate_enum ctx e =
 		print ctx "public static var __meta__ : * = ";
 		gen_expr ctx e;
 		newline ctx);
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ StringHelper.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
 	print ctx "}";

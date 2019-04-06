@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -463,7 +463,7 @@ let configure gen ft =
 				let pos = cls.cl_pos in
 				let cf = mk_class_field "Delegate" (TFun(fun_args tfunc.tf_args, tfunc.tf_type)) true pos (Method MethNormal) [] in
 				cf.cf_expr <- Some { fexpr with eexpr = TFunction { tfunc with tf_expr = func_expr }; };
-				cf.cf_final <- true;
+				add_class_field_flag cf CfFinal;
 				cls.cl_ordered_fields <- cf :: cls.cl_ordered_fields;
 				cls.cl_fields <- PMap.add cf.cf_name cf cls.cl_fields;
 				(* invoke function body: call Delegate function *)

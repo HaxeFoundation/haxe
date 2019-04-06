@@ -4,6 +4,8 @@ class Issue6807 extends unit.Test {
 	function test() {
 		#if ((dce != 'no') && !eval)
 		t(null == Type.resolveClass('unit.issues._Issue6807.ShouldBeRemovedByDce'));
+		#else
+		noAssert();
 		#end
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,7 +23,7 @@
 private typedef ERegValue = hl.Abstract<"ereg">;
 
 @:access(String)
-@:coreApi @:final class EReg {
+@:coreApi final class EReg {
 
 	var r : ERegValue;
 	var last : String;

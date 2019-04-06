@@ -39,7 +39,6 @@ type strict_defined =
 	| FlashUseStage
 	| ForceLibCheck
 	| ForceNativeProperty
-	| FormatWarning
 	| GencommonDebug
 	| Haxe3Compat
 	| HaxeBoot
@@ -136,7 +135,7 @@ let infos = function
 	| DllExport -> "dll_export",("GenCPP experimental linking",[Platform Cpp])
 	| DllImport -> "dll_import",("Handle Haxe-generated .NET dll imports",[Platform Cs])
 	| DocGen -> "doc_gen",("Do not perform any removal/change in order to correctly generate documentation",[])
-	| Dump -> "dump",("<mode:pretty|record|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default",[])
+	| Dump -> "dump",("<mode:pretty|record|position|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default",[])
 	| DumpDependencies -> "dump_dependencies",("Dump the classes dependencies in a dump subdirectory",[])
 	| DumpIgnoreVarIds -> "dump_ignore_var_ids",("Remove variable IDs from non-pretty dumps (helps with diff)",[])
 	| DynamicInterfaceClosures -> "dynamic_interface_closures",("Use slow path for interface closures to save space",[Platform Cpp])
@@ -152,7 +151,6 @@ let infos = function
 	(* force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily *)
 	| ForceLibCheck -> "force_lib_check",("Force the compiler to check -net-lib and -java-lib added classes (internal)",[Platforms [Cs;Java]])
 	| ForceNativeProperty -> "force_native_property",("Tag all properties with :nativeProperty metadata for 3.1 compatibility",[Platform Cpp])
-	| FormatWarning -> "format_warning",("Print a warning for each formatted string, for 2.x compatibility",[])
 	| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
 	| Haxe3Compat -> "haxe3compat", ("Gives warnings about transition from Haxe 3.x to Haxe 4.0",[])
 	| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
@@ -262,12 +260,15 @@ let defined_value_safe ?default ctx v =
 	try defined_value ctx v
 	with Not_found -> match default with Some s -> s | None -> ""
 
-let raw_define ctx v =
-	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+let raw_define_value ctx k v =
 	ctx.values <- PMap.add k v ctx.values;
 	let k = String.concat "_" (ExtString.String.nsplit k "-") in
 	ctx.values <- PMap.add k v ctx.values;
 	ctx.defines_signature <- None
+
+let raw_define ctx v =
+	let k,v = try ExtString.String.split v "=" with _ -> v,"1" in
+	raw_define_value ctx k v
 
 let define_value ctx k v =
 	raw_define ctx (fst (infos k) ^ "=" ^ v)
@@ -286,7 +287,8 @@ let get_signature def =
 			   Parser.parse_macro_ident as well (issue #5682).
 			   Note that we should removed flags like use_rtti_doc here.
 			*)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" -> acc
+			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin"
+			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
 			| _ -> (k ^ "=" ^ v) :: acc
 		) def.values [] in
 		let str = String.concat "@" (List.sort compare defines) in

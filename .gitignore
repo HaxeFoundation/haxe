@@ -64,6 +64,9 @@
 /tests/unit/unit.n
 /tests/unit/node_modules/
 
+/tests/nullsafety/bin
+/tests/nullsafety/dump
+
 /haxe.sublime*
 .idea
 build.bat
@@ -106,8 +109,6 @@ Makefile.modules
 
 /tests/unit/compiler_loops/log.txt
 tests/benchs/mandelbrot/bin/
-tests/server/test/cases/
-tests/server/test.js
 
 tests/unit/pypy3-*
 tmp.tmp
@@ -119,3 +120,6 @@ tests/sourcemaps/bin
 /*_plugin.ml
 tests/benchs/export/
 tests/benchs/dump/
+tests/display/.unittest/
+tests/unit/.unittest/
+tests/threads/export/

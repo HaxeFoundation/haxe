@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.idb;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase>
 **/
 @:native("IDBDatabase")
-extern class Database extends js.html.EventTarget
-{
+extern class Database extends js.html.EventTarget {
 	
 	/**
 		A `DOMString` that contains the name of the connected database.
@@ -89,8 +88,8 @@ extern class Database extends js.html.EventTarget
 		Immediately returns a transaction object (`IDBTransaction`) containing the `IDBTransaction.objectStore` method, which you can use to access your object store. Runs in a separate thread.
 		@throws DOMError
 	**/
-	@:overload( function( storeNames : Array<String>, ?mode : TransactionMode = "readonly") : Transaction {} )
-	function transaction( storeNames : String, ?mode : TransactionMode = "readonly" ) : Transaction;
+	@:overload( function( storeNames : Array<String>, mode : TransactionMode = READONLY) : Transaction {} )
+	function transaction( storeNames : String, mode : TransactionMode = READONLY ) : Transaction;
 	
 	/**
 		Returns immediately and closes the connection to a database in a separate thread.

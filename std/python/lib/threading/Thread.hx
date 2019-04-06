@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,12 +22,12 @@
 package python.lib.threading;
 
 typedef ThreadOptions = {
-	@:optional var group : Dynamic;
-	@:optional var target : Dynamic;
-	@:optional var name : String;
-	@:optional var args : Tuple<Dynamic>;
-	@:optional var kwargs : Dict<String,Dynamic>;
-	@:optional var daemon : Dynamic;
+	var ?group : Dynamic;
+	var ?target : Dynamic;
+	var ?name : String;
+	var ?args : Tuple<Dynamic>;
+	var ?kwargs : Dict<String,Dynamic>;
+	var ?daemon : Dynamic;
 }
 
 @:pythonImport("threading", "Thread")

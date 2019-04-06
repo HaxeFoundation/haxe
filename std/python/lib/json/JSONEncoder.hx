@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,14 +24,14 @@ package python.lib.json;
 import python.Tuple;
 
 typedef JSONEncoderOptions = {
-	@:optional var skipkeys : Bool;
-	@:optional var ensure_ascii : Bool;
-	@:optional var check_circular : Bool;
-	@:optional var allow_nan : Bool;
-	@:optional var sort_keys:Bool;
-	@:optional var indent : String;
-	@:optional var separators:Tuple2<String,String>;
-	@:optional @:native("default") var def:Dynamic->String;
+	var ?skipkeys : Bool;
+	var ?ensure_ascii : Bool;
+	var ?check_circular : Bool;
+	var ?allow_nan : Bool;
+	var ?sort_keys:Bool;
+	var ?indent : String;
+	var ?separators:Tuple2<String,String>;
+	@:native("default") var ?def:Dynamic->String;
 }
 @:pythonImport("json", "JSONEncoder")
 extern class JSONEncoder {

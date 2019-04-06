@@ -282,7 +282,7 @@ extern class Global {
 
 	/**
 		@see http://php.net/manual/en/function.constant.php
-	*/
+	**/
 	static function constant( name:String ) : Dynamic;
 
 	/**
@@ -873,6 +873,16 @@ extern class Global {
 	static function hexdec( hex_string:String ) : Int;
 
 	/**
+		@see http://php.net/manual/en/function.decbin.php
+	**/
+	static function decbin( number:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.bindec.php
+	**/
+	static function bindec( binary_string:String ) : Float;
+
+	/**
 		@see http://php.net/manual/en/function.bin2hex.php
 	**/
 	static function bin2hex( str:String ) : String;
@@ -1132,7 +1142,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-set-option.php
 	**/
-	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Bool ) : Bool;
+	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Any ) : Bool;
 
 	/**
 		@see http://php.net/manual/en/function.socket-select.php
@@ -1142,7 +1152,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-read.php
 	**/
-	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+	static function socket_read( resource:Resource, length:Int, ?type:Int ) : EitherType<Bool, String>;
 
 	/**
 		@see http://php.net/manual/en/function.socket-write.php

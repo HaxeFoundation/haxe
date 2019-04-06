@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -29,6 +29,13 @@ class UdpSocket extends Socket {
 	public function new() {
 		throw "Not available on this platform";
 		super();
+	}
+
+	/**
+		Allows the socket to send to broadcast addresses.
+	**/
+	public function setBroadcast( b : Bool ) : Void {
+		throw "Not available on this platform";
 	}
 
 	/**

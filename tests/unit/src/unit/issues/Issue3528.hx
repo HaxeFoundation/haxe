@@ -11,6 +11,7 @@ class Issue3528 extends Test {
 			case Some(v):
 			case None:
 		}
+		noAssert();
     }
 
 	static function test1(v:haxe.ds.Option<Int>) {

@@ -1,6 +1,6 @@
 package flash.text;
 
-@:final extern class StaticText extends flash.display.DisplayObject {
+extern final class StaticText extends flash.display.DisplayObject {
 	var text(default,never) : String;
 	function new() : Void;
 }

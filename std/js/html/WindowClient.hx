@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/WindowClient>
 **/
 @:native("WindowClient")
-extern class WindowClient extends Client
-{
+extern class WindowClient extends Client {
 	
 	/**
 		Indicates the visibility of the current client. This value can be one of `hidden`, `visible`, `prerender`, or `unloaded`.

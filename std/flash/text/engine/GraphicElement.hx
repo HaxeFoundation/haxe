@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class GraphicElement extends ContentElement {
+extern final class GraphicElement extends ContentElement {
 	var elementHeight : Float;
 	var elementWidth : Float;
 	var graphic : flash.display.DisplayObject;

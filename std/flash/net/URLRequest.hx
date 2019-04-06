@@ -1,6 +1,6 @@
 package flash.net;
 
-@:final extern class URLRequest {
+extern final class URLRequest {
 	var contentType : String;
 	var data : Dynamic;
 	var digest : String;

@@ -55,6 +55,7 @@ class TestGeneric extends Test {
 		n.root = new MyData(1);
 		n.root.rbLeft = new MyData(2);
 		n.root.rbRight = new MyData(3);
+		noAssert();
 	}
 
 	function testGenericAnon() {

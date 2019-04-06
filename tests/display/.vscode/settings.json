@@ -1,6 +1,11 @@
 {
-	"haxe.displayConfigurations": [
-		{"label": "IssueTemplate", "args": ["build.hxml", "-D", "test=IssueTemplate"]}
+	"editor.formatOnSave": true,
+	"haxe.enableCompilationServer": false,
+	"haxeTestExplorer.testCommand": [
+		"${haxe}",
+		"build.hxml",
+		"-lib",
+		"test-adapter"
 	],
-	"haxe.enableCompilationServer": false
+	"haxeTestExplorer.launchConfiguration": "Interpreter"
 }

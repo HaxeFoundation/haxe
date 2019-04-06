@@ -513,8 +513,8 @@ and generate_class_field' ctx cfs cf =
 	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
-		"isPublic",jbool cf.cf_public;
-		"isFinal",jbool cf.cf_final;
+		"isPublic",jbool (has_class_field_flag cf CfPublic);
+		"isFinal",jbool (has_class_field_flag cf CfFinal);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
@@ -666,7 +666,10 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		"dependencies",jarray (PMap.fold (fun m acc -> generate_module_path m.m_path :: acc) m.m_extra.m_deps []);
+		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
+			"path",jstring (s_type_path m.m_path);
+			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		]) :: acc) m.m_extra.m_deps []);
 	]
 
 let create_context gm = {

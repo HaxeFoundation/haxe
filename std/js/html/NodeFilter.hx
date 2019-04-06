@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/NodeFilter>
 **/
 @:native("NodeFilter")
-extern class NodeFilter
-{
+extern class NodeFilter {
 	static inline var FILTER_ACCEPT : Int = 1;
 	static inline var FILTER_REJECT : Int = 2;
 	static inline var FILTER_SKIP : Int = 3;

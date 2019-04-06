@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,10 +24,9 @@
 
 package js.html;
 
-typedef ConstrainDoubleRange =
-{
-	@:optional var exact : Float;
-	@:optional var ideal : Float;
-	@:optional var max : Float;
-	@:optional var min : Float;
+typedef ConstrainDoubleRange = {
+	var ?exact : Float;
+	var ?ideal : Float;
+	var ?max : Float;
+	var ?min : Float;
 }

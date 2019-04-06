@@ -5,8 +5,8 @@ import hxbenchmark.Suite;
 typedef Def = {
 	var i : Int;
 	var f : Float;
-	@:optional var oi : Int;
-	@:optional var of : Float;
+	var ?oi : Int;
+	var ?of : Float;
 	var ai : Array<Int>;
 	var af : Array<Float>;
 	var str : String;

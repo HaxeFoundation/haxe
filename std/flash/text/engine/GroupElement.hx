@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class GroupElement extends ContentElement {
+extern final class GroupElement extends ContentElement {
 	var elementCount(default,never) : Int;
 	function new(?elements : flash.Vector<ContentElement>, ?elementFormat : ElementFormat, ?eventMirror : flash.events.EventDispatcher, ?textRotation : TextRotation) : Void;
 	function getElementAt(index : Int) : ContentElement;

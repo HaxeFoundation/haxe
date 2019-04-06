@@ -9,5 +9,6 @@ class Issue5783 extends unit.Test {
 	function test() {
 		function add(i:I) return i + 1;
 		var f = add.bind('1');
+		noAssert();
 	}
 }

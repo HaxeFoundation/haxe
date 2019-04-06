@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,7 @@ import cs.internal.Exceptions;
 	public static function is( v : Dynamic, t : Dynamic ) : Bool
 	{
 		if (v == null)
-			return t == Dynamic;
+			return false;
 		if (t == null)
 			return false;
 		var clt = cs.Lib.as(t, cs.system.Type);

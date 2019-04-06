@@ -95,12 +95,18 @@ let generic_substitute_expr gctx e =
 		| TField(e1, FInstance({cl_kind = KGeneric} as c,tl,cf)) ->
 			let _, _, f = gctx.ctx.g.do_build_instance gctx.ctx (TClassDecl c) gctx.p in
 			let t = f (List.map (generic_substitute_type gctx) tl) in
-			let fa = try
-				quick_field t cf.cf_name
-			with Not_found ->
-				error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
-			in
-			build_expr {e with eexpr = TField(e1,fa)}
+			begin match follow t with
+			| TInst(c',_) when c == c' ->
+				(* The @:generic class wasn't expanded, let's not recurse to avoid infinite loop (#6430) *)
+				map_expr_type build_expr (generic_substitute_type gctx) build_var e
+			| _ ->
+				let fa = try
+					quick_field t cf.cf_name
+				with Not_found ->
+					error (Printf.sprintf "Type %s has no field %s (possible typing order issue)" (s_type (print_context()) t) cf.cf_name) e.epos
+				in
+				build_expr {e with eexpr = TField(e1,fa)}
+			end;
 		| TTypeExpr (TClassDecl ({cl_kind = KTypeParameter _;} as c)) when Meta.has Meta.Const c.cl_meta ->
 			let rec loop subst = match subst with
 				| (t1,(_,eo)) :: subst ->
@@ -241,7 +247,9 @@ let rec build_generic ctx c p tl =
 			let r = exc_protect ctx (fun r ->
 				let t = mk_mono() in
 				r := lazy_processing (fun() -> t);
-				unify_raise ctx (f()) t p;
+				let t0 = f() in
+				unify_raise ctx t0 t p;
+				link_dynamic t0 t;
 				t
 			) "build_generic" in
 			cf_new.cf_type <- TLazy r;

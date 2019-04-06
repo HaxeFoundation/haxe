@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@
 
 package js.html;
 
-enum abstract ChannelPixelLayoutDataType(String)
-{
+enum abstract ChannelPixelLayoutDataType(String) {
 	var UINT8 = "uint8";
 	var INT8 = "int8";
 	var UINT16 = "uint16";

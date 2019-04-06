@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,8 +82,16 @@ class MacroStringTools {
 
 		If `sl` is null, the result is unspecified.
 	**/
-	static public function toFieldExpr(sl:Array<String>):Expr {
-		return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
+	static public function toFieldExpr(sl:Array<String>,?pos):Expr {
+		if( pos == null )
+			return Lambda.fold(sl, function(s, e) return e == null ? (macro $i{s}) : (macro $e.$s), null);
+		var e = null;
+		for( v in sl )
+			if( e == null )
+				e = { expr : EConst(CIdent(v)), pos : pos };
+			else
+				e = { expr : EField(e,v), pos : pos };
+		return e;
 	}
 
 	/**

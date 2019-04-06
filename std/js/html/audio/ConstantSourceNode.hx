@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html.audio;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ConstantSourceNode>
 **/
 @:native("ConstantSourceNode")
-extern class ConstantSourceNode extends AudioScheduledSourceNode
-{
+extern class ConstantSourceNode extends AudioScheduledSourceNode {
 	
 	/**
 		An `AudioParam` which specifies the value that this source continuously outputs. The default value is 1.0.

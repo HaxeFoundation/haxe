@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/TextTrack>
 **/
 @:native("TextTrack")
-extern class TextTrack extends EventTarget
-{
+extern class TextTrack extends EventTarget {
 	
 	/**
 		Returns a `DOMString` indicating what kind of text track the `TextTrack` describes. The value must be one of those in the TextTrackKind enum.

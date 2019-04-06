@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,28 +30,28 @@ class Random {
 
 	/**
 		Create a new random with random seed.
-	*/
+	**/
 	public function new() {
 		r = random_new();
 	}
 
 	/**
 		Set the generator seed.
-	*/
+	**/
 	public function setSeed( s : Int ) {
 		random_set_seed(r,s);
 	}
 
 	/**
 		Return a random integer modulo max.
-	*/
+	**/
 	public function int( max : Int ) : Int {
 		return random_int(r,max);
 	}
 
 	/**
 		Return a random float.
-	*/
+	**/
 	public function float() : Float {
 		return random_float(r);
 	}

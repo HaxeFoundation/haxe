@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class TextLineMirrorRegion {
+extern final class TextLineMirrorRegion {
 	var bounds(default,never) : flash.geom.Rectangle;
 	var element(default,never) : ContentElement;
 	var mirror(default,never) : flash.events.EventDispatcher;

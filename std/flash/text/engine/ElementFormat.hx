@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:final extern class ElementFormat {
+extern final class ElementFormat {
 	var alignmentBaseline : TextBaseline;
 	var alpha : Float;
 	var baselineShift : Float;

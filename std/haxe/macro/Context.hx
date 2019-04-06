@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -96,9 +96,9 @@ class Context {
 		Returns the type which is expected at the place the macro is called.
 
 		This affects usages such as `var x:Int = macroCall()`, where the
-		expected type will be reported as Int.
+		expected type will be reported as `Int`.
 
-		Might return null if no specific type is expected or if the calling
+		Might return `null` if no specific type is expected or if the calling
 		macro is not an expression-macro.
 	**/
 	@:require(haxe_ver >= 3.1)
@@ -120,7 +120,7 @@ class Context {
 	/**
 		Returns the current class in which the macro was called.
 
-		If no such class exists, null is returned.
+		If no such class exists, `null` is returned.
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
 		var l : Type = load("get_local_type", 0)();
@@ -141,7 +141,7 @@ class Context {
 	/**
 		Returns the current type in/on which the macro was called.
 
-		If no such type exists, null is returned.
+		If no such type exists, `null` is returned.
 	**/
 	public static function getLocalType() : Null<Type> {
 		return load("get_local_type", 0)();
@@ -150,7 +150,7 @@ class Context {
 	/**
 		Returns the name of the method from which the macro was called.
 
-		If no such method exists, null is returned.
+		If no such method exists, `null` is returned.
 	**/
 	public static function getLocalMethod() : Null<String> {
 		return load("get_local_method", 0)();
@@ -199,37 +199,43 @@ class Context {
 	}
 
 	/**
-		Tells if compiler directive `s` has been set.
+		Tells if the conditional compilation flag `s` has been set.
 
-		Compiler directives are set using the `-D` command line parameter, or
+		Compiler flags are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(s);
 	}
 
 	/**
-		Returns the value defined for compiler directive `key`.
+		Returns the value defined for the conditional compilation flag `key`.
 
-		If no value is defined for `key`, null is returned.
+		If no value is defined for `key`, `null` is returned.
 
-		Compiler directive values are set using the `-D key=value` command line
+		Compiler flags values are set using the `-D key=value` command line
 		parameter, or by calling `haxe.macro.Compiler.define`.
 
 		The default value is `"1"`.
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
 	**/
 	public static function definedValue( key : String ) : String {
 		return load("defined_value", 1)(key);
 	}
 
 	/**
-		Returns a map of all compiler directives that have been set.
+		Returns a map of all conditional compilation flags that have been set.
 
-		Compiler directives are set using the `-D` command line parameter, or
+		Compiler flags are set using the `-D` command line parameter, or
 		by calling `haxe.macro.Compiler.define`.
 
 		Modifying the returned map has no effect on the compiler.
-	 */
+
+		@see https://haxe.org/manual/lf-condition-compilation.html
+	**/
 	public static function getDefines() : Map<String,String> {
 		return load("get_defines", 0)();
 	}
@@ -253,7 +259,7 @@ class Context {
 		The resolution follows the usual class path rules where the last
 		declared class path has priority.
 
-		If no module can be found, null is returned.
+		If no module can be found, `null` is returned.
 	**/
 	public static function getModule( name : String ) : Array<Type> {
 		return load("get_module", 1)(name);
@@ -306,9 +312,17 @@ class Context {
 		The callback receives an `Array` containing all types which are about
 		to be generated. Modifications are limited to metadata, it is mainly
 		intended to obtain information.
+
+		By default, the callback is made before types are stored in the compilation
+		server, if active. This means that any effect persists for the next compilation.
+		If `persistent` is set to `false`, changes to types made by the callback only
+		affect the current compilation. If no compilation server is used, this flag has
+		no effect.
+
+		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
-	public static function onGenerate( callback : Array<Type> -> Void ) {
-		load("on_generate",1)(callback);
+	public static function onGenerate( callback : Array<Type> -> Void, persistent:Bool = true ) {
+		load("on_generate",2)(callback, persistent);
 	}
 
 	/**
@@ -317,6 +331,8 @@ class Context {
 
 		Compilation has completed at this point and cannot be influenced
 		anymore. However, contextual information is still available.
+
+		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
 	@:require(haxe_ver >= 3.1)
 	public static function onAfterGenerate( callback : Void -> Void ) {
@@ -340,7 +356,7 @@ class Context {
 		cannot be resolved.
 
 		The callback may return a type definition, which is then used for the
-		expected type. If it returns null, the type is considered to still not
+		expected type. If it returns `null`, the type is considered to still not
 		exist.
 	**/
 	public static function onTypeNotFound ( callback : String -> TypeDefinition ) {
@@ -448,7 +464,7 @@ class Context {
 		Compilation server : when using the compilation server, the resource is bound
 		to the Haxe module which calls the macro, so it will be included again if
 		that module is reused. If this resource concerns several modules, prefix its
-		name with a $ sign, this will bind it to the macro module instead.
+		name with a `$` sign, this will bind it to the macro module instead.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		load("add_resource",2)(name,data);
@@ -480,7 +496,7 @@ class Context {
 
 		The individual `types` can reference each other and any identifier
 		respects the `imports` and `usings` as usual, expect that imports are
-		not allowed to have `.*` wildcards or `in s` shorthands.
+		not allowed to have `.*` wildcards or `as s` shorthands.
 	**/
 	public static function defineModule( modulePath : String, types : Array<TypeDefinition>, ?imports: Array<ImportExpr>, ?usings : Array<TypePath> ) : Void {
 		if( imports == null ) imports = [];
@@ -503,7 +519,7 @@ class Context {
 		that can be returned from a macro and will be replaced by the stored
 		typed expression.
 
-		If `t` is null or invalid, an exception is thrown.
+		If `t` is `null` or invalid, an exception is thrown.
 
 		NOTE: the returned value references an internally stored typed expression
 		that is reset between compilations, so care should be taken when storing
@@ -520,7 +536,7 @@ class Context {
 		returns a syntax-level expression that can be returned from a macro and
 		will be replaced by the stored typed expression.
 
-		If `e` is null or invalid, an exception is thrown.
+		If `e` is `null` or invalid, an exception is thrown.
 
 		A call to `storeExpr(e)` is equivalent to `storeTypedExpr(typeExpr(e))` without
 		the overhead of encoding and decoding between regular and macro runtime.
@@ -548,30 +564,14 @@ class Context {
 		load("register_module_dependency", 2)(modulePath,externFile);
 	}
 
-	/**
-		Register a macro call to be performed every time the module `modulePath` is reused by the compilation cache,
-		meaning that neither the module itself nor its dependencies was changed since last compilation.
-
-		The `macroCall` should be a String containing valid Haxe expression, similar to `--init` macros (see https://haxe.org/manual/macro-initialization.html).
-		Multiple calls with the exact same `macroCall` value will only register the callback once.
-
-		This also triggers loading of given module and its dependencies, if it's not yet loaded,
-		but given macro call will not be called on the first module load.
-
-		If the compilation cache is not used, `macroCall` expressions will not be called,
-		but calling this function will still trigger loading of given `modulePath`.
-	**/
+	@:deprecated
 	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
-		load("register_module_reuse_call", 2)(modulePath,macroCall);
+		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
-	/**
-		Register a callback function that will be called every time the macro context cached is reused with a new
-		compilation. This enable to reset some static vars since the code might have been changed. If the callback
-		returns false, the macro context is discarded and another one is created.
-	**/
+	@:deprecated
 	public static function onMacroContextReused( callb : Void -> Bool ) {
-		load("on_macro_context_reused", 1)(callb);
+		throw "This method is no longer supported. See https://github.com/HaxeFoundation/haxe/issues/5746";
 	}
 
 	@:allow(haxe.macro.TypeTools)

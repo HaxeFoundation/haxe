@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 /**
 	The basic String class.
 
@@ -29,7 +33,7 @@
 
 	String can be concatenated by using the `+` operator. If an operand is not a
 	String, it is passed through `Std.string()` first.
-	
+
 	@see https://haxe.org/manual/std-String.html
 **/
 extern class String {
@@ -74,13 +78,39 @@ extern class String {
 	function charCodeAt( index : Int) : Null<Int>;
 
 	/**
+		Returns an iterator of the char codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different of runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
+	**/
+	@:pure @:runtime inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	/**
+		Returns an iterator of the char indexes and codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different of runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
+	**/
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
+	}
+
+	/**
 		Returns the position of the leftmost occurrence of `str` within `this`
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
-		of `this` String starting from `startIndex`. Otherwise the search is
-		performed within `this` String. In either case, the returned position
-		is relative to the beginning of `this` String.
+		of `this` String starting from `startIndex` (if `startIndex` is posivite
+		or 0) or `max(this.length + startIndex, 0)` (if `startIndex` is negative).
+
+		If `startIndex` exceeds `this.length`, -1 is returned.
+
+		Otherwise the search is performed within `this` String. In either case,
+		the returned position is relative to the beginning of `this` String.
 
 		If `str` cannot be found, -1 is returned.
 	**/
@@ -91,8 +121,8 @@ extern class String {
 		String.
 
 		If `startIndex` is given, the search is performed within the substring
-		of `this` String from 0 to `startIndex`. Otherwise the search is
-		performed within `this` String. In either case, the returned position
+		of `this` String from 0 to `startIndex + str.length`. Otherwise the search
+		is performed within `this` String. In either case, the returned position
 		is relative to the beginning of `this` String.
 
 		If `str` cannot be found, -1 is returned.

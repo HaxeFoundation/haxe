@@ -116,6 +116,7 @@ type strict_meta =
 	| NotNull
 	| NoUsing
 	| Ns
+	| NullSafety
 	| Objc
 	| ObjcProtocol
 	| Op
@@ -179,7 +180,13 @@ type strict_meta =
 	| Custom of string
 
 let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
+let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.mem m2 ml1) ml2
 let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
+
+let rec remove m = function
+	| [] -> []
+	| (m2,_,_) :: l when m = m2 -> l
+	| x :: l -> x :: remove m l
 
 type meta_usage =
 	| TClass
@@ -306,7 +313,7 @@ let get_info = function
 	| NativeProperty -> ":nativeProperty",("Use native properties which will execute even with dynamic usage",[Platform Cpp])
 	| NativeStaticExtension -> ":nativeStaticExtension",("Converts static function syntax into member call",[Platform Cpp])
 	| NoCompletion -> ":noCompletion",("Prevents the compiler from suggesting completion on this field or type",[UsedOn TClassField])
-	| NoDebug -> ":noDebug",("Does not generate debug information into the Swf even if -debug is set",[UsedOnEither [TClass;TClassField];Platform Flash])
+	| NoDebug -> ":noDebug",("Does not generate debug information even if -debug is set",[UsedOnEither [TClass;TClassField];Platforms [Flash;Cpp]])
 	| NoDoc -> ":noDoc",("Prevents a type from being included in documentation generation",[])
 	| NoExpr -> ":noExpr",("Internally used to mark abstract fields which have no expression by design",[UsedInternally])
 	| NoImportGlobal -> ":noImportGlobal",("Prevents a static field from being imported with import Class.*",[UsedOn TAnyField])
@@ -317,6 +324,7 @@ let get_info = function
 	| NotNull -> ":notNull",("Declares an abstract type as not accepting null values",[UsedOn TAbstract])
 	| NoUsing -> ":noUsing",("Prevents a field from being used with 'using'",[UsedOn TClassField])
 	| Ns -> ":ns",("Internally used by the Swf generator to handle namespaces",[Platform Flash])
+	| NullSafety -> ":nullSafety",("Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument (e.g. `@:nullSafety(Off)`)",[UsedOnEither [TClass;TClassField;TExpr]])
 	| Objc -> ":objc",("Declares a class or interface that is used to interoperate with Objective-C code",[Platform Cpp;UsedOn TClass])
 	| ObjcProtocol -> ":objcProtocol",("Associates an interface with, or describes a function in, a native Objective-C protocol.",[Platform Cpp;UsedOnEither [TClass;TClassField] ])
 	| Op -> ":op",("Declares an abstract field as being an operator overload",[HasParam "The operation";UsedOn TAbstractField])
@@ -355,7 +363,7 @@ let get_info = function
 	| StaticExtension -> "haxe.internal.static_extension",("Used internally to mark static extension fields",[UsedInternally])
 	| StoredTypedExpr -> ":storedTypedExpr",("Used internally to reference a typed expression returned from a macro",[UsedInternally])
 	| Strict -> ":strict",("Used to declare a native C# attribute or a native Java metadata. Is type checked",[Platforms [Java;Cs]])
-	| Struct -> ":struct",("Marks a class definition as a struct",[Platform Cs; UsedOn TClass])
+	| Struct -> ":struct",("Marks a class definition as a struct",[Platforms [Cs;Hl]; UsedOn TClass])
 	| StructAccess -> ":structAccess",("Marks an extern class as using struct access('.') not pointer('->')",[Platform Cpp; UsedOn TClass])
 	| StructInit -> ":structInit",("Allows one to initialize the class with a structure that matches constructor parameters",[UsedOn TClass])
 	| SuppressWarnings -> ":suppressWarnings",("Adds a SuppressWarnings annotation for the generated Java class",[Platform Java; UsedOn TClass])

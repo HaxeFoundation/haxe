@@ -15,5 +15,6 @@ private abstract Integer(Int) from Int to Int {
 class Issue2957 extends Test {
 	function test() {
 		var n:Integer = "5";
+		noAssert();
 	}
 }

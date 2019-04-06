@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer>
 **/
 @:native("ServiceWorkerContainer")
-extern class ServiceWorkerContainer extends EventTarget
-{
+extern class ServiceWorkerContainer extends EventTarget {
 	
 	/**
 		Returns a `ServiceWorker` object if its state is `activated` (the same object returned by `ServiceWorkerRegistration.active`). This property returns `null` during a force-refresh request (Shift + refresh) or if there is no active worker.
@@ -65,7 +64,7 @@ extern class ServiceWorkerContainer extends EventTarget
 	/**
 		Gets a `ServiceWorkerRegistration` object whose scope matches the provided document URL.  If the method can't return a `ServiceWorkerRegistration`, it returns a `Promise`. 
 	**/
-	function getRegistration( ?documentURL : String = "" ) : Promise<Dynamic>;
+	function getRegistration( documentURL : String = "" ) : Promise<Dynamic>;
 	
 	/**
 		Returns all `ServiceWorkerRegistration` objects associated with a `ServiceWorkerContainer` in an array.  If the method can't return `ServiceWorkerRegistration` objects, it returns a `Promise`. 

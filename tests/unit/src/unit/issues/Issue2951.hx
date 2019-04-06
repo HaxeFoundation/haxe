@@ -41,5 +41,6 @@ class Issue2951 extends Test{
 		  if ((args.length == 0)) true else false;
 		  setCwd(last);
 	  };
+	  noAssert();
   }
 }

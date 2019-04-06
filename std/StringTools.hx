@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -209,7 +209,7 @@ class StringTools {
 		#elseif python
 		return python.NativeStringTools.startswith(s, start);
 		#else
-		return( s.length >= start.length && s.substr(0, start.length) == start );
+		return( s.length >= start.length && s.lastIndexOf(start, 0) == 0 );
 		#end
 	}
 
@@ -243,7 +243,7 @@ class StringTools {
 		#else
 		var elen = end.length;
 		var slen = s.length;
-		return( slen >= elen && s.substr(slen - elen, elen) == end );
+		return( slen >= elen && s.indexOf(end, (slen - elen)) == (slen - elen) );
 		#end
 	}
 
@@ -471,15 +471,19 @@ class StringTools {
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
 		#elseif lua
-		return lua.lib.luautf8.Utf8.byte(s,index+1);
+			#if lua_vanilla
+			return lua.NativeStringTools.byte(s,index+1);
+			#else
+			return lua.lib.luautf8.Utf8.byte(s,index+1);
+			#end
 		#else
 		return untyped s.cca(index);
 		#end
 	}
 
-	/*
+	/**
 		Tells if `c` represents the end-of-file (EOF) character.
-	*/
+	**/
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
 		#if (flash || cpp || hl)
 		return c == 0;
@@ -502,7 +506,8 @@ class StringTools {
 		Returns a String that can be used as a single command line argument
 		on Unix.
 		The input will be quoted, or escaped if necessary.
-	*/
+	**/
+	@:noCompletion
 	public static function quoteUnixArg(argument:String):String {
 		// Based on cpython's shlex.quote().
 		// https://hg.python.org/cpython/file/a3f076d4f54f/Lib/shlex.py#l278
@@ -520,7 +525,8 @@ class StringTools {
 
 	/**
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
-	*/
+	**/
+	@:noCompletion
 	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
@@ -531,11 +537,12 @@ class StringTools {
 		http://msdn.microsoft.com/en-us/library/ms880421
 
 		Examples:
-		```
+		```haxe
 		quoteWinArg("abc") == "abc";
 		quoteWinArg("ab c") == '"ab c"';
 		```
-	*/
+	**/
+	@:noCompletion
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		// If there is no space, tab, back-slash, or double-quotes, and it is not an empty string.
 		if (!~/^[^ \t\\"]+$/.match(argument)) {

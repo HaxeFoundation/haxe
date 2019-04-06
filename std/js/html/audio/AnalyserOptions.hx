@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,11 +24,9 @@
 
 package js.html.audio;
 
-typedef AnalyserOptions =
-{
-	> AudioNodeOptions,
-	@:optional var fftSize : Int;
-	@:optional var maxDecibels : Float;
-	@:optional var minDecibels : Float;
-	@:optional var smoothingTimeConstant : Float;
+typedef AnalyserOptions = AudioNodeOptions & {
+	var ?fftSize : Int;
+	var ?maxDecibels : Float;
+	var ?minDecibels : Float;
+	var ?smoothingTimeConstant : Float;
 }

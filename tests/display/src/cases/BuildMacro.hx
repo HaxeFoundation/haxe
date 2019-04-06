@@ -2,25 +2,25 @@ package cases;
 
 class BuildMacro extends DisplayTestCase {
 	/**
-	class MyMacro {
-		macro static public function build():Array<haxe.macro.Expr.Field> {
-			var fields = haxe.macro.Context.getBuildFields();
-			return fields;
-		}
-	}
-
-	typedef {-7-}MyString{-8-} = String;
-
-	#if !macro
-	@:build(cases.BuildMacro.MyMacro.build())
-	#end
-	class Main {
-		function te{-1-}st({-5-}na{-2-}me{-6-}:MySt{-3-}ring):MyStr{-4-}ing {
-			return {-9-}nam{-10-}e{-11-};
+		class MyMacro {
+			macro static public function build():Array<haxe.macro.Expr.Field> {
+				var fields = haxe.macro.Context.getBuildFields();
+				return fields;
+			}
 		}
 
-		static function main() { }
-	}
+		typedef {-7-}MyString{-8-} = String;
+
+		#if !macro
+		@:build(cases.BuildMacro.MyMacro.build())
+		#end
+		class Main {
+			function te{-1-}st({-5-}na{-2-}me{-6-}:MySt{-3-}ring):MyStr{-4-}ing {
+				return {-9-}nam{-10-}e{-11-};
+			}
+
+			static function main() { }
+		}
 	**/
 	function test1() {
 		eq("cases.MyString", type(pos(2)));

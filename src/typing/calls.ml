@@ -12,7 +12,7 @@ let is_forced_inline c cf =
 	match c with
 	| Some { cl_extern = true } -> true
 	| Some { cl_kind = KAbstractImpl _ } -> true
-	| _ when cf.cf_extern -> true
+	| _ when has_class_field_flag cf CfExtern -> true
 	| _ -> false
 
 let make_call ctx e params t ?(force_inline=false) p =
@@ -28,7 +28,13 @@ let make_call ctx e params t ?(force_inline=false) p =
 			| _ ->
 				raise Exit
 		in
-		if not force_inline && f.cf_kind <> Method MethInline then raise Exit;
+		if not force_inline then begin
+			if f.cf_kind <> Method MethInline then raise Exit;
+		end else begin
+			delay ctx PFinal (fun () ->
+				if has_class_field_flag f CfOverridden then error (Printf.sprintf "Cannot force inline-call to %s because it is overridden" f.cf_name) p
+			);
+		end;
 		let config = match cl with
 			| Some ({cl_kind = KAbstractImpl _}) when Meta.has Meta.Impl f.cf_meta ->
 				let t = if f.cf_name = "_new" then
@@ -388,7 +394,7 @@ let unify_field_call ctx fa el args ret p inline =
 					Some e
 			);
 			cf2.cf_kind <- cf.cf_kind;
-			cf2.cf_public <- cf.cf_public;
+			if not (has_class_field_flag cf CfPublic) then remove_class_field_flag cf2 CfPublic;
 			let metadata = List.filter (fun (m,_,_) -> match m with
 				| Meta.Generic -> false
 				| _ -> true
@@ -412,7 +418,7 @@ let rec acc_get ctx g p =
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AKExpr e -> e
 	| AKSet _ | AKAccess _ | AKFieldSet _ -> assert false
-	| AKUsing (et,c,cf,e) when ctx.in_display ->
+	| AKUsing (et,c,cf,e,_) when ctx.in_display ->
 		(* Generate a TField node so we can easily match it for position/usage completion (issue #1968) *)
 		let ec = type_module_type ctx (TClassDecl c) None p in
 		let ec = {ec with eexpr = (TMeta((Meta.StaticExtension,[],null_pos),ec))} in
@@ -421,7 +427,7 @@ let rec acc_get ctx g p =
 			| _ -> et.etype
 		in
 		mk (TField(ec,FStatic(c,cf))) t et.epos
-	| AKUsing (et,_,cf,e) ->
+	| AKUsing (et,_,cf,e,_) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
@@ -458,7 +464,7 @@ let rec acc_get ctx g p =
 		| Some _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = (c.cl_extern || f.cf_extern) && not (Meta.has Meta.Runtime f.cf_meta) in
+			let chk_class c = (c.cl_extern || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
 					let m = c.cl_module in
@@ -493,7 +499,7 @@ let rec acc_get ctx g p =
 					e_def
 				| TAnon a ->
 					begin match !(a.a_status) with
-						| Statics {cl_extern = false} when f.cf_extern ->
+						| Statics {cl_extern = false} when has_class_field_flag f CfExtern ->
 							display_error ctx "Cannot create closure on @:extern inline method" p;
 							e_def
 						| Statics c when chk_class c -> wrap_extern c
@@ -523,12 +529,12 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 			| _ ->
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
-	| AKUsing (et,cl,ef,eparam) when Meta.has Meta.Generic ef.cf_meta ->
+	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
 		| _ -> assert false)
-	| AKUsing (et,cl,ef,eparam) ->
+	| AKUsing (et,cl,ef,eparam,force_inline) ->
 		begin match ef.cf_kind with
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
@@ -553,7 +559,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 					end
 				| _ -> assert false
 			in
-			make_call ctx et (eparam :: params) r p
+			make_call ctx ~force_inline et (eparam :: params) r p
 		end
 	| AKMacro (ethis,cf) ->
 		if ctx.macro_depth > 300 then error "Stack overflow" p;

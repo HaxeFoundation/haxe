@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,10 +21,15 @@
  */
 import cs.StdTypes;
 
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi extern class String implements ArrayAccess<Char16> {
 
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
+
+	private static function CompareOrdinal(s1:String, s2:String):Int;
 
 	var length(default,null) : Int;
 
@@ -49,6 +54,14 @@ import cs.StdTypes;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	function toString() : String;
+
+	@:pure @:runtime inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
+	}
 
 	static function fromCharCode( code : Int ) : String;
 

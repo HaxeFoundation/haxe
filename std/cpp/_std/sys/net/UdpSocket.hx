@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,6 +55,10 @@ class UdpSocket extends Socket {
 		if( r == 0 )
 			throw new haxe.io.Eof();
 		return r;
+	}
+
+	public function setBroadcast( b : Bool ) : Void {
+		NativeSocket.socket_set_broadcast(__s,b);
 	}
 
 }

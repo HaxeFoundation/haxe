@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -63,8 +63,7 @@ private class MathImpl {
 }
 
 @:coreApi
-@:final
-extern class Math {
+extern final class Math {
 
 	public static var PI(default,null) : Float;
 	public static var NaN(default,null) : Float;

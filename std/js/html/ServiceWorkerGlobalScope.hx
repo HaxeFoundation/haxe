@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope>
 **/
 @:native("ServiceWorkerGlobalScope")
-extern class ServiceWorkerGlobalScope extends WorkerGlobalScope
-{
+extern class ServiceWorkerGlobalScope extends WorkerGlobalScope {
 	
 	/**
 		Contains the `Clients` object associated with the service worker.

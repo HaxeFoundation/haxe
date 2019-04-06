@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,8 +25,7 @@
 package js.html.svg;
 
 @:native("SVGPathSegList")
-extern class PathSegList implements ArrayAccess<PathSeg>
-{
+extern class PathSegList implements ArrayAccess<PathSeg> {
 	var numberOfItems(default,null) : Int;
 	var length(default,null) : Int;
 	

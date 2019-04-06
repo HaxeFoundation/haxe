@@ -1,6 +1,6 @@
 package flash.display3D;
 
-@:final extern class Context3D extends flash.events.EventDispatcher {
+extern final class Context3D extends flash.events.EventDispatcher {
 	var backBufferHeight(default,never) : Int;
 	var backBufferWidth(default,never) : Int;
 	var driverInfo(default,never) : String;

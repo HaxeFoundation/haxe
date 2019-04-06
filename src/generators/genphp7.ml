@@ -64,6 +64,11 @@ let copy_file src dst =
 	Unix.close fd_in;
 	Unix.close fd_out
 
+type used_type = {
+	ut_alias : string;
+	ut_type_path : (string list * string)
+}
+
 (**
 	Get list of keys in Hashtbl
 *)
@@ -544,20 +549,27 @@ let create_dir_recursive (path:string list) =
 (**
 	@return String representation of specified type path. E.g. returns "\example\Test" for (["example"], "Test")
 *)
-let get_full_type_name ?escape ?omit_first_slash (type_path:path) =
+let get_full_type_name ?(escape=false) ?(omit_first_slash=false) (type_path:path) =
 	let name =
 		match type_path with
+			| ([], type_name) ->
+				if omit_first_slash then
+					type_name
+				else
+					"\\" ^ type_name
 			| (module_path, type_name) ->
 				let parts =
-					match omit_first_slash with
-						| Some true -> get_real_path module_path
-						| _ -> "" :: get_real_path module_path
+					if omit_first_slash then
+						get_real_path module_path
+					else
+						"" :: get_real_path module_path
 				in
 				(String.concat "\\" parts) ^ "\\" ^ type_name
 	in
-	match escape with
-		| Some true -> String.escaped name
-		| _ -> name
+	if escape then
+		String.escaped name
+	else
+		name
 
 (**
 	Check if `target` is or implements native PHP `Throwable` interface
@@ -1355,24 +1367,29 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 										| [] -> [name]
 										| _ -> rest
 									);
-									String.capitalize name
+									StringHelper.capitalize name
 						and added = ref false
 						and alias = ref (get_type_name type_path) in
-						if !alias = php_name then
-							alias := get_alias_next_part () ^ !alias;
+						let alias_upper = ref (StringHelper.uppercase !alias) in
+						let prepend_alias prefix =
+							alias := prefix ^ !alias;
+							alias_upper := StringHelper.uppercase !alias
+						in
+						if !alias_upper = (StringHelper.uppercase php_name) then
+							prepend_alias (get_alias_next_part ());
 						while not !added do
 							try
 								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx !alias namespace then
-									alias := get_alias_next_part () ^ !alias
+									prepend_alias (get_alias_next_part ())
 								else
-									let used_type = Hashtbl.find use_table !alias in
-									if used_type = type_path then
+									let used_type = Hashtbl.find use_table !alias_upper in
+									if used_type.ut_type_path = type_path then
 										added := true
 									else
-										alias := get_alias_next_part () ^ !alias;
+										prepend_alias (get_alias_next_part ());
 							with
 								| Not_found ->
-									Hashtbl.add use_table !alias type_path;
+									Hashtbl.add use_table !alias_upper { ut_alias = !alias; ut_type_path = type_path; };
 									added := true
 								| _ -> fail self#pos __POS__
 						done;
@@ -1582,13 +1599,13 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		*)
 		method write_use =
 			self#indent 0;
-			let write alias type_path =
-				if (get_module_path type_path) <> namespace then
-					if get_type_name type_path = alias then
-						self#write_statement ("use " ^ (get_full_type_name type_path))
+			let write _ used_type =
+				if (get_module_path used_type.ut_type_path) <> namespace then
+					if get_type_name used_type.ut_type_path = used_type.ut_alias then
+						self#write_statement ("use " ^ (get_full_type_name used_type.ut_type_path))
 					else
-						let full_name = get_full_type_name type_path in
-						self#write_statement ("use " ^ full_name ^ " as " ^ alias)
+						let full_name = get_full_type_name used_type.ut_type_path in
+						self#write_statement ("use " ^ full_name ^ " as " ^ used_type.ut_alias)
 			in
 			Hashtbl.iter write use_table
 		(**
@@ -2176,8 +2193,11 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| OpAssignOp OpMod ->
 					if is_int expr1 && is_int expr2 then
 						write_binop " %= "
-					else
+					else begin
+						self#write_expr expr1;
+						self#write " = ";
 						write_method "fmod"
+					end
 				| OpAssignOp OpUShr ->
 					self#write_expr expr1;
 					self#write " = ";
@@ -2285,6 +2305,8 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 				| "toString"
 				| "substring"
 				| "substr"
+				| "iterator"
+				| "keyValueIterator"
 				| "charCodeAt" ->
 					self#write ((self#use hxdynamicstr_type_path) ^ "::wrap(");
 					self#write_expr expr;
@@ -3275,7 +3297,7 @@ class class_builder ctx (cls:tclass) =
 			Indicates if `field` should be declared as `final`
 		*)
 		method is_final_field (field:tclass_field) : bool =
-			field.cf_final
+			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
 			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
@@ -3316,8 +3338,8 @@ class class_builder ctx (cls:tclass) =
 			E.g. "class SomeClass extends Another implements IFace"
 		*)
 		method private write_declaration =
-			if self#is_final then writer#write "final ";
 			self#write_doc (DocClass cls.cl_doc);
+			if self#is_final then writer#write "final ";
 			writer#write (if cls.cl_interface then "interface " else "class ");
 			writer#write self#get_name;
 			(
@@ -3766,7 +3788,7 @@ class generator (ctx:context) =
 					output_string channel "<?php\n";
 					output_string channel uses;
 					output_string channel "\n";
-					output_string channel ("set_include_path(__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
+					output_string channel ("set_include_path(get_include_path().PATH_SEPARATOR.__DIR__.'/" ^ (String.concat "/" self#get_lib_path) ^ "');\n");
 					output_string channel "spl_autoload_register(\n";
 					output_string channel "	function($class){\n";
 					output_string channel "		$file = stream_resolve_include_path(str_replace('\\\\', '/', $class) .'.php');\n";

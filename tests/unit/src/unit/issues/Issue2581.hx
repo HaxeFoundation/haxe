@@ -34,5 +34,6 @@ private class MMap<K, V> implements Arrayable<KVPair<K, V>>
 class Issue2581 extends Test {
 	function test() {
 		var MMap:MMap<String, String> = new MMap<String, String>();
+		noAssert();
 	}
 }

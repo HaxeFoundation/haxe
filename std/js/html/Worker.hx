@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/Worker>
 **/
 @:native("Worker")
-extern class Worker extends EventTarget
-{
+extern class Worker extends EventTarget {
 	
 	/**
 		An `EventListener` called whenever a `MessageEvent` of type `message` bubbles through the worker — i.e. when a message is sent to the parent document from the worker via `DedicatedWorkerGlobalScope.postMessage`. The message is stored in the event's `MessageEvent.data` property.
@@ -58,5 +57,5 @@ extern class Worker extends EventTarget
 		Sends a message — which can consist of `any` JavaScript object — to the worker's inner scope.
 		@throws DOMError
 	**/
-	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> = [] ) : Void;
+	function postMessage( message : Dynamic, ?transfer : Array<Dynamic> ) : Void;
 }
