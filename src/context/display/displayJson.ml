@@ -249,6 +249,11 @@ let parse_input com input report_times =
 			| Some jo -> ("timers",jo) :: fl
 			end
 		end else fl in
+		let fl = if DynArray.length com.pass_debug_messages > 0 then
+			("passMessages",jarray (List.map jstring (DynArray.to_list com.pass_debug_messages))) :: fl
+		else
+			fl
+		in
 		let jo = jobject fl in
 		send_json (JsonRpc.result jsonrpc#get_id  jo)
 	in
