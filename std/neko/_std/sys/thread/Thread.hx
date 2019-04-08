@@ -26,16 +26,13 @@ package sys.thread;
 @:coreType
 private abstract ThreadHandle {}
 
-@:coreApi
-class Thread {
-	var handle:ThreadHandle;
-
+abstract Thread(ThreadHandle) {
 	function new(h:ThreadHandle):Void {
-		handle = h;
+		this = h;
 	}
 
 	public function sendMessage(msg:Dynamic):Void {
-		thread_send(handle, msg);
+		thread_send(this, msg);
 	}
 
 	public static function current():Thread {
@@ -53,7 +50,7 @@ class Thread {
 	}
 
 	@:keep function __compare(t:Dynamic):Int {
-		return untyped __dollar__compare(handle, t.handle);
+		return untyped __dollar__compare(this, t.handle);
 	}
 
 	/**
