@@ -27,11 +27,11 @@ class Flash {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages([
-					"libglib2.0", "libfreetype6"
-				]);
 				var playerCmd = "flashplayerdebugger";
 				if(Sys.command("type", [playerCmd]) != 0) {
+					Linux.requireAptPackages([
+						"libglib2.0", "libfreetype6"
+					]);
 					var majorVersion = getLatestFPVersion()[0];
 					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
 					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
@@ -102,19 +102,20 @@ class Flash {
 
 		//read flashlog.txt continously
 		var traceProcess = new Process("tail", ["-f", flashlogPath]);
-		var line = "";
+		var success = false;
 		while (true) {
 			try {
-				line = traceProcess.stdout.readLine();
-				Sys.println(line);
+				var line = traceProcess.stdout.readLine();
 				if (line.indexOf("success: ") >= 0) {
-					return line.indexOf("success: true") >= 0;
+					success = line.indexOf("success: true") >= 0;
+					break;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;
 			}
 		}
-		return false;
+		Sys.command("cat", [flashlogPath]);
+		return success;
 	}
 
 	static public function run(args:Array<String>) {
