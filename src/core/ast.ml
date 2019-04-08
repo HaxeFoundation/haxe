@@ -502,6 +502,7 @@ let unescape s =
 					inext := !inext + 2;
 				| 'x' ->
 					let u = (try (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
+					if u > 0x7F then fail();
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
