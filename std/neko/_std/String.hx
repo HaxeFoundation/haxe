@@ -71,14 +71,10 @@ import haxe.iterators.StringKeyValueIterator;
 
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
-			var l = this.length;
 			if( startIndex == null )
 				startIndex = 0;
-			if( __dollar__ssize(str.__s) == 0 ) {
-				if( startIndex == l )
-					return l;
+			if( __dollar__ssize(str.__s) == 0 )
 				return startIndex;
-			}
 			var p = try __dollar__sfind(this.__s,startIndex,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
 				return -1;
@@ -88,7 +84,6 @@ import haxe.iterators.StringKeyValueIterator;
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
-			var l = this.length;
 			var last = -1;
 			if( startIndex == null )
 				startIndex = __dollar__ssize(this.__s);
