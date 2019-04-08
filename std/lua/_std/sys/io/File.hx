@@ -48,17 +48,11 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		if(!FileSystem.exists(srcPath)) {
-			throw 'Path does not exist: $srcPath';
-		}
-		if(FileSystem.exists(dstPath)) {
-			FileSystem.deleteFile(dstPath);
-		}
 		var result = switch (Sys.systemName()) {
 			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
 			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
 		};
-		if(#if (lua_ver >= 5.2) !result.success #else result != 0 #end ) {
+		if(#if (lua_ver >= 5.2) !result.success #elseif (lua_ver < 5.2) result != 0 #else !result #end ) {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
 	}
