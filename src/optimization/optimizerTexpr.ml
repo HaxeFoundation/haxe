@@ -31,7 +31,7 @@ let is_read_only_field_access e fa = match fa with
 		true
 	| FDynamic _ ->
 		false
-	| FAnon {cf_kind = Var {v_write = AccNo | AccNever}} when (match e.eexpr with TIdent _ -> true | _ -> false) -> true
+	| FAnon {cf_kind = Var {v_write = AccNo}} when (match e.eexpr with TIdent _ -> true | _ -> false) -> true
 	| FInstance (c,_,cf) | FStatic (c,cf) | FClosure (Some(c,_),cf) ->
 		begin match cf.cf_kind with
 			| Method MethDynamic -> false

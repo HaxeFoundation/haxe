@@ -1475,10 +1475,6 @@ and format_string ctx s p =
 		let len = pos - start in
 		if len > 0 || !e = None then add (EConst (String (String.sub s start len))) len
 	in
-	let warn_escape = Common.defined ctx.com Define.FormatWarning in
-	let warn pos len =
-		ctx.com.warning "This string is formatted" { p with pmin = !pmin + 1 + pos; pmax = !pmin + 1 + pos + len }
-	in
 	let len = String.length s in
 	let rec parse start pos =
 		if pos = len then add_sub start pos else
@@ -1491,7 +1487,6 @@ and format_string ctx s p =
 		if c <> '$' || pos = len then parse start pos else
 		match String.unsafe_get s pos with
 		| '$' ->
-			if warn_escape then warn pos 1;
 			(* double $ *)
 			add_sub start pos;
 			parse (pos + 1) (pos + 1)
@@ -1509,7 +1504,6 @@ and format_string ctx s p =
 			in
 			let iend = loop (pos + 1) in
 			let len = iend - pos in
-			if warn_escape then warn pos len;
 			add (EConst (Ident (String.sub s pos len))) len;
 			parse (pos + len) (pos + len)
 		| _ ->
@@ -1535,7 +1529,6 @@ and format_string ctx s p =
 		let send = loop [pos] (pos + 1) in
 		let slen = send - pos - 1 in
 		let scode = String.sub s (pos + 1) slen in
-		if warn_escape then warn (pos + 1) slen;
 		min := !min + 2;
 		if slen > 0 then begin
 			let e =

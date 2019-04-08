@@ -19,18 +19,27 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- 
+
 package haxe.ds;
 
 /**
-	ReadOnlyArray is an abstract over an ordinary Array but only exposes
- API's that don't modify the Array instance, hence read-only.
- Notice that this doesn't necessarily mean that the instance is immutable.
- Because other code holding the reference as ordinary Array can still modify it.
+	`ReadOnlyArray` is an abstract over an ordinary `Array` which only exposes
+	APIs that don't modify the instance, hence "read-only".
+
+	Note that this doesn't necessarily mean that the instance is *immutable*.
+	Other code holding a reference to the underlying `Array` can still modify it,
+	and the reference can be obtained with a `cast`.
 **/
 @:forward(concat, copy, filter, indexOf, iterator, join, lastIndexOf, map, slice, toString)
 abstract ReadOnlyArray<T>(Array<T>) from Array<T> {
-  public var length(get,never):Int;
-  inline function get_length() return this.length;
-  @:arrayAccess inline function get(i:Int) return this[i];
-} 
+	/**
+		The length of `this` Array.
+	**/
+	public var length(get, never):Int;
+
+	inline function get_length()
+		return this.length;
+
+	@:arrayAccess inline function get(i:Int)
+		return this[i];
+}

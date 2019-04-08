@@ -429,7 +429,7 @@ let merge_core_doc ctx mt =
 			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
 			| _ -> ()
 		end
-	| _ -> ());
+	| _ -> ())
 
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
@@ -445,7 +445,12 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then begin
+		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match ctx.com.json_out with
+		| None -> print_endline s
+		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+	end
 
 let init_class_done ctx =
 	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);

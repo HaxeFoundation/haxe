@@ -188,6 +188,7 @@ type context = {
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
+	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -442,6 +443,7 @@ let create version s_version args =
 		get_macros = (fun() -> None);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
+		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = m;
 			tint = m;

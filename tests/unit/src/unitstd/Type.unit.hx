@@ -25,7 +25,7 @@ Type.getSuperClass(ClassWithToStringChild) == ClassWithToString;
 
 // getClassName
 Type.getClassName(String) == "String";
-Type.getClassName(C) == "unit.C";
+Type.getClassName(C) == "unit.spec.C";
 //Type.getClassName(null) == null;
 Type.getClassName(Type.getClass([])) == "Array";
 
@@ -35,7 +35,7 @@ Type.getEnumName(haxe.macro.Expr.ExprDef) == "haxe.macro.ExprDef";
 
 // resolveClass
 Type.resolveClass("String") == String;
-Type.resolveClass("unit.C") == C;
+Type.resolveClass("unit.spec.C") == C;
 //Type.resolveClass("Float") == null;
 //Type.resolveClass(null) == null;
 Type.resolveClass("MyNonExistingClass") == null;

@@ -21,8 +21,7 @@
  */
 package hl;
 
-enum
-abstract TypeKind(Int) {
+enum abstract TypeKind(Int) {
 	public var HVoid = 0;
 	public var HUI8 = 1;
 	public var HUI16 = 2;

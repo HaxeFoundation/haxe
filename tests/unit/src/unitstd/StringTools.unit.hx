@@ -109,6 +109,12 @@ StringTools.hex(0xABCDEF, 7) == "0ABCDEF";
 StringTools.hex( -1, 8) == "FFFFFFFF";
 StringTools.hex( -481400000, 8) == "E34E6B40";
 
+// contains
+var s = "foo1bar";
+StringTools.contains(s, '') == true;
+StringTools.contains(s, 'bar') == true;
+StringTools.contains(s, 'test') == false;
+
 // fastCodeAt
 var s = "foo1bar";
 StringTools.fastCodeAt(s, 0) == 102;

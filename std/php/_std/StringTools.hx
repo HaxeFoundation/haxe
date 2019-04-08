@@ -40,6 +40,10 @@ import php.*;
 		return Global.htmlspecialchars_decode(s, Const.ENT_QUOTES);
 	}
 
+	public inline static function contains(s : String, value : String) : Bool {
+		return s.indexOf(value) != -1;
+	}
+
 	public static function startsWith( s : String, start : String ) : Bool {
 		return start == '' || Global.strpos(s, start) == 0;
 	}
@@ -219,5 +223,4 @@ import php.*;
 			return argument;
 		}
 	}
-
 }

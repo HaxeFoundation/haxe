@@ -1,6 +1,6 @@
 package lua;
-enum
-abstract LocaleCategory(String){
+
+enum abstract LocaleCategory(String){
 	var All      = "all";
 	var Collate  = "collate";
 	var Ctype    = "ctype";

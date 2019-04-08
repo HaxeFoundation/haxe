@@ -1,7 +1,4 @@
-package unit;
-
-import haxe.ds.List;
-import haxe.macro.Expr;
+package unit.spec;
 
 typedef T = {
 	function func():Void;
@@ -48,26 +45,26 @@ typedef T = {
 
 class CChild extends C { }
 
-private class EmptyClass {
+class EmptyClass {
 	public function new() { }
 }
 
-@:keep private class ReallyEmptyClass { }
+@:keep class ReallyEmptyClass { }
 
-private class ClassWithToString {
+class ClassWithToString {
 	public function new() { }
 	public function toString() return "ClassWithToString.toString()";
 }
 
-private class ClassWithToStringChild extends ClassWithToString {
+class ClassWithToStringChild extends ClassWithToString {
 
 }
 
-private class ClassWithToStringChild2 extends ClassWithToString {
+class ClassWithToStringChild2 extends ClassWithToString {
 	public override function toString() return "ClassWithToStringChild2.toString()";
 }
 
-@:keep private class ClassWithCtorDefaultValues {
+@:keep class ClassWithCtorDefaultValues {
 	public var a : Null<Int>;
 	public var b : String;
 	public function new(a = 1, b = "foo") {
@@ -76,11 +73,11 @@ private class ClassWithToStringChild2 extends ClassWithToString {
 	}
 }
 
-private class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
+class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues {
 
 }
 
-@:keep private class ClassWithCtorDefaultValues2 {
+@:keep class ClassWithCtorDefaultValues2 {
 	public var a : Null<Float>;
 	public var b : String;
 	public function new(a = 1.1, b = "foo") {
@@ -89,12 +86,12 @@ private class ClassWithCtorDefaultValuesChild extends ClassWithCtorDefaultValues
 	}
 }
 
-private enum SomeEnum<T> {
+enum SomeEnum<T> {
 	NoArguments;
 	OneArgument(t:T);
 }
 
-private class IntWrap {
+class IntWrap {
 	public var i(default, null):Int;
 
 	public function new(i:Int) {
@@ -108,7 +105,7 @@ private class IntWrap {
 	}
 }
 
-private enum E {
+enum E {
 	NoArgs;
 	OneArg(i:Int);
 	RecArg(e:E);
@@ -154,11 +151,4 @@ class RttiClass3 extends RttiClass1 {
 	override function f():Int {
 		return 33;
 	}
-}
-
-#if !macro
-@:build(unit.UnitBuilder.build("src/unitstd"))
-#end
-class TestSpecification extends Test {
-
 }
