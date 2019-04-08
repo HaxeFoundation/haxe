@@ -30,13 +30,17 @@ class Flash {
 				Linux.requireAptPackages([
 					"libglib2.0", "libfreetype6"
 				]);
-				var majorVersion = getLatestFPVersion()[0];
-				runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
-				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					var majorVersion = getLatestFPVersion()[0];
+					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
+					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
-				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+				runCommand(playerCmd, ["-v"]);
 			case "Mac":
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
@@ -67,7 +71,11 @@ class Flash {
 		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
-				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
+				new Process(playerCmd, [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -116,4 +124,6 @@ class Flash {
 		if (!success)
 			fail();
 	}
+
+
 }
