@@ -86,6 +86,7 @@ let parse ctx code file =
 	let was_display = !in_display in
 	let was_display_file = !in_display_file in
 	let old_code = !code_ref in
+	let old_macro = !in_macro in
 	code_ref := code;
 	in_display := !display_position <> null_pos;
 	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
@@ -94,6 +95,7 @@ let parse ctx code file =
 		(fun () ->
 			restore_cache ();
 			in_display := was_display;
+			in_macro := old_macro;
 			in_display_file := was_display_file;
 			code_ref := old_code;
 		)
