@@ -37,7 +37,7 @@ class Cs {
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
 			case "Linux", "Mac":
-				runCommand("mono", [exe].concat(args));
+				runCommand("mono", ["--debug", exe].concat(args));
 			case "Windows":
 				runCommand(exe, args);
 		}
