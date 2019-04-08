@@ -1,8 +1,3 @@
-#if php
-// php's haxe.Utf8 uses mbstring
-if (php.Global.extension_loaded("mbstring")) {
-#end
-
 #if false
 // disabled tests with outside BMP chars (will be reenabled when we support them)
 var str = "あ𠀀い";
@@ -58,8 +53,4 @@ haxe.Utf8.validate("\xc0\xaf") == false; // redundant sequence
 haxe.Utf8.validate("\xed\xa0\x80") == false; // surrogate byte sequence
 haxe.Utf8.validate("\xed\xbf\xbf") == false; // surrogate byte sequence
 haxe.Utf8.validate("\xf4\x90\x80\x80") == false; // U+110000
-#end
-
-#if php
-}
 #end
