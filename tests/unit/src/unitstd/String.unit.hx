@@ -72,6 +72,11 @@ s.indexOf("oo") == 1;
 s.indexOf("o", 1) == 1;
 s.indexOf("o", 2) == 2;
 s.indexOf("o", 3) == -1;
+//s.indexOf("", -10) == 0;
+//s.indexOf("", 7) == 7; // see #8117
+//s.indexOf("", 8) == -1; // see #8117
+s.indexOf("r", 7) == -1;
+s.indexOf("r", 8) == -1;
 
 // lastIndexOf
 var s = "foofoofoobarbar";
