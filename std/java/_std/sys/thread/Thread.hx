@@ -22,15 +22,15 @@
 package sys.thread;
 import java.Lib;
 
-abstract Thread(ThreadHandle) {
-	inline function new(t:ThreadHandle)
+abstract Thread(NativeThread) {
+	inline function new(t:NativeThread)
 	{
 		this = t;
 	}
 
 	public static function create(callb:Void->Void):Thread
 	{
-		var ret = new ThreadHandle();
+		var ret = new NativeThread();
 		var t = new HaxeThread(ret, callb);
 		t.start();
 		return new Thread(ret);
@@ -38,7 +38,7 @@ abstract Thread(ThreadHandle) {
 
 	public static function current():Thread
 	{
-		return new Thread(ThreadHandle.getThread( java.lang.Thread.currentThread() ));
+		return new Thread(NativeThread.getThread( java.lang.Thread.currentThread() ));
 	}
 
 	public static function readMessage(block : Bool) : Dynamic
@@ -51,22 +51,22 @@ abstract Thread(ThreadHandle) {
 		this.sendMessage(msg);
 	}
 
-	private inline function getHandle():ThreadHandle {
+	private inline function getHandle():NativeThread {
 		return this;
 	}
 }
 
-@:native('haxe.java.vm.Thread') private class ThreadHandle
+@:native('haxe.java.vm.Thread') private class NativeThread
 {
-	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, ThreadHandle>();
+	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, NativeThread>();
 	@:private static var mainJavaThread = java.lang.Thread.currentThread();
 	@:private static var mainHaxeThread = {
-		var ret = new ThreadHandle();
+		var ret = new NativeThread();
 		javaThreadToHaxe.set(mainJavaThread, ret);
 		ret;
 	};
 
-	public static function getThread(jt:java.lang.Thread):ThreadHandle
+	public static function getThread(jt:java.lang.Thread):NativeThread
 	{
 		if (Std.is(jt, HaxeThread))
 		{
@@ -84,7 +84,7 @@ abstract Thread(ThreadHandle) {
 				ret = javaThreadToHaxe.get(jt);
 				if (ret == null)
 				{
-					ret = new ThreadHandle();
+					ret = new NativeThread();
 					javaThreadToHaxe.set(jt, ret);
 				}
 
@@ -109,13 +109,13 @@ abstract Thread(ThreadHandle) {
 @:native('haxe.java.vm.HaxeThread')
 private class HaxeThread extends java.lang.Thread
 {
-	public var threadObject(default, null):ThreadHandle;
+	public var threadObject(default, null):NativeThread;
 	private var runFunction:Void->Void;
 	@:overload override public function run():Void
 	{
 		runFunction();
 	}
-	public function new(hxThread:ThreadHandle, run:Void->Void)
+	public function new(hxThread:NativeThread, run:Void->Void)
 	{
 		super();
 		threadObject = hxThread;
