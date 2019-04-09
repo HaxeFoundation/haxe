@@ -50,7 +50,7 @@ abstract Thread(ThreadHandle) {
 	}
 
 	@:op(A == B)
-	public inline function equals(other:Thread):Bool {
+	inline function equals(other:Thread):Bool {
 		return getHandle() == other.getHandle();
 	}
 
