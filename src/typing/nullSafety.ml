@@ -1417,7 +1417,7 @@ class class_checker cls immediate_execution report  =
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
 				)
 				cls.cl_ordered_fields;
-			let rec check_unsafe_usage init_list e =
+			let rec check_unsafe_usage init_list safety_enabled e =
 				if Hashtbl.length init_list > 0 then
 					match e.eexpr with
 						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) ->
@@ -1427,13 +1427,17 @@ class class_checker cls immediate_execution report  =
 							checker#error ("Cannot use method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 						| TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) }, args) ->
 							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
-							List.iter (check_unsafe_usage init_list) args
-						| TConst TThis ->
+							List.iter (check_unsafe_usage init_list safety_enabled) args
+						| TConst TThis when safety_enabled ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| TLocal v when Hashtbl.mem this_vars v.v_id ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
+						| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) ->
+							iter (check_unsafe_usage init_list false) e
+						| TMeta ((Meta.NullSafety, _, _), e) ->
+							iter (check_unsafe_usage init_list true) e
 						| _ ->
-							iter (check_unsafe_usage init_list) e
+							iter (check_unsafe_usage init_list safety_enabled) e
 			in
 			let rec traverse init_list e =
 				(match e.eexpr with
@@ -1441,7 +1445,7 @@ class class_checker cls immediate_execution report  =
 						Hashtbl.remove init_list f.cf_name;
 						ignore (traverse init_list right_expr)
 					| TWhile (condition, body, DoWhile) ->
-						check_unsafe_usage init_list condition;
+						check_unsafe_usage init_list true condition;
 						ignore (traverse init_list body)
 					| TBlock exprs ->
 						List.iter (fun e -> ignore (traverse init_list e)) exprs
@@ -1455,7 +1459,7 @@ class class_checker cls immediate_execution report  =
 					| TVar (v, Some { eexpr = TConst TThis }) ->
 						Hashtbl.add this_vars v.v_id v
 					| _ ->
-						check_unsafe_usage init_list e
+						check_unsafe_usage init_list true e
 				);
 				init_list
 			in
