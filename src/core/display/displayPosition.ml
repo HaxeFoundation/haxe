@@ -6,7 +6,7 @@ let is_display_file file =
 	file <> "?" && Path.unique_full_path file = !display_position.pfile
 
 let encloses_position p_target p =
-	p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
+	p.pmin <> -1 && p.pmax <> -1 && p.pmin <= p_target.pmin && p.pmax >= p_target.pmax
 
 let encloses_position_gt p_target p =
 	p.pmin <= p_target.pmin && p.pmax > p_target.pmax
