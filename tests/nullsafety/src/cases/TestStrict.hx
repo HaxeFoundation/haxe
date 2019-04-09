@@ -146,6 +146,7 @@ class TestStrict {
 			initializedInAllBranchesOfConstructor = 'hello';
 		}
 		shouldFail(acceptThis(this));
+		@:nullSafety(Off) acceptThis(this);
 		var self = this;
 		shouldFail(acceptThis(self));
 		shouldFail(instanceMethod());

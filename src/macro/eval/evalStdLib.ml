@@ -973,12 +973,12 @@ module StdFile = struct
 
 	let write_out path content =
 		try
-	  		let ch = open_out_bin path in
-  			output_string ch content;
-  			close_out ch;
+			let ch = open_out_bin path in
+			output_string ch content;
+			close_out ch;
 			vnull
-		with Sys_error _ ->
-			exc_string ("Could not write file " ^ path)
+		with Sys_error s ->
+			exc_string s
 
 	let append = vfun2 (fun path binary ->
 		create_out path binary [Open_append]
