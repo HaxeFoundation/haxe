@@ -22,20 +22,51 @@
 package sys.thread;
 import java.Lib;
 
-@:coreApi
-@:native('haxe.java.vm.Thread') class Thread
-{
+abstract Thread(ThreadHandle) {
+	inline function new(t:ThreadHandle)
+	{
+		this = t;
+	}
 
-	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, sys.thread.Thread>();
+	public static function create(callb:Void->Void):Thread
+	{
+		var ret = new ThreadHandle();
+		var t = new HaxeThread(ret, callb);
+		t.start();
+		return new Thread(ret);
+	}
+
+	public static function current():Thread
+	{
+		return new Thread(ThreadHandle.getThread( java.lang.Thread.currentThread() ));
+	}
+
+	public static function readMessage(block : Bool) : Dynamic
+	{
+		return current().getHandle().messages.pop(block);
+	}
+
+	public inline function sendMessage(msg:Dynamic):Void
+	{
+		this.sendMessage(msg);
+	}
+
+	private inline function getHandle():ThreadHandle {
+		return this;
+	}
+}
+
+@:native('haxe.java.vm.Thread') private class ThreadHandle
+{
+	@:private static var javaThreadToHaxe = new haxe.ds.WeakMap<java.lang.Thread, ThreadHandle>();
 	@:private static var mainJavaThread = java.lang.Thread.currentThread();
 	@:private static var mainHaxeThread = {
-		var ret = new Thread();
+		var ret = new ThreadHandle();
 		javaThreadToHaxe.set(mainJavaThread, ret);
 		ret;
 	};
 
-
-	private static function getThread(jt:java.lang.Thread):Thread
+	public static function getThread(jt:java.lang.Thread):ThreadHandle
 	{
 		if (Std.is(jt, HaxeThread))
 		{
@@ -53,7 +84,7 @@ import java.Lib;
 				ret = javaThreadToHaxe.get(jt);
 				if (ret == null)
 				{
-					ret = new Thread();
+					ret = new ThreadHandle();
 					javaThreadToHaxe.set(jt, ret);
 				}
 
@@ -62,9 +93,9 @@ import java.Lib;
 		}
 	}
 
-	private var messages:Deque<Dynamic>;
+	public var messages:Deque<Dynamic>;
 
-  function new()
+	public function new()
 	{
 		this.messages = new Deque();
 	}
@@ -73,36 +104,18 @@ import java.Lib;
 	{
 		messages.add(msg);
 	}
-
-	public static function current():Thread
-	{
-		return getThread( java.lang.Thread.currentThread() );
-	}
-
-	public static function readMessage(block : Bool) : Dynamic
-	{
-		return current().messages.pop(block);
-	}
-
-	public static function create(callb:Void->Void):Thread
-	{
-		var ret = new Thread();
-		var t = new HaxeThread(ret, callb);
-		t.start();
-		return ret;
-	}
 }
 
 @:native('haxe.java.vm.HaxeThread')
 private class HaxeThread extends java.lang.Thread
 {
-	public var threadObject(default, null):Thread;
+	public var threadObject(default, null):ThreadHandle;
 	private var runFunction:Void->Void;
 	@:overload override public function run():Void
 	{
 		runFunction();
 	}
-	public function new(hxThread:Thread, run:Void->Void)
+	public function new(hxThread:ThreadHandle, run:Void->Void)
 	{
 		super();
 		threadObject = hxThread;
