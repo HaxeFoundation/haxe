@@ -2661,7 +2661,7 @@ module StdThread = struct
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
-		encode_instance key_sys_net_Thread ~kind:(IThread eval.thread)
+		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
 	)
 
 	let readMessage = vfun1 (fun blocking ->
@@ -3157,13 +3157,13 @@ let init_constructors builtins =
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
 			| _ -> assert false
 		);
-	add key_sys_net_Thread
+	add key_eval_vm_Thread
 		(fun vl -> match vl with
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
-				encode_instance key_sys_net_Thread ~kind:(IThread thread)
+				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> assert false
 		);
 	add key_sys_net_Mutex
@@ -3559,7 +3559,7 @@ let init_standard_library builtins =
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
 	] [];
-	init_fields builtins (["sys";"thread"],"Thread") [
+	init_fields builtins (["eval";"vm"],"NativeThread") [
 		"delay",StdThread.delay;
 		"exit",StdThread.exit;
 		"join",StdThread.join;
