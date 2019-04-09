@@ -45,6 +45,10 @@ abstract Thread(NativeThread) {
 		return NativeThread.readMessage(block);
 	}
 
+	public static inline function yield():Void {
+		NativeThread.yield();
+	}
+
 	@:op(A == B)
 	public inline function equals(other:Thread):Bool {
 		return getHandle().id() == other.getHandle().id();
