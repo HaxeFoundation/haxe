@@ -1267,6 +1267,11 @@ let make_modules ctx all_types =
 			Array.iter (fun p -> add m p.fmethod) o.pproto;
 			List.iter (fun (_,mid) -> add m mid) o.pbindings;
 			add_type m t
+		| HEnum e when e.ename = "" ->
+			(* this will generate a _lot_ of modules, maybe it would be nice to declare them on-the-fly instead *)
+			let tname = PMap.find t ctx.htypes in
+			let m = get_module ("hl/ctx/" ^ String.sub tname 8 (String.length tname - 8)) in
+			add_type m t
 		| HEnum e ->
 			let m = get_module (mk_name e.ename) in
 			add_type m t
