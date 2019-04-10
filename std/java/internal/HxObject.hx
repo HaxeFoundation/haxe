@@ -50,7 +50,7 @@ class DynamicObject extends HxObject
 	@:skipReflection var __hx_length:Int;
 	@:skipReflection var __hx_length_f:Int;
 
-	@:skipReflection static var __hx_toString_depth  = 0;
+	@:skipReflection static var __hx_toString_depth = 0;
 
 	@:overload public function new()
 	{
