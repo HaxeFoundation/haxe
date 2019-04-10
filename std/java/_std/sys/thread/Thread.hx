@@ -120,6 +120,5 @@ private class HaxeThread extends java.lang.Thread
 		super();
 		threadObject = hxThread;
 		runFunction = run;
-		setDaemon(true);
 	}
 }
