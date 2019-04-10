@@ -26,23 +26,20 @@ package sys.thread;
 @:coreType
 private abstract ThreadHandle {}
 
-@:coreApi
-class Thread {
-	var handle(default, null):ThreadHandle;
-
-	function new(h:ThreadHandle):Void {
-		handle = h;
+abstract Thread(ThreadHandle) {
+	inline function new(h:ThreadHandle):Void {
+		this = h;
 	}
 
-	public function sendMessage(msg:Dynamic):Void {
-		untyped __global__.__hxcpp_thread_send(handle, msg);
+	public inline function sendMessage(msg:Dynamic):Void {
+		untyped __global__.__hxcpp_thread_send(this, msg);
 	}
 
-	public static function current():Thread {
+	public static inline function current():Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_current());
 	}
 
-	public static function create(callb:Void->Void):Thread {
+	public static inline function create(callb:Void->Void):Thread {
 		return new Thread(untyped __global__.__hxcpp_thread_create(callb));
 	}
 
@@ -50,7 +47,12 @@ class Thread {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}
 
-	@:keep function __compare(t:Thread):Int {
-		return handle == t.handle ? 0 : 1;
+	@:op(A == B)
+	public inline function equals(other:Thread):Bool {
+		return getHandle() == other.getHandle();
+	}
+
+	private inline function getHandle():ThreadHandle {
+		return this;
 	}
 }

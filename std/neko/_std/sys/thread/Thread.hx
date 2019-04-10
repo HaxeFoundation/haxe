@@ -26,34 +26,36 @@ package sys.thread;
 @:coreType
 private abstract ThreadHandle {}
 
-@:coreApi
-class Thread {
-	var handle:ThreadHandle;
-
-	function new(h:ThreadHandle):Void {
-		handle = h;
+abstract Thread(ThreadHandle) {
+	inline function new(h:ThreadHandle):Void {
+		this = h;
 	}
 
-	public function sendMessage(msg:Dynamic):Void {
-		thread_send(handle, msg);
+	public inline function sendMessage(msg:Dynamic):Void {
+		thread_send(this, msg);
 	}
 
-	public static function current():Thread {
+	public static inline function current():Thread {
 		return new Thread(thread_current());
 	}
 
-	public static function create(callb:Void->Void):Thread {
+	public static inline function create(callb:Void->Void):Thread {
 		return new Thread(thread_create(function(_) {
 			return callb();
 		}, null));
 	}
 
-	public static function readMessage(block:Bool):Dynamic {
+	public static inline function readMessage(block:Bool):Dynamic {
 		return thread_read_message(block);
 	}
 
-	@:keep function __compare(t:Dynamic):Int {
-		return untyped __dollar__compare(handle, t.handle);
+	@:op(A == B)
+	inline function equals(other:Thread):Bool {
+		return getHandle() == other.getHandle();
+	}
+
+	private inline function getHandle():ThreadHandle {
+		return this;
 	}
 
 	/**
