@@ -650,14 +650,6 @@ and gen_expr ctx e =
 	| TEnumParameter (e,_,i) ->
 		gen_value ctx e;
 		print ctx ".params[%i]" i;
-	| TField (e, ((FDynamic "iterator") | (FAnon { cf_name = "iterator" }))) when is_const_string e ->
-		print ctx "new haxe.iterators.StringIterator(";
-		gen_value ctx e;
-		print ctx ")"
-	| TField (e, ((FDynamic "keyValueIterator") | (FAnon { cf_name = "keyValueIterator" }))) when is_const_string e ->
-		print ctx "new haxe.iterators.StringKeyValueIterator(";
-		gen_value ctx e;
-		print ctx ")"
 	| TField (e,s) ->
 		gen_value ctx e;
 		gen_field_access ctx e.etype (field_name s)
@@ -719,6 +711,14 @@ and gen_expr ctx e =
 		gen_expr ctx f.tf_expr;
 		ctx.in_static <- old;
 		h();
+	| TCall ({ eexpr = TField (e, ((FDynamic "iterator") | (FAnon { cf_name = "iterator" }))) }, []) when is_const_string e ->
+		print ctx "new haxe.iterators.StringIterator(";
+		gen_value ctx e;
+		print ctx ")"
+	| TCall ({ eexpr = TField (e, ((FDynamic "keyValueIterator") | (FAnon { cf_name = "keyValueIterator" }))) }, []) when is_const_string e ->
+		print ctx "new haxe.iterators.StringKeyValueIterator(";
+		gen_value ctx e;
+		print ctx ")"
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->

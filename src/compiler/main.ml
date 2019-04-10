@@ -814,12 +814,12 @@ try
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
 	if !Lexer.old_format && !Parser.in_display then begin
-		let p = !DisplayPosition.display_position in
+		let p = DisplayPosition.display_position#get in
 		(* convert byte position to utf8 position *)
 		try
 			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
 			let pos = UTF8.length (String.sub content 0 p.pmin) in
-			DisplayPosition.display_position := { p with pmin = pos; pmax = pos }
+			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
 		with _ ->
 			() (* ignore *)
 	end;
@@ -1003,11 +1003,13 @@ with
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
 	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
-		begin match ctx.com.json_out with
-		| Some (f,_) ->
-			let ctx = DisplayJson.create_json_context (match de with DisplayFields _ -> true | _ -> false) in
-			f (DisplayException.to_json ctx de)
-		| _ -> assert false
+		begin
+			DisplayPosition.display_position#reset;
+			match ctx.com.json_out with
+			| Some (f,_) ->
+				let ctx = DisplayJson.create_json_context (match de with DisplayFields _ -> true | _ -> false) in
+				f (DisplayException.to_json ctx de)
+			| _ -> assert false
 		end
 	(* | Parser.TypePath (_,_,_,p) when ctx.com.json_out <> None ->
 		begin match com.json_out with
@@ -1019,8 +1021,10 @@ with
 		| _ -> assert false
 		end *)
 	| DisplayException(DisplayPackage pack) ->
+		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (String.concat "." pack))
 	| DisplayException(DisplayFields(fields,cr,_)) ->
+		DisplayPosition.display_position#reset;
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
@@ -1050,14 +1054,17 @@ with
 		in
 		raise (DisplayOutput.Completion s)
 	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
+		DisplayPosition.display_position#reset;
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
 	| DisplayException(DisplaySignatures(signatures,_,display_arg,_)) ->
+		DisplayPosition.display_position#reset;
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
 	| DisplayException(DisplayPosition pl) ->
+		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import,pos) ->
 		let fields =
@@ -1089,6 +1096,7 @@ with
 		DisplayOutput.handle_syntax_completion com kind pos;
 		error ctx ("Error: No completion point was found") null_pos
 	| DisplayException(ModuleSymbols s | Diagnostics s | Statistics s | Metadata s) ->
+		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion s)
 	| EvalExceptions.Sys_exit i | Hlinterp.Sys_exit i ->
 		ctx.flush();

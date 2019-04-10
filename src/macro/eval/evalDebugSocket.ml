@@ -440,15 +440,15 @@ module ValueCompletion = struct
 	let get_completion ctx text column env =
 		let p = { pmin = 0; pmax = 0; pfile = "" } in
 		let save =
-			let old = !Parser.display_mode,!DisplayPosition.display_position in
+			let old = !Parser.display_mode,DisplayPosition.display_position#get in
 			(fun () ->
 				Parser.display_mode := fst old;
-				DisplayPosition.display_position := snd old;
+				DisplayPosition.display_position#set (snd old);
 			)
 		in
 		Parser.display_mode := DMDefault;
 		let offset = column + (String.length "class X{static function main() ") - 1 (* this is retarded *) in
-		DisplayPosition.display_position := {p with pmin = offset; pmax = offset};
+		DisplayPosition.display_position#set {p with pmin = offset; pmax = offset};
 		begin try
 			let e = parse_expr ctx text p in
 			let e = Display.ExprPreprocessing.find_before_pos DMDefault e in

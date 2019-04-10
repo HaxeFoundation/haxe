@@ -1126,12 +1126,12 @@ let make_types_idents htypes =
 	let make_sign d =
 		String.sub (Digest.to_hex (Digest.bytes (Marshal.to_bytes d [Marshal.Compat_32]))) 0 7
 	in
-	let desc_string d =
+	let rec desc_string d =
 		match d with
 		| DSimple (HNull t) ->
 			"$t_nul_" ^ tstr t
 		| DSimple (HRef t) ->
-			"$t_ref_" ^ tstr t
+			"$t_ref_" ^ (match make_desc t with DSimple _ -> tstr t | d -> desc_string d)
 		| DSimple t ->
 			"$t_" ^ tstr t
 		| DFun _ ->

@@ -140,7 +140,7 @@ let reset_state () =
 	in_display := false;
 	was_auto_triggered := false;
 	display_mode := DMNone;
-	display_position := null_pos;
+	display_position#reset;
 	in_macro := false;
 	had_resume := false;
 	code_ref := Sedlexing.Utf8.from_string "";
@@ -193,11 +193,11 @@ let type_path sl in_import p = match sl with
 
 let would_skip_display_position p1 s =
 	if !in_display_file then match Stream.npeek 1 s with
-		| [ (_,p2) ] -> encloses_display_position (punion p1 p2)
+		| [ (_,p2) ] -> display_position#enclosed_in (punion p1 p2)
 		| _ -> false
 	else false
 
-let cut_pos_at_display p = { p with pmax = !display_position.pmax }
+let cut_pos_at_display p = display_position#cut p
 
 let is_dollar_ident e = match fst e with
 	| EConst (Ident n) when starts_with n '$' ->
@@ -293,7 +293,7 @@ let is_signature_display () =
 	!display_mode = DMSignature
 
 let check_resume p fyes fno =
-	if is_completion () && !in_display_file && p.pmax = !display_position.pmin then begin
+	if is_completion () && !in_display_file && p.pmax = (display_position#get).pmin then begin
 		had_resume := true;
 		fyes()
 	end else
@@ -302,7 +302,7 @@ let check_resume p fyes fno =
 let check_resume_range p s fyes fno =
 	if is_completion () && !in_display_file then begin
 		let pnext = next_pos s in
-		if p.pmin < !display_position.pmin && pnext.pmin >= !display_position.pmax then
+		if p.pmin < (display_position#get).pmin && pnext.pmin >= (display_position#get).pmax then
 			fyes pnext
 		else
 			fno()
@@ -334,8 +334,8 @@ let check_type_decl_completion mode pmax s =
 			| Some tk -> (pos tk).pmin
 		in
 		(* print_endline (Printf.sprintf "(%i <= %i) (%i >= %i)" pmax !display_position.pmin pmin !display_position.pmax); *)
-		if pmax <= !display_position.pmin && pmin >= !display_position.pmax then
-			delay_syntax_completion (SCTypeDecl mode) !display_position
+		if pmax <= (display_position#get).pmin && pmin >= (display_position#get).pmax then
+			delay_syntax_completion (SCTypeDecl mode) display_position#get
 	end
 
 let check_signature_mark e p1 p2 =
@@ -343,10 +343,10 @@ let check_signature_mark e p1 p2 =
 	else begin
 		let p = punion p1 p2 in
 		if true || not !was_auto_triggered then begin (* TODO: #6383 *)
-			if encloses_position_gt !display_position p then (mk_display_expr e DKMarked)
+			if encloses_position_gt display_position#get p then (mk_display_expr e DKMarked)
 			else e
 		end else begin
-			if !display_position.pmin = p1.pmax then (mk_display_expr e DKMarked)
+			if (display_position#get).pmin = p1.pmax then (mk_display_expr e DKMarked)
 			else e
 		end
 	end

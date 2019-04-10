@@ -43,7 +43,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	in
 	begin match !Parser.display_mode,parse_result with
 		| DMModuleSymbols (Some ""),_ -> ()
-		| DMModuleSymbols filter,(ParseSuccess data | ParseDisplayFile(data,_)) when filter = None && DisplayPosition.is_display_file file ->
+		| DMModuleSymbols filter,(ParseSuccess data | ParseDisplayFile(data,_)) when filter = None && DisplayPosition.display_position#is_in_file file ->
 			let ds = DocumentSymbols.collect_module_symbols (filter = None) data in
 			DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com [file,ds] filter);
 		| _ ->
@@ -59,7 +59,7 @@ let parse_file_from_string com file p string =
 let current_stdin = ref None (* TODO: we're supposed to clear this at some point *)
 
 let parse_file com file p =
-	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.is_display_file file in
+	let use_stdin = (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file in
 	if use_stdin then
 		let s =
 			match !current_stdin with

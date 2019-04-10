@@ -1,3 +1,5 @@
+package cases;
+
 @:build(Validator.checkFields())
 class TestSafeFieldInUnsafeClass {
 	@:nullSafety

@@ -1436,7 +1436,7 @@ and type_vars ctx vl p =
 			if starts_with v '$' then display_error ctx "Variables names starting with a dollar are not allowed" p;
 			let v = add_local_with_origin ctx TVOLocalVariable v t pv in
 			if final then v.v_final <- true;
-			if ctx.in_display && DisplayPosition.encloses_display_position pv then
+			if ctx.in_display && DisplayPosition.display_position#enclosed_in pv then
 				DisplayEmitter.display_variable ctx v pv;
 			v,e
 		with
@@ -1457,7 +1457,7 @@ and format_string ctx s p =
 	let min = ref (p.pmin + 1) in
 	let add_expr (enext,p) len =
 		min := !min + len;
-		let enext = if ctx.in_display && DisplayPosition.encloses_display_position p then
+		let enext = if ctx.in_display && DisplayPosition.display_position#enclosed_in p then
 			Display.ExprPreprocessing.process_expr ctx.com (enext,p)
 		else
 			enext,p
@@ -1611,7 +1611,7 @@ and type_object_decl ctx fl with_type p =
 					| None ->
 						let cf = PMap.find n field_map in
 						if (has_class_field_flag cf CfFinal) then is_final := true;
-						if ctx.in_display && DisplayPosition.encloses_display_position pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
+						if ctx.in_display && DisplayPosition.display_position#enclosed_in pn then DisplayEmitter.display_field ctx Unknown CFSMember cf pn;
 						cf.cf_type
 				in
 				let e = type_expr ctx e (WithType.with_structure_field t n) in
@@ -1650,7 +1650,7 @@ and type_object_decl ctx fl with_type p =
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
-			if ctx.in_display && DisplayPosition.encloses_display_position pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
+			if ctx.in_display && DisplayPosition.display_position#enclosed_in pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
 			(((f,pf,qs),e) :: l, if is_valid then begin
 				if starts_with f '$' then error "Field names starting with a dollar are not allowed" p;
 				PMap.add f cf acc
@@ -1842,12 +1842,12 @@ and type_try ctx e1 catches with_type p =
 		check_unreachable acc1 t2 (pos e_ast);
 		let locals = save_locals ctx in
 		let v = add_local_with_origin ctx TVOCatchVariable v t pv in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position pv then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pv then
 			DisplayEmitter.display_variable ctx v pv;
 		let e = type_expr ctx e_ast with_type in
 		(* If the catch position is the display position it means we get completion on the catch keyword or some
 		   punctuation. Otherwise we wouldn't reach this point. *)
-		if ctx.is_display_file && DisplayPosition.encloses_display_position pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in pc then ignore(TyperDisplay.display_expr ctx e_ast e DKMarked with_type pc);
 		v.v_type <- t2;
 		locals();
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;

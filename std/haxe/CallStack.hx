@@ -210,7 +210,7 @@ class CallStack {
 			}
 			return stack;
 		#elseif cs
-			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
+			return cs.internal.Exceptions.exception == null ? [] : makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
 		#elseif python
 			var stack = [];
 			var exc = python.lib.Sys.exc_info();

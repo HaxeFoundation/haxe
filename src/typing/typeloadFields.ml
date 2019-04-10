@@ -492,7 +492,7 @@ let create_field_context (ctx,cctx) c cff =
 		is_macro = is_macro;
 		is_extern = !is_extern;
 		is_final = !is_final;
-		is_display_field = ctx.is_display_file && DisplayPosition.encloses_display_position cff.cff_pos;
+		is_display_field = ctx.is_display_file && DisplayPosition.display_position#enclosed_in cff.cff_pos;
 		is_field_debug = cctx.is_class_debug || Meta.has (Meta.Custom ":debug.typeload") cff.cff_meta;
 		display_modifier = display_modifier;
 		is_abstract_member = cctx.abstract <> None && Meta.has Meta.Impl cff.cff_meta;
@@ -1105,7 +1105,7 @@ let create_method (ctx,cctx,fctx) c f fd p =
 				else
 					ignore(TypeloadFunction.process_function_arg ctx n t ct fctx.is_display_field pn)
 				end;
-				if fctx.is_display_field && DisplayPosition.encloses_display_position pn then begin
+				if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pn then begin
 					let v = add_local_with_origin ctx TVOArgument n t pn in
 					DisplayEmitter.display_variable ctx v pn;
 				end
@@ -1213,7 +1213,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "get",pget ->
 			let get = "get_" ^ name in
-			if fctx.is_display_field && DisplayPosition.encloses_display_position pget then delay ctx PTypeField (fun () -> display_accessor get pget);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pget then delay ctx PTypeField (fun () -> display_accessor get pget);
 			if not cctx.is_lib then delay_check (fun() -> check_method get t_get);
 			AccCall
 		| _,pget ->
@@ -1232,7 +1232,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		| "default",_ -> AccNormal
 		| "set",pset ->
 			let set = "set_" ^ name in
-			if fctx.is_display_field && DisplayPosition.encloses_display_position pset then delay ctx PTypeField (fun () -> display_accessor set pset);
+			if fctx.is_display_field && DisplayPosition.display_position#enclosed_in pset then delay ctx PTypeField (fun () -> display_accessor set pset);
 			if not cctx.is_lib then delay_check (fun() -> check_method set t_set);
 			AccCall
 		| _,pset ->

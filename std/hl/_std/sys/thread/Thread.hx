@@ -22,15 +22,6 @@
 
 package sys.thread;
 
-#if doc_gen
-@:coreApi
-extern class Thread {
-	public function sendMessage(msg:Dynamic):Void;
-	public static function current():Thread;
-	public static function create(callb:Void->Void):Thread;
-	public static function readMessage(block:Bool):Dynamic;
-}
-#else
 typedef ThreadHandle = hl.Abstract<"hl_thread">;
 
 abstract Thread(ThreadHandle) {
@@ -75,4 +66,3 @@ abstract Thread(ThreadHandle) {
 		return null;
 	}
 }
-#end

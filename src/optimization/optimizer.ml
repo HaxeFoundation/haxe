@@ -645,7 +645,7 @@ let optimize_completion_expr e args =
 			let el = List.fold_left (fun acc e ->
 				typing_side_effect := false;
 				let e = loop e in
-				if !typing_side_effect || DisplayPosition.encloses_display_position (pos e) then begin told := true; e :: acc end else acc
+				if !typing_side_effect || DisplayPosition.display_position#enclosed_in (pos e) then begin told := true; e :: acc end else acc
 			) [] el in
 			old();
 			typing_side_effect := !told;
@@ -696,11 +696,11 @@ let optimize_completion_expr e args =
 		| EReturn _ ->
 			typing_side_effect := true;
 			map e
-		| ESwitch (e1,cases,def) when DisplayPosition.encloses_display_position p ->
+		| ESwitch (e1,cases,def) when DisplayPosition.display_position#enclosed_in p ->
 			let e1 = loop e1 in
 			hunt_idents e1;
 			(* Prune all cases that aren't our display case *)
-			let cases = List.filter (fun (_,_,_,p) -> DisplayPosition.encloses_display_position p) cases in
+			let cases = List.filter (fun (_,_,_,p) -> DisplayPosition.display_position#enclosed_in p) cases in
 			(* Don't throw away the switch subject when we optimize in a case expression because we might need it *)
 			let cases = List.map (fun (el,eg,eo,p) ->
 				List.iter hunt_idents el;
@@ -741,10 +741,10 @@ let optimize_completion_expr e args =
 				(n,pn), (t,pt), e, p
 			) cl in
 			(ETry (et,cl),p)
-		| ECall(e1,el) when DisplayPosition.encloses_display_position p ->
+		| ECall(e1,el) when DisplayPosition.display_position#enclosed_in p ->
 			let e1 = loop e1 in
 			let el = List.map (fun e ->
-				if DisplayPosition.encloses_display_position (pos e) then
+				if DisplayPosition.display_position#enclosed_in (pos e) then
 					(try loop e with Return e -> e)
 				else
 					(EConst (Ident "null"),(pos e))
