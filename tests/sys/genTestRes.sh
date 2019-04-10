@@ -9,7 +9,20 @@ cd "$SCRIPTPATH"
 mkdir -p test-res
 
 # generate files with Unicode data
-printf "\x01\n\x7F\n\xC2\x80\n\xDF\xBF\n\xE0\xA0\x80\n\xED\x9F\xBF\n\xEE\x80\x80\n\xEF\xBF\xBD\n\xEF\xBF\xBF\n\x0\x90\x80\x80\n\xF0\x9F\xBF\xBF\n\xF3\xBF\xBF\xBF\n\xF4\x80\x80\x80\n\xF4\x8F\xBF\xBF\n\xC8\xA7\n\x61\n\x62\n\x63\n\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99" > "test-res/data.bin"
+# disabled non-BMP: \n\xF0\x9F\xBF\xBF\n\xF3\xBF\xBF\xBF\n\xF4\x80\x80\x80\n\xF4\x8F\xBF\xBF
+printf "\x01\n"\
+"\x7F\n"\
+"\xC2\x80\n"\
+"\xDF\xBF\n"\
+"\xE0\xA0\x80\n"\
+"\xED\x9F\xBF\n"\
+"\xEE\x80\x80\n"\
+"\xEF\xBF\xBD\n"\
+"\xC8\xA7\n"\
+"\x61\n"\
+"\x62\n"\
+"\x63\n"\
+"\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99" > "test-res/data.bin"
 
 function gen() { # fill a directory with files or directories
     GEN_CMD="cp $SCRIPTPATH/test-res/data.bin "
@@ -47,23 +60,28 @@ function gen() { # fill a directory with files or directories
     # U+FFFD  EF BF BD
     $GEN_CMD `printf "\xEF\xBF\xBD"`
     
+    # these are actually invalid
+    # U+FFFE  EF BF BE
     # U+FFFF  EF BF BF
-    $GEN_CMD `printf "\xEF\xBF\xBF"`
+    #$GEN_CMD `printf "\xEF\xBF\xBE"`
+    #$GEN_CMD `printf "\xEF\xBF\xBF"`
+    
+    # non-BMP (disabled for the time being)
     
     # U+10000 F0 90 80 80
-    $GEN_CMD `printf "\x0\x90\x80\x80"`
+    #$GEN_CMD `printf "\xF0\x90\x80\x80"`
     
     # U+1FFFF F0 9F BF BF
-    $GEN_CMD `printf "\xF0\x9F\xBF\xBF"`
+    #$GEN_CMD `printf "\xF0\x9F\xBF\xBF"`
     
     # U+FFFFF F3 BF BF BF
-    $GEN_CMD `printf "\xF3\xBF\xBF\xBF"`
+    #$GEN_CMD `printf "\xF3\xBF\xBF\xBF"`
     
     # U+100000 F4 80 80 80
-    $GEN_CMD `printf "\xF4\x80\x80\x80"`
+    #$GEN_CMD `printf "\xF4\x80\x80\x80"`
     
     # U+10FFFF F4 8F BF BF
-    $GEN_CMD `printf "\xF4\x8F\xBF\xBF"`
+    #$GEN_CMD `printf "\xF4\x8F\xBF\xBF"`
     
     # NFC / NFD
     
@@ -76,10 +94,10 @@ function gen() { # fill a directory with files or directories
     # U+0061  61
     $GEN_CMD `printf "\x61"`
     
-    # U+0061  62
+    # U+0062  62
     $GEN_CMD `printf "\x62"`
     
-    # U+0061  63
+    # U+0063  63
     $GEN_CMD `printf "\x63"`
     
     # U+1F602 F0 9F 98 82
