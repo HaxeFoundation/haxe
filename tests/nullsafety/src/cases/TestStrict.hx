@@ -1,6 +1,5 @@
 package cases;
 
-import TestSafeFieldInUnsafeClass;
 import Validator.shouldFail;
 
 private enum DummyEnum {

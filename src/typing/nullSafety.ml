@@ -1300,8 +1300,9 @@ class expr_checker mode immediate_execution report =
 	end
 
 class class_checker cls immediate_execution report  =
+	let cls_meta = cls.cl_meta @ (match cls.cl_kind with KAbstractImpl a -> a.a_meta | _ -> []) in
 	object (self)
-			val is_safe_class = safety_enabled cls.cl_meta
+			val is_safe_class = (safety_enabled cls_meta)
 			val mutable checker = new expr_checker SMLoose immediate_execution report
 			val mutable mode = None
 		(**
@@ -1315,14 +1316,14 @@ class class_checker cls immediate_execution report  =
 			let check_field is_static f =
 				(* if f.cf_name = "wtf_foo" then
 					Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
-				match (safety_mode (cls.cl_meta @ f.cf_meta)) with
+				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
 						Option.may ((self#get_checker mode)#check_root_expr) f.cf_expr;
 						self#check_accessors is_static f
 			in
 			if is_safe_class then
-				Option.may ((self#get_checker (safety_mode cls.cl_meta))#check_root_expr) cls.cl_init;
+				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
 			Option.may (check_field false) cls.cl_constructor;
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
@@ -1363,7 +1364,7 @@ class class_checker cls immediate_execution report  =
 			match mode with
 				| Some mode -> mode
 				| None ->
-					let m = safety_mode cls.cl_meta in
+					let m = safety_mode cls_meta in
 					mode <- Some m;
 					m
 		(**
