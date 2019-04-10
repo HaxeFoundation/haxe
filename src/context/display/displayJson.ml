@@ -66,7 +66,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = file;
 			pmin = pos;
 			pmax = pos;
