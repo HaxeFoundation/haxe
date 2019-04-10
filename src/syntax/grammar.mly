@@ -186,7 +186,7 @@ and parse_type_decl mode s =
 		| [< n , p1 = parse_class_flags; name = type_name; tl = parse_constraint_params >] ->
 			let rec loop had_display p0 acc =
 				let check_display p1 =
-					if not had_display && !in_display_file && encloses_display_position p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
+					if not had_display && !in_display_file && display_position#enclosed_in p1 then syntax_completion (if List.mem HInterface n then SCInterfaceRelation else SCClassRelation) p0
 				in
 				match s with parser
 				| [< '(Kwd Extends,p1); t,b = parse_type_path_or_resume p1 >] ->
@@ -313,7 +313,7 @@ and parse_using s p1 =
 
 and parse_abstract_relations s =
 	let check_display p1 (ct,p2) =
-		if !in_display_file && p1.pmax < !display_position.pmin && p2.pmin >= !display_position.pmax then
+		if !in_display_file && p1.pmax < (display_position#get).pmin && p2.pmin >= (display_position#get).pmax then
 			(* This means we skipped the display position between the to/from and the type-hint we parsed.
 			   Very weird case, it was probably a {} like in #7137. Let's discard it and use magic. *)
 			((CTPath magic_type_path,p2))
@@ -904,7 +904,7 @@ and parse_constraint_param s =
 and parse_type_path_or_resume p1 s =
 	let pnext = next_pos s in
 	let check_resume exc =
-		if !in_display_file && encloses_display_position (punion p1 pnext) then
+		if !in_display_file && display_position#enclosed_in (punion p1 pnext) then
 			(magic_type_path,punion_next p1 s),true
 		else
 			raise exc

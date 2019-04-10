@@ -88,8 +88,8 @@ let parse ctx code file =
 	let old_code = !code_ref in
 	let old_macro = !in_macro in
 	code_ref := code;
-	in_display := !display_position <> null_pos;
-	in_display_file := !in_display && Path.unique_full_path file = !display_position.pfile;
+	in_display := display_position#get <> null_pos;
+	in_display_file := !in_display && Path.unique_full_path file = (display_position#get).pfile;
 	syntax_errors := [];
 	let restore =
 		(fun () ->
@@ -117,7 +117,7 @@ let parse ctx code file =
 			if l > 0 && s.[0] = '*' then last_doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)), (snd tk).pmin);
 			tk
 		| CommentLine s ->
-			if !in_display_file && encloses_display_position (pos tk) then syntax_completion SCComment (pos tk);
+			if !in_display_file && display_position#enclosed_in (pos tk) then syntax_completion SCComment (pos tk);
 			next_token()
 		| Sharp "end" ->
 			(match !mstack with
@@ -209,7 +209,7 @@ let parse ctx code file =
 let parse_string com s p error inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
-	let old_display = !display_position in
+	let old_display = display_position#get in
 	let old_in_display_file = !in_display_file in
 	let old_syntax_errors = !syntax_errors in
 	syntax_errors := [];
@@ -218,7 +218,7 @@ let parse_string com s p error inlined =
 		| None -> ()
 		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
 		if not inlined then begin
-			display_position := old_display;
+			display_position#set old_display;
 			in_display_file := old_in_display_file;
 		end;
 		syntax_errors := old_syntax_errors;
@@ -226,7 +226,7 @@ let parse_string com s p error inlined =
 	in
 	Lexer.init p.pfile true;
 	if not inlined then begin
-		display_position := null_pos;
+		display_position#reset;
 		in_display_file := false;
 	end;
 	let result = try

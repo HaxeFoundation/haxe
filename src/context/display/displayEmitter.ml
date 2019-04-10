@@ -180,7 +180,7 @@ let check_display_type ctx t p =
 		md.m_type_hints <- (p,t) :: md.m_type_hints;
 	in
 	let maybe_display_type () =
-		if ctx.is_display_file && encloses_display_position p then
+		if ctx.is_display_file && display_position#enclosed_in p then
 			display_type ctx t p
 	in
 	add_type_hint();
@@ -239,7 +239,7 @@ let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
 	| _ -> ()
 
 let maybe_display_field ctx origin scope cf p =
-	if encloses_display_position p then display_field ctx origin scope cf p
+	if display_position#enclosed_in p then display_field ctx origin scope cf p
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
 	| DMDefinition -> raise_position [ef.ef_name_pos]
@@ -271,9 +271,9 @@ let display_meta com meta p = match com.display.dms_kind with
 
 let check_display_metadata ctx meta =
 	List.iter (fun (meta,args,p) ->
-		if encloses_display_position p then display_meta ctx.com meta p;
+		if display_position#enclosed_in p then display_meta ctx.com meta p;
 		List.iter (fun e ->
-			if encloses_display_position (pos e) then begin
+			if display_position#enclosed_in (pos e) then begin
 				let e = ExprPreprocessing.process_expr ctx.com e in
 				delay ctx PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
@@ -282,7 +282,7 @@ let check_display_metadata ctx meta =
 
 let check_field_modifiers ctx c cf override display_modifier =
 	match override,display_modifier with
-		| Some p,_ when encloses_display_position p && ctx.com.display.dms_kind = DMDefinition ->
+		| Some p,_ when display_position#enclosed_in p && ctx.com.display.dms_kind = DMDefinition ->
 			begin match c.cl_super with
 			| Some(c,tl) ->
 				let _,_,cf = raw_class_field (fun cf -> cf.cf_type) c tl cf.cf_name in
