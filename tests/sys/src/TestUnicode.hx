@@ -114,8 +114,17 @@ class TestUnicode extends utest.Test {
 	}
 
 	function testFileSystem() {
-		function normalEither(f:String->Bool, expected:Bool, path:String):Void {
-			for (filename in names) Assert.equals(switch (filename) {
+		function normalBoth(f:String->Void, path:String, ?useNames:Array<Filename>):Void {
+			for (filename in (useNames != null ? useNames : names)) switch (filename) {
+				case Only(codepointsToString(_) => ref):
+				f('$path/$ref');
+				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+				f('$path/$nfc');
+				f('$path/$nfd');
+			}
+		}
+		function assertNormalEither(f:String->Bool, expected:Bool, path:String, ?useNames:Array<Filename>):Void {
+			for (filename in (useNames != null ? useNames : names)) Assert.equals(switch (filename) {
 				case Only(codepointsToString(_) => ref): f('$path/$ref');
 				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
 				f('$path/$nfc') || f('$path/$nfd');
@@ -123,12 +132,30 @@ class TestUnicode extends utest.Test {
 		}
 
 		// exists
-		normalEither(sys.FileSystem.exists, true, 'test-res/a');
-		normalEither(sys.FileSystem.exists, true, 'test-res/b');
+		assertNormalEither(sys.FileSystem.exists, true, 'test-res/a');
+		assertNormalEither(sys.FileSystem.exists, true, 'test-res/b');
+
+		// fullPath
+		normalBoth(path -> {
+				if (!sys.FileSystem.exists(path)) return; // NFC/NFD differences
+				for (symlink in [
+						{name: "bin-cpp", target: "/bin/cpp/Main-debug"},
+						{name: "bin-cs", target: "/bin/cs/bin/Main-Debug.exe"},
+						{name: "bin-hl", target: "/bin/hl/sys.hl"},
+						{name: "bin-java", target: "/bin/java/Main-Debug.jar"},
+						{name: "bin-neko", target: "/bin/neko/sys.n"},
+						{name: "bin-php", target: "/bin/php/Main"},
+						{name: "bin-py", target: "/bin/python/sys.py"}
+					]) Assert.stringContains(
+						symlink.target,
+						sys.FileSystem.fullPath('$path/${symlink.name}'),
+						'symlink $path/${symlink.name} not resolved correctly'
+					);
+			}, "test-res");
 
 		// isDirectory
-		normalEither(sys.FileSystem.isDirectory, true, 'test-res/a');
-		normalEither(sys.FileSystem.isDirectory, false, 'test-res/b');
+		assertNormalEither(sys.FileSystem.isDirectory, true, 'test-res/a');
+		assertNormalEither(sys.FileSystem.isDirectory, false, 'test-res/b');
 
 		// readDirectory
 		sameFiles(sys.FileSystem.readDirectory("test-res"), namesRoot);
@@ -136,8 +163,8 @@ class TestUnicode extends utest.Test {
 		sameFiles(sys.FileSystem.readDirectory("test-res/b"), names);
 
 		// stat
-		normalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/a');
-		normalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/b');
+		assertNormalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/a');
+		assertNormalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/b');
 	}
 #end
 }
