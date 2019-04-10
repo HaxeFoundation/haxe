@@ -34,10 +34,6 @@ class TestUnicode extends utest.Test {
 		//Only([0xFFFFF]),
 		//Only([0x100000]),
 		//Only([0x10FFFF]),
-		// some readable comparison cases
-		Only([0x0061]),
-		Only([0x0062]),
-		Only([0x0063]),
 		Only([0x1F602, 0x1F604, 0x1F619])
 	].concat([
 		// NFC / NFD
@@ -45,6 +41,9 @@ class TestUnicode extends utest.Test {
 	]);
 
 	static var namesRoot = names.concat([
+		// extra files in the root test-res directory
+		Only([0x0061]), // a
+		Only([0x0062]), // b
 		Only([0x64, 0x61, 0x74, 0x61, 0x2E, 0x62, 0x69, 0x6E]) // data.bin
 	]);
 
@@ -95,13 +94,31 @@ class TestUnicode extends utest.Test {
 	}
 
 #if (target.unicode)
+	function testSys() {
+#if !(java)
+		// setCwd + getCwd
+		Sys.setCwd("test-res");
+		function enterLeave(dir:String):Void {
+			Sys.setCwd(dir);
+			Assert.isTrue(StringTools.endsWith(Sys.getCwd(), '/test-res/${dir}'));
+			Sys.setCwd("..");
+		}
+		for (filename in names) switch (filename) {
+			case Only(codepointsToString(_) => ref): enterLeave(ref);
+			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+			if (sys.FileSystem.exists(nfc)) enterLeave(nfc);
+			if (sys.FileSystem.exists(nfd)) enterLeave(nfd);
+		}
+		Sys.setCwd("..");
+#end
+	}
+
 	function testFileSystem() {
 		function normalEither(f:String->Bool, expected:Bool, path:String):Void {
 			for (filename in names) Assert.equals(switch (filename) {
-				case Only(ref): f('$path/${codepointsToString(ref)}');
-				case Normal(nfc, nfd):
-				f('$path/${codepointsToString(nfc)}')
-				|| f('$path/${codepointsToString(nfd)}');
+				case Only(codepointsToString(_) => ref): f('$path/$ref');
+				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+				f('$path/$nfc') || f('$path/$nfd');
 			}, expected, 'expecting $expected for $filename in $path');
 		}
 
