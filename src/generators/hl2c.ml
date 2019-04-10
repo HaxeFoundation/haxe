@@ -1260,6 +1260,7 @@ let make_modules ctx all_types =
 		let path = (match path with [name] -> ["_std";name] | _ -> path) in
 		String.concat "/" path
 	in
+	let all_contexts = ref [] in
 	Array.iter (fun t ->
 		match t with
 		| HObj o | HStruct o ->
@@ -1268,10 +1269,7 @@ let make_modules ctx all_types =
 			List.iter (fun (_,mid) -> add m mid) o.pbindings;
 			add_type m t
 		| HEnum e when e.ename = "" ->
-			(* this will generate a _lot_ of modules, maybe it would be nice to declare them on-the-fly instead *)
-			let tname = PMap.find t ctx.htypes in
-			let m = get_module ("hl/ctx/" ^ String.sub tname 8 (String.length tname - 8)) in
-			add_type m t
+			all_contexts := t :: !all_contexts
 		| HEnum e ->
 			let m = get_module (mk_name e.ename) in
 			add_type m t
@@ -1305,9 +1303,33 @@ let make_modules ctx all_types =
 		in
 		m.m_functions <- get_deps [] m.m_functions
 	) !all_modules;
+	let contexts = ref PMap.empty in
 	Array.iter (fun f ->
-		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> assert false | Some f -> f.ftype)
+		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> assert false | Some f -> f.ftype);
+		(* assign context to function module *)
+		match f.fe_args with
+		| (HEnum e) as t :: _ when e.ename = "" ->
+			(try
+				let r = PMap.find t !contexts in
+				(match r with
+				| None -> ()
+				| Some m when (match f.fe_module with Some m2 -> m == m2 | _ -> false) -> ()
+				| _ -> contexts := PMap.add t None !contexts) (* multiple contexts *)
+			with Not_found ->
+				contexts := PMap.add t f.fe_module !contexts)
+		| _ -> ()
 	) ctx.ftable;
+	List.iter (fun t ->
+		let m = (try PMap.find t !contexts with Not_found -> None) in
+		let m = (match m with
+			| None ->
+				let tname = PMap.find t ctx.htypes in
+				get_module ("hl/ctx/" ^ String.sub tname 8 (String.length tname - 8))
+			| Some m ->
+				m
+		) in
+		add_type m t
+	) (List.rev !all_contexts);
 	!all_modules
 
 let generate_module_types ctx m =
