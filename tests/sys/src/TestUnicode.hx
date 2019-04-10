@@ -93,29 +93,36 @@ class TestUnicode extends utest.Test {
 		return [ for (codepoint in ref) String.fromCharCode(codepoint) ].join("");
 	}
 
+	function assertEnds(actual:String, expected:String, ?alt:String):Void {
+		Assert.isTrue(
+			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
+			'expected $actual to end with $expected' + (alt != null ? ' or $alt' : "")
+		);
+	}
+
 #if (target.unicode)
 	function testSys() {
 #if !(java)
 		// setCwd + getCwd
 		Sys.setCwd("test-res");
-		function enterLeave(dir:String):Void {
+		function enterLeave(dir:String, ?alt:String):Void {
 			Sys.setCwd(dir);
-			Assert.isTrue(StringTools.endsWith(Sys.getCwd(), '/test-res/${dir}'));
+			assertEnds(Sys.getCwd(), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
 			Sys.setCwd("..");
 		}
 		for (filename in names) switch (filename) {
 			case Only(codepointsToString(_) => ref): enterLeave(ref);
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-			if (sys.FileSystem.exists(nfc)) enterLeave(nfc);
-			if (sys.FileSystem.exists(nfd)) enterLeave(nfd);
+			if (sys.FileSystem.exists(nfc)) enterLeave(nfc, nfd);
+			if (sys.FileSystem.exists(nfd)) enterLeave(nfd, nfc);
 		}
 		Sys.setCwd("..");
 #end
 	}
 
 	function testFileSystem() {
-		function normalBoth(f:String->Void, path:String, ?useNames:Array<Filename>):Void {
-			for (filename in (useNames != null ? useNames : names)) switch (filename) {
+		function normalBoth(f:String->Void, path:String):Void {
+			for (filename in names) switch (filename) {
 				case Only(codepointsToString(_) => ref):
 				f('$path/$ref');
 				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
@@ -123,17 +130,56 @@ class TestUnicode extends utest.Test {
 				f('$path/$nfd');
 			}
 		}
-		function assertNormalEither(f:String->Bool, expected:Bool, path:String, ?useNames:Array<Filename>):Void {
-			for (filename in (useNames != null ? useNames : names)) Assert.equals(switch (filename) {
+		function assertNormalEither(f:String->Bool, path:String, ?msg:String):Void {
+			for (filename in names) Assert.isTrue(switch (filename) {
 				case Only(codepointsToString(_) => ref): f('$path/$ref');
 				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
 				f('$path/$nfc') || f('$path/$nfd');
-			}, expected, 'expecting $expected for $filename in $path');
+			}, '$msg ($filename in $path)');
 		}
 
+		// absolutePath
+		normalBoth(path -> {
+				if (!sys.FileSystem.exists(path)) return; // NFC/NFD differences
+				for (relative in [
+						{path: '../$path', end: '${path}'},
+						{path: 'foo', end: '${path}/foo'},
+						{path: "..", end: "test-res"},
+						{path: "./././././", end: path},
+						{path: "./..", end: "test-res"},
+						{path: "./čýžé", end: '${path}/čýžé'},
+						{path: "./čýžé/", end: '${path}/čýžé'},
+						{path: "./../čýžé", end: 'test-res/čýžé'},
+						{path: "./../čýžé/", end: 'test-res/čýžé'},
+					]) assertEnds(
+						sys.FileSystem.absolutePath('$path/${relative.path}'),
+						relative.end
+					);
+			}, "test-res");
+#if !(java)
+		assertNormalEither(path -> {
+				if (!sys.FileSystem.exists(path)) return false; // NFC/NFD differences
+				Sys.setCwd(path);
+				var ret = true;
+				for (relative in [
+						{path: '../$path', end: '${path}'},
+						{path: 'foo', end: '${path}/foo'},
+						{path: "..", end: "test-res"},
+						{path: "./././././", end: path},
+						{path: "./..", end: "test-res"},
+						{path: "./čýžé", end: '${path}/čýžé'},
+						{path: "./čýžé/", end: '${path}/čýžé'},
+						{path: "./../čýžé", end: 'test-res/čýžé'},
+						{path: "./../čýžé/", end: 'test-res/čýžé'},
+					]) if (!StringTools.endsWith(sys.FileSystem.absolutePath('${relative.path}'), relative.end)) ret = false;
+				Sys.setCwd("../..");
+				return ret;
+			}, "test-res", "setCwd + absolutePath + endsWith failed");
+#end
+
 		// exists
-		assertNormalEither(sys.FileSystem.exists, true, 'test-res/a');
-		assertNormalEither(sys.FileSystem.exists, true, 'test-res/b');
+		assertNormalEither(sys.FileSystem.exists, 'test-res/a', 'expected exists == true');
+		assertNormalEither(sys.FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
 		normalBoth(path -> {
@@ -146,16 +192,15 @@ class TestUnicode extends utest.Test {
 						{name: "bin-neko", target: "/bin/neko/sys.n"},
 						{name: "bin-php", target: "/bin/php/Main"},
 						{name: "bin-py", target: "/bin/python/sys.py"}
-					]) Assert.stringContains(
-						symlink.target,
+					]) assertEnds(
 						sys.FileSystem.fullPath('$path/${symlink.name}'),
-						'symlink $path/${symlink.name} not resolved correctly'
+						symlink.target
 					);
 			}, "test-res");
 
 		// isDirectory
-		assertNormalEither(sys.FileSystem.isDirectory, true, 'test-res/a');
-		assertNormalEither(sys.FileSystem.isDirectory, false, 'test-res/b');
+		assertNormalEither(sys.FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
+		assertNormalEither(path -> !sys.FileSystem.isDirectory(path), 'test-res/b', 'expected isDirectory == false');
 
 		// readDirectory
 		sameFiles(sys.FileSystem.readDirectory("test-res"), namesRoot);
@@ -163,8 +208,8 @@ class TestUnicode extends utest.Test {
 		sameFiles(sys.FileSystem.readDirectory("test-res/b"), names);
 
 		// stat
-		assertNormalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/a');
-		assertNormalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/b');
+		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
+		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
 	}
 #end
 }
