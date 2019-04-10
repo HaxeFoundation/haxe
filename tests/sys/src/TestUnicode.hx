@@ -96,7 +96,13 @@ class TestUnicode extends utest.Test {
 	function assertEnds(actual:String, expected:String, ?alt:String):Void {
 		Assert.isTrue(
 			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
+#if cpp
+			// printing the strings directly makes cpp crash?
+			'expected ${unicodeCodepoints(actual)} to end with ${unicodeCodepoints(expected)}'
+			+ (alt != null ? ' or ${unicodeCodepoints(alt)}' : "")
+#else
 			'expected $actual to end with $expected' + (alt != null ? ' or $alt' : "")
+#end
 		);
 	}
 
@@ -156,6 +162,7 @@ class TestUnicode extends utest.Test {
 						relative.end
 					);
 			}, "test-res");
+
 #if !(java)
 		assertNormalEither(path -> {
 				if (!sys.FileSystem.exists(path)) return false; // NFC/NFD differences
