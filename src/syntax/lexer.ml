@@ -48,7 +48,7 @@ let error_msg = function
 	| Unclosed_comment -> "Unclosed comment"
 	| Unclosed_code -> "Unclosed code string"
 	| Invalid_escape (c,None) -> Printf.sprintf "Invalid escape sequence \\%s" (Char.escaped c)
-	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s: %s" (Char.escaped c) msg
+	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
 	| Unterminated_markup -> "Unterminated markup literal"
 
