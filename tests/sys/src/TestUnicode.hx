@@ -8,6 +8,13 @@ private enum Filename {
 }
 
 class TestUnicode extends utest.Test {
+	// list of filenames expected to NOT exist
+	static var nonExistentNames:Array<Filename> = [
+		// Java escapes
+		Only([0x0025, 0x0030 , 0x0001]), // %01
+		Only([0x0025, 0x0037 , 0x0046]) // %7F
+	];
+
 	// list of expected filenames in Unicode codepoint sequences
 	static var names:Array<Filename> = [
 		// boundary conditions
@@ -83,11 +90,37 @@ class TestUnicode extends utest.Test {
 		return [ for (codepoint in str.unicodeIterator()) codepoint ];
 	}
 
-	function testFileSystem() {
+	function codepointsToString(ref:Array<Int>):String {
+		return [ for (codepoint in ref) String.fromCharCode(codepoint) ].join("");
+	}
+
 #if (target.unicode)
+	function testFileSystem() {
+		function normalEither(f:String->Bool, expected:Bool, path:String):Void {
+			for (filename in names) Assert.equals(switch (filename) {
+				case Only(ref): f('$path/${codepointsToString(ref)}');
+				case Normal(nfc, nfd):
+				f('$path/${codepointsToString(nfc)}')
+				|| f('$path/${codepointsToString(nfd)}');
+			}, expected, 'expecting $expected for $filename in $path');
+		}
+
+		// exists
+		normalEither(sys.FileSystem.exists, true, 'test-res/a');
+		normalEither(sys.FileSystem.exists, true, 'test-res/b');
+
+		// isDirectory
+		normalEither(sys.FileSystem.isDirectory, true, 'test-res/a');
+		normalEither(sys.FileSystem.isDirectory, false, 'test-res/b');
+
+		// readDirectory
 		sameFiles(sys.FileSystem.readDirectory("test-res"), namesRoot);
 		sameFiles(sys.FileSystem.readDirectory("test-res/a"), names);
 		sameFiles(sys.FileSystem.readDirectory("test-res/b"), names);
-#end
+
+		// stat
+		normalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/a');
+		normalEither(path -> sys.FileSystem.stat(path) != null, true, 'test-res/b');
 	}
+#end
 }
