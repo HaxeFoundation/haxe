@@ -6,6 +6,9 @@
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 cd "$SCRIPTPATH"
 
+# delete previous, if any
+[[ -e test-res ]] && rm -rf test-res
+
 mkdir -p test-res
 
 # generate files with Unicode data
@@ -116,7 +119,7 @@ function symLinkFill() { # symlinks used to test programPath and fullPath
     ln -s ../../bin/cpp/Main-debug bin-cpp
     ln -s ../../bin/cs/bin/Main-Debug.exe bin-cs
     ln -s ../../bin/hl/sys.hl bin-hl
-    ln -s ../../bin/java/Main-Debug.jar bin-java
+    ln -s ../../bin/java/UtilityProcess-Debug.jar bin-java
     ln -s ../../bin/neko/sys.n bin-neko
     ln -s ../../bin/php/Main bin-php
     ln -s ../../bin/python/sys.py bin-py
