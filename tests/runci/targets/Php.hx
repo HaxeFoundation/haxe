@@ -33,16 +33,17 @@ class Php {
 
 		var binDir = "bin/php";
 
-		runCommand("haxe", ["compile-php.hxml"].concat(args));
-		runCommand("php", [binDir + "/index.php"]);
+		for(prefix in [[], ['-D', 'php-prefix=haxe'], ['-D', 'php-prefix=my.pack']]) {
+			changeDirectory(unitDir);
+			deleteDirectoryRecursively(binDir);
 
-		deleteDirectoryRecursively(binDir);
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
+			runCommand("php", [binDir + "/index.php"]);
 
-		runCommand("haxe", ["compile-php.hxml", "-D", "php-prefix=haxe"].concat(args));
-		runCommand("php", [binDir + "/index.php"]);
-
-		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-php.hxml"]);
-		runCommand("php", ["bin/php/Main/index.php"]);
+			changeDirectory(sysDir);
+			deleteDirectoryRecursively(binDir);
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
+			runCommand("php", ["bin/php/Main/index.php"]);
+		}
 	}
 }
