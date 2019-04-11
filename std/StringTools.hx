@@ -514,7 +514,7 @@ class StringTools {
 	**/
 	@:noCompletion
 	@:deprecated('StringTools.winMetaCharacters is deprecated. Use haxe.SysTools.winMetaCharacters instead.')
-	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
+	public static var winMetaCharacters:Array<Int> = cast haxe.SysTools.winMetaCharacters;
 
 	/**
 		Returns a String that can be used as a single command line argument

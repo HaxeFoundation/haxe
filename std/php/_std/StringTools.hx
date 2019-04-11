@@ -133,7 +133,7 @@ import php.*;
 
 	@:noCompletion
 	@:deprecated('StringTools.winMetaCharacters is deprecated. Use haxe.SysTools.winMetaCharacters instead.')
-	public static var winMetaCharacters = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
+	public static var winMetaCharacters:Array<Int> =  cast haxe.SysTools.winMetaCharacters;
 
 	@:noCompletion
 	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.')
