@@ -3,6 +3,12 @@ package haxe;
 import haxe.ds.ReadOnlyArray;
 
 class SysTools {
+
+	/**
+		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
+	**/
+	public static final winMetaCharacters:ReadOnlyArray<Int> = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
+
 	/**
 		Tells if `c` represents the end-of-file (EOF) character.
 	**/
@@ -39,11 +45,6 @@ class SysTools {
 		// the string $'b is then quoted as '$'"'"'b'
 		return "'" + StringTools.replace(argument, "'", "'\"'\"'") + "'";
 	}
-
-	/**
-		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
-	**/
-	public static final winMetaCharacters:ReadOnlyArray<Int> = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
 		Returns a String that can be used as a single command line argument
