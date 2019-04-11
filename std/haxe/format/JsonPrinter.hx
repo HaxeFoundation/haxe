@@ -195,7 +195,7 @@ class JsonPrinter {
 		var i = 0;
 		while( true ) {
 			var c = StringTools.fastCodeAt(s, i++);
-			if( StringTools.isEof(c) ) break;
+			if( SysTools.isEofChar(c) ) break;
 			switch( c ) {
 			case '"'.code: add('\\"');
 			case '\\'.code: add('\\\\');

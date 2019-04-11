@@ -144,7 +144,7 @@ class Parser
 			parent.addChild(xml);
 			nsubs++;
 		}
-		while (!StringTools.isEof(c))
+		while (!SysTools.isEofChar(c))
 		{
 			switch(state)
 			{

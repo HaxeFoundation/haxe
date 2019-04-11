@@ -23,6 +23,7 @@
 import php.*;
 import sys.io.FileOutput;
 import sys.io.FileInput;
+import haxe.SysTools;
 
 @:coreApi class Sys {
 	/** Environment variables set by `Sys.putEnv()` */
@@ -85,10 +86,10 @@ import sys.io.FileInput;
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
+						SysTools.quoteWinArg(a, true)
 					].join(" ");
 				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 			}
 		}
 		var result = Boot.deref(0);

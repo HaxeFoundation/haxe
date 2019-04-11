@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
  package cs.db;
+import haxe.SysTools;
 import sys.db.*;
 import cs.system.data.*;
 
@@ -142,9 +143,9 @@ private class AdoConnection implements Connection
 		var chr = 0,
 				i = 0;
 		inline function getch() return chr = StringTools.fastCodeAt(s,i++);
-		while ( !StringTools.isEof(getch()) )
+		while ( !SysTools.isEofChar(getch()) )
 		{
-			inline function peek() { var c = StringTools.fastCodeAt(s,i); if (StringTools.isEof(c)) break; return c; }
+			inline function peek() { var c = StringTools.fastCodeAt(s,i); if (SysTools.isEofChar(c)) break; return c; }
 			switch(chr)
 			{
 				case ' '.code | '\t'.code | '\n'.code:
@@ -153,14 +154,14 @@ private class AdoConnection implements Connection
 				case '-'.code if (peek() == '-'.code):
 					if (hasData)
 						return buf.toString();
-					while (!StringTools.isEof(getch()))
+					while (!SysTools.isEofChar(getch()))
 					{
 						if (chr == '\n'.code) break;
 					}
 				case '#'.code:
 					if (hasData)
 						return buf.toString();
-					while (!StringTools.isEof(getch()))
+					while (!SysTools.isEofChar(getch()))
 					{
 						if (chr == '\n'.code) break;
 					}
@@ -168,7 +169,7 @@ private class AdoConnection implements Connection
 					i++;
 					if (hasData)
 						return buf.toString();
-					while (!StringTools.isEof(getch()))
+					while (!SysTools.isEofChar(getch()))
 					{
 						if (chr == '*'.code && peek() == '/'.code)
 						{
