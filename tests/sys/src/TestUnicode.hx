@@ -160,16 +160,28 @@ class TestUnicode extends utest.Test {
 		return [ for (codepoint in ref) String.fromCharCode(codepoint) ].join("");
 	}
 
-	function assertEnds(actual:String, expected:String, ?alt:String):Void {
-		Assert.isTrue(
-			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
+	function showUString(str:String):String {
+		return
 #if cpp
 			// printing the strings directly makes cpp crash?
-			'expected ${unicodeCodepoints(actual)} to end with ${unicodeCodepoints(expected)}'
-			+ (alt != null ? ' or ${unicodeCodepoints(alt)}' : "")
+			'${unicodeCodepoints(str)}';
 #else
-			'expected $actual to end with $expected' + (alt != null ? ' or $alt' : "")
+			str;
 #end
+	}
+
+	function assertUEnds(actual:String, expected:String, ?alt:String):Void {
+		Assert.isTrue(
+			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
+			'expected ${showUString(actual)} to end with ${showUString(expected)}'
+			+ (alt != null ? ' or ${showUString(alt)}' : "")
+		);
+	}
+
+	function assertUEquals(actual:String, expected:String, ?msg:String):Void {
+		Assert.equals(
+			expected, actual,
+			'expected ${showUString(actual)} to be ${showUString(expected)}'
 		);
 	}
 
@@ -254,7 +266,7 @@ class TestUnicode extends utest.Test {
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
 			Sys.setCwd(dir);
-			assertEnds(Sys.getCwd(), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
+			assertUEnds(Sys.getCwd(), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
 			Sys.setCwd("..");
 		}
 		for (filename in names) switch (filename) {
@@ -269,7 +281,7 @@ class TestUnicode extends utest.Test {
 		// programPath
 #if !(java) // Java resolves symlinked jars
 		pathBoth(path -> {
-				assertEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
+				assertUEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
 			}, "test-res");
 #end
 
@@ -285,7 +297,7 @@ class TestUnicode extends utest.Test {
 						{path: "./čýžé/", end: '${path}/čýžé'},
 						{path: "./../čýžé", end: 'test-res/čýžé'},
 						{path: "./../čýžé/", end: 'test-res/čýžé'},
-					]) assertEnds(
+					]) assertUEnds(
 						sys.FileSystem.absolutePath('$path/${relative.path}'),
 						relative.end
 					);
@@ -326,7 +338,7 @@ class TestUnicode extends utest.Test {
 						{name: "bin-neko", target: "/bin/neko/sys.n"},
 						{name: "bin-php", target: "/bin/php/Main"},
 						{name: "bin-py", target: "/bin/python/sys.py"}
-					]) assertEnds(
+					]) assertUEnds(
 						sys.FileSystem.fullPath('$path/${symlink.name}'),
 						symlink.target
 					);
@@ -349,18 +361,30 @@ class TestUnicode extends utest.Test {
 	function testIO() {
 		// readLine
 		normalBoth(str -> {
-				Assert.equals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
 			});
 
 		// readString
 		normalBoth(str -> {
-				Assert.equals(runUtility(["stdin.readString", '${str.length}'], {stdin: '$str'}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readString", '${str.length}'], {stdin: '$str'}).stdout, '$str\n');
 			});
 
 		// readUntil
 		normalBoth(str -> {
 				// make sure the byte is not part of the test string 
-				Assert.equals(runUtility(["stdin.readUntil", "112"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readUntil", "112"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
+			});
+
+		// stdout
+		normalBoth(str -> {
+				// make sure the byte is not part of the test string 
+				assertUEquals(runUtility(["stdout.writeString", str]).stdout, '$str\n');
+			});
+
+		// stderr
+		normalBoth(str -> {
+				// make sure the byte is not part of the test string 
+				assertUEquals(runUtility(["stderr.writeString", str]).stdout, '$str\n');
 			});
 	}
 #end
