@@ -8,6 +8,73 @@ private enum Filename {
 }
 
 class TestUnicode extends utest.Test {
+	static var BIN_PATH =
+#if cpp
+		"bin/cpp";
+#elseif cs
+		"bin/cs/bin";
+#elseif hl
+		"bin/hl";
+#elseif java
+		"bin/java";
+#elseif neko
+		"bin/neko";
+#elseif php
+		"bin/php";
+#elseif python
+		"bin/python";
+#else
+		null;
+#end
+	static var BIN_NAME =
+#if cpp
+		#if debug
+			"UtilityProcess-debug";
+		#else
+			"UtilityProcess";
+		#end
+#elseif cs
+		#if debug
+			"UtilityProcess-Debug.exe";
+		#else
+			"UtilityProcess.exe";
+		#end
+#elseif hl
+		"UtilityProcess.hl";
+#elseif java
+		#if debug
+			"UtilityProcess-Debug.jar";
+		#else
+			"UtilityProcess.jar";
+		#end
+#elseif neko
+		"UtilityProcess.n";
+#elseif php
+		"UtilityProcess/index.php";
+#elseif python
+		"UtilityProcess.py";
+#else
+		null;
+#end
+	static var BIN_SYMLINK =
+#if cpp
+		"bin-cpp";
+#elseif cs
+		"bin-cs";
+#elseif hl
+		"bin-hl";
+#elseif java
+		"bin-java";
+#elseif neko
+		"bin-neko";
+#elseif php
+		"bin-php";
+#elseif python
+		"bin-py";
+#else
+		null;
+#end
+
 	// list of filenames expected to NOT exist
 	static var nonExistentNames:Array<Filename> = [
 		// Java escapes
@@ -106,8 +173,82 @@ class TestUnicode extends utest.Test {
 		);
 	}
 
+	function normalBoth(f:String->Void):Void {
+		for (filename in names) switch (filename) {
+			case Only(codepointsToString(_) => ref): f(ref);
+			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+			f(nfc);
+			f(nfd);
+		}
+	}
+
+	function pathBoth(f:String->Void, path:String, ?skipNonExistent:Bool = true):Void {
+		for (filename in names) switch (filename) {
+			case Only(codepointsToString(_) => ref):
+			f('$path/$ref');
+			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+			if (sys.FileSystem.exists('$path/$nfc') || !skipNonExistent) f('$path/$nfc');
+			if (sys.FileSystem.exists('$path/$nfd') || !skipNonExistent) f('$path/$nfd');
+		}
+	}
+
+	function assertNormalEither(f:String->Bool, path:String, ?msg:String):Void {
+		for (filename in names) Assert.isTrue(switch (filename) {
+			case Only(codepointsToString(_) => ref): f('$path/$ref');
+			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+			f('$path/$nfc') || f('$path/$nfd');
+		}, '$msg ($filename in $path)');
+	}
+
+	function runUtility(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):{
+		exitCode:Int,
+		stdout:String,
+		stderr:String
+	} {
+		if (options == null) options = {};
+		if (options.execPath == null) options.execPath = BIN_PATH;
+		if (options.execName == null) options.execName = BIN_NAME;
+		var execFull = '${options.execPath}/${options.execName}';
+		var proc =
+		#if (macro || interp)
+		new sys.io.Process("haxe", ["compile-each.hxml", "--run", execFull].concat(args));
+		#elseif cpp
+		new sys.io.Process(execFull, args);
+		#elseif cs
+		(switch (Sys.systemName()) {
+			case "Windows":
+				new sys.io.Process(execFull, args);
+			case _:
+				new sys.io.Process("mono", [execFull].concat(args));
+		});
+		#elseif java
+		new sys.io.Process(haxe.io.Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", execFull].concat(args));
+		#elseif python
+		new sys.io.Process(python.lib.Sys.executable, [execFull].concat(args));
+		#elseif neko
+		new sys.io.Process("neko", [execFull].concat(args));
+		#elseif hl
+		new sys.io.Process("hl", [execFull].concat(args));
+		#elseif php
+		new sys.io.Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
+		#elseif lua
+		new sys.io.Process("lua", [execFull].concat(args));
+		#else
+		null;
+		#end
+		if (options.stdin != null) {
+			proc.stdin.writeString(options.stdin);
+			proc.stdin.flush();
+		}
+		return {
+			exitCode: proc.exitCode(),
+			stdout: proc.stdout.readAll().toString(),
+			stderr: proc.stderr.readAll().toString()
+		};
+	}
+
 #if (target.unicode)
-	function testSys() {
+	function testPaths() {
 #if !(java)
 		// setCwd + getCwd
 		Sys.setCwd("test-res");
@@ -124,29 +265,16 @@ class TestUnicode extends utest.Test {
 		}
 		Sys.setCwd("..");
 #end
-	}
 
-	function testFileSystem() {
-		function normalBoth(f:String->Void, path:String):Void {
-			for (filename in names) switch (filename) {
-				case Only(codepointsToString(_) => ref):
-				f('$path/$ref');
-				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-				f('$path/$nfc');
-				f('$path/$nfd');
-			}
-		}
-		function assertNormalEither(f:String->Bool, path:String, ?msg:String):Void {
-			for (filename in names) Assert.isTrue(switch (filename) {
-				case Only(codepointsToString(_) => ref): f('$path/$ref');
-				case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-				f('$path/$nfc') || f('$path/$nfd');
-			}, '$msg ($filename in $path)');
-		}
+		// programPath
+#if !(java) // Java resolves symlinked jars
+		pathBoth(path -> {
+				assertEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
+			}, "test-res");
+#end
 
 		// absolutePath
-		normalBoth(path -> {
-				if (!sys.FileSystem.exists(path)) return; // NFC/NFD differences
+		pathBoth(path -> {
 				for (relative in [
 						{path: '../$path', end: '${path}'},
 						{path: 'foo', end: '${path}/foo'},
@@ -189,13 +317,12 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(sys.FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
-		normalBoth(path -> {
-				if (!sys.FileSystem.exists(path)) return; // NFC/NFD differences
+		pathBoth(path -> {
 				for (symlink in [
 						{name: "bin-cpp", target: "/bin/cpp/Main-debug"},
 						{name: "bin-cs", target: "/bin/cs/bin/Main-Debug.exe"},
 						{name: "bin-hl", target: "/bin/hl/sys.hl"},
-						{name: "bin-java", target: "/bin/java/Main-Debug.jar"},
+						{name: "bin-java", target: "/bin/java/UtilityProcess-Debug.jar"},
 						{name: "bin-neko", target: "/bin/neko/sys.n"},
 						{name: "bin-php", target: "/bin/php/Main"},
 						{name: "bin-py", target: "/bin/python/sys.py"}
@@ -217,6 +344,24 @@ class TestUnicode extends utest.Test {
 		// stat
 		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
 		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
+	}
+
+	function testIO() {
+		// readLine
+		normalBoth(str -> {
+				Assert.equals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
+			});
+
+		// readString
+		normalBoth(str -> {
+				Assert.equals(runUtility(["stdin.readString", '${str.length}'], {stdin: '$str'}).stdout, '$str\n');
+			});
+
+		// readUntil
+		normalBoth(str -> {
+				// make sure the byte is not part of the test string 
+				Assert.equals(runUtility(["stdin.readUntil", "112"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
+			});
 	}
 #end
 }
