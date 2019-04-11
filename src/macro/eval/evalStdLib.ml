@@ -862,6 +862,8 @@ module StdEReg = struct
 		with Not_found ->
 			this.r_groups <- [||];
 			vfalse
+		| Pcre.Error _ ->
+			exc_string "PCRE Error (invalid unicode string?)"
 	)
 
 	let matched = vifun1 (fun vthis n ->
