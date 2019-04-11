@@ -433,6 +433,13 @@ class Boot {
 		if (type == null) return false;
 
 		var phpType = type.phpClassName;
+		#if php_prefix
+			var prefix = getPrefix();
+			if(Global.substr(phpType, 0, Global.strlen(prefix) + 1) == '$prefix\\') {
+				phpType = Global.substr(phpType, Global.strlen(prefix) + 1);
+			}
+		#end
+
 		switch (phpType) {
 			case 'Dynamic':
 				return value != null;
@@ -454,7 +461,7 @@ class Boot {
 				return value.is_string();
 			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
-			case 'Enum', 'Class':
+			case 'Enum' | 'Class':
 				if (Std.is(value, HxClass)) {
 					var valuePhpClass = (cast value:HxClass).phpClassName;
 					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;

@@ -30,8 +30,16 @@ class Php {
 
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
+
+		var binDir = "bin/php";
+
 		runCommand("haxe", ["compile-php.hxml"].concat(args));
-		runCommand("php", ["bin/php/index.php"]);
+		runCommand("php", [binDir + "/index.php"]);
+
+		deleteDirectoryRecursively(binDir);
+
+		runCommand("haxe", ["compile-php.hxml", "-D", "php-prefix=haxe"].concat(args));
+		runCommand("php", [binDir + "/index.php"]);
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-php.hxml"]);
