@@ -185,6 +185,13 @@ class TestUnicode extends utest.Test {
 		);
 	}
 
+	function normalNFC(f:String->Void):Void {
+		for (filename in names) switch (filename) {
+			case Only(codepointsToString(_) => ref): f(ref);
+			case Normal(codepointsToString(_) => nfc, _): f(nfc);
+		}
+	}
+
 	function normalBoth(f:String->Void):Void {
 		for (filename in names) switch (filename) {
 			case Only(codepointsToString(_) => ref): f(ref);
@@ -359,17 +366,17 @@ class TestUnicode extends utest.Test {
 	}
 
 	function testIO() {
-		// readLine
+		// stdin.readLine
 		normalBoth(str -> {
 				assertUEquals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
 			});
 
-		// readString
+		// stdin.readString
 		normalBoth(str -> {
 				assertUEquals(runUtility(["stdin.readString", '${str.length}'], {stdin: '$str'}).stdout, '$str\n');
 			});
 
-		// readUntil
+		// stdin.readUntil
 		normalBoth(str -> {
 				// make sure the byte is not part of the test string 
 				assertUEquals(runUtility(["stdin.readUntil", "112"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
@@ -385,6 +392,13 @@ class TestUnicode extends utest.Test {
 		normalBoth(str -> {
 				// make sure the byte is not part of the test string 
 				assertUEquals(runUtility(["stderr.writeString", str]).stdout, '$str\n');
+			});
+
+		// readLine
+		var data = sys.io.File.read("test-res/data.bin");
+		normalNFC(str -> {
+				var line = data.readLine();
+				assertUEquals(line, str);
 			});
 	}
 #end
