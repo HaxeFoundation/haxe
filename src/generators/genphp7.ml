@@ -200,7 +200,7 @@ let rec follow = Abstract.follow_with_abstracts
 
 let prefix = ref None
 (**
-	Returns value of `--php-prefix` compiler flag
+	Returns value of `-D php-prefix` compiler flag
 *)
 let get_php_prefix ctx =
 	match !prefix with
@@ -219,8 +219,8 @@ let get_php_prefix ctx =
 			lst
 
 (**
-	Adds packages specified by `--php-prefix` to `type_path`.
-	E.g. if `--php-prefix some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
+	Adds packages specified by `-D php-prefix` to `type_path`.
+	E.g. if `-D php-prefix=some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
 	will return `(["some", "sub", "pack"], "MyClass")`
 *)
 let add_php_prefix ctx type_path =
@@ -3484,7 +3484,7 @@ class class_builder ctx (cls:tclass) =
 				!required
 			end
 		(**
-			Writes `--php-prefix` value as class constant PHP_PREFIX
+			Writes `-D php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
 			let prefix = String.concat "\\" (get_php_prefix ctx) in
