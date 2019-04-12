@@ -556,7 +556,7 @@ let add_field_inits reserved ctx t =
 				| Some e ->
 					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) e.etype e.epos in
+					let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
 					if is_as3 then begin
 						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
 						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
