@@ -37,3 +37,31 @@ enum Encoding {
 	**/
 	UTF8Strict;
 }
+
+/**
+	This exception is raised when decoding invalid Unicode data using
+	Encoding.UTF8Strict. The `byteIndex` value indicates the position in the
+	`Bytes` object at which the erroneous Unicode sequence started.
+**/
+enum UnicodeDecodingError {
+	/**
+		A continuation byte was found, but a Unicode sequence was not started.
+	**/
+	InvalidContinuation(byteIndex:Int);
+	/**
+		A continuation byte was expected next.
+	**/
+	ExpectedContinuation(byteIndex:Int);
+	/**
+		An overlong Unicode sequence was found.
+	**/
+	Overlong(byteIndex:Int);
+	/**
+		The codepoint is out of Unicode range.
+	**/
+	OutOfRange(byteIndex:Int);
+	/**
+		More data was expected.
+	**/
+	InsufficientData(byteIndex:Int);
+}

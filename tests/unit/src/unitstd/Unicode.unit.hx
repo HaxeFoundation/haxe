@@ -300,7 +300,7 @@ function strictlyValid(str:String):Bool {
 		var bytes = haxe.io.Bytes.ofHex(str);
 		bytes.getString(0, bytes.length, UTF8Strict);
 		true;
-	} catch (e:Dynamic) false;
+	} catch (e:haxe.io.Encoding.UnicodeDecodingError) false;
 }
 
 strictlyValid("00") == true;

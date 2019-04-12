@@ -347,11 +347,11 @@ class Bytes {
 	}
 
 	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
+		inline function fcc(c) return String.fromCharCode(c);
 		if( encoding == null ) encoding == UTF8;
 		if( encoding == UTF8Strict ) {
 			var s = "";
 			var b = b;
-			var fcc = String.fromCharCode;
 			var i = pos;
 			var max = pos+len;
 			// utf8-decode and utf16-encode
@@ -360,40 +360,42 @@ class Bytes {
 				if( c < 0x80 ) {
 					//if( c == 0 ) break;
 					s += fcc(c);
-				} else if( c < 0xC2 ) { // invalid continuation or overlong sequence
-					throw "invalid UTF-8";
+				} else if( c < 0xC0 ) { // invalid continuation byte
+					throw haxe.io.Encoding.UnicodeDecodingError.InvalidContinuation(i - 1);
+				} else if( c < 0xC2 ) { // overlong sequence
+					throw haxe.io.Encoding.UnicodeDecodingError.Overlong(i - 1);
 				} else if( c < 0xE0 ) {
-					if( i + 1 > max ) throw "invalid UTF-8";
+					if( i + 1 > max ) throw haxe.io.Encoding.UnicodeDecodingError.InsufficientData(i - 1);
 					var c2:Int = fastGet(b, i++);
-					if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+					if( c2 < 0x80 || c2 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 2);
 					s += fcc( ((c & 0x3F) << 6) | (c2 & 0x7F) );
 				} else if( c < 0xF0 ) {
-					if( i + 2 > max ) throw "invalid UTF-8";
+					if( i + 2 > max ) throw haxe.io.Encoding.UnicodeDecodingError.InsufficientData(i - 1);
 					var c2:Int = fastGet(b, i++);
 					var c3:Int = fastGet(b, i++);
 					if( c == 0xE0 ) {
-						if( c2 < 0xA0 || c2 > 0xBF ) throw "invalid UTF-8";
+						if( c2 < 0xA0 || c2 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.Overlong(i - 3);
 					} else {
-						if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+						if( c2 < 0x80 || c2 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 3);
 					}
-					if( c3 < 0x80 || c3 > 0xBF ) throw "invalid UTF-8";
+					if( c3 < 0x80 || c3 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 3);
 					s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (c3 & 0x7F) );
 				} else if( c > 0xF4 ) {
-					throw "invalid UTF-8";
+					throw haxe.io.Encoding.UnicodeDecodingError.OutOfRange(i - 1);
 				} else {
-					if( i + 3 > max ) throw "invalid UTF-8";
+					if( i + 3 > max ) throw haxe.io.Encoding.UnicodeDecodingError.InsufficientData(i - 1);
 					var c2:Int = fastGet(b, i++);
 					var c3:Int = fastGet(b, i++);
 					var c4:Int = fastGet(b, i++);
 					if( c == 0xF0 ) {
-						if( c2 < 0x90 || c2 > 0xBF ) throw "invalid UTF-8";
+						if( c2 < 0x90 || c2 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.Overlong(i - 4);
 					} else if( c == 0xF4 ) {
-						if( c2 < 0x80 || c2 > 0x8F ) throw "invalid UTF-8";
+						if( c2 < 0x80 || c2 > 0x8F ) throw haxe.io.Encoding.UnicodeDecodingError.OutOfRange(i - 4);
 					} else {
-						if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+						if( c2 < 0x80 || c2 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 4);
 					}
-					if( c3 < 0x80 || c3 > 0xBF ) throw "invalid UTF-8";
-					if( c4 < 0x80 || c4 > 0xBF ) throw "invalid UTF-8";
+					if( c3 < 0x80 || c3 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 4);
+					if( c4 < 0x80 || c4 > 0xBF ) throw haxe.io.Encoding.UnicodeDecodingError.ExpectedContinuation(i - 4);
 					var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (c4 & 0x7F);
 					// surrogate pair
 					s += fcc( (u >> 10) + 0xD7C0 );
@@ -451,7 +453,6 @@ class Bytes {
 		#else
 		var s = "";
 		var b = b;
-		var fcc = String.fromCharCode;
 		var i = pos;
 		var max = pos+len;
 		// utf8-decode and utf16-encode
