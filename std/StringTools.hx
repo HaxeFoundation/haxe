@@ -456,7 +456,7 @@ class StringTools {
 		the result is unspecified if `index` is negative or greater than
 		`s.length`.
 
-		End of file status can be checked by calling `StringTools.isEof()` with
+		End of file status can be checked by calling `haxe.SysTools.isEofChar()` with
 		the returned value as argument.
 
 		This operation is not guaranteed to work if `s` contains the `\0`
