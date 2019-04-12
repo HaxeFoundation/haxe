@@ -295,6 +295,63 @@ test("()", "ä", "[]", ~/:(\w):/);
 test("a", "É", "b", ~/:(é):/i);
 test("a", "é", "b", ~/:(É):/i);
 
+function strictlyValid(str:String):Bool {
+	return try {
+		var bytes = haxe.io.Bytes.ofHex(str);
+		bytes.getString(0, bytes.length, UTF8Strict);
+		true;
+	} catch (e:Dynamic) false;
+}
+
+strictlyValid("00") == true;
+strictlyValid("01") == true;
+strictlyValid("7f") == true;
+strictlyValid("c280") == true;
+
+strictlyValid("dfbf") == true;
+strictlyValid("e0a080") == true;
+strictlyValid("ed9fbf") == true;
+
+// PUA codepoints are valid, although they do not have a character assigned
+strictlyValid("ee8080") == true;
+
+// last valid codepoint in the BMP with a character
+strictlyValid("efbfbd") == true;
+
+// last two codepoints on any plane are invalid
+// but the encoding is valid UTF-8
+strictlyValid("efbfbe") == true; // U+FFFE
+strictlyValid("efbfbf") == true; // U+FFFF
+
+// incomplete or overlong sequences
+// http://www.unicode.org/versions/corrigendum1.html
+strictlyValid("c0") == false;
+strictlyValid("c07f") == false;
+strictlyValid("c080") == false;
+strictlyValid("c1") == false;
+strictlyValid("c17f") == false;
+strictlyValid("c180") == false;
+
+strictlyValid("e0") == false;
+strictlyValid("e0a0") == false;
+strictlyValid("e0a000") == false;
+strictlyValid("e08080") == false;
+strictlyValid("e09f80") == false;
+strictlyValid("e1") == false;
+strictlyValid("e180") == false;
+strictlyValid("e17f80") == false;
+strictlyValid("e1807f") == false;
+
+// non-BMP incomplete or overlong
+strictlyValid("f0") == false;
+strictlyValid("f090") == false;
+strictlyValid("f09080") == false;
+strictlyValid("f0808080") == false;
+strictlyValid("f18080") == false;
+strictlyValid("f480807f") == false;
+strictlyValid("f5808080") == false;
+strictlyValid("ff808080") == false;
+
 #else
 1 == 1;
 #end
