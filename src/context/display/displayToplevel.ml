@@ -26,6 +26,7 @@ open ClassFieldOrigin
 open DisplayTypes
 open DisplayEmitter
 open Genjson
+open Globals
 
 let exclude : string list ref = ref []
 
@@ -370,10 +371,7 @@ let collect ctx tk with_type =
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-			let dot_path = match cfile.c_package with
-				| [] -> module_name
-				| _ -> (String.concat "." cfile.c_package) ^ "." ^ module_name
-			in
+			let dot_path = s_type_path (cfile.c_package,module_name) in
 			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
