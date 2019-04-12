@@ -348,6 +348,60 @@ class Bytes {
 
 	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
 		if( encoding == null ) encoding == UTF8;
+		if( encoding == UTF8Strict ) {
+			var s = "";
+			var b = b;
+			var fcc = String.fromCharCode;
+			var i = pos;
+			var max = pos+len;
+			// utf8-decode and utf16-encode
+			while( i < max ) {
+				var c:Int = fastGet(b, i++);
+				if( c < 0x80 ) {
+					//if( c == 0 ) break;
+					s += fcc(c);
+				} else if( c < 0xC2 ) { // invalid continuation or overlong sequence
+					throw "invalid UTF-8";
+				} else if( c < 0xE0 ) {
+					if( i + 1 > max ) throw "invalid UTF-8";
+					var c2:Int = fastGet(b, i++);
+					if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+					s += fcc( ((c & 0x3F) << 6) | (c2 & 0x7F) );
+				} else if( c < 0xF0 ) {
+					if( i + 2 > max ) throw "invalid UTF-8";
+					var c2:Int = fastGet(b, i++);
+					var c3:Int = fastGet(b, i++);
+					if( c == 0xE0 ) {
+						if( c2 < 0xA0 || c2 > 0xBF ) throw "invalid UTF-8";
+					} else {
+						if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+					}
+					if( c3 < 0x80 || c3 > 0xBF ) throw "invalid UTF-8";
+					s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (c3 & 0x7F) );
+				} else if( c > 0xF4 ) {
+					throw "invalid UTF-8";
+				} else {
+					if( i + 3 > max ) throw "invalid UTF-8";
+					var c2:Int = fastGet(b, i++);
+					var c3:Int = fastGet(b, i++);
+					var c4:Int = fastGet(b, i++);
+					if( c == 0xF0 ) {
+						if( c2 < 0x90 || c2 > 0xBF ) throw "invalid UTF-8";
+					} else if( c == 0xF4 ) {
+						if( c2 < 0x80 || c2 > 0x8F ) throw "invalid UTF-8";
+					} else {
+						if( c2 < 0x80 || c2 > 0xBF ) throw "invalid UTF-8";
+					}
+					if( c3 < 0x80 || c3 > 0xBF ) throw "invalid UTF-8";
+					if( c4 < 0x80 || c4 > 0xBF ) throw "invalid UTF-8";
+					var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (c4 & 0x7F);
+					// surrogate pair
+					s += fcc( (u >> 10) + 0xD7C0 );
+					s += fcc( (u & 0x3FF) | 0xDC00 );
+				}
+			}
+			return s;
+		}
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		#end
@@ -374,6 +428,8 @@ class Bytes {
 					return new String(b, pos, len, "UTF-8");
 				case RawNative:
 					return new String(b, pos, len, "UTF-16LE");
+				case UTF8Strict:
+					throw "unreachable";
 			}
 		} catch (e:Dynamic) {
 			throw e;
@@ -519,7 +575,7 @@ class Bytes {
 		#elseif java
 		try {
 			var b:BytesData = switch (encoding) {
-				case UTF8 | null:
+				case UTF8 | UTF8Strict | null:
 					@:privateAccess s.getBytes("UTF-8");
 				case RawNative:
 					@:privateAccess s.getBytes("UTF-16LE");

@@ -30,4 +30,10 @@ enum Encoding {
 		Output the string the way the platform represent it in memory. This is the most efficient but is platform-specific
 	**/
 	RawNative;
+	/**
+		Strict UTF-8 mode. A decoded string is guaranteed to be valid Unicode, any
+		error is indicated by throwing an error during decoding. Uses a native Haxe
+		implementation, so is slower than `UTF8` on most platforms.
+	**/
+	UTF8Strict;
 }
