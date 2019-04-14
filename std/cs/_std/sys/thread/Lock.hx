@@ -30,17 +30,12 @@ class Lock {
 	/** If `queue` is greater than `0` it means `release` was called more times than `wait` */
 	var queue:Int = 0;
 
-	/**
-		Creates a new Lock which is initially locked.
-	**/
-	public function new():Void {
-
-	}
+	public function new():Void {}
 
 	public function wait(?timeout:Float):Bool {
-		var targetTime = timeout == null ? 0 : Timer.stamp() + timeout;
+		var timeoutStamp = timeout == null ? 0 : Timer.stamp() + timeout;
 		inline function timedOut() {
-			return timeout != null && Timer.stamp() < targetTime;
+			return timeout != null && Timer.stamp() < timeoutStamp;
 		}
 
 		var myTicket;

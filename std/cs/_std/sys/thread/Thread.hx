@@ -24,7 +24,7 @@ package sys.thread;
 
 import cs.system.threading.Thread as NativeThread;
 import cs.system.WeakReference;
-
+import cs.Lib;
 
 abstract Thread(NativeThread) {
 	inline function new(native:NativeThread) {
@@ -65,7 +65,9 @@ private class HaxeThread {
 
 	public static function get(native:NativeThread):HaxeThread {
 		var native = NativeThread.CurrentThread;
-		var ref:WeakReference = untyped __lock__(threads, threads.get(native.ManagedThreadId);
+		var ref:WeakReference = Lib.lock(threads, {
+			threads.get(native.ManagedThreadId;
+		});
 		if(ref == null || !ref.IsAlive) {
 			return allocate(native);
 		}
@@ -85,7 +87,7 @@ private class HaxeThread {
 		}
 		var hx = new HaxeThread(native);
 		var ref = new WeakReference(hx);
-		untyped __lock__(threads, {
+		Lib.lock(threads, {
 			cleanup();
 			threads.set(native.ManagedThreadId, ref)
 		});
