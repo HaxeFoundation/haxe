@@ -24,12 +24,12 @@ package sys.thread;
 
 import haxe.Timer;
 import cs.Lib;
-// import cs.system.threading.Thread as NativeThread;
+import cs.system.threading.ManualResetEvent;
 
 class Lock {
 	final lockObj = {};
-	/** If `queue` is greater than `0` it means `release` was called more times than `wait` */
-	// var queue:Int = 0;
+	final releaseEvent = new ManualResetEvent(false);
+
 	var waitCount = 1; //initially locked
 	var releaseCount = 0;
 
@@ -44,29 +44,36 @@ class Lock {
 			if(myTicket <= releaseCount) {
 				return true;
 			}
+			releaseEvent.Reset();
 		});
 
-		var timeoutStamp = timeout == null ? 0 : Timer.stamp() + timeout;
-		inline function timedOut() {
-			return timeout != null && Timer.stamp() < timeoutStamp;
+		if(timeout == null) {
+			do {
+				releaseEvent.waitOne();
+				if(myTicket <= releaseCount) {
+					return true;
+				}
+			} while(true);
+		} else {
+			var timeoutStamp = Timer.stamp() + timeout;
+			do {
+				var secondsLeft = timeoutTime - Timer.stamp();
+				if(secondsLeft <= 0 || releaseEvent.waitOne(Std.int(secondsLeft * 1000))) {
+					//Timeout. Do not occupy a place in queue anymore
+					release();
+					return false;
+				}
+				if(myTicket <= releaseCount) {
+					return true;
+				}
+			} while(true);
 		}
-
-		//Waiting for our ticket to be reached by `release` calls
-		do {
-			if(myTicket <= releaseCount) {
-				return true;
-			}
-			NativeThread.Sleep(1);
-		} while(!timedOut());
-
-		//Timeout. Do not occupy a place in queue anymore
-		release();
-		return false;
 	}
 
 	public function release():Void {
 		Lib.lock(lockObj, {
 			releaseCount++;
+			releaseEvent.Set();
 		});
 	}
 }

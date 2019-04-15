@@ -22,13 +22,13 @@
 
 package sys.thread;
 
-import cs.system.threading.Mutex as NativeMutex;
-import cs.system.threading.Thread as NativeThread;
+import cs.system.threading.ManualResetEvent;
 import cs.Lib;
 
 @:coreApi class Deque<T> {
 	final storage:Array<T> = [];
 	final lockObj = {};
+	final addEvent = new ManualResetEvent(false);
 
 	public function new():Void {
 	}
@@ -36,12 +36,14 @@ import cs.Lib;
 	public function add(i:T):Void {
 		Lib.lock(lockObj, {
 			storage.push(i);
+			addEvent.Set();
 		});
 	}
 
 	public function push(i:T):Void {
 		Lib.lock(lockObj, {
 			storage.unshift(i);
+			addEvent.Set();
 		});
 	}
 
@@ -51,11 +53,9 @@ import cs.Lib;
 				if(storage.length > 0) {
 					return storage.shift(i);
 				}
+				addEvent.Reset();
 			});
-			if(block) {
-				NativeThread.Sleep(1);
-			}
-		} while(block);
+		} while(block && addEvent.WaitOne());
 		return null;
 	}
 }
