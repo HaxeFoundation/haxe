@@ -22,51 +22,40 @@
 
 package sys.thread;
 
-import haxe.Timer;
+import cs.system.threading.Mutex as NativeMutex;
+import cs.system.threading.Thread as NativeThread;
 import cs.Lib;
-// import cs.system.threading.Thread as NativeThread;
 
-class Lock {
+@:coreApi class Deque<T> {
+	final storage:Array<T> = [];
 	final lockObj = {};
-	/** If `queue` is greater than `0` it means `release` was called more times than `wait` */
-	// var queue:Int = 0;
-	var waitCount = 1; //initially locked
-	var releaseCount = 0;
 
-	public function new():Void {}
-
-	public function wait(?timeout:Float):Bool {
-		var myTicket;
-		//Get a ticket in queue
-		Lib.lock(lockObj, {
-			myTicket = waitCount;
-			waitCount++;
-			if(myTicket <= releaseCount) {
-				return true;
-			}
-		});
-
-		var timeoutStamp = timeout == null ? 0 : Timer.stamp() + timeout;
-		inline function timedOut() {
-			return timeout != null && Timer.stamp() < timeoutStamp;
-		}
-
-		//Waiting for our ticket to be reached by `release` calls
-		do {
-			if(myTicket <= releaseCount) {
-				return true;
-			}
-			NativeThread.Sleep(1);
-		} while(!timedOut());
-
-		//Timeout. Do not occupy a place in queue anymore
-		release();
-		return false;
+	public function new():Void {
 	}
 
-	public function release():Void {
+	public function add(i:T):Void {
 		Lib.lock(lockObj, {
-			releaseCount++;
+			storage.push(i);
 		});
+	}
+
+	public function push(i:T):Void {
+		Lib.lock(lockObj, {
+			storage.unshift(i);
+		});
+	}
+
+	public function pop(block:Bool):Null<T> {
+		do {
+			Lib.lock(lockObj, {
+				if(storage.length > 0) {
+					return storage.shift(i);
+				}
+			});
+			if(block) {
+				NativeThread.Sleep(1);
+			}
+		} while(block);
+		return null;
 	}
 }
