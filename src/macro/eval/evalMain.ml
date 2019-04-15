@@ -393,6 +393,9 @@ let compiler_error msg pos =
 	| _ ->
 		assert false
 
+let convert_error_message v = exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
+let convert_map_error_message vv v = exc_string ("Cannot convert value " ^  (value_string vv) ^ " in map " ^ (value_string v))
+
 let rec value_to_expr v p =
 	let path i =
 		let mt = IntMap.find i (get_ctx()).type_cache in
@@ -436,8 +439,52 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
-
-	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
+	| VInstance {ikind = IStringMap smap} ->
+		begin
+			let decl = ref [] in
+			let last_value = ref None in
+			try
+				StringHashtbl.iter (fun key (_,value) ->
+					last_value := Some(value);
+					decl := (EBinop(OpArrow, (EConst (String key),p), (value_to_expr value p)), p) :: !decl
+				) smap;
+				(EArrayDecl(!decl),p)
+			with _ ->
+				match !last_value with
+				| None -> convert_error_message v
+				| Some vv -> convert_map_error_message vv v
+		end
+	| VInstance {ikind = IIntMap imap} ->
+		begin
+			let decl = ref [] in
+			let last_value = ref None in
+			try
+				IntHashtbl.iter (fun key value ->
+					last_value := Some(value);
+					decl := (EBinop(OpArrow, (EConst (Int "0"),p), (value_to_expr value p)), p) :: !decl
+				) imap;
+				(EArrayDecl(!decl),p)
+			with _ ->
+				match !last_value with
+				| None -> convert_error_message v
+				| Some vv -> convert_map_error_message vv v
+		end
+	| VInstance {ikind = IObjectMap omap} ->
+		begin
+			let decl = ref [] in
+			let last_value = ref None in
+			try
+				Hashtbl.iter (fun key value ->
+					last_value := Some(value);
+					decl := (EBinop(OpArrow, (value_to_expr key p), (value_to_expr value p)), p) :: !decl
+				) omap;
+				(EArrayDecl(!decl),p)
+			with _ ->
+				match !last_value with
+				| None -> convert_error_message v
+				| Some vv -> convert_map_error_message vv v
+		end
+	| _ -> convert_error_message v
 
 let encode_obj = encode_obj_s
 
