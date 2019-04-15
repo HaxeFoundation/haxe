@@ -456,7 +456,7 @@ class StringTools {
 		the result is unspecified if `index` is negative or greater than
 		`s.length`.
 
-		End of file status can be checked by calling `haxe.SysTools.isEofChar()` with
+		End of file status can be checked by calling `StringTools.isEof()` with
 		the returned value as argument.
 
 		This operation is not guaranteed to work if `s` contains the `\0`
@@ -493,9 +493,18 @@ class StringTools {
 	/**
 		Tells if `c` represents the end-of-file (EOF) character.
 	**/
-	@:deprecated('StringTools.isEof() is deprecated. Use haxe.SysTools.isEofChar() instead.')
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
-		return inline haxe.SysTools.isEofChar(c);
+		#if (flash || cpp || hl)
+		return c == 0;
+		#elseif js
+		return c != c; // fast NaN
+		#elseif (neko || lua || eval)
+		return c == null;
+		#elseif (cs || java || python)
+		return c == -1;
+		#else
+		return false;
+		#end
 	}
 
 	/**

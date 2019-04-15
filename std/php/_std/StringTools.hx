@@ -120,9 +120,8 @@ import php.*;
 		return Boot.unsafeOrd(char);
 	}
 
-	@:deprecated('StringTools.isEof() is deprecated. Use haxe.SysTools.isEofChar() instead.')
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
-		return inline haxe.SysTools.isEofChar(c);
+		return c == 0;
 	}
 
 	@:noCompletion

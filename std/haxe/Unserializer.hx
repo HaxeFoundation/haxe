@@ -152,7 +152,7 @@ class Unserializer {
  		var fpos = pos;
  		while( true ) {
  			var c = get(pos);
-			if( SysTools.isEofChar(c) )
+			if( StgringTools.isEof(c) )
 				break;
  			if( c == "-".code ) {
  				if( pos != fpos )
@@ -175,7 +175,7 @@ class Unserializer {
 		var p1 = pos;
  		while( true ) {
  			var c = get(pos);
-			if( SysTools.isEofChar(c)) break;
+			if( StgringTools.isEof(c)) break;
  			// + - . , 0-9
  			if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
  				pos++;

@@ -10,23 +10,6 @@ class SysTools {
 	public static final winMetaCharacters:ReadOnlyArray<Int> = [" ".code, "(".code, ")".code, "%".code, "!".code, "^".code, "\"".code, "<".code, ">".code, "&".code, "|".code, "\n".code, "\r".code, ",".code, ";".code];
 
 	/**
-		Tells if `c` represents the end-of-file (EOF) character.
-	**/
-	public static inline function isEofChar(c:Int):Bool {
-		#if (flash || cpp || hl || php)
-		return c == 0;
-		#elseif js
-		return c != c; // fast NaN
-		#elseif (neko || lua || eval)
-		return c == null;
-		#elseif (cs || java || python)
-		return c == -1;
-		#else
-		return false;
-		#end
-	}
-
-	/**
 		Returns a String that can be used as a single command line argument
 		on Unix.
 		The input will be quoted, or escaped if necessary.

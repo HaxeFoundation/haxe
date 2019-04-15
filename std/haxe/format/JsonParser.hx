@@ -56,7 +56,7 @@ class JsonParser {
 	function doParse() : Dynamic {
 		var result = parseRec();
 		var c;
-		while( !SysTools.isEofChar(c = nextChar()) ) {
+		while( !StringTools.isEof(c = nextChar()) ) {
 			switch( c ) {
 				case ' '.code, '\r'.code, '\n'.code, '\t'.code:
 					// allow trailing whitespace
@@ -206,7 +206,7 @@ class JsonParser {
 				else if( c >= 0xE0 ) pos++;
 			}
 			#end
-			else if( SysTools.isEofChar(c) )
+			else if( StringTools.isEof(c) )
 				throw "Unclosed string";
 		}
 		if (buf == null) {
