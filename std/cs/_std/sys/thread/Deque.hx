@@ -51,7 +51,7 @@ import cs.Lib;
 		do {
 			Lib.lock(lockObj, {
 				if(storage.length > 0) {
-					return storage.shift(i);
+					return storage.shift();
 				}
 				addEvent.Reset();
 			});

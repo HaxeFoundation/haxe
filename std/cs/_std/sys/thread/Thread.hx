@@ -26,39 +26,39 @@ import cs.system.threading.Thread as NativeThread;
 import cs.system.WeakReference;
 import cs.Lib;
 
-abstract Thread(NativeThread) {
-	inline function new(native:NativeThread) {
-		this = native;
+abstract Thread(HaxeThread) {
+	inline function new(thread:HaxeThread) {
+		this = thread;
 	}
 
 	public static function create(cb:Void->Void):Thread {
 		var native = new NativeThread(cb);
 		native.IsBackground = true;
-		var hx = HaxeThread.allocate(hx);
+		var hx = HaxeThread.allocate(native);
 		native.Start();
 
 		return new Thread(hx);
 	}
 
 	public static inline function current():Thread {
-		return HaxeThread.get(NativeThread.CurrentThread);
+		return new Thread(HaxeThread.get(NativeThread.CurrentThread));
 	}
 
 	public static function readMessage(block:Bool) : Dynamic {
-		return current().readMessage(block);
+		return current().readMessageImpl(block);
 	}
 
 	public inline function sendMessage(msg:Dynamic):Void {
 		this.sendMessage(msg);
 	}
 
-	inline function readMessage(block:Bool):Dynamic {
+	inline function readMessageImpl(block:Bool):Dynamic {
 		return this.readMessage(block);
 	}
 }
 
 private class HaxeThread {
-	static final threads = new Map<Int,HaxeThread>();
+	static final threads = new Map<Int,WeakReference>();
 	static var allocateCount = 0;
 
 	public final native:NativeThread;
@@ -66,8 +66,10 @@ private class HaxeThread {
 
 	public static function get(native:NativeThread):HaxeThread {
 		var native = NativeThread.CurrentThread;
-		var ref:WeakReference = Lib.lock(threads, {
-			threads.get(native.ManagedThreadId;
+		var ref:Null<WeakReference> = null;
+		Lib.lock(threads, {
+			var key = native.ManagedThreadId;
+			ref = threads.get(key);
 		});
 		if(ref == null || !ref.IsAlive) {
 			return allocate(native);
@@ -79,7 +81,7 @@ private class HaxeThread {
 		allocateCount++;
 		inline function cleanup() {
 			if(allocateCount % 100 == 0) {
-				for(key => ref in threads.keys()) {
+				for(key => ref in threads) {
 					if(!ref.IsAlive) {
 						threads.remove(key);
 					}
@@ -90,7 +92,7 @@ private class HaxeThread {
 		var ref = new WeakReference(hx);
 		Lib.lock(threads, {
 			cleanup();
-			threads.set(native.ManagedThreadId, ref)
+			threads.set(native.ManagedThreadId, ref);
 		});
 		return hx;
 	}

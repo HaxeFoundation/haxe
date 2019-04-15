@@ -49,7 +49,7 @@ class Lock {
 
 		if(timeout == null) {
 			do {
-				releaseEvent.waitOne();
+				releaseEvent.WaitOne();
 				if(myTicket <= releaseCount) {
 					return true;
 				}
@@ -57,8 +57,8 @@ class Lock {
 		} else {
 			var timeoutStamp = Timer.stamp() + timeout;
 			do {
-				var secondsLeft = timeoutTime - Timer.stamp();
-				if(secondsLeft <= 0 || releaseEvent.waitOne(Std.int(secondsLeft * 1000))) {
+				var secondsLeft = timeoutStamp - Timer.stamp();
+				if(secondsLeft <= 0 || !releaseEvent.WaitOne(Std.int(secondsLeft * 1000))) {
 					//Timeout. Do not occupy a place in queue anymore
 					release();
 					return false;

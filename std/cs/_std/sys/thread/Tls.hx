@@ -23,14 +23,16 @@
 package sys.thread;
 
 import cs.system.threading.Thread as NativeThread;
-import cs.system.threading.LocalDataStoreSlot;
+import cs.system.LocalDataStoreSlot;
 
-extern class Tls<T> {
+class Tls<T> {
 	public var value(get, set):T;
 
-	final var slot = new LocalDataStoreSlot();
+	final slot:LocalDataStoreSlot;
 
-	public function new():Void {}
+	public function new():Void {
+		slot = NativeThread.GetNamedDataSlot('__hx__Tls');
+	}
 
 	function get_value():T {
 		return NativeThread.GetData(slot);
