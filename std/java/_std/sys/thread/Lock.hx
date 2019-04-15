@@ -50,7 +50,7 @@ using haxe.Int64;
 					{
 						try
 						{
-							untyped __java__("this.wait()");
+							(cast this : java.lang.Object).wait();
 						}
 						catch(e:java.lang.InterruptedException)
 						{
@@ -66,7 +66,7 @@ using haxe.Int64;
 						try
 						{
 							var t = max.sub(cur);
-							untyped __java__("this.wait({0})",t);
+							(cast this : java.lang.Object).wait(t);
 							cur = System.currentTimeMillis();
 						}
 						catch(e:java.lang.InterruptedException)

@@ -36,7 +36,7 @@ class Resource {
 		var pathToRoot = '/../..';
 		#if php_prefix
 			pathToRoot += '/..';
-			for(i in 0...Global.substr_count(Boot.getPrefix(), '.')) {
+			for(i in 0...Global.substr_count(Boot.getPrefix(), '\\')) {
 				pathToRoot += '/..';
 			}
 		#end

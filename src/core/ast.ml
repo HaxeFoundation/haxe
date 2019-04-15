@@ -479,7 +479,7 @@ let s_token = function
 	| At -> "@"
 	| Dollar v -> "$" ^ v
 
-exception Invalid_escape_sequence of char * int
+exception Invalid_escape_sequence of char * int * (string option)
 
 let unescape s =
 	let b = Buffer.create 0 in
@@ -488,7 +488,7 @@ let unescape s =
 			()
 		else
 			let c = s.[i] in
-			let fail () = raise (Invalid_escape_sequence(c,i)) in
+			let fail msg = raise (Invalid_escape_sequence(c,i,msg)) in
 			if esc then begin
 				let inext = ref (i + 1) in
 				(match c with
@@ -497,11 +497,14 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail()) in
+					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'x' ->
-					let u = (try (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> fail()) in
+					let hex = String.sub s (i+1) 2 in
+					let u = (try (int_of_string ("0x" ^ hex)) with _ -> fail None) in
+					if u > 127 then
+						fail (Some ("Values greater than \\x7f are not allowed. Use \\u00" ^ hex ^ " instead."));
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
@@ -515,12 +518,12 @@ let unescape s =
 							assert (u <= 0x10FFFF);
 							(u, l+2)
 						with _ ->
-							fail()
+							fail None
 					in
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
-					fail());
+					fail None);
 				loop false !inext;
 			end else
 				match c with
