@@ -7,7 +7,7 @@ class TestThreads implements utest.ITest
 {
 	public function new() { }
 
-	@:timeout(40000)
+	@:timeout(160000)
 	function testSort(async:Async) {
 		Thread.create(() -> {
 			doTestSort();
