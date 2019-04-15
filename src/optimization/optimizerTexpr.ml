@@ -209,7 +209,7 @@ let optimize_binop e op e1 e2 =
 		(match op with
 		| OpAssign -> e
 		| _ ->
-			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
 	| _ ->
 		e)
 
