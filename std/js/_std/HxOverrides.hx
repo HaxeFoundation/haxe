@@ -146,6 +146,9 @@ class HxOverrides {
 		};
 	}
 
+	@:pure
+	static function now(): Float return untyped performance.now();
+
 	@:ifFeature("String.iterator")
 	static function strIter( s : String ) : StringIterator {
 		return new StringIterator(s);
@@ -161,6 +164,20 @@ class HxOverrides {
 		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
 		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
 #end
+
+		// if no global performance object is available then replace now() with process.hrtime() or Date.now()
+		__feature__('HxOverrides.now',
+			if (js.Syntax.typeof(performance) == 'undefined') {
+				if (js.Syntax.typeof(process) != 'undefined') {
+					HxOverrides.now = function() {
+						var hrtime = process.hrtime();
+						return (hrtime[0] * 1000000 + hrtime[1] / 1000);
+					}
+				} else {
+					HxOverrides.now = js.Date.now;
+				}
+			}
+		);
 	}
 
 }

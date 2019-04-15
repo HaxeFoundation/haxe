@@ -172,7 +172,12 @@ class Timer {
 		#elseif (neko || php)
 			return Sys.time();
 		#elseif js
-			return js.Date.now() / 1000;
+			#if nodejs
+			var hrtime: Array<Int> = untyped process.hrtime();
+			return hrtime[0] * 1000000 + hrtime[1] / 1000;
+			#else
+			return @:privateAccess HxOverrides.now() / 1000;
+			#end
 		#elseif cpp
 			return untyped __global__.__time_stamp();
 		#elseif python
