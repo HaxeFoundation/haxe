@@ -22,52 +22,24 @@
 
 package sys.thread;
 
-import haxe.Timer;
-import cs.Lib;
-// import cs.system.threading.Thread as NativeThread;
+import cs.system.threading.Mutex as NativeMutex;
 
-class Lock {
-	final lockObj = {};
-	/** If `queue` is greater than `0` it means `release` was called more times than `wait` */
-	// var queue:Int = 0;
-	var waitCount = 1; //initially locked
-	var releaseCount = 0;
+class Mutex {
+	final native = new NativeMutex();
 
-	public function new():Void {}
+	public function new():Void {
 
-	public function wait(?timeout:Float):Bool {
-		var myTicket;
-		//Get a ticket in queue
-		Lib.lock(lockObj, {
-			myTicket = waitCount;
-			waitCount++;
-			if(myTicket <= releaseCount) {
-				return true;
-			}
-		});
+	}
 
-		var timeoutStamp = timeout == null ? 0 : Timer.stamp() + timeout;
-		inline function timedOut() {
-			return timeout != null && Timer.stamp() < timeoutStamp;
-		}
+	public function acquire():Void {
+		native.WaitOne();
+	}
 
-		//Waiting for our ticket to be reached by `release` calls
-		do {
-			Lib.lock(lockObj, {
-				if(myTicket <= releaseCount) {
-					return true;
-				}
-			});
-		} while(!timedOut());
-
-		//Timeout. Do not occupy a place in queue anymore
-		release();
-		return false;
+	public function tryAcquire():Bool {
+		return native.WaitOne(0);
 	}
 
 	public function release():Void {
-		Lib.lock(lockObj, {
-			releaseCount++;
-		});
+		native.ReleaseMutex();
 	}
 }
