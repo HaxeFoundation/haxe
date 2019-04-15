@@ -147,7 +147,7 @@ class HxOverrides {
 	}
 
 	@:pure
-	static function now(): Float return untyped performance.now();
+	static function now(): Float return js.Browser.window.performance.now();
 
 	@:ifFeature("String.iterator")
 	static function strIter( s : String ) : StringIterator {
