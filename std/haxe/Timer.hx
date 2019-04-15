@@ -174,7 +174,7 @@ class Timer {
 		#elseif js
 			#if nodejs
 			var hrtime: Array<Int> = untyped process.hrtime();
-			return hrtime[0] * 1000000 + hrtime[1] / 1000;
+			return (hrtime[0] * 1000000 + hrtime[1] / 1000) / 1000;
 			#else
 			return @:privateAccess HxOverrides.now() / 1000;
 			#end
