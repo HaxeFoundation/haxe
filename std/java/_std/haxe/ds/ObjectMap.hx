@@ -90,7 +90,7 @@ import java.NativeArray;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEmpty(flag = hashes[i]) || (flag == k && untyped keys[i].equals(key))) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && (cast keys[i] : java.lang.Object).equals(key))) )
 				{
 					if (isDel(flag) && delKey == -1)
 						delKey = i;
@@ -149,7 +149,7 @@ import java.NativeArray;
 			var i = k & mask;
 			var last = i, flag;
 			//var inc = getInc(k, mask);
-			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !(untyped keys[i].equals(key))))
+			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !((cast keys[i] : java.lang.Object).equals(key))))
 			{
 				i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
@@ -450,7 +450,7 @@ import java.NativeArray;
 	//guarantee: Whatever this function is, it will never return 0 nor 1
 	extern private static inline function hash(s:Dynamic):HashType
 	{
-		var k:Int = untyped s.hashCode();
+		var k:Int = (cast s : java.lang.Object).hashCode();
 		//k *= 357913941;
 		//k ^= k << 24;
 		//k += ~357913941;
