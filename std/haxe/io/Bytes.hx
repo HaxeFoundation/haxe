@@ -349,10 +349,9 @@ class Bytes {
 	}
 
 	public function getString( pos : Int, len : Int, ?encoding : Encoding ) : String {
-		inline function fcc(c) return String.fromCharCode(c);
 		if( encoding == null ) encoding == UTF8;
 		if( encoding == UTF8Strict ) {
-			var s = "";
+			var s = new StringBuf();
 			var b = b;
 			var i = pos;
 			var max = pos+len;
@@ -361,7 +360,7 @@ class Bytes {
 				var c:Int = fastGet(b, i++);
 				if( c < 0x80 ) {
 					//if( c == 0 ) break;
-					s += fcc(c);
+					s.addChar(c);
 				} else if( c < 0xC0 ) { // invalid continuation byte
 					throw UnicodeDecodingError.InvalidContinuation(i - 1);
 				} else if( c < 0xC2 ) { // overlong sequence
@@ -370,7 +369,7 @@ class Bytes {
 					if( i + 1 > max ) throw UnicodeDecodingError.InsufficientData(i - 1);
 					var c2:Int = fastGet(b, i++);
 					if( c2 < 0x80 || c2 > 0xBF ) throw UnicodeDecodingError.ExpectedContinuation(i - 2);
-					s += fcc( ((c & 0x3F) << 6) | (c2 & 0x7F) );
+					s.addChar( ((c & 0x3F) << 6) | (c2 & 0x7F) );
 				} else if( c < 0xF0 ) {
 					if( i + 2 > max ) throw UnicodeDecodingError.InsufficientData(i - 1);
 					var c2:Int = fastGet(b, i++);
@@ -381,7 +380,7 @@ class Bytes {
 						if( c2 < 0x80 || c2 > 0xBF ) throw UnicodeDecodingError.ExpectedContinuation(i - 3);
 					}
 					if( c3 < 0x80 || c3 > 0xBF ) throw UnicodeDecodingError.ExpectedContinuation(i - 3);
-					s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (c3 & 0x7F) );
+					s.addChar( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (c3 & 0x7F) );
 				} else if( c > 0xF4 ) {
 					throw UnicodeDecodingError.OutOfRange(i - 1);
 				} else {
@@ -400,11 +399,11 @@ class Bytes {
 					if( c4 < 0x80 || c4 > 0xBF ) throw UnicodeDecodingError.ExpectedContinuation(i - 4);
 					var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (c4 & 0x7F);
 					// surrogate pair
-					s += fcc( (u >> 10) + 0xD7C0 );
-					s += fcc( (u & 0x3FF) | 0xDC00 );
+					s.addChar( (u >> 10) + 0xD7C0 );
+					s.addChar( (u & 0x3FF) | 0xDC00 );
 				}
 			}
-			return s;
+			return s.toString();
 		}
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
@@ -453,7 +452,7 @@ class Bytes {
 			return lua.Table.concat(tbl, '');
 		}
 		#else
-		var s = "";
+		var s = new StringBuf();
 		var b = b;
 		var i = pos;
 		var max = pos+len;
@@ -462,22 +461,22 @@ class Bytes {
 			var c = b[i++];
 			if( c < 0x80 ) {
 				if( c == 0 ) break;
-				s += fcc(c);
+				s.addChar(c);
 			} else if( c < 0xE0 )
-				s += fcc( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
+				s.addChar( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
 			else if( c < 0xF0 ) {
 				var c2 = b[i++];
-				s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
+				s.addChar( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
 			} else {
 				var c2 = b[i++];
 				var c3 = b[i++];
 				var u = ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 & 0x7F) << 6) | (b[i++] & 0x7F);
 				// surrogate pair
-				s += fcc( (u >> 10) + 0xD7C0 );
-				s += fcc( (u & 0x3FF) | 0xDC00 );
+				s.addChar( (u >> 10) + 0xD7C0 );
+				s.addChar( (u & 0x3FF) | 0xDC00 );
 			}
 		}
-		return s;
+		return s.toString();
 		#end
 	}
 
