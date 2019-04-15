@@ -33,6 +33,7 @@ abstract Thread(NativeThread) {
 
 	public static function create(cb:Void->Void):Thread {
 		var native = new NativeThread(cb);
+		native.IsBackground = true;
 		var hx = HaxeThread.allocate(hx);
 		native.Start();
 
