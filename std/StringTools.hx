@@ -115,7 +115,7 @@ class StringTools {
 			return untyped s.__URLDecode();
 		#elseif java
 			try
-				return untyped __java__("java.net.URLDecoder.decode(s, \"UTF-8\")")
+				return java.net.URLDecoder.decode(s, "UTF-8")
 			catch (e:Dynamic) throw e;
 		#elseif cs
 			return untyped cs.system.Uri.UnescapeDataString(s);
