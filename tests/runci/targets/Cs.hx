@@ -72,6 +72,10 @@ class Cs {
 		runCommand("haxe", ["compile-cs.hxml",'-D','fast_cast']);
 		runCs("bin/cs/bin/Main-Debug.exe", []);
 
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
+		// runCs("export/cs/bin/Main.exe");
+
 		changeDirectory(miscDir + "csTwoLibs");
 		for (i in 1...5)
 		{
