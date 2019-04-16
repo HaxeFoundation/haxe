@@ -563,13 +563,13 @@ and not_xml ctx depth in_open =
 			if depth = 0 then lexeme_end lexbuf
 			else not_xml ctx (depth - 1) false
 		end else
-			not_xml ctx depth in_open
+			not_xml ctx depth false
 	(* opening tag *)
 	| '<',xml_name ->
 		let s = lexeme lexbuf in
 		Buffer.add_string buf s;
 		(* If it matches our document open tag, increase depth and set in_open to true. *)
-		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,in_open in
+		let depth,in_open = if s = ctx.open_tag then depth + 1,true else depth,false in
 		not_xml ctx depth in_open
 	(* /> *)
 	| '/','>' ->
