@@ -1206,25 +1206,26 @@ module TexprConverter = struct
 	exception Not_exhaustive
 
 	let s_subject v_lookup s e =
-		let rec loop s e = match e.eexpr with
+		let rec loop top s e = match e.eexpr with
 			| TField(_,FEnum(en,ef)) ->
 				s
 			| TField(e1,fa) ->
-				loop (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
+				if top then loop false s e1
+				else loop false (Printf.sprintf "{ %s: %s }" (field_name fa) s) e1
 			| TEnumParameter(e1,ef,i) ->
 				let arity = match follow ef.ef_type with TFun(args,_) -> List.length args | _ -> assert false in
 				let l = make_offset_list i (arity - i - 1) s "_" in
-				loop (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
+				loop false (Printf.sprintf "%s(%s)" ef.ef_name (String.concat ", " l)) e1
 			| TLocal v ->
 				begin try
-					loop s (IntMap.find v.v_id v_lookup)
+					loop top s (IntMap.find v.v_id v_lookup)
 				with Not_found ->
 					s
 				end
 			| _ ->
 				s
 		in
-		loop s e
+		loop true s e
 
 	let s_match_kind = function
 		| SKValue -> "value"
