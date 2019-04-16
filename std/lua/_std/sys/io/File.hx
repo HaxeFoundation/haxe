@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.io;
+
+import haxe.SysTools;
 import lua.Lua;
 import lua.Io;
 import lua.Os;
@@ -49,8 +51,8 @@ class File {
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
 		var result = switch (Sys.systemName()) {
-			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
-			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
+			case "Windows" : Os.execute('copy ${SysTools.quoteWinArg(srcPath, true)} ${SysTools.quoteWinArg(dstPath,true)}');
+			default : Os.execute('cp ${SysTools.quoteUnixArg(srcPath)} ${SysTools.quoteUnixArg(dstPath)}');
 		};
 		if(
 			#if (lua_ver >= 5.2) !result.success

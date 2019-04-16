@@ -23,6 +23,7 @@ package sys.io;
 
 import php.*;
 import haxe.io.*;
+import haxe.SysTools;
 
 using StringTools;
 using php.Global;
@@ -194,9 +195,9 @@ class Process {
 
 		return switch (Sys.systemName()) {
 			case "Windows":
-				[cmd.replace("/", "\\")].concat(args).map(StringTools.quoteWinArg.bind(_, true)).join(" ");
+				[cmd.replace("/", "\\")].concat(args).map(SysTools.quoteWinArg.bind(_, true)).join(" ");
 			case _:
-				[cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+				[cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 		}
 	}
 

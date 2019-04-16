@@ -23,6 +23,7 @@
 package lua;
 
 import haxe.Constraints.Function;
+import haxe.SysTools;
 
 
 @:dox(hide)
@@ -338,10 +339,10 @@ class Boot {
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
+						SysTools.quoteWinArg(a, true)
 					].join(" ");
 				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 			}
 		}
 		return cmd;

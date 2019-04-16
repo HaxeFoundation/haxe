@@ -112,7 +112,7 @@ class Parser
 
 	/**
 		Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
-		
+
 		@throws haxe.xml.XmlParserException
 	**/
 	static public function parse(str:String, strict = false)
