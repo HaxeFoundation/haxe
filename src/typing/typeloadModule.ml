@@ -633,7 +633,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 					let pnames = ref PMap.empty in
 					TFun (List.map (fun (s,opt,(t,tp)) ->
 						(match t with CTPath({tpackage=[];tname="Void"}) -> error "Arguments of type Void are not allowed in enum constructors" tp | _ -> ());
-						if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ fst c.ec_name) p;
+						if PMap.mem s (!pnames) then error ("Duplicate argument `" ^ s ^ "` in enum constructor " ^ fst c.ec_name) p;
 						pnames := PMap.add s () (!pnames);
 						s, opt, load_type_hint ~opt ctx p (Some (t,tp))
 					) l, rt)
