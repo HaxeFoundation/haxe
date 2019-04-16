@@ -21,4 +21,4 @@
  */
 package js;
 
-@:deprecated Date = js.lib.Date;
+@:deprecated typedef Date = js.lib.Date;
