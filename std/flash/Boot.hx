@@ -170,7 +170,10 @@ class Boot extends flash.display.MovieClip {
 		}
 	}
 
-	public static function __string_rec( v : Dynamic, str : String ) {
+	public static function __string_rec( v : Dynamic, str : String, maxRecursion : Int = 5 ) {
+		if(maxRecursion <= 0) {
+			return "<...>";
+		}
 		var cname = untyped __global__["flash.utils.getQualifiedClassName"](v);
 		switch( cname ) {
 		case "Object":
@@ -185,7 +188,7 @@ class Boot extends flash.display.MovieClip {
 					first = false;
 				else
 					s += ",";
-				s += " "+key+" : "+__string_rec(v[untyped key],str);
+				s += " "+key+" : "+__string_rec(v[untyped key],str,maxRecursion - 1);
 			}
 			if( !first )
 				s += " ";
@@ -203,7 +206,7 @@ class Boot extends flash.display.MovieClip {
 					first = false;
 				else
 					s += ",";
-				s += __string_rec(a[i],str);
+				s += __string_rec(a[i],str,maxRecursion - 1);
 			}
 			return s + "]";
 		default:
