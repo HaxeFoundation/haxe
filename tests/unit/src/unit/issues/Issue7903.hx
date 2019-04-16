@@ -25,6 +25,16 @@ class Issue7903 extends unit.Test {
 		} catch(e:Dynamic) {
 			Assert.fail('Failed to stringify an enum instance with recursive reference: $e');
 		}
+
+		//Test recursive arrays
+		var a:Array<Dynamic> = [];
+		a.push(a);
+		try {
+			tmp = Std.string(a);
+			Assert.pass();
+		} catch(e:Dynamic) {
+			Assert.fail('Failed to stringify a recursive array: $e');
+		}
 	}
 }
 
