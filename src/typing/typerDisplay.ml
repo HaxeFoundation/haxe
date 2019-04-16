@@ -21,6 +21,9 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
 	| _ -> assert false
 
+let merge_core_doc ctx mtype =
+	DisplayPosition.display_position#run_outside (fun () -> Typecore.merge_core_doc ctx mtype)
+
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
@@ -48,7 +51,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
-			DisplayPosition.display_position#run_outside (fun () -> merge_core_doc ctx (TClassDecl c));
+			merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
 				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
