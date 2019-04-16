@@ -48,7 +48,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
-			merge_core_doc ctx (TClassDecl c);
+			DisplayPosition.display_position#run_outside (fun () -> merge_core_doc ctx (TClassDecl c));
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
 				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
@@ -392,7 +392,7 @@ and display_expr ctx e_ast e dk with_type p =
 			try begin
 				let _,pt = ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e e.epos in
 				match follow pt with
-					| TAnon a -> 
+					| TAnon a ->
 						let key = PMap.find "key" a.a_fields in
 						let value = PMap.find "value" a.a_fields in
 						Some (key.cf_type,value.cf_type)
