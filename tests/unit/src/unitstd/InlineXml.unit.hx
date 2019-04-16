@@ -23,6 +23,10 @@ unit.HelperMacros.pipeMarkupLiteral(<foo.Bar_barf3-gnieh:blargh></foo.Bar_barf3-
 unit.HelperMacros.pipeMarkupLiteral(<></>) == "<></>";
 unit.HelperMacros.pipeMarkupLiteral(<>abc</>) == "<>abc</>";
 
+// more tags in open
+
+unit.HelperMacros.pipeMarkupLiteral(<some-component header=${unit.HelperMacros.pipeMarkupLiteral(<div>Test</div>)} />) == "<some-component header=<div>Test</div> />";
+
 // No check for string literal balancing
 unit.HelperMacros.pipeMarkupLiteral(<xml a=" </xml>) == "<xml a=\" </xml>";
 unit.HelperMacros.pipeMarkupLiteral(<xml a=' </xml>) == "<xml a=' </xml>";
