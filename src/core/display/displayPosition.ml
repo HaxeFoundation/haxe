@@ -52,8 +52,7 @@ class display_position_container =
 		method run_outside (fn:unit->unit) =
 			let display_pos = self#get in
 			self#reset;
-			fn();
-			self#set display_pos
+			Std.finally (fun () -> self#set display_pos) fn ()
 	end
 
 let display_position = new display_position_container
