@@ -21,6 +21,9 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
 	| _ -> assert false
 
+let merge_core_doc ctx mtype =
+	DisplayPosition.display_position#run_outside (fun () -> Typecore.merge_core_doc ctx mtype)
+
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
@@ -392,7 +395,7 @@ and display_expr ctx e_ast e dk with_type p =
 			try begin
 				let _,pt = ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e e.epos in
 				match follow pt with
-					| TAnon a -> 
+					| TAnon a ->
 						let key = PMap.find "key" a.a_fields in
 						let value = PMap.find "value" a.a_fields in
 						Some (key.cf_type,value.cf_type)
