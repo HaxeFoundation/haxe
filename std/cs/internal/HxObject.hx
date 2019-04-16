@@ -243,7 +243,7 @@ class DynamicObject extends HxObject
 		return untyped fn.__hx_invokeDynamic(dynargs);
 	}
 
-	public function toString() {
+	@:skipReflection public function toString() {
 		if (__hx_toString_depth >= 5) {
 			return "...";
 		}
