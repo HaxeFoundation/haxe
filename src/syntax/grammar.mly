@@ -1098,10 +1098,14 @@ and arrow_expr = parser
 	| [< '(Arrow,_); e = expr >] -> e
 	| [< >] -> serror()
 
-and arrow_function p1 al er =
+and arrow_function p1 al er s =
 	let make e =
 		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
 	in
+	List.iter (fun (_,_,ml,_,_) ->	match ml with
+		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on lambda arguments is not allowed") ~pos:(Some p) s ()
+		| [] -> ()
+	) al;
 	make er
 
 and arrow_ident_checktype e = (match e with
@@ -1190,23 +1194,23 @@ and expr = parser
 		end
 	| [< '(POpen,p1); s >] -> (match s with parser
 		| [< '(PClose,p2); er = arrow_expr; >] ->
-			arrow_function p1 [] er
+			arrow_function p1 [] er s
 		| [< '(Question,p2); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 			let al = (match al with | (np,_,_,topt,e) :: al -> (np,true,[],topt,e) :: al | _ -> assert false ) in
-			arrow_function p1 al er
+			arrow_function p1 al er s
 		| [<  e = expr; s >] -> (match s with parser
 			| [< '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 			| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
-				arrow_function p1 ((arrow_first_param e s) :: al) er
+				arrow_function p1 ((arrow_first_param e s) :: al) er s
 			| [< t,pt = parse_type_hint; s >] -> (match s with parser
 				| [< '(PClose,p2); s >] -> expr_next (EParenthesis (ECheckType(e,(t,pt)),punion p1 p2), punion p1 p2) s
 				| [< '(Comma,pc); al = psep Comma parse_fun_param; '(PClose,_); er = arrow_expr; >] ->
 					let (np,_) = arrow_ident_checktype e in
-					arrow_function p1 ((np,false,[],(Some(t,pt)),None) :: al) er
+					arrow_function p1 ((np,false,[],(Some(t,pt)),None) :: al) er s
 				| [< '((Binop OpAssign),p2); ea1 = expr; s >] ->
 					let with_args al er = (match fst e with
 						| EConst(Ident n) ->
-							arrow_function p1 (((n,snd e),true,[],(Some(t,pt)),(Some ea1)) :: al) er
+							arrow_function p1 (((n,snd e),true,[],(Some(t,pt)),(Some ea1)) :: al) er s
 						| _ -> serror())
 					in
 					(match s with parser
@@ -1313,7 +1317,7 @@ and expr_next' e1 = parser
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Arrow,pa); s >] ->
 		let er = expr s in
-		arrow_function (snd e1) [arrow_first_param e1 s] er
+		arrow_function (snd e1) [arrow_first_param e1 s] er s
 	| [< '(Binop OpGt,p1); s >] ->
 		(match s with parser
 		| [< '(Binop OpGt,p2) when p1.pmax = p2.pmin; s >] ->
