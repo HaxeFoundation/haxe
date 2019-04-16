@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,9 +48,10 @@ class FileInput extends haxe.io.Input {
 		if(feof(__f)) throw new Eof();
 		var r = fread(__f, l);
 		if(r == false) throw Custom('An error occurred');
+		if(strlen(r) == 0) throw new Eof();
 		var b = Bytes.ofString(r);
-		s.blit(p, b, 0, (r:String).length);
-		return (r:String).length;
+		s.blit(p, b, 0, strlen(r));
+		return strlen(r);
 	}
 
 	public override function close() : Void {

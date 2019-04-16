@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,41 +32,40 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/FontFace>
 **/
 @:native("FontFace")
-extern class FontFace
-{
+extern class FontFace {
 	
 	/**
-		Is a `DOMString` that contains the family of the font. It is equivalent to the `@font-face/family` descriptor.
+		Is a `CSSOMString` that contains the family of the font. It is equivalent to the `@font-face/font-family` descriptor.
 	**/
 	var family : String;
 	
 	/**
-		Is a `DOMString` that contains the style of the font. It is equivalent to the `@font-face/style` descriptor.
+		Is a `CSSOMString` that contains the style of the font. It is equivalent to the `@font-face/font-style` descriptor.
 	**/
 	var style : String;
 	
 	/**
-		Is a `DOMString` that contains the weight of the font. It is equivalent to the `@font-face/weight` descriptor.
+		Is a `CSSOMString` that contains the weight of the font. It is equivalent to the `@font-face/font-weight` descriptor.
 	**/
 	var weight : String;
 	
 	/**
-		Is a `DOMString` that contains how the font stretches. It is equivalent to the `@font-face/stretch` descriptor.
+		Is a `CSSOMString` that contains how the font stretches. It is equivalent to the `@font-face/font-stretch` descriptor.
 	**/
 	var stretch : String;
 	
 	/**
-		Is a `DOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
+		Is a `CSSOMString` that contains the range of code encompassed the font. It is equivalent to the `@font-face/unicode-range` descriptor.
 	**/
 	var unicodeRange : String;
 	
 	/**
-		Is a `DOMString` that contains the variant of the font. It is equivalent to the `@font-face/range` descriptor.
+		Is a `CSSOMString` that contains the variant of the font. It is equivalent to the `@font-face/font-variant` descriptor.
 	**/
 	var variant : String;
 	
 	/**
-		Is a `DOMString` that contains the features of the font. It is equivalent to the `@font-face/feature-settings` descriptor.
+		Is a `CSSOMString` that contains the features of the font. It is equivalent to the `@font-face/font-feature-settings`descriptor.
 	**/
 	var featureSettings : String;
 	
@@ -81,11 +80,13 @@ extern class FontFace
 	var loaded(default,null) : Promise<FontFace>;
 	
 	/** @throws DOMError */
-	function new( family : String, source : haxe.extern.EitherType<String,haxe.extern.EitherType<ArrayBuffer,ArrayBufferView>>, ?descriptors : FontFaceDescriptors ) : Void;
-	/** @throws DOMError */
+	@:overload( function( family : String, source : js.lib.ArrayBuffer, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	@:overload( function( family : String, source : js.lib.ArrayBufferView, ?descriptors : FontFaceDescriptors) : FontFace {} )
+	function new( family : String, source : String, ?descriptors : FontFaceDescriptors ) : Void;
 	
 	/**
 		Loads the font, returning a `Promise` to a `FontFace` that fulfills when the font is completely loaded and rejects when an error happens.
+		@throws DOMError
 	**/
 	function load() : Promise<FontFace>;
 }

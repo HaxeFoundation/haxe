@@ -1,6 +1,6 @@
 package flash.display3D.textures;
 
-@:final extern class VideoTexture extends TextureBase {
+extern final class VideoTexture extends TextureBase {
 	var videoHeight(default,never) : Int;
 	var videoWidth(default,never) : Int;
 	function new() : Void;

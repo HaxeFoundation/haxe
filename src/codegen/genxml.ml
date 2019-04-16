@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -121,7 +121,7 @@ let rec gen_type ?(values=None) t =
 			if opt then follow_param t else t
 		) args in
 		node "f" (("a",names) :: values) (List.map gen_type (args @ [r]))
-	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
+	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (lazy_type f)
 
@@ -171,8 +171,8 @@ and gen_field att f =
 		with Not_found ->
 			cf.cf_name
 	in
-	let att = if f.cf_public then ("public","1") :: att else att in
-	let att = if f.cf_final then ("final","1") :: att else att in
+	let att = if has_class_field_flag f CfPublic then ("public","1") :: att else att in
+	let att = if has_class_field_flag f CfFinal then ("final","1") :: att else att in
 	node (field_name f) att (gen_type ~values:(Some values) f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc @ overloads)
 
 let gen_constr e =
@@ -236,11 +236,7 @@ let rec gen_type_decl com pos t =
 		let meta = gen_meta c.cl_meta in
 		let ext = (if c.cl_extern then [("extern","1")] else []) in
 		let interf = (if c.cl_interface then [("interface","1")] else []) in
-		let dynamic = (match c.cl_dynamic with
-			| None -> []
-			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
-		) in
-		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta @ dynamic)
+		node "class" (gen_type_params pos c.cl_private (tpath t) c.cl_params c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		let meta = gen_meta e.e_meta in
@@ -492,14 +488,6 @@ let generate_type com t =
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
 		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
-		let ext = (match c.cl_dynamic with
-			| None -> ext
-			| Some t ->
-				(match c.cl_path with
-				| ["flash";"errors"], _ -> ext
-				| _ when t == t_dynamic -> " implements Dynamic" :: ext
-				| _ -> (" implements Dynamic<" ^ stype t ^ ">") :: ext)
-		) in
 		let ext = (match c.cl_path with
 			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
 			| ["flash";"utils"], "Dictionary" -> [" implements ArrayAccess<Dynamic>"]
@@ -512,7 +500,7 @@ let generate_type com t =
 		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.memq f c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> has_class_field_flag f CfPublic && not (List.memq f c.cl_overrides)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

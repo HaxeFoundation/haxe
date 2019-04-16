@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -299,7 +299,7 @@ struct
 						| TClassDecl{ cl_path = (["haxe"], "Int64") } ->
 							mk_is true obj i64_md
 						| TAbstractDecl{ a_path = ([], "Dynamic") }
-						| TClassDecl{ cl_path = ([], "Dynamic") } ->
+						| TClassDecl{ cl_path = ([], "Dynamic") } when not (is_nullable obj.etype) ->
 							(match obj.eexpr with
 								| TLocal _ | TConst _ -> { e with eexpr = TConst(TBool true) }
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
@@ -722,7 +722,8 @@ struct
 					let field = field.cf_name in
 					(match field with
 						| "charAt" | "charCodeAt" | "split" | "indexOf"
-						| "lastIndexOf" | "substring" | "substr" ->
+						| "lastIndexOf" | "substring" | "substr"
+						| "iterator" | "keyValueIterator" ->
 							{ e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
 						| _ ->
 							{ e with eexpr = TCall(run efield, List.map run args) }
@@ -1396,7 +1397,7 @@ let generate con =
 		else fun w p ->
 			let cur_line = Lexer.get_error_line p in
 			let file = Path.get_full_path p.pfile in
-			print w "//line %d \"%s\"" cur_line (Ast.s_escape file); newline w
+			print w "//line %d \"%s\"" cur_line (StringHelper.s_escape file); newline w
 	in
 
 	let extract_statements expr =
@@ -1929,13 +1930,13 @@ let generate con =
 				end (* TODO see how (get,set) variable handle when they are interfaces *)
 			| Method _ when not (Type.is_physical_field cf) || (match cl.cl_kind, cf.cf_expr with | KAbstractImpl _, None -> true | _ -> false) ->
 				List.iter (fun cf -> if cl.cl_interface || cf.cf_expr <> None then
-					gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+					gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads
 			| Var _ | Method MethDynamic -> ()
 			| Method mkind ->
 				List.iter (fun cf ->
 					if cl.cl_interface || cf.cf_expr <> None then
-						gen_class_field w ~is_overload:true is_static cl cf.cf_final cf
+						gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 				) cf.cf_overloads;
 				let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
 				let is_override = match cf.cf_name with
@@ -2585,7 +2586,7 @@ let generate con =
 
 	ExpressionUnwrap.configure gen;
 
-	UnnecessaryCastsRemoval.configure gen;
+	(* UnnecessaryCastsRemoval.configure gen; *)
 
 	IntDivisionSynf.configure gen;
 

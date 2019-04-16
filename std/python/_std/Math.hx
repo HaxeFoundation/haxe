@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,21 +55,11 @@ extern class Math
 		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.cos(v);
 	}
 
-	static function tan(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.tan(v);
-	}
-	static function asin(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.asin(v);
-	}
-	static function acos(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.acos(v);
-	}
-	static function atan(v:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.atan(v);
-	}
-	static function atan2(y:Float, x:Float):Float {
-		return if (v == POSITIVE_INFINITY || v == NEGATIVE_INFINITY) NaN else python.lib.Math.atan2(v);
-	}
+	static function tan(v:Float):Float;
+	static function asin(v:Float):Float;
+	static function acos(v:Float):Float;
+	static function atan(v:Float):Float;
+	static function atan2(y:Float, x:Float):Float;
 
 	public static inline function exp(v:Float):Float
 	{

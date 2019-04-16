@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -68,6 +68,11 @@ class FileInput extends haxe.io.Input {
 		return NativeStringTools.byte(byte);
 	}
 
+	override function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
+		if(eof()) throw new haxe.io.Eof();
+		return super.readBytes(s, pos, len);
+	}
+
 	override inline public function close() : Void {
 		f.close();
 	}
@@ -82,7 +87,9 @@ class FileInput extends haxe.io.Input {
 				if (len == 0) break;
 				total.addBytes(buf,0,len);
 			}
-		} catch( e : Eof ) _eof = true;
+		} catch( e : Eof ) {
+			_eof = true;
+		}
 		return total.getBytes();
 	}
 

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@ open Type
 open Typecore
 open Error
 open Globals
+open Filename
 
 let build_count = ref 0
 
@@ -42,7 +43,7 @@ let check_field_access ctx cff =
 	let rec loop p0 acc l =
 		let check_display p1 =
 			let pmid = {p0 with pmin = p0.pmax; pmax = p1.pmin} in
-			if DisplayPosition.encloses_display_position pmid then match acc with
+			if DisplayPosition.display_position#enclosed_in pmid then match acc with
 			| access :: _ -> display_access := Some access;
 			| [] -> ()
 		in
@@ -193,7 +194,7 @@ let check_param_constraints ctx types t pl c p =
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType ti) in
+					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
 					begin try unify_raise ctx e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
@@ -207,6 +208,33 @@ let generate_value_meta com co fadd args =
 		| [] -> ()
 		| _ -> fadd (Meta.Value,[EObjectDecl values,null_pos],null_pos)
 
+let is_redefined ctx cf1 fields p =
+	try
+		let cf2 = PMap.find cf1.cf_name fields in
+		let st = s_type (print_context()) in
+		if not (type_iseq cf1.cf_type cf2.cf_type) then begin
+			display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
+			display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
+			error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
+		end else
+			true
+	with Not_found ->
+		false
+
+let make_extension_type ctx tl p =
+	let mk_extension fields t = match follow t with
+		| TAnon a ->
+			PMap.fold (fun cf fields ->
+				if not (is_redefined ctx cf fields p) then PMap.add cf.cf_name cf fields
+				else fields
+			) a.a_fields fields
+		| _ ->
+			error "Can only extend structures" p
+	in
+	let fields = List.fold_left mk_extension PMap.empty tl in
+	let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+	ta
+
 (* build an instance from a full type *)
 let rec load_instance' ctx (t,p) allow_no_params =
 	let t = try
@@ -219,6 +247,18 @@ let rec load_instance' ctx (t,p) allow_no_params =
 		let is_generic,is_generic_build = match mt with
 			| TClassDecl {cl_kind = KGeneric} -> true,false
 			| TClassDecl {cl_kind = KGenericBuild _} -> false,true
+			| TTypeDecl td ->
+				if not (Common.defined ctx.com Define.NoDeprecationWarnings) then
+					begin try
+						let msg = match Meta.get Meta.Deprecated td.t_meta with
+							| _,[EConst(String s),_],_ -> s
+							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
+						in
+						ctx.com.warning msg p
+					with Not_found ->
+						()
+					end;
+				false,false
 			| _ -> false,false
 		in
 		let types , path , f = ctx.g.do_build_instance ctx mt p in
@@ -249,7 +289,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
-							ignore(type_expr ctx e Value);
+							ignore(type_expr ctx e WithType.value);
 							"Expr"
 						| _ -> "Expr"
 					) in
@@ -313,7 +353,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		let t = load_instance' ctx (t,pn) allow_no_params in
 		if allow_display then DisplayEmitter.check_display_type ctx t pn;
 		t
-	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.encloses_display_position pn ->
+	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
 		raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;});
 
@@ -321,19 +361,6 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 	build an instance from a complex type
 *)
 and load_complex_type' ctx allow_display (t,p) =
-	let is_redefined cf1 fields =
-		try
-			let cf2 = PMap.find cf1.cf_name fields in
-			let st = s_type (print_context()) in
-			if not (type_iseq cf1.cf_type cf2.cf_type) then begin
-				display_error ctx ("Cannot redefine field " ^ cf1.cf_name ^ " with different type") p;
-				display_error ctx ("First type was " ^ (st cf1.cf_type)) cf1.cf_pos;
-				error ("Second type was " ^ (st cf2.cf_type)) cf2.cf_pos
-			end else
-				true
-		with Not_found ->
-			false
-	in
 	match t with
 	| CTParent t -> load_complex_type ctx allow_display t
 	| CTPath t -> load_instance ~allow_display ctx (t,p) false
@@ -354,17 +381,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		let t = TMono tr in
 		let r = exc_protect ctx (fun r ->
 			r := lazy_processing (fun() -> t);
-			let mk_extension fields t = match follow t with
-				| TAnon a ->
-					PMap.fold (fun cf fields ->
-						if not (is_redefined cf fields) then PMap.add cf.cf_name cf fields
-						else fields
-					) a.a_fields fields
-				| _ ->
-					error "Can only extend structures" p
-			in
-			let fields = List.fold_left mk_extension PMap.empty tl in
-			let ta = TAnon { a_fields = fields; a_status = ref (Extend tl); } in
+			let ta = make_extension_type ctx tl p in
 			tr := Some ta;
 			ta
 		) "constraint" in
@@ -379,14 +396,14 @@ and load_complex_type' ctx allow_display (t,p) =
 				| TMono _ ->
 					error "Loop found in cascading signatures definitions. Please change order/import" p
 				| TAnon a2 ->
-					PMap.iter (fun _ cf -> ignore(is_redefined cf a2.a_fields)) a.a_fields;
+					PMap.iter (fun _ cf -> ignore(is_redefined ctx cf a2.a_fields p)) a.a_fields;
 					TAnon { a_fields = (PMap.foldi PMap.add a.a_fields a2.a_fields); a_status = ref (Extend [t]); }
 				| _ -> error "Can only extend structures" p
 			in
 			let loop t = match follow t with
 				| TAnon a2 ->
 					PMap.iter (fun f cf ->
-						if not (is_redefined cf a.a_fields) then
+						if not (is_redefined ctx cf a.a_fields p) then
 							a.a_fields <- PMap.add f cf a.a_fields
 					) a2.a_fields
 				| _ ->
@@ -442,7 +459,9 @@ and load_complex_type' ctx allow_display (t,p) =
 				match fst a with
 				| APublic -> ()
 				| APrivate ->
-					ctx.com.warning "private structure fields are deprecated" (pos a);
+					let p = pos a in
+					if Filename.basename p.pfile <> "NativeIterable.hx" then (* Terrible workaround for #7436 *)
+						ctx.com.warning "private structure fields are deprecated" p;
 					pub := false;
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AFinal -> final := true
@@ -487,18 +506,17 @@ and load_complex_type' ctx allow_display (t,p) =
 			) in
 			let t = if Meta.has Meta.Optional f.cff_meta then ctx.t.tnull t else t in
 			let cf = {
-				(mk_field n t p (pos f.cff_name)) with
-				cf_public = !pub;
+				(mk_field n ~public:!pub t p (pos f.cff_name)) with
 				cf_kind = access;
 				cf_params = !params;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
-				cf_final = !final;
 			} in
+			if !final then add_class_field_flag cf CfFinal;
 			init_meta_overloads ctx None cf;
 			if ctx.is_display_file then begin
 				DisplayEmitter.check_display_metadata ctx cf.cf_meta;
-				if DisplayPosition.encloses_display_position cf.cf_name_pos then displayed_field := Some cf;
+				if DisplayPosition.display_position#enclosed_in cf.cf_name_pos then displayed_field := Some cf;
 			end;
 			PMap.add n cf acc
 		in
@@ -507,7 +525,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		| None ->
 			()
 		| Some cf ->
-			DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos;
+			delay ctx PBuildClass (fun () -> DisplayEmitter.display_field ctx (AnonymousStructure a) CFSMember cf cf.cf_name_pos);
 		end;
 		TAnon a
 	| CTFunction (args,r) ->
@@ -528,7 +546,7 @@ and load_complex_type ctx allow_display (t,pn) =
 		if Diagnostics.is_diagnostics_run p then begin
 			delay ctx PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name p true);
 			t_dynamic
-		end else if ctx.com.display.dms_display then
+		end else if ctx.com.display.dms_display && not (DisplayPosition.display_position#enclosed_in pn) then
 			t_dynamic
 		else
 			raise exc
@@ -552,7 +570,7 @@ and init_meta_overloads ctx co cf =
 			let params = (!type_function_params_rec) ctx f cf.cf_name p in
 			ctx.type_params <- params @ ctx.type_params;
 			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx true t in
-			let args = List.map (fun ((a,_),opt,_,t,_) -> a,opt,topt t) f.f_args in
+			let args = List.map (fun ((a,_),opt,_,t,cto) -> a,opt || cto <> None,topt t) f.f_args in
 			let cf = { cf with cf_type = TFun (args,topt f.f_type); cf_params = params; cf_meta = cf_meta} in
 			generate_value_meta ctx.com co (fun meta -> cf.cf_meta <- meta :: cf.cf_meta) f.f_args;
 			overloads := cf :: !overloads;
@@ -675,7 +693,7 @@ let rec type_type_param ?(enum_constructor=false) ctx path get_params p tp =
 	c.cl_meta <- tp.Ast.tp_meta;
 	if enum_constructor then c.cl_meta <- (Meta.EnumConstructorParam,[],null_pos) :: c.cl_meta;
 	let t = TInst (c,List.map snd c.cl_params) in
-	if ctx.is_display_file && DisplayPosition.encloses_display_position (pos tp.tp_name) then
+	if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos tp.tp_name) then
 		DisplayEmitter.display_type ctx t (pos tp.tp_name);
 	match tp.tp_constraints with
 	| None ->
@@ -718,8 +736,11 @@ let load_core_class ctx c =
 			com2.defines.Define.values <- PMap.empty;
 			Common.define com2 Define.CoreApi;
 			Common.define com2 Define.Sys;
+			Define.raw_define_value com2.defines "target.threaded" "true"; (* hack because we check this in sys.thread classes *)
 			if ctx.in_macro then Common.define com2 Define.Macro;
 			com2.class_path <- ctx.com.std_path;
+			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
+			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com2 "load_core_class") (CompilationServer.get ());
 			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
@@ -769,7 +790,7 @@ let init_core_api ctx c =
 		with Unify_error l ->
 			display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
 			display_error ctx (error_msg (Unify l)) p);
-		if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+		if (has_class_field_flag f2 CfPublic) <> (has_class_field_flag f CfPublic) then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
 		(match f2.cf_doc with
 		| None -> f2.cf_doc <- f.cf_doc
 		| Some _ -> ());
@@ -790,22 +811,22 @@ let init_core_api ctx c =
 	in
 	let check_fields fcore fl =
 		PMap.iter (fun i f ->
-			if not f.cf_public then () else
+			if not (has_class_field_flag f CfPublic) then () else
 			let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
 			compare_fields f f2;
 		) fcore;
 		PMap.iter (fun i f ->
 			let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-			if f.cf_public && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
+			if (has_class_field_flag f CfPublic) && not (Meta.has Meta.Hack f.cf_meta) && not (PMap.mem f.cf_name fcore) && not (List.memq f c.cl_overrides) then error ("Public field " ^ i ^ " is not part of core type") p;
 		) fl;
 	in
 	check_fields ccore.cl_fields c.cl_fields;
 	check_fields ccore.cl_statics c.cl_statics;
 	(match ccore.cl_constructor, c.cl_constructor with
 	| None, None -> ()
-	| Some { cf_public = false }, _ -> ()
+	| Some cf, _ when not (has_class_field_flag cf CfPublic) -> ()
 	| Some f, Some f2 -> compare_fields f f2
-	| None, Some { cf_public = false } -> ()
+	| None, Some cf when not (has_class_field_flag cf CfPublic) -> ()
 	| _ -> error "Constructor differs from core type" c.cl_pos)
 
 let string_list_of_expr_path (e,p) =
@@ -823,9 +844,9 @@ let handle_path_display ctx path p =
 		in
 		DisplayEmitter.display_field ctx origin CFSStatic cf p
 	in
-	match ImportHandling.convert_import_to_something_usable !DisplayPosition.display_position path,ctx.com.display.dms_kind with
+	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
 		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx TKType Typecore.NoValue in
+			let fields = DisplayToplevel.collect ctx TKType WithType.no_value in
 			raise_fields fields CRImport (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
@@ -878,3 +899,38 @@ let handle_path_display ctx path p =
 			) m.m_types;
 		| (IDK,_),_ ->
 			()
+
+let handle_using ctx path p =
+	let t = match List.rev path with
+		| (s1,_) :: (s2,_) :: sl ->
+			if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
+			else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
+		| (s1,_) :: sl ->
+			{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
+		| [] ->
+			DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
+	in
+	let types = (match t.tsub with
+		| None ->
+			let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+			let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
+			types
+		| Some _ ->
+			let t = load_type_def ctx p t in
+			[t]
+	) in
+	(* delay the using since we need to resolve typedefs *)
+	let filter_classes types =
+		let rec loop acc types = match types with
+			| td :: l ->
+				(match resolve_typedef td with
+				| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
+					loop ((c,p) :: acc) l
+				| td ->
+					loop acc l)
+			| [] ->
+				acc
+		in
+		loop [] types
+	in
+	types,filter_classes

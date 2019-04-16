@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,7 +45,7 @@ class Std {
 		if( t == null ) return false;
 		switch( t.__type__.kind ) {
 		case HDyn:
-			return true;
+			return v != null;
 		case HF64:
 			switch( hl.Type.getDynamic(v).kind ) {
 			case HUI8, HUI16, HI32:
@@ -64,9 +64,7 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return null;
-	}
+	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
 
 	extern public static inline function int( x : Float ) : Int {
 		return untyped $int(x);

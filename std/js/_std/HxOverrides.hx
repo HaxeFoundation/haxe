@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:noDoc
 class HxOverrides {
 
@@ -140,6 +144,16 @@ class HxOverrides {
 				return __this__.arr[__this__.cur++];
 			}
 		};
+	}
+
+	@:ifFeature("String.iterator")
+	static function strIter( s : String ) : StringIterator {
+		return new StringIterator(s);
+	}
+
+	@:ifFeature("String.keyValueIterator")
+	static function strKVIter( s : String ) : StringKeyValueIterator {
+		return new StringKeyValueIterator(s);
 	}
 
 	static function __init__() untyped {

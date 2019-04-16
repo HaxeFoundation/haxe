@@ -1,9 +1,9 @@
 typedef A     =  { var pos: Int;           var len: Int; };
 typedef NOT_A =  { var pos: Array<String>; var len: Array<Float>; };
 
-typedef X = { @:optional var x:Int; @:optional var y:Int; };
+typedef X = { var ?x:Int; var ?y:Int; };
 typedef Y = { var x:Int; var y:Int; };
-typedef Z = { @:optional var pos:Array<String>; @:optional var len:Array<Float>; };
+typedef Z = { var ?pos:Array<String>; var ?len:Array<Float>; };
 
 class Main {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ package js.html;
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration>
 **/
 @:native("ServiceWorkerRegistration")
-extern class ServiceWorkerRegistration extends EventTarget
-{
+extern class ServiceWorkerRegistration extends EventTarget {
 	
 	/**
 		Returns a service worker whose state is `installing`. This is initially set to `null`.
@@ -41,7 +40,7 @@ extern class ServiceWorkerRegistration extends EventTarget
 	var installing(default,null) : ServiceWorker;
 	
 	/**
-		Returns a service worker whose state is `installed`. This is initially set to `null`.
+		Returns a service worker whose state is `waiting`. This is initially set to `null`.
 	**/
 	var waiting(default,null) : ServiceWorker;
 	
@@ -54,22 +53,40 @@ extern class ServiceWorkerRegistration extends EventTarget
 		Returns a unique identifier for a service worker registration. This must be on the same origin as the document that registers the `ServiceWorker`.
 	**/
 	var scope(default,null) : String;
+	var updateViaCache(default,null) : ServiceWorkerUpdateViaCache;
 	
 	/**
 		An `EventListener` property called whenever an event of type `updatefound` is fired; it is fired any time the `ServiceWorkerRegistration.installing` property acquires a new service worker.
 	**/
 	var onupdatefound : haxe.Constraints.Function;
 	
-	/** @throws DOMError */
+	/**
+		Returns a reference to the `PushManager` interface for managing push subscriptions including subscribing, getting an active subscription, and accessing push permission status.
+	**/
+	var pushManager(default,null) : js.html.push.PushManager;
+	
 	
 	/**
 		Checks the server for an updated version of the service worker without consulting caches.
+		@throws DOMError
 	**/
 	function update() : Promise<Void>;
-	/** @throws DOMError */
 	
 	/**
-		Unregisters the service worker registration and returns a promise (see `Promise`). The service worker will finish any ongoing operations before it is unregistered.
+		Unregisters the service worker registration and returns a `Promise`. The service worker will finish any ongoing operations before it is unregistered.
+		@throws DOMError
 	**/
 	function unregister() : Promise<Bool>;
+	
+	/**
+		Displays the notification with the requested title.
+		@throws DOMError
+	**/
+	function showNotification( title : String, ?options : NotificationOptions ) : Promise<Void>;
+	
+	/**
+		Returns a `Promise` that resolves to an array of `Notification` objects.
+		@throws DOMError
+	**/
+	function getNotifications( ?filter : GetNotificationOptions ) : Promise<Array<Notification>>;
 }

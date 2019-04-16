@@ -7,5 +7,6 @@ private class Dummy<T> {
 class Issue4501 extends Test {
 	function test() {
 		new Dummy(null);
+		noAssert();
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -49,6 +49,7 @@ extern class Bytes {
 	@:pure
 	public static function ofString( s : String, ?encoding : Encoding ) : Bytes;
 	public static function ofData( b : BytesData ) : Bytes;
+	public static function ofHex( s : String ) : Bytes;
 	public static function fastGet( b : BytesData, pos : Int ) : Int;
 	static function __init__():Void {
 		haxe.io.Error;

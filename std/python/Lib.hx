@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,10 @@ typedef PySys = python.lib.Sys;
 	and vice-versa.
 **/
 class Lib {
+
+	static public var __name__(get, never):String;
+	static inline function get___name__():String return python.Syntax.code('__name__');
+
 	/**
 		Print the specified value on the default output.
 	**/

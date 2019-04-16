@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,6 +45,10 @@ import java.util.regex.*;
 			}
 		}
 
+		flags |= Pattern.UNICODE_CASE;
+		#if !android // see https://github.com/HaxeFoundation/haxe/issues/7632
+		flags |= Pattern.UNICODE_CHARACTER_CLASS;
+		#end
 		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
 	}

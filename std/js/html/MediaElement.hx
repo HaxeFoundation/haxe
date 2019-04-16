@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,15 +25,14 @@
 package js.html;
 
 /**
-	The `HTMLMediaElement` interface adds to `HTMLElement` the properties and methods needed to support basic media-related capabilities that are common to audio and video. The `HTMLVideoElement` and `HTMLAudioElement` elements both inherit this interface.
+	The `HTMLMediaElement` interface adds to `HTMLElement` the properties and methods needed to support basic media-related capabilities that are common to audio and video.
 
 	Documentation [HTMLMediaElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement>
 **/
 @:native("HTMLMediaElement")
-extern class MediaElement extends Element
-{
+extern class MediaElement extends Element {
 	static inline var NETWORK_EMPTY : Int = 0;
 	static inline var NETWORK_IDLE : Int = 1;
 	static inline var NETWORK_LOADING : Int = 2;
@@ -131,7 +130,9 @@ extern class MediaElement extends Element
 	var ended(default,null) : Bool;
 	
 	/**
-		Is a `Boolean` that reflects the `autoplay` HTML attribute, indicating whether playback should automatically begin as soon as enough media is available to do so without interruption.
+		A `Boolean` that reflects the `autoplay` HTML attribute, indicating whether playback should automatically begin as soon as enough media is available to do so without interruption.
+		 Sites which automatically play audio (or videos with an audio track) can be an unpleasant experience for users, so it should be avoided when possible. If you must offer autoplay functionality, you should make it opt-in (requiring a user to specifically enable it). However, this can be useful when creating media elements whose source will be set at a later time, under user control.
+		 
 	**/
 	var autoplay : Bool;
 	
@@ -161,14 +162,14 @@ extern class MediaElement extends Element
 	var defaultMuted : Bool;
 	
 	/**
-		Is a `AudioTrackList` that lists the `AudioTrack` objects contained in the element.
+		A `AudioTrackList` that lists the `AudioTrack` objects contained in the element.
 	**/
 	var audioTracks(default,null) : AudioTrackList;
 	
 	/**
 		Returns the list of `VideoTrack` objects contained in the element.
 		 
-		 Note: Gecko supports only single track playback, and the parsing of tracks' metadata is only available for media with the Ogg container format.
+		 Gecko supports only single track playback, and the parsing of tracks' metadata is only available for media with the Ogg container format.
 		 
 		 
 	**/
@@ -180,9 +181,24 @@ extern class MediaElement extends Element
 	var textTracks(default,null) : TextTrackList;
 	
 	/**
-		Is a `MediaStream` representing the media to play or that has played in the current `HTMLMediaElement`.
+		Is a `MediaStream` representing the media to play or that has played in the current `HTMLMediaElement`, or `null` if not assigned.
 	**/
 	var srcObject : MediaStream;
+	
+	/**
+		Returns a `MediaKeys` object or `null`. MediaKeys is a set of keys that an associated HTMLMediaElement can use for decryption of media data during playback.
+	**/
+	var mediaKeys(default,null) : js.html.eme.MediaKeys;
+	
+	/**
+		Sets the `EventHandler` called when the media is encrypted.
+	**/
+	var onencrypted : haxe.Constraints.Function;
+	
+	/**
+		Sets the `EventHandler` called when playback is blocked while waiting for an encryption key.
+	**/
+	var onwaitingforkey : haxe.Constraints.Function;
 	
 	
 	/**
@@ -194,27 +210,32 @@ extern class MediaElement extends Element
 		Determines whether the specified media type can be played back.
 	**/
 	function canPlayType( type : String ) : String;
-	/** @throws DOMError */
 	
 	/**
 		Directly seeks to the given time.
+		@throws DOMError
 	**/
 	function fastSeek( time : Float ) : Void;
-	/** @throws DOMError */
 	
 	/**
 		Begins playback of the media.
+		@throws DOMError
 	**/
-	function play() : Void;
-	/** @throws DOMError */
+	function play() : Promise<Void>;
 	
 	/**
 		Pauses the media playback.
+		@throws DOMError
 	**/
 	function pause() : Void;
 	
 	/**
 		Adds a text track (such as a track for subtitles) to a media element.
 	**/
-	function addTextTrack( kind : TextTrackKind, ?label : String = "", ?language : String = "" ) : TextTrack;
+	function addTextTrack( kind : TextTrackKind, label : String = "", language : String = "" ) : TextTrack;
+	
+	/**
+		Returns `Promise`. Sets the `MediaKeys` keys to use when decrypting media during playback.
+	**/
+	function setMediaKeys( mediaKeys : js.html.eme.MediaKeys ) : Promise<Void>;
 }

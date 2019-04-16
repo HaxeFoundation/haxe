@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -90,7 +90,7 @@ import java.NativeArray;
 			} else {
 				//var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEmpty(flag = hashes[i]) || (flag == k && untyped keys[i].equals(key))) )
+				while(! (isEmpty(flag = hashes[i]) || (flag == k && (cast keys[i] : java.lang.Object).equals(key))) )
 				{
 					if (isDel(flag) && delKey == -1)
 						delKey = i;
@@ -139,7 +139,7 @@ import java.NativeArray;
 #end
 	}
 
-	@:final private function lookup( key : K ) : Int
+	private final function lookup( key : K ) : Int
 	{
 		if (nBuckets != 0)
 		{
@@ -149,7 +149,7 @@ import java.NativeArray;
 			var i = k & mask;
 			var last = i, flag;
 			//var inc = getInc(k, mask);
-			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !(untyped keys[i].equals(key))))
+			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !((cast keys[i] : java.lang.Object).equals(key))))
 			{
 				i = (i + ++nProbes) & mask;
 #if DEBUG_HASHTBL
@@ -170,7 +170,7 @@ import java.NativeArray;
 		return -1;
 	}
 
-	@:final @:private function resize(newNBuckets:Int) : Void
+	@:private final function resize(newNBuckets:Int) : Void
 	{
 		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
@@ -395,6 +395,9 @@ import java.NativeArray;
 		return new ObjectMapValueIterator(this);
 	}
 
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+		return new haxe.iterators.MapKeyValueIterator(this);
+	}
 
 	public function copy() : ObjectMap<K,V> {
 		var copied = new ObjectMap();
@@ -447,7 +450,7 @@ import java.NativeArray;
 	//guarantee: Whatever this function is, it will never return 0 nor 1
 	extern private static inline function hash(s:Dynamic):HashType
 	{
-		var k:Int = untyped s.hashCode();
+		var k:Int = (cast s : java.lang.Object).hashCode();
 		//k *= 357913941;
 		//k ^= k << 24;
 		//k += ~357913941;
@@ -485,8 +488,7 @@ import java.NativeArray;
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final
-private class ObjectMapKeyIterator<T:{},V> {
+private final class ObjectMapKeyIterator<T:{},V> {
 	var m:ObjectMap<T,V>;
 	var i:Int;
 	var len:Int;
@@ -523,8 +525,7 @@ private class ObjectMapKeyIterator<T:{},V> {
 }
 
 @:access(haxe.ds.ObjectMap)
-@:final
-private class ObjectMapValueIterator<K:{},T> {
+private final class ObjectMapValueIterator<K:{},T> {
 	var m:ObjectMap<K,T>;
 	var i:Int;
 	var len:Int;

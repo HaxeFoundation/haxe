@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -43,10 +43,7 @@ import js.Boot;
 
 	@:pure
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = untyped __js__("parseInt")(x, 10);
-		// parse again if hexadecimal
-		if( v == 0 && (x.charCodeAt(1) == 'x'.code || x.charCodeAt(1) == 'X'.code) )
-			v = untyped __js__("parseInt")(x);
+		var v = untyped __js__('parseInt({0}, {0} && {0}[0]=="0" && ({0}[1]=="x" || {0}[1]=="X") ? 16 : 10)', x);
 		if( untyped __js__("isNaN")(v) )
 			return null;
 		return cast v;

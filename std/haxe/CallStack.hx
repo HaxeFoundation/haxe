@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -210,7 +210,7 @@ class CallStack {
 			}
 			return stack;
 		#elseif cs
-			return makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
+			return cs.internal.Exceptions.exception == null ? [] : makeStack(new cs.system.diagnostics.StackTrace(cs.internal.Exceptions.exception, true));
 		#elseif python
 			var stack = [];
 			var exc = python.lib.Sys.exc_info();

@@ -1,6 +1,6 @@
 package flash.display;
 
-@:final extern class GraphicsPath implements IGraphicsData implements IGraphicsPath {
+extern final class GraphicsPath implements IGraphicsData implements IGraphicsPath {
 	var commands : flash.Vector<Int>;
 	var data : flash.Vector<Float>;
 	var winding : GraphicsPathWinding;

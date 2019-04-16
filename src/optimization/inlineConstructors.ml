@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -98,7 +98,7 @@ let inline_constructors ctx e =
 			| IOKCtor(_,isextern,vars) ->
 				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) vars;
 				if isextern then begin
-					display_error ctx "Extern constructor could not be inlined" io.io_pos;
+					display_error ctx "Forced inline constructor could not be inlined" io.io_pos;
 					display_error ctx "Cancellation happened here" p;
 				end
 			| _ -> ()
@@ -165,7 +165,7 @@ let inline_constructors ctx e =
 		if i < 0 then "n" ^ (string_of_int (-i))
 		else (string_of_int i)
 	in
-	let is_extern_ctor c cf = c.cl_extern || cf.cf_extern in
+	let is_extern_ctor c cf = c.cl_extern || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
 		| [] -> mk (TBlock[]) ctx.t.tvoid p
 		| [e] -> e
@@ -221,6 +221,7 @@ let inline_constructors ctx e =
 		in
 		match e.eexpr, e.etype with
 		| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl),_
+		| TMeta((Meta.Inline,_,_),{eexpr = TNew({ cl_constructor = Some ({cf_expr = Some ({eexpr = TFunction tf})} as cf)} as c,tl,pl)}),_
 			when captured && not (List.memq cf seen_ctors) ->
 			begin
 				let io_id = !current_io_id in
@@ -245,7 +246,8 @@ let inline_constructors ctx e =
 				match Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos with
 				| Some inlined_expr ->
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
-					let io = mk_io (IOKCtor(cf,is_extern_ctor c cf,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
+					let forced = is_extern_ctor c cf || (match e.eexpr with TMeta _ -> true | _ -> false) in
+					let io = mk_io (IOKCtor(cf,forced,argvs)) io_id inlined_expr ~has_untyped:has_untyped in
 					let rec loop (c:tclass) (tl:t list) =
 						let apply = apply_params c.cl_params tl in
 						List.iter (fun cf ->
@@ -387,7 +389,7 @@ let inline_constructors ctx e =
 			([Type.map_expr f e], None)
 		in
 		match e.eexpr with
-		| TObjectDecl _ | TArrayDecl _ | TNew _ ->
+		| TObjectDecl _ | TArrayDecl _ | TNew _ | (TMeta((Meta.Inline,_,_),{eexpr = TNew _})) ->
 			begin try
 				let io = get_io !current_io_id in
 				if io.io_cancelled then begin

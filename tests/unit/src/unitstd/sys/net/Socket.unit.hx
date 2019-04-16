@@ -57,4 +57,6 @@ c.read() == "abc";
 
 c.close();
 s.close();
+#else
+1 == 1;
 #end

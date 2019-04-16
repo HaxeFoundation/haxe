@@ -1,6 +1,6 @@
 
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,7 +25,6 @@ import lua.Boot;
 import lua.Io;
 import lua.Lua;
 import lua.Os;
-import lua.lib.luautf8.Utf8;
 import lua.lib.luv.Misc;
 import sys.io.FileInput;
 import sys.io.FileOutput;
@@ -82,6 +81,7 @@ class Sys {
 		var p = new sys.io.Process(cmd,[]);
 		var code = p.exitCode(true);
 		var out = p.stdout.readAll().toString();
+		p.close();
 		var lines = out.split("\n");
 		var m = new Map<String,String>();
 		for (l in lines){

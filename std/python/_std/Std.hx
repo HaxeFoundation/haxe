@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,7 +56,7 @@ import python.Syntax;
 			return false;
 		}
 		if (isMetaType(t,Dynamic)) {
-			return true;
+			return v != null;
 		}
 		var isBool = UBuiltins.isinstance(v, UBuiltins.bool);
 

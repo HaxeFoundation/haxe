@@ -9,6 +9,7 @@ class Issue2980 extends Test {
 	function test() {
 		a();
 		b();
+		noAssert();
 	}
 	#end
 }

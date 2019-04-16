@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,54 +23,53 @@ package haxe.xml;
 
 using StringTools;
 
-/* poor'man enum : reduce code size + a bit faster since inlined */
-extern private class S {
-	public static inline var IGNORE_SPACES 	= 0;
-	public static inline var BEGIN			= 1;
-	public static inline var BEGIN_NODE		= 2;
-	public static inline var TAG_NAME		= 3;
-	public static inline var BODY			= 4;
-	public static inline var ATTRIB_NAME	= 5;
-	public static inline var EQUALS			= 6;
-	public static inline var ATTVAL_BEGIN	= 7;
-	public static inline var ATTRIB_VAL		= 8;
-	public static inline var CHILDS			= 9;
-	public static inline var CLOSE			= 10;
-	public static inline var WAIT_END		= 11;
-	public static inline var WAIT_END_RET	= 12;
-	public static inline var PCDATA			= 13;
-	public static inline var HEADER			= 14;
-	public static inline var COMMENT		= 15;
-	public static inline var DOCTYPE		= 16;
-	public static inline var CDATA			= 17;
-	public static inline var ESCAPE			= 18;
+private enum abstract S(Int) {
+	var IGNORE_SPACES;
+	var BEGIN;
+	var BEGIN_NODE;
+	var TAG_NAME;
+	var BODY;
+	var ATTRIB_NAME;
+	var EQUALS;
+	var ATTVAL_BEGIN;
+	var ATTRIB_VAL;
+	var CHILDS;
+	var CLOSE;
+	var WAIT_END;
+	var WAIT_END_RET;
+	var PCDATA;
+	var HEADER;
+	var COMMENT;
+	var DOCTYPE;
+	var CDATA;
+	var ESCAPE;
 }
 
 class XmlParserException
 {
 	/**
-	 * the XML parsing error message
-	 */
+		the XML parsing error message
+	**/
 	public var message:String;
 
 	/**
-	 * the line number at which the XML parsing error occurred
-	 */
+		the line number at which the XML parsing error occurred
+	**/
 	public var lineNumber:Int;
 
 	/**
-	 * the character position in the reported line at which the parsing error occurred
-	 */
+		the character position in the reported line at which the parsing error occurred
+	**/
 	public var positionAtLine:Int;
 
 	/**
-	 * the character position in the XML string at which the parsing error occurred
-	 */
+		the character position in the XML string at which the parsing error occurred
+	**/
 	public var position:Int;
 
 	/**
-	 * the invalid XML string
-	 */
+		the invalid XML string
+	**/
 	public var xml:String;
 
 	public function new(message:String, xml:String, position:Int)
@@ -112,10 +111,10 @@ class Parser
 	}
 
 	/**
-	 * Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
-	 *
-	 * @throws haxe.xml.XmlParserException
-	 */
+		Parses the String into an XML Document. Set strict parsing to true in order to enable a strict check of XML attributes and entities.
+		
+		@throws haxe.xml.XmlParserException
+	**/
 	static public function parse(str:String, strict = false)
 	{
 		var doc = Xml.createDocument();
@@ -338,6 +337,9 @@ class Parser
 							throw new XmlParserException("Expected node name", str, p);
 
 						var v = str.substr(start,p - start);
+						if (parent == null || parent.nodeType != Element) {
+							throw new XmlParserException('Unexpected </$v>, tag is not open', str, p);
+						}
 						if (v != parent.nodeName)
 							throw new XmlParserException("Expected </" +parent.nodeName + ">", str, p);
 
@@ -428,6 +430,9 @@ class Parser
 
 		if (state == S.PCDATA)
 		{
+			if (parent.nodeType == Element) {
+				throw new XmlParserException("Unclosed node <" + parent.nodeName + ">", str, p);
+			}
 			if (p != start || nsubs == 0) {
 				buf.addSub(str, start, p-start);
 				addChild(Xml.createPCData(buf.toString()));

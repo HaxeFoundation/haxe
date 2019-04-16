@@ -1,6 +1,6 @@
 package flash.system;
 
-@:final @:require(flash11_3) extern class AuthorizedFeatures {
+@:require(flash11_3) extern final class AuthorizedFeatures {
 	function new() : Void;
 	function createApplicationInstaller(strings : flash.xml.XML, icon : flash.utils.ByteArray) : ApplicationInstaller;
 	function enableAVLoader(loader : flash.display.AVLoader) : Bool;

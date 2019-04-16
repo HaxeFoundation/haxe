@@ -1,6 +1,6 @@
 package flash.system;
 
-@:final extern class ApplicationDomain {
+extern final class ApplicationDomain {
 	@:require(flash10) var domainMemory : flash.utils.ByteArray;
 	var parentDomain(default,never) : ApplicationDomain;
 	function new(?parentDomain : ApplicationDomain) : Void;

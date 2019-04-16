@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -23,11 +23,6 @@ open Common
 open Type
 open Error
 open DisplayTypes
-
-type with_type =
-	| NoValue
-	| Value
-	| WithType of t
 
 type type_patch = {
 	mutable tp_type : complex_type option;
@@ -79,8 +74,6 @@ type typer_globals = {
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
-	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
-	delayed_macros : (unit -> unit) DynArray.t;
 	mutable global_using : (tclass * pos) list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
@@ -93,6 +86,7 @@ type typer_globals = {
 	do_format_string : typer -> string -> pos -> Ast.expr;
 	do_finalize : typer -> unit;
 	do_generate : typer -> (texpr option * module_type list * module_def list);
+	do_load_core_class : typer -> tclass -> tclass;
 }
 
 and typer = {
@@ -102,7 +96,7 @@ and typer = {
 	g : typer_globals;
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
-	mutable with_type_stack : with_type list;
+	mutable with_type_stack : WithType.t list;
 	mutable call_argument_stack : expr list list;
 	(* variable *)
 	mutable pass : typer_pass;
@@ -113,6 +107,7 @@ and typer = {
 	mutable curclass : tclass;
 	mutable tthis : t;
 	mutable type_params : (string * t) list;
+	mutable get_build_infos : unit -> (module_type * t list * class_field list) option;
 	(* per-function *)
 	mutable curfield : tclass_field;
 	mutable untyped : bool;
@@ -133,13 +128,11 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
-let make_call_ref : (typer -> texpr -> texpr list -> t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-let type_expr_ref : (typer -> expr -> with_type -> texpr) ref = ref (fun _ _ _ -> assert false)
-let type_block_ref : (typer -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
+let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
+let type_expr_ref : (typer -> expr -> WithType.t -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
-let get_pattern_locals_ref : (typer -> expr -> Type.t -> (string, tvar * pos) PMap.t) ref = ref (fun _ _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
-let merge_core_doc_ref : (typer -> tclass -> unit) ref = ref (fun _ _ -> assert false)
 
 let pass_name = function
 	| PBuildModule -> "build-module"
@@ -151,18 +144,13 @@ let pass_name = function
 
 let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy with
 	| DisplayMode.EPShow | DisplayMode.EPIgnore -> ctx.on_error ctx msg p
-	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsSeverity.Error
+	| DisplayMode.EPCollect -> add_diagnostics_message ctx.com msg p DisplayTypes.DiagnosticsKind.DKCompilerError DisplayTypes.DiagnosticsSeverity.Error
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
 let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
-
-let s_with_type = function
-	| NoValue -> "NoValue"
-	| Value -> "Value"
-	| WithType t -> "WithType " ^ (s_type (print_context()) t)
 
 let make_static_this c p =
 	let ta = TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) } in
@@ -319,7 +307,7 @@ let push_this ctx e = match e.eexpr with
 		er,fun () -> ctx.this_stack <- List.tl ctx.this_stack
 
 let is_removable_field ctx f =
-	f.cf_extern || Meta.has Meta.Generic f.cf_meta
+	has_class_field_flag f CfExtern || Meta.has Meta.Generic f.cf_meta
 	|| (match f.cf_kind with
 		| Var {v_read = AccRequire (s,_)} -> true
 		| Method MethMacro -> not ctx.in_macro
@@ -327,7 +315,7 @@ let is_removable_field ctx f =
 
 (** checks if we can access to a given class field using current context *)
 let rec can_access ctx ?(in_overload=false) c cf stat =
-	if cf.cf_public then
+	if (has_class_field_flag cf CfPublic) then
 		true
 	else if not in_overload && ctx.com.config.pf_overload && Meta.has Meta.Overload cf.cf_meta then
 		true
@@ -427,6 +415,22 @@ let prepare_using_field cf = match follow cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
+let merge_core_doc ctx mt =
+	(match mt with
+	| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
+		let c_core = ctx.g.do_load_core_class ctx c in
+		if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
+		let maybe_merge cf_map cf =
+			if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
+		in
+		List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
+		List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
+		begin match c.cl_constructor,c_core.cl_constructor with
+			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
+			| _ -> ()
+		end
+	| _ -> ())
+
 (* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
 (*/*
 
@@ -441,7 +445,12 @@ let context_ident ctx =
 		"  out "
 
 let debug ctx str =
-	if Common.raw_defined ctx.com "cdebug" then print_endline (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str)
+	if Common.raw_defined ctx.com "cdebug" then begin
+		let s = (context_ident ctx ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
+		match ctx.com.json_out with
+		| None -> print_endline s
+		| Some _ -> DynArray.add ctx.com.pass_debug_messages s
+	end
 
 let init_class_done ctx =
 	debug ctx ("init_class_done " ^ s_type_path ctx.curclass.cl_path);

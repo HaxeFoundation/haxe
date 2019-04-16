@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,21 +21,16 @@
  */
 package haxe.io;
 
-#if !nodejs
-import js.html.compat.Uint8Array;
-import js.html.compat.DataView;
-#end
-
 @:coreApi
 class Bytes {
 
 	public var length(default,null) : Int;
-	var b : js.html.Uint8Array;
-	var data : js.html.DataView;
+	var b : js.lib.Uint8Array;
+	var data : js.lib.DataView;
 
 	function new(data:BytesData) {
 		this.length = data.byteLength;
-		this.b = new js.html.Uint8Array(data);
+		this.b = new js.lib.Uint8Array(data);
 		untyped {
 			b.bufferValue = data; // some impl does not return the same instance in .buffer
 			data.hxBytes = this;
@@ -48,7 +43,7 @@ class Bytes {
 	}
 
 	public inline function set( pos : Int, v : Int ) : Void {
-		b[pos] = v & 0xFF; // the &0xFF is necessary for js.html.compat support
+		b[pos] = v;
 	}
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
@@ -80,7 +75,7 @@ class Bytes {
 	}
 
 	inline function initData() : Void {
-		if( data == null ) data = new js.html.DataView(b.buffer, b.byteOffset, b.byteLength);
+		if( data == null ) data = new js.lib.DataView(b.buffer, b.byteOffset, b.byteLength);
 	}
 
 	public function getDouble( pos : Int ) : Float {
@@ -203,7 +198,7 @@ class Bytes {
 
 	public static function ofString( s : String, ?encoding : Encoding ) : Bytes {
 		if( encoding == RawNative ) {
-			var buf = new js.html.Uint8Array(s.length << 1);
+			var buf = new js.lib.Uint8Array(s.length << 1);
 			for( i in 0...s.length ) {
 				var c : Int = StringTools.fastCodeAt(s,i);
 				buf[i << 1] = c & 0xFF;
@@ -235,13 +230,30 @@ class Bytes {
 				a.push( 0x80 | (c & 63) );
 			}
 		}
-		return new Bytes(new js.html.Uint8Array(a).buffer);
+		return new Bytes(new js.lib.Uint8Array(a).buffer);
 	}
 
 	public static function ofData( b : BytesData ) : Bytes {
 		var hb = untyped b.hxBytes;
 		if( hb != null ) return hb;
 		return new Bytes(b);
+	}
+	
+	public static function ofHex( s : String ) : Bytes {		
+		if ( (s.length & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var a = new Array();
+		var i = 0;
+		var len = s.length >> 1;
+		while( i < len ) {
+			var high = StringTools.fastCodeAt(s, i*2);
+			var low = StringTools.fastCodeAt(s, i*2 + 1);
+			high = (high & 0xF) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xF) + ( (low & 0x40) >> 6 ) * 9;
+			a.push( ( (high << 4) | low)  & 0xFF );
+			i++;
+		}
+
+		return new Bytes(new js.lib.Uint8Array(a).buffer);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

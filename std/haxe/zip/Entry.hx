@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,6 +37,6 @@ typedef Entry =  {
 	var dataSize : Int;
 	var data : Null<haxe.io.Bytes>;
 	var crc32 : Null<Int>;
-	@:optional var extraFields : Null<List<ExtraField>>;
+	var ?extraFields : Null<List<ExtraField>>;
 }
 

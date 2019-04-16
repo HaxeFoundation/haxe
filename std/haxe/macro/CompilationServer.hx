@@ -2,8 +2,7 @@ package haxe.macro;
 
 import haxe.macro.Compiler;
 
-enum
-abstract ModuleCheckPolicy(Int) {
+enum abstract ModuleCheckPolicy(Int) {
 	/**
 		Disables file modification checks, avoiding some filesystem operations.
 	**/

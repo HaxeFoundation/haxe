@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 
 open Globals
 open Ast
+open Filename
 open Type
 open Typecore
 open DisplayTypes.DisplayMode
@@ -116,7 +117,7 @@ module StrictMeta = struct
 			in
 
 			let left = type_expr ctx left_side NoValue in
-			let right = type_expr ctx expr (WithType left.etype) in
+			let right = type_expr ctx expr (WithType.with_type left.etype) in
 			unify ctx left.etype right.etype (snd expr);
 			(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 		) fields_to_check
@@ -213,6 +214,12 @@ let module_pass_1 ctx m tdecls loadp =
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
+			List.iter (function
+				| HExtern -> c.cl_extern <- true
+				| HInterface -> c.cl_interface <- true
+				| HFinal -> c.cl_final <- true
+				| _ -> ()
+			) d.d_flags;
 			decls := (TClassDecl c, decl) :: !decls;
 			acc
 		| EEnum d ->
@@ -229,6 +236,7 @@ let module_pass_1 ctx m tdecls loadp =
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
 				e_params = [];
+				e_using = [];
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
@@ -251,6 +259,7 @@ let module_pass_1 ctx m tdecls loadp =
 				t_doc = d.d_doc;
 				t_private = priv;
 				t_params = [];
+				t_using = [];
 				t_type = mk_mono();
 				t_meta = d.d_meta;
 			} in
@@ -275,6 +284,7 @@ let module_pass_1 ctx m tdecls loadp =
 				a_name_pos = pos d.d_name;
 				a_doc = d.d_doc;
 				a_params = [];
+				a_using = [];
 				a_meta = d.d_meta;
 				a_from = [];
 				a_to = [];
@@ -285,7 +295,8 @@ let module_pass_1 ctx m tdecls loadp =
 				a_impl = None;
 				a_array = [];
 				a_this = mk_mono();
-				a_resolve = None;
+				a_read = None;
+				a_write = None;
 			} in
 			decls := (TAbstractDecl a, decl) :: !decls;
 			match d.d_data with
@@ -338,15 +349,15 @@ let init_module_type ctx context_init do_init (decl,p) =
 	in
 	let check_path_display path p = match ctx.com.display.dms_kind with
 		(* We cannot use ctx.is_display_file because the import could come from an import.hx file. *)
-		| DMDiagnostics b when (b || DisplayPosition.is_display_file p.pfile) && not (ExtString.String.ends_with p.pfile "import.hx") ->
+		| DMDiagnostics b when (b || DisplayPosition.display_position#is_in_file p.pfile) && Filename.basename p.pfile <> "import.hx" ->
 			ImportHandling.add_import_position ctx.com p path;
 		| DMStatistics ->
 			ImportHandling.add_import_position ctx.com p path;
 		| DMUsage _ ->
 			ImportHandling.add_import_position ctx.com p path;
-			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
+			if DisplayPosition.display_position#is_in_file p.pfile then handle_path_display ctx path p
 		| _ ->
-			if DisplayPosition.is_display_file p.pfile then handle_path_display ctx path p
+			if DisplayPosition.display_position#is_in_file p.pfile then handle_path_display ctx path p
 	in
 	match decl with
 	| EImport (path,mode) ->
@@ -393,9 +404,10 @@ let init_module_type ctx context_init do_init (decl,p) =
 					t_doc = None;
 					t_meta = [];
 					t_params = (t_infos t).mt_params;
+					t_using = [];
 					t_type = f (List.map snd (t_infos t).mt_params);
 				} in
-				if ctx.is_display_file && DisplayPosition.encloses_display_position p then
+				if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
 					DisplayEmitter.display_module_type ctx mt p;
 				mt
 			in
@@ -469,54 +481,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 			))
 	| EUsing path ->
 		check_path_display path p;
-		let t = match List.rev path with
-			| (s1,_) :: (s2,_) :: sl ->
-				if is_lower_ident s2 then { tpackage = (List.rev (s2 :: List.map fst sl)); tname = s1; tsub = None; tparams = [] }
-				else { tpackage = List.rev (List.map fst sl); tname = s2; tsub = Some s1; tparams = [] }
-			| (s1,_) :: sl ->
-				{ tpackage = List.rev (List.map fst sl); tname = s1; tsub = None; tparams = [] }
-			| [] ->
-				DisplayException.raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRUsing None;
-		in
+		let types,filter_classes = handle_using ctx path p in
 		(* do the import first *)
-		let types = (match t.tsub with
-			| None ->
-				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
-				ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
-				types
-			| Some _ ->
-				let t = load_type_def ctx p t in
-				ctx.m.module_types <- (t,p) :: ctx.m.module_types;
-				[t]
-		) in
-		(* delay the using since we need to resolve typedefs *)
-		let filter_classes types =
-			let rec loop acc types = match types with
-				| td :: l ->
-					(match resolve_typedef td with
-					| TClassDecl c | TAbstractDecl({a_impl = Some c}) ->
-						loop ((c,p) :: acc) l
-					| td ->
-						loop acc l)
-				| [] ->
-					acc
-			in
-			loop [] types
-		in
+		ctx.m.module_types <- (List.map (fun t -> t,p) types) @ ctx.m.module_types;
 		context_init := (fun() -> ctx.m.module_using <- filter_classes types @ ctx.m.module_using) :: !context_init
 	| EClass d ->
 		let c = (match get_type (fst d.d_name) with TClassDecl c -> c | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None;
 		let herits = d.d_flags in
-		List.iter (function
-			| HExtern -> c.cl_extern <- true
-			| HInterface -> c.cl_interface <- true
-			| HFinal -> c.cl_final <- true
-			| _ -> ()
-		) herits;
 		List.iter (fun (m,_,p) ->
 			if m = Meta.Final then begin
 				c.cl_final <- true;
@@ -580,7 +554,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EEnum d ->
 		let e = (match get_type (fst d.d_name) with TEnumDecl e -> e | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TEnumDecl e) (pos d.d_name);
 		let ctx = { ctx with type_params = e.e_params } in
 		let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
@@ -608,7 +582,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 		let init () = List.iter (fun f -> f()) !context_init in
 		TypeloadFields.build_module_def ctx (TEnumDecl e) e.e_meta get_constructs init (fun (e,p) ->
 			match e with
-			| EVars [_,Some (CTAnonymous fields,p),None] ->
+			| EVars [_,_,Some (CTAnonymous fields,p),None] ->
 				constructs := List.map (fun f ->
 					let args, params, t = (match f.cff_kind with
 					| FVar (t,None) -> [], [], t
@@ -684,7 +658,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				cf_doc = f.ef_doc;
 				cf_params = f.ef_params;
 			} in
- 			if ctx.is_display_file && DisplayPosition.encloses_display_position f.ef_name_pos then
+ 			if ctx.is_display_file && DisplayPosition.display_position#enclosed_in f.ef_name_pos then
  				DisplayEmitter.display_enum_field ctx e f p;
 			e.e_constrs <- PMap.add f.ef_name f e.e_constrs;
 			fields := PMap.add cf.cf_name cf !fields;
@@ -711,7 +685,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| ETypedef d ->
 		let t = (match get_type (fst d.d_name) with TTypeDecl t -> t | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TTypeDecl t) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
 		let ctx = { ctx with type_params = t.t_params } in
@@ -762,7 +736,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 			);
 	| EAbstract d ->
 		let a = (match get_type (fst d.d_name) with TAbstractDecl a -> a | _ -> assert false) in
-		if ctx.is_display_file && DisplayPosition.encloses_display_position (pos d.d_name) then
+		if ctx.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx (TAbstractDecl a) (pos d.d_name);
 		TypeloadCheck.check_global_metadata ctx a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
 		let ctx = { ctx with type_params = a.a_params } in
@@ -865,12 +839,13 @@ let type_types_into_module ctx m tdecls p =
 			wildcard_packages = [];
 			module_imports = [];
 		};
-		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.is_display_file m.m_extra.m_file);
+		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
 		call_argument_stack = [];
 		pass = PBuildModule;
+		get_build_infos = (fun() -> None);
 		on_error = (fun ctx msg p -> ctx.com.error msg p);
 		macro_depth = ctx.macro_depth;
 		curclass = null_class;
@@ -924,7 +899,11 @@ let handle_import_hx ctx m decls p =
 			r
 		with Not_found ->
 			if Sys.file_exists path then begin
-				let _,r = TypeloadParse.parse_file ctx.com path p in
+				let _,r = match !TypeloadParse.parse_hook ctx.com path p with
+					| ParseSuccess data -> data
+					| ParseDisplayFile(data,_) -> data
+					| ParseError(_,(msg,p),_) -> Parser.error msg p
+				in
 				List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> error "Only import and using is allowed in import.hx files" p) r;
 				add_dependency m (make_import_module path r);
 				r

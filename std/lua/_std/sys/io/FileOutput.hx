@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,7 @@
 package sys.io;
 
 import lua.FileHandle;
+import haxe.io.Bytes;
 
 class FileOutput extends haxe.io.Output {
 	var f:FileHandle;
@@ -47,6 +48,12 @@ class FileOutput extends haxe.io.Output {
 	override inline public function writeByte(c : Int) : Void {
 		f.write(String.fromCharCode(c));
 	}
+
+	override inline public function writeBytes( s : Bytes, pos : Int, len : Int) : Int  {
+		f.write(s.getString(pos, len));
+		return s.length;
+	}
+
 
 	override public function close() {
 		f.close();

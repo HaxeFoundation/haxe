@@ -17,13 +17,14 @@ class As3 {
 		} else {
 			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
 			var flexVersion = "4.16.0";
-			runCommand("wget", ['${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+			runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
 			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
 			var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
 			addToPATH(flexsdkPath + "/bin");
 			var playerglobalswcFolder = flexsdkPath + "/player";
 			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
-			runCommand("wget", ["-nv", "http://download.macromedia.com/get/flashplayer/updaters/30/playerglobal30_0.swc", "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+			var flashVersion = runci.targets.Flash.getLatestFPVersion();
+			runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
 			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
 			runCommand("mxmlc", ["--version"]);
 		}

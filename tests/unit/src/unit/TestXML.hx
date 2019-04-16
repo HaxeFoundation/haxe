@@ -1,5 +1,7 @@
 package unit;
 
+import haxe.xml.Parser.XmlParserException;
+
 class TestXML extends Test {
 
 	function checkExc( x : Xml, ?pos ) {
@@ -162,8 +164,7 @@ class TestXML extends Test {
 		var values = ['<', '>', '"', '&', "'", '&euro;', '@', "ô", String.fromCharCode(0x3F), "ÿ"];
 
 		for( i in 0...entities.length) {
-			infos(entities[i]);
-			eq( haxe.xml.Parser.parse(entities[i], false).firstChild().nodeValue, values[i] );
+			eq( values[i], haxe.xml.Parser.parse(entities[i], false).firstChild().nodeValue );
 		}
 
 		var s = "<a>&gt;<b>&lt;</b>&lt;&gt;<b>&gt;&lt;</b>\"</a>";
@@ -229,5 +230,33 @@ class TestXML extends Test {
 		eq("blah = abc&def", doXml(fancyData));
 		var plainData = '<data><thing blah="abc&def"/></data>';
 		eq("blah = abc&def", doXml(plainData));
+	}
+
+	function testIssue7454() {
+		var string:String = "<Text><![CDATA[Some text ]]></Text>";
+		eq(string, Xml.parse(string).toString());
+	}
+
+	function testNicolas() {
+		try {
+			haxe.xml.Parser.parse("<flow>x");
+			t(false);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unclosed node <flow>") != -1);
+		}
+
+		try {
+			var xml="<f><f/></f></f>";
+			haxe.xml.Parser.parse(xml);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unexpected </f>, tag is not open") != -1);
+		}
+
+		try {
+			haxe.xml.Parser.parse("<f><f></f>");
+			t(false);
+		} catch(exc:XmlParserException) {
+			t(exc.message.indexOf("Unclosed node <f>") != -1);
+		}
 	}
 }

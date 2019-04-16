@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -39,7 +39,6 @@ abstract NativeIterator<T>(NativeIteratorRaw<T>) to NativeIteratorRaw<T> to Nati
 /**
     Native Python iterator protocol.
 **/
-typedef NativeIteratorRaw<T> = {
-	>NativeIterableRaw<T>,
+typedef NativeIteratorRaw<T> = NativeIterableRaw<T> & {
 	function __next__():T;
 }

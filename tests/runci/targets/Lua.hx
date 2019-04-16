@@ -32,36 +32,40 @@ class Lua {
 		}
 	}
 
-	static public function installLuaVersionDependencies(lv:String){
-		if (lv == "-l5.1") installLib("luabitop", "1.0.2-3");
-
-		installLib("lrexlib-pcre" , "2.8.0-1");
-		installLib("luv"          , "1.22.0-1");
-		installLib("luasocket"    , "3.0rc1-2");
-		installLib("luautf8"      , "0.1.1-1");
-
-	}
-
 	static public function run(args:Array<String>) {
+
 		getLuaDependencies();
-		var envpath = Sys.getEnv("HOME") + '/lua_env';
-		addToPATH(envpath + '/bin');
+
 		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-j2.0", "-j2.1" ]){
+
+			var envpath = Sys.getEnv("HOME") + '/lua_env$lv';
+			addToPATH(envpath + '/bin');
+
 			if (systemName == "Mac" && lv.startsWith("-j")) continue;
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
 			runCommand("hererocks", [envpath, lv, "-rlatest", "-i"]);
 			trace('path: ' + Sys.getEnv("PATH"));
+
+
 			runCommand("lua",["-v"]);
-			runCommand("luarocks",[]);
-			installLuaVersionDependencies(lv);
+
+			runCommand("luarocks", ["config", "--lua-incdir"]);
+			runCommand("luarocks", ["config", "--lua-libdir"]);
+			runCommand("luarocks", ["config", "--lua-ver"]);
+			runCommand("luarocks", ["config", "--system-config"]);
+			runCommand("luarocks", ["config", "--rock-trees"]);
+
+			// Note: don't use a user config
+			// runCommand("luarocks", ["config", "--user-config"], false, true);
+
+			installLib("haxe-deps", "0.0.1-1");
 
 			changeDirectory(unitDir);
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/unit.lua"]);
 
 			changeDirectory(sysDir);
-			haxelibInstall("utest");
 			runCommand("haxe", ["compile-lua.hxml"].concat(args));
 			runCommand("lua", ["bin/lua/sys.lua"]);
 

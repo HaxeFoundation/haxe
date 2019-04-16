@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -72,22 +72,44 @@ class Bytes {
 		return r;
 	}
 
+	#if hl_check_align
+	static var alignBuffer : hl.Bytes = new hl.Bytes(8);
+	#end
+
 	public function getDouble( pos : Int ) : Float {
-		return if( out(pos + 7) ) 0. else b.getF64(pos);
+		if( out(pos + 7) ) return 0.;
+		#if hl_check_align
+		return if( pos & 3 == 0 ) b.getF64(pos) else { alignBuffer.blit(0, b, pos, 8); alignBuffer.getF64(0); }
+		#else
+		return b.getF64(pos);
+		#end
 	}
 
 	public function getFloat( pos : Int ) : Float {
-		return if( out(pos + 3) ) 0. else b.getF32(pos);
+		if( out(pos + 3) ) return 0.;
+		#if hl_check_align
+		return if( pos & 3 == 0 ) b.getF32(pos) else { alignBuffer.blit(0, b, pos, 4); alignBuffer.getF32(0); }
+		#else
+		return b.getF32(pos);
+		#end
 	}
 
 	public function setDouble( pos : Int, v : Float ) : Void {
 		if( out(pos + 7) ) throw Error.OutsideBounds;
+		#if hl_check_align
+		if( pos & 7 == 0 ) b.setF64(pos, v); else { alignBuffer.setF64(0,v); b.blit(pos,alignBuffer,0,8); } 
+		#else
 		b.setF64(pos, v);
+		#end
 	}
 
 	public function setFloat( pos : Int, v : Float ) : Void {
 		if( out(pos + 3) ) throw Error.OutsideBounds;
+		#if hl_check_align
+		if( pos & 3 == 0 ) b.setF32(pos, v); else { alignBuffer.setF32(0,v); b.blit(pos,alignBuffer,0,4); } 
+		#else
 		b.setF32(pos, v);
+		#end
 	}
 
 	public inline function getUInt16( pos : Int ) : Int {
@@ -177,6 +199,23 @@ class Bytes {
 
 	public static function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.bytes,b.length);
+	}
+	
+	public static function ofHex( s : String ) : Bytes {
+		var len = s.length;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var l = len >> 1;
+		var b = new hl.Bytes(l);
+		for (i in  0...l)
+		{
+			var high = s.charCodeAt(i*2);
+			var low = s.charCodeAt(i*2 + 1);
+			high = (high & 0xf) + ( (high & 0x40) >> 6 ) * 9;
+			low = (low & 0xf) + ( (low & 0x40) >> 6 ) * 9;
+			b.setUI8(i, ( (high << 4) | low)  & 0xff );
+		}
+
+		return new Bytes(b,l);
 	}
 
 	public inline static function fastGet( b : BytesData, pos : Int ) : Int {

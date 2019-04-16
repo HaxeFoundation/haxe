@@ -12,7 +12,7 @@ let collect_module_symbols with_locals (pack,decls) =
 		let add name kind location = add name kind location parent in
 		begin match e with
 		| EVars vl ->
-			List.iter (fun ((s,p),_,eo) ->
+			List.iter (fun ((s,p),_,_,eo) ->
 				add s Variable p;
 				expr_opt parent eo
 			) vl

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -531,6 +531,12 @@ typedef AbstractType = BaseType & {
 	**/
 	@:require(haxe_ver >= 3.3)
 	var resolve : Null<ClassField>;
+
+	/**
+		The method used for resolving unknown field access, if available.
+	**/
+	@:require(haxe_ver >= 4.0)
+	var resolveWrite : Null<ClassField>;
 }
 
 /**
@@ -789,7 +795,7 @@ typedef TFunc = {
 		A list of function arguments identified by an argument variable `v` and
 		an optional initialization `value`.
 	**/
-	var args: Array<{v:TVar, value:Null<TConstant>}>;
+	var args: Array<{v:TVar, value:Null<TypedExpr>}>;
 
 	/**
 		The return type of the function.

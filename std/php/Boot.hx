@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,6 +22,9 @@
 package php;
 
 import haxe.PosInfos;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+import haxe.extern.EitherType;
 
 using php.Global;
 
@@ -42,18 +45,28 @@ class Boot {
 	@:protected static var setters = new NativeAssocArray<NativeAssocArray<Bool>>();
 	/** Metadata storage */
 	@:protected static var meta = new NativeAssocArray<{}>();
+	/** Cache for closures created of static methods */
+	@:protected static var staticClosures = new NativeAssocArray<NativeAssocArray<HxClosure>>();
 
 	/**
 		Initialization stuff.
 		This method is called once before invoking any Haxe-generated user code.
 	**/
 	static function __init__() {
+		Global.mb_internal_encoding('UTF-8');
 		if (!Global.defined('HAXE_CUSTOM_ERROR_HANDLER') || !Const.HAXE_CUSTOM_ERROR_HANDLER) {
 			var previousLevel = Global.error_reporting(Const.E_ALL);
 			var previousHandler = Global.set_error_handler(
 				function (errno:Int, errstr:String, errfile:String, errline:Int) {
 					if (Global.error_reporting() & errno == 0) {
 						return false;
+					}
+					/*
+					* Division by zero should not throw
+					* @see https://github.com/HaxeFoundation/haxe/issues/7034#issuecomment-394264544
+					*/
+					if(errno == Const.E_WARNING && errstr == 'Division by zero') {
+						return true;
 					}
 					throw new ErrorException(errstr, 0, errno, errfile, errline);
 				}
@@ -183,6 +196,13 @@ class Boot {
 	}
 
 	/**
+		Check if provided value is an anonymous object
+	**/
+	public static inline function isAnon(v:Any) : Bool {
+		return Std.is(v, HxAnon);
+	}
+
+	/**
 		Returns Class<HxClass>
 	**/
 	public static inline function getHxClass() : HxClass {
@@ -232,7 +252,7 @@ class Boot {
 	**/
 	public static function getPhpName( haxeName:String ) : Null<String> {
 		var prefix = getPrefix();
-		var phpParts = (prefix.length == 0 ? [] : [prefix]);
+		var phpParts = (Global.strlen(prefix) == 0 ? [] : [prefix]);
 
 		var haxeParts = haxeName.split('.');
 		for (part in haxeParts) {
@@ -253,15 +273,6 @@ class Boot {
 		}
 
 		return phpParts.join('\\');
-	}
-
-	/**
-		Creates Haxe-compatible closure.
-		@param type `this` for instance methods; full php class name for static methods
-		@param func Method name
-	**/
-	public static inline function closure( target:Dynamic, func:Dynamic ) : HxClosure {
-		return new HxClosure(target, func);
 	}
 
 	/**
@@ -290,6 +301,7 @@ class Boot {
 		@throws HxException if `value` cannot be casted to this type
 	**/
 	public static function typedCast( hxClass:HxClass, value:Dynamic ) : Dynamic {
+		if (value == null) return null;
 		switch (hxClass.phpClassName) {
 			case 'Int':
 				if (Boot.isNumber(value)) {
@@ -322,7 +334,10 @@ class Boot {
 	/**
 		Returns string representation of `value`
 	**/
-	public static function stringify( value : Dynamic ) : String {
+	public static function stringify( value : Dynamic, maxRecursion:Int = 10 ) : String {
+		if(maxRecursion <= 0) {
+			return '<...>';
+		}
 		if (value == null) {
 			return 'null';
 		}
@@ -338,11 +353,14 @@ class Boot {
 		if (value.is_array()) {
 			var strings = Syntax.arrayDecl();
 			Syntax.foreach(value, function(key:Dynamic, item:Dynamic) {
-				Global.array_push(strings, (key:String) + ' => ' + stringify(item));
+				strings.push(Syntax.string(key) + ' => ' + stringify(item, maxRecursion - 1));
 			});
 			return '[' + Global.implode(', ', strings) + ']';
 		}
 		if (value.is_object()) {
+			if(Std.is(value, Array)) {
+				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
+			}
 			if (value.method_exists('toString')) {
 				return value.toString();
 			}
@@ -356,7 +374,7 @@ class Boot {
 				var result = new NativeIndexedArray<String>();
 				var data = Global.get_object_vars(value);
 				for (key in data.array_keys()) {
-					result.array_push('$key : ' + stringify(data[key]));
+					result.array_push('$key : ' + stringify(data[key], maxRecursion - 1));
 				}
 				return '{ ' + Global.implode(', ', result) + ' }';
 			}
@@ -370,6 +388,14 @@ class Boot {
 			}
 		}
 		throw "Unable to stringify value";
+	}
+
+	static public function stringifyNativeIndexedArray<T>( arr : NativeIndexedArray<T>, maxRecursion : Int = 10 ) : String {
+		var strings = Syntax.arrayDecl();
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			strings[index] = Boot.stringify(value, maxRecursion - 1);
+		});
+		return '[' + Global.implode(',', strings) + ']';
 	}
 
 	static public inline function isNumber( value:Dynamic ) {
@@ -407,9 +433,16 @@ class Boot {
 		if (type == null) return false;
 
 		var phpType = type.phpClassName;
+		#if php_prefix
+			var prefix = getPrefix();
+			if(Global.substr(phpType, 0, Global.strlen(prefix) + 1) == '$prefix\\') {
+				phpType = Global.substr(phpType, Global.strlen(prefix) + 1);
+			}
+		#end
+
 		switch (phpType) {
 			case 'Dynamic':
-				return true;
+				return value != null;
 			case 'Int':
 				return (
 						value.is_int()
@@ -428,7 +461,7 @@ class Boot {
 				return value.is_string();
 			case 'php\\NativeArray', 'php\\_NativeArray\\NativeArray_Impl_':
 				return value.is_array();
-			case 'Enum', 'Class':
+			case 'Enum' | 'Class':
 				if (Std.is(value, HxClass)) {
 					var valuePhpClass = (cast value:HxClass).phpClassName;
 					var enumPhpClass = (cast HxEnum:HxClass).phpClassName;
@@ -479,7 +512,7 @@ class Boot {
 		if (right == 0) {
 			return left;
 		} else if (left >= 0) {
-			return (left >> right);
+			return (left >> right) & ~( (1 << (8 * Const.PHP_INT_SIZE - 1)) >> (right - 1) );
 		} else {
 			return (left >> right) & (0x7fffffff >> (right - 1));
 		}
@@ -487,7 +520,7 @@ class Boot {
 
 	/**
 		Helper method to avoid "Cannot use temporary expression in write context" error for expressions like this:
-		```
+		```haxe
 		(new MyClass()).fieldName = 'value';
 		```
 	**/
@@ -526,16 +559,64 @@ class Boot {
 		return @:privateAccess new HxDynamicStr(str);
 	}
 
-	static public function utf8CharAt(str:String, index:Int):Null<String> {
-		if (index < 0 || index >= str.length) {
-			return null;
+	/**
+		Creates Haxe-compatible closure of an instance method.
+		@param obj - any object
+	**/
+	public static function getInstanceClosure(obj:{?__hx_closureCache:NativeAssocArray<HxClosure>}, methodName:String) {
+		var result = Syntax.coalesce(obj.__hx_closureCache[methodName], null);
+		if(result != null) {
+			return result;
 		}
-		//preg_split() is faster than mb_substr()
-		var chars = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
-		return chars == false ? null : (chars:NativeArray)[index];
+		result = new HxClosure(obj, methodName);
+		if(!Global.property_exists(obj, '__hx_closureCache')) {
+			obj.__hx_closureCache = new NativeAssocArray();
+		}
+		obj.__hx_closureCache[methodName] = result;
+		return result;
+	}
+
+	/**
+		Creates Haxe-compatible closure of a static method.
+	**/
+	public static function getStaticClosure(phpClassName:String, methodName:String) {
+		var result = Syntax.coalesce(staticClosures[phpClassName][methodName], null);
+		if(result != null) {
+			return result;
+		}
+		result = new HxClosure(phpClassName, methodName);
+		if(!Global.array_key_exists(phpClassName, staticClosures)) {
+			staticClosures[phpClassName] = new NativeAssocArray();
+		}
+		staticClosures[phpClassName][methodName] = result;
+		return result;
+	}
+
+	/**
+		Creates Haxe-compatible closure.
+		@param type `this` for instance methods; full php class name for static methods
+		@param func Method name
+	**/
+	public static inline function closure( target:Dynamic, func:String ) : HxClosure {
+		return target.is_string() ? getStaticClosure(target, func) : getInstanceClosure(target, func);
+	}
+
+	/**
+		Get UTF-8 code of che first character in `s` without any checks
+	**/
+	static public inline function unsafeOrd(s:NativeString):Int {
+		var code = Global.ord(s[0]);
+		if(code < 0xC0) {
+			return code;
+		} else if(code < 0xE0) {
+			return ((code - 0xC0) << 6) + Global.ord(s[1]) - 0x80;
+		} else if(code < 0xF0) {
+			return ((code - 0xE0) << 12) + ((Global.ord(s[1]) - 0x80) << 6) + Global.ord(s[2]) - 0x80;
+		} else {
+			return ((code - 0xF0) << 18) + ((Global.ord(s[1]) - 0x80) << 12) + ((Global.ord(s[2]) - 0x80) << 6) + Global.ord(s[3]) - 0x80;
+		}
 	}
 }
-
 
 /**
 	Class<T> implementation for Haxe->PHP internals.
@@ -635,40 +716,76 @@ private class HxEnum {
 private class HxString {
 
 	public static function toUpperCase( str:String ) : String {
-		return Global.mb_strtoupper(str, 'UTF-8');
+		return Global.mb_strtoupper(str);
 	}
 
 	public static function toLowerCase( str:String ) : String {
-		return Global.mb_strtolower(str, 'UTF-8');
+		return Global.mb_strtolower(str);
 	}
 
 	public static function charAt( str:String, index:Int) : String {
-		return Syntax.coalesce(Boot.utf8CharAt(str, index), '');
+		return index < 0 ? '' : Global.mb_substr(str, index, 1);
 	}
 
 	public static function charCodeAt( str:String, index:Int) : Null<Int> {
-		var char = Boot.utf8CharAt(str, index);
-		if(char == null) return null;
-		return Global.mb_ord(char, 'UTF-8');
+		if(index < 0 || str == '') {
+			return null;
+		}
+		if(index == 0) {
+			return Boot.unsafeOrd(str);
+		}
+		var char = Global.mb_substr(str, index, 1);
+		return char == '' ? null : Boot.unsafeOrd(char);
+	}
+
+	public static function iterator( str:String ):StringIterator {
+		return new StringIterator(str);
+	}
+
+	public static function keyValueIterator( str:String ):StringKeyValueIterator {
+		return new StringKeyValueIterator(str);
 	}
 
 	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
 		if (startIndex == null) {
 			startIndex = 0;
-		} else if (startIndex < 0) {
-			startIndex += str.length;
+		} else {
+			var length = str.length;
+			if (startIndex < 0) {
+				startIndex += length;
+				if(startIndex < 0) {
+					startIndex = 0;
+				}
+			}
+			if(startIndex >= length && search != '') {
+				return -1;
+			}
 		}
-		var index = Global.mb_strpos(str, search, startIndex, 'UTF-8');
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex > length ? length : startIndex;
+		} else{
+			Global.mb_strpos(str, search, startIndex);
+		}
 		return (index == false ? -1 : index);
 	}
 
 	public static function lastIndexOf( str:String, search:String, startIndex:Int = null ) : Int {
-		if(startIndex == null) {
-			startIndex = 0;
+		var start = startIndex;
+		if(start == null) {
+			start = 0;
 		} else {
-			startIndex = startIndex - str.length;
+			start = start - str.length;
+			if(start > 0) {
+				start = 0;
+			}
 		}
-		var index = Global.mb_strrpos(str, search, startIndex, 'UTF-8');
+		var index:EitherType<Int,Bool> = if(search == '') {
+			var length = str.length;
+			startIndex == null || startIndex > length ? length : startIndex;
+		} else {
+			Global.mb_strrpos(str, search, start);
+		}
 		if (index == false) {
 			return -1;
 		} else {
@@ -677,31 +794,27 @@ private class HxString {
 	}
 
 	public static function split( str:String, delimiter:String ) : Array<String> {
-		if (delimiter == '') {
-			var arr:NativeArray = Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
-			return @:privateAccess Array.wrap(arr);
+		var arr:NativeArray = if(delimiter == '') {
+			Global.preg_split('//u', str, -1, Const.PREG_SPLIT_NO_EMPTY);
 		} else {
-			//don't mess with user-defined encoding
-			var prev = Global.mb_regex_encoding();
-			Global.mb_regex_encoding('UTF-8');
-			return @:privateAccess Array.wrap(Global.mb_split(Global.preg_quote(delimiter), str));
-			Global.mb_regex_encoding(prev);
+			delimiter = Global.preg_quote(delimiter, '/');
+			Global.preg_split('/$delimiter/', str);
 		}
+		return @:privateAccess Array.wrap(arr);
 	}
 
 	public static function substr( str:String, pos:Int, ?len:Int ) : String {
-		if (pos < -str.length) {
-			pos = 0;
-		} else if (pos >= str.length) {
-			return '';
-		}
-		return Global.mb_substr(str, pos, len, 'UTF-8');
+		return Global.mb_substr(str, pos, len);
 	}
 
 	public static function substring( str:String, startIndex:Int, ?endIndex:Int ) : String {
 		if (endIndex == null) {
-			endIndex = str.length;
-		} else if (endIndex < 0) {
+			if(startIndex < 0) {
+				startIndex = 0;
+			}
+			return Global.mb_substr(str, startIndex);
+		}
+		if (endIndex < 0) {
 			endIndex = 0;
 		}
 		if (startIndex < 0) {
@@ -712,7 +825,7 @@ private class HxString {
 			endIndex = startIndex;
 			startIndex = tmp;
 		}
-		return Global.mb_substr(str, startIndex, endIndex - startIndex, 'UTF-8');
+		return Global.mb_substr(str, startIndex, endIndex - startIndex);
 	}
 
 	public static function toString( str:String ) : String {
@@ -720,7 +833,7 @@ private class HxString {
 	}
 
 	public static function fromCharCode( code:Int ) : String {
-		return Global.mb_chr(code, 'UTF-8');
+		return Global.mb_chr(code);
 	}
 }
 
@@ -822,9 +935,7 @@ private class HxAnon extends StdClass {
 
 	@:phpMagic
 	function __call( name:String, args:NativeArray ) : Dynamic {
-		var method = Syntax.field(this, name);
-		Syntax.keepVar(method);
-		return method(Syntax.splat(args));
+		return Syntax.code("($this->{0})(...{1})", name, args);
 	}
 }
 
@@ -838,6 +949,8 @@ private class HxClosure {
 	var target : Dynamic;
 	/** Method name for methods */
 	var func : String;
+	/** A callable value, which can be invoked by PHP */
+	var callable : Any;
 
 	public function new( target:Dynamic, func:String ) : Void {
 		this.target = target;
@@ -846,6 +959,7 @@ private class HxClosure {
 		if (target.is_null()) {
 			throw "Unable to create closure on `null`";
 		}
+		callable = Std.is(target, HxAnon) ? Syntax.field(target, func) : Syntax.arrayDecl(target, func);
 	}
 
 	/**
@@ -853,7 +967,7 @@ private class HxClosure {
 	**/
 	@:phpMagic
 	public function __invoke() {
-		return Global.call_user_func_array(getCallback(), Global.func_get_args());
+		return Global.call_user_func_array(callable, Global.func_get_args());
 	}
 
 	/**
@@ -863,10 +977,8 @@ private class HxClosure {
 		if (eThis == null) {
 			eThis = target;
 		}
-		if (Std.is(eThis, StdClass)) {
-			if (Std.is(eThis, HxAnon)) {
-				return Syntax.field(eThis, func);
-			}
+		if (Std.is(eThis, HxAnon)) {
+			return Syntax.field(eThis, func);
 		}
 		return Syntax.arrayDecl(eThis, func);
 	}

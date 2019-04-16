@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,7 +82,7 @@ class Lib {
 	}
 
 	@:noDebug @:native("HX_STACK_DO_RETHROW")
-	extern static function do_rethrow(inExp:Dynamic) { throw inExp; }
+	extern static function do_rethrow(inExp:Dynamic);
 
 	@:noDebug #if(!cppia) inline #end
 	public static function rethrow(inExp:Dynamic) { do_rethrow(inExp); }

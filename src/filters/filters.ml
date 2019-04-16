@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -554,9 +554,9 @@ let add_field_inits reserved ctx t =
 				match cf.cf_expr with
 				| None -> assert false
 				| Some e ->
-					let lhs = mk (TField(ethis,FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type e.epos in
+					let lhs = mk (TField({ ethis with epos = cf.cf_pos },FInstance (c,List.map snd c.cl_params,cf))) cf.cf_type cf.cf_pos in
 					cf.cf_expr <- None;
-					let eassign = mk (TBinop(OpAssign,lhs,e)) e.etype e.epos in
+					let eassign = mk (TBinop(OpAssign,lhs,e)) cf.cf_type e.epos in
 					if is_as3 then begin
 						let echeck = mk (TBinop(OpEq,lhs,(mk (TConst TNull) lhs.etype e.epos))) ctx.com.basic.tbool e.epos in
 						mk (TIf(echeck,eassign,None)) eassign.etype e.epos
@@ -641,7 +641,7 @@ let check_cs_events com t = match t with
 		let check fields f =
 			match f.cf_kind with
 			| Var { v_read = AccNormal; v_write = AccNormal } when Meta.has Meta.Event f.cf_meta ->
-				if f.cf_public then error "@:event fields must be private" f.cf_pos;
+				if (has_class_field_flag f CfPublic) then error "@:event fields must be private" f.cf_pos;
 
 				(* prevent generating reflect helpers for the event in gencommon *)
 				f.cf_meta <- (Meta.SkipReflection, [], f.cf_pos) :: f.cf_meta;
@@ -789,6 +789,7 @@ let run com tctx main =
 			| _ -> ());
 		not (is_cached t)
 	) com.types in
+	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
 	let filters = [
 		(* ForRemap.apply tctx; *)
@@ -841,7 +842,9 @@ let run com tctx main =
 	let filters = [
 		Optimizer.sanitize com;
 		if com.config.pf_add_final_return then add_final_return else (fun e -> e);
-		rename_local_vars tctx reserved;
+		(match com.platform with
+		| Eval -> (fun e -> e)
+		| _ -> rename_local_vars tctx reserved);
 		mark_switch_break_loops;
 	] in
 	let t = filter_timer detail_times ["expr 2"] in
@@ -849,10 +852,13 @@ let run com tctx main =
 	t();
 	next_compilation();
 	let t = filter_timer detail_times ["callbacks"] in
-	List.iter (fun f -> f()) (List.rev com.callbacks.before_dce); (* macros onGenerate etc. *)
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_before_save); (* macros onGenerate etc. *)
 	t();
 	let t = filter_timer detail_times ["save state"] in
 	List.iter (save_class_state tctx) new_types;
+	t();
+	let t = filter_timer detail_times ["callbacks"] in
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_save); (* macros onGenerate etc. *)
 	t();
 	let t = filter_timer detail_times ["type 2"] in
 	(* PASS 2: type filters pre-DCE *)
@@ -871,12 +877,13 @@ let run com tctx main =
 	else
 		(try Common.defined_value com Define.Dce with _ -> "no")
 	in
-	begin match dce_mode with
-		| "full" -> Dce.run com main (not (Common.defined com Define.Interp))
-		| "std" -> Dce.run com main false
-		| "no" -> Dce.fix_accessors com
+	let dce_mode = match dce_mode with
+		| "full" -> if Common.defined com Define.Interp then Dce.DceNo else DceFull
+		| "std" -> DceStd
+		| "no" -> DceNo
 		| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
-	end;
+	in
+	Dce.run com main dce_mode;
 	t();
 	(* PASS 3: type filters post-DCE *)
 	let type_filters = [
@@ -897,4 +904,5 @@ let run com tctx main =
 	in
 	let t = filter_timer detail_times ["type 3"] in
 	List.iter (fun t -> List.iter (fun f -> f tctx t) type_filters) com.types;
-	t()
+	t();
+	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_filters)

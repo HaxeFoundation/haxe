@@ -35,14 +35,13 @@ dist: trusty
 install_linux: &install_linux
   # Install dependencies
   - export APT_CACHE_DIR=~/apt-cache && mkdir -pv $APT_CACHE_DIR
-  - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:haxe/ocaml'. Please check that the PPA name or format is correct."
-  - sudo add-apt-repository ppa:haxe/ocaml -y
+  - sudo apt-get install --reinstall ca-certificates # workaround for "Cannot add PPA: 'ppa:...'. Please check that the PPA name or format is correct."
+  - sudo add-apt-repository ppa:avsm/ppa -y # provides newer version of OCaml and OPAM
   - sudo apt-get update -y
   - sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y
-      ocaml
-      ocaml-native-compilers
-      ocaml-findlib
-      aspcud
+      ocaml-nox
+      camlp4-extra
+      opam
       libpcre3-dev
       zlib1g-dev
       libgtk2.0-dev
@@ -52,7 +51,8 @@ install_linux: &install_linux
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       sudo add-apt-repository ppa:haxe/snapshots -y;
-      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -y neko neko-dev;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" update -qqy;
+      sudo apt-get -o dir::cache::archives="$APT_CACHE_DIR" install -qqy neko neko-dev;
     else
       if [ ! -d "$HOME/neko" ]; then
         mkdir $HOME/neko;
@@ -80,10 +80,12 @@ install_linux: &install_linux
   - jdk_switcher use oraclejdk7
   - java -version
   # ocaml dependencies
-  - wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin system
+  - opam init
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
+  - opam list
+  - ocamlopt -v
   # Build haxe
   - make package_src -s
   - opam config exec -- make -s STATICLINK=1 libs
@@ -97,10 +99,11 @@ install_linux: &install_linux
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
+  - (nvm ls 8 || nvm install 8) && nvm use 8
   # Install dependencies
   - travis_retry brew update --merge
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
-  - travis_retry brew bundle --file=tests/Brewfile
+  - travis_retry brew bundle --file=tests/Brewfile --no-upgrade
   # install neko
   - if [ ! $DEPLOY_NIGHTLIES ]; then
       brew install neko --HEAD;
@@ -133,6 +136,8 @@ install_osx: &install_osx
   - opam update
   - opam pin add haxe . --no-action
   - opam install haxe --deps-only
+  - opam list
+  - ocamlopt -v
   # Build haxe
   - make -s STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" libs
   - make -s -j STATICLINK=1 "LIB_PARAMS=/usr/local/opt/zlib/lib/libz.a /usr/local/lib/libpcre.a" haxe
@@ -188,7 +193,7 @@ matrix:
     # osx #
     #######
     - os: osx
-      osx_image: xcode7.3 # to compile binaries that support older versions of Mac, and 10.11 is the min version that brew provides bottles
+      osx_image: xcode8.3 # to compile binaries that support older versions of Mac, and 10.12 is the min version that brew provides bottles
       env:
         - TEST=neko
         - DEPLOY_NIGHTLIES=1

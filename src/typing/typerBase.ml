@@ -15,27 +15,16 @@ type access_kind =
 	| AKSet of texpr * t * tclass_field
 	| AKInline of texpr * tclass_field * tfield_access * t
 	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * tclass * tclass_field * texpr
+	| AKUsing of texpr * tclass * tclass_field * texpr * bool (* forced inline *)
 	| AKAccess of tabstract * tparams * tclass * texpr * texpr
+	| AKFieldSet of texpr * texpr * string * t
 
 type object_decl_kind =
 	| ODKWithStructure of tanon
 	| ODKWithClass of tclass * tparams
 	| ODKPlain
 
-let build_call_ref : (typer -> access_kind -> expr list -> with_type -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
-
-let merge_core_doc ctx c =
-	let c_core = Typeload.load_core_class ctx c in
-	if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
-	let maybe_merge cf_map cf =
-		if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
-	in
-	List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
-	List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
-	match c.cl_constructor,c_core.cl_constructor with
-		| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
-		| _ -> ()
+let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -155,20 +144,63 @@ let s_access_kind acc =
 	| AKSet(e,t,cf) -> Printf.sprintf "AKSet(%s, %s, %s)" (se e) (st t) cf.cf_name
 	| AKInline(e,cf,fa,t) -> Printf.sprintf "AKInline(%s, %s, %s, %s)" (se e) cf.cf_name (sfa fa) (st t)
 	| AKMacro(e,cf) -> Printf.sprintf "AKMacro(%s, %s)" (se e) cf.cf_name
-	| AKUsing(e1,c,cf,e2) -> Printf.sprintf "AKMacro(%s, %s, %s, %s)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2)
+	| AKUsing(e1,c,cf,e2,b) -> Printf.sprintf "AKUsing(%s, %s, %s, %s, %b)" (se e1) (s_type_path c.cl_path) cf.cf_name (se e2) b
 	| AKAccess(a,tl,c,e1,e2) -> Printf.sprintf "AKAccess(%s, [%s], %s, %s, %s)" (s_type_path a.a_path) (String.concat ", " (List.map st tl)) (s_type_path c.cl_path) (se e1) (se e2)
+	| AKFieldSet(_) -> ""
 
-let has_constructible_constraint ctx tl el p =
-	let ct = (tfun (List.map (fun e -> e.etype) el) ctx.t.tvoid) in
-	let rec loop t = match follow t with
-		| TAnon a ->
-			(try
-				unify ctx (PMap.find "new" a.a_fields).cf_type ct p;
-				true
-			with Not_found ->
-					false)
-		| TAbstract({a_path = ["haxe"],"Constructible"},_) -> true
-		| TInst({cl_kind = KTypeParameter tl},_) -> List.exists loop tl
-		| _ -> false
+let get_constructible_constraint ctx tl p =
+	let extract_function t = match follow t with
+		| TFun(tl,tr) -> tl,tr
+		| _ -> error "Constructible type parameter should be function" p
 	in
-	List.exists loop tl
+	let rec loop tl = match tl with
+		| [] -> None
+		| t :: tl ->
+			begin match follow t with
+			| TAnon a ->
+				begin try
+					Some (extract_function (PMap.find "new" a.a_fields).cf_type);
+				with Not_found ->
+					loop tl
+				end;
+			| TAbstract({a_path = ["haxe"],"Constructible"},[t1]) ->
+				Some (extract_function t1)
+			| TInst({cl_kind = KTypeParameter tl1},_) ->
+				begin match loop tl1 with
+				| None -> loop tl
+				| Some _ as t -> t
+				end
+			| _ ->
+				loop tl
+			end
+	in
+	loop tl
+
+let unify_static_extension ctx e t p =
+	let multitype_involed t1 t2 =
+		let check t = match follow t with
+			| TAbstract(a,_) when Meta.has Meta.MultiType a.a_meta -> true
+			| _ -> false
+		in
+		check t1 || check t2
+	in
+	if multitype_involed e.etype t then
+		AbstractCast.cast_or_unify_raise ctx t e p
+	else begin
+		Type.unify e.etype t;
+		e
+	end
+
+let get_abstract_froms a pl =
+	let l = List.map (apply_params a.a_params pl) a.a_from in
+	List.fold_left (fun acc (t,f) ->
+		match follow (Type.field_type f) with
+		| TFun ([_,_,v],t) ->
+			(try
+				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
+				v :: acc
+			with Unify_error _ ->
+				acc)
+		| _ ->
+			acc
+	) l a.a_from_field

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@
 import haxe.extern.AsVar;
 
 @:coreType
-@:analyzer(as_var)
+@:semantics(variable)
 extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T>
 {
    public var ref(get,set):Reference<T>;

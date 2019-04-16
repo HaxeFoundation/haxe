@@ -386,7 +386,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				let dynamic_e = follow e.etype == t_dynamic in
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
-					| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
+					| TConst TNull , Some c -> c
 					| _ -> e
 				in
 				if has_side_effect e then begin
@@ -394,11 +394,15 @@ class inline_state ctx ethis params cf f p = object(self)
 					_had_side_effect <- true;
 					l.i_force_temp <- true;
 				end;
-				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some e);
+				(* We use a null expression because we only care about the type (for abstract casts). *)
+				if l.i_abstract_this then l.i_subst.v_extra <- Some ([],Some {e with eexpr = TConst TNull});
 				loop ((l,e) :: acc) pl al false
 			| [], (v,opt) :: al ->
 				let l = self#declare v in
-				let e = mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p in
+				let e = match opt with
+					| None -> mk (TConst TNull) v.v_type v.v_pos
+					| Some e -> e
+				in
 				loop ((l,e) :: acc) [] al false
 		in
 		(*
@@ -415,7 +419,7 @@ class inline_state ctx ethis params cf f p = object(self)
 	method finalize config e tl tret p =
 		let has_params,map_type = match config with Some config -> config | None -> inline_default_config cf ethis.etype in
 		if self#had_side_effect then List.iter (fun (l,e) ->
-			if self#might_be_affected e then l.i_force_temp <- true;
+			if self#might_be_affected e && not (ExtType.has_value_semantics e.etype) then l.i_force_temp <- true;
 		) _inlined_vars;
 		let vars,subst = self#get_substitutions p in
 		let rec inline_params in_call in_assignment e =
@@ -501,14 +505,20 @@ class inline_state ctx ethis params cf f p = object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let map_var v =
+		let rec map_var v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
-				if not (self#read v).i_outside then v.v_type <- map_type v.v_type;
+				if not (self#read v).i_outside then begin
+					v.v_type <- map_type v.v_type;
+					match v.v_extra with
+					| Some(tl,Some e) ->
+						v.v_extra <- Some(tl,Some (map_expr_type e));
+					| _ ->
+						()
+				end
 			end;
 			v
-		in
-		let rec map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
+		and map_expr_type e = Type.map_expr_type map_expr_type map_type map_var e in
 		map_expr_type e
 end
 
@@ -531,7 +541,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| Some e -> Some (f e)
 	in
 	let in_loop = ref false in
-	let cancel_inlining = ref false in
 	let return_type t el =
 		(* If the function return is Dynamic or Void, stick to it. *)
 		if follow f.tf_type == t_dynamic || ExtType.is_void (follow f.tf_type) then f.tf_type
@@ -551,9 +560,6 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 				l.i_called <- l.i_called + i
 			else
 				l.i_read <- l.i_read + i;
-			(* never inline a function which contain a delayed macro because its bound
-				to its variables and not the calling method *)
-			if v.v_name = "$__delayed_call__" then cancel_inlining := true;
 			let e = { e with eexpr = TLocal l.i_subst } in
 			if l.i_abstract_this then mk (TCast(e,None)) v.v_type e.epos else e
 		| TConst TThis ->
@@ -705,22 +711,18 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 			Type.map_expr (map false false) e
 	in
 	let e = map true false f.tf_expr in
-	if !cancel_inlining then
-		None
-	else begin
 	let tl = List.map (fun e -> "",false,e.etype) params in
-		let e = state#finalize config e tl tret p in
-		if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
-			let se t = s_expr_pretty true t true (s_type (print_context())) in
-			print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
-				cf.cf_name
-				(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))
-				(se "\t" f.tf_expr)
-				(se "\t" e)
-			);
-		end;
-		Some e
-	end
+	let e = state#finalize config e tl tret p in
+	if Meta.has (Meta.Custom ":inlineDebug") ctx.meta then begin
+		let se t = s_expr_pretty true t true (s_type (print_context())) in
+		print_endline (Printf.sprintf "Inline %s:\n\tArgs: %s\n\tExpr: %s\n\tResult: %s"
+			cf.cf_name
+			(String.concat "" (List.map (fun (i,e) -> Printf.sprintf "\n\t\t%s<%i> = %s" (i.i_subst.v_name) (i.i_subst.v_id) (se "\t\t" e)) state#inlined_vars))
+			(se "\t" f.tf_expr)
+			(se "\t" e)
+		);
+	end;
+	Some e
 
 (* Same as type_inline, but modifies the function body to add field inits *)
 and type_inline_ctor ctx c cf tf ethis el po =

@@ -9,6 +9,11 @@ import runci.System.*;
 import runci.Config.*;
 
 class Flash {
+	static public function getLatestFPVersion():Array<Int> {
+		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
+		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
+		return versionStr.split(",").map(Std.parseInt);
+	}
 
 	static public function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
@@ -22,20 +27,37 @@ class Flash {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages([
-					"libglib2.0", "libfreetype6"
-				]);
-				runCommand("wget", ["-nv", "http://fpdownload.macromedia.com/pub/flashplayer/updaters/30/flash_player_sa_linux_debug.x86_64.tar.gz"], true);
-				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
-				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					Linux.requireAptPackages([
+						"libglib2.0", "libfreetype6"
+					]);
+					var majorVersion = getLatestFPVersion()[0];
+					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
+					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
+				runCommand(playerCmd, ["-v"]);
 			case "Mac":
-				runCommand("brew", ["tap", "caskroom/versions"]);
+				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
+					return;
+				}
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
+
+				// Disable the "application downloaded from Internet" warning
+				runCommand("xattr", ["-d", "-r", "com.apple.quarantine", "/Applications/Flash Player Debugger.app"]);
+
 				var dir = Path.directory(mmcfgPath);
-				runCommand("sudo", ["mkdir", "-p", dir]);
-				runCommand("sudo", ["chmod", "a+w", dir]);
-				File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				if (!FileSystem.exists(dir)) {
+					runCommand("sudo", ["mkdir", "-p", dir]);
+					runCommand("sudo", ["chmod", "a+w", dir]);
+				}
+				if (!FileSystem.exists(mmcfgPath)) {
+					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
+				}
 		}
 	}
 
@@ -49,7 +71,11 @@ class Flash {
 		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
-				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
+				new Process(playerCmd, [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -76,19 +102,20 @@ class Flash {
 
 		//read flashlog.txt continously
 		var traceProcess = new Process("tail", ["-f", flashlogPath]);
-		var line = "";
+		var success = false;
 		while (true) {
 			try {
-				line = traceProcess.stdout.readLine();
-				Sys.println(line);
-				if (line.indexOf("SUCCESS: ") >= 0) {
-					return line.indexOf("SUCCESS: true") >= 0;
+				var line = traceProcess.stdout.readLine();
+				if (line.indexOf("success: ") >= 0) {
+					success = line.indexOf("success: true") >= 0;
+					break;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;
 			}
 		}
-		return false;
+		Sys.command("cat", [flashlogPath]);
+		return success;
 	}
 
 	static public function run(args:Array<String>) {
@@ -98,4 +125,6 @@ class Flash {
 		if (!success)
 			fail();
 	}
+
+
 }

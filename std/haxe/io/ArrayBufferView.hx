@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -45,17 +45,6 @@ class ArrayBufferViewImpl {
 }
 
 abstract ArrayBufferView(ArrayBufferViewData) {
-
-	/**
-		On some platforms configurations (for instance JS with no TypedArray support as in IE8-), Haxe will
-		try to emulate the array buffers API. However in that case memory sharing will not be supported :
-		each typed array or will copy its own data set. This flag allows users to detect if we are doing such emulation.
-		At the moment only JavaScript is concerned.
-	**/
-	public static var EMULATED(get,never) : Bool;
-	static inline function get_EMULATED() : Bool {
-		return false;
-	}
 
 	public var buffer(get,never) : haxe.io.Bytes;
 	public var byteOffset(get, never) : Int;

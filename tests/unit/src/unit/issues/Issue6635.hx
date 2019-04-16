@@ -5,6 +5,7 @@ class Issue6635 extends Test
   public function test()
   {
     var t = Main.main();
+	noAssert();
   }
 }
 

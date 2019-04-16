@@ -1,7 +1,8 @@
 {
 	"files.associations": {
 		"*.mly": "ocaml",
-		"*.ml": "ocaml"
+		"*.ml": "ocaml",
+		"Makefile.*": "makefile"
 	},
 	"[ocaml]": {
 		"editor.tabSize": 4
@@ -9,5 +10,7 @@
 	"files.exclude": {
 		"**/_build": true
 	},
-	"reason.server.languages": ["ocaml"]
+	"reason.server.languages": ["ocaml"],
+	"haxe.diagnosticsPathFilter": "${workspaceRoot}/std",
+	"npm.autoDetect": "off"
 }

@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -29,11 +29,11 @@ open EvalExceptions
 open EvalMisc
 
 (* JITs expression [e] and executes the result immediately. *)
-let eval_expr ctx key name e =
+let eval_expr ctx kind e =
 	catch_exceptions ctx (fun () ->
 		let jit,f = jit_expr ctx e in
 		let num_captures = Hashtbl.length jit.captures in
-		let info = create_env_info true (file_hash e.epos.pfile) (EKMethod(key,name)) jit.capture_infos in
+		let info = create_env_info true e.epos.pfile kind jit.capture_infos in
 		let env = push_environment ctx info jit.max_num_locals num_captures in
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
@@ -118,7 +118,7 @@ module PrototypeBuilder = struct
 		(* Add metadata field *)
 		begin match pctx.meta with
 			| None -> ()
-			| Some e -> DynArray.add pctx.fields (key___meta__,lazy (match eval_expr ctx pctx.key key___meta__ e with Some e -> e | None -> vnull))
+			| Some e -> DynArray.add pctx.fields (key___meta__,lazy (match eval_expr ctx (EKMethod(pctx.key,key___meta__)) e with Some e -> e | None -> vnull))
 		end;
 		(* Create the mapping from hashed name to field offset for prototype fields. *)
 		let _,pnames = DynArray.fold_left (fun (i,acc) (name,_) -> i + 1,IntMap.add name i acc) (0,IntMap.empty) pctx.fields in
@@ -170,7 +170,10 @@ module PrototypeBuilder = struct
 end
 
 let is_removable_field cf =
-	cf.cf_extern || Meta.has Meta.Generic cf.cf_meta
+	has_class_field_flag cf CfExtern || Meta.has Meta.Generic cf.cf_meta
+
+let is_persistent cf =
+	Meta.has (Meta.Custom ":persistent") cf.cf_meta
 
 let create_static_prototype ctx mt =
 	let path = (t_infos mt).mt_path in
@@ -183,38 +186,55 @@ let create_static_prototype ctx mt =
 			| None -> None
 			| Some(csup,_) -> Some (get_static_prototype ctx (path_hash csup.cl_path) c.cl_pos)
 		in
-		let interfaces = List.map (fun (c,_) -> path_hash c.cl_path) c.cl_implements in
+		let rec collect_interfaces acc (c,_) =
+			let acc = List.fold_left (fun acc c -> collect_interfaces acc c) acc c.cl_implements in
+			path_hash c.cl_path :: acc
+		in
+		let interfaces = collect_interfaces [] (c,[]) in
 		let pctx = PrototypeBuilder.create ctx key pparent (PClass interfaces) meta in
 		let fields = List.filter (fun cf -> not (is_removable_field cf)) c.cl_ordered_statics in
 		let delays = DynArray.create() in
 		if not c.cl_extern then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
-				let name = hash_s cf.cf_name in
+				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy (vstatic_function (jit_tfunction ctx key name tf true pos)));
 			| Var _,Some e ->
-				let name = hash_s cf.cf_name in
+				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (lazy vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
-				DynArray.add delays (fun proto -> proto.pfields.(i) <- (match eval_expr ctx key name e with Some e -> e | None -> vnull))
+				let persistent = is_persistent cf in
+				DynArray.add delays (persistent,(fun proto ->
+					proto.pfields.(i) <- (match eval_expr ctx (EKMethod(key,name)) e with Some e -> e | None -> vnull)
+				))
 			| _,None when is_physical_field cf ->
-				PrototypeBuilder.add_proto_field pctx (hash_s cf.cf_name) (lazy vnull);
+				PrototypeBuilder.add_proto_field pctx (hash cf.cf_name) (lazy vnull);
 			|  _ ->
 				()
 		) fields;
 		begin match c.cl_init with
 			| None -> ()
-			| Some e -> DynArray.add delays (fun _ -> ignore(eval_expr ctx key key___init__ e))
+			| Some e -> DynArray.add delays (false,(fun _ -> ignore(eval_expr ctx (EKMethod(key,key___init__)) e)))
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
 	| TEnumDecl en ->
-		let pctx = PrototypeBuilder.create ctx key None (PEnum en.e_names) meta in
+		let names = List.map (fun name ->
+			let ef = PMap.find name en.e_constrs in
+			let args = match follow ef.ef_type with
+				| TFun(args,_) ->
+					List.map (fun (n,_,_) -> hash n) args
+				| _ ->
+					[]
+			in
+			name,args
+		) en.e_names in
+		let pctx = PrototypeBuilder.create ctx key None (PEnum names) meta in
 		let enum_field_value ef = match follow ef.ef_type with
 			| TFun(args,_) ->
 				let f = (fun vl -> encode_enum_value key ef.ef_index (Array.of_list vl) (Some ef.ef_pos)) in
 				vstatic_function f
 			| _ -> encode_enum_value key ef.ef_index [||] (Some ef.ef_pos)
 		in
-		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash_s name ) (lazy (enum_field_value ef))) en.e_constrs;
+		PMap.iter (fun name ef -> PrototypeBuilder.add_proto_field pctx (hash name ) (lazy (enum_field_value ef))) en.e_constrs;
 		PrototypeBuilder.finalize pctx,[];
 	| TAbstractDecl a ->
 		let pctx = PrototypeBuilder.create ctx key None (PClass []) meta in
@@ -224,12 +244,12 @@ let create_static_prototype ctx mt =
 	in
 	let rec loop v name path = match path with
 		| [] ->
-			set_field v (hash_s name) (vprototype (fst (fst o)))
+			set_field v (hash name) (vprototype (fst (fst o)))
 		| s :: sl ->
-			let key = hash_s s in
+			let key = hash s in
 			let v2 = EvalField.field v key in
 			let v2 = match v2 with
-				| VNull -> encode_obj None []
+				| VNull -> encode_obj []
 				| _ -> v2
 			in
 			set_field v key v2;
@@ -251,12 +271,12 @@ let create_instance_prototype ctx c =
 		()
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			let v = lazy (vfunction (jit_tfunction ctx key name tf false pos)) in
 			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
 		| Var _,_ when is_physical_field cf ->
-			let name = hash_s cf.cf_name in
+			let name = hash cf.cf_name in
 			PrototypeBuilder.add_instance_field pctx name (lazy vnull);
 		|  _ ->
 			()
@@ -265,16 +285,15 @@ let create_instance_prototype ctx c =
 
 let get_object_prototype ctx l =
 	let l = List.sort (fun (i1,_) (i2,_) -> if i1 = i2 then 0 else if i1 < i2 then -1 else 1) l in
-	let sfields = String.concat "," (List.map (fun (i,_) -> rev_hash_s i) l) in
-	let key = Hashtbl.hash sfields in
+	let sfields = String.concat "," (List.map (fun (i,_) -> rev_hash i) l) in
+	let name = hash (Printf.sprintf "eval.object.Object[%s]" sfields) in
 	try
-		IntMap.find key ctx.instance_prototypes,l
+		IntMap.find name ctx.instance_prototypes,l
 	with Not_found ->
-		let name = hash_s (Printf.sprintf "eval.object.Object[%s]" sfields) in
 		let pctx = PrototypeBuilder.create ctx name None PObject None in
 		List.iter (fun (name,_) -> PrototypeBuilder.add_instance_field pctx name (lazy vnull)) l;
 		let proto = fst (PrototypeBuilder.finalize pctx) in
-		ctx.instance_prototypes <- IntMap.add key proto ctx.instance_prototypes;
+		ctx.instance_prototypes <- IntMap.add name proto ctx.instance_prototypes;
 		proto,l
 
 let add_types ctx types ready =
@@ -293,7 +312,7 @@ let add_types ctx types ready =
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
 			if ctx.debug.support_debugger then begin
-				let file_key = hash_s inf.mt_module.m_extra.m_file in
+				let file_key = hash inf.mt_module.m_extra.m_file in
 				if not (Hashtbl.mem ctx.debug.breakpoints file_key) then begin
 					Hashtbl.add ctx.debug.breakpoints file_key (Hashtbl.create 0)
 				end
@@ -333,8 +352,11 @@ let add_types ctx types ready =
 		f proto;
 		match delays with
 		| [] -> ()
-		| _ -> DynArray.add fl_static_init (proto,delays)
+		| _ ->
+			DynArray.add fl_static_init (proto,delays);
+			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
+			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
 	) fl_static;
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun f -> f proto) delays) fl_static_init;
+	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
 	t()

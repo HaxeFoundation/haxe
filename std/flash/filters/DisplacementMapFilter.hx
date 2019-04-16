@@ -1,6 +1,6 @@
 package flash.filters;
 
-@:final extern class DisplacementMapFilter extends BitmapFilter {
+extern final class DisplacementMapFilter extends BitmapFilter {
 	var alpha : Float;
 	var color : UInt;
 	var componentX : UInt;

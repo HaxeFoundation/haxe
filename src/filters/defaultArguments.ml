@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -33,8 +33,7 @@ let gen_check basic t nullable_var const pos =
 		(is_null t1) <> (is_null t2)
 	in
 
-	let const_t = const_type basic const t in
-	let const = mk (TConst const) const_t pos in
+	let const_t = const.etype in
 	let const = if needs_cast t const_t then mk_cast const t pos else const in
 
 	let arg = make_local nullable_var pos in
@@ -45,10 +44,10 @@ let gen_check basic t nullable_var const pos =
 
 let add_opt com block pos (var,opt) =
 	match opt with
-	| None | Some TNull ->
+	| None | Some {eexpr = TConst TNull} ->
 		(var,opt)
-	| Some (TString str) ->
-		block := Texpr.set_default com.basic var (TString str) pos :: !block;
+	| Some ({eexpr = TConst (TString str)} as e) ->
+		block := Texpr.set_default com.basic var e pos :: !block;
 		(var, opt)
 	| Some const ->
 		let basic = com.basic in

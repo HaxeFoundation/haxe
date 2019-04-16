@@ -1,6 +1,6 @@
 (*
 	The Haxe Compiler
-	Copyright (C) 2005-2018  Haxe Foundation
+	Copyright (C) 2005-2019  Haxe Foundation
 
 	This program is free software; you can redistribute it and/or
 	modify it under the terms of the GNU General Public License
@@ -312,13 +312,13 @@ module Transformer = struct
 		let assigns = List.fold_left (fun acc (v,value) ->
 			KeywordHandler.check_var_declaration v;
 			match value with
-				| None | Some TNull ->
+				| None | Some {eexpr = TConst TNull} ->
 					acc
 				| Some ct ->
 					let a_local = mk (TLocal v) v.v_type p in
 					let a_null = mk (TConst TNull) v.v_type p in
 					let a_cmp = mk (TBinop(OpEq,a_local,a_null)) !t_bool p in
-					let a_value = mk (TConst(ct)) v.v_type p in
+					let a_value = ct in
 					let a_assign = mk (TBinop(OpAssign,a_local,a_value)) v.v_type p in
 					let a_if = mk (TIf(a_cmp,a_assign,None)) !t_void p in
 					a_if :: acc
@@ -1089,7 +1089,7 @@ module Printer = struct
 		| OpInterval | OpArrow | OpIn | OpAssignOp _ -> assert false
 
 	let print_string s =
-		Printf.sprintf "\"%s\"" (Ast.s_escape s)
+		Printf.sprintf "\"%s\"" (StringHelper.s_escape s)
 
 	let print_constant = function
 		| TThis -> "self"
@@ -1122,7 +1122,7 @@ module Printer = struct
 		| TMeta(_,e) -> remove_outer_parens e
 		| _ -> e
 
-	let print_args args p =
+	let rec print_args pctx args p =
 		let had_value = ref false in
 		let had_var_args = ref false in
 		let had_kw_args = ref false in
@@ -1145,11 +1145,11 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_constant ct)
+							Printf.sprintf " = %s" (print_expr pctx ct)
 		) args in
 		String.concat "," sl
 
-	let rec print_op_assign_right pctx e =
+	and print_op_assign_right pctx e =
 		match e.eexpr with
 			| TIf({eexpr = TParenthesis econd},eif,Some eelse)
 			| TIf(econd,eif,Some eelse) ->
@@ -1173,7 +1173,7 @@ module Printer = struct
 			| None -> pctx.pc_next_anon_func()
 			| Some s -> handle_keywords s
 		in
-		let s_args = print_args tf.tf_args p in
+		let s_args = print_args pctx tf.tf_args p in
 		let s_expr = print_expr {pctx with pc_indent = "    " ^ pctx.pc_indent} tf.tf_expr in
 		Printf.sprintf "def %s(%s):\n%s    %s" s_name s_args pctx.pc_indent s_expr
 
@@ -1673,7 +1673,7 @@ module Printer = struct
 					"print(str(" ^ (print_expr pctx e) ^ "))"
 			| TField(e1,((FAnon {cf_name = (("split" | "join" | "push" | "map" | "filter") as s)}) | FDynamic (("split" | "join" | "push" | "map" | "filter") as s))), [x] ->
 				Printf.sprintf "HxOverrides.%s(%s, %s)" s (print_expr pctx e1) (print_expr pctx x)
-			| TField(e1,((FAnon {cf_name = (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
+			| TField(e1,((FAnon {cf_name = (("iterator" | "keyValueIterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s)}) | FDynamic (("iterator" | "keyValueIterator" | "toUpperCase" | "toLowerCase" | "pop" | "shift") as s))), [] ->
 				Printf.sprintf "HxOverrides.%s(%s)" s (print_expr pctx e1)
 			| TField(_, (FStatic({cl_path = ["python"; "_KwArgs"], "KwArgs_Impl_"},{ cf_name="fromT" }))), [e2]  ->
 				let t = match follow call_expr.etype with
@@ -1738,7 +1738,7 @@ module Printer = struct
 			print_exprs pctx sep el
 
 	and print_exprs_named pctx sep fl =
-		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (Ast.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
+		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "'%s': %s" (StringHelper.s_escape (handle_keywords s)) (print_expr pctx e)) fl) in
 		Printf.sprintf "{%s}" args
 	and print_params_named pctx sep fl =
 		let args = String.concat sep (List.map (fun ((s,_,_),e) -> Printf.sprintf "%s= %s" (handle_keywords s) (print_expr pctx e)) fl) in
@@ -2152,7 +2152,6 @@ module Generator = struct
 						) c.cl_ordered_fields
 					in
 					let field_names = List.map (fun f -> handle_keywords f.cf_name) real_fields in
-					let field_names = match c.cl_dynamic with Some _ -> "__dict__" :: field_names | None -> field_names in
 					use_pass := false;
 					print ctx "\n    __slots__ = (";
 					(match field_names with
@@ -2338,7 +2337,7 @@ module Generator = struct
 					","
 				in
 				let k_enc = Codegen.escape_res_name k false in
-				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (Ast.s_escape k) k_enc;
+				print ctx "%s\"%s\": open('%%s.%%s'%%(_file,'%s'),'rb').read()" prefix (StringHelper.s_escape k) k_enc;
 
 				let f = open_out_bin (ctx.com.file ^ "." ^ k_enc) in
 				output_string f v;
@@ -2464,13 +2463,11 @@ module Generator = struct
 			| Some e ->
 				newline ctx;
 				newline ctx;
-				spr ctx "if __name__ == '__main__':";
-				newline ctx;
 				match e.eexpr with
 				| TBlock el ->
-					List.iter (fun e -> gen_expr ctx e "" "    "; newline ctx) el;
+					List.iter (fun e -> gen_expr ctx e "" ""; newline ctx) el
 				| _ ->
-					gen_expr ctx e "" "    "; newline ctx
+					gen_expr ctx e "" ""; newline ctx
 
 	(* Entry point *)
 

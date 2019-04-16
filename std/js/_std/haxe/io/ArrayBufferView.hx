@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,25 +21,16 @@
  */
  package haxe.io;
 
-typedef ArrayBufferViewData = js.html.ArrayBufferView;
+typedef ArrayBufferViewData = js.lib.ArrayBufferView;
 
 abstract ArrayBufferView(ArrayBufferViewData) {
-
-	public static var EMULATED(get,never) : Bool;
-	static inline function get_EMULATED() {
-		#if nodejs
-		return false;
-		#else
-		return (cast js.html.ArrayBuffer) == js.html.compat.ArrayBuffer;
-		#end
-	}
 
 	public var buffer(get,never) : haxe.io.Bytes;
 	public var byteOffset(get, never) : Int;
 	public var byteLength(get, never) : Int;
 
 	public inline function new( size : Int ) {
-		this = new js.html.Uint8Array(size);
+		this = new js.lib.Uint8Array(size);
 	}
 
 	inline function get_byteOffset() return this.byteOffset;
@@ -49,7 +40,7 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 	}
 
 	public inline function sub( begin : Int, ?length : Int ) {
-		return fromData(new js.html.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
+		return fromData(new js.lib.Uint8Array(this.buffer.slice(begin, length == null ? null : begin+length)));
 	}
 
 	public inline function getData() : ArrayBufferViewData {

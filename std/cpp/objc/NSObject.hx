@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,8 @@ package cpp.objc;
 @:objc
 extern abstract NSObject( NSObjectData )
 {
-   @:native("_hx_value_to_objc") extern static function _hx_value_to_objc(obj:Dynamic) : NSObject return null;
-   @:native("_hx_objc_to_dynamic") extern static function _hx_objc_to_dynamic(d:NSObjectData) : Dynamic return null;
+   @:native("_hx_value_to_objc") extern static function _hx_value_to_objc(obj:Dynamic) : NSObject;
+   @:native("_hx_objc_to_dynamic") extern static function _hx_objc_to_dynamic(d:NSObjectData) : Dynamic;
 
 
    inline function new(d:NSObjectData) this = d;

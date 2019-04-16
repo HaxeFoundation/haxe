@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,8 +24,7 @@ import php.*;
 using php.Global;
 
 @:coreApi
-@:final
-class Array<T> implements ArrayAccess<Int,T> {
+final class Array<T> implements ArrayAccess<Int,T> {
 	public var length(default, null):Int;
 	var arr:NativeIndexedArray<T>;
 
@@ -44,10 +43,12 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function filter(f:T->Bool):Array<T> {
 		var result = Syntax.arrayDecl();
-		for(i in 0...length) {
+		var i = 0;
+		while(i < length) {
 			if(f(arr[i])) {
 				result.push(arr[i]);
 			}
+			i++;
 		}
 		return wrap(result);
 	}
@@ -86,7 +87,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function join(sep:String):String {
-		return Global.implode(sep, Global.array_map('strval', arr));
+		return Global.implode(sep, Global.array_map(Syntax.nativeClassName(Boot) + '::stringify', arr));
 	}
 
 	public function lastIndexOf(x:T, ?fromIndex:Int):Int {
@@ -102,8 +103,10 @@ class Array<T> implements ArrayAccess<Int,T> {
 
 	public inline function map<S>(f:T->S):Array<S> {
 		var result = Syntax.arrayDecl();
-		for(i in 0...length) {
+		var i = 0;
+		while(i < length) {
 			result.push(f(arr[i]));
+			i++;
 		}
 		return wrap(result);
 	}
@@ -119,14 +122,16 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function remove(x:T):Bool {
-		for (i in 0...length) {
-			if (arr[i] == x) {
-				Global.array_splice(arr, i, 1);
+		var result = false;
+		Syntax.foreach(arr, function(index:Int, value:T) {
+			if (value == x) {
+				Global.array_splice(arr, index, 1);
 				length--;
-				return true;
+				result = true;
+				Syntax.code('break');
 			}
-		}
-		return false;
+		});
+		return result;
 	}
 
 	public inline function reverse():Void {
@@ -169,11 +174,7 @@ class Array<T> implements ArrayAccess<Int,T> {
 	}
 
 	public function toString():String {
-		var strings = Syntax.arrayDecl();
-		Syntax.foreach(arr, function(index:Int, value:T) {
-			strings[index] = Boot.stringify(value);
-		});
-		return '[' + Global.implode(',', strings) + ']';
+		return inline Boot.stringifyNativeIndexedArray(arr);
 	}
 
 	public function resize( len:Int ) : Void {

@@ -282,7 +282,7 @@ extern class Global {
 
 	/**
 		@see http://php.net/manual/en/function.constant.php
-	*/
+	**/
 	static function constant( name:String ) : Dynamic;
 
 	/**
@@ -399,6 +399,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.substr.php
 	**/
 	static function substr( string:String, start:Int, ?length:Int ) : EitherType<Bool,String>;
+
+	/**
+		@see http://php.net/manual/en/function.substr-count.php
+	**/
+	static function substr_count( haystack:String, needle:String, ?offset:Int, ?length:Int ) : Int;
 
 	/**
 		@see http://php.net/manual/en/function.substr_replace.php
@@ -873,6 +878,16 @@ extern class Global {
 	static function hexdec( hex_string:String ) : Int;
 
 	/**
+		@see http://php.net/manual/en/function.decbin.php
+	**/
+	static function decbin( number:Int ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.bindec.php
+	**/
+	static function bindec( binary_string:String ) : Float;
+
+	/**
 		@see http://php.net/manual/en/function.bin2hex.php
 	**/
 	static function bin2hex( str:String ) : String;
@@ -946,6 +961,11 @@ extern class Global {
 		@see http://php.net/manual/en/function.utf8-decode.php
 	**/
 	static function utf8_decode( data:String ) : String;
+
+	/**
+		@see http://php.net/manual/en/function.mb-internal-encoding.php
+	**/
+	static function mb_internal_encoding( ?encoding:String ) : EitherType<Bool,String>;
 
 	/**
 		@see http://php.net/manual/en/function.mb-convert-encoding.php
@@ -1035,6 +1055,11 @@ extern class Global {
 	static function stream_select( read:NativeArray, write:NativeArray, except:NativeArray, tv_sec:Int, tv_usec:Int = 0 ) : Bool;
 
 	/**
+		@see http://php.net/manual/en/function.stream-get-contents.php
+	**/
+	static function stream_get_contents( handle:Resource, maxlength:Int = -1, offset:Int = -1 ) : EitherType<String,Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.stream-socket-shutdown.php
 	**/
 	static function stream_socket_shutdown( stream:Resource, how:Int ) : Bool;
@@ -1122,7 +1147,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-set-option.php
 	**/
-	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Bool ) : Bool;
+	static function socket_set_option( stream:Resource, level:Int, option:Int, val:Any ) : Bool;
 
 	/**
 		@see http://php.net/manual/en/function.socket-select.php
@@ -1132,7 +1157,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.socket-read.php
 	**/
-	static function socket_read( resource:Resource, length:Int, type:Int=Const.PHP_BINARY_READ ) : EitherType<Bool, String>;
+	static function socket_read( resource:Resource, length:Int, ?type:Int ) : EitherType<Bool, String>;
 
 	/**
 		@see http://php.net/manual/en/function.socket-write.php
@@ -1364,4 +1389,9 @@ extern class Global {
 		@see http://php.net/manual/en/function.is-uploaded-file.php
 	**/
 	static function is_uploaded_file( filename:String ) : Bool;
+
+	/**
+		@see http://php.net/manual/en/function.gc-collect-cycles.php
+	**/
+	static function gc_collect_cycles() : Int;
 }

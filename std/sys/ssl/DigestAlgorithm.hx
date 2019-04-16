@@ -1,7 +1,6 @@
 package sys.ssl;
 
-enum
-abstract DigestAlgorithm(String) to String {
+enum abstract DigestAlgorithm(String) to String {
 	var MD5 = "MD5";
 	var SHA1 = "SHA1";
 	var SHA224 = "SHA224";

@@ -20,7 +20,7 @@ class CallStack {
 		If defined this function will be used to transform call stack entries.
 		@param String - generated php file name.
 		@param Int - Line number in generated file.
-	*/
+	**/
 	static public var mapPosition : String->Int->Null<{?source:String, ?originalLine:Int}>;
 
 	@:ifFeature("haxe.CallStack.exceptionStack")
@@ -130,7 +130,7 @@ class CallStack {
 
 				if ((next['function']:String).indexOf('{closure}') >= 0) {
 					item = LocalFunction();
-				} else if ((next['class']:String).length > 0 && (next['function']:String).length > 0) {
+				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
 					var cls = Boot.getClassName(next['class']);
 					item = Method(cls, next['function']);
 				}

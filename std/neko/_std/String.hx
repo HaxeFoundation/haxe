@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,9 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi @:final class String {
 
-	static var __is_String;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
+@:coreApi final class String {
+
+	static var __is_String = true;
 	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);
 
 	static function __init__() : Void {
@@ -57,9 +61,24 @@
 		}
 	}
 
+	public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
+	}
+
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
-			var p = try __dollar__sfind(this.__s,if( startIndex == null ) 0 else startIndex,str.__s) catch( e : Dynamic ) null;
+			var l = __dollar__ssize(this.__s);
+			if( startIndex == null || startIndex < -l )
+				startIndex = 0;
+			if( startIndex > l )
+				return -1;
+			if( __dollar__ssize(str.__s) == 0 )
+				return startIndex < 0 ? l + startIndex : startIndex;
+			var p = try __dollar__sfind(this.__s,startIndex,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
 				return -1;
 			return p;
@@ -69,8 +88,11 @@
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
 			var last = -1;
+			var l = __dollar__ssize(this.__s);
 			if( startIndex == null )
-				startIndex = __dollar__ssize(this.__s);
+				startIndex = l;
+			if( __dollar__ssize(str.__s) == 0 )
+				return startIndex > l ? l : startIndex;
 			while( true ) {
 				var p = try __dollar__sfind(this.__s,last+1,str.__s) catch( e : Dynamic ) null;
 				if( p == null || p > startIndex )

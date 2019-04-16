@@ -59,9 +59,9 @@ let sign_string com =
 	let cs = CompilationServer.force () in
 	let	sign_id =
 		try
-			snd (CompilationServer.get_sign cs sign)
+			(CompilationServer.get_sign cs sign).cs_index
 		with Not_found ->
-			let i = CompilationServer.add_sign cs sign com in
+			let i = CompilationServer.add_sign cs sign "message" com in
 			if config.print_new_context then print_endline (Printf.sprintf "Found context %i:\n%s" i (dump_context com));
 			i
 	in
@@ -81,7 +81,7 @@ let module_path_changed com tabs (m,time,file) =
 		(sign_string com) (s_type_path m.m_path) m.m_extra.m_time m.m_extra.m_file time file)
 
 let not_cached com tabs m =
-	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) (if m.m_extra.m_time = -1. then "macro-in-macro" else "modified"))
+	if config.print_not_cached then print_endline (Printf.sprintf "%s%s not cached (%s)" (sign_string com) (s_type_path m.m_path) "modified")
 
 let parsed com tabs (ffile,info) =
 	if config.print_parsed then print_endline (Printf.sprintf "%sparsed %s (%s)" (sign_string com) ffile info)

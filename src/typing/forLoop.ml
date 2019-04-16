@@ -48,25 +48,26 @@ module IterationKind = struct
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
-	let check_iterator ctx s e p =
+	let check_iterator ?(resume=false) ctx s e p =
 		let t,pt = Typeload.t_iterator ctx in
 		let e1 = try
 			AbstractCast.cast_or_unify_raise ctx t e p
 		with Error (Unify _,_) ->
-			let acc = !build_call_ref ctx (type_field ctx e s e.epos MCall) [] Value e.epos in
+			let acc = !build_call_ref ctx (type_field ~resume ctx e s e.epos MCall) [] WithType.value e.epos in
 			try
 				unify_raise ctx acc.etype t acc.epos;
 				acc
 			with Error (Unify(l),p) ->
+				if resume then raise Not_found;
 				display_error ctx "Field iterator has an invalid type" acc.epos;
 				display_error ctx (error_msg (Unify l)) p;
 				mk (TConst TNull) t_dynamic p
 		in
 		e1,pt
 
-	let of_texpr ctx e unroll p =
+	let of_texpr ?(resume=false) ctx e unroll p =
 		let check_iterator () =
-			let e1,pt = check_iterator ctx "iterator" e p in
+			let e1,pt = check_iterator ~resume ctx "iterator" e p in
 			(IteratorIterator,e1,pt)
 		in
 		let it,e1,pt = match e.eexpr,follow e.etype with
@@ -75,8 +76,8 @@ module IterationKind = struct
 				| TConst (TInt a),TConst (TInt b) ->
 					let diff = Int32.to_int (Int32.sub a b) in
 					let unroll = unroll (abs diff) in
-					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff < 0)
-					else IteratorIntConst(efrom,eto,diff < 0)
+					if unroll then IteratorIntUnroll(Int32.to_int a,abs(diff),diff <= 0)
+					else IteratorIntConst(efrom,eto,diff <= 0)
 				| _ ->
 					let eto = match follow eto.etype with
 						| TAbstract ({ a_path = ([],"Int") }, []) -> eto
@@ -97,6 +98,7 @@ module IterationKind = struct
 		| _,TAbstract({a_impl = Some c} as a,tl) ->
 			begin try
 				let cf_length = PMap.find "get_length" c.cl_statics in
+				if PMap.exists "iterator" c.cl_statics then raise Not_found;
 				let get_length e p =
 					make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
 				in
@@ -130,8 +132,8 @@ module IterationKind = struct
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field ~resume:true ctx e_tmp "next" p MCall in
 				let acc_hasNext = type_field ~resume:true ctx e_tmp "hasNext" p MCall in
-				let e_next = !build_call_ref ctx acc_next [] Value e.epos in
-				let e_hasNext = !build_call_ref ctx acc_hasNext [] Value e.epos in
+				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
+				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				check_iterator ()
@@ -160,6 +162,19 @@ module IterationKind = struct
 		in
 		let get_array_length arr p =
 			mk (mk_field arr "length") ctx.com.basic.tint p
+		in
+		let check_loop_var_modification vl e =
+			let rec loop e =
+				match e.eexpr with
+				| TBinop (OpAssign,{ eexpr = TLocal l },_)
+				| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
+				| TUnop (Increment,_,{ eexpr = TLocal l })
+				| TUnop (Decrement,_,{ eexpr = TLocal l })  when List.memq l vl ->
+					error "Loop variable cannot be modified" e.epos
+				| _ ->
+					Type.iter loop e
+			in
+			loop e
 		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
@@ -191,10 +206,12 @@ module IterationKind = struct
 		in
 		match iterator.it_kind with
 		| IteratorIntUnroll(offset,length,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let rec loop e = match e.eexpr with
-					| TLocal v' when v == v' -> ei
+					| TLocal v' when v == v' -> {ei with epos = e.epos}
 					| _ -> map_expr loop e
 				in
 				let e2 = loop e2 in
@@ -202,6 +219,8 @@ module IterationKind = struct
 			) in
 			mk (TBlock el) t_void p
 		| IteratorIntConst(a,b,ascending) ->
+			check_loop_var_modification [v] e2;
+			if not ascending then error "Cannot iterate backwards" p;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
@@ -216,6 +235,7 @@ module IterationKind = struct
 				ewhile;
 			]) t_void p
 		| IteratorInt(a,b) ->
+			check_loop_var_modification [v] e2;
 			let v_index = gen_local ctx t_int p in
 			let evar_index = mk (TVar(v_index,Some a)) t_void p in
 			let ev_index = make_local v_index p in
@@ -343,14 +363,14 @@ let type_for_loop ctx handle_display it e2 p =
 		| _ -> error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 Value in
+	let e1 = type_expr ctx e1 WithType.value in
 	let old_loop = ctx.in_loop in
 	let old_locals = save_locals ctx in
 	ctx.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
-		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType i.v_type))
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType.with_type i.v_type))
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->
@@ -367,10 +387,14 @@ let type_for_loop ctx handle_display it e2 p =
 		end
 	| IKKeyValue((ikey,pkey,dkokey),(ivalue,pvalue,dkovalue)) ->
 		let e1,pt = IterationKind.check_iterator ctx "keyValueIterator" e1 e1.epos in
+		begin match follow e1.etype with
+		| TDynamic _ | TMono _ -> display_error ctx "You can't iterate on a Dynamic value, please specify KeyValueIterator or KeyValueIterable" e1.epos;
+		| _ -> ()
+		end;
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field ctx etmp "hasNext" etmp.epos MCall) [] Value etmp.epos in
-		let enext = !build_call_ref ctx (type_field ctx etmp "next" etmp.epos MCall) [] Value etmp.epos in
+		let ehasnext = !build_call_ref ctx (type_field ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
+		let enext = !build_call_ref ctx (type_field ctx etmp "next" etmp.epos MCall) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
 		let ekey = Calls.acc_get ctx (type_field ctx ev "key" ev.epos MGet) ev.epos in

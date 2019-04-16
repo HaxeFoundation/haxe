@@ -5,17 +5,17 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = ref []
+let cast_stack = new_rec_stack()
 
 let make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
-				ctx.with_type_stack <- (WithType t) :: ctx.with_type_stack;
+				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e Value
-					| None ->  type_expr ctx (EConst (Ident "null"),p) Value
+					| Some e -> type_expr ctx e WithType.value
+					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
@@ -26,11 +26,8 @@ let make_static_call ctx c cf a pl args t p =
 
 let do_check_cast ctx tleft eright p =
 	let recurse cf f =
-		if cf == ctx.curfield || List.mem cf !cast_stack then error "Recursive implicit cast" p;
-		cast_stack := cf :: !cast_stack;
-		let r = f() in
-		cast_stack := List.tl !cast_stack;
-		r
+		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
+		rec_stack_loop cast_stack cf f ()
 	in
 	let find a tl f =
 		let tcf,cf = f() in
@@ -46,35 +43,41 @@ let do_check_cast ctx tleft eright p =
 	if type_iseq tleft eright.etype then
 		eright
 	else begin
-		let rec loop tleft tright = match follow tleft,follow tright with
-		| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
-			Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
-		| TAbstract(a,tl),_ ->
-			begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
-			with Not_found ->
-				let rec loop2 tcl = match tcl with
-					| tc :: tcl ->
-						if not (type_iseq tc tleft) then loop (apply_params a.a_params tl tc) tright
-						else loop2 tcl
-					| [] -> raise Not_found
-				in
-				loop2 a.a_from
+		let rec loop stack tleft tright =
+			if List.exists (fun (tleft',tright') -> fast_eq tleft tleft' && fast_eq tright tright') stack then
+				raise Not_found
+			else begin
+				let stack = (tleft,tright) :: stack in
+				match follow tleft,follow tright with
+				| TAbstract(a1,tl1),TAbstract(a2,tl2) ->
+					Abstract.find_to_from find a1 tl1 a2 tl2 tleft eright.etype
+				| TAbstract(a,tl),_ ->
+					begin try find a tl (fun () -> Abstract.find_from a tl eright.etype tleft)
+					with Not_found ->
+						let rec loop2 tcl = match tcl with
+							| tc :: tcl ->
+								if not (type_iseq tc tleft) then loop stack (apply_params a.a_params tl tc) tright
+								else loop2 tcl
+							| [] -> raise Not_found
+						in
+						loop2 a.a_from
+					end
+				| _,TAbstract(a,tl) ->
+					begin try find a tl (fun () -> Abstract.find_to a tl tleft)
+					with Not_found ->
+						let rec loop2 tcl = match tcl with
+							| tc :: tcl ->
+								if not (type_iseq tc tright) then loop stack tleft (apply_params a.a_params tl tc)
+								else loop2 tcl
+							| [] -> raise Not_found
+						in
+						loop2 a.a_to
+					end
+				| _ ->
+					raise Not_found
 			end
-		| _,TAbstract(a,tl) ->
-			begin try find a tl (fun () -> Abstract.find_to a tl tleft)
-			with Not_found ->
-				let rec loop2 tcl = match tcl with
-					| tc :: tcl ->
-						if not (type_iseq tc tright) then loop tleft (apply_params a.a_params tl tc)
-						else loop2 tcl
-					| [] -> raise Not_found
-				in
-				loop2 a.a_to
-			end
-		| _ ->
-			raise Not_found
 		in
-		loop tleft eright.etype
+		loop [] tleft eright.etype
 	end
 
 let cast_or_unify_raise ctx tleft eright p =
@@ -166,22 +169,23 @@ let find_multitype_specialization com a pl p =
 			) a.a_params pl in
 			if com.platform = Globals.Js && a.a_path = (["haxe";"ds"],"Map") then begin match tl with
 				| t1 :: _ ->
-					let rec loop stack t =
-						if List.exists (fun t2 -> fast_eq t t2) stack then
+					let stack = ref [] in
+					let rec loop t =
+						if List.exists (fun t2 -> fast_eq t t2) !stack then
 							t
 						else begin
-							let stack = t :: stack in
+							stack := t :: !stack;
 							match follow t with
 							| TAbstract ({ a_path = [],"Class" },_) ->
 								error (Printf.sprintf "Cannot use %s as key type to Map because Class<T> is not comparable" (s_type (print_context()) t1)) p;
 							| TEnum(en,tl) ->
-								PMap.iter (fun _ ef -> ignore(loop stack ef.ef_type)) en.e_constrs;
-								Type.map (loop stack) t
+								PMap.iter (fun _ ef -> ignore(loop ef.ef_type)) en.e_constrs;
+								Type.map loop t
 							| t ->
-								Type.map (loop stack) t
+								Type.map loop t
 						end
 					in
-					ignore(loop [] t1)
+					ignore(loop t1)
 				| _ -> assert false
 			end;
 			tl

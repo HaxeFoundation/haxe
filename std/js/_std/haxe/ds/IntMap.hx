@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -60,6 +60,10 @@ package haxe.ds;
 			hasNext : function() { return __this__.it.hasNext(); },
 			next : function() { var i = __this__.it.next(); return __this__.ref[i]; }
 		};
+	}
+
+	@:runtime public inline function keyValueIterator() : KeyValueIterator<Int, T> {
+		return new haxe.iterators.MapKeyValueIterator(this);
 	}
 
 	public function copy() : IntMap<T> {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,5 +23,6 @@
 package js;
 
 @:deprecated typedef Promise<T> = js.lib.Promise<T>;
-@:deprecated typedef PromiseCallback<T, TOut> = js.lib.Promise.PromiseCallback<T, TOut>;
+@:deprecated typedef PromiseHandler<T, TOut> = js.lib.Promise.PromiseHandler<T, TOut>;
 @:deprecated typedef Thenable<T> = js.lib.Promise.Thenable<T>;
+@:deprecated typedef ThenableStruct<T> = js.lib.Promise.ThenableStruct<T>;

@@ -1,6 +1,6 @@
 package flash.filters;
 
-@:final extern class BevelFilter extends BitmapFilter {
+extern final class BevelFilter extends BitmapFilter {
 	var angle : Float;
 	var blurX : Float;
 	var blurY : Float;

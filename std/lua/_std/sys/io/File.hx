@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -48,10 +48,17 @@ class File {
 	}
 
 	public static function copy( srcPath : String, dstPath : String ) : Void {
-		switch (Sys.systemName()) {
+		var result = switch (Sys.systemName()) {
 			case "Windows" : Os.execute('copy ${StringTools.quoteWinArg(srcPath, true)} ${StringTools.quoteWinArg(dstPath,true)}');
 			default : Os.execute('cp ${StringTools.quoteUnixArg(srcPath)} ${StringTools.quoteUnixArg(dstPath)}');
 		};
+		if(
+			#if (lua_ver >= 5.2) !result.success
+			#elseif (lua_ver < 5.2) result != 0
+			#else ((result:Dynamic) != true && (result:Dynamic) != 0) #end
+		) {
+			throw 'Failed to copy $srcPath to $dstPath';
+		}
 	}
 
 	public static function getBytes( path : String ) : haxe.io.Bytes {
@@ -80,7 +87,7 @@ class File {
 	}
 
 	public static function saveContent( path : String, content : String ) : Void {
-		var f = write(path, false);
+		var f = write(path, true);
 		f.writeString(content);
 		f.close();
 	}

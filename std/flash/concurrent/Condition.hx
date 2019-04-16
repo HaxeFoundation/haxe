@@ -1,6 +1,6 @@
 package flash.concurrent;
 
-@:final @:require(flash11_4) extern class Condition {
+@:require(flash11_4) extern final class Condition {
 	var mutex(default,never) : Mutex;
 	function new(mutex : Mutex) : Void;
 	function notify() : Void;

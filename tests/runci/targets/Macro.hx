@@ -11,10 +11,17 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
 		changeDirectory(displayDir);
+		haxelibInstallGit("Simn", "haxeserver");
 		runCommand("haxe", ["build.hxml"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(nullSafetyDir);
+		infoMsg("No-target null safety:");
+		runCommand("haxe", ["test.hxml"]);
+		infoMsg("Js-es6 null safety:");
+		runCommand("haxe", ["test-js-es6.hxml"]);
 
 		changeDirectory(miscDir);
 		getCsDependencies();
@@ -22,8 +29,10 @@ class Macro {
 		runCommand("haxe", ["compile.hxml"]);
 
 		changeDirectory(sysDir);
-		haxelibInstall("utest");
 		runCommand("haxe", ["compile-macro.hxml"]);
 		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
+
+		// changeDirectory(threadsDir);
+		// runCommand("haxe", ["build.hxml", "--interp"]);
 	}
 }

@@ -268,6 +268,7 @@ and generate_tvar ctx v =
 		"extra",jopt generate_extra v.v_extra;
 		"meta",generate_metadata ctx v.v_meta;
 		"pos",generate_pos ctx v.v_pos;
+		"isFinal",jbool v.v_final;
 		"isInline",jbool (match v.v_extra with Some (_,Some _) -> true | _ -> false);
 	] in
 	let origin_to_int = function
@@ -299,7 +300,7 @@ and generate_tconstant ctx ct =
 and generate_tfunction ctx tf =
 	let generate_arg (v,cto) = jobject [
 		"v",generate_tvar ctx v;
-		"value",jopt (generate_tconstant ctx) cto;
+		"value",jopt (generate_texpr ctx) cto;
 	] in
 	jobject [
 		"args",jlist generate_arg tf.tf_args;
@@ -512,7 +513,8 @@ and generate_class_field' ctx cfs cf =
 	[
 		"name",jstring cf.cf_name;
 		"type",generate_type ctx cf.cf_type;
-		"isPublic",jbool cf.cf_public;
+		"isPublic",jbool (has_class_field_flag cf CfPublic);
+		"isFinal",jbool (has_class_field_flag cf CfFinal);
 		"params",jlist (generate_type_parameter ctx) cf.cf_params;
 		"meta",generate_metadata ctx cf.cf_meta;
 		"kind",generate_class_kind ();
@@ -640,7 +642,8 @@ let generate_abstract ctx a =
 		"from",generate_casts a.a_from_field a.a_from;
 		"to",generate_casts a.a_to_field a.a_to;
 		"array",jlist (classfield_ref ctx) a.a_array;
-		"resolve",jopt (classfield_ref ctx) a.a_resolve;
+		"read",jopt (classfield_ref ctx) a.a_read;
+		"write",jopt (classfield_ref ctx) a.a_write;
 	]
 
 let generate_module_type ctx mt =
@@ -663,7 +666,10 @@ let generate_module ctx m =
 		"types",jlist (fun mt -> generate_type_path m.m_path (t_infos mt).mt_path) m.m_types;
 		"file",jstring m.m_extra.m_file;
 		"sign",jstring (Digest.to_hex m.m_extra.m_sign);
-		"dependencies",jarray (PMap.fold (fun m acc -> generate_module_path m.m_path :: acc) m.m_extra.m_deps []);
+		"dependencies",jarray (PMap.fold (fun m acc -> (jobject [
+			"path",jstring (s_type_path m.m_path);
+			"sign",jstring (Digest.to_hex m.m_extra.m_sign);
+		]) :: acc) m.m_extra.m_deps []);
 	]
 
 let create_context gm = {

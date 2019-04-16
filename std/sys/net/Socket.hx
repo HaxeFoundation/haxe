@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,11 +54,18 @@ extern class Socket {
 
 	/**
 		Read the whole data available on the socket.
+
+		*Note*: this is **not** meant to be used together with `setBlocking(false)`,
+		as it will always throw `haxe.io.Error.Blocked`. `input` methods should be used directly instead.
 	**/
 	function read() : String;
 
 	/**
 		Write the whole data to the socket output.
+
+		*Note*: this is **not** meant to be used together with `setBlocking(false)`, as
+		`haxe.io.Error.Blocked` may be thrown mid-write with no indication of how many bytes have been written.
+		`output.writeBytes()` should be used instead as it returns this information.
 	**/
 	function write( content : String ) : Void;
 
@@ -98,7 +105,7 @@ extern class Socket {
 	function host() : { host : Host, port : Int };
 
 	/**
-		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
+		Gives a timeout (in seconds) after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	function setTimeout( timeout : Float ) : Void;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +35,7 @@ class Log {
 		if( infos == null )
 			return str;
 		var pstr = infos.fileName + ":" + infos.lineNumber;
-		if( infos != null && infos.customParams != null ) for( v in infos.customParams ) str += ", " + Std.string(v);
+		if( infos.customParams != null ) for( v in infos.customParams ) str += ", " + Std.string(v);
 		return pstr+": "+str;
 	}
 

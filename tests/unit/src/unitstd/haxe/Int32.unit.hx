@@ -44,3 +44,8 @@ var i32:haxe.Int32 = 2;
 var c = ~(((a[next] << 32) | 1):haxe.Int32);
 c == 0xfffffffe;
 #end
+
+// - see: https://github.com/HaxeFoundation/haxe/pull/7491
+-min == min;              // two's complement overflow,
+-2147483643 == 5 + -min;  // order of ops and negate
+2147483643 == -(5 + min); // static analyzer issue

@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -183,6 +183,13 @@ class Bytes {
 	}
 
 	public static inline function ofData( b : BytesData ) : Bytes {
+		return new Bytes(b.length, b);
+	}
+	
+	public static function ofHex( s : String ) : Bytes {
+		var len = s.length;
+		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
+		var b : String = php.Global.hex2bin(s);
 		return new Bytes(b.length, b);
 	}
 

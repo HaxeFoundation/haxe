@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ import cs.NativeArray;
 #if core_api_serialize
 @:meta(System.Serializable)
 #end
-@:final class Array<T> implements ArrayAccess<T> {
+final class Array<T> implements ArrayAccess<T> {
 
 	public var length(default,null) : Int;
 
@@ -480,8 +480,7 @@ import cs.NativeArray;
 	}
 }
 
-@:final
-private class ArrayIterator<T>
+private final class ArrayIterator<T>
 {
 	var arr:Array<T>;
 	var len:Int;

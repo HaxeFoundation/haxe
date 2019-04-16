@@ -3,6 +3,7 @@ package unit.issues;
 class Issue4343 extends Test {
 	function test() {
 		(new SomeObject() : ISomeObject).call();
+		noAssert();
 	}
 }
 

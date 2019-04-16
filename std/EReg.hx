@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -67,7 +67,7 @@ class EReg {
 		`this.matchSub`, and then operates on the String of that operation.
 
 		The index `n` corresponds to the n-th set of parentheses in the pattern
-		of `this` EReg. If no such sub-group exists, an exception is thrown.
+		of `this` EReg. If no such sub-group exists, the result is unspecified.
 
 		If `n` equals 0, the whole matched substring is returned.
 	**/

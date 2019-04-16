@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,11 +21,7 @@
  */
 package haxe.io;
 
-#if !nodejs
-import js.html.compat.Float32Array;
-#end
-
-typedef Float32ArrayData = js.html.Float32Array;
+typedef Float32ArrayData = js.lib.Float32Array;
 
 @:coreApi
 abstract Float32Array(Float32ArrayData) {

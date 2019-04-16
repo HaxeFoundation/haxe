@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
 @:coreApi
 class String {
 
@@ -53,6 +57,16 @@ class String {
 		return bytes.getUI16(index << 1);
 	}
 
+	inline function findChar(start:Int,len:Int,src:hl.Bytes,srcLen:Int) : Int {
+		var p = 0;
+		while( true ) {
+			p = bytes.find(start,len-start,src,0,srcLen);
+			if( p < 0 || p & 1 == 0 ) break;
+			start = p + 1;
+		}
+		return p;
+	}
+
 	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		var startByte = 0;
 		if( startIndex != null && startIndex > 0 ) {
@@ -60,20 +74,23 @@ class String {
 				return -1;
 			startByte = startIndex << 1;
 		}
-		var p = bytes.find(startByte, (length << 1) - startByte, str.bytes, 0, str.length << 1);
+		var p = findChar(startByte, length << 1, str.bytes, str.length << 1);
 		if( p > 0 ) p >>= 1;
 		return p;
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		var last = 0;
-		var start = this.length;
-		if( startIndex != null )
-			start = startIndex;
-		start <<= 1;
+		var max = this.length;
+		if( startIndex != null ) {
+			max = startIndex + str.length;
+			if( max < 0 ) max = 0;
+			if( max > this.length ) max = this.length;
+		}
+		max <<= 1;
 		while( true ) {
-			var p = bytes.find(last, (length << 1) - last, str.bytes, 0, str.length << 1);
-			if( p < 0 || p > start )
+			var p = findChar(last, max, str.bytes, str.length << 1);
+			if( p < 0 )
 				return (last >> 1) - 1;
 			last = p + 2;
 		}
@@ -94,7 +111,7 @@ class String {
 		var pos = 0;
 		var dlen = delimiter.length;
 		while( true ) {
-			var p = bytes.find(pos << 1, (length - pos) << 1, delimiter.bytes, 0, dlen << 1);
+			var p = findChar(pos << 1, length << 1, delimiter.bytes, dlen << 1);
 			if( p < 0 ) {
 				out.push(substr(pos, length-pos));
 				break;
@@ -154,6 +171,14 @@ class String {
 
 	public function toString() : String {
 		return this;
+	}
+
+	public inline function iterator() : StringIterator {
+		return new StringIterator(this);
+	}
+
+	public inline function keyValueIterator() : StringKeyValueIterator {
+		return new StringKeyValueIterator(this);
 	}
 
 	public static function fromCharCode( code : Int ) : String {

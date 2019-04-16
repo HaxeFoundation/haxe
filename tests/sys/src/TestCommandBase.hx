@@ -2,10 +2,8 @@ import sys.*;
 import haxe.io.*;
 import utest.Assert;
 
-class TestCommandBase {
+class TestCommandBase extends utest.Test {
 	var runInfo:{out:String, err:String} = null;
-
-	public function new() { }
 
 	function run(cmd:String, ?args:Array<String>):Int {
 		throw "should be overridden";
@@ -82,8 +80,17 @@ class TestCommandBase {
 				if (exitCode != random)
 					trace(name);
 				Assert.equals(random, exitCode);
-				FileSystem.deleteFile(path);
 			}
+		}
+
+		// Try to avoid unlink(): Resource temporarily unavailable error
+		Sys.sleep(0.1);
+		#if php
+		php.Global.gc_collect_cycles();
+		#end
+		for (file in FileSystem.readDirectory("temp")) {
+			if (file == ".gitignore") continue;
+			FileSystem.deleteFile(Path.join(["temp", file]));
 		}
 	}
 

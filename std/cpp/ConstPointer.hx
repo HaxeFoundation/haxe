@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,7 @@
  */
  package cpp;
 
-@:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer") @:analyzer(as_var)
+@:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer") @:semantics(variable)
 extern class ConstPointer<T>
 {
    // ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers

@@ -12,7 +12,7 @@ namespace { //Namespace declaration is required because this file is included un
 	 */
 	if(!function_exists('mb_chr')) {
 		function mb_chr($code, $encoding = null) {
-			if($encoding !== 'UTF-8') {
+			if($encoding && $encoding !== 'UTF-8') {
 				throw new Exception("$encoding is not supported in mb_chr() polyfill.");
 			}
 			if (0x80 > $code %= 0x200000) {
@@ -33,7 +33,7 @@ namespace { //Namespace declaration is required because this file is included un
 	 */
 	if(!function_exists('mb_ord')) {
 		function mb_ord($s, $encoding = null) {
-			if($encoding !== 'UTF-8') {
+			if($encoding && $encoding !== 'UTF-8') {
 				throw new Exception("$encoding is not supported in mb_ord() polyfill.");
 			}
 			$code = ($s = unpack('C*', substr($s, 0, 4))) ? $s[1] : 0;

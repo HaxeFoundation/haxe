@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
  	all platforms.
  **/
 abstract Int32(Int) from Int to Int {
-	@:op(-A) private function negate():Int32;
+	@:op(-A) private inline function negate():Int32 return clamp(~this+1);
 
 	@:op(++A) private inline function preIncrement():Int32
 		return this = clamp(++this);

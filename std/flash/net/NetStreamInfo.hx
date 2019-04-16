@@ -1,6 +1,6 @@
 package flash.net;
 
-@:final extern class NetStreamInfo {
+extern final class NetStreamInfo {
 	var SRTT(default,never) : Float;
 	var audioBufferByteLength(default,never) : Float;
 	var audioBufferLength(default,never) : Float;

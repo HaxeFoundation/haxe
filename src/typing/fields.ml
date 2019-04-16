@@ -109,6 +109,10 @@ let get_constructor ctx c params p =
 		let ct, f = (try Type.get_constructor (fun f -> field_type ctx c params f p) c with Not_found -> raise_error (No_constructor (TClassDecl c)) p) in
 		apply_params c.cl_params params ct, f
 
+let check_constructor_access ctx c f p =
+	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
+	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
+
 let field_access ctx mode f fmode t e p =
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
@@ -130,7 +134,7 @@ let field_access ctx mode f fmode t e p =
 			let e = mk (TField(e,fmode)) t p in
 			let ethis = get_this ctx p in
 			let ethis = {ethis with etype = TAbstract(a,List.map snd a.a_params)} in
-			AKUsing(e,ctx.curclass,f,ethis)
+			AKUsing(e,ctx.curclass,f,ethis,false)
 		| _ ->
 			(match m, mode with
 			| MethInline, _ -> AKInline (e,f,fmode,t)
@@ -151,13 +155,13 @@ let field_access ctx mode f fmode t e p =
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
 		| AccNo when not (Meta.has Meta.PrivateAccess ctx.meta) ->
 			(match follow e.etype with
-			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_public = false } false -> normal()
+			| TInst (c,_) when is_parent c ctx.curclass || can_access ctx c { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } false -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Opened when mode = MSet ->
 					f.cf_kind <- Var { v with v_write = AccNormal };
 					normal()
-				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_public = false } true -> normal()
+				| Statics c2 when ctx.curclass == c2 || can_access ctx c2 { f with cf_flags = unset_flag f.cf_flags (int_of_class_field_flag CfPublic) } true -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
 				if ctx.untyped then normal() else AKNo f.cf_name)
@@ -204,7 +208,7 @@ let field_access ctx mode f fmode t e p =
 					(* let t = apply_params a.a_params pl (field_type ctx c [] f p) in *)
 					let t = (field_type ctx c [] f p) in
 					let ef = mk (TField (e,FStatic (c,f))) t p in
-					AKUsing (ef,c,f,this)
+					AKUsing (ef,c,f,this,false)
 				end else
 					AKExpr (make_call ctx (mk (TField (e,quick_field_dynamic e.etype m)) (tfun [this.etype] t) p) [this] t p)
 			end else if mode = MSet then
@@ -250,7 +254,7 @@ let rec using_field ctx mode e i p =
 			begin match follow t with
 				| TFun((_,_,(TType({t_path = ["haxe";"macro"],"ExprOf"},[t0]) | t0)) :: args,r) ->
 					if is_dynamic && follow t0 != t_dynamic then raise Not_found;
-					let e = AbstractCast.cast_or_unify_raise ctx t0 e p in
+					let e = unify_static_extension ctx e t0 p in
 					(* early constraints check is possible because e.etype has no monomorphs *)
 					List.iter2 (fun m (name,t) -> match follow t with
 						| TInst ({ cl_kind = KTypeParameter constr },_) when constr <> [] && not (has_mono m) ->
@@ -259,7 +263,7 @@ let rec using_field ctx mode e i p =
 					) monos cf.cf_params;
 					let et = type_module_type ctx (TClassDecl c) None p in
 					ImportHandling.maybe_mark_import_position ctx pc;
-					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e)
+					AKUsing (mk (TField (et,FStatic (c,cf))) t p,c,cf,e,false)
 				| _ ->
 					raise Not_found
 			end
@@ -269,16 +273,23 @@ let rec using_field ctx mode e i p =
 			if List.exists (function Has_extra_field _ -> true | _ -> false) el then check_constant_struct := true;
 			loop l
 	in
-	try loop ctx.m.module_using with Not_found ->
 	try
+		(* module using from `using Path` *)
+		loop ctx.m.module_using
+	with Not_found -> try
+		(* type using from `@:using(Path)` *)
+		let mt = module_type_of_type e.etype in
+		loop  (t_infos mt).mt_using
+	with Not_found | Exit -> try
+		(* global using *)
 		let acc = loop ctx.g.global_using in
 		(match acc with
-		| AKUsing (_,c,_,_) -> add_dependency ctx.m.curmod c.cl_module
+		| AKUsing (_,c,_,_,_) -> add_dependency ctx.m.curmod c.cl_module
 		| _ -> assert false);
 		acc
 	with Not_found ->
-	if not !check_constant_struct then raise Not_found;
-	remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
+		if not !check_constant_struct then raise Not_found;
+		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field ?(resume=false) ctx e i p mode =
@@ -405,7 +416,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 		(try
 			let f = PMap.find i a.a_fields in
 			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
-			if not f.cf_public && not ctx.untyped then begin
+			if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
 				| Statics c when can_access ctx c f true -> ()
@@ -485,7 +496,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in
 				let t = field_type f in
 				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
+				AKUsing (ef,c,f,e,false)
 			| (MGet | MCall), Var {v_read = AccNever} ->
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
@@ -508,7 +519,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 				end;
 				let ef = field_expr f t in
-				AKUsing (ef,c,f,e)
+				AKUsing (ef,c,f,e,false)
 			| MSet, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
@@ -523,14 +534,24 @@ let rec type_field ?(resume=false) ctx e i p mode =
 			| FunMemberAbstract, TConst (TThis) -> type_field ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode;
 			| _ -> raise Not_found)
 		with Not_found -> try
-			let c,cf = match a.a_impl,a.a_resolve with
-				| Some c,Some cf -> c,cf
-				| _ -> raise Not_found
+			let get_resolve is_write =
+				let c,cf = match a.a_impl,(if is_write then a.a_write else a.a_read) with
+					| Some c,Some cf -> c,cf
+					| _ -> raise Not_found
+				in
+				let et = type_module_type ctx (TClassDecl c) None p in
+				let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
+				let ef = mk (TField (et,FStatic (c,cf))) t p in
+				let r = match follow t with
+					| TFun(_,r) -> r
+					| _ -> assert false
+				in
+				if is_write then
+					AKFieldSet(e,ef,i,r)
+				else
+					AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e,false)) [EConst (String i),p] NoValue p)
 			in
-			let et = type_module_type ctx (TClassDecl c) None p in
-			let t = apply_params a.a_params pl (field_type ctx c [] cf p) in
-			let ef = mk (TField (et,FStatic (c,cf))) t p in
-			AKExpr ((!build_call_ref) ctx (AKUsing(ef,c,cf,e)) [EConst (String i),p] NoValue p)
+			get_resolve (mode = MSet)
 		with Not_found ->
 			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
 			else no_field())

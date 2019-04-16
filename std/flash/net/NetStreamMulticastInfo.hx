@@ -1,6 +1,6 @@
 package flash.net;
 
-@:final @:require(flash10_1) extern class NetStreamMulticastInfo {
+@:require(flash10_1) extern final class NetStreamMulticastInfo {
 	var bytesPushedFromPeers(default,never) : Float;
 	var bytesPushedToPeers(default,never) : Float;
 	var bytesReceivedFromIPMulticast(default,never) : Float;

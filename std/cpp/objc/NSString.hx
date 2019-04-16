@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,10 +27,10 @@ package cpp.objc;
 extern abstract NSString( NSStringData )
 {
    inline function new(s:NSStringData) this = s;
-   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject return null;
+   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject;
 
-   @:native("(NSString *)") extern static function castFromString(s:String) : NSString return null;
-   @:native("String") extern static function castToString(s:NSStringData) : String return null;
+   @:native("(NSString *)") extern static function castFromString(s:String) : NSString;
+   @:native("String") extern static function castToString(s:NSStringData) : String;
 
 
    @:from extern

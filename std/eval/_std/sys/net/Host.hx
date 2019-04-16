@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,8 +42,8 @@ class Host {
 		this.ip = ip;
 	}
 
-	extern static public function localhost() { return ""; }
-	extern static function hostReverse(ip:Int) { return ""; }
-	extern static function hostToString(ip:Int) { return ""; }
-	extern static function resolve(name:String) { return 0; }
+	extern static public function localhost();
+	extern static function hostReverse(ip:Int);
+	extern static function hostToString(ip:Int);
+	extern static function resolve(name:String);
 }

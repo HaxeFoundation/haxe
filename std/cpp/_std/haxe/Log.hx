@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -24,7 +24,7 @@ package haxe;
 @:coreApi class Log {
 
    @:native("__trace")
-   extern private static function nativeTrace(message:String, posInfo:Dynamic) : Void { }
+   extern private static function nativeTrace(message:String, posInfo:Dynamic) : Void;
 
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		if (infos!=null && infos.customParams!=null) {

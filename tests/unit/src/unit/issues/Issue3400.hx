@@ -6,6 +6,7 @@ class Issue3400 extends Test
 	public function test()
 	{
 		var a:AbstractList<haxe.Int64> = AbstractList.empty();
+		noAssert();
 	}
 #end
 }

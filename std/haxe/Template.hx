@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2018 Haxe Foundation
+ * Copyright (C)2005-2019 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,6 +64,9 @@ class Template {
 		has lower priority than the context argument of execute().
 	**/
 	public static var globals : Dynamic = {};
+
+	// To avoid issues with DCE, keep the array iterator.
+	@:ifFeature("haxe.Template.run") static var hxKeepArrayIterator = [].iterator();
 
 	var expr : TemplateExpr;
 	var context : Dynamic;

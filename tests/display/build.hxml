@@ -1,5 +1,6 @@
 -p src
 --main Main
+-lib utest
+-lib haxeserver
 --interp
 -D use-rtti-doc
-# -D test=Issue7326
