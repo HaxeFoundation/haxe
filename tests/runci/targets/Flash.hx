@@ -27,16 +27,20 @@ class Flash {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages([
-					"libglib2.0", "libfreetype6"
-				]);
-				var majorVersion = getLatestFPVersion()[0];
-				runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
-				runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					Linux.requireAptPackages([
+						"libglib2.0", "libfreetype6"
+					]);
+					var majorVersion = getLatestFPVersion()[0];
+					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
+					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
-				runCommand(Sys.getEnv("HOME") + "/flashplayerdebugger", ["-v"]);
+				runCommand(playerCmd, ["-v"]);
 			case "Mac":
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
@@ -67,7 +71,11 @@ class Flash {
 		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
-				new Process(Sys.getEnv("HOME") + "/flashplayerdebugger", [swf]);
+				var playerCmd = "flashplayerdebugger";
+				if(Sys.command("type", [playerCmd]) != 0) {
+					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				}
+				new Process(playerCmd, [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}
@@ -94,19 +102,20 @@ class Flash {
 
 		//read flashlog.txt continously
 		var traceProcess = new Process("tail", ["-f", flashlogPath]);
-		var line = "";
+		var success = false;
 		while (true) {
 			try {
-				line = traceProcess.stdout.readLine();
-				Sys.println(line);
+				var line = traceProcess.stdout.readLine();
 				if (line.indexOf("success: ") >= 0) {
-					return line.indexOf("success: true") >= 0;
+					success = line.indexOf("success: true") >= 0;
+					break;
 				}
 			} catch (e:haxe.io.Eof) {
 				break;
 			}
 		}
-		return false;
+		Sys.command("cat", [flashlogPath]);
+		return success;
 	}
 
 	static public function run(args:Array<String>) {
@@ -116,4 +125,6 @@ class Flash {
 		if (!success)
 			fail();
 	}
+
+
 }

@@ -200,7 +200,7 @@ let rec follow = Abstract.follow_with_abstracts
 
 let prefix = ref None
 (**
-	Returns value of `--php-prefix` compiler flag
+	Returns value of `-D php-prefix` compiler flag
 *)
 let get_php_prefix ctx =
 	match !prefix with
@@ -219,8 +219,8 @@ let get_php_prefix ctx =
 			lst
 
 (**
-	Adds packages specified by `--php-prefix` to `type_path`.
-	E.g. if `--php-prefix some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
+	Adds packages specified by `-D php-prefix` to `type_path`.
+	E.g. if `-D php-prefix=some.sub` and `type_path` is `(["pack"], "MyClass")`, then this function
 	will return `(["some", "sub", "pack"], "MyClass")`
 *)
 let add_php_prefix ctx type_path =
@@ -1151,20 +1151,21 @@ let clear_wrappers () =
 	Check if specified type name is used in specified namespace
 *)
 let namespaces_types_cache = Hashtbl.create 512
-let type_name_used_in_namespace ctx name namespace =
-	let types = Hashtbl.find_all namespaces_types_cache namespace in
-	match types with
-		| [] ->
-			List.iter
-				(fun ctx_type ->
-					let wrapper = get_wrapper ctx_type in
-					Hashtbl.add namespaces_types_cache wrapper#get_namespace wrapper#get_name
-				)
-				ctx.types;
-			let types = Hashtbl.find_all namespaces_types_cache namespace in
-			List.mem name types
-		| _ ->
-			List.mem name types
+let type_name_used_in_namespace ctx type_path as_name namespace =
+	let types =
+		match Hashtbl.find_all namespaces_types_cache namespace with
+			| [] ->
+				List.iter
+					(fun ctx_type ->
+						let wrapper = get_wrapper ctx_type in
+						Hashtbl.add namespaces_types_cache wrapper#get_namespace wrapper#get_name
+					)
+					ctx.types;
+				Hashtbl.find_all namespaces_types_cache namespace
+			| types -> types
+	in
+	List.mem as_name types
+	&& (namespace, as_name) <> type_path
 
 (**
 	Simple list intersection implementation.
@@ -1347,13 +1348,17 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method use ?prefix (type_path:path) =
 			if type_path = hx_type_path then
 				php_name
-			else
+			else begin
+				let debug = snd hx_type_path = "Test" && snd type_path = "Wat" in
+				let orig_type_path = type_path in
 				let type_path = match type_path with (pack, name) -> (pack, get_real_name name) in
+				if debug then print_endline (get_full_type_name type_path);
 				let type_path =
 					match prefix with
 						| Some false -> type_path
 						| _ -> add_php_prefix ctx type_path
 				in
+				if debug then print_endline (get_full_type_name type_path);
 				let module_path = get_module_path type_path in
 				match type_path with
 					| ([], type_name) -> "\\" ^ type_name
@@ -1379,7 +1384,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 							prepend_alias (get_alias_next_part ());
 						while not !added do
 							try
-								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx !alias namespace then
+								if (get_module_path type_path) <> namespace && type_name_used_in_namespace ctx orig_type_path !alias namespace then
 									prepend_alias (get_alias_next_part ())
 								else
 									let used_type = Hashtbl.find use_table !alias_upper in
@@ -1394,6 +1399,7 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 								| _ -> fail self#pos __POS__
 						done;
 						!alias
+			end
 		(**
 			Extracts type path from Type.t value and execute self#use on it
 			@return Unique alias for specified type.
@@ -1600,6 +1606,10 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 		method write_use =
 			self#indent 0;
 			let write _ used_type =
+				let namespace =
+					if hx_type_path = ([],"") then namespace (* ([],"") is for index.php *)
+					else (get_php_prefix ctx) @ namespace
+				in
 				if (get_module_path used_type.ut_type_path) <> namespace then
 					if get_type_name used_type.ut_type_path = used_type.ut_alias then
 						self#write_statement ("use " ^ (get_full_type_name used_type.ut_type_path))
@@ -3484,7 +3494,7 @@ class class_builder ctx (cls:tclass) =
 				!required
 			end
 		(**
-			Writes `--php-prefix` value as class constant PHP_PREFIX
+			Writes `-D php-prefix` value as class constant PHP_PREFIX
 		*)
 		method private write_php_prefix () =
 			let prefix = String.concat "\\" (get_php_prefix ctx) in

@@ -19,7 +19,7 @@ end
 module ExprPreprocessing = struct
 	let find_before_pos dm e =
 
-		let display_pos = ref (!DisplayPosition.display_position) in
+		let display_pos = ref (DisplayPosition.display_position#get) in
 		let was_annotated = ref false in
 		let is_annotated,is_completion = match dm with
 			| DMDefault -> (fun p -> not !was_annotated && encloses_position !display_pos p),true
@@ -33,7 +33,7 @@ module ExprPreprocessing = struct
 		let annotate_marked e = annotate e DKMarked in
 		let mk_null p = annotate_marked ((EConst(Ident "null")),p) in
 		let loop_el el =
-			let pr = !DisplayPosition.display_position in
+			let pr = DisplayPosition.display_position#get in
 			let rec loop el = match el with
 				| [] -> [mk_null pr]
 				| e :: el ->
@@ -113,7 +113,7 @@ module ExprPreprocessing = struct
 				let el = loop_el el in
 				ECall(e1,el),(pos e)
 			| ENew((tp,pp),el) when is_annotated (pos e) && is_completion ->
-				if is_annotated pp || pp.pmax >= !DisplayPosition.display_position.pmax then
+				if is_annotated pp || pp.pmax >= (DisplayPosition.display_position#get).pmax then
 					annotate_marked e
 				else begin
 					let el = loop_el el in
@@ -180,9 +180,9 @@ module ExprPreprocessing = struct
 				e
 		in
 		let loop e = match fst e with
-			| ECall(_,el) | ENew(_,el) when not !found && encloses_display_position (pos e) ->
+			| ECall(_,el) | ENew(_,el) when not !found && display_position#enclosed_in (pos e) ->
 				handle_el e el
-			| EArray(e1,e2) when not !found && encloses_display_position (pos e2) ->
+			| EArray(e1,e2) when not !found && display_position#enclosed_in (pos e2) ->
 				handle_el e [e2]
 			| EDisplay(_,DKCall) ->
 				raise Exit

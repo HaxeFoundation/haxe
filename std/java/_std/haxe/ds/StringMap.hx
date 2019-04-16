@@ -454,7 +454,7 @@ import java.NativeArray;
 	//guarantee: Whatever this function is, it will never return 0 nor 1
 	extern private static inline function hash(s:String):HashType
 	{
-		var k:Int = untyped s.hashCode();
+		var k:Int = (cast s : java.NativeString).hashCode();
 		//k *= 357913941;
 		//k ^= k << 24;
 		//k += ~357913941;

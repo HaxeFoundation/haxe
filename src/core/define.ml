@@ -160,7 +160,7 @@ let infos = function
 	| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
 	| HxcppGcGenerational -> "HXCPP_GC_GENERATIONAL",("Experimental Garbage Collector",[Platform Cpp])
 	| HxcppDebugger -> "HXCPP_DEBUGGER",("Include additional information for HXCPP_DEBUGGER",[Platform Cpp])
-	| HxcppSmartStings -> "hxcpp_smart_strings",("Optionally use wide strings in hxcpp (in development)",[Platform Cpp])
+	| HxcppSmartStings -> "hxcpp_smart_strings",("Use wide strings in hxcpp (Turned on by default unless `-D disable_unicode_strings` is specified)",[Platform Cpp])
 	| IncludePrefix -> "include_prefix",("prepend path to generated include files",[Platform Cpp])
 	| Interp -> "interp",("The code is compiled to be run with --interp",[])
 	| JavaVer -> "java_ver",("<version:5-7> Sets the Java version to be targeted",[Platform Java])

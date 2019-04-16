@@ -25,7 +25,7 @@ package sys.thread;
 #if (!target.threaded)
 #error "This class is not available on this target"
 #end
-extern class Thread {
+extern abstract Thread({}) {
 	/**
 		Send a message to the thread queue. This message can be read by using `readMessage`.
 	**/

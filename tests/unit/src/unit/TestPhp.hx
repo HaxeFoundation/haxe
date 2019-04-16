@@ -218,12 +218,13 @@ class TestPhp extends Test
 
 	@:analyzer(no_user_var_fusion)
 	function testSyntaxNativeClassName() {
-		eq("Array_hx", Syntax.nativeClassName(Array));
-		eq("unit\\Annotation", Syntax.nativeClassName(Annotation));
+		var phpPrefix = #if php_prefix Boot.getPrefix() + "\\" #else "" #end;
+		eq(phpPrefix + "Array_hx", Syntax.nativeClassName(Array));
+		eq(phpPrefix + "unit\\Annotation", Syntax.nativeClassName(Annotation));
 		var cls = php.Web;
-		eq("php\\Web", Syntax.nativeClassName(cls));
+		eq(phpPrefix + "php\\Web", Syntax.nativeClassName(cls));
 		var enm = Annotation;
-		eq("unit\\Annotation", Syntax.nativeClassName(enm));
+		eq(phpPrefix + "unit\\Annotation", Syntax.nativeClassName(enm));
 	}
 
 	function testNativeString() {

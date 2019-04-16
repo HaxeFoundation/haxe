@@ -115,7 +115,7 @@ class StringTools {
 			return untyped s.__URLDecode();
 		#elseif java
 			try
-				return untyped __java__("java.net.URLDecoder.decode(s, \"UTF-8\")")
+				return java.net.URLDecoder.decode(s, "UTF-8")
 			catch (e:Dynamic) throw e;
 		#elseif cs
 			return untyped cs.system.Uri.UnescapeDataString(s);
@@ -201,7 +201,7 @@ class StringTools {
 	**/
 	public static #if (cs || java || python) inline #end function startsWith( s : String, start : String ) : Bool {
 		#if java
-		return untyped s.startsWith(start);
+		return (cast s : java.NativeString).startsWith(start);
 		#elseif cs
 		return untyped s.StartsWith(start);
 		#elseif cpp
@@ -231,7 +231,7 @@ class StringTools {
 	**/
 	public static #if (cs || java || python) inline #end function endsWith( s : String, end : String ) : Bool {
 		#if java
-		return untyped s.endsWith(end);
+		return (cast s : java.NativeString).endsWith(end);
 		#elseif cs
 		return untyped s.EndsWith(end);
 		#elseif cpp
@@ -403,7 +403,7 @@ class StringTools {
 		if (sub.length == 0)
 			return s.split(sub).join(by);
 		else
-			return untyped s.replace(sub, by);
+			return (cast s : java.NativeString).replace(sub, by);
 		#elseif cs
 		if (sub.length == 0)
 			return s.split(sub).join(by);
@@ -615,7 +615,7 @@ class StringTools {
 	}
 
 	#if java
-	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return untyped str._charAt(idx);
+	private static inline function _charAt(str:String, idx:Int):java.StdTypes.Char16 return (cast str : java.NativeString).charAt(idx);
 	#end
 
 	#if neko

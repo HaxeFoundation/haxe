@@ -1300,8 +1300,9 @@ class expr_checker mode immediate_execution report =
 	end
 
 class class_checker cls immediate_execution report  =
+	let cls_meta = cls.cl_meta @ (match cls.cl_kind with KAbstractImpl a -> a.a_meta | _ -> []) in
 	object (self)
-			val is_safe_class = safety_enabled cls.cl_meta
+			val is_safe_class = (safety_enabled cls_meta)
 			val mutable checker = new expr_checker SMLoose immediate_execution report
 			val mutable mode = None
 		(**
@@ -1315,14 +1316,14 @@ class class_checker cls immediate_execution report  =
 			let check_field is_static f =
 				(* if f.cf_name = "wtf_foo" then
 					Option.may (fun e -> print_endline (s_expr str_type e)) f.cf_expr; *)
-				match (safety_mode (cls.cl_meta @ f.cf_meta)) with
+				match (safety_mode (cls_meta @ f.cf_meta)) with
 					| SMOff -> ()
 					| mode ->
 						Option.may ((self#get_checker mode)#check_root_expr) f.cf_expr;
 						self#check_accessors is_static f
 			in
 			if is_safe_class then
-				Option.may ((self#get_checker (safety_mode cls.cl_meta))#check_root_expr) cls.cl_init;
+				Option.may ((self#get_checker (safety_mode cls_meta))#check_root_expr) cls.cl_init;
 			Option.may (check_field false) cls.cl_constructor;
 			List.iter (check_field false) cls.cl_ordered_fields;
 			List.iter (check_field true) cls.cl_ordered_statics;
@@ -1363,7 +1364,7 @@ class class_checker cls immediate_execution report  =
 			match mode with
 				| Some mode -> mode
 				| None ->
-					let m = safety_mode cls.cl_meta in
+					let m = safety_mode cls_meta in
 					mode <- Some m;
 					m
 		(**
@@ -1417,7 +1418,7 @@ class class_checker cls immediate_execution report  =
 							| None -> Hashtbl.add fields_to_initialize f.cf_name f
 				)
 				cls.cl_ordered_fields;
-			let rec check_unsafe_usage init_list e =
+			let rec check_unsafe_usage init_list safety_enabled e =
 				if Hashtbl.length init_list > 0 then
 					match e.eexpr with
 						| TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) ->
@@ -1427,13 +1428,17 @@ class class_checker cls immediate_execution report  =
 							checker#error ("Cannot use method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
 						| TCall ({ eexpr = TField ({ eexpr = TConst TThis }, FInstance (_, _, field)) }, args) ->
 							checker#error ("Cannot call method " ^ field.cf_name ^ " until all instance fields are initialized.") [e.epos];
-							List.iter (check_unsafe_usage init_list) args
-						| TConst TThis ->
+							List.iter (check_unsafe_usage init_list safety_enabled) args
+						| TConst TThis when safety_enabled ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
 						| TLocal v when Hashtbl.mem this_vars v.v_id ->
 							checker#error "Cannot use \"this\" until all instance fields are initialized." [e.epos]
+						| TMeta ((Meta.NullSafety, [(EConst (Ident "Off"), _)], _), e) ->
+							iter (check_unsafe_usage init_list false) e
+						| TMeta ((Meta.NullSafety, _, _), e) ->
+							iter (check_unsafe_usage init_list true) e
 						| _ ->
-							iter (check_unsafe_usage init_list) e
+							iter (check_unsafe_usage init_list safety_enabled) e
 			in
 			let rec traverse init_list e =
 				(match e.eexpr with
@@ -1441,7 +1446,7 @@ class class_checker cls immediate_execution report  =
 						Hashtbl.remove init_list f.cf_name;
 						ignore (traverse init_list right_expr)
 					| TWhile (condition, body, DoWhile) ->
-						check_unsafe_usage init_list condition;
+						check_unsafe_usage init_list true condition;
 						ignore (traverse init_list body)
 					| TBlock exprs ->
 						List.iter (fun e -> ignore (traverse init_list e)) exprs
@@ -1455,7 +1460,7 @@ class class_checker cls immediate_execution report  =
 					| TVar (v, Some { eexpr = TConst TThis }) ->
 						Hashtbl.add this_vars v.v_id v
 					| _ ->
-						check_unsafe_usage init_list e
+						check_unsafe_usage init_list true e
 				);
 				init_list
 			in

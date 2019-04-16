@@ -66,7 +66,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com cs = object(self)
 			Some s
 		) None;
 		Parser.was_auto_triggered := was_auto_triggered;
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = file;
 			pmin = pos;
 			pmax = pos;
@@ -87,6 +87,8 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
+			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
+			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> assert false) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
 			hctx.send_result (JObject [
 				"methods",jarray methods;

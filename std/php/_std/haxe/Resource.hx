@@ -33,7 +33,14 @@ class Resource {
 	}
 
 	static function getDir() : String {
-		return Global.dirname(Const.__FILE__) + "/../../res";
+		var pathToRoot = '/../..';
+		#if php_prefix
+			pathToRoot += '/..';
+			for(i in 0...Global.substr_count(Boot.getPrefix(), '\\')) {
+				pathToRoot += '/..';
+			}
+		#end
+		return Global.dirname(Const.__FILE__) + pathToRoot + "/res";
 	}
 
 	@:access(haxe.io.Path.escape)

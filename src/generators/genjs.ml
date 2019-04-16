@@ -1080,10 +1080,13 @@ let generate_class___name__ ctx c =
 	if has_feature ctx "js.Boot.isClass" then begin
 		let p = s_path ctx c.cl_path in
 		print ctx "%s.__name__ = " p;
-		if has_feature ctx "Type.getClassName" then
-			print ctx "\"%s\"" (dot_path c.cl_path)
-		else
-			print ctx "true";
+		(match has_feature ctx "Type.getClassName", c.cl_path with
+			| true, _
+			| _, ([], ("Array" | "String")) ->
+				print ctx "\"%s\"" (dot_path c.cl_path)
+			| _ ->
+				print ctx "true"
+		);
 		newline ctx;
 	end
 

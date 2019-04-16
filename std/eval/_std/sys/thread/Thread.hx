@@ -22,66 +22,40 @@
 
 package sys.thread;
 
-/**
-	Experimental Thread API.
+import eval.vm.NativeThread;
 
-	Note that the debugger does not properly support threads at the moment.
-**/
-extern class Thread {
-	/**
-		Creates a new thread that executes function `f`.
+abstract Thread(NativeThread) {
+	inline function new(h:NativeThread):Void {
+		this = h;
+	}
 
-		Exceptions caused while executing `f` are printed to stderr and are not
-		propagated to the parent thread.
-	**/
-	function new(f:Void->Void):Void;
+	public inline function sendMessage(msg:Dynamic):Void {
+		this.sendMessage(msg);
+	}
 
-	/**
-		Return the identifier of the given thread. A thread identifier is an integer
-		that identifies uniquely the thread. It can be used to build data structures
-		indexed by threads.
-	**/
-	function id():Int;
+	public static inline function current():Thread {
+		return new Thread(NativeThread.self());
+	}
 
-	/**
-		Terminate prematurely the thread whose handle is given. This functionality is
-		available only with bytecode-level threads.
-	**/
-	function kill():Int;
+	public static inline function create(callb:Void->Void):Thread {
+		return new Thread(new NativeThread(callb));
+	}
 
-	/**
-		Suspends the execution of the calling thread for `f` seconds. The other program
-		threads continue to run during this time.
-	**/
-	static function delay(f:Float):Void;
+	public static inline function readMessage(block:Bool):Dynamic {
+		return NativeThread.readMessage(block);
+	}
 
-	/**
-		Terminate prematurely the currently executing thread.
-	**/
-	static function exit():Void;
+	public static inline function yield():Void {
+		NativeThread.yield();
+	}
 
-	/**
-		Suspends the execution of the calling thread until the thread `thread` has
-		terminated.
-	**/
-	static function join(thread:Thread):Void;
+	@:op(A == B)
+	public inline function equals(other:Thread):Bool {
+		return getHandle().id() == other.getHandle().id();
+	}
 
-	/**
-		Return the thread currently executing.
-	**/
-	static function self():Thread;
-
-	/**
-		Re-schedule the calling thread without suspending it. This function can be used
-		to give scheduling hints, telling the scheduler that now is a good time to switch
-		to other threads.
-	**/
-	static function yield():Void;
-	// neko API
-	static function readMessage<T>(block:Bool):T;
-	function sendMessage<T>(msg:T):Void;
-	static inline function create(f:Void->Void):Thread
-		return new Thread(f);
-	static inline function current():Thread
-		return self();
+	private inline function getHandle():NativeThread {
+		return this;
+	}
 }
+

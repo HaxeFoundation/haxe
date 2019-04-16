@@ -500,3 +500,36 @@ let dump_with_pos tabs e =
 	in
 	loop' tabs e;
 	Buffer.contents buf
+
+let collect_captured_vars e =
+	let known = Hashtbl.create 0 in
+	let unknown = ref [] in
+	let accesses_this = ref false in
+	let declare v = Hashtbl.add known v.v_id () in
+	let rec loop e = match e.eexpr with
+		| TLocal ({v_capture = true; v_id = id} as v) when not (Hashtbl.mem known id) ->
+			Hashtbl.add known id ();
+			unknown := v :: !unknown
+		| TConst (TThis | TSuper) ->
+			accesses_this := true;
+		| TVar(v,eo) ->
+			Option.may loop eo;
+			declare v
+		| TFor(v,e1,e2) ->
+			declare v;
+			loop e1;
+			loop e2;
+		| TFunction tf ->
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			loop tf.tf_expr
+		| TTry(e1,catches) ->
+			loop e1;
+			List.iter (fun (v,e) ->
+				declare v;
+				loop e;
+			) catches
+		| _ ->
+			Type.iter loop e
+	in
+	loop e;
+	List.rev !unknown,!accesses_this

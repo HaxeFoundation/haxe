@@ -401,6 +401,11 @@ extern class Global {
 	static function substr( string:String, start:Int, ?length:Int ) : EitherType<Bool,String>;
 
 	/**
+		@see http://php.net/manual/en/function.substr-count.php
+	**/
+	static function substr_count( haystack:String, needle:String, ?offset:Int, ?length:Int ) : Int;
+
+	/**
 		@see http://php.net/manual/en/function.substr_replace.php
 	**/
 	static function substr_replace( string:EitherType<String,NativeArray>, replacement:EitherType<String,NativeArray>, start:EitherType<Int,NativeArray>, ?length:EitherType<Int,NativeArray> ) : EitherType<String,NativeArray>;

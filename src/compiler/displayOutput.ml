@@ -503,7 +503,7 @@ module TypePathHandler = struct
 			(* This is a bit wacky: We want to reset the display position so that revisiting the display file
 			   does not raise another TypePath exception. However, we still want to have it treated like the
 			   display file, so we just set the position to 0 (#6558). *)
-			DisplayPosition.display_position := {!DisplayPosition.display_position with pmin = 0; pmax = 0};
+			DisplayPosition.display_position#set {DisplayPosition.display_position#get with pmin = 0; pmax = 0};
 			let rec lookup p =
 				try
 					TypeloadModule.load_module ctx (p,s_module) null_pos
@@ -666,7 +666,7 @@ let handle_display_argument com file_pos pre_compilation did_something =
 		com.display <- DisplayMode.create mode;
 		Parser.display_mode := mode;
 		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		DisplayPosition.display_position := {
+		DisplayPosition.display_position#set {
 			pfile = Path.unique_full_path file;
 			pmin = pos;
 			pmax = pos;
@@ -701,7 +701,7 @@ let process_display_file com classes =
 				classes := [];
 				com.main_class <- None;
 			end;
-			let real = Path.get_real_path (!DisplayPosition.display_position).pfile in
+			let real = Path.get_real_path (DisplayPosition.display_position#get).pfile in
 			let path = match get_module_path_from_file_path com real with
 			| Some path ->
 				if com.display.dms_kind = DMPackage then raise_package (fst path);
@@ -724,7 +724,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 	| DMDiagnostics global ->
 		Diagnostics.run com global
 	| DMStatistics ->
-		let stats = Statistics.collect_statistics tctx (SFFile !DisplayPosition.display_position.pfile) in
+		let stats = Statistics.collect_statistics tctx (SFFile (DisplayPosition.display_position#get).pfile) in
 		raise_statistics (Statistics.Printer.print_statistics stats)
 	| DMModuleSymbols (Some "") -> ()
 	| DMModuleSymbols filter ->
@@ -733,7 +733,7 @@ let process_global_display_mode com tctx = match com.display.dms_kind with
 			| Some cs ->
 				let l = CompilationServer.get_context_files cs ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 				List.fold_left (fun acc (file,cfile) ->
-					if (filter <> None || DisplayPosition.is_display_file file) then
+					if (filter <> None || DisplayPosition.display_position#is_in_file file) then
 						(file,DocumentSymbols.collect_module_symbols (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 					else
 						acc

@@ -26,38 +26,47 @@ open ClassFieldOrigin
 open DisplayTypes
 open DisplayEmitter
 open Genjson
+open Globals
+
+let exclude : string list ref = ref []
 
 let explore_class_paths com timer class_paths recusive f_pack f_module =
 	let rec loop dir pack =
-		try
-			let entries = Sys.readdir dir in
-			Array.iter (fun file ->
-				match file with
-					| "." | ".." ->
-						()
-					| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
-						begin try
-							begin match PMap.find file com.package_rules with
-								| Forbidden | Remap _ -> ()
-								| _ -> raise Not_found
+		let dot_path = (String.concat "." (List.rev pack)) in
+		begin
+			if (List.mem dot_path !exclude) then
+				()
+			else try
+				let entries = Sys.readdir dir in
+				Array.iter (fun file ->
+					match file with
+						| "." | ".." ->
+							()
+						| _ when Sys.is_directory (dir ^ file) && file.[0] >= 'a' && file.[0] <= 'z' ->
+							begin try
+								begin match PMap.find file com.package_rules with
+									| Forbidden | Remap _ -> ()
+									| _ -> raise Not_found
+								end
+							with Not_found ->
+								f_pack (List.rev pack,file);
+								if recusive then loop (dir ^ file ^ "/") (file :: pack)
 							end
-						with Not_found ->
-							f_pack (List.rev pack,file);
-							if recusive then loop (dir ^ file ^ "/") (file :: pack)
-						end
-					| _ ->
-						let l = String.length file in
-						if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
-							try
-								let name = String.sub file 0 (l - 3) in
-								let path = (List.rev pack,name) in
-								f_module path;
-							with _ ->
-								()
-						end
-			) entries;
-		with Sys_error _ ->
-			()
+						| _ ->
+							let l = String.length file in
+							if l > 3 && String.sub file (l - 3) 3 = ".hx" then begin
+								try
+									let name = String.sub file 0 (l - 3) in
+									let path = (List.rev pack,name) in
+									let dot_path = if dot_path = "" then name else dot_path ^ "." ^ name in
+									if (List.mem dot_path !exclude) then () else f_module path;
+								with _ ->
+									()
+							end
+				) entries;
+			with Sys_error _ ->
+				()
+		end
 	in
 	let t = Timer.timer (timer @ ["class path exploration"]) in
 	List.iter (fun dir -> loop dir []) class_paths;
@@ -362,12 +371,17 @@ let collect ctx tk with_type =
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
-			begin match List.rev cfile.c_package with
-				| [] -> ()
-				| s :: sl -> add_package (List.rev sl,s)
-			end;
-			Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
-			process_decls cfile.c_package module_name cfile.c_decls
+			let dot_path = s_type_path (cfile.c_package,module_name) in
+			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+				()
+			else begin
+				begin match List.rev cfile.c_package with
+					| [] -> ()
+					| s :: sl -> add_package (List.rev sl,s)
+				end;
+				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
+				process_decls cfile.c_package module_name cfile.c_decls
+			end
 		) files
 	end;
 

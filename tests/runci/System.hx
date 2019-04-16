@@ -83,6 +83,19 @@ class System {
 			fail();
 	}
 
+	/**
+	 * Recursively delete a directory.
+	 * @return Int Exit code of a system command executed to perform deletion.
+	 */
+	static public function deleteDirectoryRecursively(dir:String):Int {
+		return switch (Sys.systemName()) {
+			case "Windows":
+				Sys.command("rmdir", ["/S", "/Q", StringTools.replace(sys.FileSystem.fullPath(dir), "/", "\\")]);
+			case _:
+				Sys.command("rm", ["-rf", dir]);
+		}
+	}
+
 	static public function fail():Void {
 		success = false;
 		throw Fail;

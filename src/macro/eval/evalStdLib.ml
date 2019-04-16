@@ -862,6 +862,8 @@ module StdEReg = struct
 		with Not_found ->
 			this.r_groups <- [||];
 			vfalse
+		| Pcre.Error _ ->
+			exc_string "PCRE Error (invalid unicode string?)"
 	)
 
 	let matched = vifun1 (fun vthis n ->
@@ -973,12 +975,12 @@ module StdFile = struct
 
 	let write_out path content =
 		try
-	  		let ch = open_out_bin path in
-  			output_string ch content;
-  			close_out ch;
+			let ch = open_out_bin path in
+			output_string ch content;
+			close_out ch;
 			vnull
-		with Sys_error _ ->
-			exc_string ("Could not write file " ^ path)
+		with Sys_error s ->
+			exc_string s
 
 	let append = vfun2 (fun path binary ->
 		create_out path binary [Open_append]
@@ -2661,7 +2663,7 @@ module StdThread = struct
 
 	let self = vfun0 (fun () ->
 		let eval = get_eval (get_ctx()) in
-		encode_instance key_sys_net_Thread ~kind:(IThread eval.thread)
+		encode_instance key_eval_vm_Thread ~kind:(IThread eval.thread)
 	)
 
 	let readMessage = vfun1 (fun blocking ->
@@ -3157,13 +3159,13 @@ let init_constructors builtins =
 				encode_instance key_haxe_zip_Uncompress ~kind:(IZip { z = z; z_flush = Extc.Z_NO_FLUSH })
 			| _ -> assert false
 		);
-	add key_sys_net_Thread
+	add key_eval_vm_Thread
 		(fun vl -> match vl with
 			| [f] ->
 				let ctx = get_ctx() in
 				if ctx.is_macro then exc_string "Creating threads in macros is not supported";
 				let thread = EvalThread.spawn ctx (fun () -> call_value f []) in
-				encode_instance key_sys_net_Thread ~kind:(IThread thread)
+				encode_instance key_eval_vm_Thread ~kind:(IThread thread)
 			| _ -> assert false
 		);
 	add key_sys_net_Mutex
@@ -3559,7 +3561,7 @@ let init_standard_library builtins =
 		"systemName",StdSys.systemName;
 		"time",StdSys.time;
 	] [];
-	init_fields builtins (["sys";"thread"],"Thread") [
+	init_fields builtins (["eval";"vm"],"NativeThread") [
 		"delay",StdThread.delay;
 		"exit",StdThread.exit;
 		"join",StdThread.join;
