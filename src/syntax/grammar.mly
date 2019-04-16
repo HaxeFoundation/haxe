@@ -1103,7 +1103,7 @@ and arrow_function p1 al er s =
 		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
 	in
 	List.iter (fun (_,_,ml,_,_) ->	match ml with
-		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on lambda arguments is not allowed") ~pos:(Some p) s ()
+		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on arrow function arguments is not allowed") ~pos:(Some p) s ()
 		| [] -> ()
 	) al;
 	make er
