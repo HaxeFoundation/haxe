@@ -21,9 +21,6 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 	| CompletionType.CTFunction ctf -> ((args,ret),ctf)
 	| _ -> assert false
 
-let merge_core_doc ctx mtype =
-	DisplayPosition.display_position#run_outside (fun () -> Typecore.merge_core_doc ctx mtype)
-
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
@@ -51,7 +48,7 @@ let completion_item_of_expr ctx e =
 	let rec loop e = match e.eexpr with
 		| TLocal v | TVar(v,_) -> make_ci_local v (tpair ~values:(get_value_meta v.v_meta) v.v_type)
 		| TField(e1,FStatic(c,cf)) ->
-			merge_core_doc ctx (TClassDecl c);
+			Display.merge_core_doc ctx (TClassDecl c);
 			let decl = decl_of_class c in
 			let origin = match c.cl_kind,e1.eexpr with
 				| KAbstractImpl _,_ when Meta.has Meta.Impl cf.cf_meta -> Self decl
@@ -64,7 +61,7 @@ let completion_item_of_expr ctx e =
 			in
 			of_field e origin cf CFSStatic make_ci
 		| TField(e1,(FInstance(c,_,cf) | FClosure(Some(c,_),cf))) ->
-			merge_core_doc ctx (TClassDecl c);
+			Display.merge_core_doc ctx (TClassDecl c);
 			let origin = match follow e1.etype with
 			| TInst(c',_) when c != c' ->
 				Parent (TClassDecl c)
@@ -84,12 +81,12 @@ let completion_item_of_expr ctx e =
 				| _ -> itexpr e
 			end
 		| TTypeExpr (TClassDecl {cl_kind = KAbstractImpl a}) ->
-			merge_core_doc ctx (TAbstractDecl a);
+			Display.merge_core_doc ctx (TAbstractDecl a);
 			let t = TType(abstract_module_type a (List.map snd a.a_params),[]) in
 			let t = tpair t in
 			make_ci_type (CompletionModuleType.of_module_type (TAbstractDecl a)) ImportStatus.Imported (Some t)
 		| TTypeExpr mt ->
-			merge_core_doc ctx mt;
+			Display.merge_core_doc ctx mt;
 			let t = tpair e.etype in
 			make_ci_type (CompletionModuleType.of_module_type mt) ImportStatus.Imported (Some t) (* TODO *)
 		| TConst (TThis | TSuper) -> itexpr e (* TODO *)
@@ -100,7 +97,7 @@ let completion_item_of_expr ctx e =
 				| _ -> itexpr e
 			end
 		| TNew(c,tl,_) ->
-			merge_core_doc ctx (TClassDecl c);
+			Display.merge_core_doc ctx (TClassDecl c);
 			(* begin match fst e_ast with
 			| EConst (Regexp (r,opt)) ->
 				let present,absent = List.partition (String.contains opt) ['g';'i';'m';'s';'u'] in

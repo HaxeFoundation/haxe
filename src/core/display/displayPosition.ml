@@ -49,7 +49,7 @@ class display_position_container =
 		(**
 			Temporarily reset display position, run `fn` and then restore display position.
 		*)
-		method run_outside (fn:unit->unit) =
+		method run_outside : 'a . (unit->'a) -> 'a = fun fn ->
 			let display_pos = self#get in
 			self#reset;
 			Std.finally (fun () -> self#set display_pos) fn ()

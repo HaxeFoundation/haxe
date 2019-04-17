@@ -75,7 +75,7 @@ let explore_class_paths com timer class_paths recusive f_pack f_module =
 let read_class_paths com timer =
 	let sign = Define.get_signature com.defines in
 	explore_class_paths com timer (List.filter ((<>) "") com.class_path) true (fun _ -> ()) (fun path ->
-		let file,_,pack,_ = TypeloadParse.parse_module' com path Globals.null_pos in
+		let file,_,pack,_ = Display.parse_module' com path Globals.null_pos in
 		match CompilationServer.get() with
 		| Some cs when pack <> fst path ->
 			let file = Path.unique_full_path file in
@@ -156,7 +156,7 @@ let collect ctx tk with_type =
 			let mname = snd (t_infos mt).mt_module.m_path in
 			let path = if snd path = mname then path else (fst path @ [mname],snd path) in
 			if not (path_exists cctx path) then begin
-				merge_core_doc ctx mt;
+				Display.merge_core_doc ctx mt;
 				let is = get_import_status cctx true path in
 				if not (Meta.has Meta.NoCompletion (t_infos mt).mt_meta) then begin
 					add (make_ci_type (CompletionModuleType.of_module_type mt) is None) (Some (snd path));
@@ -352,7 +352,7 @@ let collect ctx tk with_type =
 		let class_paths = List.filter (fun s -> s <> "") class_paths in
 		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun path ->
 			if not (path_exists cctx path) then begin
-				let _,decls = TypeloadParse.parse_module ctx path Globals.null_pos in
+				let _,decls = Display.parse_module ctx path Globals.null_pos in
 				process_decls (fst path) (snd path) decls
 			end
 		)
