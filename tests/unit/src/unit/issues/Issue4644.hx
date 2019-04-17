@@ -10,7 +10,7 @@ class Issue4644 extends Test {
 			}} catch (e) {{
 				{1} = (e instanceof {2});
 			}}",
-			throw (new js.Error() : Dynamic),
+			throw (new js.lib.Error() : Dynamic),
 			isHaxeError,
 			#if js_unflatten
 			__js__("js._Boot.HaxeError")

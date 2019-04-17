@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +19,33 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+package js.lib;
 
-// This file is generated from mozilla\Permissions.webidl. Do not edit!
+import haxe.extern.Rest;
 
-package js.html;
+@:native("Function")
+extern class Function {
+	/** Specifies the number of arguments expected by the function. **/
+	var length(default,never):Int;
 
-import js.lib.Promise;
+	/** The name of the function. **/
+	var name:String;
 
-/**
-	Documentation [Permissions](https://developer.mozilla.org/en-US/docs/Web/API/Permissions) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/Permissions$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+	/** Creates a new Function object. **/
+	function new(arg:String, rest:Rest<String>);
 
-	@see <https://developer.mozilla.org/en-US/docs/Web/API/Permissions>
-**/
-@:native("Permissions")
-extern class Permissions {
+	/** Calls a function and sets its this to the provided value, arguments can be passed as an Array object. **/
+	function apply(thisArg:Dynamic, argsArray:Array<Dynamic>):Dynamic;
+
+	/** Calls (executes) a function and sets its this to the provided value, arguments can be passed as they are. **/
+	function call(thisArg:Dynamic, args:Rest<Dynamic>):Dynamic;
 
 	/**
-		Returns the user permission status for a given API.
-		@throws DOMError
+		Creates a new function which, when called, has its this set to the provided value,
+		with a given sequence of arguments preceding any provided when the new function was called.
 	**/
-	function query( permission : Dynamic ) : Promise<PermissionStatus>;
+	@:pure function bind(thisArg:Dynamic, args:Rest<Dynamic>):Function;
+
+	/** Returns a string representing the source code of the function. **/
+	@:pure function toString():String;
 }

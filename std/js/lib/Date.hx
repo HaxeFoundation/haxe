@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js;
+package js.lib;
 
 import Date in HaxeDate;
 
@@ -35,14 +35,14 @@ extern class Date
 	function new() : Void;
 
 	/**
-		Cast Haxe's Date to js.Date.
+		Cast Haxe's Date to js.lib.Date.
 	**/
-	static public inline function fromHaxeDate(date:HaxeDate):js.Date {
+	static public inline function fromHaxeDate(date:HaxeDate):js.lib.Date {
 		return cast date;
 	}
 
 	/**
-		Cast js.Date to Haxe's Date.
+		Cast js.lib.Date to Haxe's Date.
 	**/
 	static public inline function toHaxeDate(date:Date):HaxeDate {
 		return cast date;

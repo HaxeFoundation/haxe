@@ -138,7 +138,7 @@ enum ValueType {
 		}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
-		return js.Object.create((cast cl).prototype);
+		return js.lib.Object.create((cast cl).prototype);
 	}
 	#end
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
@@ -166,7 +166,7 @@ enum ValueType {
 	public static function getInstanceFields(c:Class<Dynamic>):Array<String> {
 		var result = [];
 		while (c != null) {
-			for (name in js.Object.getOwnPropertyNames((cast c).prototype)) {
+			for (name in js.lib.Object.getOwnPropertyNames((cast c).prototype)) {
 				switch name {
 					case "constructor" | "__class__" | "__properties__":
 					// skip special names
@@ -181,7 +181,7 @@ enum ValueType {
 	}
 
 	public static function getClassFields(c:Class<Dynamic>):Array<String> {
-		var a = js.Object.getOwnPropertyNames(cast c);
+		var a = js.lib.Object.getOwnPropertyNames(cast c);
 		a.remove("__id__");
 		a.remove("hx__closures__");
 		a.remove("__name__");

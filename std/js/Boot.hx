@@ -23,22 +23,22 @@ package js;
 
 import js.Syntax; // import it here so it's always available in the compiler
 
-private class HaxeError extends js.Error {
+private class HaxeError extends js.lib.Error {
 	var val:Dynamic;
 
 	@:pure
 	public function new(val:Dynamic) {
 		super();
 		this.val = val;
-		if ((cast js.Error).captureStackTrace) (cast js.Error).captureStackTrace(this, HaxeError);
+		if ((cast js.lib.Error).captureStackTrace) (cast js.lib.Error).captureStackTrace(this, HaxeError);
 	}
 
-	public static function wrap(val:Dynamic):js.Error {
-		return if (js.Syntax.instanceof(val, js.Error)) val else new HaxeError(val);
+	public static function wrap(val:Dynamic):js.lib.Error {
+		return if (js.Syntax.instanceof(val, js.lib.Error)) val else new HaxeError(val);
 	}
 
 	static function __init__() {
-		js.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
+		js.lib.Object.defineProperty((cast HaxeError).prototype, "message", {get: () -> (cast String)(js.Lib.nativeThis.val)});
 	}
 }
 
@@ -161,7 +161,7 @@ class Boot {
 			return false;
 		if( cc == cl )
 			return true;
-		if( js.Object.prototype.hasOwnProperty.call(cc, "__interfaces__") ) {
+		if( js.lib.Object.prototype.hasOwnProperty.call(cc, "__interfaces__") ) {
 			var intf : Dynamic = cc.__interfaces__;
 			for( i in 0...intf.length ) {
 				var i : Dynamic = intf[i];
@@ -220,7 +220,7 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr:js.Function;
+	static var __toStr:js.lib.Function;
 	static function __init__() {
 		Boot.__toStr = (cast {}).toString;
 	}

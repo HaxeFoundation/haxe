@@ -21,26 +21,5 @@
  */
  package js;
 
-/**
-	Native JavaScript regular expressions.
-
-	For cross-platform regular expressions, use Haxe `EReg` class or
-	[regexp literals](https://haxe.org/manual/std-regex.html).
-**/
-@:native("RegExp")
-extern class RegExp {
-	var global(default,null):Bool;
-	var ignoreCase(default,null):Bool;
-	var multiline(default,null):Bool;
-	var source(default,null):String;
-	var lastIndex:Int;
-	function new(pattern:String, ?flags:String);
-	function exec(str:String):Null<RegExpMatch>;
-	function test(str:String):Bool;
-	function toString():String;
-}
-
-extern class RegExpMatch extends Array<String> {
-	var index:Int;
-	var input:String;
-}
+@:deprecated typedef RegExp = js.lib.RegExp;
+@:deprecated typedef RegExpMatch = js.lib.RegExp.RegExpMatch;

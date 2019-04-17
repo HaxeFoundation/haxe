@@ -1,5 +1,5 @@
 /*
- * Copyright (C)2005-2019 Haxe Foundation
+ * Copyright (C)2005-2018 Haxe Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,6 +19,50 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package js;
+package js.lib;
 
-@:deprecated typedef Function = js.lib.Function;
+@:native("Error")
+extern class Error
+{
+	var message : String;
+	var name : String;
+	var stack(default,null) : String;
+
+	function new(?message : String) : Void;
+}
+
+@:native("EvalError")
+extern class EvalError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("RangeError")
+extern class RangeError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("ReferenceError")
+extern class ReferenceError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("SyntaxError")
+extern class SyntaxError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("TypeError")
+extern class TypeError extends Error
+{
+	function new(?message : String) : Void;
+}
+
+@:native("URIError")
+extern class URIError extends Error
+{
+	function new(?message : String) : Void;
+}
