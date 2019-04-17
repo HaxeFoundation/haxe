@@ -309,7 +309,7 @@ let rec wait_loop process_params verbose accept =
 					*)
 					if not ctx.complete then
 						raise (ServerError ("Infinite loop in Haxe server detected. "
-							^ "Probably caused by shadowing a module of standard library. "
+							^ "Probably caused by shadowing a module of the standard library. "
 							^ "Make sure shadowed module does not pull macro context."));
 					let _, mctx = MacroContext.get_macro_context ctx p in
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
