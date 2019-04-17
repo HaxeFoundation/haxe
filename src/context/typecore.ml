@@ -123,6 +123,8 @@ and typer = {
 	mutable in_call_args : bool;
 	(* events *)
 	mutable on_error : typer -> string -> pos -> unit;
+	(* Indicates that Typer.create() finished building this instance *)
+	complete : bool;
 }
 exception Forbid_package of (string * path * pos) * pos list * string
 
