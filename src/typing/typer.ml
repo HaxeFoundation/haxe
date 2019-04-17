@@ -475,11 +475,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> WithType.value | AKFieldSet(_,_,_,t) | AKSet(_,t,_) -> WithType.with_type t | AKExpr e -> WithType.with_type e.etype) in
-		let e2 = type_expr ctx e2 tt in
+		let e2 with_type = type_expr ctx e2 with_type in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1  ->
+			let e2 = e2 (WithType.with_type e1.etype) in
 			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
@@ -489,11 +489,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AKSet (e,t,cf) ->
+			let e2 = e2 (WithType.with_type t) in
 			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
+			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKFieldSet(ethis,e1,fname,t) ->
+			let e2 = e2 (WithType.with_type t) in
 			begin match follow e1.etype with
 				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
 				| _ -> assert false
@@ -503,6 +506,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
+					let e2 = e2 (WithType.with_type t) in
 					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
