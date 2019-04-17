@@ -75,6 +75,7 @@ type enum_type =
 	| IAnonStatus
 	| IQuoteStatus
 	| IImportMode
+	| IDisplayKind
 
 (**
 	Our access to the interpreter from the macro api
@@ -168,6 +169,7 @@ let enum_name = function
 	| IAnonStatus -> "AnonStatus"
 	| IImportMode -> "ImportMode"
 	| IQuoteStatus -> "QuoteStatus"
+	| IDisplayKind -> "DisplayKind"
 
 let all_enums =
 	let last = IImportMode in
@@ -386,7 +388,7 @@ and encode_display_kind dk =
 	| DKMarked -> 3, []
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
-	encode_enum ~pos:None ICType tag pl
+	encode_enum ~pos:None IDisplayKind tag pl
 
 and encode_expr e =
 	let rec loop (e,p) =
