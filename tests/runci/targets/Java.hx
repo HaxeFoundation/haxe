@@ -25,7 +25,9 @@ class Java {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
-		runCommand("java", ["-jar", "export/java/Main.jar"]);
+		if (ci != AppVeyor) { // #8154
+			runCommand("java", ["-jar", "export/java/Main.jar"]);
+		}
 
 		infoMsg("Testing java-lib extras");
 		changeDirectory('$unitDir/bin');
