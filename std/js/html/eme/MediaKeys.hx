@@ -24,6 +24,8 @@
 
 package js.html.eme;
 
+import js.lib.Promise;
+
 /**
 	The `MediaKeys` interface of EncryptedMediaExtensions API the represents a set of keys that an associated `HTMLMediaElement` can use for decryption of media data during playback.
 
@@ -34,14 +36,14 @@ package js.html.eme;
 @:native("MediaKeys")
 extern class MediaKeys {
 	var keySystem(default,null) : String;
-	
-	
+
+
 	/**
 		Returns a new `MediaKeySession` object, which represents a context for message exchange with a content decryption module (CDM).
 		@throws DOMError
 	**/
 	function createSession( sessionType : MediaKeySessionType = TEMPORARY ) : MediaKeySession;
-	
+
 	/**
 		Returns a `Promise` to a server certificate to be used to encrypt messages to the license server.
 	**/

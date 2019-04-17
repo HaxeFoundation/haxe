@@ -24,7 +24,7 @@ package js.lib;
 import haxe.extern.Rest;
 import haxe.DynamicAccess;
 /**
-	The `js.Object` constructor creates an object wrapper.
+	The `js.lib.Object` constructor creates an object wrapper.
 
 	Documentation [Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/

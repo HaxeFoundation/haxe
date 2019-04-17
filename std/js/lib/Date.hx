@@ -35,14 +35,14 @@ extern class Date
 	function new() : Void;
 
 	/**
-		Cast Haxe's Date to js.Date.
+		Cast Haxe's Date to js.lib.Date.
 	**/
-	static public inline function fromHaxeDate(date:HaxeDate):js.Date {
+	static public inline function fromHaxeDate(date:HaxeDate):js.lib.Date {
 		return cast date;
 	}
 
 	/**
-		Cast js.Date to Haxe's Date.
+		Cast js.lib.Date to Haxe's Date.
 	**/
 	static public inline function toHaxeDate(date:Date):HaxeDate {
 		return cast date;

@@ -161,7 +161,7 @@ class Boot {
 			return false;
 		if( cc == cl )
 			return true;
-		if( js.Object.prototype.hasOwnProperty.call(cc, "__interfaces__") ) {
+		if( js.lib.Object.prototype.hasOwnProperty.call(cc, "__interfaces__") ) {
 			var intf : Dynamic = cc.__interfaces__;
 			for( i in 0...intf.length ) {
 				var i : Dynamic = intf[i];
@@ -220,7 +220,7 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static var __toStr:js.Function;
+	static var __toStr:js.lib.Function;
 	static function __init__() {
 		Boot.__toStr = (cast {}).toString;
 	}
