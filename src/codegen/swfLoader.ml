@@ -341,22 +341,25 @@ let build_class com c file =
 		(*
 			If the class only contains static String constants, make it an enum
 		*)
-		let real_type = ref "" in
+		let real_type = ref None in
 		let rec loop = function
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
-				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem_assoc AStatic f.cff_access ->
-					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
+				| FVar (Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")} as real_t),_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
+					(match !real_type with
+					| None ->
+						real_type := Some real_t
+					| Some t ->
+						if t <> real_t then raise Exit);
 					{
-						ec_name = f.cff_name;
-						ec_pos = pos;
-						ec_args = [];
-						ec_params = [];
-						ec_meta = [];
-						ec_doc = None;
-						ec_type = None;
+						cff_name = f.cff_name;
+						cff_doc = None;
+						cff_pos = pos;
+						cff_meta = [];
+						cff_access = [];
+						cff_kind = FVar (Some (real_t,null_pos), None);
 					} :: loop l
 				| FFun { f_args = [] } when fst f.cff_name = "new" -> loop l
 				| _ -> raise Exit
@@ -365,15 +368,17 @@ let build_class com c file =
 		let constr = loop fields in
 		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
-		let enum_data = {
+		let native_path = s_type_path (path.tpackage, path.tname) in
+		let real_type = Option.get !real_type in
+		let abstract_data = {
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
-			d_flags = [EExtern];
+			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String native_path),null_pos)],null_pos)];
+			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
-		(path.tpackage, [(EEnum enum_data,pos)])
+		(path.tpackage, [(EAbstract abstract_data,pos)])
 	with Exit ->
 	let flags = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then HFinal :: flags else flags in
 
