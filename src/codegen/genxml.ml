@@ -489,6 +489,14 @@ let generate_type com t =
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
 		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = (match c.cl_dynamic with
+			| None -> ext
+			| Some t ->
+				(match c.cl_path with
+				| ["flash";"errors"], _ -> ext
+				| _ when t == t_dynamic -> " implements Dynamic" :: ext
+				| _ -> (" implements Dynamic<" ^ stype t ^ ">") :: ext)
+		) in
 		let ext = (match c.cl_path with
 			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
 			| ["flash";"utils"], "Dictionary" -> [" implements ArrayAccess<Dynamic>"]
