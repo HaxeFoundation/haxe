@@ -380,7 +380,7 @@ let build_class com c file =
 	let meta =
 		(* if the package was lowercased, add @:native("Original.Path") meta *)
 		match c.hlc_name with
-		| HMPath (pack,name) when pack <> path.tpackage ->
+		| HMPath (pack,name) when (pack <> [] && pack <> path.tpackage) ->
 			let native_path = (String.concat "." pack) ^ "." ^ name in
 			[(Meta.Native,[(EConst (String native_path), pos)],pos)]
 		| _ ->
