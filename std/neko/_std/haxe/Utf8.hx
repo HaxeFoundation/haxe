@@ -49,11 +49,11 @@ class Utf8 {
 			utf8_buf_add(buf,untyped __dollar__sget(s,i));
 			i += 1;
 		}
-		return Bytes.ofString(new String( utf8_buf_content(buf) ), UTF8);
+		return Bytes.ofString(new String( utf8_buf_content(buf) ), RawNative);
 	}
 
 	public static function decode( b : Bytes ) : String {
-		var s = b.getString(0, b.length, UTF8);
+		var s = b.getString(0, b.length, RawNative);
 		s = untyped s.__s;
 		var sl = untyped __dollar__ssize(s);
 		var ret = untyped __dollar__smake(sl);
@@ -80,8 +80,51 @@ class Utf8 {
 	}
 
 	public static function validate( b : Bytes ) : Bool {
-		var s = b.getString(0, b.length, UTF8);
-		return utf8_validate(untyped s.__s);
+		var data = b.getData();
+		var pos = 0;
+		var max = b.length;
+		while( pos < max ) {
+			var c:Int = Bytes.fastGet(data, pos++);
+			if( c < 0x80 ) {
+			} else if( c < 0xC0 ) { // invalid continuation byte
+				return false;
+			} else if( c < 0xC2 ) { // overlong sequence
+				return false;
+			} else if( c < 0xE0 ) {
+				if( pos + 1 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c2 < 0x80 || c2 > 0xBF ) return false;
+			} else if( c < 0xF0 ) {
+				if( pos + 2 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c == 0xE0 ) {
+					if( c2 < 0xA0 || c2 > 0xBF ) return false;
+				} else {
+					if( c2 < 0x80 || c2 > 0xBF ) return false;
+				}
+				var c3:Int = Bytes.fastGet(data, pos++);
+				if( c3 < 0x80 || c3 > 0xBF ) return false;
+				c = (c << 16) | (c2 << 8) | c3;
+				if(0xEDA080 <= c && c <= 0xEDBFBF) return false; //surrogate pairs
+			} else if( c > 0xF4 ) {
+				return false;
+			} else {
+				if( pos + 3 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c == 0xF0 ) {
+					if( c2 < 0x90 || c2 > 0xBF ) return false;
+				} else if( c == 0xF4 ) {
+					if( c2 < 0x80 || c2 > 0x8F ) return false;
+				} else {
+					if( c2 < 0x80 || c2 > 0xBF ) return false;
+				}
+				var c3:Int = Bytes.fastGet(data, pos++);
+				if( c3 < 0x80 || c3 > 0xBF ) return false;
+				var c4:Int = Bytes.fastGet(data, pos++);
+				if( c4 < 0x80 || c4 > 0xBF ) return false;
+			}
+		}
+		return true;
 	}
 
 	public static function length( s : String ) : Int {

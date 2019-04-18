@@ -120,6 +120,8 @@ class Utf8 {
 				}
 				var c3:Int = Bytes.fastGet(data, pos++);
 				if( c3 < 0x80 || c3 > 0xBF ) return false;
+				c = (c << 16) | (c2 << 8) | c3;
+				if(0xEDA080 <= c && c <= 0xEDBFBF) return false; //surrogate pairs
 			} else if( c > 0xF4 ) {
 				return false;
 			} else {
