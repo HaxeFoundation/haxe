@@ -39,6 +39,18 @@ let lowercase_pack pack =
 	in
 	loop [] pack
 
+
+let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
+
+let ct_dyn = CTPath tp_dyn
+
+let ct_rest = CTPath {
+	tpackage = ["haxe"; "extern"];
+	tname = "Rest";
+	tparams = [TPType (ct_dyn,null_pos)];
+	tsub = None;
+}
+
 let rec make_tpath = function
 	| HMPath (pack,name) ->
 		let pdyn = ref false in
@@ -63,7 +75,7 @@ let rec make_tpath = function
 		{
 			tpackage = pack;
 			tname = name;
-			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos)] else[];
+			tparams = if !pdyn then [TPType (ct_dyn,null_pos)] else[];
 			tsub = None;
 		}
 	| HMName (id,ns) ->
@@ -105,7 +117,7 @@ let rec make_tpath = function
 		{ (make_tpath t) with tparams = params }
 
 let make_topt = function
-	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+	| None -> tp_dyn
 	| Some t -> make_tpath t
 
 let make_type t = CTPath (make_topt t)
@@ -138,7 +150,7 @@ let build_class com c file =
 			d_params = [];
 			d_meta = [];
 			d_flags = [];
-			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos;
+			d_data = ct_dyn,null_pos;
 		} in
 		(path.tpackage, [(ETypedef inf,pos)])
 	| _ ->
@@ -164,7 +176,7 @@ let build_class com c file =
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic")),null_pos) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (tp_dyn,null_pos) :: flags in
 	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -263,7 +275,7 @@ let build_class com c file =
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
-					args @ List.map (fun _ -> incr pn; (("p" ^ string_of_int !pn,null_pos),true,[],Some (make_type None,null_pos),None)) [1;2;3;4;5]
+					args @ [("restArgs",null_pos),false,[],Some (ct_rest,null_pos),None]
 				else args in
 				let f = {
 					f_params = [];
