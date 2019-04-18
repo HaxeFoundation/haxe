@@ -2593,7 +2593,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
                else if fieldName="cca" && obj.cpptype=TCppString then
                   CppFunction( FuncInternal(obj,"cca","."), TCppScalar("int")), TCppDynamic
                else if fieldName="__s" && obj.cpptype=TCppString then
-                  CppVar( VarInternal(obj,".","__s")), TCppPointer("ConstPointer", TCppScalar("char"))
+                  CppVar( VarInternal(obj,".","utf8_str()")), TCppPointer("ConstPointer", TCppScalar("char"))
                else if fieldName="__Index" then
                   CppEnumIndex(obj), TCppScalar("int")
                else if is_internal_member fieldName || cpp_is_real_array obj then begin
@@ -3116,7 +3116,7 @@ let retype_expression ctx request_type function_args function_type expression_tr
          match cpp_variant_type_of cppExpr.cpptype with
          | TCppVoidStar
          | TCppScalar _ -> cppExpr
-         | TCppString ->  mk_cppexpr (CppVar(VarInternal(cppExpr,".","__s"))) (TCppPointer("ConstPointer", TCppScalar("char")))
+         | TCppString ->  mk_cppexpr (CppVar(VarInternal(cppExpr,".","raw_ptr()"))) (TCppPointer("ConstPointer", TCppScalar("char")))
          | TCppDynamic ->  mk_cppexpr (CppCastNative(cppExpr)) TCppVoidStar
          | _ -> let toDynamic = mk_cppexpr (CppCast(cppExpr, TCppDynamic)) TCppDynamic in
                 mk_cppexpr (CppCastNative(toDynamic)) TCppVoidStar
@@ -4593,7 +4593,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 
          output (tcppStr ^ " " ^ remap_name ^ ";\n" );
          if not is_static && (is_gc_element ctx tcpp) then begin
-            let getPtr = match tcpp with | TCppString -> ".__s" | _ -> ".mPtr" in
+            let getPtr = match tcpp with | TCppString -> ".raw_ref()" | _ -> ".mPtr" in
             output ("\t\tinline " ^ tcppStr ^ " _hx_set_" ^ remap_name ^ "(hx::StackContext *_hx_ctx," ^ tcppStr ^ " _hx_v) { HX_OBJ_WB(this,_hx_v" ^ getPtr ^ ") return " ^ remap_name ^ "=_hx_v; }\n");
          end;
 

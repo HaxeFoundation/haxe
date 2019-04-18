@@ -58,8 +58,8 @@ class Host
       }
       else
       {
-         var source = sys.io.File.getContent(script);
-         var module = Module.fromString(source);
+         var source = sys.io.File.getBytes(script);
+         var module = Module.fromData(source.getData());
          module.boot();
          module.run();
       }
