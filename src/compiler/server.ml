@@ -307,7 +307,7 @@ let rec wait_loop process_params verbose accept =
 						Prevents spending another 5 hours for debugging.
 						@see https://github.com/HaxeFoundation/haxe/issues/8174
 					*)
-					if not ctx.complete then
+					if not ctx.g.complete then
 						raise (ServerError ("Infinite loop in Haxe server detected. "
 							^ "Probably caused by shadowing a module of the standard library. "
 							^ "Make sure shadowed module does not pull macro context."));
