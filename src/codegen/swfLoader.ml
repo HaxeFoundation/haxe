@@ -218,10 +218,10 @@ let build_class com c file =
 		} in
 		match f.hlf_kind with
 		| HFVar v ->
-			if v.hlv_const then
-				cf.cff_kind <- FProp (("default",null_pos),("never",null_pos),Some (make_type v.hlv_type,null_pos),None)
-			else
-				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			if v.hlv_const then begin
+				cf.cff_access <- (AFinal,null_pos) :: cf.cff_access;
+			end;
 			cf :: acc
 		| HFMethod m when m.hlm_override ->
 			Hashtbl.add override (name,stat) ();
