@@ -22,9 +22,14 @@
 package haxe;
 
 import php.Global;
+import haxe.io.Bytes;
+
+using haxe.iterators.StringIteratorUnicode;
+
 
 @:coreApi
 class Utf8 {
+	static inline var ENC_UTF8 = "UTF-8";
 
 	var __b : String;
 
@@ -33,56 +38,40 @@ class Utf8 {
 	}
 
 	public function addChar( c : Int ) : Void {
-		__b += uchr(c);
+		__b += Global.mb_chr(c);
 	}
 
 	public function toString() : String {
 		return __b;
 	}
 
-	public static function encode( s : String ) : String {
-		return Global.utf8_encode(s);
+	public static function encode( s : String ) : Bytes {
+		return Bytes.ofString(Global.utf8_encode(s));
 	}
 
-	public static function decode( s : String ) : String {
-		return Global.utf8_decode(s);
+	public static function decode( b : Bytes ) : String {
+		return b.toString();
 	}
 
 	public static function iter(s : String, chars : Int -> Void ) : Void {
-		var len = length(s);
-		for(i in 0...len) {
-			chars(charCodeAt(s, i));
+		for(c in s.unicodeIterator()) {
+			chars(c);
 		}
 	}
 
-	public static function charCodeAt( s : String, index : Int ) : Int {
-		return uord(sub(s, index, 1));
+	public static inline function charCodeAt( s : String, index : Int ) : Int {
+		return s.charCodeAt(index);
 	}
 
-	static function uchr(i : Int) : String {
-		return Global.mb_convert_encoding(Global.pack('N', i), 'UTF-8', 'UCS-4BE');
+	public static inline function validate( b : Bytes ) : Bool {
+		return Global.mb_check_encoding(b.toString(), ENC_UTF8);
 	}
 
-	static function uord(s : String) : Int {
-		var c = Global.unpack('N', Global.mb_convert_encoding(s, 'UCS-4BE', 'UTF-8'));
-		return c[1];
+	public static inline function length( s : String ) : Int {
+		return Global.mb_strlen(s, ENC_UTF8);
 	}
 
-	public static function validate( s : String ) : Bool {
-		return Global.mb_check_encoding(s, enc);
+	public static inline function sub( s : String, pos : Int, len : Int ) : String {
+		return Global.mb_substr(s, pos, len, ENC_UTF8);
 	}
-
-	public static function length( s : String ) : Int {
-		return Global.mb_strlen(s, enc);
-	}
-
-	public static function compare( a : String, b : String ) : Int {
-		return Global.strcmp(a, b);
-	}
-
-	public static function sub( s : String, pos : Int, len : Int ) : String {
-		return Global.mb_substr(s, pos, len, enc);
-	}
-
-	private static inline var enc = "UTF-8";
 }

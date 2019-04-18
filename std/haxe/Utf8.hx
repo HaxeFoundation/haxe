@@ -21,6 +21,9 @@
  */
 package haxe;
 
+import haxe.io.Bytes;
+import haxe.io.Encoding;
+
 /**
 	Since not all platforms guarantee that `String` always uses UTF-8 encoding, you
 	can use this cross-platform API to perform operations on such strings.
@@ -54,59 +57,142 @@ class Utf8 {
 		Call the `chars` function for each UTF8 char of the string.
 	**/
 	public static function iter( s : String, chars : Int -> Void ) {
-		for( i in 0...s.length )
-			chars(s.charCodeAt(i));
+		for(c in new haxe.iterators.StringIteratorUnicode(s)) {
+			chars(c);
+		}
 	}
 
 	/**
-		Encode the input ISO string into the corresponding UTF8 one.
+		Encode the input string into the corresponding UTF8 byte sequence.
 	**/
-	public static function encode( s : String ) : String {
-		throw "Not implemented";
+	public static inline function encode( s : String ) : Bytes {
+		return Bytes.ofString(s, Encoding.UTF8);
 	}
 
 	/**
-		Decode an UTF8 string back to an ISO string.
+		Decode an UTF8 byte sequence back to a string.
 		Throw an exception if a given UTF8 character is not supported by the decoder.
 	**/
-	public static function decode( s : String ) : String {
-		throw "Not implemented";
+	public static inline function decode( b : Bytes ) : String {
+		return b.getString(0, b.length, Encoding.UTF8);
 	}
 
 	/**
 		Similar to `String.charCodeAt` but uses the UTF8 character position.
 	**/
-	public static inline function charCodeAt( s : String, index : Int ) : Int {
-		return s.charCodeAt(index);
+	#if !utf16 inline #end
+	public static function charCodeAt( s : String, index : Int ) : Int {
+		#if utf16
+			for(i => c in new haxe.iterators.StringKeyValueIteratorUnicode(s)) {
+				if(i == index) return c;
+			}
+			return 0;
+		#else
+			return s.charCodeAt(index);
+		#end
 	}
 
 	/**
-		Tells if the String is correctly encoded as UTF8.
+		Tells if `b` is a correctly encoded UTF8 byte sequence.
 	**/
-	public static inline function validate( s : String ) : Bool {
+	public static function validate( b : Bytes ) : Bool {
+		var data = b.getData();
+		var pos = 0;
+		var max = b.length;
+		while( pos < max ) {
+			var c:Int = Bytes.fastGet(data, pos++);
+			if( c < 0x80 ) {
+			} else if( c < 0xC0 ) { // invalid continuation byte
+				return false;
+			} else if( c < 0xC2 ) { // overlong sequence
+				return false;
+			} else if( c < 0xE0 ) {
+				if( pos + 1 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c2 < 0x80 || c2 > 0xBF ) return false;
+			} else if( c < 0xF0 ) {
+				if( pos + 2 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c == 0xE0 ) {
+					if( c2 < 0xA0 || c2 > 0xBF ) return false;
+				} else {
+					if( c2 < 0x80 || c2 > 0xBF ) return false;
+				}
+				var c3:Int = Bytes.fastGet(data, pos++);
+				if( c3 < 0x80 || c3 > 0xBF ) return false;
+			} else if( c > 0xF4 ) {
+				return false;
+			} else {
+				if( pos + 3 > max ) return false;
+				var c2:Int = Bytes.fastGet(data, pos++);
+				if( c == 0xF0 ) {
+					if( c2 < 0x90 || c2 > 0xBF ) return false;
+				} else if( c == 0xF4 ) {
+					if( c2 < 0x80 || c2 > 0x8F ) return false;
+				} else {
+					if( c2 < 0x80 || c2 > 0xBF ) return false;
+				}
+				var c3:Int = Bytes.fastGet(data, pos++);
+				if( c3 < 0x80 || c3 > 0xBF ) return false;
+				var c4:Int = Bytes.fastGet(data, pos++);
+				if( c4 < 0x80 || c4 > 0xBF ) return false;
+			}
+		}
 		return true;
 	}
 
 	/**
 		Returns the number of UTF8 chars of the String.
 	**/
-	#if js extern #end
-	public static inline function length( s : String ) : Int {
-		return s.length;
-	}
-
-	/**
-		Compare two UTF8 strings, character by character.
-	**/
-	public static function compare( a : String, b : String ) : Int {
-		return a > b ? 1 : (a == b ? 0 : -1);
+	#if !utf16 inline #end
+	public static function length( s : String ) : Int {
+		#if utf16
+			var pos = 0;
+			for(i in 0...s.length) {
+				var c = StringTools.fastCodeAt(s, pos++);
+				if (c >= 0xD800 && c < 0xDBFF) {
+					pos++;
+				}
+			}
+			return pos;
+		#else
+			return s.length;
+		#end
 	}
 
 	/**
 		This is similar to `String.substr` but the `pos` and `len` parts are considering UTF8 characters.
 	**/
-	public static inline function sub( s : String, pos : Int, len : Int ) : String {
-		return s.substr(pos,len);
+	#if !utf16 inline #end
+	public static function sub( s : String, pos : Int, len : Int ) : String {
+		#if utf16
+			if(pos < 0) {
+				pos = length(s) + pos;
+			}
+			var result = '';
+			var byteOffset = 0;
+			var charOffset = 0;
+			var firstByte = 0;
+			var toByte = 0;
+			var toPos = pos + len;
+			do {
+				if(charOffset == pos) {
+					firstByte = byteOffset;
+				}
+				if(charOffset >= toPos || byteOffset >= s.length) {
+					toByte = charOffset;
+					break;
+				}
+				var c = StringTools.fastCodeAt(s, byteOffset++);
+				if (c >= 0xD800 && c < 0xDBFF) {
+					byteOffset++;
+				}
+				charOffset++;
+			} while(true);
+			return s.substring(firstByte, toByte);
+		#else
+			return s.substr(pos,len);
+		#end
 	}
 
 }
