@@ -580,7 +580,10 @@ and not_xml ctx depth in_open =
 		let depth = if in_open then depth - 1 else depth in
 		if depth < 0 then lexeme_end lexbuf
 		else not_xml ctx depth false
-	| '<' | '/' | '>' ->
+	| '>' ->
+		store lexbuf;
+		not_xml ctx depth false
+	| '<' | '/' ->
 		store lexbuf;
 		not_xml ctx depth in_open
 	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->
