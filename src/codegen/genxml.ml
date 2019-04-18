@@ -482,7 +482,8 @@ let generate_type com t =
 	(match t with
 	| TClassDecl c ->
 		print_meta c.cl_meta;
-		p "extern %s %s" (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
+		let finalmod = if c.cl_final then "final " else "" in
+		p "extern %s%s %s" finalmod (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
 		let ext = (match c.cl_super with
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
