@@ -445,8 +445,12 @@ let generate_type com t =
 		in
 		(match f.cf_kind with
 		| Var v ->
-			p "var %s" name;
-			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
+			if has_class_field_flag f CfFinal then
+				p "final %s" name
+			else begin
+				p "var %s" name;
+				if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
+			end;
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with
