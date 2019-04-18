@@ -1,6 +1,6 @@
-package cases;
+package unit.issues;
 
-class Issue8185 extends DisplayTestCase {
+class Issue8185 extends Test {
 	function test() {
 		eq(1, length());
 		eq(2, name());
