@@ -149,14 +149,15 @@ class Utf8 {
 	#if !utf16 inline #end
 	public static function length( s : String ) : Int {
 		#if utf16
-			var pos = 0;
+			var result = 0;
 			for(i in 0...s.length) {
-				var c = StringTools.fastCodeAt(s, pos++);
-				if (c >= 0xD800 && c < 0xDBFF) {
-					pos++;
+				result++;
+				var c = StringTools.fastCodeAt(s, i);
+				if (0xD800 <= c && c <= 0xDBFF) {
+					result--;
 				}
 			}
-			return pos;
+			return result;
 		#else
 			return s.length;
 		#end
