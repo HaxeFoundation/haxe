@@ -289,8 +289,9 @@ class Printer {
 						tabs + printField(f) + ";";
 					}].join("\n")
 					+ "\n}";
-				case TDClass(superClass, interfaces, isInterface):
-					(isInterface ? "interface " : "class ") + t.name + (t.params != null && t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
+				case TDClass(superClass, interfaces, isInterface, isFinal):
+					(isFinal ? "final " : "")
+					+ (isInterface ? "interface " : "class ") + t.name + (t.params != null && t.params.length > 0 ? "<" + t.params.map(printTypeParamDecl).join(", ") + ">" : "")
 					+ (superClass != null ? " extends " + printTypePath(superClass) : "")
 					+ (interfaces != null ? (isInterface ? [for (tp in interfaces) " extends " + printTypePath(tp)] : [for (tp in interfaces) " implements " + printTypePath(tp)]).join("") : "")
 					+ " {\n"
