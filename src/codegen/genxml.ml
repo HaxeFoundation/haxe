@@ -547,6 +547,7 @@ let generate_type com t =
 		p "\n";
 	| TAbstractDecl a ->
 		print_meta a.a_meta;
+		Option.may (fun c -> try print_meta [Meta.get Meta.Require c.cl_meta] with Not_found -> ()) a.a_impl;
 		p "extern ";
 		let is_enum = Meta.has Meta.Enum a.a_meta in
 		if is_enum then p "enum ";
