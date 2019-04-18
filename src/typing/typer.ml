@@ -2498,6 +2498,7 @@ let rec create com =
 			hook_generate = [];
 			std = null_module;
 			global_using = [];
+			complete = false;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
@@ -2607,6 +2608,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ctx.g.complete <- true;
 	ctx
 
 ;;

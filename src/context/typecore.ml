@@ -75,6 +75,8 @@ type typer_globals = {
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
+	(* Indicates that Typer.create() finished building this instance *)
+	mutable complete : bool;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> pos -> (bool * placed_type_path) -> bool;
 	do_create : Common.context -> typer;
