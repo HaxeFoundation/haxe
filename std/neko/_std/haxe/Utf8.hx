@@ -21,6 +21,8 @@
  */
 package haxe;
 
+import haxe.io.Bytes;
+
 @:coreApi
 class Utf8 {
 
@@ -38,7 +40,7 @@ class Utf8 {
 		return new String(utf8_buf_content(__b));
 	}
 
-	public static function encode( s : String ) : String {
+	public static function encode( s : String ) : Bytes {
 		s = untyped s.__s;
 		var sl = untyped __dollar__ssize(s);
 		var buf:Dynamic = utf8_buf_alloc( sl );
@@ -47,10 +49,11 @@ class Utf8 {
 			utf8_buf_add(buf,untyped __dollar__sget(s,i));
 			i += 1;
 		}
-		return new String( utf8_buf_content(buf) );
+		return Bytes.ofString(new String( utf8_buf_content(buf) ), UTF8);
 	}
 
-	public static function decode( s : String ) : String {
+	public static function decode( b : Bytes ) : String {
+		var s = b.getString(0, b.length, UTF8);
 		s = untyped s.__s;
 		var sl = untyped __dollar__ssize(s);
 		var ret = untyped __dollar__smake(sl);
@@ -76,16 +79,13 @@ class Utf8 {
 		return utf8_get(untyped s.__s,index);
 	}
 
-	public static function validate( s : String ) : Bool {
+	public static function validate( b : Bytes ) : Bool {
+		var s = b.getString(0, b.length, UTF8);
 		return utf8_validate(untyped s.__s);
 	}
 
 	public static function length( s : String ) : Int {
 		return utf8_length(untyped s.__s);
-	}
-
-	public static function compare( a : String, b : String ) : Int {
-		return utf8_compare(untyped a.__s,untyped b.__s);
 	}
 
 	public static function sub( s : String, pos : Int, len : Int ) : String {
