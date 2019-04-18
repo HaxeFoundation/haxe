@@ -135,11 +135,19 @@ let check_var_declaration v = if Hashtbl.mem kwds2 v.v_name then v.v_name <- "$"
 
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 let static_field ctx c s =
-	if get_es_version ctx.com >= 6 then
-		field s
-	else
 		match s with
-		| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta-> ".$" ^ s
+		| "length" | "name" when not c.cl_extern || Meta.has Meta.HxGen c.cl_meta->
+			let with_dollar = ".$" ^ s in
+			if get_es_version ctx.com >= 6 then
+				try
+					let f = PMap.find s c.cl_statics in
+					match f.cf_kind with
+					| Method _ -> "." ^ s
+					| _ -> with_dollar
+				with Not_found ->
+					with_dollar
+			else
+				with_dollar
 		| s -> field s
 
 let has_feature ctx = Common.has_feature ctx.com
