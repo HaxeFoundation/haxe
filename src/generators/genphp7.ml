@@ -1872,11 +1872,14 @@ class code_writer (ctx:Common.context) hx_type_path php_name =
 			Emulates TBlock for parent expression and writes `expr` as inlined block
 		*)
 		method write_fake_block expr =
-			self#write_indentation;
-			let fake_block = { expr with eexpr = TBlock [expr] } in
-			expr_hierarchy <- fake_block :: expr_hierarchy;
-			self#write_as_block ~inline:true expr;
-			expr_hierarchy <- List.tl expr_hierarchy
+			match expr.eexpr with
+				| TBlock [] -> ()
+				| _ ->
+					self#write_indentation;
+					let fake_block = { expr with eexpr = TBlock [expr] } in
+					expr_hierarchy <- fake_block :: expr_hierarchy;
+					self#write_as_block ~inline:true expr;
+					expr_hierarchy <- List.tl expr_hierarchy
 		(**
 			Write position of specified expression to output buffer
 		*)
@@ -3118,10 +3121,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#indent_more;
 			self#write_instance_initialization;
 			let func = inject_defaults ctx func in
-			begin match func.eexpr with
-				| TBlock [] -> ()
-				| _ -> writer#write_fake_block func;
-			end;
+			writer#write_fake_block func;
 			writer#indent_less;
 			writer#write_indentation;
 			writer#write "}"
