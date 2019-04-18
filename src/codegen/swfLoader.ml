@@ -23,6 +23,22 @@ open Common
 open Globals
 open Ast
 
+let lowercase_pack pack =
+	let rec loop acc pack =
+		match pack with
+		| [] -> List.rev acc
+		| name :: rest ->
+			let name =
+				let fchar = String.get name 0 in
+				if fchar >= 'A' && fchar <= 'Z' then
+					(String.make 1 (Char.lowercase fchar)) ^ String.sub name 1 (String.length name - 1)
+				else
+					name
+			in
+			loop (name :: acc) rest
+	in
+	loop [] pack
+
 let rec make_tpath = function
 	| HMPath (pack,name) ->
 		let pdyn = ref false in
@@ -42,7 +58,7 @@ let rec make_tpath = function
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
 			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
-			| _ -> pack, name
+			| _ -> lowercase_pack pack, name
 		in
 		{
 			tpackage = pack;
@@ -348,11 +364,22 @@ let build_class com c file =
 		(path.tpackage, [(EEnum enum_data,pos)])
 	with Exit ->
 	let flags = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then HFinal :: flags else flags in
+
+	let meta =
+		(* if the package was lowercased, add @:native("Original.Path") meta *)
+		match c.hlc_name with
+		| HMPath (pack,name) when pack <> path.tpackage ->
+			let native_path = (String.concat "." pack) ^ "." ^ name in
+			[(Meta.Native,[(EConst (String native_path), pos)],pos)]
+		| _ ->
+			[]
+	in
+
 	let class_data = {
 		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = [];
+		d_meta = meta;
 		d_flags = flags;
 		d_data = fields;
 	} in
