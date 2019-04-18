@@ -50,7 +50,7 @@ extern class NetStream extends flash.events.EventDispatcher {
 	@:require(flash11_2) function dispose() : Void;
 	@:require(flash10) function onPeerConnect(subscriber : NetStream) : Bool;
 	function pause() : Void;
-	function play(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	function play(restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	@:require(flash10) function play2(param : NetStreamPlayOptions) : Void;
 	function publish(?name : String, ?type : String) : Void;
 	function receiveAudio(flag : Bool) : Void;
@@ -58,10 +58,10 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function receiveVideoFPS(FPS : Float) : Void;
 	function resume() : Void;
 	function seek(offset : Float) : Void;
-	function send(handlerName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	function send(handlerName : String, restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	@:require(flash10_1) function step(frames : Int) : Void;
 	function togglePause() : Void;
-	@:require(flash10) static var CONNECT_TO_FMS(default,never) : String;
-	@:require(flash10) static var DIRECT_CONNECTIONS(default,never) : String;
+	@:require(flash10) static final CONNECT_TO_FMS : String;
+	@:require(flash10) static final DIRECT_CONNECTIONS : String;
 	static function resetDRMVouchers() : Void;
 }

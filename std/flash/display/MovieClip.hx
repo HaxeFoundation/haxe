@@ -13,7 +13,7 @@ extern class MovieClip extends Sprite #if !flash_strict implements Dynamic #end 
 	var totalFrames(default,never) : Int;
 	var trackAsMenu : Bool;
 	function new() : Void;
-	function addFrameScript(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	function addFrameScript(restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	function gotoAndPlay(frame : flash.utils.Object, ?scene : String) : Void;
 	function gotoAndStop(frame : flash.utils.Object, ?scene : String) : Void;
 	function nextFrame() : Void;

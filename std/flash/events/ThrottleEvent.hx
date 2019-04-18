@@ -4,5 +4,5 @@ package flash.events;
 	var state(default,never) : String;
 	var targetFrameRate(default,never) : Float;
 	function new(type : ThrottleType, bubbles : Bool = false, cancelable : Bool = false, ?state : String, targetFrameRate : Float = 0) : Void;
-	static var THROTTLE(default,never) : String;
+	static final THROTTLE : String;
 }

@@ -8,7 +8,7 @@ package flash.events;
 	var urlPrompt(default,never) : String;
 	var usernamePrompt(default,never) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?header : String, ?userPrompt : String, ?passPrompt : String, ?urlPrompt : String, ?authenticationType : String, ?netstream : flash.net.NetStream) : Void;
-	static var AUTHENTICATION_TYPE_DRM(default,never) : String;
-	static var AUTHENTICATION_TYPE_PROXY(default,never) : String;
-	static var DRM_AUTHENTICATE(default,never) : String;
+	static final AUTHENTICATION_TYPE_DRM : String;
+	static final AUTHENTICATION_TYPE_PROXY : String;
+	static final DRM_AUTHENTICATE : String;
 }

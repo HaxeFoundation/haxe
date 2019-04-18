@@ -36,5 +36,5 @@ extern final class TextLine extends flash.display.DisplayObjectContainer {
 	function getAtomWordBoundaryOnLeft(atomIndex : Int) : Bool;
 	function getBaselinePosition(baseline : String) : Float;
 	function getMirrorRegion(mirror : flash.events.EventDispatcher) : TextLineMirrorRegion;
-	static var MAX_LINE_WIDTH(default,never) : Int;
+	static final MAX_LINE_WIDTH : Int;
 }

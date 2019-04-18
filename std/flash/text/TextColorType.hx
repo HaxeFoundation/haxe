@@ -1,6 +1,6 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum TextColorType {
-	DARK_COLOR;
-	LIGHT_COLOR;
+@:native("flash.text.TextColorType") extern enum abstract TextColorType(String) {
+	var DARK_COLOR;
+	var LIGHT_COLOR;
 }

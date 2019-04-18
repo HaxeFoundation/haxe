@@ -11,5 +11,5 @@ package flash.ui;
 	function getControlAt(i : Int) : GameInputControl;
 	function startCachingSamples(numSamples : Int, controls : flash.Vector<String>) : Void;
 	function stopCachingSamples() : Void;
-	static var MAX_BUFFER_SIZE(default,never) : Int;
+	static final MAX_BUFFER_SIZE : Int;
 }

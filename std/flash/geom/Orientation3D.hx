@@ -1,7 +1,7 @@
 package flash.geom;
 
-@:fakeEnum(String) extern enum Orientation3D {
-	AXIS_ANGLE;
-	EULER_ANGLES;
-	QUATERNION;
+@:native("flash.geom.Orientation3D") extern enum abstract Orientation3D(String) {
+	var AXIS_ANGLE;
+	var EULER_ANGLES;
+	var QUATERNION;
 }

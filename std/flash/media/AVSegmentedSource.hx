@@ -13,8 +13,10 @@ extern class AVSegmentedSource extends AVSource {
 	function getBackgroundPeriodInfo(periodIndex : Int) : AVPeriodInfo;
 	function getBackgroundTimeline() : AVTimeline;
 	function getCuePoint(periodIndex : Int, cuePointIndex : Int) : AVCuePoint;
+	function getMediaPreferredStartTime() : Float;
 	function getPerceivedBandwidth() : UInt;
 	function getPeriodInfo(periodIndex : Int) : AVPeriodInfo;
+	function getPeriodInfoWithTagsAcrossIndexes(periodIndex : Int, startPeriodIndex : Int) : AVPeriodInfo;
 	function getSubscribedTag(periodIndex : Int, tagDataIndex : Int) : AVTagData;
 	function getSubscribedTagForBackgroundManifest(periodIndex : Int, tagDataIndex : Int) : AVTagData;
 	function getTimeline() : AVTimeline;
@@ -30,6 +32,7 @@ extern class AVSegmentedSource extends AVSource {
 	function releaseManifest(handle : Int) : AVResult;
 	function removeByLocalTime(periodIndex : Int, timeStart : Float, timeEnd : Float, replaceWithMainMedia : Bool) : AVResult;
 	function removeByVirtualTime(virtualTimeStart : Float, virtualTimeEnd : Float) : AVResult;
+	function removeByVirtualTimeWithReplacement(virtualTimeStart : Float, virtualTimeEnd : Float, replaceWithMainMedia : Bool) : AVResult;
 	function selectTrack(periodIndex : Int, payloadType : String, trackIndex : Int) : AVResult;
 	function selectTrackString(periodIndex : Int, payloadType : String, trackString : String) : AVResult;
 	function setABRParameters(params : AVABRParameters) : AVResult;
@@ -39,14 +42,14 @@ extern class AVSegmentedSource extends AVSource {
 	function setPauseAtPeriodEnd(periodIndex : Int, userData : Int = 0) : AVResult;
 	function setSubscribedTags(tagArray : Array<Dynamic>) : AVResult;
 	function setSubscribedTagsForBackgroundManifest(tagArray : Array<Dynamic>) : AVResult;
-	static var AUDIO(default,never) : String;
-	static var AUDIO_DESCRIPTION(default,never) : String;
-	static var AUDIO_LANGUAGE(default,never) : String;
-	static var AUDIO_PID(default,never) : String;
-	static var DASH(default,never) : String;
-	static var DATA(default,never) : String;
-	static var DATA_DESCRIPTION(default,never) : String;
-	static var HLS(default,never) : String;
-	static var VIDEO(default,never) : String;
-	static var VIDEO_DESCRIPTION(default,never) : String;
+	static final AUDIO : String;
+	static final AUDIO_DESCRIPTION : String;
+	static final AUDIO_LANGUAGE : String;
+	static final AUDIO_PID : String;
+	static final DASH : String;
+	static final DATA : String;
+	static final DATA_DESCRIPTION : String;
+	static final HLS : String;
+	static final VIDEO : String;
+	static final VIDEO_DESCRIPTION : String;
 }

@@ -31,7 +31,7 @@ extern class AVStream extends flash.events.EventDispatcher {
 	function seekToLocalTime(periodIndex : Int, time : Float) : AVResult;
 	function setPlaySpeed(speed : Float, reserved : Float) : Void;
 	function step(frames : Int) : AVResult;
-	static var HARDWARE(default,never) : String;
-	static var SOFTWARE(default,never) : String;
-	static var UNDEFINED(default,never) : String;
+	static final HARDWARE : String;
+	static final SOFTWARE : String;
+	static final UNDEFINED : String;
 }
