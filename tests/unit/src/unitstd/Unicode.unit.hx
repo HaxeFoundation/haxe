@@ -298,3 +298,9 @@ test("a", "é", "b", ~/:(É):/i);
 #else
 1 == 1;
 #end
+
+//Border values for surrogate pairs
+"𐀀".code == 65536; //D800,DC00 - U+10000
+"𐏿".code == 66559; //D800,DFFF - U+103FF
+"􏰀".code == 1113088; //DBFF,DC00 - U+10FC00
+"􏿿".code == 1114111; //DBFF,DFFF - U+10FFFF
