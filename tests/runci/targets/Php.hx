@@ -31,7 +31,7 @@ class Php {
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
 
-	var binDir = "bin/php";
+		var binDir = "bin/php";
 
 		var prefixes = [[]];
 		if(isCi()) {

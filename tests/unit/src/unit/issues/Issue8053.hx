@@ -16,7 +16,7 @@ class Issue8053 extends unit.Test {
 		var a:Dynamic = if(PHP_VERSION_ID < 70100) {
 			//Prior to PHP 7.1.0 there was no way to add a property with an empty name to an existing object.
 			//So, we create an object with an empty property name by transforming an associative array with an empty string index.
-			object(assocDecl({b : 1}));
+			object(assocDecl({"" : 1}));
 		} else {
 			var a = {};
 			Reflect.setField(a, b, 1);
