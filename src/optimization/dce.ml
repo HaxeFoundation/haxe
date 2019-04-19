@@ -189,11 +189,7 @@ end
 
 let rec mark_enum dce e = if not (Meta.has Meta.Used e.e_meta) then begin
 	e.e_meta <- (Meta.Used,[],e.e_pos) :: e.e_meta;
-
-	(* do not generate has_enum feature for @:fakeEnum enums since they are not really enums *)
-	if not (Meta.has Meta.FakeEnum e.e_meta) then
-		check_and_add_feature dce "has_enum";
-
+	check_and_add_feature dce "has_enum";
 	check_feature dce (Printf.sprintf "%s.*" (s_type_path e.e_path));
 	PMap.iter (fun _ ef -> mark_t dce ef.ef_pos ef.ef_type) e.e_constrs;
 end

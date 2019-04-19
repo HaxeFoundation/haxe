@@ -530,11 +530,6 @@ let generate_type com t =
 	| TEnumDecl e ->
 		print_meta e.e_meta;
 		p "extern enum %s {\n" (stype (TEnum(e,List.map snd e.e_params)));
-		let sort l =
-			let a = Array.of_list l in
-			Array.sort compare a;
-			Array.to_list a
-		in
 		List.iter (fun n ->
 			let c = PMap.find n e.e_constrs in
 			p "\t%s" c.ef_name;
@@ -542,7 +537,7 @@ let generate_type com t =
 			| TFun (args,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
 			| _ -> ());
 			p ";\n";
-		) (if Meta.has Meta.FakeEnum e.e_meta then sort e.e_names else e.e_names);
+		) e.e_names;
 		p "}\n"
 	| TTypeDecl t ->
 		print_meta t.t_meta;
