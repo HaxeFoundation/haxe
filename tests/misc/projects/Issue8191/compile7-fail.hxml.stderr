@@ -1,1 +1,1 @@
-U5.hx:2: character 18 : Invalid escape sequence \u. Must be followed by a hexadecimal sequence.
+U5.hx:2: character 11 : Invalid escape sequence \u. Must be followed by a hexadecimal sequence enclosed in curly brackets.
