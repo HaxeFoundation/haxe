@@ -31,17 +31,27 @@ class Php {
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
 
-		var binDir = "bin/php";
+	var binDir = "bin/php";
 
-		for(prefix in [[], ['-D', 'php-prefix=haxe'], ['-D', 'php-prefix=my.pack']]) {
+		var prefixes = [[]];
+		if(isCi()) {
+			prefixes.push(['-D', 'php-prefix=haxe']);
+			prefixes.push(['-D', 'php-prefix=my.pack']);
+		}
+
+		for(prefix in prefixes) {
 			changeDirectory(unitDir);
-			deleteDirectoryRecursively(binDir);
+			if(isCi()) {
+				deleteDirectoryRecursively(binDir);
+			}
 
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runCommand("php", [binDir + "/index.php"]);
 
 			changeDirectory(sysDir);
-			deleteDirectoryRecursively(binDir);
+			if(isCi()) {
+				deleteDirectoryRecursively(binDir);
+			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
 			runCommand("php", ["bin/php/Main/index.php"]);
 		}
