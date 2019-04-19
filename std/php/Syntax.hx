@@ -152,14 +152,14 @@ extern class Syntax {
         Generates `(object)$value`
     **/
     static inline function object( value:Dynamic ) : StdClass {
-        return codeDeref('(object)({0})', value);
+        return codeDeref('((object)({0}))', value);
     }
 
     /**
         Generates `(array)$value`
     **/
     static inline function array( value:Dynamic ) : NativeArray {
-        return codeDeref('(array)({0})', value);
+        return codeDeref('((array)({0}))', value);
     }
 
     /**
