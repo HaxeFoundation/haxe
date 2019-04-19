@@ -21,17 +21,18 @@
  */
 package haxe;
 
+import haxe.io.Bytes;
+
 @:coreApi
 extern class Utf8 {
 	public function new( ?size : Int ):Void;
 	public function addChar( c : Int ) : Void;
 	public function toString() : String;
 	public static function iter( s : String, chars : Int -> Void ):Void;
-	public static function encode( s : String ) : String;
-	public static function decode( s : String ) : String;
+	public static function encode( s : String ) : Bytes;
+	public static function decode( b : Bytes ) : String;
 	public static function charCodeAt( s : String, index : Int ) : Int;
-	public static function validate( s : String ) : Bool;
+	public static function validate( b : Bytes ) : Bool;
 	public static function length( s : String ) : Int;
-	public static function compare( a : String, b : String ) : Int;
 	public static function sub( s : String, pos : Int, len : Int ) : String;
 }

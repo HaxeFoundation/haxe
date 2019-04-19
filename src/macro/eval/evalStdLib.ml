@@ -2981,14 +2981,8 @@ module StdUtf8 = struct
 
 	let charCodeAt = StdString.charCodeAt
 
-	let compare = vfun2 (fun a b ->
-		let a = decode_string a in
-		let b = decode_string b in
-		vint (Pervasives.compare a b)
-	)
-
-	let decode = vfun1 (fun s ->
-		let s = decode_string s in
+	let decode = vfun1 (fun b ->
+		let s = Bytes.to_string (decode_bytes b) in
 		let buf = Bytes.create (UTF8.length s) in
 		let i = ref 0 in
 		UTF8.iter (fun uc ->
@@ -3001,7 +2995,7 @@ module StdUtf8 = struct
 
 	let encode = vfun1 (fun s ->
 		let s = decode_string s in
-		create_unknown (UTF8.init (String.length s) (fun i -> UChar.of_char s.[i]))
+		encode_bytes (Bytes.of_string s)
 	)
 
 	let iter = vfun2 (fun s f ->
@@ -3022,13 +3016,133 @@ module StdUtf8 = struct
 		vstring (create_ascii ((UTF8.Buf.contents this)))
 	)
 
-	let validate = vfun1 (fun s ->
-		let s = decode_string s in
-		try
-			UTF8.validate s;
-			vtrue
-		with UTF8.Malformed_code ->
-			vfalse
+	let validate = vfun1 (fun vbytes ->
+		let b = decode_bytes vbytes
+		and skip = ref 0 in
+		let max = Bytes.length b in
+		let loop pos c =
+			if !skip > 0 then
+				decr skip
+			else
+				let c = int_of_char c in
+				if c < 0x80 then
+					()
+				else if c < 0xC2 then
+					raise UTF8.Malformed_code
+				else if c < 0xE0 then
+					if pos + 1 > max then
+						raise UTF8.Malformed_code
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c2 < 0x80 || c2 > 0xBF then
+							raise UTF8.Malformed_code
+						else
+							skip := 1
+				else if c < 0xF0 then
+					if pos + 2 > max then
+						raise UTF8.Malformed_code
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c = 0xE0 && (c2 < 0xA0 || c2 > 0xBF) then
+							raise UTF8.Malformed_code
+						else if c <> 0xE0 && (c2 < 0x80 || c2 > 0xBF) then
+							raise UTF8.Malformed_code
+						else
+							let c3 = int_of_char (Bytes.get b (pos + 2)) in
+							let c = (c lsl 16) lor ((c2 lsl 8) lor c3) in
+							if 0xEDA080 <= c && c <= 0xEDBFBF then (* surrogate pairs *)
+								raise UTF8.Malformed_code
+							else
+								skip := 2
+				else if c < 0xF4 then
+					raise UTF8.Malformed_code
+				else
+					if pos + 3 > max then
+						raise UTF8.Malformed_code
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c = 0xF0 && (c2 < 0x90 || c2 > 0xBF) then
+							raise UTF8.Malformed_code
+						else if c = 0xF4 && (c2 < 0x80 || c2 > 0x8F) then
+							raise UTF8.Malformed_code
+						else if c2 < 0x80 || c2 > 0xBF then
+							raise UTF8.Malformed_code
+						else
+							let c3 = int_of_char (Bytes.get b (pos + 2)) in
+							if c3 < 0x80 || c3 > 0xBF then
+								raise UTF8.Malformed_code
+							else
+								let c4 = int_of_char (Bytes.get b (pos + 3)) in
+								if c4 < 0x80 || c4 > 0xBF then
+									raise UTF8.Malformed_code
+								else
+									skip := 3
+		in
+		try (
+			Bytes.iteri loop b;
+			vbool true
+		) with UTF8.Malformed_code -> vbool false
+
+		(* let max = Bytes.length b in *)
+		(* let rec check_next_char pos =
+			if pos >= max then
+				false
+			else
+				let c = int_of_char (Bytes.get b pos) in
+				if c < 0x80 then
+					check_next_char (pos + 1)
+				else if c < 0xC2 then
+					false
+				else if c < 0xE0 then
+					if pos + 1 > max then
+						false
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c2 < 0x80 || c2 > 0xBF then
+							false
+						else
+							check_next_char (pos + 2)
+				else if c < 0xF0 then
+					if pos + 2 > max then
+						false
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c = 0xE0 && (c2 < 0xA0 || c2 > 0xBF) then
+							false
+						else if c <> 0xE0 && (c2 < 0x80 || c2 > 0xBF) then
+							false
+						else
+							let c3 = int_of_char (Bytes.get b (pos + 2)) in
+							let c = (c lsl 16) lor ((c2 lsl 8) lor c3) in
+							if 0xEDA080 <= c && c <= 0xEDBFBF then (* surrogate pairs *)
+								false
+							else
+								check_next_char (pos + 3)
+				else if c < 0xF4 then
+					false
+				else
+					if pos + 3 > max then
+						false
+					else
+						let c2 = int_of_char (Bytes.get b (pos + 1)) in
+						if c = 0xF0 && (c2 < 0x90 || c2 > 0xBF) then
+							false
+						else if c = 0xF4 && (c2 < 0x80 || c2 > 0x8F) then
+							false
+						else if c2 < 0x80 || c2 > 0xBF then
+							false
+						else
+							let c3 = int_of_char (Bytes.get b (pos + 2)) in
+							if c3 < 0x80 || c3 > 0xBF then
+								false
+							else
+								let c4 = int_of_char (Bytes.get b (pos + 3)) in
+								if c4 < 0x80 || c4 > 0xBF then
+									false
+								else
+									check_next_char (pos + 4)
+		in
+		vbool (check_next_char 0) *)
 	)
 end
 
@@ -3608,7 +3722,6 @@ let init_standard_library builtins =
 	];
 	init_fields builtins (["haxe"],"Utf8") [
 		"charCodeAt",StdUtf8.charCodeAt;
-		"compare",StdUtf8.compare;
 		"decode",StdUtf8.decode;
 		"encode",StdUtf8.encode;
 		"iter",StdUtf8.iter;
