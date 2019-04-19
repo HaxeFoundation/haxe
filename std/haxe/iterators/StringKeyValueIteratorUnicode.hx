@@ -56,7 +56,7 @@ class StringKeyValueIteratorUnicode {
 	public inline function next() {
 		var c = StringTools.fastCodeAt(s, byteOffset++);
 		#if utf16
-		if (c >= 0xD800 && c < 0xDBFF) {
+		if (c >= 0xD800 && c <= 0xDBFF) {
 			c = ((c -0xD7C0) << 10) | (StringTools.fastCodeAt(s, byteOffset++) & 0x3FF);
 		}
 		#end
