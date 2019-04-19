@@ -3019,7 +3019,7 @@ module StdUtf8 = struct
 	let validate = vfun1 (fun vbytes ->
 		let b = decode_bytes vbytes
 		and skip = ref 0 in
-		let max = Bytes.length b in
+		let length = Bytes.length b in
 		let loop pos c =
 			if !skip > 0 then
 				decr skip
@@ -3030,7 +3030,7 @@ module StdUtf8 = struct
 				else if c < 0xC2 then
 					raise UTF8.Malformed_code
 				else if c < 0xE0 then
-					if pos + 1 > max then
+					if pos + 1 >= length then
 						raise UTF8.Malformed_code
 					else
 						let c2 = int_of_char (Bytes.get b (pos + 1)) in
@@ -3039,7 +3039,7 @@ module StdUtf8 = struct
 						else
 							skip := 1
 				else if c < 0xF0 then
-					if pos + 2 > max then
+					if pos + 2 >= length then
 						raise UTF8.Malformed_code
 					else
 						let c2 = int_of_char (Bytes.get b (pos + 1)) in
@@ -3054,10 +3054,10 @@ module StdUtf8 = struct
 								raise UTF8.Malformed_code
 							else
 								skip := 2
-				else if c < 0xF4 then
+				else if c > 0xF4 then
 					raise UTF8.Malformed_code
 				else
-					if pos + 3 > max then
+					if pos + 3 >= length then
 						raise UTF8.Malformed_code
 					else
 						let c2 = int_of_char (Bytes.get b (pos + 1)) in
@@ -3082,67 +3082,6 @@ module StdUtf8 = struct
 			Bytes.iteri loop b;
 			vbool true
 		) with UTF8.Malformed_code -> vbool false
-
-		(* let max = Bytes.length b in *)
-		(* let rec check_next_char pos =
-			if pos >= max then
-				false
-			else
-				let c = int_of_char (Bytes.get b pos) in
-				if c < 0x80 then
-					check_next_char (pos + 1)
-				else if c < 0xC2 then
-					false
-				else if c < 0xE0 then
-					if pos + 1 > max then
-						false
-					else
-						let c2 = int_of_char (Bytes.get b (pos + 1)) in
-						if c2 < 0x80 || c2 > 0xBF then
-							false
-						else
-							check_next_char (pos + 2)
-				else if c < 0xF0 then
-					if pos + 2 > max then
-						false
-					else
-						let c2 = int_of_char (Bytes.get b (pos + 1)) in
-						if c = 0xE0 && (c2 < 0xA0 || c2 > 0xBF) then
-							false
-						else if c <> 0xE0 && (c2 < 0x80 || c2 > 0xBF) then
-							false
-						else
-							let c3 = int_of_char (Bytes.get b (pos + 2)) in
-							let c = (c lsl 16) lor ((c2 lsl 8) lor c3) in
-							if 0xEDA080 <= c && c <= 0xEDBFBF then (* surrogate pairs *)
-								false
-							else
-								check_next_char (pos + 3)
-				else if c < 0xF4 then
-					false
-				else
-					if pos + 3 > max then
-						false
-					else
-						let c2 = int_of_char (Bytes.get b (pos + 1)) in
-						if c = 0xF0 && (c2 < 0x90 || c2 > 0xBF) then
-							false
-						else if c = 0xF4 && (c2 < 0x80 || c2 > 0x8F) then
-							false
-						else if c2 < 0x80 || c2 > 0xBF then
-							false
-						else
-							let c3 = int_of_char (Bytes.get b (pos + 2)) in
-							if c3 < 0x80 || c3 > 0xBF then
-								false
-							else
-								let c4 = int_of_char (Bytes.get b (pos + 3)) in
-								if c4 < 0x80 || c4 > 0xBF then
-									false
-								else
-									check_next_char (pos + 4)
-		in
-		vbool (check_next_char 0) *)
 	)
 end
 
