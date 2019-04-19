@@ -489,7 +489,6 @@ let unescape s =
 		else
 			let c = s.[i] in
 			let fail msg = raise (Invalid_escape_sequence(c,i,msg)) in
-			let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence.") in
 			if esc then begin
 				let inext = ref (i + 1) in
 				(match c with
@@ -502,6 +501,7 @@ let unescape s =
 					Buffer.add_char b c;
 					inext := !inext + 2;
 				| 'x' ->
+					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence.") in
 					let hex = try String.sub s (i+1) 2 with _ -> fail_no_hex () in
 					let u = (try (int_of_string ("0x" ^ hex)) with _ -> fail_no_hex ()) in
 					if u > 127 then
@@ -509,6 +509,7 @@ let unescape s =
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
+					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence enclosed in curly brackets.") in
 					let (u, a) =
 						try
 							(int_of_string ("0x" ^ String.sub s (i+1) 4), 4)
@@ -517,7 +518,7 @@ let unescape s =
 							let l = String.index_from s (i+3) '}' - (i+2) in
 							let u = int_of_string ("0x" ^ String.sub s (i+2) l) in
 							if u > 0x10FFFF then
-								fail (Some "Maximum allowed value for unicode escape sequence is \\u10FFFF");
+								fail (Some "Maximum allowed value for unicode escape sequence is \\u{10FFFF}");
 							(u, l+2)
 						with
 							| Invalid_escape_sequence (c,i,msg) as e -> raise e
