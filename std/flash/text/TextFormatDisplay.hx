@@ -1,6 +1,6 @@
 package flash.text;
 
-@:fakeEnum(String) extern enum TextFormatDisplay {
-	BLOCK;
-	INLINE;
+@:native("flash.text.TextFormatDisplay") extern enum abstract TextFormatDisplay(String) {
+	var BLOCK;
+	var INLINE;
 }

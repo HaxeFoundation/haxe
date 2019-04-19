@@ -14,8 +14,8 @@ extern class DRMManagerSession extends flash.events.EventDispatcher {
 	function onSessionComplete() : Void;
 	function onSessionError() : Void;
 	function setTimerUp() : Void;
-	static var STATUS_FAILED(default,never) : UInt;
-	static var STATUS_NOTREADY(default,never) : UInt;
-	static var STATUS_READY(default,never) : UInt;
-	static var STATUS_UNKNOWN(default,never) : UInt;
+	static final STATUS_FAILED : UInt;
+	static final STATUS_NOTREADY : UInt;
+	static final STATUS_READY : UInt;
+	static final STATUS_UNKNOWN : UInt;
 }

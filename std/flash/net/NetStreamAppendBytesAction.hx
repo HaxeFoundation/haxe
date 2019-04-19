@@ -2,7 +2,7 @@ package flash.net;
 
 extern class NetStreamAppendBytesAction {
 	function new() : Void;
-	static var END_SEQUENCE(default,never) : String;
-	static var RESET_BEGIN(default,never) : String;
-	static var RESET_SEEK(default,never) : String;
+	static final END_SEQUENCE : String;
+	static final RESET_BEGIN : String;
+	static final RESET_SEEK : String;
 }

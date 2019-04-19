@@ -23,6 +23,34 @@ open Common
 open Globals
 open Ast
 
+let lowercase_pack pack =
+	let rec loop acc pack =
+		match pack with
+		| [] -> List.rev acc
+		| name :: rest ->
+			let name =
+				let fchar = String.get name 0 in
+				if fchar >= 'A' && fchar <= 'Z' then
+					(String.make 1 (Char.lowercase fchar)) ^ String.sub name 1 (String.length name - 1)
+				else
+					name
+			in
+			loop (name :: acc) rest
+	in
+	loop [] pack
+
+
+let tp_dyn = { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; }
+
+let ct_dyn = CTPath tp_dyn
+
+let ct_rest = CTPath {
+	tpackage = ["haxe"; "extern"];
+	tname = "Rest";
+	tparams = [TPType (ct_dyn,null_pos)];
+	tsub = None;
+}
+
 let rec make_tpath = function
 	| HMPath (pack,name) ->
 		let pdyn = ref false in
@@ -42,12 +70,12 @@ let rec make_tpath = function
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
 			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
-			| _ -> pack, name
+			| _ -> lowercase_pack pack, name
 		in
 		{
 			tpackage = pack;
 			tname = name;
-			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos)] else[];
+			tparams = if !pdyn then [TPType (ct_dyn,null_pos)] else[];
 			tsub = None;
 		}
 	| HMName (id,ns) ->
@@ -89,7 +117,7 @@ let rec make_tpath = function
 		{ (make_tpath t) with tparams = params }
 
 let make_topt = function
-	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+	| None -> tp_dyn
 	| Some t -> make_tpath t
 
 let make_type t = CTPath (make_topt t)
@@ -122,7 +150,7 @@ let build_class com c file =
 			d_params = [];
 			d_meta = [];
 			d_flags = [];
-			d_data = CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; },null_pos;
+			d_data = ct_dyn,null_pos;
 		} in
 		(path.tpackage, [(ETypedef inf,pos)])
 	| _ ->
@@ -148,7 +176,7 @@ let build_class com c file =
 		) in
 		if c.hlc_interface then HExtends (make_tpath i,null_pos) else HImplements (make_tpath i,null_pos)
 	) (Array.to_list c.hlc_implements) @ flags in
-	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (make_tpath (HMPath ([],"Dynamic")),null_pos) :: flags in
+	let flags = if c.hlc_sealed || Common.defined com Define.FlashStrict then flags else HImplements (tp_dyn,null_pos) :: flags in
 	(* make fields *)
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
@@ -190,10 +218,10 @@ let build_class com c file =
 		} in
 		match f.hlf_kind with
 		| HFVar v ->
-			if v.hlv_const then
-				cf.cff_kind <- FProp (("default",null_pos),("never",null_pos),Some (make_type v.hlv_type,null_pos),None)
-			else
-				cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
+			if v.hlv_const then begin
+				cf.cff_access <- (AFinal,null_pos) :: cf.cff_access;
+			end;
 			cf :: acc
 		| HFMethod m when m.hlm_override ->
 			Hashtbl.add override (name,stat) ();
@@ -247,7 +275,7 @@ let build_class com c file =
 					((aname,null_pos),!is_opt,[],Some (t,null_pos),def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
-					args @ List.map (fun _ -> incr pn; (("p" ^ string_of_int !pn,null_pos),true,[],Some (make_type None,null_pos),None)) [1;2;3;4;5]
+					args @ [("restArgs",null_pos),false,[],Some (ct_rest,null_pos),None]
 				else args in
 				let f = {
 					f_params = [];
@@ -313,22 +341,25 @@ let build_class com c file =
 		(*
 			If the class only contains static String constants, make it an enum
 		*)
-		let real_type = ref "" in
+		let real_type = ref None in
 		let rec loop = function
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None)
-				| FProp (("default",_),("never",_),Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname },null_pos),None) when List.mem_assoc AStatic f.cff_access ->
-					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
+				| FVar (Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")} as real_t),_),None)
+				| FProp (("default",_),("never",_),Some ((CTPath { tpackage = []; tname = ("String" | "Int" | "UInt")}) as real_t,_),None) when List.mem_assoc AStatic f.cff_access ->
+					(match !real_type with
+					| None ->
+						real_type := Some real_t
+					| Some t ->
+						if t <> real_t then raise Exit);
 					{
-						ec_name = f.cff_name;
-						ec_pos = pos;
-						ec_args = [];
-						ec_params = [];
-						ec_meta = [];
-						ec_doc = None;
-						ec_type = None;
+						cff_name = f.cff_name;
+						cff_doc = None;
+						cff_pos = pos;
+						cff_meta = [];
+						cff_access = [];
+						cff_kind = FVar (Some (real_t,null_pos), None);
 					} :: loop l
 				| FFun { f_args = [] } when fst f.cff_name = "new" -> loop l
 				| _ -> raise Exit
@@ -337,22 +368,35 @@ let build_class com c file =
 		let constr = loop fields in
 		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
-		let enum_data = {
+		let native_path = s_type_path (path.tpackage, path.tname) in
+		let real_type = Option.get !real_type in
+		let abstract_data = {
 			d_name = path.tname,null_pos;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(Meta.FakeEnum,[EConst (Ident !real_type),pos],pos)];
-			d_flags = [EExtern];
+			d_meta = [(Meta.Enum,[],null_pos);(Meta.Native,[(EConst (String native_path),null_pos)],null_pos)];
+			d_flags = [AbExtern; AbOver (real_type,pos); AbFrom (real_type,pos)];
 			d_data = constr;
 		} in
-		(path.tpackage, [(EEnum enum_data,pos)])
+		(path.tpackage, [(EAbstract abstract_data,pos)])
 	with Exit ->
 	let flags = if c.hlc_final && List.exists (fun f -> fst f.cff_name <> "new" && not (List.mem_assoc AStatic f.cff_access)) fields then HFinal :: flags else flags in
+
+	let meta =
+		(* if the package was lowercased, add @:native("Original.Path") meta *)
+		match c.hlc_name with
+		| HMPath (pack,name) when (pack <> [] && pack <> path.tpackage) ->
+			let native_path = (String.concat "." pack) ^ "." ^ name in
+			[(Meta.Native,[(EConst (String native_path), pos)],pos)]
+		| _ ->
+			[]
+	in
+
 	let class_data = {
 		d_name = path.tname,null_pos;
 		d_doc = None;
 		d_params = [];
-		d_meta = [];
+		d_meta = meta;
 		d_flags = flags;
 		d_data = fields;
 	} in

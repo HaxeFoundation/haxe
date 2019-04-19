@@ -3,6 +3,7 @@ package flash.system;
 extern class Capabilities {
 	static var _internal(default,never) : UInt;
 	static var avHardwareDisable(default,never) : Bool;
+	static var cpuAddressSize(default,never) : Float;
 	@:require(flash10_1) static var cpuArchitecture(default,never) : String;
 	static var hasAccessibility(default,never) : Bool;
 	static var hasAudio(default,never) : Bool;

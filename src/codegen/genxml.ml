@@ -333,6 +333,7 @@ let get_real_path meta path =
 
 let generate_type com t =
 	let base_path = "hxclasses" in
+	match t with TClassDecl { cl_kind = KAbstractImpl _ } -> () | _ ->
 	let pack, name =
 		let info = t_infos t in
 		get_real_path info.mt_meta info.mt_path
@@ -422,7 +423,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed -> ()
+			| Meta.DefParam | Meta.CoreApi | Meta.Used | Meta.MaybeUsed | Meta.FlatEnum | Meta.Value | Meta.DirectlyUsed | Meta.Enum | Meta.Impl -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)
@@ -444,8 +445,12 @@ let generate_type com t =
 		in
 		(match f.cf_kind with
 		| Var v ->
-			p "var %s" name;
-			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
+			if has_class_field_flag f CfFinal then
+				p "final %s" name
+			else begin
+				p "var %s" name;
+				if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access true v.v_read) (access false v.v_write);
+			end;
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with
@@ -482,12 +487,21 @@ let generate_type com t =
 	(match t with
 	| TClassDecl c ->
 		print_meta c.cl_meta;
-		p "extern %s %s" (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
+		let finalmod = if c.cl_final then "final " else "" in
+		p "extern %s%s %s" finalmod (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_params)));
 		let ext = (match c.cl_super with
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
 		let ext = List.fold_left (fun acc (i,pl) -> ((if c.cl_interface then " extends " else " implements ") ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = (match c.cl_dynamic with
+			| None -> ext
+			| Some t ->
+				(match c.cl_path with
+				| ["flash";"errors"], _ -> ext
+				| _ when t == t_dynamic -> " implements Dynamic" :: ext
+				| _ -> (" implements Dynamic<" ^ stype t ^ ">") :: ext)
+		) in
 		let ext = (match c.cl_path with
 			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
 			| ["flash";"utils"], "Dictionary" -> [" implements ArrayAccess<Dynamic>"]
@@ -537,7 +551,36 @@ let generate_type com t =
 		p "\n";
 	| TAbstractDecl a ->
 		print_meta a.a_meta;
-		p "abstract %s {}" (stype (TAbstract (a,List.map snd a.a_params)));
+		Option.may (fun c -> try print_meta [Meta.get Meta.Require c.cl_meta] with Not_found -> ()) a.a_impl;
+		p "extern ";
+		let is_enum = Meta.has Meta.Enum a.a_meta in
+		if is_enum then p "enum ";
+		p "abstract %s" (stype (TAbstract (a,List.map snd a.a_params)));
+		if not (Meta.has Meta.CoreType a.a_meta) then p "(%s)" (stype a.a_this);
+		p " {\n";
+		Option.may (fun c ->
+			let fields = c.cl_ordered_statics in
+			let fields =
+				if is_enum then
+					let sort l =
+						let a = Array.of_list l in
+						Array.sort (fun a b -> compare a.cf_name b.cf_name) a;
+						Array.to_list a
+					in
+					sort fields
+				else
+					fields
+			in
+
+			List.iter (fun f ->
+				let static = not (Meta.has Meta.Impl f.cf_meta) in
+				if not static && is_enum && Meta.has Meta.Enum f.cf_meta then begin
+					p "\tvar %s;\n" f.cf_name;
+				end else
+					print_field static f
+			) fields
+		) a.a_impl;
+		p "}\n";
 	);
 	IO.close_out ch
 

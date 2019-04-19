@@ -24,9 +24,9 @@ package flash.geom;
 	@:require(flash11) function setTo(xa : Float, ya : Float, za : Float) : Void;
 	function subtract(a : Vector3D) : Vector3D;
 	function toString() : String;
-	static var X_AXIS(default,never) : Vector3D;
-	static var Y_AXIS(default,never) : Vector3D;
-	static var Z_AXIS(default,never) : Vector3D;
+	static final X_AXIS : Vector3D;
+	static final Y_AXIS : Vector3D;
+	static final Z_AXIS : Vector3D;
 	static function angleBetween(a : Vector3D, b : Vector3D) : Float;
 	static function distance(pt1 : Vector3D, pt2 : Vector3D) : Float;
 }

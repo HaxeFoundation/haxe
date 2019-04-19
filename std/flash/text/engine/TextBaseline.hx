@@ -1,11 +1,11 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum TextBaseline {
-	ASCENT;
-	DESCENT;
-	IDEOGRAPHIC_BOTTOM;
-	IDEOGRAPHIC_CENTER;
-	IDEOGRAPHIC_TOP;
-	ROMAN;
-	USE_DOMINANT_BASELINE;
+@:native("flash.text.engine.TextBaseline") extern enum abstract TextBaseline(String) {
+	var ASCENT;
+	var DESCENT;
+	var IDEOGRAPHIC_BOTTOM;
+	var IDEOGRAPHIC_CENTER;
+	var IDEOGRAPHIC_TOP;
+	var ROMAN;
+	var USE_DOMINANT_BASELINE;
 }

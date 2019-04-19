@@ -17,8 +17,8 @@ extern class NetConnection extends flash.events.EventDispatcher {
 	var usingTLS(default,never) : Bool;
 	function new() : Void;
 	function addHeader(operation : String, mustUnderstand : Bool = false, ?param : flash.utils.Object) : Void;
-	function call(command : String, responder : Responder, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	function call(command : String, responder : Responder, restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	function close() : Void;
-	function connect(command : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	function connect(command : String, restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	static var defaultObjectEncoding : UInt;
 }
