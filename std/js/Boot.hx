@@ -130,11 +130,11 @@ class Boot {
 					if( s2 != "[object Object]")
 						return s2;
 				}
-				var k : String = null;
 				var str = "{\n";
 				s += "\t";
 				var hasp = (o.hasOwnProperty != null);
-				__js__("for( var k in o ) {");
+				var k : String = null;
+				__js__("for( {0} in {1} ) {", k, o);
 					if( hasp && !o.hasOwnProperty(k) )
 						__js__("continue");
 					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__" )
