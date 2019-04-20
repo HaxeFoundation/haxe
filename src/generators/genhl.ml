@@ -4028,7 +4028,7 @@ let generate com =
 		check ctx;
 		Hlinterp.check code false;
 	end;
-	let t = Timer.timer ["write";"hl"] in
+	let t = Timer.timer ["generate";"hl";"write"] in
 
 	let escape_command s =
 		let b = Buffer.create 0 in
