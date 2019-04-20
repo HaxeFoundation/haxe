@@ -45,7 +45,6 @@ type strict_meta =
 	| Exhaustive
 	| Expose
 	| Extern
-	| FakeEnum
 	| File
 	| FileXml
 	| Final
@@ -253,7 +252,6 @@ let get_info = function
 	| Exhaustive -> ":exhaustive",("",[UsedInternally])
 	| Expose -> ":expose",("Includes the class or field in Haxe exports",[HasParam "?Name=Class path";UsedOnEither [TClass;TClassField];Platforms [Js;Lua]])
 	| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
-	| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 	| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
 	| FileXml -> ":fileXml",("Include xml attribute snippet in Build.xml entry for file",[UsedOn TClass;Platform Cpp])
 	| Final -> ":final",("Prevents a class or interface from being extended or a method from being overriden",[UsedOnEither [TClass;TClassField]])

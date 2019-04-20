@@ -366,7 +366,7 @@ let build_class com c file =
 		in
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
 		let constr = loop fields in
-		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
+		let name = "enumAbstract:" ^ String.concat "." (path.tpackage @ [path.tname]) in
 		if not (Common.raw_defined com name) then raise Exit;
 		let native_path = s_type_path (path.tpackage, path.tname) in
 		let real_type = Option.get !real_type in

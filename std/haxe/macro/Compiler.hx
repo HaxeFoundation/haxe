@@ -343,7 +343,7 @@ class Compiler {
 					continue;
 				}
 				if( StringTools.startsWith(r, "enum ") ) {
-					define("fakeEnum:" + r.substr(5));
+					define("enumAbstract:" + r.substr(5));
 					continue;
 				}
 				var rp = r.split(" : ");

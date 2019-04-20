@@ -277,22 +277,7 @@ let rec type_str ctx t p =
 		| [], "Bool" -> "Boolean"
 		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
-		if e.e_extern then (match e.e_path with
-			| [], "Void" -> "void"
-			| [], "Bool" -> "Boolean"
-			| _ ->
-				let rec loop = function
-					| [] -> "Object"
-					| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
-						(match n with
-						| "Int" -> "int"
-						| "UInt" -> "uint"
-						| _ -> n)
-					| _ :: l -> loop l
-				in
-				loop e.e_meta
-		) else
-			s_path ctx true e.e_path p
+		if e.e_extern then "Object" else s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
 		(match pt with
 		| TInst({cl_kind = KTypeParameter _},_) -> "*"
