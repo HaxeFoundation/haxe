@@ -793,6 +793,11 @@ extern class Global {
 	static function preg_replace( pattern:EitherType<String,NativeArray>, replacement:EitherType<String,NativeArray>, subject:EitherType<String,NativeArray>, limit:Int = -1, ?count:Int ) : EitherType<String,NativeArray> ;
 
 	/**
+		@see http://php.net/manual/en/function.preg-last-error.php
+	**/
+	static function preg_last_error() : Int ;
+
+	/**
 		@see http://php.net/manual/en/function.md5.php
 	**/
 	static function md5( str:String, raw_output:Bool = false ) : String;

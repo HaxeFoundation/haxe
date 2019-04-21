@@ -121,6 +121,16 @@ extern class Const {
 	static var PREG_SPLIT_DELIM_CAPTURE : Int;
 	static var PREG_SPLIT_OFFSET_CAPTURE : Int;
 	/**
+		@see http://php.net/manual/en/function.preg-last-error.php
+	**/
+	static var PREG_NO_ERROR : Int;
+	static var PREG_INTERNAL_ERROR : Int;
+	static var PREG_BACKTRACK_LIMIT_ERROR : Int;
+	static var PREG_RECURSION_LIMIT_ERROR : Int;
+	static var PREG_BAD_UTF8_ERROR : Int;
+	static var PREG_BAD_UTF8_OFFSET_ERROR : Int;
+	static var PREG_JIT_STACKLIMIT_ERROR : Int;
+	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/
 	static var ENT_COMPAT : Int;
