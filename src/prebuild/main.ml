@@ -145,14 +145,51 @@ let gen_meta_info metas =
 	) metas in
 	String.concat "\n" meta_str
 
-let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)\n(* Do not edit manually! *)\n\n"
+let autogen_header = "(* This file is auto-generated using prebuild from files in src-json *)
+(* Do not edit manually! *)
+"
+
+let define_header = autogen_header ^ "
+open Globals
+
+type define_parameter =
+	| HasParam of string
+	| Platform of platform
+	| Platforms of platform list
+
+"
+
+let meta_header = autogen_header ^ "
+open Globals
+
+type meta_usage =
+	| TClass
+	| TClassField
+	| TAbstract
+	| TAbstractField
+	| TEnum
+	| TTypedef
+	| TAnyField
+	| TExpr
+	| TTypeParameter
+	| TVariable
+
+type meta_parameter =
+	| HasParam of string
+	| Platform of platform
+	| Platforms of platform list
+	| UsedOn of meta_usage
+	| UsedOnEither of meta_usage list
+	| UsedInternally
+
+"
 
 ;;
 
 match Sys.argv with
 	| [|_; "define"; define_path|] ->
 		let defines = parse_file_array define_path parse_define in
-		Printf.printf "%s" autogen_header;
+		Printf.printf "%s" define_header;
 		Printf.printf "type strict_defined =\n";
 		Printf.printf "%s" (gen_define_type defines);
 		Printf.printf "\n\t| Last\n\n"; (* must be last *)
@@ -161,7 +198,7 @@ match Sys.argv with
 		Printf.printf "\n\t| Last -> assert false\n"
 	| [|_; "meta"; meta_path|] ->
 		let metas = parse_file_array meta_path parse_meta in
-		Printf.printf "%s" autogen_header;
+		Printf.printf "%s" meta_header;
 		Printf.printf "type strict_meta =\n";
 		Printf.printf "%s" (gen_meta_type metas);
 		Printf.printf "\n\t| Last\n\t| Dollar of string\n\t| Custom of string\n\n";
