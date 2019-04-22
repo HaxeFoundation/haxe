@@ -199,7 +199,7 @@ module Memory = struct
 			()
 		else begin
 			Hashtbl.add h m.m_id m;
-			PMap.iter (fun _ m -> scan_module_deps m h) m.m_extra.m_deps
+			PMap.iter (fun _ dep -> scan_module_deps dep.md_module h) m.m_extra.m_deps
 		end
 
 	let get_out out =
@@ -379,8 +379,8 @@ module Memory = struct
 					());
 				if verbose then begin
 					print (Printf.sprintf "      %d total deps" (List.length deps));
-					PMap.iter (fun _ md ->
-						print (Printf.sprintf "      dep %s%s" (s_type_path md.m_path) (sign md));
+					PMap.iter (fun _ dep ->
+						print (Printf.sprintf "      dep %s%s" (s_type_path dep.md_module.m_path) (sign dep.md_module));
 					) m.m_extra.m_deps;
 				end;
 				flush stdout

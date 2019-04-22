@@ -330,9 +330,11 @@ let rec wait_loop process_params verbose accept =
 				end
 			in
 			let check_dependencies () =
-				PMap.iter (fun _ m2 -> match check m2 with
-					| None -> ()
-					| Some m -> raise (Dirty m)
+				PMap.iter (fun _ dep ->
+					if dep.md_explicit then
+						match check dep.md_module with
+						| None -> ()
+						| Some m -> raise (Dirty m)
 				) m.m_extra.m_deps;
 			in
 			begin match m.m_extra.m_dirty with
@@ -389,7 +391,9 @@ let rec wait_loop process_params verbose accept =
 					) m.m_types;
 					TypeloadModule.add_module ctx m p;
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+					PMap.iter
+						(fun _ dep -> if dep.md_explicit then add_modules (tabs ^ "  ") m0 dep.md_module)
+						m.m_extra.m_deps
 				)
 			end
 		in

@@ -427,10 +427,10 @@ module Dump = struct
 		let dep = Hashtbl.create 0 in
 		List.iter (fun m ->
 			print "%s:\n" m.m_extra.m_file;
-			PMap.iter (fun _ m2 ->
-				print "\t%s\n" (m2.m_extra.m_file);
-				let l = try Hashtbl.find dep m2.m_extra.m_file with Not_found -> [] in
-				Hashtbl.replace dep m2.m_extra.m_file (m :: l)
+			PMap.iter (fun _ mdep ->
+				print "\t%s\n" (mdep.md_module.m_extra.m_file);
+				let l = try Hashtbl.find dep mdep.md_module.m_extra.m_file with Not_found -> [] in
+				Hashtbl.replace dep mdep.md_module.m_extra.m_file (m :: l)
 			) m.m_extra.m_deps;
 		) com.Common.modules;
 		close();

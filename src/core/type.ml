@@ -335,6 +335,15 @@ and module_def_display = {
 	mutable m_type_hints : (pos * t) list;
 }
 
+and module_dependency = {
+	md_module : module_def;
+	(*
+		Explicit dependencies: explicitly referenced in the hx code and are absolutely required for typing.
+		Implicit dependencies: added by the compiler after the typing is complete. E.g. in filters.
+	*)
+	md_explicit : bool;
+}
+
 and module_def_extra = {
 	m_file : string;
 	m_sign : string;
@@ -344,7 +353,7 @@ and module_def_extra = {
 	mutable m_dirty : module_def option;
 	mutable m_added : int;
 	mutable m_mark : int;
-	mutable m_deps : (int,module_def) PMap.t;
+	mutable m_deps : (int,module_dependency) PMap.t;
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
@@ -563,8 +572,9 @@ let null_abstract = {
 	a_write = None;
 }
 
-let add_dependency m mdep =
-	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
+let add_dependency ?(explicit=true) m mdep =
+	if m != null_module && m != mdep then
+		m.m_extra.m_deps <- PMap.add mdep.m_id { md_module = mdep; md_explicit = explicit } m.m_extra.m_deps
 
 let arg_name (a,_) = a.v_name
 
@@ -1581,7 +1591,7 @@ module Printer = struct
 			"m_dirty",s_opt (fun m -> s_type_path m.m_path) me.m_dirty;
 			"m_added",string_of_int me.m_added;
 			"m_mark",string_of_int me.m_mark;
-			"m_deps",s_pmap string_of_int (fun m -> snd m.m_path) me.m_deps;
+			"m_deps",s_pmap string_of_int (fun dep -> snd dep.md_module.m_path) me.m_deps;
 			"m_processed",string_of_int me.m_processed;
 			"m_kind",s_module_kind me.m_kind;
 			"m_binded_res",""; (* TODO *)

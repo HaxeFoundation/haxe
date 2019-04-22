@@ -192,7 +192,7 @@ let inject_callstack com type_filters =
 				| TTry (etry,[(v,ecatch)]) ->
 					let etry = loop etry in
 					let ecatch = loop ecatch in
-					add_dependency (t_infos mt).mt_module cCallStack.cl_module;
+					add_dependency ~explicit:false (t_infos mt).mt_module cCallStack.cl_module;
 					let eCallStack = make_static_this cCallStack ecatch.epos in
 					let elastException = field eCallStack "lastException" t_dynamic ecatch.epos in
 					let elocal = make_local v ecatch.epos in
