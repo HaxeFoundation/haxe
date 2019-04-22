@@ -90,4 +90,13 @@ class UnicodeSequences {
 			f(nfd);
 		}
 	}
+
+	public static function normalBothIndexed(f:String->Int->Bool->Void):Void {
+		for (i in 0...valid.length) switch (valid[i]) {
+			case Only(codepointsToString(_) => ref): f(ref, i, false);
+			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
+			f(nfc, i, true);
+			f(nfd, i, false);
+		}
+	}
 }

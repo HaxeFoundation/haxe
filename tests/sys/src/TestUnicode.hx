@@ -297,14 +297,17 @@ class TestUnicode extends utest.Test {
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
 			});
 
-		// stdout
-		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["stdout.writeString", str]).stdout, '$str');
+		// stdout, stderr
+		UnicodeSequences.normalBothIndexed((str, i, nfc) -> {
+				// stdout
+				assertUEquals(runUtility(["stdout.writeString", '$i', nfc ? "nfc" : "nfd"]).stdout, str);
+				// stderr
+				assertUEquals(runUtility(["stderr.writeString", '$i', nfc ? "nfc" : "nfd"]).stderr, str);
 			});
 
-		// stderr
+		// args
 		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["stderr.writeString", str]).stderr, '$str');
+				assertUEquals(runUtility(["args", str]).stdout, '$str\n');
 			});
 
 		// readLine
