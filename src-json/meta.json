@@ -284,13 +284,6 @@
     "targets": ["TClassField"]
   },
   {
-    "name": "FakeEnum",
-    "metadata": ":fakeEnum",
-    "doc": "Treat enum as collection of values of the specified type",
-    "params": ["Type name"],
-    "targets": ["TEnum"]
-  },
-  {
     "name": "File",
     "metadata": ":file",
     "doc": "Includes a given binary file into the target SWF and associates it with the class (must extend flash.utils.ByteArray)",

@@ -364,6 +364,27 @@ class Deployment {
 	}
 
 	static public function deploy():Void {
+		switch (ci) {
+			case TravisCI:
+				switch (Sys.getEnv("TRAVIS_PULL_REQUEST")) {
+					case "false", null:
+						// not a PR
+					case _:
+						infoMsg("Not deploying in PR builds.");
+						return;
+				}
+			case AppVeyor:
+				switch (Sys.getEnv("APPVEYOR_PULL_REQUEST_NUMBER")) {
+					case null:
+						// not a PR
+					case _:
+						infoMsg("Not deploying in PR builds.");
+						return;
+				}
+			case _:
+				// pass
+		}
+
 		if (isDeployApiDocsRequired()) {
 			deployApiDoc();
 		} else {

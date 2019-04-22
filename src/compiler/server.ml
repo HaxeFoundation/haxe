@@ -425,6 +425,7 @@ let rec wait_loop process_params verbose accept =
 		in
 		let create params =
 			let ctx = create_context params in
+			ctx.com.needs_generation <- false;
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;

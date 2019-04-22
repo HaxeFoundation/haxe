@@ -239,12 +239,7 @@ let rec type_id ctx t =
 	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		HMPath ([],"String")
 	| TEnum (e,_) ->
-		let rec loop = function
-			| [] -> type_path ctx e.e_path
-			| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ -> type_path ctx ([],n)
-			| _ :: l -> loop l
-		in
-		loop e.e_meta
+		type_path ctx e.e_path
 	| _ ->
 		HMPath ([],"Object")
 
@@ -271,17 +266,7 @@ let classify ctx t =
 	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
-		let rec loop = function
-			| [] -> KType (type_id ctx t)
-			| (Meta.FakeEnum,[Ast.EConst (Ident n),_],_) :: _ ->
-				(match n with
-				| "Int" -> KInt
-				| "UInt" -> KUInt
-				| "String" -> KType (HMPath ([],"String"))
-				| _ -> assert false)
-			| _ :: l -> loop l
-		in
-		loop e.e_meta
+		KType (type_id ctx t)
 	| TAbstract ({ a_path = [],"UInt" },_) | TType ({ t_path = [],"UInt" },_) ->
 		KUInt
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->

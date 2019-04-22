@@ -28,4 +28,8 @@ class Config {
 			AppVeyor;
 		else
 			null;
+
+	static public function isCi():Bool {
+		return ci != null;
+	}
 }
