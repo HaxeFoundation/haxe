@@ -1,12 +1,8 @@
 import utest.Assert;
 import haxe.io.Bytes;
-
-using haxe.iterators.StringIteratorUnicode;
-
-private enum Filename {
-	Only(ref:Array<Int>);
-	Normal(nfc:Array<Int>, nfd:Array<Int>);
-}
+import UnicodeSequences.UnicodeString;
+import UnicodeSequences.codepointsToString;
+import UnicodeSequences.showUnicodeString;
 
 class TestUnicode extends utest.Test {
 	static var BIN_PATH =
@@ -76,100 +72,44 @@ class TestUnicode extends utest.Test {
 		null;
 #end
 
-	// list of filenames expected to NOT exist
-	static var nonExistentNames:Array<Filename> = [
+	// list of filenames expected to NOT exist in sub-directories
+	static var nonExistentNames:Array<UnicodeString> = [
 		// Java escapes
 		Only([0x0025, 0x0030 , 0x0001]), // %01
 		Only([0x0025, 0x0037 , 0x0046]) // %7F
 	];
 
-	// list of expected filenames in Unicode codepoint sequences
-	static var names:Array<Filename> = [
-		// boundary conditions
-		Only([0x0001]),
-		Only([0x007F]),
-		Only([0x0080]),
-		Only([0x07FF]),
-		Only([0x0800]),
-		Only([0xD7FF]),
-		Only([0xE000]),
-		Only([0xFFFD]),
-		//Only([0xFFFE]), // invalid character!
-		//Only([0xFFFF]), // invalid character!
-		// non-BMP (not supported for the time being)
-		//Only([0x10000]),
-		//Only([0x1FFFF]),
-		//Only([0xFFFFF]),
-		//Only([0x100000]),
-		//Only([0x10FFFF]),
-		Only([0x1F602, 0x1F604, 0x1F619])
-	].concat([
-		// NFC / NFD
-		Normal([0x0227], [0x0061, 0x0307])
-	]);
+	// list of expected filenames in sub-directories
+	static var names:Array<UnicodeString> = UnicodeSequences.valid;
 
+	// extra files only present in the root test-res directory
 	static var namesRoot = names.concat([
-		// extra files in the root test-res directory
 		Only([0x0061]), // a
 		Only([0x0062]), // b
 		Only([0x64, 0x61, 0x74, 0x61, 0x2E, 0x62, 0x69, 0x6E]) // data.bin
 	]);
 
-	function codepointsSame(actual:Array<Int>, expected:Filename):Bool {
-		function sameOption(ref:Array<Int>):Bool {
-			if (actual.length != ref.length) return false;
-			for (i in 0...actual.length) if (actual[i] != ref[i]) return false;
-			return true;
-		}
-		return (switch (expected) {
-				case Only(ref): sameOption(ref);
-				case Normal(nfc, nfd):
-				// it might eventually be best to expect a particular form
-				// on specific targets + platforms + filesystems
-				// for now, allowing either
-				sameOption(nfc) || sameOption(nfd);
-			});
-	}
-
 	// same names and length, but possibly different order
 	// assumes no duplicates in expected
-	function sameFiles(actual:Array<String>, expected:Array<Filename>):Void {
+	function sameFiles(actual:Array<String>, expected:Array<UnicodeString>):Void {
 		Assert.equals(actual.length, expected.length);
 		var remaining = expected.copy();
 		for (file in actual) {
-			var codepoints = unicodeCodepoints(file);
-			var found = null;
-			for (ref in remaining) {
-				if (codepointsSame(codepoints, ref)) {
-					found = ref;
-					break;
-				}
-			}
-			if (found == null) {
-				Assert.fail('unexpected filename $file (${codepoints.map(c -> StringTools.hex(c, 4))}) found');
+			var codepoints = UnicodeSequences.unicodeCodepoints(file);
+			var removed = remaining.filter(ref -> !UnicodeSequences.codepointsSame(codepoints, ref));
+			if (removed.length == remaining.length) {
+				Assert.fail('unexpected filename ${showUnicodeString(file)} found');
 			} else {
-				remaining.remove(found);
+				remaining = removed;
 			}
 		}
-	}
-
-	function unicodeCodepoints(str:String):Array<Int> {
-		return [ for (codepoint in str.unicodeIterator()) codepoint ];
-	}
-
-	function codepointsToString(ref:Array<Int>):String {
-		return [ for (codepoint in ref) String.fromCharCode(codepoint) ].join("");
-	}
-
-	function showUString(str:String):String {
-		return '$str (${unicodeCodepoints(str)})';
 	}
 
 	function assertUEnds(actual:String, expected:String, ?alt:String, ?pos:haxe.PosInfos):Void {
 		Assert.isTrue(
 			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
-			'expected ${showUString(actual)} to end with ${showUString(expected)}'
-			+ (alt != null ? ' or ${showUString(alt)}' : ""),
+			'expected ${showUnicodeString(actual)} to end with ${showUnicodeString(expected)}'
+			+ (alt != null ? ' or ${showUnicodeString(alt)}' : ""),
 			pos
 		);
 	}
@@ -177,25 +117,9 @@ class TestUnicode extends utest.Test {
 	function assertUEquals(actual:String, expected:String, ?msg:String, ?pos:haxe.PosInfos):Void {
 		Assert.equals(
 			expected, actual,
-			'expected ${showUString(actual)} to be ${showUString(expected)}',
+			'expected ${showUnicodeString(actual)} to be ${showUnicodeString(expected)}',
 			pos
 		);
-	}
-
-	function normalNFC(f:String->Void):Void {
-		for (filename in names) switch (filename) {
-			case Only(codepointsToString(_) => ref): f(ref);
-			case Normal(codepointsToString(_) => nfc, _): f(nfc);
-		}
-	}
-
-	function normalBoth(f:String->Void):Void {
-		for (filename in names) switch (filename) {
-			case Only(codepointsToString(_) => ref): f(ref);
-			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-			f(nfc);
-			f(nfd);
-		}
 	}
 
 	function pathBoth(f:String->Void, path:String, ?skipNonExistent:Bool = true):Void {
@@ -334,17 +258,9 @@ class TestUnicode extends utest.Test {
 
 		// fullPath
 		pathBoth(path -> {
-				for (symlink in [
-						{name: "bin-cpp", target: "/bin/cpp/UtilityProcess-debug"},
-						{name: "bin-cs", target: "/bin/cs/bin/UtilityProcess-Debug.exe"},
-						{name: "bin-hl", target: "/bin/hl/UtilityProcess.hl"},
-						{name: "bin-java", target: "/bin/java/UtilityProcess-Debug.jar"},
-						{name: "bin-neko", target: "/bin/neko/UtilityProcess.n"},
-						{name: "bin-php", target: "/bin/php/UtilityProcess"},
-						{name: "bin-py", target: "/bin/python/UtilityProcess.py"}
-					]) assertUEnds(
-						sys.FileSystem.fullPath('$path/${symlink.name}'),
-						symlink.target
+				assertUEnds(
+						sys.FileSystem.fullPath('$path/${BIN_SYMLINK}'),
+						'/${BIN_PATH}/${BIN_NAME}'
 					);
 			}, "test-res");
 
@@ -364,36 +280,36 @@ class TestUnicode extends utest.Test {
 
 	function testIO() {
 		// stdin.readLine
-		normalBoth(str -> {
+		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
 			});
 
 		// stdin.readString
-		normalBoth(str -> {
-				// FIXME: readString of UTF8 should maybe read n characters, not bytes?
+		UnicodeSequences.normalBoth(str -> {
+				// FIXME: readString of UTF8 should maybe read n characters, not bytes? #8199
 				var byteLength = Bytes.ofString(str).length;
 				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, '$str\n');
 			});
 
 		// stdin.readUntil
-		normalBoth(str -> {
+		UnicodeSequences.normalBoth(str -> {
 				// make sure the 0x70 byte is not part of the test string 
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
 			});
 
 		// stdout
-		normalBoth(str -> {
+		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["stdout.writeString", str]).stdout, '$str');
 			});
 
 		// stderr
-		normalBoth(str -> {
+		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["stderr.writeString", str]).stderr, '$str');
 			});
 
 		// readLine
 		var data = sys.io.File.read("test-res/data.bin");
-		normalNFC(str -> {
+		UnicodeSequences.normalNFC(str -> {
 				var line = data.readLine();
 				assertUEquals(line, str);
 			});
