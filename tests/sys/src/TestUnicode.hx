@@ -3,56 +3,9 @@ import haxe.io.Bytes;
 import UnicodeSequences.UnicodeString;
 import UnicodeSequences.codepointsToString;
 import UnicodeSequences.showUnicodeString;
+import UtilityProcess.runUtility;
 
 class TestUnicode extends utest.Test {
-	static var BIN_PATH =
-#if cpp
-		"bin/cpp";
-#elseif cs
-		"bin/cs/bin";
-#elseif hl
-		"bin/hl";
-#elseif java
-		"bin/java";
-#elseif neko
-		"bin/neko";
-#elseif php
-		"bin/php";
-#elseif python
-		"bin/python";
-#else
-		null;
-#end
-	static var BIN_NAME =
-#if cpp
-		#if debug
-			"UtilityProcess-debug";
-		#else
-			"UtilityProcess";
-		#end
-#elseif cs
-		#if debug
-			"UtilityProcess-Debug.exe";
-		#else
-			"UtilityProcess.exe";
-		#end
-#elseif hl
-		"UtilityProcess.hl";
-#elseif java
-		#if debug
-			"UtilityProcess-Debug.jar";
-		#else
-			"UtilityProcess.jar";
-		#end
-#elseif neko
-		"UtilityProcess.n";
-#elseif php
-		"UtilityProcess/index.php";
-#elseif python
-		"UtilityProcess.py";
-#else
-		null;
-#end
 	static var BIN_SYMLINK =
 #if cpp
 		"bin-cpp";
@@ -140,53 +93,6 @@ class TestUnicode extends utest.Test {
 		}, '$msg ($filename in $path)', pos);
 	}
 
-	function runUtility(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):{
-		exitCode:Int,
-		stdout:String,
-		stderr:String
-	} {
-		if (options == null) options = {};
-		if (options.execPath == null) options.execPath = BIN_PATH;
-		if (options.execName == null) options.execName = BIN_NAME;
-		var execFull = '${options.execPath}/${options.execName}';
-		var proc =
-		#if (macro || interp)
-		new sys.io.Process("haxe", ["compile-each.hxml", "--run", execFull].concat(args));
-		#elseif cpp
-		new sys.io.Process(execFull, args);
-		#elseif cs
-		(switch (Sys.systemName()) {
-			case "Windows":
-				new sys.io.Process(execFull, args);
-			case _:
-				new sys.io.Process("mono", [execFull].concat(args));
-		});
-		#elseif java
-		new sys.io.Process(haxe.io.Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", execFull].concat(args));
-		#elseif python
-		new sys.io.Process(python.lib.Sys.executable, [execFull].concat(args));
-		#elseif neko
-		new sys.io.Process("neko", [execFull].concat(args));
-		#elseif hl
-		new sys.io.Process("hl", [execFull].concat(args));
-		#elseif php
-		new sys.io.Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
-		#elseif lua
-		new sys.io.Process("lua", [execFull].concat(args));
-		#else
-		null;
-		#end
-		if (options.stdin != null) {
-			proc.stdin.writeString(options.stdin);
-			proc.stdin.flush();
-		}
-		return {
-			exitCode: proc.exitCode(),
-			stdout: proc.stdout.readAll().toString(),
-			stderr: proc.stderr.readAll().toString()
-		};
-	}
-
 #if (target.unicode)
 	function testPaths() {
 #if !(java)
@@ -260,7 +166,7 @@ class TestUnicode extends utest.Test {
 		pathBoth(path -> {
 				assertUEnds(
 						sys.FileSystem.fullPath('$path/${BIN_SYMLINK}'),
-						'/${BIN_PATH}/${BIN_NAME}'
+						'/${UtilityProcess.BIN_PATH}/${UtilityProcess.BIN_NAME}'
 					);
 			}, "test-res");
 
@@ -297,16 +203,22 @@ class TestUnicode extends utest.Test {
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
 			});
 
-		// stdout, stderr
 		UnicodeSequences.normalBothIndexed((str, i, nfc) -> {
+				var mode = nfc ? "nfc" : "nfd";
 				// stdout
-				assertUEquals(runUtility(["stdout.writeString", '$i', nfc ? "nfc" : "nfd"]).stdout, str);
+				assertUEquals(runUtility(["stdout.writeString", '$i', mode]).stdout, str);
 				// stderr
-				assertUEquals(runUtility(["stderr.writeString", '$i', nfc ? "nfc" : "nfd"]).stderr, str);
+				assertUEquals(runUtility(["stderr.writeString", '$i', mode]).stderr, str);
 				// print
-				assertUEquals(runUtility(["print", '$i', nfc ? "nfc" : "nfd"]).stdout, str);
+				assertUEquals(runUtility(["print", '$i', mode]).stdout, str);
 				// println
-				assertUEquals(runUtility(["println", '$i', nfc ? "nfc" : "nfd"]).stdout, '$str\n');
+				assertUEquals(runUtility(["println", '$i', mode]).stdout, '$str\n');
+				// trace
+				assertUEnds(runUtility(["trace", '$i', mode]).stdout, '$str\n');
+#if !(java)
+				// putEnv + getEnv
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, '$str\n');
+#end
 			});
 
 		// args
