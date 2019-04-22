@@ -1,9 +1,6 @@
 open Globals
 include MetaList
 
-(*type strict_meta = MetaList.strict_meta
-let get_info = MetaList.get_info*)
-
 let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.mem m2 ml1) ml2
 let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
