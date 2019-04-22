@@ -303,6 +303,10 @@ class TestUnicode extends utest.Test {
 				assertUEquals(runUtility(["stdout.writeString", '$i', nfc ? "nfc" : "nfd"]).stdout, str);
 				// stderr
 				assertUEquals(runUtility(["stderr.writeString", '$i', nfc ? "nfc" : "nfd"]).stderr, str);
+				// print
+				assertUEquals(runUtility(["print", '$i', nfc ? "nfc" : "nfd"]).stdout, str);
+				// println
+				assertUEquals(runUtility(["println", '$i', nfc ? "nfc" : "nfd"]).stdout, '$str\n');
 			});
 
 		// args
