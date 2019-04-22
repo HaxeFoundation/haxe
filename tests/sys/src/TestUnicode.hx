@@ -1,4 +1,5 @@
 import utest.Assert;
+import haxe.io.Bytes;
 
 using haxe.iterators.StringIteratorUnicode;
 
@@ -334,12 +335,12 @@ class TestUnicode extends utest.Test {
 		// fullPath
 		pathBoth(path -> {
 				for (symlink in [
-						{name: "bin-cpp", target: "/bin/cpp/Main-debug"},
-						{name: "bin-cs", target: "/bin/cs/bin/Main-Debug.exe"},
-						{name: "bin-hl", target: "/bin/hl/sys.hl"},
+						{name: "bin-cpp", target: "/bin/cpp/UtilityProcess-debug"},
+						{name: "bin-cs", target: "/bin/cs/bin/UtilityProcess-Debug.exe"},
+						{name: "bin-hl", target: "/bin/hl/UtilityProcess.hl"},
 						{name: "bin-java", target: "/bin/java/UtilityProcess-Debug.jar"},
-						{name: "bin-neko", target: "/bin/neko/sys.n"},
-						{name: "bin-php", target: "/bin/php/Main"},
+						{name: "bin-neko", target: "/bin/neko/UtilityProcess.n"},
+						{name: "bin-php", target: "/bin/php/UtilityProcess"},
 						{name: "bin-py", target: "/bin/python/UtilityProcess.py"}
 					]) assertUEnds(
 						sys.FileSystem.fullPath('$path/${symlink.name}'),
@@ -369,25 +370,25 @@ class TestUnicode extends utest.Test {
 
 		// stdin.readString
 		normalBoth(str -> {
-				assertUEquals(runUtility(["stdin.readString", '${str.length}'], {stdin: '$str'}).stdout, '$str\n');
+				// FIXME: readString of UTF8 should maybe read n characters, not bytes?
+				var byteLength = Bytes.ofString(str).length;
+				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, '$str\n');
 			});
 
 		// stdin.readUntil
 		normalBoth(str -> {
-				// make sure the byte is not part of the test string 
+				// make sure the 0x70 byte is not part of the test string 
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
 			});
 
 		// stdout
 		normalBoth(str -> {
-				// make sure the byte is not part of the test string 
-				assertUEquals(runUtility(["stdout.writeString", str]).stdout, '$str\n');
+				assertUEquals(runUtility(["stdout.writeString", str]).stdout, '$str');
 			});
 
 		// stderr
 		normalBoth(str -> {
-				// make sure the byte is not part of the test string 
-				assertUEquals(runUtility(["stderr.writeString", str]).stdout, '$str\n');
+				assertUEquals(runUtility(["stderr.writeString", str]).stderr, '$str');
 			});
 
 		// readLine
