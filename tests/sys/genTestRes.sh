@@ -113,12 +113,12 @@ popd
 
 function symLinkFill() { # symlinks used to test programPath and fullPath
     pushd "test-res/$1"
-    ln -s ../../bin/cpp/Main-debug bin-cpp
-    ln -s ../../bin/cs/bin/Main-Debug.exe bin-cs
-    ln -s ../../bin/hl/sys.hl bin-hl
+    ln -s ../../bin/cpp/UtilityProcess-debug bin-cpp
+    ln -s ../../bin/cs/bin/UtilityProcess-Debug.exe bin-cs
+    ln -s ../../bin/hl/UtilityProcess.hl bin-hl
     ln -s ../../bin/java/UtilityProcess-Debug.jar bin-java
-    ln -s ../../bin/neko/sys.n bin-neko
-    ln -s ../../bin/php/Main bin-php
+    ln -s ../../bin/neko/UtilityProcess.n bin-neko
+    ln -s ../../bin/php/UtilityProcess bin-php
     ln -s ../../bin/python/UtilityProcess.py bin-py
     popd
 }
