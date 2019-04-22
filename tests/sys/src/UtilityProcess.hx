@@ -102,14 +102,14 @@ class UtilityProcess {
 	
 	public static function main():Void {
 		var args = Sys.args();
-		function sequenceIndex(d:Int, returnNFC:Bool):String return (switch (UnicodeSequences.valid[d]) {
+		function sequenceIndex(d:String, mode:String):String return (switch (UnicodeSequences.valid[Std.parseInt(d)]) {
 				case Only(ref): UnicodeSequences.codepointsToString(ref);
-				case Normal(nfc, nfd): UnicodeSequences.codepointsToString(returnNFC ? nfc : nfd);
+				case Normal(nfc, nfd): UnicodeSequences.codepointsToString(mode == "nfc" ? nfc : nfd);
 			});
 		switch (args) {
 			case _.slice(0, 1) => ["putEnv"]:
 			// ["putEnv", var name, index, nfc mode, next args...]
-			Sys.putEnv(args[1], sequenceIndex(Std.parseInt(args[2]), args[3] == "nfc"));
+			Sys.putEnv(args[1], sequenceIndex(args[2], args[3]));
 			var out = runUtility(args.slice(4));
 			Sys.print(out.stdout);
 			Sys.exit(out.exitCode);
@@ -117,16 +117,16 @@ class UtilityProcess {
 			case ["getEnv", name]: Sys.println(Sys.getEnv(name));
 			case ["exitCode", Std.parseInt(_) => code]: Sys.exit(code);
 			case ["args", data]: Sys.println(data);
-			case ["println", Std.parseInt(_) => d, mode]: Sys.println(sequenceIndex(d, mode == "nfc"));
-			case ["print", Std.parseInt(_) => d, mode]: Sys.print(sequenceIndex(d, mode == "nfc"));
-			case ["trace", Std.parseInt(_) => d, mode]: trace(sequenceIndex(d, mode == "nfc"));
+			case ["println", d, mode]: Sys.println(sequenceIndex(d, mode));
+			case ["print", d, mode]: Sys.print(sequenceIndex(d, mode));
+			case ["trace", d, mode]: trace(sequenceIndex(d, mode));
 			case ["stdin.readLine"]: Sys.println(Sys.stdin().readLine());
 			case ["stdin.readString", Std.parseInt(_) => len]: Sys.println(Sys.stdin().readString(len, UTF8));
 			case ["stdin.readUntil", Std.parseInt(_) => end]: Sys.println(Sys.stdin().readUntil(end));
-			case ["stderr.writeString", Std.parseInt(_) => d, mode]:
-			var stream = Sys.stderr(); stream.writeString(sequenceIndex(d, mode == "nfc")); stream.flush();
-			case ["stdout.writeString", Std.parseInt(_) => d, mode]:
-			var stream = Sys.stdout(); stream.writeString(sequenceIndex(d, mode == "nfc")); stream.flush();
+			case ["stderr.writeString", d, mode]:
+			var stream = Sys.stderr(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
+			case ["stdout.writeString", d, mode]:
+			var stream = Sys.stdout(); stream.writeString(sequenceIndex(d, mode)); stream.flush();
 			case ["programPath"]: Sys.println(Sys.programPath());
 			case _: // no-op
 		}
