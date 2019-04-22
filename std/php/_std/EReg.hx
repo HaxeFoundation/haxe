@@ -31,24 +31,46 @@ import php.*;
 	var pattern : String;
 	var options : String;
 	var re : String;
+	var reUnicode(get,never):String;
 	var matches : NativeIndexedArray<NativeIndexedArray<EitherType<Int,String>>>;
 
 	public function new( r : String, opt : String ) : Void {
 		this.pattern = r;
 		options = Global.str_replace('g', '', opt);
 		global = options != opt;
-		this.re = '"' + Global.str_replace('"', '\\"', r) + '"u' + options;
+		this.re = '"' + Global.str_replace('"', '\\"', r) + '"' + options;
 	}
 
 	public function match( s : String ) : Bool {
-		var p : Int = Global.preg_match(re, s, matches, Const.PREG_OFFSET_CAPTURE);
-
-		if (p > 0) {
+		var p = Global.preg_match(reUnicode, s, matches, Const.PREG_OFFSET_CAPTURE);
+		if(p == false) {
+			handlePregError();
+			p = Global.preg_match(re, s, matches, Const.PREG_OFFSET_CAPTURE);
+		}
+		if ((p:Int) > 0) {
 			last = s;
 		} else {
 			last = null;
 		}
-		return p > 0;
+		return (p:Int) > 0;
+	}
+
+	function handlePregError():Void {
+		var e = Global.preg_last_error();
+		if(e == Const.PREG_INTERNAL_ERROR) {
+			throw 'EReg: internal PCRE error';
+		} else if(e == Const.PREG_BACKTRACK_LIMIT_ERROR) {
+			throw 'EReg: backtrack limit';
+		} else if(e == Const.PREG_RECURSION_LIMIT_ERROR) {
+			throw 'EReg: recursion limit';
+		} else if(e == Const.PREG_JIT_STACKLIMIT_ERROR) {
+			throw 'failed due to limited JIT stack space';
+		}
+		// else if(e == PREG_BAD_UTF8_ERROR) {
+		// 	throw 'EReg: malformed UTF8';
+		// } else if(e == PREG_BAD_UTF8_OFFSET_ERROR) {
+		// 	throw 'EReg: the offset didn\'t correspond to the begin of a valid UTF-8 code point';
+		// }
 	}
 
 	public function matched( n : Int ) : String {
@@ -80,18 +102,26 @@ import php.*;
 
 	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
 		var subject = len < 0 ? s : s.substr(0, pos + len);
-		var p : Int = Global.preg_match(re, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);
-		if(p > 0) {
+		var p = Global.preg_match(reUnicode, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);
+		if(p == false) {
+			handlePregError();
+			p = Global.preg_match(re, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);
+		}
+		if((p:Int) > 0) {
 			last = s;
 		}
 		else {
 			last = null;
 		}
-		return p > 0;
+		return (p:Int) > 0;
 	}
 
 	public function split( s : String ) : Array<String> {
-		var parts:NativeArray = Global.preg_split(re, s, (global ? -1 : 2));
+		var parts:NativeArray = Global.preg_split(reUnicode, s, (global ? -1 : 2));
+		if(parts == null) {
+			handlePregError();
+			parts = Global.preg_split(re, s, (global ? -1 : 2));
+		}
 		return @:privateAccess Array.wrap(parts);
 	}
 
@@ -101,7 +131,12 @@ import php.*;
 		if (!Global.preg_match('/\\\\([^?].*?\\\\)/', re)) {
 			by = Global.preg_replace('/\\$(\\d+)/', '\\$\\1', by);
 		}
-		return Global.preg_replace(re, by, s, global ? -1 : 1);
+		var result = Global.preg_replace(reUnicode, by, s, global ? -1 : 1);
+		if(result == null) {
+			handlePregError();
+			result = Global.preg_replace(re, by, s, global ? -1 : 1);
+		}
+		return result;
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {
@@ -134,5 +169,9 @@ import php.*;
 
 	public static inline function escape( s : String ) : String {
 		return Global.preg_quote(s);
+	}
+
+	inline function get_reUnicode():String {
+		return Syntax.concat(re, 'u');
 	}
 }

@@ -30,6 +30,7 @@ open Error
 let parse_file_from_lexbuf com file p lexbuf =
 	let t = Timer.timer ["parsing"] in
 	Lexer.init file true;
+	com.needs_generation <- true;
 	incr stats.s_files_parsed;
 	let parse_result = try
 		ParserEntry.parse com.defines lexbuf file
