@@ -72,7 +72,7 @@
     "name": "Bind",
     "metadata": ":bind",
     "doc": "Override SWF class declaration",
-    "platforms": "flash",
+    "platforms": ["flash"],
     "targets": ["TClass"]
   },
   {
