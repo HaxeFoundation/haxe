@@ -22,6 +22,7 @@ MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
 OUTPUT=haxe
+PREBUILD_OUTPUT=prebuild
 EXTENSION=
 LFLAGS=
 STATICLINK?=0
@@ -30,6 +31,7 @@ STATICLINK?=0
 
 # Modules in these directories should only depend on modules that are in directories to the left
 HAXE_DIRECTORIES=core core/json core/display syntax context context/display codegen codegen/gencommon generators optimization filters macro macro/eval typing compiler
+PREBUILD_MODULES=_build/src/core/json/json _build/src/prebuild/main
 EXTLIB_LIBS=extlib-leftovers extc neko javalib swflib ttflib ilib objsize pcre ziplib
 OCAML_LIBS=unix str threads dynlink
 OPAM_LIBS=sedlex xml-light extlib ptmap sha
@@ -130,7 +132,18 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
+_build/src/core/defineList.ml: src-json/define.json prebuild
+	./$(PREBUILD_OUTPUT) define $< > $@
+
+_build/src/core/metaList.ml: src-json/meta.json prebuild
+	./$(PREBUILD_OUTPUT) meta $< > $@
+
+_build/src/prebuild/main.ml: _build/src/core/json/json.ml
+
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
+
+prebuild: $(PREBUILD_MODULES:%=%.$(MODULE_EXT))
+	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(PREBUILD_MODULES:%=%.$(MODULE_EXT))
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
@@ -297,10 +310,10 @@ clean_libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
 
 clean_haxe:
-	rm -f -r _build $(OUTPUT)
+	rm -f -r _build $(OUTPUT) $(PREBUILD_OUTPUT)
 
 clean_tools:
-	rm -f $(OUTPUT) haxelib
+	rm -f $(OUTPUT) $(PREBUILD_OUTPUT) haxelib
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
@@ -315,4 +328,4 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: haxe libs haxelib
+.PHONY: prebuild haxe libs haxelib
