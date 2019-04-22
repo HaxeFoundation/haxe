@@ -38,10 +38,8 @@ let get_documentation d =
 		let params = ref [] and used = ref [] and pfs = ref [] in
 		List.iter (function
 			| HasParam s -> params := s :: !params
-			| Platform f -> pfs := f :: !pfs
 			| Platforms fl -> pfs := fl @ !pfs
-			| UsedOn u -> used := u :: !used
-			| UsedOnEither ul -> used := ul @ !used
+			| UsedOn ul -> used := ul @ !used
 			| UsedInternally -> assert false
 		) flags;
 		let params = (match List.rev !params with

@@ -15,7 +15,6 @@ let get_documentation_list() =
 			let pfs = ref [] in
 			List.iter (function
 			| HasParam s -> () (* TODO *)
-			| Platform p -> pfs := p :: !pfs;
 			| Platforms pl -> pfs := pl @ !pfs;
 			) flags;
 			let pfs = platform_list_help (List.rev !pfs) in

@@ -102,7 +102,6 @@ let parse_file_array path map =
 
 let gen_platforms = function
 	| [] -> []
-	| [platform] -> ["Platform " ^ platform]
 	| platforms -> ["Platforms [" ^ (String.concat ";" platforms) ^ "]"]
 
 let gen_params = List.map (function param -> "HasParam \"" ^ param ^ "\"" )
@@ -132,8 +131,7 @@ let gen_meta_info metas =
 			let params_str = gen_params params in
 			let targets_str = (match targets with
 				| [] -> []
-				| [target] -> ["UsedOn " ^ target]
-				| targets -> ["UsedOnEither [" ^ (String.concat ";" targets) ^ "]"]
+				| targets -> ["UsedOn [" ^ (String.concat ";" targets) ^ "]"]
 			) in
 			let internal_str = if internal then ["UsedInternally"] else [] in
 			let name = (match name with
@@ -154,7 +152,6 @@ open Globals
 
 type define_parameter =
 	| HasParam of string
-	| Platform of platform
 	| Platforms of platform list
 
 "
@@ -176,10 +173,8 @@ type meta_usage =
 
 type meta_parameter =
 	| HasParam of string
-	| Platform of platform
 	| Platforms of platform list
-	| UsedOn of meta_usage
-	| UsedOnEither of meta_usage list
+	| UsedOn of meta_usage list
 	| UsedInternally
 
 "

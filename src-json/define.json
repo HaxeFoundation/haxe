@@ -283,7 +283,7 @@
 	{
 		"name": "KeepOldOutput",
 		"define": "keep_old_output",
-		"doc": "Keep old source files in the output directory (for C#/Java)",
+		"doc": "Keep old source files in the output directory",
 		"platforms": ["cs", "java"]
 	},
 	{
