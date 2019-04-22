@@ -21,11 +21,8 @@ printf "\x01\n"\
 "\xED\x9F\xBF\n"\
 "\xEE\x80\x80\n"\
 "\xEF\xBF\xBD\n"\
-"\xC8\xA7\n"\
-"\x61\n"\
-"\x62\n"\
-"\x63\n"\
-"\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99" > "test-res/data.bin"
+"\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99\n"\
+"\xC8\xA7" > "test-res/data.bin"
 
 function filenames() { # run a command or function with all test patterns
     # codepoint and UTF-8 bytes listed below
@@ -122,7 +119,7 @@ function symLinkFill() { # symlinks used to test programPath and fullPath
     ln -s ../../bin/java/UtilityProcess-Debug.jar bin-java
     ln -s ../../bin/neko/sys.n bin-neko
     ln -s ../../bin/php/Main bin-php
-    ln -s ../../bin/python/sys.py bin-py
+    ln -s ../../bin/python/UtilityProcess.py bin-py
     popd
 }
 

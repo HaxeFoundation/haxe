@@ -161,27 +161,23 @@ class TestUnicode extends utest.Test {
 	}
 
 	function showUString(str:String):String {
-		return
-#if cpp
-			// printing the strings directly makes cpp crash?
-			'${unicodeCodepoints(str)}';
-#else
-			str;
-#end
+		return '$str (${unicodeCodepoints(str)})';
 	}
 
-	function assertUEnds(actual:String, expected:String, ?alt:String):Void {
+	function assertUEnds(actual:String, expected:String, ?alt:String, ?pos:haxe.PosInfos):Void {
 		Assert.isTrue(
 			StringTools.endsWith(actual, expected) || (alt != null ? StringTools.endsWith(actual, alt) : false),
 			'expected ${showUString(actual)} to end with ${showUString(expected)}'
-			+ (alt != null ? ' or ${showUString(alt)}' : "")
+			+ (alt != null ? ' or ${showUString(alt)}' : ""),
+			pos
 		);
 	}
 
-	function assertUEquals(actual:String, expected:String, ?msg:String):Void {
+	function assertUEquals(actual:String, expected:String, ?msg:String, ?pos:haxe.PosInfos):Void {
 		Assert.equals(
 			expected, actual,
-			'expected ${showUString(actual)} to be ${showUString(expected)}'
+			'expected ${showUString(actual)} to be ${showUString(expected)}',
+			pos
 		);
 	}
 
@@ -211,12 +207,12 @@ class TestUnicode extends utest.Test {
 		}
 	}
 
-	function assertNormalEither(f:String->Bool, path:String, ?msg:String):Void {
+	function assertNormalEither(f:String->Bool, path:String, ?msg:String, ?pos:haxe.PosInfos):Void {
 		for (filename in names) Assert.isTrue(switch (filename) {
 			case Only(codepointsToString(_) => ref): f('$path/$ref');
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
 			f('$path/$nfc') || f('$path/$nfd');
-		}, '$msg ($filename in $path)');
+		}, '$msg ($filename in $path)', pos);
 	}
 
 	function runUtility(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):{
@@ -286,7 +282,7 @@ class TestUnicode extends utest.Test {
 #end
 
 		// programPath
-#if !(java) // Java resolves symlinked jars
+#if !(java || python) // these targets resolve symlinked files
 		pathBoth(path -> {
 				assertUEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
 			}, "test-res");
@@ -344,7 +340,7 @@ class TestUnicode extends utest.Test {
 						{name: "bin-java", target: "/bin/java/UtilityProcess-Debug.jar"},
 						{name: "bin-neko", target: "/bin/neko/sys.n"},
 						{name: "bin-php", target: "/bin/php/Main"},
-						{name: "bin-py", target: "/bin/python/sys.py"}
+						{name: "bin-py", target: "/bin/python/UtilityProcess.py"}
 					]) assertUEnds(
 						sys.FileSystem.fullPath('$path/${symlink.name}'),
 						symlink.target
@@ -379,7 +375,7 @@ class TestUnicode extends utest.Test {
 		// stdin.readUntil
 		normalBoth(str -> {
 				// make sure the byte is not part of the test string 
-				assertUEquals(runUtility(["stdin.readUntil", "112"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
 			});
 
 		// stdout
