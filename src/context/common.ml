@@ -611,12 +611,40 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+		let f_dir = Filename.dirname f
+		and platform_ext = "." ^ (platform_name_macro ctx)
+		and is_core_api = defined ctx Define.CoreApi in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
-				if Sys.file_exists file then begin
+				let dir = Filename.dirname file in
+				let found = ref "" in
+				(try
+					Array.iter
+						(fun file_name ->
+							let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
+							if
+								is_core_api
+								|| (
+									platform_ext = Filename.extension (Filename.remove_extension file_name)
+									|| not (Hashtbl.mem ctx.file_lookup_cache current_f)
+								)
+							then begin
+								let full_path = Filename.concat dir file_name in
+								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+								if current_f = f then
+									found := full_path;
+							end
+						)
+						(Sys.readdir dir);
+				with
+					| Sys_error _ -> ()
+				);
+				if !found <> "" then !found
+				else loop (had_empty || p = "") l
+				(* if Sys.file_exists file then begin
 					(try
 						let ext = String.rindex file '.' in
 						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
@@ -624,7 +652,7 @@ let find_file ctx f =
 					with Not_found ->
 						file)
 				end else
-					loop (had_empty || p = "") l
+					loop (had_empty || p = "") l *)
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
