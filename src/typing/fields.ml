@@ -369,7 +369,7 @@ let rec type_field ?(resume=false) ctx e i p mode =
 				| MCall, _ ->
 					()
 				| MGet,Var _
-				| MSet,Var _ when (match c2 with Some ({ cl_extern = true; cl_path = ("flash" :: _,_) }, _) -> true | _ -> false) ->
+				| MSet,Var _ when ctx.com.platform = Flash && (match c2 with Some ({ cl_extern = true }, _) -> true | _ -> false) ->
 					()
 				| _, Method _ ->
 					display_error ctx "Cannot create closure on super method" p
