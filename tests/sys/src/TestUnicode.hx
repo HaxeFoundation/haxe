@@ -294,19 +294,35 @@ class TestUnicode extends utest.Test {
 	function testIO() {
 		// getBytes
 		assertBytesEqual(sys.io.File.getBytes("test-res/data.bin"), UnicodeSequences.validBytes);
+		pathBoth(path -> {
+				assertBytesEqual(sys.io.File.getBytes(path), UnicodeSequences.validBytes);
+			}, "test-res/b");
 
 		// getContent
 		assertUEquals(sys.io.File.getContent("test-res/data.bin"), UnicodeSequences.validString);
+		pathBoth(path -> {
+				assertUEquals(sys.io.File.getContent(path), UnicodeSequences.validString);
+			}, "test-res/b");
 
 		// saveContent
 		sys.io.File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
 		assertBytesEqual(sys.io.File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
+		UnicodeSequences.normalBoth(str -> {
+				sys.io.File.saveContent('temp-unicode/saveContent-$str.bin', UnicodeSequences.validString);
+				assertBytesEqual(sys.io.File.getBytes('temp-unicode/saveContent-$str.bin'), UnicodeSequences.validBytes);
+			});
 
 		// write
 		var out = sys.io.File.write("temp-unicode/out.bin");
 		out.writeString(UnicodeSequences.validString);
 		out.close();
 		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
+		UnicodeSequences.normalBoth(str -> {
+				var out = sys.io.File.write('temp-unicode/write-$str.bin');
+				out.writeString(UnicodeSequences.validString);
+				out.close();
+				assertBytesEqual(sys.io.File.getBytes('temp-unicode/write-$str.bin'), UnicodeSequences.validBytes);
+			});
 
 		// update
 		var out = sys.io.File.update("temp-unicode/out.bin");
