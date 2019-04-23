@@ -251,16 +251,27 @@ class TestUnicode extends utest.Test {
 			});
 	}
 
+	function setupClass() {
+		sys.FileSystem.createDirectory("temp-unicode");
+	}
+
+	function teardownClass() {
+		for (file in sys.FileSystem.readDirectory("temp-unicode")) {
+			sys.FileSystem.deleteFile('temp-unicode/$file');
+		}
+		sys.FileSystem.deleteDirectory("temp-unicode");
+	}
+
 	function testIO() {
 		// getBytes
 		assertBytesEqual(sys.io.File.getBytes("test-res/data.bin"), UnicodeSequences.validBytes);
 
 		// getContent
-		var lines = sys.io.File.getContent("test-res/data.bin").split("\n");
-		UnicodeSequences.normalNFC(str -> {
-				var line = lines.shift();
-				assertUEquals(line, str);
-			});
+		assertUEquals(sys.io.File.getContent("test-res/data.bin"), UnicodeSequences.validString);
+
+		// saveContent
+		sys.io.File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
+		assertBytesEqual(sys.io.File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
 
 		// readLine
 		var data = sys.io.File.read("test-res/data.bin");

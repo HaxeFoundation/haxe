@@ -17,12 +17,12 @@ class UnicodeSequences {
 		Only([0xE000]),
 		Only([0xFFFD])
 	];
-	
+
 	// NFC / NFD
 	public static var normal:Array<UnicodeString> = [
 		Normal([0x0227], [0x0061, 0x0307])
 	];
-	
+
 	// non-BMP characters (U+10000 and larger), not fully supported
 	public static var nonBMP:Array<UnicodeString> = [
 		Only([0x10000]),
@@ -31,14 +31,14 @@ class UnicodeSequences {
 		Only([0x100000]),
 		Only([0x10FFFF])
 	];
-	
+
 	// valid sequences
 	public static var valid:Array<UnicodeString> =
 		boundary
 		// .concat(nonBMP)
 		.concat([Only([0x1F602, 0x1F604, 0x1F619])]) // important (non-BMP) emoji
 		.concat(normal);
-	
+
 	public static var validBytes = haxe.io.Bytes.ofHex(
 			"010A" +
 			"7F0A" +
@@ -51,7 +51,19 @@ class UnicodeSequences {
 			"F09F9882F09F9884F09F98990A" +
 			"C8A70A"
 		);
-	
+
+	public static var validString =
+		"\u0001\n" +
+		"\u007F\n" +
+		"\u0080\n" +
+		"\u07FF\n" +
+		"\u0800\n" +
+		"\uD7FF\n" +
+		"\uE000\n" +
+		"\uFFFD\n" +
+		"\u{1F602}\u{1F604}\u{1F619}\n" +
+		"\u0227\n";
+
 	// invalid sequences
 	public static var invalid:Array<UnicodeString> = [
 		Only([0xFFFE]),
