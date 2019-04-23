@@ -273,6 +273,28 @@ class TestUnicode extends utest.Test {
 		sys.io.File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
 		assertBytesEqual(sys.io.File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
 
+		// write
+		var out = sys.io.File.write("temp-unicode/out.bin");
+		out.writeString(UnicodeSequences.validString);
+		out.close();
+		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
+
+		// update
+		var out = sys.io.File.update("temp-unicode/out.bin");
+		out.seek(0, SeekBegin);
+		out.writeString(UnicodeSequences.validString);
+		out.close();
+		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
+
+		// append
+		var out = sys.io.File.append("temp-unicode/out.bin");
+		out.writeString(UnicodeSequences.validString);
+		out.close();
+		var repeated = Bytes.alloc(UnicodeSequences.validBytes.length * 2);
+		repeated.blit(0, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
+		repeated.blit(UnicodeSequences.validBytes.length, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
+		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), repeated);
+
 		// readLine
 		var data = sys.io.File.read("test-res/data.bin");
 		UnicodeSequences.normalNFC(str -> {
