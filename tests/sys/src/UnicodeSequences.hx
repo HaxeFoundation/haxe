@@ -39,6 +39,19 @@ class UnicodeSequences {
 		.concat([Only([0x1F602, 0x1F604, 0x1F619])]) // important (non-BMP) emoji
 		.concat(normal);
 	
+	public static var validBytes = haxe.io.Bytes.ofHex(
+			"010A" +
+			"7F0A" +
+			"C2800A" +
+			"DFBF0A" +
+			"E0A0800A" +
+			"ED9FBF0A" +
+			"EE80800A" +
+			"EFBFBD0A" +
+			"F09F9882F09F9884F09F98990A" +
+			"C8A70A"
+		);
+	
 	// invalid sequences
 	public static var invalid:Array<UnicodeString> = [
 		Only([0xFFFE]),

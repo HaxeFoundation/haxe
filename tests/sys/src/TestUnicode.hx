@@ -70,7 +70,15 @@ class TestUnicode extends utest.Test {
 	function assertUEquals(actual:String, expected:String, ?msg:String, ?pos:haxe.PosInfos):Void {
 		Assert.equals(
 			expected, actual,
-			'expected ${showUnicodeString(actual)} to be ${showUnicodeString(expected)}',
+			msg != null ? msg : 'expected ${showUnicodeString(actual)} to be ${showUnicodeString(expected)}',
+			pos
+		);
+	}
+
+	function assertBytesEqual(actual:Bytes, expected:Bytes, ?msg:String, ?pos:haxe.PosInfos):Void {
+		Assert.equals(
+			actual.compare(expected), 0,
+			msg != null ? msg : 'expected ${actual.toHex()} to be ${expected.toHex()}',
 			pos
 		);
 	}
@@ -244,6 +252,16 @@ class TestUnicode extends utest.Test {
 	}
 
 	function testIO() {
+		// getBytes
+		assertBytesEqual(sys.io.File.getBytes("test-res/data.bin"), UnicodeSequences.validBytes);
+
+		// getContent
+		var lines = sys.io.File.getContent("test-res/data.bin").split("\n");
+		UnicodeSequences.normalNFC(str -> {
+				var line = lines.shift();
+				assertUEquals(line, str);
+			});
+
 		// readLine
 		var data = sys.io.File.read("test-res/data.bin");
 		UnicodeSequences.normalNFC(str -> {
