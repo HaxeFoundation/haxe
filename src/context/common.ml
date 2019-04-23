@@ -644,15 +644,6 @@ let find_file ctx f =
 				);
 				if !found <> "" then !found
 				else loop (had_empty || p = "") l
-				(* if Sys.file_exists file then begin
-					(try
-						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
-						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
-					with Not_found ->
-						file)
-				end else
-					loop (had_empty || p = "") l *)
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
