@@ -425,11 +425,12 @@ and expr_field dce e fa is_call_expr =
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
 			| _ -> ());
-			begin match follow e.etype with
-				| TInst(c,_) ->
+			begin match follow e.etype, fa with
+				| TInst(c,_), _
+				| _, FClosure (Some (c, _), _) ->
 					mark_class dce c;
 					field dce c n false;
-				| TAnon a ->
+				| TAnon a, _ ->
 					(match !(a.a_status) with
 					| Statics c ->
 						mark_class dce c;
