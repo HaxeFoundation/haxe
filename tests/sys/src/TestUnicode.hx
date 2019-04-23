@@ -204,6 +204,35 @@ class TestUnicode extends utest.Test {
 				Assert.equals(haxe.io.Path.normalize('a/../$str'), str);
 				Assert.equals(haxe.io.Path.normalize('$str/a/..'), str);
 			});
+
+		// rename
+		sys.io.File.copy("test-res/data.bin", "temp-unicode/rename-me");
+		UnicodeSequences.normalBoth(str -> {
+				sys.FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
+				Assert.isFalse(sys.FileSystem.exists('temp-unicode/rename-me'));
+				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
+				sys.FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
+			});
+
+		UnicodeSequences.normalBoth(str -> {
+				// copy
+				sys.io.File.copy("test-res/data.bin", 'temp-unicode/$str');
+				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
+				assertBytesEqual(sys.io.File.getBytes('temp-unicode/$str'), UnicodeSequences.validBytes);
+
+				// deleteFile
+				sys.FileSystem.deleteFile('temp-unicode/$str');
+				Assert.isFalse(sys.FileSystem.exists('temp-unicode/$str'));
+
+				// createDirectory
+				sys.FileSystem.createDirectory('temp-unicode/$str');
+				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
+				Assert.equals(sys.FileSystem.readDirectory('temp-unicode/$str').length, 0);
+
+				// deleteDirectory
+				sys.FileSystem.deleteDirectory('temp-unicode/$str');
+				Assert.isFalse(sys.FileSystem.exists('temp-unicode/$str'));
+			});
 	}
 
 	function testIPC() {
