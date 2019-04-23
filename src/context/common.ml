@@ -625,14 +625,17 @@ let find_file ctx f =
 					Array.iter
 						(fun file_name ->
 							let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
+							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
 							if
 								is_core_api
 								|| (
 									platform_ext = Filename.extension (Filename.remove_extension file_name)
-									|| not (Hashtbl.mem ctx.file_lookup_cache current_f)
+									|| not is_cached
 								)
 							then begin
 								let full_path = Filename.concat dir file_name in
+								if is_cached then
+									Hashtbl.remove ctx.file_lookup_cache current_f;
 								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
 								if current_f = f then
 									found := full_path;
