@@ -115,6 +115,7 @@ class UtilityProcess {
 			Sys.exit(out.exitCode);
 			case ["getCwd"]: Sys.println(Sys.getCwd());
 			case ["getEnv", name]: Sys.println(Sys.getEnv(name));
+			case ["environment", name]: Sys.println(Sys.environment().get(name));
 			case ["exitCode", Std.parseInt(_) => code]: Sys.exit(code);
 			case ["args", data]: Sys.println(data);
 			case ["println", d, mode]: Sys.println(sequenceIndex(d, mode));

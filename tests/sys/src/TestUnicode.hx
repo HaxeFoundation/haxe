@@ -218,6 +218,8 @@ class TestUnicode extends utest.Test {
 #if !(java)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, '$str\n');
+				// putEnv + environment
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, '$str\n');
 #end
 			});
 
