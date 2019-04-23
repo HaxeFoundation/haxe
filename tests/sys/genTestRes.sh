@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Generates files and directories in test-res used for Unicode sys tests.
+# The test vector printf'ed into data.bin, as well as the names in filenames()
+# should correspond exactly to the sequences in UnicodeSequences.valid.
 
 # https://stackoverflow.com/questions/4774054/reliable-way-for-a-bash-script-to-get-the-full-path-to-itself
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -12,7 +14,6 @@ cd "$SCRIPTPATH"
 mkdir -p test-res
 
 # generate files with Unicode data
-# disabled non-BMP: \n\xF0\x9F\xBF\xBF\n\xF3\xBF\xBF\xBF\n\xF4\x80\x80\x80\n\xF4\x8F\xBF\xBF
 printf "\x01\n"\
 "\x7F\n"\
 "\xC2\x80\n"\
@@ -22,7 +23,7 @@ printf "\x01\n"\
 "\xEE\x80\x80\n"\
 "\xEF\xBF\xBD\n"\
 "\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99\n"\
-"\xC8\xA7" > "test-res/data.bin"
+"\xC8\xA7\n" > "test-res/data.bin"
 
 function filenames() { # run a command or function with all test patterns
     # codepoint and UTF-8 bytes listed below

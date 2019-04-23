@@ -94,7 +94,7 @@ class TestUnicode extends utest.Test {
 	}
 
 #if (target.unicode)
-	function testPaths() {
+	function testFilesystem() {
 #if !(java)
 		// setCwd + getCwd
 		Sys.setCwd("test-res");
@@ -182,9 +182,23 @@ class TestUnicode extends utest.Test {
 		// stat
 		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
 		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
+
+		// path
+		UnicodeSequences.normalBoth(str -> {
+				Assert.equals(new haxe.io.Path('$str/a.b').dir, str);
+				Assert.equals(haxe.io.Path.directory('$str/a.b'), str);
+				Assert.equals(new haxe.io.Path('a/$str.b').file, str);
+				Assert.equals(new haxe.io.Path('a/b.$str').ext, str);
+				Assert.equals(haxe.io.Path.extension('a/b.$str'), str);
+				Assert.equals(haxe.io.Path.join([str, "a"]), '$str/a');
+				Assert.equals(haxe.io.Path.join(["a", str]), 'a/$str');
+				Assert.equals(haxe.io.Path.addTrailingSlash(str), '$str/');
+				Assert.equals(haxe.io.Path.normalize('a/../$str'), str);
+				Assert.equals(haxe.io.Path.normalize('$str/a/..'), str);
+			});
 	}
 
-	function testIO() {
+	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
@@ -227,7 +241,9 @@ class TestUnicode extends utest.Test {
 		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["args", str]).stdout, '$str\n');
 			});
+	}
 
+	function testIO() {
 		// readLine
 		var data = sys.io.File.read("test-res/data.bin");
 		UnicodeSequences.normalNFC(str -> {
