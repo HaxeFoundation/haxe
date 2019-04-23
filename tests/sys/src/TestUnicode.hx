@@ -101,6 +101,19 @@ class TestUnicode extends utest.Test {
 		}, '$msg ($filename in $path)', pos);
 	}
 
+	function setupClass() {
+		sys.FileSystem.createDirectory("temp-unicode");
+		// TODO: Windows alternative
+		Sys.command("bash", ["genTestRes.sh"]);
+	}
+
+	function teardownClass() {
+		for (file in sys.FileSystem.readDirectory("temp-unicode")) {
+			sys.FileSystem.deleteFile('temp-unicode/$file');
+		}
+		sys.FileSystem.deleteDirectory("temp-unicode");
+	}
+
 #if (target.unicode)
 	function testFilesystem() {
 #if !(java)
@@ -278,17 +291,6 @@ class TestUnicode extends utest.Test {
 		UnicodeSequences.normalBoth(str -> {
 				assertUEquals(runUtility(["args", str]).stdout, '$str\n');
 			});
-	}
-
-	function setupClass() {
-		sys.FileSystem.createDirectory("temp-unicode");
-	}
-
-	function teardownClass() {
-		for (file in sys.FileSystem.readDirectory("temp-unicode")) {
-			sys.FileSystem.deleteFile('temp-unicode/$file');
-		}
-		sys.FileSystem.deleteDirectory("temp-unicode");
 	}
 
 	function testIO() {
