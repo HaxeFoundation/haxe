@@ -234,6 +234,22 @@ class TestUnicode extends utest.Test {
 				var line = data.readLine();
 				assertUEquals(line, str);
 			});
+
+		// readString
+		data.seek(0, SeekBegin);
+		UnicodeSequences.normalNFC(str -> {
+				// FIXME: readString of UTF8 should read n characters, not bytes? #8199
+				var byteLength = Bytes.ofString(str).length;
+				var line = data.readString(byteLength + 1); // + newline character
+				assertUEquals(line, '$str\n');
+			});
+
+		// readUntil
+		data.seek(0, SeekBegin);
+		UnicodeSequences.normalNFC(str -> {
+				var line = data.readUntil(0x0A);
+				assertUEquals(line, str);
+			});
 	}
 #end
 }
