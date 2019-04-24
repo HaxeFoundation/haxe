@@ -2,6 +2,7 @@ PLATFORM=win
 MAKEFILENAME=Makefile.win
 include Makefile
 OUTPUT=haxe.exe
+PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
 
