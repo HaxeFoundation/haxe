@@ -138,16 +138,10 @@ _build/src/core/defineList.ml: src-json/define.json prebuild
 _build/src/core/metaList.ml: src-json/meta.json prebuild
 	./$(PREBUILD_OUTPUT) meta $< > $@
 
-_build/src/prebuild/main.ml: _build/src/core/json/json.ml
-
-_build/src/core/json/json.cmx:
-
-_build/src/prebuild/main.cmx: _build/src/core/json/json.cmx
-
 build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
 
-prebuild: $(PREBUILD_MODULES:%=%.$(MODULE_EXT))
-	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) $(NATIVE_LIBS) $(NATIVE_LIB_FLAG) $(LFLAGS) $(FINDLIB_PACKAGES) $(EXTLIB_INCLUDES) $(EXTLIB_LIBS:=.$(LIB_EXT)) $(PREBUILD_MODULES:%=%.$(MODULE_EXT))
+prebuild: _build/src/core/json/json.$(MODULE_EXT) _build/src/core/json/json.ml _build/src/prebuild/main.ml
+	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex -package extlib -I _build/src/core/json _build/src/core/json/json.$(MODULE_EXT) _build/src/prebuild/main.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
