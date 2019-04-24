@@ -139,6 +139,7 @@ _build/src/core/metaList.ml: src-json/meta.json prebuild
 	./$(PREBUILD_OUTPUT) meta $< > $@
 
 _build/src/prebuild/main.ml: _build/src/core/json/json.ml
+_build/src/prebuild/main.cmx: _build/src/core/json/json.cmx
 
 build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
 
