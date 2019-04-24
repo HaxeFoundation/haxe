@@ -149,6 +149,7 @@ and generate_metadata_entry ctx (m,el,p) =
 	jobject [
 		"name",jstring (Meta.to_string m);
 		"params",jlist (generate_expr ctx) el;
+		"pos",generate_pos ctx p;
 	]
 
 and generate_metadata ctx ml =
