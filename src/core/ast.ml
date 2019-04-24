@@ -524,6 +524,8 @@ let unescape s =
 							| Invalid_escape_sequence (c,i,msg) as e -> raise e
 							| _ -> fail_no_hex ()
 					in
+					if u >= 0xD800 && u < 0xE000 then
+						fail (Some "UTF-16 surrogates are not allowed in strings.");
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
