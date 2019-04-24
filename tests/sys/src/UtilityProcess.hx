@@ -19,6 +19,8 @@ class UtilityProcess {
 		"bin/php";
 #elseif python
 		"bin/python";
+#elseif eval
+		"src";
 #else
 		null;
 #end
@@ -49,6 +51,8 @@ class UtilityProcess {
 		"UtilityProcess/index.php";
 #elseif python
 		"UtilityProcess.py";
+#elseif eval
+		"UtilityProcess.hx";
 #else
 		null;
 #end
@@ -64,7 +68,7 @@ class UtilityProcess {
 		var execFull = '${options.execPath}/${options.execName}';
 		var proc =
 		#if (macro || interp)
-		new sys.io.Process("haxe", ["compile-each.hxml", "--run", execFull].concat(args));
+		new sys.io.Process("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
 		#elseif cpp
 		new sys.io.Process(execFull, args);
 		#elseif cs
@@ -93,10 +97,14 @@ class UtilityProcess {
 			proc.stdin.writeString(options.stdin);
 			proc.stdin.flush();
 		}
+		var exitCode = proc.exitCode();
+		var stdout = proc.stdout.readAll().toString();
+		var stderr = proc.stderr.readAll().toString();
+		proc.close();
 		return {
-			exitCode: proc.exitCode(),
-			stdout: proc.stdout.readAll().toString(),
-			stderr: proc.stderr.readAll().toString()
+			exitCode: exitCode,
+			stdout: stdout,
+			stderr: stderr
 		};
 	}
 	

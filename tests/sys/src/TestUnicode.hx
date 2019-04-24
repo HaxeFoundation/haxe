@@ -8,19 +8,33 @@ import UtilityProcess.runUtility;
 class TestUnicode extends utest.Test {
 	static var BIN_SYMLINK =
 #if cpp
-		"bin-cpp";
+		#if debug
+			"bin-cpp-debug";
+		#else
+			"bin-cpp";
+		#end
 #elseif cs
-		"bin-cs";
+		#if debug
+			"bin-cs-debug";
+		#else
+			"bin-cs";
+		#end
 #elseif hl
 		"bin-hl";
 #elseif java
-		"bin-java";
+		#if debug
+			"bin-java-debug";
+		#else
+			"bin-java";
+		#end
 #elseif neko
 		"bin-neko";
 #elseif php
 		"bin-php";
 #elseif python
 		"bin-py";
+#elseif eval
+		"bin-eval";
 #else
 		null;
 #end
@@ -121,7 +135,7 @@ class TestUnicode extends utest.Test {
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
 			Sys.setCwd(dir);
-			assertUEnds(Sys.getCwd(), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
+			assertUEnds(haxe.io.Path.removeTrailingSlashes(Sys.getCwd()), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
 			Sys.setCwd("..");
 		}
 		for (filename in names) switch (filename) {
@@ -134,7 +148,7 @@ class TestUnicode extends utest.Test {
 #end
 
 		// programPath
-#if !(java || python) // these targets resolve symlinked files
+#if !(java || python || eval) // Java and Python resolve symlinked files, eval doesn't make sense here
 		pathBoth(path -> {
 				assertUEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
 			}, "test-res");
@@ -256,7 +270,6 @@ class TestUnicode extends utest.Test {
 
 		// stdin.readString
 		UnicodeSequences.normalBoth(str -> {
-				// FIXME: readString of UTF8 should maybe read n characters, not bytes? #8199
 				var byteLength = Bytes.ofString(str).length;
 				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, '$str\n');
 			});
@@ -352,7 +365,6 @@ class TestUnicode extends utest.Test {
 		// readString
 		data.seek(0, SeekBegin);
 		UnicodeSequences.normalNFC(str -> {
-				// FIXME: readString of UTF8 should read n characters, not bytes? #8199
 				var byteLength = Bytes.ofString(str).length;
 				var line = data.readString(byteLength + 1); // + newline character
 				assertUEquals(line, '$str\n');
