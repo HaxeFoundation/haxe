@@ -119,6 +119,7 @@ function symLinkFill() { # symlinks used to test programPath and fullPath
     ln -s ../../bin/cs/bin/UtilityProcess-Debug.exe bin-cs-debug
     ln -s ../../bin/cs/bin/UtilityProcess.exe bin-cs
     ln -s ../../bin/hl/UtilityProcess.hl bin-hl
+    ln -s ../../bin/lua/UtilityProcess.lua bin-lua
     ln -s ../../bin/java/UtilityProcess-Debug.jar bin-java-debug
     ln -s ../../bin/java/UtilityProcess.jar bin-java
     ln -s ../../bin/neko/UtilityProcess.n bin-neko

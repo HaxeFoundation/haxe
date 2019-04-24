@@ -21,6 +21,8 @@ class TestUnicode extends utest.Test {
 		#end
 #elseif hl
 		"bin-hl";
+#elseif lua
+		"bin-lua";
 #elseif java
 		#if debug
 			"bin-java-debug";

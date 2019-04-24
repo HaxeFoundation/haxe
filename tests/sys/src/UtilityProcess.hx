@@ -11,6 +11,8 @@ class UtilityProcess {
 		"bin/cs/bin";
 #elseif hl
 		"bin/hl";
+#elseif lua
+		"bin/lua";
 #elseif java
 		"bin/java";
 #elseif neko
@@ -39,6 +41,8 @@ class UtilityProcess {
 		#end
 #elseif hl
 		"UtilityProcess.hl";
+#elseif lua
+		"UtilityProcess.lua";
 #elseif java
 		#if debug
 			"UtilityProcess-Debug.jar";
