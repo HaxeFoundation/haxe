@@ -11,6 +11,7 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
+	jsonrpc : Jsonrpc_handler.jsonrpc_handler option
 }
 
 let jnull = Json.JNull
@@ -160,10 +161,16 @@ and generate_metadata ctx ml =
 	jlist (generate_metadata_entry ctx) ml
 
 and generate_minimum_metadata ctx ml =
-	let ml = List.filter (fun (m,_,_) ->
-		m = Meta.Deprecated
-	) ml in
-	jlist (generate_metadata_entry ctx) ml
+	match ctx.jsonrpc with
+		| None -> jarray []
+		| Some jsonrpc ->
+			let requested = jsonrpc#get_requested_meta_list in
+			let ml =
+				List.filter
+					(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
+					ml
+			in
+			jlist (generate_metadata_entry ctx) ml
 
 (* AST.ml structures *)
 
@@ -678,9 +685,10 @@ let generate_module ctx m =
 		]) :: acc) m.m_extra.m_deps []);
 	]
 
-let create_context gm = {
+let create_context ?jsonrpc gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
+	jsonrpc = jsonrpc
 }
 
 let generate types file =

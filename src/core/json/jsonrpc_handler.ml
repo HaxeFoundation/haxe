@@ -11,6 +11,7 @@ class jsonrpc_handler (id,name,params) = object(self)
 	val params = match params with
 		| Some json -> json
 		| None -> JNull
+	val mutable requested_meta_list = None
 
 	method get_id = id
 	method get_method_name = method_name
@@ -83,4 +84,17 @@ class jsonrpc_handler (id,name,params) = object(self)
 		try f() with JsonRpc_error _ -> def
 
 	method get_params = params
+
+	method get_requested_meta_list : string list =
+		match requested_meta_list with
+			| Some result -> result
+			| None ->
+				let result =
+					self#get_opt_param
+						(fun () -> List.map (self#get_string "Metadata name") (self#get_array_param "meta"))
+						[]
+				in
+				requested_meta_list <- Some result;
+				result
+
 end
