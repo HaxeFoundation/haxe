@@ -149,13 +149,18 @@ and generate_metadata_entry ctx (m,el,p) =
 	jobject [
 		"name",jstring (Meta.to_string m);
 		"params",jlist (generate_expr ctx) el;
-		"pos",generate_pos ctx p;
 	]
 
 and generate_metadata ctx ml =
 	let ml = List.filter (fun (m,_,_) ->
 		let (_,(_,flags)) = Meta.get_info m in
 		not (List.mem UsedInternally flags)
+	) ml in
+	jlist (generate_metadata_entry ctx) ml
+
+and generate_minimum_metadata ctx ml =
+	let ml = List.filter (fun (m,_,_) ->
+		m = Meta.Deprecated
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
 
