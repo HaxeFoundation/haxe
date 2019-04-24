@@ -149,13 +149,6 @@ class TestUnicode extends utest.Test {
 		Sys.setCwd("..");
 #end
 
-		// programPath
-#if !(cs || java || python || eval) // C#, Java, and Python resolve symlinked files, eval doesn't make sense here
-		pathBoth(path -> {
-				assertUEnds(runUtility(["programPath"], {execPath: path, execName: BIN_SYMLINK}).stdout, '$path/${BIN_SYMLINK}\n');
-			}, "test-res");
-#end
-
 		// absolutePath
 		pathBoth(path -> {
 				for (relative in [
