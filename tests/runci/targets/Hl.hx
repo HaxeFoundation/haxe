@@ -58,6 +58,8 @@ class Hl {
 		// runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
 		// runCommand("hl", ["export/threads.hl"]);
 
-        // TODO sys test
+        changeDirectory(sysDir);
+        runCommand("haxe", ["compile-hl.hxml"]);
+        runCommand("hl", ["bin/hl/sys.hl"]);
     }
 }
