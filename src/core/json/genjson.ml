@@ -11,7 +11,7 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
-	jsonrpc : Jsonrpc_handler.jsonrpc_handler option
+	request : JsonRequest.json_request option
 }
 
 let jnull = Json.JNull
@@ -161,10 +161,10 @@ and generate_metadata ctx ml =
 	jlist (generate_metadata_entry ctx) ml
 
 and generate_minimum_metadata ctx ml =
-	match ctx.jsonrpc with
+	match ctx.request with
 		| None -> jarray []
-		| Some jsonrpc ->
-			let requested = jsonrpc#get_requested_meta_list in
+		| Some request ->
+			let requested = request#get_requested_meta_list in
 			let ml =
 				List.filter
 					(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
@@ -688,7 +688,7 @@ let generate_module ctx m =
 let create_context ?jsonrpc gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
-	jsonrpc = jsonrpc
+	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
 }
 
 let generate types file =
