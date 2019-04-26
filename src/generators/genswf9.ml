@@ -303,7 +303,14 @@ let make_class_ns c =
 	| [], n -> n
 	| p, n -> String.concat "." p ^ ":" ^ n
 
-let property ctx p t =
+let is_cf_protected cf = Meta.has Meta.Protected cf.cf_meta
+
+let property ctx fa t =
+	match fa with
+	| FStatic (c, cf) when is_cf_protected cf ->
+		HMName (reserved cf.cf_name, HNStaticProtected (Some (make_class_ns c))), None, false
+	| _ ->
+	let p = field_name fa in
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
@@ -364,7 +371,7 @@ let property ctx p t =
 
 let this_property fa =
 	match fa with
-	| FInstance (c,_,cf) | FClosure (Some (c,_),cf) when Meta.has Meta.Protected cf.cf_meta ->
+	| FInstance (c,_,cf) | FClosure (Some (c,_),cf) when is_cf_protected cf ->
 		HMName (reserved cf.cf_name, HNProtected (make_class_ns c))
 	| _ ->
 		ident (field_name fa)
@@ -891,7 +898,7 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 				id, None, false
 			| _ ->
 				gen_expr ctx true e1;
-				property ctx (field_name fa) e1.etype
+				property ctx fa e1.etype
 		in
 		if closure && not ctx.for_call then abort "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match k with
@@ -1524,7 +1531,7 @@ and gen_call ctx retval e el r =
 		let old = ctx.for_call in
 		ctx.for_call <- true;
 		gen_expr ctx true e1;
-		let id , _, _ = property ctx (field_name f) e1.etype in
+		let id , _, _ = property ctx f e1.etype in
 		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
 		if retval then begin
