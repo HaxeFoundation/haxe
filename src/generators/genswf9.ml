@@ -362,6 +362,13 @@ let property ctx p t =
 	| _ ->
 		ident p, None, false
 
+let this_property fa =
+	match fa with
+	| FInstance (c,_,cf) | FClosure (Some (c,_),cf) when Meta.has Meta.Protected cf.cf_meta ->
+		HMName (reserved cf.cf_name, HNProtected (make_class_ns c))
+	| _ ->
+		ident (field_name fa)
+
 let default_infos() =
 	{
 		ipos = 0;
@@ -864,11 +871,9 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
 		gen_local_access ctx v e.epos forset
-	| TField ({ eexpr = TConst TSuper } as e1,f) ->
-		let f = field_name f in
-		let id, _, _ = property ctx f e1.etype in
+	| TField ({ eexpr = TConst TSuper },f) ->
 		write ctx HThis;
-		VSuper id
+		VSuper (this_property f)
 	| TEnumParameter (e1,_,i) ->
 		gen_expr ctx true e1;
 		write ctx (HGetProp (ident "params"));
@@ -878,13 +883,17 @@ let rec gen_access ctx e (forset : 'a) : 'a access =
 		gen_expr ctx true e1;
 		VId (ident "index")
 	| TField (e1,fa) ->
-		let f = field_name fa in
-		let id, k, closure = property ctx f e1.etype in
+		let id, k, closure =
+			match e1.eexpr with
+			| TConst (TThis | TSuper) when not ctx.in_static ->
+				let id = this_property fa in
+				write ctx (HFindProp id);
+				id, None, false
+			| _ ->
+				gen_expr ctx true e1;
+				property ctx (field_name fa) e1.etype
+		in
 		if closure && not ctx.for_call then abort "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
-		(match e1.eexpr with
-		| TConst (TThis|TSuper) when not ctx.in_static ->
-			write ctx (HFindProp id)
-		| _ -> gen_expr ctx true e1);
 		(match k with
 		| Some t -> VCast (id,t)
 		| None ->
@@ -1497,13 +1506,13 @@ and gen_call ctx retval e el r =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField ({ eexpr = TConst TSuper },f) , _ ->
-		let id = ident (field_name f) in
+		let id = this_property f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallSuper (id,List.length el));
 		coerce ctx (classify ctx r);
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
-		let id = ident (field_name f) in
+		let id = this_property f in
 		write ctx (HFindProp id);
 		List.iter (gen_expr ctx true) el;
 		if retval then begin
