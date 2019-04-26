@@ -298,6 +298,11 @@ let ident i =
 let as3 p =
 	HMName (p,HNNamespace "http://adobe.com/AS3/2006/builtin")
 
+let make_class_ns c =
+	match c.cl_path with
+	| [], n -> n
+	| p, n -> String.concat "." p ^ ":" ^ n
+
 let property ctx p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
@@ -349,7 +354,7 @@ let property ctx p t =
 		in
 		(try
 			let c = loop c in
-			let ns = HMName (reserved p, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) in
+			let ns = HMName (reserved p, HNNamespace (make_class_ns c)) in
 			ns, None, false
 		with Not_found | Exit ->
 			ident p, None, false)
@@ -2076,7 +2081,7 @@ let generate_class ctx c =
 				| Some (c,_) -> find_meta c
 		in
 		let protect() =
-			let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
+			let p = make_class_ns c in
 			has_protected := Some p;
 			HMName (f.cf_name,HNProtected p)
 		in
@@ -2094,7 +2099,7 @@ let generate_class ctx c =
 				| _ -> loop_meta l
 		in
 		if c.cl_interface then
-			HMName (reserved f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
+			HMName (reserved f.cf_name, HNNamespace (make_class_ns c))
 		else
 			loop_meta (find_meta c)
 	in
