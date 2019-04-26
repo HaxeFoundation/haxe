@@ -107,7 +107,7 @@ function filenames() { # run a command or function with all test patterns
 
 function genDirs() { # fill a directory with test subdirectories
     pushd "$1"
-    filenames "mkdir"
+    filenames "cp -r $SCRIPTPATH/test-res-temp "
     popd
 }
 
@@ -117,15 +117,25 @@ function genFiles() { # fill a directory with test files
     popd
 }
 
+mkdir -p "$SCRIPTPATH/test-res-temp"
+
+# generate empty directories only (filled in steps below)
 genDirs test-res
 
 mkdir -p test-res/a # for nested directories
 mkdir -p test-res/b # for files
 
 pushd test-res
+
+# generate directories with a .keep file so they can be committed
+echo "keep" > "$SCRIPTPATH/test-res-temp/.keep"
 genDirs a
+
 genFiles b
+
 popd
+
+rm -rf "$SCRIPTPATH/test-res-temp"
 
 function symLinkFill() { # symlinks used to test programPath and fullPath
     pushd "test-res/$1"

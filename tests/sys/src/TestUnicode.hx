@@ -119,8 +119,6 @@ class TestUnicode extends utest.Test {
 
 	function setupClass() {
 		sys.FileSystem.createDirectory("temp-unicode");
-		// TODO: Windows alternative
-		Sys.command("bash", ["genTestRes.sh"]);
 	}
 
 	function teardownClass() {
