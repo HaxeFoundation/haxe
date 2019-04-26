@@ -22,8 +22,14 @@ printf "\x01\n"\
 "\xED\x9F\xBF\n"\
 "\xEE\x80\x80\n"\
 "\xEF\xBF\xBD\n"\
+"\xF0\x90\x80\x80\n"\
+"\xF0\x9F\xBF\xBF\n"\
+"\xF3\xBF\xBF\xBF\n"\
+"\xF4\x80\x80\x80\n"\
+"\xF4\x8F\xBF\xBF\n"\
 "\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99\n"\
-"\xC8\xA7\n" > "test-res/data.bin"
+"\xC8\xA7\n"\
+"\xE4\xB8\xAD\xE6\x96\x87\xEF\xBC\x8C\xE3\x81\xAB\xE3\x81\xBB\xE3\x82\x93\xE3\x81\x94\n" > "test-res/data.bin"
 
 function filenames() { # run a command or function with all test patterns
     # codepoint and UTF-8 bytes listed below
@@ -61,22 +67,25 @@ function filenames() { # run a command or function with all test patterns
     #$1 `printf "\xEF\xBF\xBE"`
     #$1 `printf "\xEF\xBF\xBF"`
 
-    # non-BMP (disabled for the time being)
-
     # U+10000 F0 90 80 80
-    #$1 `printf "\xF0\x90\x80\x80"`
+    $1 `printf "\xF0\x90\x80\x80"`
 
     # U+1FFFF F0 9F BF BF
-    #$1 `printf "\xF0\x9F\xBF\xBF"`
+    $1 `printf "\xF0\x9F\xBF\xBF"`
 
     # U+FFFFF F3 BF BF BF
-    #$1 `printf "\xF3\xBF\xBF\xBF"`
+    $1 `printf "\xF3\xBF\xBF\xBF"`
 
     # U+100000 F4 80 80 80
-    #$1 `printf "\xF4\x80\x80\x80"`
+    $1 `printf "\xF4\x80\x80\x80"`
 
     # U+10FFFF F4 8F BF BF
-    #$1 `printf "\xF4\x8F\xBF\xBF"`
+    $1 `printf "\xF4\x8F\xBF\xBF"`
+
+    # U+1F602 F0 9F 98 82
+    # U+1F604 F0 9F 98 84
+    # U+1F619 F0 9F 98 99
+    $1 `printf "\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99"`
 
     # NFC / NFD
 
@@ -84,10 +93,16 @@ function filenames() { # run a command or function with all test patterns
     # on HFS+ will generate U+0061 U+0307 61 CC 87 instead (NFD)
     $1 `printf "\xC8\xA7"`
 
-    # U+1F602 F0 9F 98 82
-    # U+1F604 F0 9F 98 84
-    # U+1F619 F0 9F 98 99
-    $1 `printf "\xF0\x9F\x98\x82\xF0\x9F\x98\x84\xF0\x9F\x98\x99"`
+    # U+4E2D
+    # U+6587
+    # U+FF0C
+    # U+306B
+    # U+307B
+    # U+3093
+    #
+    # U+3054  E3 81 94 (NFC)
+    # on HFS+ will generate U+3053 U+3099 E3 81 93 E3 82 99 instead (NFD)
+    $1 `printf "\xE4\xB8\xAD\xE6\x96\x87\xEF\xBC\x8C\xE3\x81\xAB\xE3\x81\xBB\xE3\x82\x93\xE3\x81\x94"`
 }
 
 function genDirs() { # fill a directory with test subdirectories

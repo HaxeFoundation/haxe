@@ -8,23 +8,18 @@ enum UnicodeString {
 class UnicodeSequences {
 	// boundary conditions
 	public static var boundary:Array<UnicodeString> = [
+		// 1 byte
 		Only([0x0001]),
 		Only([0x007F]),
+		// 2 byte
 		Only([0x0080]),
 		Only([0x07FF]),
+		// 3 byte
 		Only([0x0800]),
-		Only([0xD7FF]),
-		Only([0xE000]),
-		Only([0xFFFD])
-	];
-
-	// NFC / NFD
-	public static var normal:Array<UnicodeString> = [
-		Normal([0x0227], [0x0061, 0x0307])
-	];
-
-	// non-BMP characters (U+10000 and larger), not fully supported
-	public static var nonBMP:Array<UnicodeString> = [
+		Only([0xD7FF]), // just before surrogates
+		Only([0xE000]), // just after surrogates
+		Only([0xFFFD]),
+		// non-BMP (4 byte)
 		Only([0x10000]),
 		Only([0x1FFFF]),
 		Only([0xFFFFF]),
@@ -32,10 +27,15 @@ class UnicodeSequences {
 		Only([0x10FFFF])
 	];
 
+	// NFC / NFD
+	public static var normal:Array<UnicodeString> = [
+		Normal([0x0227], [0x0061, 0x0307]),
+		Normal([0x4E2D, 0x6587, 0xFF0C, 0x306B, 0x307B, 0x3093, 0x3054], [0x4E2D, 0x6587, 0xFF0C, 0x306B, 0x307B, 0x3093, 0x3053, 0x3099])
+	];
+
 	// valid sequences
 	public static var valid:Array<UnicodeString> =
 		boundary
-		// .concat(nonBMP)
 		.concat([Only([0x1F602, 0x1F604, 0x1F619])]) // important (non-BMP) emoji
 		.concat(normal);
 
@@ -48,8 +48,14 @@ class UnicodeSequences {
 			"ED9FBF0A" +
 			"EE80800A" +
 			"EFBFBD0A" +
+			"F09080800A" +
+			"F09FBFBF0A" +
+			"F3BFBFBF0A" +
+			"F48080800A" +
+			"F48FBFBF0A" +
 			"F09F9882F09F9884F09F98990A" +
-			"C8A70A"
+			"C8A70A" +
+			"E4B8ADE69687EFBC8CE381ABE381BBE38293E381940A"
 		);
 
 	public static var validString =
@@ -61,8 +67,14 @@ class UnicodeSequences {
 		"\uD7FF\n" +
 		"\uE000\n" +
 		"\uFFFD\n" +
+		"\u{10000}\n" +
+		"\u{1FFFF}\n" +
+		"\u{FFFFF}\n" +
+		"\u{100000}\n" +
+		"\u{10FFFF}\n" +
 		"\u{1F602}\u{1F604}\u{1F619}\n" +
-		"\u0227\n";
+		"\u0227\n" +
+		"\u4E2D\u6587\uFF0C\u306B\u307B\u3093\u3054\n";
 
 	// invalid sequences
 	public static var invalid:Array<UnicodeString> = [
