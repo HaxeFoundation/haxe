@@ -212,12 +212,13 @@ let build_class com c file =
 			cff_name = name,null_pos;
 			cff_doc = None;
 			cff_pos = pos;
-			cff_meta = mk_meta();
+			cff_meta = [];
 			cff_access = flags;
 			cff_kind = FVar (None,None);
 		} in
 		match f.hlf_kind with
 		| HFVar v ->
+			cf.cff_meta <- mk_meta();
 			cf.cff_kind <- FVar (Some (make_dyn_type v.hlv_type,null_pos),None);
 			if v.hlv_const then begin
 				cf.cff_access <- (AFinal,null_pos) :: cf.cff_access;
@@ -287,10 +288,10 @@ let build_class com c file =
 				cf.cff_kind <- FFun f;
 				cf :: acc
 			| MK3Getter ->
-				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
+				Hashtbl.add getters (name,stat) (m.hlm_type.hlmt_ret,mk_meta());
 				acc
 			| MK3Setter ->
-				Hashtbl.add setters (name,stat) (match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false);
+				Hashtbl.add setters (name,stat) ((match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false),mk_meta());
 				acc
 			)
 		| _ -> acc
@@ -309,11 +310,11 @@ let build_class com c file =
 	let fields = Array.fold_left (make_field false) fields c.hlc_fields in
 	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
 	let make_get_set name stat tget tset =
-		let get, set, t = (match tget, tset with
+		let get, set, t, meta = (match tget, tset with
 			| None, None -> assert false
-			| Some t, None -> true, false, t
-			| None, Some t -> false, true, t
-			| Some t1, Some t2 -> true, true, (if t1 <> t2 then None else t1)
+			| Some (t,meta), None -> true, false, t, meta
+			| None, Some (t,meta) -> false, true, t, meta
+			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
 		) in
 		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
 		let flags = [APublic,null_pos] in
@@ -323,7 +324,7 @@ let build_class com c file =
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
-			cff_meta = [];
+			cff_meta = meta;
 			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp (((if get then "default" else "never"),null_pos),((if set then "default" else "never"),null_pos),Some (make_dyn_type t,null_pos),None);
 		}
 	in
