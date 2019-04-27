@@ -3285,6 +3285,11 @@ class class_builder ctx (cls:tclass) =
 	object (self)
 		inherit type_builder ctx (get_wrapper (TClassDecl cls)) as super
 		(**
+			List of methods names uppercased.
+			Used to check for methods with similar names because PHP function names are case-insensitive.
+		*)
+		val mutable used_method_names = []
+		(**
 			Indicates if type should be declared as `final`
 		*)
 		method is_final =
@@ -3611,6 +3616,7 @@ class class_builder ctx (cls:tclass) =
 			Writes method to output buffer
 		*)
 		method private write_class_method field is_static =
+			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
@@ -3636,6 +3642,7 @@ class class_builder ctx (cls:tclass) =
 			Only for non-static methods. Static methods are created as static vars in `__hx__init`.
 		*)
 		method private write_dynamic_method field =
+			self#validate_method_name field;
 			writer#reset;
 			writer#indent 1;
 			let (args, return_type) = get_function_signature field in
@@ -3665,6 +3672,15 @@ class class_builder ctx (cls:tclass) =
 					writer#write_statement ("protected $__hx__default__" ^ (field_name field))
 				| _ -> fail field.cf_pos __POS__
 			);
+		(**
+			Since PHP function names are case-insensitive we must check for method names clashes.
+		*)
+		method private validate_method_name field =
+			let uppercased_name = StringHelper.uppercase field.cf_name in
+			if List.exists (fun n -> n = uppercased_name) used_method_names then
+				ctx.error ("Methods names are case-insensitive in PHP runtime. Cannot redeclare \"" ^ field.cf_name ^ "\".") field.cf_name_pos
+			else
+				used_method_names <- uppercased_name :: used_method_names
 		(**
 			Writes initialization code for instances of this class
 		*)
