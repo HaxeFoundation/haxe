@@ -128,6 +128,7 @@ module IterationKind = struct
 					let t = match tl with [t] -> t | _ -> raise Not_found in
 					IteratorCustom(get_next_array_element,get_length),e,t
 			end with Not_found -> try
+				if PMap.exists "iterator" c.cl_statics then raise Not_found;
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field ~resume:true ctx e_tmp "next" p MCall in
