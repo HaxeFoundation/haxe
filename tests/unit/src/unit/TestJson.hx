@@ -108,4 +108,10 @@ class TestJson extends Test {
 		eq( parsed.x, -4500 );
 		eq( parsed.y, 1.456 );
 	}
+
+	function test8228() {
+		eq( haxe.Json.stringify("👽"), '"👽"' );
+		eq( haxe.Json.parse('"👽"'), "👽" );
+		eq( haxe.Json.parse('"\\ud83d\\udc7d"'), "👽" );
+	}
 }
