@@ -170,7 +170,9 @@ class JsonParser {
 				}
 				buf.addSub(str,start, pos - start - 1);
 				c = nextChar();
+				#if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
 				if( c != "u".code && prev != -1 ) cancelSurrogate();
+				#end
 				switch( c ) {
 				case "r".code: buf.addChar("\r".code);
 				case "n".code: buf.addChar("\n".code);
