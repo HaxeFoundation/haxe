@@ -45,7 +45,12 @@ class StringBuf {
 	}
 
 	public inline function addChar( c : Int ) : Void untyped {
-		b.Append(cast(c, cs.StdTypes.Char16));
+		if (c >= 0x10000) {
+			b.Append(cast((c >> 10) + 0xD7C0, cs.StdTypes.Char16));
+			b.Append(cast((c & 0x3FF) + 0xDC00, cs.StdTypes.Char16));
+		} else {
+			b.Append(cast(c, cs.StdTypes.Char16));
+		}
 	}
 
 	public inline function toString() : String {
