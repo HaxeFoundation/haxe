@@ -52,12 +52,7 @@ class StringBuf {
 	}
 
 	public function addChar( c : Int ) : Void untyped {
-		if (c >= 0x10000) {
-			b.append(cast((c >> 10) + 0xD7C0, java.StdTypes.Char16));
-			b.append(cast((c & 0x3FF) + 0xDC00, java.StdTypes.Char16));
-		} else {
-			b.append(cast(c, java.StdTypes.Char16));
-		}
+		b.appendCodePoint(c);
 	}
 
 	public function toString() : String {
