@@ -269,7 +269,7 @@ let build_class com c file =
 							match v with
 							| None -> None
 							| Some v ->
-								(* add for --gen-hx-classes generation *)
+								(* add for -D gen-hx-classes generation *)
 								meta := (Meta.DefParam,[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
