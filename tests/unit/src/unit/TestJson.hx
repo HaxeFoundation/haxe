@@ -110,7 +110,8 @@ class TestJson extends Test {
 	}
 
 	function test8228() {
-		eq( haxe.Json.stringify("👽"), '"👽"' );
+		var strJson = haxe.Json.stringify("👽");
+		t(strJson == '"👽"' || strJson == '"\\ud83d\\udc7d"');
 		eq( haxe.Json.parse('"👽"'), "👽" );
 		eq( haxe.Json.parse('"\\ud83d\\udc7d"'), "👽" );
 	}
