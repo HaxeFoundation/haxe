@@ -151,7 +151,13 @@ class JsonParser {
 
 	function parseString() {
 		var start = pos;
-		var buf = null;
+		var buf:StringBuf = null;
+		var prev = -1;
+		inline function cancelSurrogate() {
+			// invalid high surrogate (not followed by low surrogate)
+			buf.addChar(0xFFFD);
+			prev = -1;
+		}
 		while( true ) {
 			var c = nextChar();
 			if( c == '"'.code )
@@ -162,6 +168,7 @@ class JsonParser {
 				}
 				buf.addSub(str,start, pos - start - 1);
 				c = nextChar();
+				if( c != "u".code && prev != -1 ) cancelSurrogate();
 				switch( c ) {
 				case "r".code: buf.addChar("\r".code);
 				case "n".code: buf.addChar("\n".code);
@@ -189,7 +196,17 @@ class JsonParser {
 						buf.addChar(0x80 | (uc & 63));
 					}
 					#else
-					buf.addChar(uc);
+					if( prev != -1 ) {
+						if( uc < 0xDC00 || uc > 0xDFFF )
+							cancelSurrogate();
+						else {
+							buf.addChar(((prev - 0xD800) << 10) + (uc - 0xDC00) + 0x10000);
+							prev = -1;
+						}
+					} else if( uc >= 0xD800 && uc <= 0xDBFF )
+						prev = uc;
+					else
+						buf.addChar(uc);
 					#end
 				default:
 					throw "Invalid escape sequence \\" + String.fromCharCode(c) + " at position " + (pos - 1);
@@ -209,6 +226,8 @@ class JsonParser {
 			else if( StringTools.isEof(c) )
 				throw "Unclosed string";
 		}
+		if( prev != -1 )
+			cancelSurrogate();
 		if (buf == null) {
 			return str.substr(start, pos - start - 1);
 		}
