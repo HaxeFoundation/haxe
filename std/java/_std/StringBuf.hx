@@ -52,7 +52,7 @@ class StringBuf {
 	}
 
 	public function addChar( c : Int ) : Void untyped {
-		b.append(cast(c, java.StdTypes.Char16));
+		b.appendCodePoint(c);
 	}
 
 	public function toString() : String {

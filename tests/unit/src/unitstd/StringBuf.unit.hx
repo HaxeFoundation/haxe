@@ -20,6 +20,23 @@ var x = new StringBuf();
 x.addSub("abcdefg", 1, 3);
 x.toString() == "bcd";
 
+// surrogate characters
+#if !(neko)
+var x = new StringBuf();
+x.add("👽");
+x.toString() == "👽";
+var x = new StringBuf();
+x.addChar(0x1F47D);
+x.toString() == "👽";
+var x = new StringBuf();
+#if utf16
+x.addSub("a👽b", 1, 2);
+#else
+x.addSub("a👽b", 1, 1);
+#end
+x.toString() == "👽";
+#end
+
 // identity
 function identityTest(s:StringBuf) {
 	return s;
