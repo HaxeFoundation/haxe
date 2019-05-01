@@ -955,7 +955,7 @@ try
 		begin match !xml_out with
 			| None -> ()
 			| Some "hx" ->
-				Genxml.generate_hx com
+				Genhxold.generate com
 			| Some file ->
 				Common.log com ("Generating xml: " ^ file);
 				Path.mkdir_from_path file;
