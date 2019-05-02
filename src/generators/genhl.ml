@@ -172,7 +172,7 @@ let to_utf8 str p =
 		let c = UChar.code c in
 		if (c >= 0xD800 && c <= 0xDFFF) || c >= 0x110000 then abort "Invalid unicode char" p;
 		incr ccount;
-		if c > 0x10000 then incr ccount;
+		if c >= 0x10000 then incr ccount;
 	) u8;
 	u8, !ccount
 
