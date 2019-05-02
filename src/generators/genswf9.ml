@@ -317,6 +317,22 @@ let ns_access cf =
 	with Not_found ->
 		None
 
+let is_extern_instance_accessor ~isget cl tl cf = 
+	if cl.cl_extern && ExtString.String.starts_with cf.cf_name (if isget then "get_" else "set_") then
+		let prop_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
+		try 
+			match Type.class_field cl tl prop_name with
+			| Some (prop_cl, prop_tl), _, prop_cf ->
+				(match prop_cf.cf_kind with
+				| Var { v_read = AccCall } when isget -> Some (prop_cl, prop_tl, prop_cf)
+				| Var { v_write = AccCall } when not isget -> Some (prop_cl, prop_tl, prop_cf)
+				| _ -> None)
+			| _ -> None
+		with Not_found ->
+			None
+	else
+		None
+
 let property ctx fa t =
 	match Option.map_default ns_access None (extract_field fa) with
 	| Some n -> n, None, false
@@ -1534,7 +1550,29 @@ and gen_call ctx retval e el r =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField (e1,f) , _ ->
-		gen_field_call ctx retval e1 f el r
+		begin
+			let default () = gen_field_call ctx retval e1 f el r in
+			let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
+			match f, el with 
+			| FInstance (cl, tl, cf), [] ->
+				(match is_extern_instance_accessor ~isget:true cl tl cf with
+				| Some (prop_cl, prop_tl, prop_cf) ->
+					let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+					getvar ctx (gen_access ctx efield Read)
+				| None ->
+					default ())
+
+			| FInstance (cl, tl, cf), [evalue] ->
+				(match is_extern_instance_accessor ~isget:false cl tl cf with
+				| Some (prop_cl, prop_tl, prop_cf) ->
+					let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+					gen_assign ctx efield evalue retval
+				| None ->
+					default ())
+
+			| _ ->
+				default ()
+		end
 	| _ ->
 		gen_expr ctx true e;
 		write ctx HGetGlobalScope;
