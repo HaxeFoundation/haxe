@@ -1555,7 +1555,7 @@ and gen_field_call ctx retval eobj f el r =
 			write ctx (HCallSuperVoid (id,List.length el))
 	| { eexpr = TConst TThis } when not ctx.in_static ->
 		let id = this_property f in
-		write ctx (HFindProp id);
+		write ctx (HFindProp id); (* not sure why we don't use HFindPropStrict here too *)
 		List.iter (gen_expr ctx true) el;
 		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
