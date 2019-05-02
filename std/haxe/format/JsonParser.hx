@@ -152,7 +152,7 @@ class JsonParser {
 	function parseString() {
 		var start = pos;
 		var buf:StringBuf = null;
-		#if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
+		#if (target.unicode)
 		var prev = -1;
 		inline function cancelSurrogate() {
 			// invalid high surrogate (not followed by low surrogate)
@@ -170,7 +170,7 @@ class JsonParser {
 				}
 				buf.addSub(str,start, pos - start - 1);
 				c = nextChar();
-				#if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
+				#if (target.unicode)
 				if( c != "u".code && prev != -1 ) cancelSurrogate();
 				#end
 				switch( c ) {
@@ -230,7 +230,7 @@ class JsonParser {
 			else if( StringTools.isEof(c) )
 				throw "Unclosed string";
 		}
-		#if !(neko || (cpp && !cppia && !hxcpp_smart_strings))
+		#if (target.unicode)
 		if( prev != -1 )
 			cancelSurrogate();
 		#end
