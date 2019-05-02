@@ -515,7 +515,7 @@ let rec setvar ctx (acc : write access) kret =
 			set_reg_dup ctx r
 		else
 			set_reg ctx r;
-	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ when kret <> None ->
+	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ | VSuper _ when kret <> None ->
 		let r = alloc_reg ctx (match kret with None -> assert false | Some k -> k) in
 		set_reg_dup ctx r;
 		setvar ctx acc None;
