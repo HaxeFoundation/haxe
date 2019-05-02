@@ -317,9 +317,13 @@ let ns_access cf =
 	with Not_found ->
 		None
 
+let is_getter_name name = ExtString.String.starts_with name "get_"
+let is_setter_name name = ExtString.String.starts_with name "set_"
+let get_property_name accessor_name = String.sub accessor_name 4 (String.length accessor_name - 4)
+
 let is_extern_instance_accessor ~isget cl tl cf = 
-	if cl.cl_extern && ExtString.String.starts_with cf.cf_name (if isget then "get_" else "set_") then
-		let prop_name = String.sub cf.cf_name 4 (String.length cf.cf_name - 4) in
+	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
+		let prop_name = get_property_name cf.cf_name in
 		try 
 			match Type.class_field cl tl prop_name with
 			| Some (prop_cl, prop_tl), _, prop_cf ->
