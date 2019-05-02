@@ -119,6 +119,7 @@ class TestUnicode extends utest.Test {
 
 	function setupClass() {
 		sys.FileSystem.createDirectory("temp-unicode");
+		Sys.command("python3", ["genTestRes.py"]);
 	}
 
 	function teardownClass() {
