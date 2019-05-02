@@ -514,8 +514,8 @@ try
 			Initialize.set_platform com Cpp dir;
 		),"<directory>","generate C++ code into target directory");
 		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
-			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
+			Initialize.set_platform com Cpp file;
 		),"<file>","generate Cppia code into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;

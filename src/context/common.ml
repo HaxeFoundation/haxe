@@ -102,6 +102,8 @@ type platform_config = {
 	pf_this_before_super : bool;
 	(** target supports threads **)
 	pf_supports_threads : bool;
+	(** target supports Unicode **)
+	pf_supports_unicode : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -284,6 +286,7 @@ let default_config =
 		pf_uses_utf16 = true;
 		pf_this_before_super = true;
 		pf_supports_threads = false;
+		pf_supports_unicode = true;
 	}
 
 let get_config com =
@@ -314,6 +317,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
+			pf_supports_unicode = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -344,6 +348,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
 			pf_supports_threads = true;
+			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 		}
 	| Cs ->
 		{
@@ -542,6 +547,9 @@ let init_platform com pf =
 	end;
 	if com.config.pf_supports_threads then begin
 		raw_define_value com.defines "target.threaded" "true";
+	end;
+	if com.config.pf_supports_unicode then begin
+		raw_define_value com.defines "target.unicode" "true";
 	end;
 	raw_define_value com.defines "target.name" name;
 	raw_define com name
