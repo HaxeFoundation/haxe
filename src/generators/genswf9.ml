@@ -1620,6 +1620,11 @@ and check_binop ctx e1 e2 =
 	| _ -> false) in
 	if invalid then abort "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
 
+and gen_assign ctx lhs rhs retval =
+	let acc = gen_access ctx lhs Write in
+	gen_expr ctx true rhs;
+	setvar ctx acc (if retval then Some (classify ctx lhs.etype) else None)
+
 and gen_binop ctx retval op e1 e2 t p =
 	let write_op op =
 		let iop = (match op with
@@ -1675,9 +1680,7 @@ and gen_binop ctx retval op e1 e2 t p =
 	in
 	match op with
 	| OpAssign ->
-		let acc = gen_access ctx e1 Write in
-		gen_expr ctx true e2;
-		setvar ctx acc (if retval then Some (classify ctx e1.etype) else None)
+		gen_assign ctx e1 e2 retval
 	| OpBoolAnd ->
 		write ctx HFalse;
 		let j = jump_expr ctx e1 false in
