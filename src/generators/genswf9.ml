@@ -1534,45 +1534,46 @@ and gen_call ctx retval e el r =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField (e1,f) , _ ->
-		begin
-		match e1 with
-		| { eexpr = TConst TSuper } ->
-			let id = this_property f in
-			write ctx (HFindPropStrict id);
-			List.iter (gen_expr ctx true) el;
-			if retval then begin
-				write ctx (HCallSuper (id,List.length el));
-				coerce ctx (classify ctx r);
-			end else
-				write ctx (HCallSuperVoid (id,List.length el))
-		| { eexpr = TConst TThis } when not ctx.in_static ->
-			let id = this_property f in
-			write ctx (HFindProp id);
-			List.iter (gen_expr ctx true) el;
-			if retval then begin
-				write ctx (HCallProperty (id,List.length el));
-				coerce ctx (classify ctx r);
-			end else
-				write ctx (HCallPropVoid (id,List.length el))
-		| _ ->
-			let old = ctx.for_call in
-			ctx.for_call <- true;
-			gen_expr ctx true e1;
-			let id , _, _ = property ctx f e1.etype in
-			ctx.for_call <- old;
-			List.iter (gen_expr ctx true) el;
-			if retval then begin
-				write ctx (HCallProperty (id,List.length el));
-				coerce ctx (classify ctx r);
-			end else
-				write ctx (HCallPropVoid (id,List.length el))
-		end
+		gen_field_call ctx retval e1 f el r
 	| _ ->
 		gen_expr ctx true e;
 		write ctx HGetGlobalScope;
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallStack (List.length el));
 		coerce ctx (classify ctx r)
+
+and gen_field_call ctx retval eobj f el r =
+	match eobj with
+	| { eexpr = TConst TSuper } ->
+		let id = this_property f in
+		write ctx (HFindPropStrict id);
+		List.iter (gen_expr ctx true) el;
+		if retval then begin
+			write ctx (HCallSuper (id,List.length el));
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallSuperVoid (id,List.length el))
+	| { eexpr = TConst TThis } when not ctx.in_static ->
+		let id = this_property f in
+		write ctx (HFindProp id);
+		List.iter (gen_expr ctx true) el;
+		if retval then begin
+			write ctx (HCallProperty (id,List.length el));
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallPropVoid (id,List.length el))
+	| _ ->
+		let old = ctx.for_call in
+		ctx.for_call <- true;
+		gen_expr ctx true eobj;
+		let id , _, _ = property ctx f eobj.etype in
+		ctx.for_call <- old;
+		List.iter (gen_expr ctx true) el;
+		if retval then begin
+			write ctx (HCallProperty (id,List.length el));
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallPropVoid (id,List.length el))
 
 and gen_unop ctx retval op flag e =
 	let k = classify ctx e.etype in
