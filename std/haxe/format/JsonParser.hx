@@ -181,7 +181,7 @@ class JsonParser {
 				case "f".code: buf.addChar(12);
 				case "/".code, '\\'.code, '"'.code: buf.addChar(c);
 				case 'u'.code:
-					var uc = Std.parseInt("0x" + str.substr(pos, 4));
+					var uc:Int = Std.parseInt("0x" + str.substr(pos, 4));
 					pos += 4;
 					#if !(target.unicode)
 					if( uc <= 0x7F )
