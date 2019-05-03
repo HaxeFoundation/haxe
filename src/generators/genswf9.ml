@@ -2223,38 +2223,43 @@ let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl
 	| None ->
 		acc
 
+let mk_instance_getter_func c tl accessor_cl accessor_tl accessor_cf prop_cf =
+	{
+		tf_args = [];
+		tf_type = prop_cf.cf_type;
+		tf_expr = begin
+			let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
+			let efield = mk (TField (ethis, FInstance (accessor_cl, accessor_tl, accessor_cf))) accessor_cf.cf_type null_pos in
+			let ecall = mk (TCall (efield, [])) prop_cf.cf_type null_pos in
+			mk (TReturn (Some ecall)) t_dynamic null_pos;
+		end
+	}
+
 let maybe_gen_instance_getter ctx c f acc alloc_slot =
 	let tl = List.map snd c.cl_params in
 	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Getter
-		(fun prop_cf -> {
-			tf_args = [];
-			tf_type = prop_cf.cf_type;
-			tf_expr = begin
-				let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
-				let efield = mk (TField (ethis, FInstance (c, tl, f))) f.cf_type null_pos in
-				let ecall = mk (TCall (efield, [])) prop_cf.cf_type null_pos in
-				mk (TReturn (Some ecall)) t_dynamic null_pos;
-			end
-		})
+		(mk_instance_getter_func c tl c tl f)
 		(fun prop_cf -> ([],prop_cf.cf_type))
+
+let mk_varg t = alloc_var (VUser TVOArgument) "value" t null_pos
+
+let mk_instance_setter_func com c tl accessor_cl accessor_tl accessor_cf prop_cf =
+	let varg = mk_varg prop_cf.cf_type in
+	{
+		tf_args = [(varg,None)];
+		tf_type = com.basic.tvoid;
+		tf_expr = begin
+			let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
+			let efield = mk (TField (ethis, FInstance (accessor_cl, accessor_tl, accessor_cf))) accessor_cf.cf_type null_pos in
+			let earg = mk (TLocal varg) prop_cf.cf_type null_pos in
+			mk (TCall (efield, [earg])) prop_cf.cf_type null_pos
+		end
+	}
 
 let maybe_gen_instance_setter ctx c f acc alloc_slot =
 	let tl = List.map snd c.cl_params in
-	let mk_varg t = alloc_var (VUser TVOArgument) "value" t null_pos in
 	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Setter
-		(fun prop_cf ->
-			let varg = mk_varg prop_cf.cf_type in
-			{
-				tf_args = [(varg,None)];
-				tf_type = ctx.com.basic.tvoid;
-				tf_expr = begin
-					let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
-					let efield = mk (TField (ethis, FInstance (c, tl, f))) f.cf_type null_pos in
-					let earg = mk (TLocal varg) prop_cf.cf_type null_pos in
-					mk (TCall (efield, [earg])) prop_cf.cf_type null_pos
-				end
-			}
-		)
+		(mk_instance_setter_func ctx.com c tl c tl f)
 		(fun prop_cf -> ([(mk_varg prop_cf.cf_type,None)],ctx.com.basic.tvoid))
 
 
@@ -2494,6 +2499,58 @@ let generate_class ctx c =
 				maybe_gen_instance_setter ctx c f acc alloc_slot
 			else
 				maybe_gen_static_setter ctx c f acc alloc_slot
+		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not c.cl_interface && not (Meta.has Meta.IsVar f.cf_meta) ->
+			(* if the accessor methods were defined in super classes, we still need to generate native getter/setter *)
+			let acc =
+				if read = AccCall then begin
+					try
+						begin
+						let tl = List.map snd c.cl_params in
+						match Type.class_field c tl ("get_" ^ f.cf_name) with
+						| Some (actual_cl, actual_tl), _, getter_cf when actual_cl != c ->
+							let func = mk_instance_getter_func c tl actual_cl actual_tl getter_cf f in
+							{
+								hlf_name = ident f.cf_name;
+								hlf_slot = alloc_slot ();
+								hlf_kind = HFMethod {
+									hlm_type = generate_method ctx func false [];
+									hlm_final = false;
+									hlm_override = false;
+									hlm_kind = MK3Getter;
+								};
+								hlf_metas = None;
+							} :: acc
+						| _ ->
+							acc
+						end
+					with Not_found ->
+						acc
+				end else acc
+			in
+			if write = AccCall then begin
+				try
+					begin
+					let tl = List.map snd c.cl_params in
+					match Type.class_field c tl ("set_" ^ f.cf_name) with
+					| Some (actual_cl, actual_tl), _, setter_cf when actual_cl != c ->
+						let func = mk_instance_setter_func ctx.com c tl actual_cl actual_tl setter_cf f in
+						{
+							hlf_name = ident f.cf_name;
+							hlf_slot = alloc_slot ();
+							hlf_kind = HFMethod {
+								hlm_type = generate_method ctx func false [];
+								hlm_final = false;
+								hlm_override = false;
+								hlm_kind = MK3Setter;
+							};
+							hlf_metas = None;
+						} :: acc
+					| _ ->
+						acc
+					end
+				with Not_found ->
+					acc
+			end else acc
 		| Method _ | Var _ -> acc
 	in
 	let fields = PMap.fold (fun f acc ->
