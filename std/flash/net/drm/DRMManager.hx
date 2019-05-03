@@ -12,8 +12,11 @@ extern class DRMManager extends flash.events.EventDispatcher {
 	function returnVoucher(inServerURL : String, immediateCommit : Bool, licenseID : String, policyID : String) : Void;
 	function setAuthenticationToken(serverUrl : String, domain : String, token : flash.utils.ByteArray) : Void;
 	function storeVoucher(voucher : flash.utils.ByteArray) : Void;
-	static var isSupported(default,never) : Bool;
-	static var networkIdleTimeout : Float;
+	static var isSupported(get,never) : Bool;
+	static var networkIdleTimeout(get,set) : Float;
 	static function getDRMManager() : DRMManager;
 	static function getDRMManagerInternal() : DRMManager;
+	private static function get_isSupported() : Bool;
+	private static function get_networkIdleTimeout() : Float;
+	private static function set_networkIdleTimeout(value : Float) : Float;
 }

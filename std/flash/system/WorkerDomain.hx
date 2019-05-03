@@ -4,6 +4,8 @@ package flash.system;
 	function new() : Void;
 	function createWorker(swf : flash.utils.ByteArray, giveAppPrivileges : Bool = false) : Worker;
 	function listWorkers() : flash.Vector<Worker>;
-	static var current(default,never) : WorkerDomain;
-	static var isSupported(default,never) : Bool;
+	static var current(get,never) : WorkerDomain;
+	static var isSupported(get,never) : Bool;
+	private static function get_current() : WorkerDomain;
+	private static function get_isSupported() : Bool;
 }
