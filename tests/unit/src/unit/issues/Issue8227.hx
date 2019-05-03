@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue8227 extends unit.Test {
-	#if flash
+	#if (flash && !as3)
 	function test() {
 		var ns = new NsCls();
 		eq(ns.ns1v, 1);
@@ -17,7 +17,7 @@ class Issue8227 extends unit.Test {
 	#end
 }
 
-#if flash
+#if (flash && !as3)
 @:access(unit.Test)
 private class Child extends NsCls {
 	public function new(test:unit.Test) {
