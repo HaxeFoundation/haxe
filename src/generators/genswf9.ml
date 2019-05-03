@@ -1516,8 +1516,11 @@ and gen_call ctx retval e el r =
 		let id = this_property f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (HCallSuper (id,List.length el));
-		coerce ctx (classify ctx r);
+		if retval then begin
+			write ctx (HCallSuper (id,List.length el));
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallSuperVoid (id,List.length el))
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
 		let id = this_property f in
 		write ctx (HFindProp id);
