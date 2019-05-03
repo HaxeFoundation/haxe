@@ -340,7 +340,7 @@ let is_extern_instance_accessor ~isget cl tl cf =
 	else
 		None
 
-let find_static_for_accessor ~isget cl accessor_name =
+let find_static_property_for_accessor ~isget cl accessor_name =
 	let prop_name = get_property_name accessor_name in
 	try
 		let prop_cf = PMap.find prop_name cl.cl_statics in
@@ -353,7 +353,7 @@ let find_static_for_accessor ~isget cl accessor_name =
 		
 let is_extern_static_accessor ~isget cl cf =
 	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
-		find_static_for_accessor ~isget cl cf.cf_name
+		find_static_property_for_accessor ~isget cl cf.cf_name
 	else
 		None
 
@@ -2257,6 +2257,53 @@ let maybe_gen_instance_setter ctx c f acc alloc_slot =
 		)
 		(fun prop_cf -> ([(mk_varg prop_cf.cf_type,None)],ctx.com.basic.tvoid))
 
+
+let maybe_gen_static_accessor ctx cl accessor_cf acc alloc_slot kind f_impl =
+	match find_static_property_for_accessor ~isget:(kind = MK3Getter) cl accessor_cf.cf_name with
+	| Some prop_cf ->
+		let func = f_impl prop_cf in
+		let getter = {
+			hlf_name = ident prop_cf.cf_name;
+			hlf_slot = alloc_slot ();
+			hlf_kind = HFMethod {
+				hlm_type = generate_method ctx func true accessor_cf.cf_meta;
+				hlm_final = true;
+				hlm_override = false;
+				hlm_kind = kind;
+			};
+			hlf_metas = None;
+		} in
+		getter :: acc
+	| None ->
+		acc
+
+let maybe_gen_static_getter ctx c f acc alloc_slot =
+	maybe_gen_static_accessor ctx c f acc alloc_slot MK3Getter (fun prop_cf -> {
+		tf_args = [];
+		tf_type = prop_cf.cf_type;
+		tf_expr = begin
+			let ethis = Texpr.Builder.make_static_this c null_pos in
+			let efield = mk (TField (ethis, FStatic (c, f))) f.cf_type null_pos in
+			let ecall = mk (TCall (efield, [])) prop_cf.cf_type null_pos in
+			mk (TReturn (Some ecall)) t_dynamic null_pos;
+		end
+	})
+
+let maybe_gen_static_setter ctx c f acc alloc_slot =
+	maybe_gen_static_accessor ctx c f acc alloc_slot MK3Setter (fun prop_cf ->
+		let varg = alloc_var (VUser TVOArgument) "value" prop_cf.cf_type null_pos in
+		{
+			tf_args = [(varg,None)];
+			tf_type = ctx.com.basic.tvoid;
+			tf_expr = begin
+				let ethis = Texpr.Builder.make_static_this c null_pos in
+				let efield = mk (TField (ethis, FStatic (c, f))) f.cf_type null_pos in
+				let earg = mk (TLocal varg) prop_cf.cf_type null_pos in
+				mk (TCall (efield, [earg])) prop_cf.cf_type null_pos
+			end
+		}
+	)
+
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2320,14 +2367,22 @@ let generate_class ctx c =
 		else
 			loop_meta (find_meta c)
 	in
-	let generate_prop f acc alloc_slot =
+	let generate_prop stat f acc alloc_slot =
 		match f.cf_kind with
-		| Method _ when is_getter_name f.cf_name -> maybe_gen_instance_getter ctx c f acc alloc_slot
-		| Method _ when is_setter_name f.cf_name -> maybe_gen_instance_setter ctx c f acc alloc_slot
+		| Method _ when is_getter_name f.cf_name ->
+			if not stat then
+				maybe_gen_instance_getter ctx c f acc alloc_slot
+			else
+				maybe_gen_static_getter ctx c f acc alloc_slot
+		| Method _ when is_setter_name f.cf_name ->
+			if not stat then
+				maybe_gen_instance_setter ctx c f acc alloc_slot
+			else
+				maybe_gen_static_setter ctx c f acc alloc_slot
 		| Method _ | Var _ -> acc
 	in
 	let fields = PMap.fold (fun f acc ->
-		let acc = generate_prop f acc (fun() -> 0) in
+		let acc = generate_prop false f acc (fun() -> 0) in
 		match generate_field_kind ctx f c false with
 		| None -> acc
 		| Some k ->
@@ -2358,7 +2413,7 @@ let generate_class ctx c =
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
-		let acc = generate_prop f acc (fun() -> incr st_meth_count; !st_meth_count) in
+		let acc = generate_prop true f acc (fun() -> incr st_meth_count; !st_meth_count) in
 		match generate_field_kind ctx f c true with
 		| None -> acc
 		| Some k ->
