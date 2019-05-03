@@ -5,6 +5,9 @@ import runci.System.*;
 import runci.Config.*;
 
 class Php {
+	static var miscPhpDir(get,never):String;
+	static inline function get_miscPhpDir() return miscDir + 'php/';
+
 	static public function getPhpDependencies() {
 		var phpCmd = commandResult("php", ["-v"]);
 		var phpVerReg = ~/PHP ([0-9]+\.[0-9]+)/i;
@@ -54,6 +57,9 @@ class Php {
 			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
 			runCommand("php", ["bin/php/Main/index.php"]);
+
+			changeDirectory(miscPhpDir);
+			runCommand("haxe", ["run.hxml"]);
 		}
 	}
 }
