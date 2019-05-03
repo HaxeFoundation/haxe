@@ -323,7 +323,7 @@ let get_property_name accessor_name = String.sub accessor_name 4 (String.length 
 
 let find_property_for_accessor ~isget cl tl accessor_name =
 	let prop_name = get_property_name accessor_name in
-	try 
+	try
 		match Type.class_field cl tl prop_name with
 		| Some (prop_cl, prop_tl), _, prop_cf ->
 			(match prop_cf.cf_kind with
@@ -334,7 +334,7 @@ let find_property_for_accessor ~isget cl tl accessor_name =
 	with Not_found ->
 		None
 
-let is_extern_instance_accessor ~isget cl tl cf = 
+let is_extern_instance_accessor ~isget cl tl cf =
 	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
 		find_property_for_accessor ~isget cl tl cf.cf_name
 	else
@@ -1560,7 +1560,7 @@ and gen_call ctx retval e el r =
 		begin
 			let default () = gen_field_call ctx retval e1 f el r in
 			let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
-			match f, el with 
+			match f, el with
 			| FInstance (cl, tl, cf), [] ->
 				(match is_extern_instance_accessor ~isget:true cl tl cf with
 				| Some (prop_cl, prop_tl, prop_cf) ->
@@ -2078,7 +2078,7 @@ let generate_field_kind ctx f c stat =
 			Some (HFMethod {
 				hlm_type = m;
 				hlm_final = stat || (has_class_field_flag f CfFinal);
-				hlm_override = not stat && (loop c name || loop c f.cf_name);
+				hlm_override = not stat && (List.memq f c.cl_overrides);
 				hlm_kind = kind;
 			})
 		);
@@ -2135,6 +2135,93 @@ let check_constructor ctx c f =
 
 let has_protected_meta = Meta.Custom ":has_protected"
 let mark_has_protected c = c.cl_meta <- (has_protected_meta,[],null_pos) :: c.cl_meta
+
+let find_first_nonextern_accessor_implementor cl name =
+	let rec loop cl cl_found =
+		match cl.cl_super with
+		| Some ({ cl_extern = true }, _) | None -> cl_found
+		| Some (cl_super, _) ->
+			let has_field = PMap.exists name cl_super.cl_fields in
+			let cl_found = if has_field then cl_super else cl_found in
+			loop cl_super cl_found
+	in
+	loop cl cl
+
+let maybe_gen_instance_accessor ctx cl tl accessor_cf acc alloc_slot kind f_impl f_iface =
+	match find_property_for_accessor ~isget:(kind = MK3Getter) cl tl accessor_cf.cf_name with
+	| Some (_, _, prop_cf) ->
+		let accessor_cl = find_first_nonextern_accessor_implementor cl accessor_cf.cf_name in
+		if accessor_cl == cl then begin
+			let was_override = ref false in
+			cl.cl_overrides <- List.filter (fun f2 ->
+				if f2 == accessor_cf then
+					(was_override := true; false)
+				else
+					true
+			) cl.cl_overrides;
+
+			let name, mtype =
+				if cl.cl_interface then begin
+					let (args,tret) = f_iface prop_cf in
+					let mtype = end_fun ctx args None tret in
+					HMName (reserved prop_cf.cf_name, HNNamespace (make_class_ns cl)), mtype
+				end else begin
+					let func = f_impl prop_cf in
+					let mtype = generate_method ctx func false accessor_cf.cf_meta in
+					ident prop_cf.cf_name, mtype
+				end
+			in
+
+			let getter = {
+				hlf_name = name;
+				hlf_slot = alloc_slot ();
+				hlf_kind = HFMethod {
+					hlm_type = mtype;
+					hlm_final = has_class_field_flag accessor_cf CfFinal;
+					hlm_override = !was_override;
+					hlm_kind = kind;
+				};
+				hlf_metas = None;
+			} in
+			getter :: acc
+		end else
+			acc
+	| None ->
+		acc
+
+let maybe_gen_instance_getter ctx c f acc alloc_slot =
+	let tl = List.map snd c.cl_params in
+	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Getter
+		(fun prop_cf -> {
+			tf_args = [];
+			tf_type = prop_cf.cf_type;
+			tf_expr = begin
+				let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
+				let efield = mk (TField (ethis, FInstance (c, tl, f))) f.cf_type null_pos in
+				let ecall = mk (TCall (efield, [])) prop_cf.cf_type null_pos in
+				mk (TReturn (Some ecall)) t_dynamic null_pos;
+			end
+		})
+		(fun prop_cf -> ([],prop_cf.cf_type))
+
+let maybe_gen_instance_setter ctx c f acc alloc_slot =
+	let tl = List.map snd c.cl_params in
+	let mk_varg t = alloc_var (VUser TVOArgument) "value" t null_pos in
+	maybe_gen_instance_accessor ctx c tl f acc alloc_slot MK3Setter
+		(fun prop_cf ->
+			let varg = mk_varg prop_cf.cf_type in
+			{
+				tf_args = [(varg,None)];
+				tf_type = ctx.com.basic.tvoid;
+				tf_expr = begin
+					let ethis = mk (TConst TThis) (TInst (c, tl)) null_pos in
+					let efield = mk (TField (ethis, FInstance (c, tl, f))) f.cf_type null_pos in
+					let earg = mk (TLocal varg) prop_cf.cf_type null_pos in
+					mk (TCall (efield, [earg])) prop_cf.cf_type null_pos
+				end
+			}
+		)
+		(fun prop_cf -> ([(mk_varg prop_cf.cf_type,None)],ctx.com.basic.tvoid))
 
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
@@ -2201,11 +2288,9 @@ let generate_class ctx c =
 	in
 	let generate_prop f acc alloc_slot =
 		match f.cf_kind with
-		| Method _ -> acc
-		| Var v ->
-			(* let p = f.cf_pos in *)
-			(* let ethis = mk (TConst TThis) (TInst (c,[])) p in *)
-			acc
+		| Method _ when is_getter_name f.cf_name -> maybe_gen_instance_getter ctx c f acc alloc_slot
+		| Method _ when is_setter_name f.cf_name -> maybe_gen_instance_setter ctx c f acc alloc_slot
+		| Method _ | Var _ -> acc
 	in
 	let fields = PMap.fold (fun f acc ->
 		let acc = generate_prop f acc (fun() -> 0) in
