@@ -195,6 +195,9 @@ let build_class com c file =
 				| HNNamespace ns ->
 					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns]) :: !meta;
 					[APublic,null_pos]
+				| HNInternal (Some ns) ->
+					if not (c.hlc_interface || is_xml) then meta := (Meta.Ns,[String ns; Ident "internal"]) :: !meta;
+					[APublic,null_pos]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic,null_pos]
 				| HNStaticProtected _ | HNProtected _ ->

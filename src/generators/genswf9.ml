@@ -305,7 +305,22 @@ let make_class_ns c =
 
 let is_cf_protected cf = Meta.has Meta.Protected cf.cf_meta
 
+let ns_access cf = 
+	try
+		let (_,params,_) = Meta.get Meta.Ns cf.cf_meta in
+		match params with
+		| [(EConst (String ns),_)] ->
+			Some (HMName (cf.cf_name, HNNamespace ns))
+		| [(EConst (String ns),_); (EConst (Ident "internal"),_)] ->
+			Some (HMName (cf.cf_name, HNInternal (Some ns)))
+		| _ -> assert false
+	with Not_found ->
+		None
+
 let property ctx fa t =
+	match Option.map_default ns_access None (extract_field fa) with
+	| Some n -> n, None, false
+	| None ->
 	match fa with
 	| FStatic (c, cf) when is_cf_protected cf ->
 		HMName (reserved cf.cf_name, HNStaticProtected (Some (make_class_ns c))), None, false
@@ -371,8 +386,14 @@ let property ctx fa t =
 
 let this_property fa =
 	match fa with
-	| FInstance (c,_,cf) | FClosure (Some (c,_),cf) when is_cf_protected cf ->
-		HMName (reserved cf.cf_name, HNProtected (make_class_ns c))
+	| FInstance (c,_,cf) | FClosure (Some (c,_),cf) ->
+		if is_cf_protected cf then
+			HMName (reserved cf.cf_name, HNProtected (make_class_ns c))
+		else begin
+			match ns_access cf with
+			| Some n -> n
+			| None -> ident (field_name fa)
+		end
 	| _ ->
 		ident (field_name fa)
 
