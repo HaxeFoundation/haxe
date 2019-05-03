@@ -49,7 +49,6 @@ type strict_meta =
 	| FileXml
 	| Final
 	| Fixed
-	| FlashProperty
 	| FlatEnum
 	| Font
 	| ForLoopVariable
@@ -257,7 +256,6 @@ let get_info = function
 	| FileXml -> ":fileXml",("Include xml attribute snippet in Build.xml entry for file",[UsedOn TClass;Platform Cpp])
 	| Final -> ":final",("Prevents a class or interface from being extended or a method from being overriden",[UsedOnEither [TClass;TClassField]])
 	| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
-	| FlashProperty -> ":flash.property",("Generate native Flash getter/setter for the property",[Platform Flash;UsedOn TClassField])
 	| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; UsedInternally])
 	| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 	| ForLoopVariable -> ":forLoopVariable",("Internally used to mark for-loop variables",[UsedInternally])
