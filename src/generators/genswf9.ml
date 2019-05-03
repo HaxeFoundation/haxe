@@ -2510,7 +2510,7 @@ let generate_class ctx c =
 			hlf_metas = None;
 		} :: fields
 	end in
-	let fields = fields @ realize_required_accessors ctx c in
+	let fields = if not c.cl_interface then fields @ realize_required_accessors ctx c else fields in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
