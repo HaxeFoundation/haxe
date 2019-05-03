@@ -65,7 +65,7 @@ class Php {
 
 	static function runThroughPhpVersions(fn:()->Void) {
 	if(isCi() && systemName == "Linux") {
-			for(version in ['7.0', '7.1', '7.2', '7.3']) {
+			for(version in ['7.0', '7.1'/*, '7.2', '7.3'*/]) { //7.2 and 7.3 are not available on travis Ubuntu trusty
 				runCommand("phpenv", ["global", version]);
 				fn();
 			}
