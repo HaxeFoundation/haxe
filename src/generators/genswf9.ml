@@ -327,8 +327,8 @@ let find_property_for_accessor ~isget cl tl accessor_name =
 		match Type.class_field cl tl prop_name with
 		| Some (prop_cl, prop_tl), _, prop_cf ->
 			(match prop_cf.cf_kind with
-			| Var { v_read = AccCall } when isget -> Some (prop_cl, prop_tl, prop_cf)
-			| Var { v_write = AccCall } when not isget -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some (prop_cl, prop_tl, prop_cf)
 			| _ -> None)
 		| _ -> None
 	with Not_found ->
