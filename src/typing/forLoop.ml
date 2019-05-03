@@ -45,6 +45,11 @@ module IterationKind = struct
 		it_expr : texpr;
 	}
 
+	let type_field_config = {
+		Fields.TypeFieldConfig.do_resume = true;
+		allow_resolve = false;
+	}
+
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
@@ -53,7 +58,7 @@ module IterationKind = struct
 		let e1 = try
 			AbstractCast.cast_or_unify_raise ctx t e p
 		with Error (Unify _,_) ->
-			let acc = !build_call_ref ctx (type_field ~resume ctx e s e.epos MCall) [] WithType.value e.epos in
+			let acc = !build_call_ref ctx (type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall) [] WithType.value e.epos in
 			try
 				unify_raise ctx acc.etype t acc.epos;
 				acc
@@ -128,11 +133,10 @@ module IterationKind = struct
 					let t = match tl with [t] -> t | _ -> raise Not_found in
 					IteratorCustom(get_next_array_element,get_length),e,t
 			end with Not_found -> try
-				if PMap.exists "iterator" c.cl_statics then raise Not_found;
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
-				let acc_next = type_field ~resume:true ctx e_tmp "next" p MCall in
-				let acc_hasNext = type_field ~resume:true ctx e_tmp "hasNext" p MCall in
+				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall in
+				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p MCall in
 				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
 				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
@@ -394,12 +398,12 @@ let type_for_loop ctx handle_display it e2 p =
 		end;
 		let vtmp = gen_local ctx e1.etype e1.epos in
 		let etmp = make_local vtmp vtmp.v_pos in
-		let ehasnext = !build_call_ref ctx (type_field ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
-		let enext = !build_call_ref ctx (type_field ctx etmp "next" etmp.epos MCall) [] WithType.value etmp.epos in
+		let ehasnext = !build_call_ref ctx (type_field_default_cfg ctx etmp "hasNext" etmp.epos MCall) [] WithType.value etmp.epos in
+		let enext = !build_call_ref ctx (type_field_default_cfg ctx etmp "next" etmp.epos MCall) [] WithType.value etmp.epos in
 		let v = gen_local ctx pt e1.epos in
 		let ev = make_local v v.v_pos in
-		let ekey = Calls.acc_get ctx (type_field ctx ev "key" ev.epos MGet) ev.epos in
-		let evalue = Calls.acc_get ctx (type_field ctx ev "value" ev.epos MGet) ev.epos in
+		let ekey = Calls.acc_get ctx (type_field_default_cfg ctx ev "key" ev.epos MGet) ev.epos in
+		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet) ev.epos in
 		let vkey = add_local_with_origin ctx TVOForVariable ikey ekey.etype pkey in
 		let vvalue = add_local_with_origin ctx TVOForVariable ivalue evalue.etype pvalue in
 		let e2 = type_expr ctx e2 NoValue in

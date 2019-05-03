@@ -411,7 +411,7 @@ let rec type_ident_raise ctx i p mode =
 		let t, name, pi = PMap.find i ctx.m.module_globals in
 		ImportHandling.maybe_mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
-		type_field ctx e name p mode
+		type_field_default_cfg ctx e name p mode
 
 (*
 	We want to try unifying as an integer and apply side effects.
@@ -689,7 +689,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
+				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
@@ -1187,7 +1187,7 @@ and handle_efield ctx e p mode =
 		let force = ref false in
 		let e = List.fold_left (fun e (f,_,p) ->
 			let e = acc_get ctx (e MGet) p in
-			let f = type_field ~resume:(!resume) ctx e f p in
+			let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
 			force := !resume;
 			resume := false;
 			f
