@@ -1704,8 +1704,11 @@ let write_c com file (code:code) gnames =
 			if m.m_types <> [] then define ctx (sprintf "#include <%s.h>" m.m_name);
 			let file_pos f =
 				match f.fe_decl with
-				| Some f when Array.length f.debug > 0 -> f.debug.(Array.length f.debug - 1)
-				| _ -> (0,0)
+				| Some f when Array.length f.debug > 0 ->
+					let fid, p = f.debug.(Array.length f.debug - 1) in
+					(code.strings.(fid), p)
+				| _ ->
+					("",0)
 			in
 			let funcs = List.sort (fun f1 f2 -> compare (file_pos f1) (file_pos f2)) m.m_functions in
 			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) funcs;
