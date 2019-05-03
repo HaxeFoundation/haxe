@@ -2305,25 +2305,40 @@ let maybe_gen_static_setter ctx c f acc alloc_slot =
 	)
 
 let realize_required_accessors ctx cl =
+	let is_implemented_by_super ci =
+		Option.map_default (fun (csup,_) -> 
+			(* heavily stripped-down version from Type.unify *)
+			let rec loop c  =
+				c == ci
+				||
+				Option.map_default (fun (cs,_) -> loop cs) false c.cl_super
+				||
+				List.exists (fun (cs,_) -> loop cs) c.cl_implements
+			in
+			loop csup
+		) false cl.cl_super
+	in
 	let interface_props =
 		begin
 		let h = Hashtbl.create 0 in
 		let rec collect cl =
 			let loop (ci,_) =
-				List.iter (fun cf ->
-					match cf.cf_kind with
-					| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
-						begin try
-							let read', write' = Hashtbl.find h cf.cf_name in
-							let read = if read = AccNever then read' else true in
-							let write = if write = AccNever then write' else true in
-							Hashtbl.replace h cf.cf_name (read, write)
-						with Not_found ->
-							Hashtbl.add h cf.cf_name (read = AccCall, write = AccCall)
-						end
-					| _ -> ()
-				) ci.cl_ordered_fields;
-				collect ci;
+				if not (is_implemented_by_super ci) then begin
+					List.iter (fun cf ->
+						match cf.cf_kind with
+						| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
+							begin try
+								let read', write' = Hashtbl.find h cf.cf_name in
+								let read = if read = AccNever then read' else true in
+								let write = if write = AccNever then write' else true in
+								Hashtbl.replace h cf.cf_name (read, write)
+							with Not_found ->
+								Hashtbl.add h cf.cf_name (read = AccCall, write = AccCall)
+							end
+						| _ -> ()
+					) ci.cl_ordered_fields;
+					collect ci;
+				end
 			in
 			List.iter loop cl.cl_implements;
 		in
