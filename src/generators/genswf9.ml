@@ -340,6 +340,23 @@ let is_extern_instance_accessor ~isget cl tl cf =
 	else
 		None
 
+let find_static_for_accessor ~isget cl accessor_name =
+	let prop_name = get_property_name accessor_name in
+	try
+		let prop_cf = PMap.find prop_name cl.cl_statics in
+		(match prop_cf.cf_kind with
+		| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some prop_cf
+		| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some prop_cf
+		| _ -> None)
+	with Not_found ->
+		None
+		
+let is_extern_static_accessor ~isget cl cf =
+	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
+		find_static_for_accessor ~isget cl cf.cf_name
+	else
+		None
+
 let property ctx fa t =
 	match Option.map_default ns_access None (extract_field fa) with
 	| Some n -> n, None, false
@@ -1560,6 +1577,7 @@ and gen_call ctx retval e el r =
 		begin
 			let default () = gen_field_call ctx retval e1 f el r in
 			let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
+			let mk_static_acccess cl prop_cf = mk (TField (e1, FStatic (cl, prop_cf))) prop_cf.cf_type e.epos in
 			match f, el with
 			| FInstance (cl, tl, cf), [] ->
 				(match is_extern_instance_accessor ~isget:true cl tl cf with
@@ -1573,6 +1591,22 @@ and gen_call ctx retval e el r =
 				(match is_extern_instance_accessor ~isget:false cl tl cf with
 				| Some (prop_cl, prop_tl, prop_cf) ->
 					let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+					gen_assign ctx efield evalue retval
+				| None ->
+					default ())
+
+			| FStatic (cl, cf), [] ->
+				(match is_extern_static_accessor ~isget:true cl cf with
+				| Some prop_cf ->
+					let efield = mk_static_acccess cl prop_cf in
+					getvar ctx (gen_access ctx efield Read)
+				| None ->
+					default ())
+
+			| FStatic (cl, cf), [evalue] ->
+				(match is_extern_static_accessor ~isget:false cl cf with
+				| Some prop_cf ->
+					let efield = mk_static_acccess cl prop_cf in
 					gen_assign ctx efield evalue retval
 				| None ->
 					default ())
