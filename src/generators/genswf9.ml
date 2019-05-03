@@ -2304,6 +2304,106 @@ let maybe_gen_static_setter ctx c f acc alloc_slot =
 		}
 	)
 
+let realize_required_accessors ctx cl =
+	let interface_props =
+		begin
+		let h = Hashtbl.create 0 in
+		let rec collect cl =
+			let loop (ci,_) =
+				List.iter (fun cf ->
+					match cf.cf_kind with
+					| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
+						begin try
+							let read', write' = Hashtbl.find h cf.cf_name in
+							let read = if read = AccNever then read' else true in
+							let write = if write = AccNever then write' else true in
+							Hashtbl.replace h cf.cf_name (read, write)
+						with Not_found ->
+							Hashtbl.add h cf.cf_name (read = AccCall, write = AccCall)
+						end
+					| _ -> ()
+				) ci.cl_ordered_fields;
+				collect ci;
+			in
+			List.iter loop cl.cl_implements;
+		in
+		collect cl;
+		h
+		end
+	in
+
+	let rec has_nonextern_field cl name = 
+		if PMap.exists name cl.cl_fields then true
+		else match cl.cl_super with
+		| Some ({ cl_extern = false } as csup, _) -> has_nonextern_field csup name
+		| _ -> false
+	in
+
+	let tl = List.map snd cl.cl_params in
+	let fields = ref [] in
+	Hashtbl.iter (fun name (read, write) ->
+		match Type.class_field cl tl name with
+		| Some (actual_cl, actual_tl), _, cf ->
+			if actual_cl.cl_extern then begin
+				let mk_field_access () =
+					let ethis = mk (TConst TThis) (TInst (cl,tl)) null_pos in
+					mk (TField (ethis, FInstance (actual_cl, actual_tl, cf))) cf.cf_type null_pos
+				in
+				if read then begin
+					let getter_name = "get_" ^ name in
+					if not (has_nonextern_field cl getter_name) then begin
+						let getter_func = {
+							tf_args = [];
+							tf_type = cf.cf_type;
+							tf_expr = mk (TReturn (Some (mk_field_access ()))) t_dynamic null_pos;
+						} in
+						let getter = {
+							hlf_name = ident getter_name;
+							hlf_slot = 0;
+							hlf_kind = HFMethod {
+								hlm_type = generate_method ctx getter_func false [];
+								hlm_final = false;
+								hlm_override = false;
+								hlm_kind = MK3Normal;
+							};
+							hlf_metas = None;
+						} in
+						fields := getter :: !fields;
+					end
+				end;
+				if write then begin
+					let setter_name = "set_" ^ name in
+					if not (has_nonextern_field cl setter_name) then begin
+						let varg = alloc_var (VUser TVOArgument) "value" cf.cf_type null_pos in
+						let setter_func = {
+							tf_args = [(varg,None)];
+							tf_type = cf.cf_type;
+							tf_expr = begin
+								let efield = mk_field_access () in
+								let earg = mk (TLocal varg) varg.v_type null_pos in
+								let eassign = mk (TBinop (OpAssign, efield, earg)) cf.cf_type null_pos in
+								mk (TReturn (Some eassign)) t_dynamic null_pos;
+							end;
+						} in
+						let setter = {
+							hlf_name = ident setter_name;
+							hlf_slot = 0;
+							hlf_kind = HFMethod {
+								hlm_type = generate_method ctx setter_func false [];
+								hlm_final = false;
+								hlm_override = false;
+								hlm_kind = MK3Normal;
+							};
+							hlf_metas = None;
+						} in
+						fields := setter :: !fields;
+					end
+				end;
+			end
+		| _ -> assert false
+	) interface_props;
+	!fields
+
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2410,6 +2510,7 @@ let generate_class ctx c =
 			hlf_metas = None;
 		} :: fields
 	end in
+	let fields = fields @ realize_required_accessors ctx c in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.rev (List.fold_left (fun acc f ->
