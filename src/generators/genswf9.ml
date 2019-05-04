@@ -305,7 +305,7 @@ let make_class_ns c =
 
 let is_cf_protected cf = Meta.has Meta.Protected cf.cf_meta
 
-let ns_access cf = 
+let ns_access cf =
 	try
 		let (_,params,_) = Meta.get Meta.Ns cf.cf_meta in
 		match params with
@@ -351,7 +351,7 @@ let find_static_property_for_accessor ~isget cl accessor_name =
 		| _ -> None)
 	with Not_found ->
 		None
-		
+
 let is_extern_static_accessor ~isget cl cf =
 	if cl.cl_extern && (if isget then is_getter_name cf.cf_name else is_setter_name cf.cf_name) then
 		find_static_property_for_accessor ~isget cl cf.cf_name
@@ -2110,10 +2110,14 @@ let generate_field_kind ctx f c stat =
 		| _ ->
 			let name, kind = method_kind() in
 			let m = generate_method ctx fdata stat f.cf_meta in
+			let is_override = not stat && (
+				if kind = MK3Normal then List.memq f c.cl_overrides
+				else loop c name
+			) in
 			Some (HFMethod {
 				hlm_type = m;
 				hlm_final = stat || (has_class_field_flag f CfFinal);
-				hlm_override = not stat && (List.memq f c.cl_overrides);
+				hlm_override = is_override;
 				hlm_kind = kind;
 			})
 		);
@@ -2312,7 +2316,7 @@ let maybe_gen_static_setter ctx c f acc alloc_slot =
 
 let realize_required_accessors ctx cl =
 	let is_implemented_by_super ci =
-		Option.map_default (fun (csup,_) -> 
+		Option.map_default (fun (csup,_) ->
 			(* heavily stripped-down version from Type.unify *)
 			let rec loop c  =
 				c == ci
@@ -2353,7 +2357,7 @@ let realize_required_accessors ctx cl =
 		end
 	in
 
-	let rec has_nonextern_field cl name = 
+	let rec has_nonextern_field cl name =
 		if PMap.exists name cl.cl_fields then true
 		else match cl.cl_super with
 		| Some ({ cl_extern = false } as csup, _) -> has_nonextern_field csup name
