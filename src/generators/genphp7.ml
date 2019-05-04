@@ -3431,7 +3431,7 @@ class class_builder ctx (cls:tclass) =
 			Check if this class requires constructor to be generated even if there is no user-defined one
 		*)
 		method private constructor_is_required =
-			if List.length self#get_namespace > 0 then
+			if cls.cl_interface || List.length self#get_namespace > 0 then
 				false
 			else begin
 				let required = ref false in
