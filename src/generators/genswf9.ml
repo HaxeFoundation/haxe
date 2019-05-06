@@ -2080,6 +2080,9 @@ let check_constructor ctx c f =
 	with Exit ->
 		()
 
+let has_protected_meta = Meta.Custom ":has_protected"
+let mark_has_protected c = c.cl_meta <- (has_protected_meta,[],null_pos) :: c.cl_meta
+
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
 	ctx.cur_class <- c;
@@ -2210,6 +2213,14 @@ let generate_class ctx c =
 		| None -> false
 		| Some (c,_) -> is_dynamic c
 	in
+	if !has_protected <> None then
+		mark_has_protected c (* class has its own protected methods - add meta for the child classes *)
+	else Option.may (fun (csup,_) -> (* child has no own protected methods, check whether parent was marked with the meta *)
+		if Meta.has has_protected_meta csup.cl_meta then begin
+			has_protected := Some (make_class_ns c);
+			mark_has_protected c (* also mark this class with the meta for further child classes *)
+		end
+	) c.cl_super;
 	{
 		hlc_index = 0;
 		hlc_name = name;
