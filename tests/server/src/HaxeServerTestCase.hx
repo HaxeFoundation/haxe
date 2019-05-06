@@ -103,6 +103,10 @@ class HaxeServerTestCase implements ITest {
 		return null;
 	}
 
+	function assertSuccess(?p:haxe.PosInfos) {
+		Assert.isTrue(0 == errorMessages.length, p);
+	}
+
 	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
 		Assert.isTrue(hasErrorMessage(message), p);
 	}
@@ -133,7 +137,7 @@ class HaxeServerTestCase implements ITest {
 
 	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
 		var type = getStoredType(typePackage, typeName);
-		Assert.isTrue(type != null);
+		Assert.isTrue(type != null, p);
 		function check<T>(type:JsonModuleType<T>) {
 			return switch [type.kind, type.args] {
 				case [Class, c]:
