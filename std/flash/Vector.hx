@@ -43,6 +43,8 @@ package flash;
 	function toString() : String;
 	function indexOf( x : T, ?from : Int ) : Int;
 	function lastIndexOf( x : T, ?from : Int ) : Int;
+	@:require(flash19) function insertAt(index : Int, element : T) : Void;
+	@:require(flash19) function removeAt(index:Int) : T;
 
 	public inline static function ofArray<T>( v : Array<T> ) : Vector<T> {
 		return untyped __vector__(v);
