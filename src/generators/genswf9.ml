@@ -320,6 +320,7 @@ let ns_access cf =
 let is_getter_name name = ExtString.String.starts_with name "get_"
 let is_setter_name name = ExtString.String.starts_with name "set_"
 let get_property_name accessor_name = String.sub accessor_name 4 (String.length accessor_name - 4)
+let is_flash_property cf = Meta.has Meta.FlashProperty cf.cf_meta
 
 let find_property_for_accessor ~isget cl tl accessor_name =
 	let prop_name = get_property_name accessor_name in
@@ -327,8 +328,8 @@ let find_property_for_accessor ~isget cl tl accessor_name =
 		match Type.class_field cl tl prop_name with
 		| Some (prop_cl, prop_tl), _, prop_cf ->
 			(match prop_cf.cf_kind with
-			| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some (prop_cl, prop_tl, prop_cf)
-			| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
 			| _ -> None)
 		| _ -> None
 	with Not_found ->
@@ -345,8 +346,8 @@ let find_static_property_for_accessor ~isget cl accessor_name =
 	try
 		let prop_cf = PMap.find prop_name cl.cl_statics in
 		(match prop_cf.cf_kind with
-		| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some prop_cf
-		| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && not (Meta.has Meta.IsVar prop_cf.cf_meta) -> Some prop_cf
+		| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && is_flash_property prop_cf -> Some prop_cf
+		| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && is_flash_property prop_cf -> Some prop_cf
 		| _ -> None)
 	with Not_found ->
 		None
