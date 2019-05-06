@@ -1,12 +1,12 @@
 package flash.utils;
 
 extern class ByteArray implements IDataOutput2 implements IDataInput2 implements ArrayAccess<Int> {
-	var bytesAvailable(get,never) : UInt;
-	var endian(get,set) : Endian;
-	var length(get,set) : UInt;
-	var objectEncoding(get,set) : UInt;
-	var position(get,set) : UInt;
-	@:require(flash11_4) var shareable(get,set) : Bool;
+	@:flash.property var bytesAvailable(get,never) : UInt;
+	@:flash.property var endian(get,set) : Endian;
+	@:flash.property var length(get,set) : UInt;
+	@:flash.property var objectEncoding(get,set) : UInt;
+	@:flash.property var position(get,set) : UInt;
+	@:flash.property @:require(flash11_4) var shareable(get,set) : Bool;
 	function new() : Void;
 	@:require(flash11_4) function atomicCompareAndSwapIntAt(byteIndex : Int, expectedValue : Int, newValue : Int) : Int;
 	@:require(flash11_4) function atomicCompareAndSwapLength(expectedLength : Int, newLength : Int) : Int;
@@ -53,7 +53,7 @@ extern class ByteArray implements IDataOutput2 implements IDataInput2 implements
 	function writeUTF(value : String) : Void;
 	function writeUTFBytes(value : String) : Void;
 	function writeUnsignedInt(value : UInt) : Void;
-	static var defaultObjectEncoding(get,set) : UInt;
+	@:flash.property static var defaultObjectEncoding(get,set) : UInt;
 	private static function get_defaultObjectEncoding() : UInt;
 	private static function set_defaultObjectEncoding(value : UInt) : UInt;
 }

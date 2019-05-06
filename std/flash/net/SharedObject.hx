@@ -1,11 +1,11 @@
 package flash.net;
 
 extern class SharedObject extends flash.events.EventDispatcher {
-	var client(get,set) : Dynamic;
-	var data(get,never) : Dynamic;
-	var fps(never,set) : Float;
-	var objectEncoding(get,set) : UInt;
-	var size(get,never) : UInt;
+	@:flash.property var client(get,set) : Dynamic;
+	@:flash.property var data(get,never) : Dynamic;
+	@:flash.property var fps(never,set) : Float;
+	@:flash.property var objectEncoding(get,set) : UInt;
+	@:flash.property var size(get,never) : UInt;
 	function new() : Void;
 	function clear() : Void;
 	function close() : Void;
@@ -21,8 +21,8 @@ extern class SharedObject extends flash.events.EventDispatcher {
 	private function set_client(value : Dynamic) : Dynamic;
 	private function set_fps(value : Float) : Float;
 	private function set_objectEncoding(value : UInt) : UInt;
-	static var defaultObjectEncoding(get,set) : UInt;
-	@:require(flash11_7) static var preventBackup(get,set) : Bool;
+	@:flash.property static var defaultObjectEncoding(get,set) : UInt;
+	@:flash.property @:require(flash11_7) static var preventBackup(get,set) : Bool;
 	static function deleteAll(url : String) : Int;
 	static function getDiskUsage(url : String) : Int;
 	static function getLocal(name : String, ?localPath : String, secure : Bool = false) : SharedObject;

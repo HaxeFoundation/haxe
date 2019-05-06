@@ -1,7 +1,7 @@
 package flash.events;
 
 extern class TextEvent extends Event {
-	var text(get,set) : String;
+	@:flash.property var text(get,set) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?text : String) : Void;
 	private function get_text() : String;
 	private function set_text(value : String) : String;

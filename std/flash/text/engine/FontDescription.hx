@@ -1,13 +1,13 @@
 package flash.text.engine;
 
 extern final class FontDescription {
-	var cffHinting(get,set) : CFFHinting;
-	var fontLookup(get,set) : FontLookup;
-	var fontName(get,set) : String;
-	var fontPosture(get,set) : FontPosture;
-	var fontWeight(get,set) : FontWeight;
-	var locked(get,set) : Bool;
-	var renderingMode(get,set) : RenderingMode;
+	@:flash.property var cffHinting(get,set) : CFFHinting;
+	@:flash.property var fontLookup(get,set) : FontLookup;
+	@:flash.property var fontName(get,set) : String;
+	@:flash.property var fontPosture(get,set) : FontPosture;
+	@:flash.property var fontWeight(get,set) : FontWeight;
+	@:flash.property var locked(get,set) : Bool;
+	@:flash.property var renderingMode(get,set) : RenderingMode;
 	function new(?fontName : String, ?fontWeight : FontWeight, ?fontPosture : FontPosture, ?fontLookup : FontLookup, ?renderingMode : RenderingMode, ?cffHinting : CFFHinting) : Void;
 	function clone() : FontDescription;
 	private function get_cffHinting() : CFFHinting;

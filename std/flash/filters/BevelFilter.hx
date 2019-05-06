@@ -1,18 +1,18 @@
 package flash.filters;
 
 extern final class BevelFilter extends BitmapFilter {
-	var angle(get,set) : Float;
-	var blurX(get,set) : Float;
-	var blurY(get,set) : Float;
-	var distance(get,set) : Float;
-	var highlightAlpha(get,set) : Float;
-	var highlightColor(get,set) : UInt;
-	var knockout(get,set) : Bool;
-	var quality(get,set) : Int;
-	var shadowAlpha(get,set) : Float;
-	var shadowColor(get,set) : UInt;
-	var strength(get,set) : Float;
-	var type(get,set) : BitmapFilterType;
+	@:flash.property var angle(get,set) : Float;
+	@:flash.property var blurX(get,set) : Float;
+	@:flash.property var blurY(get,set) : Float;
+	@:flash.property var distance(get,set) : Float;
+	@:flash.property var highlightAlpha(get,set) : Float;
+	@:flash.property var highlightColor(get,set) : UInt;
+	@:flash.property var knockout(get,set) : Bool;
+	@:flash.property var quality(get,set) : Int;
+	@:flash.property var shadowAlpha(get,set) : Float;
+	@:flash.property var shadowColor(get,set) : UInt;
+	@:flash.property var strength(get,set) : Float;
+	@:flash.property var type(get,set) : BitmapFilterType;
 	function new(distance : Float = 4, angle : Float = 45, highlightColor : UInt = 0xFFFFFF, highlightAlpha : Float = 1, shadowColor : UInt = 0, shadowAlpha : Float = 1, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, ?type : BitmapFilterType, knockout : Bool = false) : Void;
 	private function get_angle() : Float;
 	private function get_blurX() : Float;

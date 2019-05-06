@@ -1,9 +1,9 @@
 package flash.display;
 
 @:require(flash10) extern class Shader {
-	var byteCode(never,set) : flash.utils.ByteArray;
-	var data(get,set) : ShaderData;
-	var precisionHint(get,set) : ShaderPrecision;
+	@:flash.property var byteCode(never,set) : flash.utils.ByteArray;
+	@:flash.property var data(get,set) : ShaderData;
+	@:flash.property var precisionHint(get,set) : ShaderPrecision;
 	function new(?code : flash.utils.ByteArray) : Void;
 	private function get_data() : ShaderData;
 	private function get_precisionHint() : ShaderPrecision;

@@ -1,9 +1,9 @@
 package flash.events;
 
 extern class AVHTTPStatusEvent extends Event {
-	var responseHeaders(get,set) : Array<Dynamic>;
-	var responseURL(get,set) : String;
-	var status(get,never) : Int;
+	@:flash.property var responseHeaders(get,set) : Array<Dynamic>;
+	@:flash.property var responseURL(get,set) : String;
+	@:flash.property var status(get,never) : Int;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, status : Int = 0, ?responseUrl : String, ?responseHeaders : Array<Dynamic>) : Void;
 	private function get_responseHeaders() : Array<Dynamic>;
 	private function get_responseURL() : String;

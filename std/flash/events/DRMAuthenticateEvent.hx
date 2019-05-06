@@ -1,12 +1,12 @@
 package flash.events;
 
 @:require(flash10_1) extern class DRMAuthenticateEvent extends Event {
-	var authenticationType(get,never) : String;
-	var header(get,never) : String;
-	var netstream(get,never) : flash.net.NetStream;
-	var passwordPrompt(get,never) : String;
-	var urlPrompt(get,never) : String;
-	var usernamePrompt(get,never) : String;
+	@:flash.property var authenticationType(get,never) : String;
+	@:flash.property var header(get,never) : String;
+	@:flash.property var netstream(get,never) : flash.net.NetStream;
+	@:flash.property var passwordPrompt(get,never) : String;
+	@:flash.property var urlPrompt(get,never) : String;
+	@:flash.property var usernamePrompt(get,never) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?header : String, ?userPrompt : String, ?passPrompt : String, ?urlPrompt : String, ?authenticationType : String, ?netstream : flash.net.NetStream) : Void;
 	private function get_authenticationType() : String;
 	private function get_header() : String;

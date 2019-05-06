@@ -1,20 +1,20 @@
 package flash.net;
 
 extern class NetConnection extends flash.events.EventDispatcher {
-	var client(get,set) : Dynamic;
-	var connected(get,never) : Bool;
-	var connectedProxyType(get,never) : String;
-	@:require(flash10) var farID(get,never) : String;
-	@:require(flash10) var farNonce(get,never) : String;
-	@:require(flash10) var maxPeerConnections(get,set) : UInt;
-	@:require(flash10) var nearID(get,never) : String;
-	@:require(flash10) var nearNonce(get,never) : String;
-	var objectEncoding(get,set) : UInt;
-	@:require(flash10) var protocol(get,never) : String;
-	var proxyType(get,set) : String;
-	@:require(flash10) var unconnectedPeerStreams(get,never) : Array<Dynamic>;
-	var uri(get,never) : String;
-	var usingTLS(get,never) : Bool;
+	@:flash.property var client(get,set) : Dynamic;
+	@:flash.property var connected(get,never) : Bool;
+	@:flash.property var connectedProxyType(get,never) : String;
+	@:flash.property @:require(flash10) var farID(get,never) : String;
+	@:flash.property @:require(flash10) var farNonce(get,never) : String;
+	@:flash.property @:require(flash10) var maxPeerConnections(get,set) : UInt;
+	@:flash.property @:require(flash10) var nearID(get,never) : String;
+	@:flash.property @:require(flash10) var nearNonce(get,never) : String;
+	@:flash.property var objectEncoding(get,set) : UInt;
+	@:flash.property @:require(flash10) var protocol(get,never) : String;
+	@:flash.property var proxyType(get,set) : String;
+	@:flash.property @:require(flash10) var unconnectedPeerStreams(get,never) : Array<Dynamic>;
+	@:flash.property var uri(get,never) : String;
+	@:flash.property var usingTLS(get,never) : Bool;
 	function new() : Void;
 	function addHeader(operation : String, mustUnderstand : Bool = false, ?param : flash.utils.Object) : Void;
 	function call(command : String, responder : Responder, restArgs : haxe.extern.Rest<Dynamic>) : Void;
@@ -38,7 +38,7 @@ extern class NetConnection extends flash.events.EventDispatcher {
 	private function set_maxPeerConnections(value : UInt) : UInt;
 	private function set_objectEncoding(value : UInt) : UInt;
 	private function set_proxyType(value : String) : String;
-	static var defaultObjectEncoding(get,set) : UInt;
+	@:flash.property static var defaultObjectEncoding(get,set) : UInt;
 	private static function get_defaultObjectEncoding() : UInt;
 	private static function set_defaultObjectEncoding(value : UInt) : UInt;
 }

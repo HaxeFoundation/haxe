@@ -1,12 +1,12 @@
 package flash.display;
 
 extern class Sprite extends DisplayObjectContainer {
-	var buttonMode(get,set) : Bool;
-	var dropTarget(get,never) : DisplayObject;
-	var graphics(get,never) : Graphics;
-	var hitArea(get,set) : Sprite;
-	var soundTransform(get,set) : flash.media.SoundTransform;
-	var useHandCursor(get,set) : Bool;
+	@:flash.property var buttonMode(get,set) : Bool;
+	@:flash.property var dropTarget(get,never) : DisplayObject;
+	@:flash.property var graphics(get,never) : Graphics;
+	@:flash.property var hitArea(get,set) : Sprite;
+	@:flash.property var soundTransform(get,set) : flash.media.SoundTransform;
+	@:flash.property var useHandCursor(get,set) : Bool;
 	function new() : Void;
 	private function get_buttonMode() : Bool;
 	private function get_dropTarget() : DisplayObject;

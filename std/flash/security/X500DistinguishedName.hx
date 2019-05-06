@@ -1,12 +1,12 @@
 package flash.security;
 
 extern class X500DistinguishedName {
-	var commonName(get,never) : String;
-	var countryName(get,never) : String;
-	var localityName(get,never) : String;
-	var organizationName(get,never) : String;
-	var organizationalUnitName(get,never) : String;
-	var stateOrProvinceName(get,never) : String;
+	@:flash.property var commonName(get,never) : String;
+	@:flash.property var countryName(get,never) : String;
+	@:flash.property var localityName(get,never) : String;
+	@:flash.property var organizationName(get,never) : String;
+	@:flash.property var organizationalUnitName(get,never) : String;
+	@:flash.property var stateOrProvinceName(get,never) : String;
 	function new() : Void;
 	private function get_commonName() : String;
 	private function get_countryName() : String;

@@ -1,10 +1,10 @@
 package flash.events;
 
 extern class HTTPStatusEvent extends Event {
-	var redirected(get,set) : Bool;
-	@:require(flash10_1) var responseHeaders(get,set) : Array<Dynamic>;
-	@:require(flash10_1) var responseURL(get,set) : String;
-	var status(get,never) : Int;
+	@:flash.property var redirected(get,set) : Bool;
+	@:flash.property @:require(flash10_1) var responseHeaders(get,set) : Array<Dynamic>;
+	@:flash.property @:require(flash10_1) var responseURL(get,set) : String;
+	@:flash.property var status(get,never) : Int;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, status : Int = 0, redirected : Bool = false) : Void;
 	private function get_redirected() : Bool;
 	private function get_responseHeaders() : Array<Dynamic>;

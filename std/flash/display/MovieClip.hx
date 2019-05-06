@@ -1,17 +1,17 @@
 package flash.display;
 
 extern class MovieClip extends Sprite #if !flash_strict implements Dynamic #end {
-	var currentFrame(get,never) : Int;
-	@:require(flash10) var currentFrameLabel(get,never) : String;
-	var currentLabel(get,never) : String;
-	var currentLabels(get,never) : Array<FrameLabel>;
-	var currentScene(get,never) : Scene;
-	var enabled(get,set) : Bool;
-	var framesLoaded(get,never) : Int;
-	@:require(flash11) var isPlaying(get,never) : Bool;
-	var scenes(get,never) : Array<Scene>;
-	var totalFrames(get,never) : Int;
-	var trackAsMenu(get,set) : Bool;
+	@:flash.property var currentFrame(get,never) : Int;
+	@:flash.property @:require(flash10) var currentFrameLabel(get,never) : String;
+	@:flash.property var currentLabel(get,never) : String;
+	@:flash.property var currentLabels(get,never) : Array<FrameLabel>;
+	@:flash.property var currentScene(get,never) : Scene;
+	@:flash.property var enabled(get,set) : Bool;
+	@:flash.property var framesLoaded(get,never) : Int;
+	@:flash.property @:require(flash11) var isPlaying(get,never) : Bool;
+	@:flash.property var scenes(get,never) : Array<Scene>;
+	@:flash.property var totalFrames(get,never) : Int;
+	@:flash.property var trackAsMenu(get,set) : Bool;
 	function new() : Void;
 	function addFrameScript(restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	private function get_currentFrame() : Int;

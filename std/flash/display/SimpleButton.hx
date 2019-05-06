@@ -1,14 +1,14 @@
 package flash.display;
 
 extern class SimpleButton extends InteractiveObject {
-	var downState(get,set) : DisplayObject;
-	var enabled(get,set) : Bool;
-	var hitTestState(get,set) : DisplayObject;
-	var overState(get,set) : DisplayObject;
-	var soundTransform(get,set) : flash.media.SoundTransform;
-	var trackAsMenu(get,set) : Bool;
-	var upState(get,set) : DisplayObject;
-	var useHandCursor(get,set) : Bool;
+	@:flash.property var downState(get,set) : DisplayObject;
+	@:flash.property var enabled(get,set) : Bool;
+	@:flash.property var hitTestState(get,set) : DisplayObject;
+	@:flash.property var overState(get,set) : DisplayObject;
+	@:flash.property var soundTransform(get,set) : flash.media.SoundTransform;
+	@:flash.property var trackAsMenu(get,set) : Bool;
+	@:flash.property var upState(get,set) : DisplayObject;
+	@:flash.property var useHandCursor(get,set) : Bool;
 	function new(?upState : DisplayObject, ?overState : DisplayObject, ?downState : DisplayObject, ?hitTestState : DisplayObject) : Void;
 	private function get_downState() : DisplayObject;
 	private function get_enabled() : Bool;

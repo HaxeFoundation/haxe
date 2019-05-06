@@ -1,9 +1,9 @@
 package flash.events;
 
 extern class ContextMenuEvent extends Event {
-	var contextMenuOwner(get,set) : flash.display.InteractiveObject;
-	@:require(flash10) var isMouseTargetInaccessible(get,set) : Bool;
-	var mouseTarget(get,set) : flash.display.InteractiveObject;
+	@:flash.property var contextMenuOwner(get,set) : flash.display.InteractiveObject;
+	@:flash.property @:require(flash10) var isMouseTargetInaccessible(get,set) : Bool;
+	@:flash.property var mouseTarget(get,set) : flash.display.InteractiveObject;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?mouseTarget : flash.display.InteractiveObject, ?contextMenuOwner : flash.display.InteractiveObject) : Void;
 	private function get_contextMenuOwner() : flash.display.InteractiveObject;
 	private function get_isMouseTargetInaccessible() : Bool;

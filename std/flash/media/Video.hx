@@ -1,10 +1,10 @@
 package flash.media;
 
 extern class Video extends flash.display.DisplayObject {
-	var deblocking(get,set) : Int;
-	var smoothing(get,set) : Bool;
-	var videoHeight(get,never) : Int;
-	var videoWidth(get,never) : Int;
+	@:flash.property var deblocking(get,set) : Int;
+	@:flash.property var smoothing(get,set) : Bool;
+	@:flash.property var videoHeight(get,never) : Int;
+	@:flash.property var videoWidth(get,never) : Int;
 	function new(width : Int = 320, height : Int = 240) : Void;
 	function attachCamera(camera : Camera) : Void;
 	function attachNetStream(netStream : flash.net.NetStream) : Void;

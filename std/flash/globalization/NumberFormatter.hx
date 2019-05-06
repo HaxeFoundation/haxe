@@ -1,19 +1,19 @@
 package flash.globalization;
 
 @:require(flash10_1) extern final class NumberFormatter {
-	var actualLocaleIDName(get,never) : String;
-	var decimalSeparator(get,set) : String;
-	var digitsType(get,set) : NationalDigitsType;
-	var fractionalDigits(get,set) : Int;
-	var groupingPattern(get,set) : String;
-	var groupingSeparator(get,set) : String;
-	var lastOperationStatus(get,never) : LastOperationStatus;
-	var leadingZero(get,set) : Bool;
-	var negativeNumberFormat(get,set) : UInt;
-	var negativeSymbol(get,set) : String;
-	var requestedLocaleIDName(get,never) : String;
-	var trailingZeros(get,set) : Bool;
-	var useGrouping(get,set) : Bool;
+	@:flash.property var actualLocaleIDName(get,never) : String;
+	@:flash.property var decimalSeparator(get,set) : String;
+	@:flash.property var digitsType(get,set) : NationalDigitsType;
+	@:flash.property var fractionalDigits(get,set) : Int;
+	@:flash.property var groupingPattern(get,set) : String;
+	@:flash.property var groupingSeparator(get,set) : String;
+	@:flash.property var lastOperationStatus(get,never) : LastOperationStatus;
+	@:flash.property var leadingZero(get,set) : Bool;
+	@:flash.property var negativeNumberFormat(get,set) : UInt;
+	@:flash.property var negativeSymbol(get,set) : String;
+	@:flash.property var requestedLocaleIDName(get,never) : String;
+	@:flash.property var trailingZeros(get,set) : Bool;
+	@:flash.property var useGrouping(get,set) : Bool;
 	function new(requestedLocaleIDName : String) : Void;
 	function formatInt(value : Int) : String;
 	function formatNumber(value : Float) : String;

@@ -1,14 +1,14 @@
 package flash.display3D;
 
 extern final class Context3D extends flash.events.EventDispatcher {
-	var backBufferHeight(get,never) : Int;
-	var backBufferWidth(get,never) : Int;
-	var driverInfo(get,never) : String;
-	var enableErrorChecking(get,set) : Bool;
-	var maxBackBufferHeight(get,set) : Int;
-	var maxBackBufferWidth(get,set) : Int;
-	@:require(flash12) var profile(get,never) : String;
-	var totalGPUMemory(get,never) : Float;
+	@:flash.property var backBufferHeight(get,never) : Int;
+	@:flash.property var backBufferWidth(get,never) : Int;
+	@:flash.property var driverInfo(get,never) : String;
+	@:flash.property var enableErrorChecking(get,set) : Bool;
+	@:flash.property var maxBackBufferHeight(get,set) : Int;
+	@:flash.property var maxBackBufferWidth(get,set) : Int;
+	@:flash.property @:require(flash12) var profile(get,never) : String;
+	@:flash.property var totalGPUMemory(get,never) : Float;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false, wantsBestResolutionOnBrowserZoom : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
@@ -49,6 +49,6 @@ extern final class Context3D extends flash.events.EventDispatcher {
 	private function set_enableErrorChecking(value : Bool) : Bool;
 	private function set_maxBackBufferHeight(value : Int) : Int;
 	private function set_maxBackBufferWidth(value : Int) : Int;
-	static var supportsVideoTexture(get,never) : Bool;
+	@:flash.property static var supportsVideoTexture(get,never) : Bool;
 	private static function get_supportsVideoTexture() : Bool;
 }

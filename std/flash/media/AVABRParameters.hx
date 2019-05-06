@@ -1,10 +1,10 @@
 package flash.media;
 
 extern class AVABRParameters {
-	var maxBitsPerSecond(get,set) : Int;
-	var minBitsPerSecond(get,set) : Int;
-	var policy(get,set) : String;
-	var startBitsPerSecond(get,set) : Int;
+	@:flash.property var maxBitsPerSecond(get,set) : Int;
+	@:flash.property var minBitsPerSecond(get,set) : Int;
+	@:flash.property var policy(get,set) : String;
+	@:flash.property var startBitsPerSecond(get,set) : Int;
 	function new(init_policy : String, init_startBitsPerSecond : UInt, init_minBitsPerSecond : UInt, init_maxBitsPerSecond : UInt) : Void;
 	private function get_maxBitsPerSecond() : Int;
 	private function get_minBitsPerSecond() : Int;

@@ -1,10 +1,10 @@
 package flash.events;
 
 extern class DRMReturnVoucherCompleteEvent extends Event {
-	var licenseID(get,set) : String;
-	var numberOfVouchersReturned(get,set) : Int;
-	var policyID(get,set) : String;
-	var serverURL(get,set) : String;
+	@:flash.property var licenseID(get,set) : String;
+	@:flash.property var numberOfVouchersReturned(get,set) : Int;
+	@:flash.property var policyID(get,set) : String;
+	@:flash.property var serverURL(get,set) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?inServerURL : String, ?inLicenseID : String, ?inPolicyID : String, inNumberOfVouchersReturned : Int = 0) : Void;
 	private function get_licenseID() : String;
 	private function get_numberOfVouchersReturned() : Int;

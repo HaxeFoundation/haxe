@@ -1,9 +1,9 @@
 package flash.text;
 
 extern class TextRenderer {
-	static var antiAliasType(get,set) : AntiAliasType;
-	static var displayMode(get,set) : TextDisplayMode;
-	static var maxLevel(get,set) : Int;
+	@:flash.property static var antiAliasType(get,set) : AntiAliasType;
+	@:flash.property static var displayMode(get,set) : TextDisplayMode;
+	@:flash.property static var maxLevel(get,set) : Int;
 	private static function get_antiAliasType() : AntiAliasType;
 	private static function get_displayMode() : TextDisplayMode;
 	private static function get_maxLevel() : Int;

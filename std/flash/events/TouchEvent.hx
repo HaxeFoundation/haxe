@@ -1,20 +1,20 @@
 package flash.events;
 
 @:require(flash10_1) extern class TouchEvent extends Event {
-	var altKey(get,set) : Bool;
-	var ctrlKey(get,set) : Bool;
-	var isPrimaryTouchPoint(get,set) : Bool;
-	var isRelatedObjectInaccessible(get,set) : Bool;
-	var localX(get,set) : Float;
-	var localY(get,set) : Float;
-	var pressure(get,set) : Float;
-	var relatedObject(get,set) : flash.display.InteractiveObject;
-	var shiftKey(get,set) : Bool;
-	var sizeX(get,set) : Float;
-	var sizeY(get,set) : Float;
-	var stageX(get,never) : Float;
-	var stageY(get,never) : Float;
-	var touchPointID(get,set) : Int;
+	@:flash.property var altKey(get,set) : Bool;
+	@:flash.property var ctrlKey(get,set) : Bool;
+	@:flash.property var isPrimaryTouchPoint(get,set) : Bool;
+	@:flash.property var isRelatedObjectInaccessible(get,set) : Bool;
+	@:flash.property var localX(get,set) : Float;
+	@:flash.property var localY(get,set) : Float;
+	@:flash.property var pressure(get,set) : Float;
+	@:flash.property var relatedObject(get,set) : flash.display.InteractiveObject;
+	@:flash.property var shiftKey(get,set) : Bool;
+	@:flash.property var sizeX(get,set) : Float;
+	@:flash.property var sizeY(get,set) : Float;
+	@:flash.property var stageX(get,never) : Float;
+	@:flash.property var stageY(get,never) : Float;
+	@:flash.property var touchPointID(get,set) : Int;
 	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, touchPointID : Int = 0, isPrimaryTouchPoint : Bool = false, localX : Float = 0./*NaN*/, localY : Float = 0./*NaN*/, sizeX : Float = 0./*NaN*/, sizeY : Float = 0./*NaN*/, pressure : Float = 0./*NaN*/, ?relatedObject : flash.display.InteractiveObject, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false) : Void;
 	private function get_altKey() : Bool;
 	private function get_ctrlKey() : Bool;

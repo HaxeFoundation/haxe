@@ -1,14 +1,14 @@
 package flash.geom;
 
 extern class Rectangle {
-	var bottom(get,set) : Float;
-	var bottomRight(get,set) : Point;
+	@:flash.property var bottom(get,set) : Float;
+	@:flash.property var bottomRight(get,set) : Point;
 	var height : Float;
-	var left(get,set) : Float;
-	var right(get,set) : Float;
-	var size(get,set) : Point;
-	var top(get,set) : Float;
-	var topLeft(get,set) : Point;
+	@:flash.property var left(get,set) : Float;
+	@:flash.property var right(get,set) : Float;
+	@:flash.property var size(get,set) : Point;
+	@:flash.property var top(get,set) : Float;
+	@:flash.property var topLeft(get,set) : Point;
 	var width : Float;
 	var x : Float;
 	var y : Float;

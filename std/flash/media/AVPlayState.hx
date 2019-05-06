@@ -1,7 +1,7 @@
 package flash.media;
 
 extern class AVPlayState {
-	var state(get,never) : Int;
+	@:flash.property var state(get,never) : Int;
 	function new(state : UInt) : Void;
 	private function get_state() : Int;
 	static final BUFFERING : Int;

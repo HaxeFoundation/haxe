@@ -1,9 +1,9 @@
 package flash.text;
 
 extern class Font {
-	var fontName(get,never) : String;
-	var fontStyle(get,never) : FontStyle;
-	var fontType(get,never) : FontType;
+	@:flash.property var fontName(get,never) : String;
+	@:flash.property var fontStyle(get,never) : FontStyle;
+	@:flash.property var fontType(get,never) : FontType;
 	function new() : Void;
 	private function get_fontName() : String;
 	private function get_fontStyle() : FontStyle;

@@ -1,12 +1,12 @@
 package flash.events;
 
 extern class KeyboardEvent extends Event {
-	var altKey(get,set) : Bool;
-	var charCode(get,set) : UInt;
-	var ctrlKey(get,set) : Bool;
-	var keyCode(get,set) : UInt;
-	var keyLocation(get,set) : flash.ui.KeyLocation;
-	var shiftKey(get,set) : Bool;
+	@:flash.property var altKey(get,set) : Bool;
+	@:flash.property var charCode(get,set) : UInt;
+	@:flash.property var ctrlKey(get,set) : Bool;
+	@:flash.property var keyCode(get,set) : UInt;
+	@:flash.property var keyLocation(get,set) : flash.ui.KeyLocation;
+	@:flash.property var shiftKey(get,set) : Bool;
 	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, charCodeValue : UInt = 0, keyCodeValue : UInt = 0, keyLocationValue : flash.ui.KeyLocation = 0, ctrlKeyValue : Bool = false, altKeyValue : Bool = false, shiftKeyValue : Bool = false) : Void;
 	private function get_altKey() : Bool;
 	private function get_charCode() : UInt;

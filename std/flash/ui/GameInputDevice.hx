@@ -1,11 +1,11 @@
 package flash.ui;
 
 @:require(flash11_8) extern final class GameInputDevice {
-	var enabled(get,set) : Bool;
-	var id(get,never) : String;
-	var name(get,never) : String;
-	var numControls(get,never) : Int;
-	var sampleInterval(get,set) : Int;
+	@:flash.property var enabled(get,set) : Bool;
+	@:flash.property var id(get,never) : String;
+	@:flash.property var name(get,never) : String;
+	@:flash.property var numControls(get,never) : Int;
+	@:flash.property var sampleInterval(get,set) : Int;
 	function new() : Void;
 	function getCachedSamples(data : flash.utils.ByteArray, append : Bool = false) : Int;
 	function getControlAt(i : Int) : GameInputControl;

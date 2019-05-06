@@ -1,11 +1,11 @@
 package flash.media;
 
 extern class AVNetworkingParams {
-	var appendRandomQueryParameter(get,set) : String;
-	var forceNativeNetworking(get,set) : Bool;
-	var networkDownVerificationUrl(get,set) : String;
-	var readSetCookieHeader(get,set) : Bool;
-	var useCookieHeaderForAllRequests(get,set) : Bool;
+	@:flash.property var appendRandomQueryParameter(get,set) : String;
+	@:flash.property var forceNativeNetworking(get,set) : Bool;
+	@:flash.property var networkDownVerificationUrl(get,set) : String;
+	@:flash.property var readSetCookieHeader(get,set) : Bool;
+	@:flash.property var useCookieHeaderForAllRequests(get,set) : Bool;
 	function new(init_forceNativeNetworking : Bool = false, init_readSetCookieHeader : Bool = true, init_useCookieHeaderForAllRequests : Bool = false, ?init_networkDownVerificationUrl : String) : Void;
 	private function get_appendRandomQueryParameter() : String;
 	private function get_forceNativeNetworking() : Bool;

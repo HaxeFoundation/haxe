@@ -1,9 +1,9 @@
 package flash.utils;
 
 extern class ObjectInput implements IDataInput {
-	var bytesAvailable(get,never) : UInt;
-	var endian(get,set) : Endian;
-	var objectEncoding(get,set) : UInt;
+	@:flash.property var bytesAvailable(get,never) : UInt;
+	@:flash.property var endian(get,set) : Endian;
+	@:flash.property var objectEncoding(get,set) : UInt;
 	function new() : Void;
 	private function get_bytesAvailable() : UInt;
 	private function get_endian() : Endian;

@@ -1,14 +1,14 @@
 package flash.text.engine;
 
 extern class ContentElement {
-	var elementFormat(get,set) : ElementFormat;
-	var eventMirror(get,set) : flash.events.EventDispatcher;
-	var groupElement(get,never) : GroupElement;
-	var rawText(get,never) : String;
-	var text(get,never) : String;
-	var textBlock(get,never) : TextBlock;
-	var textBlockBeginIndex(get,never) : Int;
-	var textRotation(get,set) : TextRotation;
+	@:flash.property var elementFormat(get,set) : ElementFormat;
+	@:flash.property var eventMirror(get,set) : flash.events.EventDispatcher;
+	@:flash.property var groupElement(get,never) : GroupElement;
+	@:flash.property var rawText(get,never) : String;
+	@:flash.property var text(get,never) : String;
+	@:flash.property var textBlock(get,never) : TextBlock;
+	@:flash.property var textBlockBeginIndex(get,never) : Int;
+	@:flash.property var textRotation(get,set) : TextRotation;
 	var userData : Dynamic;
 	function new(?elementFormat : ElementFormat, ?eventMirror : flash.events.EventDispatcher, ?textRotation : TextRotation) : Void;
 	private function get_elementFormat() : ElementFormat;

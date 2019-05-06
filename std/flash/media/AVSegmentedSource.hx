@@ -1,10 +1,10 @@
 package flash.media;
 
 extern class AVSegmentedSource extends AVSource {
-	var cookieHeader(never,set) : String;
-	var masterUpdateInterval(never,set) : Int;
-	var networkingParams(get,set) : AVNetworkingParams;
-	var useRedirectedUrl(never,set) : Bool;
+	@:flash.property var cookieHeader(never,set) : String;
+	@:flash.property var masterUpdateInterval(never,set) : Int;
+	@:flash.property var networkingParams(get,set) : AVNetworkingParams;
+	@:flash.property var useRedirectedUrl(never,set) : Bool;
 	function new() : Void;
 	function addCustomHeader(headerName : String, args : flash.Vector<String>) : Void;
 	function clearPauseAtPeriodEnd(periodIndex : Int) : AVResult;

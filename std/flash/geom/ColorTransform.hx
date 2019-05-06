@@ -5,7 +5,7 @@ extern class ColorTransform {
 	var alphaOffset : Float;
 	var blueMultiplier : Float;
 	var blueOffset : Float;
-	var color(get,set) : UInt;
+	@:flash.property var color(get,set) : UInt;
 	var greenMultiplier : Float;
 	var greenOffset : Float;
 	var redMultiplier : Float;

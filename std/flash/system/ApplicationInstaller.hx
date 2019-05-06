@@ -1,7 +1,7 @@
 package flash.system;
 
 @:require(flash11_3) extern final class ApplicationInstaller extends flash.events.EventDispatcher {
-	var isInstalled(get,never) : Bool;
+	@:flash.property var isInstalled(get,never) : Bool;
 	function new() : Void;
 	private function get_isInstalled() : Bool;
 	function install(?mode : String) : Void;

@@ -1,9 +1,9 @@
 package flash.display;
 
 extern class Loader extends DisplayObjectContainer {
-	var content(get,never) : DisplayObject;
-	var contentLoaderInfo(get,never) : LoaderInfo;
-	@:require(flash10_1) var uncaughtErrorEvents(get,never) : flash.events.UncaughtErrorEvents;
+	@:flash.property var content(get,never) : DisplayObject;
+	@:flash.property var contentLoaderInfo(get,never) : LoaderInfo;
+	@:flash.property @:require(flash10_1) var uncaughtErrorEvents(get,never) : flash.events.UncaughtErrorEvents;
 	function new() : Void;
 	function close() : Void;
 	private function get_content() : DisplayObject;

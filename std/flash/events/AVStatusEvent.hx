@@ -1,9 +1,9 @@
 package flash.events;
 
 extern class AVStatusEvent extends Event {
-	var description(get,never) : String;
-	var notificationType(get,never) : String;
-	var result(get,never) : flash.media.AVResult;
+	@:flash.property var description(get,never) : String;
+	@:flash.property var notificationType(get,never) : String;
+	@:flash.property var result(get,never) : flash.media.AVResult;
 	function new(?type : String, bubbles : Bool = false, cancelable : Bool = false, ?inNotificationType : String, inResult : Int = 0, ?inDescription : String) : Void;
 	private function get_description() : String;
 	private function get_notificationType() : String;

@@ -1,7 +1,7 @@
 package flash.errors;
 
 extern class Error #if !flash_strict implements Dynamic #end {
-	var errorID(get,never) : Int;
+	@:flash.property var errorID(get,never) : Int;
 	var message : Dynamic;
 	var name : Dynamic;
 	function new(?message : Dynamic, id : Dynamic = 0) : Void;

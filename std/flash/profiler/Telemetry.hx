@@ -2,8 +2,8 @@ package flash.profiler;
 
 extern class Telemetry {
 	function new() : Void;
-	static var connected(get,never) : Bool;
-	static var spanMarker(get,never) : Float;
+	@:flash.property static var connected(get,never) : Bool;
+	@:flash.property static var spanMarker(get,never) : Float;
 	private static function get_connected() : Bool;
 	private static function get_spanMarker() : Float;
 	static function registerCommandHandler(commandName : String, handler : Dynamic) : Bool;

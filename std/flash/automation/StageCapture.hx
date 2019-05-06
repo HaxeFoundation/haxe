@@ -1,10 +1,10 @@
 package flash.automation;
 
 @:require(flash10_1) extern class StageCapture extends flash.events.EventDispatcher {
-	var capturePTS(get,set) : Float;
-	var captureSource(get,set) : String;
-	var clipRect(get,set) : flash.geom.Rectangle;
-	var fileNameBase(get,set) : String;
+	@:flash.property var capturePTS(get,set) : Float;
+	@:flash.property var captureSource(get,set) : String;
+	@:flash.property var clipRect(get,set) : flash.geom.Rectangle;
+	@:flash.property var fileNameBase(get,set) : String;
 	function new() : Void;
 	function cancel() : Void;
 	function capture(type : String) : Void;

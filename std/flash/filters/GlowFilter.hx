@@ -1,14 +1,14 @@
 package flash.filters;
 
 extern final class GlowFilter extends BitmapFilter {
-	var alpha(get,set) : Float;
-	var blurX(get,set) : Float;
-	var blurY(get,set) : Float;
-	var color(get,set) : UInt;
-	var inner(get,set) : Bool;
-	var knockout(get,set) : Bool;
-	var quality(get,set) : Int;
-	var strength(get,set) : Float;
+	@:flash.property var alpha(get,set) : Float;
+	@:flash.property var blurX(get,set) : Float;
+	@:flash.property var blurY(get,set) : Float;
+	@:flash.property var color(get,set) : UInt;
+	@:flash.property var inner(get,set) : Bool;
+	@:flash.property var knockout(get,set) : Bool;
+	@:flash.property var quality(get,set) : Int;
+	@:flash.property var strength(get,set) : Float;
 	function new(color : UInt = 16711680, alpha : Float = 1, blurX : Float = 6, blurY : Float = 6, strength : Float = 2, quality : Int = 1, inner : Bool = false, knockout : Bool = false) : Void;
 	private function get_alpha() : Float;
 	private function get_blurX() : Float;

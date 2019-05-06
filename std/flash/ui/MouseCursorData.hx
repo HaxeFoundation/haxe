@@ -1,9 +1,9 @@
 package flash.ui;
 
 @:require(flash10_2) extern final class MouseCursorData {
-	var data(get,set) : flash.Vector<flash.display.BitmapData>;
-	var frameRate(get,set) : Float;
-	var hotSpot(get,set) : flash.geom.Point;
+	@:flash.property var data(get,set) : flash.Vector<flash.display.BitmapData>;
+	@:flash.property var frameRate(get,set) : Float;
+	@:flash.property var hotSpot(get,set) : flash.geom.Point;
 	function new() : Void;
 	private function get_data() : flash.Vector<flash.display.BitmapData>;
 	private function get_frameRate() : Float;

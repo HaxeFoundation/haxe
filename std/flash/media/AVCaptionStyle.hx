@@ -1,17 +1,17 @@
 package flash.media;
 
 extern class AVCaptionStyle {
-	var backgroundColor(get,set) : String;
-	var backgroundOpacity(get,set) : String;
-	var bottomInset(get,set) : String;
-	var edgeColor(get,set) : String;
-	var fillColor(get,set) : String;
-	var fillOpacity(get,set) : String;
-	var font(get,set) : String;
-	var fontColor(get,set) : String;
-	var fontEdge(get,set) : String;
-	var fontOpacity(get,set) : String;
-	var size(get,set) : String;
+	@:flash.property var backgroundColor(get,set) : String;
+	@:flash.property var backgroundOpacity(get,set) : String;
+	@:flash.property var bottomInset(get,set) : String;
+	@:flash.property var edgeColor(get,set) : String;
+	@:flash.property var fillColor(get,set) : String;
+	@:flash.property var fillOpacity(get,set) : String;
+	@:flash.property var font(get,set) : String;
+	@:flash.property var fontColor(get,set) : String;
+	@:flash.property var fontEdge(get,set) : String;
+	@:flash.property var fontOpacity(get,set) : String;
+	@:flash.property var size(get,set) : String;
 	function new() : Void;
 	private function get_backgroundColor() : String;
 	private function get_backgroundOpacity() : String;

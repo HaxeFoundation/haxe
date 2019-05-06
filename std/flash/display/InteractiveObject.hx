@@ -1,15 +1,15 @@
 package flash.display;
 
 extern class InteractiveObject extends DisplayObject {
-	var accessibilityImplementation(get,set) : flash.accessibility.AccessibilityImplementation;
-	var contextMenu(get,set) : flash.ui.ContextMenu;
-	var doubleClickEnabled(get,set) : Bool;
-	var focusRect(get,set) : Dynamic;
-	var mouseEnabled(get,set) : Bool;
-	@:require(flash11) var needsSoftKeyboard(get,set) : Bool;
-	@:require(flash11) var softKeyboardInputAreaOfInterest(get,set) : flash.geom.Rectangle;
-	var tabEnabled(get,set) : Bool;
-	var tabIndex(get,set) : Int;
+	@:flash.property var accessibilityImplementation(get,set) : flash.accessibility.AccessibilityImplementation;
+	@:flash.property var contextMenu(get,set) : flash.ui.ContextMenu;
+	@:flash.property var doubleClickEnabled(get,set) : Bool;
+	@:flash.property var focusRect(get,set) : Dynamic;
+	@:flash.property var mouseEnabled(get,set) : Bool;
+	@:flash.property @:require(flash11) var needsSoftKeyboard(get,set) : Bool;
+	@:flash.property @:require(flash11) var softKeyboardInputAreaOfInterest(get,set) : flash.geom.Rectangle;
+	@:flash.property var tabEnabled(get,set) : Bool;
+	@:flash.property var tabIndex(get,set) : Int;
 	function new() : Void;
 	private function get_accessibilityImplementation() : flash.accessibility.AccessibilityImplementation;
 	private function get_contextMenu() : flash.ui.ContextMenu;

@@ -1,8 +1,8 @@
 package flash.utils;
 
 extern class ObjectOutput implements IDataOutput {
-	var endian(get,set) : Endian;
-	var objectEncoding(get,set) : UInt;
+	@:flash.property var endian(get,set) : Endian;
+	@:flash.property var objectEncoding(get,set) : UInt;
 	function new() : Void;
 	private function get_endian() : Endian;
 	private function get_objectEncoding() : UInt;

@@ -1,8 +1,8 @@
 package flash.globalization;
 
 @:require(flash10_1) extern final class LocaleID {
-	var lastOperationStatus(get,never) : LastOperationStatus;
-	var name(get,never) : String;
+	@:flash.property var lastOperationStatus(get,never) : LastOperationStatus;
+	@:flash.property var name(get,never) : String;
 	function new(name : String) : Void;
 	function getKeysAndValues() : flash.utils.Object;
 	function getLanguage() : String;

@@ -2,7 +2,7 @@ package flash.system;
 
 extern class LoaderContext {
 	@:require(flash10_1) var allowCodeImport : Bool;
-	@:require(flash10_1) var allowLoadBytesCodeExecution(get,set) : Bool;
+	@:flash.property @:require(flash10_1) var allowLoadBytesCodeExecution(get,set) : Bool;
 	var applicationDomain : ApplicationDomain;
 	var checkPolicyFile : Bool;
 	@:require(flash11) var imageDecodingPolicy : ImageDecodingPolicy;

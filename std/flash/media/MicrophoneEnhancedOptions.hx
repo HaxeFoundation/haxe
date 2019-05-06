@@ -1,11 +1,11 @@
 package flash.media;
 
 @:require(flash10_2) extern final class MicrophoneEnhancedOptions {
-	var autoGain(get,set) : Bool;
-	var echoPath(get,set) : Int;
-	var isVoiceDetected(get,set) : Int;
-	var mode(get,set) : MicrophoneEnhancedMode;
-	var nonLinearProcessing(get,set) : Bool;
+	@:flash.property var autoGain(get,set) : Bool;
+	@:flash.property var echoPath(get,set) : Int;
+	@:flash.property var isVoiceDetected(get,set) : Int;
+	@:flash.property var mode(get,set) : MicrophoneEnhancedMode;
+	@:flash.property var nonLinearProcessing(get,set) : Bool;
 	function new() : Void;
 	private function get_autoGain() : Bool;
 	private function get_echoPath() : Int;

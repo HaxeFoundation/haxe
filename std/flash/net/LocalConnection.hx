@@ -1,9 +1,9 @@
 package flash.net;
 
 extern class LocalConnection extends flash.events.EventDispatcher {
-	var client(get,set) : Dynamic;
-	var domain(get,never) : String;
-	@:require(flash10_1) var isPerUser(get,set) : Bool;
+	@:flash.property var client(get,set) : Dynamic;
+	@:flash.property var domain(get,never) : String;
+	@:flash.property @:require(flash10_1) var isPerUser(get,set) : Bool;
 	function new() : Void;
 	function allowDomain(restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	function allowInsecureDomain(restArgs : haxe.extern.Rest<Dynamic>) : Void;
@@ -15,6 +15,6 @@ extern class LocalConnection extends flash.events.EventDispatcher {
 	function send(connectionName : String, methodName : String, restArgs : haxe.extern.Rest<Dynamic>) : Void;
 	private function set_client(value : Dynamic) : Dynamic;
 	private function set_isPerUser(value : Bool) : Bool;
-	@:require(flash10_1) static var isSupported(get,never) : Bool;
+	@:flash.property @:require(flash10_1) static var isSupported(get,never) : Bool;
 	private static function get_isSupported() : Bool;
 }

@@ -1,10 +1,10 @@
 package flash.events;
 
 extern class DRMDeviceGroupErrorEvent extends ErrorEvent {
-	var deviceGroup(get,set) : flash.net.drm.DRMDeviceGroup;
-	var drmUpdateNeeded(get,never) : Bool;
-	var subErrorID(get,set) : Int;
-	var systemUpdateNeeded(get,never) : Bool;
+	@:flash.property var deviceGroup(get,set) : flash.net.drm.DRMDeviceGroup;
+	@:flash.property var drmUpdateNeeded(get,never) : Bool;
+	@:flash.property var subErrorID(get,set) : Int;
+	@:flash.property var systemUpdateNeeded(get,never) : Bool;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?errorDetail : String, errorCode : Int = 0, subErrorID : Int = 0, ?deviceGroup : flash.net.drm.DRMDeviceGroup, systemUpdateNeeded : Bool = false, drmUpdateNeeded : Bool = false) : Void;
 	private function get_deviceGroup() : flash.net.drm.DRMDeviceGroup;
 	private function get_drmUpdateNeeded() : Bool;

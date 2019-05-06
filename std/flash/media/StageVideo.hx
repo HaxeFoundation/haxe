@@ -1,13 +1,13 @@
 package flash.media;
 
 @:require(flash10_2) extern class StageVideo extends flash.events.EventDispatcher {
-	var colorSpaces(get,never) : flash.Vector<String>;
-	var depth(get,set) : Int;
-	var pan(get,set) : flash.geom.Point;
-	var videoHeight(get,never) : Int;
-	var videoWidth(get,never) : Int;
-	var viewPort(get,set) : flash.geom.Rectangle;
-	var zoom(get,set) : flash.geom.Point;
+	@:flash.property var colorSpaces(get,never) : flash.Vector<String>;
+	@:flash.property var depth(get,set) : Int;
+	@:flash.property var pan(get,set) : flash.geom.Point;
+	@:flash.property var videoHeight(get,never) : Int;
+	@:flash.property var videoWidth(get,never) : Int;
+	@:flash.property var viewPort(get,set) : flash.geom.Rectangle;
+	@:flash.property var zoom(get,set) : flash.geom.Point;
 	function new() : Void;
 	@:require(flash11_7) function attachAVStream(avStream : AVStream) : Void;
 	@:require(flash11_4) function attachCamera(theCamera : Camera) : Void;

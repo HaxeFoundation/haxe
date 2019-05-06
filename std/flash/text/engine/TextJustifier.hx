@@ -1,8 +1,8 @@
 package flash.text.engine;
 
 extern class TextJustifier {
-	var lineJustification(get,set) : LineJustification;
-	var locale(get,never) : String;
+	@:flash.property var lineJustification(get,set) : LineJustification;
+	@:flash.property var locale(get,never) : String;
 	function new(locale : String, lineJustification : LineJustification) : Void;
 	function clone() : TextJustifier;
 	private function get_lineJustification() : LineJustification;

@@ -1,10 +1,10 @@
 package flash.media;
 
 extern class SoundMixer {
-	static var audioPlaybackMode(get,set) : String;
-	static var bufferTime(get,set) : Int;
-	static var soundTransform(get,set) : SoundTransform;
-	static var useSpeakerphoneForVoice(get,set) : Bool;
+	@:flash.property static var audioPlaybackMode(get,set) : String;
+	@:flash.property static var bufferTime(get,set) : Int;
+	@:flash.property static var soundTransform(get,set) : SoundTransform;
+	@:flash.property static var useSpeakerphoneForVoice(get,set) : Bool;
 	static function areSoundsInaccessible() : Bool;
 	static function computeSpectrum(outputArray : flash.utils.ByteArray, FFTMode : Bool = false, stretchFactor : Int = 0) : Void;
 	private static function get_audioPlaybackMode() : String;

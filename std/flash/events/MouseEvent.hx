@@ -1,19 +1,19 @@
 package flash.events;
 
 extern class MouseEvent extends Event {
-	var altKey(get,set) : Bool;
-	var buttonDown(get,set) : Bool;
-	var ctrlKey(get,set) : Bool;
-	var delta(get,set) : Int;
-	@:require(flash10) var isRelatedObjectInaccessible(get,set) : Bool;
-	var localX(get,set) : Float;
-	var localY(get,set) : Float;
-	@:require(flash11_2) var movementX(get,set) : Float;
-	@:require(flash11_2) var movementY(get,set) : Float;
-	var relatedObject(get,set) : flash.display.InteractiveObject;
-	var shiftKey(get,set) : Bool;
-	var stageX(get,never) : Float;
-	var stageY(get,never) : Float;
+	@:flash.property var altKey(get,set) : Bool;
+	@:flash.property var buttonDown(get,set) : Bool;
+	@:flash.property var ctrlKey(get,set) : Bool;
+	@:flash.property var delta(get,set) : Int;
+	@:flash.property @:require(flash10) var isRelatedObjectInaccessible(get,set) : Bool;
+	@:flash.property var localX(get,set) : Float;
+	@:flash.property var localY(get,set) : Float;
+	@:flash.property @:require(flash11_2) var movementX(get,set) : Float;
+	@:flash.property @:require(flash11_2) var movementY(get,set) : Float;
+	@:flash.property var relatedObject(get,set) : flash.display.InteractiveObject;
+	@:flash.property var shiftKey(get,set) : Bool;
+	@:flash.property var stageX(get,never) : Float;
+	@:flash.property var stageY(get,never) : Float;
 	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, localX : Null<Float> = 0, localY : Null<Float> = 0, ?relatedObject : flash.display.InteractiveObject, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false, buttonDown : Bool = false, delta : Int = 0) : Void;
 	private function get_altKey() : Bool;
 	private function get_buttonDown() : Bool;

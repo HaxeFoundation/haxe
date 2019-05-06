@@ -1,15 +1,15 @@
 package flash.net.drm;
 
 extern class DRMVoucher {
-	var licenseID(get,never) : String;
-	var offlineLeaseEndDate(get,never) : Date;
-	var offlineLeaseStartDate(get,never) : Date;
-	var playbackTimeWindow(get,never) : DRMPlaybackTimeWindow;
-	var policies(get,never) : Dynamic;
-	var policyID(get,never) : String;
-	var serverURL(get,never) : String;
-	var voucherEndDate(get,never) : Date;
-	var voucherStartDate(get,never) : Date;
+	@:flash.property var licenseID(get,never) : String;
+	@:flash.property var offlineLeaseEndDate(get,never) : Date;
+	@:flash.property var offlineLeaseStartDate(get,never) : Date;
+	@:flash.property var playbackTimeWindow(get,never) : DRMPlaybackTimeWindow;
+	@:flash.property var policies(get,never) : Dynamic;
+	@:flash.property var policyID(get,never) : String;
+	@:flash.property var serverURL(get,never) : String;
+	@:flash.property var voucherEndDate(get,never) : Date;
+	@:flash.property var voucherStartDate(get,never) : Date;
 	function new() : Void;
 	private function get_licenseID() : String;
 	private function get_offlineLeaseEndDate() : Date;

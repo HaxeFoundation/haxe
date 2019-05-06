@@ -1,7 +1,7 @@
 package flash.text;
 
 extern class StyleSheet extends flash.events.EventDispatcher implements Dynamic {
-	var styleNames(get,never) : Array<Dynamic>;
+	@:flash.property var styleNames(get,never) : Array<Dynamic>;
 	function new() : Void;
 	function clear() : Void;
 	function getStyle(styleName : String) : flash.utils.Object;

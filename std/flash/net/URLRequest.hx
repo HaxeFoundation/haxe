@@ -1,12 +1,12 @@
 package flash.net;
 
 extern final class URLRequest {
-	var contentType(get,set) : String;
-	var data(get,set) : Dynamic;
-	var digest(get,set) : String;
-	var method(get,set) : String;
-	var requestHeaders(get,set) : Array<URLRequestHeader>;
-	var url(get,set) : String;
+	@:flash.property var contentType(get,set) : String;
+	@:flash.property var data(get,set) : Dynamic;
+	@:flash.property var digest(get,set) : String;
+	@:flash.property var method(get,set) : String;
+	@:flash.property var requestHeaders(get,set) : Array<URLRequestHeader>;
+	@:flash.property var url(get,set) : String;
 	function new(?url : String) : Void;
 	private function get_contentType() : String;
 	private function get_data() : Dynamic;

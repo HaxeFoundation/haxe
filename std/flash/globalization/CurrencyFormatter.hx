@@ -1,22 +1,22 @@
 package flash.globalization;
 
 @:require(flash10_1) extern final class CurrencyFormatter {
-	var actualLocaleIDName(get,never) : String;
-	var currencyISOCode(get,never) : String;
-	var currencySymbol(get,never) : String;
-	var decimalSeparator(get,set) : String;
-	var digitsType(get,set) : UInt;
-	var fractionalDigits(get,set) : Int;
-	var groupingPattern(get,set) : String;
-	var groupingSeparator(get,set) : String;
-	var lastOperationStatus(get,never) : LastOperationStatus;
-	var leadingZero(get,set) : Bool;
-	var negativeCurrencyFormat(get,set) : UInt;
-	var negativeSymbol(get,set) : String;
-	var positiveCurrencyFormat(get,set) : UInt;
-	var requestedLocaleIDName(get,never) : String;
-	var trailingZeros(get,set) : Bool;
-	var useGrouping(get,set) : Bool;
+	@:flash.property var actualLocaleIDName(get,never) : String;
+	@:flash.property var currencyISOCode(get,never) : String;
+	@:flash.property var currencySymbol(get,never) : String;
+	@:flash.property var decimalSeparator(get,set) : String;
+	@:flash.property var digitsType(get,set) : UInt;
+	@:flash.property var fractionalDigits(get,set) : Int;
+	@:flash.property var groupingPattern(get,set) : String;
+	@:flash.property var groupingSeparator(get,set) : String;
+	@:flash.property var lastOperationStatus(get,never) : LastOperationStatus;
+	@:flash.property var leadingZero(get,set) : Bool;
+	@:flash.property var negativeCurrencyFormat(get,set) : UInt;
+	@:flash.property var negativeSymbol(get,set) : String;
+	@:flash.property var positiveCurrencyFormat(get,set) : UInt;
+	@:flash.property var requestedLocaleIDName(get,never) : String;
+	@:flash.property var trailingZeros(get,set) : Bool;
+	@:flash.property var useGrouping(get,set) : Bool;
 	function new(requestedLocaleIDName : String) : Void;
 	function format(value : Float, withCurrencySymbol : Bool = false) : String;
 	function formattingWithCurrencySymbolIsSafe(requestedISOCode : String) : Bool;

@@ -279,10 +279,10 @@ extern class Keyboard {
 	@:require(flash10_1) static final Y : UInt;
 	@:require(flash10_2) static final YELLOW : UInt;
 	@:require(flash10_1) static final Z : UInt;
-	static var capsLock(get,never) : Bool;
-	@:require(flash10_1) static var hasVirtualKeyboard(get,never) : Bool;
-	static var numLock(get,never) : Bool;
-	@:require(flash10_1) static var physicalKeyboardType(get,never) : KeyboardType;
+	@:flash.property static var capsLock(get,never) : Bool;
+	@:flash.property @:require(flash10_1) static var hasVirtualKeyboard(get,never) : Bool;
+	@:flash.property static var numLock(get,never) : Bool;
+	@:flash.property @:require(flash10_1) static var physicalKeyboardType(get,never) : KeyboardType;
 	private static function get_capsLock() : Bool;
 	private static function get_hasVirtualKeyboard() : Bool;
 	private static function get_numLock() : Bool;

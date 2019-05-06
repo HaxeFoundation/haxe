@@ -1,12 +1,12 @@
 package flash.media;
 
 extern final class SoundTransform {
-	var leftToLeft(get,set) : Float;
-	var leftToRight(get,set) : Float;
-	var pan(get,set) : Float;
-	var rightToLeft(get,set) : Float;
-	var rightToRight(get,set) : Float;
-	var volume(get,set) : Float;
+	@:flash.property var leftToLeft(get,set) : Float;
+	@:flash.property var leftToRight(get,set) : Float;
+	@:flash.property var pan(get,set) : Float;
+	@:flash.property var rightToLeft(get,set) : Float;
+	@:flash.property var rightToRight(get,set) : Float;
+	@:flash.property var volume(get,set) : Float;
 	function new(vol : Float = 1, panning : Float = 0) : Void;
 	private function get_leftToLeft() : Float;
 	private function get_leftToRight() : Float;

@@ -1,9 +1,9 @@
 package flash.geom;
 
 @:require(flash10) extern class PerspectiveProjection {
-	var fieldOfView(get,set) : Float;
-	var focalLength(get,set) : Float;
-	var projectionCenter(get,set) : Point;
+	@:flash.property var fieldOfView(get,set) : Float;
+	@:flash.property var focalLength(get,set) : Float;
+	@:flash.property var projectionCenter(get,set) : Point;
 	function new() : Void;
 	private function get_fieldOfView() : Float;
 	private function get_focalLength() : Float;

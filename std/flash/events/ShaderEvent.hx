@@ -1,9 +1,9 @@
 package flash.events;
 
 extern class ShaderEvent extends Event {
-	var bitmapData(get,set) : flash.display.BitmapData;
-	var byteArray(get,set) : flash.utils.ByteArray;
-	var vector(get,set) : flash.Vector<Float>;
+	@:flash.property var bitmapData(get,set) : flash.display.BitmapData;
+	@:flash.property var byteArray(get,set) : flash.utils.ByteArray;
+	@:flash.property var vector(get,set) : flash.Vector<Float>;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?bitmap : flash.display.BitmapData, ?array : flash.utils.ByteArray, ?vector : flash.Vector<Float>) : Void;
 	private function get_bitmapData() : flash.display.BitmapData;
 	private function get_byteArray() : flash.utils.ByteArray;

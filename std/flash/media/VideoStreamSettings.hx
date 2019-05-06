@@ -1,13 +1,13 @@
 package flash.media;
 
 extern class VideoStreamSettings {
-	var bandwidth(get,never) : Int;
-	var codec(get,never) : String;
-	var fps(get,never) : Float;
-	var height(get,never) : Int;
-	var keyFrameInterval(get,never) : Int;
-	var quality(get,never) : Int;
-	var width(get,never) : Int;
+	@:flash.property var bandwidth(get,never) : Int;
+	@:flash.property var codec(get,never) : String;
+	@:flash.property var fps(get,never) : Float;
+	@:flash.property var height(get,never) : Int;
+	@:flash.property var keyFrameInterval(get,never) : Int;
+	@:flash.property var quality(get,never) : Int;
+	@:flash.property var width(get,never) : Int;
 	function new() : Void;
 	private function get_bandwidth() : Int;
 	private function get_codec() : String;

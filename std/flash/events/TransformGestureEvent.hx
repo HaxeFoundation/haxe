@@ -1,12 +1,12 @@
 package flash.events;
 
 @:require(flash10_1) extern class TransformGestureEvent extends GestureEvent {
-	var offsetX(get,set) : Float;
-	var offsetY(get,set) : Float;
-	var rotation(get,set) : Float;
-	var scaleX(get,set) : Float;
-	var scaleY(get,set) : Float;
-	var velocity(get,set) : Float;
+	@:flash.property var offsetX(get,set) : Float;
+	@:flash.property var offsetY(get,set) : Float;
+	@:flash.property var rotation(get,set) : Float;
+	@:flash.property var scaleX(get,set) : Float;
+	@:flash.property var scaleY(get,set) : Float;
+	@:flash.property var velocity(get,set) : Float;
 	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, ?phase : String, localX : Float = 0, localY : Float = 0, scaleX : Float = 1, scaleY : Float = 1, rotation : Float = 0, offsetX : Float = 0, offsetY : Float = 0, ctrlKey : Bool = false, altKey : Bool = false, shiftKey : Bool = false) : Void;
 	private function get_offsetX() : Float;
 	private function get_offsetY() : Float;

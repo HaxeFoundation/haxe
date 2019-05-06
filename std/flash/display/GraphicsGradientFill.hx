@@ -4,11 +4,11 @@ extern final class GraphicsGradientFill implements IGraphicsData implements IGra
 	var alphas : Array<Float>;
 	var colors : Array<UInt>;
 	var focalPointRatio : Float;
-	var interpolationMethod(get,set) : InterpolationMethod;
+	@:flash.property var interpolationMethod(get,set) : InterpolationMethod;
 	var matrix : flash.geom.Matrix;
 	var ratios : Array<Float>;
-	var spreadMethod(get,set) : SpreadMethod;
-	var type(get,set) : GradientType;
+	@:flash.property var spreadMethod(get,set) : SpreadMethod;
+	@:flash.property var type(get,set) : GradientType;
 	function new(?type : GradientType, ?colors : Array<UInt>, ?alphas : Array<Float>, ?ratios : Array<Float>, ?matrix : flash.geom.Matrix, ?spreadMethod : SpreadMethod, ?interpolationMethod : InterpolationMethod, focalPointRatio : Float = 0) : Void;
 	private function get_interpolationMethod() : InterpolationMethod;
 	private function get_spreadMethod() : SpreadMethod;

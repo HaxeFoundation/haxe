@@ -1,8 +1,8 @@
 package flash.events;
 
 extern class SoftKeyboardEvent extends Event {
-	var relatedObject(get,set) : flash.display.InteractiveObject;
-	var triggerType(get,never) : String;
+	@:flash.property var relatedObject(get,set) : flash.display.InteractiveObject;
+	@:flash.property var triggerType(get,never) : String;
 	function new(type : String, bubbles : Bool, cancelable : Bool, relatedObjectVal : flash.display.InteractiveObject, triggerTypeVal : String) : Void;
 	private function get_relatedObject() : flash.display.InteractiveObject;
 	private function get_triggerType() : String;

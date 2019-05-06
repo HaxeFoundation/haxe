@@ -1,9 +1,9 @@
 package flash.display;
 
 extern class Bitmap extends DisplayObject {
-	var bitmapData(get,set) : BitmapData;
-	var pixelSnapping(get,set) : PixelSnapping;
-	var smoothing(get,set) : Bool;
+	@:flash.property var bitmapData(get,set) : BitmapData;
+	@:flash.property var pixelSnapping(get,set) : PixelSnapping;
+	@:flash.property var smoothing(get,set) : Bool;
 	function new(?bitmapData : BitmapData, ?pixelSnapping : PixelSnapping, smoothing : Bool = false) : Void;
 	private function get_bitmapData() : BitmapData;
 	private function get_pixelSnapping() : PixelSnapping;

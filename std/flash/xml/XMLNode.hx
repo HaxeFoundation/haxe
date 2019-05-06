@@ -1,18 +1,18 @@
 package flash.xml;
 
 extern class XMLNode {
-	var attributes(get,set) : Dynamic;
-	var childNodes(get,never) : Array<Dynamic>;
+	@:flash.property var attributes(get,set) : Dynamic;
+	@:flash.property var childNodes(get,never) : Array<Dynamic>;
 	var firstChild : XMLNode;
 	var lastChild : XMLNode;
-	var localName(get,never) : String;
-	var namespaceURI(get,never) : String;
+	@:flash.property var localName(get,never) : String;
+	@:flash.property var namespaceURI(get,never) : String;
 	var nextSibling : XMLNode;
 	var nodeName : String;
 	var nodeType : XMLNodeType;
 	var nodeValue : String;
 	var parentNode : XMLNode;
-	var prefix(get,never) : String;
+	@:flash.property var prefix(get,never) : String;
 	var previousSibling : XMLNode;
 	function new(type : XMLNodeType, value : String) : Void;
 	function appendChild(node : XMLNode) : Void;

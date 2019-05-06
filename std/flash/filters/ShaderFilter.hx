@@ -1,11 +1,11 @@
 package flash.filters;
 
 extern class ShaderFilter extends BitmapFilter {
-	var bottomExtension(get,set) : Int;
-	var leftExtension(get,set) : Int;
-	var rightExtension(get,set) : Int;
-	var shader(get,set) : flash.display.Shader;
-	var topExtension(get,set) : Int;
+	@:flash.property var bottomExtension(get,set) : Int;
+	@:flash.property var leftExtension(get,set) : Int;
+	@:flash.property var rightExtension(get,set) : Int;
+	@:flash.property var shader(get,set) : flash.display.Shader;
+	@:flash.property var topExtension(get,set) : Int;
 	function new(?shader : flash.display.Shader) : Void;
 	private function get_bottomExtension() : Int;
 	private function get_leftExtension() : Int;

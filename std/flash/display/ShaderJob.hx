@@ -1,11 +1,11 @@
 package flash.display;
 
 extern class ShaderJob extends flash.events.EventDispatcher {
-	var height(get,set) : Int;
-	var progress(get,never) : Float;
-	var shader(get,set) : Shader;
-	var target(get,set) : Dynamic;
-	var width(get,set) : Int;
+	@:flash.property var height(get,set) : Int;
+	@:flash.property var progress(get,never) : Float;
+	@:flash.property var shader(get,set) : Shader;
+	@:flash.property var target(get,set) : Dynamic;
+	@:flash.property var width(get,set) : Int;
 	function new(?shader : Shader, ?target : Dynamic, width : Int = 0, height : Int = 0) : Void;
 	function cancel() : Void;
 	private function get_height() : Int;

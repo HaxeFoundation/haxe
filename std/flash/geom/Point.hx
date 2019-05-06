@@ -1,7 +1,7 @@
 package flash.geom;
 
 extern class Point {
-	var length(get,never) : Float;
+	@:flash.property var length(get,never) : Float;
 	var x : Float;
 	var y : Float;
 	function new(x : Float = 0, y : Float = 0) : Void;

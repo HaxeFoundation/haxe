@@ -1,11 +1,11 @@
 package flash.events;
 
 extern class AVStreamSwitchEvent extends Event {
-	var bitrate(get,never) : Int;
-	var description(get,never) : String;
-	var switchType(get,never) : Int;
-	var time(get,never) : Float;
-	var userData(get,never) : Int;
+	@:flash.property var bitrate(get,never) : Int;
+	@:flash.property var description(get,never) : String;
+	@:flash.property var switchType(get,never) : Int;
+	@:flash.property var time(get,never) : Float;
+	@:flash.property var userData(get,never) : Int;
 	function new(?type : String, bubbles : Bool = false, cancelable : Bool = false, time : Float = 0, switchType : Int = 0, bitrate : Int = 0, ?description : String, userData : Int = 0) : Void;
 	private function get_bitrate() : Int;
 	private function get_description() : String;

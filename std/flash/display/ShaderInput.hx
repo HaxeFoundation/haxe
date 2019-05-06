@@ -1,11 +1,11 @@
 package flash.display;
 
 extern final class ShaderInput implements Dynamic {
-	var channels(get,never) : Int;
-	var height(get,set) : Int;
-	var index(get,never) : Int;
-	var input(get,set) : Dynamic;
-	var width(get,set) : Int;
+	@:flash.property var channels(get,never) : Int;
+	@:flash.property var height(get,set) : Int;
+	@:flash.property var index(get,never) : Int;
+	@:flash.property var input(get,set) : Dynamic;
+	@:flash.property var width(get,set) : Int;
 	function new() : Void;
 	private function get_channels() : Int;
 	private function get_height() : Int;

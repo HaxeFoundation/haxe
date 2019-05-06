@@ -367,7 +367,7 @@ let build_class com c file =
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
-			cff_meta = meta;
+			cff_meta = (Meta.FlashProperty,[],pos) :: meta;
 			cff_kind = FProp (read_access,write_access,property_typehint,None);
 		} :: fields
 	in

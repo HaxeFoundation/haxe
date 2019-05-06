@@ -1,11 +1,11 @@
 package flash.text.ime;
 
 extern interface IIMEClient {
-	var compositionEndIndex(get,never) : Int;
-	var compositionStartIndex(get,never) : Int;
-	var selectionActiveIndex(get,never) : Int;
-	var selectionAnchorIndex(get,never) : Int;
-	var verticalTextLayout(get,never) : Bool;
+	@:flash.property var compositionEndIndex(get,never) : Int;
+	@:flash.property var compositionStartIndex(get,never) : Int;
+	@:flash.property var selectionActiveIndex(get,never) : Int;
+	@:flash.property var selectionAnchorIndex(get,never) : Int;
+	@:flash.property var verticalTextLayout(get,never) : Bool;
 	function confirmComposition(?text : String, preserveSelection : Bool = false) : Void;
 	function getTextBounds(startIndex : Int, endIndex : Int) : flash.geom.Rectangle;
 	function getTextInRange(startIndex : Int, endIndex : Int) : String;

@@ -1,17 +1,17 @@
 package flash.filters;
 
 extern final class GradientGlowFilter extends BitmapFilter {
-	var alphas(get,set) : Array<Dynamic>;
-	var angle(get,set) : Float;
-	var blurX(get,set) : Float;
-	var blurY(get,set) : Float;
-	var colors(get,set) : Array<Dynamic>;
-	var distance(get,set) : Float;
-	var knockout(get,set) : Bool;
-	var quality(get,set) : Int;
-	var ratios(get,set) : Array<Dynamic>;
-	var strength(get,set) : Float;
-	var type(get,set) : BitmapFilterType;
+	@:flash.property var alphas(get,set) : Array<Dynamic>;
+	@:flash.property var angle(get,set) : Float;
+	@:flash.property var blurX(get,set) : Float;
+	@:flash.property var blurY(get,set) : Float;
+	@:flash.property var colors(get,set) : Array<Dynamic>;
+	@:flash.property var distance(get,set) : Float;
+	@:flash.property var knockout(get,set) : Bool;
+	@:flash.property var quality(get,set) : Int;
+	@:flash.property var ratios(get,set) : Array<Dynamic>;
+	@:flash.property var strength(get,set) : Float;
+	@:flash.property var type(get,set) : BitmapFilterType;
 	function new(distance : Float = 4, angle : Float = 45, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, ?type : BitmapFilterType, knockout : Bool = false) : Void;
 	private function get_alphas() : Array<Dynamic>;
 	private function get_angle() : Float;

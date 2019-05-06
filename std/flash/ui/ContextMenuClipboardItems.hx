@@ -1,11 +1,11 @@
 package flash.ui;
 
 extern final class ContextMenuClipboardItems {
-	var clear(get,set) : Bool;
-	var copy(get,set) : Bool;
-	var cut(get,set) : Bool;
-	var paste(get,set) : Bool;
-	var selectAll(get,set) : Bool;
+	@:flash.property var clear(get,set) : Bool;
+	@:flash.property var copy(get,set) : Bool;
+	@:flash.property var cut(get,set) : Bool;
+	@:flash.property var paste(get,set) : Bool;
+	@:flash.property var selectAll(get,set) : Bool;
 	function new() : Void;
 	function clone() : ContextMenuClipboardItems;
 	private function get_clear() : Bool;

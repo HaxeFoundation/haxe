@@ -1,9 +1,9 @@
 package flash.geom;
 
 @:require(flash10) extern class Matrix3D {
-	var determinant(get,never) : Float;
-	var position(get,set) : Vector3D;
-	var rawData(get,set) : flash.Vector<Float>;
+	@:flash.property var determinant(get,never) : Float;
+	@:flash.property var position(get,set) : Vector3D;
+	@:flash.property var rawData(get,set) : flash.Vector<Float>;
 	function new(?v : flash.Vector<Float>) : Void;
 	function append(lhs : Matrix3D) : Void;
 	function appendRotation(degrees : Float, axis : Vector3D, ?pivotPoint : Vector3D) : Void;

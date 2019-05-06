@@ -1,19 +1,19 @@
 package flash.text.engine;
 
 extern final class TextBlock {
-	var applyNonLinearFontScaling(get,set) : Bool;
-	var baselineFontDescription(get,set) : FontDescription;
-	var baselineFontSize(get,set) : Float;
-	var baselineZero(get,set) : TextBaseline;
-	var bidiLevel(get,set) : Int;
-	var content(get,set) : ContentElement;
-	var firstInvalidLine(get,never) : TextLine;
-	var firstLine(get,never) : TextLine;
-	var lastLine(get,never) : TextLine;
-	var lineRotation(get,set) : TextRotation;
-	var tabStops(get,set) : flash.Vector<TabStop>;
-	var textJustifier(get,set) : TextJustifier;
-	var textLineCreationResult(get,never) : TextLineCreationResult;
+	@:flash.property var applyNonLinearFontScaling(get,set) : Bool;
+	@:flash.property var baselineFontDescription(get,set) : FontDescription;
+	@:flash.property var baselineFontSize(get,set) : Float;
+	@:flash.property var baselineZero(get,set) : TextBaseline;
+	@:flash.property var bidiLevel(get,set) : Int;
+	@:flash.property var content(get,set) : ContentElement;
+	@:flash.property var firstInvalidLine(get,never) : TextLine;
+	@:flash.property var firstLine(get,never) : TextLine;
+	@:flash.property var lastLine(get,never) : TextLine;
+	@:flash.property var lineRotation(get,set) : TextRotation;
+	@:flash.property var tabStops(get,set) : flash.Vector<TabStop>;
+	@:flash.property var textJustifier(get,set) : TextJustifier;
+	@:flash.property var textLineCreationResult(get,never) : TextLineCreationResult;
 	var userData : Dynamic;
 	function new(?content : ContentElement, ?tabStops : flash.Vector<TabStop>, ?textJustifier : TextJustifier, ?lineRotation : TextRotation, ?baselineZero : TextBaseline, bidiLevel : Int = 0, applyNonLinearFontScaling : Bool = true, ?baselineFontDescription : FontDescription, baselineFontSize : Float = 12) : Void;
 	function createTextLine(?previousLine : TextLine, width : Float = 1000000, lineOffset : Float = 0, fitSomething : Bool = false) : TextLine;

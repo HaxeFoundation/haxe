@@ -1,9 +1,9 @@
 package flash.automation;
 
 @:require(flash10_1) extern class MouseAutomationAction extends AutomationAction {
-	var delta(get,set) : Int;
-	var stageX(get,set) : Float;
-	var stageY(get,set) : Float;
+	@:flash.property var delta(get,set) : Int;
+	@:flash.property var stageX(get,set) : Float;
+	@:flash.property var stageY(get,set) : Float;
 	function new(type : String, stageX : Float = 0, stageY : Float = 0, delta : Int = 0) : Void;
 	private function get_delta() : Int;
 	private function get_stageX() : Float;

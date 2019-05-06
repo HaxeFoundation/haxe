@@ -1,14 +1,14 @@
 package flash.net;
 
 @:require(flash10_1) extern class GroupSpecifier {
-	var ipMulticastMemberUpdatesEnabled(get,set) : Bool;
-	var minGroupspecVersion(get,set) : Int;
-	var multicastEnabled(get,set) : Bool;
-	var objectReplicationEnabled(get,set) : Bool;
-	var peerToPeerDisabled(get,set) : Bool;
-	var postingEnabled(get,set) : Bool;
-	var routingEnabled(get,set) : Bool;
-	var serverChannelEnabled(get,set) : Bool;
+	@:flash.property var ipMulticastMemberUpdatesEnabled(get,set) : Bool;
+	@:flash.property var minGroupspecVersion(get,set) : Int;
+	@:flash.property var multicastEnabled(get,set) : Bool;
+	@:flash.property var objectReplicationEnabled(get,set) : Bool;
+	@:flash.property var peerToPeerDisabled(get,set) : Bool;
+	@:flash.property var postingEnabled(get,set) : Bool;
+	@:flash.property var routingEnabled(get,set) : Bool;
+	@:flash.property var serverChannelEnabled(get,set) : Bool;
 	function new(name : String) : Void;
 	function addBootstrapPeer(peerID : String) : Void;
 	function addIPMulticastAddress(address : String, ?port : Dynamic, ?source : String) : Void;
@@ -35,7 +35,7 @@ package flash.net;
 	private function set_routingEnabled(value : Bool) : Bool;
 	private function set_serverChannelEnabled(value : Bool) : Bool;
 	function toString() : String;
-	static var maxSupportedGroupspecVersion(get,never) : Int;
+	@:flash.property static var maxSupportedGroupspecVersion(get,never) : Int;
 	static function encodeBootstrapPeerIDSpec(peerID : String) : String;
 	static function encodeIPMulticastAddressSpec(address : String, ?port : Dynamic, ?source : String) : String;
 	static function encodePostingAuthorization(password : String) : String;

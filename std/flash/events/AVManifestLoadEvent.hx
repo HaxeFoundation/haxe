@@ -1,10 +1,10 @@
 package flash.events;
 
 extern class AVManifestLoadEvent extends Event {
-	var duration(get,never) : Float;
-	var handle(get,never) : Int;
-	var result(get,never) : flash.media.AVResult;
-	var userData(get,never) : Int;
+	@:flash.property var duration(get,never) : Float;
+	@:flash.property var handle(get,never) : Int;
+	@:flash.property var result(get,never) : flash.media.AVResult;
+	@:flash.property var userData(get,never) : Int;
 	function new(?type : String, bubbles : Bool = false, cancelable : Bool = false, inResult : Int = 0, inUserData : Int = 0, inHandle : Int = 0, inDuration : Float = 0) : Void;
 	private function get_duration() : Float;
 	private function get_handle() : Int;

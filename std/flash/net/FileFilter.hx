@@ -1,9 +1,9 @@
 package flash.net;
 
 extern final class FileFilter {
-	var description(get,set) : String;
-	var extension(get,set) : String;
-	var macType(get,set) : String;
+	@:flash.property var description(get,set) : String;
+	@:flash.property var extension(get,set) : String;
+	@:flash.property var macType(get,set) : String;
 	function new(description : String, extension : String, ?macType : String) : Void;
 	private function get_description() : String;
 	private function get_extension() : String;

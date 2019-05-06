@@ -42,11 +42,11 @@ extern final class XML implements Dynamic<XMLList> {
 	function toString() : String;
 	function toXMLString() : String;
 	function valueOf() : XML;
-	static var ignoreComments(get,set) : Bool;
-	static var ignoreProcessingInstructions(get,set) : Bool;
-	static var ignoreWhitespace(get,set) : Bool;
-	static var prettyIndent(get,set) : Int;
-	static var prettyPrinting(get,set) : Bool;
+	@:flash.property static var ignoreComments(get,set) : Bool;
+	@:flash.property static var ignoreProcessingInstructions(get,set) : Bool;
+	@:flash.property static var ignoreWhitespace(get,set) : Bool;
+	@:flash.property static var prettyIndent(get,set) : Int;
+	@:flash.property static var prettyPrinting(get,set) : Bool;
 	static function defaultSettings() : Dynamic;
 	private static function get_ignoreComments() : Bool;
 	private static function get_ignoreProcessingInstructions() : Bool;

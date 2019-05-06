@@ -1,11 +1,11 @@
 package flash.ui;
 
 extern final class ContextMenu extends flash.display.NativeMenu {
-	var builtInItems(get,set) : ContextMenuBuiltInItems;
-	@:require(flash10) var clipboardItems(get,set) : ContextMenuClipboardItems;
-	@:require(flash10) var clipboardMenu(get,set) : Bool;
-	var customItems(get,set) : Array<Dynamic>;
-	@:require(flash10) var link(get,set) : flash.net.URLRequest;
+	@:flash.property var builtInItems(get,set) : ContextMenuBuiltInItems;
+	@:flash.property @:require(flash10) var clipboardItems(get,set) : ContextMenuClipboardItems;
+	@:flash.property @:require(flash10) var clipboardMenu(get,set) : Bool;
+	@:flash.property var customItems(get,set) : Array<Dynamic>;
+	@:flash.property @:require(flash10) var link(get,set) : flash.net.URLRequest;
 	function new() : Void;
 	function clone() : ContextMenu;
 	private function get_builtInItems() : ContextMenuBuiltInItems;
@@ -19,6 +19,6 @@ extern final class ContextMenu extends flash.display.NativeMenu {
 	private function set_clipboardMenu(value : Bool) : Bool;
 	private function set_customItems(value : Array<Dynamic>) : Array<Dynamic>;
 	private function set_link(value : flash.net.URLRequest) : flash.net.URLRequest;
-	@:require(flash10_1) static var isSupported(get,never) : Bool;
+	@:flash.property @:require(flash10_1) static var isSupported(get,never) : Bool;
 	private static function get_isSupported() : Bool;
 }

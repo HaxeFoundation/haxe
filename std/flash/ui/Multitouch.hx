@@ -1,12 +1,12 @@
 package flash.ui;
 
 @:require(flash10_1) extern class Multitouch {
-	static var inputMode(get,set) : MultitouchInputMode;
-	static var mapTouchToMouse(get,set) : Bool;
-	static var maxTouchPoints(get,never) : Int;
-	static var supportedGestures(get,never) : flash.Vector<String>;
-	static var supportsGestureEvents(get,never) : Bool;
-	static var supportsTouchEvents(get,never) : Bool;
+	@:flash.property static var inputMode(get,set) : MultitouchInputMode;
+	@:flash.property static var mapTouchToMouse(get,set) : Bool;
+	@:flash.property static var maxTouchPoints(get,never) : Int;
+	@:flash.property static var supportedGestures(get,never) : flash.Vector<String>;
+	@:flash.property static var supportsGestureEvents(get,never) : Bool;
+	@:flash.property static var supportsTouchEvents(get,never) : Bool;
 	private static function get_inputMode() : MultitouchInputMode;
 	private static function get_mapTouchToMouse() : Bool;
 	private static function get_maxTouchPoints() : Int;

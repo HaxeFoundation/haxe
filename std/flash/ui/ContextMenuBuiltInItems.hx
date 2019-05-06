@@ -1,14 +1,14 @@
 package flash.ui;
 
 extern final class ContextMenuBuiltInItems {
-	var forwardAndBack(get,set) : Bool;
-	var loop(get,set) : Bool;
-	var play(get,set) : Bool;
-	var print(get,set) : Bool;
-	var quality(get,set) : Bool;
-	var rewind(get,set) : Bool;
-	var save(get,set) : Bool;
-	var zoom(get,set) : Bool;
+	@:flash.property var forwardAndBack(get,set) : Bool;
+	@:flash.property var loop(get,set) : Bool;
+	@:flash.property var play(get,set) : Bool;
+	@:flash.property var print(get,set) : Bool;
+	@:flash.property var quality(get,set) : Bool;
+	@:flash.property var rewind(get,set) : Bool;
+	@:flash.property var save(get,set) : Bool;
+	@:flash.property var zoom(get,set) : Bool;
 	function new() : Void;
 	function clone() : ContextMenuBuiltInItems;
 	private function get_forwardAndBack() : Bool;

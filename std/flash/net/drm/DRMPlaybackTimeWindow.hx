@@ -1,9 +1,9 @@
 package flash.net.drm;
 
 extern class DRMPlaybackTimeWindow {
-	var endDate(get,never) : Date;
-	var period(get,never) : UInt;
-	var startDate(get,never) : Date;
+	@:flash.property var endDate(get,never) : Date;
+	@:flash.property var period(get,never) : UInt;
+	@:flash.property var startDate(get,never) : Date;
 	function new() : Void;
 	private function get_endDate() : Date;
 	private function get_period() : UInt;

@@ -1,13 +1,13 @@
 package flash.net;
 
 @:require(flash10_1) extern class NetGroup extends flash.events.EventDispatcher {
-	var estimatedMemberCount(get,never) : Float;
-	var info(get,never) : NetGroupInfo;
-	var localCoverageFrom(get,never) : String;
-	var localCoverageTo(get,never) : String;
-	var neighborCount(get,never) : Float;
-	var receiveMode(get,set) : String;
-	var replicationStrategy(get,set) : String;
+	@:flash.property var estimatedMemberCount(get,never) : Float;
+	@:flash.property var info(get,never) : NetGroupInfo;
+	@:flash.property var localCoverageFrom(get,never) : String;
+	@:flash.property var localCoverageTo(get,never) : String;
+	@:flash.property var neighborCount(get,never) : Float;
+	@:flash.property var receiveMode(get,set) : String;
+	@:flash.property var replicationStrategy(get,set) : String;
 	function new(connection : NetConnection, groupspec : String) : Void;
 	function addHaveObjects(startIndex : Float, endIndex : Float) : Void;
 	function addMemberHint(peerID : String) : Bool;

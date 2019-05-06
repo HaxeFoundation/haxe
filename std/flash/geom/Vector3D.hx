@@ -1,8 +1,8 @@
 package flash.geom;
 
 @:require(flash10) extern class Vector3D {
-	var length(get,never) : Float;
-	var lengthSquared(get,never) : Float;
+	@:flash.property var length(get,never) : Float;
+	@:flash.property var lengthSquared(get,never) : Float;
 	var w : Float;
 	var x : Float;
 	var y : Float;

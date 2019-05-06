@@ -1,17 +1,17 @@
 package flash.filters;
 
 extern final class DropShadowFilter extends BitmapFilter {
-	var alpha(get,set) : Float;
-	var angle(get,set) : Float;
-	var blurX(get,set) : Float;
-	var blurY(get,set) : Float;
-	var color(get,set) : UInt;
-	var distance(get,set) : Float;
-	var hideObject(get,set) : Bool;
-	var inner(get,set) : Bool;
-	var knockout(get,set) : Bool;
-	var quality(get,set) : Int;
-	var strength(get,set) : Float;
+	@:flash.property var alpha(get,set) : Float;
+	@:flash.property var angle(get,set) : Float;
+	@:flash.property var blurX(get,set) : Float;
+	@:flash.property var blurY(get,set) : Float;
+	@:flash.property var color(get,set) : UInt;
+	@:flash.property var distance(get,set) : Float;
+	@:flash.property var hideObject(get,set) : Bool;
+	@:flash.property var inner(get,set) : Bool;
+	@:flash.property var knockout(get,set) : Bool;
+	@:flash.property var quality(get,set) : Int;
+	@:flash.property var strength(get,set) : Float;
 	function new(distance : Float = 4, angle : Float = 45, color : UInt = 0, alpha : Float = 1, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, inner : Bool = false, knockout : Bool = false, hideObject : Bool = false) : Void;
 	private function get_alpha() : Float;
 	private function get_angle() : Float;

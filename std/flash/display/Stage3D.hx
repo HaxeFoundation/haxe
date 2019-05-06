@@ -1,10 +1,10 @@
 package flash.display;
 
 @:require(flash11) extern class Stage3D extends flash.events.EventDispatcher {
-	var context3D(get,never) : flash.display3D.Context3D;
-	var visible(get,set) : Bool;
-	var x(get,set) : Float;
-	var y(get,set) : Float;
+	@:flash.property var context3D(get,never) : flash.display3D.Context3D;
+	@:flash.property var visible(get,set) : Bool;
+	@:flash.property var x(get,set) : Float;
+	@:flash.property var y(get,set) : Float;
 	private function get_context3D() : flash.display3D.Context3D;
 	private function get_visible() : Bool;
 	private function get_x() : Float;

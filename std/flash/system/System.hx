@@ -1,14 +1,14 @@
 package flash.system;
 
 extern class System {
-	@:require(flash10_1) static var freeMemory(get,never) : Float;
-	static var ime(get,never) : IME;
-	@:require(flash10_1) static var privateMemory(get,never) : Float;
-	@:require(flash11) static var processCPUUsage(get,never) : Float;
-	static var totalMemory(get,never) : UInt;
-	@:require(flash10_1) static var totalMemoryNumber(get,never) : Float;
-	static var useCodePage(get,set) : Bool;
-	static var vmVersion(get,never) : String;
+	@:flash.property @:require(flash10_1) static var freeMemory(get,never) : Float;
+	@:flash.property static var ime(get,never) : IME;
+	@:flash.property @:require(flash10_1) static var privateMemory(get,never) : Float;
+	@:flash.property @:require(flash11) static var processCPUUsage(get,never) : Float;
+	@:flash.property static var totalMemory(get,never) : UInt;
+	@:flash.property @:require(flash10_1) static var totalMemoryNumber(get,never) : Float;
+	@:flash.property static var useCodePage(get,set) : Bool;
+	@:flash.property static var vmVersion(get,never) : String;
 	@:require(flash10_1) static function disposeXML(node : flash.xml.XML) : Void;
 	static function exit(code : UInt) : Void;
 	static function gc() : Void;

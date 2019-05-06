@@ -1,9 +1,9 @@
 package flash.text.engine;
 
 extern final class TabStop {
-	var alignment(get,set) : TabAlignment;
-	var decimalAlignmentToken(get,set) : String;
-	var position(get,set) : Float;
+	@:flash.property var alignment(get,set) : TabAlignment;
+	@:flash.property var decimalAlignmentToken(get,set) : String;
+	@:flash.property var position(get,set) : Float;
 	function new(?alignment : TabAlignment, position : Float = 0, ?decimalAlignmentToken : String) : Void;
 	private function get_alignment() : TabAlignment;
 	private function get_decimalAlignmentToken() : String;

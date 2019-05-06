@@ -1,10 +1,10 @@
 package flash.events;
 
 extern class FocusEvent extends Event {
-	@:require(flash10) var isRelatedObjectInaccessible(get,set) : Bool;
-	var keyCode(get,set) : UInt;
-	var relatedObject(get,set) : flash.display.InteractiveObject;
-	var shiftKey(get,set) : Bool;
+	@:flash.property @:require(flash10) var isRelatedObjectInaccessible(get,set) : Bool;
+	@:flash.property var keyCode(get,set) : UInt;
+	@:flash.property var relatedObject(get,set) : flash.display.InteractiveObject;
+	@:flash.property var shiftKey(get,set) : Bool;
 	function new(type : String, bubbles : Bool = true, cancelable : Bool = false, ?relatedObject : flash.display.InteractiveObject, shiftKey : Bool = false, keyCode : UInt = 0) : Void;
 	private function get_isRelatedObjectInaccessible() : Bool;
 	private function get_keyCode() : UInt;
