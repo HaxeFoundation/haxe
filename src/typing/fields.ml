@@ -214,7 +214,20 @@ let field_access ctx mode f fmode t e p =
 				| _ ->
 					false
 			in
-			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+			let bypass_accessor =
+				Meta.has Meta.BypassAccessor ctx.meta
+				||
+				(
+					m = ctx.curfield.cf_name
+					&&
+					match e.eexpr with
+					| TConst TThis -> true
+					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
+					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
+					| _ -> false
+				)
+			in
+			if bypass_accessor then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
 				if not (is_physical_field f) then begin

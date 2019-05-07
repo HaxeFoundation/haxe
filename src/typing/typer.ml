@@ -2230,6 +2230,9 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
+		| (Meta.NoBypassAccessor,_,_) ->
+			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.BypassAccessor) ctx.meta;
+			e()
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
