@@ -2338,12 +2338,12 @@ let realize_required_accessors ctx cl =
 						match cf.cf_kind with
 						| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
 							begin try
-								let read', write' = Hashtbl.find h cf.cf_name in
+								let read', write', native = Hashtbl.find h cf.cf_name in
 								let read = if read = AccNever then read' else true in
 								let write = if write = AccNever then write' else true in
-								Hashtbl.replace h cf.cf_name (read, write)
+								Hashtbl.replace h cf.cf_name (read, write, native)
 							with Not_found ->
-								Hashtbl.add h cf.cf_name (read = AccCall, write = AccCall)
+								Hashtbl.add h cf.cf_name (read = AccCall, write = AccCall, if is_flash_property cf then Some ci else None)
 							end
 						| _ -> ()
 					) ci.cl_ordered_fields;
@@ -2366,9 +2366,13 @@ let realize_required_accessors ctx cl =
 
 	let tl = List.map snd cl.cl_params in
 	let fields = ref [] in
-	Hashtbl.iter (fun name (read, write) ->
+	Hashtbl.iter (fun name (read, write, native) ->
 		match Type.class_field cl tl name with
 		| Some (actual_cl, actual_tl), _, cf ->
+			Option.may (fun iface ->
+				if not (is_flash_property cf) then
+					abort (Printf.sprintf "Interface %s requires property %s to be marked with @:flash.property" (s_type_path iface.cl_path) cf.cf_name) cf.cf_pos
+			) native;
 			if actual_cl.cl_extern then begin
 				let mk_field_access () =
 					let ethis = mk (TConst TThis) (TInst (cl,tl)) null_pos in
