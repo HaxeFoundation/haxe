@@ -137,6 +137,7 @@ let check_constructor_access ctx c f p =
 	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let field_access ctx mode f fmode t e p =
+	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
 		match follow e.etype with
@@ -215,7 +216,7 @@ let field_access ctx mode f fmode t e p =
 					false
 			in
 			let bypass_accessor =
-				Meta.has Meta.BypassAccessor ctx.meta
+				bypass_accessor
 				||
 				(
 					m = ctx.curfield.cf_name

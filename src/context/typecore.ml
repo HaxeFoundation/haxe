@@ -96,6 +96,7 @@ and typer = {
 	com : context;
 	t : basic_types;
 	g : typer_globals;
+	mutable bypass_accessor : int;
 	mutable meta : metadata;
 	mutable this_stack : texpr list;
 	mutable with_type_stack : WithType.t list;

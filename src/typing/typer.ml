@@ -2230,15 +2230,15 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.NoPrivateAccess,_,_) ->
 			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.PrivateAccess) ctx.meta;
 			e()
-		| (Meta.NoBypassAccessor,_,_) ->
-			ctx.meta <- List.filter (fun(m,_,_) -> m <> Meta.BypassAccessor) ctx.meta;
-			e()
 		| (Meta.Fixed,_,_) when ctx.com.platform=Cpp ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
 		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.BypassAccessor,_,_) ->
+			ctx.bypass_accessor <- ctx.bypass_accessor + 1;
+			e ()
 		| (Meta.Inline,_,_) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
@@ -2526,6 +2526,7 @@ let rec create com =
 			module_imports = [];
 		};
 		is_display_file = false;
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

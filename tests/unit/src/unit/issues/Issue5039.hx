@@ -1,5 +1,12 @@
 package unit.issues;
 
+private class C {
+	@:isVar public var prop(get,never):Int = 42;
+	function get_prop():Int throw "FAIL prop";
+
+	public function new() {}
+}
+
 class Issue5039 extends Test {
 	var getterCalled = false;
 	var setterCalled = false;
@@ -15,18 +22,27 @@ class Issue5039 extends Test {
 		return x = value;
 	}
 
+	@:isVar public var c(get,never):C = new C();
+	function get_c():C throw "FAIL c";
+
 	function test() {
 		@:bypassAccessor x = x + 1;
-		f(getterCalled);
+		t(getterCalled);
 		f(setterCalled);
+
+		getterCalled = false;
 
 		x = @:bypassAccessor x + 1;
 		f(getterCalled);
 		t(setterCalled);
 
 		setterCalled = false;
-		@:bypassAccessor x = @:noBypassAccessor x + 1;
-		t(getterCalled);
+
+		@:bypassAccessor x = @:bypassAccessor x + 1;
+		f(getterCalled);
 		f(setterCalled);
+
+		eq(42, @:bypassAccessor (@:bypassAccessor c).prop);
+		eq(42, @:bypassAccessor @:bypassAccessor c.prop);
 	}
 }
