@@ -2112,7 +2112,7 @@ let generate_field_kind ctx f c stat =
 			let m = generate_method ctx fdata stat f.cf_meta in
 			let is_override = not stat && (
 				if kind = MK3Normal then List.memq f c.cl_overrides
-				else loop c name
+				else (loop c name || loop c f.cf_name)
 			) in
 			Some (HFMethod {
 				hlm_type = m;
