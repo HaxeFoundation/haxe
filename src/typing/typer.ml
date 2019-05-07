@@ -1857,13 +1857,16 @@ and type_try ctx e1 catches with_type p =
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 		((v,e) :: acc1),(e :: acc2)
 	) ([],[e1]) catches in
-	let t = match with_type with
-		| WithType.NoValue -> ctx.t.tvoid
-		| WithType.Value _ -> unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx el
+	let e1,catches,t = match with_type with
+		| WithType.NoValue -> e1,catches,ctx.t.tvoid
+		| WithType.Value _ -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
 		| WithType.WithType(t,_) ->
-			List.iter (fun e -> unify ctx e.etype t e.epos) el;
-			t
+			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
+			let catches = List.map (fun (v,e) ->
+				v,AbstractCast.cast_or_unify ctx t e e.epos
+			) catches in
+			e1,catches,t
 	in
 	mk (TTry (e1,List.rev catches)) t p
 
