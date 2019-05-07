@@ -153,6 +153,7 @@ let generate_type com t =
 	let rec print_field stat f =
 		p "\t";
 		print_meta f.cf_meta;
+		if not (has_class_field_flag f CfPublic) then p "private ";
 		if stat then p "static ";
 		let name = try (match Meta.get Meta.RealPath f.cf_meta with
 				| (Meta.RealPath, [EConst( String s ), _], _) ->
@@ -233,7 +234,7 @@ let generate_type com t =
 		p "%s" (String.concat "" (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list (List.filter (fun f -> has_class_field_flag f CfPublic && not (List.memq f c.cl_overrides)) l) in
+			let a = Array.of_list (List.filter (fun f -> not (List.memq f c.cl_overrides)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with

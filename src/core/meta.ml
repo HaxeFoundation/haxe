@@ -50,6 +50,7 @@ type strict_meta =
 	| Final
 	| Fixed
 	| FlatEnum
+	| FlashProperty
 	| Font
 	| ForLoopVariable
 	| Forward
@@ -257,6 +258,7 @@ let get_info = function
 	| Final -> ":final",("Prevents a class or interface from being extended or a method from being overriden",[UsedOnEither [TClass;TClassField]])
 	| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 	| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; UsedInternally])
+	| FlashProperty -> ":flash.property",("",[UsedOn TClassField; Platform Flash])
 	| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 	| ForLoopVariable -> ":forLoopVariable",("Internally used to mark for-loop variables",[UsedInternally])
 	| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])

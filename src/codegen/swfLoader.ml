@@ -320,26 +320,66 @@ let build_class com c file =
 			| Some (t1,meta1), Some (t2,meta2) -> true, true, (if t1 <> t2 then None else t1), meta1 @ (List.filter (fun m -> not (List.mem m meta1)) meta2)
 		) in
 		let t = if name = "endian" then Some (HMPath (["flash";"utils"],"Endian")) else t in
-		let flags = [APublic,null_pos] in
-		let flags = if stat then (AStatic,null_pos) :: flags else flags in
+		let flags, accessor_flags = [APublic,null_pos], [APrivate,null_pos] in
+		let flags, accessor_flags = if stat then (AStatic,null_pos) :: flags, (AStatic,null_pos) :: accessor_flags else flags, accessor_flags in
+		let property_typehint = Some (make_dyn_type t,null_pos) in
+		let fields = [] in
+		let read_access, fields =
+			if get then
+				let getter = {
+					cff_name = "get_" ^ name,null_pos;
+					cff_pos = pos;
+					cff_doc = None;
+					cff_access = accessor_flags;
+					cff_meta = [];
+					cff_kind = FFun {
+						f_params = [];
+						f_args = [];
+						f_type = property_typehint;
+						f_expr = None;
+					};
+				} in
+				("get",null_pos), getter :: fields
+			else
+				("never",null_pos), fields
+		in
+		let write_access, fields =
+			if set then
+				let setter = {
+					cff_name = "set_" ^ name,null_pos;
+					cff_pos = pos;
+					cff_doc = None;
+					cff_access = accessor_flags;
+					cff_meta = [];
+					cff_kind = FFun {
+						f_params = [];
+						f_args = [(("value",null_pos),false,[],property_typehint,None)];
+						f_type = property_typehint;
+						f_expr = None;
+					};
+				} in
+				("set",null_pos), setter :: fields
+			else
+				("never",null_pos), fields
+		in
 		{
 			cff_name = name,null_pos;
 			cff_pos = pos;
 			cff_doc = None;
 			cff_access = flags;
-			cff_meta = meta;
-			cff_kind = if get && set then FVar (Some (make_dyn_type t,null_pos), None) else FProp (((if get then "default" else "never"),null_pos),((if set then "default" else "never"),null_pos),Some (make_dyn_type t,null_pos),None);
-		}
+			cff_meta = (Meta.FlashProperty,[],pos) :: meta;
+			cff_kind = FProp (read_access,write_access,property_typehint,None);
+		} :: fields
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		if Hashtbl.mem override (name,stat) then acc else
-		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
+		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) @ acc
 	) getters fields in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		if Hashtbl.mem getters (name,stat) || Hashtbl.mem override (name,stat) then
 			acc
 		else
-			make_get_set name stat None (Some t) :: acc
+			make_get_set name stat None (Some t) @ acc
 	) setters fields in
 	try
 		(*
