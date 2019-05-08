@@ -125,7 +125,7 @@ class Deployment {
 		if (cygRoot != null) {
 			while (true)
 			{
-				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w `which $name`']);
+				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w "`which $name`"']);
 				var out = proc.stdout.readAll().toString().trim();
 				var err = proc.stderr.readAll().toString().trim();
 				if (proc.exitCode() == 0)
