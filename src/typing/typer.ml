@@ -2236,9 +2236,12 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
-		| (Meta.BypassAccessor,_,_) ->
-			ctx.bypass_accessor <- ctx.bypass_accessor + 1;
-			e ()
+		| (Meta.BypassAccessor,_,p) ->
+			let old_counter = ctx.bypass_accessor in
+			ctx.bypass_accessor <- old_counter + 1;
+			let e = e () in
+			(if ctx.bypass_accessor > old_counter then display_error ctx "Field access expression expected after @:bypassAccessor metadata" p);
+			e
 		| (Meta.Inline,_,_) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
