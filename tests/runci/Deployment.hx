@@ -133,7 +133,7 @@ class Deployment {
 					if (!is64BitDll(out))
 					{
 						infoMsg('Deleting the file $out because it is a 32-bit DLL');
-						continue;
+						sys.FileSystem.deleteFile(out);
 					} else {
 						break;
 					}
