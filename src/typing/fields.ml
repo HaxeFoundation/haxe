@@ -137,6 +137,7 @@ let check_constructor_access ctx c f p =
 	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
 let field_access ctx mode f fmode t e p =
+	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
 		match follow e.etype with
@@ -214,7 +215,20 @@ let field_access ctx mode f fmode t e p =
 				| _ ->
 					false
 			in
-			if m = ctx.curfield.cf_name && (match e.eexpr with TConst TThis -> true | TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+			let bypass_accessor =
+				bypass_accessor
+				||
+				(
+					m = ctx.curfield.cf_name
+					&&
+					match e.eexpr with
+					| TConst TThis -> true
+					| TLocal v -> Option.map_default (fun vthis -> v == vthis) false ctx.vthis
+					| TTypeExpr (TClassDecl c) when c == ctx.curclass -> true
+					| _ -> false
+				)
+			in
+			if bypass_accessor then
 				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com Define.As3 -> "$" | _ -> "") in
 				(match e.eexpr with TLocal _ when Common.defined ctx.com Define.Haxe3Compat -> ctx.com.warning "Field set has changed here in Haxe 4: call setter explicitly to keep Haxe 3.x behaviour" p | _ -> ());
 				if not (is_physical_field f) then begin

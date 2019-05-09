@@ -17,6 +17,7 @@ type strict_meta =
 	| BridgeProperties
 	| Build
 	| BuildXml
+	| BypassAccessor
 	| Callable
 	| Class
 	| ClassCode
@@ -225,6 +226,7 @@ let get_info = function
 	| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class",[UsedOn TClass;Platform Cs])
 	| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
 	| BuildXml -> ":buildXml",("Specify xml data to be injected into Build.xml",[Platform Cpp])
+	| BypassAccessor -> ":bypassAccessor",("Do not call property accessor method and access the field directly",[UsedOn TExpr])
 	| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
 	| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; UsedInternally])
 	| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
