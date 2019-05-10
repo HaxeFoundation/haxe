@@ -954,11 +954,6 @@ try
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
-		if not com.needs_generation then begin
-			xml_out := None;
-			json_out := None;
-			no_output := true;
-		end;
 		begin match !xml_out with
 			| None -> ()
 			| Some "hx" ->

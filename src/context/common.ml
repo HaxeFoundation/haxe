@@ -192,7 +192,6 @@ type context = {
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
-	mutable needs_generation : bool;
 	mutable file : string;
 	mutable flash_version : float;
 	mutable features : (string,bool) Hashtbl.t;
@@ -412,7 +411,6 @@ let create version s_version args =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		needs_generation = true;
 		sys_args = args;
 		debug = false;
 		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
