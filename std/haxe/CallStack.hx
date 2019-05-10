@@ -195,7 +195,7 @@ class CallStack {
 			return makeStack(s);
 		#elseif java
 			var stack = [];
-			for ( el in java.internal.Exceptions.currentException().getStackTrace() ) {
+			for ( el in #if jvm jvm.Exception #else java.internal.Exceptions#end.currentException().getStackTrace() ) {
 				var className = el.getClassName();
 				var methodName = el.getMethodName();
 				var fileName = el.getFileName();

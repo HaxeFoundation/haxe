@@ -29,9 +29,12 @@ private typedef __Int64 = java.StdTypes.Int64;
 @:coreApi
 abstract Int64(__Int64) from __Int64 to __Int64
 {
-
+	#if jvm
+	extern public static function make(high:Int32, low:Int32):Int64;
+	#else
 	public static inline function make( high : Int32, low : Int32 ) : Int64
-		return new Int64( (cast(high, __Int64) << 32) | (cast(low, __Int64)& (untyped __java__('0xffffffffL') : Int64)) );
+		return new Int64( ((cast high : __Int64) << 32) | ((cast low : __Int64) & (untyped __java__('0xffffffffL') : Int64)) );
+	#end
 
 	private inline function new(x : __Int64)
 		this = x;

@@ -171,7 +171,7 @@ matrix:
 
     - os: linux
       env:
-        - TEST=macro,hl,js,php,flash9,as3,java,cs,python,lua
+        - TEST=macro,hl,js,php,flash9,as3,java,jvm,cs,python,lua
         - SAUCE=1
       addons:
         sauce_connect: true
@@ -202,7 +202,7 @@ matrix:
     - os: osx
       osx_image: xcode9.4 # to compile faster
       env:
-        - TEST=macro,hl,java,cs,lua,js,php,flash9,python
+        - TEST=macro,hl,java,jvm,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
