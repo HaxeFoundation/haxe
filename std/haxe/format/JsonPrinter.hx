@@ -84,9 +84,9 @@ class JsonPrinter {
 		case TObject:
 			objString(v);
 		case TInt:
-			add(#if as3 Std.string(v) #else v #end);
+			add(#if (as3 || jvm) Std.string(v) #else v #end);
 		case TFloat:
-			add(Math.isFinite(v) ? v : 'null');
+			add(Math.isFinite(v) ? Std.string(v) : 'null');
 		case TFunction:
 			add('"<fun>"');
 		case TClass(c):
@@ -127,7 +127,7 @@ class JsonPrinter {
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:
-			add(#if (php || as3) (v ? 'true' : 'false') #else v #end);
+			add(#if (php || as3 || jvm) (v ? 'true' : 'false') #else v #end);
 		case TNull:
 			add('null');
 		}

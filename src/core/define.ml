@@ -56,6 +56,7 @@ type strict_defined =
 	| JsUnflatten
 	| JsSourceMap
 	| JsEnumsAsArrays
+	| Jvm
 	| SourceMap
 	| KeepOldOutput
 	| LoopUnrollMaxCost
@@ -168,6 +169,7 @@ let infos = function
 	| JsEnumsAsArrays -> "js_enums_as_arrays",("Generate enum representation as array instead of as object",[Platform Js])
 	| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 	| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
+	| Jvm -> "jvm",("Generate jvm directly",[Platform Java])
 	| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php only)",[Platform Php])
 	| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
 	| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])

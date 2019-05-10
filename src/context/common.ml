@@ -364,6 +364,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_this_before_super = false;
 		}
 	| Python ->
 		{
