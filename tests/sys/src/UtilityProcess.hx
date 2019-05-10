@@ -13,6 +13,8 @@ class UtilityProcess {
 		"bin/hl";
 #elseif lua
 		"bin/lua";
+#elseif (java && jvm)
+		"bin/jvm";
 #elseif java
 		"bin/java";
 #elseif neko

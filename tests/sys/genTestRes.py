@@ -59,6 +59,8 @@ for data in allStrings:
     ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
     ("../../bin/java/UtilityProcess-Debug.jar", "bin-java-debug"),
     ("../../bin/java/UtilityProcess.jar", "bin-java"),
+    ("../../bin/jvm/UtilityProcess-Debug.jar", "bin-jvm-debug"),
+    ("../../bin/jvm/UtilityProcess.jar", "bin-jvm"),
     ("../../bin/neko/UtilityProcess.n", "bin-neko"),
     ("../../bin/php/UtilityProcess/index.php", "bin-php"),
     ("../../bin/python/UtilityProcess.py", "bin-py"),

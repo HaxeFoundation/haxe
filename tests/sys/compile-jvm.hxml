@@ -14,3 +14,9 @@ compile-each.hxml
 --main ExitCode
 -java bin/jvm
 -D jvm
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-java bin/jvm
+-D jvm
