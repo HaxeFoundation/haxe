@@ -184,7 +184,7 @@ let rec jsignature_of_type stack t =
 				| [t] -> get_boxed_type (jsignature_of_type t)
 				| _ -> assert false
 				end
-			| ["haxe";"ds"],"Vector" ->
+			| (["haxe";"ds"],"Vector") | (["haxe";"extern"],"Rest") ->
 				begin match tl with
 				| [t] -> TArray(jsignature_of_type t,None)
 				| _ -> assert false
@@ -1314,11 +1314,26 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 
 	method call_arguments t el =
 		let tl,tr = self#get_argument_signatures t el in
+		let varargs_type = match follow t with
+			| TFun(tl,_) ->
+				begin match List.rev tl with
+				| (_,_,(TAbstract({a_path = ["haxe";"extern"],"Rest"},[t]))) :: _ -> Some (jsignature_of_type t)
+				| _ -> None
+				end
+			| _ ->
+				None
+		in
 		let rec loop acc tl el = match tl,el with
 			| jsig :: tl,e :: el ->
+				begin match tl,varargs_type with
+				| [],Some jsig' ->
+					self#new_native_array jsig' (e :: el);
+					List.rev (jsig :: acc)
+				| _ ->
 					self#texpr (rvalue_sig jsig) e;
 					jm#cast jsig;
 					loop (jsig :: acc) tl el
+				end
 			| _,[] -> List.rev acc
 			| [],e :: el ->
 				(* TODO: this sucks *)
