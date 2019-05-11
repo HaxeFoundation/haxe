@@ -2350,7 +2350,7 @@ class tclass_to_jvm gctx c = object(self)
 		with Not_found ->
 			()
 
-	method generate_expr gctx jc jm e is_main is_method scmode mtype =
+	method generate_expr gctx jc jm e is_method scmode mtype =
 		let e,args,tr = match e.eexpr with
 			| TFunction tf when is_method ->
 				tf.tf_expr,tf.tf_args,tf.tf_type
@@ -2358,13 +2358,6 @@ class tclass_to_jvm gctx c = object(self)
 				e,[],t_dynamic
 		in
 		let handler = new texpr_to_jvm gctx jc jm tr in
-		if is_main then begin
-			let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
-			if has_feature gctx.com "Sys.args" then begin
-				load();
-				jm#putstatic ([],"Sys") "_args" (TArray(string_sig,None))
-			end
-		end;
 		List.iter (fun (v,_) ->
 			ignore(handler#add_local v VarArgument);
 		) args;
@@ -2394,11 +2387,7 @@ class tclass_to_jvm gctx c = object(self)
 
 	method generate_method gctx jc c mtype cf =
 		gctx.current_field_info <- get_field_info gctx cf.cf_meta;
-		let jsig = if cf.cf_name = "main" then
-			method_sig [array_sig string_sig] None
-		else
-			jsignature_of_type cf.cf_type
-		in
+		let jsig = jsignature_of_type cf.cf_type in
 		let flags = [MPublic] in
 		let flags = if c.cl_interface then MAbstract :: flags else flags in
 		let flags = if mtype = MStatic then MethodAccessFlags.MStatic :: flags else flags in
@@ -2418,7 +2407,7 @@ class tclass_to_jvm gctx c = object(self)
 		begin match cf.cf_expr with
 		| None -> ()
 		| Some e ->
-			self#generate_expr gctx jc jm e (cf.cf_name = "main") true scmode mtype;
+			self#generate_expr gctx jc jm e true scmode mtype;
 		end;
 		begin match cf.cf_params with
 			| [] when c.cl_params = [] ->
@@ -2483,11 +2472,23 @@ class tclass_to_jvm gctx c = object(self)
 		let offset = jc#get_pool#add_string ssig in
 		jm#add_attribute (AttributeSignature offset)
 
+		method generate_main =
+			let jsig = method_sig [array_sig string_sig] None in
+			let jm = jc#spawn_method "main" jsig [MPublic;MStatic] in
+			let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
+			if has_feature gctx.com "Sys.args" then begin
+				load();
+				jm#putstatic ([],"Sys") "_args" (TArray(string_sig,None))
+			end;
+			jm#invokestatic jc#get_this_path "main" (method_sig [] None);
+			jm#return
+
 		method private generate_fields =
 			let field mtype cf = match cf.cf_kind with
 				| Method (MethNormal | MethInline) ->
 					List.iter (fun cf ->
-						failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf)
+						failsafe cf.cf_pos (fun () -> self#generate_method gctx jc c mtype cf);
+						if cf.cf_name = "main" then self#generate_main;
 					) (cf :: List.filter (fun cf -> Meta.has Meta.Overload cf.cf_meta) cf.cf_overloads)
 				| _ ->
 					if not c.cl_interface && is_physical_field cf then failsafe cf.cf_pos (fun () -> self#generate_field gctx jc c mtype cf)
