@@ -913,7 +913,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#invokestatic haxe_jvm_path "compare" (method_sig [object_sig;object_sig] (Some TInt));
 			let op = flip_cmp_op op in
 			CmpNormal(op,TBool)
-		| [(TObject _ | TArray _) as t1;(TObject _ | TArray _) as t2] ->
+		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
 			CmpSpecial (fun () -> (if op = CmpEq then code#if_acmp_ne_ref else code#if_acmp_eq_ref) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
