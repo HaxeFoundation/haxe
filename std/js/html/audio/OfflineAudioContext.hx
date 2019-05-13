@@ -24,6 +24,8 @@
 
 package js.html.audio;
 
+import js.lib.Promise;
+
 /**
 	The `OfflineAudioContext` interface is an `AudioContext` interface representing an audio-processing graph built from linked together `AudioNode`s. In contrast with a standard `AudioContext`, an `OfflineAudioContext` doesn't render the audio to the device hardware; instead, it generates it, as fast as it can, and outputs the result to an `AudioBuffer`.
 
@@ -33,21 +35,21 @@ package js.html.audio;
 **/
 @:native("OfflineAudioContext")
 extern class OfflineAudioContext extends BaseAudioContext {
-	
+
 	/**
 		An integer representing the size of the buffer in sample-frames.
 	**/
 	var length(default,null) : Int;
-	
+
 	/**
 		Is an `EventHandler` called when processing is terminated, that is when the `complete` event (of type `OfflineAudioCompletionEvent`) is raised, after the event-based version of `OfflineAudioContext.startRendering()` is used.
 	**/
 	var oncomplete : haxe.Constraints.Function;
-	
+
 	/** @throws DOMError */
 	@:overload( function( contextOptions : OfflineAudioContextOptions ) : Void {} )
 	function new( numberOfChannels : Int, length : Int, sampleRate : Float ) : Void;
-	
+
 	/**
 		Starts rendering the audio, taking into account the current connections and the current scheduled changes. This page covers both the event-based version and the promise-based version.
 		@throws DOMError
