@@ -1,5 +1,6 @@
 import utest.Assert;
 import haxe.io.Bytes;
+import haxe.io.Path;
 import UnicodeSequences.UnicodeString;
 import UnicodeSequences.codepointsToString;
 import UnicodeSequences.showUnicodeString;
@@ -55,7 +56,7 @@ class TestUnicode extends utest.Test {
 	];
 
 	// list of expected filenames in sub-directories
-	static var names:Array<UnicodeString> = UnicodeSequences.valid;
+	static var names:Array<UnicodeString> = (Sys.systemName() == "Windows" ? UnicodeSequences.valid.slice(1) : UnicodeSequences.valid);
 
 	// extra files only present in the root test-res directory
 	static var namesRoot = names.concat([
@@ -105,13 +106,15 @@ class TestUnicode extends utest.Test {
 		);
 	}
 
-	function pathBoth(f:String->Void, path:String, ?skipNonExistent:Bool = true):Void {
+	function pathBoth(f:String->Void, ?path:String, ?skipNonExistent:Bool = true):Void {
 		for (filename in names) switch (filename) {
 			case Only(codepointsToString(_) => ref):
-			f('$path/$ref');
+			f(path != null ? Path.join([path, ref]) : ref);
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-			if (sys.FileSystem.exists('$path/$nfc') || !skipNonExistent) f('$path/$nfc');
-			if (sys.FileSystem.exists('$path/$nfd') || !skipNonExistent) f('$path/$nfd');
+			var joinedNfc = path != null ? Path.join([path, nfc]) : nfc;
+			var joinedNfd = path != null ? Path.join([path, nfd]) : nfd;
+			if (!skipNonExistent || sys.FileSystem.exists(joinedNfc)) f(joinedNfc);
+			if (!skipNonExistent || sys.FileSystem.exists(joinedNfd)) f(joinedNfd);
 		}
 	}
 
@@ -142,7 +145,7 @@ class TestUnicode extends utest.Test {
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
 			Sys.setCwd(dir);
-			assertUEnds(haxe.io.Path.removeTrailingSlashes(Sys.getCwd()), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
+			assertUEnds(Path.removeTrailingSlashes(Sys.getCwd()), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
 			Sys.setCwd("..");
 		}
 		for (filename in names) switch (filename) {
@@ -219,29 +222,29 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
 
 		// path
-		UnicodeSequences.normalBoth(str -> {
-				Assert.equals(new haxe.io.Path('$str/a.b').dir, str);
-				Assert.equals(haxe.io.Path.directory('$str/a.b'), str);
-				Assert.equals(new haxe.io.Path('a/$str.b').file, str);
-				Assert.equals(new haxe.io.Path('a/b.$str').ext, str);
-				Assert.equals(haxe.io.Path.extension('a/b.$str'), str);
-				Assert.equals(haxe.io.Path.join([str, "a"]), '$str/a');
-				Assert.equals(haxe.io.Path.join(["a", str]), 'a/$str');
-				Assert.equals(haxe.io.Path.addTrailingSlash(str), '$str/');
-				Assert.equals(haxe.io.Path.normalize('a/../$str'), str);
-				Assert.equals(haxe.io.Path.normalize('$str/a/..'), str);
+		pathBoth(str -> {
+				Assert.equals(new Path('$str/a.b').dir, str);
+				Assert.equals(Path.directory('$str/a.b'), str);
+				Assert.equals(new Path('a/$str.b').file, str);
+				Assert.equals(new Path('a/b.$str').ext, str);
+				Assert.equals(Path.extension('a/b.$str'), str);
+				Assert.equals(Path.join([str, "a"]), '$str/a');
+				Assert.equals(Path.join(["a", str]), 'a/$str');
+				Assert.equals(Path.addTrailingSlash(str), '$str/');
+				Assert.equals(Path.normalize('a/../$str'), str);
+				Assert.equals(Path.normalize('$str/a/..'), str);
 			});
 
 		// rename
 		sys.io.File.copy("test-res/data.bin", "temp-unicode/rename-me");
-		UnicodeSequences.normalBoth(str -> {
+		pathBoth(str -> {
 				sys.FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
 				Assert.isFalse(sys.FileSystem.exists('temp-unicode/rename-me'));
 				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
 				sys.FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
 			});
 
-		UnicodeSequences.normalBoth(str -> {
+		pathBoth(str -> {
 				// copy
 				sys.io.File.copy("test-res/data.bin", 'temp-unicode/$str');
 				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
@@ -322,7 +325,7 @@ class TestUnicode extends utest.Test {
 		// saveContent
 		sys.io.File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
 		assertBytesEqual(sys.io.File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
-		UnicodeSequences.normalBoth(str -> {
+		pathBoth(str -> {
 				sys.io.File.saveContent('temp-unicode/saveContent-$str.bin', UnicodeSequences.validString);
 				assertBytesEqual(sys.io.File.getBytes('temp-unicode/saveContent-$str.bin'), UnicodeSequences.validBytes);
 			});
@@ -332,7 +335,7 @@ class TestUnicode extends utest.Test {
 		out.writeString(UnicodeSequences.validString);
 		out.close();
 		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
-		UnicodeSequences.normalBoth(str -> {
+		pathBoth(str -> {
 				var out = sys.io.File.write('temp-unicode/write-$str.bin');
 				out.writeString(UnicodeSequences.validString);
 				out.close();

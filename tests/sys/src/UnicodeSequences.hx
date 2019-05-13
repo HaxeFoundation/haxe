@@ -9,7 +9,7 @@ class UnicodeSequences {
 	// boundary conditions
 	public static var boundary:Array<UnicodeString> = [
 		// 1 byte
-		Only([0x0001]),
+		Only([0x0001]), // this must be first, see TestUnicode.names
 		Only([0x007F]),
 		// 2 byte
 		Only([0x0080]),
