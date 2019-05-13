@@ -18,7 +18,10 @@ let write_jvm_field ch jvmf =
 	write_jvm_attributes ch jvmf.field_attributes
 
 let write_jvm_class ch jvmc =
-	write_ui32 ch 0xCAFEBABE;
+	write_byte ch 0xCA;
+	write_byte ch 0xFE;
+	write_byte ch 0xBA;
+	write_byte ch 0xBE;
 	write_ui16 ch jvmc.class_minor_version;
 	write_ui16 ch jvmc.class_major_version;
 	write_bytes ch jvmc.class_constant_pool;
