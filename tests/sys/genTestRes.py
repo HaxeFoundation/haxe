@@ -35,12 +35,13 @@ allUnicode = [
     [0xE4, 0xB8, 0xAD, 0xE6, 0x96, 0x87, 0xEF, 0xBC, 0x8C, 0xE3, 0x81, 0xAB, 0xE3, 0x81, 0xBB, 0xE3, 0x82, 0x93, 0xE3, 0x81, 0x94]
   ]
 
+allStrings = [ bytes(data).decode("utf-8") for data in allUnicode ]
+
+allFilenames = allStrings[:]
 # Windows does not allow codepoints in the U+0000 - U+001F range
 # see https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 if os.name == "nt":
-  allUnicode.remove([0x01])
-
-allStrings = [ bytes(data).decode("utf-8") for data in allUnicode ]
+  allFilenames.remove([0x01])
 
 allBinary = b""
 for data in allUnicode:
@@ -52,7 +53,7 @@ with open(os.path.join(TESTDIR, "data.bin"), "wb") as f:
 
 # generate sub-directories with symlinks
 os.mkdir(os.path.join(TESTDIR, "a"))
-for data in allStrings:
+for data in allFilenames:
   os.mkdir(os.path.join(TESTDIR, data))
   os.mkdir(os.path.join(TESTDIR, "a", data))
   for target, name in [
@@ -75,6 +76,6 @@ for data in allStrings:
 
 # files
 os.mkdir(os.path.join(TESTDIR, "b"))
-for data in allStrings:
+for data in allFilenames:
   with open(os.path.join(TESTDIR, "b", data), "wb") as f:
     f.write(allBinary)
