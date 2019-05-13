@@ -342,7 +342,9 @@ let rec wait_loop process_params verbose accept =
 				if m.m_extra.m_mark = mark then
 					None
 				else try
-					if m.m_extra.m_mark <= start_mark then begin
+					let old_mark = m.m_extra.m_mark in
+					m.m_extra.m_mark <- mark;
+					if old_mark <= start_mark then begin
 						(* Workaround for preview.4 Java issue *)
 						begin match m.m_extra.m_kind with
 							| MExtern -> check_module_path()
@@ -350,7 +352,6 @@ let rec wait_loop process_params verbose accept =
 						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
-					m.m_extra.m_mark <- mark;
 					if not (has_policy NoCheckDependencies) then check_dependencies();
 					None
 				with
