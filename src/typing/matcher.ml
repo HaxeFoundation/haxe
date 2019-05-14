@@ -1474,9 +1474,9 @@ module TexprConverter = struct
 									List.rev acc,dt
 							in
 							let conds,dt1 = loop2 [] dt1 in
-							let e_then = loop false params dt1 in
+							let e_then = loop toplevel params dt1 in
 							(fun () ->
-								let e_else = loop false params dt2 in
+								let e_else = loop toplevel params dt2 in
 								let e_cond = List.fold_left (fun e1 e2 -> binop OpBoolAnd e1 e2 ctx.t.tbool (punion e1.epos e2.epos)) (f_op e) conds in
 								mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 							)
