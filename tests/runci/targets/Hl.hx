@@ -50,9 +50,12 @@ class Hl {
     }
 
     static public function run(args:Array<String>) {
+        // this shouldn't be necessary but hl is not found when running sys tests
+        var hlBinary = Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
+
         getHlDependencies();
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
-        runCommand("hl", ["bin/unit.hl"]);
+        runCommand(hlBinary, ["bin/unit.hl"]);
 
 		// changeDirectory(threadsDir);
 		// runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
@@ -60,6 +63,6 @@ class Hl {
 
         changeDirectory(sysDir);
         runCommand("haxe", ["compile-hl.hxml"]);
-        runCommand("hl", ["bin/hl/sys.hl"]);
+        runCommand(hlBinary, ["bin/hl/sys.hl"]);
     }
 }
