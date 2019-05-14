@@ -259,7 +259,9 @@ module Initialize = struct
 					old_flush()
 				);
 				Java.before_generate com;
-				add_std "java"; "java"
+				if defined com Define.Jvm then add_std "jvm";
+				add_std "java";
+				"java"
 			| Python ->
 				add_std "python";
 				if not (Common.defined com Define.PythonVersion) then
@@ -318,7 +320,10 @@ let generate tctx ext xml_out interp swf_header =
 		| Cs ->
 			Gencs.generate,"cs"
 		| Java ->
-			Genjava.generate,"java"
+			if Common.defined com Jvm then
+				Genjvm.generate,"java"
+			else
+				Genjava.generate,"java"
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->
@@ -514,8 +519,8 @@ try
 			Initialize.set_platform com Cpp dir;
 		),"<directory>","generate C++ code into target directory");
 		("Target",["--cppia"],["-cppia"],Arg.String (fun file ->
-			Initialize.set_platform com Cpp file;
 			Common.define com Define.Cppia;
+			Initialize.set_platform com Cpp file;
 		),"<file>","generate Cppia code into target file");
 		("Target",["--cs"],["-cs"],Arg.String (fun dir ->
 			cp_libs := "hxcs" :: !cp_libs;
@@ -695,23 +700,6 @@ try
 		("Services",["--json"],[],Arg.String (fun file ->
 			json_out := Some file
 		),"<file>","generate JSON types description");
-		("Services",["--gen-hx-classes"],[], Arg.Unit (fun() ->
-			force_typing := true;
-			pre_compilation := (fun() ->
-				List.iter (fun (_,_,extract) ->
-					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
-				) com.swf_libs;
-				List.iter (fun (_,std,_,all_files,_) ->
-					if not std then
-						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) (all_files())
-				) com.java_libs;
-				List.iter (fun (_,std,all_files,_) ->
-					if not std then
-						List.iter (fun path -> classes := path :: !classes) (all_files())
-				) com.net_libs;
-			) :: !pre_compilation;
-			xml_out := Some "hx"
-		),"","generate hx headers for all input classes");
 		("Optimization",["--no-output"],[], Arg.Unit (fun() -> no_output := true),"","compiles but does not generate any file");
 		("Debug",["--times"],[], Arg.Unit (fun() -> measure_times := true),"","measure compilation times");
 		("Optimization",["--no-inline"],[], define Define.NoInline, "","disable inlining");
@@ -798,8 +786,27 @@ try
 			with Not_found ->
 				raise (Arg.Bad new_msg));
 		arg_delays := [];
-		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then
+		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then begin
 			Define.define com.defines HxcppSmartStings;
+		end;
+		if Define.raw_defined com.defines "gen_hx_classes" then begin
+			(* TODO: this is something we're gonna remove once we have something nicer for generating flash externs *)
+			force_typing := true;
+			pre_compilation := (fun() ->
+				List.iter (fun (_,_,extract) ->
+					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
+				) com.swf_libs;
+				List.iter (fun (_,std,_,all_files,_) ->
+					if not std then
+						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) (all_files())
+				) com.java_libs;
+				List.iter (fun (_,std,all_files,_) ->
+					if not std then
+						List.iter (fun path -> classes := path :: !classes) (all_files())
+				) com.net_libs;
+			) :: !pre_compilation;
+			xml_out := Some "hx"
+		end;
 	in
 	process_ref := process;
 	process ctx.com.args;
@@ -947,15 +954,10 @@ try
 		Filters.run com tctx main;
 		t();
 		if ctx.has_error then raise Abort;
-		if not com.needs_generation then begin
-			xml_out := None;
-			json_out := None;
-			no_output := true;
-		end;
 		begin match !xml_out with
 			| None -> ()
 			| Some "hx" ->
-				Genxml.generate_hx com
+				Genhxold.generate com
 			| Some file ->
 				Common.log com ("Generating xml: " ^ file);
 				Path.mkdir_from_path file;

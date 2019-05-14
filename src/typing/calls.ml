@@ -101,7 +101,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 let call_to_string ctx ?(resume=false) e =
 	(* Ignore visibility of the toString field. *)
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field ~resume ctx e "toString" e.epos MCall in
+	let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
 	!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 

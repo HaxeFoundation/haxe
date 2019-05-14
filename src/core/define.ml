@@ -56,6 +56,7 @@ type strict_defined =
 	| JsUnflatten
 	| JsSourceMap
 	| JsEnumsAsArrays
+	| Jvm
 	| SourceMap
 	| KeepOldOutput
 	| LoopUnrollMaxCost
@@ -102,7 +103,6 @@ type strict_defined =
 	| SwfPreloaderFrame
 	| SwfProtected
 	| SwfScriptTimeout
-	| SwfUseDoAbc
 	| Sys
 	| Unsafe
 	| UseNekoc
@@ -169,6 +169,7 @@ let infos = function
 	| JsEnumsAsArrays -> "js_enums_as_arrays",("Generate enum representation as array instead of as object",[Platform Js])
 	| JsUnflatten -> "js_unflatten",("Generate nested objects for packages and types",[Platform Js])
 	| JsSourceMap -> "js_source_map",("Generate JavaScript source map even in non-debug mode",[Platform Js])
+	| Jvm -> "jvm",("Generate jvm directly",[Platform Java])
 	| SourceMap -> "source_map",("Generate source map for compiled files (Currently supported for php only)",[Platform Php])
 	| KeepOldOutput -> "keep_old_output",("Keep old source files in the output directory (for C#/Java)",[Platforms [Cs;Java]])
 	| LoopUnrollMaxCost -> "loop_unroll_max_cost",("Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)",[])
@@ -216,7 +217,6 @@ let infos = function
 	| SwfPreloaderFrame -> "swf_preloader_frame",("Insert empty first frame in swf",[Platform Flash])
 	| SwfProtected -> "swf_protected",("Compile Haxe private as protected in the SWF instead of public",[Platform Flash])
 	| SwfScriptTimeout -> "swf_script_timeout",("Maximum ActionScript processing time before script stuck dialog box displays (in seconds)",[Platform Flash])
-	| SwfUseDoAbc -> "swf_use_doabc",("Use DoAbc swf-tag instead of DoAbcDefine",[Platform Flash])
 	| Sys -> "sys",("Defined for all system platforms",[])
 	| Unsafe -> "unsafe",("Allow unsafe code when targeting C#",[Platform Cs])
 	| UseNekoc -> "use_nekoc",("Use nekoc compiler instead of internal one",[Platform Neko])

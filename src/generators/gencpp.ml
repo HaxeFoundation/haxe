@@ -4630,6 +4630,11 @@ let path_of_string path =
 *)
 let find_referenced_types_flags ctx obj field_name super_deps constructor_deps header_only for_depends include_super_args =
    let types = ref PMap.empty in
+   if for_depends then begin
+      let include_file = get_meta_string_path (t_infos obj).mt_meta Meta.Depend in
+      if (include_file<>"") then
+         types := (PMap.add ( path_of_string include_file ) true !types);
+   end;
    let rec add_type_flag isNative in_path =
       if ( not (PMap.mem in_path !types)) then begin
          types := (PMap.add in_path isNative !types);

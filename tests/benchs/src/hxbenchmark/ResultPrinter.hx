@@ -8,7 +8,8 @@ class ResultPrinter {
 	}
 
 	public function print(result:SuiteResult) {
-		result.cases.sort((cr1, cr2) -> Reflect.compare(cr2.numSamples, cr1.numSamples));
+		// result.cases.sort((cr1, cr2) -> Reflect.compare(cr2.numSamples, cr1.numSamples));
+		result.cases.sort((cr1, cr2) -> Reflect.compare(cr1.name, cr2.name));
 		var maxNameLength = 0;
 		var maxSampleLength = 0;
 		for (caseResult in result.cases) {

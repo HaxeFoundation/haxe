@@ -88,6 +88,14 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertErrorMessage("Expected }");
 	}
+
+	function testGlobalBuildMacro_subsequentCompilations() {
+		vfs.putContent("GlobalBuildMacro.hx", getTemplate("GlobalBuildMacro.hx"));
+		var args = ["--macro", "GlobalBuildMacro.use()", "--run", "GlobalBuildMacro"];
+		runHaxe(args);
+		runHaxe(args);
+		assertSuccess();
+	}
 }
 
 class Main {

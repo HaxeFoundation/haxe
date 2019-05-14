@@ -83,9 +83,6 @@ let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds = Hashtbl.create 0
 
-let setup_kwds lst =
-	List.iter (fun s -> Hashtbl.add kwds s ()) lst
-
 let es3kwds = [
 	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
 	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
@@ -103,6 +100,12 @@ let es5kwds = [
 	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
 	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
 ]
+
+let setup_kwds com =
+	Hashtbl.reset kwds;
+	let es_version = get_es_version com in
+	let lst = if es_version >= 5 then es5kwds else es3kwds in
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -1590,7 +1593,7 @@ let generate com =
 
 	let nodejs = Common.raw_defined com "nodejs" in
 
-	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
+	setup_kwds com;
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with

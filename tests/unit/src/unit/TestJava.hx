@@ -115,10 +115,10 @@ class TestJava extends Test
 		f(es1.contains(TA));
 		es1.add(TA);
 		t(es1.contains(TA));
-		var es2 = EnumSet.of(HA,HB);
-		t(es2.contains(HA));
-		t(es2.contains(HB));
-		f(es2.contains(HC));
+		// var es2 = EnumSet.of(HA,HB);
+		// t(es2.contains(HA));
+		// t(es2.contains(HB));
+		// f(es2.contains(HC));
 	}
 
 	function testHaxeKeywords()

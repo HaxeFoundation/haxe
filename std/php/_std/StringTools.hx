@@ -45,11 +45,11 @@ import php.*;
 	}
 
 	public static function startsWith( s : String, start : String ) : Bool {
-		return start == '' || Global.strpos(s, start) == 0;
+		return start == '' || Global.substr(s, 0, Global.strlen(start)) == start;
 	}
 
 	public static function endsWith( s : String, end : String ) : Bool {
-		return end == '' || Global.substr(s, -end.length) == end;
+		return end == '' || Global.substr(s, -Global.strlen(end)) == end;
 	}
 
 	public static function isSpace( s : String, pos : Int ) : Bool {

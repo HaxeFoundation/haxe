@@ -109,11 +109,9 @@ class Boot {
 						return str + ")";
 					}
 					#end
-					var l = o.length;
-					var i;
 					var str = "[";
 					s += "\t";
-					for( i in 0...l )
+					for( i in 0...o.length )
 						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
 					str += "]";
 					return str;

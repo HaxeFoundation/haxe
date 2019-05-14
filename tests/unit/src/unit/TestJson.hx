@@ -108,4 +108,13 @@ class TestJson extends Test {
 		eq( parsed.x, -4500 );
 		eq( parsed.y, 1.456 );
 	}
+
+	#if (!neko && (cpp && !cppia && !hxcpp_smart_strings))
+	function test8228() {
+		var strJson = haxe.Json.stringify("👽");
+		t(strJson == '"👽"' || strJson == '"\\ud83d\\udc7d"');
+		eq( haxe.Json.parse('"👽"'), "👽" );
+		eq( haxe.Json.parse('"\\ud83d\\udc7d"'), "👽" );
+	}
+	#end
 }

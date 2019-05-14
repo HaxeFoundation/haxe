@@ -56,6 +56,8 @@ class ImportAll {
 			if ( !Context.defined("target.threaded") ) return;
 		case "java":
 			if( !Context.defined("java") ) return;
+		case "jvm":
+			if( !Context.defined("jvm") ) return;
 		case "cs":
 			if( !Context.defined("cs") ) return;
 		case "python":

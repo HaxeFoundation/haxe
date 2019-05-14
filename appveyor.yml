@@ -14,9 +14,11 @@ environment:
           secure: ewwkKcjnSKl/Vtrz1SXmI6XKk1ENmJDyzm5YaR2wi03foRhTke29TvymB21rDTSl
     matrix:
         - ARCH: 64
-          TEST: "neko,hl,python,cs,java,php,macro"
+          TEST: "neko,hl,python,cs,java,jvm,php"
         - ARCH: 64
           TEST: "cpp"
+        - ARCH: 64
+          TEST: "macro"
           DEPLOY_NIGHTLIES: 1
         - ARCH: 32
           TEST: "macro"

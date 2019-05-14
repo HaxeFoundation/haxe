@@ -841,6 +841,7 @@ let type_types_into_module ctx m tdecls p =
 			module_imports = [];
 		};
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

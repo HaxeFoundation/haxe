@@ -167,7 +167,7 @@ let check_overriding ctx c f =
 				add_class_field_flag f2 CfOverridden;
 			with
 				Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " overloads parent class with different or incomplete type") p;
+					display_error ctx ("Field " ^ i ^ " overrides parent class with different or incomplete type") p;
 					display_error ctx ("Base field is defined here") f2.cf_pos;
 					display_error ctx (error_msg (Unify l)) p;
 		with
