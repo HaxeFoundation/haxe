@@ -162,15 +162,17 @@ and generate_metadata ctx ml =
 
 and generate_minimum_metadata ctx ml =
 	match ctx.request with
-		| None -> jarray []
+		| None -> None
 		| Some request ->
-			let requested = request#get_requested_meta_list in
-			let ml =
-				List.filter
-					(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
-					ml
-			in
-			jlist (generate_metadata_entry ctx) ml
+			match request#get_requested_meta_list with
+				| None -> None
+				| Some requested ->
+					let ml =
+						List.filter
+							(fun (m,_,_) -> List.exists (fun r -> r = to_string m) requested)
+							ml
+					in
+					Some (jlist (generate_metadata_entry ctx) ml)
 
 (* AST.ml structures *)
 
