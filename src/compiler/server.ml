@@ -49,7 +49,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 		| _ ->
 			f_otherwise ()
 		end
-	| Some(_,f) ->
+	| Some(_,f,_) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with

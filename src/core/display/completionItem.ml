@@ -237,7 +237,9 @@ module CompletionModuleType = struct
 				("isFinal",jbool cm.is_final) ::
 				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
 			| GMMinimum ->
-				[("meta",generate_minimum_metadata ctx cm.meta)]
+				match generate_minimum_metadata ctx cm.meta with
+					| None -> []
+					| Some meta -> [("meta",meta)]
 			)
 		in
 		jobject fields

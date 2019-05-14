@@ -1013,8 +1013,8 @@ with
 		begin
 			DisplayPosition.display_position#reset;
 			match ctx.com.json_out with
-			| Some (f,_) ->
-				let ctx = DisplayJson.create_json_context (match de with DisplayFields _ -> true | _ -> false) in
+			| Some (f,_,jsonrpc) ->
+				let ctx = DisplayJson.create_json_context jsonrpc (match de with DisplayFields _ -> true | _ -> false) in
 				f (DisplayException.to_json ctx de)
 			| _ -> assert false
 		end
@@ -1088,8 +1088,8 @@ with
 		| None -> ()
 		| Some fields ->
 			begin match ctx.com.json_out with
-			| Some (f,_) ->
-				let ctx = DisplayJson.create_json_context false in
+			| Some (f,_,jsonrpc) ->
+				let ctx = DisplayJson.create_json_context jsonrpc false in
 				let path = match List.rev p with
 					| name :: pack -> List.rev pack,name
 					| [] -> [],""
