@@ -2049,8 +2049,17 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t t') seen) ->
-				(match List.fold_left (fun acc t -> match loop (t :: seen) t with None -> acc | Some t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t (follow t')) seen) ->
+				let types =
+					List.fold_left
+						(fun acc t -> match loop (t :: seen) t with
+							| None -> acc
+							| Some t -> t :: acc
+						)
+						[]
+						(get_abstract_froms a pl)
+				in
+				(match types with
 				| [t] -> Some t
 				| _ -> None)
 			| t ->
