@@ -2588,6 +2588,16 @@ let generate_class ctx c =
 		if Meta.has has_protected_meta csup.cl_meta then begin
 			has_protected := Some (make_class_ns c);
 			mark_has_protected c (* also mark this class with the meta for further child classes *)
+		end else if csup.cl_extern then begin
+			let rec loop csup =
+				if List.exists (fun cf -> Meta.has Meta.Protected cf.cf_meta) csup.cl_ordered_fields then begin
+					has_protected := Some (make_class_ns c);
+					mark_has_protected c; (* also mark this class with the meta for further child classes *)
+					mark_has_protected csup; (* ALSO mark the extern class for faster future checks *)
+				end else
+					Option.may (fun (csup,_) -> loop csup) csup.cl_super;
+			in
+			loop csup
 		end
 	) c.cl_super;
 	{
