@@ -3,28 +3,31 @@
 	Runs a given simple program based on the first argument.
  */
 
+import haxe.io.Path;
+import sys.io.Process;
+
 class UtilityProcess {
 	public static var BIN_PATH =
 #if cpp
-		"bin/cpp";
+		Path.join(["bin", "cpp"]);
 #elseif cs
-		"bin/cs/bin";
+		Path.join(["bin", "cs", "bin"]);
 #elseif hl
-		"bin/hl";
+		Path.join(["bin", "hl"]);
 #elseif lua
-		"bin/lua";
+		Path.join(["bin", "lua"]);
 #elseif (java && jvm)
-		"bin/jvm";
+		Path.join(["bin", "jvm"]);
 #elseif java
-		"bin/java";
+		Path.join(["bin", "java"]);
 #elseif neko
-		"bin/neko";
+		Path.join(["bin", "neko"]);
 #elseif php
-		"bin/php";
+		Path.join(["bin", "php"]);
 #elseif python
-		"bin/python";
+		Path.join(["bin", "python"]);
 #elseif eval
-		"src";
+		Path.join(["src"]);
 #else
 		null;
 #end
@@ -54,7 +57,7 @@ class UtilityProcess {
 #elseif neko
 		"UtilityProcess.n";
 #elseif php
-		"UtilityProcess/index.php";
+		Path.join(["UtilityProcess", "index.php"]);
 #elseif python
 		"UtilityProcess.py";
 #elseif eval
@@ -71,31 +74,31 @@ class UtilityProcess {
 		if (options == null) options = {};
 		if (options.execPath == null) options.execPath = BIN_PATH;
 		if (options.execName == null) options.execName = BIN_NAME;
-		var execFull = '${options.execPath}/${options.execName}';
+		var execFull = Path.join([options.execPath, options.execName]);
 		var proc =
 		#if (macro || interp)
-		new sys.io.Process("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		new Process("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
 		#elseif cpp
-		new sys.io.Process(execFull, args);
+		new Process(execFull, args);
 		#elseif cs
 		(switch (Sys.systemName()) {
 			case "Windows":
-				new sys.io.Process(execFull, args);
+				new Process(execFull, args);
 			case _:
-				new sys.io.Process("mono", [execFull].concat(args));
+				new Process("mono", [execFull].concat(args));
 		});
 		#elseif java
-		new sys.io.Process(haxe.io.Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", execFull].concat(args));
+		new Process(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", execFull].concat(args));
 		#elseif python
-		new sys.io.Process(python.lib.Sys.executable, [execFull].concat(args));
+		new Process(python.lib.Sys.executable, [execFull].concat(args));
 		#elseif neko
-		new sys.io.Process("neko", [execFull].concat(args));
+		new Process("neko", [execFull].concat(args));
 		#elseif hl
-		new sys.io.Process("hl", [execFull].concat(args));
+		new Process("hl", [execFull].concat(args));
 		#elseif php
-		new sys.io.Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
+		new Process(php.Global.defined('PHP_BINARY') ? php.Const.PHP_BINARY : 'php', [execFull].concat(args));
 		#elseif lua
-		new sys.io.Process("lua", [execFull].concat(args));
+		new Process("lua", [execFull].concat(args));
 		#else
 		null;
 		#end

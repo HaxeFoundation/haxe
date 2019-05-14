@@ -1,6 +1,8 @@
 import utest.Assert;
 import haxe.io.Bytes;
 import haxe.io.Path;
+import sys.FileSystem;
+import sys.io.File;
 import UnicodeSequences.UnicodeString;
 import UnicodeSequences.codepointsToString;
 import UnicodeSequences.showUnicodeString;
@@ -113,29 +115,31 @@ class TestUnicode extends utest.Test {
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
 			var joinedNfc = path != null ? Path.join([path, nfc]) : nfc;
 			var joinedNfd = path != null ? Path.join([path, nfd]) : nfd;
-			if (!skipNonExistent || sys.FileSystem.exists(joinedNfc)) f(joinedNfc);
-			if (!skipNonExistent || sys.FileSystem.exists(joinedNfd)) f(joinedNfd);
+			if (!skipNonExistent || FileSystem.exists(joinedNfc)) f(joinedNfc);
+			if (!skipNonExistent || FileSystem.exists(joinedNfd)) f(joinedNfd);
 		}
 	}
 
 	function assertNormalEither(f:String->Bool, path:String, ?msg:String, ?pos:haxe.PosInfos):Void {
 		for (filename in names) Assert.isTrue(switch (filename) {
-			case Only(codepointsToString(_) => ref): f('$path/$ref');
+			case Only(codepointsToString(_) => ref): f(Path.join([path, ref]));
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-			f('$path/$nfc') || f('$path/$nfd');
+			f(Path.join([path, nfc])) || f(Path.join([path, nfd]));
 		}, '$msg ($filename in $path)', pos);
 	}
 
 	function setupClass() {
-		sys.FileSystem.createDirectory("temp-unicode");
+		FileSystem.createDirectory("temp-unicode");
 		Sys.command("python3", ["genTestRes.py"]);
 	}
 
 	function teardownClass() {
-		for (file in sys.FileSystem.readDirectory("temp-unicode")) {
-			sys.FileSystem.deleteFile('temp-unicode/$file');
+		for (dir in ["temp-unicode", "test-res"]) {
+			for (file in FileSystem.readDirectory("temp-unicode")) {
+				FileSystem.deleteFile(Path.join(["temp-unicode", file]));
+			}
+			FileSystem.deleteDirectory("temp-unicode");
 		}
-		sys.FileSystem.deleteDirectory("temp-unicode");
 	}
 
 #if (target.unicode)
@@ -145,14 +149,14 @@ class TestUnicode extends utest.Test {
 		Sys.setCwd("test-res");
 		function enterLeave(dir:String, ?alt:String):Void {
 			Sys.setCwd(dir);
-			assertUEnds(Path.removeTrailingSlashes(Sys.getCwd()), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
+			assertUEnds(Path.removeTrailingSlashes(Path.normalize(Sys.getCwd())), '/test-res/${dir}', alt != null ? '/test-res/${alt}' : null);
 			Sys.setCwd("..");
 		}
 		for (filename in names) switch (filename) {
 			case Only(codepointsToString(_) => ref): enterLeave(ref);
 			case Normal(codepointsToString(_) => nfc, codepointsToString(_) => nfd):
-			if (sys.FileSystem.exists(nfc)) enterLeave(nfc, nfd);
-			if (sys.FileSystem.exists(nfd)) enterLeave(nfd, nfc);
+			if (FileSystem.exists(nfc)) enterLeave(nfc, nfd);
+			if (FileSystem.exists(nfd)) enterLeave(nfd, nfc);
 		}
 		Sys.setCwd("..");
 #end
@@ -170,14 +174,14 @@ class TestUnicode extends utest.Test {
 						{path: "./../čýžé", end: 'test-res/čýžé'},
 						{path: "./../čýžé/", end: 'test-res/čýžé'},
 					]) assertUEnds(
-						sys.FileSystem.absolutePath('$path/${relative.path}'),
+						Path.normalize(FileSystem.absolutePath('$path/${relative.path}')),
 						relative.end
 					);
 			}, "test-res");
 
 #if !(java)
 		assertNormalEither(path -> {
-				if (!sys.FileSystem.exists(path)) return false; // NFC/NFD differences
+				if (!FileSystem.exists(path)) return false; // NFC/NFD differences
 				Sys.setCwd(path);
 				var ret = true;
 				for (relative in [
@@ -190,36 +194,36 @@ class TestUnicode extends utest.Test {
 						{path: "./čýžé/", end: '${path}/čýžé'},
 						{path: "./../čýžé", end: 'test-res/čýžé'},
 						{path: "./../čýžé/", end: 'test-res/čýžé'},
-					]) if (!StringTools.endsWith(sys.FileSystem.absolutePath('${relative.path}'), relative.end)) ret = false;
+					]) if (!StringTools.endsWith(Path.normalize(FileSystem.absolutePath('${relative.path}')), relative.end)) ret = false;
 				Sys.setCwd("../..");
 				return ret;
 			}, "test-res", "setCwd + absolutePath + endsWith failed");
 #end
 
 		// exists
-		assertNormalEither(sys.FileSystem.exists, 'test-res/a', 'expected exists == true');
-		assertNormalEither(sys.FileSystem.exists, 'test-res/b', 'expected exists == false');
+		assertNormalEither(FileSystem.exists, 'test-res/a', 'expected exists == true');
+		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
 		pathBoth(path -> {
 				assertUEnds(
-						sys.FileSystem.fullPath('$path/${BIN_SYMLINK}'),
+						Path.normalize(FileSystem.fullPath('$path/${BIN_SYMLINK}')),
 						'/${UtilityProcess.BIN_PATH}/${UtilityProcess.BIN_NAME}'
 					);
 			}, "test-res");
 
 		// isDirectory
-		assertNormalEither(sys.FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
-		assertNormalEither(path -> !sys.FileSystem.isDirectory(path), 'test-res/b', 'expected isDirectory == false');
+		assertNormalEither(FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
+		assertNormalEither(path -> !FileSystem.isDirectory(path), 'test-res/b', 'expected isDirectory == false');
 
 		// readDirectory
-		sameFiles(sys.FileSystem.readDirectory("test-res"), namesRoot);
-		sameFiles(sys.FileSystem.readDirectory("test-res/a"), names);
-		sameFiles(sys.FileSystem.readDirectory("test-res/b"), names);
+		sameFiles(FileSystem.readDirectory("test-res"), namesRoot);
+		sameFiles(FileSystem.readDirectory("test-res/a"), names);
+		sameFiles(FileSystem.readDirectory("test-res/b"), names);
 
 		// stat
-		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
-		assertNormalEither(path -> sys.FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
+		assertNormalEither(path -> FileSystem.stat(path) != null, 'test-res/a', 'expected stat != null');
+		assertNormalEither(path -> FileSystem.stat(path) != null, 'test-res/b', 'expected stat != null');
 
 		// path
 		pathBoth(str -> {
@@ -236,32 +240,32 @@ class TestUnicode extends utest.Test {
 			});
 
 		// rename
-		sys.io.File.copy("test-res/data.bin", "temp-unicode/rename-me");
+		File.copy("test-res/data.bin", "temp-unicode/rename-me");
 		pathBoth(str -> {
-				sys.FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
-				Assert.isFalse(sys.FileSystem.exists('temp-unicode/rename-me'));
-				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
-				sys.FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
+				FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
+				Assert.isFalse(FileSystem.exists('temp-unicode/rename-me'));
+				Assert.isTrue(FileSystem.exists('temp-unicode/$str'));
+				FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
 			});
 
 		pathBoth(str -> {
 				// copy
-				sys.io.File.copy("test-res/data.bin", 'temp-unicode/$str');
-				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
-				assertBytesEqual(sys.io.File.getBytes('temp-unicode/$str'), UnicodeSequences.validBytes);
+				File.copy("test-res/data.bin", 'temp-unicode/$str');
+				Assert.isTrue(FileSystem.exists('temp-unicode/$str'));
+				assertBytesEqual(File.getBytes('temp-unicode/$str'), UnicodeSequences.validBytes);
 
 				// deleteFile
-				sys.FileSystem.deleteFile('temp-unicode/$str');
-				Assert.isFalse(sys.FileSystem.exists('temp-unicode/$str'));
+				FileSystem.deleteFile('temp-unicode/$str');
+				Assert.isFalse(FileSystem.exists('temp-unicode/$str'));
 
 				// createDirectory
-				sys.FileSystem.createDirectory('temp-unicode/$str');
-				Assert.isTrue(sys.FileSystem.exists('temp-unicode/$str'));
-				Assert.equals(sys.FileSystem.readDirectory('temp-unicode/$str').length, 0);
+				FileSystem.createDirectory('temp-unicode/$str');
+				Assert.isTrue(FileSystem.exists('temp-unicode/$str'));
+				Assert.equals(FileSystem.readDirectory('temp-unicode/$str').length, 0);
 
 				// deleteDirectory
-				sys.FileSystem.deleteDirectory('temp-unicode/$str');
-				Assert.isFalse(sys.FileSystem.exists('temp-unicode/$str'));
+				FileSystem.deleteDirectory('temp-unicode/$str');
+				Assert.isFalse(FileSystem.exists('temp-unicode/$str'));
 			});
 	}
 
@@ -311,55 +315,55 @@ class TestUnicode extends utest.Test {
 
 	function testIO() {
 		// getBytes
-		assertBytesEqual(sys.io.File.getBytes("test-res/data.bin"), UnicodeSequences.validBytes);
+		assertBytesEqual(File.getBytes("test-res/data.bin"), UnicodeSequences.validBytes);
 		pathBoth(path -> {
-				assertBytesEqual(sys.io.File.getBytes(path), UnicodeSequences.validBytes);
+				assertBytesEqual(File.getBytes(path), UnicodeSequences.validBytes);
 			}, "test-res/b");
 
 		// getContent
-		assertUEquals(sys.io.File.getContent("test-res/data.bin"), UnicodeSequences.validString);
+		assertUEquals(File.getContent("test-res/data.bin"), UnicodeSequences.validString);
 		pathBoth(path -> {
-				assertUEquals(sys.io.File.getContent(path), UnicodeSequences.validString);
+				assertUEquals(File.getContent(path), UnicodeSequences.validString);
 			}, "test-res/b");
 
 		// saveContent
-		sys.io.File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
-		assertBytesEqual(sys.io.File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
+		File.saveContent("temp-unicode/data.bin", UnicodeSequences.validString);
+		assertBytesEqual(File.getBytes("temp-unicode/data.bin"), UnicodeSequences.validBytes);
 		pathBoth(str -> {
-				sys.io.File.saveContent('temp-unicode/saveContent-$str.bin', UnicodeSequences.validString);
-				assertBytesEqual(sys.io.File.getBytes('temp-unicode/saveContent-$str.bin'), UnicodeSequences.validBytes);
+				File.saveContent('temp-unicode/saveContent-$str.bin', UnicodeSequences.validString);
+				assertBytesEqual(File.getBytes('temp-unicode/saveContent-$str.bin'), UnicodeSequences.validBytes);
 			});
 
 		// write
-		var out = sys.io.File.write("temp-unicode/out.bin");
+		var out = File.write("temp-unicode/out.bin");
 		out.writeString(UnicodeSequences.validString);
 		out.close();
-		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
+		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
 		pathBoth(str -> {
-				var out = sys.io.File.write('temp-unicode/write-$str.bin');
+				var out = File.write('temp-unicode/write-$str.bin');
 				out.writeString(UnicodeSequences.validString);
 				out.close();
-				assertBytesEqual(sys.io.File.getBytes('temp-unicode/write-$str.bin'), UnicodeSequences.validBytes);
+				assertBytesEqual(File.getBytes('temp-unicode/write-$str.bin'), UnicodeSequences.validBytes);
 			});
 
 		// update
-		var out = sys.io.File.update("temp-unicode/out.bin");
+		var out = File.update("temp-unicode/out.bin");
 		out.seek(0, SeekBegin);
 		out.writeString(UnicodeSequences.validString);
 		out.close();
-		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
+		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
 
 		// append
-		var out = sys.io.File.append("temp-unicode/out.bin");
+		var out = File.append("temp-unicode/out.bin");
 		out.writeString(UnicodeSequences.validString);
 		out.close();
 		var repeated = Bytes.alloc(UnicodeSequences.validBytes.length * 2);
 		repeated.blit(0, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
 		repeated.blit(UnicodeSequences.validBytes.length, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
-		assertBytesEqual(sys.io.File.getBytes("temp-unicode/out.bin"), repeated);
+		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), repeated);
 
 		// readLine
-		var data = sys.io.File.read("test-res/data.bin");
+		var data = File.read("test-res/data.bin");
 		UnicodeSequences.normalNFC(str -> {
 				var line = data.readLine();
 				assertUEquals(line, str);
