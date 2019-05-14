@@ -2590,7 +2590,7 @@ let generate_class ctx c =
 			mark_has_protected c (* also mark this class with the meta for further child classes *)
 		end else if csup.cl_extern then begin
 			let rec loop csup =
-				if List.exists (fun cf -> Meta.has Meta.Protected cf.cf_meta) csup.cl_ordered_fields then begin
+				if List.exists is_cf_protected csup.cl_ordered_fields then begin
 					has_protected := Some (make_class_ns c);
 					mark_has_protected c; (* also mark this class with the meta for further child classes *)
 					mark_has_protected csup; (* ALSO mark the extern class for faster future checks *)
