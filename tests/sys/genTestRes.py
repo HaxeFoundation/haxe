@@ -41,7 +41,7 @@ allFilenames = allStrings[:]
 # Windows does not allow codepoints in the U+0000 - U+001F range
 # see https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
 if os.name == "nt":
-  allFilenames.remove([0x01])
+  allFilenames.remove(bytes([0x01]).decode("utf-8"))
 
 allBinary = b""
 for data in allUnicode:
