@@ -230,7 +230,7 @@ class Path {
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
-		#if hl
+		#if utf16
 		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp)) {
 			switch (c) {
 		#else

@@ -134,7 +134,7 @@ class TestUnicode extends utest.Test {
 	}
 
 	function teardownClass() {
-		for (dir in ["temp-unicode", "test-res"]) {
+		if (FileSystem.exists("temp-unicode")) {
 			for (file in FileSystem.readDirectory("temp-unicode")) {
 				FileSystem.deleteFile(Path.join(["temp-unicode", file]));
 			}
