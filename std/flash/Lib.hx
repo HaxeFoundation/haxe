@@ -27,7 +27,7 @@ package flash;
 **/
 class Lib {
 
-	public static var current : flash.display.MovieClip;
+	public static var current : flash.display.Sprite;
 
 	public inline static function getTimer() : Int {
 		return untyped __global__["flash.utils.getTimer"]();

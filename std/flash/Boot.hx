@@ -46,7 +46,7 @@ import haxe.iterators.StringKeyValueIterator;
 
 @:dox(hide)
 @:keep
-class Boot extends flash.display.MovieClip {
+class Boot extends flash.display.Sprite {
 
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
