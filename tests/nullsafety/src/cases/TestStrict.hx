@@ -206,12 +206,6 @@ class TestStrict {
 		fn(v);
 	}
 
-	static function call_nullableValueToOptionalNonNullableArgument_shouldFail() {
-		var fn = function(s:String = "") {}
-		var v:Null<String> = null;
-		shouldFail(fn(v));
-	}
-
 	static public function new_nullableValueToNotNullableArgument_shouldFail(?v:String) {
 		shouldFail(new TestStrict(v));
 	}
