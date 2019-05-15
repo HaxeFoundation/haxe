@@ -33,6 +33,14 @@ extern class Const {
 	static var __METHOD__ : String;
 	static var __NAMESPACE__ : String;
 	/**
+		@see https://php.net/manual/en/dir.constants.php
+	**/
+	static var DIRECTORY_SEPARATOR : String;
+	static var PATH_SEPARATOR : String;
+	static var SCANDIR_SORT_ASCENDING : Int;
+	static var SCANDIR_SORT_DESCENDING : Int;
+	static var SCANDIR_SORT_NONE : Int;
+	/**
 		@see http://php.net/manual/en/errorfunc.constants.php
 	**/
 	static var E_ERROR : Int;
