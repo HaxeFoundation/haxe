@@ -67,6 +67,8 @@ class TestUnicode extends utest.Test {
 		Only([0x64, 0x61, 0x74, 0x61, 0x2E, 0x62, 0x69, 0x6E]) // data.bin
 	]);
 
+	static var endLine = (Sys.systemName() == "Windows" ? "\r\n" : "\n");
+
 	// same names and length, but possibly different order
 	// assumes no duplicates in expected
 	function sameFiles(actual:Array<String>, expected:Array<UnicodeString>):Void {
@@ -272,19 +274,19 @@ class TestUnicode extends utest.Test {
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["stdin.readLine"], {stdin: '$str\n'}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readLine"], {stdin: str + endLine}).stdout, str + endLine);
 			});
 
 		// stdin.readString
 		UnicodeSequences.normalBoth(str -> {
 				var byteLength = Bytes.ofString(str).length;
-				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, str + endLine);
 			});
 
 		// stdin.readUntil
 		UnicodeSequences.normalBoth(str -> {
 				// make sure the 0x70 byte is not part of the test string 
-				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, '$str\n');
+				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, str + endLine);
 			});
 
 		UnicodeSequences.normalBothIndexed((str, i, nfc) -> {
@@ -296,20 +298,20 @@ class TestUnicode extends utest.Test {
 				// print
 				assertUEquals(runUtility(["print", '$i', mode]).stdout, str);
 				// println
-				assertUEquals(runUtility(["println", '$i', mode]).stdout, '$str\n');
+				assertUEquals(runUtility(["println", '$i', mode]).stdout, str + endLine);
 				// trace
-				assertUEnds(runUtility(["trace", '$i', mode]).stdout, '$str\n');
+				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
 #if !(java)
 				// putEnv + getEnv
-				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, '$str\n');
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
 				// putEnv + environment
-				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, '$str\n');
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
 #end
 			});
 
 		// args
 		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["args", str]).stdout, '$str\n');
+				assertUEquals(runUtility(["args", str]).stdout, str + endLine);
 			});
 	}
 
@@ -374,14 +376,14 @@ class TestUnicode extends utest.Test {
 		UnicodeSequences.normalNFC(str -> {
 				var byteLength = Bytes.ofString(str).length;
 				var line = data.readString(byteLength + 1); // + newline character
-				assertUEquals(line, '$str\n');
+				assertUEquals(line, str + endLine);
 			});
 
 		// readUntil
 		data.seek(0, SeekBegin);
 		UnicodeSequences.normalNFC(str -> {
 				var line = data.readUntil(0x0A);
-				assertUEquals(line, str);
+				assertUEquals(line, str + (Sys.systemName() == "Windows" ? "\r" : ""));
 			});
 	}
 #end
