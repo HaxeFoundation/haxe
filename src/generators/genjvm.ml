@@ -1226,12 +1226,12 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 		| OpAssignOp op ->
 			let jsig1 = jsignature_of_type e1.etype in
 			begin match op,(Texpr.skip e1).eexpr,(Texpr.skip e2).eexpr with
-			| OpAdd,TLocal v,TConst (TInt i32) when is_unboxed (self#vtype v.v_type) && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
+			| OpAdd,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (Int32.to_int i32) && self#var_slot_is_in_int8_range v->
 				let slot,load,_ = self#get_local v in
 				let i = Int32.to_int i32 in
 				code#iinc slot i;
 				if ret <> RVoid then load();
-			| OpSub,TLocal v,TConst (TInt i32) when is_unboxed (self#vtype v.v_type) && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
+			| OpSub,TLocal v,TConst (TInt i32) when ExtType.is_int v.v_type && in_range false Int8Range (-Int32.to_int i32) && self#var_slot_is_in_int8_range v ->
 				let slot,load,_ = self#get_local v in
 				let i = -Int32.to_int i32 in
 				code#iinc slot i;
