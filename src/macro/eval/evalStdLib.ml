@@ -1201,7 +1201,13 @@ module StdFileSystem = struct
 	)
 
 	let readDirectory = vfun1 (fun dir ->
-		let d = try Sys.readdir (decode_string dir) with Sys_error s -> exc_string s in
+		let dir = decode_string dir in
+		let d = try
+			if not (Sys.is_directory (patch_path dir)) then exc_string "No such directory";
+			Sys.readdir dir
+		with Sys_error s ->
+			exc_string s
+		in
 		encode_array (Array.to_list (Array.map (fun s -> create_unknown s) d))
 	)
 
