@@ -75,4 +75,13 @@ class TestLoose {
 			&& struct.foo != ""
 			&& struct.foo != "";
 	}
+
+	static function safeNullable_capturedInLocalFunction_shouldPass(?a:String) {
+		if(a == null) {
+			return;
+		}
+		var fn = function():String {
+			return a;
+		}
+	}
 }
