@@ -940,7 +940,7 @@ class class_wrapper (cls) =
 					| Some body ->
 						let path =
 							match cls.cl_path with
-								| (pack, name) -> (pack @ ["_" ^ name], ("_extern_" ^ name))
+								| (pack, name) -> (pack, ("_extern_" ^ name))
 						in
 						let additional_cls = {
 							cls with
