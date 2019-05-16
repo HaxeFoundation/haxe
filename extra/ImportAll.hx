@@ -70,7 +70,7 @@ class ImportAll {
 			if( !Context.defined("eval") ) return;
 		case "ssl":
 			if (!Context.defined("neko") && !Context.defined("cpp")) return;
-		case "tools", "build-tool": return;
+		case "tools", "build-tool", "jar-tool": return;
 		}
 		for( p in Context.getClassPath() ) {
 			if( p == "/" )
