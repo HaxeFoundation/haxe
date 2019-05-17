@@ -57,7 +57,7 @@ let rec eval ctx (e,p) =
 	| EConst (String s) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
-	| EConst (Regexp (s,_)) -> TVersion (make_version s)
+	| ECall ((EConst (Ident "version"),_),[(EConst (String s),_)]) -> TVersion (make_version s)
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))

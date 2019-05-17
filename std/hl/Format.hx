@@ -60,9 +60,9 @@ class Format {
 	/**
 		Decode any image data into ARGB pixels
 	**/
-	#if (hl_ver >= ~/1.10/)
-	@:hlNative("fmt","img_decode")
-	public static function decodeIMG( src : hl.Bytes, srcLen : Int, dst : hl.Bytes, width : Int, height : Int ) : Bool {
+	#if (hl_ver >= version("1.10"))
+	@:hlNative("fmt","dxt_decode")
+	public static function decodeDXT( src : hl.Bytes, dst : hl.Bytes, width : Int, height : Int, dxtFormat : Int ) : Bool {
 		return false;
 	}
 	#end
