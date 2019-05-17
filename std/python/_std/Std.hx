@@ -31,9 +31,10 @@ import python.Syntax;
 @:keepInit
 @:coreApi class Std {
 
-	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	@:access(python.Boot)
+	public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		try {
-			return UBuiltins.isinstance(value,c) ? cast value : null;
+			return UBuiltins.isinstance(value,c) || (Inspect.isInterface(c) && Boot.implementsInterface(value, c)) ? cast value : null;
 		} catch (e:Dynamic) {
 			return null;
 		}
@@ -100,34 +101,7 @@ import python.Syntax;
 		}
 
 		if (Inspect.isclass(t)) {
-
-			function loop (intf)
-			{
-				var f:Array<Dynamic> = if (Internal.hasInterfaces(intf)) Internal.fieldInterfaces(intf) else [];
-				if (f != null) {
-					for (i in f) {
-						if ( i == t) {
-							return true;
-						} else {
-							var l = loop(i);
-							if (l) {
-								return true;
-							}
-						}
-					}
-					return false;
-				} else {
-					return false;
-				}
-			}
-			var currentClass = Syntax.field(v, "__class__");
-			while(currentClass != null) {
-				if (loop(currentClass)) {
-					return true;
-				}
-				currentClass = python.Boot.getSuperClass(currentClass);
-			}
-			return false;
+			return Boot.implementsInterface(v, t);
 		} else {
 			return false;
 		}

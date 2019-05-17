@@ -32,7 +32,7 @@
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
 	@:keep public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
-		return downcast(value, c);
+		return inline downcast(value, c);
 	}
 
 	@:keep public static function string( s : Dynamic ) : String {
