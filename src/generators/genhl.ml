@@ -352,6 +352,10 @@ let fake_tnull =
 		a_params = ["T",t_dynamic];
 	}
 
+let alloc_vid =
+	let vid = ref 0 in
+	(fun() -> incr vid; !vid)
+
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
@@ -395,6 +399,7 @@ let rec to_type ?tref ctx t =
 			PMap.find a ctx.anons_cache
 		with Not_found ->
 			let vp = {
+				vid = alloc_vid();
 				vfields = [||];
 				vindex = PMap.empty;
 			} in
@@ -541,6 +546,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		PMap.find key_path ctx.cached_types
 	with Not_found when c.cl_interface && not statics ->
 		let vp = {
+			vid = alloc_vid();
 			vfields = [||];
 			vindex = PMap.empty;
 		} in
