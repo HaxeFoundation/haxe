@@ -2797,8 +2797,16 @@ and eval_expr ctx e =
 		);
 		r
 	| TEnumParameter (ec,f,index) ->
-		let r = alloc_tmp ctx (match to_type ctx ec.etype with HEnum e -> let _,_,args = e.efields.(f.ef_index) in args.(index) | _ -> assert false) in
-		op ctx (OEnumField (r,eval_expr ctx ec,f.ef_index,index));
+		let pt, is_single = (match to_type ctx ec.etype with
+			| HEnum e ->
+				let _,_,args = e.efields.(f.ef_index) in
+				args.(index), Array.length e.efields = 1
+			| _ -> assert false
+		) in
+		let er = eval_expr ctx ec in
+		if is_single then op ctx (ONullCheck er); (* #7560 *)
+		let r = alloc_tmp ctx pt in
+		op ctx (OEnumField (r,er,f.ef_index,index));
 		cast_to ctx r (to_type ctx e.etype) e.epos
 	| TContinue ->
 		before_break_continue ctx;
