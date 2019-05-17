@@ -1468,6 +1468,7 @@ let rec validate_macro_cond s e = match fst e with
 	| EConst (String _)
 	| EConst (Int _)
 	| EConst (Float _)
+	| EConst (Regexp _)
 		-> e
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
