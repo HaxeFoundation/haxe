@@ -1,6 +1,6 @@
 package unit.issues;
 
-#if flash
+#if (flash && !as3)
 private class NoProtected {}
 
 private class Base extends NoProtected {
@@ -30,7 +30,7 @@ private class ExternGrandChild extends ExternChild {
 #end
 
 class Issue8248 extends unit.Test {
-	#if flash
+	#if (flash && !as3)
 	function test() {
 		eq(new GrandChild().x, 2);
 		eq(new ExternGrandChild().getF(), "bye");
