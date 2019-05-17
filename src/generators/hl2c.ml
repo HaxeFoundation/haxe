@@ -746,7 +746,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 				else
 					sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
-			| HDyn , _ | _, HDyn ->
+			| (HDyn | HFun _), _ | _, (HDyn | HFun _) ->
 				let inv = if op = CGt || op = CGte then "&& i != hl_invalid_comparison " else "" in
 				sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 %s) goto %s; }" (reg a) (reg b) (s_comp op) inv (label d)
 			| HObj oa, HObj _ ->
@@ -769,7 +769,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
