@@ -191,7 +191,7 @@ import cs.internal.Exceptions;
 			Math.NaN;
 	}
 
-	public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	extern public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return cs.Lib.as(value,c);
 	}
 
