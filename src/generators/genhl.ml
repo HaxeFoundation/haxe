@@ -2037,7 +2037,9 @@ and eval_expr ctx e =
 		get_enum_index ctx v
 	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Type" },{ cf_name = "enumIndex" })) },[v]) when (match follow v.etype with TEnum _ -> true | _ -> false) ->
 		get_enum_index ctx v
-	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt]) ->
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "instance" })) },[v;vt])
+	| TCall ({ eexpr = TField (_,FStatic ({ cl_path = [],"Std" },{ cf_name = "downcast" })) },[v;vt])
+	 ->
 		let r = eval_expr ctx v in
 		hold ctx r;
 		let c = eval_to ctx vt (class_type ctx ctx.base_type [] false) in

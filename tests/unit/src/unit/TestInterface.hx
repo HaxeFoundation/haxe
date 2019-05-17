@@ -84,7 +84,7 @@ class TestInterface extends Test {
 		eq( (py:Dynamic).getY(), 5 );
 		eq( (py:Dynamic).foo(), "bar" );
 
-		var p2 = Std.instance(px,Point);
+		var p2 = Std.downcast(px,Point);
 		eq( p, p2 );
 		eq( cast(py,IX), px );
 

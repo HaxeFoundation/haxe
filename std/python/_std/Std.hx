@@ -31,12 +31,17 @@ import python.Syntax;
 @:keepInit
 @:coreApi class Std {
 
-	public static inline function instance<T:{}, S:T>( value : T, c : Class<S> ) : S {
+	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		try {
 			return UBuiltins.isinstance(value,c) ? cast value : null;
 		} catch (e:Dynamic) {
 			return null;
 		}
+	}
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	public static inline function instance<T:{}, S:T>( value : T, c : Class<S> ) : S {
+		return downcast(value, c);
 	}
 
 	@:access(python.Boot)
