@@ -449,7 +449,7 @@ module Pattern = struct
 				let pctx2 = {pctx with current_locals = PMap.empty; or_locals = Some (pctx1.current_locals)} in
 				let pat2 = make pctx2 toplevel t e2 in
 				PMap.iter (fun name (v,p) ->
-					if not (PMap.mem name pctx2.current_locals) then verror name p;
+					if not (PMap.mem name pctx2.current_locals) && name <> "_" then verror name p;
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
