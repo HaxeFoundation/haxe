@@ -62,7 +62,7 @@ class StringKeyValueIteratorUnicode {
 		}
 		return { key: charOffset++, value: c };
 		#else
-		return StringTools.fastCodeAt(s, byteOffset++);
+		return { key: charOffset++, value: StringTools.fastCodeAt(s, byteOffset++) };
 		#end
 	}
 

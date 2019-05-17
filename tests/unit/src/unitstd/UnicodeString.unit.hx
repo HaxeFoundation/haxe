@@ -4,6 +4,12 @@ var codes = [132878, 122, 1103];
 // length
 s.length == codes.length;
 
+// // toUpperCase, toLowerCase
+// var turkishLower = "ğüşıiöç";
+// var turkishUpper = "ĞÜŞIİÖÇ";
+// turkishUpper == turkishLower.toUpperCase();
+// turkishLower == turkishUpper.toLowerCase();
+
 // charAt
 s.charAt(0) == "𠜎";
 s.charAt(1) == "z";
@@ -50,6 +56,6 @@ aeq(codes, [for(c in s) c]);
 
 // keyValueIterator
 var keys = [for(i in 0...codes.length) i];
-var actualKeyCodes = [for(i => c in s.keyValueIterator()) [i, c]];
+var actualKeyCodes = [for(i => c in s) [i, c]];
 aeq(keys, actualKeyCodes.map(a -> a[0]));
 aeq(codes, actualKeyCodes.map(a -> a[1]));
