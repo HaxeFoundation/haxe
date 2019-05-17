@@ -59,3 +59,14 @@ var keys = [for(i in 0...codes.length) i];
 var actualKeyCodes = [for(i => c in s) [i, c]];
 aeq(keys, actualKeyCodes.map(a -> a[0]));
 aeq(codes, actualKeyCodes.map(a -> a[1]));
+
+// validate
+UnicodeString.validate(haxe.io.Bytes.ofHex("f0a9b8bde38182c3ab61")) == true;
+UnicodeString.validate(haxe.io.Bytes.ofHex("ed9fbf")) == true;
+UnicodeString.validate(haxe.io.Bytes.ofHex("ee8080")) == true;
+UnicodeString.validate(haxe.io.Bytes.ofHex("f48fbfbf")) == true;
+UnicodeString.validate(haxe.io.Bytes.ofHex("f0a9b8bde381c3ab61")) == false;
+UnicodeString.validate(haxe.io.Bytes.ofHex("c0af")) == false; // redundant sequence
+UnicodeString.validate(haxe.io.Bytes.ofHex("eda080")) == false; // surrogate byte sequence
+UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf")) == false; // surrogate byte sequence
+UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080")) == false; // U+110000
