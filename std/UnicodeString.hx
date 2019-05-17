@@ -35,11 +35,6 @@ import haxe.iterators.StringKeyValueIteratorUnicode;
 abstract UnicodeString(String) from String to String {
 
 	/**
-		The number of characters in `this` String.
-	**/
-	public var length(get,never):Int;
-
-	/**
 		Tells if `b` is a correctly encoded UTF8 byte sequence.
 	**/
 	static public function validate(b:Bytes, encoding:Encoding) : Bool {
@@ -107,6 +102,13 @@ abstract UnicodeString(String) from String to String {
 				return true;
 		}
 	}
+
+#if (target.unicode)
+
+	/**
+		The number of characters in `this` String.
+	**/
+	public var length(get,never):Int;
 
 	/**
 		Creates an instance of UnicodeString.
@@ -184,18 +186,6 @@ abstract UnicodeString(String) from String to String {
 		return new StringKeyValueIteratorUnicode(this);
 	}
 
-	@:op(A < B) static function lt(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A <= B) static function lte(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A > B) static function gt(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A >= B) static function gte(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A == B) static function eq(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A != B) static function neq(a:UnicodeString, b:UnicodeString):Bool;
-	@:op(A + B) static function add(a:UnicodeString, b:UnicodeString):UnicodeString;
-	@:op(A += B) static function assignAdd(a:UnicodeString, b:UnicodeString):UnicodeString;
-
-	@:op(A + B) @:commutative static function add(a:UnicodeString, b:String):UnicodeString;
-	@:op(A += B) @:commutative static function assignAdd(a:UnicodeString, b:String):UnicodeString;
-
 	#if !utf16 inline #end
 	function get_length():Int {
 		#if utf16
@@ -208,4 +198,18 @@ abstract UnicodeString(String) from String to String {
 			return this.length;
 		#end
 	}
+
+#end
+
+	@:op(A < B) static function lt(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A <= B) static function lte(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A > B) static function gt(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A >= B) static function gte(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A == B) static function eq(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A != B) static function neq(a:UnicodeString, b:UnicodeString):Bool;
+	@:op(A + B) static function add(a:UnicodeString, b:UnicodeString):UnicodeString;
+	@:op(A += B) static function assignAdd(a:UnicodeString, b:UnicodeString):UnicodeString;
+
+	@:op(A + B) @:commutative static function add(a:UnicodeString, b:String):UnicodeString;
+	@:op(A += B) @:commutative static function assignAdd(a:UnicodeString, b:String):UnicodeString;
 }

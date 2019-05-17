@@ -1,3 +1,4 @@
+#if (target.unicode)
 var s = new UnicodeString("𠜎zя");
 var codes = [132878, 122, 1103];
 
@@ -70,3 +71,4 @@ UnicodeString.validate(haxe.io.Bytes.ofHex("c0af"), UTF8) == false; // redundant
 UnicodeString.validate(haxe.io.Bytes.ofHex("eda080"), UTF8) == false; // surrogate byte sequence
 UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf"), UTF8) == false; // surrogate byte sequence
 UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080"), UTF8) == false; // U+110000
+#end
