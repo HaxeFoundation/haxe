@@ -50,6 +50,6 @@ aeq(codes, [for(c in s) c]);
 
 // keyValueIterator
 var keys = [for(i in 0...codes.length) i];
-var actualKeyCodes = [for(i => c in s) [i, c]];
+var actualKeyCodes = [for(i => c in s.keyValueIterator()) [i, c]];
 aeq(keys, actualKeyCodes.map(a -> a[0]));
 aeq(codes, actualKeyCodes.map(a -> a[1]));

@@ -556,7 +556,7 @@ class StringTools {
 	#if utf16
 	static inline var MIN_SURROGATE_CODE_POINT = 65536;
 	static inline function utf16CodePointAt(s:String, index:Int):Int {
-		var c = StringTools.fastCodeAt(s, index)
+		var c = StringTools.fastCodeAt(s, index);
 		if (c >= 0xD800 && c <= 0xDBFF) {
 			c = ((c -0xD7C0) << 10) | (StringTools.fastCodeAt(s, index + 1) & 0x3FF);
 		}

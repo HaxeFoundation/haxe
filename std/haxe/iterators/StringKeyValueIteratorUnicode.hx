@@ -53,13 +53,14 @@ class StringKeyValueIteratorUnicode {
 	/**
 		See `Iterator.next`
 	**/
+	@:access(StringTools)
 	public inline function next() {
 		#if utf16
 		var c = StringTools.utf16CodePointAt(s, byteOffset++);
 		if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
 			byteOffset++;
 		}
-		return c;
+		return { key: charOffset++, value: c };
 		#else
 		return StringTools.fastCodeAt(s, byteOffset++);
 		#end
