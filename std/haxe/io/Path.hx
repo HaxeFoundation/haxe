@@ -285,7 +285,6 @@ class Path {
 
 		If `path` is `null`, the result is unspecified.
 	**/
-	@:require(haxe_ver >= 3.1)
 	public static function removeTrailingSlashes ( path : String ) : String {
 		while (true) {
 			switch(path.charCodeAt(path.length - 1)) {
@@ -299,7 +298,6 @@ class Path {
 	/**
 		Returns `true` if the path is an absolute path, and `false` otherwise.
 	**/
-	@:require(haxe_ver >= 3.2)
 	public static function isAbsolute ( path : String ) : Bool {
 		if (StringTools.startsWith(path, '/')) return true;
 		if (path.charAt(1) == ':') return true;

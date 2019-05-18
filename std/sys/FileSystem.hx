@@ -69,7 +69,6 @@ extern class FileSystem {
 
 		If `relPath` is null, the result is unspecified.
 	**/
-	//@:require(haxe_ver >= 3.2)
 	static function absolutePath( relPath : String ) : String;
 
 	/**
