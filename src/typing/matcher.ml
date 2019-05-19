@@ -895,7 +895,13 @@ module Compile = struct
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with
 				| TFun(args,_) ->
-					let arg_and_pos = List.combine args arg_positions in
+					let rec combine args positions =
+						match (args, positions) with
+							| (a :: args, p :: positions) -> (a, p) :: combine args positions
+							| (a :: args, []) -> (a, e.epos) :: combine args positions
+							| _ -> []
+					in
+					let arg_and_pos = combine args arg_positions in
 					ExtList.List.mapi
 						(fun i ((_,_,t), p) ->
 							let params = apply_params en.e_params tl (monomorphs ef.ef_params t) in
