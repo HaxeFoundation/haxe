@@ -6,7 +6,7 @@ using cpp.NativeString;
 @:include("hx/StdString.h")
 @:stackOnly
 @:structAccess
-@:unrelfective
+@:unreflective
 extern class StdString
 {
    @:native("std::string::npos")
