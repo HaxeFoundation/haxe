@@ -887,7 +887,7 @@ module Compile = struct
 	let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 	let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
-	let rec get_sub_subjects mctx e con (arg_positions:pos list) =
+	let rec get_sub_subjects mctx e con arg_positions =
 		match fst con with
 		| ConEnum(en,ef) ->
 			let tl = List.map (fun _ -> mk_mono()) en.e_params in
@@ -895,13 +895,13 @@ module Compile = struct
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with
 				| TFun(args,_) ->
-					let arg_pos = List.combine args arg_positions in
+					let arg_and_pos = List.combine args arg_positions in
 					ExtList.List.mapi
 						(fun i ((_,_,t), p) ->
 							let params = apply_params en.e_params tl (monomorphs ef.ef_params t) in
 							mk (TEnumParameter({ e with epos = p },ef,i)) params p
 						)
-						arg_pos
+						arg_and_pos
 				| _ ->
 					[]
 			end
