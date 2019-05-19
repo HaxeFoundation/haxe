@@ -337,13 +337,22 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		| EConst (Ident n) -> n :: acc
 		| _ -> []
 	in
-	let rec chk_path psub pfull =
+	let rec chk_path psub pfull is_current_path =
 		match psub, pfull with
 		| [], _ -> true
-		| a :: l1, b :: l2 when a = b -> chk_path l1 l2
+		| a :: l1, b :: l2 when a = b ->
+			if
+				(* means it's a path of a superclass or implemented interface *)
+				not is_current_path &&
+				(* it's the last part of path in a meta && it denotes a package *)
+				l1 = [] && not (StringHelper.starts_uppercase a)
+			then
+				false
+			else
+				chk_path l1 l2 is_current_path
 		| _ -> false
 	in
-	let has m c f path =
+	let has m c f (path,is_current_path) =
 		let rec loop = function
 			| (m2,el,_) :: l when m = m2 ->
 				List.exists (fun e ->
@@ -354,7 +363,7 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 						(match path with [_;_] -> true | _ -> false)
 					| _ ->
 						let p = expr_path [] e in
-						(p <> [] && chk_path p path)
+						(p <> [] && chk_path p path is_current_path)
 				) el
 				|| loop l
 			| _ :: l -> loop l
@@ -363,19 +372,19 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 		loop c.cl_meta || loop f.cf_meta
 	in
 	let cur_paths = ref [] in
-	let rec loop c =
-		cur_paths := make_path c ctx.curfield :: !cur_paths;
+	let rec loop c is_current_path =
+		cur_paths := (make_path c ctx.curfield, is_current_path) :: !cur_paths;
 		begin match c.cl_super with
-			| Some (csup,_) -> loop csup
+			| Some (csup,_) -> loop csup false
 			| None -> ()
 		end;
-		List.iter (fun (c,_) -> loop c) c.cl_implements;
+		List.iter (fun (c,_) -> loop c false) c.cl_implements;
 	in
-	loop ctx.curclass;
+	loop ctx.curclass true;
 	let is_constr = cf.cf_name = "new" in
 	let rec loop c =
 		try
-			has Meta.Access ctx.curclass ctx.curfield (make_path c cf)
+			has Meta.Access ctx.curclass ctx.curfield ((make_path c cf), true)
 			|| (
 				(* if our common ancestor declare/override the field, then we can access it *)
 				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
