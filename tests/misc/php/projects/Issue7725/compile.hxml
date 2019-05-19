@@ -2,7 +2,7 @@
 
 --each
 
--D php-prefix=app3
+-D php-prefix=app1
 -main App1
 -php bin/app1
 
