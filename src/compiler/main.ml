@@ -82,7 +82,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys";"static";"utf16"
+	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
 let reserved_flag_namespaces = ["target"]
