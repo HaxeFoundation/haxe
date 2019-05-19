@@ -44,6 +44,7 @@ type strict_defined =
 	| Haxe3Compat
 	| HaxeBoot
 	| HaxeVer
+	| Haxe
 	| HxcppApiLevel
 	| HxcppGcGenerational
 	| HxcppDebugger
@@ -156,7 +157,8 @@ let infos = function
 	| GencommonDebug -> "gencommon_debug",("GenCommon internal",[Platforms [Cs;Java]])
 	| Haxe3Compat -> "haxe3compat", ("Gives warnings about transition from Haxe 3.x to Haxe 4.0",[])
 	| HaxeBoot -> "haxe_boot",("Given the name 'haxe' to the flash boot class instead of a generated name",[Platform Flash])
-	| HaxeVer -> "haxe_ver",("The current Haxe version value",[])
+	| HaxeVer -> "haxe_ver",("The current Haxe version value as decimal number. E.g. 4.000 for 4.0.0",[])
+	| Haxe -> "haxe",("The current Haxe version value in SemVer format",[])
 	| HxcppApiLevel -> "hxcpp_api_level",("Provided to allow compatibility between hxcpp versions",[Platform Cpp])
 	| HxcppGcGenerational -> "HXCPP_GC_GENERATIONAL",("Experimental Garbage Collector",[Platform Cpp])
 	| HxcppDebugger -> "HXCPP_DEBUGGER",("Include additional information for HXCPP_DEBUGGER",[Platform Cpp])

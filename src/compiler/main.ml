@@ -483,6 +483,15 @@ try
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.raw_define com "haxe4";
+	let version =
+		Printf.sprintf
+			"%i.%i.%i%s"
+			Globals.version_major
+			Globals.version_minor
+			Globals.version_revision
+			(match Globals.version_pre with None -> "" | Some pre -> "-" ^ pre)
+	in
+	Common.define_value com Define.Haxe version;
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
