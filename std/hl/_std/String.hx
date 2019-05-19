@@ -210,7 +210,11 @@ class String {
 		var s = Std.instance(v, String);
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
-		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
+		#if (hl_ver >= version("1.10"))
+		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);		
+		#else
+		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);		
+		#end
 		return v == 0 ? length - s.length : v;
 	}
 
