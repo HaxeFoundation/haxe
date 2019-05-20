@@ -1847,7 +1847,7 @@ let generate con =
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
 					let combination_error c1 c2 =
 						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
-						
+
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
@@ -1881,15 +1881,15 @@ let generate con =
 															if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
 															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
 															CsConstructible :: acc;
-														| "cs", "Struct" ->
+														| "cs", "CsStruct" ->
 															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
 															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
 															CsStruct :: acc;
-														| "cs", "Unmanaged" ->
+														| "cs", "CsUnmanaged" ->
 															if (List.memq CsStruct acc) then combination_error CsUnmanaged CsStruct;
 															if (List.memq CsConstructible acc) then combination_error CsUnmanaged CsConstructible;
 															CsUnmanaged :: acc;
-														| "cs", "IsClass" -> CsClass :: acc;
+														| "cs", "CsClass" -> CsClass :: acc;
 														| _, _ -> acc;
 													)
 
