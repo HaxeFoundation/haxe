@@ -124,8 +124,7 @@ let build_exception_stack ctx env =
 
 let handle_stack_overflow eval f =
 	try f()
-	with Stack_overflow ->
-		raise (RunTimeException (EvalString.create_unknown "Stack overflow", call_stack eval, null_pos))
+	with Stack_overflow -> exc_string "Stack overflow"
 
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	let prev = !get_ctx_ref in
