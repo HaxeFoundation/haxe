@@ -128,7 +128,11 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	let eval = get_eval ctx in
 	let env = eval.env in
 	let r = try
-		let v = f() in
+		let v =
+			try f()
+			with Stack_overflow as e ->
+				raise (RunTimeException (EvalString.create_unknown "Stack overflow", call_stack eval, null_pos))
+		in
 		get_ctx_ref := prev;
 		final();
 		Some v
