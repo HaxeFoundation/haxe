@@ -376,14 +376,14 @@ class TestUnicode extends utest.Test {
 		UnicodeSequences.normalNFC(str -> {
 				var byteLength = Bytes.ofString(str).length;
 				var line = data.readString(byteLength + 1); // + newline character
-				assertUEquals(line, str + endLine);
+				assertUEquals(line, '$str\n');
 			});
 
 		// readUntil
 		data.seek(0, SeekBegin);
 		UnicodeSequences.normalNFC(str -> {
 				var line = data.readUntil(0x0A);
-				assertUEquals(line, str + (Sys.systemName() == "Windows" ? "\r" : ""));
+				assertUEquals(line, str);
 			});
 	}
 #end
