@@ -316,7 +316,19 @@ let rec using_field ctx mode e i p =
 	with Not_found -> try
 		(* type using from `@:using(Path)` *)
 		let mt = module_type_of_type e.etype in
-		loop  (t_infos mt).mt_using
+		let rec loop_meta_using mt =
+			try
+				loop (t_infos mt).mt_using
+			with Not_found ->
+				match mt with
+					| TClassDecl c ->
+						(match c.cl_super with
+							| None -> raise Not_found
+							| Some (c,_) -> loop_meta_using (TClassDecl c)
+						)
+					| _ -> raise Not_found
+		in
+		loop_meta_using mt
 	with Not_found | Exit -> try
 		(* global using *)
 		let acc = loop ctx.g.global_using in
