@@ -133,7 +133,7 @@ let create com api is_macro =
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
-		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalStackSize);
+		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 	} in
 	if debug.support_debugger && not !debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
