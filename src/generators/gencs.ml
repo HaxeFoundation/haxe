@@ -1887,6 +1887,7 @@ let generate con =
 																| _ -> acc;
 															)
 														| "cs", "CsStruct" ->
+															if (List.memq CsClass acc) then combination_error CsClass CsStruct;
 															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
 															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
 															CsStruct :: acc;
@@ -1894,7 +1895,9 @@ let generate con =
 															if (List.memq CsStruct acc) then combination_error CsUnmanaged CsStruct;
 															if (List.memq CsConstructible acc) then combination_error CsUnmanaged CsConstructible;
 															CsUnmanaged :: acc;
-														| "cs", "CsClass" -> CsClass :: acc;
+														| "cs", "CsClass" ->
+															if (List.memq CsStruct acc) then combination_error CsClass CsStruct;
+															CsClass :: acc;
 														| _, _ -> acc;
 													)
 
