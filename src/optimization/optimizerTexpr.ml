@@ -73,6 +73,11 @@ let create_affection_checker () =
 	in
 	might_be_affected,collect_modified_locals
 
+let rec unwrap_untyped_cast e =
+	match e.eexpr with
+		| TCast (e,None) -> unwrap_untyped_cast e
+		| _ -> e
+
 let optimize_binop e op e1 e2 =
 	let is_float t =
 		match follow t with
@@ -89,7 +94,7 @@ let optimize_binop e op e1 e2 =
 		let fstr = Numeric.float_repres f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
-	(match e1.eexpr, e2.eexpr with
+	(match (unwrap_untyped_cast e1).eexpr, (unwrap_untyped_cast e2).eexpr with
 	| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
 	| TConst (TInt 1l) , _ when op = OpMult -> e2
 	| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
@@ -218,7 +223,7 @@ let optimize_unop e op flag esub =
 		| TAbstract({a_path = [],"Int"},_) -> true
 		| _ -> false
 	in
-	match op, esub.eexpr with
+	match op, (unwrap_untyped_cast esub).eexpr with
 		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
 		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
 			begin
