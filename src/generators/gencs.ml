@@ -1915,7 +1915,7 @@ let generate con =
 												| _, CsConstructible -> -1
 												(* - "class", "struct" and "unmanaged" should be first *)
 												| CsClass, _ | CsStruct, _ | CsUnmanaged, _ -> -1
-												| _, CsClass | CsStruct, _ | CsUnmanaged, _ -> 1
+												| _, CsClass | _, CsStruct | _, CsUnmanaged -> 1
 												| _, _ -> 0
 										) (!base_class_constraints @ other_constraints)) in
 

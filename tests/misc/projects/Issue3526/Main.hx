@@ -60,6 +60,9 @@ class ConstructibleClass<T:Constructible<Void->Void> & CsClass> {
     public function new(value:T) this.value = value;
 }
 
+@:nativeGen
+class StructT<T, T1:T & CsStruct> {}
+
 #if (cs_ver >= "7.3")
 @:nativeGen
 class Unmanaged<T:CsUnmanaged> {}
