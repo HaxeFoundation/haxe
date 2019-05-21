@@ -195,6 +195,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
+			Display.merge_core_doc ctx (TClassDecl c);
 			let ct,cf = get_constructor ctx c tl p in
 			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
 			tl
