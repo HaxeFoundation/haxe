@@ -37,6 +37,16 @@ let is_true = function
 let make_version s =
 	List.map (fun s -> try int_of_string s with _ -> 0) (ExtString.String.nsplit s ".")
 
+let rec compare_version a b =
+	match a, b with
+	| [], [] -> 0
+	| 0 :: l1, [] -> compare_version l1 []
+	| [], 0 :: l2 -> compare_version [] l2
+	| a :: l1 , b :: l2 when a = b -> compare_version l1 l2
+	| a :: _, b :: _ -> compare a b
+	| (_ :: _, []) -> 1
+	| ([] , _ :: _) -> -1
+
 let cmp v1 v2 =
 	match v1, v2 with
 	| TNull, TNull -> 0
@@ -45,9 +55,9 @@ let cmp v1 v2 =
 	| TBool a, TBool b -> compare a b
 	| TString a, TFloat b -> compare (float_of_string a) b
 	| TFloat a, TString b -> compare a (float_of_string b)
-	| TVersion a, TVersion b -> compare a b
-	| TString a, TVersion b -> compare (make_version a) b
-	| TVersion a, TString b -> compare a (make_version b)
+	| TVersion a, TVersion b -> compare_version a b
+	| TString a, TVersion b -> compare_version (make_version a) b
+	| TVersion a, TString b -> compare_version a (make_version b)
 	| _ -> raise Exit (* always false *)
 
 let rec eval ctx (e,p) =

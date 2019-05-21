@@ -1294,6 +1294,7 @@ let generate_base_enum ctx =
 	newline ctx
 
 let generate com =
+	com.warning "-as3 target is deprecated. Use -swf instead. See https://github.com/HaxeFoundation/haxe/issues/8295" Globals.null_pos;
 	let infos = {
 		com = com;
 	} in
