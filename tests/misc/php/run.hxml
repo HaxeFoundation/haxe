@@ -1,2 +1,2 @@
 -cp ../src
---interp Main
+--run Main
