@@ -16,4 +16,9 @@ Multiple tests could be executed within a single project directory. Just postfix
 - `compile1-fail.hxml` and `compile1-fail.hxml.stderr`
 - `compile2-fail.hxml` and `compile2-fail.hxml.stderr`
 
+### Running `project` tests locally
+
+Chdir to `tests/misc` and run `haxe compile.hxml`.
+
+To run tests only for a single project use the following command: `haxe haxe -D MISC_TEST_FILTER=1234`, where `1234` are taken from the project directory name `Issue1234`.
 
