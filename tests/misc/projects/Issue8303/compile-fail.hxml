@@ -1,0 +1,3 @@
+-main Main
+-D eval-stack-size=5
+--interp

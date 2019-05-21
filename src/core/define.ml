@@ -32,6 +32,7 @@ type strict_defined =
 	| EraseGenerics
 	| EvalDebugger
 	| EvalStack
+	| EvalStackSize
 	| EvalTimes
 	| FastCast
 	| Fdb
@@ -144,6 +145,7 @@ let infos = function
 	| EraseGenerics -> "erase_generics",("Erase generic classes on C#",[Platform Cs])
 	| EvalDebugger -> "eval_debugger",("Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.",[])
 	| EvalStack -> "eval_stack",("Record stack information in macro/interp mode",[])
+	| EvalStackSize -> "eval_stack_size",("Set maximum call stack size for eval",[])
 	| EvalTimes -> "eval_times",("Record per-method execution times in macro/interp mode. Implies eval_stack.",[])
 	| FastCast -> "fast_cast",("Enables an experimental casts cleanup on C# and Java",[Platforms [Cs;Java]])
 	| Fdb -> "fdb",("Enable full flash debug infos for FDB interactive debugging",[Platform Flash])
