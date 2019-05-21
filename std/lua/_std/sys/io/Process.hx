@@ -29,6 +29,7 @@ import lua.Boot;
 import lua.Table;
 import lua.NativeStringTools;
 
+import haxe.SysTools;
 import haxe.io.Bytes;
 import haxe.io.Error;
 import haxe.io.Eof;
@@ -44,7 +45,7 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var  stdin(default,null) : haxe.io.Output;
 
-	static var argQuote = Sys.systemName() == "Windows" ? function(x) return StringTools.quoteWinArg(x,true) : StringTools.quoteUnixArg;
+	static var argQuote = Sys.systemName() == "Windows" ? function(x) return SysTools.quoteWinArg(x,true) : SysTools.quoteUnixArg;
 	static var _shell = Sys.systemName() == "Windows" ? 'cmd.exe' : '/bin/sh';
 
 	/**
@@ -150,7 +151,13 @@ private class ProcessInput extends haxe.io.Input {
 			idx = 0;
 			var pending = true;
 			b.read_start(function(err, chunk){
-				if (chunk != null) buf = chunk;
+				if (chunk != null){
+					if (buf != null){
+						buf = buf + chunk;
+					} else {
+						buf = chunk;
+					}
+				}
 				if (err != null) err_str = err;
 				pending = false;
 			});

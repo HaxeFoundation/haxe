@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package sys.io;
+
+import haxe.SysTools;
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
 import haxe.io.Eof;
@@ -60,10 +62,10 @@ class Process {
 			pargs = new NativeArray(args.length + 1);
 			switch (sysName) {
 				case "Windows":
-					pargs[0] = StringTools.quoteWinArg(cmd, false);
+					pargs[0] = SysTools.quoteWinArg(cmd, false);
 					for (i in 0...args.length)
 					{
-						pargs[i + 1] = StringTools.quoteWinArg(args[i], false);
+						pargs[i + 1] = SysTools.quoteWinArg(args[i], false);
 					}
 				case _:
 					pargs[0] = cmd;

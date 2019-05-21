@@ -112,7 +112,7 @@ class Browser {
 	/**
 		Display an alert message box containing the given message. See also `Window.alert()`.
 	**/
-	public static function alert( v : Dynamic ) {
-		@:privateAccess window.alert(Boot.__string_rec(v,""));
+	public static inline function alert( v : Dynamic ) {
+		window.alert(Std.string(v));
 	}
 }

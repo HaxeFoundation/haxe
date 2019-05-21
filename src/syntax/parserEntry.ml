@@ -28,10 +28,24 @@ type small_type =
 	| TBool of bool
 	| TFloat of float
 	| TString of string
+	| TVersion of int list
 
 let is_true = function
 	| TBool false | TNull | TFloat 0. | TString "" -> false
 	| _ -> true
+
+let make_version s =
+	List.map (fun s -> try int_of_string s with _ -> 0) (ExtString.String.nsplit s ".")
+
+let rec compare_version a b =
+	match a, b with
+	| [], [] -> 0
+	| 0 :: l1, [] -> compare_version l1 []
+	| [], 0 :: l2 -> compare_version [] l2
+	| a :: l1 , b :: l2 when a = b -> compare_version l1 l2
+	| a :: _, b :: _ -> compare a b
+	| (_ :: _, []) -> 1
+	| ([] , _ :: _) -> -1
 
 let cmp v1 v2 =
 	match v1, v2 with
@@ -41,6 +55,9 @@ let cmp v1 v2 =
 	| TBool a, TBool b -> compare a b
 	| TString a, TFloat b -> compare (float_of_string a) b
 	| TFloat a, TString b -> compare a (float_of_string b)
+	| TVersion a, TVersion b -> compare_version a b
+	| TString a, TVersion b -> compare_version (make_version a) b
+	| TVersion a, TString b -> compare_version a (make_version b)
 	| _ -> raise Exit (* always false *)
 
 let rec eval ctx (e,p) =
@@ -50,6 +67,7 @@ let rec eval ctx (e,p) =
 	| EConst (String s) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
+	| ECall ((EConst (Ident "version"),_),[(EConst (String s),_)]) -> TVersion (make_version s)
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))

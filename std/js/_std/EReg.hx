@@ -112,11 +112,11 @@
 	public static inline function escape( s : String ) : String {
 		return (cast s).replace(escapeRe, "\\$&");
 	}
-	static var escapeRe = new js.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
+	static var escapeRe = new js.lib.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
 }
 
 @:native("RegExp")
-private extern class HaxeRegExp extends js.RegExp {
-	var m:js.RegExp.RegExpMatch;
+private extern class HaxeRegExp extends js.lib.RegExp {
+	var m:js.lib.RegExp.RegExpMatch;
 	var s:String;
 }

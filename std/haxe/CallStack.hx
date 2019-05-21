@@ -37,9 +37,9 @@ enum StackItem {
 **/
 class CallStack {
 	#if js
-	static var lastException:js.Error;
+	static var lastException:js.lib.Error;
 
-	static function getStack(e:js.Error):Array<StackItem> {
+	static function getStack(e:js.lib.Error):Array<StackItem> {
 		if (e == null) return [];
 		// https://code.google.com/p/v8/wiki/JavaScriptStackTraceApi
 		var oldValue = (untyped Error).prepareStackTrace;
@@ -97,7 +97,7 @@ class CallStack {
 			return makeStack(s);
 		#elseif js
 			try {
-				throw new js.Error();
+				throw new js.lib.Error();
 			} catch( e : Dynamic ) {
 				var a = getStack(js.Lib.getOriginalException());
 				a.shift(); // remove Stack.callStack()
@@ -195,7 +195,7 @@ class CallStack {
 			return makeStack(s);
 		#elseif java
 			var stack = [];
-			for ( el in java.internal.Exceptions.currentException().getStackTrace() ) {
+			for ( el in #if jvm jvm.Exception #else java.internal.Exceptions#end.currentException().getStackTrace() ) {
 				var className = el.getClassName();
 				var methodName = el.getMethodName();
 				var fileName = el.getFileName();
@@ -370,12 +370,12 @@ class CallStack {
 			return stack;
 		#elseif hl
 			var stack = [];
-			var r = ~/^([A-Za-z0-9.$_]+)\.([A-Za-z0-9_]+)\((.+):([0-9]+)\)$/;
+			var r = ~/^([A-Za-z0-9.$_]+)\.([~A-Za-z0-9_]+(\.[0-9]+)?)\((.+):([0-9]+)\)$/;
 			var r_fun = ~/^fun\$([0-9]+)\((.+):([0-9]+)\)$/;
 			for( i in 0...s.length-1 ) {
 				var str = @:privateAccess String.fromUCS2(s[i]);
 				if( r.match(str) )
-					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4))));
+					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(4), Std.parseInt(r.matched(5))));
 				else if( r_fun.match(str) )
 					stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
 				else

@@ -39,7 +39,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Calls.acc_get ctx (Fields.type_field ~resume ctx e name e.epos TyperBase.MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos TyperBase.MGet) e.epos
 
 let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
@@ -112,10 +112,7 @@ module Constructor = struct
 		let p = pos con in
 		match fst con with
 		| ConEnum(en,ef) ->
-			if Meta.has Meta.FakeEnum en.e_meta then begin
-				let e_mt = TyperBase.type_module_type ctx (TEnumDecl en) None p in
- 				mk (TField(e_mt,FEnum(en,ef))) ef.ef_type p
- 			end else if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
+			if match_debug then mk (TConst (TString ef.ef_name)) ctx.t.tstring p
 			else mk (TConst (TInt (Int32.of_int ef.ef_index))) ctx.t.tint p
 		| ConConst ct -> make_const_texpr ctx.com.basic ct p
 		| ConArray i -> make_int ctx.com.basic i p
@@ -452,7 +449,7 @@ module Pattern = struct
 				let pctx2 = {pctx with current_locals = PMap.empty; or_locals = Some (pctx1.current_locals)} in
 				let pat2 = make pctx2 toplevel t e2 in
 				PMap.iter (fun name (v,p) ->
-					if not (PMap.mem name pctx2.current_locals) then verror name p;
+					if not (PMap.mem name pctx2.current_locals) && name <> "_" then verror name p;
 					pctx.current_locals <- PMap.add name (v,p) pctx.current_locals
 				) pctx1.current_locals;
 				PatOr(pat1,pat2)
@@ -890,7 +887,7 @@ module Compile = struct
 	let guard mctx e dt1 dt2 = hashcons mctx (Guard(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 	let guard_null mctx e dt1 dt2 = hashcons mctx (GuardNull(e,dt1,dt2)) (punion dt1.dt_pos dt2.dt_pos)
 
-	let rec get_sub_subjects mctx e con =
+	let rec get_sub_subjects mctx e con arg_positions =
 		match fst con with
 		| ConEnum(en,ef) ->
 			let tl = List.map (fun _ -> mk_mono()) en.e_params in
@@ -898,7 +895,19 @@ module Compile = struct
 			let e = if not (type_iseq t_en e.etype) then mk (TCast(e,None)) t_en e.epos else e in
 			begin match follow ef.ef_type with
 				| TFun(args,_) ->
-					ExtList.List.mapi (fun i (_,_,t) -> mk (TEnumParameter(e,ef,i)) (apply_params en.e_params tl (monomorphs ef.ef_params t)) e.epos) args
+					let rec combine args positions =
+						match (args, positions) with
+							| (a :: args, p :: positions) -> (a, p) :: combine args positions
+							| (a :: args, []) -> (a, e.epos) :: combine args positions
+							| _ -> []
+					in
+					let arg_and_pos = combine args arg_positions in
+					ExtList.List.mapi
+						(fun i ((_,_,t), p) ->
+							let params = apply_params en.e_params tl (monomorphs ef.ef_params t) in
+							mk (TEnumParameter({ e with epos = p },ef,i)) params p
+						)
+						arg_and_pos
 				| _ ->
 					[]
 			end
@@ -1073,9 +1082,10 @@ module Compile = struct
 				let rec loop bindings pat = match fst pat with
 					| PatConstructor((ConConst TNull,_),_) ->
 						null := (case,bindings,List.tl patterns) :: !null;
-					| PatConstructor(con,_) ->
+					| PatConstructor(con,patterns) ->
 						if case.case_guard = None then ConTable.replace unguarded con true;
-						ConTable.replace sigma con true;
+						let arg_positions = snd (List.split patterns) in
+						ConTable.replace sigma con arg_positions;
 					| PatBind(v,pat) -> loop ((v,pos pat,subject) :: bindings) pat
 					| PatVariable _ | PatAny -> ()
 					| PatExtractor _ -> raise Extractor
@@ -1083,13 +1093,13 @@ module Compile = struct
 				in
 				loop bindings (List.hd patterns)
 			) cases;
-			let sigma = ConTable.fold (fun con _ acc -> (con,ConTable.mem unguarded con) :: acc) sigma [] in
+			let sigma = ConTable.fold (fun con arg_positions acc -> (con,ConTable.mem unguarded con,arg_positions) :: acc) sigma [] in
 			sigma,List.rev !null
 		in
 		let sigma,null = get_column_sigma cases in
 		if mctx.match_debug then print_endline (Printf.sprintf "compile_switch:\n\tsubject: %s\n\ttsubjects: %s\n\tcases: %s" (s_expr_pretty subject) (s_subjects subjects) (s_cases cases));
-		let switch_cases = List.map (fun (con,unguarded) ->
-			let sub_subjects = get_sub_subjects mctx subject con in
+		let switch_cases = List.map (fun (con,unguarded,arg_positions) ->
+			let sub_subjects = get_sub_subjects mctx subject con arg_positions in
 			let rec loop bindings locals sub_subjects = match sub_subjects with
 				| e :: sub_subjects ->
 					let v = gen_local mctx.ctx e.etype e.epos in
@@ -1200,7 +1210,6 @@ module TexprConverter = struct
 	type match_kind =
 		| SKValue
 		| SKEnum
-		| SKFakeEnum
 		| SKLength
 
 	exception Not_exhaustive
@@ -1230,7 +1239,6 @@ module TexprConverter = struct
 	let s_match_kind = function
 		| SKValue -> "value"
 		| SKEnum -> "enum"
-		| SKFakeEnum -> "fakeEnum"
 		| SKLength -> "length"
 
 	let unify_constructor ctx params t con =
@@ -1314,10 +1322,7 @@ module TexprConverter = struct
 				SKLength,Infinite
 			| TEnum(en,pl) ->
 				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
-				if Meta.has Meta.FakeEnum en.e_meta then
-					SKFakeEnum,CompileTimeFinite
-				else
-					SKEnum,RunTimeFinite
+				SKEnum,RunTimeFinite
 			| TAnon _ ->
 				SKValue,CompileTimeFinite
 			| TInst(_,_) ->
@@ -1327,7 +1332,7 @@ module TexprConverter = struct
 		in
 		let kind,finiteness = loop t in
 		let compatible_kind con = match fst con with
-			| ConEnum _ -> kind = SKEnum || kind = SKFakeEnum
+			| ConEnum _ -> kind = SKEnum
 			| ConArray _ -> kind = SKLength
 			| _ -> kind = SKValue
 		in
@@ -1435,7 +1440,7 @@ module TexprConverter = struct
 							end
 						) cases in
 						let e_subject = match kind with
-							| SKValue | SKFakeEnum -> e_subject
+							| SKValue -> e_subject
 							| SKEnum -> if match_debug then mk_name_call e_subject else mk_index_call e_subject
 							| SKLength -> type_field_access ctx e_subject "length"
 						in
@@ -1482,9 +1487,9 @@ module TexprConverter = struct
 									List.rev acc,dt
 							in
 							let conds,dt1 = loop2 [] dt1 in
-							let e_then = loop false params dt1 in
+							let e_then = loop toplevel params dt1 in
 							(fun () ->
-								let e_else = loop false params dt2 in
+								let e_else = loop toplevel params dt2 in
 								let e_cond = List.fold_left (fun e1 e2 -> binop OpBoolAnd e1 e2 ctx.t.tbool (punion e1.epos e2.epos)) (f_op e) conds in
 								mk (TIf(e_cond,e_then,Some e_else)) t_switch (punion e_then.epos e_else.epos)
 							)

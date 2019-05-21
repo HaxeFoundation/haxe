@@ -9,4 +9,4 @@
 -swf test.swf
 --swf-version 15
 --macro patchTypes("../extra/extract.patch")
---gen-hx-classes
+-D gen-hx-classes

@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum JointStyle {
-	BEVEL;
-	MITER;
-	ROUND;
+@:native("flash.display.JointStyle") extern enum abstract JointStyle(String) {
+	var BEVEL;
+	var MITER;
+	var ROUND;
 }

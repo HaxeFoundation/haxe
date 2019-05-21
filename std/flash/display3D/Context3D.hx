@@ -1,14 +1,14 @@
 package flash.display3D;
 
 extern final class Context3D extends flash.events.EventDispatcher {
-	var backBufferHeight(default,never) : Int;
-	var backBufferWidth(default,never) : Int;
-	var driverInfo(default,never) : String;
-	var enableErrorChecking : Bool;
-	var maxBackBufferHeight : Int;
-	var maxBackBufferWidth : Int;
-	@:require(flash12) var profile(default,never) : String;
-	var totalGPUMemory(default,never) : Float;
+	@:flash.property var backBufferHeight(get,never) : Int;
+	@:flash.property var backBufferWidth(get,never) : Int;
+	@:flash.property var driverInfo(get,never) : String;
+	@:flash.property var enableErrorChecking(get,set) : Bool;
+	@:flash.property var maxBackBufferHeight(get,set) : Int;
+	@:flash.property var maxBackBufferWidth(get,set) : Int;
+	@:flash.property @:require(flash12) var profile(get,never) : String;
+	@:flash.property var totalGPUMemory(get,never) : Float;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
 	function configureBackBuffer(width : Int, height : Int, antiAlias : Int, enableDepthAndStencil : Bool = true, wantsBestResolution : Bool = false, wantsBestResolutionOnBrowserZoom : Bool = false) : Void;
 	function createCubeTexture(size : Int, format : Context3DTextureFormat, optimizeForRenderToTexture : Bool, streamingLevels : Int = 0) : flash.display3D.textures.CubeTexture;
@@ -21,6 +21,14 @@ extern final class Context3D extends flash.events.EventDispatcher {
 	function dispose(recreate : Bool = true) : Void;
 	function drawToBitmapData(destination : flash.display.BitmapData) : Void;
 	function drawTriangles(indexBuffer : IndexBuffer3D, firstIndex : Int = 0, numTriangles : Int = -1) : Void;
+	private function get_backBufferHeight() : Int;
+	private function get_backBufferWidth() : Int;
+	private function get_driverInfo() : String;
+	private function get_enableErrorChecking() : Bool;
+	private function get_maxBackBufferHeight() : Int;
+	private function get_maxBackBufferWidth() : Int;
+	private function get_profile() : String;
+	private function get_totalGPUMemory() : Float;
 	function present() : Void;
 	function setBlendFactors(sourceFactor : Context3DBlendFactor, destinationFactor : Context3DBlendFactor) : Void;
 	function setColorMask(red : Bool, green : Bool, blue : Bool, alpha : Bool) : Void;
@@ -38,5 +46,9 @@ extern final class Context3D extends flash.events.EventDispatcher {
 	function setStencilReferenceValue(referenceValue : UInt, readMask : UInt = 255, writeMask : UInt = 255) : Void;
 	function setTextureAt(sampler : Int, texture : flash.display3D.textures.TextureBase) : Void;
 	function setVertexBufferAt(index : Int, buffer : VertexBuffer3D, bufferOffset : Int = 0, ?format : Context3DVertexBufferFormat) : Void;
-	static var supportsVideoTexture(default,never) : Bool;
+	private function set_enableErrorChecking(value : Bool) : Bool;
+	private function set_maxBackBufferHeight(value : Int) : Int;
+	private function set_maxBackBufferWidth(value : Int) : Int;
+	@:flash.property static var supportsVideoTexture(get,never) : Bool;
+	private static function get_supportsVideoTexture() : Bool;
 }

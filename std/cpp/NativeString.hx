@@ -24,10 +24,10 @@
 extern class NativeString {
 
 	public static inline function raw( inString:String ) : RawConstPointer<Char> {
-      return untyped inString.__s;
+      return untyped inString.raw_ptr();
    }
 	public static inline function c_str( inString:String ) : ConstPointer<Char> {
-		return cpp.ConstPointer.fromPointer(untyped inString.__s);
+		return cpp.ConstPointer.fromPointer(untyped inString.c_str());
    }
 	public static inline function fromPointer(inPtr:ConstPointer<Char> ) : String {
       return untyped __global__.String(inPtr.ptr);

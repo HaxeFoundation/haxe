@@ -1,7 +1,7 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum TriangleCulling {
-	NEGATIVE;
-	NONE;
-	POSITIVE;
+@:native("flash.display.TriangleCulling") extern enum abstract TriangleCulling(String) {
+	var NEGATIVE;
+	var NONE;
+	var POSITIVE;
 }

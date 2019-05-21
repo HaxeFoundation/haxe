@@ -1,3 +1,13 @@
+????-??-??: 4.0.0-rc.3
+
+	General improvements and optimizations:
+
+	flash : updated Flash externs to version 32.0 (now using `final`, `enum abstract` and `haxe.extern.Rest`)
+
+	Removals:
+
+	all : remove support for `@:fakeEnum` enums
+
 2019-03-22: 4.0.0-rc.2
 
 	New features:

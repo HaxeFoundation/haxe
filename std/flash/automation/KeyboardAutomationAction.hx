@@ -1,8 +1,10 @@
 package flash.automation;
 
 @:require(flash10_1) extern class KeyboardAutomationAction extends AutomationAction {
-	var keyCode : UInt;
+	@:flash.property var keyCode(get,set) : UInt;
 	function new(type : String, keyCode : UInt = 0) : Void;
-	static var KEY_DOWN(default,never) : String;
-	static var KEY_UP(default,never) : String;
+	private function get_keyCode() : UInt;
+	private function set_keyCode(value : UInt) : UInt;
+	static final KEY_DOWN : String;
+	static final KEY_UP : String;
 }

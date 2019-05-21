@@ -80,7 +80,7 @@ class Process {
 			case "Windows":
 				[
 					for (a in args)
-					StringTools.quoteWinArg(a, false)
+					haxe.SysTools.quoteWinArg(a, false)
 				].join(" ");
 			case _:
 				// mono uses a slightly different quoting/escaping rule...

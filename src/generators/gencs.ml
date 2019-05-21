@@ -1833,10 +1833,7 @@ let generate con =
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
 					let params_extends =
-						if hxgen
-						(* this is temprorary, see https://github.com/HaxeFoundation/haxe/issues/3526 *)
-						|| not (Meta.has (Meta.Custom ":nativeTypeConstraints") cl.cl_meta)
-						then
+						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc (name, t) ->

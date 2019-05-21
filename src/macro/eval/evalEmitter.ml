@@ -210,7 +210,7 @@ let emit_try exec catches env =
 		List.iter (fun (_,path,_) -> Hashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
-		let v = exec env in
+		let v = handle_stack_overflow eval (fun() -> exec env) in
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->

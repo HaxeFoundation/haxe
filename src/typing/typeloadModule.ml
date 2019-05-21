@@ -228,6 +228,7 @@ let module_pass_1 ctx m tdecls loadp =
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
+			if Meta.has (Meta.Custom ":fakeEnum") d.d_meta then error "@:fakeEnum enums is no longer supported in Haxe 4, use extern enum abstract instead" p;
 			let e = {
 				e_path = path;
 				e_module = m;
@@ -840,6 +841,7 @@ let type_types_into_module ctx m tdecls p =
 			module_imports = [];
 		};
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

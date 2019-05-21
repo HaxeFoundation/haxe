@@ -1,14 +1,14 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DBlendFactor {
-	DESTINATION_ALPHA;
-	DESTINATION_COLOR;
-	ONE;
-	ONE_MINUS_DESTINATION_ALPHA;
-	ONE_MINUS_DESTINATION_COLOR;
-	ONE_MINUS_SOURCE_ALPHA;
-	ONE_MINUS_SOURCE_COLOR;
-	SOURCE_ALPHA;
-	SOURCE_COLOR;
-	ZERO;
+@:native("flash.display3D.Context3DBlendFactor") extern enum abstract Context3DBlendFactor(String) {
+	var DESTINATION_ALPHA;
+	var DESTINATION_COLOR;
+	var ONE;
+	var ONE_MINUS_DESTINATION_ALPHA;
+	var ONE_MINUS_DESTINATION_COLOR;
+	var ONE_MINUS_SOURCE_ALPHA;
+	var ONE_MINUS_SOURCE_COLOR;
+	var SOURCE_ALPHA;
+	var SOURCE_COLOR;
+	var ZERO;
 }

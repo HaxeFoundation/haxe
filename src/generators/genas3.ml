@@ -19,6 +19,7 @@
 
 open Type
 open Common
+open FlashProps
 
 type context_infos = {
 	com : Common.context;
@@ -277,22 +278,7 @@ let rec type_str ctx t p =
 		| [], "Bool" -> "Boolean"
 		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
-		if e.e_extern then (match e.e_path with
-			| [], "Void" -> "void"
-			| [], "Bool" -> "Boolean"
-			| _ ->
-				let rec loop = function
-					| [] -> "Object"
-					| (Meta.FakeEnum,[Ast.EConst (Ast.Ident n),_],_) :: _ ->
-						(match n with
-						| "Int" -> "int"
-						| "UInt" -> "uint"
-						| _ -> n)
-					| _ :: l -> loop l
-				in
-				loop e.e_meta
-		) else
-			s_path ctx true e.e_path p
+		if e.e_extern then "Object" else s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
 		(match pt with
 		| TInst({cl_kind = KTypeParameter _},_) -> "*"
@@ -548,11 +534,55 @@ and gen_call ctx e el r =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 		print ctx ") as %s)" s
+	| TField (e1, f), el ->
+		begin
+		let default () = gen_call_default ctx e el in
+		let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
+		let mk_static_acccess cl prop_cf = mk (TField (e1, FStatic (cl, prop_cf))) prop_cf.cf_type e.epos in
+		let gen_assign lhs rhs = gen_expr ctx (mk (TBinop (OpAssign, lhs, rhs)) rhs.etype e.epos) in
+		match f, el with
+		| FInstance (cl, tl, cf), [] ->
+			(match is_extern_instance_accessor ~isget:true cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FInstance (cl, tl, cf), [evalue] ->
+			(match is_extern_instance_accessor ~isget:false cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [] ->
+			(match is_extern_static_accessor ~isget:true cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [evalue] ->
+			(match is_extern_static_accessor ~isget:false cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+		| _ ->
+			default ()
+		end
 	| _ ->
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		gen_call_default ctx e el
+
+and gen_call_default ctx e el =
+	gen_value ctx e;
+	spr ctx "(";
+	concat ctx "," (gen_value ctx) el;
+	spr ctx ")"
 
 and gen_value_op ctx e =
 	match e.eexpr with
@@ -1264,6 +1294,7 @@ let generate_base_enum ctx =
 	newline ctx
 
 let generate com =
+	com.warning "-as3 target is deprecated. Use -swf instead. See https://github.com/HaxeFoundation/haxe/issues/8295" Globals.null_pos;
 	let infos = {
 		com = com;
 	} in

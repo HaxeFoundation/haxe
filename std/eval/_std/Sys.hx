@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+import haxe.SysTools;
 
 @:require(sys)
 @:coreApi
@@ -45,11 +46,11 @@ class Sys {
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
+						SysTools.quoteWinArg(a, true)
 					].join(" ");
 					return _command(cmd);
 				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 					return _command(cmd);
 			}
 		}

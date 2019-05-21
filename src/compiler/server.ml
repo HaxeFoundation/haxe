@@ -10,6 +10,7 @@ open DisplayOutput
 open Json
 
 exception Dirty of module_def
+exception ServerError of string
 
 let measure_times = ref false
 let prompt = ref false
@@ -48,7 +49,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 		| _ ->
 			f_otherwise ()
 		end
-	| Some(_,f) ->
+	| Some(_,f,_) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
@@ -300,6 +301,16 @@ let rec wait_loop process_params verbose accept =
 				| MCode -> check_module_shadowing com2 directories m
 				| MMacro when ctx.Typecore.in_macro -> check_module_shadowing com2 directories m
 				| MMacro ->
+					(*
+						Creating another context while the previous one is incomplete means we have an infinite loop in the compiler.
+						Most likely because of circular dependencies in base modules (e.g. `StdTypes` or `String`)
+						Prevents spending another 5 hours for debugging.
+						@see https://github.com/HaxeFoundation/haxe/issues/8174
+					*)
+					if not ctx.g.complete && ctx.in_macro then
+						raise (ServerError ("Infinite loop in Haxe server detected. "
+							^ "Probably caused by shadowing a module of the standard library. "
+							^ "Make sure shadowed module does not pull macro context."));
 					let _, mctx = MacroContext.get_macro_context ctx p in
 					check_module_shadowing mctx.Typecore.com (get_changed_directories mctx) m
 			in
@@ -331,7 +342,9 @@ let rec wait_loop process_params verbose accept =
 				if m.m_extra.m_mark = mark then
 					None
 				else try
-					if m.m_extra.m_mark <= start_mark then begin
+					let old_mark = m.m_extra.m_mark in
+					m.m_extra.m_mark <- mark;
+					if old_mark <= start_mark then begin
 						(* Workaround for preview.4 Java issue *)
 						begin match m.m_extra.m_kind with
 							| MExtern -> check_module_path()
@@ -339,7 +352,6 @@ let rec wait_loop process_params verbose accept =
 						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
-					m.m_extra.m_mark <- mark;
 					if not (has_policy NoCheckDependencies) then check_dependencies();
 					None
 				with

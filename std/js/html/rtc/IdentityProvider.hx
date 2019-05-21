@@ -24,6 +24,8 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
 typedef IdentityProvider = {
 	var generateAssertion : String -> String -> IdentityProviderOptions -> Promise<IdentityAssertionResult>;
 	var validateAssertion : String -> String -> Promise<IdentityValidationResult>;

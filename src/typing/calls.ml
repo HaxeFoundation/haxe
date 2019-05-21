@@ -101,7 +101,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 let call_to_string ctx ?(resume=false) e =
 	(* Ignore visibility of the toString field. *)
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field ~resume ctx e "toString" e.epos MCall in
+	let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
 	!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 
@@ -169,7 +169,7 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 		| (e,p) :: el, [] ->
 			begin match List.rev !skipped with
 				| [] ->
-					if ctx.com.display.dms_display then begin
+					if ctx.in_display then begin
 						let e = type_expr ctx (e,p) WithType.value in
 						(e,false) :: loop el []
 					end	else call_error Too_many_arguments p

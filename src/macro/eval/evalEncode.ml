@@ -157,6 +157,7 @@ let encode_enum i pos index pl =
 		| IAnonStatus -> key_haxe_macro_AnonStatus
 		| IImportMode -> key_haxe_macro_ImportMode
 		| IQuoteStatus -> key_haxe_macro_QuoteStatus
+		| IDisplayKind -> key_haxe_macro_DisplayKind
 	in
 	encode_enum_value key index (Array.of_list pl) pos
 

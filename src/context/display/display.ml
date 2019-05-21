@@ -2,6 +2,7 @@ open Ast
 open Common
 open DisplayTypes
 open DisplayMode
+open DisplayPosition
 open CompletionItem
 open CompletionResultKind
 open Type
@@ -9,6 +10,16 @@ open Typecore
 open Globals
 open Genjson
 open DisplayPosition
+
+
+let merge_core_doc ctx mtype =
+	display_position#run_outside (fun () -> Typecore.merge_core_doc ctx mtype)
+
+let parse_module' com m p =
+	display_position#run_outside (fun () -> TypeloadParse.parse_module' com m p)
+
+let parse_module ctx m p =
+	display_position#run_outside (fun () -> TypeloadParse.parse_module ctx m p)
 
 module ReferencePosition = struct
 	let reference_position = ref ("",null_pos,KVar)

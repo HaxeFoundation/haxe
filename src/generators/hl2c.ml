@@ -113,7 +113,7 @@ let s_comp = function
 	| CNeq -> "!="
 
 let core_types =
-	let vp = { vfields = [||]; vindex = PMap.empty } in
+	let vp = { vid = -1; vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
 
@@ -746,7 +746,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || %s) ) goto %s" (reg a) (reg b) (reg a) (reg b) pcompare (label d)
 				else
 					sexpr "if( %s && %s && %s ) goto %s" (reg a) (reg b) pcompare (label d)
-			| HDyn , _ | _, HDyn ->
+			| (HDyn | HFun _), _ | _, (HDyn | HFun _) ->
 				let inv = if op = CGt || op = CGte then "&& i != hl_invalid_comparison " else "" in
 				sexpr "{ int i = hl_dyn_compare((vdynamic*)%s,(vdynamic*)%s); if( i %s 0 %s) goto %s; }" (reg a) (reg b) (s_comp op) inv (label d)
 			| HObj oa, HObj _ ->
@@ -769,7 +769,7 @@ let generate_function ctx f =
 					sexpr "if( %s != %s && (!%s || !%s || !%s->value || !%s->value || %s->value != %s->value) ) goto %s" (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (reg a) (reg b) (label d)
 				else
 					assert false
-			| HEnum _, HEnum _ | HDynObj, HDynObj | HFun _, HFun _ | HAbstract _, HAbstract _ ->
+			| HEnum _, HEnum _ | HDynObj, HDynObj | HAbstract _, HAbstract _ ->
 				phys_compare()
 			| HVirtual _, HObj _->
 				if op = CEq then
@@ -1335,6 +1335,13 @@ let make_modules ctx all_types =
 let generate_module_types ctx m =
 	let def_name = "INC_" ^ String.concat "__" (ExtString.String.nsplit m.m_name "/") in
 	let line = line ctx and expr = expr ctx and sexpr fmt = Printf.ksprintf (expr ctx) fmt in
+	let type_name t =
+		match t with
+		| HObj o | HStruct o -> o.pname
+		| HEnum e -> e.ename
+		| _ -> ""
+	in
+	let types = List.sort (fun t1 t2 -> compare (type_name t1) (type_name t2)) m.m_types in
 	define ctx (sprintf "#ifndef %s" def_name);
 	define ctx (sprintf "#define %s" def_name);
 	List.iter (fun t ->
@@ -1344,7 +1351,7 @@ let generate_module_types ctx m =
 			ctx.defined_types <- PMap.add t () ctx.defined_types;
 			define ctx (sprintf "typedef struct _%s *%s;" name name);
 		| _ -> ()
-	) m.m_types;
+	) types;
 	line "";
 	List.iter (fun t ->
 		match t with
@@ -1388,7 +1395,7 @@ let generate_module_types ctx m =
 			) e.efields
 		| _ ->
 			()
-	) m.m_types;
+	) types;
 	line "#endif";
 	line ""
 
@@ -1695,7 +1702,16 @@ let write_c com file (code:code) gnames =
 			define ctx "#define HLC_BOOT";
 			define ctx "#include <hlc.h>";
 			if m.m_types <> [] then define ctx (sprintf "#include <%s.h>" m.m_name);
-			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) m.m_functions;
+			let file_pos f =
+				match f.fe_decl with
+				| Some f when Array.length f.debug > 0 ->
+					let fid, p = f.debug.(Array.length f.debug - 1) in
+					(code.strings.(fid), p)
+				| _ ->
+					("",0)
+			in
+			let funcs = List.sort (fun f1 f2 -> compare (file_pos f1) (file_pos f2)) m.m_functions in
+			List.iter (fun fe -> match fe.fe_decl with None -> () | Some f -> generate_function ctx f) funcs;
 		end;
 	) modules;
 

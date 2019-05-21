@@ -17,6 +17,7 @@ type strict_meta =
 	| BridgeProperties
 	| Build
 	| BuildXml
+	| BypassAccessor
 	| Callable
 	| Class
 	| ClassCode
@@ -45,12 +46,12 @@ type strict_meta =
 	| Exhaustive
 	| Expose
 	| Extern
-	| FakeEnum
 	| File
 	| FileXml
 	| Final
 	| Fixed
 	| FlatEnum
+	| FlashProperty
 	| Font
 	| ForLoopVariable
 	| Forward
@@ -225,6 +226,7 @@ let get_info = function
 	| BridgeProperties -> ":bridgeProperties",("Creates native property bridges for all Haxe properties in this class",[UsedOn TClass;Platform Cs])
 	| Build -> ":build",("Builds a class or enum from a macro",[HasParam "Build macro call";UsedOnEither [TClass;TEnum]])
 	| BuildXml -> ":buildXml",("Specify xml data to be injected into Build.xml",[Platform Cpp])
+	| BypassAccessor -> ":bypassAccessor",("Do not call property accessor method and access the field directly",[UsedOn TExpr])
 	| Callable -> ":callable",("Abstract forwards call to its underlying type",[UsedOn TAbstract])
 	| Class -> ":class",("Used internally to annotate an enum that will be generated as a class",[Platforms [Java;Cs]; UsedOn TEnum; UsedInternally])
 	| ClassCode -> ":classCode",("Used to inject platform-native code into a class",[Platforms [Java;Cs]; UsedOn TClass])
@@ -253,12 +255,12 @@ let get_info = function
 	| Exhaustive -> ":exhaustive",("",[UsedInternally])
 	| Expose -> ":expose",("Includes the class or field in Haxe exports",[HasParam "?Name=Class path";UsedOnEither [TClass;TClassField];Platforms [Js;Lua]])
 	| Extern -> ":extern",("Marks the field as extern so it is not generated",[UsedOn TClassField])
-	| FakeEnum -> ":fakeEnum",("Treat enum as collection of values of the specified type",[HasParam "Type name";UsedOn TEnum])
 	| File -> ":file",("Includes a given binary file into the target Swf and associates it with the class (must extend flash.utils.ByteArray)",[HasParam "File path";UsedOn TClass;Platform Flash])
 	| FileXml -> ":fileXml",("Include xml attribute snippet in Build.xml entry for file",[UsedOn TClass;Platform Cpp])
 	| Final -> ":final",("Prevents a class or interface from being extended or a method from being overriden",[UsedOnEither [TClass;TClassField]])
 	| Fixed -> ":fixed",("Delcares an anonymous object to have fixed fields",[ (*UsedOn TObjectDecl(_)*)])
 	| FlatEnum -> ":flatEnum",("Internally used to mark an enum as being flat, i.e. having no function constructors",[UsedOn TEnum; UsedInternally])
+	| FlashProperty -> ":flash.property",("",[UsedOn TClassField; Platform Flash])
 	| Font -> ":font",("Embeds the given TrueType font into the class (must extend flash.text.Font)",[HasParam "TTF path";HasParam "Range String";UsedOn TClass])
 	| ForLoopVariable -> ":forLoopVariable",("Internally used to mark for-loop variables",[UsedInternally])
 	| Forward -> ":forward",("Forwards field access to underlying type",[HasParam "List of field names";UsedOn TAbstract])

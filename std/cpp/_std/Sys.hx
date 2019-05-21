@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 import cpp.NativeSys;
+import haxe.SysTools;
 
 @:coreApi class Sys {
 
@@ -93,11 +94,11 @@ import cpp.NativeSys;
 				case "Windows":
 					cmd = [
 						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-						StringTools.quoteWinArg(a, true)
+						SysTools.quoteWinArg(a, true)
 					].join(" ");
 					return NativeSys.sys_command(cmd);
 				case _:
-					cmd = [cmd].concat(args).map(StringTools.quoteUnixArg).join(" ");
+					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
 					return NativeSys.sys_command(cmd);
 			}
 		}

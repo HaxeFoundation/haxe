@@ -58,7 +58,7 @@ let follow = Abstract.follow_with_abstracts
 
 let rec is_js_error c =
 	match c with
-	| { cl_path = ["js"],"Error" } -> true
+	| { cl_path = ["js";"lib"],"Error" } -> true
 	| { cl_super = Some (csup,_) } -> is_js_error csup
 	| _ -> false
 
@@ -69,7 +69,7 @@ let find_cl com path =
 	) com.types
 
 let init ctx =
-	let cJsError = find_cl ctx.com (["js"],"Error") in
+	let cJsError = find_cl ctx.com (["js";"lib"],"Error") in
 	let cHaxeError = find_cl ctx.com (["js";"_Boot"],"HaxeError") in
 	let cStd = find_cl ctx.com ([],"Std") in
 	let cBoot = find_cl ctx.com (["js"],"Boot") in

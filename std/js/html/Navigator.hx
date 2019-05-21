@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `Navigator` interface represents the state and the identity of the user agent. It allows scripts to query it and to register themselves to carry on some activities.
 
@@ -33,61 +35,61 @@ package js.html;
 **/
 @:native("Navigator")
 extern class Navigator {
-	
+
 	/**
 		Returns a `Permissions` object that can be used to query and update permission status of APIs covered by the Permissions API.
 	**/
 	var permissions(default,null) : Permissions;
 	var mimeTypes(default,null) : MimeTypeArray;
 	var plugins(default,null) : PluginArray;
-	
+
 	/**
 		Reports the value of the user's do-not-track preference. When this value is "yes", your web site or application should not track the user.
 	**/
 	var doNotTrack(default,null) : String;
 	var maxTouchPoints(default,null) : Int;
-	
+
 	/**
 		Returns a string that represents the current operating system.
 	**/
 	var oscpu(default,null) : String;
-	
+
 	/**
 		Returns the vendor name of the current browser (e.g., "Netscape6").
 	**/
 	var vendor(default,null) : String;
-	
+
 	/**
 		Returns the vendor version number (e.g. "6.1").
 	**/
 	var vendorSub(default,null) : String;
-	
+
 	/**
 		Returns the build number of the current browser (e.g., "20060909").
 	**/
 	var productSub(default,null) : String;
-	
+
 	/**
 		Returns false if setting a cookie will be ignored and true otherwise.
 	**/
 	var cookieEnabled(default,null) : Bool;
-	
+
 	/**
 		Returns the build identifier of the browser (e.g., "2006090803").
 	**/
 	var buildID(default,null) : String;
-	
+
 	/**
 		Returns a reference to a `MediaDevices` object which can then be used to get information about available media devices (`MediaDevices.enumerateDevices()`), find out what constrainable properties are supported for media on the user's computer and user agent (`MediaDevices.getSupportedConstraints()`), and to request access to media using `MediaDevices.getUserMedia()`.
 	**/
 	var mediaDevices(default,null) : MediaDevices;
-	
+
 	/**
 		Returns a `ServiceWorkerContainer` object, which provides access to registration, removal, upgrade, and communication with the `ServiceWorker` objects for the associated document.
 	**/
 	var serviceWorker(default,null) : ServiceWorkerContainer;
 	var hardwareConcurrency(default,null) : Int;
-	
+
 	/**
 		Returns a `Geolocation` object allowing accessing the location of the device.
 	**/
@@ -102,7 +104,7 @@ extern class Navigator {
 	var languages(default,null) : Array<String>;
 	var onLine(default,null) : Bool;
 	var storage(default,null) : StorageManager;
-	
+
 	@:overload( function( duration : Int ) : Bool {} )
 	function vibrate( pattern : Array<Int> ) : Bool;
 	function javaEnabled() : Bool;

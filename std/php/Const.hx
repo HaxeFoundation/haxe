@@ -33,6 +33,14 @@ extern class Const {
 	static var __METHOD__ : String;
 	static var __NAMESPACE__ : String;
 	/**
+		@see https://php.net/manual/en/dir.constants.php
+	**/
+	static var DIRECTORY_SEPARATOR : String;
+	static var PATH_SEPARATOR : String;
+	static var SCANDIR_SORT_ASCENDING : Int;
+	static var SCANDIR_SORT_DESCENDING : Int;
+	static var SCANDIR_SORT_NONE : Int;
+	/**
 		@see http://php.net/manual/en/errorfunc.constants.php
 	**/
 	static var E_ERROR : Int;
@@ -120,6 +128,16 @@ extern class Const {
 	static var PREG_SPLIT_NO_EMPTY : Int;
 	static var PREG_SPLIT_DELIM_CAPTURE : Int;
 	static var PREG_SPLIT_OFFSET_CAPTURE : Int;
+	/**
+		@see http://php.net/manual/en/function.preg-last-error.php
+	**/
+	static var PREG_NO_ERROR : Int;
+	static var PREG_INTERNAL_ERROR : Int;
+	static var PREG_BACKTRACK_LIMIT_ERROR : Int;
+	static var PREG_RECURSION_LIMIT_ERROR : Int;
+	static var PREG_BAD_UTF8_ERROR : Int;
+	static var PREG_BAD_UTF8_OFFSET_ERROR : Int;
+	static var PREG_JIT_STACKLIMIT_ERROR : Int;
 	/**
 		@see http://php.net/manual/en/function.htmlspecialchars.php
 	**/

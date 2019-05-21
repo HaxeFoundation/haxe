@@ -411,7 +411,7 @@ let rec type_ident_raise ctx i p mode =
 		let t, name, pi = PMap.find i ctx.m.module_globals in
 		ImportHandling.maybe_mark_import_position ctx pi;
 		let e = type_module_type ctx t None p in
-		type_field ctx e name p mode
+		type_field_default_cfg ctx e name p mode
 
 (*
 	We want to try unifying as an integer and apply side effects.
@@ -475,11 +475,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let tt = (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ | AKAccess _ -> WithType.value | AKFieldSet(_,_,_,t) | AKSet(_,t,_) -> WithType.with_type t | AKExpr e -> WithType.with_type e.etype) in
-		let e2 = type_expr ctx e2 tt in
+		let e2 with_type = type_expr ctx e2 with_type in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1  ->
+			let e2 = e2 (WithType.with_type e1.etype) in
 			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
@@ -489,11 +489,14 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AKSet (e,t,cf) ->
+			let e2 = e2 (WithType.with_type t) in
 			let e2 = AbstractCast.cast_or_unify ctx t e2 p in
 			make_call ctx (mk (TField (e,quick_field_dynamic e.etype ("set_" ^ cf.cf_name))) (tfun [t] t) p) [e2] t p
 		| AKAccess(a,tl,c,ebase,ekey) ->
+			let e2 = e2 WithType.value in
 			mk_array_set_call ctx (AbstractCast.find_array_access ctx a tl ekey (Some e2) p) c ebase p
 		| AKFieldSet(ethis,e1,fname,t) ->
+			let e2 = e2 (WithType.with_type t) in
 			begin match follow e1.etype with
 				| TFun([_;_;(_,_,t)],_) -> unify ctx e2.etype t e2.epos;
 				| _ -> assert false
@@ -503,6 +506,7 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 			(* this must be an abstract setter *)
 			let e2,ret = match follow ef.etype with
 				| TFun([_;(_,_,t)],ret) ->
+					let e2 = e2 (WithType.with_type t) in
 					AbstractCast.cast_or_unify ctx t e2 p,ret
 				| _ ->  error "Invalid field type for abstract setter" p
 			in
@@ -685,7 +689,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
-				let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
+				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
 				let acc = (match acc.eexpr with TField (e,FClosure (Some (c,tl),f)) -> { acc with eexpr = TField (e,FInstance (c,tl,f)) } | _ -> acc) in
 				make_call ctx acc [e] ctx.t.tstring e.epos
@@ -1183,7 +1187,7 @@ and handle_efield ctx e p mode =
 		let force = ref false in
 		let e = List.fold_left (fun e (f,_,p) ->
 			let e = acc_get ctx (e MGet) p in
-			let f = type_field ~resume:(!resume) ctx e f p in
+			let f = type_field (TypeFieldConfig.create !resume) ctx e f p in
 			force := !resume;
 			resume := false;
 			f
@@ -1853,13 +1857,16 @@ and type_try ctx e1 catches with_type p =
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 		((v,e) :: acc1),(e :: acc2)
 	) ([],[e1]) catches in
-	let t = match with_type with
-		| WithType.NoValue -> ctx.t.tvoid
-		| WithType.Value _ -> unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> unify_min ctx el
+	let e1,catches,t = match with_type with
+		| WithType.NoValue -> e1,catches,ctx.t.tvoid
+		| WithType.Value _ -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
 		| WithType.WithType(t,_) ->
-			List.iter (fun e -> unify ctx e.etype t e.epos) el;
-			t
+			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
+			let catches = List.map (fun (v,e) ->
+				v,AbstractCast.cast_or_unify ctx t e e.epos
+			) catches in
+			e1,catches,t
 	in
 	mk (TTry (e1,List.rev catches)) t p
 
@@ -2042,8 +2049,17 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t t') seen) ->
-				(match List.fold_left (fun acc t -> match loop (t :: seen) t with None -> acc | Some t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t (follow t')) seen) ->
+				let types =
+					List.fold_left
+						(fun acc t -> match loop (t :: seen) t with
+							| None -> acc
+							| Some t -> t :: acc
+						)
+						[]
+						(get_abstract_froms a pl)
+				in
+				(match types with
 				| [t] -> Some t
 				| _ -> None)
 			| t ->
@@ -2229,6 +2245,12 @@ and type_meta ctx m e1 with_type p =
 		| (Meta.NullSafety, [(EConst (Ident "Off"), _)],_) ->
 			let e = e() in
 			{e with eexpr = TMeta(m,e)}
+		| (Meta.BypassAccessor,_,p) ->
+			let old_counter = ctx.bypass_accessor in
+			ctx.bypass_accessor <- old_counter + 1;
+			let e = e () in
+			(if ctx.bypass_accessor > old_counter then display_error ctx "Field access expression expected after @:bypassAccessor metadata" p);
+			e
 		| (Meta.Inline,_,_) ->
 			begin match fst e1 with
 			| ECall(e1,el) ->
@@ -2494,6 +2516,7 @@ let rec create com =
 			hook_generate = [];
 			std = null_module;
 			global_using = [];
+			complete = false;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
@@ -2515,6 +2538,7 @@ let rec create com =
 			module_imports = [];
 		};
 		is_display_file = false;
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];
@@ -2603,6 +2627,7 @@ let rec create com =
 		| [TClassDecl c2 ] -> ctx.g.global_using <- (c1,c1.cl_pos) :: (c2,c2.cl_pos) :: ctx.g.global_using
 		| _ -> assert false);
 	| _ -> assert false);
+	ctx.g.complete <- true;
 	ctx
 
 ;;

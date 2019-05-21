@@ -5,5 +5,6 @@ package flash.concurrent;
 	function lock() : Void;
 	function tryLock() : Bool;
 	function unlock() : Void;
-	static var isSupported(default,never) : Bool;
+	@:flash.property static var isSupported(get,never) : Bool;
+	private static function get_isSupported() : Bool;
 }

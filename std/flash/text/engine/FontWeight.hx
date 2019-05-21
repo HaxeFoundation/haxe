@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-@:fakeEnum(String) extern enum FontWeight {
-	BOLD;
-	NORMAL;
+@:native("flash.text.engine.FontWeight") extern enum abstract FontWeight(String) {
+	var BOLD;
+	var NORMAL;
 }

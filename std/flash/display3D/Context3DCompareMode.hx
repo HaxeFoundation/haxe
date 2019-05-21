@@ -1,12 +1,12 @@
 package flash.display3D;
 
-@:fakeEnum(String) extern enum Context3DCompareMode {
-	ALWAYS;
-	EQUAL;
-	GREATER;
-	GREATER_EQUAL;
-	LESS;
-	LESS_EQUAL;
-	NEVER;
-	NOT_EQUAL;
+@:native("flash.display3D.Context3DCompareMode") extern enum abstract Context3DCompareMode(String) {
+	var ALWAYS;
+	var EQUAL;
+	var GREATER;
+	var GREATER_EQUAL;
+	var LESS;
+	var LESS_EQUAL;
+	var NEVER;
+	var NOT_EQUAL;
 }

@@ -24,6 +24,8 @@
 
 package js.html.midi;
 
+import js.lib.Promise;
+
 @:native("MIDIPort")
 extern class MIDIPort extends js.html.EventTarget {
 	var id(default,null) : String;
@@ -34,7 +36,7 @@ extern class MIDIPort extends js.html.EventTarget {
 	var state(default,null) : MIDIPortDeviceState;
 	var connection(default,null) : MIDIPortConnectionState;
 	var onstatechange : haxe.Constraints.Function;
-	
+
 	function open() : Promise<MIDIPort>;
 	function close() : Promise<MIDIPort>;
 }

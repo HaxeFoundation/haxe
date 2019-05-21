@@ -2379,6 +2379,7 @@ let check code macros =
 			| OJEq (a,b,delta) | OJNotEq (a,b,delta) ->
 				(match rtype a, rtype b with
 				| (HObj _ | HVirtual _), (HObj _ | HVirtual _) -> ()
+				| (HDyn | HFun _), (HDyn | HFun _) -> ()
 				| ta, tb when safe_cast tb ta -> ()
 				| _ -> reg a (rtype b));
 				can_jump delta
@@ -2483,7 +2484,7 @@ let check code macros =
 			| OToVirtual (r,v) ->
 				(match rtype r with
 				| HVirtual _ -> ()
-				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
+				| _ -> reg r (HVirtual {vid=(-1);vfields=[||];vindex=PMap.empty;}));
 				(match rtype v with
 				| HObj _ | HDynObj | HDyn | HVirtual _ -> ()
 				| _ -> reg v HDynObj)
