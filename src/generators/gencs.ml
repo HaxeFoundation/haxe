@@ -1875,12 +1875,17 @@ let generate con =
 
 												(* cs constraints *)
 												(* See https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters *)
-												| TAbstract({ a_path = (_, c); a_module = { m_path = ([pack],"Constraints") } }, _) ->
+												| TAbstract({ a_path = (_, c); a_module = { m_path = ([pack],"Constraints") } }, params) ->
 													(match pack, c with
 														| "haxe", "Constructible" ->
-															if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
-															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
-															CsConstructible :: acc;
+															(match params with
+																(* Only for parameterless constructors *)
+																| [TFun ([],TAbstract({a_path=[],"Void"},_))] ->
+																	if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
+																	if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
+																	CsConstructible :: acc;
+																| _ -> acc;
+															)
 														| "cs", "CsStruct" ->
 															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
 															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
