@@ -73,5 +73,5 @@ UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf"), UTF8) == false; // surroga
 UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080"), UTF8) == false; // U+110000
 
 #else
-true;
+1 == 1;
 #end
