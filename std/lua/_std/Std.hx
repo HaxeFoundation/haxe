@@ -81,9 +81,9 @@ import lua.NativeStringTools;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
+		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String",true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName","Array",true));
 	}
 
 }

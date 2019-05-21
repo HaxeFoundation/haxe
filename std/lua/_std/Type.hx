@@ -55,12 +55,12 @@ enum ValueType {
 
 	public static function getClassName( c : Class<Dynamic> ) : String {
 		if (untyped c.__name__ == null) return null;
-		return lua.Table.concat(untyped c.__name__,'.');
+		return untyped c.__name__;
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String {
 		if (untyped e.__ename__ == null) return null;
-		return lua.Table.concat(untyped e.__ename__,'.');
+		return untyped e.__ename__;
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {

@@ -122,13 +122,17 @@ let build_exception_stack ctx env =
 		{pfile = rev_hash env.env_info.pfile;pmin = env.env_leave_pmin; pmax = env.env_leave_pmax},env.env_info.kind
 	) d
 
+let handle_stack_overflow eval f =
+	try f()
+	with Stack_overflow -> exc_string "Stack overflow"
+
 let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 	let prev = !get_ctx_ref in
 	select ctx;
 	let eval = get_eval ctx in
 	let env = eval.env in
 	let r = try
-		let v = f() in
+		let v = handle_stack_overflow eval f in
 		get_ctx_ref := prev;
 		final();
 		Some v

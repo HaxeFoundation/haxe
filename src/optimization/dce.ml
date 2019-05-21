@@ -113,6 +113,19 @@ let rec keep_field dce cf c is_static =
 			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
 			| _ -> false
 	)
+	|| begin
+		let check_accessor prefix =
+			try
+				let fields = if is_static then c.cl_statics else c.cl_fields in
+				let accessor = PMap.find (prefix ^ cf.cf_name) fields in
+				keep_field dce accessor c is_static
+			with Not_found -> false
+		in
+		match cf.cf_kind with
+		| Var { v_read = AccCall } -> check_accessor "get_"
+		| Var { v_write = AccCall } -> check_accessor "set_"
+		| _ -> false
+	end
 
 (* marking *)
 
