@@ -146,7 +146,7 @@ let infos = function
 	| EvalDebugger -> "eval_debugger",("Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.",[Platform Eval])
 	| EvalStack -> "eval_stack",("Record stack information in macro/interp mode",[Platform Eval])
 	| EvalCallStackDepth -> "eval_stack_size",("Set maximum call stack depth for eval. Default: 1000.",[Platform Eval])
-	| EvalTimes -> "eval_times",("Record per-method execution times in macro/interp mode. Implies eval_stack.",[])
+	| EvalTimes -> "eval_times",("Record per-method execution times in macro/interp mode. Implies eval_stack.",[Platform Eval])
 	| FastCast -> "fast_cast",("Enables an experimental casts cleanup on C# and Java",[Platforms [Cs;Java]])
 	| Fdb -> "fdb",("Enable full flash debug infos for FDB interactive debugging",[Platform Flash])
 	| FileExtension -> "file_extension",("Output filename extension for cpp source code",[Platform Cpp])
