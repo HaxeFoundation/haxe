@@ -113,7 +113,7 @@ let s_comp = function
 	| CNeq -> "!="
 
 let core_types =
-	let vp = { vid = -1; vfields = [||]; vindex = PMap.empty } in
+	let vp = { vfields = [||]; vindex = PMap.empty } in
 	let ep = { ename = ""; eid = 0; eglobal = None; efields = [||] } in
 	[HVoid;HUI8;HUI16;HI32;HI64;HF32;HF64;HBool;HBytes;HDyn;HFun ([],HVoid);HObj null_proto;HArray;HType;HRef HVoid;HVirtual vp;HDynObj;HAbstract ("",0);HEnum ep;HNull HVoid;HMethod ([],HVoid);HStruct null_proto]
 
