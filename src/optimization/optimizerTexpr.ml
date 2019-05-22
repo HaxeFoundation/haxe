@@ -73,161 +73,152 @@ let create_affection_checker () =
 	in
 	might_be_affected,collect_modified_locals
 
-let rec unwrap_untyped_cast e =
-	match e.eexpr with
-		| TCast (e,None) -> unwrap_untyped_cast e
-		| _ -> e
-
 let optimize_binop e op e1 e2 =
-	match Abstract.follow_with_abstracts e1.etype, Abstract.follow_with_abstracts e2.etype with
-	(* don't optimize @:coreType abstracts because we don't know native semantics of these types *)
-	| TAbstract _, _ | _, TAbstract _ -> e
-	| _,_ ->
-		let is_float t =
-			match follow t with
-			| TAbstract({ a_path = [],"Float" },_) -> true
-			| _ -> false
+	let is_float t =
+		match follow t with
+		| TAbstract({ a_path = [],"Float" },_) -> true
+		| _ -> false
+	in
+	let is_numeric t =
+		match follow t with
+		| TAbstract({ a_path = [],("Float"|"Int") },_) -> true
+		| _ -> false
+	in
+	let check_float op f1 f2 =
+		let f = op f1 f2 in
+		let fstr = Numeric.float_repres f in
+		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
+	in
+	(match e1.eexpr, e2.eexpr with
+	| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
+	| TConst (TInt 1l) , _ when op = OpMult -> e2
+	| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
+	| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
+	| _ , TConst (TInt 0l) when (match op with OpAdd -> is_numeric e1.etype | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
+	| _ , TConst (TInt 1l) when op = OpMult -> e1
+	| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
+	| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
+	| TConst TNull, TConst TNull ->
+		(match op with
+		| OpEq -> { e with eexpr = TConst (TBool true) }
+		| OpNotEq -> { e with eexpr = TConst (TBool false) }
+		| _ -> e)
+	| TFunction _, TConst TNull ->
+		(match op with
+		| OpEq -> { e with eexpr = TConst (TBool false) }
+		| OpNotEq -> { e with eexpr = TConst (TBool true) }
+		| _ -> e)
+	| TConst TNull, TFunction _ ->
+		(match op with
+		| OpEq -> { e with eexpr = TConst (TBool false) }
+		| OpNotEq -> { e with eexpr = TConst (TBool true) }
+		| _ -> e)
+	| TConst (TInt a), TConst (TInt b) ->
+		let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
+		let check_overflow f =
+			opt (fun a b ->
+				let v = f (Int64.of_int32 a) (Int64.of_int32 b) in
+				let iv = Int64.to_int32 v in
+				if Int64.compare (Int64.of_int32 iv) v <> 0 then raise Exit;
+				iv
+			)
 		in
-		let is_numeric t =
-			match follow t with
-			| TAbstract({ a_path = [],("Float"|"Int") },_) -> true
-			| _ -> false
+		let ebool t =
+			{ e with eexpr = TConst (TBool (t (Int32.compare a b) 0)) }
 		in
-		let check_float op f1 f2 =
-			let f = op f1 f2 in
-			let fstr = Numeric.float_repres f in
-			if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
+		(match op with
+		| OpAdd -> check_overflow Int64.add
+		| OpSub -> check_overflow Int64.sub
+		| OpMult -> check_overflow Int64.mul
+		| OpDiv -> check_float ( /. ) (Int32.to_float a) (Int32.to_float b)
+		| OpAnd -> opt Int32.logand
+		| OpOr -> opt Int32.logor
+		| OpXor -> opt Int32.logxor
+		| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
+		| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
+		| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
+		| OpEq -> ebool (=)
+		| OpNotEq -> ebool (<>)
+		| OpGt -> ebool (>)
+		| OpGte -> ebool (>=)
+		| OpLt -> ebool (<)
+		| OpLte -> ebool (<=)
+		| _ -> e)
+	| TConst ((TFloat _ | TInt _) as ca), TConst ((TFloat _ | TInt _) as cb) ->
+		let fa = (match ca with
+			| TFloat a -> float_of_string a
+			| TInt a -> Int32.to_float a
+			| _ -> assert false
+		) in
+		let fb = (match cb with
+			| TFloat b -> float_of_string b
+			| TInt b -> Int32.to_float b
+			| _ -> assert false
+		) in
+		let fop op = check_float op fa fb in
+		let ebool t =
+			{ e with eexpr = TConst (TBool (t (compare fa fb) 0)) }
 		in
-		(match (unwrap_untyped_cast e1).eexpr, (unwrap_untyped_cast e2).eexpr with
-		| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
-		| TConst (TInt 1l) , _ when op = OpMult -> e2
-		| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
-		| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
-		| _ , TConst (TInt 0l) when (match op with OpAdd -> is_numeric e1.etype | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
-		| _ , TConst (TInt 1l) when op = OpMult -> e1
-		| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
-		| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
-		| TConst TNull, TConst TNull ->
-			(match op with
-			| OpEq -> { e with eexpr = TConst (TBool true) }
-			| OpNotEq -> { e with eexpr = TConst (TBool false) }
-			| _ -> e)
-		| TFunction _, TConst TNull ->
-			(match op with
-			| OpEq -> { e with eexpr = TConst (TBool false) }
-			| OpNotEq -> { e with eexpr = TConst (TBool true) }
-			| _ -> e)
-		| TConst TNull, TFunction _ ->
-			(match op with
-			| OpEq -> { e with eexpr = TConst (TBool false) }
-			| OpNotEq -> { e with eexpr = TConst (TBool true) }
-			| _ -> e)
-		| TConst (TInt a), TConst (TInt b) ->
-			let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
-			let check_overflow f =
-				opt (fun a b ->
-					let v = f (Int64.of_int32 a) (Int64.of_int32 b) in
-					let iv = Int64.to_int32 v in
-					if Int64.compare (Int64.of_int32 iv) v <> 0 then raise Exit;
-					iv
-				)
-			in
-			let ebool t =
-				{ e with eexpr = TConst (TBool (t (Int32.compare a b) 0)) }
-			in
-			(match op with
-			| OpAdd -> check_overflow Int64.add
-			| OpSub -> check_overflow Int64.sub
-			| OpMult -> check_overflow Int64.mul
-			| OpDiv -> check_float ( /. ) (Int32.to_float a) (Int32.to_float b)
-			| OpAnd -> opt Int32.logand
-			| OpOr -> opt Int32.logor
-			| OpXor -> opt Int32.logxor
-			| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
-			| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
-			| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
-			| OpEq -> ebool (=)
-			| OpNotEq -> ebool (<>)
-			| OpGt -> ebool (>)
-			| OpGte -> ebool (>=)
-			| OpLt -> ebool (<)
-			| OpLte -> ebool (<=)
-			| _ -> e)
-		| TConst ((TFloat _ | TInt _) as ca), TConst ((TFloat _ | TInt _) as cb) ->
-			let fa = (match ca with
-				| TFloat a -> float_of_string a
-				| TInt a -> Int32.to_float a
-				| _ -> assert false
-			) in
-			let fb = (match cb with
-				| TFloat b -> float_of_string b
-				| TInt b -> Int32.to_float b
-				| _ -> assert false
-			) in
-			let fop op = check_float op fa fb in
-			let ebool t =
-				{ e with eexpr = TConst (TBool (t (compare fa fb) 0)) }
-			in
-			(match op with
-			| OpAdd -> fop (+.)
-			| OpDiv -> fop (/.)
-			| OpSub -> fop (-.)
-			| OpMult -> fop ( *. )
-			| OpEq -> ebool (=)
-			| OpNotEq -> ebool (<>)
-			| OpGt -> ebool (>)
-			| OpGte -> ebool (>=)
-			| OpLt -> ebool (<)
-			| OpLte -> ebool (<=)
-			| _ -> e)
-		| TConst (TString ""),TConst (TString s) | TConst (TString s),TConst (TString "") when op = OpAdd ->
-			{e with eexpr = TConst (TString s)}
-		| TConst (TBool a), TConst (TBool b) ->
-			let ebool f =
-				{ e with eexpr = TConst (TBool (f a b)) }
-			in
-			(match op with
-			| OpEq -> ebool (=)
-			| OpNotEq -> ebool (<>)
-			| OpBoolAnd -> ebool (&&)
-			| OpBoolOr -> ebool (||)
-			| _ -> e)
-		| TConst a, TConst b when op = OpEq || op = OpNotEq ->
-			let ebool b =
-				{ e with eexpr = TConst (TBool (if op = OpEq then b else not b)) }
-			in
-			(match a, b with
-			| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
-			| _ -> ebool (a = b))
-		| TConst (TBool a), _ ->
-			(match op with
-			| OpBoolAnd -> if a then e2 else { e with eexpr = TConst (TBool false) }
-			| OpBoolOr -> if a then { e with eexpr = TConst (TBool true) } else e2
-			| _ -> e)
-		| _ , TConst (TBool a) ->
-			(match op with
-			| OpBoolAnd when a  -> e1
-			| OpBoolOr when not a -> e1
-			| _ -> e)
-		| TField (_,FEnum (e1,f1)), TField (_,FEnum (e2,f2)) when e1 == e2 ->
-			(match op with
-			| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
-			| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
-			| _ -> e)
-		| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
-			(match op with
-			| OpAssign -> e
-			| _ ->
-				error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
+		(match op with
+		| OpAdd -> fop (+.)
+		| OpDiv -> fop (/.)
+		| OpSub -> fop (-.)
+		| OpMult -> fop ( *. )
+		| OpEq -> ebool (=)
+		| OpNotEq -> ebool (<>)
+		| OpGt -> ebool (>)
+		| OpGte -> ebool (>=)
+		| OpLt -> ebool (<)
+		| OpLte -> ebool (<=)
+		| _ -> e)
+	| TConst (TString ""),TConst (TString s) | TConst (TString s),TConst (TString "") when op = OpAdd ->
+		{e with eexpr = TConst (TString s)}
+	| TConst (TBool a), TConst (TBool b) ->
+		let ebool f =
+			{ e with eexpr = TConst (TBool (f a b)) }
+		in
+		(match op with
+		| OpEq -> ebool (=)
+		| OpNotEq -> ebool (<>)
+		| OpBoolAnd -> ebool (&&)
+		| OpBoolOr -> ebool (||)
+		| _ -> e)
+	| TConst a, TConst b when op = OpEq || op = OpNotEq ->
+		let ebool b =
+			{ e with eexpr = TConst (TBool (if op = OpEq then b else not b)) }
+		in
+		(match a, b with
+		| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
+		| _ -> ebool (a = b))
+	| TConst (TBool a), _ ->
+		(match op with
+		| OpBoolAnd -> if a then e2 else { e with eexpr = TConst (TBool false) }
+		| OpBoolOr -> if a then { e with eexpr = TConst (TBool true) } else e2
+		| _ -> e)
+	| _ , TConst (TBool a) ->
+		(match op with
+		| OpBoolAnd when a  -> e1
+		| OpBoolOr when not a -> e1
+		| _ -> e)
+	| TField (_,FEnum (e1,f1)), TField (_,FEnum (e2,f2)) when e1 == e2 ->
+		(match op with
+		| OpEq -> { e with eexpr = TConst (TBool (f1 == f2)) }
+		| OpNotEq -> { e with eexpr = TConst (TBool (f1 != f2)) }
+		| _ -> e)
+	| _, TCall ({ eexpr = TField (_,FEnum _) },_) | TCall ({ eexpr = TField (_,FEnum _) },_), _ ->
+		(match op with
+		| OpAssign -> e
 		| _ ->
-			e)
+			error "You cannot directly compare enums with arguments. Use either `switch`, `match` or `Type.enumEq`" e.epos)
+	| _ ->
+		e)
 
 let optimize_unop e op flag esub =
 	let is_int t = match follow t with
 		| TAbstract({a_path = [],"Int"},_) -> true
 		| _ -> false
 	in
-	match op, (unwrap_untyped_cast esub).eexpr with
+	match op, esub.eexpr with
 		| Not, (TConst (TBool f) | TParenthesis({eexpr = TConst (TBool f)})) -> { e with eexpr = TConst (TBool (not f)) }
 		| Not, (TBinop(op,e1,e2) | TParenthesis({eexpr = TBinop(op,e1,e2)})) ->
 			begin
