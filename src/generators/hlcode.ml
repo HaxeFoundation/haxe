@@ -50,8 +50,8 @@ type ttype =
 	| HStruct of class_proto
 
 and class_proto = {
-	pid : int;
 	pname : string;
+	pid : int;
 	mutable pclassglobal : int option;
 	mutable psuper : class_proto option;
 	mutable pvirtuals : int array;
@@ -65,21 +65,20 @@ and class_proto = {
 }
 
 and enum_proto = {
-	eid : int;
 	ename : string;
+	eid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
 }
 
 and field_proto = {
-	fid : int;
 	fname : string;
+	fid : int;
 	fmethod : functable index;
 	fvirtual : int option;
 }
 
 and virtual_proto = {
-	vid : int;
 	mutable vfields : (string * string index * ttype) array;
 	mutable vindex : (string, int) PMap.t;
 }

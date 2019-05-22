@@ -195,6 +195,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			in
 			[loop tl,None,PMap.empty]
 		| TInst (c,tl) | TAbstract({a_impl = Some c},tl) ->
+			Display.merge_core_doc ctx (TClassDecl c);
 			let ct,cf = get_constructor ctx c tl p in
 			let tl = (ct,cf.cf_doc,get_value_meta cf.cf_meta) :: List.rev_map (fun cf' -> cf'.cf_type,cf.cf_doc,get_value_meta cf'.cf_meta) cf.cf_overloads in
 			tl
@@ -369,13 +370,17 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMTypeDefinition ->
 		raise_position_of_type e.etype
 	| DMDefault when not (!Parser.had_resume)->
+		let display_fields e_ast e l =
+			let fields = DisplayFields.collect ctx e_ast e dk with_type p in
+			let item = completion_item_of_expr ctx e in
+			raise_fields fields (CRField(item,e.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - l;})
+		in
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->
-				let fields = DisplayFields.collect ctx e1 e2 dk with_type p in
-				let item = completion_item_of_expr ctx e2 in
-				raise_fields fields (CRField(item,e2.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - String.length s;})
+				display_fields e1 e2 (String.length s)
 			| _ ->
-				raise_toplevel ctx dk with_type None p
+				if dk = DKDot then display_fields e_ast e 0
+				else raise_toplevel ctx dk with_type None p
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in

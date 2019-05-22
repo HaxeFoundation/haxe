@@ -887,6 +887,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
 					a.a_array <- cf :: a.a_array;
 					fctx.expr_presence_matters <- true;
+				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
+					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in
