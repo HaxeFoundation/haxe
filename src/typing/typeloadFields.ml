@@ -412,7 +412,11 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				try
 					let path = List.rev (string_pos_list_of_expr_path_raise e) in
 					let types,filter_classes = handle_using ctx path (pos e) in
-					let ti = t_infos mt in
+					let ti =
+						match mt with
+							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
+							| _ -> t_infos mt
+					in
 					ti.mt_using <- (filter_classes types) @ ti.mt_using;
 				with Exit ->
 					error "dot path expected" (pos e)
@@ -423,6 +427,17 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	in
 	(* let errors go through to prevent resume if build fails *)
 	let f_build,f_enum = List.fold_left loop ([],None) meta in
+	(* Go for @:using in parents and interfaces *)
+	(match mt with
+		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
+			let ti = t_infos mt in
+			let inherit_using (c,_) =
+				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
+			in
+			Option.may inherit_using csup;
+			List.iter inherit_using interfaces
+		| _ -> ()
+	);
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
