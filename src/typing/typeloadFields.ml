@@ -591,13 +591,7 @@ let build_fields (ctx,cctx) c fields =
 	let get_fields() = !fields in
 	let pending = ref [] in
 	c.cl_build <- (fun() -> BuildMacro pending);
-	let meta =
-		c.cl_meta
-		@ match c.cl_kind with
-			| KAbstractImpl a -> List.filter (fun (m,_,_) -> m = Meta.Using) a.a_meta
-			| _ -> []
-	in
-	build_module_def ctx (TClassDecl c) meta get_fields cctx.context_init (fun (e,p) ->
+	build_module_def ctx (TClassDecl c) c.cl_meta get_fields cctx.context_init (fun (e,p) ->
 		match e with
 		| EVars [_,_,Some (CTAnonymous f,p),None] ->
 			let f = List.map (fun f ->
