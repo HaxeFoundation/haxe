@@ -195,18 +195,22 @@ class CallStack {
 			return makeStack(s);
 		#elseif java
 			var stack = [];
-			for ( el in #if jvm jvm.Exception #else java.internal.Exceptions#end.currentException().getStackTrace() ) {
-				var className = el.getClassName();
-				var methodName = el.getMethodName();
-				var fileName = el.getFileName();
-				var lineNumber = el.getLineNumber();
-				var method = Method( className, methodName );
-				if ( fileName != null || lineNumber >= 0 ) {
-					stack.push( FilePos( method, fileName, lineNumber ) );
-				}
-				else {
-					stack.push( method );
-				}
+			switch(#if jvm jvm.Exception #else java.internal.Exceptions#end.currentException()) {
+				case null:
+				case current:
+					for ( el in current.getStackTrace() ) {
+						var className = el.getClassName();
+						var methodName = el.getMethodName();
+						var fileName = el.getFileName();
+						var lineNumber = el.getLineNumber();
+						var method = Method( className, methodName );
+						if ( fileName != null || lineNumber >= 0 ) {
+							stack.push( FilePos( method, fileName, lineNumber ) );
+						}
+						else {
+							stack.push( method );
+						}
+					}
 			}
 			return stack;
 		#elseif cs

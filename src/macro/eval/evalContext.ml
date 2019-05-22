@@ -95,6 +95,8 @@ type env = {
 	mutable env_extra_locals : value IntMap.t;
 	(* The parent of the current environment, if exists. *)
 	env_parent : env option;
+	(** Exeucution stack depth *)
+	env_stack_depth : int;
 	env_eval : eval;
 }
 
@@ -258,6 +260,7 @@ and context = {
 	eval : eval;
 	mutable evals : eval IntMap.t;
 	mutable exception_stack : (pos * env_kind) list;
+	max_stack_depth : int;
 }
 
 let get_ctx_ref : (unit -> context) ref = ref (fun() -> assert false)
@@ -396,6 +399,10 @@ let push_environment ctx info num_locals num_captures =
 	else
 		Array.make num_captures vnull
 	in
+	let stack_depth = match eval.env with
+		| None -> 1;
+		| Some env -> env.env_stack_depth + 1
+	in
 	let env = {
 		env_info = info;
 		env_leave_pmin = 0;
@@ -406,6 +413,7 @@ let push_environment ctx info num_locals num_captures =
 		env_extra_locals = IntMap.empty;
 		env_parent = eval.env;
 		env_eval = eval;
+		env_stack_depth = stack_depth;
 	} in
 	eval.env <- Some env;
 	begin match ctx.debug.debug_socket,env.env_info.kind with
