@@ -2484,7 +2484,7 @@ let check code macros =
 			| OToVirtual (r,v) ->
 				(match rtype r with
 				| HVirtual _ -> ()
-				| _ -> reg r (HVirtual {vid=(-1);vfields=[||];vindex=PMap.empty;}));
+				| _ -> reg r (HVirtual {vfields=[||];vindex=PMap.empty;}));
 				(match rtype v with
 				| HObj _ | HDynObj | HDyn | HVirtual _ -> ()
 				| _ -> reg v HDynObj)
