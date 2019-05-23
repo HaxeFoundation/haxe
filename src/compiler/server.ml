@@ -32,7 +32,7 @@ let s_version with_build =
 	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
 	let build =
 		match with_build, Version.version_extra with
-			| true, Some build -> "+" ^ build
+			| true, Some (_,build) -> "+" ^ build
 			| _, _ -> ""
 	in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
