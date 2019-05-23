@@ -32,6 +32,30 @@ private abstract InlineAbstract(Int) {
 	}
 }
 
+private class ParamClass<T> {
+	public var x:T;
+
+	public function new(x:T) {
+		this.x = x;
+	}
+
+	public function test(a:T) {
+		use(a);
+		use(x);
+	}
+}
+
+private abstract ParamAbstract<T>(T) {
+	public function new(x:T) {
+		this = x;
+	}
+
+	public function test(a:T) {
+		use(a);
+		use(this);
+	}
+}
+
 class IssueInline {
 	@:js('
 		TestJs.use(4);
@@ -63,6 +87,24 @@ class IssueInline {
 		var x = inline new InlinePoint(1, 2);
 		use(x.x);
 		use(x.y);
+	}
+
+	@:js('
+		TestJs.use(10);
+		TestJs.use(1);
+	')
+	static function testParamClass() {
+		var p = inline new ParamClass<Int>(1);
+		inline p.test(10);
+	}
+
+	@:js('
+		TestJs.use(10);
+		TestJs.use(1);
+	')
+	static function testParamAbstract() {
+		var p = inline new ParamAbstract<Int>(1);
+		inline p.test(10);
 	}
 
 	@:js('

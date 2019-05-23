@@ -40,7 +40,10 @@ import java.NativeArray;
 	')
 	private static function ofNative<X>(native:NativeArray<X>):Array<X>
 	{
-		return null;
+		var a = new Array();
+		a.length = native.length;
+		a.__a = native;
+		return a;
 	}
 
 	@:functionCode('
@@ -48,8 +51,19 @@ import java.NativeArray;
 	')
 	private static function alloc<Y>(size:Int):Array<Y>
 	{
-		return null;
+		var a = new Array();
+		a.length = size;
+		a.__a = new java.NativeArray(size);
+		return a;
 	}
+
+	#if jvm
+	function getNative():NativeArray<T> {
+		var a = new NativeArray(length);
+		System.arraycopy(__a, 0, a, 0, length);
+		return a;
+	}
+	#end
 
 	public function new() : Void
 	{
@@ -450,7 +464,7 @@ import java.NativeArray;
 		return __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):T
+	private function __set(idx:Int, v:T):#if jvm Void #else T #end
 	{
 		var __a = __a;
 		if (idx >= __a.length)
@@ -467,7 +481,7 @@ import java.NativeArray;
 		if (idx >= length)
 			this.length = idx + 1;
 
-		return __a[idx] = v;
+		#if !jvm return #end __a[idx] = v;
 	}
 
 	private inline function __unsafe_get(idx:Int):T

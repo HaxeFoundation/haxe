@@ -249,6 +249,7 @@ let module_pass_1 ctx m tdecls loadp =
 		| ETypedef d ->
 			let name = fst d.d_name in
 			if starts_with name '$' then error "Type names starting with a dollar are not allowed" p;
+			if has_meta Meta.Using d.d_meta then error "@:using on typedef is not allowed" p;
 			pt := Some p;
 			let priv = List.mem EPrivate d.d_flags in
 			let path = make_path name priv in
@@ -322,7 +323,7 @@ let module_pass_1 ctx m tdecls loadp =
 				(match !decls with
 				| (TClassDecl c,_) :: _ ->
 					List.iter (fun m -> match m with
-						| ((Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal),_,_) ->
+						| ((Meta.Using | Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal),_,_) ->
 							c.cl_meta <- m :: c.cl_meta;
 						| _ ->
 							()
@@ -841,6 +842,7 @@ let type_types_into_module ctx m tdecls p =
 			module_imports = [];
 		};
 		is_display_file = (ctx.com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file m.m_extra.m_file);
+		bypass_accessor = 0;
 		meta = [];
 		this_stack = [];
 		with_type_stack = [];

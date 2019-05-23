@@ -1595,7 +1595,7 @@ let generate_class___name__ ctx c =
         let p = s_path ctx c.cl_path in
         print ctx "%s.__name__ = " p;
         if has_feature ctx "Type.getClassName" then
-            println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst c.cl_path @ [snd c.cl_path])))
+            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
         else
             println ctx "true";
     end
@@ -1706,7 +1706,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
     let p = s_path ctx e.e_path in
-    let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst e.e_path @ [snd e.e_path]) in
+    let ename = List.map s_escape_lua (fst e.e_path @ [snd e.e_path]) in
 
     (* TODO: Unify the _hxClasses declaration *)
     if has_feature ctx "Type.resolveEnum" then begin
@@ -1715,7 +1715,7 @@ let generate_enum ctx e =
     if has_feature ctx "lua.Boot.isEnum" then begin
         print ctx "_hxClasses[\"%s\"] = {" (dot_path e.e_path);
         if has_feature ctx "lua.Boot.isEnum" then  begin
-            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
+            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ String.concat "." ename ^ "\"" else "true");
         end;
         (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
         spr ctx " __constructs__ = _hx_tab_array({";

@@ -151,7 +151,13 @@ private class ProcessInput extends haxe.io.Input {
 			idx = 0;
 			var pending = true;
 			b.read_start(function(err, chunk){
-				if (chunk != null) buf = chunk;
+				if (chunk != null){
+					if (buf != null){
+						buf = buf + chunk;
+					} else {
+						buf = chunk;
+					}
+				}
 				if (err != null) err_str = err;
 				pending = false;
 			});

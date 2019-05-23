@@ -64,9 +64,11 @@ class Cpp {
 				}
 		}
 
-		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cpp.hxml"]);
-		runCpp("bin/cpp/Main-debug", []);
+		if (ci != AppVeyor) { // #8280
+			changeDirectory(sysDir);
+			runCommand("haxe", ["compile-cpp.hxml"]);
+			runCpp("bin/cpp/Main-debug", []);
+		}
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);

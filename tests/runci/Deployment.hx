@@ -125,7 +125,7 @@ class Deployment {
 		if (cygRoot != null) {
 			while (true)
 			{
-				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w `which $name`']);
+				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w "`which $name`"']);
 				var out = proc.stdout.readAll().toString().trim();
 				var err = proc.stderr.readAll().toString().trim();
 				if (proc.exitCode() == 0)
@@ -133,7 +133,7 @@ class Deployment {
 					if (!is64BitDll(out))
 					{
 						infoMsg('Deleting the file $out because it is a 32-bit DLL');
-						continue;
+						sys.FileSystem.deleteFile(out);
 					} else {
 						break;
 					}

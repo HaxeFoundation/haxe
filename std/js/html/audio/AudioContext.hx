@@ -24,6 +24,8 @@
 
 package js.html.audio;
 
+import js.lib.Promise;
+
 /**
 	The `AudioContext` interface represents an audio-processing graph built from audio modules linked together, each represented by an `AudioNode`.
 
@@ -35,31 +37,31 @@ package js.html.audio;
 extern class AudioContext extends BaseAudioContext {
 	/** @throws DOMError */
 	function new( ?contextOptions : AudioContextOptions ) : Void;
-	
+
 	/**
 		Suspends the progression of time in the audio context, temporarily halting audio hardware access and reducing CPU/battery usage in the process.
 		@throws DOMError
 	**/
 	function suspend() : Promise<Void>;
-	
+
 	/**
 		Closes the audio context, releasing any system audio resources that it uses.
 		@throws DOMError
 	**/
 	function close() : Promise<Void>;
-	
+
 	/**
 		Creates a `MediaElementAudioSourceNode` associated with an `HTMLMediaElement`. This can be used to play and manipulate audio from `video` or `audio` elements.
 		@throws DOMError
 	**/
 	function createMediaElementSource( mediaElement : js.html.MediaElement ) : MediaElementAudioSourceNode;
-	
+
 	/**
 		Creates a `MediaStreamAudioSourceNode` associated with a `MediaStream` representing an audio stream which may come from the local computer microphone or other sources.
 		@throws DOMError
 	**/
 	function createMediaStreamSource( mediaStream : js.html.MediaStream ) : MediaStreamAudioSourceNode;
-	
+
 	/**
 		Creates a `MediaStreamAudioDestinationNode` associated with a `MediaStream` representing an audio stream which may be stored in a local file or sent to another computer.
 		@throws DOMError

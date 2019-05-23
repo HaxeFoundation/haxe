@@ -799,6 +799,6 @@ let handle_syntax_completion com kind p =
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in
 			raise (Completion s)
-		| Some(f,_) ->
-			let ctx = Genjson.create_context GMFull in
+		| Some(f,_,jsonrpc) ->
+			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
 			f(fields_to_json ctx l kind None)

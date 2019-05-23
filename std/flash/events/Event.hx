@@ -1,15 +1,21 @@
 package flash.events;
 
 extern class Event {
-	var bubbles(default,never) : Bool;
-	var cancelable(default,never) : Bool;
-	var currentTarget(default,never) : Dynamic;
-	var eventPhase(default,never) : EventPhase;
-	var target(default,never) : Dynamic;
-	var type(default,never) : String;
+	@:flash.property var bubbles(get,never) : Bool;
+	@:flash.property var cancelable(get,never) : Bool;
+	@:flash.property var currentTarget(get,never) : Dynamic;
+	@:flash.property var eventPhase(get,never) : EventPhase;
+	@:flash.property var target(get,never) : Dynamic;
+	@:flash.property var type(get,never) : String;
 	function new(type : String, bubbles : Bool = false, cancelable : Bool = false) : Void;
 	function clone() : Event;
 	function formatToString(className : String, restArgs : haxe.extern.Rest<Dynamic>) : String;
+	private function get_bubbles() : Bool;
+	private function get_cancelable() : Bool;
+	private function get_currentTarget() : Dynamic;
+	private function get_eventPhase() : EventPhase;
+	private function get_target() : Dynamic;
+	private function get_type() : String;
 	function isDefaultPrevented() : Bool;
 	function preventDefault() : Void;
 	function stopImmediatePropagation() : Void;

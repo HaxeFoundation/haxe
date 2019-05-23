@@ -56,6 +56,8 @@ class ImportAll {
 			if ( !Context.defined("target.threaded") ) return;
 		case "java":
 			if( !Context.defined("java") ) return;
+		case "jvm":
+			if( !Context.defined("jvm") ) return;
 		case "cs":
 			if( !Context.defined("cs") ) return;
 		case "python":
@@ -68,7 +70,7 @@ class ImportAll {
 			if( !Context.defined("eval") ) return;
 		case "ssl":
 			if (!Context.defined("neko") && !Context.defined("cpp")) return;
-		case "tools", "build-tool": return;
+		case "tools", "build-tool", "jar-tool": return;
 		}
 		for( p in Context.getClassPath() ) {
 			if( p == "/" )

@@ -97,7 +97,7 @@ class TestJs {
 		var a = "";
 		var e = switch (a) {
 			case _.toLowerCase() => "e": 0;
-			default: throw new js.Error();
+			default: throw new js.lib.Error();
 		}
 	}
 

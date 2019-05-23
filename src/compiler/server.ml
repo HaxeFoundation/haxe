@@ -49,7 +49,7 @@ let check_display_flush ctx f_otherwise = match ctx.com.json_out with
 		| _ ->
 			f_otherwise ()
 		end
-	| Some(_,f) ->
+	| Some(_,f,_) ->
 		if ctx.has_error then begin
 			let errors = List.map (fun msg ->
 				let msg,p,i = match msg with
@@ -307,7 +307,7 @@ let rec wait_loop process_params verbose accept =
 						Prevents spending another 5 hours for debugging.
 						@see https://github.com/HaxeFoundation/haxe/issues/8174
 					*)
-					if not ctx.g.complete then
+					if not ctx.g.complete && ctx.in_macro then
 						raise (ServerError ("Infinite loop in Haxe server detected. "
 							^ "Probably caused by shadowing a module of the standard library. "
 							^ "Make sure shadowed module does not pull macro context."));
@@ -342,7 +342,9 @@ let rec wait_loop process_params verbose accept =
 				if m.m_extra.m_mark = mark then
 					None
 				else try
-					if m.m_extra.m_mark <= start_mark then begin
+					let old_mark = m.m_extra.m_mark in
+					m.m_extra.m_mark <- mark;
+					if old_mark <= start_mark then begin
 						(* Workaround for preview.4 Java issue *)
 						begin match m.m_extra.m_kind with
 							| MExtern -> check_module_path()
@@ -350,7 +352,6 @@ let rec wait_loop process_params verbose accept =
 						end;
 						if not (has_policy NoCheckFileTimeModification) then check_file();
 					end;
-					m.m_extra.m_mark <- mark;
 					if not (has_policy NoCheckDependencies) then check_dependencies();
 					None
 				with
@@ -425,7 +426,6 @@ let rec wait_loop process_params verbose accept =
 		in
 		let create params =
 			let ctx = create_context params in
-			ctx.com.needs_generation <- false;
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;

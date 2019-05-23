@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `Clients` interface provides access to `Client` objects. Access it via ``self`.clients` within a service worker.
 
@@ -33,22 +35,22 @@ package js.html;
 **/
 @:native("Clients")
 extern class Clients {
-	
+
 	/**
 		Returns a `Promise` for a `Client` matching a given `Client.id`.
 	**/
 	function get( id : String ) : Promise<Dynamic>;
-	
+
 	/**
 		Returns a `Promise` for an array of `Client` objects. An options argument allows you to control the types of clients returned. 
 	**/
 	function matchAll( ?options : ClientQueryOptions ) : Promise<Array<Client>>;
-	
+
 	/**
 		Opens a new browser window for a given url and returns a `Promise` for the new `WindowClient`.
 	**/
 	function openWindow( url : String ) : Promise<WindowClient>;
-	
+
 	/**
 		Allows an active service worker to set itself as the `ServiceWorkerContainer.controller` for all clients within its `ServiceWorkerRegistration.scope`. 
 	**/

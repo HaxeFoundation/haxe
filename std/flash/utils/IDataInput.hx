@@ -1,9 +1,12 @@
 package flash.utils;
 
 extern interface IDataInput {
-	var bytesAvailable(default,never) : UInt;
-	var endian : Endian;
-	var objectEncoding : UInt;
+	@:flash.property var bytesAvailable(get,never) : UInt;
+	@:flash.property var endian(get,set) : Endian;
+	@:flash.property var objectEncoding(get,set) : UInt;
+	private function get_bytesAvailable() : UInt;
+	private function get_endian() : Endian;
+	private function get_objectEncoding() : UInt;
 	function readBoolean() : Bool;
 	function readByte() : Int;
 	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
@@ -18,4 +21,6 @@ extern interface IDataInput {
 	function readUnsignedByte() : UInt;
 	function readUnsignedInt() : UInt;
 	function readUnsignedShort() : UInt;
+	private function set_endian(value : Endian) : Endian;
+	private function set_objectEncoding(value : UInt) : UInt;
 }

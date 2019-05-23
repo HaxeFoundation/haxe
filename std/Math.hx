@@ -299,6 +299,7 @@ extern class Math
 		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
 	#else
+		//TODO: Abandoned code block? Js has its own _std/Math.hx
 		Math.__name__ = ["Math"];
 		Math.NaN = Number["NaN"];
 		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];

@@ -24,12 +24,21 @@
 
 class Host
 {
+   #if utf16
+   public static function run(source:haxe.io.Bytes)
+   {
+      var module = Module.fromData(source.getData());
+      module.boot();
+      module.run();
+   }
+   #else
    public static function run(source:String)
    {
       var module = Module.fromString(source);
       module.boot();
       module.run();
    }
+   #end
 
 
    @:native("hx::EnableJit")
@@ -37,7 +46,10 @@ class Host
 
    public static function runFile(filename:String)
    {
-      run( sys.io.File.getContent(filename) );
+      var source = sys.io.File.getBytes(filename);
+      var module = Module.fromData(source.getData());
+      module.boot();
+      module.run();
    }
 
 
@@ -58,10 +70,7 @@ class Host
       }
       else
       {
-         var source = sys.io.File.getBytes(script);
-         var module = Module.fromData(source.getData());
-         module.boot();
-         module.run();
+         runFile(script);
       }
    }
 }

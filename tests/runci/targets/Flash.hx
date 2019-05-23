@@ -3,7 +3,9 @@ package runci.targets;
 import sys.io.File;
 import sys.FileSystem;
 import haxe.io.Path;
+import haxe.Json;
 import sys.io.Process;
+import haxe.Http;
 
 import runci.System.*;
 import runci.Config.*;
@@ -13,6 +15,25 @@ class Flash {
 		var appcast = Xml.parse(haxe.Http.requestUrl("http://fpdownload2.macromedia.com/get/flashplayer/update/current/xml/version_en_mac_pep.xml"));
 		var versionStr = new haxe.xml.Access(appcast).node.XML.node.update.att.version;
 		return versionStr.split(",").map(Std.parseInt);
+	}
+
+	static public function setupFlexSdk():Void {
+		if (commandSucceed("mxmlc", ["--version"])) {
+			infoMsg('mxmlc has already been installed.');
+		} else {
+			var apacheMirror = Json.parse(Http.requestUrl("http://www.apache.org/dyn/closer.lua?as_json=1")).preferred;
+			var flexVersion = "4.16.0";
+			runCommand("wget", ["-nv", '${apacheMirror}/flex/${flexVersion}/binaries/apache-flex-sdk-${flexVersion}-bin.tar.gz'], true);
+			runCommand("tar", ["-xf", 'apache-flex-sdk-${flexVersion}-bin.tar.gz', "-C", Sys.getEnv("HOME")]);
+			var flexsdkPath = Sys.getEnv("HOME") + '/apache-flex-sdk-${flexVersion}-bin';
+			addToPATH(flexsdkPath + "/bin");
+			var playerglobalswcFolder = flexsdkPath + "/player";
+			FileSystem.createDirectory(playerglobalswcFolder + "/11.1");
+			var flashVersion = runci.targets.Flash.getLatestFPVersion();
+			runCommand("wget", ["-nv", 'http://download.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc', "-O", playerglobalswcFolder + "/11.1/playerglobal.swc"], true);
+			File.saveContent(flexsdkPath + "/env.properties", 'env.PLAYERGLOBAL_HOME=$playerglobalswcFolder');
+			runCommand("mxmlc", ["--version"]);
+		}
 	}
 
 	static public function setupFlashPlayerDebugger():Void {
@@ -120,6 +141,7 @@ class Flash {
 
 	static public function run(args:Array<String>) {
 		setupFlashPlayerDebugger();
+		setupFlexSdk();
 		runCommand("haxe", ["compile-flash9.hxml", "-D", "fdb", "-D", "dump", "-D", "dump_ignore_var_ids"].concat(args));
 		var success = runFlash("bin/unit9.swf");
 		if (!success)

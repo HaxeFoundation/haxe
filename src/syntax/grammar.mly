@@ -1287,7 +1287,14 @@ and expr = parser
 		end
 	| [< '(Kwd Switch,p1); e = secure_expr; s >] ->
 		begin match s with parser
-			| [< '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
+			| [< '(BrOpen,_); cases , def = parse_switch_cases e [] >] ->
+				let p2 = match s with parser
+					| [< '(BrClose,p2) >] -> p2
+					| [< >] ->
+						(* Ignore missing } if we are resuming and "guess" the last position. *)
+						syntax_error (Expected ["}"]) s (pos (next_token s))
+				in
+				(ESwitch (e,cases,def),punion p1 p2)
 			| [< >] ->
 				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
@@ -1473,6 +1480,7 @@ let rec validate_macro_cond s e = match fst e with
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond s e1), snd e)
 	| EField(e1,name) -> (EField(validate_macro_cond s e1,name), snd e)
+	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond s) args),snd e)
 	| _ -> syntax_error (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
 let parse_macro_ident t p s =

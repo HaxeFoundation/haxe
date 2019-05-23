@@ -113,6 +113,19 @@ let rec keep_field dce cf c is_static =
 			| Some ({ cl_constructor = Some ctor } as csup, _) -> keep_field dce ctor csup false
 			| _ -> false
 	)
+	|| begin
+		let check_accessor prefix =
+			try
+				let fields = if is_static then c.cl_statics else c.cl_fields in
+				let accessor = PMap.find (prefix ^ cf.cf_name) fields in
+				keep_field dce accessor c is_static
+			with Not_found -> false
+		in
+		match cf.cf_kind with
+		| Var { v_read = AccCall } -> check_accessor "get_"
+		| Var { v_write = AccCall } -> check_accessor "set_"
+		| _ -> false
+	end
 
 (* marking *)
 
@@ -425,11 +438,12 @@ and expr_field dce e fa is_call_expr =
 				check_and_add_feature dce "dynamic_read";
 				check_and_add_feature dce ("dynamic_read." ^ n);
 			| _ -> ());
-			begin match follow e.etype with
-				| TInst(c,_) ->
+			begin match follow e.etype, fa with
+				| TInst(c,_), _
+				| _, FClosure (Some (c, _), _) ->
 					mark_class dce c;
 					field dce c n false;
-				| TAnon a ->
+				| TAnon a, _ ->
 					(match !(a.a_status) with
 					| Statics c ->
 						mark_class dce c;

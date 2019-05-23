@@ -1201,7 +1201,13 @@ module StdFileSystem = struct
 	)
 
 	let readDirectory = vfun1 (fun dir ->
-		let d = try Sys.readdir (decode_string dir) with Sys_error s -> exc_string s in
+		let dir = decode_string dir in
+		let d = try
+			if not (Sys.is_directory (patch_path dir)) then exc_string "No such directory";
+			Sys.readdir dir
+		with Sys_error s ->
+			exc_string s
+		in
 		encode_array (Array.to_list (Array.map (fun s -> create_unknown s) d))
 	)
 
@@ -3133,7 +3139,7 @@ let init_constructors builtins =
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None
-					| VArray va -> Some (Array.map decode_string va.avalues)
+					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))

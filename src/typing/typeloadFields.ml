@@ -246,8 +246,17 @@ let patch_class ctx c fields =
 	| None -> fields
 	| Some (h,hcl) ->
 		c.cl_meta <- c.cl_meta @ hcl.tp_meta;
-		let rec loop acc = function
-			| [] -> acc
+		let patch_getter t fn =
+			{ fn with f_type = t }
+		in
+		let patch_setter t fn =
+			match fn.f_args with
+			| [(name,opt,meta,_,expr)] ->
+				{ fn with f_args = [(name,opt,meta,t,expr)]; f_type = t }
+			| _ -> fn
+		in
+		let rec loop acc accessor_acc = function
+			| [] -> acc, accessor_acc
 			| f :: l ->
 				(* patch arguments types *)
 				(match f.cff_kind with
@@ -263,20 +272,38 @@ let patch_class ctx c fields =
 				| _ -> ());
 				(* other patches *)
 				match (try Some (Hashtbl.find h (fst f.cff_name,List.mem_assoc AStatic f.cff_access)) with Not_found -> None) with
-				| None -> loop (f :: acc) l
-				| Some { tp_remove = true } -> loop acc l
+				| None -> loop (f :: acc) accessor_acc l
+				| Some { tp_remove = true } -> loop acc accessor_acc l
 				| Some p ->
 					f.cff_meta <- f.cff_meta @ p.tp_meta;
-					(match p.tp_type with
-					| None -> ()
-					| Some t ->
-						f.cff_kind <- match f.cff_kind with
-						| FVar (_,e) -> FVar (Some (t,null_pos),e)
-						| FProp (get,set,_,eo) -> FProp (get,set,Some (t,null_pos),eo)
-						| FFun f -> FFun { f with f_type = Some (t,null_pos) });
-					loop (f :: acc) l
+					let accessor_acc =
+						match p.tp_type with
+						| None -> accessor_acc
+						| Some t ->
+							match f.cff_kind with
+							| FVar (_,e) ->
+								f.cff_kind <- FVar (Some (t,null_pos),e); accessor_acc
+							| FProp (get,set,_,eo) ->
+								let typehint = Some (t,null_pos) in
+								let accessor_acc = if fst get = "get" then ("get_" ^ fst f.cff_name, patch_getter typehint) :: accessor_acc else accessor_acc in
+								let accessor_acc = if fst set = "set" then ("set_" ^ fst f.cff_name, patch_setter typehint) :: accessor_acc else accessor_acc in
+								f.cff_kind <- FProp (get,set,typehint,eo); accessor_acc
+							| FFun fn ->
+								f.cff_kind <- FFun { fn with f_type = Some (t,null_pos) }; accessor_acc
+					in
+					loop (f :: acc) accessor_acc l
 		in
-		List.rev (loop [] fields)
+		let fields, accessor_patches = loop [] [] fields in
+		List.iter (fun (accessor_name, patch) ->
+			try
+				let f_accessor = List.find (fun f -> fst f.cff_name = accessor_name) fields in
+				match f_accessor.cff_kind with
+				| FFun fn -> f_accessor.cff_kind <- FFun (patch fn)
+				| _ -> ()
+			with Not_found ->
+				()
+		) accessor_patches;
+		List.rev fields
 
 let lazy_display_type ctx f =
 	(* if ctx.is_display_file then begin
@@ -385,7 +412,11 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				try
 					let path = List.rev (string_pos_list_of_expr_path_raise e) in
 					let types,filter_classes = handle_using ctx path (pos e) in
-					let ti = t_infos mt in
+					let ti =
+						match mt with
+							| TClassDecl { cl_kind = KAbstractImpl a } -> t_infos (TAbstractDecl a)
+							| _ -> t_infos mt
+					in
 					ti.mt_using <- (filter_classes types) @ ti.mt_using;
 				with Exit ->
 					error "dot path expected" (pos e)
@@ -396,6 +427,17 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 	in
 	(* let errors go through to prevent resume if build fails *)
 	let f_build,f_enum = List.fold_left loop ([],None) meta in
+	(* Go for @:using in parents and interfaces *)
+	(match mt with
+		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
+			let ti = t_infos mt in
+			let inherit_using (c,_) =
+				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
+			in
+			Option.may inherit_using csup;
+			List.iter inherit_using interfaces
+		| _ -> ()
+	);
 	List.iter (fun f -> f()) (List.rev f_build);
 	(match f_enum with None -> () | Some f -> f())
 
@@ -860,6 +902,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro array-access functions are not supported") p;
 					a.a_array <- cf :: a.a_array;
 					fctx.expr_presence_matters <- true;
+				| (Meta.Op,[EBinop(OpAssign,_,_),_],_) :: _ ->
+					error (cf.cf_name ^ ": Assignment overloading is not supported") p;
 				| (Meta.Op,[EBinop(op,_,_),_],_) :: _ ->
 					if fctx.is_macro then error (cf.cf_name ^ ": Macro operator functions are not supported") p;
 					let targ = if fctx.is_abstract_member then tthis else ta in

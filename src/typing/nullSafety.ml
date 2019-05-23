@@ -675,7 +675,7 @@ class local_safety (mode:safety_mode) =
 		*)
 		method function_declared (immediate_execution:bool) (fn:tfunc) =
 			let scope =
-				if immediate_execution then
+				if immediate_execution || mode = SMLoose then
 					new safety_scope mode STImmediateClosure self#get_current_scope#get_safe_locals self#get_current_scope#get_never_safe
 				else
 					new safety_scope mode STClosure (Hashtbl.create 100) (Hashtbl.create 100)
@@ -715,7 +715,7 @@ class local_safety (mode:safety_mode) =
 			if not (is_nullable_type expr.etype) then
 				true
 			else
-				let captured =
+				let captured () =
 					match expr.eexpr with
 						| TLocal local_var ->
 							let rec traverse scopes =
@@ -732,7 +732,7 @@ class local_safety (mode:safety_mode) =
 							traverse scopes
 						| _ -> false
 				in
-				(mode = SMLoose || not captured) && self#get_current_scope#is_safe expr
+				(mode = SMLoose || not (captured())) && self#get_current_scope#is_safe expr
 		(**
 			This method should be called upon passing `while`.
 			It collects locals which are checked against `null` and executes callbacks for expressions with proper statuses of locals.
@@ -1122,7 +1122,7 @@ class expr_checker mode immediate_execution report =
 		method private check_function ?(immediate_execution=false) fn =
 			local_safety#function_declared immediate_execution fn;
 			return_types <- fn.tf_type :: return_types;
-			if immediate_execution then
+			if immediate_execution || mode = SMLoose then
 				begin
 					(* Start pretending to ignore errors *)
 					is_pretending <- true;

@@ -133,6 +133,7 @@ let create com api is_macro =
 		eval = eval;
 		evals = evals;
 		exception_stack = [];
+		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 	} in
 	if debug.support_debugger && not !debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
@@ -415,9 +416,13 @@ let rec value_to_expr v p =
 	| VFloat f -> haxe_float f p
 	| VString s -> (EConst (String s.sstring),p)
 	| VArray va -> (EArrayDecl (List.map (fun v -> value_to_expr v p) (EvalArray.to_list va)),p)
-	| VObject o -> (EObjectDecl (List.map (fun (k,v) ->
+	| VObject o -> (EObjectDecl (ExtList.List.filter_map (fun (k,v) ->
 			let n = rev_hash k in
-			((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			(* Workaround for #8261: Ignore generated pos fields *)
+			begin match v with
+			| VInstance {ikind = IPos _} when n = "pos" -> None
+			| _ -> Some ((n,p,(if Lexer.is_valid_identifier n then NoQuotes else DoubleQuotes)),(value_to_expr v p))
+			end
 		) (object_fields o)),p)
 	| VEnumValue e ->
 		let epath =
@@ -436,7 +441,6 @@ let rec value_to_expr v p =
 				let args = List.map (fun v -> value_to_expr v p) (Array.to_list e.eargs) in
 				(ECall (epath, args), p)
 		end
-
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s

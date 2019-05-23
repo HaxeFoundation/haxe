@@ -102,6 +102,8 @@ type platform_config = {
 	pf_this_before_super : bool;
 	(** target supports threads **)
 	pf_supports_threads : bool;
+	(** target supports Unicode **)
+	pf_supports_unicode : bool;
 }
 
 class compiler_callbacks = object(self)
@@ -190,7 +192,6 @@ type context = {
 	mutable stored_typed_exprs : (int, texpr) PMap.t;
 	pass_debug_messages : string DynArray.t;
 	(* output *)
-	mutable needs_generation : bool;
 	mutable file : string;
 	mutable flash_version : float;
 	mutable features : (string,bool) Hashtbl.t;
@@ -207,7 +208,7 @@ type context = {
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
 	mutable js_gen : (unit -> unit) option;
-	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit)) option;
+	mutable json_out : ((Json.t -> unit) * (Json.t list -> unit) * Jsonrpc_handler.jsonrpc_handler) option;
 	(* typing *)
 	mutable basic : basic_types;
 	memory_marker : float array;
@@ -284,6 +285,7 @@ let default_config =
 		pf_uses_utf16 = true;
 		pf_this_before_super = true;
 		pf_supports_threads = false;
+		pf_supports_unicode = true;
 	}
 
 let get_config com =
@@ -314,6 +316,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_uses_utf16 = false;
 			pf_supports_threads = true;
+			pf_supports_unicode = false;
 		}
 	| Flash when defined Define.As3 ->
 		{
@@ -344,6 +347,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_add_final_return = true;
 			pf_supports_threads = true;
+			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
 		}
 	| Cs ->
 		{
@@ -359,6 +363,7 @@ let get_config com =
 			pf_pad_nulls = true;
 			pf_overload = true;
 			pf_supports_threads = true;
+			pf_this_before_super = false;
 		}
 	| Python ->
 		{
@@ -406,7 +411,6 @@ let create version s_version args =
 			unresolved_identifiers = [];
 			interface_field_implementations = [];
 		};
-		needs_generation = true;
 		sys_args = args;
 		debug = false;
 		display = DisplayTypes.DisplayMode.create !Parser.display_mode;
@@ -498,7 +502,7 @@ let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
 	let min = int_of_float (mod_float (v *. 10.) 10.) in
 	v, string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min)
-) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0]
+) [9.;10.;10.1;10.2;10.3;11.;11.1;11.2;11.3;11.4;11.5;11.6;11.7;11.8;11.9;12.0;13.0;14.0;15.0;16.0;17.0;18.0;19.0;20.0;21.0;22.0;23.0;24.0;25.0;26.0;27.0;28.0;29.0;31.0;32.0]
 
 let flash_version_tag = function
 	| 6. -> 6
@@ -542,6 +546,9 @@ let init_platform com pf =
 	end;
 	if com.config.pf_supports_threads then begin
 		raw_define_value com.defines "target.threaded" "true";
+	end;
+	if com.config.pf_supports_unicode then begin
+		raw_define_value com.defines "target.unicode" "true";
 	end;
 	raw_define_value com.defines "target.name" name;
 	raw_define com name
