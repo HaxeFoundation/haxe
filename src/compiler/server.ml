@@ -28,9 +28,13 @@ type context = {
 	mutable has_error : bool;
 }
 
-let s_version =
+let s_version with_build =
 	let pre = Option.map_default (fun pre -> "-" ^ pre) "" version_pre in
-	let build = Option.map_default (fun (_,build) -> "+" ^ build) "" Version.version_extra in
+	let build =
+		match with_build, Version.version_extra with
+			| true, Some build -> "+" ^ build
+			| _, _ -> ""
+	in
 	Printf.sprintf "%d.%d.%d%s%s" version_major version_minor version_revision pre build
 
 let check_display_flush ctx f_otherwise = match ctx.com.json_out with
@@ -83,7 +87,7 @@ let default_flush ctx =
 
 let create_context params =
 	let ctx = {
-		com = Common.create version s_version params;
+		com = Common.create version (s_version true) params;
 		flush = (fun()->());
 		setup = (fun()->());
 		messages = [];
