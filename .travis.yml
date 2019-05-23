@@ -102,7 +102,7 @@ install_linux: &install_linux
 install_osx: &install_osx
   - (nvm ls 8 || nvm install 8) && nvm use 8
   # Install dependencies
-  - travis_retry brew update --merge
+  - travis_retry brew update
   - brew uninstall --force brew-cask # https://github.com/caskroom/homebrew-cask/pull/15381
   - travis_retry brew bundle --file=tests/Brewfile --no-upgrade
   # install neko
