@@ -104,6 +104,12 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "BypassAccessor",
+		"metadata": ":bypassAccessor",
+		"doc": "Do not call property accessor method and access the field directly",
+		"targets": ["TExpr"]
+	},
+	{
 		"name": "Callable",
 		"metadata": ":callable",
 		"doc": "Abstract forwards call to its underlying type",
@@ -309,6 +315,13 @@
 		"name": "Fixed",
 		"metadata": ":fixed",
 		"doc": "Delcares an anonymous object to have fixed fields"
+	},
+	{
+		"name": "FlashProperty",
+		"metadata": ":flash.property",
+		"doc": "",
+		"platforms": ["flash"],
+		"targets": ["TClassField"]
 	},
 	{
 		"name": "FlatEnum",

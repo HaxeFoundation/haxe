@@ -123,19 +123,28 @@
 		"platforms": ["cs"]
 	},
 	{
+		"name": "EvalCallStackDepth",
+		"define": "eval_call_stack_depth",
+		"doc": "Set maximum call stack depth for eval. Default: 1000.",
+		"platforms": ["eval"]
+	},
+	{
 		"name": "EvalDebugger",
 		"define": "eval_debugger",
-		"doc": "Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack."
+		"doc": "Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.",
+		"platforms": ["eval"]
 	},
 	{
 		"name": "EvalStack",
 		"define": "eval_stack",
-		"doc": "Record stack information in macro/interp mode"
+		"doc": "Record stack information in macro/interp mode",
+		"platforms": ["eval"]
 	},
 	{
 		"name": "EvalTimes",
 		"define": "eval_times",
-		"doc": "Record per-method execution times in macro/interp mode. Implies eval_stack."
+		"doc": "Record per-method execution times in macro/interp mode. Implies eval_stack.",
+		"platforms": ["eval"]
 	},
 	{
 		"name": "FastCast",
@@ -273,6 +282,12 @@
 		"define": "js_source_map",
 		"doc": "Generate JavaScript source map even in non-debug mode",
 		"platforms": ["js"]
+	},
+	{
+		"name": "Jvm",
+		"define": "jvm",
+		"doc": "Generate jvm directly",
+		"platforms": ["java"]
 	},
 	{
 		"name": "SourceMap",
