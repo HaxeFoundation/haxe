@@ -508,7 +508,6 @@
 	},
 	{
 		"name": "InlineConstructorArgument",
-		"matchUnderscore": true,
 		"metadata": ":inlineConstructorArgument",
 		"doc": "Internally used to mark expressions that were passed as arguments of an inlined constructor",
 		"internal": true

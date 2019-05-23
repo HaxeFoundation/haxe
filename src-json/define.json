@@ -263,7 +263,7 @@
 		"define": "js_es",
 		"doc": "Generate JS compliant with given ES standard version (default 5)",
 		"platforms": ["js"],
-		"params:": ["version number"]
+		"params": ["version number"]
 	},
 	{
 		"name": "JsEnumsAsArrays",
