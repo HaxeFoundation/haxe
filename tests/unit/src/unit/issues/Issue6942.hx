@@ -8,6 +8,15 @@ class Issue6942 extends unit.Test {
 		eq(1, -IntEnum);
 		eq(2, 1 - IntEnum);
 
+		//these targets have actual UInt type at runtime
+		#if (flash || cs || as3)
+		eq(-4294967295, -UIntEnum);
+		eq(2, 1 - UIntEnum);
+		#else
+		eq(1, -UIntEnum);
+		eq(2, 1 - UIntEnum);
+		#end
+
 		eq(1, -INT_INLINE);
 		eq(2, 1 - INT_INLINE);
 
@@ -24,6 +33,10 @@ enum abstract FloatTest(Float) from Float to Float {
 	var FloatEnum = -1.0;
 }
 
-enum abstract IntTest(UInt) from UInt to UInt {
- var IntEnum = -1;
+enum abstract IntTest(Int) from Int to Int {
+	var IntEnum = -1;
+}
+
+enum abstract UIntTest(UInt) from UInt to UInt {
+	var UIntEnum = -1;
 }
