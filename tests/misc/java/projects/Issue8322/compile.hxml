@@ -1,0 +1,3 @@
+-main Main
+-java bin
+-cmd java -jar bin/Main.jar

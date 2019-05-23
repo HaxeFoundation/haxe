@@ -2275,13 +2275,10 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		let e = if not inline then
 			e
 		else match e with
-			| AKExpr {eexpr = TField(e1,fa)} ->
+			| AKExpr {eexpr = TField(e1,fa); etype = t} ->
 				begin match extract_field fa with
-				| Some cf ->
-					let t = monomorphs cf.cf_params cf.cf_type in
-					AKInline(e1,cf,fa,t)
-				| None ->
-					e
+				| Some cf -> AKInline(e1,cf,fa,t)
+				| None -> e
 				end;
 			| AKUsing(e,c,cf,ef,_) ->
 				AKUsing(e,c,cf,ef,true)
