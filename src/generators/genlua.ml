@@ -500,7 +500,7 @@ and gen_call ctx e el =
              spr ctx ")";
          end else begin
              let el =
-                if is_possible_string_field field_owner s then
+                if (match ef with FAnon _ | FDynamic _ -> true | _ -> false) && is_possible_string_field field_owner s then
                     begin
                         gen_expr ctx e;
                         field_owner :: el
