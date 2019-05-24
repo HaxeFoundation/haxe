@@ -371,7 +371,7 @@ module CompletionType = struct
 		"opt",jbool cfa.ct_optional;
 		"t",generate_type ctx cfa.ct_type;
 		"value",jopt (fun e -> jobject [
-			"string",jstring (Ast.s_expr e);
+			"string",jstring (Ast.Printer.s_expr e);
 		]) cfa.ct_value;
 	]
 

@@ -718,7 +718,7 @@ let s_display_kind = function
 	| DKMarked -> "DKMarked"
 	| DKPattern _ -> "DKPattern"
 
-let s_expr e =
+module Printer = struct
 	let rec s_expr_inner tabs (e,_) =
 		match e with
 		| EConst c -> s_constant c
@@ -833,7 +833,9 @@ let s_expr e =
 		| (EBlock [],_) -> ""
 		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" "" ""
 		| _ -> s_expr_inner (tabs ^ "\t") e ^ ";"
-	in s_expr_inner "" e
+
+	let s_expr e = s_expr_inner "" e
+end
 
 let get_value_meta meta =
 	try
