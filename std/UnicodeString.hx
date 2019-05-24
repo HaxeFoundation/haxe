@@ -72,7 +72,7 @@ abstract UnicodeString(String) from String to String {
 							return false;
 						}
 						c = (c << 16) | (c2 << 8) | c3;
-						if(0xEDA080 <= c && c <= 0xEDBFBF) { //surrogate pairs
+						if(0xEDA080 <= c && c <= 0xEDAFBF) { //surrogate pairs
 							return false;
 						}
 					} else if(c > 0xF4) {

@@ -67,7 +67,7 @@ UnicodeString.validate(haxe.io.Bytes.ofHex("ed9fbf"), UTF8) == true;
 UnicodeString.validate(haxe.io.Bytes.ofHex("ee8080"), UTF8) == true;
 UnicodeString.validate(haxe.io.Bytes.ofHex("f48fbfbf"), UTF8) == true;
 UnicodeString.validate(haxe.io.Bytes.ofHex("f0a9b8bde381c3ab61"), UTF8) == false;
-UnicodeString.validate(haxe.io.Bytes.ofHex("c0af"), UTF8) == false; // redundant sequence
+UnicodeString.validate(haxe.io.Bytes.ofHex("c0af"), UTF8) == false; // overlong sequence
 UnicodeString.validate(haxe.io.Bytes.ofHex("eda080"), UTF8) == false; // surrogate byte sequence
 UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf"), UTF8) == false; // surrogate byte sequence
 UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080"), UTF8) == false; // U+110000
