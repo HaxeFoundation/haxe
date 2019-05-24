@@ -601,6 +601,9 @@ let rec func ctx bb tf t p =
 		| TLocal _ when not ctx.config.AnalyzerConfig.local_dce ->
 			add_texpr bb e;
 			bb
+		| TField _ when has_side_effect e ->
+			add_texpr bb e;
+			bb
 		(* no-side-effect *)
 		| TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _ | TLocal _ | TIdent _ ->
 			bb
