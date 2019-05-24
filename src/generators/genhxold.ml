@@ -146,7 +146,7 @@ let generate_type com t =
 			| _ ->
 			match pl with
 			| [] -> p "@%s " (Meta.to_string m)
-			| l -> p "@%s(%s) " (Meta.to_string m) (String.concat "," (List.map Ast.s_expr pl))
+			| l -> p "@%s(%s) " (Meta.to_string m) (String.concat "," (List.map Ast.Printer.s_expr pl))
 		) ml
 	in
 	let access is_read a = s_access is_read a in

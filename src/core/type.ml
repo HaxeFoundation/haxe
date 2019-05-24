@@ -1029,7 +1029,7 @@ let rec s_type ctx t =
 		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		(match c.cl_kind with
-		| KExpr e -> Ast.s_expr e
+		| KExpr e -> Ast.Printer.s_expr e
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
@@ -1220,7 +1220,7 @@ let rec s_expr s_type e =
 	| TCast (e,t) ->
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")") (loop e)
 	| TIdent s ->
 		"Ident " ^ s
 	) in
@@ -1291,7 +1291,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")") (loop e)
 	| TIdent s ->
 		s
 
@@ -1377,7 +1377,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		let s = Meta.to_string m in
 		let s = match el with
 			| [] -> s
-			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.s_expr el))
+			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.Printer.s_expr el))
 		in
 		tag "Meta" [s; loop e1]
 	| TIdent s ->
@@ -1436,7 +1436,7 @@ module Printer = struct
 	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
-		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")")
+		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")")
 
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata

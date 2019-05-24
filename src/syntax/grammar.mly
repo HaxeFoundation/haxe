@@ -589,7 +589,7 @@ and parse_type_path2 p0 pack name p1 s =
 			| [< >] -> None,p1
 		) in
 		let params,p2 = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const >] ->
+			| [< '(Binop OpLt,plt); l = psep Comma (parse_type_path_or_const plt) >] ->
 				begin match s with parser
 				| [<'(Binop OpGt,p2) >] -> l,p2
 				| [< >] ->
@@ -612,7 +612,7 @@ and type_name = parser
 			name,p
 	| [< '(Dollar name,p) >] -> "$" ^ name,p
 
-and parse_type_path_or_const = parser
+and parse_type_path_or_const plt = parser
 	(* we can't allow (expr) here *)
 	| [< '(BkOpen,p1); e = parse_array_decl p1 >] -> TPExpr (e)
 	| [< t = parse_complex_type >] -> TPType t
@@ -620,7 +620,15 @@ and parse_type_path_or_const = parser
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
 	| [< e = expr >] -> TPExpr e
-	| [< >] -> if !in_display_file then raise Stream.Failure else serror()
+	| [< s >] ->
+		if !in_display_file then begin
+			if would_skip_display_position plt s then begin
+				let ct = CTPath magic_type_path in
+				TPType (ct,plt)
+			end else
+				raise Stream.Failure
+		end else
+			serror()
 
 and parse_complex_type_next (t : type_hint) s =
 	let make_fun t2 p2 = match t2 with

@@ -289,7 +289,7 @@ module Dump = struct
 				let args el =
 					match el with
 					| [] -> ""
-					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.s_expr e) el)) in
+					| el -> Printf.sprintf "(%s)" (String.concat ", " (List.map (fun e -> Ast.Printer.s_expr e) el)) in
 				match ml with
 				| [] -> ""
 				| ml -> String.concat " " (List.map (fun me -> match me with (m,el,_) -> "@" ^ Meta.to_string m ^ args el) ml) ^ "\n" ^ tabs in

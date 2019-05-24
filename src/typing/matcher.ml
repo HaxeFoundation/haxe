@@ -168,7 +168,7 @@ module Pattern = struct
 		let ctx = pctx.ctx in
 		let p = pos e in
 		let fail () =
-			error ("Unrecognized pattern: " ^ (Ast.s_expr e)) p
+			error ("Unrecognized pattern: " ^ (Ast.Printer.s_expr e)) p
 		in
 		let unify_expected t' =
 			unify ctx t' t p
