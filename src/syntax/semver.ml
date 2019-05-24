@@ -60,7 +60,8 @@ let parse_version s =
 			| [SVNum _ as major] -> (major, SVNum 0, SVNum 0)
 			| _ -> error()
 	in
-	match String.index_opt s '-' with
+	let index = try Some (String.index s '-') with Not_found -> None in
+	match index with
 		(* 1.2.3 *)
 		| None -> (parse_release s), None
 		(* 1.2.3- *)
