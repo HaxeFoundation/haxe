@@ -209,7 +209,12 @@
 	{
 		"name": "HaxeVer",
 		"define": "haxe_ver",
-		"doc": "The current Haxe version value"
+		"doc": "The current Haxe version value as decimal number. E.g. 4.000 for 4.0.0"
+	},
+	{
+		"name": "Haxe",
+		"define": "haxe",
+		"doc": "The current Haxe version value in SemVer format"
 	},
 	{
 		"name": "HxcppApiLevel",

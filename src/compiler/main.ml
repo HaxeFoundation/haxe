@@ -82,7 +82,7 @@ let error ctx msg p =
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
-	"as3";"swc";"macro";"sys";"static";"utf16"
+	"as3";"swc";"macro";"sys";"static";"utf16";"haxe";"haxe_ver"
 	]
 
 let reserved_flag_namespaces = ["target"]
@@ -462,7 +462,7 @@ and usage_string ?(print_cat=true) arg_spec usage =
 and init ctx =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2019 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files...]\n"
-		s_version (if Sys.os_type = "Win32" then ".exe" else "")
+		(s_version true) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
@@ -483,6 +483,7 @@ try
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.raw_define com "haxe4";
+	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
@@ -585,7 +586,7 @@ try
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			message ctx (CMInfo(s_version,null_pos));
+			message ctx (CMInfo(s_version true,null_pos));
 			did_something := true;
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->

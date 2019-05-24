@@ -21,19 +21,16 @@
 	A single version within semver string (e.g major or minor or patch)
 *)
 type version =
-	| SVNone			(* Not specified by user. E.g. no patch in `version("4.0")` *)
 	| SVNum of int
 	| SVStr of string	(* `alpha`, `pre`, `rc` etc. *)
 
 let s_version = function
-	| SVNone -> "SVNone"
 	| SVNum n -> "SVNum " ^ (string_of_int n)
 	| SVStr s -> "SVStr " ^ s
 
 let to_string ((major,minor,patch),pre) =
 	let str v =
 		match v with
-			| SVNone -> "?"
 			| SVNum n -> string_of_int n
 			| SVStr s -> s
 	in
@@ -54,17 +51,17 @@ let parse_version s =
 				try SVNum (int_of_string s)
 				with _ -> SVStr s
 			)
-			(String.split_on_char '.' dotted_str)
+			(ExtString.String.nsplit dotted_str ".")
 	in
 	let parse_release dotted_str =
 		match parse dotted_str with
 			| [SVNum _ as major; SVNum _ as minor; SVNum _ as patch] -> (major, minor, patch)
-			| [SVNum _ as major; SVNum _ as minor] -> (major, minor, SVNone)
-			| [SVNum _ as major] -> (major, SVNone, SVNone)
+			| [SVNum _ as major; SVNum _ as minor] -> (major, minor, SVNum 0)
+			| [SVNum _ as major] -> (major, SVNum 0, SVNum 0)
 			| _ -> error()
 	in
-	let result =
-	match String.index_opt s '-' with
+	let index = try Some (String.index s '-') with Not_found -> None in
+	match index with
 		(* 1.2.3 *)
 		| None -> (parse_release s), None
 		(* 1.2.3- *)
@@ -82,9 +79,6 @@ let parse_version s =
 				parse pre_str
 			in
 			release, Some pre
-		in
-		print_endline (to_string result);
-		result
 
 (**
 	@see https://semver.org/#spec-item-11
@@ -92,8 +86,6 @@ let parse_version s =
 let compare_version a b =
 	let compare_v v1 v2 =
 		match v1,v2 with
-			| SVNone, _ -> 0
-			| _, SVNone -> 0
 			| SVNum n1, SVNum n2 -> compare n1 n2
 			| SVStr s1, SVStr s2 -> compare s1 s2
 			| SVStr _, SVNum _ -> 1
