@@ -148,3 +148,20 @@ StringTools.isEof( -1) == true;
 #else
 StringTools.isEof(0) == true;
 #end
+
+// iterators via @:using
+var s = 'zя𠜎';
+#if !(target.unicode)
+var expectedCodes = [122, 209, 143, 240, 160, 156, 142];
+#elseif utf16
+var expectedCodes = [122, 1103, 55361, 57102];
+#else
+var expectedCodes = [122, 1103, 132878];
+#end
+var expectedKeys = [for(i in 0...expectedCodes.length) i];
+// iterator()
+aeq(expectedCodes, [for(c in s) c], pos);
+// keyValueIterator()
+var keyCodes = [for(i => c in s) [i, c]];
+aeq(expectedKeys, keyCodes.map(a -> a[0]), pos);
+aeq(expectedCodes, keyCodes.map(a -> a[1]), pos);
