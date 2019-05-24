@@ -21,6 +21,8 @@
  */
 
 import php.*;
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
 
 @:coreApi class StringTools {
 
@@ -118,6 +120,28 @@ import php.*;
 		var char:NativeString = (index == 0 ? s : Global.mb_substr(s, index, 1));
 		if(char == '') return 0;
 		return Boot.unsafeOrd(char);
+	}
+
+	/**
+		Returns an iterator of the char codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
+	**/
+	public static inline function iterator( s : String ) : StringIterator {
+		return new StringIterator(s);
+	}
+
+	/**
+		Returns an iterator of the char indexes and codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different of runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
+	**/
+	public static inline function keyValueIterator( s : String ) : StringKeyValueIterator {
+		return new StringKeyValueIterator(s);
 	}
 
 	@:noUsing public static inline function isEof( c : Int ) : Bool {
