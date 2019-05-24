@@ -160,8 +160,8 @@ var expectedCodes = [122, 1103, 132878];
 #end
 var expectedKeys = [for(i in 0...expectedCodes.length) i];
 // iterator()
-aeq(expectedCodes, [for(c in s) c], pos);
+aeq(expectedCodes, [for(c in s) c]);
 // keyValueIterator()
 var keyCodes = [for(i => c in s) [i, c]];
-aeq(expectedKeys, keyCodes.map(a -> a[0]), pos);
-aeq(expectedCodes, keyCodes.map(a -> a[1]), pos);
+aeq(expectedKeys, keyCodes.map(a -> a[0]));
+aeq(expectedCodes, keyCodes.map(a -> a[1]));

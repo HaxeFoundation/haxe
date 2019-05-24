@@ -21,6 +21,7 @@
  */
 import cs.StdTypes;
 
+@:using(StringTools)
 @:coreApi extern class String implements ArrayAccess<Char16> {
 
 	@:overload private static function Compare(s1:String, s2:String):Int;

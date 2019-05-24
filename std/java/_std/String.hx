@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+@:using(StringTools)
 @:coreApi extern class String implements java.lang.CharSequence {
 
 	var length(default,null) : Int;

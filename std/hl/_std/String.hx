@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi
+@:using(StringTools)
 class String {
 
 	var bytes : hl.Bytes;
@@ -52,7 +53,7 @@ class String {
 			return null;
 		return bytes.getUI16(index << 1);
 	}
-	
+
 	inline function findChar(start:Int,len:Int,src:hl.Bytes,srcLen:Int) : Int {
 		var p = 0;
 		while( true ) {
@@ -199,9 +200,9 @@ class String {
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
 		#if (hl_ver >= version("1.10"))
-		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);		
+		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);
 		#else
-		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);		
+		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
 		#end
 		return v == 0 ? length - s.length : v;
 	}

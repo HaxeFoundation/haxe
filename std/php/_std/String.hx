@@ -22,6 +22,7 @@
 
 import php.*;
 
+@:using(StringTools)
 @:coreApi extern class String {
 
 	var length(default,null) : Int;

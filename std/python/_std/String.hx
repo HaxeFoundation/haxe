@@ -24,6 +24,7 @@ import python.internal.StringImpl;
 #end
 @:coreApi
 @:native("str")
+@:using(StringTools)
 extern class String {
 	var length(default,null) : Int;
 
