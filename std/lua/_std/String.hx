@@ -23,8 +23,6 @@
 import lua.Lua;
 import lua.Table;
 import lua.Boot;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
 
 #if lua_vanilla
 	typedef BaseString = lua.NativeStringTools;
@@ -122,14 +120,6 @@ class String {
 	}
 	public inline function charCodeAt( index : Int) : Null<Int> {
 		return BaseString.byte(this,index+1);
-	}
-
-	@:runtime public inline function iterator() : StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:runtime public inline function keyValueIterator() : StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
 	}
 
 	public inline function substr( pos : Int, ?len : Int ) : String {
