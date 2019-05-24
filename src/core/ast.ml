@@ -964,11 +964,12 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,_,eo) -> match eo with
+				List.iter (fun ((n,p),_,cto,eo) ->
+					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
+					match eo with
 					| None -> ()
 					| Some e ->
-						add n;
-						loop' (Printf.sprintf "%s  " tabs) e
+						loop' (Printf.sprintf "%s      " tabs) e
 				) vl
 			| EFunction(so,f) ->
 				add "EFunction";
