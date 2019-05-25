@@ -1685,6 +1685,16 @@ let macro_api ccom get_api =
 			| None -> vnull
 			| Some t -> encode_type t
 		);
+		"local_type_has_meta", vfun1 (fun meta_name ->
+			let meta_name = decode_string meta_name in
+			match (get_api()).get_local_type() with
+			| None -> vbool false
+			| Some t -> match follow t with
+				| TEnum ({ e_meta = meta }, _)
+				| TInst ({ cl_meta = meta }, _)
+				| TAbstract ({ a_meta = meta }, _) -> vbool (Meta.has (Meta.from_string meta_name) meta)
+				| _ -> vbool false
+		);
 		"get_expected_type", vfun0 (fun() ->
 			match (get_api()).get_expected_type() with
 			| None -> vnull

@@ -146,6 +146,13 @@ class Context {
 	}
 
 	/**
+		Check if current type is annotated with specified `meta`.
+	**/
+	public static function localTypeHasMeta(meta:String) : Bool {
+		return load("local_type_has_meta", 0)(meta);
+	}
+
+	/**
 		Returns the name of the method from which the macro was called.
 
 		If no such method exists, `null` is returned.
