@@ -1295,6 +1295,21 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
 
+(**
+	Emit compilation error on `final static function`
+*)
+let reject_final_static_method ctx fctx f =
+	if fctx.is_static && fctx.is_final then
+		let p =
+			try snd (List.find (fun (a,p) -> a = AFinal) f.cff_access)
+			with Not_found ->
+				try match Meta.get Meta.Final f.cff_meta with _, _, p -> p
+				with Not_found ->
+					try snd (List.find (fun (a,p) -> a = AStatic) f.cff_access)
+					with Not_found -> f.cff_pos
+		in
+		ctx.com.error "Static method cannot be final" p
+
 let init_field (ctx,cctx,fctx) f =
 	let c = cctx.tclass in
 	let name = fst f.cff_name in
@@ -1320,6 +1335,7 @@ let init_field (ctx,cctx,fctx) f =
 	| FVar (t,e) ->
 		create_variable (ctx,cctx,fctx) c f t e p
 	| FFun fd ->
+		reject_final_static_method ctx fctx f;
 		create_method (ctx,cctx,fctx) c f fd p
 	| FProp (get,set,t,eo) ->
 		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
