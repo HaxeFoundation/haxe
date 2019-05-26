@@ -1298,8 +1298,8 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 (**
 	Emit compilation error on `final static function`
 *)
-let reject_final_static_method ctx fctx f =
-	if fctx.is_static && fctx.is_final then
+let reject_final_static_method ctx cctx fctx f =
+	if fctx.is_static && fctx.is_final && not cctx.tclass.cl_extern then
 		let p =
 			try snd (List.find (fun (a,p) -> a = AFinal) f.cff_access)
 			with Not_found ->
@@ -1335,7 +1335,7 @@ let init_field (ctx,cctx,fctx) f =
 	| FVar (t,e) ->
 		create_variable (ctx,cctx,fctx) c f t e p
 	| FFun fd ->
-		reject_final_static_method ctx fctx f;
+		reject_final_static_method ctx cctx fctx f;
 		create_method (ctx,cctx,fctx) c f fd p
 	| FProp (get,set,t,eo) ->
 		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
@@ -1414,7 +1414,7 @@ let init_class ctx c p context_init herits fields =
 			begin match fctx.field_kind with
 			| FKConstructor ->
 				begin match c.cl_super with
-				| Some ({ cl_constructor = Some ctor_sup }, _) when has_class_field_flag ctor_sup CfFinal ->
+				| Some ({ cl_extern = false; cl_constructor = Some ctor_sup }, _) when has_class_field_flag ctor_sup CfFinal ->
 					ctx.com.error "Cannot override final constructor" cf.cf_pos
 				| _ -> ()
 				end;
