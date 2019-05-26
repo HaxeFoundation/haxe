@@ -478,6 +478,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		let e2 with_type = type_expr ctx e2 with_type in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
+			error ("Cannot access function " ^ name ^ " for writing") p
 		| AKExpr e1  ->
 			let e2 = e2 (WithType.with_type e1.etype) in
 			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
