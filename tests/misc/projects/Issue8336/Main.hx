@@ -7,7 +7,7 @@ class Main {
 
 	macro static function connect() {
 		try {
-			new sys.net.Socket().connect(new sys.net.Host("192.168.0.66"), 443);
+			new sys.net.Socket().connect(new sys.net.Host("127.0.0.1"), 9999);
 		} catch(e:String) {
 			haxe.macro.Context.error(e, (macro {}).pos);
 		}
