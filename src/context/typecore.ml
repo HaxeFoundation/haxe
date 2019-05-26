@@ -199,7 +199,7 @@ let save_locals ctx =
 
 let add_local ctx k n t p =
 	let v = alloc_var k n t p in
-	if Define.defined ctx.com.defines Define.WarnVarShadowing then begin
+	if Define.defined ctx.com.defines Define.WarnVarShadowing && n <> "_" then begin
 		try
 			let v' = PMap.find n ctx.locals in
 			ctx.com.warning "This variable shadows a previously declared variable" p;
