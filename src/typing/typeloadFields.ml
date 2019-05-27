@@ -1033,7 +1033,10 @@ let create_method (ctx,cctx,fctx) c f fd p =
 		| false,FKConstructor ->
 			if fctx.is_static then error "A constructor must not be static" p;
 			begin match fd.f_type with
-				| None | Some (CTPath { tpackage = []; tname = "Void" },_) -> ()
+				| None -> ()
+				| Some (CTPath ({ tpackage = []; tname = "Void" } as tp),p) ->
+					if ctx.is_display_file && DisplayPosition.display_position#enclosed_in p then
+						ignore(load_instance ~allow_display:true ctx (tp,p) false);
 				| _ -> error "A class constructor can't have a return value" p;
 			end
 		| false,_ ->
