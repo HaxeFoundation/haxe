@@ -1976,7 +1976,7 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		catch_unix_error Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error (Unix.connect this) (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
