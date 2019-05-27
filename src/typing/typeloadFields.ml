@@ -1295,6 +1295,21 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 	bind_var (ctx,cctx,fctx) cf eo;
 	cf
 
+(**
+	Emit compilation error on `final static function`
+*)
+let reject_final_static_method ctx cctx fctx f =
+	if fctx.is_static && fctx.is_final && not cctx.tclass.cl_extern then
+		let p =
+			try snd (List.find (fun (a,p) -> a = AFinal) f.cff_access)
+			with Not_found ->
+				try match Meta.get Meta.Final f.cff_meta with _, _, p -> p
+				with Not_found ->
+					try snd (List.find (fun (a,p) -> a = AStatic) f.cff_access)
+					with Not_found -> f.cff_pos
+		in
+		ctx.com.error "Static method cannot be final" p
+
 let init_field (ctx,cctx,fctx) f =
 	let c = cctx.tclass in
 	let name = fst f.cff_name in
@@ -1320,6 +1335,7 @@ let init_field (ctx,cctx,fctx) f =
 	| FVar (t,e) ->
 		create_variable (ctx,cctx,fctx) c f t e p
 	| FFun fd ->
+		reject_final_static_method ctx cctx fctx f;
 		create_method (ctx,cctx,fctx) c f fd p
 	| FProp (get,set,t,eo) ->
 		create_property (ctx,cctx,fctx) c f (get,set,t,eo) p
@@ -1397,6 +1413,11 @@ let init_class ctx c p context_init herits fields =
 			| Some r -> cf.cf_kind <- Var { v_read = AccRequire (fst r, snd r); v_write = AccRequire (fst r, snd r) });
 			begin match fctx.field_kind with
 			| FKConstructor ->
+				begin match c.cl_super with
+				| Some ({ cl_extern = false; cl_constructor = Some ctor_sup }, _) when has_class_field_flag ctor_sup CfFinal ->
+					ctx.com.error "Cannot override final constructor" cf.cf_pos
+				| _ -> ()
+				end;
 				begin match c.cl_constructor with
 				| None ->
 						c.cl_constructor <- Some cf
