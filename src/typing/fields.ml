@@ -526,7 +526,7 @@ let rec type_field cfg ctx e i p mode =
 				(* getter call *)
 				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
 				let t = field_type getter in
-				let r = match follow t with TFun(_,_) -> follow (field_type f) | _ -> raise Not_found in
+				let r = match follow t with TFun(_,_) -> field_type f | _ -> raise Not_found in
 				let ef = field_expr getter t in
 				AKExpr(make_call ctx ef [e] r p)
 			| MSet, Var {v_write = AccCall } ->
