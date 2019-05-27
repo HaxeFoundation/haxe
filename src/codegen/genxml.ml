@@ -86,7 +86,7 @@ let gen_meta meta =
 	| [] -> []
 	| _ ->
 		let nodes = List.map (fun (m,el,_) ->
-			node "m" ["n",Meta.to_string m] (List.map (fun e -> node "e" [] [gen_string (Ast.s_expr e)]) el)
+			node "m" ["n",Meta.to_string m] (List.map (fun e -> node "e" [] [gen_string (Ast.Printer.s_expr e)]) el)
 		) meta in
 		[node "meta" [] nodes]
 
@@ -107,7 +107,7 @@ let rec gen_type ?(values=None) t =
 					try
 						let e = PMap.find n values in
 						has_value := true;
-						let s = Ast.s_expr e in
+						let s = Ast.Printer.s_expr e in
 						s
 					with Not_found ->
 						""
@@ -142,7 +142,7 @@ and gen_field att f =
 		| Var v ->
 			let att = try
 				begin match Meta.get Meta.Value f.cf_meta with
-					| (_,[e],_) -> ("expr",Ast.s_expr e) :: att
+					| (_,[e],_) -> ("expr",Ast.Printer.s_expr e) :: att
 					| _ -> att
 				end
 			with Not_found ->

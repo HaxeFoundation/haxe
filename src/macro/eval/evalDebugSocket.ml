@@ -85,7 +85,7 @@ let var_to_json name value vio env =
 		| VObject o ->
 			begin try
 				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
-				jv "Expr" (Ast.s_expr e) 2
+				jv "Expr" (Ast.Printer.s_expr e) 2
 			with _ ->
 				let fields = object_fields o in
 				jv "Anonymous" (fields_string fields) (List.length fields)

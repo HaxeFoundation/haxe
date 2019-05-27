@@ -40,7 +40,7 @@ let make_generic ctx ps pt p =
 			let s_type_path_underscore (p,s) = match p with [] -> s | _ -> String.concat "_" p ^ "_" ^ s in
 			let rec loop top t = match follow t with
 				| TInst(c,tl) -> (match c.cl_kind with
-					| KExpr e -> ident_safe (Ast.s_expr e)
+					| KExpr e -> ident_safe (Ast.Printer.s_expr e)
 					| _ -> (ident_safe (s_type_path_underscore c.cl_path)) ^ (loop_tl tl))
 				| TEnum(en,tl) -> (s_type_path_underscore en.e_path) ^ (loop_tl tl)
 				| TAnon(a) -> "anon_" ^ String.concat "_" (PMap.foldi (fun s f acc -> (s ^ "_" ^ (loop false (follow f.cf_type))) :: acc) a.a_fields [])

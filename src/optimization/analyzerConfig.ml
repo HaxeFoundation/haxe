@@ -103,7 +103,7 @@ let update_config_from_meta com config meta =
 							config
 					end
 				| _ ->
-					let s = Ast.s_expr e in
+					let s = Ast.Printer.s_expr e in
 					com.warning (StringError.string_error s all_flags ("Unrecognized analyzer option: " ^ s)) (pos e);
 					config
 			) config el
