@@ -148,7 +148,12 @@ class ArrayObj<T> extends ArrayBase {
 		b.addChar("[".code);
 		for( i in 0...length ) {
 			if( i > 0 ) b.addChar(",".code);
-			b.add(array[i]);
+			try {
+				b.add(array[i]);
+			} catch( e : Dynamic ) {
+				toStringDepth--;
+				throw e;
+			}
 		}
 		b.addChar("]".code);
 		toStringDepth--;
