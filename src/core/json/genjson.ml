@@ -520,7 +520,7 @@ and generate_class_field' ctx cfs cf =
 			in
 			begin match value with
 				| None -> jnull
-				| Some e -> jobject ["string",jstring (Ast.s_expr e)]
+				| Some e -> jobject ["string",jstring (Ast.Printer.s_expr e)]
 			end
 		| GMMinimum ->
 			jnull

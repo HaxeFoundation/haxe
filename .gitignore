@@ -26,6 +26,7 @@
 /haxelib*
 /haxedoc*
 /lib
+/prebuild
 
 /src/syntax/lexer.ml
 /libs/xml-light/xml_lexer.ml

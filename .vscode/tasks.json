@@ -4,7 +4,10 @@
 		{
 			"label": "make: haxe",
 			"type": "shell",
-			"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe",
+			"command": "make ADD_REVISION=1 -s -j haxe",
+			"windows": {
+				"command": "make ADD_REVISION=1 -f Makefile.win -s -j haxe"
+			},
 			"problemMatcher": [],
 			"group": {
 				"kind": "build",
@@ -14,19 +17,28 @@
 		{
 			"label": "make: libs",
 			"type": "shell",
-			"command": "make -f Makefile.win -s -j libs",
+			"command": "make -s -j libs",
+			"windows": {
+				"command": "make -f Makefile.win -s -j libs"
+			},
 			"problemMatcher": []
 		},
 		{
 			"label": "make: haxelib",
 			"type": "shell",
-			"command": "make -f Makefile.win -s haxelib",
+			"command": "make -s haxelib",
+			"windows": {
+				"command": "make -f Makefile.win -s haxelib"
+			},
 			"problemMatcher": ["$haxe", "$haxe-absolute"]
 		},
 		{
 			"label": "make: all",
 			"type": "shell",
-			"command": "make -f Makefile.win -s -j libs && make ADD_REVISION=1 -f Makefile.win -s -j haxe && make -f Makefile.win -s haxelib",
+			"command": "make s -j libs && make ADD_REVISION=1 -s -j haxe && make -s haxelib",
+			"windows": {
+				"command": "make -f Makefile.win -s -j libs && make ADD_REVISION=1 -f Makefile.win -s -j haxe && make -f Makefile.win -s haxelib"
+			},
 			"problemMatcher": ["$haxe", "$haxe-absolute"]
 		},
 		{

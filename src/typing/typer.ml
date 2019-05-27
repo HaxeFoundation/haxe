@@ -478,6 +478,8 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		let e2 with_type = type_expr ctx e2 with_type in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKExpr { eexpr = TLocal { v_kind = VUser TVOLocalFunction; v_name = name } } ->
+			error ("Cannot access function " ^ name ^ " for writing") p
 		| AKExpr e1  ->
 			let e2 = e2 (WithType.with_type e1.etype) in
 			let e2 = AbstractCast.cast_or_unify ctx e1.etype e2 p in
@@ -2275,13 +2277,10 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		let e = if not inline then
 			e
 		else match e with
-			| AKExpr {eexpr = TField(e1,fa)} ->
+			| AKExpr {eexpr = TField(e1,fa); etype = t} ->
 				begin match extract_field fa with
-				| Some cf ->
-					let t = monomorphs cf.cf_params cf.cf_type in
-					AKInline(e1,cf,fa,t)
-				| None ->
-					e
+				| Some cf -> AKInline(e1,cf,fa,t)
+				| None -> e
 				end;
 			| AKUsing(e,c,cf,ef,_) ->
 				AKUsing(e,c,cf,ef,true)
