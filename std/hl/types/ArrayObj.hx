@@ -139,7 +139,11 @@ class ArrayObj<T> extends ArrayBase {
 		return ret;
 	}
 
+	var toStringDepth : Int = 0;
+
 	override function toString() : String {
+		if (toStringDepth >= 5) return "...";
+		toStringDepth++;
 		var b = new StringBuf();
 		b.addChar("[".code);
 		for( i in 0...length ) {
@@ -147,6 +151,7 @@ class ArrayObj<T> extends ArrayBase {
 			b.add(array[i]);
 		}
 		b.addChar("]".code);
+		toStringDepth--;
 		return b.toString();
 	}
 
