@@ -338,7 +338,7 @@ class StringTools {
 		#if cs
 		return untyped s.Trim();
 		#elseif java
-		return untyped s.trim();
+		return (cast s : java.NativeString).trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
