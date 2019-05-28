@@ -27,6 +27,7 @@ private typedef Rand = hl.Abstract<"hl_random">;
 class Std {
 
 	static var rnd : Rand;
+	static var toStringDepth : Int = 0;
 
 	static function __init__() : Void {
 		rnd = rnd_sys();
