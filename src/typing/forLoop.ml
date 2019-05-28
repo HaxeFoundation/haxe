@@ -90,7 +90,7 @@ module IterationKind = struct
 		in
 		e1,pt
 
-	let of_expr_by_array_access ctx e p =
+	let of_texpr_by_array_access ctx e p =
 		match follow e.etype with
 		| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
 			IteratorArrayAccess,e,apply_params c.cl_params pl pt
@@ -131,7 +131,7 @@ module IterationKind = struct
 		let check_iterator () =
 			let array_access_result = ref None in
 			let last_resort () =
-				array_access_result := Some (of_expr_by_array_access ctx e p);
+				array_access_result := Some (of_texpr_by_array_access ctx e p);
 				mk (TConst TNull) t_dynamic p
 			in
 			let e1,pt = check_iterator ~resume ~last_resort ctx "iterator" e p in
