@@ -167,8 +167,7 @@ module IterationKind = struct
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 			IteratorArray,e,pt
-		| _,TAbstract({ a_impl = Some c },_) ->
-			(* if PMap.exists "iterator" c.cl_statics then *)
+		| _,TAbstract({ a_impl = Some c } as a,_) ->
 			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
@@ -180,9 +179,6 @@ module IterationKind = struct
 			with Not_found ->
 				check_iterator ()
 			)
-			(* else
-				check_iterator () *)
-			(* IteratorAbstract(e,a,c,tl) *)
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
