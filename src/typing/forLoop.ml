@@ -144,6 +144,23 @@ module IterationKind = struct
 			print_string "";
 			print_string "";
 		end;
+		let try_forward_array_iterator () =
+			match follow e.etype with
+			| TAbstract ({ a_this = (TInst ({ cl_path = [],"Array" }, [_]) as array_type)} as abstr, params) ->
+				let forwards_iterator =
+					match Meta.get Meta.Forward abstr.a_meta with
+					| (_, [], _) -> true
+					| (_, args, _) ->
+						List.exists (fun (arg,_) -> match arg with EConst (Ident"iterator") -> true | _ -> false ) args
+				in
+				if forwards_iterator then
+					match apply_params abstr.a_params params array_type with
+					| TInst({ cl_path = [],"Array" },[pt]) as t -> IteratorArray,(mk_cast e t e.epos),pt
+					| _ -> raise Not_found
+				else
+					raise Not_found
+			| _ -> raise Not_found
+		in
 		let it,e1,pt = match e.eexpr,follow e.etype with
 		| TNew ({ cl_path = ([],"IntIterator") },[],[efrom;eto]),_ ->
 			let it = match efrom.eexpr,eto.eexpr with
@@ -167,7 +184,7 @@ module IterationKind = struct
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 			IteratorArray,e,pt
-		| _,TAbstract({ a_impl = Some c } as a,_) ->
+		| _,TAbstract({ a_impl = Some c },_) ->
 			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
@@ -177,8 +194,12 @@ module IterationKind = struct
 				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
-				check_iterator ()
+				(try try_forward_array_iterator ()
+				with Not_found -> check_iterator ())
 			)
+		| _, TAbstract _ ->
+			(try try_forward_array_iterator ()
+			with Not_found -> check_iterator ())
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
