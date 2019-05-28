@@ -53,28 +53,97 @@ module IterationKind = struct
 	let get_next_array_element arr iexpr pt p =
 		(mk (TArray (arr,iexpr)) pt p)
 
-	let check_iterator ?(resume=false) ctx s e p =
+	let check_iterator ?(resume=false) ?last_resort ctx s e p =
 		let t,pt = Typeload.t_iterator ctx in
 		let e1 = try
 			AbstractCast.cast_or_unify_raise ctx t e p
 		with Error (Unify _,_) ->
-			let acc = !build_call_ref ctx (type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall) [] WithType.value e.epos in
+			let try_last_resort after =
+				try
+					match last_resort with
+					| Some fn -> fn()
+					| None -> raise Not_found
+				with Not_found ->
+					after()
+			in
+			let try_acc acc =
+				let acc_expr = !build_call_ref ctx acc [] WithType.value e.epos in
+				try
+					unify_raise ctx acc_expr.etype t acc_expr.epos;
+					acc_expr
+				with Error (Unify(l),p) ->
+					try_last_resort (fun () ->
+						if resume then raise Not_found;
+						display_error ctx "Field iterator has an invalid type" acc_expr.epos;
+						display_error ctx (error_msg (Unify l)) p;
+						mk (TConst TNull) t_dynamic p
+					)
+			in
 			try
-				unify_raise ctx acc.etype t acc.epos;
-				acc
-			with Error (Unify(l),p) ->
-				if resume then raise Not_found;
-				display_error ctx "Field iterator has an invalid type" acc.epos;
-				display_error ctx (error_msg (Unify l)) p;
-				mk (TConst TNull) t_dynamic p
+				let acc = type_field ({do_resume = true;allow_resolve = false}) ctx e s e.epos MCall in
+				try_acc acc;
+			with Not_found ->
+				try_last_resort (fun () ->
+					let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
+					try_acc acc
+				)
 		in
 		e1,pt
 
+	let of_expr_by_array_access ctx e p =
+		match follow e.etype with
+		| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
+			IteratorArrayAccess,e,apply_params c.cl_params pl pt
+		| TAbstract({a_impl = Some c} as a,tl) ->
+			let cf_length = PMap.find "get_length" c.cl_statics in
+			let get_length e p =
+				make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
+			in
+			(match follow cf_length.cf_type with
+				| TFun(_,tr) ->
+					(match follow tr with
+						| TAbstract({a_path = [],"Int"},_) -> ()
+						| _ -> raise Not_found
+					)
+				| _ ->
+					raise Not_found
+			);
+			(try
+				(* first try: do we have an @:arrayAccess getter field? *)
+				let todo = mk (TConst TNull) ctx.t.tint p in
+				let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
+				let get_next e_base e_index t p =
+					make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
+				in
+				IteratorCustom(get_next,get_length),e,r
+			with Not_found ->
+				(* second try: do we have @:arrayAccess on the abstract itself? *)
+				if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
+				(* let's allow this only for core-type abstracts *)
+				if not (Meta.has Meta.CoreType a.a_meta) then raise Not_found;
+				(* in which case we assume that a singular type parameter is the element type *)
+				let t = match tl with [t] -> t | _ -> raise Not_found in
+				IteratorCustom(get_next_array_element,get_length),e,t
+			)
+	 	| _ -> raise Not_found
+
 	let of_texpr ?(resume=false) ctx e unroll p =
 		let check_iterator () =
-			let e1,pt = check_iterator ~resume ctx "iterator" e p in
-			(IteratorIterator,e1,pt)
+			let array_access_result = ref None in
+			let last_resort () =
+				array_access_result := Some (of_expr_by_array_access ctx e p);
+				mk (TConst TNull) t_dynamic p
+			in
+			let e1,pt = check_iterator ~resume ~last_resort ctx "iterator" e p in
+			match !array_access_result with
+			| None -> (IteratorIterator,e1,pt)
+			| Some result -> result
 		in
+		if e.epos.pfile = "src/Main.hx" then begin
+			print_string "";
+			print_string "";
+			print_string "";
+		end;
 		let it,e1,pt = match e.eexpr,follow e.etype with
 		| TNew ({ cl_path = ([],"IntIterator") },[],[efrom;eto]),_ ->
 			let it = match efrom.eexpr,eto.eexpr with
@@ -98,41 +167,9 @@ module IterationKind = struct
 		| _,TInst({ cl_path = [],"Array" },[pt])
 		| _,TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 			IteratorArray,e,pt
-		| _,TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
-			IteratorArrayAccess,e,apply_params c.cl_params pl pt
-		| _,TAbstract({a_impl = Some c} as a,tl) ->
-			begin try
-				let cf_length = PMap.find "get_length" c.cl_statics in
-				if PMap.exists "iterator" c.cl_statics then raise Not_found;
-				let get_length e p =
-					make_static_call ctx c cf_length (apply_params a.a_params tl) [e] ctx.com.basic.tint p
-				in
-				begin match follow cf_length.cf_type with
-					| TFun(_,tr) ->
-						begin match follow tr with
-							| TAbstract({a_path = [],"Int"},_) -> ()
-							| _ -> raise Not_found
-						end
-					| _ ->
-						raise Not_found
-				end;
-				begin try
-					(* first try: do we have an @:arrayAccess getter field? *)
-					let todo = mk (TConst TNull) ctx.t.tint p in
-					let cf,_,r,_,_ = AbstractCast.find_array_access_raise ctx a tl todo None p in
-					let get_next e_base e_index t p =
-						make_static_call ctx c cf (apply_params a.a_params tl) [e_base;e_index] r p
-					in
-					IteratorCustom(get_next,get_length),e,r
-				with Not_found ->
-					(* second try: do we have @:arrayAccess on the abstract itself? *)
-					if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
-					(* let's allow this only for core-type abstracts *)
-					if not (Meta.has Meta.CoreType a.a_meta) then raise Not_found;
-					(* in which case we assume that a singular type parameter is the element type *)
-					let t = match tl with [t] -> t | _ -> raise Not_found in
-					IteratorCustom(get_next_array_element,get_length),e,t
-			end with Not_found -> try
+		| _,TAbstract({ a_impl = Some c },_) ->
+			(* if PMap.exists "iterator" c.cl_statics then *)
+			(try
 				let v_tmp = gen_local ctx e.etype e.epos in
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall in
@@ -142,7 +179,9 @@ module IterationKind = struct
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
 			with Not_found ->
 				check_iterator ()
-			end
+			)
+			(* else
+				check_iterator () *)
 			(* IteratorAbstract(e,a,c,tl) *)
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
