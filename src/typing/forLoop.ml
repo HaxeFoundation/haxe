@@ -139,11 +139,6 @@ module IterationKind = struct
 			| None -> (IteratorIterator,e1,pt)
 			| Some result -> result
 		in
-		if e.epos.pfile = "src/Main.hx" then begin
-			print_string "";
-			print_string "";
-			print_string "";
-		end;
 		let try_forward_array_iterator () =
 			match follow e.etype with
 			| TAbstract ({ a_this = (TInst ({ cl_path = [],"Array" }, [_]) as array_type)} as abstr, params) ->
