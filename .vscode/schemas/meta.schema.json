@@ -70,6 +70,15 @@
 						"TAnyField"
 					]
 				}
+			},
+			"manual": {
+				"type": "array",
+				"markdownDescription": "URLs of relevant manual sections.",
+				"minItems": 1,
+				"items": {
+					"type": "string",
+					"format": "uri"
+				}
 			}
 		},
 		"required": [
