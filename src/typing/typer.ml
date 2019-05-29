@@ -472,6 +472,26 @@ let unify_int ctx e k =
 		true
 
 let rec type_binop ctx op e1 e2 is_assign_op with_type p =
+	let type_non_assign_op abstract_overload_only =
+		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
+		   to the individual arguments (issue #2786). *)
+		let wt = match with_type with
+			| WithType.WithType(t,_) ->
+				begin match follow t with
+					| TAbstract(a,_) ->
+						begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
+							| [_] -> with_type
+							| _ -> WithType.value
+						end
+					| _ ->
+						WithType.value
+				end
+			| _ ->
+				WithType.value
+		in
+		let e1 = type_expr ctx e1 wt in
+		type_binop2 ~abstract_overload_only ctx op e1 e2 is_assign_op wt p
+	in
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
@@ -519,7 +539,11 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		error "The operators ||= and &&= are not supported" p
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
-		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKNo s ->
+			(* try abstract operator overloading *)
+			(try type_non_assign_op true
+			with Not_found -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+			)
 		| AKExpr e ->
 			let save = save_locals ctx in
 			let v = gen_local ctx e.etype e.epos in
@@ -656,26 +680,9 @@ let rec type_binop ctx op e1 e2 is_assign_op with_type p =
 		| AKInline _ | AKMacro _ ->
 			assert false)
 	| _ ->
-		(* If the with_type is an abstract which has exactly one applicable @:op method, we can promote it
-		   to the individual arguments (issue #2786). *)
-		let wt = match with_type with
-			| WithType.WithType(t,_) ->
-				begin match follow t with
-					| TAbstract(a,_) ->
-						begin match List.filter (fun (o,_) -> o = OpAssignOp(op) || o == op) a.a_ops with
-							| [_] -> with_type
-							| _ -> WithType.value
-						end
-					| _ ->
-						WithType.value
-				end
-			| _ ->
-				WithType.value
-		in
-		let e1 = type_expr ctx e1 wt in
-		type_binop2 ctx op e1 e2 is_assign_op wt p
+		type_non_assign_op false
 
-and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
+and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 	let with_type = match op with
 		| OpEq | OpNotEq | OpLt | OpLte | OpGt | OpGte -> WithType.with_type e1.etype
 		| _ -> wt
@@ -913,7 +920,7 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 		in
 		(* special case for == and !=: if the second type is a monomorph, assume that we want to unify
 		   it with the first type to preserve comparison semantics. *)
-	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
+		let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 		if is_eq_op then begin match follow e1.etype,follow e2.etype with
 			| TMono _,_ | _,TMono _ ->
 				Type.unify e1.etype e2.etype
@@ -1003,7 +1010,8 @@ and type_binop2 ctx op (e1 : texpr) (e2 : Ast.expr) is_assign_op wt p =
 			| _ -> raise Not_found
 		end
 	with Not_found ->
-		make e1 e2
+		if abstract_overload_only then raise Not_found
+		else make e1 e2
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
