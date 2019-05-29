@@ -30,7 +30,7 @@ package cs;
 	using `@:nativeGen`. This constraint won't have any effect on Haxe code.
 	If used as a real type, the underlying type will be `Dynamic`.
 **/
-abstract CsStruct(Dynamic) from Dynamic {}
+@:coreType abstract CsStruct from Dynamic {}
 
 /**
 	The type argument must be a reference type. This constraint applies also to
@@ -40,7 +40,7 @@ abstract CsStruct(Dynamic) from Dynamic {}
 	using `@:nativeGen`. This constraint won't have any effect on Haxe code.
 	If used as a real type, the underlying type will be `Dynamic`.
 **/
-abstract CsClass(Dynamic) from Dynamic {}
+@:coreType abstract CsClass from Dynamic {}
 
 #if (cs_ver >= "7.3")
 /**
@@ -51,5 +51,5 @@ abstract CsClass(Dynamic) from Dynamic {}
 	using `@:nativeGen`. This constraint won't have any effect on Haxe code.
 	If used as a real type, the underlying type will be `Dynamic`.
 **/
-abstract CsUnmanaged(Dynamic) from Dynamic {}
+@:coreType abstract CsUnmanaged from Dynamic {}
 #end
