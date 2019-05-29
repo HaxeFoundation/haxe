@@ -85,7 +85,8 @@
 		"doc": "Embeds given bitmap data into the class (must extend flash.display.BitmapData).",
 		"platforms": ["flash"],
 		"params": ["Bitmap file path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "BridgeProperties",
@@ -112,7 +113,8 @@
 		"name": "BypassAccessor",
 		"metadata": ":bypassAccessor",
 		"doc": "Do not call property accessor method and access the field directly.",
-		"targets": ["TExpr"]
+		"targets": ["TExpr"],
+		"manual": ["https://haxe.org/manual/class-field-property.html"]
 	},
 	{
 		"name": "Callable",
@@ -139,7 +141,8 @@
 		"name": "Commutative",
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
-		"targets": ["TAbstractField"]
+		"targets": ["TAbstractField"],
+		"manual": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
 	},
 	{
 		"name": "CompilerGenerated",
@@ -281,8 +284,9 @@
 	{
 		"name": "Exhaustive",
 		"metadata": ":exhaustive",
-		"doc": "",
-		"internal": true
+		"doc": "Used internally to mark that a switch is exhaustive.",
+		"internal": true,
+		"manual": ["https://haxe.org/manual/lf-pattern-matching-exhaustiveness.html"]
 	},
 	{
 		"name": "Expose",
@@ -304,7 +308,8 @@
 		"doc": "Includes a given binary file into the target SWF and associates it with the class (must extend flash.utils.ByteArray).",
 		"platforms": ["flash"],
 		"params": ["File path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "FileXml",
@@ -316,8 +321,9 @@
 	{
 		"name": "Final",
 		"metadata": ":final",
-		"doc": "Prevents a class or interface from being extended or a method from being overridden.",
-		"targets": ["TClass", "TClassField"]
+		"doc": "Prevents a class or interface from being extended or a method from being overridden. Deprecated by the keyword final.",
+		"targets": ["TClass", "TClassField"],
+		"manual": ["https://haxe.org/manual/class-field-final.html"]
 	},
 	{
 		"devcomment": "this used to have UsedOn TObjectDecl(_)",
@@ -344,7 +350,8 @@
 		"metadata": ":font",
 		"doc": "Embeds the given TrueType font into the class (must extend flash.text.Font).",
 		"params": ["TTF path", "Range String"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "ForLoopVariable",
@@ -417,7 +424,7 @@
 	{
 		"name": "Hack",
 		"metadata": ":hack",
-		"doc": "Allows extending classes marked as @:final.",
+		"doc": "Allows extending classes marked as @:final. Not guaranteed to work on all targets.",
 		"targets": ["TClass"]
 	},
 	{
@@ -537,7 +544,8 @@
 		"name": "IsVar",
 		"metadata": ":isVar",
 		"doc": "Forces a physical field to be generated for properties that otherwise would not require one.",
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"manual": ["https://haxe.org/manual/class-field-property-rules.html"]
 	},
 	{
 		"name": "JavaCanonical",
@@ -560,7 +568,8 @@
 		"metadata": ":jsRequire",
 		"doc": "Generate JavaScript module require expression for given extern.",
 		"platforms": ["js"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
 		"name": "LuaRequire",
@@ -592,7 +601,8 @@
 		"name": "KeepSub",
 		"metadata": ":keepSub",
 		"doc": "Extends @:keep metadata to all implementing and extending classes.",
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "LibType",
@@ -611,12 +621,14 @@
 	{
 		"name": "Markup",
 		"metadata": ":markup",
-		"doc": "Used as a result of inline XML parsing."
+		"doc": "Used as a result of inline XML parsing.",
+		"manual": ["https://haxe.org/manual/lf-markup.html"]
 	},
 	{
 		"name": "Meta",
 		"metadata": ":meta",
-		"doc": "Internally used to mark a class field as being the metadata field."
+		"doc": "Internally used to mark a class field as being the metadata field.",
+		"internal": true
 	},
 	{
 		"name": "Macro",
@@ -640,7 +652,8 @@
 		"metadata": ":multiReturn",
 		"doc": "Annotates an extern class as the result of multi-return function.",
 		"platforms": ["lua"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-lua-multireturns.html"]
 	},
 	{
 		"name": "MultiType",
@@ -654,7 +667,8 @@
 		"metadata": ":native",
 		"doc": "Rewrites the path of a class or enum during generation.",
 		"params": ["Output type path"],
-		"targets": ["TClass", "TEnum"]
+		"targets": ["TClass", "TEnum"],
+		"manual": ["https://haxe.org/manual/lf-externs.html"]
 	},
 	{
 		"name": "NativeChildren",
@@ -755,20 +769,24 @@
 	{
 		"name": "NoUsing",
 		"metadata": ":noUsing",
-		"doc": "Prevents a field from being used with 'using'.",
-		"targets": ["TClassField"]
+		"doc": "Prevents a field from being used with static extension.",
+		"targets": ["TClassField"],
+		"manual": ["https://haxe.org/manual/lf-static-extension.html"]
 	},
 	{
 		"name": "Ns",
 		"metadata": ":ns",
 		"doc": "Internally used by the SWF generator to handle namespaces.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"internal": true
 	},
 	{
 		"name": "NullSafety",
 		"metadata": ":nullSafety",
-		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument (e.g. `@:nullSafety(Off)`).",
-		"targets": ["TClass", "TClassField", "TExpr"]
+		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
+		"params": ["Off | Loose | Strict"],
+		"targets": ["TClass", "TClassField", "TExpr"],
+		"manual": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
 	{
 		"name": "Objc",
@@ -803,7 +821,8 @@
 		"metadata": ":overload",
 		"doc": "Allows the field to be called with different argument types.",
 		"params": ["Function specification (no expression)"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"manual": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "PhpGlobal",
@@ -838,7 +857,8 @@
 		"metadata": ":pos",
 		"doc": "Sets the position of a reified expression.",
 		"params": ["Position"],
-		"targets": ["TExpr"]
+		"targets": ["TExpr"],
+		"manual": ["https://haxe.org/manual/macro-reification.html"]
 	},
 	{
 		"name": "Public",
@@ -935,7 +955,8 @@
 	{
 		"name": "Runtime",
 		"metadata": ":runtime",
-		"doc": "?"
+		"doc": "",
+		"internal": true
 	},
 	{
 		"name": "RuntimeValue",
@@ -955,7 +976,8 @@
 		"metadata": ":selfCall",
 		"doc": "Translates method calls into calling object directly.",
 		"platforms": ["js", "lua"],
-		"targets": ["TClassField"]
+		"targets": ["TClassField"],
+		"manual": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "Semantics",
@@ -993,7 +1015,8 @@
 		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend flash.media.Sound).",
 		"platforms": ["flash"],
 		"params": ["File path"],
-		"targets": ["TClass"]
+		"targets": ["TClass"],
+		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "SourceFile",
@@ -1135,7 +1158,8 @@
 		"name": "Using",
 		"metadata": ":using",
 		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
-		"targets": ["TClass", "TEnum", "TAbstract"]
+		"targets": ["TClass", "TEnum", "TAbstract"],
+		"manual": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{
 		"name": "Value",

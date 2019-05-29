@@ -50,7 +50,8 @@
 	{
 		"name": "Dce",
 		"define": "dce",
-		"doc": "<mode:std|full|no> Set the dead code elimination mode (default std).",
+		"doc": "Set the dead code elimination mode (default std).",
+		"params": ["mode: std | full | no"],
 		"manual": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -73,7 +74,8 @@
 	{
 		"name": "Display",
 		"define": "display",
-		"doc": "Activated during completion."
+		"doc": "Activated during completion.",
+		"manual": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
 		"name": "DisplayStdin",
@@ -100,7 +102,8 @@
 	{
 		"name": "Dump",
 		"define": "dump",
-		"doc": "<mode:pretty|record|position|legacy> Dump typed AST in dump subdirectory using specified mode or non-prettified default."
+		"doc": "Dump typed AST in dump subdirectory using specified mode or non-prettified default.",
+		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
 		"name": "DumpDependencies",
@@ -128,7 +131,8 @@
 		"name": "EvalCallStackDepth",
 		"define": "eval_call_stack_depth",
 		"doc": "Set maximum call stack depth for eval. Default: 1000.",
-		"platforms": ["eval"]
+		"platforms": ["eval"],
+		"params": ["depth"]
 	},
 	{
 		"name": "EvalDebugger",
@@ -226,13 +230,13 @@
 	},
 	{
 		"name": "HxcppGcGenerational",
-		"define": "HXCPP_GC_GENERATIONAL",
+		"define": "hxcpp_gc_generational",
 		"doc": "Experimental Garbage Collector.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppDebugger",
-		"define": "HXCPP_DEBUGGER",
+		"define": "hxcpp_debugger",
 		"doc": "Include additional information for HXCPP_DEBUGGER.",
 		"platforms": ["cpp"]
 	},
@@ -256,8 +260,9 @@
 	{
 		"name": "JavaVer",
 		"define": "java_ver",
-		"doc": "<version:5-7> Sets the Java version to be targeted.",
-		"platforms": ["java"]
+		"doc": "Sets the Java version to be targeted.",
+		"platforms": ["java"],
+		"params": ["version: 5-7"]
 	},
 	{
 		"name": "JsClassic",
@@ -270,7 +275,8 @@
 		"define": "js_es",
 		"doc": "Generate JS compliant with given ES standard version (default 5).",
 		"platforms": ["js"],
-		"params": ["version number"]
+		"params": ["version number"],
+		"manual": ["https://haxe.org/manual/target-javascript-es6.html"]
 	},
 	{
 		"name": "JsEnumsAsArrays",
@@ -311,7 +317,8 @@
 	{
 		"name": "LoopUnrollMaxCost",
 		"define": "loop_unroll_max_cost",
-		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250)."
+		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250).",
+		"params": ["cost"]
 	},
 	{
 		"name": "LuaJit",
@@ -329,7 +336,8 @@
 		"name": "LuaVer",
 		"define": "lua_ver",
 		"doc": "The lua version to target.",
-		"platforms": ["lua"]
+		"platforms": ["lua"],
+		"params": ["version"]
 	},
 	{
 		"name": "Macro",
@@ -345,14 +353,16 @@
 	{
 		"name": "NetVer",
 		"define": "net_ver",
-		"doc": "<version:20-45> Sets the .NET version to be targeted.",
-		"platforms": ["cs"]
+		"doc": "Sets the .NET version to be targeted.",
+		"platforms": ["cs"],
+		"params": ["version: 20-45"]
 	},
 	{
 		"name": "NetTarget",
 		"define": "net_target",
-		"doc": "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",
-		"platforms": ["cs"]
+		"doc": "Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",
+		"platforms": ["cs"],
+		"params": ["name"]
 	},
 	{
 		"name": "NekoSource",
@@ -452,25 +462,29 @@
 		"name": "PhpPrefix",
 		"define": "php_prefix",
 		"doc": "Root namespace for generated php classes. E.g. if compiled with`-D php-prefix=some.sub`, then all classes will be generated in `\\some\\sub` namespace.",
-		"platforms": ["php"]
+		"platforms": ["php"],
+		"params": ["dot-separated namespace"]
 	},
 	{
 		"name": "PhpLib",
 		"define": "php_lib",
 		"doc": "Select the name for the php lib folder.",
-		"platforms": ["php"]
+		"platforms": ["php"],
+		"params": ["folder name"]
 	},
 	{
 		"name": "PhpFront",
 		"define": "php_front",
-		"doc": "Select the name for the php front file (by default: `index.php`).",
-		"platforms": ["php"]
+		"doc": "Select the name for the php front file (default: `index.php`).",
+		"platforms": ["php"],
+		"params": ["filename"]
 	},
 	{
 		"name": "PythonVersion",
 		"define": "python_version",
 		"doc": "The python version to target (default 3.3).",
-		"platforms": ["python"]
+		"platforms": ["python"],
+		"params": ["version"]
 	},
 	{
 		"name": "RealPosition",
@@ -521,14 +535,16 @@
 	{
 		"name": "SwfCompressLevel",
 		"define": "swf_compress_level",
-		"doc": "<level:1-9> Set the amount of compression for the SWF output.",
-		"platforms": ["flash"]
+		"doc": "Set the amount of compression for the SWF output.",
+		"platforms": ["flash"],
+		"params": ["level: 1-9"]
 	},
 	{
 		"name": "SwfDebugPassword",
 		"define": "swf_debug_password",
 		"doc": "Set a password for debugging.",
-		"platforms": ["flash"]
+		"platforms": ["flash"],
+		"params": ["password"]
 	},
 	{
 		"name": "SwfDirectBlit",
@@ -545,8 +561,9 @@
 	{
 		"name": "SwfMetadata",
 		"define": "swf_metadata",
-		"doc": "<file> Include contents of <file> as metadata in the swf.",
-		"platforms": ["flash"]
+		"doc": "Include contents of <file> as metadata in the swf.",
+		"platforms": ["flash"],
+		"params": ["file"]
 	},
 	{
 		"name": "SwfPreloaderFrame",
@@ -563,8 +580,9 @@
 	{
 		"name": "SwfScriptTimeout",
 		"define": "swf_script_timeout",
-		"doc": "Maximum ActionScript processing time before script stuck dialog box displays (in seconds).",
-		"platforms": ["flash"]
+		"doc": "Maximum ActionScript processing time before script stuck dialog box displays.",
+		"platforms": ["flash"],
+		"params": ["time in seconds"]
 	},
 	{
 		"name": "SwfUseDoAbc",
