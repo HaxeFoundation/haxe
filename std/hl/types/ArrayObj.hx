@@ -139,14 +139,23 @@ class ArrayObj<T> extends ArrayBase {
 		return ret;
 	}
 
+	@:access(Std.toStringDepth)
 	override function toString() : String {
+		if (Std.toStringDepth >= 5) return "...";
+		Std.toStringDepth++;
 		var b = new StringBuf();
 		b.addChar("[".code);
-		for( i in 0...length ) {
-			if( i > 0 ) b.addChar(",".code);
-			b.add(array[i]);
+		try {
+			for( i in 0...length ) {
+				if( i > 0 ) b.addChar(",".code);
+				b.add(array[i]);
+			}
+		} catch( e : Dynamic ) {
+			Std.toStringDepth--;
+			hl.Api.rethrow(e);
 		}
 		b.addChar("]".code);
+		Std.toStringDepth--;
 		return b.toString();
 	}
 
