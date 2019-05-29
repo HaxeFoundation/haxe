@@ -91,10 +91,6 @@ class TestJson extends Test {
 		eq(haxe.format.JsonPrinter.print(Math.NaN), "null");
 		eq(haxe.format.JsonPrinter.print(function() {}), "\"<fun>\"");
 		eq(haxe.format.JsonPrinter.print({a: function() {}, b: 1}), "{\"b\":1}");
-
-		#if php
-		}
-		#end
 	}
 
 	function test3690() {
