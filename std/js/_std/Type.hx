@@ -186,6 +186,7 @@ enum ValueType {
 		a.remove("hx__closures__");
 		a.remove("__name__");
 		a.remove("__interfaces__");
+		a.remove("__isInterface__");
 		a.remove("__properties__");
 		a.remove("__instanceFields__");
 		a.remove("__super__");

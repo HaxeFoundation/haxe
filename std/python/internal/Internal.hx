@@ -96,8 +96,6 @@ class Internal {
 		return macro @:pos(Context.currentPos()) python.Syntax.field($a{args});
 	}
 
-
-
 	macro public static function importAsPrefixed (o:String, x:String) {
 		return macro @:pos(Context.currentPos()) python.Syntax.importAs($v{o}, $v{_prefix + x});
 	}

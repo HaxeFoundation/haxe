@@ -207,7 +207,7 @@ class String {
 	}
 
 	@:keep function __compare( v : Dynamic ) : Int {
-		var s = Std.instance(v, String);
+		var s = Std.downcast(v, String);
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
 		#if (hl_ver >= version("1.10"))
