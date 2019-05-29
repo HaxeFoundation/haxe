@@ -125,7 +125,8 @@ let completion_item_of_expr ctx e =
 			(* end *)
 		| TCall({eexpr = TConst TSuper; etype = t} as e1,_) ->
 			itexpr e1 (* TODO *)
-		| TParenthesis e1 | TMeta(_,e1) | TCast(e1,_) -> loop e1
+		| TCast(e1,_) -> loop {e1 with etype = e.etype}
+		| TParenthesis e1 | TMeta(_,e1) -> loop e1
 		| _ -> itexpr e
 	in
 	loop e

@@ -32,6 +32,11 @@ import php.Syntax;
 		return Boot.is(v, t);
 	}
 
+	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return Boot.is(value, cast c) ? cast value : null;
+	}
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
 	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Boot.is(value, cast c) ? cast value : null;
 	}

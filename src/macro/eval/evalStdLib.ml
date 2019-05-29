@@ -2108,11 +2108,13 @@ module StdStd = struct
 		| _ -> vfalse
 	)
 
-	let instance = vfun2 (fun v t -> match t with
+	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
 			if is v proto.ppath then v else vnull
 		| _ -> vfalse
 	)
+
+	let instance = downcast
 
 	let string = vfun1 (fun v -> match v with
 		| VString _ -> v
@@ -3489,6 +3491,7 @@ let init_standard_library builtins =
 		"shutdown",StdSocket.shutdown;
 	];
 	init_fields builtins ([],"Std") [
+		"downcast",StdStd.downcast;
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';

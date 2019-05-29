@@ -1078,6 +1078,13 @@ let generate_class___name__ ctx c =
 		newline ctx;
 	end
 
+let generate_class___isInterface__ ctx c =
+	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+		let p = s_path ctx c.cl_path in
+		print ctx "%s.__isInterface__ = true" p;
+		newline ctx;
+	end
+
 let generate_class_es3 ctx c =
 	let p = s_path ctx c.cl_path in
 	if ctx.js_flatten then
@@ -1104,6 +1111,7 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
 	if ctx.has_instanceof then
 		(match c.cl_implements with
@@ -1258,6 +1266,7 @@ let generate_class_es6 ctx c =
 	end;
 
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
 	if ctx.has_instanceof then
 		(match c.cl_implements with
