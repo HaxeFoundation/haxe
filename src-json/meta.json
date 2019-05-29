@@ -8,7 +8,7 @@
 	{
 		"name": "Abstract",
 		"metadata": ":abstract",
-		"doc": "Sets the underlying class implementation as 'abstract'.",
+		"doc": "Sets the underlying class implementation as `abstract`.",
 		"platforms": ["java", "cs"]
 	},
 	{
@@ -41,7 +41,7 @@
 	{
 		"name": "Annotation",
 		"metadata": ":annotation",
-		"doc": "Annotation (@interface) definitions on --java-lib imports will be annotated with this metadata. Has no effect on types compiled by Haxe.",
+		"doc": "Annotation (`@interface`) definitions on `--java-lib` imports will be annotated with this metadata. Has no effect on types compiled by Haxe.",
 		"platforms": ["java"],
 		"targets": ["TClass"]
 	},
@@ -67,7 +67,7 @@
 	{
 		"name": "AutoBuild",
 		"metadata": ":autoBuild",
-		"doc": "Extends @:build metadata to all extending and implementing classes.",
+		"doc": "Extends `@:build` metadata to all extending and implementing classes.",
 		"params": ["Build macro call"],
 		"targets": ["TClass"],
 		"links": ["https://haxe.org/manual/macro-auto-build.html"]
@@ -82,7 +82,7 @@
 	{
 		"name": "Bitmap",
 		"metadata": ":bitmap",
-		"doc": "Embeds given bitmap data into the class (must extend flash.display.BitmapData).",
+		"doc": "Embeds given bitmap data into the class (must extend `flash.display.BitmapData`).",
 		"platforms": ["flash"],
 		"params": ["Bitmap file path"],
 		"targets": ["TClass"],
@@ -106,7 +106,7 @@
 	{
 		"name": "BuildXml",
 		"metadata": ":buildXml",
-		"doc": "Specify xml data to be injected into Build.xml.",
+		"doc": "Specify XML data to be injected into `Build.xml`.",
 		"platforms": ["cpp"]
 	},
 	{
@@ -159,7 +159,7 @@
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core api class (forces API check).",
+		"doc": "Identifies this class as a core API class (forces API check).",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
@@ -190,7 +190,7 @@
 	{
 		"name": "CsNative",
 		"metadata": ":csNative",
-		"doc": "Automatically added by --net-lib on classes generated from .NET DLL files.",
+		"doc": "Automatically added by `--net-lib` on classes generated from .NET DLL files.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
@@ -198,14 +198,14 @@
 	{
 		"name": "Dce",
 		"metadata": ":dce",
-		"doc": "Forces dead code elimination even when --dce full is not specified.",
+		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
 		"targets": ["TClass", "TEnum"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Debug",
 		"metadata": ":debug",
-		"doc": "Forces debug information to be generated into the SWF even without --debug.",
+		"doc": "Forces debug information to be generated into the SWF even without `--debug`.",
 		"platforms": ["flash"],
 		"targets": ["TClass", "TClassField"]
 	},
@@ -225,7 +225,7 @@
 	{
 		"name": "Delegate",
 		"metadata": ":delegate",
-		"doc": "Automatically added by --net-lib on delegates.",
+		"doc": "Automatically added by `--net-lib` on delegates.",
 		"platforms": ["cs"],
 		"targets": ["TAbstract"]
 	},
@@ -277,7 +277,7 @@
 	{
 		"name": "Event",
 		"metadata": ":event",
-		"doc": "Automatically added by --net-lib on events. Has no effect on types compiled by Haxe.",
+		"doc": "Automatically added by `--net-lib` on events. Has no effect on types compiled by Haxe.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
@@ -291,9 +291,9 @@
 	{
 		"name": "Expose",
 		"metadata": ":expose",
-		"doc": "Includes the class or field in Haxe exports.",
+		"doc": "Includes the class or field in Haxe exports (default name is the classpath).",
 		"platforms": ["js", "lua"],
-		"params": ["?Name=Class path"],
+		"params": ["name"],
 		"links": ["https://haxe.org/manual/target-javascript-expose.html"]
 	},
 	{
@@ -305,7 +305,7 @@
 	{
 		"name": "File",
 		"metadata": ":file",
-		"doc": "Includes a given binary file into the target SWF and associates it with the class (must extend flash.utils.ByteArray).",
+		"doc": "Includes a given binary file into the target SWF and associates it with the class (must extend `flash.utils.ByteArray`).",
 		"platforms": ["flash"],
 		"params": ["File path"],
 		"targets": ["TClass"],
@@ -314,14 +314,14 @@
 	{
 		"name": "FileXml",
 		"metadata": ":fileXml",
-		"doc": "Include xml attribute snippet in Build.xml entry for file.",
+		"doc": "Include a given XML attribute snippet in the `Build.xml` entry for the file.",
 		"platforms": ["cpp"],
 		"targets": ["TClass"]
 	},
 	{
 		"name": "Final",
 		"metadata": ":final",
-		"doc": "Prevents a class or interface from being extended or a method from being overridden. Deprecated by the keyword final.",
+		"doc": "Prevents a class or interface from being extended or a method from being overridden. Deprecated by the keyword `final`.",
 		"targets": ["TClass", "TClassField"],
 		"links": ["https://haxe.org/manual/class-field-final.html"]
 	},
@@ -348,7 +348,7 @@
 	{
 		"name": "Font",
 		"metadata": ":font",
-		"doc": "Embeds the given TrueType font into the class (must extend flash.text.Font).",
+		"doc": "Embeds the given TrueType font into the class (must extend `flash.text.Font`).",
 		"params": ["TTF path", "Range String"],
 		"targets": ["TClass"],
 		"links": ["https://haxe.org/manual/target-flash-resources.html"]
@@ -409,7 +409,7 @@
 	{
 		"name": "GenericInstance",
 		"metadata": ":genericInstance",
-		"doc": "Internally used to mark instances of @:generic methods.",
+		"doc": "Internally used to mark instances of `@:generic` methods.",
 		"targets": ["TClassField"],
 		"internal": true
 	},
@@ -424,7 +424,7 @@
 	{
 		"name": "Hack",
 		"metadata": ":hack",
-		"doc": "Allows extending classes marked as @:final. Not guaranteed to work on all targets.",
+		"doc": "Allows extending classes marked as `@:final`. Not guaranteed to work on all targets.",
 		"targets": ["TClass"]
 	},
 	{
@@ -468,7 +468,7 @@
 	{
 		"name": "HlNative",
 		"metadata": ":hlNative",
-		"doc": "Specifies hdll name and function prefix for native functions.",
+		"doc": "Specifies `hdll` name and function prefix for native functions.",
 		"platforms": ["hl"],
 		"targets": ["TClass", "TClassField"]
 	},
@@ -558,7 +558,7 @@
 	{
 		"name": "JavaNative",
 		"metadata": ":javaNative",
-		"doc": "Automatically added by --java-lib on classes generated from JAR/class files.",
+		"doc": "Automatically added by `--java-lib` on classes generated from JAR/class files.",
 		"platforms": ["java"],
 		"targets": ["TClass", "TEnum"],
 		"internal": true
@@ -600,14 +600,14 @@
 	{
 		"name": "KeepSub",
 		"metadata": ":keepSub",
-		"doc": "Extends @:keep metadata to all implementing and extending classes.",
+		"doc": "Extends `@:keep` metadata to all implementing and extending classes.",
 		"targets": ["TClass"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "LibType",
 		"metadata": ":libType",
-		"doc": "Used by --net-lib and --java-lib to mark a class that should not be checked (overrides, interfaces, etc) by the type loader.",
+		"doc": "Used by `--net-lib` and `--java-lib` to mark a class that should not be checked (overrides, interfaces, etc) by the type loader.",
 		"platforms": ["java", "cs"],
 		"targets": ["TClass"],
 		"internal": true
@@ -658,7 +658,7 @@
 	{
 		"name": "MultiType",
 		"metadata": ":multiType",
-		"doc": "Specifies that an abstract chooses its this-type from its @:to functions.",
+		"doc": "Specifies that an abstract chooses its this-type from its `@:to` functions.",
 		"params": ["Relevant type parameters"],
 		"targets": ["TAbstract"]
 	},
@@ -714,7 +714,7 @@
 	{
 		"name": "NoDebug",
 		"metadata": ":noDebug",
-		"doc": "Does not generate debug information even if --debug is set.",
+		"doc": "Does not generate debug information even if `--debug` is set.",
 		"platforms": ["flash", "cpp"],
 		"targets": ["TClass", "TClassField"]
 	},
@@ -732,7 +732,7 @@
 	{
 		"name": "NoImportGlobal",
 		"metadata": ":noImportGlobal",
-		"doc": "Prevents a static field from being imported with import Class.*.",
+		"doc": "Prevents a static field from being imported with `import Class.*`.",
 		"targets": ["TAnyField"]
 	},
 	{
@@ -909,14 +909,14 @@
 	{
 		"name": "ReadOnly",
 		"metadata": ":readOnly",
-		"doc": "Generates a field with the 'readonly' native keyword.",
+		"doc": "Generates a field with the `readonly` native keyword.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
 	{
 		"name": "RealPath",
 		"metadata": ":realPath",
-		"doc": "Internally used on @:native types to retain original path information.",
+		"doc": "Internally used on `@:native` types to retain original path information.",
 		"internal": true
 	},
 	{
@@ -997,7 +997,7 @@
 	{
 		"name": "SkipCtor",
 		"metadata": ":skipCtor",
-		"doc": "Used internally to generate a constructor as if it were a native type (no __hx_ctor).",
+		"doc": "Used internally to generate a constructor as if it were a native type (no `__hx_ctor`).",
 		"platforms": ["java", "cs"],
 		"internal": true
 	},
@@ -1012,7 +1012,7 @@
 	{
 		"name": "Sound",
 		"metadata": ":sound",
-		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend flash.media.Sound).",
+		"doc": "Includes a given .wav or .mp3 file into the target SWF and associates it with the class (must extend `flash.media.Sound`).",
 		"platforms": ["flash"],
 		"params": ["File path"],
 		"targets": ["TClass"],
@@ -1058,7 +1058,7 @@
 	{
 		"name": "StructAccess",
 		"metadata": ":structAccess",
-		"doc": "Marks an extern class as using struct access('.') not pointer('->').",
+		"doc": "Marks an extern class as using struct access (`.`) not pointer (`->`).",
 		"platforms": ["cpp"],
 		"targets": ["TClass"]
 	},
@@ -1071,7 +1071,7 @@
 	{
 		"name": "SuppressWarnings",
 		"metadata": ":suppressWarnings",
-		"doc": "Adds a SuppressWarnings annotation for the generated Java class.",
+		"doc": "Adds a `SuppressWarnings` annotation for the generated Java class.",
 		"platforms": ["java"],
 		"targets": ["TClass"]
 	},
@@ -1085,7 +1085,7 @@
 	{
 		"name": "Throws",
 		"metadata": ":throws",
-		"doc": "Adds a 'throws' declaration to the generated function.",
+		"doc": "Adds a `throws` declaration to the generated function.",
 		"platforms": ["java"],
 		"params": ["Type as String"],
 		"targets": ["TClassField"]
@@ -1093,7 +1093,7 @@
 	{
 		"name": "This",
 		"metadata": ":this",
-		"doc": "Internally used to pass a 'this' expression to macros.",
+		"doc": "Internally used to pass a `this` expression to macros.",
 		"targets": ["TExpr"],
 		"internal": true
 	},
@@ -1113,7 +1113,7 @@
 	{
 		"name": "Transient",
 		"metadata": ":transient",
-		"doc": "Adds the 'transient' flag to the class field.",
+		"doc": "Adds the `transient` flag to the class field.",
 		"platforms": ["java"],
 		"targets": ["TClassField"]
 	},
@@ -1132,7 +1132,7 @@
 	{
 		"name": "UnifyMinDynamic",
 		"metadata": ":unifyMinDynamic",
-		"doc": "Allows a collection of types to unify to Dynamic.",
+		"doc": "Allows a collection of types to unify to `Dynamic`.",
 		"targets": ["TClassField"]
 	},
 	{
@@ -1144,7 +1144,7 @@
 	{
 		"name": "Unsafe",
 		"metadata": ":unsafe",
-		"doc": "Declares a class, or a method with the C#'s 'unsafe' flag.",
+		"doc": "Declares a class, or a method with the C#'s `unsafe` flag.",
 		"platforms": ["cs"],
 		"targets": ["TClass", "TClassField"]
 	},
@@ -1170,7 +1170,7 @@
 	{
 		"name": "Void",
 		"metadata": ":void",
-		"doc": "Use Cpp native 'void' return type.",
+		"doc": "Use Cpp native `void` return type.",
 		"platforms": ["cpp"]
 	}
 ]

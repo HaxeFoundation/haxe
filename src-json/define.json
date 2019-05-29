@@ -24,17 +24,17 @@
 	{
 		"name": "CheckXmlProxy",
 		"define": "check_xml_proxy",
-		"doc": "Check the used fields of the xml proxy."
+		"doc": "Check the used fields of the XML proxy."
 	},
 	{
 		"name": "CoreApi",
 		"define": "core_api",
-		"doc": "Defined in the core api context."
+		"doc": "Defined in the core API context."
 	},
 	{
 		"name": "CoreApiSerialize",
 		"define": "core_api_serialize",
-		"doc": "Mark some generated core api classes with the Serializable attribute on C#.",
+		"doc": "Mark some generated core API classes with the `Serializable` attribute on C#.",
 		"platforms": ["cs"]
 	},
 	{
@@ -50,7 +50,7 @@
 	{
 		"name": "Dce",
 		"define": "dce",
-		"doc": "Set the dead code elimination mode (default std).",
+		"doc": "Set the dead code elimination mode. (default: std)",
 		"params": ["mode: std | full | no"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
@@ -68,7 +68,7 @@
 	{
 		"name": "DisableUnicodeStrings",
 		"define": "disable_unicode_strings",
-		"doc": "Disable unicode support in String type on some platforms.",
+		"doc": "Disable Unicode support in `String` type.",
 		"platforms": ["cpp"]
 	},
 	{
@@ -80,7 +80,7 @@
 	{
 		"name": "DisplayStdin",
 		"define": "display_stdin",
-		"doc": "Read the contents of a file specified in --display from standard input."
+		"doc": "Read the contents of a file specified in `--display` from standard input."
 	},
 	{
 		"name": "DllExport",
@@ -91,7 +91,7 @@
 	{
 		"name": "DllImport",
 		"define": "dll_import",
-		"doc": "Handle Haxe-generated .NET dll imports.",
+		"doc": "Handle Haxe-generated .NET DLL imports.",
 		"platforms": ["cs"]
 	},
 	{
@@ -130,14 +130,14 @@
 	{
 		"name": "EvalCallStackDepth",
 		"define": "eval_call_stack_depth",
-		"doc": "Set maximum call stack depth for eval. Default: 1000.",
+		"doc": "Set maximum call stack depth for eval. (default: 1000)",
 		"platforms": ["eval"],
 		"params": ["depth"]
 	},
 	{
 		"name": "EvalDebugger",
 		"define": "eval_debugger",
-		"doc": "Support debugger in macro/interp mode. Allows host:port value to open a socket. Implies eval_stack.",
+		"doc": "Support debugger in macro/interp mode. Allows `host:port` value to open a socket. Implies eval_stack.",
 		"platforms": ["eval"]
 	},
 	{
@@ -186,13 +186,13 @@
 		"devcomment": "force_lib_check is only here as a debug facility - compiler checking allows errors to be found more easily",
 		"name": "ForceLibCheck",
 		"define": "force_lib_check",
-		"doc": "Force the compiler to check -net-lib and -java-lib added classes (internal).",
+		"doc": "Force the compiler to check `--net-lib` and `–-java-lib` added classes (internal).",
 		"platforms": ["cs", "java"]
 	},
 	{
 		"name": "ForceNativeProperty",
 		"define": "force_native_property",
-		"doc": "Tag all properties with :nativeProperty metadata for 3.1 compatibility.",
+		"doc": "Tag all properties with `:nativeProperty` metadata for 3.1 compatibility.",
 		"platforms": ["cpp"]
 	},
 	{
@@ -209,13 +209,13 @@
 	{
 		"name": "HaxeBoot",
 		"define": "haxe_boot",
-		"doc": "Given the name 'haxe' to the flash boot class instead of a generated name.",
+		"doc": "Give the name 'haxe' to the flash boot class instead of a generated name.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "HaxeVer",
 		"define": "haxe_ver",
-		"doc": "The current Haxe version value as decimal number. E.g. 4.000 for 4.0.0."
+		"doc": "The current Haxe version value as decimal number. E.g. 3.407 for 3.4.7."
 	},
 	{
 		"name": "Haxe",
@@ -237,25 +237,25 @@
 	{
 		"name": "HxcppDebugger",
 		"define": "hxcpp_debugger",
-		"doc": "Include additional information for HXCPP_DEBUGGER.",
+		"doc": "Include additional information for hxcpp_debugger.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "HxcppSmartStings",
 		"define": "hxcpp_smart_strings",
-		"doc": "Use wide strings in hxcpp (Turned on by default unless `-D disable_unicode_strings` is specified).",
+		"doc": "Use wide strings in hxcpp. (Turned on by default unless `-D disable_unicode_strings` is specified.)",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "IncludePrefix",
 		"define": "include_prefix",
-		"doc": "prepend path to generated include files.",
+		"doc": "Prepend path to generated include files.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "Interp",
 		"define": "interp",
-		"doc": "The code is compiled to be run with --interp."
+		"doc": "The code is compiled to be run with `--interp`."
 	},
 	{
 		"name": "JavaVer",
@@ -273,7 +273,7 @@
 	{
 		"name": "JsEs",
 		"define": "js_es",
-		"doc": "Generate JS compliant with given ES standard version (default 5).",
+		"doc": "Generate JS compliant with given ES standard version. (default: 5)",
 		"platforms": ["js"],
 		"params": ["version number"],
 		"links": ["https://haxe.org/manual/target-javascript-es6.html"]
@@ -305,7 +305,7 @@
 	{
 		"name": "SourceMap",
 		"define": "source_map",
-		"doc": "Generate source map for compiled files (Currently supported for php only).",
+		"doc": "Generate source map for compiled files.",
 		"platforms": ["php"]
 	},
 	{
@@ -317,7 +317,7 @@
 	{
 		"name": "LoopUnrollMaxCost",
 		"define": "loop_unroll_max_cost",
-		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled (default 250).",
+		"doc": "Maximum cost (number of expressions * iterations) before loop unrolling is canceled. (default: 250)",
 		"params": ["cost"]
 	},
 	{
@@ -348,7 +348,7 @@
 	{
 		"name": "MacroTimes",
 		"define": "macro_times",
-		"doc": "Display per-macro timing when used with --times."
+		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
 		"name": "NetVer",
@@ -360,7 +360,7 @@
 	{
 		"name": "NetTarget",
 		"define": "net_target",
-		"doc": "Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",
+		"doc": "Sets the .NET target. `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
 		"platforms": ["cs"],
 		"params": ["name"]
 	},
@@ -401,12 +401,12 @@
 	{
 		"name": "NoDeprecationWarnings",
 		"define": "no-deprecation-warnings",
-		"doc": "Do not warn if fields annotated with @:deprecated are used."
+		"doc": "Do not warn if fields annotated with `@:deprecated` are used."
 	},
 	{
 		"name": "NoFlashOverride",
 		"define": "no-flash-override",
-		"doc": "Change overrides on some basic classes into HX suffixed methods, flash only.",
+		"doc": "Change overrides on some basic classes into HX suffixed methods",
 		"platforms": ["flash"]
 	},
 	{
@@ -423,7 +423,7 @@
 	{
 		"name": "NoRoot",
 		"define": "no_root",
-		"doc": "Generate top-level types into haxe.root namespace.",
+		"doc": "Generate top-level types into the `haxe.root` namespace.",
 		"platforms": ["cs"]
 	},
 	{
@@ -445,13 +445,13 @@
 	{
 		"name": "Objc",
 		"define": "objc",
-		"doc": "Sets the hxcpp output to objective-c++ classes. Must be defined for interop.",
+		"doc": "Sets the hxcpp output to Objective-C++ classes. Must be defined for interop.",
 		"platforms": ["cpp"]
 	},
 	{
 		"name": "OldConstructorInline",
 		"define": "old-constructor-inline",
-		"doc": "Use old constructor inlining logic (from haxe 3.4.2) instead of the reworked version."
+		"doc": "Use old constructor inlining logic (from Haxe 3.4.2) instead of the reworked version."
 	},
 	{
 		"name": "OldErrorFormat",
@@ -475,14 +475,14 @@
 	{
 		"name": "PhpFront",
 		"define": "php_front",
-		"doc": "Select the name for the php front file (default: `index.php`).",
+		"doc": "Select the name for the php front file. (default: `index.php`)",
 		"platforms": ["php"],
 		"params": ["filename"]
 	},
 	{
 		"name": "PythonVersion",
 		"define": "python_version",
-		"doc": "The python version to target (default 3.3).",
+		"doc": "The python version to target. (default: 3.3)",
 		"platforms": ["python"],
 		"params": ["version"]
 	},
@@ -518,7 +518,7 @@
 	{
 		"name": "SourceMapContent",
 		"define": "source-map-content",
-		"doc": "Include the hx sources as part of the JS source map.",
+		"doc": "Include the Haxe sources as part of the JS source map.",
 		"platforms": ["js"]
 	},
 	{
@@ -561,20 +561,20 @@
 	{
 		"name": "SwfMetadata",
 		"define": "swf_metadata",
-		"doc": "Include contents of <file> as metadata in the swf.",
+		"doc": "Include contents of the given file as metadata in the SWF.",
 		"platforms": ["flash"],
 		"params": ["file"]
 	},
 	{
 		"name": "SwfPreloaderFrame",
 		"define": "swf_preloader_frame",
-		"doc": "Insert empty first frame in swf.",
+		"doc": "Insert empty first frame in SWF.",
 		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfProtected",
 		"define": "swf_protected",
-		"doc": "Compile Haxe private as protected in the SWF instead of public.",
+		"doc": "Compile Haxe `private` as `protected` in the SWF instead of `public`.",
 		"platforms": ["flash"]
 	},
 	{
@@ -587,7 +587,7 @@
 	{
 		"name": "SwfUseDoAbc",
 		"define": "swf_use_doabc",
-		"doc": "Use DoAbc swf-tag instead of DoAbcDefine.",
+		"doc": "Use `DoAbc` SWF-tag instead of `DoAbcDefine`.",
 		"platforms": ["flash"]
 	},
 	{
@@ -604,13 +604,13 @@
 	{
 		"name": "UseNekoc",
 		"define": "use_nekoc",
-		"doc": "Use nekoc compiler instead of internal one.",
+		"doc": "Use `nekoc` compiler instead of the internal one.",
 		"platforms": ["neko"]
 	},
 	{
 		"name": "Utf16",
 		"define": "utf16",
-		"doc": "Defined for all platforms that have utf16 encoding with ucs2 api."
+		"doc": "Defined for all platforms that use UTF-16 string encoding with UCS-2 API."
 	},
 	{
 		"name": "Vcproj",
