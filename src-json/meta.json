@@ -17,7 +17,7 @@
 		"doc": "Forces private access to package, type or field.",
 		"params": ["Target path"],
 		"targets": ["TClass", "TClassField"],
-		"manual": ["https://haxe.org/manual/lf-access-control.html"]
+		"links": ["https://haxe.org/manual/lf-access-control.html"]
 	},
 	{
 		"name": "Accessor",
@@ -31,7 +31,7 @@
 		"metadata": ":allow",
 		"doc": "Allows private access from package, type or field.",
 		"params": ["Target path"],
-		"manual": ["https://haxe.org/manual/lf-access-control.html"]
+		"links": ["https://haxe.org/manual/lf-access-control.html"]
 	},
 	{
 		"name": "Analyzer",
@@ -50,7 +50,7 @@
 		"metadata": ":arrayAccess",
 		"doc": "Allows array access on an abstract.",
 		"targets": ["TAbstract", "TAbstractField"],
-		"manual": ["https://haxe.org/manual/types-abstract-array-access.html"]
+		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
 	},
 	{
 		"name": "Ast",
@@ -70,7 +70,7 @@
 		"doc": "Extends @:build metadata to all extending and implementing classes.",
 		"params": ["Build macro call"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/macro-auto-build.html"]
+		"links": ["https://haxe.org/manual/macro-auto-build.html"]
 	},
 	{
 		"name": "Bind",
@@ -86,7 +86,7 @@
 		"platforms": ["flash"],
 		"params": ["Bitmap file path"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "BridgeProperties",
@@ -101,7 +101,7 @@
 		"doc": "Builds a class or enum from a macro.",
 		"params": ["Build macro call"],
 		"targets": ["TClass", "TEnum"],
-		"manual": ["https://haxe.org/manual/macro-type-building.html"]
+		"links": ["https://haxe.org/manual/macro-type-building.html"]
 	},
 	{
 		"name": "BuildXml",
@@ -114,7 +114,7 @@
 		"metadata": ":bypassAccessor",
 		"doc": "Do not call property accessor method and access the field directly.",
 		"targets": ["TExpr"],
-		"manual": ["https://haxe.org/manual/class-field-property.html"]
+		"links": ["https://haxe.org/manual/class-field-property.html"]
 	},
 	{
 		"name": "Callable",
@@ -142,7 +142,7 @@
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
 		"targets": ["TAbstractField"],
-		"manual": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
+		"links": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
 	},
 	{
 		"name": "CompilerGenerated",
@@ -167,7 +167,7 @@
 		"metadata": ":coreType",
 		"doc": "Identifies an abstract as core type so that it requires no implementation.",
 		"targets": ["TAbstract"],
-		"manual": ["https://haxe.org/manual/types-abstract-core-type.html"]
+		"links": ["https://haxe.org/manual/types-abstract-core-type.html"]
 	},
 	{
 		"name": "CppFileCode",
@@ -200,7 +200,7 @@
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when --dce full is not specified.",
 		"targets": ["TClass", "TEnum"],
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Debug",
@@ -265,7 +265,7 @@
 		"metadata": ":enum",
 		"doc": "Defines finite value sets to abstract definitions.",
 		"targets": ["TAbstract"],
-		"manual": ["https://haxe.org/manual/types-abstract-enum.html"]
+		"links": ["https://haxe.org/manual/types-abstract-enum.html"]
 	},
 	{
 		"name": "EnumConstructorParam",
@@ -286,7 +286,7 @@
 		"metadata": ":exhaustive",
 		"doc": "Used internally to mark that a switch is exhaustive.",
 		"internal": true,
-		"manual": ["https://haxe.org/manual/lf-pattern-matching-exhaustiveness.html"]
+		"links": ["https://haxe.org/manual/lf-pattern-matching-exhaustiveness.html"]
 	},
 	{
 		"name": "Expose",
@@ -294,7 +294,7 @@
 		"doc": "Includes the class or field in Haxe exports.",
 		"platforms": ["js", "lua"],
 		"params": ["?Name=Class path"],
-		"manual": ["https://haxe.org/manual/target-javascript-expose.html"]
+		"links": ["https://haxe.org/manual/target-javascript-expose.html"]
 	},
 	{
 		"name": "Extern",
@@ -309,7 +309,7 @@
 		"platforms": ["flash"],
 		"params": ["File path"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "FileXml",
@@ -323,7 +323,7 @@
 		"metadata": ":final",
 		"doc": "Prevents a class or interface from being extended or a method from being overridden. Deprecated by the keyword final.",
 		"targets": ["TClass", "TClassField"],
-		"manual": ["https://haxe.org/manual/class-field-final.html"]
+		"links": ["https://haxe.org/manual/class-field-final.html"]
 	},
 	{
 		"devcomment": "this used to have UsedOn TObjectDecl(_)",
@@ -351,7 +351,7 @@
 		"doc": "Embeds the given TrueType font into the class (must extend flash.text.Font).",
 		"params": ["TTF path", "Range String"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "ForLoopVariable",
@@ -365,7 +365,7 @@
 		"doc": "Forwards field access to underlying type.",
 		"params": ["List of field names"],
 		"targets": ["TAbstract"],
-		"manual": ["https://haxe.org/manual/types-abstract-forward.html"]
+		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
 		"name": "ForwardStatics",
@@ -373,14 +373,14 @@
 		"doc": "Forwards static field access to underlying type.",
 		"params": ["List of field names"],
 		"targets": ["TAbstract"],
-		"manual": ["https://haxe.org/manual/types-abstract-forward.html"]
+		"links": ["https://haxe.org/manual/types-abstract-forward.html"]
 	},
 	{
 		"name": "From",
 		"metadata": ":from",
 		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
 		"targets": ["TAbstractField"],
-		"manual": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
+		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
 		"name": "FunctionCode",
@@ -398,7 +398,7 @@
 		"name": "Generic",
 		"metadata": ":generic",
 		"doc": "Marks a class or class field as generic so each type parameter combination generates its own type/field.",
-		"manual": ["https://haxe.org/manual/type-system-generic.html"]
+		"links": ["https://haxe.org/manual/type-system-generic.html"]
 	},
 	{
 		"name": "GenericBuild",
@@ -485,7 +485,7 @@
 		"doc": "Causes a field to be kept by DCE if the given feature is part of the compilation.",
 		"params": ["Feature name"],
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Impl",
@@ -545,7 +545,7 @@
 		"metadata": ":isVar",
 		"doc": "Forces a physical field to be generated for properties that otherwise would not require one.",
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/class-field-property-rules.html"]
+		"links": ["https://haxe.org/manual/class-field-property-rules.html"]
 	},
 	{
 		"name": "JavaCanonical",
@@ -569,7 +569,7 @@
 		"doc": "Generate JavaScript module require expression for given extern.",
 		"platforms": ["js"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-javascript-require.html"]
+		"links": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
 		"name": "LuaRequire",
@@ -588,21 +588,21 @@
 		"name": "Keep",
 		"metadata": ":keep",
 		"doc": "Causes a field or type to be kept by DCE.",
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "KeepInit",
 		"metadata": ":keepInit",
 		"doc": "Causes a class to be kept by DCE even if all its field are removed.",
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "KeepSub",
 		"metadata": ":keepSub",
 		"doc": "Extends @:keep metadata to all implementing and extending classes.",
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "LibType",
@@ -622,7 +622,7 @@
 		"name": "Markup",
 		"metadata": ":markup",
 		"doc": "Used as a result of inline XML parsing.",
-		"manual": ["https://haxe.org/manual/lf-markup.html"]
+		"links": ["https://haxe.org/manual/lf-markup.html"]
 	},
 	{
 		"name": "Meta",
@@ -653,7 +653,7 @@
 		"doc": "Annotates an extern class as the result of multi-return function.",
 		"platforms": ["lua"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-lua-multireturns.html"]
+		"links": ["https://haxe.org/manual/target-lua-multireturns.html"]
 	},
 	{
 		"name": "MultiType",
@@ -668,7 +668,7 @@
 		"doc": "Rewrites the path of a class or enum during generation.",
 		"params": ["Output type path"],
 		"targets": ["TClass", "TEnum"],
-		"manual": ["https://haxe.org/manual/lf-externs.html"]
+		"links": ["https://haxe.org/manual/lf-externs.html"]
 	},
 	{
 		"name": "NativeChildren",
@@ -709,7 +709,7 @@
 		"metadata": ":noCompletion",
 		"doc": "Prevents the compiler from suggesting completion on this field or type.",
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/cr-completion.html"]
+		"links": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
 		"name": "NoDebug",
@@ -764,14 +764,14 @@
 		"metadata": ":notNull",
 		"doc": "Declares an abstract type as not accepting null values.",
 		"targets": ["TAbstract"],
-		"manual": ["https://haxe.org/manual/types-nullability.html"]
+		"links": ["https://haxe.org/manual/types-nullability.html"]
 	},
 	{
 		"name": "NoUsing",
 		"metadata": ":noUsing",
 		"doc": "Prevents a field from being used with static extension.",
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/lf-static-extension.html"]
+		"links": ["https://haxe.org/manual/lf-static-extension.html"]
 	},
 	{
 		"name": "Ns",
@@ -786,7 +786,7 @@
 		"doc": "Enables null safety for classes or fields. Disables null safety for classes, fields or expressions if provided with `Off` as an argument.",
 		"params": ["Off | Loose | Strict"],
 		"targets": ["TClass", "TClassField", "TExpr"],
-		"manual": ["https://haxe.org/manual/cr-null-safety.html"]
+		"links": ["https://haxe.org/manual/cr-null-safety.html"]
 	},
 	{
 		"name": "Objc",
@@ -807,14 +807,14 @@
 		"doc": "Declares an abstract field as being an operator overload.",
 		"params": ["The operation"],
 		"targets": ["TAbstractField"],
-		"manual": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
+		"links": ["https://haxe.org/manual/types-abstract-operator-overloading.html"]
 	},
 	{
 		"name": "Optional",
 		"metadata": ":optional",
 		"doc": "Marks the field of a structure as optional.",
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/types-nullability-optional-arguments.html"]
+		"links": ["https://haxe.org/manual/types-nullability-optional-arguments.html"]
 	},
 	{
 		"name": "Overload",
@@ -822,7 +822,7 @@
 		"doc": "Allows the field to be called with different argument types.",
 		"params": ["Function specification (no expression)"],
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
+		"links": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "PhpGlobal",
@@ -858,7 +858,7 @@
 		"doc": "Sets the position of a reified expression.",
 		"params": ["Position"],
 		"targets": ["TExpr"],
-		"manual": ["https://haxe.org/manual/macro-reification.html"]
+		"links": ["https://haxe.org/manual/macro-reification.html"]
 	},
 	{
 		"name": "Public",
@@ -931,7 +931,7 @@
 		"doc": "Allows access to a field only if the specified compiler flag is set.",
 		"params": ["Compiler flag to check"],
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/lf-condition-compilation.html"]
+		"links": ["https://haxe.org/manual/lf-condition-compilation.html"]
 	},
 	{
 		"name": "RequiresAssign",
@@ -950,7 +950,7 @@
 		"metadata": ":rtti",
 		"doc": "Adds runtime type information.",
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/cr-rtti.html"]
+		"links": ["https://haxe.org/manual/cr-rtti.html"]
 	},
 	{
 		"name": "Runtime",
@@ -977,7 +977,7 @@
 		"doc": "Translates method calls into calling object directly.",
 		"platforms": ["js", "lua"],
 		"targets": ["TClassField"],
-		"manual": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
+		"links": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
 	},
 	{
 		"name": "Semantics",
@@ -1016,7 +1016,7 @@
 		"platforms": ["flash"],
 		"params": ["File path"],
 		"targets": ["TClass"],
-		"manual": ["https://haxe.org/manual/target-flash-resources.html"]
+		"links": ["https://haxe.org/manual/target-flash-resources.html"]
 	},
 	{
 		"name": "SourceFile",
@@ -1102,7 +1102,7 @@
 		"metadata": ":to",
 		"doc": "Specifies that the field of the abstract is a cast operation to the type identified in the function.",
 		"targets": ["TAbstractField"],
-		"manual": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
+		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
 	},
 	{
 		"name": "ToString",
@@ -1159,7 +1159,7 @@
 		"metadata": ":using",
 		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
 		"targets": ["TClass", "TEnum", "TAbstract"],
-		"manual": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
+		"links": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{
 		"name": "Value",

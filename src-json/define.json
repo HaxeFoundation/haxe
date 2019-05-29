@@ -52,13 +52,13 @@
 		"define": "dce",
 		"doc": "Set the dead code elimination mode (default std).",
 		"params": ["mode: std | full | no"],
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "DceDebug",
 		"define": "dce_debug",
 		"doc": "Show DCE log.",
-		"manual": ["https://haxe.org/manual/cr-dce.html"]
+		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
 		"name": "Debug",
@@ -75,7 +75,7 @@
 		"name": "Display",
 		"define": "display",
 		"doc": "Activated during completion.",
-		"manual": ["https://haxe.org/manual/cr-completion.html"]
+		"links": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
 		"name": "DisplayStdin",
@@ -276,7 +276,7 @@
 		"doc": "Generate JS compliant with given ES standard version (default 5).",
 		"platforms": ["js"],
 		"params": ["version number"],
-		"manual": ["https://haxe.org/manual/target-javascript-es6.html"]
+		"links": ["https://haxe.org/manual/target-javascript-es6.html"]
 	},
 	{
 		"name": "JsEnumsAsArrays",
@@ -343,7 +343,7 @@
 		"name": "Macro",
 		"define": "macro",
 		"doc": "Defined when code is compiled in the macro context.",
-		"manual": ["https://haxe.org/manual/macro.html"]
+		"links": ["https://haxe.org/manual/macro.html"]
 	},
 	{
 		"name": "MacroTimes",
@@ -418,7 +418,7 @@
 		"name": "NoInline",
 		"define": "no_inline",
 		"doc": "Disable inlining.",
-		"manual": ["https://haxe.org/manual/class-field-inline.html"]
+		"links": ["https://haxe.org/manual/class-field-inline.html"]
 	},
 	{
 		"name": "NoRoot",
