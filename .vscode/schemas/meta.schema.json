@@ -71,7 +71,7 @@
 					]
 				}
 			},
-			"manual": {
+			"links": {
 				"type": "array",
 				"markdownDescription": "URLs of relevant manual sections.",
 				"minItems": 1,
