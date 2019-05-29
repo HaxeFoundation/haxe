@@ -69,6 +69,7 @@ let check_other_things com e =
 			no_effect e.epos;
 		| TConst _ | TLocal _ | TTypeExpr _ | TEnumParameter _ | TEnumIndex _ | TVar _ | TIdent _ ->
 			()
+		| TField (_, fa) when PurityState.is_explicitly_impure fa -> ()
 		| TFunction tf ->
 			loop false tf.tf_expr
 		| TCall({eexpr = TField(e1,fa)},el) when not in_value && PurityState.is_pure_field_access fa -> compound "call" el e.epos
