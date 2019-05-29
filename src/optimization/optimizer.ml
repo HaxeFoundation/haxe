@@ -693,9 +693,9 @@ let optimize_completion_expr e args =
 					let old = save() in
 					List.iter
 						(fun (name, pos) ->
-							let etmp = (EConst (Ident "$tmp"),pos) in
+							let etmp = (EConst (Ident "`tmp"),pos) in
 							decl name None (Some (EBlock [
-								(EVars [("$tmp",null_pos),false,None,None],p);
+								(EVars [("`tmp",null_pos),false,None,None],p);
 								(EFor(header,(EBinop (OpAssign,etmp,(EConst (Ident name),p)),p)), p);
 								etmp
 							],p));
@@ -792,7 +792,7 @@ let optimize_completion_expr e args =
 								PMap.find id (!tmp_hlocals)
 							with Not_found ->
 								let e = subst_locals lc e in
-								let name = "$tmp_" ^ string_of_int id in
+								let name = "`tmp_" ^ string_of_int id in
 								tmp_locals := ((name,null_pos),false,None,Some e) :: !tmp_locals;
 								tmp_hlocals := PMap.add id name !tmp_hlocals;
 								name
