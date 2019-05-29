@@ -73,7 +73,7 @@
 			},
 			"links": {
 				"type": "array",
-				"markdownDescription": "URLs of relevant manual sections.",
+				"markdownDescription": "Relevant URLs.",
 				"minItems": 1,
 				"items": {
 					"type": "string",
