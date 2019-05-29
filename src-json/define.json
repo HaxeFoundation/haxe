@@ -43,6 +43,12 @@
 		"doc": "Generate cpp instruction assembly"
 	},
 	{
+		"name": "CsVer",
+		"define": "cs_ver",
+		"doc": "The C# version to target",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "NoCppiaAst",
 		"define": "nocppiaast",
 		"doc": "Use legacy cppia generation"
