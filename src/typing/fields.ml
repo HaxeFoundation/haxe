@@ -316,7 +316,7 @@ let rec using_field ctx mode e i p =
 	with Not_found -> try
 		(* type using from `@:using(Path)` *)
 		let mt = module_type_of_type e.etype in
-		loop  (t_infos mt).mt_using
+		loop (t_infos mt).mt_using
 	with Not_found | Exit -> try
 		(* global using *)
 		let acc = loop ctx.g.global_using in
@@ -524,10 +524,10 @@ let rec type_field cfg ctx e i p mode =
 			(match mode, f.cf_kind with
 			| (MGet | MCall), Var {v_read = AccCall } ->
 				(* getter call *)
-				let f = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
-				let t = field_type f in
-				let r = match follow t with TFun(_,r) -> r | _ -> raise Not_found in
-				let ef = field_expr f t in
+				let getter = PMap.find ("get_" ^ f.cf_name) c.cl_statics in
+				let t = field_type getter in
+				let r = match follow t with TFun(_,_) -> field_type f | _ -> raise Not_found in
+				let ef = field_expr getter t in
 				AKExpr(make_call ctx ef [e] r p)
 			| MSet, Var {v_write = AccCall } ->
 				let f = PMap.find ("set_" ^ f.cf_name) c.cl_statics in

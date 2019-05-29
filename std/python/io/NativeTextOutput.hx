@@ -40,6 +40,10 @@ class NativeTextOutput extends NativeOutput<TextIOBase> {
 		IoTools.seekInTextMode(stream, tell, p, pos);
 	}
 
+	override public function writeBytes(s:haxe.io.Bytes, pos:Int, len:Int):Int {
+		return stream.buffer.write(python.Syntax.arrayAccess(@:privateAccess s.b, pos, pos + len));
+	}
+
 	override public function writeByte(c:Int):Void
 	{
 		stream.write(String.fromCharCode(c));

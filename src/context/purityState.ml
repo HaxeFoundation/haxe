@@ -52,6 +52,14 @@ let is_pure_field_access fa = match fa with
 	| FEnum _ -> true
 	| FDynamic _ -> false
 
+let is_explicitly_impure fa = match fa with
+	| FInstance(c,_,cf) | FClosure(Some(c,_),cf) | FStatic(c,cf) ->
+		get_purity_from_meta cf.cf_meta = Impure
+		|| get_purity_from_meta c.cl_meta = Impure
+	| FAnon cf | FClosure(None,cf) ->
+		get_purity_from_meta cf.cf_meta = Impure
+	| _ -> false
+
 let to_string = function
 	| Pure -> "pure"
 	| Impure -> "impure"

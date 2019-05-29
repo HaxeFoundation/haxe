@@ -27,11 +27,11 @@ package hl;
 	public var nullValue(get, never) : T;
 
 
-	extern inline function get_sizeBits() {
+	extern inline function get_sizeBits():Int {
 		return untyped $bytes_sizebits(this);
 	}
 
-	extern inline function get_nullValue() {
+	extern inline function get_nullValue():T {
 		return untyped $bytes_nullvalue(this);
 	}
 

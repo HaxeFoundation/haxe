@@ -647,6 +647,8 @@ module Fusion = struct
 			| {eexpr = TLocal v} :: el ->
 				state#dec_reads v;
 				block_element acc el
+			| {eexpr = TField (_,fa)} as e1 :: el when PurityState.is_explicitly_impure fa ->
+				block_element (e1 :: acc) el
 			(* no-side-effect *)
 			| {eexpr = TEnumParameter _ | TEnumIndex _ | TFunction _ | TConst _ | TTypeExpr _} :: el ->
 				block_element acc el

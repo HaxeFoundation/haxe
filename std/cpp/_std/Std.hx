@@ -26,8 +26,13 @@
 		return untyped __global__.__instanceof(v,t);
 	}
 
-	@:keep public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	@:keep public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Std.is(value, c) ? cast value : null;
+	}
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	@:keep public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return inline downcast(value, c);
 	}
 
 	@:keep public static function string( s : Dynamic ) : String {

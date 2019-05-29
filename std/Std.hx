@@ -49,6 +49,9 @@ extern class Std {
 		If `value` is null, the result is null. If `c` is null, the result is
 		unspecified.
 	**/
+	public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S;
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
 	public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
 
 	/**

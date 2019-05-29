@@ -22,6 +22,7 @@ MAKEFILENAME?=Makefile
 PLATFORM?=unix
 
 OUTPUT=haxe
+PREBUILD_OUTPUT=prebuild
 EXTENSION=
 LFLAGS=
 STATICLINK?=0
@@ -130,7 +131,16 @@ else
 	echo let version_extra = None > _build/src/compiler/version.ml
 endif
 
-build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml
+_build/src/core/defineList.ml: src-json/define.json prebuild
+	./$(PREBUILD_OUTPUT) define $< > $@
+
+_build/src/core/metaList.ml: src-json/meta.json prebuild
+	./$(PREBUILD_OUTPUT) meta $< > $@
+
+build_src: | $(BUILD_SRC) _build/src/syntax/grammar.ml _build/src/compiler/version.ml _build/src/core/defineList.ml _build/src/core/metaList.ml
+
+prebuild: _build/src/core/json/json.ml _build/src/prebuild/main.ml
+	$(COMPILER) -safe-string -linkpkg -g -o $(PREBUILD_OUTPUT) -package sedlex -package extlib -I _build/src/core/json _build/src/core/json/json.ml _build/src/prebuild/main.ml
 
 haxe: build_src
 	$(MAKE) -f $(MAKEFILENAME) build_pass_1
@@ -297,10 +307,10 @@ clean_libs:
 	$(foreach lib,$(EXTLIB_LIBS),$(MAKE) -C libs/$(lib) clean &&) true
 
 clean_haxe:
-	rm -f -r _build $(OUTPUT)
+	rm -f -r _build $(OUTPUT) $(PREBUILD_OUTPUT)
 
 clean_tools:
-	rm -f $(OUTPUT) haxelib
+	rm -f $(OUTPUT) $(PREBUILD_OUTPUT) haxelib
 
 clean_package:
 	rm -rf $(PACKAGE_OUT_DIR)
@@ -315,4 +325,4 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: haxe libs haxelib
+.PHONY: prebuild haxe libs haxelib
