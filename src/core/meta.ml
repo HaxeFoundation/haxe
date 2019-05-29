@@ -41,6 +41,7 @@ let get_documentation d =
 			| Platforms fl -> pfs := fl @ !pfs
 			| UsedOn ul -> used := ul @ !used
 			| UsedInternally -> assert false
+			| Link _ -> ()
 		) flags;
 		let params = (match List.rev !params with
 			| [] -> ""

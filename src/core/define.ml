@@ -16,6 +16,7 @@ let get_documentation_list() =
 			List.iter (function
 				| HasParam s -> params := s :: !params
 				| Platforms fl -> pfs := fl @ !pfs
+				| Link _ -> ()
 			) flags;
 			let params = (match List.rev !params with
 				| [] -> ""
