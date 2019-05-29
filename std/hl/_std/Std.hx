@@ -27,6 +27,7 @@ private typedef Rand = hl.Abstract<"hl_random">;
 class Std {
 
 	static var rnd : Rand;
+	static var toStringDepth : Int = 0;
 
 	static function __init__() : Void {
 		rnd = rnd_sys();
@@ -64,7 +65,12 @@ class Std {
 		return t.check(v);
 	}
 
-	extern public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S;
+	extern public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S;
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return downcast(value, c);
+	}
 
 	extern public static inline function int( x : Float ) : Int {
 		return untyped $int(x);

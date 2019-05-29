@@ -93,8 +93,13 @@ class Std {
 		}
 	}
 
-	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+	inline public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return Std.is(value, c) ? cast value : null;
+	}
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
+		return downcast(value, c);
 	}
 
 	public static function random(x:Int):Int {

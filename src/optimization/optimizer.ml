@@ -118,6 +118,16 @@ let sanitize_expr com e =
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
 			| TCast (e,None) | TMeta (_,e) -> loop e left
+			| TConst (TInt i) when not left ->
+				(match op with
+					| OpAdd | OpSub -> (Int32.to_int i) < 0
+					| _ -> false
+				)
+			| TConst (TFloat flt) when not left ->
+				(match op with
+					| OpAdd | OpSub -> String.get flt 0 = '-'
+					| _ -> false
+				)
 			| _ -> false
 		in
 		let e1 = if loop e1 true then parent e1 else e1 in
@@ -126,6 +136,8 @@ let sanitize_expr com e =
 	| TUnop (op,mode,e1) ->
 		let rec loop ee =
 			match ee.eexpr with
+			| TConst (TInt i) when op = Neg && (Int32.to_int i) < 0 -> parent e1
+			| TConst (TFloat flt) when op = Neg && String.get flt 0 = '-' -> parent e1
 			| TBinop _ | TIf _ | TUnop _ -> parent e1
 			| TCast (e,None) | TMeta (_, e) -> loop e
 			| _ -> e1

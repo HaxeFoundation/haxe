@@ -2127,6 +2127,10 @@ module Generator = struct
 					use_pass := false;
 					print ctx "\n    _hx_class_name = \"%s\"" p_name
 				end;
+				if has_feature ctx "python._hx_is_interface" then begin
+					let value = if c.cl_interface then "True" else "False" in
+					print ctx "\n    _hx_is_interface = \"%s\"" value
+				end;
 
 				let print_field names field quote =
 					if has_feature ctx ("python." ^ field) then try

@@ -49,6 +49,10 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isClass", o.__name__);
 	}
 
+	static inline function isInterface(o:Class<Dynamic>) : Bool {
+		return untyped __define_feature__("js.Boot.isInterface", o.__isInterface__);
+	}
+
 	static inline function isEnum(e:Dynamic) : Bool {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
@@ -211,6 +215,10 @@ class Boot {
 			return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
 			#end
 		}
+	}
+
+	static inline function __implements(o : Dynamic, t : Class<Dynamic>) : Bool {
+		return o != null && isInterface(t) && __interfLoop(getClass(o), t);
 	}
 
 	@:ifFeature("typed_cast") private static function __cast(o : Dynamic, t : Dynamic) {
