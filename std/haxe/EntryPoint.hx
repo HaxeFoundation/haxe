@@ -1,6 +1,6 @@
 package haxe;
 
-#if (target.threaded)
+#if target.threaded
 import sys.thread.Lock;
 import sys.thread.Mutex;
 import sys.thread.Thread;

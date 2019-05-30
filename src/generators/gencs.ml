@@ -30,6 +30,20 @@ open Printf
 open Option
 open ExtString
 
+type cs_native_constraint =
+	| CsStruct
+	| CsClass
+	| CsUnmanaged
+	| CsConstructible
+	| CsConstraint of string
+
+let get_constraint = function
+	| CsStruct -> "struct"
+	| CsClass -> "class"
+	| CsUnmanaged -> "unmanaged"
+	| CsConstructible -> "new()"
+	| CsConstraint s -> s
+
 let rec is_cs_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -1829,6 +1843,9 @@ let generate con =
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
+					let combination_error c1 c2 =
+						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
+
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
@@ -1847,21 +1864,61 @@ let generate con =
 
 												(* non-sealed class *)
 												| TInst ({ cl_interface = false; cl_final = false},_) ->
-													base_class_constraints := (t_s t) :: !base_class_constraints;
+													base_class_constraints := (CsConstraint (t_s t)) :: !base_class_constraints;
 													acc;
 
 												(* interface *)
 												| TInst ({ cl_interface = true}, _) ->
-													(t_s t) :: acc
+													(CsConstraint (t_s t)) :: acc
+
+												(* cs constraints *)
+												(* See https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters *)
+												| TAbstract({ a_path = (_, c); a_module = { m_path = ([pack],"Constraints") } }, params) ->
+													(match pack, c with
+														| "haxe", "Constructible" ->
+															(match params with
+																(* Only for parameterless constructors *)
+																| [TFun ([],TAbstract({a_path=[],"Void"},_))] ->
+																	if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
+																	if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
+																	CsConstructible :: acc;
+																| _ -> acc;
+															)
+														| "cs", "CsStruct" ->
+															if (List.memq CsClass acc) then combination_error CsClass CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
+															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
+															CsStruct :: acc;
+														| "cs", "CsUnmanaged" ->
+															if (List.memq CsStruct acc) then combination_error CsUnmanaged CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsUnmanaged CsConstructible;
+															CsUnmanaged :: acc;
+														| "cs", "CsClass" ->
+															if (List.memq CsStruct acc) then combination_error CsClass CsStruct;
+															CsClass :: acc;
+														| _, _ -> acc;
+													)
 
 												(* skip anything other *)
 												| _ ->
 													acc
 										) [] constraints in
 
-										let s_constraints = (!base_class_constraints @ other_constraints) in
+										let s_constraints = (List.sort
+											(* C# expects some ordering for built-in constraints: *)
+											(fun c1 c2 -> match c1, c2 with
+												| a, b when a == b -> 0
+												(* - "new()" type constraint should be last *)
+												| CsConstructible, _ -> 1
+												| _, CsConstructible -> -1
+												(* - "class", "struct" and "unmanaged" should be first *)
+												| CsClass, _ | CsStruct, _ | CsUnmanaged, _ -> -1
+												| _, CsClass | _, CsStruct | _, CsUnmanaged -> 1
+												| _, _ -> 0
+										) (!base_class_constraints @ other_constraints)) in
+
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " s_constraints) :: acc)
+											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc

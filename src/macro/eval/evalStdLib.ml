@@ -3096,11 +3096,6 @@ let init_constructors builtins =
 			| _ -> assert false
 		);
 	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
-	add key_haxe_Utf8
-		(fun vl -> match vl with
-			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
-			| _ -> assert false
-		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
@@ -3191,7 +3186,6 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
-	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
