@@ -114,7 +114,7 @@ let parse ctx code file =
 	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
 
-	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
+	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
