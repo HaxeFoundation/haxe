@@ -279,14 +279,12 @@ let ident = [%sedlex.regexp?
 
 let sharp_ident = [%sedlex.regexp?
 	(
-		Plus ('a'..'z' | '_'),
+		('a'..'z' | '_'),
+		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
 		Star (
-			(
-				'.',
-				Plus ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
-			)
-			|
-			Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')
+			'.',
+			('a'..'z' | '_'),
+			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
 		)
 	)
 ]
