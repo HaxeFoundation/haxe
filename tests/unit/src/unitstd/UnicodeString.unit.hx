@@ -1,4 +1,4 @@
-#if (target.unicode)
+#if target.unicode
 var s = new UnicodeString("𠜎zя");
 var codes = [132878, 122, 1103];
 

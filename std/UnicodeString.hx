@@ -103,7 +103,7 @@ abstract UnicodeString(String) from String to String {
 		}
 	}
 
-#if (target.unicode)
+#if target.unicode
 
 	/**
 		The number of characters in `this` String.

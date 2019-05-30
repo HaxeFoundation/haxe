@@ -204,13 +204,13 @@ testKeyCodes([for(i => c in iterator) [i, c]]);
 ("a" > "b") == false;
 ("a" >= "b") == false;
 
-#if (target.unicode)
+#if target.unicode
 ("𠜎zя" > "abя") == true;
 ("𠜎zя" >= "abя") == true;
 ("𠜎zя" < "abя") == false;
 ("𠜎zя" <= "abя") == false;
 
-#if (target.utf16)
+#if target.utf16
 // since U+10002 in UTF16 is D800 DC02
 ("\u{FF61}" < "\u{10002}") == false;
 #else
