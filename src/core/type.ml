@@ -2996,9 +2996,12 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			match c.cl_super with
-			| Some(c,tl) -> loop acc c (List.map apply tl)
-			| None -> acc
+			if c.cl_interface then
+				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
+			else
+				match c.cl_super with
+				| Some(c,tl) -> loop acc c (List.map apply tl)
+				| None -> acc
 		in
 		loop PMap.empty c0 tl
 
