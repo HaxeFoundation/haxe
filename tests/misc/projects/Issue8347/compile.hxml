@@ -1,0 +1,4 @@
+-cp src
+pack.Main
+-cs cs
+-D no-compilation

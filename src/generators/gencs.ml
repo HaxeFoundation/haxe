@@ -1878,6 +1878,23 @@ let generate con =
 				gen.gcon.error "Invalid expression inside @:meta metadata" p
 		in
 
+		let gen_assembly_attributes w metadata =
+			List.iter (function
+				| Meta.AssemblyMeta, [EConst(String s), _], _ ->
+					write w "[assembly: ";
+					write w s;
+					write w "]";
+					newline w
+				| Meta.AssemblyMeta, [meta], _ ->
+					write w "[assembly: ";
+					gen_spart w meta;
+					write w "]";
+					newline w
+				(* TODO: AssemblyStrict *)
+				| _ -> ()
+			) metadata
+		in
+
 		let gen_attributes w metadata =
 			List.iter (function
 				| Meta.Meta, [EConst(String(s,_)), _], _ ->
@@ -2526,8 +2543,18 @@ let generate con =
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
 			newline w;
 			let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
-				| [] -> false
+				| [] ->
+					(* Should the assembly annotations be added to the class in this case? *)
+
+					if Meta.has Meta.AssemblyMeta cl.cl_meta then
+						gen.gcon.error "@:assemblyMeta cannot be used on top level modules" cl.cl_pos;
+
+					if Meta.has Meta.AssemblyStrict cl.cl_meta then
+						gen.gcon.error "@:assemblyStrict cannot be used on top level modules" cl.cl_pos;
+
+					false
 				| ns ->
+					gen_assembly_attributes w cl.cl_meta;
 					print w "namespace %s " (String.concat "." ns);
 					begin_block w;
 					true

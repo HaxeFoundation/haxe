@@ -1,0 +1,2 @@
+Main.hx:2: characters 1-14 : @:assemblyMeta cannot be used on top level modules
+Main.hx:5: characters 1-15 : @:assemblyStrict cannot be used on top level modules

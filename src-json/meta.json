@@ -53,6 +53,20 @@
 		"links": ["https://haxe.org/manual/types-abstract-array-access.html"]
 	},
 	{
+		"name": "AssemblyMeta",
+		"metadata": ":assemblyMeta",
+		"doc": "TODO: documentation",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
+		"name": "AssemblyStrict",
+		"metadata": ":assemblyStrict",
+		"doc": "TODO: documentation",
+		"platforms": ["cs"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "Ast",
 		"metadata": ":ast",
 		"doc": "Internally used to pass the AST source into the typed AST.",
