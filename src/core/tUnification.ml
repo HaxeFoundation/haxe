@@ -454,6 +454,9 @@ let rec unify a b =
 	| TAbstract ({a_path=[],"Void"},_) , _
 	| _ , TAbstract ({a_path=[],"Void"},_) ->
 		error [cannot_unify a b]
+	| TAbstract ({ a_path = ["haxe"],"NotVoid" },[]), _
+	| _, TAbstract ({ a_path = ["haxe"],"NotVoid" },[]) ->
+		()
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		unify_abstracts a b a1 tl1 a2 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->

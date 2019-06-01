@@ -1,0 +1,4 @@
+Fail.hx:8: characters 3-7 : Constraint check failure for test.T
+Fail.hx:8: characters 3-7 : FakeVoid should be haxe.NotVoid
+Fail.hx:7: characters 3-7 : Constraint check failure for test.T
+Fail.hx:7: characters 3-7 : Void should be haxe.NotVoid
