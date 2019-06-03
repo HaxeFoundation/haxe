@@ -22,6 +22,7 @@
 package haxe;
 
 @:coreApi
+@:deprecate('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 extern class Utf8 {
 	public function new( ?size : Int ):Void;
 	public function addChar( c : Int ) : Void;

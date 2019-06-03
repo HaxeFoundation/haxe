@@ -19,10 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package haxe;
+package neko;
 
 @:coreApi
-@:deprecate('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8 {
 
 	var __b : Dynamic;

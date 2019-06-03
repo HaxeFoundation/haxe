@@ -24,6 +24,7 @@ package haxe;
 using cpp.NativeString;
 
 @:coreApi
+@:deprecate('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8
 {
    var __s:Array<Int>;
