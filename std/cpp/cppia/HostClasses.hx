@@ -92,6 +92,7 @@ class HostClasses
    "haxe.Unserializer",
    "haxe.Resource",
    "haxe.Template",
+   "haxe.Utf8",
    "haxe.Log",
    "haxe.zip.Compress",
    "haxe.zip.Uncompress",
@@ -123,6 +124,7 @@ class HostClasses
 
    "haxe.CallStack",
    "haxe.Resource",
+   "haxe.Utf8",
    "haxe.Int64",
    "haxe.Int32",
    "haxe.Serializer",
