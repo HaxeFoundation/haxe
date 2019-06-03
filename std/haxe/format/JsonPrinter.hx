@@ -185,8 +185,8 @@ class JsonPrinter {
 	}
 
 	function quote( s : String ) {
-		#if neko
-		if( s.length != neko.Utf8.length(s) ) {
+		#if (neko || php || cpp)
+		if( s.length != haxe.Utf8.length(s) ) {
 			quoteUtf8(s);
 			return;
 		}
@@ -236,10 +236,10 @@ class JsonPrinter {
 		addChar('"'.code);
 	}
 
-	#if neko
+	#if (neko || php || cpp)
 	function quoteUtf8( s : String ) {
-		var u = new neko.Utf8();
-		neko.Utf8.iter(s,function(c) {
+		var u = new haxe.Utf8();
+		haxe.Utf8.iter(s,function(c) {
 			switch( c ) {
 			case '\\'.code, '"'.code: u.addChar('\\'.code); u.addChar(c);
 			case '\n'.code: u.addChar('\\'.code); u.addChar('n'.code);
