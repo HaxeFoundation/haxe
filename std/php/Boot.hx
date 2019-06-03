@@ -775,9 +775,14 @@ private class HxString {
 		if(start == null) {
 			start = 0;
 		} else {
-			start = start - str.length;
-			if(start > 0) {
-				start = 0;
+			var length = str.length;
+			if(start >= 0) {
+				start = start - length;
+				if(start > 0) {
+					start = 0;
+				}
+			} else if(start < -length) {
+				start = -length;
 			}
 		}
 		var index:EitherType<Int,Bool> = if(search == '') {
