@@ -25,7 +25,7 @@ package haxe;
 	Since not all platforms guarantee that `String` always uses UTF-8 encoding, you
 	can use this cross-platform API to perform operations on such strings.
 **/
-@:deprecate('haxe.Utf8 is deprecated. Use UnicodeString instead.')
+@:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8 {
 
 	var __b : String;

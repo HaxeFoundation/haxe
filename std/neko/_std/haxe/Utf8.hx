@@ -22,7 +22,7 @@
 package haxe;
 
 @:coreApi
-@:deprecate('haxe.Utf8 is deprecated. Use UnicodeString instead.')
+@:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8 {
 
 	var __b : Dynamic;
