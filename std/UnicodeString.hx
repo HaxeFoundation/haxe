@@ -37,14 +37,14 @@ abstract UnicodeString(String) from String to String {
 	/**
 		Tells if `b` is a correctly encoded UTF8 byte sequence.
 	**/
-	static public function validate(b:Bytes, encoding:Encoding) : Bool {
+	static public function validate(b:Bytes, encoding:Encoding):Bool {
 		switch(encoding) {
 			case RawNative: throw "UnicodeString.validate: RawNative encoding is not supported";
 			case UTF8:
 				var data = b.getData();
 				var pos = 0;
 				var max = b.length;
-				while( pos < max) {
+				while(pos < max) {
 					var c:Int = Bytes.fastGet(data, pos++);
 					if(c < 0x80) {
 					} else if(c < 0xC2) {
@@ -106,70 +106,10 @@ abstract UnicodeString(String) from String to String {
 #if target.unicode
 
 	/**
-		The number of characters in `this` String.
-	**/
-	public var length(get,never):Int;
-
-	/**
 		Creates an instance of UnicodeString.
 	**/
 	public inline function new(string:String):Void {
 		this = string;
-	}
-
-	/**
-		Returns the character at position `index` of `this` String.
-
-		If `index` is negative or exceeds `this.length`, the empty String `""`
-		is returned.
-	**/
-	#if !utf16 inline #end
-	public function charAt(index:Int):String {
-		#if utf16
-			if(index < 0) return '';
-			var unicodeOffset = 0;
-			var nativeOffset = 0;
-			while(nativeOffset < this.length) {
-				var c = StringTools.utf16CodePointAt(this, nativeOffset++);
-				if(unicodeOffset == index) {
-					return String.fromCharCode(c);
-				}
-				if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
-					nativeOffset++;
-				}
-				unicodeOffset++;
-			}
-			return '';
-		#else
-			return this.charAt(index);
-		#end
-	}
-
-	/**
-		Returns the character code at position `index` of `this` String.
-
-		If `index` is negative or exceeds `this.length`, `null` is returned.
-	**/
-	#if !utf16 inline #end
-	public function charCodeAt(index:Int):Null<Int> {
-		#if utf16
-			if(index < 0) return null;
-			var unicodeOffset = 0;
-			var nativeOffset = 0;
-			while(nativeOffset < this.length) {
-				var c = StringTools.utf16CodePointAt(this, nativeOffset++);
-				if(unicodeOffset == index) {
-					return c;
-				}
-				if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
-					nativeOffset++;
-				}
-				unicodeOffset++;
-			}
-			return null;
-		#else
-			return this.charCodeAt(index);
-		#end
 	}
 
 	/**
@@ -186,18 +126,67 @@ abstract UnicodeString(String) from String to String {
 		return new StringKeyValueIteratorUnicode(this);
 	}
 
-	#if !utf16 inline #end
-	function get_length():Int {
-		#if utf16
-			var l = 0;
-			for(c in new StringIteratorUnicode(this)) {
-				l++;
+	#if target.utf16
+
+	/**
+		The number of characters in `this` String.
+	**/
+	public var length(get,never):Int;
+
+	/**
+		Returns the character at position `index` of `this` String.
+
+		If `index` is negative or exceeds `this.length`, the empty String `""`
+		is returned.
+	**/
+	public function charAt(index:Int):String {
+		if(index < 0) return '';
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		while(nativeOffset < this.length) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset++);
+			if(unicodeOffset == index) {
+				return String.fromCharCode(c);
 			}
-			return l;
-		#else
-			return this.length;
-		#end
+			if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
+				nativeOffset++;
+			}
+			unicodeOffset++;
+		}
+		return '';
 	}
+
+	/**
+		Returns the character code at position `index` of `this` String.
+
+		If `index` is negative or exceeds `this.length`, `null` is returned.
+	**/
+	public function charCodeAt(index:Int):Null<Int> {
+		if(index < 0) return null;
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		while(nativeOffset < this.length) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset++);
+			if(unicodeOffset == index) {
+				return c;
+			}
+			if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
+				nativeOffset++;
+			}
+			unicodeOffset++;
+		}
+		return null;
+	}
+
+	function get_length():Int {
+		var l = 0;
+		for(c in new StringIteratorUnicode(this)) {
+			l++;
+		}
+		return l;
+	}
+
+	#end
 
 #end
 
