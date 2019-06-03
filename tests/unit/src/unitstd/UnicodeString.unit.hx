@@ -28,6 +28,93 @@ s.charCodeAt(2) == codes[2];
 s.charCodeAt(3) == null;
 s.charCodeAt(-1) == null;
 
+// indexOf
+var s:UnicodeString = "𠜎zяяw";
+s.indexOf("𠜎") == 0;
+s.indexOf("z") == 1;
+s.indexOf("я") == 2;
+s.indexOf("zя") == 1;
+s.indexOf("w") == 4;
+s.indexOf("яw") == 3;
+s.indexOf("f") == -1;
+s.indexOf("я", 0) == 2;
+s.indexOf("я", 1) == 2;
+s.indexOf("я", 2) == 2;
+s.indexOf("я", 3) == 3;
+s.indexOf("я", 4) == -1;
+s.indexOf("я", 40) == -1;
+s.indexOf("я", -1) == -1;
+s.indexOf("я", -2) == 3;
+s.indexOf("я", -3) == 2;
+s.indexOf("я", -4) == 2;
+s.indexOf("я", -5) == 2;
+s.indexOf("я", -50) == 2;
+
+// lastIndexOf
+var s:UnicodeString = "𠜎zяяw";
+s.lastIndexOf("𠜎") == 0;
+s.lastIndexOf("z") == 1;
+s.lastIndexOf("я") == 3;
+s.lastIndexOf("zя") == 1;
+s.lastIndexOf("яw") == 3;
+s.lastIndexOf("f") == -1;
+s.lastIndexOf("я", 0) == -1;
+s.lastIndexOf("я", 1) == -1;
+s.lastIndexOf("я", 2) == 2;
+s.lastIndexOf("я", 3) == 3;
+s.lastIndexOf("я", 4) == 3;
+s.lastIndexOf("я", 40) == 3;
+s.lastIndexOf("я", -1) == -1;
+s.lastIndexOf("𠜎z", -1) == 0;
+
+// substr
+var s:UnicodeString = "𠜎zяяw";
+s.substr(0) == "𠜎zяяw";
+s.substr(1) == "zяяw";
+s.substr(5) == "";
+s.substr(4) == "w";
+s.substr(3) == "яw";
+s.substr(-1) == "w";
+s.substr(-2) == "яw";
+s.substr(-4) == "zяяw";
+s.substr(-5) == "𠜎zяяw";
+s.substr(-100) == "𠜎zяяw";
+s.substr(0, 0) == "";
+s.substr(0, 1) == "𠜎";
+s.substr(0, 2) == "𠜎z";
+s.substr(0, 100) == "𠜎zяяw";
+s.substr(0, -1) == "𠜎zяя";
+s.substr(0, -2) == "𠜎zя";
+s.substr(0, -100) == "";
+
+// substring
+var s:UnicodeString = "𠜎zяяw";
+s.substring(0, 0) == "";
+s.substring(0, 1) == "𠜎";
+s.substring(1, 0) == "𠜎";
+s.substring(0, 2) == "𠜎z";
+s.substring(2, 0) == "𠜎z";
+s.substring(-1, 0) == "";
+s.substring(0, -1) == "";
+s.substring(-1, -1) == "";
+s.substring(-1, 1) == "𠜎";
+s.substring(1, -1) == "𠜎";
+s.substring(-1, 2) == "𠜎z";
+s.substring(2, -1) == "𠜎z";
+s.substring(0) == "𠜎zяяw";
+s.substring(1) == "zяяw";
+s.substring(2) == "яяw";
+s.substring(0, -1) == "";
+s.substring(5, 0) == "𠜎zяяw";
+s.substring(0, 100) == "𠜎zяяw";
+s.substring(100, 120) == "";
+s.substring(100, 0) == "𠜎zяяw";
+s.substring(120, 100) == "";
+s.substring(1, 4) == "zяя";
+s.substring(4, 1) == "zяя";
+
+var s = new UnicodeString("𠜎zя");
+
 // @:op(UnicodeString)
 var s2 = new UnicodeString("𠜎z");
 s != s2;

@@ -178,6 +178,235 @@ abstract UnicodeString(String) from String to String {
 		return null;
 	}
 
+	/**
+		Returns the position of the leftmost occurrence of `str` within `this`
+		String.
+
+		If `startIndex` is given, the search is performed within the substring
+		of `this` String starting from `startIndex` (if `startIndex` is posivite
+		or 0) or `max(this.length + startIndex, 0)` (if `startIndex` is negative).
+
+		If `startIndex` exceeds `this.length`, -1 is returned.
+
+		Otherwise the search is performed within `this` String. In either case,
+		the returned position is relative to the beginning of `this` String.
+
+		If `str` cannot be found, -1 is returned.
+	**/
+	public function indexOf(str:String, ?startIndex:Int):Int {
+		if(startIndex == null) {
+			startIndex = 0;
+		} else {
+			if(startIndex < 0) {
+				startIndex = (this:UnicodeString).length + startIndex;
+			}
+		}
+
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		var matchingOffset = 0;
+		var result = -1;
+		while(nativeOffset <= this.length) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset);
+
+			if(unicodeOffset >= startIndex) {
+				var c2 = StringTools.utf16CodePointAt(str, matchingOffset);
+				if(c == c2) {
+					if(matchingOffset == 0) {
+						result = unicodeOffset;
+					}
+					matchingOffset++;
+					if(c2 >= StringTools.MIN_SURROGATE_CODE_POINT) {
+						matchingOffset++;
+					}
+					if(matchingOffset == str.length) {
+						return result;
+					}
+				} else if(matchingOffset != 0) {
+					result = -1;
+					matchingOffset = 0;
+					continue;
+				}
+			}
+
+			nativeOffset++;
+			if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
+				nativeOffset++;
+			}
+			unicodeOffset++;
+		}
+		return -1;
+	}
+
+	/**
+		Returns the position of the rightmost occurrence of `str` within `this`
+		String.
+
+		If `startIndex` is given, the search is performed within the substring
+		of `this` String from 0 to `startIndex + str.length`. Otherwise the search
+		is performed within `this` String. In either case, the returned position
+		is relative to the beginning of `this` String.
+
+		If `str` cannot be found, -1 is returned.
+	**/
+	public function lastIndexOf(str:String, ?startIndex:Int):Int {
+		if(startIndex == null) {
+			startIndex = this.length;
+		} else if(startIndex < 0) {
+			startIndex = 0;
+		}
+
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		var result = -1;
+		var lastIndex = -1;
+		var matchingOffset = 0;
+		var strUnicodeLength = (str:UnicodeString).length;
+		while(nativeOffset < this.length && unicodeOffset < startIndex + strUnicodeLength) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset);
+
+			var c2 = StringTools.utf16CodePointAt(str, matchingOffset);
+			if(c == c2) {
+				if(matchingOffset == 0) {
+					lastIndex = unicodeOffset;
+				}
+				matchingOffset++;
+				if(c2 >= StringTools.MIN_SURROGATE_CODE_POINT) {
+					matchingOffset++;
+				}
+				if(matchingOffset == str.length) {
+					result = lastIndex;
+					lastIndex = -1;
+				}
+			} else if(matchingOffset != 0) {
+				lastIndex = -1;
+				matchingOffset = 0;
+				continue;
+			}
+
+			nativeOffset++;
+			if(c >= StringTools.MIN_SURROGATE_CODE_POINT) {
+				nativeOffset++;
+			}
+			unicodeOffset++;
+		}
+		return result;
+	}
+
+	/**
+		Returns `len` characters of `this` String, starting at position `pos`.
+
+		If `len` is omitted, all characters from position `pos` to the end of
+		`this` String are included.
+
+		If `pos` is negative, its value is calculated from the end of `this`
+		String by `this.length + pos`. If this yields a negative value, 0 is
+		used instead.
+
+		If the calculated position + `len` exceeds `this.length`, the characters
+		from that position to the end of `this` String are returned.
+
+		If `len` is negative, the result is unspecified.
+	**/
+	public function substr(pos:Int, ?len:Int):String {
+		if(pos < 0) {
+			pos = (this:UnicodeString).length + pos;
+			if(pos < 0) {
+				pos = 0;
+			}
+		}
+		if(len < 0) {
+			len = (this:UnicodeString).length + len;
+		}
+		if(len <= 0) {
+			return "";
+		}
+
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		var fromOffset = -1;
+		var subLength = 0;
+		while(nativeOffset < this.length) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset);
+
+			if(unicodeOffset >= pos) {
+				if(fromOffset < 0) {
+					if(len == null) {
+						return this.substr(nativeOffset);
+					}
+					fromOffset = nativeOffset;
+				}
+				subLength++;
+				if(subLength >= len) {
+					var lastOffset = (c < StringTools.MIN_SURROGATE_CODE_POINT ? nativeOffset : nativeOffset + 1);
+					return this.substr(fromOffset, lastOffset - fromOffset + 1);
+				}
+			}
+
+			nativeOffset += (c >= StringTools.MIN_SURROGATE_CODE_POINT ? 2 : 1);
+			unicodeOffset++;
+		}
+		return (fromOffset < 0 ? "" : this.substr(fromOffset));
+	}
+
+	/**
+		Returns the part of `this` String from `startIndex` to but not including `endIndex`.
+
+		If `startIndex` or `endIndex` are negative, 0 is used instead.
+
+		If `startIndex` exceeds `endIndex`, they are swapped.
+
+		If the (possibly swapped) `endIndex` is omitted or exceeds
+		`this.length`, `this.length` is used instead.
+
+		If the (possibly swapped) `startIndex` exceeds `this.length`, the empty
+		String `""` is returned.
+	**/
+	public function substring(startIndex:Int, ?endIndex:Int):String {
+		if(startIndex < 0) {
+			startIndex = 0;
+		}
+		if(endIndex != null) {
+			if(endIndex < 0) {
+				endIndex = 0;
+			}
+			if(startIndex == endIndex) {
+				return "";
+			}
+			if(startIndex > endIndex) {
+				var tmp = startIndex;
+				startIndex = endIndex;
+				endIndex = tmp;
+			}
+		}
+
+		var unicodeOffset = 0;
+		var nativeOffset = 0;
+		var fromOffset = -1;
+		var subLength = 0;
+		while(nativeOffset < this.length) {
+			var c = StringTools.utf16CodePointAt(this, nativeOffset);
+
+			if(startIndex <= unicodeOffset) {
+				if(fromOffset < 0) {
+					if(endIndex == null) {
+						return this.substr(nativeOffset);
+					}
+					fromOffset = nativeOffset;
+				}
+				subLength++;
+				if(subLength >= endIndex - startIndex) {
+					var lastOffset = (c < StringTools.MIN_SURROGATE_CODE_POINT ? nativeOffset : nativeOffset + 1);
+					return this.substr(fromOffset, lastOffset - fromOffset + 1);
+				}
+			}
+
+			nativeOffset += (c >= StringTools.MIN_SURROGATE_CODE_POINT ? 2 : 1);
+			unicodeOffset++;
+		}
+		return (fromOffset < 0 ? "" : this.substr(fromOffset));
+	}
+
 	function get_length():Int {
 		var l = 0;
 		for(c in new StringIteratorUnicode(this)) {
