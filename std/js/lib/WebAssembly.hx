@@ -101,6 +101,6 @@ extern class WebAssembly {
 }
 
 typedef WebAssemblyInstantiatedSource = {
-	var module(default,never):Module;
-	var instance(default,never):Instance;
+	final module:Module;
+	final instance:Instance;
 }

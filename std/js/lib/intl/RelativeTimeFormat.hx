@@ -87,22 +87,22 @@ typedef RelativeTimeFormatResolvedOptions = {
 		the input BCP 47 language tag that led to this locale, the key-value pairs that were requested and are
 		supported for this locale are included in `locale`.
 	**/
-	var locale(default,never):String;
+	final locale:String;
 
 	/**
 		The length of the internationalized message.
 	**/
-	var style(default,never):RelativeTimeFormatStyle;
+	final style:RelativeTimeFormatStyle;
 
 	/**
 		The format of output message.
 	**/
-	var numeric(default,never):RelativeTimeNumeric;
+	final numeric:RelativeTimeNumeric;
 
 	/**
 		The value requested using the Unicode extension key `"nu"` or filled in as a default.
 	**/
-	var numberingSystem(default,never):String;
+	final numberingSystem:String;
 }
 
 enum abstract RelativeTimeNumeric(String) {
@@ -146,9 +146,9 @@ enum abstract RelativeTimeUnit(String) from String to String {
 }
 
 typedef RelativeTimeFormatPart = {
-	var type(default,never):RelativeTimeFormatPartType;
-	var value(default,never):String;
-	var ?unit(default,never):RelativeTimeUnit;
+	final type:RelativeTimeFormatPartType;
+	final value:String;
+	final ?unit:RelativeTimeUnit;
 }
 
 typedef RelativeTimeFormatPartType = NumberFormat.NumberFormatPartType;

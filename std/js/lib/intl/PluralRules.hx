@@ -70,36 +70,36 @@ typedef PluralRulesResolvedOptions = {
 		the input BCP 47 language tag that led to this locale, the key-value pairs that were requested and are
 		supported for this locale are included in `locale`.
 	 */
-	var locale(default,never):String;
+	final locale:String;
 
 	/**
 		An `Array` of plural rules used by the given language.
 	**/
-	var pluralCategories(default,never):Array<String>;
+	final pluralCategories:Array<String>;
 
 	/**
 		The type used (cardinal or ordinal).
 	**/
-	var type(default,never):PluralRulesType;
+	final type:PluralRulesType;
 
-	var minimumIntegerDigits(default,never):Int;
+	final minimumIntegerDigits:Int;
 
-	var minimumFractionDigits(default,never):Int;
+	final minimumFractionDigits:Int;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 		These properties are present only if neither `minimumSignificantDigits` nor `maximumSignificantDigits`
 		was provided in the options argument.
 	**/
-	var maximumFractionDigits(default,never):Int;
+	final maximumFractionDigits:Int;
 
-	var minimumSignificantDigits(default,never):Int;
+	final minimumSignificantDigits:Int;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 		These properties are present only if at least one of them was provided in the `options` argument.
 	**/
-	var maximumSignificantDigits(default,never):Int;
+	final maximumSignificantDigits:Int;
 }
 
 enum abstract PluralRulesType(String) {

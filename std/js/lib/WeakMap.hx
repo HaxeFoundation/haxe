@@ -35,7 +35,7 @@ extern class WeakMap<T> {
 	/**
 		The value of the `length` property is 0.
 	**/
-	static var length(default,never):Int;
+	static final length:Int;
 
 	/**
 		If an iterable object is passed, all of its elements will be added to the new WeakSet.

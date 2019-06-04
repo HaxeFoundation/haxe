@@ -110,7 +110,7 @@ typedef RevocableProxy<T:{}> = {
 	/**
 		A Proxy object created with `new Proxy(target, handler)` call.
 	**/
-	var proxy(default,never):Proxy<T>;
+	final proxy:Proxy<T>;
 	
 	/**
 		A function with no argument to invalidate (switch off) the `proxy`.

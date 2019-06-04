@@ -35,7 +35,7 @@ extern class Memory {
 	/**
 		An accessor property that returns the buffer contained in the memory.
 	**/
-	var buffer(default,never):js.lib.ArrayBuffer;
+	final buffer:js.lib.ArrayBuffer;
 
 	@:pure function new(memoryDescriptor:MemoryDescriptor):Void;
 

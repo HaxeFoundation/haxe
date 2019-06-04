@@ -135,46 +135,46 @@ typedef NumberFormatResolvedOption = {
 		requested in the input BCP 47 language tag that led to this locale, the key-value pairs that
 		were requested and are supported for this locale are included in `locale`.
 	**/
-	var locale(default,never):String;
+	final locale:String;
 
 	/**
 		The value requested using the Unicode extension key `"nu"` or filled in as a default.
 	**/
-	var numberingSystem(default,never):String;
+	final numberingSystem:String;
 
-	var style(default,never):NumberFormatStyle;
+	final style:NumberFormatStyle;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 	**/
-	var useGrouping(default,never):String;
+	final useGrouping:String;
 
-	var currency(default,never):String;
+	final currency:String;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 		These properties are only present if `style` is `"currency"`.
 	**/
-	var currencyDisplay(default,never):String;
+	final currencyDisplay:String;
 
-	var minimumIntegerDigits(default,never):Int;
+	final minimumIntegerDigits:Int;
 
-	var minimumFractionDigits(default,never):Int;
+	final minimumFractionDigits:Int;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 		These properties are present only if neither m`inimumSignificantDigits` nor `maximumSignificantDigits`
 		was provided in the `options` argument.
 	**/
-	var maximumFractionDigits(default,never):Int;
+	final maximumFractionDigits:Int;
 
-	var minimumSignificantDigits(default,never):Int;
+	final minimumSignificantDigits:Int;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 		These properties are present only if at least one of them was provided in the `options` argument.
 	**/
-	var maximumSignificantDigits(default,never):Int;
+	final maximumSignificantDigits:Int;
 }
 
 enum abstract NumberFormatStyle(String) {
@@ -212,8 +212,8 @@ enum abstract CurrencyDisplay(String) {
 }
 
 typedef NumberFormatPart = {
-	var type(default,never):NumberFormatPartType;
-	var value(default,never):String;
+	final type:NumberFormatPartType;
+	final value:String;
 }
 
 enum abstract NumberFormatPartType(String) {

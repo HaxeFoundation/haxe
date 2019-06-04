@@ -147,17 +147,17 @@ typedef DateTimeFormatResolvedOptions = {
 		If any Unicode extension values were requested in the input BCP 47 language tag that led to this locale,
 		the key-value pairs that were requested and are supported for this locale are included in `locale`.
 	**/
-	var locale(default,never):String;
+	final locale:String;
 
 	/**
 		E.g. "gregory"
 	**/
-	var calendar(default,never):String;
+	final calendar:String;
 
 	/**
 		The values requested using the Unicode extension keys "ca" and "nu" or filled in as default values.
 	**/
-	var numberingSystem(default,never):String;
+	final numberingSystem:String;
 
 	/**
 		The value provided for this property in the options argument; `undefined` (representing the runtime's
@@ -165,28 +165,28 @@ typedef DateTimeFormatResolvedOptions = {
 		Warning: Applications should not rely on `undefined` being returned, as future versions may return
 		a String value identifying the runtime’s default time zone instead.
 	**/
-	var timeZone(default,never):Null<String>;
+	final timeZone:Null<String>;
 
 	/**
 		The value provided for this property in the `options` argument or filled in as a default.
 	**/
-	var hour12(default,never):Bool;
+	final hour12:Bool;
 
-	var weekday(default,never):WeekdayRepresentation;
+	final weekday:WeekdayRepresentation;
 
-	var era(default,never):EraRepresentation;
+	final era:EraRepresentation;
 
-	var year(default,never):YearRepresentation;
+	final year:YearRepresentation;
 
-	var month(default,never):MonthRepresentation;
+	final month:MonthRepresentation;
 
-	var day(default,never):DayRepresentation;
+	final day:DayRepresentation;
 
-	var hour(default,never):HourRepresentation;
+	final hour:HourRepresentation;
 
-	var minute(default,never):MinuteRepresentation;
+	final minute:MinuteRepresentation;
 
-	var second(default,never):SecondRepresentation;
+	final second:SecondRepresentation;
 
 	/**
 		The values resulting from format matching between the corresponding properties in the `options` argument
@@ -194,7 +194,7 @@ typedef DateTimeFormatResolvedOptions = {
 		Some of these properties may not be present, indicating that the corresponding components will not be
 		represented in formatted output.
 	**/
-	var timeZoneName(default,never):TimeZoneName;
+	final timeZoneName:TimeZoneName;
 }
 
 enum abstract HourCycle(String) {

@@ -104,31 +104,31 @@ typedef CollatorResolvedOptions = {
 		that led to this locale, the key-value pairs that were requested and are supported
 		for this locale are included in `locale`.
 	**/
-	var locale(default,never):String;
+	final locale:String;
 
-	var usage(default,never):Usage;
+	final usage:Usage;
 
-	var sensitivity(default,never):Sensitivity;
+	final sensitivity:Sensitivity;
 
 	/**
 		The values provided for these properties in the `options` argument or filled in as defaults.
 	**/
-	var ignorePunctuation(default,never):Bool;
+	final ignorePunctuation:Bool;
 
 	/**
 		he value requested using the Unicode extension key `"co"`, if it is supported for `Locale`,
 		or `Default`.
 	**/
-	var collation(default,never):Collation;
+	final collation:Collation;
 
-	var numeric(default,never):Bool;
+	final numeric:Bool;
 
 	/**
 		The values requested for these properties in the options argument or using the
 		Unicode extension keys `"kn"` and `"kf"` or filled in as defaults.
 		If the implementation does not support these properties, they are omitted.
 	**/
-	var caseFirst(default,never):CaseFirst;
+	final caseFirst:CaseFirst;
 }
 
 enum abstract Usage(String) {
