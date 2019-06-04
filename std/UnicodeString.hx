@@ -315,13 +315,14 @@ abstract UnicodeString(String) from String to String {
 				pos = 0;
 			}
 		}
-		if(len < 0) {
-			len = (this:UnicodeString).length + len;
+		if(len != null) {
+			if(len < 0) {
+				len = (this:UnicodeString).length + len;
+			}
+			if(len <= 0) {
+				return "";
+			}
 		}
-		if(len <= 0) {
-			return "";
-		}
-
 		var unicodeOffset = 0;
 		var nativeOffset = 0;
 		var fromOffset = -1;
