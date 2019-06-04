@@ -399,9 +399,9 @@ let rec wait_loop process_params verbose accept =
 						()
 					with Not_found -> begin
 						TypeloadModule.add_module ctx m p;
-                        PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-                        PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
-                    end;
+						PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
+						PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+					end;
 				)
 			end
 		in
