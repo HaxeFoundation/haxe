@@ -393,7 +393,10 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
-					| Some cf -> if allowed cf then true else raise Not_found
+					| Some cf ->
+						if allowed cf then true
+						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
+						else raise Not_found
 					| _ -> false
 				)
 				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false
