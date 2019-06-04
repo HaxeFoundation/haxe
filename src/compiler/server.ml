@@ -397,11 +397,11 @@ let rec wait_loop process_params verbose accept =
 					try
 						let _ = Hashtbl.find ctx.g.modules m.m_path in
 						()
-					with Not_found ->
+					with Not_found -> begin
 						TypeloadModule.add_module ctx m p;
-
-					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
-					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+                        PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
+                        PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
+                    end;
 				)
 			end
 		in
