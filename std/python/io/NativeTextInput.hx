@@ -41,11 +41,11 @@ class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
 
 	override public function readByte():Int
 	{
-		var ret = stream.read(1);
+		var ret = stream.buffer.read(1);
 
 		if (ret.length == 0) throwEof();
 
-		return ret.charCodeAt(0);
+		return ret[0];
 	}
 
 	override public function seek( p : Int, pos : sys.io.FileSeek ) : Void
