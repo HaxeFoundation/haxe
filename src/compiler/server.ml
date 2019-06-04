@@ -392,7 +392,14 @@ let rec wait_loop process_params verbose accept =
 							a.a_meta <- List.filter (fun (m,_,_) -> m <> Meta.ValueUsed) a.a_meta
 						| _ -> ()
 					) m.m_types;
-					TypeloadModule.add_module ctx m p;
+
+					(* do not load module again if already loaded *)
+					try
+						let _ = Hashtbl.find ctx.g.modules m.m_path in
+						()
+					with Not_found ->
+						TypeloadModule.add_module ctx m p;
+
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules (tabs ^ "  ") m0 m2) m.m_extra.m_deps
 				)
