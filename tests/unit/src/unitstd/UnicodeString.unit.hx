@@ -64,8 +64,6 @@ s.lastIndexOf("я", 2) == 2;
 s.lastIndexOf("я", 3) == 3;
 s.lastIndexOf("я", 4) == 3;
 s.lastIndexOf("я", 40) == 3;
-s.lastIndexOf("я", -1) == -1;
-s.lastIndexOf("𠜎z", -1) == 0;
 
 // substr
 var s:UnicodeString = "𠜎zяяw";
