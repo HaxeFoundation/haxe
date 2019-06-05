@@ -56,23 +56,24 @@ os.mkdir(os.path.join(TESTDIR, "a"))
 for data in allFilenames:
   os.mkdir(os.path.join(TESTDIR, data))
   os.mkdir(os.path.join(TESTDIR, "a", data))
-  for target, name in [
-    ("../../bin/cpp/UtilityProcess-debug", "bin-cpp-debug"),
-    ("../../bin/cpp/UtilityProcess", "bin-cpp"),
-    ("../../bin/cs/bin/UtilityProcess-Debug.exe", "bin-cs-debug"),
-    ("../../bin/cs/bin/UtilityProcess.exe", "bin-cs"),
-    ("../../bin/hl/UtilityProcess.hl", "bin-hl"),
-    ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
-    ("../../bin/java/UtilityProcess-Debug.jar", "bin-java-debug"),
-    ("../../bin/java/UtilityProcess.jar", "bin-java"),
-    ("../../bin/jvm/UtilityProcess-Debug.jar", "bin-jvm-debug"),
-    ("../../bin/jvm/UtilityProcess.jar", "bin-jvm"),
-    ("../../bin/neko/UtilityProcess.n", "bin-neko"),
-    ("../../bin/php/UtilityProcess/index.php", "bin-php"),
-    ("../../bin/python/UtilityProcess.py", "bin-py"),
-    ("../../src/UtilityProcess.hx", "bin-eval")
-  ]:
-    os.symlink(target, os.path.join(TESTDIR, data, name), target_is_directory = False)
+  if os.name != "nt":
+    for target, name in [
+      ("../../bin/cpp/UtilityProcess-debug", "bin-cpp-debug"),
+      ("../../bin/cpp/UtilityProcess", "bin-cpp"),
+      ("../../bin/cs/bin/UtilityProcess-Debug.exe", "bin-cs-debug"),
+      ("../../bin/cs/bin/UtilityProcess.exe", "bin-cs"),
+      ("../../bin/hl/UtilityProcess.hl", "bin-hl"),
+      ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
+      ("../../bin/java/UtilityProcess-Debug.jar", "bin-java-debug"),
+      ("../../bin/java/UtilityProcess.jar", "bin-java"),
+      ("../../bin/jvm/UtilityProcess-Debug.jar", "bin-jvm-debug"),
+      ("../../bin/jvm/UtilityProcess.jar", "bin-jvm"),
+      ("../../bin/neko/UtilityProcess.n", "bin-neko"),
+      ("../../bin/php/UtilityProcess/index.php", "bin-php"),
+      ("../../bin/python/UtilityProcess.py", "bin-py"),
+      ("../../src/UtilityProcess.hx", "bin-eval")
+    ]:
+      os.symlink(target, os.path.join(TESTDIR, data, name), target_is_directory = False)
 
 # files
 os.mkdir(os.path.join(TESTDIR, "b"))

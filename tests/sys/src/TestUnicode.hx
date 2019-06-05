@@ -207,12 +207,15 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
-		pathBoth(path -> {
-				assertUEnds(
-						Path.normalize(FileSystem.fullPath('$path/${BIN_SYMLINK}')),
-						'/${UtilityProcess.BIN_PATH}/${UtilityProcess.BIN_NAME}'
-					);
-			}, "test-res");
+		if (Sys.systemName() != "Windows") {
+			// symlinks behave strangely on Windows
+			pathBoth(path -> {
+					assertUEnds(
+							Path.normalize(FileSystem.fullPath('$path/${BIN_SYMLINK}')),
+							'/${UtilityProcess.BIN_PATH}/${UtilityProcess.BIN_NAME}'
+						);
+				}, "test-res");
+		}
 
 		// isDirectory
 		assertNormalEither(FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
