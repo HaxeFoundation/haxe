@@ -20,9 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi
 extern class String {
 
@@ -38,14 +35,6 @@ extern class String {
 	function substr( pos : Int, ?len : Int ) : String;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 	function toString() : String;
-
-	@:pure @:runtime inline function iterator() : StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
 
 	@:pure static inline function fromCharCode( code : Int ) : String untyped {
 		return code < 0x10000 ? String["fromCharCode"](code) : flash.Boot.fromCodePoint(code);

@@ -21,9 +21,6 @@
  */
 package flash;
 
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 #if !as3
 @:keep private class RealBoot extends Boot {
 	#if swc
@@ -245,14 +242,6 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static function __init__() untyped {
-		String.prototype.iterator = function() : StringIterator {
-			var s : String = __this__;
-			return new StringIterator(s);
-		}
-		String.prototype.keyValueIterator = function() : StringKeyValueIterator {
-			var s : String = __this__;
-			return new StringKeyValueIterator(s);
-		}
 		var aproto = Array.prototype;
 		aproto.copy = function() {
 			return __this__.slice();
@@ -348,4 +337,5 @@ class Boot extends flash.display.MovieClip {
 			return Std.int(x);
 		};
 	}
+
 }

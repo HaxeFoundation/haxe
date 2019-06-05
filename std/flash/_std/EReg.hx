@@ -78,12 +78,12 @@
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		var s : String = (cast s).replace(r, d);
+		var s : String = (s:Dynamic).replace(r, d);
 		return s.split(d);
 	}
 
 	public function replace( s : String, by : String ) : String {
-		return (cast s).replace(r,by);
+		return (s:Dynamic).replace(r,by);
 	}
 
 	public function map( s : String, f : EReg -> String ) : String {

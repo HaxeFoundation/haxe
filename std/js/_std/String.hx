@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi extern class String {
 	var length(default,null) : Int;
 
@@ -38,16 +34,6 @@ import haxe.iterators.StringKeyValueIterator;
 
 	@:pure inline function charCodeAt( index : Int) : Null<Int> {
 		return @:privateAccess HxOverrides.cca(this, index);
-	}
-
-	@:pure @:runtime inline function iterator() : StringIterator {
-		untyped __define_feature__("String.iterator", {});
-		return new StringIterator(this);
-	}
-
-	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
-		untyped __define_feature__("String.keyValueIterator", {});
-		return new StringKeyValueIterator(this);
 	}
 
 	@:pure inline function substr( pos : Int, ?len : Int ) : String {
