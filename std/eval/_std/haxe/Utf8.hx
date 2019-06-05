@@ -19,43 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package python.io;
+package haxe;
 
-import haxe.io.Eof;
-import haxe.io.Input;
-
-import python.io.IInput;
-import python.io.IoTools;
-import python.io.NativeInput;
-import python.Bytearray;
-import python.lib.io.RawIOBase;
-import python.lib.io.IOBase.SeekSet;
-import python.lib.io.TextIOBase;
-
-
-class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
-
-	public function new (stream:TextIOBase) {
-		super(stream);
-	}
-
-	override public function readByte():Int
-	{
-		var ret = stream.buffer.read(1);
-
-		if (ret.length == 0) throwEof();
-
-		return ret[0];
-	}
-
-	override public function seek( p : Int, pos : sys.io.FileSeek ) : Void
-	{
-		wasEof = false;
-		IoTools.seekInTextMode(stream, tell, p, pos);
-	}
-
-	override function readinto (b:Bytearray):Int {
-		return stream.buffer.readinto(b);
-	}
-
+@:coreApi
+@:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
+extern class Utf8 {
+	public function new( ?size : Int ):Void;
+	public function addChar( c : Int ) : Void;
+	public function toString() : String;
+	public static function iter( s : String, chars : Int -> Void ):Void;
+	public static function encode( s : String ) : String;
+	public static function decode( s : String ) : String;
+	public static function charCodeAt( s : String, index : Int ) : Int;
+	public static function validate( s : String ) : Bool;
+	public static function length( s : String ) : Int;
+	public static function compare( a : String, b : String ) : Int;
+	public static function sub( s : String, pos : Int, len : Int ) : String;
 }

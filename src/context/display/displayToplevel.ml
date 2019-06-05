@@ -322,8 +322,8 @@ let collect ctx tk with_type =
 
 		(* keywords *)
 		let kwds = [
-			Function; Var; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast;
+			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+			Try; New; Throw; Untyped; Cast; Inline;
 		] in
 		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 

@@ -1,10 +1,12 @@
 import pack.BasePack;
 import pack.IPack;
 import pack.Pvt;
+import pack.sub.AccessSubPvt;
 
 class Main {
 	static function main() {
-
+		//should pass, because pack.sub.SubPvt has @:allow(pack)
+		AccessSubPvt.constructExtSubPvt();
 	}
 }
 

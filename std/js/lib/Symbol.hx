@@ -24,10 +24,10 @@ package js.lib;
 @:native("Symbol")
 extern class Symbol {
 	/**
-		To create a new primitive symbol, you write `new Symbol()` with an optional string as its `description`.
+		To create a new primitive symbol, use `new Symbol()` with an optional string as its `description`.
 
-		NOTE: Unlike plain JavaScript, in Haxe `new Symbol()` syntax is used, however `Symbol(...)` expression
-		will be generated as required by JavaScript specification.
+		NOTE: Unlike in plain JavaScript, `new Symbol()` syntax is used in Haxe. This generates a `Symbol(...)`
+		expression as required by the JavaScript specification.
 	**/
 	@:pure @:selfCall function new(?description:String);
 
@@ -55,7 +55,7 @@ extern class Symbol {
 	/**
 		Retrieve symbol from a given `object`.
 
-		NOTE: This is a Haxe-specific method that generates `object[symbol]` expression.
+		NOTE: This is a Haxe-specific method that generates an `object[symbol]` expression.
 	**/
 	inline function ofObject<T>(object:{}):Null<T> return (cast object)[cast this];
 }
