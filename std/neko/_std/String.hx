@@ -74,7 +74,13 @@ import haxe.iterators.StringKeyValueIterator;
 			var l = __dollar__ssize(this.__s);
 			if( startIndex == null || startIndex < -l )
 				startIndex = 0;
-			if( startIndex > l )
+			else if ( startIndex < 0 ) {
+				startIndex = str.length + startIndex;
+				if ( startIndex < 0 ) {
+					startIndex = 0;
+				}
+			}
+			else if( startIndex > l )
 				return -1;
 			if( __dollar__ssize(str.__s) == 0 )
 				return startIndex < 0 ? l + startIndex : startIndex;
