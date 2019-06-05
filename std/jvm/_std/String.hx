@@ -21,7 +21,6 @@
  */
 
 @:coreApi
-@:using(StringTools)
 @:native("java.lang.String")
 extern class String implements java.lang.CharSequence {
 

@@ -21,7 +21,6 @@
  */
 
 @:coreApi
-@:using(StringTools)
 extern class String {
 
 	var length(default,null) : Int;

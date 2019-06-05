@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi
-@:using(StringTools)
 class String {
 
 	var bytes : hl.Bytes;

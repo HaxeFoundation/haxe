@@ -32,7 +32,6 @@
 
 	@see https://haxe.org/manual/std-String.html
 **/
-@:using(StringTools)
 extern class String {
 
 	/**
