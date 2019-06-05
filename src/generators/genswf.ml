@@ -116,6 +116,9 @@ let build_dependencies t =
 				| None -> ()
 				| Some e -> add_expr e
 			end
+		| TArray ({ eexpr = TIdent "__global__" },{ eexpr = TConst (TString s) }) ->
+			let path = parse_path s in
+			add_path path DKExpr;
 		| _ ->
 			Type.iter add_expr e
 	and add_field f =

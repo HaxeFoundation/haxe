@@ -1,0 +1,4 @@
+-cs cs
+-D no-compilation
+-D cs_ver=7.3
+IncompatibleCombinations

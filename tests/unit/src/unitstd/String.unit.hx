@@ -152,9 +152,6 @@ s.substring(2, -1) == "xf";
 s.substring(0) == "xfooxfooxxbarxbarxx";
 s.substring(1) == "fooxfooxxbarxbarxx";
 s.substring(2) == "ooxfooxxbarxbarxx";
-s.substring(0, -1) == "";
-s.substring(1, -1) == "x";
-s.substring(2, -1) == "xf";
 s.substring(20, 0) == "xfooxfooxxbarxbarxx";
 s.substring(0, 100) == "xfooxfooxxbarxbarxx";
 s.substring(100, 120) == "";
@@ -197,3 +194,24 @@ testKeyCodes([for(i => c in s) [i, c]]);
 testKeyCodes([for(i => c in (s:KeyValueIterable<Int,Int>)) [i, c]]);
 var iterator:KeyValueIterator<Int,Int> = (s:Dynamic).keyValueIterator();
 testKeyCodes([for(i => c in iterator) [i, c]]);
+
+// string comparison (see #8332)
+("a" < "b") == true;
+("a" <= "b") == true;
+("a" > "b") == false;
+("a" >= "b") == false;
+
+#if target.unicode
+("𠜎zя" > "abя") == true;
+("𠜎zя" >= "abя") == true;
+("𠜎zя" < "abя") == false;
+("𠜎zя" <= "abя") == false;
+
+#if target.utf16
+// since U+10002 in UTF16 is D800 DC02
+("\u{FF61}" < "\u{10002}") == false;
+#else
+("\u{FF61}" < "\u{10002}") == true;
+#end
+
+#end

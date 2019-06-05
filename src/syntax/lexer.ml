@@ -277,6 +277,18 @@ let ident = [%sedlex.regexp?
 	)
 ]
 
+let sharp_ident = [%sedlex.regexp?
+	(
+		('a'..'z' | 'A'..'Z' | '_'),
+		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
+		Star (
+			'.',
+			('a'..'z' | 'A'..'Z' | '_'),
+			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
+		)
+	)
+]
+
 let idtype = [%sedlex.regexp? Star '_', 'A'..'Z', Star ('_' | 'a'..'z' | 'A'..'Z' | '0'..'9')]
 
 let integer = [%sedlex.regexp? ('1'..'9', Star ('0'..'9')) | '0']
@@ -591,6 +603,14 @@ and not_xml ctx depth in_open =
 		not_xml ctx depth in_open
 	| _ ->
 		assert false
+
+let rec sharp_token lexbuf =
+	match%sedlex lexbuf with
+	| sharp_ident -> mk_ident lexbuf
+	| Plus (Chars " \t") -> sharp_token lexbuf
+	| "\r\n" -> newline lexbuf; sharp_token lexbuf
+	| '\n' | '\r' -> newline lexbuf; sharp_token lexbuf
+	| _ -> token lexbuf
 
 let lex_xml p lexbuf =
 	let name,pmin = match%sedlex lexbuf with
