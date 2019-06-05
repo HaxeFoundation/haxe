@@ -43,12 +43,14 @@ s.indexOf("я", 2) == 2;
 s.indexOf("я", 3) == 3;
 s.indexOf("я", 4) == -1;
 s.indexOf("я", 40) == -1;
+#if !lua // TODO https://github.com/HaxeFoundation/haxe/pull/8370
 s.indexOf("я", -1) == -1;
 s.indexOf("я", -2) == 3;
 s.indexOf("я", -3) == 2;
 s.indexOf("я", -4) == 2;
 s.indexOf("я", -5) == 2;
 s.indexOf("я", -50) == 2;
+#end
 
 // lastIndexOf
 var s:UnicodeString = "𠜎zяяw";
