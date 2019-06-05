@@ -2005,7 +2005,8 @@ and type_local_function ctx name inline f with_type p =
 	) in
 	let curfun = match ctx.curfun with
 		| FunStatic -> FunStatic
-		| FunMemberAbstract -> FunMemberAbstractLocal
+		| FunMemberAbstract
+		| FunMemberAbstractLocal -> FunMemberAbstractLocal
 		| _ -> FunMemberClassLocal
 	in
 	let e , fargs = TypeloadFunction.type_function ctx args rt curfun f ctx.in_display p in
