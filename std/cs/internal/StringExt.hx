@@ -52,6 +52,12 @@ private typedef NativeString = cs.system.String;
 		var sIndex:Int = startIndex != null ? startIndex : 0;
 		if (sIndex >= me.Length)
 			return -1;
+		else if (sIndex < 0) {
+			sIndex = me.Length + sIndex;
+			if (sIndex < 0) {
+				sIndex = 0;
+			}
+		}
 		return @:privateAccess me.IndexOf(str, sIndex, cs.system.StringComparison.Ordinal);
 	}
 
