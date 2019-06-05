@@ -53,7 +53,7 @@ private typedef NativeString = String;
 
 	@:functionCode('
 			int sIndex = (startIndex != null ) ? (haxe.lang.Runtime.toInt(startIndex)) : 0;
-			if (sIndex >= me.length() || sIndex < 0)
+			if (sIndex >= me.length())
 				return -1;
 			return me.indexOf(str, sIndex);
 	')
