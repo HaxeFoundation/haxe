@@ -25,6 +25,7 @@ package java;
 	public static function init():Void {
 		try {
 			java.lang.System.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"));
+			java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"));
 		} catch (e:java.io.UnsupportedEncodingException) {}
 	}
 }

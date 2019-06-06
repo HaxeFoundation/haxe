@@ -468,6 +468,7 @@ and init ctx =
 	let classes = ref [([],"Std")] in
 try
 	set_binary_mode_out stdout true;
+	set_binary_mode_out stderr true;
 	let xml_out = ref None in
 	let json_out = ref None in
 	let swf_header = ref None in
