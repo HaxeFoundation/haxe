@@ -1428,6 +1428,10 @@ module StdLock = struct
 	)
 end
 
+let lineEnd = match Sys.os_type with
+	| "Win32" | "Cygwin" -> "\r\n"
+	| _ -> "\n"
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -1436,7 +1440,7 @@ module StdLog = struct
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
 		let s = match infos with
-			| VNull -> Printf.sprintf "%s\n" s
+			| VNull -> (Printf.sprintf "%s" s) ^ lineEnd
 			| _ ->  let infos = decode_object infos in
 				let file_name = decode_string (object_field infos key_fileName) in
 				let line_number = decode_int (object_field infos key_lineNumber) in
@@ -1444,7 +1448,7 @@ module StdLog = struct
 					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
 					| _ -> [s]
 				in
-				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
 		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
@@ -2484,10 +2488,6 @@ module StdStringTools = struct
 		vstring (VStringBuffer.contents b)
 	)
 end
-
-let lineEnd = match Sys.os_type with
-	| "Win32" | "Cygwin" -> "\r\n"
-	| _ -> "\n"
 
 module StdSys = struct
 	open MacroApi

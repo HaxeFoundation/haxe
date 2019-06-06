@@ -313,7 +313,7 @@ class TestUnicode extends utest.Test {
 			});
 
 		// args
-		if (#if java Sys.systemName() != "Windows" #else true #end) {
+		if (#if (java || eval) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
