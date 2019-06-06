@@ -2485,6 +2485,10 @@ module StdStringTools = struct
 	)
 end
 
+let lineEnd = match Sys.os_type with
+	| "Win32" | "Cygwin" -> "\r\n"
+	| _ -> "\n"
+
 module StdSys = struct
 	open MacroApi
 	open Common
@@ -2548,7 +2552,7 @@ module StdSys = struct
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ "\n");
+		com.print (value_string v ^ lineEnd);
 		vnull
 	)
 
