@@ -20,35 +20,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package java;
-import java.internal.Exceptions;
-import java.internal.Function;
-import java.internal.HxObject;
-import java.internal.Runtime;
-import java.Lib;
-import java.Init;
-//import java.internal.StringExt;
-import java.StdTypes;
-import Reflect;
-import Map;
-import haxe.ds.StringMap;
-import java.lang.Boolean;
-import java.lang.Character;
-import java.lang.Class;
-import java.lang.Number;
-import java.lang.Byte;
-import java.lang.Double;
-import java.lang.Float;
-import java.lang.Integer;
-import java.lang.Long;
-import java.lang.Short;
-import java.lang.Throwable;
-import java.internal.StringExt;
-import java.internal.FieldLookup;
 
-@:dox(hide)
-extern class Boot
-{
-
-
-
+@:native("haxe.java.Init") @:keep class Init {
+	public static function init():Void {
+		try {
+			java.lang.System.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"));
+		} catch (e:java.io.UnsupportedEncodingException) {}
+	}
 }
