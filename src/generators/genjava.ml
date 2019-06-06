@@ -2149,6 +2149,8 @@ let generate con =
 								| _ -> ()
 				with | Not_found -> ()
 				);
+				write w "try { System.setOut(new java.io.PrintStream(System.out, true, \"utf-8\")); } catch (java.io.UnsupportedEncodingException e) {}";
+				newline w;
 				(match gen.gcon.main with
 					| Some(expr) ->
 						expr_s w (mk_block expr)
