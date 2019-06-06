@@ -181,6 +181,7 @@ class Boot {
 	**/
 	@:ifFeature("has_enum")
 	static function __string_rec(o : Dynamic, s:String = "") {
+		if(s.length >= 5) return "<...>";
 		return switch(untyped __type__(o)){
 			case "nil": "null";
 			case "number" : {
@@ -219,7 +220,7 @@ class Boot {
 					for (f in fields){
 						if (first) first = false;
 						else Table.insert(buffer,", ");
-						Table.insert(buffer,'${Std.string(f)} : ${untyped Std.string(o[f])}');
+						Table.insert(buffer,'${Std.string(f)} : ${untyped __string_rec(o[f], s+"\t")}');
 					}
 					Table.insert(buffer, " }");
 					Table.concat(buffer, "");

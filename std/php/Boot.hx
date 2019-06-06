@@ -359,6 +359,15 @@ class Boot {
 			if(Std.is(value, Array)) {
 				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
 			}
+			if(Std.is(value, HxEnum)) {
+				var e:HxEnum = value;
+				var result = e.tag;
+				if (Global.count(e.params) > 0) {
+					var strings = Global.array_map(function (item) return Boot.stringify(item, maxRecursion - 1), e.params);
+					result += '(' + Global.implode(',', strings) + ')';
+				}
+				return result;
+			}
 			if (value.method_exists('toString')) {
 				return value.toString();
 			}
@@ -673,10 +682,11 @@ private class HxClass {
 **/
 @:keep
 @:dox(hide)
+@:allow(php.Boot.stringify)
 private class HxEnum {
-	var tag : String;
-	var index : Int;
-	var params : NativeArray;
+	final tag : String;
+	final index : Int;
+	final params : NativeArray;
 
 	public function new( tag:String, index:Int, arguments:NativeArray = null ) : Void {
 		this.tag = tag;
@@ -696,12 +706,7 @@ private class HxEnum {
 	**/
 	@:phpMagic
 	public function __toString() : String {
-		var result = tag;
-		if (Global.count(params) > 0) {
-			var strings = Global.array_map(function (item) return Boot.stringify(item), params);
-			result += '(' + Global.implode(',', strings) + ')';
-		}
-		return result;
+		return Boot.stringify(this);
 	}
 }
 
