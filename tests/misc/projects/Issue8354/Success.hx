@@ -1,4 +1,4 @@
-class Main {
+class Success {
 	static function main() {}
 }
 
@@ -7,4 +7,4 @@ class MyMap<K, V> {
 	public function iterator(): Iterator<V> return values.iterator();
 }
 
-abstract AbstractMap<K,V>(MyMap<K,V>) to Iterable<K> {}
+abstract AbstractMap<K,V>(MyMap<K,V>) from MyMap<K,V> to Iterable<V> {}
