@@ -50,6 +50,8 @@ class DynamicObject extends HxObject
 	@:skipReflection var __hx_length:Int;
 	@:skipReflection var __hx_length_f:Int;
 
+	@:skipReflection static var __hx_toString_depth = 0;
+
 	@:overload public function new()
 	{
 		this.__hx_fields = new java.NativeArray(0);
@@ -200,6 +202,21 @@ class DynamicObject extends HxObject
 
 	public function toString():String
 	{
+		if (__hx_toString_depth >= 5) {
+			return "...";
+		}
+		++__hx_toString_depth;
+		try {
+			var s = __hx_toString();
+			--__hx_toString_depth;
+			return s;
+		} catch(e:Dynamic) {
+			--__hx_toString_depth;
+			throw(e);
+		}
+	}
+
+	function __hx_toString() {
 		var ts = this.__hx_getField("toString", false, false, false);
 		if (ts != null)
 			return ts();

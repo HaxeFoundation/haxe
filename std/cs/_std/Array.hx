@@ -30,6 +30,8 @@ final class Array<T> implements ArrayAccess<T> {
 
 	private var __a:NativeArray<T>;
 
+	@:skipReflection static var __hx_toString_depth = 0;
+
 #if erase_generics
 	inline private static function ofNative<X>(native:NativeArray<Dynamic>):Array<X>
 	{
@@ -309,6 +311,23 @@ final class Array<T> implements ArrayAccess<T> {
 	}
 
 	public function toString() : String
+	{
+		if (__hx_toString_depth >= 5) {
+			return "...";
+		}
+		++__hx_toString_depth;
+		try {
+			var s = __hx_toString();
+			--__hx_toString_depth;
+			return s;
+		} catch(e:Dynamic) {
+			--__hx_toString_depth;
+			throw(e);
+		}
+	}
+
+	@:skipReflection
+	function __hx_toString() : String
 	{
 		var ret = new StringBuf();
 		var a = __a;

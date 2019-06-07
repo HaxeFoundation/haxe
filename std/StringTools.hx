@@ -19,6 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
+import haxe.iterators.StringIterator;
+import haxe.iterators.StringKeyValueIterator;
+
+#if cpp
+using cpp.NativeString;
+#end
+
 /**
 	This class provides advanced methods on Strings. It is ideally used with
 	`using StringTools` and then acts as an [extension](https://haxe.org/manual/lf-static-extension.html)
@@ -27,9 +35,6 @@
 	If the first argument to any of the methods is null, the result is
 	unspecified.
 **/
-#if cpp
-using cpp.NativeString;
-#end
 class StringTools {
 	/**
 		Encode an URL by using the standard format.
@@ -333,7 +338,7 @@ class StringTools {
 		#if cs
 		return untyped s.Trim();
 		#elseif java
-		return untyped s.trim();
+		return (cast s : java.NativeString).trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
@@ -488,6 +493,28 @@ class StringTools {
 		#else
 		return untyped s.cca(index);
 		#end
+	}
+
+	/**
+		Returns an iterator of the char codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
+	**/
+	public static inline function iterator( s : String ) : StringIterator {
+		return new StringIterator(s);
+	}
+
+	/**
+		Returns an iterator of the char indexes and codes.
+
+		Note that char codes may differ across platforms because of different
+		internal encoding of strings in different of runtimes.
+		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
+	**/
+	public static inline function keyValueIterator( s : String ) : StringKeyValueIterator {
+		return new StringKeyValueIterator(s);
 	}
 
 	/**

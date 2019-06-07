@@ -20,9 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import php.Global;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
+import php.*;
 
 @:coreApi extern class String {
 
@@ -43,14 +41,6 @@ import haxe.iterators.StringKeyValueIterator;
 	}
 
 	@:pure function charCodeAt( index : Int) : Null<Int>;
-
-	@:pure @:runtime inline function iterator() : StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
 
 	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
 

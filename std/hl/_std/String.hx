@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi
 class String {
 
@@ -172,14 +168,6 @@ class String {
 		return this;
 	}
 
-	public inline function iterator() : StringIterator {
-		return new StringIterator(this);
-	}
-
-	public inline function keyValueIterator() : StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
 	public static function fromCharCode( code : Int ) : String {
 		if( code >= 0 && code < 0x10000 ) {
 			if( code >= 0xD800 && code <= 0xDFFF ) throw "Invalid unicode char " + code;
@@ -211,9 +199,9 @@ class String {
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
 		#if (hl_ver >= version("1.10"))
-		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);		
+		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);
 		#else
-		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);		
+		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
 		#end
 		return v == 0 ? length - s.length : v;
 	}
