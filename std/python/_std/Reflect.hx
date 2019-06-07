@@ -29,6 +29,7 @@ import python.internal.MethodClosure;
 import python.lib.Inspect;
 import python.Syntax;
 import python.VarArgs;
+import python.Boot;
 import python.Boot.handleKeywords;
 
 @:access(python.Boot)
@@ -36,13 +37,13 @@ import python.Boot.handleKeywords;
 class Reflect {
 
 	public static inline function hasField( o : Dynamic, field : String ) : Bool {
-		return UBuiltins.hasattr(o, handleKeywords(field));
+		return Boot.hasField(o, field);
 	}
 
 
 	@:ifFeature("dynamic_read", "anon_optional_read")
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return python.Boot.field(o, field);
+		return Boot.field(o, field);
 	}
 
 	@:ifFeature("dynamic_write", "anon_optional_write")
@@ -56,6 +57,8 @@ class Reflect {
 			return null;
 
 		field = handleKeywords(field);
+		if(Boot.isAnonObject(o))
+			return Reflect.field(o, field);
 		var tmp = Reflect.field(o, "get_" + field);
 		if (tmp != null && UBuiltins.callable(tmp))
 			return tmp();
@@ -66,7 +69,9 @@ class Reflect {
 	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 
 		var field = handleKeywords(field);
-		if (UBuiltins.hasattr(o, "set_" + field))
+		if(Boot.isAnonObject(o))
+			UBuiltins.setattr(o, field, value);
+		else if (UBuiltins.hasattr(o, "set_" + field))
 			UBuiltins.getattr(o, "set_" + field)(value);
 		else
 			UBuiltins.setattr(o, field, value);
