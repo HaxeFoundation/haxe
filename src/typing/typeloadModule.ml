@@ -922,7 +922,7 @@ let handle_import_hx ctx m decls p =
 (*
 	Creates a new module and types [tdecls] into it.
 *)
-let type_module ctx mpath file ?(is_extern=false) tdecls p =
+let type_module ctx mpath file ?(is_extern=false) ?(do_flush_pass=false) tdecls p =
 	let m = make_module ctx mpath file p in
 	Hashtbl.add ctx.g.modules m.m_path m;
 	let tdecls = handle_import_hx ctx m tdecls p in
@@ -934,6 +934,7 @@ let type_module ctx mpath file ?(is_extern=false) tdecls p =
 		| _ ->
 			()
 	end;
+	(if do_flush_pass then flush_pass ctx PBuildClass "type_module");
 	m
 
 (* let type_module ctx mpath file ?(is_extern=false) tdecls p =

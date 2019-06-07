@@ -309,7 +309,7 @@ let make_macro_api ctx p =
 			let m, tdef, pos = safe_decode v "TypeDefinition" ttype p f in
 			let add is_macro ctx =
 				let mdep = Option.map_default (fun s -> TypeloadModule.load_module ctx (parse_path s) pos) ctx.m.curmod mdep in
-				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file [tdef,pos] pos in
+				let mnew = TypeloadModule.type_module ctx m mdep.m_extra.m_file ~do_flush_pass:(true) [tdef,pos] pos in
 				mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 				add_dependency mnew mdep;
 			in
@@ -338,7 +338,7 @@ let make_macro_api ctx p =
 				let m = Hashtbl.find ctx.g.modules mpath in
 				ignore(TypeloadModule.type_types_into_module ctx m types pos)
 			with Not_found ->
-				let mnew = TypeloadModule.type_module ctx mpath ctx.m.curmod.m_extra.m_file types pos in
+				let mnew = TypeloadModule.type_module ctx mpath ctx.m.curmod.m_extra.m_file ~do_flush_pass:(true) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod;
 			end
