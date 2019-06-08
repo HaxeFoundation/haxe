@@ -352,7 +352,7 @@
 		"platforms": ["cs"]
 	},
 	{
-		"name": "NetCoreVer",
+		"name": "NetcoreVer",
 		"define": "netcore_ver",
 		"doc": "<version:x.x.x> Sets the .NET core version to be targeted",
 		"platforms": ["cs"]
