@@ -1409,8 +1409,11 @@ let generate con =
 						expr_s w e;
 						write w "]"
 					| TCall ({ eexpr = TIdent "__unsafe__" }, [ e ] ) ->
-						write w "unsafe";
-						expr_s w (mk_block e)
+						write w "unsafe ";
+						begin_block w;
+						expr_s w (mk_block e);
+						write w ";";
+						end_block w
 					| TCall ({ eexpr = TIdent "__checked__" }, [ e ] ) ->
 						write w "checked";
 						expr_s w (mk_block e)
