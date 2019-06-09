@@ -55,8 +55,15 @@ module IterationKind = struct
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
 		let t,pt = Typeload.t_iterator ctx in
+		let dynamic_iterator = ref None in
 		let e1 = try
-			AbstractCast.cast_or_unify_raise ctx t e p
+			let e = AbstractCast.cast_or_unify_raise ctx t e p in
+			match Abstract.follow_with_abstracts e.etype with
+			| TDynamic _ | TMono _ ->
+				(* try to find something better than a dynamic value to iterate on *)
+				dynamic_iterator := Some e;
+				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p))
+			| _ -> e
 		with Error (Unify _,_) ->
 			let try_last_resort after =
 				try
@@ -73,10 +80,13 @@ module IterationKind = struct
 					acc_expr
 				with Error (Unify(l),p) ->
 					try_last_resort (fun () ->
-						if resume then raise Not_found;
-						display_error ctx "Field iterator has an invalid type" acc_expr.epos;
-						display_error ctx (error_msg (Unify l)) p;
-						mk (TConst TNull) t_dynamic p
+						match !dynamic_iterator with
+						| Some e -> e
+						| None ->
+							if resume then raise Not_found;
+							display_error ctx "Field iterator has an invalid type" acc_expr.epos;
+							display_error ctx (error_msg (Unify l)) p;
+							mk (TConst TNull) t_dynamic p
 					)
 			in
 			try
