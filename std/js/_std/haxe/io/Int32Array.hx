@@ -31,7 +31,7 @@ abstract Int32Array(Int32ArrayData) {
 	public var view(get,never) : ArrayBufferView;
 
 	public inline function new( elements : Int ) {
-		this = new Int32ArrayData(elements * BYTES_PER_ELEMENT);
+		this = new Int32ArrayData(elements);
 	}
 
 	inline function get_length() : Int {
