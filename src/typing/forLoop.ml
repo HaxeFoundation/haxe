@@ -192,6 +192,11 @@ module IterationKind = struct
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall in
 				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p MCall in
+				(match acc_next, acc_hasNext with
+					| AKExpr({ eexpr = TField(_, FDynamic _)}), _
+					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
+					| _ -> ()
+				);
 				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
 				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
