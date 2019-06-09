@@ -129,9 +129,14 @@ class Lib {
 	}
 
 	/**
-		For neko compatibility only.
+		Rethrows an exception.
+		If `e` is not a value caught in `try...catch` or if called outside of `catch` block, then `e` is thrown as
+		a new exception.
 	**/
-	public static inline function rethrow( e : Dynamic ) {
+	extern public static inline function rethrow( e : Dynamic ) {
+		if(Syntax.code("isset($__hx__caught_e, $__hx__real_e)") && e == Syntax.code("$__hx__real_e")) {
+			Syntax.code("throw $__hx__caught_e");
+		}
 		throw e;
 	}
 

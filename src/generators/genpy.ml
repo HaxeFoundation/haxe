@@ -2427,10 +2427,25 @@ module Generator = struct
 			newline ctx;
 			spr ctx "class _hx_AnonObject:\n";
 			if with_body then begin
+				spr ctx "    _hx_disable_getattr = False\n";
 				spr ctx "    def __init__(self, fields):\n";
 				spr ctx "        self.__dict__ = fields\n";
 				spr ctx "    def __repr__(self):\n";
-				spr ctx "        return repr(self.__dict__)"
+				spr ctx "        return repr(self.__dict__)\n";
+				spr ctx "    def __getattr__(self, name):\n";
+				spr ctx "        if (self._hx_disable_getattr):\n";
+				spr ctx "            raise AttributeError('field does not exist')\n";
+				spr ctx "        else:\n";
+				spr ctx "            return None\n";
+				spr ctx "    def _hx_hasattr(self,field):\n";
+				spr ctx "        self._hx_disable_getattr = True\n";
+				spr ctx "        try:\n";
+				spr ctx "            getattr(self, field)\n";
+				spr ctx "            self._hx_disable_getattr = False\n";
+				spr ctx "            return True\n";
+				spr ctx "        except AttributeError:\n";
+				spr ctx "            self._hx_disable_getattr = False\n";
+				spr ctx "            return False\n"
 			end else
 				spr ctx "    pass";
 			Hashtbl.add used_paths ([],"_hx_AnonObject") true;

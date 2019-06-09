@@ -2323,7 +2323,12 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 		else
 			type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[mk_to_string_meta e;infos]),p) WithType.NoValue
 	| (EField ((EConst (Ident "super"),_),_),_), _ ->
-		def()
+		(match def() with
+			| { eexpr = TCall ({ eexpr = TField (_, FInstance(_, _, { cf_kind = Method MethDynamic; cf_name = name })); epos = p }, _) } as e ->
+				ctx.com.error ("Cannot call super." ^ name ^ " since it's a dynamic method") p;
+				e
+			| e -> e
+		)
 	| (EField (e,"bind"),p), args ->
 		let e = type_expr ctx e WithType.value in
 		(match follow e.etype with
