@@ -94,8 +94,11 @@ module IterationKind = struct
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
-					let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
-					try_acc acc
+					match !dynamic_iterator with
+					| Some e -> e
+					| None ->
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
+						try_acc acc
 				)
 		in
 		e1,pt
