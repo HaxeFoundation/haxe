@@ -918,6 +918,7 @@ let generate con =
 					Null<> type parameters will be transformed into Dynamic.
 				*)
 				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
 				| true, TEnum _
