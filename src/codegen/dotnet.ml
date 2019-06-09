@@ -1214,12 +1214,21 @@ let add_net_lib com file std =
 
 
 let before_generate com =
+	(* netcore version *)
+	let netcore_ver = try Some(PMap.find "netcore_ver" com.defines.Define.values) with Not_found -> None in
+
 	(* net version *)
 	let net_ver =
 		try
 			let ver = PMap.find "net_ver" com.defines.Define.values in
 			try int_of_string ver with Failure _ -> raise (Arg.Bad "Invalid value for -D net-ver. Expected format: xx (e.g. 20, 35, 40, 45)")
-		with Not_found ->
+		with Not_found when netcore_ver != None ->
+			(* 4.7 was released around .NET core 2.1 *)
+			(* Note: better version mapping should be implemented some day,
+			 * unless we just wait for .NET unification in october 2020 *)
+			Common.define_value com Define.NetVer "47";
+			47
+		| Not_found ->
 			Common.define_value com Define.NetVer "20";
 			20
 	in
@@ -1252,7 +1261,13 @@ let before_generate com =
 		| s -> s
 	in
 	(* look for all dirs that have the digraph NET_TARGET-NET_VER *)
-	let digraph = net_target ^ "-" ^ string_of_int net_ver in
+	let digraph = match net_target with
+	| "netcore" ->
+		(match netcore_ver with
+		| None -> failwith (".NET target is defined as netcore but -D netcore-ver is missing");
+		| Some(ver) -> net_target ^ "-" ^ ver);
+	| _ -> net_target ^ "-" ^ string_of_int net_ver in
+
 	let matched = ref [] in
 	List.iter (fun f -> try
 		let f = Common.find_file com (f ^ "/" ^ digraph) in
