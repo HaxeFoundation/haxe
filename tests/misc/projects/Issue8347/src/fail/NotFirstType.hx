@@ -1,7 +1,9 @@
-package pack;
+package fail;
 
 import cs.system.reflection.AssemblyDelaySignAttribute;
 
-@:assemblyMeta(System.Reflection.AssemblyDefaultAliasAttribute("test"))
+enum SomeEnum {}
+
 @:assemblyStrict(cs.system.reflection.AssemblyDelaySignAttribute(true))
-class Main {}
+class NotFirstType {}
+

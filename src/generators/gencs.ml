@@ -1881,16 +1881,15 @@ let generate con =
 		let gen_assembly_attributes w metadata =
 			List.iter (function
 				| Meta.AssemblyMeta, [EConst(String s), _], _ ->
-					write w "[assembly: ";
+					write w "[assembly:";
 					write w s;
 					write w "]";
 					newline w
 				| Meta.AssemblyMeta, [meta], _ ->
-					write w "[assembly: ";
+					write w "[assembly:";
 					gen_spart w meta;
 					write w "]";
 					newline w
-				(* TODO: AssemblyStrict *)
 				| _ -> ()
 			) metadata
 		in
@@ -2539,18 +2538,24 @@ let generate con =
 			end
 		in
 
-		let gen_class w cl =
+		let gen_class w cl is_first_type =
+			if (is_first_type == false) then begin
+				if Meta.has Meta.AssemblyStrict cl.cl_meta then
+					gen.gcon.error "@:assemblyStrict can only be used on the first class of a module" cl.cl_pos
+				else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+					gen.gcon.error "@:assemblyMeta can only be used on the first class of a module" cl.cl_pos;
+			end;
+
 			write w "#pragma warning disable 109, 114, 219, 429, 168, 162";
 			newline w;
 			let should_close = match change_ns (TClassDecl cl) (fst (cl.cl_path)) with
 				| [] ->
 					(* Should the assembly annotations be added to the class in this case? *)
 
-					if Meta.has Meta.AssemblyMeta cl.cl_meta then
-						gen.gcon.error "@:assemblyMeta cannot be used on top level modules" cl.cl_pos;
-
 					if Meta.has Meta.AssemblyStrict cl.cl_meta then
-						gen.gcon.error "@:assemblyStrict cannot be used on top level modules" cl.cl_pos;
+						gen.gcon.error "@:assemblyStrict cannot be used on top level modules" cl.cl_pos
+					else if Meta.has Meta.AssemblyMeta cl.cl_meta then
+						gen.gcon.error "@:assemblyMeta cannot be used on top level modules" cl.cl_pos;
 
 					false
 				| ns ->
@@ -2809,7 +2814,7 @@ let generate con =
 			if should_close then end_block w
 		in
 
-		let module_type_gen w md_tp =
+		let module_type_gen w md_tp is_first_type =
 			let file_start = len w = 0 in
 			let requires_root = no_root && file_start in
 			if file_start then
@@ -2819,9 +2824,10 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
+
 						(if (Meta.has Meta.CsUsing cl.cl_meta) then
 							match (Meta.get Meta.CsUsing cl.cl_meta) with
-								| _,_,p when not file_start ->
+								| _,_,p when not !is_first_type ->
 									gen.gcon.error "@:cs.using can only be used on the first type of a module" p
 								| _,[],p ->
 									gen.gcon.error "One or several string constants expected" p
@@ -2833,7 +2839,9 @@ let generate con =
 									) e);
 									newline w
 						);
-						gen_class w cl;
+
+						gen_class w cl !is_first_type;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -2842,6 +2850,7 @@ let generate con =
 					if not e.e_extern && not (Meta.has Meta.Class e.e_meta) then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
 						gen_enum w e;
+						is_first_type := false;
 						newline w;
 						newline w
 					end;
@@ -3466,7 +3475,8 @@ let generate con =
 		List.iter (fun md_def ->
 			let source_dir = gen.gcon.file ^ "/src/" ^ (String.concat "/" (fst (path_of_md_def md_def))) in
 			let w = SourceWriter.new_source_writer() in
-			let should_write = List.fold_left (fun should md -> module_type_gen w md || should) false md_def.m_types in
+			let is_first_type = ref true in
+			let should_write = List.fold_left (fun should md -> module_type_gen w md is_first_type || should) false md_def.m_types in
 			if should_write then begin
 				let path = path_of_md_def md_def in
 				write_file gen w source_dir path "cs" out_files
