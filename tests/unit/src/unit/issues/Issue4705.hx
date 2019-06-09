@@ -3,7 +3,9 @@ package unit.issues;
 class Issue4705 extends unit.Test {
 	function test() {
 		var a:Object = { foo: 12, bar: '13' };
-		aeq(['foo', 'bar'], [for(f in a) f]);
+		var actual = [for(f in a) f];
+		actual.sort(Reflect.compare);
+		aeq(['bar', 'foo'], actual);
 	}
 }
 
