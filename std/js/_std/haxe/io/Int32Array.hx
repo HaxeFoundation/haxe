@@ -26,7 +26,7 @@ typedef Int32ArrayData = js.lib.Int32Array;
 @:coreApi
 abstract Int32Array(Int32ArrayData) {
 
-	public static inline var BYTES_PER_ELEMENT = 1;
+	public static inline var BYTES_PER_ELEMENT = 4;
 	public var length(get,never) : Int;
 	public var view(get,never) : ArrayBufferView;
 
