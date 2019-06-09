@@ -128,6 +128,10 @@ module IterationKind = struct
 	 	| _ -> raise Not_found
 
 	let of_texpr ?(resume=false) ctx e unroll p =
+		let dynamic_iterator e =
+			display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
+			IteratorDynamic,e,t_dynamic
+		in
 		let check_iterator () =
 			let array_access_result = ref None in
 			let last_resort () =
@@ -136,8 +140,11 @@ module IterationKind = struct
 			in
 			let e1,pt = check_iterator ~resume ~last_resort ctx "iterator" e p in
 			match !array_access_result with
-			| None -> (IteratorIterator,e1,pt)
 			| Some result -> result
+			| None ->
+				match Abstract.follow_with_abstracts e1.etype with
+					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
+					| _ -> (IteratorIterator,e1,pt)
 		in
 		let try_forward_array_iterator () =
 			match follow e.etype with
@@ -198,8 +205,7 @@ module IterationKind = struct
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
-			display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
-			IteratorDynamic,e,t_dynamic
+			dynamic_iterator e
 		| _ ->
 			check_iterator ()
 		in
