@@ -522,6 +522,27 @@ class inline_state ctx ethis params cf f p = object(self)
 		map_expr_type e
 end
 
+(**
+	Returns new tfunc instance with TBlock expr composed of setting default values for optional arguments and function body.
+*)
+let inject_defaults com (fn:tfunc) =
+	let rec inject args body_exprs =
+		match args with
+			| [] -> body_exprs
+			| (_, None) :: rest -> inject rest body_exprs
+			| (_, Some {eexpr = TConst TNull}) :: rest -> inject rest body_exprs
+			| (var, Some const) :: rest when com.config.pf_static && not (is_nullable var.v_type) -> inject rest body_exprs
+			| (var, Some const) :: rest ->
+				let expr = Texpr.set_default com.basic var const var.v_pos in
+				expr :: (inject rest body_exprs)
+	in
+	let exprs =
+		match fn.tf_expr.eexpr with
+			| TBlock exprs -> inject fn.tf_args exprs
+			| _ -> inject fn.tf_args [ fn.tf_expr ]
+	in
+	{ fn with tf_expr = { fn.tf_expr with eexpr = TBlock exprs } }
+
 let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=false) force =
 	(* perform some specific optimization before we inline the call since it's not possible to detect at final optimization time *)
 	try
@@ -534,6 +555,7 @@ let rec type_inline ctx cf f ethis params tret config p ?(self_calling_closure=f
 		| None -> raise Exit
 		| Some e -> Some e)
 	with Exit ->
+	let f = inject_defaults ctx.com f in
 	let state = new inline_state ctx ethis params cf f p in
 	let vthis = state#initialize in
 	let opt f = function
