@@ -322,10 +322,16 @@ class TestUnicode extends utest.Test {
 				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
 				#if !java
 				// putEnv + getEnv
-				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine
+					// Temporary workaround (#8379)
+					#if (hl || cpp) , if (Sys.systemName() == "Windows") str + "\r\r\n" else null #end
+				);
 #if !lua // Lua disabled temporarily (#8216)
 				// putEnv + environment
-				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
+				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine
+					// Temporary workaround (#8379)
+					#if (hl || cpp) , if (Sys.systemName() == "Windows") str + "\r\r\n" else null #end
+				);
 #end
 				#end
 			});
