@@ -15,6 +15,7 @@
 	all : properly disallowed some modifier combinations related to `final` (#8335)
 	all : support `@:pure(false)` on variable fields (#8338)
 	flash : updated Flash externs to version 32.0 (now using `final`, `enum abstract` and `haxe.extern.Rest`)
+	flash : rework support for native Flash properties (#8241)
 	php : improved performance of various parser implementations (#8083)
 
 	Standard Library:
@@ -49,6 +50,7 @@
 	hl : fixed various String Unicode issues
 	java : fixed null exception in CallStack.exceptionStack (#8322)
 	js : fixed code generation issue related to negative abstract values (#8318)
+	flash : fix various issues, including native `protected` handling and method overloading
 
 	Removals:
 
