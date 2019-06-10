@@ -2527,7 +2527,9 @@ let generate con =
 								write w ("if(" ^ flag ^ ") return;");
 								newline w;
 								write w (flag ^ " = true;");
+								newline w;
 								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init);
 								newline w
 							)
 						end
