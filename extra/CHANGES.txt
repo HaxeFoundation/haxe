@@ -17,6 +17,8 @@
 	flash : updated Flash externs to version 32.0 (now using `final`, `enum abstract` and `haxe.extern.Rest`)
 	flash : rework support for native Flash properties (#8241)
 	php : improved performance of various parser implementations (#8083)
+	cs : support .NET core target (#8391)
+	cs : generate native type parameter constraints (#8311, #7863)
 
 	Standard Library:
 
