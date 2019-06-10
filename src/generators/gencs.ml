@@ -2512,14 +2512,33 @@ let generate con =
 			(match cl.cl_init with
 				| None -> ()
 				| Some init ->
+					let needs_block,write_expr =
+						let unchecked = needs_unchecked init in
+						if cl.cl_params = [] then
+							unchecked, (fun() ->
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init)
+							)
+						else begin
+							write w "static bool __hx_init_called = false;";
+							newline w;
+							true, (fun() ->
+								let flag = (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params))) ^ ".__hx_init_called" in
+								write w ("if(" ^ flag ^ ") return;");
+								newline w;
+								write w (flag ^ " = true;");
+								if unchecked then write w "unchecked";
+								newline w
+							)
+						end
+					in
 					print w "static %s() " (snd cl.cl_path);
-					if needs_unchecked init then begin
+					if needs_block then begin
 						begin_block w;
-						write w "unchecked ";
-						expr_s false w (mk_block init);
+						write_expr();
 						end_block w;
 					end else
-						expr_s false w (mk_block init);
+						write_expr();
 					line_reset_directive w;
 					newline w;
 					newline w
