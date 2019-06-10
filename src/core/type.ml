@@ -1853,6 +1853,12 @@ let rec type_eq param a b =
 		(match !t with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
+	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
+		type_eq param t1 t2
+	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
+		type_eq param t b
+	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
+		type_eq param a t
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params param a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
@@ -1884,12 +1890,6 @@ let rec type_eq param a b =
 		)
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
-		type_eq param t1 t2
-	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
-		type_eq param t b
-	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
-		type_eq param a t
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
 		type_eq_params param a b tl1 tl2
