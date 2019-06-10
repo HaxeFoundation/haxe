@@ -36,6 +36,8 @@ class Cs {
 	}
 
 	static public function runCs(exe:String, ?args:Array<String>):Void {
+		haxelibInstallGit("HaxeFoundation", "hxcs", true);
+
 		if (args == null) args = [];
 		exe = FileSystem.fullPath(exe);
 		switch (systemName) {
