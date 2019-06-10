@@ -16,6 +16,8 @@
 	all : support `@:pure(false)` on variable fields (#8338)
 	flash : updated Flash externs to version 32.0 (now using `final`, `enum abstract` and `haxe.extern.Rest`)
 	php : improved performance of various parser implementations (#8083)
+	cs : support .NET core target (#8391)
+	cs : generate native type parameter constraints (#8311, #7863)
 
 	Standard Library:
 
