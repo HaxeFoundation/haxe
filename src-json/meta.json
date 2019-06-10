@@ -786,6 +786,13 @@
 		"targets": ["TClassField"]
 	},
 	{
+		"name": "Persistent",
+		"metadata": ":persistent",
+		"doc": "Keeps the value of static variables in macro context across compilations",
+		"targets": ["TAnyField"],
+		"platforms": ["eval"]
+	},
+	{
 		"name": "PhpGlobal",
 		"metadata": ":phpGlobal",
 		"doc": "Indicates that static fields of an extern class actually are located in the global PHP namespace",
