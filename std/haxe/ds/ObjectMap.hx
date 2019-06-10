@@ -32,8 +32,7 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
-
+extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	/**
 		Creates a new ObjectMap.
 	**/
@@ -72,17 +71,18 @@ extern class ObjectMap < K: { }, V > implements haxe.Constraints.IMap<K,V> {
 	/**
 		See `Map.keyValueIterator`
 	**/
-#if eval
-	@:runtime public inline function keyValueIterator() : KeyValueIterator<K, V> {
+	#if eval
+	@:runtime public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
-#else
-	public function keyValueIterator() : KeyValueIterator<K, V>;
-#end
+	#else
+	public function keyValueIterator():KeyValueIterator<K, V>;
+	#end
+
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : ObjectMap<K,V>;
+	public function copy():ObjectMap<K, V>;
 
 	/**
 		See `Map.toString`

@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
@@ -33,9 +34,9 @@ package haxe;
 	framework.
 **/
 typedef PosInfos = {
-	var fileName : String;
-	var lineNumber : Int;
-	var className : String;
-	var methodName : String;
-	var ?customParams : Array<Dynamic>;
+	var fileName:String;
+	var lineNumber:Int;
+	var className:String;
+	var methodName:String;
+	var ?customParams:Array<Dynamic>;
 }
