@@ -61,7 +61,6 @@ class Hl {
 
     static public function run(args:Array<String>) {
         getHlDependencies();
-			/*
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
         runCommand(hlBinary, ["bin/unit.hl"]);
 
