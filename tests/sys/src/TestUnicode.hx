@@ -207,8 +207,10 @@ class TestUnicode extends utest.Test {
 #end
 
 		// exists
+#if !cpp // C++ disabled temporarily (#8400)
 		assertNormalEither(FileSystem.exists, 'test-res/a', 'expected exists == true');
 		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
+#end
 
 		// fullPath
 #if !lua // Lua disabled temporarily (#8215)
@@ -255,6 +257,7 @@ class TestUnicode extends utest.Test {
 			});
 
 		// rename
+#if !cpp // C++ disabled temporarily (#8400)
 		File.copy("test-res/data.bin", "temp-unicode/rename-me");
 		pathBoth(str -> {
 				FileSystem.rename('temp-unicode/rename-me', 'temp-unicode/$str');
@@ -262,6 +265,7 @@ class TestUnicode extends utest.Test {
 				Assert.isTrue(FileSystem.exists('temp-unicode/$str'));
 				FileSystem.rename('temp-unicode/$str', 'temp-unicode/rename-me');
 			});
+#end
 
 #if !cpp // C++ disabled temporarily (#8400)
 		pathBoth(str -> {
