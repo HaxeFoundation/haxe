@@ -14,6 +14,10 @@ class Hl {
       case [AppVeyor, "Windows"]: "C:\\hashlink_build";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
     };
+    static var hlBinDir = switch [ci, systemName] {
+      case [AppVeyor, "Windows"]: "C:\\hashlink_build\\bin";
+      case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
+    };
     static var hlBinary = switch [ci, systemName] {
       case [AppVeyor, "Windows"]: "C:\\hashlink_build\\bin\\hl";
       case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
@@ -57,6 +61,7 @@ class Hl {
         ]);
 
         runCommand(hlBinary, ["--version"]);
+        addToPATH(hlBinDir);
     }
 
     static public function run(args:Array<String>) {
