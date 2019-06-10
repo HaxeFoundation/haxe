@@ -11,10 +11,7 @@ class Cs {
 	static public function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
-				if (commandSucceed("mono", ["--version"]))
-					infoMsg('mono has already been installed.');
-				else
-					Linux.requireAptPackages(["mono-devel", "mono-mcs"]);
+				Linux.requireAptPackages(["mono-devel", "mono-mcs"]);
 				runCommand("mono", ["--version"]);
 			case "Mac":
 				if (commandSucceed("mono", ["--version"]))
