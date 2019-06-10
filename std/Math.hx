@@ -19,20 +19,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
 	This class defines mathematical functions and constants.
 
 	@see https://haxe.org/manual/std-math.html
 **/
-#if cpp @:include("hxMath.h") #end
+#if cpp
+@:include("hxMath.h")
+#end
 @:pure
-extern class Math
-{
+extern class Math {
 	/**
 		Represents the ratio of the circumference of a circle to its diameter,
 		specified by the constant, π. `PI` is approximately 3.141592653589793.
 	**/
-	static var PI(default,null) : Float;
+	static var PI(default, null):Float;
 
 	/**
 		A special `Float` constant which denotes negative infinity.
@@ -45,7 +47,7 @@ extern class Math
 		If this constant is converted to an `Int`, e.g. through `Std.int()`, the
 		result is unspecified.
 	**/
-	static var NEGATIVE_INFINITY(default, null) : Float;
+	static var NEGATIVE_INFINITY(default, null):Float;
 
 	/**
 		A special `Float` constant which denotes positive infinity.
@@ -58,7 +60,7 @@ extern class Math
 		If this constant is converted to an `Int`, e.g. through `Std.int()`, the
 		result is unspecified.
 	**/
-	static var POSITIVE_INFINITY(default,null) : Float;
+	static var POSITIVE_INFINITY(default, null):Float;
 
 	/**
 		A special `Float` constant which denotes an invalid number.
@@ -74,7 +76,7 @@ extern class Math
 
 		In order to test if a value is `NaN`, you should use `Math.isNaN()` function.
 	**/
-	static var NaN(default, null) : Float;
+	static var NaN(default, null):Float;
 
 	/**
 		Returns the absolute value of `v`.
@@ -229,7 +231,7 @@ extern class Math
 		Returns a pseudo-random number which is greater than or equal to 0.0,
 		and less than 1.0.
 	**/
-	static function random() : Float;
+	static function random():Float;
 
 	#if ((flash && !as3) || cpp || eval)
 	/**
@@ -238,7 +240,7 @@ extern class Math
 		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
-	static function ffloor( v : Float ) : Float;
+	static function ffloor(v:Float):Float;
 
 	/**
 		Returns the smallest integer value that is not less than `v`, as a `Float`.
@@ -246,7 +248,7 @@ extern class Math
 		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
-	static function fceil( v : Float ) : Float;
+	static function fceil(v:Float):Float;
 
 	/**
 		Rounds `v` to the nearest integer value, as a Float.
@@ -256,24 +258,20 @@ extern class Math
 		If `v` is is `NaN`, `NEGATIVE_INFINITY` or `POSITIVE_INFINITY`,
 		the result is unspecified.
 	**/
-	static function fround( v : Float ) : Float;
-
+	static function fround(v:Float):Float;
 	#else
-
-	static inline function ffloor( v : Float ) : Float {
+	static inline function ffloor(v:Float):Float {
 		return floor(v);
 	}
 
-	static inline function fceil( v : Float ) : Float {
+	static inline function fceil(v:Float):Float {
 		return ceil(v);
 	}
 
-	static inline function fround( v : Float ) : Float {
+	static inline function fround(v:Float):Float {
 		return round(v);
 	}
-
 	#end
-
 
 	/**
 		Tells if `f` is a finite number.
@@ -281,7 +279,7 @@ extern class Math
 		If `f` is `POSITIVE_INFINITY`, `NEGATIVE_INFINITY` or `NaN`, the result
 		is `false`, otherwise the result is `true`.
 	**/
-	static function isFinite( f : Float ) : Bool;
+	static function isFinite(f:Float):Bool;
 
 	/**
 		Tells if `f` is not a valid number.
@@ -290,38 +288,28 @@ extern class Math
 		In particular, both `POSITIVE_INFINITY` and `NEGATIVE_INFINITY` are
 		not considered `NaN`.
 	**/
-	static function isNaN( f : Float ) : Bool;
+	static function isNaN(f:Float):Bool;
 
 	#if !eval
-	private static function __init__() : Void untyped {
-	#if flash
-		NaN = __global__["Number"].NaN;
-		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
-		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
-	#else
-		//TODO: Abandoned code block? Js has its own _std/Math.hx
-		Math.__name__ = ["Math"];
-		Math.NaN = Number["NaN"];
-		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
-		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
-	#end
-		Math.isFinite = function(i) {
-			return
+	private static function __init__():Void
+		untyped {
 			#if flash
-			__global__["isFinite"](i);
+			NaN = __global__["Number"].NaN;
+			NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
+			POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
 			#else
-			false;
+			// TODO: Abandoned code block? Js has its own _std/Math.hx
+			Math.__name__ = ["Math"];
+			Math.NaN = Number["NaN"];
+			Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
+			Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 			#end
-		};
-		Math.isNaN = function(i) {
-			return
-			#if flash
-			__global__["isNaN"](i);
-			#else
-			false;
-			#end
-		};
-	}
+			Math.isFinite = function(i) {
+				return #if flash __global__["isFinite"](i); #else false; #end
+			};
+			Math.isNaN = function(i) {
+				return #if flash __global__["isNaN"](i); #else false; #end
+			};
+		}
 	#end
-
 }

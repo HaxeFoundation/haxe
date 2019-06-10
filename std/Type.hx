@@ -30,7 +30,6 @@
 	@see https://haxe.org/manual/std-reflection.html
 **/
 extern class Type {
-
 	/**
 		Returns the class of `o`, if `o` is a class instance.
 
@@ -38,7 +37,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	public static function getClass<T>( o : T ) : Class<T>;
+	public static function getClass<T>(o:T):Class<T>;
 
 	/**
 		Returns the enum of enum instance `o`.
@@ -50,8 +49,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic>;
-
+	public static function getEnum(o:EnumValue):Enum<Dynamic>;
 
 	/**
 		Returns the super-class of class `c`.
@@ -62,8 +60,7 @@ extern class Type {
 
 		In general, type parameter information cannot be obtained at runtime.
 	**/
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic>;
-
+	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>;
 
 	/**
 		Returns the name of class `c`, including its path.
@@ -80,7 +77,7 @@ extern class Type {
 
 		The class name does not include any type parameters.
 	**/
-	public static function getClassName( c : Class<Dynamic> ) : String;
+	public static function getClassName(c:Class<Dynamic>):String;
 
 	/**
 		Returns the name of enum `e`, including its path.
@@ -97,7 +94,7 @@ extern class Type {
 
 		The enum name does not include any type parameters.
 	**/
-	public static function getEnumName( e : Enum<Dynamic> ) : String;
+	public static function getEnumName(e:Enum<Dynamic>):String;
 
 	/**
 		Resolves a class by name.
@@ -111,7 +108,7 @@ extern class Type {
 
 		The class name must not include any type parameters.
 	**/
-	public static function resolveClass( name : String ) : Class<Dynamic>;
+	public static function resolveClass(name:String):Class<Dynamic>;
 
 	/**
 		Resolves an enum by name.
@@ -126,7 +123,7 @@ extern class Type {
 
 		The enum name must not include any type parameters.
 	**/
-	public static function resolveEnum( name : String ) : Enum<Dynamic>;
+	public static function resolveEnum(name:String):Enum<Dynamic>;
 
 	/**
 		Creates an instance of class `cl`, using `args` as arguments to the
@@ -145,7 +142,7 @@ extern class Type {
 		In particular, default values of constructor arguments are not
 		guaranteed to be taken into account.
 	**/
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T;
+	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T;
 
 	/**
 		Creates an instance of class `cl`.
@@ -154,7 +151,7 @@ extern class Type {
 
 		If `cl` is null, the result is unspecified.
 	**/
-	public static function createEmptyInstance<T>( cl : Class<T> ) : T;
+	public static function createEmptyInstance<T>(cl:Class<T>):T;
 
 	/**
 		Creates an instance of enum `e` by calling its constructor `constr` with
@@ -165,7 +162,7 @@ extern class Type {
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
 	**/
-	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T;
+	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T;
 
 	/**
 		Creates an instance of enum `e` by calling its constructor number
@@ -179,7 +176,7 @@ extern class Type {
 		expected number of constructor arguments, or if any argument has an
 		invalid type, the result is unspecified.
 	**/
-	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T;
+	public static function createEnumIndex<T>(e:Enum<T>, index:Int, ?params:Array<Dynamic>):T;
 
 	/**
 		Returns a list of the instance fields of class `c`, including
@@ -195,7 +192,7 @@ extern class Type {
 
 		(As3) This method only returns instance fields that are public.
 	**/
-	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String>;
+	public static function getInstanceFields(c:Class<Dynamic>):Array<String>;
 
 	/**
 		Returns a list of static fields of class `c`.
@@ -208,7 +205,7 @@ extern class Type {
 
 		(As3) This method only returns class fields that are public.
 	**/
-	public static function getClassFields( c : Class<Dynamic> ) : Array<String>;
+	public static function getClassFields(c:Class<Dynamic>):Array<String>;
 
 	/**
 		Returns a list of the names of all constructors of enum `e`.
@@ -218,7 +215,7 @@ extern class Type {
 
 		If `e` is null, the result is unspecified.
 	**/
-	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String>;
+	public static function getEnumConstructs(e:Enum<Dynamic>):Array<String>;
 
 	/**
 		Returns the runtime type of value `v`.
@@ -227,7 +224,7 @@ extern class Type {
 		per platform. Assumptions regarding this should be minimized to avoid
 		surprises.
 	**/
-	public static function typeof( v : Dynamic ) : ValueType;
+	public static function typeof(v:Dynamic):ValueType;
 
 	/**
 		Recursively compares two enum instances `a` and `b` by value.
@@ -237,7 +234,7 @@ extern class Type {
 
 		If `a` or `b` are null, the result is unspecified.
 	**/
-	public static function enumEq<T:EnumValue>( a : T, b : T ) : Bool;
+	public static function enumEq<T:EnumValue>(a:T, b:T):Bool;
 
 	/**
 		Returns the constructor name of enum instance `e`.
@@ -246,7 +243,7 @@ extern class Type {
 
 		If `e` is null, the result is unspecified.
 	**/
-	public static function enumConstructor( e : EnumValue ) : String;
+	public static function enumConstructor(e:EnumValue):String;
 
 	/**
 		Returns a list of the constructor arguments of enum instance `e`.
@@ -258,7 +255,7 @@ extern class Type {
 
 		If `e` is null, the result is unspecified.
 	**/
-	public static function enumParameters( e : EnumValue ) : Array<Dynamic>;
+	public static function enumParameters(e:EnumValue):Array<Dynamic>;
 
 	/**
 		Returns the index of enum instance `e`.
@@ -268,7 +265,7 @@ extern class Type {
 
 		If `e` is null, the result is unspecified.
 	**/
-	public static function enumIndex( e : EnumValue ) : Int;
+	public static function enumIndex(e:EnumValue):Int;
 
 	/**
 		Returns a list of all constructors of enum `e` that require no
@@ -283,10 +280,8 @@ extern class Type {
 
 		If `e` is null, the result is unspecified.
 	**/
-	public static function allEnums<T>( e : Enum<T> ) : Array<T>;
-
+	public static function allEnums<T>(e:Enum<T>):Array<T>;
 }
-
 
 /**
 	The different possible runtime types of a value.
@@ -298,7 +293,7 @@ enum ValueType {
 	TBool;
 	TObject;
 	TFunction;
-	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum<Dynamic> );
+	TClass(c:Class<Dynamic>);
+	TEnum(e:Enum<Dynamic>);
 	TUnknown;
 }
