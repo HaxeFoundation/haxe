@@ -25,30 +25,29 @@ import haxe.iterators.StringKeyValueIterator;
 
 @:coreApi
 extern class String {
+	var length(default, null):Int;
+	function new(string:String):Void;
+	function toUpperCase():String;
+	function toLowerCase():String;
+	function charAt(index:Int):String;
+	function charCodeAt(index:Int):Null<Int>;
+	function indexOf(str:String, ?startIndex:Int):Int;
+	function lastIndexOf(str:String, ?startIndex:Int):Int;
+	function split(delimiter:String):Array<String>;
+	function substr(pos:Int, ?len:Int):String;
+	function substring(startIndex:Int, ?endIndex:Int):String;
+	function toString():String;
 
-	var length(default,null) : Int;
-	function new(string:String) : Void;
-	function toUpperCase() : String;
-	function toLowerCase() : String;
-	function charAt(index : Int) : String;
-	function charCodeAt( index : Int) : Null<Int>;
-	function indexOf( str : String, ?startIndex : Int ) : Int;
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	function split( delimiter : String ) : Array<String>;
-	function substr( pos : Int, ?len : Int ) : String;
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
-	function toString() : String;
-
-	@:pure @:runtime inline function iterator() : StringIterator {
+	@:pure @:runtime inline function iterator():StringIterator {
 		return new StringIterator(this);
 	}
 
-	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+	@:pure @:runtime inline function keyValueIterator():StringKeyValueIterator {
 		return new StringKeyValueIterator(this);
 	}
 
-	@:pure static inline function fromCharCode( code : Int ) : String untyped {
-		return code < 0x10000 ? String["fromCharCode"](code) : flash.Boot.fromCodePoint(code);
-	}
-
+	@:pure static inline function fromCharCode(code:Int):String
+		untyped {
+			return code < 0x10000 ? String["fromCharCode"](code) : flash.Boot.fromCodePoint(code);
+		}
 }

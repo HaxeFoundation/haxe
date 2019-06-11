@@ -19,30 +19,27 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.zip;
 
 @:coreApi
 class Uncompress {
-
-	public function new( ?windowBits : Int ) : Void {
+	public function new(?windowBits:Int):Void {
 		throw "Not implemented for this platform";
 	}
 
-	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute(src:haxe.io.Bytes, srcPos:Int, dst:haxe.io.Bytes, dstPos:Int):{done:Bool, read:Int, write:Int} {
 		return null;
 	}
 
-	public function setFlushMode( f : FlushMode ) : Void {
-	}
+	public function setFlushMode(f:FlushMode):Void {}
 
-	public function close() : Void {
-	}
+	public function close():Void {}
 
-	public static function run( src : haxe.io.Bytes, ?bufsize : Int ) : haxe.io.Bytes {
+	public static function run(src:haxe.io.Bytes, ?bufsize:Int):haxe.io.Bytes {
 		var tmp = new flash.utils.ByteArray();
-		tmp.writeBytes(src.getData(),0,src.length);
+		tmp.writeBytes(src.getData(), 0, src.length);
 		tmp.uncompress();
 		return haxe.io.Bytes.ofData(tmp);
 	}
-
 }
