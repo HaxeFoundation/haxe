@@ -19,10 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.internal;
 
 import python.Syntax;
-
 import python.Syntax.code in py;
 
 @:noDoc
@@ -30,20 +30,19 @@ import python.Syntax.code in py;
 @:access(python.internal.ArrayImpl)
 @:access(python.Boot)
 class HxOverrides {
-
 	// this two cases iterator and shift are like all methods in String and Array and are already handled in Reflect
 	// we need to modify the transformer to call Reflect directly
-
 	@:ifFeature("dynamic_read.iterator", "anon_optional_read.iterator", "anon_read.iterator")
 	static public function iterator(x:Any):Any {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).iterator();
+			return (x : Array<Dynamic>).iterator();
 		}
 		if (Boot.isString(x)) {
 			return new haxe.iterators.StringIterator(x);
 		}
 		return Syntax.callField(x, "iterator");
 	}
+
 	@:ifFeature("dynamic_read.keyValueIterator", "anon_optional_read.keyValueIterator", "anon_read.keyValueIterator")
 	static public function keyValueIterator(x:Any):Any {
 		if (Boot.isString(x)) {
@@ -51,22 +50,24 @@ class HxOverrides {
 		}
 		return Syntax.callField(x, "keyValueIterator");
 	}
+
 	@:ifFeature("dynamic_binop_==", "dynamic_binop_!=")
-	static function eq( a:Dynamic, b:Dynamic ) : Bool {
+	static function eq(a:Dynamic, b:Dynamic):Bool {
 		if (Boot.isArray(a) || Boot.isArray(b)) {
 			return Syntax.code('a is b');
 		}
 		return Syntax.binop(a, "==", b);
 	}
+
 	@:ifFeature("unsafe_string_concat")
-	static function stringOrNull (s:String):String {
+	static function stringOrNull(s:String):String {
 		return if (s == null) "null" else s;
 	}
 
 	@:ifFeature("dynamic_read.shift", "anon_optional_read.shift", "anon_read.shift")
 	static public function shift(x) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).shift();
+			return (x : Array<Dynamic>).shift();
 		}
 		return Syntax.callField(x, "shift");
 	}
@@ -74,7 +75,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.pop", "anon_optional_read.pop", "anon_read.pop")
 	static public function pop(x) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).pop();
+			return (x : Array<Dynamic>).pop();
 		}
 		return Syntax.callField(x, "pop");
 	}
@@ -82,7 +83,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.push", "anon_optional_read.push", "anon_read.push")
 	static public function push(x:Dynamic, e:Dynamic) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).push(e);
+			return (x : Array<Dynamic>).push(e);
 		}
 		return Syntax.callField(x, "push", e);
 	}
@@ -90,7 +91,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.join", "anon_optional_read.join", "anon_read.join")
 	static public function join(x, sep) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).join(sep);
+			return (x : Array<Dynamic>).join(sep);
 		}
 		return Syntax.callField(x, "join", sep);
 	}
@@ -98,7 +99,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.filter", "anon_optional_read.filter", "anon_read.filter")
 	static public function filter(x, f) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).filter(f);
+			return (x : Array<Dynamic>).filter(f);
 		}
 		return Syntax.callField(x, "filter", f);
 	}
@@ -106,7 +107,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.map", "anon_optional_read.map", "anon_read.map")
 	static public function map(x:Dynamic, f:Dynamic) {
 		if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).map(f);
+			return (x : Array<Dynamic>).map(f);
 		}
 		return Syntax.callField(x, "map", f);
 	}
@@ -114,7 +115,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.toUpperCase", "anon_optional_read.toUpperCase", "anon_read.toUpperCase")
 	static public function toUpperCase(x) {
 		if (Boot.isString(x)) {
-			return (x:String).toUpperCase();
+			return (x : String).toUpperCase();
 		}
 		return Syntax.callField(x, "toUpperCase");
 	}
@@ -122,7 +123,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.toLowerCase", "anon_optional_read.toLowerCase", "anon_read.toLowerCase")
 	static public function toLowerCase(x) {
 		if (Boot.isString(x)) {
-			return (x:String).toLowerCase();
+			return (x : String).toLowerCase();
 		}
 		return Syntax.callField(x, "toLowerCase");
 	}
@@ -130,7 +131,7 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "anon_read.split")
 	static public function split(x:Dynamic, delimiter:String) {
 		if (Boot.isString(x)) {
-			return (x:String).split(delimiter);
+			return (x : String).split(delimiter);
 		}
 		return Syntax.callField(x, "split", delimiter);
 	}
@@ -138,9 +139,9 @@ class HxOverrides {
 	@:ifFeature("dynamic_read.length", "anon_optional_read.length", "anon_read.length")
 	static public function length(x:Dynamic) {
 		if (Boot.isString(x)) {
-			return (x:String).length;
+			return (x : String).length;
 		} else if (Boot.isArray(x)) {
-			return (x:Array<Dynamic>).length;
+			return (x : Array<Dynamic>).length;
 		}
 		return Syntax.field(x, "length");
 	}
@@ -154,6 +155,7 @@ class HxOverrides {
 	static public function modf(a:Float, b:Float) {
 		return Syntax.code("float('nan') if (b == 0.0) else a % b if a >= 0 else -(-a % b)");
 	}
+
 	@:ifFeature("binop_%")
 	static public function mod(a:Int, b:Int) {
 		return Syntax.code("a % b if a >= 0 else -(-a % b)");
@@ -179,8 +181,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("python._KwArgs.KwArgs_Impl_.fromT")
-	static public function mapKwArgs(a:{}, v:Dict<String,String>)
-	{
+	static public function mapKwArgs(a:{}, v:Dict<String, String>) {
 		var a = python.Lib.dictAsAnon(python.Lib.anonToDict(a));
 		for (k in v.keys()) {
 			var val = v.get(k);
@@ -194,11 +195,9 @@ class HxOverrides {
 	}
 
 	@:ifFeature("python._KwArgs.KwArgs_Impl_.toDictHelper")
-	static public function reverseMapKwArgs(a:Dict<String,Dynamic>, v:Dict<String,String>)
-	{
+	static public function reverseMapKwArgs(a:Dict<String, Dynamic>, v:Dict<String, String>) {
 		var a = a.copy();
 		for (k in v.keys()) {
-
 			var val = v.get(k);
 			if (a.hasKey(val)) {
 				var x = a.get(val, null);
@@ -208,5 +207,4 @@ class HxOverrides {
 		}
 		return a;
 	}
-
 }
