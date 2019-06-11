@@ -89,7 +89,8 @@ class Process {
 
 		var opt = { args: setArgs(cmd, args), stdio : stdio };
 
-		var p = lua.lib.luv.Process.spawn( _shell, opt, function(code : Int, signal : Signal){
+		var p : lua.lib.luv.Process.LuvSpawn;
+		p = lua.lib.luv.Process.spawn( _shell, opt, function(code : Int, signal : Signal){
 			_code = code;
 		});
 
@@ -104,9 +105,9 @@ class Process {
 	}
 
 	public function close() : Void {
-		stderr.close();
-		stdin.close();
 		stdout.close();
+		stdin.close();
+		stderr.close();
 		_handle.close();
 	}
 
@@ -192,17 +193,7 @@ private class ProcessInput extends haxe.io.Input {
 	}
 
 	override public function close() {
-		if (b.is_closing()){
-			return;
-		} else if (b.is_active()) {
-			b.shutdown((type, status)-> {
-				if (status != 0){
-					throw "Invalid shutdown";
-				} else {
-					b.close();
-				}
-			});
-		}
+		b.close();
 	}
 }
 
@@ -219,17 +210,7 @@ private class ProcessOutput extends haxe.io.Output {
 	}
 
 	override public function close(){
-		if (b.is_closing()){
-			return;
-		} else {
-			b.shutdown((type, status)-> {
-				if (status != 0){
-					throw "Invalid shutdown";
-				} else {
-					b.close();
-				}
-			});
-		}
+		b.close();
 	}
 }
 
