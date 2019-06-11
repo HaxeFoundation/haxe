@@ -24,49 +24,47 @@ import haxe.iterators.StringIterator;
 import haxe.iterators.StringKeyValueIterator;
 
 @:coreApi extern class String implements java.lang.CharSequence {
+	var length(default, null):Int;
 
-	var length(default,null) : Int;
+	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void {})
+	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void {})
+	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void {})
+	function new(string:String):Void;
 
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void { })
-	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void { })
-	@:overload(function(b:java.NativeArray<java.StdTypes.Char16>):Void { })
-	function new(string:String) : Void;
+	function toUpperCase():String;
 
-	function toUpperCase() : String;
+	function toLowerCase():String;
 
-	function toLowerCase() : String;
+	function charAt(index:Int):String;
 
-	function charAt( index : Int) : String;
+	function charCodeAt(index:Int):Null<Int>;
 
-	function charCodeAt( index : Int) : Null<Int>;
+	function indexOf(str:String, ?startIndex:Int):Int;
 
-	function indexOf( str : String, ?startIndex : Int ) : Int;
+	function lastIndexOf(str:String, ?startIndex:Int):Int;
 
-	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
+	function split(delimiter:String):Array<String>;
 
-	function split( delimiter : String ) : Array<String>;
+	function substr(pos:Int, ?len:Int):String;
 
-	function substr( pos : Int, ?len : Int ) : String;
+	function substring(startIndex:Int, ?endIndex:Int):String;
 
-	function substring( startIndex : Int, ?endIndex : Int ) : String;
+	function toString():String;
 
-	function toString() : String;
-
-	@:pure @:runtime inline function iterator() : StringIterator {
+	@:pure @:runtime inline function iterator():StringIterator {
 		return new StringIterator(this);
 	}
 
-	@:pure @:runtime inline function keyValueIterator() : StringKeyValueIterator {
+	@:pure @:runtime inline function keyValueIterator():StringKeyValueIterator {
 		return new StringKeyValueIterator(this);
 	}
 
-	private function compareTo( anotherString : String ) : Int;
+	private function compareTo(anotherString:String):Int;
 
-	private function codePointAt( idx : Int ) : Int;
+	private function codePointAt(idx:Int):Int;
 
-	@:overload(function() : haxe.io.BytesData { })
-	private function getBytes(encoding:String) : haxe.io.BytesData;
+	@:overload(function():haxe.io.BytesData {})
+	private function getBytes(encoding:String):haxe.io.BytesData;
 
-	static function fromCharCode( code : Int ) : String;
-
+	static function fromCharCode(code:Int):String;
 }
