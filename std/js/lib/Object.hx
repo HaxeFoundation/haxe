@@ -19,10 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import haxe.extern.Rest;
 import haxe.DynamicAccess;
+
 /**
 	The `js.lib.Object` constructor creates an object wrapper.
 
@@ -123,7 +125,7 @@ extern class Object {
 	/**
 		Allows the addition of properties to all objects of type Object.
 	**/
-	static var prototype(default,never):ObjectPrototype;
+	static var prototype(default, never):ObjectPrototype;
 
 	/**
 		The Object constructor creates an object wrapper.
@@ -141,33 +143,33 @@ typedef ObjectPrototype = {
 		property as a direct property of that object and not inherited through
 		the prototype chain.
 	**/
-	var hasOwnProperty(default,never):Function;
+	var hasOwnProperty(default, never):Function;
 
 	/**
 		Returns a boolean indicating whether the object this method is called
 		upon is in the prototype chain of the specified object.
 	**/
-	var isPrototypeOf(default,never):Function;
+	var isPrototypeOf(default, never):Function;
 
 	/**
 		Returns a boolean indicating if the internal enumerable attribute is set.
 	**/
-	var propertyIsEnumerable(default,never):Function;
+	var propertyIsEnumerable(default, never):Function;
 
 	/**
 		Calls `toString()`.
 	**/
-	var toLocaleString(default,never):Function;
+	var toLocaleString(default, never):Function;
 
 	/**
 		Returns a string representation of the object.
 	**/
-	var toString(default,never):Function;
+	var toString(default, never):Function;
 
 	/**
 		Returns the primitive value of the specified object.
 	**/
-	var valueOf(default,never):Function;
+	var valueOf(default, never):Function;
 }
 
 /**
