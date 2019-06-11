@@ -190,8 +190,9 @@ class Boot {
 		Generate a string representation for arbitrary object.
 	**/
 	@:ifFeature("has_enum")
-	static function __string_rec(o:Dynamic, s:String = "") {
-		return switch (untyped __type__(o)) {
+	static function __string_rec(o : Dynamic, s:String = "") {
+		if(s.length >= 5) return "<...>";
+		return switch(untyped __type__(o)){
 			case "nil": "null";
 			case "number": {
 					if (o == std.Math.POSITIVE_INFINITY)
@@ -218,32 +219,23 @@ class Boot {
 			case "function": "<function>";
 			case "thread": "<thread>";
 			case "table": {
-					if (o.__enum__ != null)
-						printEnum(o, s);
-					else if (o.toString != null && !isArray(o))
-						o.toString();
-					else if (isArray(o)) {
-						var o2:Array<Dynamic> = untyped o;
-						if (s.length > 5)
-							"[...]"
-						else
-							'[${[for (i in o2) __string_rec(i, s + 1)].join(",")}]';
-					} else if (o.__class__ != null)
-						printClass(o, s + "\t");
-					else {
-						var fields = fieldIterator(o);
-						var buffer:Table<Int, String> = Table.create();
-						var first = true;
-						Table.insert(buffer, "{ ");
-						for (f in fields) {
-							if (first)
-								first = false;
-							else
-								Table.insert(buffer, ", ");
-							Table.insert(buffer, '${Std.string(f)} : ${untyped Std.string(o[f])}');
-						}
-						Table.insert(buffer, " }");
-						Table.concat(buffer, "");
+			    if (o.__enum__ != null) printEnum(o,s);
+				else if (o.toString != null && !isArray(o)) o.toString();
+				else if (isArray(o)) {
+					var o2 : Array<Dynamic> = untyped o;
+					if (s.length > 5) "[...]"
+					else '[${[for (i in o2) __string_rec(i,s+1)].join(",")}]';
+				}
+				else if (o.__class__ != null) printClass(o,s+"\t");
+				else {
+					var fields = fieldIterator(o);
+					var buffer:Table<Int,String> = Table.create();
+					var first = true;
+					Table.insert(buffer,"{ ");
+					for (f in fields){
+						if (first) first = false;
+						else Table.insert(buffer,", ");
+						Table.insert(buffer,'${Std.string(f)} : ${untyped __string_rec(o[f], s+"\t")}');
 					}
 				};
 			default: {

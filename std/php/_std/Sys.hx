@@ -26,6 +26,8 @@ import sys.io.FileInput;
 import haxe.SysTools;
 
 @:coreApi class Sys {
+	static var lineEnd:String = Sys.systemName() == "Windows" ? "\r\n" : "\n";
+
 	/** Environment variables set by `Sys.putEnv()` */
 	static var customEnvVars = new NativeAssocArray<String>();
 
@@ -33,8 +35,8 @@ import haxe.SysTools;
 		Global.echo(Std.string(v));
 	}
 
-	public static inline function println(v:Dynamic):Void {
-		Global.echo(Std.string(v) + "\n");
+	public static inline function println( v : Dynamic ) : Void {
+		Global.echo(Std.string(v) + lineEnd);
 	}
 
 	public static function args():Array<String> {

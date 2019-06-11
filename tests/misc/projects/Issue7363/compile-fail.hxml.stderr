@@ -1,0 +1,2 @@
+Main.hx:4: characters 17-18 : You can't iterate on a Dynamic value, please specify Iterator or Iterable
+Main.hx:8: characters 17-18 : You can't iterate on a Dynamic value, please specify Iterator or Iterable

@@ -23,8 +23,6 @@
 import lua.Lua;
 import lua.Table;
 import lua.Boot;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
 
 #if lua_vanilla
 typedef BaseString = lua.NativeStringTools;
@@ -143,24 +141,12 @@ class String {
 		return BaseString.byte(this, index + 1);
 	}
 
-	@:runtime public inline function iterator():StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:runtime public inline function keyValueIterator():StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
-	public inline function substr(pos:Int, ?len:Int):String {
-		if (len == null || len > pos + this.length)
-			len = this.length;
-		else if (len < 0)
-			len = length + len;
-		if (pos < 0)
-			pos = length + pos;
-		if (pos < 0)
-			pos = 0;
-		return BaseString.sub(this, pos + 1, pos + len).match;
+	public inline function substr( pos : Int, ?len : Int ) : String {
+		if (len == null || len > pos + this.length) len = this.length;
+		else if (len < 0) len = length + len;
+		if (pos < 0) pos = length + pos;
+		if (pos < 0) pos = 0;
+		return BaseString.sub(this, pos + 1, pos+len).match;
 	}
 
 	public inline static function fromCharCode(code:Int):String {

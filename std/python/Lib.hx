@@ -34,6 +34,8 @@ typedef PySys = python.lib.Sys;
 	and vice-versa.
 **/
 class Lib {
+
+	static var lineEnd:String = Sys.systemName() == "Windows" ? "\r\n" : "\n";
 	static public var __name__(get, never):String;
 
 	static inline function get___name__():String
@@ -56,7 +58,7 @@ class Lib {
 	**/
 	public static inline function println(v:Dynamic):Void {
 		var str = Std.string(v);
-		printString('$str\n');
+		printString('$str$lineEnd');
 	}
 
 	/**

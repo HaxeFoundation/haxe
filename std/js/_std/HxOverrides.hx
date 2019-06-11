@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:noDoc
 class HxOverrides {
 	static function dateStr(date:Date):String {
@@ -146,23 +142,11 @@ class HxOverrides {
 			};
 		}
 
-	@:ifFeature("String.iterator")
-	static function strIter(s:String):StringIterator {
-		return new StringIterator(s);
+	static function __init__() untyped {
+#if (js_es < 5)
+		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
+		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
+#end
 	}
 
-	@:ifFeature("String.keyValueIterator")
-	static function strKVIter(s:String):StringKeyValueIterator {
-		return new StringKeyValueIterator(s);
-	}
-
-	static function __init__()
-		untyped {
-			#if (js_es < 5)
-			__feature__('HxOverrides.indexOf',
-				if (Array.prototype.indexOf) __js__("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
-			__feature__('HxOverrides.lastIndexOf',
-				if (Array.prototype.lastIndexOf) __js__("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
-			#end
-		}
 }

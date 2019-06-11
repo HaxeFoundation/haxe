@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi final class String {
 	static var __is_String = true;
 	private static var __split:Dynamic = neko.Lib.load("std", "string_split", 2);
@@ -60,15 +56,7 @@ import haxe.iterators.StringKeyValueIterator;
 		}
 	}
 
-	public inline function iterator():StringIterator {
-		return new StringIterator(this);
-	}
-
-	public inline function keyValueIterator():StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
-	public function indexOf(str:String, ?startIndex:Int):Int {
+	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
 			var l = __dollar__ssize(this.__s);
 			if (startIndex == null || startIndex < -l)

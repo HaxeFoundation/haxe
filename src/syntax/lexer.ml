@@ -279,11 +279,11 @@ let ident = [%sedlex.regexp?
 
 let sharp_ident = [%sedlex.regexp?
 	(
-		('a'..'z' | '_'),
+		('a'..'z' | 'A'..'Z' | '_'),
 		Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_'),
 		Star (
 			'.',
-			('a'..'z' | '_'),
+			('a'..'z' | 'A'..'Z' | '_'),
 			Star ('a'..'z' | 'A'..'Z' | '0'..'9' | '_')
 		)
 	)
@@ -592,10 +592,7 @@ and not_xml ctx depth in_open =
 		let depth = if in_open then depth - 1 else depth in
 		if depth < 0 then lexeme_end lexbuf
 		else not_xml ctx depth false
-	| '>' ->
-		store lexbuf;
-		not_xml ctx depth false
-	| '<' | '/' ->
+	| '<' | '/' | '>' ->
 		store lexbuf;
 		not_xml ctx depth in_open
 	| Plus (Compl ('<' | '/' | '>' | '\n' | '\r')) ->

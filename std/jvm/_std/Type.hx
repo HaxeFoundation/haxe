@@ -44,7 +44,7 @@ class Type {
 		if (isEnumValueClass(c)) {
 			return null;
 		}
-		if (c == jvm.DynamicObject.native()) {
+		if (c == jvm.DynamicObject.native() || Jvm.instanceof(o, jvm.DynamicObject)) {
 			return null;
 		}
 		return c.haxe();

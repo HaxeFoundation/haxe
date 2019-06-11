@@ -55,8 +55,15 @@ module IterationKind = struct
 
 	let check_iterator ?(resume=false) ?last_resort ctx s e p =
 		let t,pt = Typeload.t_iterator ctx in
+		let dynamic_iterator = ref None in
 		let e1 = try
-			AbstractCast.cast_or_unify_raise ctx t e p
+			let e = AbstractCast.cast_or_unify_raise ctx t e p in
+			match Abstract.follow_with_abstracts e.etype with
+			| TDynamic _ | TMono _ ->
+				(* try to find something better than a dynamic value to iterate on *)
+				dynamic_iterator := Some e;
+				raise (Error (Unify [Unify_custom "Avoid iterating on a dynamic value"], p))
+			| _ -> e
 		with Error (Unify _,_) ->
 			let try_last_resort after =
 				try
@@ -73,10 +80,13 @@ module IterationKind = struct
 					acc_expr
 				with Error (Unify(l),p) ->
 					try_last_resort (fun () ->
-						if resume then raise Not_found;
-						display_error ctx "Field iterator has an invalid type" acc_expr.epos;
-						display_error ctx (error_msg (Unify l)) p;
-						mk (TConst TNull) t_dynamic p
+						match !dynamic_iterator with
+						| Some e -> e
+						| None ->
+							if resume then raise Not_found;
+							display_error ctx "Field iterator has an invalid type" acc_expr.epos;
+							display_error ctx (error_msg (Unify l)) p;
+							mk (TConst TNull) t_dynamic p
 					)
 			in
 			try
@@ -84,8 +94,11 @@ module IterationKind = struct
 				try_acc acc;
 			with Not_found ->
 				try_last_resort (fun () ->
-					let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
-					try_acc acc
+					match !dynamic_iterator with
+					| Some e -> e
+					| None ->
+						let acc = type_field ({do_resume = resume;allow_resolve = false}) ctx e s e.epos MCall in
+						try_acc acc
 				)
 		in
 		e1,pt
@@ -128,6 +141,10 @@ module IterationKind = struct
 	 	| _ -> raise Not_found
 
 	let of_texpr ?(resume=false) ctx e unroll p =
+		let dynamic_iterator e =
+			display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
+			IteratorDynamic,e,t_dynamic
+		in
 		let check_iterator () =
 			let array_access_result = ref None in
 			let last_resort () =
@@ -136,8 +153,11 @@ module IterationKind = struct
 			in
 			let e1,pt = check_iterator ~resume ~last_resort ctx "iterator" e p in
 			match !array_access_result with
-			| None -> (IteratorIterator,e1,pt)
 			| Some result -> result
+			| None ->
+				match Abstract.follow_with_abstracts e1.etype with
+					| (TMono _ | TDynamic _) -> dynamic_iterator e1;
+					| _ -> (IteratorIterator,e1,pt)
 		in
 		let try_forward_array_iterator () =
 			match follow e.etype with
@@ -185,6 +205,11 @@ module IterationKind = struct
 				let e_tmp = make_local v_tmp v_tmp.v_pos in
 				let acc_next = type_field type_field_config ctx e_tmp "next" p MCall in
 				let acc_hasNext = type_field type_field_config ctx e_tmp "hasNext" p MCall in
+				(match acc_next, acc_hasNext with
+					| AKExpr({ eexpr = TField(_, FDynamic _)}), _
+					| _, AKExpr({ eexpr = TField(_, FDynamic _)}) -> raise Not_found
+					| _ -> ()
+				);
 				let e_next = !build_call_ref ctx acc_next [] WithType.value e.epos in
 				let e_hasNext = !build_call_ref ctx acc_hasNext [] WithType.value e.epos in
 				IteratorAbstract(v_tmp,e_next,e_hasNext),e,e_next.etype
@@ -198,8 +223,7 @@ module IterationKind = struct
 		| _,TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe";"ds"],"GenericStack" },[pt]) } as c,[]) ->
 			IteratorGenericStack c,e,pt
 		| _,(TMono _ | TDynamic _) ->
-			display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e.epos;
-			IteratorDynamic,e,t_dynamic
+			dynamic_iterator e
 		| _ ->
 			check_iterator ()
 		in

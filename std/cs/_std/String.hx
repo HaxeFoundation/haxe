@@ -20,10 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import cs.StdTypes;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi extern class String implements ArrayAccess<Char16> {
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
@@ -54,15 +50,7 @@ import haxe.iterators.StringKeyValueIterator;
 
 	function toString():String;
 
-	@:pure @:runtime inline function iterator():StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:pure @:runtime inline function keyValueIterator():StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
-	static function fromCharCode(code:Int):String;
+	static function fromCharCode( code : Int ) : String;
 
 	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;

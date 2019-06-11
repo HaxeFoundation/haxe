@@ -23,8 +23,6 @@
 package java.internal;
 
 import java.internal.Function;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
 
 private typedef NativeString = String;
 
@@ -188,14 +186,6 @@ private typedef NativeString = String;
 
 	public static function fromCharCode(code:Int):String {
 		return new String(java.lang.Character.toChars(code));
-	}
-
-	public static function iterator(me:NativeString):StringIterator {
-		return new StringIterator(me);
-	}
-
-	public static function keyValueIterator(me:NativeString):StringKeyValueIterator {
-		return new StringKeyValueIterator(me);
 	}
 }
 

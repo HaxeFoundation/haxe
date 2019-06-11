@@ -1428,6 +1428,10 @@ module StdLock = struct
 	)
 end
 
+let lineEnd = match Sys.os_type with
+	| "Win32" | "Cygwin" -> "\r\n"
+	| _ -> "\n"
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -1436,7 +1440,7 @@ module StdLog = struct
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
 		let s = match infos with
-			| VNull -> Printf.sprintf "%s\n" s
+			| VNull -> (Printf.sprintf "%s" s) ^ lineEnd
 			| _ ->  let infos = decode_object infos in
 				let file_name = decode_string (object_field infos key_fileName) in
 				let line_number = decode_int (object_field infos key_lineNumber) in
@@ -1444,7 +1448,7 @@ module StdLog = struct
 					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
 					| _ -> [s]
 				in
-				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
 		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
@@ -2158,24 +2162,6 @@ module StdString = struct
 		else vint (char_at this i)
 	)
 
-	let iterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
-	)
-
-	let keyValueIterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_key_value_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
-	)
-
 	let fromCharCode = vfun1 (fun i ->
 		let i = decode_int i in
 		try
@@ -2566,7 +2552,7 @@ module StdSys = struct
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ "\n");
+		com.print (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -3114,6 +3100,11 @@ let init_constructors builtins =
 			| _ -> assert false
 		);
 	add key_StringBuf (fun _ -> encode_instance key_StringBuf ~kind:(IBuffer (VStringBuffer.create())));
+	add key_haxe_Utf8
+		(fun vl -> match vl with
+			| [size] -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create (default_int size 0)))
+			| _ -> assert false
+		);
 	add key_haxe_ds_StringMap (fun _ -> encode_string_map_direct (StringHashtbl.create ()));
 	add key_haxe_ds_IntMap (fun _ -> encode_int_map_direct (IntHashtbl.create ()));
 	add key_haxe_ds_ObjectMap (fun _ -> encode_object_map_direct (Obj.magic (ValueHashtbl.create 0)));
@@ -3517,8 +3508,6 @@ let init_standard_library builtins =
 	] [
 		"charAt",StdString.charAt;
 		"charCodeAt",StdString.charCodeAt;
-		"iterator",StdString.iterator;
-		"keyValueIterator",StdString.keyValueIterator;
 		"indexOf",StdString.indexOf;
 		"lastIndexOf",StdString.lastIndexOf;
 		"split",StdString.split;

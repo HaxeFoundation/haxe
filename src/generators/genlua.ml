@@ -596,8 +596,6 @@ and is_possible_string_field e field_name=
         | "toString"
         | "substring"
         | "substr"
-        | "iterator"
-        | "keyValueIterator"
         | "charCodeAt" ->
             true
         | _ ->

@@ -399,8 +399,6 @@ struct
 					{ e with eexpr = TCall(mk_static_field_access_infer string_ext "fromCharCode" e.epos [], [run cc]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("iterator" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("keyValueIterator" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("lastIndexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("split" as field) })) }, args )
@@ -920,6 +918,7 @@ let generate con =
 					Null<> type parameters will be transformed into Dynamic.
 				*)
 				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
 				| true, TEnum _
@@ -1410,8 +1409,11 @@ let generate con =
 						expr_s w e;
 						write w "]"
 					| TCall ({ eexpr = TIdent "__unsafe__" }, [ e ] ) ->
-						write w "unsafe";
-						expr_s w (mk_block e)
+						write w "unsafe ";
+						begin_block w;
+						expr_s w (mk_block e);
+						write w ";";
+						end_block w
 					| TCall ({ eexpr = TIdent "__checked__" }, [ e ] ) ->
 						write w "checked";
 						expr_s w (mk_block e)
@@ -2510,14 +2512,35 @@ let generate con =
 			(match cl.cl_init with
 				| None -> ()
 				| Some init ->
+					let needs_block,write_expr =
+						let unchecked = needs_unchecked init in
+						if cl.cl_params = [] then
+							unchecked, (fun() ->
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init)
+							)
+						else begin
+							write w "static bool __hx_init_called = false;";
+							newline w;
+							true, (fun() ->
+								let flag = (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params))) ^ ".__hx_init_called" in
+								write w ("if(" ^ flag ^ ") return;");
+								newline w;
+								write w (flag ^ " = true;");
+								newline w;
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init);
+								newline w
+							)
+						end
+					in
 					print w "static %s() " (snd cl.cl_path);
-					if needs_unchecked init then begin
+					if needs_block then begin
 						begin_block w;
-						write w "unchecked ";
-						expr_s false w (mk_block init);
+						write_expr();
 						end_block w;
 					end else
-						expr_s false w (mk_block init);
+						write_expr();
 					line_reset_directive w;
 					newline w;
 					newline w

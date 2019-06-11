@@ -173,7 +173,7 @@ let is_removable_field cf =
 	has_class_field_flag cf CfExtern || Meta.has Meta.Generic cf.cf_meta
 
 let is_persistent cf =
-	Meta.has (Meta.Custom ":persistent") cf.cf_meta
+	Meta.has Meta.Persistent cf.cf_meta
 
 let create_static_prototype ctx mt =
 	let path = (t_infos mt).mt_path in

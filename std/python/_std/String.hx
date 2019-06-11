@@ -23,9 +23,6 @@
 #if !macro
 import python.internal.StringImpl;
 #end
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi
 @:native("str")
 extern class String {
@@ -49,15 +46,7 @@ extern class String {
 		return StringImpl.charCodeAt(this, index);
 	}
 
-	@:runtime public inline function iterator():StringIterator {
-		return new StringIterator(this);
-	}
-
-	@:runtime public inline function keyValueIterator():StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
-	inline function indexOf(str:String, ?startIndex:Int):Int {
+	inline function indexOf( str : String, ?startIndex : Int ) : Int {
 		return StringImpl.indexOf(this, str, startIndex);
 	}
 

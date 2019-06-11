@@ -6,12 +6,28 @@ import runci.System.*;
 import runci.Config.*;
 
 class Hl {
+    static var hlSrc = switch [ci, systemName] {
+      case [AppVeyor, "Windows"]: "C:\\hashlink";
+      case _: Path.join([Sys.getEnv("HOME"), "hashlink"]);
+    };
+    static var hlBuild = switch [ci, systemName] {
+      case [AppVeyor, "Windows"]: "C:\\hashlink_build";
+      case _: Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
+    };
+    static var hlBinDir = switch [ci, systemName] {
+      case [AppVeyor, "Windows"]: "C:\\hashlink_build\\bin";
+      case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin"]);
+    };
+    static var hlBinary = switch [ci, systemName] {
+      case [AppVeyor, "Windows"]: "C:\\hashlink_build\\bin\\hl";
+      case _: Path.join([Sys.getEnv("HOME"), "hashlink_build", "bin", "hl"]);
+    };
+
     static public function getHlDependencies() {
         if (commandSucceed("hl", ["--version"])) {
             infoMsg('hl has already been installed.');
             return;
         }
-        var hlSrc = Path.join([Sys.getEnv("HOME"), "hashlink"]);
         runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
 
         switch (systemName) {
@@ -23,7 +39,6 @@ class Hl {
                 //pass
         }
 
-        var hlBuild = Path.join([Sys.getEnv("HOME"), "hashlink_build"]);
         FileSystem.createDirectory(hlBuild);
         var generator = systemName == "Windows" ? [] : ["-GNinja"];
         runCommand("cmake", generator.concat([
@@ -45,19 +60,21 @@ class Hl {
             "--build", hlBuild
         ]);
 
-        addToPATH(Path.join([hlBuild, "bin"]));
-        runCommand("hl", ["--version"]);
+        runCommand(hlBinary, ["--version"]);
+        addToPATH(hlBinDir);
     }
 
     static public function run(args:Array<String>) {
         getHlDependencies();
         runCommand("haxe", ["compile-hl.hxml"].concat(args));
-        runCommand("hl", ["bin/unit.hl"]);
+        runCommand(hlBinary, ["bin/unit.hl"]);
 
 		// changeDirectory(threadsDir);
 		// runCommand("haxe", ["build.hxml", "-hl", "export/threads.hl"]);
 		// runCommand("hl", ["export/threads.hl"]);
 
-        // TODO sys test
+        changeDirectory(sysDir);
+        runCommand("haxe", ["compile-hl.hxml"]);
+        runCommand(hlBinary, ["bin/hl/sys.hl"]);
     }
 }

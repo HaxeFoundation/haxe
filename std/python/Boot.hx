@@ -32,8 +32,7 @@ import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
+
 import python.Syntax;
 
 @:dox(hide)
@@ -143,11 +142,10 @@ class Boot {
 				return Syntax.callField(o, "toString");
 		} catch (e:Dynamic) {}
 
-		if (Inspect.isfunction(o) || Inspect.ismethod(o))
-			return "<function>";
-
-		if (UBuiltins.hasattr(o, "__class__")) {
-			if (isAnonObject(o)) {
+		if (UBuiltins.hasattr(o, "__class__"))
+		{
+			if (isAnonObject(o))
+			{
 				var toStr = null;
 				try {
 					var fields = fields(o);
@@ -237,7 +235,10 @@ class Boot {
 		var a = [];
 		if (o != null) {
 			if (Internal.hasFields(o)) {
-				return (Internal.fieldFields(o) : Array<String>).copy();
+				var fields = Internal.fieldFields(o);
+				if(fields != null) {
+					return (fields : Array<String>).copy();
+				}
 			}
 			if (isAnonObject(o)) {
 				var d = Syntax.field(o, "__dict__");
@@ -245,8 +246,10 @@ class Boot {
 				var handler = unhandleKeywords;
 
 				Syntax.code("for k in keys:");
-				Syntax.code("    a.append(handler(k))");
-			} else if (UBuiltins.hasattr(o, "__dict__")) {
+				Syntax.code("    if (k != '_hx_disable_getattr'):");
+				Syntax.code("        a.append(handler(k))");
+			}
+			else if (UBuiltins.hasattr(o, "__dict__")) {
 				var a = [];
 				var d = Syntax.field(o, "__dict__");
 				var keys1 = Syntax.callField(d, "keys");
@@ -278,9 +281,16 @@ class Boot {
 		return new MethodClosure(obj, func);
 	}
 
-	static function field(o:Dynamic, field:String):Dynamic {
-		if (field == null)
-			return null;
+	static function hasField( o : Dynamic, field : String ) : Bool {
+		if(isAnonObject(o))
+		{
+			return Syntax.code('{0}._hx_hasattr({1})', o, field);
+		}
+		return UBuiltins.hasattr(o, handleKeywords(field));
+	}
+
+	static function field( o : Dynamic, field : String ) : Dynamic {
+		if (field == null) return null;
 
 		inline function def() {
 			var field = handleKeywords(field);
@@ -299,10 +309,6 @@ class Boot {
 					createClosure(o, StringImpl.charAt);
 				case "charCodeAt":
 					createClosure(o, StringImpl.charCodeAt);
-				case "iterator":
-					createClosure(o, StringImpl.iterator);
-				case "keyValueIterator":
-					createClosure(o, StringImpl.keyValueIterator);
 				case "indexOf":
 					createClosure(o, StringImpl.indexOf);
 				case "lastIndexOf":

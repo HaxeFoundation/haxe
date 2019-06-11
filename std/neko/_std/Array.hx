@@ -93,14 +93,26 @@
 		return s.toString();
 	}
 
-	public function toString():String {
+	static var __hx_toString_depth = 0;
+
+	public function toString() : String {
+		if(__hx_toString_depth >= 5) {
+			return "...";
+		}
 		var s = new StringBuf();
 		s.add("[");
 		var it = iterator();
-		for (i in it) {
-			s.add(i);
-			if (it.hasNext())
-				s.addChar(",".code);
+		__hx_toString_depth++;
+		try {
+			for( i in it ) {
+				s.add(i);
+				if( it.hasNext() )
+					s.addChar(",".code);
+			}
+			__hx_toString_depth--;
+		} catch(e:Dynamic) {
+			__hx_toString_depth--;
+			neko.Lib.rethrow(e);
 		}
 		s.add("]");
 		return s.toString();

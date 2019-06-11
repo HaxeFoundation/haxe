@@ -5,6 +5,7 @@ import utest.ui.common.HeaderDisplayMode;
 class Main {
 	static public function main() {
 		var runner = new Runner();
+		runner.addCase(new TestUnicode());
 		runner.addCase(new TestSys());
 		runner.addCase(new TestFileSystem());
 		runner.addCase(new io.TestFile());

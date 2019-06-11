@@ -749,8 +749,7 @@ let init_module_type ctx context_init do_init (decl,p) =
 				if !is_type then begin
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun() -> t);
-						let at = monomorphs a.a_params a.a_this in
-						(try (if from then Type.unify t at else Type.unify at t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
+						(try (if from then Type.unify t a.a_this else Type.unify a.a_this t) with Unify_error _ -> error "You can only declare from/to with compatible types" p);
 						t
 					) "constraint" in
 					TLazy r

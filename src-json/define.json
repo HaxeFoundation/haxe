@@ -352,9 +352,15 @@
 		"platforms": ["cs"]
 	},
 	{
+		"name": "NetcoreVer",
+		"define": "netcore_ver",
+		"doc": "<version:x.x.x> Sets the .NET core version to be targeted",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "NetTarget",
 		"define": "net_target",
-		"doc": "<name> Sets the .NET target. Defaults to \"net\". xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",
+		"doc": "<name> Sets the .NET target. Defaults to \"net\". netcore, xbox, micro (Micro Framework), compact (Compact Framework) are some valid values",
 		"platforms": ["cs"]
 	},
 	{

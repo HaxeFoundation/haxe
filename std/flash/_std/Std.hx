@@ -23,8 +23,9 @@
 import flash.Boot;
 
 @:coreApi class Std {
-	public static function is(v:Dynamic, t:Dynamic):Bool {
-		return untyped flash.Boot.__instanceof(v, t);
+
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+		return flash.Boot.__instanceof(v,t);
 	}
 
 	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
@@ -36,8 +37,8 @@ import flash.Boot;
 		return downcast(value, c);
 	}
 
-	public static function string(s:Dynamic):String {
-		return untyped flash.Boot.__string_rec(s, "");
+	public static function string( s : Dynamic ) : String {
+		return flash.Boot.__string_rec(s,"");
 	}
 
 	public inline static function int(x:Float):Int {
@@ -56,7 +57,7 @@ import flash.Boot;
 		return untyped __global__["parseFloat"](x);
 	}
 
-	public static function random(x:Int):Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random() * x);
+	public static function random( x : Int ) : Int {
+		return x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 }

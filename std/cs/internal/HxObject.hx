@@ -53,7 +53,10 @@ class DynamicObject extends HxObject {
 	@:skipReflection var __hx_length_f:Int;
 	@:skipReflection var __hx_conflicts:FieldHashConflict;
 
-	@:overload public function new() {
+	@:skipReflection static var __hx_toString_depth = 0;
+
+	@:overload public function new()
+	{
 		this.__hx_hashes = new NativeArray(0);
 		this.__hx_dynamics = new NativeArray(0);
 		this.__hx_hashes_f = new NativeArray(0);
@@ -208,7 +211,23 @@ class DynamicObject extends HxObject {
 		return untyped fn.__hx_invokeDynamic(dynargs);
 	}
 
-	@:skipReflection public function toString():String {
+	@:skipReflection public function toString() {
+		if (__hx_toString_depth >= 5) {
+			return "...";
+		}
+		++__hx_toString_depth;
+		try {
+			var s = __hx_toString();
+			--__hx_toString_depth;
+			return s;
+		} catch(e:Dynamic) {
+			--__hx_toString_depth;
+			throw(e);
+		}
+	}
+
+	@:skipReflection public function __hx_toString():String
+	{
 		var ts = Reflect.field(this, "toString");
 		if (ts != null)
 			return ts();

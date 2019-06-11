@@ -83,6 +83,8 @@ build_script:
     - haxelib setup "%HAXELIB_ROOT%"
 
 test_script:
+    # change codepage to UTF-8
+    - cmd: chcp 65001
     - cd %APPVEYOR_BUILD_FOLDER%/tests/
     - haxe -version
     - haxe RunCi.hxml

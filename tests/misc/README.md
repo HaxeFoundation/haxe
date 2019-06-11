@@ -22,3 +22,10 @@ Chdir to `tests/misc` and run `haxe compile.hxml`.
 
 To run tests only for a single project use the following command: `haxe -D MISC_TEST_FILTER=1234 compile.hxml`, where `1234` are taken from the project directory name `Issue1234`.
 
+### Running target specific projects locally
+
+Tests specific to some targets (python, cs) reside in their own separate folder (respectively `tests/misc/python` and `tests/misc/cs`).
+
+Chdir to `tests/misc/{target}` and run `haxe run.hxml` to run these tests.
+
+To run tests only for a single project use the following command: `haxe -D MISC_TEST_FILTER=1234 run.hxml`, where `1234` are taken from the project directory name `Issue1234`.

@@ -11,3 +11,8 @@ compile-each.hxml
 # compile-each.hxml
 # -main ExitCode
 # -neko bin/neko/ExitCode.n
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-neko bin/neko/UtilityProcess.n
