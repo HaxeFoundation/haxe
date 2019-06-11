@@ -216,8 +216,27 @@ let reduce_expr com e =
 	| _ ->
 		e
 
+let maintain_function_block transform e =
+	match e.eexpr with
+		| TFunction { tf_expr = { eexpr = TBlock _ } as original_block } ->
+			(match transform e with
+				| { eexpr = TFunction { tf_expr = { eexpr = TBlock _ } } } as e -> e
+				| { eexpr = TFunction fn } as e ->
+					{ e with
+						eexpr = TFunction { fn with
+							tf_expr = { fn.tf_expr with
+								eexpr = TBlock [fn.tf_expr];
+								epos = original_block.epos
+							}
+						}
+					}
+				| e -> e
+			)
+		| _ ->
+			transform e
+
 let rec sanitize com e =
-	sanitize_expr com (reduce_expr com (Type.map_expr (sanitize com) e))
+	sanitize_expr com (maintain_function_block (fun e -> reduce_expr com (Type.map_expr (sanitize com) e)) e)
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
@@ -270,7 +289,7 @@ let reduce_control_flow ctx e = match e.eexpr with
 let inline_stack = new_rec_stack()
 
 let rec reduce_loop ctx e =
-	let e = Type.map_expr (reduce_loop ctx) e in
+	let e = maintain_function_block (Type.map_expr (reduce_loop ctx)) e in
 	sanitize_expr ctx.com (match e.eexpr with
 	| TCall(e1,el) ->
 		begin match Texpr.skip e1 with

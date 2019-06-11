@@ -1,0 +1,5 @@
+-main Main
+-dce full
+-D analyzer-optimize
+--macro Main.checkPos()
+-js bin/test.js
