@@ -20,12 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-package lua.lib.luv; 
+package lua.lib.luv;
 import lua.lib.luv.net.Tcp;
 
 @:luaRequire("luv")
 extern class Stream extends Handle {
-  function shutdown(?cb : Void->Void) : Int;
+  function shutdown(?cb : Dynamic->Int->Void) : Int;
   function listen(backlog : Int, cb : String->String->Void) : Int;
   function accept(client_stream : Stream) : Int;
   function read_start(cb : String->String->Void) : Int;
