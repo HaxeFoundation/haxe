@@ -2149,6 +2149,8 @@ let generate con =
 								| _ -> ()
 				with | Not_found -> ()
 				);
+				write w "haxe.java.Init.init();";
+				newline w;
 				(match gen.gcon.main with
 					| Some(expr) ->
 						expr_s w (mk_block expr)

@@ -25,6 +25,7 @@ import java.internal.Function;
 import java.internal.HxObject;
 import java.internal.Runtime;
 import java.Lib;
+import java.Init;
 //import java.internal.StringExt;
 import java.StdTypes;
 import Reflect;

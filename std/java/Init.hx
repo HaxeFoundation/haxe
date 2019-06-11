@@ -19,31 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package cs;
-import cs.internal.Exceptions;
-import cs.internal.FieldLookup;
-import cs.internal.Function;
-import cs.internal.HxObject;
-import cs.internal.Runtime;
-#if !erase_generics
-import cs.internal.Null;
-#end
-import cs.internal.StringExt;
-#if unsafe
-import cs.internal.BoxedPointer;
-#end
-import cs.StdTypes;
-import haxe.ds.StringMap;
-import Reflect;
+package java;
 
-@:dox(hide)
-class Boot
-{
-
-	@:keep public static function init():Void
-	{
-		cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
-		cs.Lib.applyCultureChanges();
+@:native("haxe.java.Init") @:keep class Init {
+	public static function init():Void {
+		try {
+			java.lang.System.setOut(new java.io.PrintStream(java.lang.System.out, true, "utf-8"));
+			java.lang.System.setErr(new java.io.PrintStream(java.lang.System.err, true, "utf-8"));
+		} catch (e:java.io.UnsupportedEncodingException) {}
 	}
-
 }

@@ -11,3 +11,8 @@ compile-each.hxml
 compile-each.hxml
 --main ExitCode
 -java bin/java
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-java bin/java
