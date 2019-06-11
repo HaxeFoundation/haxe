@@ -44,7 +44,7 @@ abstract Thread(HaxeThread) {
 		return new Thread(HaxeThread.get(NativeThread.CurrentThread));
 	}
 
-	public static function readMessage(block:Bool) : Dynamic {
+	public static function readMessage(block:Bool):Dynamic {
 		return current().readMessageImpl(block);
 	}
 
@@ -58,10 +58,11 @@ abstract Thread(HaxeThread) {
 }
 
 private class HaxeThread {
-	static final threads = new Map<Int,WeakReference>();
+	static final threads = new Map<Int, WeakReference>();
 	static var allocateCount = 0;
 
 	public final native:NativeThread;
+
 	final messages = new Deque<Dynamic>();
 
 	public static function get(native:NativeThread):HaxeThread {
@@ -71,7 +72,7 @@ private class HaxeThread {
 			var key = native.ManagedThreadId;
 			ref = threads.get(key);
 		});
-		if(ref == null || !ref.IsAlive) {
+		if (ref == null || !ref.IsAlive) {
 			return allocate(native);
 		}
 		return ref.Target;
@@ -80,9 +81,9 @@ private class HaxeThread {
 	public static function allocate(native:NativeThread):HaxeThread {
 		allocateCount++;
 		inline function cleanup() {
-			if(allocateCount % 100 == 0) {
-				for(key => ref in threads) {
-					if(!ref.IsAlive) {
+			if (allocateCount % 100 == 0) {
+				for (key => ref in threads) {
+					if (!ref.IsAlive) {
 						threads.remove(key);
 					}
 				}

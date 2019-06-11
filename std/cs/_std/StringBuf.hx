@@ -19,42 +19,42 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 import cs.system.text.StringBuilder;
 
 @:coreApi
 class StringBuf {
+	private var b:StringBuilder;
 
-	private var b : StringBuilder;
+	public var length(get, never):Int;
 
-	public var length(get,never) : Int;
-
-	public inline function new() : Void {
+	public inline function new():Void {
 		b = new StringBuilder();
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return b.Length;
 	}
 
-	public inline function add<T>( x : T ) : Void {
+	public inline function add<T>(x:T):Void {
 		b.Append(Std.string(x));
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
+	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
 		b.Append(s, pos, (len == null) ? (s.length - pos) : len);
 	}
 
-	public function addChar( c : Int ) : Void untyped {
-		if (c >= 0x10000) {
-			b.Append(cast((c >> 10) + 0xD7C0, cs.StdTypes.Char16));
-			b.Append(cast((c & 0x3FF) + 0xDC00, cs.StdTypes.Char16));
-		} else {
-			b.Append(cast(c, cs.StdTypes.Char16));
+	public function addChar(c:Int):Void
+		untyped {
+			if (c >= 0x10000) {
+				b.Append(cast((c >> 10) + 0xD7C0, cs.StdTypes.Char16));
+				b.Append(cast((c & 0x3FF) + 0xDC00, cs.StdTypes.Char16));
+			} else {
+				b.Append(cast(c, cs.StdTypes.Char16));
+			}
 		}
-	}
 
-	public inline function toString() : String {
+	public inline function toString():String {
 		return b.ToString();
 	}
-
 }

@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cs;
+
 import cs.internal.Exceptions;
 import cs.internal.FieldLookup;
 import cs.internal.Function;
@@ -37,12 +39,8 @@ import haxe.ds.StringMap;
 import Reflect;
 
 @:dox(hide)
-class Boot
-{
-
-	@:keep public static function init():Void
-	{
+class Boot {
+	@:keep public static function init():Void {
 		cs.Lib.applyCultureChanges();
 	}
-
 }

@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 import cs.NativeArray;
 import cs.system.WeakReference;
 
 // This implementation works by lazily evaluating the weak references, and only cleaning them up when needed.
-@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K,V>
-{
+@:coreApi class WeakMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	extern private static inline var HASH_UPPER = 0.77;
 	extern private static inline var FLAG_EMPTY = 0;
 	extern private static inline var FLAG_DEL = 1;
@@ -40,39 +40,36 @@ import cs.system.WeakReference;
 	 * The insertion algorithm will do the same but will also break when FLAG_DEL is found;
 	 */
 	private var hashes:NativeArray<HashType>;
-	private var entries:NativeArray<Entry<K,V>>;
+
+	private var entries:NativeArray<Entry<K, V>>;
 
 	private var nBuckets:Int;
 	private var size:Int;
 	private var nOccupied:Int;
 	private var upperBound:Int;
 
-	private var cachedEntry:Entry<K,V>;
+	private var cachedEntry:Entry<K, V>;
 	private var cachedIndex:Int;
 
-#if DEBUG_HASHTBL
+	#if DEBUG_HASHTBL
 	private var totalProbes:Int;
 	private var probeTimes:Int;
 	private var sameHash:Int;
 	private var maxProbe:Int;
-#end
+	#end
 
-	public function new() : Void
-	{
+	public function new():Void {
 		cachedIndex = -1;
 	}
 
-	@:final private function checkSize():Void
-	{
-		//iterate over the hashes and remove dead references
+	@:final private function checkSize():Void {
+		// iterate over the hashes and remove dead references
 		var size = size, entries = entries, hashes = hashes;
 		if (entries == null)
 			return;
-		for (i in 0...entries.Length)
-		{
+		for (i in 0...entries.Length) {
 			var e = entries[i];
-			if (e != null && e.Target == null)
-			{
+			if (e != null && e.Target == null) {
 				--size;
 				hashes[i] = FLAG_DEL;
 				entries[i] = null;
@@ -81,14 +78,12 @@ import cs.system.WeakReference;
 		this.size = size;
 	}
 
-	public function set( key : K, value : V ) : Void
-	{
+	public function set(key:K, value:V):Void {
 		var x:Int, k:Int;
 
-		if (nOccupied >= upperBound)
-		{
+		if (nOccupied >= upperBound) {
 			if (nBuckets > (size << 1))
-				resize(nBuckets - 1); //clear "deleted" elements
+				resize(nBuckets - 1); // clear "deleted" elements
 			else
 				resize(nBuckets + 2);
 		}
@@ -100,21 +95,19 @@ import cs.system.WeakReference;
 			var site = x = nBuckets;
 			var i = k & mask, nProbes = 0;
 
-			//for speed up
+			// for speed up
 			var delKey = -1;
 			if (isEmpty(hashes[i])) {
 				x = i;
 			} else {
-				//var inc = getInc(k, mask);
+				// var inc = getInc(k, mask);
 				var last = i, flag;
-				while(! (isEmpty(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key) )) )
-				{
+				while (!(isEmpty(flag = hashes[i]) || (flag == k && entries[i].keyEquals(key)))) {
 					if (delKey == -1 && isDel(flag))
 						delKey = i;
 
 					var entry = entries[i];
-					if (entry.Target == null)
-					{
+					if (entry.Target == null) {
 						hashes[i] = FLAG_DEL;
 						entries[i] = null;
 						--size;
@@ -123,11 +116,11 @@ import cs.system.WeakReference;
 					}
 
 					i = (i + ++nProbes) & mask;
-#if DEBUG_HASHTBL
+					#if DEBUG_HASHTBL
 					probeTimes++;
 					if (i == last)
 						throw "assert";
-#end
+					#end
 				}
 
 				if (isEmpty(flag) && delKey != -1)
@@ -136,16 +129,15 @@ import cs.system.WeakReference;
 					x = i;
 			}
 
-#if DEBUG_HASHTBL
+			#if DEBUG_HASHTBL
 			if (nProbes > maxProbe)
 				maxProbe = nProbes;
 			totalProbes++;
-#end
+			#end
 		}
 
-		var flag = hashes[x], entry = new Entry(key,value,k);
-		if (isEmpty(flag))
-		{
+		var flag = hashes[x], entry = new Entry(key, value, k);
+		if (isEmpty(flag)) {
 			entries[x] = entry;
 			hashes[x] = k;
 			size++;
@@ -163,74 +155,68 @@ import cs.system.WeakReference;
 		cachedEntry = entry;
 	}
 
-	@:final private function lookup( key : K ) : Int
-	{
-		if (nBuckets != 0)
-		{
+	@:final private function lookup(key:K):Int {
+		if (nBuckets != 0) {
 			var hashes = hashes, entries = entries;
 
 			var mask = nBuckets - 1, hash = hash(key), k = hash, nProbes = 0;
 			var i = k & mask;
 			var last = i, flag;
-			//var inc = getInc(k, mask);
-			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !entries[i].keyEquals(key)))
-			{
-				if (!isDel(flag))
-				{
+			// var inc = getInc(k, mask);
+			while (!isEmpty(flag = hashes[i]) && (isDel(flag) || flag != k || !entries[i].keyEquals(key))) {
+				if (!isDel(flag)) {
 					var entry = entries[i];
-					if (entry.Target == null)
-					{
+					if (entry.Target == null) {
 						entries[i] = null;
 						hashes[i] = FLAG_DEL;
 						--size;
 					}
 				}
 				i = (i + ++nProbes) & mask;
-#if DEBUG_HASHTBL
+				#if DEBUG_HASHTBL
 				probeTimes++;
 				if (i == last)
 					throw "assert";
-#end
+				#end
 			}
 
-#if DEBUG_HASHTBL
+			#if DEBUG_HASHTBL
 			if (nProbes > maxProbe)
 				maxProbe = nProbes;
 			totalProbes++;
-#end
+			#end
 			return isEither(flag) ? -1 : i;
 		}
 
 		return -1;
 	}
 
-	@:final function resize(newNBuckets:Int) : Void
-	{
-		//This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
+	@:final function resize(newNBuckets:Int):Void {
+		// This function uses 0.25*n_bucktes bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets.
 		var newHash = null;
 		var j = 1;
 		{
 			newNBuckets = roundUp(newNBuckets);
-			if (newNBuckets < 4) newNBuckets = 4;
-			if (size >= (newNBuckets * HASH_UPPER + 0.5)) /* requested size is too small */
-			{
+			if (newNBuckets < 4)
+				newNBuckets = 4;
+			if (size >= (newNBuckets * HASH_UPPER + 0.5))
+				/* requested size is too small */ {
 				j = 0;
 			} else { /* hash table size to be changed (shrink or expand); rehash */
 				var nfSize = newNBuckets;
-				newHash = new NativeArray( nfSize );
-				if (nBuckets < newNBuckets) //expand
+				newHash = new NativeArray(nfSize);
+				if (nBuckets < newNBuckets) // expand
 				{
 					var e = new NativeArray(newNBuckets);
 					if (entries != null)
 						arrayCopy(entries, 0, e, 0, nBuckets);
 					entries = e;
-				} //otherwise shrink
+				} // otherwise shrink
 			}
 		}
 
-		if (j != 0)
-		{ //rehashing is required
-			//resetting cache
+		if (j != 0) { // rehashing is required
+			// resetting cache
 			cachedEntry = null;
 			cachedIndex = -1;
 
@@ -238,17 +224,14 @@ import cs.system.WeakReference;
 			var nBuckets = nBuckets, entries = entries, hashes = hashes;
 
 			var newMask = newNBuckets - 1;
-			while (++j < nBuckets)
-			{
+			while (++j < nBuckets) {
 				var k;
-				if (!isEither(k = hashes[j]))
-				{
+				if (!isEither(k = hashes[j])) {
 					var entry = entries[j];
-					if (entry.Target != null)
-					{
+					if (entry.Target != null) {
 						hashes[j] = FLAG_DEL;
-						while (true) /* kick-out process; sort of like in Cuckoo hashing */
-						{
+						while (true)
+							/* kick-out process; sort of like in Cuckoo hashing */ {
 							var nProbes = 0;
 							var i = k & newMask;
 
@@ -257,8 +240,8 @@ import cs.system.WeakReference;
 
 							newHash[i] = k;
 
-							if (i < nBuckets && !isEither(k = hashes[i])) /* kick out the existing element */
-							{
+							if (i < nBuckets && !isEither(k = hashes[i]))
+								/* kick out the existing element */ {
 								{
 									var tmp = entries[i];
 									entries[i] = entry;
@@ -275,8 +258,8 @@ import cs.system.WeakReference;
 				}
 			}
 
-			if (nBuckets > newNBuckets) /* shrink the hash table */
-			{
+			if (nBuckets > newNBuckets)
+				/* shrink the hash table */ {
 				{
 					var e = new NativeArray(newNBuckets);
 					arrayCopy(entries, 0, e, 0, newNBuckets);
@@ -291,17 +274,14 @@ import cs.system.WeakReference;
 		}
 	}
 
-	public function get( key : K ) : Null<V>
-	{
+	public function get(key:K):Null<V> {
 		var idx = -1;
-		if (cachedEntry != null && cachedEntry.keyEquals(key) && ( (idx = cachedIndex) != -1 ))
-		{
+		if (cachedEntry != null && cachedEntry.keyEquals(key) && ((idx = cachedIndex) != -1)) {
 			return cachedEntry.value;
 		}
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
+		if (idx != -1) {
 			var entry = entries[idx];
 			cachedEntry = entry;
 			cachedIndex = idx;
@@ -312,17 +292,14 @@ import cs.system.WeakReference;
 		return null;
 	}
 
-	private function getDefault( key : K, def : V ) : V
-	{
+	private function getDefault(key:K, def:V):V {
 		var idx = -1;
-		if (cachedEntry != null && cachedEntry.keyEquals(key) && ( (idx = cachedIndex) != -1 ))
-		{
+		if (cachedEntry != null && cachedEntry.keyEquals(key) && ((idx = cachedIndex) != -1)) {
 			return cachedEntry.value;
 		}
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
+		if (idx != -1) {
 			var entry = entries[idx];
 			cachedEntry = entry;
 			cachedIndex = idx;
@@ -333,17 +310,14 @@ import cs.system.WeakReference;
 		return def;
 	}
 
-	public function exists( key : K ) : Bool
-	{
+	public function exists(key:K):Bool {
 		var idx = -1;
-		if (cachedEntry != null && cachedEntry.keyEquals(key) && ( (idx = cachedIndex) != -1 ))
-		{
+		if (cachedEntry != null && cachedEntry.keyEquals(key) && ((idx = cachedIndex) != -1)) {
 			return true;
 		}
 
 		idx = lookup(key);
-		if (idx != -1)
-		{
+		if (idx != -1) {
 			var entry = entries[idx];
 			cachedEntry = entry;
 			cachedIndex = idx;
@@ -354,20 +328,16 @@ import cs.system.WeakReference;
 		return false;
 	}
 
-	public function remove( key : K ) : Bool
-	{
+	public function remove(key:K):Bool {
 		var idx = -1;
-		if ( !(cachedEntry != null && cachedEntry.keyEquals(key) && ( (idx = cachedIndex) != -1 )) )
-		{
+		if (!(cachedEntry != null && cachedEntry.keyEquals(key) && ((idx = cachedIndex) != -1))) {
 			idx = lookup(key);
 		}
 
-		if (idx == -1)
-		{
+		if (idx == -1) {
 			return false;
 		} else {
-			if (cachedEntry != null && cachedEntry.keyEquals(key))
-			{
+			if (cachedEntry != null && cachedEntry.keyEquals(key)) {
 				cachedIndex = -1;
 				cachedEntry = null;
 			}
@@ -384,21 +354,17 @@ import cs.system.WeakReference;
 		Returns an iterator of all keys in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function keys() : Iterator<K>
-	{
+	public function keys():Iterator<K> {
 		var i = 0;
 		var len = nBuckets;
-		var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
+		var lastKey = null; // keep a strong reference to the key while iterating, so it can't be collected while iterating
 		return {
 			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
+				for (j in i...len) {
+					if (!isEither(hashes[j])) {
 						var entry = entries[j];
 						var last = entry.Target;
-						if (last != null)
-						{
+						if (last != null) {
 							lastKey = last;
 							cachedIndex = i;
 							cachedEntry = entry;
@@ -424,21 +390,17 @@ import cs.system.WeakReference;
 		Returns an iterator of all values in the hashtable.
 		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
 	**/
-	public function iterator() : Iterator<V>
-	{
+	public function iterator():Iterator<V> {
 		var i = 0;
 		var len = nBuckets;
-		var lastKey = null; //keep a strong reference to the key while iterating, so it can't be collected while iterating
+		var lastKey = null; // keep a strong reference to the key while iterating, so it can't be collected while iterating
 		return {
 			hasNext: function() {
-				for (j in i...len)
-				{
-					if (!isEither(hashes[j]))
-					{
+				for (j in i...len) {
+					if (!isEither(hashes[j])) {
 						var entry = entries[j];
 						var last = entry.Target;
-						if (last != null)
-						{
+						if (last != null) {
 							lastKey = last;
 							cachedIndex = i;
 							cachedEntry = entry;
@@ -464,24 +426,22 @@ import cs.system.WeakReference;
 	/**
 		Returns an displayable representation of the hashtable content.
 	**/
-
-	public function toString() : String {
+	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for( i in it ) {
+		for (i in it) {
 			s.add(Std.string(i));
 			s.add(" => ");
 			s.add(Std.string(get(i)));
-			if( it.hasNext() )
+			if (it.hasNext())
 				s.add(", ");
 		}
 		s.add("}");
 		return s.toString();
 	}
 
-	extern private static inline function roundUp(x:Int):Int
-	{
+	extern private static inline function roundUp(x:Int):Int {
 		--x;
 		x |= (x) >>> 1;
 		x |= (x) >>> 2;
@@ -491,7 +451,7 @@ import cs.system.WeakReference;
 		return ++x;
 	}
 
-	extern private static inline function getInc(k:Int, mask:Int):Int //return 1 for linear probing
+	extern private static inline function getInc(k:Int, mask:Int):Int // return 1 for linear probing
 		return (((k) >> 3 ^ (k) << 3) | 1) & (mask);
 
 	extern private static inline function isEither(v:HashType):Bool
@@ -503,15 +463,14 @@ import cs.system.WeakReference;
 	extern private static inline function isDel(v:HashType):Bool
 		return v == FLAG_DEL;
 
-	//guarantee: Whatever this function is, it will never return 0 nor 1
-	extern private static inline function hash(s:Dynamic):HashType
-	{
+	// guarantee: Whatever this function is, it will never return 0 nor 1
+	extern private static inline function hash(s:Dynamic):HashType {
 		var k:Int = untyped s.GetHashCode();
-		//k *= 357913941;
-		//k ^= k << 24;
-		//k += ~357913941;
-		//k ^= k >> 31;
-		//k ^= k << 31;
+		// k *= 357913941;
+		// k ^= k << 24;
+		// k += ~357913941;
+		// k ^= k >> 31;
+		// k ^= k << 31;
 
 		// k = (k+0x7ed55d16) + (k<<12);
 		// k = (k^0xc761c23c) ^ (k>>19);
@@ -521,8 +480,7 @@ import cs.system.WeakReference;
 		// k = (k^0xb55a4f09) ^ (k>>16);
 
 		var ret = k;
-		if (isEither(ret))
-		{
+		if (isEither(ret)) {
 			if (ret == 0)
 				ret = 2;
 			else
@@ -532,36 +490,34 @@ import cs.system.WeakReference;
 		return ret;
 	}
 
-	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int, length:Int):Void
+	extern private static inline function arrayCopy(sourceArray:cs.system.Array, sourceIndex:Int, destinationArray:cs.system.Array, destinationIndex:Int,
+			length:Int):Void
 		cs.system.Array.Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length);
 
-	extern private static inline function assert(x:Bool):Void
-	{
-#if DEBUG_HASHTBL
-		if (!x) throw "assert failed";
-#end
+	extern private static inline function assert(x:Bool):Void {
+		#if DEBUG_HASHTBL
+		if (!x)
+			throw "assert failed";
+		#end
 	}
 }
 
-private class Entry<K,V> extends WeakReference
-{
+private class Entry<K, V> extends WeakReference {
 	public var value:V;
 	public var hash(default, null):Int;
-	public function new(key:K, value:V, hash:Int)
-	{
+
+	public function new(key:K, value:V, hash:Int) {
 		super(key, false);
 		this.value = value;
 		this.hash = hash;
 	}
 
-	public function reuse(key,hash)
-	{
+	public function reuse(key, hash) {
 		this.Target = key;
 		this.hash = hash;
 	}
 
-	@:final inline public function keyEquals(k:K):Bool
-	{
+	@:final inline public function keyEquals(k:K):Bool {
 		return k != null && untyped k.Equals(Target);
 	}
 }
