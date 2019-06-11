@@ -19,44 +19,41 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.net;
 
 import cpp.NativeSocket;
 
 @:coreApi
 class Host {
+	public var host(default, null):String;
 
-	public var host(default,null) : String;
+	public var ip(default, null):Int;
 
-	public var ip(default,null) : Int;
+	private var ipv6(default, null):haxe.io.BytesData;
 
-   private var ipv6(default,null) : haxe.io.BytesData;
-
-	public function new( name : String ) : Void {
+	public function new(name:String):Void {
 		host = name;
-      try {
+		try {
 			ip = NativeSocket.host_resolve(name);
-      }
-      catch(e:Dynamic)
-      {
-		   ipv6 = NativeSocket.host_resolve_ipv6(name);
-      }
+		} catch (e:Dynamic) {
+			ipv6 = NativeSocket.host_resolve_ipv6(name);
+		}
 	}
 
-	public function toString() : String {
-		return ipv6==null ? NativeSocket.host_to_string(ip) : NativeSocket.host_to_string_ipv6(ipv6);
+	public function toString():String {
+		return ipv6 == null ? NativeSocket.host_to_string(ip) : NativeSocket.host_to_string_ipv6(ipv6);
 	}
 
-	public function reverse() : String {
-		return ipv6==null ? NativeSocket.host_reverse(ip) : NativeSocket.host_reverse_ipv6(ipv6);
+	public function reverse():String {
+		return ipv6 == null ? NativeSocket.host_reverse(ip) : NativeSocket.host_reverse_ipv6(ipv6);
 	}
 
-	public static function localhost() : String {
+	public static function localhost():String {
 		return NativeSocket.host_local();
 	}
 
-	static function __init__() : Void {
+	static function __init__():Void {
 		NativeSocket.socket_init();
 	}
-
 }
