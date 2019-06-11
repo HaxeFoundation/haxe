@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package neko.zip;
+
+package neko.zip;
 
 #if (haxe_ver < 9000.0)
 typedef Flush = haxe.zip.FlushMode;
