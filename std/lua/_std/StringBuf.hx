@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 /**
 	A String buffer is an efficient way to build a big string by appending small
 	elements together.
@@ -33,13 +34,12 @@
 import lua.Table;
 
 class StringBuf {
-
-	var b:Table<Int,String>;
+	var b:Table<Int, String>;
 
 	/*
 		The length of `this` StringBuf in characters.
 	**/
-	public var length(get,null) : Int;
+	public var length(get, null):Int;
 
 	/**
 		Creates a new StringBuf instance.
@@ -51,7 +51,7 @@ class StringBuf {
 		this.length = 0;
 	}
 
-	inline function get_length() : Int {
+	inline function get_length():Int {
 		return length;
 	}
 
@@ -64,7 +64,7 @@ class StringBuf {
 
 		If `x` is null, the String "null" is appended.
 	**/
-	public inline function add<T>( x : T ) : Void {
+	public inline function add<T>(x:T):Void {
 		var str = Std.string(x);
 		Table.insert(b, str);
 		length += str.length;
@@ -76,7 +76,7 @@ class StringBuf {
 		If `c` is negative or has another invalid value, the result is
 		unspecified.
 	**/
-	public inline function addChar( c : Int ) : Void {
+	public inline function addChar(c:Int):Void {
 		Table.insert(b, String.fromCharCode(c));
 		length += 1;
 	}
@@ -93,7 +93,7 @@ class StringBuf {
 		If `len` is omitted or null, the substring ranges from `pos` to the end
 		of `s`.
 	**/
-	public inline function addSub( s : String, pos : Int, ?len : Int) : Void {
+	public inline function addSub(s:String, pos:Int, ?len:Int):Void {
 		var part = len == null ? s.substr(pos) : s.substr(pos, len);
 		Table.insert(b, part);
 		length += part.length;
@@ -104,8 +104,7 @@ class StringBuf {
 
 		The buffer is not emptied by this operation.
 	**/
-	public inline function toString() : String {
+	public inline function toString():String {
 		return Table.concat(b);
 	}
-
 }
