@@ -276,8 +276,7 @@ import java.NativeArray;
 			a[this.length + len] = null;
 	}
 
-	public function toString() : String
-	{
+	public function toString():String {
 		if (__hx_toString_depth >= 5) {
 			return "...";
 		}
@@ -286,13 +285,13 @@ import java.NativeArray;
 			var s = __hx_toString();
 			--__hx_toString_depth;
 			return s;
-		} catch(e:Dynamic) {
+		} catch (e:Dynamic) {
 			--__hx_toString_depth;
 			throw(e);
 		}
 	}
 
-	function __hx_toString() : String {
+	function __hx_toString():String {
 		var ret = new StringBuf();
 		var a = __a;
 		ret.add("[");

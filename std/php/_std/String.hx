@@ -41,7 +41,7 @@ import php.*;
 
 	@:pure function charCodeAt(index:Int):Null<Int>;
 
-	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
+	@:pure function indexOf(str:String, ?startIndex:Int):Int;
 
 	@:pure function lastIndexOf(str:String, ?startIndex:Int):Int;
 

@@ -364,11 +364,11 @@ class Boot {
 			if (Std.is(value, Array)) {
 				return inline stringifyNativeIndexedArray(value.arr, maxRecursion - 1);
 			}
-			if(Std.is(value, HxEnum)) {
+			if (Std.is(value, HxEnum)) {
 				var e:HxEnum = value;
 				var result = e.tag;
 				if (Global.count(e.params) > 0) {
-					var strings = Global.array_map(function (item) return Boot.stringify(item, maxRecursion - 1), e.params);
+					var strings = Global.array_map(function(item) return Boot.stringify(item, maxRecursion - 1), e.params);
 					result += '(' + Global.implode(',', strings) + ')';
 				}
 				return result;
@@ -681,9 +681,9 @@ private class HxClass {
 @:dox(hide)
 @:allow(php.Boot.stringify)
 private class HxEnum {
-	final tag : String;
-	final index : Int;
-	final params : NativeArray;
+	final tag:String;
+	final index:Int;
+	final params:NativeArray;
 
 	public function new(tag:String, index:Int, arguments:NativeArray = null):Void {
 		this.tag = tag;
@@ -702,7 +702,7 @@ private class HxEnum {
 		PHP magic method to get string representation of this `Class`
 	**/
 	@:phpMagic
-	public function __toString() : String {
+	public function __toString():String {
 		return Boot.stringify(this);
 	}
 }
@@ -736,7 +736,7 @@ private class HxString {
 		return char == '' ? null : Boot.unsafeOrd(char);
 	}
 
-	public static function indexOf( str:String, search:String, startIndex:Int = null ) : Int {
+	public static function indexOf(str:String, search:String, startIndex:Int = null):Int {
 		if (startIndex == null) {
 			startIndex = 0;
 		} else {
@@ -766,12 +766,12 @@ private class HxString {
 			start = 0;
 		} else {
 			var length = str.length;
-			if(start >= 0) {
+			if (start >= 0) {
 				start = start - length;
-				if(start > 0) {
+				if (start > 0) {
 					start = 0;
 				}
-			} else if(start < -length) {
+			} else if (start < -length) {
 				start = -length;
 			}
 		}

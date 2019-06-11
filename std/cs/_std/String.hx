@@ -19,7 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi extern class String implements ArrayAccess<Char16> {
 	@:overload private static function Compare(s1:String, s2:String):Int;
 	@:overload private static function Compare(s1:String, s2:String, kind:cs.system.StringComparison):Int;
@@ -50,7 +49,7 @@
 
 	function toString():String;
 
-	static function fromCharCode( code : Int ) : String;
+	static function fromCharCode(code:Int):String;
 
 	private function IndexOf(value:String, startIndex:Int, comparisonType:cs.system.StringComparison):Int;
 	private function Replace(oldValue:String, newValue:String):String;

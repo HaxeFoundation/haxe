@@ -190,9 +190,10 @@ class Boot {
 		Generate a string representation for arbitrary object.
 	**/
 	@:ifFeature("has_enum")
-	static function __string_rec(o : Dynamic, s:String = "") {
-		if(s.length >= 5) return "<...>";
-		return switch(untyped __type__(o)){
+	static function __string_rec(o:Dynamic, s:String = "") {
+		if (s.length >= 5)
+			return "<...>";
+		return switch (untyped __type__(o)) {
 			case "nil": "null";
 			case "number": {
 					if (o == std.Math.POSITIVE_INFINITY)
@@ -219,216 +220,222 @@ class Boot {
 			case "function": "<function>";
 			case "thread": "<thread>";
 			case "table": {
-			    if (o.__enum__ != null) printEnum(o,s);
-				else if (o.toString != null && !isArray(o)) o.toString();
-				else if (isArray(o)) {
-					var o2 : Array<Dynamic> = untyped o;
-					if (s.length > 5) "[...]"
-					else '[${[for (i in o2) __string_rec(i,s+1)].join(",")}]';
-				}
-				else if (o.__class__ != null) printClass(o,s+"\t");
-				else {
-					var fields = fieldIterator(o);
-					var buffer:Table<Int,String> = Table.create();
-					var first = true;
-					Table.insert(buffer,"{ ");
-					for (f in fields){
-						if (first) first = false;
-						else Table.insert(buffer,", ");
-						Table.insert(buffer,'${Std.string(f)} : ${untyped __string_rec(o[f], s+"\t")}');
-					}
-				};
-			default: {
-					throw "Unknown Lua type";
-					null;
+					if (o.__enum__ != null)
+						printEnum(o, s);
+					else if (o.toString != null && !isArray(o))
+						o.toString();
+					else if (isArray(o)) {
+						var o2:Array<Dynamic> = untyped o;
+						if (s.length > 5)
+							"[...]"
+						else
+							'[${[for (i in o2) __string_rec(i, s + 1)].join(",")}]';
+					} else if (o.__class__ != null)
+						printClass(o, s + "\t");
+					else {
+						var fields = fieldIterator(o);
+						var buffer:Table<Int, String> = Table.create();
+						var first = true;
+						Table.insert(buffer, "{ ");
+						for (f in fields) {
+							if (first)
+								first = false;
+							else
+								Table.insert(buffer, ", ");
+							Table.insert(buffer, '${Std.string(f)} : ${untyped __string_rec(o[f], s + "\t")}');
+						}
+					};
+					default: {
+							throw "Unknown Lua type";
+							null;
+						}
 				}
 		}
-	}
 
-	/**
-		Define an array from the given table
-	**/
-	public inline static function defArray<T>(tab:Table<Int, T>, ?length:Int):Array<T> {
-		if (length == null) {
-			length = TableTools.maxn(tab);
-			if (length > 0) {
-				var head = tab[1];
-				Table.remove(tab, 1);
-				tab[0] = head;
-				return untyped _hx_tab_array(tab, length);
+		/**
+			Define an array from the given table
+		**/
+		public inline static function defArray<T>(tab:Table<Int, T>, ?length:Int):Array<T> {
+			if (length == null) {
+				length = TableTools.maxn(tab);
+				if (length > 0) {
+					var head = tab[1];
+					Table.remove(tab, 1);
+					tab[0] = head;
+					return untyped _hx_tab_array(tab, length);
+				} else {
+					return [];
+				}
 			} else {
-				return [];
-			}
-		} else {
-			return untyped _hx_tab_array(tab, length);
-		}
-	}
-
-	/**
-		Create a Haxe object from the given table structure
-	**/
-	public inline static function tableToObject<T>(t:Table<String, T>):Dynamic<T> {
-		return untyped _hx_o(t);
-	}
-
-	/**
-		Get Date object as string representation
-	**/
-	public static function dateStr(date:std.Date):String {
-		var m = date.getMonth() + 1;
-		var d = date.getDate();
-		var h = date.getHours();
-		var mi = date.getMinutes();
-		var s = date.getSeconds();
-		return date.getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
-			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
-	}
-
-	/**
-		A 32 bit clamp function for numbers
-	**/
-	public inline static function clamp(x:Float) {
-		return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
-	}
-
-	/**
-		Create a standard date object from a lua string representation
-	**/
-	public static function strDate(s:String):std.Date {
-		switch (s.length) {
-			case 8: // hh:mm:ss
-				var k = s.split(":");
-				var t = lua.Os.time({
-					year: 0,
-					month: 1,
-					day: 1,
-					hour: Lua.tonumber(k[0]),
-					min: Lua.tonumber(k[1]),
-					sec: Lua.tonumber(k[2])
-				});
-				return std.Date.fromTime(t);
-			case 10: // YYYY-MM-DD
-				var k = s.split("-");
-				return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]), 0, 0, 0);
-			case 19: // YYYY-MM-DD hh:mm:ss
-				var k = s.split(" ");
-				var y = k[0].split("-");
-				var t = k[1].split(":");
-				return new std.Date(cast y[0], Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]), Lua.tonumber(t[0]), Lua.tonumber(t[1]), Lua.tonumber(t[2]));
-			default:
-				throw "Invalid date format : " + s;
-		}
-	}
-
-	/**
-		Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
-	**/
-	public static function extendsOrImplements(cl1:Class<Dynamic>, cl2:Class<Dynamic>):Bool {
-		if (cl1 == null || cl2 == null)
-			return false;
-		else if (cl1 == cl2)
-			return true;
-		else if (untyped cl1.__interfaces__ != null) {
-			var intf = untyped cl1.__interfaces__;
-			for (i in 1...(TableTools.maxn(intf) + 1)) {
-				// check each interface, including extended interfaces
-				if (extendsOrImplements(intf[i], cl2))
-					return true;
+				return untyped _hx_tab_array(tab, length);
 			}
 		}
-		// check standard inheritance
-		return extendsOrImplements(untyped cl1.__super__, cl2);
-	}
 
-	/**
-		Returns a shell escaped version of "cmd" along with any args
-	**/
-	public static function shellEscapeCmd(cmd:String, ?args:Array<String>) {
-		if (args != null) {
+		/**
+			Create a Haxe object from the given table structure
+		**/
+		public inline static function tableToObject<T>(t:Table<String, T>):Dynamic<T> {
+			return untyped _hx_o(t);
+		}
+
+		/**
+			Get Date object as string representation
+		**/
+		public static function dateStr(date:std.Date):String {
+			var m = date.getMonth() + 1;
+			var d = date.getDate();
+			var h = date.getHours();
+			var mi = date.getMinutes();
+			var s = date.getSeconds();
+			return date.getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
+				+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
+		}
+
+		/**
+			A 32 bit clamp function for numbers
+		**/
+		public inline static function clamp(x:Float) {
+			return untyped __define_feature__("lua.Boot.clamp", _hx_bit_clamp(x));
+		}
+
+		/**
+			Create a standard date object from a lua string representation
+		**/
+		public static function strDate(s:String):std.Date {
+			switch (s.length) {
+				case 8: // hh:mm:ss
+					var k = s.split(":");
+					var t = lua.Os.time({
+						year: 0,
+						month: 1,
+						day: 1,
+						hour: Lua.tonumber(k[0]),
+						min: Lua.tonumber(k[1]),
+						sec: Lua.tonumber(k[2])
+					});
+					return std.Date.fromTime(t);
+				case 10: // YYYY-MM-DD
+					var k = s.split("-");
+					return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]), 0, 0, 0);
+				case 19: // YYYY-MM-DD hh:mm:ss
+					var k = s.split(" ");
+					var y = k[0].split("-");
+					var t = k[1].split(":");
+					return new std.Date(cast y[0], Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]), Lua.tonumber(t[0]), Lua.tonumber(t[1]), Lua.tonumber(t[2]));
+				default:
+					throw "Invalid date format : " + s;
+			}
+		}
+
+		/**
+			Helper method to determine if class cl1 extends, implements, or otherwise equals cl2
+		**/
+		public static function extendsOrImplements(cl1:Class<Dynamic>, cl2:Class<Dynamic>):Bool {
+			if (cl1 == null || cl2 == null)
+				return false;
+			else if (cl1 == cl2)
+				return true;
+			else if (untyped cl1.__interfaces__ != null) {
+				var intf = untyped cl1.__interfaces__;
+				for (i in 1...(TableTools.maxn(intf) + 1)) {
+					// check each interface, including extended interfaces
+					if (extendsOrImplements(intf[i], cl2))
+						return true;
+				}
+			}
+			// check standard inheritance
+			return extendsOrImplements(untyped cl1.__super__, cl2);
+		}
+
+		/**
+			Returns a shell escaped version of "cmd" along with any args
+		**/
+		public static function shellEscapeCmd(cmd:String, ?args:Array<String>) {
+			if (args != null) {
+				switch (Sys.systemName()) {
+					case "Windows":
+						cmd = [
+							for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
+								SysTools.quoteWinArg(a, true)
+						].join(" ");
+					case _:
+						cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
+				}
+			}
+			return cmd;
+		}
+
+		/**
+			Returns a temp file path that can be used for reading and writing
+		**/
+		public static function tempFile():String {
 			switch (Sys.systemName()) {
 				case "Windows":
-					cmd = [
-						for (a in [StringTools.replace(cmd, "/", "\\")].concat(args))
-							SysTools.quoteWinArg(a, true)
-					].join(" ");
-				case _:
-					cmd = [cmd].concat(args).map(SysTools.quoteUnixArg).join(" ");
-			}
-		}
-		return cmd;
-	}
-
-	/**
-		Returns a temp file path that can be used for reading and writing
-	**/
-	public static function tempFile():String {
-		switch (Sys.systemName()) {
-			case "Windows":
-				return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
-			default:
-				return Os.tmpname();
-		}
-	}
-
-	public static function fieldIterator(o:Table<String, Dynamic>):Iterator<String> {
-		if (Lua.type(o) != "table") {
-			return {
-				next: function() return null,
-				hasNext: function() return false
-			}
-		}
-		var tbl:Table<String, String> = cast(untyped o.__fields__ != null) ? o.__fields__ : o;
-		var cur = Lua.pairs(tbl).next;
-		var next_valid = function(tbl, val) {
-			while (hiddenFields[untyped val] != null) {
-				val = cur(tbl, val).index;
-			}
-			return val;
-		}
-		var cur_val = next_valid(tbl, cur(tbl, null).index);
-		return {
-			next: function() {
-				var ret = cur_val;
-				cur_val = next_valid(tbl, cur(tbl, cur_val).index);
-				return ret;
-			},
-			hasNext: function() return cur_val != null
-		}
-	}
-
-	static var os_patterns = [
-		'Windows' => ['windows', '^mingw', '^cygwin'],
-		'Linux' => ['linux'],
-		'Mac' => ['mac', 'darwin', 'osx'],
-		'BSD' => ['bsd$'],
-		'Solaris' => ['SunOS']
-	];
-
-	public static function systemName():String {
-		var os:String = null;
-		if (untyped jit != null && untyped jit.os != null) {
-			os = untyped jit.os;
-			os = os.toLowerCase();
-		} else {
-			var popen_status:Bool = false;
-			var popen_result:lua.FileHandle = null;
-			untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
-			if (popen_status) {
-				popen_result.close();
-				os = lua.Io.popen('uname -s', 'r').read('*l').toLowerCase();
-			} else {
-				os = lua.Os.getenv('OS').toLowerCase();
+					return haxe.io.Path.join([Os.getenv("TMP"), Os.tmpname()]);
+				default:
+					return Os.tmpname();
 			}
 		}
 
-		for (k in os_patterns.keys()) {
-			for (p in os_patterns.get(k)) {
-				if (lua.NativeStringTools.match(os, p) != null) {
-					return k;
+		public static function fieldIterator(o:Table<String, Dynamic>):Iterator<String> {
+			if (Lua.type(o) != "table") {
+				return {
+					next: function() return null,
+					hasNext: function() return false
 				}
 			}
+			var tbl:Table<String, String> = cast(untyped o.__fields__ != null) ? o.__fields__ : o;
+			var cur = Lua.pairs(tbl).next;
+			var next_valid = function(tbl, val) {
+				while (hiddenFields[untyped val] != null) {
+					val = cur(tbl, val).index;
+				}
+				return val;
+			}
+			var cur_val = next_valid(tbl, cur(tbl, null).index);
+			return {
+				next: function() {
+					var ret = cur_val;
+					cur_val = next_valid(tbl, cur(tbl, cur_val).index);
+					return ret;
+				},
+				hasNext: function() return cur_val != null
+			}
 		}
 
-		return null;
+		static var os_patterns = [
+			'Windows' => ['windows', '^mingw', '^cygwin'],
+			'Linux' => ['linux'],
+			'Mac' => ['mac', 'darwin', 'osx'],
+			'BSD' => ['bsd$'],
+			'Solaris' => ['SunOS']
+		];
+
+		public static function systemName():String {
+			var os:String = null;
+			if (untyped jit != null && untyped jit.os != null) {
+				os = untyped jit.os;
+				os = os.toLowerCase();
+			} else {
+				var popen_status:Bool = false;
+				var popen_result:lua.FileHandle = null;
+				untyped __lua__("popen_status, popen_result = pcall(_G.io.popen, '')");
+				if (popen_status) {
+					popen_result.close();
+					os = lua.Io.popen('uname -s', 'r').read('*l').toLowerCase();
+				} else {
+					os = lua.Os.getenv('OS').toLowerCase();
+				}
+			}
+
+			for (k in os_patterns.keys()) {
+				for (p in os_patterns.get(k)) {
+					if (lua.NativeStringTools.match(os, p) != null) {
+						return k;
+					}
+				}
+			}
+
+			return null;
+		}
 	}
-}

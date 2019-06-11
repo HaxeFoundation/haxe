@@ -34,7 +34,6 @@ typedef PySys = python.lib.Sys;
 	and vice-versa.
 **/
 class Lib {
-
 	static var lineEnd:String = Sys.systemName() == "Windows" ? "\r\n" : "\n";
 	static public var __name__(get, never):String;
 

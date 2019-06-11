@@ -19,7 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi extern class String implements java.lang.CharSequence {
 	var length(default, null):Int;
 
@@ -48,11 +47,11 @@
 
 	function toString():String;
 
-	function toString() : String;
+	function toString():String;
 
-	private function compareTo( anotherString : String ) : Int;
+	private function compareTo(anotherString:String):Int;
 
-	private function codePointAt( idx : Int ) : Int;
+	private function codePointAt(idx:Int):Int;
 
 	private function codePointAt(idx:Int):Int;
 

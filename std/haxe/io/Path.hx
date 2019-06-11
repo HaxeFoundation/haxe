@@ -252,6 +252,7 @@ class Path {
 					acc.addChar(i);
 			}
 		}
+
 		return acc.toString();
 	}
 

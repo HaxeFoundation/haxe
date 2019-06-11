@@ -27,12 +27,8 @@ class HxOverrides {
 		var h = date.getHours();
 		var mi = date.getMinutes();
 		var s = date.getSeconds();
-		return date.getFullYear()
-			+ "-" + (if (m < 10) "0" + m else "" + m)
-			+ "-" + (if (d < 10) "0" + d else "" + d)
-			+ " " + (if (h < 10) "0" + h else "" + h)
-			+ ":" + (if (mi < 10) "0" + mi else "" + mi)
-			+ ":" + (if (s < 10) "0" + s else "" + s);
+		return date.getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
+			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
 	static function strDate(s:String):Date {
@@ -142,11 +138,13 @@ class HxOverrides {
 			};
 		}
 
-	static function __init__() untyped {
-#if (js_es < 5)
-		__feature__('HxOverrides.indexOf', if( Array.prototype.indexOf ) __js__("HxOverrides").indexOf = function(a,o,i) return Array.prototype.indexOf.call(a, o, i));
-		__feature__('HxOverrides.lastIndexOf', if( Array.prototype.lastIndexOf ) __js__("HxOverrides").lastIndexOf = function(a,o,i) return Array.prototype.lastIndexOf.call(a, o, i));
-#end
-	}
-
+	static function __init__()
+		untyped {
+			#if (js_es < 5)
+			__feature__('HxOverrides.indexOf',
+				if (Array.prototype.indexOf) __js__("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
+			__feature__('HxOverrides.lastIndexOf',
+				if (Array.prototype.lastIndexOf) __js__("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
+			#end
+		}
 }

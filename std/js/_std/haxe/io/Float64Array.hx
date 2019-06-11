@@ -26,10 +26,10 @@ typedef Float64ArrayData = js.lib.Float64Array;
 
 @:coreApi
 abstract Float64Array(Float64ArrayData) {
-
 	public static inline var BYTES_PER_ELEMENT = 8;
-	public var length(get,never) : Int;
-	public var view(get,never) : ArrayBufferView;
+
+	public var length(get, never):Int;
+	public var view(get, never):ArrayBufferView;
 
 	public var length(get, never):Int;
 	public var view(get, never):ArrayBufferView;

@@ -36,7 +36,7 @@
 		return @:privateAccess HxOverrides.cca(this, index);
 	}
 
-	@:pure inline function substr( pos : Int, ?len : Int ) : String {
+	@:pure inline function substr(pos:Int, ?len:Int):String {
 		return @:privateAccess HxOverrides.substr(this, pos, len);
 	}
 

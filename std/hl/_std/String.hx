@@ -177,9 +177,10 @@ class String {
 		return this;
 	}
 
-	public static function fromCharCode( code : Int ) : String {
-		if( code >= 0 && code < 0x10000 ) {
-			if( code >= 0xD800 && code <= 0xDFFF ) throw "Invalid unicode char " + code;
+	public static function fromCharCode(code:Int):String {
+		if (code >= 0 && code < 0x10000) {
+			if (code >= 0xD800 && code <= 0xDFFF)
+				throw "Invalid unicode char " + code;
 			var b = new hl.Bytes(4);
 			b.setUI16(0, code);
 			b.setUI16(2, 0);

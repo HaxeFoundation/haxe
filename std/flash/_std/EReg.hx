@@ -38,22 +38,25 @@
 		return if (result != null && n >= 0 && n < (result:Array<Dynamic>).length) result[n] else throw "EReg::matched";
 	}
 
-	public function matchedLeft() : String {
-		if( result == null ) throw "No string matched";
-		var s : String = result.input;
+	public function matchedLeft():String {
+		if (result == null)
+			throw "No string matched";
+		var s:String = result.input;
 		return s.substr(0, result.index);
 	}
 
-	public function matchedRight() : String {
-		if( result == null ) throw "No string matched";
+	public function matchedRight():String {
+		if (result == null)
+			throw "No string matched";
 		var rl = (result.index : Int) + (result[0] : String).length;
-		var s : String = result.input;
-		return s.substr(rl,s.length - rl);
+		var s:String = result.input;
+		return s.substr(rl, s.length - rl);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
-		if( result == null ) throw "No string matched";
-		return { pos : result.index, len : (result[0] : String).length };
+	public function matchedPos():{pos:Int, len:Int} {
+		if (result == null)
+			throw "No string matched";
+		return {pos: result.index, len: (result[0] : String).length};
 	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
@@ -78,12 +81,12 @@
 	public function split(s:String):Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		var s : String = (s:Dynamic).replace(r, d);
+		var s:String = (s : Dynamic).replace(r, d);
 		return s.split(d);
 	}
 
-	public function replace( s : String, by : String ) : String {
-		return (s:Dynamic).replace(r,by);
+	public function replace(s:String, by:String):String {
+		return (s : Dynamic).replace(r, by);
 	}
 
 	public function map(s:String, f:EReg->String):String {

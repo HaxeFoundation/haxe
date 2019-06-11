@@ -35,7 +35,7 @@ import haxe.SysTools;
 		Global.echo(Std.string(v));
 	}
 
-	public static inline function println( v : Dynamic ) : Void {
+	public static inline function println(v:Dynamic):Void {
 		Global.echo(Std.string(v) + lineEnd);
 	}
 

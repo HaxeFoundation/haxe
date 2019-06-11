@@ -55,8 +55,7 @@ class DynamicObject extends HxObject {
 
 	@:skipReflection static var __hx_toString_depth = 0;
 
-	@:overload public function new()
-	{
+	@:overload public function new() {
 		this.__hx_hashes = new NativeArray(0);
 		this.__hx_dynamics = new NativeArray(0);
 		this.__hx_hashes_f = new NativeArray(0);
@@ -220,14 +219,13 @@ class DynamicObject extends HxObject {
 			var s = __hx_toString();
 			--__hx_toString_depth;
 			return s;
-		} catch(e:Dynamic) {
+		} catch (e:Dynamic) {
 			--__hx_toString_depth;
 			throw(e);
 		}
 	}
 
-	@:skipReflection public function __hx_toString():String
-	{
+	@:skipReflection public function __hx_toString():String {
 		var ts = Reflect.field(this, "toString");
 		if (ts != null)
 			return ts();

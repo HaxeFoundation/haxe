@@ -68,7 +68,7 @@ extern class Object {
 		Returns a new object from an iterable of key-value pairs
 		(reverses Object.entries).
 	**/
-	@:pure static function fromEntries<T:{}>(iterable:Any):T; 
+	@:pure static function fromEntries<T:{}>(iterable:Any):T;
 
 	/**
 		Returns a property descriptor for a named property on an object.
@@ -247,8 +247,12 @@ typedef ObjectPropertyDescriptor = {
 	Key/value access helper for `js.lib.Object.entries()`.
 **/
 abstract ObjectEntry(Array<Any>) {
-	public var key(get,never):String;
-	public var value(get,never):Any;
-	inline function get_key():String return this[0];
-	inline function get_value():Any return this[1];
+	public var key(get, never):String;
+	public var value(get, never):Any;
+
+	inline function get_key():String
+		return this[0];
+
+	inline function get_value():Any
+		return this[1];
 }

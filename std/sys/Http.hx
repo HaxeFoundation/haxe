@@ -171,7 +171,7 @@ class Http extends haxe.http.HttpBase {
 					uri = "";
 				else
 					uri += "&";
-				uri += StringTools.urlEncode(p.name)+"="+StringTools.urlEncode('${p.value}');
+				uri += StringTools.urlEncode(p.name) + "=" + StringTools.urlEncode('${p.value}');
 			}
 		}
 

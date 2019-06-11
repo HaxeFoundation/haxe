@@ -32,7 +32,6 @@ import python.internal.HxException;
 import python.internal.AnonObject;
 import python.internal.UBuiltins;
 import python.lib.Inspect;
-
 import python.Syntax;
 
 @:dox(hide)
@@ -142,10 +141,8 @@ class Boot {
 				return Syntax.callField(o, "toString");
 		} catch (e:Dynamic) {}
 
-		if (UBuiltins.hasattr(o, "__class__"))
-		{
-			if (isAnonObject(o))
-			{
+		if (UBuiltins.hasattr(o, "__class__")) {
+			if (isAnonObject(o)) {
 				var toStr = null;
 				try {
 					var fields = fields(o);
@@ -236,7 +233,7 @@ class Boot {
 		if (o != null) {
 			if (Internal.hasFields(o)) {
 				var fields = Internal.fieldFields(o);
-				if(fields != null) {
+				if (fields != null) {
 					return (fields : Array<String>).copy();
 				}
 			}
@@ -248,8 +245,7 @@ class Boot {
 				Syntax.code("for k in keys:");
 				Syntax.code("    if (k != '_hx_disable_getattr'):");
 				Syntax.code("        a.append(handler(k))");
-			}
-			else if (UBuiltins.hasattr(o, "__dict__")) {
+			} else if (UBuiltins.hasattr(o, "__dict__")) {
 				var a = [];
 				var d = Syntax.field(o, "__dict__");
 				var keys1 = Syntax.callField(d, "keys");
@@ -281,16 +277,16 @@ class Boot {
 		return new MethodClosure(obj, func);
 	}
 
-	static function hasField( o : Dynamic, field : String ) : Bool {
-		if(isAnonObject(o))
-		{
+	static function hasField(o:Dynamic, field:String):Bool {
+		if (isAnonObject(o)) {
 			return Syntax.code('{0}._hx_hasattr({1})', o, field);
 		}
 		return UBuiltins.hasattr(o, handleKeywords(field));
 	}
 
-	static function field( o : Dynamic, field : String ) : Dynamic {
-		if (field == null) return null;
+	static function field(o:Dynamic, field:String):Dynamic {
+		if (field == null)
+			return null;
 
 		inline function def() {
 			var field = handleKeywords(field);

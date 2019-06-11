@@ -26,8 +26,11 @@
 	}
 
 	@:pure
-	public static function field( o : Dynamic, field : String ) : Dynamic {
-		try return o[cast field] catch( e : Dynamic ) return null;
+	public static function field(o:Dynamic, field:String):Dynamic {
+		try
+			return o[cast field]
+		catch (e:Dynamic)
+			return null;
 	}
 
 	public inline static function setField(o:Dynamic, field:String, value:Dynamic):Void {

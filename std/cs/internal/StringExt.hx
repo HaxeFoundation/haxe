@@ -21,7 +21,9 @@
  */
 
 package cs.internal;
+
 import cs.internal.Function;
+
 private typedef NativeString = cs.system.String;
 
 @:keep @:nativeGen @:native("haxe.lang.StringExt") class StringExt {

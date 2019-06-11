@@ -131,7 +131,7 @@ import haxe.iterators.StringKeyValueIterator;
 		internal encoding of strings in different runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringIteratorUnicode`.
 	**/
-	public static inline function iterator( s : String ) : StringIterator {
+	public static inline function iterator(s:String):StringIterator {
 		return new StringIterator(s);
 	}
 
@@ -142,11 +142,11 @@ import haxe.iterators.StringKeyValueIterator;
 		internal encoding of strings in different of runtimes.
 		For the consistent cross-platform UTF8 char codes see `haxe.iterators.StringKeyValueIteratorUnicode`.
 	**/
-	public static inline function keyValueIterator( s : String ) : StringKeyValueIterator {
+	public static inline function keyValueIterator(s:String):StringKeyValueIterator {
 		return new StringKeyValueIterator(s);
 	}
 
-	@:noUsing public static inline function isEof( c : Int ) : Bool {
+	@:noUsing public static inline function isEof(c:Int):Bool {
 		return c == 0;
 	}
 

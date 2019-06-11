@@ -317,7 +317,8 @@ class Xml {
 	public function elementsNamed(name:String):Iterator<Xml> {
 		ensureElementType();
 		var ret = [
-			for (child in children) if (child.nodeType == Element && child.nodeName == name) child
+			for (child in children)
+				if (child.nodeType == Element && child.nodeName == name) child
 		];
 		return ret.iterator();
 	}

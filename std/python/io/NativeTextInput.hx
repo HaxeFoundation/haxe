@@ -37,8 +37,7 @@ class NativeTextInput extends NativeInput<TextIOBase> implements IInput {
 		super(stream);
 	}
 
-	override public function readByte():Int
-	{
+	override public function readByte():Int {
 		var ret = stream.buffer.read(1);
 
 		if (ret.length == 0)

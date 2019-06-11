@@ -56,7 +56,7 @@
 		}
 	}
 
-	public function indexOf( str : String, ?startIndex : Int ) : Int {
+	public function indexOf(str:String, ?startIndex:Int):Int {
 		untyped {
 			var l = __dollar__ssize(this.__s);
 			if (startIndex == null || startIndex < -l)

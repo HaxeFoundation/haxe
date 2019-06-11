@@ -23,6 +23,7 @@
 #if !macro
 import python.internal.StringImpl;
 #end
+
 @:coreApi
 @:native("str")
 extern class String {
@@ -46,7 +47,7 @@ extern class String {
 		return StringImpl.charCodeAt(this, index);
 	}
 
-	inline function indexOf( str : String, ?startIndex : Int ) : Int {
+	inline function indexOf(str:String, ?startIndex:Int):Int {
 		return StringImpl.indexOf(this, str, startIndex);
 	}
 
