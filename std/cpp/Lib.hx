@@ -66,32 +66,14 @@ class Lib {
 		try {
 			return untyped __global__.__loadprim(lib, prim, nargs);
 		} catch (e:Dynamic) {
-			switch (nargs) {
-				case 0:
-					return function() {
-						throw e;
-					};
-				case 2:
-					return function(_1, _2) {
-						throw e;
-					};
-				case 3:
-					return function(_1, _2, _3) {
-						throw e;
-					};
-				case 4:
-					return function(_1, _2, _3, _4) {
-						throw e;
-					};
-				case 5:
-					return function(_1, _2, _3, _4, _5) {
-						throw e;
-					};
-				default:
-					return function(_1) {
-						throw e;
-					};
-			}
+			return switch (nargs) {
+				case 0: () -> throw e;
+				case 2: (_, _) -> throw e;
+				case 3: (_, _, _) -> throw e;
+				case 4: (_, _, _, _) -> throw e;
+				case 5: (_, _, _, _, _) -> throw e;
+				default: _ -> throw e;
+			};
 		}
 		return null;
 	}
