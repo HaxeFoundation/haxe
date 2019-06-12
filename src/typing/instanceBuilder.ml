@@ -74,20 +74,11 @@ let build_instance ctx mtype p =
 				let tf = (f()) in
 				unify_raise ctx tf t p;
 				link_dynamic t tf;
-				if ctx.pass >= PBuildClass then
-					flush_pass ctx PBuildClass "after_build_instance"
-				else begin
-					match tf with
-						| TInst (c, _) -> ignore(c.cl_build())
-						| TMono _
-						| TEnum _
-						| TType _
-						| TFun _
-						| TAnon _
-						| TDynamic _
-						| TLazy _
-						| TAbstract _ -> (* TODO *) ()
-				end;
+				(match tf with
+					| TInst (c, _) -> ignore(c.cl_build())
+					| TAbstract (a, _) -> Abstract.build_abstract a
+					| _ -> ()
+				);
 				t
 			) s in
 			TLazy r
