@@ -158,13 +158,11 @@ let make_macro_api ctx p =
 					| _ ->
 						{ tpackage = fst path; tname = snd path; tparams = []; tsub = None }
 				in
-				let m = try
+				try
 					let m = Some (Typeload.load_instance ctx (tp,p) true) in
 					m
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
-				in
-				m
 			)
 		);
 		MacroApi.resolve_type = (fun t p ->
