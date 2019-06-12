@@ -164,10 +164,6 @@ let make_macro_api ctx p =
 				with Error (Module_not_found _,p2) when p == p2 ->
 					None
 				in
-				(match m with
-					| Some (TInst (c, _)) -> ignore(c.cl_build())
-					| _ -> ()
-				);
 				m
 			)
 		);
