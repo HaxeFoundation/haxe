@@ -85,11 +85,7 @@ class Lambda {
 		The order of elements is preserved.
 	**/
 	public static inline function flatten<A>(it:Iterable<Iterable<A>>):Array<A> {
-		return [
-			for (e in it)
-				for (x in e)
-					x
-		];
+		return [for (e in it) for (x in e) x];
 	}
 
 	/**
