@@ -65,7 +65,7 @@ class Base64 {
 		return str;
 	}
 
-	public static function urlEncode( str : String, complement = false ) : haxe.io.Bytes {
+	public static function urlDecode( str : String, complement = false ) : haxe.io.Bytes {
 		if( complement )
 			while( str.charCodeAt(str.length-1) == "=".code )
 				str = str.substr(0,-1);
