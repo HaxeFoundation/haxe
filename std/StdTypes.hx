@@ -154,8 +154,8 @@ typedef Iterable<T> = {
 typedef KeyValueIterator<K,V> = Iterator<{key:K, value:V}>;
 
 /**
-	A `KeyValueIterable` is a data structure which has an `iterator()` method
-	to iterate over key-value-pairs.
+	A `KeyValueIterable` is a data structure which has a `keyValueIterator()`
+	method to iterate over key-value-pairs.
 **/
 typedef KeyValueIterable<K,V> = {
     function keyValueIterator():KeyValueIterator<K,V>;
