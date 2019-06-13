@@ -1492,12 +1492,15 @@ let init_class ctx c p context_init herits fields =
 	let has_struct_init = Meta.has Meta.StructInit c.cl_meta in
 	if has_struct_init then
 		ensure_struct_init_constructor ctx c fields p;
-	begin match cctx.uninitialized_final with
-		| Some pf when c.cl_constructor = None ->
-			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
-			error "Example of an uninitialized final var" pf
-		| _ ->
-			()
+	begin
+		if ctx.com.display.dms_error_policy = EPShow then (
+			match cctx.uninitialized_final with
+			| Some pf when c.cl_constructor = None ->
+				display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
+				error "Example of an uninitialized final var" pf
+			| _ ->
+				()
+		)
 	end;
 	if not has_struct_init then
 		(* add_constructor does not deal with overloads correctly *)
