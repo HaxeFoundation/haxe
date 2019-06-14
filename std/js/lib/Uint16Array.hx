@@ -25,7 +25,7 @@
 package js.lib;
 
 @:native("Uint16Array")
-extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int> {
+extern class Uint16Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 2;
 	
 	@:pure

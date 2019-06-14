@@ -31,9 +31,22 @@ package js.lib;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView>
 **/
-extern interface ArrayBufferView {
+@:forward
+abstract ArrayBufferView(_ArrayBufferView)
+	from Int8Array
+	from Uint8Array
+	from Uint8ClampedArray
+	from Int16Array
+	from Uint16Array
+	from Int32Array
+	from Uint32Array
+	from Float32Array
+	from Float64Array
+	from DataView
+{}
+
+private typedef _ArrayBufferView = {
 	var buffer(default,null) : ArrayBuffer;
 	var byteOffset(default,null) : Int;
 	var byteLength(default,null) : Int;
-	
 }

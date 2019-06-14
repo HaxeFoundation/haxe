@@ -25,7 +25,7 @@
 package js.lib;
 
 @:native("Float32Array")
-extern class Float32Array implements ArrayBufferView implements ArrayAccess<Float> {
+extern class Float32Array implements ArrayAccess<Float> {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
 	
 	@:pure

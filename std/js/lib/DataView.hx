@@ -25,7 +25,7 @@
 package js.lib;
 
 @:native("DataView")
-extern class DataView implements ArrayBufferView {
+extern class DataView {
 	var buffer(default,null) : ArrayBuffer;
 	var byteOffset(default,null) : Int;
 	var byteLength(default,null) : Int;

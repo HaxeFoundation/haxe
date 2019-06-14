@@ -25,7 +25,7 @@
 package js.lib;
 
 @:native("Int8Array")
-extern class Int8Array implements ArrayBufferView implements ArrayAccess<Int> {
+extern class Int8Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 1;
 	
 	@:pure
