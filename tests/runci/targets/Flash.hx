@@ -127,6 +127,7 @@ class Flash {
 		while (true) {
 			try {
 				var line = traceProcess.stdout.readLine();
+				Sys.println(line);
 				if (line.indexOf("success: ") >= 0) {
 					success = line.indexOf("success: true") >= 0;
 					break;
@@ -135,7 +136,6 @@ class Flash {
 				break;
 			}
 		}
-		Sys.command("cat", [flashlogPath]);
 		return success;
 	}
 
