@@ -797,7 +797,7 @@ let generate_function ctx f =
 		| OBool (r,b) ->
 			sexpr "%s = %s" (reg r) (if b then "true" else "false")
 		| OBytes (r,idx) ->
-			define "extern vbyte %s;" ctx.bytes_names.(idx);
+			define "extern vbyte %s[];" ctx.bytes_names.(idx);
 			sexpr "%s = %s" (reg r) ctx.bytes_names.(idx)
 		| OString (r,idx) ->
 			sexpr "%s = (vbyte*)%s" (reg r) (string ctx idx)
