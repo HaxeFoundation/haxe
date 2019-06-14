@@ -19,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 @:native("Float32Array")
