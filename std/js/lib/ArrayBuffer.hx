@@ -24,7 +24,8 @@ package js.lib;
 @:native("ArrayBuffer")
 extern class ArrayBuffer {
 	static function isView( value : Dynamic ) : Bool;
-	var byteLength(default,null) : Int;
+	
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	function new( length : Int ) : Void;
