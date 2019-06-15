@@ -21,6 +21,8 @@
  */
 package js.lib;
 
+import haxe.extern.EitherType;
+
 /**
 	`BufferSource` is a typedef used to represent objects that are either themselves an [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer),
 	or which are a [TypedArray](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray) providing an [ArrayBufferView](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView).
@@ -31,7 +33,10 @@ package js.lib;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
  */
-abstract BufferSource(Dynamic)
+abstract BufferSource(EitherType<ArrayBuffer, ArrayBufferView>)
 	from ArrayBuffer
 	from ArrayBufferView
-{}
+{
+	public var buffer(get, never) : ArrayBuffer;
+	inline function get_buffer() return Std.is(this, ArrayBuffer) ? this : (this: ArrayBufferView).buffer;
+}
