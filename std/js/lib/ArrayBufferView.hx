@@ -43,7 +43,7 @@ abstract ArrayBufferView(_ArrayBufferView)
 {}
 
 private typedef _ArrayBufferView = {
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 }

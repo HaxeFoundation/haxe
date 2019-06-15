@@ -29,12 +29,13 @@ extern class Uint32Array implements ArrayAccess<Int> {
 	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Uint32Array;
 	@:pure
 	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Dynamic ) : Uint32Array;
+
 	@:native("BYTES_PER_ELEMENT")
-	var BYTES_PER_ELEMENT_(default,null) : Int;
-	var length(default,null) : Int;
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
+	final BYTES_PER_ELEMENT_ : Int;
+	final length : Int;
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
