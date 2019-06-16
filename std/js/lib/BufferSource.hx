@@ -21,32 +21,21 @@
  */
 package js.lib;
 
-@:native("ArrayBuffer")
-extern class ArrayBuffer {
-	static function isView( value : Dynamic ) : Bool;
-	
-	final byteLength : Int;
-	
-	/** @throws DOMError */
-	function new( length : Int ) : Void;
-	function slice( begin : Int, ?end : Int ) : ArrayBuffer;
-}
+import haxe.extern.EitherType;
 
-#if (js_es <= 5)
-@:ifFeature('js.lib.ArrayBuffer.slice')
-private class ArrayBufferCompat {
+/**
+	`BufferSource` is a typedef used to represent objects that are either themselves an [ArrayBuffer](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer),
+	or which are a [TypedArray](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray) providing an [ArrayBufferView](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView).
 
-	static function sliceImpl(begin, ?end) {	
-		var u = new js.lib.Uint8Array(js.Lib.nativeThis, begin, end == null ? null : (end - begin));
-		var resultArray = new js.lib.Uint8Array(u.byteLength);	
-		resultArray.set(u);	
-		return resultArray.buffer;
+	This is a helper type to simplify the specification. It isn't an interface and there are no objects implementing it.
+
+	Documentation [BufferSource](https://developer.mozilla.org/en-US/docs/Web/API/BufferSource) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/API/BufferSource$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+
+	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
+ */
+@:forward
+abstract BufferSource(ArrayBuffer) to ArrayBuffer from ArrayBuffer {
+	@:from public static inline function fromBufferView(view: ArrayBufferView) {
+		return cast view.buffer;
 	}
-
-	static function __init__(): Void untyped {
-		// IE10 ArrayBuffer.slice polyfill
-		if( __js__("ArrayBuffer").prototype.slice == null ) __js__("ArrayBuffer").prototype.slice = sliceImpl;
-	}
-
 }
-#end

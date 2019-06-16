@@ -19,25 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 @:native("Int32Array")
-extern class Int32Array implements ArrayBufferView implements ArrayAccess<Int> {
+extern class Int32Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 4;
 	
 	@:pure
 	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Int32Array;
 	@:pure
 	static function from( source : Array<Int>, ?mapFn : Int -> Int -> Int, ?thisArg : Dynamic ) : Int32Array;
+
 	@:native("BYTES_PER_ELEMENT")
-	var BYTES_PER_ELEMENT_(default,null) : Int;
-	var length(default,null) : Int;
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
+	final BYTES_PER_ELEMENT_ : Int;
+	final length : Int;
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )
