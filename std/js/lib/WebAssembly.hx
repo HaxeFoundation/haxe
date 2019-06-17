@@ -39,21 +39,12 @@ extern class WebAssembly {
 		- The primary overload takes the WebAssembly binary code, in the form of a typed array or ArrayBuffer,
 		  and performs both compilation and instantiation in one step. The returned Promise resolves to both
 		  a compiled WebAssembly.Module and its first WebAssembly.Instance.
-    	- The secondary overload takes an already-compiled WebAssembly.Module and returns a Promise that resolves
+
+		- The secondary overload takes an already-compiled WebAssembly.Module and returns a Promise that resolves
 		  to an Instance of that Module. This overload is useful if the Module has already been compiled.
 	**/
-
-	@:overload(function(bufferSource:Int8Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Uint8Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Uint8ClampedArray, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Int16Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Uint16Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Int32Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Uint32Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Float32Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
-	@:overload(function(bufferSource:Float64Array, importObject:{}):Promise<WebAssemblyInstantiatedSource> {})
 	@:overload(function(module:Module, importObject:{}):Promise<Instance> {})
-	@:pure static function instantiate(bufferSource:ArrayBuffer, importObject:{}):Promise<WebAssemblyInstantiatedSource>;
+	@:pure static function instantiate(bufferSource:BufferSource, importObject:{}):Promise<WebAssemblyInstantiatedSource>;
 
 	/**
 		The `WebAssembly.instantiateStreaming()` function compiles and instantiates a WebAssembly module
@@ -66,16 +57,7 @@ extern class WebAssembly {
 		This function is useful if it is necessary to a compile a module before it can be instantiated
 		(otherwise, the `WebAssembly.instantiate()` function should be used).
 	**/
-	@:overload(function(bufferSource:Int8Array):Promise<Module> {})
-	@:overload(function(bufferSource:Uint8Array):Promise<Module> {})
-	@:overload(function(bufferSource:Uint8ClampedArray):Promise<Module> {})
-	@:overload(function(bufferSource:Int16Array):Promise<Module> {})
-	@:overload(function(bufferSource:Uint16Array):Promise<Module> {})
-	@:overload(function(bufferSource:Int32Array):Promise<Module> {})
-	@:overload(function(bufferSource:Uint32Array):Promise<Module> {})
-	@:overload(function(bufferSource:Float32Array):Promise<Module> {})
-	@:overload(function(bufferSource:Float64Array):Promise<Module> {})
-	@:pure static function compile(bufferSource:ArrayBuffer):Promise<Module>;
+	@:pure static function compile(bufferSource:BufferSource):Promise<Module>;
 
 	/**
 		The `WebAssembly.compileStreaming()` function compiles a WebAssembly `Module` directly from a streamed
@@ -88,16 +70,7 @@ extern class WebAssembly {
 		The `WebAssembly.validate()` function validates a given typed array of WebAssembly binary code,
 		returning whether the bytes form a valid wasm module (`true`) or not (`false`).
 	**/
-	@:overload(function(bufferSource:Int8Array):Bool {})
-	@:overload(function(bufferSource:Uint8Array):Bool {})
-	@:overload(function(bufferSource:Uint8ClampedArray):Bool {})
-	@:overload(function(bufferSource:Int16Array):Bool {})
-	@:overload(function(bufferSource:Uint16Array):Bool {})
-	@:overload(function(bufferSource:Int32Array):Bool {})
-	@:overload(function(bufferSource:Uint32Array):Bool {})
-	@:overload(function(bufferSource:Float32Array):Bool {})
-	@:overload(function(bufferSource:Float64Array):Bool {})
-	@:pure static function validate(bufferSource:ArrayBuffer):Bool;
+	@:pure static function validate(bufferSource:BufferSource):Bool;
 }
 
 typedef WebAssemblyInstantiatedSource = {
