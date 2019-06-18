@@ -1257,7 +1257,7 @@ extern class Global {
 	/**
 		@see http://php.net/manual/en/function.base64-encode.php
 	**/
-	static function base64_encode( data:String ) : EitherType<String,Bool>;
+	static function base64_encode( data:String ) : String;
 
 	/**
 		@see http://php.net/manual/en/function.base64-decode.php
