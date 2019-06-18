@@ -42,6 +42,7 @@ class Boot
 
 	@:keep public static function init():Void
 	{
+		cs.system.Console.InputEncoding = new cs.system.text.UTF8Encoding();
 		cs.system.Console.OutputEncoding = new cs.system.text.UTF8Encoding();
 		cs.Lib.applyCultureChanges();
 	}
