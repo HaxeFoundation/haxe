@@ -197,14 +197,14 @@ matrix:
     - os: osx
       osx_image: xcode8.3 # to compile binaries that support older versions of Mac, and 10.12 is the min version that brew provides bottles
       env:
-        - TEST=neko
+        - TEST=macro,neko
         - DEPLOY_NIGHTLIES=1
       install: *install_osx
 
     - os: osx
       osx_image: xcode9.4 # to compile faster
       env:
-        - TEST=macro,hl,java,jvm,cs,lua,js,php,flash9,python
+        - TEST=hl,java,jvm,cs,lua,js,php,flash9,python
       install: *install_osx
 
     - os: osx
