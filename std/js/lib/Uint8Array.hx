@@ -21,6 +21,13 @@
  */
 package js.lib;
 
+/**
+	The `Uint8Array` typed array represents an array of 8-bit unsigned integers. The contents
+	are initialized to 0. Once established, you can reference elements in the array using the object's
+	methods, or using standard array index syntax (that is, using bracket notation).
+
+	Documentation [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+**/
 @:native("Uint8Array")
 extern class Uint8Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 1;

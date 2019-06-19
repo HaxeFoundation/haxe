@@ -21,6 +21,15 @@
  */
 package js.lib;
 
+/**
+	The `Uint8ClampedArray` typed array represents an array of 8-bit unsigned integers clamped
+	to 0-255; if you specified a value that is out of the range of [0,255], 0 or 255 will be set instead;
+	if you specify a non-integer, the nearest integer will be set. The contents are initialized to `0`.
+	Once established, you can reference elements in the array using the object's methods, or using
+	standard array index syntax (that is, using bracket notation).
+
+	Documentation [Uint8ClampedArray](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+**/
 @:native("Uint8ClampedArray")
 extern class Uint8ClampedArray implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 1;

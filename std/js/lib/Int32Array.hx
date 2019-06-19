@@ -21,6 +21,14 @@
  */
 package js.lib;
 
+/**
+	The `Int32Array` typed array represents an array of twos-complement 32-bit signed integers in
+	the platform byte order. If control over byte order is needed, use `DataView` instead. The
+	contents are initialized to `0`. Once established, you can reference elements in the array using
+	the object's methods, or using standard array index syntax (that is, using bracket notation).
+
+	Documentation [Int32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+**/
 @:native("Int32Array")
 extern class Int32Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 4;

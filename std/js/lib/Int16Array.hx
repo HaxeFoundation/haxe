@@ -21,6 +21,14 @@
  */
 package js.lib;
 
+/**
+	The `Int16Array` typed array represents an array of twos-complement 16-bit signed integers in
+	the platform byte order. If control over byte order is needed, use `DataView` instead. The
+	contents are initialized to 0. Once established, you can reference elements in the array using
+	the object's methods, or using standard array index syntax (that is, using bracket notation).
+
+	Documentation [Int16Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+**/
 @:native("Int16Array")
 extern class Int16Array implements ArrayAccess<Int> {
 	static inline var BYTES_PER_ELEMENT : Int = 2;
