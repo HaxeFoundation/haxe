@@ -186,6 +186,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	readdir_cache : (string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
@@ -461,6 +462,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
@@ -479,6 +481,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
@@ -629,30 +632,41 @@ let find_file ctx f =
 				let file = p ^ f in
 				let dir = Filename.dirname file in
 				let found = ref "" in
-				(try
-					Array.iter
-						(fun file_name ->
-							let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
-							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
-							if
-								is_core_api
-								|| (
-									platform_ext = Filename.extension (Filename.remove_extension file_name)
-									|| not is_cached
-								)
-							then begin
-								let full_path = Filename.concat dir file_name in
-								if is_cached then
-									Hashtbl.remove ctx.file_lookup_cache current_f;
-								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if current_f = f then
-									found := full_path;
+				let dir_listing =
+					try Hashtbl.find ctx.readdir_cache dir
+					with Not_found ->
+						let ls =
+							try Some (Sys.readdir dir);
+							with Sys_error _ -> None
+						in
+						Hashtbl.add ctx.readdir_cache dir ls;
+						ls
+				in
+				Option.may
+					(Array.iter (fun file_name ->
+						let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
+						let pf,current_f =
+							if is_core_api then false,current_f
+							else begin
+								let ext = Filename.extension current_f in
+								let pf_ext = Filename.extension (Filename.remove_extension current_f) in
+								if platform_ext = pf_ext then
+									true,(Filename.remove_extension (Filename.remove_extension current_f)) ^ ext
+								else
+									false,current_f
 							end
-						)
-						(Sys.readdir dir);
-				with
-					| Sys_error _ -> ()
-				);
+						in
+						let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
+						if is_core_api || pf || not is_cached then begin
+							let full_path = if dir = "." then file_name else Filename.concat dir file_name in
+							if is_cached then
+								Hashtbl.remove ctx.file_lookup_cache current_f;
+							Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+							if current_f = f then
+								found := full_path;
+						end
+					))
+					dir_listing;
 				if !found <> "" then !found
 				else loop (had_empty || p = "") l
 		in
