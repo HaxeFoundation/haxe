@@ -158,7 +158,7 @@ using php.Global;
 		}
 	}
 
-	public static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
 		if (Boot.isAnon(o)) {
 			return Syntax.clone(o);
 		} else {
