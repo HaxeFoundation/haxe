@@ -54,12 +54,14 @@ class RunCi {
 				haxelibInstallGit("haxe-utest", "utest", "master");
 
 				var args = switch (ci) {
+					case null:
+						[];
 					case TravisCI:
 						["-D","travis"];
 					case AppVeyor:
 						["-D","appveyor"];
-					case _:
-						[];
+					case AzurePipelines:
+						["-D","azure"];
 				}
 				switch (test) {
 					case Macro:
