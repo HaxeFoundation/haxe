@@ -102,6 +102,7 @@ tests/misc/projects/Issue4070/cpp/
 *.vscode/
 
 /tests/sys/temp
+/tests/sys/temp-unicode
 *.dll
 _build/
 Makefile.dependencies
