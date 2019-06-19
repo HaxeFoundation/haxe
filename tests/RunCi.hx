@@ -39,6 +39,14 @@ class RunCi {
 					//pass
 			}
 
+			switch (systemName) {
+				case "Windows":
+					// change codepage to UTF-8
+					runCommand("chcp", ["65001"]);
+				case _:
+					//pass
+			}
+
 			infoMsg('test $test');
 			var success = true;
 			try {

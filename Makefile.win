@@ -2,6 +2,7 @@ PLATFORM=win
 MAKEFILENAME=Makefile.win
 include Makefile
 OUTPUT=haxe.exe
+HAXELIB_OUTPUT=haxelib.exe
 PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
@@ -36,7 +37,10 @@ CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) &&
 CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-PACKAGE_FILES=$(OUTPUT) haxelib$(EXTENSION) std _build "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")"
+PACKAGE_FILES=$(OUTPUT) $(HAXELIB_OUTPUT) std _build "$$(cygcheck $(CURDIR)/$(OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" "$$(cygcheck $(CURDIR)/$(OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')"
+
+echo_package_files:
+	echo $(PACKAGE_FILES)
 
 package_win:
 	mkdir -p out
@@ -81,8 +85,10 @@ package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	7z x -y $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.zip -o$(INSTALLER_TMP_DIR)/resources
 	mv $(INSTALLER_TMP_DIR)/resources/haxe* $(INSTALLER_TMP_DIR)/resources/haxe
 	# haxesetup.exe
-	haxelib path hxcpp || haxelib install hxcpp
-	cd extra; haxelib run hxcpp build-haxesetup.xml
+	cd extra && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) newrepo && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) install hxcpp --quiet && \
+	$(CURDIR)/$(HAXELIB_OUTPUT) run hxcpp build-haxesetup.xml
 	cp extra/haxesetup.exe $(INSTALLER_TMP_DIR)/resources/haxe
 	# extra
 	cp extra/*.nsi $(INSTALLER_TMP_DIR)

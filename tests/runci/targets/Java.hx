@@ -28,7 +28,7 @@ class Java {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
-		if (ci != AppVeyor) { // #8154
+		if (systemName != "Windows") { // #8154
 			runCommand("java", ["-jar", "export/java/Main.jar"]);
 		}
 

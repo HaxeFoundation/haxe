@@ -18,6 +18,8 @@ class Deployment {
 				Sys.getEnv("TRAVIS_REPO_SLUG");
 			case AppVeyor:
 				Sys.getEnv("APPVEYOR_PROJECT_SLUG");
+			case AzurePipelines:
+				Sys.getEnv("AZURE_PIPELINES_REPO_URL");
 			case _:
 				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
 		},
@@ -26,6 +28,8 @@ class Deployment {
 				Sys.getEnv("TRAVIS_BRANCH");
 			case AppVeyor:
 				Sys.getEnv("APPVEYOR_REPO_BRANCH");
+			case AzurePipelines:
+				Sys.getEnv("AZURE_PIPELINES_BRANCH");
 			case _:
 				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
 		},
