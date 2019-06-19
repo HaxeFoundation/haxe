@@ -6,7 +6,7 @@ variables:
     value: $(Build.SourceBranchName)
 
 stages:
-  - stage: BuildAndTest
+  - stage: StageTest
     jobs:
       - template: extra/azure-pipelines/build-linux.yml
         parameters:
@@ -18,12 +18,12 @@ stages:
 
       - template: extra/azure-pipelines/build-windows.yml
         parameters:
-          name: BuildWindows64
+          name: BuildWin64
           arch: '64'
 
       - template: extra/azure-pipelines/build-windows.yml
         parameters:
-          name: BuildWindows32
+          name: BuildWin32
           arch: '32'
 
       - job: TestLinux
@@ -166,8 +166,8 @@ stages:
             workingDirectory: $(Build.SourcesDirectory)/tests
             displayName: Test
 
-      - job: TestWindows64
-        dependsOn: BuildWindows64
+      - job: TestWin64
+        dependsOn: BuildWin64
         pool:
           vmImage: 'windows-2019'
         variables:
@@ -241,7 +241,7 @@ stages:
           - script: haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             displayName: Test
-  - stage: Deploy
+  - stage: StageDeploy
     condition: and(succeeded(), not(variables['System.PullRequest.PullRequestId']))
     jobs:
       - job: S3
