@@ -355,6 +355,7 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_pad_nulls = true;
 			pf_overload = true;
+			pf_supports_threads = true;
 		}
 	| Java ->
 		{

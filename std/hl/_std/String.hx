@@ -198,7 +198,7 @@ class String {
 		var s = Std.downcast(v, String);
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
-		#if (hl_ver >= version("1.10"))
+		#if (hl_ver >= version("1.10.0"))
 		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);
 		#else
 		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);

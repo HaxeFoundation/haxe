@@ -64,7 +64,7 @@ class FileSystem {
 	}
 
 	public inline static function fullPath( relPath : String ) : String {
-		return Path.normalize(absolutePath(relPath));
+		return LFileSystem.realpath(Path.normalize(absolutePath(relPath)));
 	}
 
 	public inline static function absolutePath( relPath : String ) : String {

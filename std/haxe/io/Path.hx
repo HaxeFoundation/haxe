@@ -230,8 +230,13 @@ class Path {
 		var acc = new StringBuf();
 		var colon = false;
 		var slashes = false;
+		#if utf16
+		for (c in haxe.iterators.StringIteratorUnicode.unicodeIterator(tmp)) {
+			switch (c) {
+		#else
 		for (i in 0...tmp.length) {
 			switch (StringTools.fastCodeAt(tmp, i)) {
+		#end
 				case ":".code:
 					acc.add(":");
 					colon = true;

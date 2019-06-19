@@ -12,3 +12,8 @@ compile-each.hxml
 compile-each.hxml
 --main ExitCode
 -lua bin/lua/ExitCode.lua
+
+--next
+compile-each.hxml
+--main UtilityProcess
+-lua bin/lua/UtilityProcess.lua

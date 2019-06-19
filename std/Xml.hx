@@ -54,6 +54,18 @@ enum abstract XmlType(Int) {
 		Represents an XML document type.
 	**/
 	var Document = 6;
+
+	public function toString():String {
+		return switch (cast this : XmlType) {
+			case Element: "Element";
+			case PCData: "PCData";
+			case CData: "CData";
+			case Comment: "Comment";
+			case DocType: "DocType";
+			case ProcessingInstruction: "ProcessingInstruction";
+			case Document: "Document";
+		};
+	}
 }
 
 /**

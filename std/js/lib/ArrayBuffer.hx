@@ -19,15 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 @:native("ArrayBuffer")
 extern class ArrayBuffer {
 	static function isView( value : Dynamic ) : Bool;
-	var byteLength(default,null) : Int;
+	
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	function new( length : Int ) : Void;

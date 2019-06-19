@@ -2495,6 +2495,7 @@ class tclass_to_jvm gctx c = object(self)
 				load();
 				jm#putstatic ([],"Sys") "_args" (TArray(string_sig,None))
 			end;
+			jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
 			jm#invokestatic jc#get_this_path "main" (method_sig [] None);
 			jm#return
 

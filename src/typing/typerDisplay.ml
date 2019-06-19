@@ -371,10 +371,10 @@ and display_expr ctx e_ast e dk with_type p =
 	| DMTypeDefinition ->
 		raise_position_of_type e.etype
 	| DMDefault when not (!Parser.had_resume)->
-		let display_fields e_ast e l =
-			let fields = DisplayFields.collect ctx e_ast e dk with_type p in
-			let item = completion_item_of_expr ctx e in
-			raise_fields fields (CRField(item,e.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - l;})
+		let display_fields e_ast e1 l =
+			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in
+			let item = completion_item_of_expr ctx e1 in
+			raise_fields fields (CRField(item,e1.epos,None,None)) (Some {e.epos with pmin = e.epos.pmax - l;})
 		in
 		begin match fst e_ast,e.eexpr with
 			| EField(e1,s),TField(e2,_) ->

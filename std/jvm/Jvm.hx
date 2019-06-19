@@ -12,6 +12,7 @@ import jvm.annotation.EnumReflectionInformation;
 import jvm.annotation.EnumValueReflectionInformation;
 import java.lang.invoke.*;
 import java.NativeArray;
+import java.Init;
 import haxe.ds.Vector;
 import haxe.ds.Option;
 
