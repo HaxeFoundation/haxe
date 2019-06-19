@@ -100,6 +100,7 @@ install_linux: &install_linux
   - export HAXE_STD_PATH="$TRAVIS_BUILD_DIR/std"
 
 install_osx: &install_osx
+  - ulimit -n 5000
   - (nvm ls 8 || nvm install 8) && nvm use 8
   # Install dependencies
   - travis_retry brew update
