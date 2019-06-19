@@ -443,20 +443,20 @@ let type_for_loop ctx handle_display it e2 p =
 		| _ -> error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
-	let e1 = type_expr ctx e1 WithType.value in
+	let e1 = type_expr ctx e1 MGet WithType.value in
 	let old_loop = ctx.in_loop in
 	let old_locals = save_locals ctx in
 	ctx.in_loop <- true;
 	let e2 = Expr.ensure_block e2 in
 	let check_display (i,pi,dko) = match dko with
 		| None -> ()
-		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk (WithType.with_type i.v_type))
+		| Some dk -> ignore(handle_display ctx (EConst(Ident i.v_name),i.v_pos) dk MGet (WithType.with_type i.v_type))
 	in
 	match ik with
 	| IKNormal(i,pi,dko) ->
 		let iterator = IterationKind.of_texpr ctx e1 (is_cheap_enough ctx e2) p in
 		let i = add_local_with_origin ctx TVOForVariable i iterator.it_type pi in
-		let e2 = type_expr ctx e2 NoValue in
+		let e2 = type_expr ctx e2 MGet NoValue in
 		check_display (i,pi,dko);
 		ctx.in_loop <- old_loop;
 		old_locals();
@@ -481,7 +481,7 @@ let type_for_loop ctx handle_display it e2 p =
 		let evalue = Calls.acc_get ctx (type_field_default_cfg ctx ev "value" ev.epos MGet) ev.epos in
 		let vkey = add_local_with_origin ctx TVOForVariable ikey ekey.etype pkey in
 		let vvalue = add_local_with_origin ctx TVOForVariable ivalue evalue.etype pvalue in
-		let e2 = type_expr ctx e2 NoValue in
+		let e2 = type_expr ctx e2 MGet NoValue in
 		check_display (vkey,pkey,dkokey);
 		check_display (vvalue,pvalue,dkovalue);
 		let ebody = mk (TBlock [

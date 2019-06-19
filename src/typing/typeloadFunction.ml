@@ -51,7 +51,7 @@ let save_field_state ctx =
 let type_var_field ctx t e stat do_display p =
 	if stat then ctx.curfun <- FunStatic else ctx.curfun <- FunMember;
 	let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-	let e = type_expr ctx e (WithType.with_type t) in
+	let e = type_expr ctx e MGet (WithType.with_type t) in
 	let e = AbstractCast.cast_or_unify ctx t e p in
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) | TAbstract ({ a_path = ([],"UInt") },[]) when stat -> { e with etype = t }
@@ -72,7 +72,7 @@ let type_function_arg_value ctx t c do_display =
 		| Some e ->
 			let p = pos e in
 			let e = if do_display then Display.ExprPreprocessing.process_expr ctx.com e else e in
-			let e = ctx.g.do_optimize ctx (type_expr ctx e (WithType.with_type t)) in
+			let e = ctx.g.do_optimize ctx (type_expr ctx e MGet (WithType.with_type t)) in
 			unify ctx e.etype t p;
 			let rec loop e = match e.eexpr with
 				| TConst _ -> Some e
@@ -117,7 +117,7 @@ let type_function ctx args ret fmode f do_display p =
 	let is_position_debug = Meta.has (Meta.Custom ":debug.position") ctx.curfield.cf_meta in
 	let e = if not do_display then begin
 		if is_position_debug then print_endline ("syntax:\n" ^ (Expr.dump_with_pos e));
-		type_expr ctx e NoValue
+		type_expr ctx e MGet NoValue
 	end else begin
 		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
@@ -127,10 +127,10 @@ let type_function ctx args ret fmode f do_display p =
 			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
 			let e = Optimizer.optimize_completion_expr e f.f_args in
 			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
-			type_expr ctx e NoValue
+			type_expr ctx e MGet NoValue
 		with
 		| Parser.TypePath (_,None,_,_) | Exit ->
-			type_expr ctx e NoValue
+			type_expr ctx e MGet NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

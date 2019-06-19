@@ -194,7 +194,7 @@ let check_param_constraints ctx types t pl c p =
 				in
 				match follow t with
 				| TInst({cl_kind = KExpr e},_) ->
-					let e = type_expr {ctx with locals = PMap.empty} e (WithType.with_type ti) in
+					let e = type_expr {ctx with locals = PMap.empty} e MGet (WithType.with_type ti) in
 					begin try unify_raise ctx e.etype ti p
 					with Error (Unify _,_) -> fail() end
 				| _ ->
@@ -289,7 +289,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
 						| EDisplay _ ->
-							ignore(type_expr ctx e WithType.value);
+							ignore(type_expr ctx e MGet WithType.value);
 							"Expr"
 						| _ -> "Expr"
 					) in

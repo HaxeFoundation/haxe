@@ -116,8 +116,8 @@ module StrictMeta = struct
 				| _ -> assert false
 			in
 
-			let left = type_expr ctx left_side NoValue in
-			let right = type_expr ctx expr (WithType.with_type left.etype) in
+			let left = type_expr ctx left_side MGet NoValue in
+			let right = type_expr ctx expr MGet (WithType.with_type left.etype) in
 			unify ctx left.etype right.etype (snd expr);
 			(EBinop(Ast.OpAssign,fieldexpr,process_meta_argument ctx right), pos)
 		) fields_to_check
@@ -163,7 +163,7 @@ module StrictMeta = struct
 				display_error ctx "A @:strict metadata must contain exactly one parameter. Please check the documentation for more information" pos;
 				raise Exit
 		in
-		let texpr = type_expr ctx changed_expr NoValue in
+		let texpr = type_expr ctx changed_expr MGet NoValue in
 		let with_type_expr = (ECheckType( (EConst (Ident "null"), pos), (ctype,null_pos) ), pos) in
 		let extra = handle_fields ctx fields_to_check with_type_expr in
 		Meta.Meta, [make_meta ctx texpr extra], pos

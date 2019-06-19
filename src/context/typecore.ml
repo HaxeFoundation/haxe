@@ -131,8 +131,13 @@ exception Forbid_package of (string * path * pos) * pos list * string
 
 exception WithTypeError of error_msg * pos
 
+type access_mode =
+	| MGet
+	| MSet
+	| MCall
+
 let make_call_ref : (typer -> texpr -> texpr list -> t -> ?force_inline:bool -> pos -> texpr) ref = ref (fun _ _ _ _ ?force_inline:bool _ -> assert false)
-let type_expr_ref : (typer -> expr -> WithType.t -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_expr_ref : (typer -> expr -> access_mode -> WithType.t -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let type_block_ref : (typer -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ -> assert false)
 let unify_min_ref : (typer -> texpr list -> t) ref = ref (fun _ _ -> assert false)
 let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun _ _ -> assert false)
@@ -151,7 +156,7 @@ let display_error ctx msg p = match ctx.com.display.DisplayMode.dms_error_policy
 
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
-let type_expr ctx e with_type = (!type_expr_ref) ctx e with_type
+let type_expr ctx e mode with_type = (!type_expr_ref) ctx e mode with_type
 
 let unify_min ctx el = (!unify_min_ref) ctx el
 

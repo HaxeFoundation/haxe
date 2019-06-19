@@ -208,10 +208,10 @@ let make_macro_api ctx p =
 		);
 		MacroApi.parse_string = parse_expr_string;
 		MacroApi.type_expr = (fun e ->
-			typing_timer ctx true (fun() -> type_expr ctx e WithType.value)
+			typing_timer ctx true (fun() -> type_expr ctx e MGet WithType.value)
 		);
 		MacroApi.type_macro_expr = (fun e ->
-			let e = typing_timer ctx true (fun() -> type_expr ctx e WithType.value) in
+			let e = typing_timer ctx true (fun() -> type_expr ctx e MGet WithType.value) in
 			let rec loop e = match e.eexpr with
 				| TField(_,FStatic(c,({cf_kind = Method _} as cf))) -> ignore(!load_macro_ref ctx false c.cl_path cf.cf_name e.epos)
 				| _ -> Type.iter loop e

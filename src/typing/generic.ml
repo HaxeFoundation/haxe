@@ -19,7 +19,7 @@ type generic_context = {
 let generic_check_const_expr ctx t =
 	match follow t with
 	| TInst({cl_kind = KExpr e},_) ->
-		let e = type_expr {ctx with locals = PMap.empty} e WithType.value in
+		let e = type_expr {ctx with locals = PMap.empty} e MGet WithType.value in
 		e.etype,Some e
 	| _ -> t,None
 

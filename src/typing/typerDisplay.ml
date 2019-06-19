@@ -24,7 +24,7 @@ let convert_function_signature ctx values (args,ret) = match DisplayEmitter.comp
 let completion_item_of_expr ctx e =
 	let retype e s t =
 		try
-			let e' = type_expr ctx (EConst(Ident s),null_pos) (WithType.with_type t) in
+			let e' = type_expr ctx (EConst(Ident s),null_pos) MGet (WithType.with_type t) in
 			Texpr.equal e e'
 		with _ ->
 			false
@@ -206,14 +206,14 @@ let rec handle_signature_display ctx e_ast with_type =
 	match fst e_ast with
 		| ECall(e1,el) ->
 			let def () = try
-				type_expr ctx e1 WithType.value
+				type_expr ctx e1 MGet WithType.value
 			with Error (Unknown_ident "trace",_) ->
 				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
-				type_expr ctx e WithType.value
+				type_expr ctx e MGet WithType.value
 			in
 			let e1 = match e1 with
 				| (EField (e,"bind"),p) ->
-					let e = type_expr ctx e WithType.value in
+					let e = type_expr ctx e MGet WithType.value in
 					(match follow e.etype with
 						| TFun signature -> e
 						| _ -> def ())
@@ -236,7 +236,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			let t = Typeload.load_instance ctx tpath true in
 			handle_call (find_constructor_types t) el (pos tpath)
 		| EArray(e1,e2) ->
-			let e1 = type_expr ctx e1 WithType.value in
+			let e1 = type_expr ctx e1 MGet WithType.value in
 			begin match follow e1.etype with
 			| TInst({cl_path=([],"Array")},[t]) ->
 				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
@@ -432,7 +432,7 @@ let handle_structure_display ctx e fields origin =
 	| _ ->
 		error "Expected object expression" p
 
-let handle_display ctx e_ast dk with_type =
+let handle_display ctx e_ast dk mode with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -472,7 +472,7 @@ let handle_display ctx e_ast dk with_type =
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
-		type_expr ctx e_ast with_type
+		type_expr ctx e_ast mode with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (Some p) p
@@ -553,7 +553,7 @@ let handle_display ctx e_ast dk with_type =
 	ctx.in_call_args <- snd old;
 	display_expr ctx e_ast e dk with_type p
 
-let handle_edisplay ctx e dk with_type =
+let handle_edisplay ctx e dk mode with_type =
 	match dk,ctx.com.display.dms_kind with
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
 	| DKStructure,DMDefault ->
@@ -569,15 +569,15 @@ let handle_edisplay ctx e dk with_type =
 					| TInst(c,tl) when Meta.has Meta.StructInit c.cl_meta ->
 						let fields = PMap.map (fun cf -> {cf with cf_type = apply_params c.cl_params tl cf.cf_type}) c.cl_fields in
 						handle_structure_display ctx e fields (Self (TClassDecl c))
-					| _ -> handle_display ctx e dk with_type
+					| _ -> handle_display ctx e dk mode with_type
 				end
 			| _ ->
-				handle_display ctx e dk with_type
+				handle_display ctx e dk mode with_type
 		end
 	| DKPattern outermost,DMDefault ->
 		begin try
-			handle_display ctx e dk with_type
+			handle_display ctx e dk mode with_type
 		with DisplayException(DisplayFields(l,CRToplevel _,p)) ->
 			raise_fields l (CRPattern ((get_expected_type ctx with_type),outermost)) p
 		end
-	| _ -> handle_display ctx e dk with_type
+	| _ -> handle_display ctx e dk mode with_type

@@ -39,7 +39,7 @@ let make_offset_list left right middle other =
 	(ExtList.List.make left other) @ [middle] @ (ExtList.List.make right other)
 
 let type_field_access ctx ?(resume=false) e name =
-	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos TyperBase.MGet) e.epos
+	Calls.acc_get ctx (Fields.type_field (Fields.TypeFieldConfig.create resume) ctx e name e.epos Typecore.MGet) e.epos
 
 let unapply_type_parameters params monos =
 	List.iter2 (fun (_,t1) t2 -> match t2,follow t2 with TMono m1,TMono m2 when m1 == m2 -> Type.unify t1 t2 | _ -> ()) params monos
@@ -227,7 +227,7 @@ module Pattern = struct
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
-			let e = try type_expr ctx e (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
+			let e = try type_expr ctx e MGet (WithType.with_type t) with exc -> ctx.untyped <- old; raise exc in
 			ctx.untyped <- old;
 			match e.eexpr with
 				| TTypeExpr mt ->
@@ -320,7 +320,7 @@ module Pattern = struct
 				let v = add_local final s p in
 				PatVariable v
 			| ECall(e1,el) ->
-				let e1 = type_expr ctx e1 (WithType.with_type t) in
+				let e1 = type_expr ctx e1 MGet (WithType.with_type t) in
 				begin match e1.eexpr,follow e1.etype with
 					| TField(_, FEnum(en,ef)),TFun(_,TEnum(_,tl)) ->
 						let monos = List.map (fun _ -> mk_mono()) ef.ef_params in
@@ -472,7 +472,7 @@ module Pattern = struct
 				let restore = save_locals ctx in
 				ctx.locals <- pctx.ctx_locals;
 				let v = add_local false "_" null_pos in
-				let e1 = type_expr ctx e1 WithType.value in
+				let e1 = type_expr ctx e1 MGet WithType.value in
 				v.v_name <- "tmp";
 				restore();
 				let pat = make pctx toplevel e1.etype e2 in
@@ -484,18 +484,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) MGet (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) MGet (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) MGet (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
@@ -552,7 +552,7 @@ module Case = struct
 		unapply_type_parameters ctx.type_params monos;
 		let eg = match eg with
 			| None -> None
-			| Some e -> Some (type_expr ctx e WithType.value)
+			| Some e -> Some (type_expr ctx e MGet WithType.value)
 		in
 		let eo = match eo_ast,with_type with
 			| None,WithType.WithType(t,_) ->
@@ -561,11 +561,11 @@ module Case = struct
 			| None,_ ->
 				None
 			| Some e,WithType.WithType(t,_) ->
-				let e = type_expr ctx e (WithType.with_type (map t)) in
+				let e = type_expr ctx e MGet (WithType.with_type (map t)) in
 				let e = AbstractCast.cast_or_unify ctx (map t) e e.epos in
 				Some e
 			| Some e,_ ->
-				let e = type_expr ctx e with_type in
+				let e = type_expr ctx e MGet with_type in
 				Some e
 		in
 		ctx.ret <- old_ret;
@@ -1519,13 +1519,13 @@ module Match = struct
 		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
-				let el = List.map (fun e -> type_expr ctx e WithType.value) el in
+				let el = List.map (fun e -> type_expr ctx e MGet WithType.value) el in
 				let t = tuple_type (List.map (fun e -> e.etype) el) in
 				t,el
 			| EParenthesis e1 ->
 				loop e1
 			| _ ->
-				let e = type_expr ctx e WithType.value in
+				let e = type_expr ctx e MGet WithType.value in
 				e.etype,[e]
 		in
 		let t,subjects = loop e in

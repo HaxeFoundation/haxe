@@ -4,11 +4,6 @@ open Type
 open Typecore
 open Error
 
-type access_mode =
-	| MGet
-	| MSet
-	| MCall
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
