@@ -97,7 +97,7 @@ class Reflect {
 		return untyped __global__.__hxcpp_anon_remove(o,field);
 	}
 
-	public static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
 		if (o==null) return null;
 		if(untyped o.__GetType()==ObjectType.vtString ) return o;
 		if(untyped o.__GetType()==ObjectType.vtArray )
