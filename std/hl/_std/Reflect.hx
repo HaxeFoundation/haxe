@@ -122,7 +122,7 @@ class Reflect {
 	}
 
 	@:hlNative("std","obj_copy")
-	public static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
 		return null;
 	}
 

@@ -66,6 +66,10 @@ let decode_int_p v p = match v with
 	| VFloat f -> int_of_float f
 	| _ -> unexpected_value_p v "int" p
 
+let check_stack_depth env =
+	if env.env_stack_depth > (get_ctx()).max_stack_depth then
+		exc_string "Stack overflow"
+
 (* Emitter *)
 
 let apply env exec =
@@ -210,7 +214,7 @@ let emit_try exec catches env =
 		List.iter (fun (_,path,_) -> Hashtbl.remove eval.caught_types path) catches
 	in
 	let v = try
-		let v = exec env in
+		let v = handle_stack_overflow eval (fun() -> exec env) in
 		restore();
 		v
 	with RunTimeException(v,_,_) as exc ->
@@ -282,6 +286,7 @@ let emit_safe_cast exec t p env =
 (* super.call() - immediate *)
 
 let emit_super_field_call slot proto i execs p env =
+	check_stack_depth env;
 	let vthis = env.env_locals.(slot) in
 	let vf = proto.pfields.(i) in
 	let vl = List.map (apply env) execs in
@@ -290,6 +295,7 @@ let emit_super_field_call slot proto i execs p env =
 (* Type.call() - immediate *)
 
 let emit_proto_field_call v execs p env =
+	check_stack_depth env;
 	let f = Lazy.force v in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
@@ -306,6 +312,7 @@ let get_prototype v p = match vresolve v with
 	| _ -> unexpected_value_p v "instance" p
 
 let emit_method_call exec name execs p env =
+	check_stack_depth env;
 	let vthis = exec env in
 	let proto = get_prototype vthis p in
 	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
@@ -317,6 +324,7 @@ let emit_method_call exec name execs p env =
 (* instance.call() where call is not a method - lookup + this-binding *)
 
 let emit_field_call exec name execs p env =
+	check_stack_depth env;
 	let vthis = exec env in
 	let vf = field vthis name in
 	env.env_leave_pmin <- p.pmin;
@@ -326,6 +334,7 @@ let emit_field_call exec name execs p env =
 (* new() - immediate + this-binding *)
 
 let emit_constructor_call proto v execs p env =
+	check_stack_depth env;
 	let f = Lazy.force v in
 	let vthis = create_instance_direct proto INormal in
 	let vl = List.map (apply env) execs in
@@ -337,6 +346,7 @@ let emit_constructor_call proto v execs p env =
 (* super() - immediate + this-binding *)
 
 let emit_special_super_call fnew execs env =
+	check_stack_depth env;
 	let vl = List.map (apply env) execs in
 	let vi' = fnew vl in
 	let vthis = env.env_locals.(0) in
@@ -348,6 +358,7 @@ let emit_special_super_call fnew execs env =
 	vnull
 
 let emit_super_call v execs p env =
+	check_stack_depth env;
 	let f = Lazy.force v in
 	let vthis = env.env_locals.(0) in
 	let vl = List.map (apply env) execs in
@@ -359,6 +370,7 @@ let emit_super_call v execs p env =
 (* unknown call - full lookup *)
 
 let emit_call exec execs p env =
+	check_stack_depth env;
 	let v1 = exec env in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
@@ -729,14 +741,6 @@ let process_arguments fl vl env =
 	in
 	loop fl vl
 [@@inline]
-
-let emit_function_ret ctx eci refs exec fl vl =
-	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
 
 let create_function_noret ctx eci exec fl vl =
 	let env = push_environment ctx eci.ec_info eci.ec_num_locals eci.ec_num_captures in

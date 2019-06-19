@@ -1,0 +1,17 @@
+-cp src
+
+--each
+
+-D php-prefix=app1
+-main App1
+-php bin/app1
+
+--next
+
+-D php-prefix=app2
+-main App2
+-php bin/app2
+
+--next
+
+--cmd php run.php

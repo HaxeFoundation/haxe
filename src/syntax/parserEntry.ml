@@ -19,6 +19,7 @@
 open Globals
 open Ast
 open Parser
+open Semver
 open Grammar
 open DisplayPosition
 
@@ -28,6 +29,7 @@ type small_type =
 	| TBool of bool
 	| TFloat of float
 	| TString of string
+	| TVersion of (version * version * version) * (version list option)
 
 let is_true = function
 	| TBool false | TNull | TFloat 0. | TString "" -> false
@@ -41,6 +43,9 @@ let cmp v1 v2 =
 	| TBool a, TBool b -> compare a b
 	| TString a, TFloat b -> compare (float_of_string a) b
 	| TFloat a, TString b -> compare a (float_of_string b)
+	| TString a, TVersion (release,pre) -> compare_version (parse_version a) (release,pre)
+	| TVersion (release,pre), TString b -> compare_version (release,pre) (parse_version b)
+	| TVersion (release1,pre1), TVersion (release2,pre2) -> compare_version (release1,pre1) (release2,pre2)
 	| _ -> raise Exit (* always false *)
 
 let rec eval ctx (e,p) =
@@ -50,6 +55,9 @@ let rec eval ctx (e,p) =
 	| EConst (String s) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
+	| ECall ((EConst (Ident "version"),_),[(EConst (String s), p)]) ->
+		(try match parse_version s with release,pre -> TVersion (release,pre)
+		with Invalid_argument msg -> error (Custom msg) p)
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
@@ -58,7 +66,8 @@ let rec eval ctx (e,p) =
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
 		let compare op =
-			TBool (try op (cmp v1 v2) 0 with _ -> false)
+			try TBool (try op (cmp v1 v2) 0 with _ -> false)
+			with Invalid_argument msg -> error (Custom msg) p
 		in
 		(match op with
 		| OpEq -> compare (=)
@@ -105,7 +114,7 @@ let parse ctx code file =
 	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
 
-	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
+	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =

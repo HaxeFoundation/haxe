@@ -6,6 +6,9 @@ import runci.Config.*;
 using StringTools;
 
 class Java {
+	static var miscJavaDir(get,never):String;
+	static inline function get_miscJavaDir() return miscDir + 'java/';
+
 	static public function getJavaDependencies() {
 		haxelibInstallGit("HaxeFoundation", "hxjava", true);
 		runCommand("javac", ["-version"]);
@@ -25,7 +28,7 @@ class Java {
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
-		if (ci != AppVeyor) { // #8154
+		if (systemName != "Windows") { // #8154
 			runCommand("java", ["-jar", "export/java/Main.jar"]);
 		}
 
@@ -43,5 +46,8 @@ class Java {
 				}
 			}
 		}
+
+		changeDirectory(miscJavaDir);
+		runCommand("haxe", ["run.hxml"]);
 	}
 }

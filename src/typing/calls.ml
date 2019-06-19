@@ -101,7 +101,7 @@ let mk_array_set_call ctx (cf,tf,r,e1,e2o) c ebase p =
 let call_to_string ctx ?(resume=false) e =
 	(* Ignore visibility of the toString field. *)
 	ctx.meta <- (Meta.PrivateAccess,[],e.epos) :: ctx.meta;
-	let acc = type_field ~resume ctx e "toString" e.epos MCall in
+	let acc = type_field (TypeFieldConfig.create resume) ctx e "toString" e.epos MCall in
 	ctx.meta <- List.tl ctx.meta;
 	!build_call_ref ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 
@@ -624,7 +624,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			begin match e.eexpr with
-				| TField(e1,fa) when not (match fa with FEnum _ -> true | _ -> false) ->
+				| TField(e1,fa) when not (match fa with FEnum _ | FDynamic _ -> true | _ -> false) ->
 					begin match fa with
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p

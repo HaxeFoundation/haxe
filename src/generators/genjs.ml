@@ -83,9 +83,6 @@ let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds = Hashtbl.create 0
 
-let setup_kwds lst =
-	List.iter (fun s -> Hashtbl.add kwds s ()) lst
-
 let es3kwds = [
 	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
 	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
@@ -103,6 +100,12 @@ let es5kwds = [
 	"public"; "return"; "static"; "super"; "switch"; "this"; "throw";
 	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
 ]
+
+let setup_kwds com =
+	Hashtbl.reset kwds;
+	let es_version = get_es_version com in
+	let lst = if es_version >= 5 then es5kwds else es3kwds in
+	List.iter (fun s -> Hashtbl.add kwds s ()) lst
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -340,7 +343,6 @@ let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
-			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
@@ -350,32 +352,12 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		(has_feature ctx "HxOverrides.iter" || has_feature ctx "String.iterator") && loop x.etype
+		has_feature ctx "HxOverrides.iter" && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
-
-let is_dynamic_key_value_iterator ctx e =
-	let check x =
-		let rec loop t = match follow t with
-			| TInst ({ cl_path = [],"String" },_)
-			| TInst ({ cl_kind = KTypeParameter _}, _)
-			| TAnon _
-			| TDynamic _
-			| TMono _ ->
-				true
-			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				loop (Abstract.get_underlying_type a tl)
-			| _ ->
-				false
-		in
-		has_feature ctx "String.keyValueIterator" && loop x.etype
-	in
-	match e.eexpr with
-	| TField (x,f) when field_name f = "keyValueIterator" -> check x
-	| _ -> false
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -478,11 +460,6 @@ let rec gen_call ctx e el in_value =
 	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$getIterator";
 		print ctx "$getIterator(";
-		gen_value ctx x;
-		print ctx ")";
-	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_key_value_iterator ctx e ->
-		add_feature ctx "use.$getKeyValueIterator";
-		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
@@ -1101,6 +1078,13 @@ let generate_class___name__ ctx c =
 		newline ctx;
 	end
 
+let generate_class___isInterface__ ctx c =
+	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+		let p = s_path ctx c.cl_path in
+		print ctx "%s.__isInterface__ = true" p;
+		newline ctx;
+	end
+
 let generate_class_es3 ctx c =
 	let p = s_path ctx c.cl_path in
 	if ctx.js_flatten then
@@ -1127,6 +1111,7 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
 	if ctx.has_instanceof then
 		(match c.cl_implements with
@@ -1281,6 +1266,7 @@ let generate_class_es6 ctx c =
 	end;
 
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
 	if ctx.has_instanceof then
 		(match c.cl_implements with
@@ -1590,7 +1576,7 @@ let generate com =
 
 	let nodejs = Common.raw_defined com "nodejs" in
 
-	setup_kwds (if ctx.es_version >= 5 then es5kwds else es3kwds);
+	setup_kwds com;
 
 	let exposed = List.concat (List.map (fun t ->
 		match t with
@@ -1766,11 +1752,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else if (typeof o == 'string') return HxOverrides.strIter(o); else return o.iterator(); }";
-		newline ctx;
-	end;
-	if has_feature ctx "use.$getKeyValueIterator" then begin
-		print ctx "function $getKeyValueIterator(o) { if (typeof o == 'string') return HxOverrides.strKVIter(o); else return o.keyValueIterator(); }";
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

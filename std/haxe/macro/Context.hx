@@ -101,7 +101,6 @@ class Context {
 		Might return `null` if no specific type is expected or if the calling
 		macro is not an expression-macro.
 	**/
-	@:require(haxe_ver >= 3.1)
 	public static function getExpectedType():Null<Type> {
 		return load("get_expected_type", 0)();
 	}
@@ -112,7 +111,6 @@ class Context {
 
 		Returns `null` if the current macro is not a `@:genericBuild` macro.
 	**/
-	@:require(haxe_ver >= 3.2)
 	public static function getCallArguments():Null<Array<Expr>> {
 		return load("get_call_arguments", 0)();
 	}
@@ -193,7 +191,6 @@ class Context {
 		Similar to `getLocalVars`, but returns elements of type `TVar` instead
 		of `Type`.
 	**/
-	@:require(haxe_ver >= 3.102)
 	public static function getLocalTVars() : Map<String,Type.TVar> {
 		return load("local_vars", 1)(true);
 	}
@@ -334,7 +331,6 @@ class Context {
 
 		*Note*: the callback is still invoked when generation is disabled with  `--no-output`.
 	**/
-	@:require(haxe_ver >= 3.1)
 	public static function onAfterGenerate( callback : Void -> Void ) {
 		load("on_after_generate",1)(callback);
 	}
@@ -379,7 +375,6 @@ class Context {
 		Typing the expression may result in a compiler error which can be
 		caught using `try ... catch`.
 	**/
-	@:require(haxe_ver >= 3.1)
 	public static function typeExpr( e : Expr ) : TypedExpr {
 		return load("type_expr", 1)(e);
 	}
@@ -391,7 +386,6 @@ class Context {
 		caught using `try ... catch`.
 		Resolution is performed based on the current context in which the macro is called.
 	**/
-	@:require(haxe_ver >= 3.3)
 	public static function resolveType( t : ComplexType, p : Position ) : Type {
 		return load("resolve_type", 2)(t,p);
 	}
@@ -526,7 +520,6 @@ class Context {
 		the expression returned by this method in a static variable and using the
 		compilation server.
 	**/
-	@:require(haxe_ver >= 3.2)
 	public static function storeTypedExpr( t : Type.TypedExpr ) : Expr {
 		return load("store_typed_expr",1)(t);
 	}
@@ -546,7 +539,6 @@ class Context {
 		the expression returned by this method in a static variable and using the
 		compilation server.
 	**/
-	@:require(haxe_ver >= 4.0)
 	public static function storeExpr( e : Expr ) : Expr {
 		return load("store_expr",1)(e);
 	}

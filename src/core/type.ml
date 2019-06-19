@@ -420,7 +420,7 @@ let alloc_var =
 			v_type = t;
 			v_id = !uid;
 			v_capture = false;
-			v_final = false;
+			v_final = (match kind with VUser TVOLocalFunction -> true | _ -> false);
 			v_extra = None;
 			v_meta = [];
 			v_pos = p
@@ -1029,7 +1029,7 @@ let rec s_type ctx t =
 		s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		(match c.cl_kind with
-		| KExpr e -> Ast.s_expr e
+		| KExpr e -> Ast.Printer.s_expr e
 		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
 	| TType (t,tl) ->
 		s_type_path t.t_path ^ s_type_params ctx tl
@@ -1220,7 +1220,7 @@ let rec s_expr s_type e =
 	| TCast (e,t) ->
 		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")") (loop e)
 	| TIdent s ->
 		"Ident " ^ s
 	) in
@@ -1291,7 +1291,7 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 	| TCast (e,Some mt) ->
 		sprintf "cast (%s,%s)" (loop e) (s_type_path (t_path mt))
 	| TMeta ((n,el,_),e) ->
-		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")") (loop e)
+		sprintf "@%s%s %s" (Meta.to_string n) (match el with [] -> "" | _ -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")") (loop e)
 	| TIdent s ->
 		s
 
@@ -1377,7 +1377,7 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 		let s = Meta.to_string m in
 		let s = match el with
 			| [] -> s
-			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.s_expr el))
+			| _ -> sprintf "%s(%s)" s (String.concat ", " (List.map Ast.Printer.s_expr el))
 		in
 		tag "Meta" [s; loop e1]
 	| TIdent s ->
@@ -1436,7 +1436,7 @@ module Printer = struct
 	let s_doc = s_opt (fun s -> s)
 
 	let s_metadata_entry (s,el,_) =
-		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.s_expr el)) ^ ")")
+		Printf.sprintf "@%s%s" (Meta.to_string s) (match el with [] -> "" | el -> "(" ^ (String.concat ", " (List.map Ast.Printer.s_expr el)) ^ ")")
 
 	let s_metadata metadata =
 		s_list " " s_metadata_entry metadata
@@ -1853,6 +1853,12 @@ let rec type_eq param a b =
 		(match !t with
 		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
+	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
+		type_eq param t1 t2
+	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
+		type_eq param t b
+	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
+		type_eq param a t
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		type_eq_params param a b tl1 tl2
 	| TType (t,tl) , _ when can_follow a ->
@@ -1884,12 +1890,6 @@ let rec type_eq param a b =
 		)
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAbstract ({a_path=[],"Null"},[t1]),TAbstract ({a_path=[],"Null"},[t2]) ->
-		type_eq param t1 t2
-	| TAbstract ({a_path=[],"Null"},[t]),_ when param <> EqDoNotFollowNull ->
-		type_eq param t b
-	| _,TAbstract ({a_path=[],"Null"},[t]) when param <> EqDoNotFollowNull ->
-		type_eq param a t
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
 		type_eq_params param a b tl1 tl2
@@ -2996,9 +2996,12 @@ module TClass = struct
 				end else acc
 			in
 			let acc = if self_too || c != c0 then List.fold_left maybe_add acc c.cl_ordered_fields else acc in
-			match c.cl_super with
-			| Some(c,tl) -> loop acc c (List.map apply tl)
-			| None -> acc
+			if c.cl_interface then
+				List.fold_left (fun acc (i,tl) -> loop acc i (List.map apply tl)) acc c.cl_implements
+			else
+				match c.cl_super with
+				| Some(c,tl) -> loop acc c (List.map apply tl)
+				| None -> acc
 		in
 		loop PMap.empty c0 tl
 

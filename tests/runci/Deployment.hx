@@ -18,6 +18,8 @@ class Deployment {
 				Sys.getEnv("TRAVIS_REPO_SLUG");
 			case AppVeyor:
 				Sys.getEnv("APPVEYOR_PROJECT_SLUG");
+			case AzurePipelines:
+				Sys.getEnv("AZURE_PIPELINES_REPO_URL");
 			case _:
 				commandResult("git", ["config", "--get", "remote.origin.url"]).stdout.trim();
 		},
@@ -26,6 +28,8 @@ class Deployment {
 				Sys.getEnv("TRAVIS_BRANCH");
 			case AppVeyor:
 				Sys.getEnv("APPVEYOR_REPO_BRANCH");
+			case AzurePipelines:
+				Sys.getEnv("AZURE_PIPELINES_BRANCH");
 			case _:
 				commandResult("git", ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim();
 		},
@@ -125,7 +129,7 @@ class Deployment {
 		if (cygRoot != null) {
 			while (true)
 			{
-				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w `which $name`']);
+				var proc = new sys.io.Process('$cygRoot/bin/bash', ['-lc', '/usr/bin/cygpath -w "`which $name`"']);
 				var out = proc.stdout.readAll().toString().trim();
 				var err = proc.stderr.readAll().toString().trim();
 				if (proc.exitCode() == 0)
@@ -133,7 +137,7 @@ class Deployment {
 					if (!is64BitDll(out))
 					{
 						infoMsg('Deleting the file $out because it is a 32-bit DLL');
-						continue;
+						sys.FileSystem.deleteFile(out);
 					} else {
 						break;
 					}

@@ -102,7 +102,8 @@
 		return $objremove(o,$fasthash(field.__s));
 	}
 
-	public inline static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
+		if(o == null) return null;
 		return untyped $new(o);
 	}
 

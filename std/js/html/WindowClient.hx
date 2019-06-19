@@ -24,6 +24,8 @@
 
 package js.html;
 
+import js.lib.Promise;
+
 /**
 	The `WindowClient` interface of the ServiceWorker API represents the scope of a service worker client that is a document in a browser context, controlled by an active worker. The service worker client independently selects and uses a service worker for its own loading and sub-resources.
 
@@ -33,24 +35,24 @@ package js.html;
 **/
 @:native("WindowClient")
 extern class WindowClient extends Client {
-	
+
 	/**
 		Indicates the visibility of the current client. This value can be one of `hidden`, `visible`, `prerender`, or `unloaded`.
 	**/
 	var visibilityState(default,null) : VisibilityState;
-	
+
 	/**
 		A boolean that indicates whether the current client has focus.
 	**/
 	var focused(default,null) : Bool;
-	
-	
+
+
 	/**
 		Gives user input focus to the current client. 
 		@throws DOMError
 	**/
 	function focus() : Promise<WindowClient>;
-	
+
 	/**
 		Loads a specified URL into a controlled client page.
 		@throws DOMError

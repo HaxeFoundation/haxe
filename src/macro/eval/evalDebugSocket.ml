@@ -85,7 +85,7 @@ let var_to_json name value vio env =
 		| VObject o ->
 			begin try
 				let e = (get_ctx()).curapi.MacroApi.decode_expr v in
-				jv "Expr" (Ast.s_expr e) 2
+				jv "Expr" (Ast.Printer.s_expr e) 2
 			with _ ->
 				let fields = object_fields o in
 				jv "Anonymous" (fields_string fields) (List.length fields)
@@ -509,8 +509,7 @@ let handler =
 		let column = j#get_opt_param (fun () -> BPColumn (j#get_int_field "column" "column" obj)) BPAny in
 		let condition = j#get_opt_param (fun () ->
 			let s = j#get_string_field "condition" "condition" obj in
-			let env = expect_env hctx hctx.ctx.eval.env in (* Use the main env, we only care about the position anyway *)
-			Some (parse_expr hctx.ctx s env.env_debug.expr.epos)
+			Some (parse_expr hctx.ctx s null_pos)
 		) None in
 		(line,column,condition)
 	in

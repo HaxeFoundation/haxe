@@ -35,7 +35,7 @@ class Issue3826 extends Test {
 		#end
 	}
 
-	#if !(java || cs || flash)
+	#if !((java && !jvm) || cs || flash)
 	public function testReflect() {
 		eq( Reflect.callMethod(this, get, []), "2/4.25" );
 		eq( Reflect.callMethod(this, get, [5]), "5/4.25" );

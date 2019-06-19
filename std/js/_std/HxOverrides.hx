@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:noDoc
 class HxOverrides {
 
@@ -144,16 +140,6 @@ class HxOverrides {
 				return __this__.arr[__this__.cur++];
 			}
 		};
-	}
-
-	@:ifFeature("String.iterator")
-	static function strIter( s : String ) : StringIterator {
-		return new StringIterator(s);
-	}
-
-	@:ifFeature("String.keyValueIterator")
-	static function strKVIter( s : String ) : StringKeyValueIterator {
-		return new StringKeyValueIterator(s);
 	}
 
 	static function __init__() untyped {

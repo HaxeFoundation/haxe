@@ -29,8 +29,13 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__instanceof(v,t);
 	}
 
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
+	}
+
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return downcast(value, c);
 	}
 
 	@:keep
@@ -81,9 +86,9 @@ import lua.NativeStringTools;
 	}
 
 	static function __init__() : Void untyped {
-		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", __lua_table__(["String"]),true));
+		__feature__("lua.Boot.isClass", String.__name__ = __feature__("Type.getClassName", "String",true));
 		__feature__("Type.resolveClass",_hxClasses["Array"] = Array);
-		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",__lua_table__(["Array"]),true));
+		__feature__("lua.Boot.isClass",Array.__name__ = __feature__("Type.getClassName","Array",true));
 	}
 
 }

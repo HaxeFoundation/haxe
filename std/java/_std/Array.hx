@@ -35,12 +35,17 @@ import java.NativeArray;
 
 	private var __a:NativeArray<T>;
 
+	@:skipReflection static var __hx_toString_depth = 0;
+
 	@:functionCode('
 			return new Array<X>(_native);
 	')
 	private static function ofNative<X>(native:NativeArray<X>):Array<X>
 	{
-		return null;
+		var a = new Array();
+		a.length = native.length;
+		a.__a = native;
+		return a;
 	}
 
 	@:functionCode('
@@ -48,8 +53,19 @@ import java.NativeArray;
 	')
 	private static function alloc<Y>(size:Int):Array<Y>
 	{
-		return null;
+		var a = new Array();
+		a.length = size;
+		a.__a = new java.NativeArray(size);
+		return a;
 	}
+
+	#if jvm
+	function getNative():NativeArray<T> {
+		var a = new NativeArray(length);
+		System.arraycopy(__a, 0, a, 0, length);
+		return a;
+	}
+	#end
 
 	public function new() : Void
 	{
@@ -273,6 +289,21 @@ import java.NativeArray;
 
 	public function toString() : String
 	{
+		if (__hx_toString_depth >= 5) {
+			return "...";
+		}
+		++__hx_toString_depth;
+		try {
+			var s = __hx_toString();
+			--__hx_toString_depth;
+			return s;
+		} catch(e:Dynamic) {
+			--__hx_toString_depth;
+			throw(e);
+		}
+	}
+
+	function __hx_toString() : String {
 		var ret = new StringBuf();
 		var a = __a;
 		ret.add("[");
@@ -450,7 +481,7 @@ import java.NativeArray;
 		return __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):T
+	private function __set(idx:Int, v:T):#if jvm Void #else T #end
 	{
 		var __a = __a;
 		if (idx >= __a.length)
@@ -467,7 +498,7 @@ import java.NativeArray;
 		if (idx >= length)
 			this.length = idx + 1;
 
-		return __a[idx] = v;
+		#if !jvm return #end __a[idx] = v;
 	}
 
 	private inline function __unsafe_get(idx:Int):T

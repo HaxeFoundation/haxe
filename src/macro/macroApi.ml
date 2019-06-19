@@ -1607,6 +1607,7 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 1 in
 			(get_api()).set_js_generator (fun js_ctx ->
 				let com = ccom() in
+				Genjs.setup_kwds com;
 				let api = encode_obj [
 					"outputFile", encode_string com.file;
 					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);

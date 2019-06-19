@@ -596,8 +596,6 @@ and is_possible_string_field e field_name=
         | "toString"
         | "substring"
         | "substr"
-        | "iterator"
-        | "keyValueIterator"
         | "charCodeAt" ->
             true
         | _ ->
@@ -1595,7 +1593,7 @@ let generate_class___name__ ctx c =
         let p = s_path ctx c.cl_path in
         print ctx "%s.__name__ = " p;
         if has_feature ctx "Type.getClassName" then
-            println ctx "{%s}" (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst c.cl_path @ [snd c.cl_path])))
+            println ctx "\"%s\"" (String.concat "." (List.map s_escape_lua (fst c.cl_path @ [snd c.cl_path])))
         else
             println ctx "true";
     end
@@ -1706,7 +1704,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
     let p = s_path ctx e.e_path in
-    let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (s_escape_lua s)) (fst e.e_path @ [snd e.e_path]) in
+    let ename = List.map s_escape_lua (fst e.e_path @ [snd e.e_path]) in
 
     (* TODO: Unify the _hxClasses declaration *)
     if has_feature ctx "Type.resolveEnum" then begin
@@ -1715,7 +1713,7 @@ let generate_enum ctx e =
     if has_feature ctx "lua.Boot.isEnum" then begin
         print ctx "_hxClasses[\"%s\"] = {" (dot_path e.e_path);
         if has_feature ctx "lua.Boot.isEnum" then  begin
-            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "{" ^ String.concat "," ename ^ "}" else "true");
+            print ctx " __ename__ = %s," (if has_feature ctx "Type.getEnumName" then "\"" ^ String.concat "." ename ^ "\"" else "true");
         end;
         (* TODO :  Come up with a helper function for _hx_tab_array declarations *)
         spr ctx " __constructs__ = _hx_tab_array({";
@@ -2058,25 +2056,8 @@ let generate com =
     List.iter (generate_type ctx) com.types;
 
     if has_feature ctx "use._bitop" || has_feature ctx "lua.Boot.clamp" then begin
-        println ctx "_hx_bit_clamp = function(v) ";
-        println ctx "  if v <= 2147483647 and v >= -2147483648 then";
-        println ctx "    if v > 0 then return _G.math.floor(v)";
-        println ctx "    else return _G.math.ceil(v)";
-        println ctx "    end";
-        println ctx "  end";
-        println ctx "  if v > 2251798999999999 then v = v*2 end;";
-        println ctx "  if (v ~= v or math.abs(v) == _G.math.huge) then return nil end";
-        println ctx "  return _hx_bit.band(v, 2147483647 ) - math.abs(_hx_bit.band(v, 2147483648))";
-        println ctx "end";
-        println ctx "pcall(require, 'bit')"; (* require this for lua 5.1 *)
-        println ctx "if bit then";
-        println ctx "  _hx_bit = bit";
-        println ctx "else";
-        println ctx "  local _hx_bit_raw = _G.require('bit32')";
-        println ctx "  _hx_bit = setmetatable({}, { __index = _hx_bit_raw });";
-        println ctx "  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end;"; (* lua 5.2  weirdness *)
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_bit_clamp.lua");
+        print_file (Common.find_file com "lua/_lua/_hx_bit.lua");
     end;
 
     (* Array is required, always patch it *)
@@ -2097,110 +2078,42 @@ let generate com =
     newline ctx;
 
     if has_feature ctx "use._hx_bind" then begin
-        println ctx "_hx_bind = function(o,m)";
-        println ctx "  if m == nil then return nil end;";
-        println ctx "  local f;";
-        println ctx "  if o._hx__closures == nil then";
-        println ctx "    _G.rawset(o, '_hx__closures', {});";
-        println ctx "  else ";
-        println ctx "    f = o._hx__closures[m];";
-        println ctx "  end";
-        println ctx "  if (f == nil) then";
-        println ctx "    f = function(...) return m(o, ...) end;";
-        println ctx "    o._hx__closures[m] = f;";
-        println ctx "  end";
-        println ctx "  return f;";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_bind.lua");
     end;
 
     if has_feature ctx "use._hx_staticToInstance" then begin
-        println ctx "_hx_staticToInstance = function (tab)";
-        println ctx "  return setmetatable({}, {";
-        println ctx "    __index = function(t,k)";
-        println ctx "      if type(rawget(tab,k)) == 'function' then ";
-        println ctx "	return function(self,...)";
-        println ctx "	  return rawget(tab,k)(...)";
-        println ctx "	end";
-        println ctx "      else";
-        println ctx "	return rawget(tab,k)";
-        println ctx "      end";
-        println ctx "    end";
-        println ctx "  })";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_static_to_instance.lua");
     end;
 
     if has_feature ctx "use._hx_funcToField" then begin
-        println ctx "_hx_funcToField = function(f)";
-        println ctx "  if type(f) == 'function' then ";
-        println ctx "    return function(self,...) ";
-        println ctx "      return f(...) ";
-        println ctx "    end";
-        println ctx "  else ";
-        println ctx "    return f";
-        println ctx "  end";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_func_to_field.lua");
     end;
 
     if has_feature ctx "Math.random" then begin
-        println ctx "_G.math.randomseed(_G.os.time());"
+        print_file (Common.find_file com "lua/_lua/_hx_random_init.lua");
     end;
 
     if has_feature ctx "use._hx_print" then
-        println ctx "_hx_print = print or (function() end)";
+        print_file (Common.find_file com "lua/_lua/_hx_print.lua");
 
     if has_feature ctx "use._hx_apply_self" then begin
-        println ctx "_hx_apply_self = function(self, f, ...)";
-        println ctx "  return self[f](self,...)";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_apply_self.lua");
     end;
 
     if has_feature ctx "use._hx_box_mr" then begin
-        println ctx "_hx_box_mr = function(x,nt)";
-        println ctx "   res = _hx_o({__fields__={}})";
-        println ctx "   for i,v in ipairs(nt) do";
-        println ctx "     res[v] = x[i]";
-        println ctx "   end";
-        println ctx "   return res";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_box_mr.lua");
     end;
 
     if has_feature ctx "use._hx_table" then begin
-        println ctx "_hx_table = {}";
-        println ctx "_hx_table.pack = _G.table.pack or function(...)";
-        println ctx "    return {...}";
-        println ctx "end";
-        println ctx "_hx_table.unpack = _G.table.unpack or _G.unpack";
-        println ctx "_hx_table.maxn = _G.table.maxn or function(t)";
-        println ctx "  local maxn=0;";
-        println ctx "  for i in pairs(t) do";
-        println ctx "    maxn=type(i)=='number'and i>maxn and i or maxn";
-        println ctx "  end";
-        println ctx "  return maxn";
-        println ctx "end;";
+        print_file (Common.find_file com "lua/_lua/_hx_table.lua");
     end;
 
     if has_feature ctx "use._hx_wrap_if_string_field" then begin
-        println ctx "_hx_wrap_if_string_field = function(o, fld)";
-        println ctx "  if _G.type(o) == 'string' then";
-        println ctx "    if fld == 'length' then";
-        println ctx "      return _G.string.len(o)";
-        println ctx "    else";
-        println ctx "      return String.prototype[fld]";
-        println ctx "    end";
-        println ctx "  else";
-        println ctx "    return o[fld]";
-        println ctx "  end";
-        println ctx "end";
+        print_file (Common.find_file com "lua/_lua/_hx_wrap_if_string_field.lua");
     end;
 
     if has_feature ctx "use._hx_dyn_add" then begin
-        println ctx "_hx_dyn_add = function(a,b)";
-        println ctx "  if (_G.type(a) == 'string' or _G.type(b) == 'string') then ";
-        println ctx "    return Std.string(a)..Std.string(b)";
-        println ctx "  else ";
-        println ctx "    return a + b;";
-        println ctx "  end;";
-        println ctx "end;";
+        print_file (Common.find_file com "lua/_lua/_hx_dyn_add.lua");
     end;
 
     println ctx "_hx_static_init();";

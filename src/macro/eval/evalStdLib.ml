@@ -1201,7 +1201,13 @@ module StdFileSystem = struct
 	)
 
 	let readDirectory = vfun1 (fun dir ->
-		let d = try Sys.readdir (decode_string dir) with Sys_error s -> exc_string s in
+		let dir = decode_string dir in
+		let d = try
+			if not (Sys.is_directory (patch_path dir)) then exc_string "No such directory";
+			Sys.readdir dir
+		with Sys_error s ->
+			exc_string s
+		in
 		encode_array (Array.to_list (Array.map (fun s -> create_unknown s) d))
 	)
 
@@ -1422,6 +1428,10 @@ module StdLock = struct
 	)
 end
 
+let lineEnd = match Sys.os_type with
+	| "Win32" | "Cygwin" -> "\r\n"
+	| _ -> "\n"
+
 module StdLog = struct
 	let key_fileName = hash "fileName"
 	let key_lineNumber = hash "lineNumber"
@@ -1430,7 +1440,7 @@ module StdLog = struct
 	let trace = vfun2 (fun v infos ->
 		let s = value_string v in
 		let s = match infos with
-			| VNull -> Printf.sprintf "%s\n" s
+			| VNull -> (Printf.sprintf "%s" s) ^ lineEnd
 			| _ ->  let infos = decode_object infos in
 				let file_name = decode_string (object_field infos key_fileName) in
 				let line_number = decode_int (object_field infos key_lineNumber) in
@@ -1438,7 +1448,7 @@ module StdLog = struct
 					| VArray va -> s :: (List.map value_string (EvalArray.to_list va))
 					| _ -> [s]
 				in
-				 (Printf.sprintf "%s:%i: %s\n" file_name line_number (String.concat "," l)) in
+				(Printf.sprintf "%s:%i: %s" file_name line_number (String.concat "," l)) ^ lineEnd in
 		((get_ctx()).curapi.MacroApi.get_com()).Common.print s;
 		vnull
 	)
@@ -1803,6 +1813,7 @@ module StdReflect = struct
 	)
 
 	let copy = vfun1 (fun o -> match vresolve o with
+		| VNull -> VNull
 		| VObject o -> VObject { o with ofields = Array.copy o.ofields }
 		| VInstance vi -> vinstance {
 			ifields = Array.copy vi.ifields;
@@ -1970,7 +1981,7 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		catch_unix_error Unix.connect this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error (Unix.connect this) (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
@@ -2102,11 +2113,13 @@ module StdStd = struct
 		| _ -> vfalse
 	)
 
-	let instance = vfun2 (fun v t -> match t with
+	let downcast = vfun2 (fun v t -> match t with
 		| VPrototype proto ->
 			if is v proto.ppath then v else vnull
 		| _ -> vfalse
 	)
+
+	let instance = downcast
 
 	let string = vfun1 (fun v -> match v with
 		| VString _ -> v
@@ -2148,24 +2161,6 @@ module StdString = struct
 		let i = decode_int index in
 		if i < 0 || i >= this.slength then vnull
 		else vint (char_at this i)
-	)
-
-	let iterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
-	)
-
-	let keyValueIterator = vifun0 (fun vthis ->
-		let ctx = get_ctx() in
-		let path = key_haxe_iterators_string_key_value_iterator in
-		let vit = encode_instance path in
-		let fnew = get_instance_constructor ctx path null_pos in
-		ignore(call_value_on vit (Lazy.force fnew) [vthis]);
-		vit
 	)
 
 	let fromCharCode = vfun1 (fun i ->
@@ -2558,7 +2553,7 @@ module StdSys = struct
 	let println = vfun1 (fun v ->
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
-		com.print (value_string v ^ "\n");
+		com.print (value_string v ^ lineEnd);
 		vnull
 	)
 
@@ -3133,7 +3128,7 @@ let init_constructors builtins =
 				let cmd = decode_string cmd in
 				let args = match args with
 					| VNull -> None
-					| VArray va -> Some (Array.map decode_string va.avalues)
+					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess (try Process.run cmd args with Failure msg -> exc_string msg))
@@ -3201,7 +3196,6 @@ let init_empty_constructors builtins =
 	Hashtbl.add h key_Date (fun () -> encode_instance key_Date ~kind:(IDate 0.));
 	Hashtbl.add h key_EReg (fun () -> encode_instance key_EReg ~kind:(IRegex {r = Pcre.regexp ""; r_rex_string = create_ascii "~//"; r_global = false; r_string = ""; r_groups = [||]}));
 	Hashtbl.add h key_String (fun () -> encode_string "");
-	Hashtbl.add h key_haxe_Utf8 (fun () -> encode_instance key_haxe_Utf8 ~kind:(IUtf8 (UTF8.Buf.create 0)));
 	Hashtbl.add h key_haxe_ds_StringMap (fun () -> encode_instance key_haxe_ds_StringMap ~kind:(IStringMap (StringHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_IntMap (fun () -> encode_instance key_haxe_ds_IntMap ~kind:(IIntMap (IntHashtbl.create ())));
 	Hashtbl.add h key_haxe_ds_ObjectMap (fun () -> encode_instance key_haxe_ds_ObjectMap ~kind:(IObjectMap (Obj.magic (ValueHashtbl.create 0))));
@@ -3501,6 +3495,7 @@ let init_standard_library builtins =
 		"shutdown",StdSocket.shutdown;
 	];
 	init_fields builtins ([],"Std") [
+		"downcast",StdStd.downcast;
 		"instance",StdStd.instance;
 		"int",StdStd.int;
 		"is",StdStd.is';
@@ -3514,8 +3509,6 @@ let init_standard_library builtins =
 	] [
 		"charAt",StdString.charAt;
 		"charCodeAt",StdString.charCodeAt;
-		"iterator",StdString.iterator;
-		"keyValueIterator",StdString.keyValueIterator;
 		"indexOf",StdString.indexOf;
 		"lastIndexOf",StdString.lastIndexOf;
 		"split",StdString.split;

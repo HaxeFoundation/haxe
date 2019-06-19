@@ -35,8 +35,8 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context may_resolve =
-	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let create_json_context jsonrpc may_resolve =
+	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
 
 let send_string j =
 	raise (DisplayOutput.Completion j)
@@ -264,7 +264,7 @@ let parse_input com input report_times =
 		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
-	com.json_out <- Some(send_result,send_error);
+	com.json_out <- Some(send_result,send_error,jsonrpc);
 
 	let cs = match CompilationServer.get() with
 		| Some cs -> cs

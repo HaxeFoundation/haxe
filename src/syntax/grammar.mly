@@ -589,7 +589,7 @@ and parse_type_path2 p0 pack name p1 s =
 			| [< >] -> None,p1
 		) in
 		let params,p2 = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const >] ->
+			| [< '(Binop OpLt,plt); l = psep Comma (parse_type_path_or_const plt) >] ->
 				begin match s with parser
 				| [<'(Binop OpGt,p2) >] -> l,p2
 				| [< >] ->
@@ -612,7 +612,7 @@ and type_name = parser
 			name,p
 	| [< '(Dollar name,p) >] -> "$" ^ name,p
 
-and parse_type_path_or_const = parser
+and parse_type_path_or_const plt = parser
 	(* we can't allow (expr) here *)
 	| [< '(BkOpen,p1); e = parse_array_decl p1 >] -> TPExpr (e)
 	| [< t = parse_complex_type >] -> TPType t
@@ -620,7 +620,15 @@ and parse_type_path_or_const = parser
 	| [< '(Kwd True,p) >] -> TPExpr (EConst (Ident "true"),p)
 	| [< '(Kwd False,p) >] -> TPExpr (EConst (Ident "false"),p)
 	| [< e = expr >] -> TPExpr e
-	| [< >] -> if !in_display_file then raise Stream.Failure else serror()
+	| [< s >] ->
+		if !in_display_file then begin
+			if would_skip_display_position plt s then begin
+				let ct = CTPath magic_type_path in
+				TPType (ct,plt)
+			end else
+				raise Stream.Failure
+		end else
+			serror()
 
 and parse_complex_type_next (t : type_hint) s =
 	let make_fun t2 p2 = match t2 with
@@ -1287,7 +1295,14 @@ and expr = parser
 		end
 	| [< '(Kwd Switch,p1); e = secure_expr; s >] ->
 		begin match s with parser
-			| [< '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
+			| [< '(BrOpen,_); cases , def = parse_switch_cases e [] >] ->
+				let p2 = match s with parser
+					| [< '(BrClose,p2) >] -> p2
+					| [< >] ->
+						(* Ignore missing } if we are resuming and "guess" the last position. *)
+						syntax_error (Expected ["}"]) s (pos (next_token s))
+				in
+				(ESwitch (e,cases,def),punion p1 p2)
 			| [< >] ->
 				syntax_error (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
@@ -1350,6 +1365,7 @@ and parse_field e1 p s =
 		| [< '(Kwd Macro,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"macro") , punion (pos e1) p2) s
 		| [< '(Kwd Extern,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"extern") , punion (pos e1) p2) s
 		| [< '(Kwd New,p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,"new") , punion (pos e1) p2) s
+		| [< '(Kwd k,p2) when !parsing_macro_cond && p.pmax = p2.pmin; s >] -> expr_next (EField (e1,s_keyword k) , punion (pos e1) p2) s
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Dollar v,p2); s >] -> expr_next (EField (e1,"$"^v) , punion (pos e1) p2) s
 		| [< >] ->
@@ -1473,6 +1489,7 @@ let rec validate_macro_cond s e = match fst e with
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond s e1), (validate_macro_cond s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond s e1), snd e)
 	| EField(e1,name) -> (EField(validate_macro_cond s e1,name), snd e)
+	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond s) args),snd e)
 	| _ -> syntax_error (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
 let parse_macro_ident t p s =

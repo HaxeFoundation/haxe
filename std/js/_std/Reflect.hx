@@ -28,7 +28,7 @@
 
 	@:pure
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return try o[cast field] catch( e : Dynamic ) null;
+		try return o[cast field] catch( e : Dynamic ) return null;
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
@@ -95,7 +95,8 @@
 		return true;
 	}
 
-	public static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
+		if(o == null) return null;
 		var o2 : Dynamic = {};
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));

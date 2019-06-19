@@ -529,13 +529,11 @@ typedef AbstractType = BaseType & {
 	/**
 		The method used for resolving unknown field access, if available.
 	**/
-	@:require(haxe_ver >= 3.3)
 	var resolve : Null<ClassField>;
 
 	/**
 		The method used for resolving unknown field access, if available.
 	**/
-	@:require(haxe_ver >= 4.0)
 	var resolveWrite : Null<ClassField>;
 }
 

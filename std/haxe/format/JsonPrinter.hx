@@ -84,9 +84,9 @@ class JsonPrinter {
 		case TObject:
 			objString(v);
 		case TInt:
-			add(#if as3 Std.string(v) #else v #end);
+			add(#if (as3 || jvm) Std.string(v) #else v #end);
 		case TFloat:
-			add(Math.isFinite(v) ? v : 'null');
+			add(Math.isFinite(v) ? Std.string(v) : 'null');
 		case TFunction:
 			add('"<fun>"');
 		case TClass(c):
@@ -127,7 +127,7 @@ class JsonPrinter {
 			var i : Dynamic = Type.enumIndex(v);
 			add(i);
 		case TBool:
-			add(#if (php || as3) (v ? 'true' : 'false') #else v #end);
+			add(#if (php || as3 || jvm) (v ? 'true' : 'false') #else v #end);
 		case TNull:
 			add('null');
 		}
@@ -185,14 +185,17 @@ class JsonPrinter {
 	}
 
 	function quote( s : String ) {
-		#if (neko || php || cpp)
-		if( s.length != haxe.Utf8.length(s) ) {
+		#if neko
+		if( s.length != neko.Utf8.length(s) ) {
 			quoteUtf8(s);
 			return;
 		}
 		#end
 		addChar('"'.code);
 		var i = 0;
+		#if hl
+		var prev = -1;
+		#end
 		while( true ) {
 			var c = StringTools.fastCodeAt(s, i++);
 			if( StringTools.isEof(c) ) break;
@@ -207,18 +210,36 @@ class JsonPrinter {
 			default:
 				#if flash
 				if( c >= 128 ) add(String.fromCharCode(c)) else addChar(c);
+				#elseif hl
+				if( prev >= 0 ) {
+					if( c >= 0xD800 && c <= 0xDFFF ) {
+						addChar( (((prev - 0xD800) << 10) | (c - 0xDC00)) + 0x10000 );
+						prev = -1;
+					} else {
+						addChar("□".code);
+						prev = c;
+					}
+				} else {
+					if( c >= 0xD800 && c <= 0xDFFF )
+						prev = c;
+					else
+						addChar(c);
+				}
 				#else
 				addChar(c);
 				#end
 			}
 		}
+		#if hl
+		if( prev >= 0 ) addChar("□".code);
+		#end
 		addChar('"'.code);
 	}
 
-	#if (neko || php || cpp)
+	#if neko
 	function quoteUtf8( s : String ) {
-		var u = new haxe.Utf8();
-		haxe.Utf8.iter(s,function(c) {
+		var u = new neko.Utf8();
+		neko.Utf8.iter(s,function(c) {
 			switch( c ) {
 			case '\\'.code, '"'.code: u.addChar('\\'.code); u.addChar(c);
 			case '\n'.code: u.addChar('\\'.code); u.addChar('n'.code);

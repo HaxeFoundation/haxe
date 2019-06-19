@@ -24,6 +24,8 @@
 
 package js.html.rtc;
 
+import js.lib.Promise;
+
 /**
 	The `RTCRtpSender` interface provides the ability to control and obtain details about how a particular `MediaStreamTrack` is encoded and sent to a remote peer.
 
@@ -33,17 +35,17 @@ package js.html.rtc;
 **/
 @:native("RTCRtpSender")
 extern class RtpSender {
-	
+
 	/**
 		The `MediaStreamTrack` which is being handled by the `RTCRtpSender`. If `track` is `null`, the `RTCRtpSender` doesn't transmit anything.
 	**/
 	var track(default,null) : js.html.MediaStreamTrack;
-	
+
 	/**
 		An `RTCDTMFSender` which can be used to send `DTMF` tones using `"telephone-event"` payloads on the RTP session represented by the `RTCRtpSender` object. If `null`, the track and/or the connection doesn't support DTMF. Only audio tracks can support DTMF.
 	**/
 	var dtmf(default,null) : DTMFSender;
-	
+
 	function setParameters( ?parameters : RtpParameters ) : Promise<Void>;
 	function getParameters() : RtpParameters;
 	function replaceTrack( withTrack : js.html.MediaStreamTrack ) : Promise<Void>;

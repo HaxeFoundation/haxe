@@ -30,6 +30,20 @@ open Printf
 open Option
 open ExtString
 
+type cs_native_constraint =
+	| CsStruct
+	| CsClass
+	| CsUnmanaged
+	| CsConstructible
+	| CsConstraint of string
+
+let get_constraint = function
+	| CsStruct -> "struct"
+	| CsClass -> "class"
+	| CsUnmanaged -> "unmanaged"
+	| CsConstructible -> "new()"
+	| CsConstraint s -> s
+
 let rec is_cs_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -385,8 +399,6 @@ struct
 					{ e with eexpr = TCall(mk_static_field_access_infer string_ext "fromCharCode" e.epos [], [run cc]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("iterator" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("keyValueIterator" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("lastIndexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("split" as field) })) }, args )
@@ -906,6 +918,7 @@ let generate con =
 					Null<> type parameters will be transformed into Dynamic.
 				*)
 				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
 				| true, TEnum _
@@ -1396,8 +1409,11 @@ let generate con =
 						expr_s w e;
 						write w "]"
 					| TCall ({ eexpr = TIdent "__unsafe__" }, [ e ] ) ->
-						write w "unsafe";
-						expr_s w (mk_block e)
+						write w "unsafe ";
+						begin_block w;
+						expr_s w (mk_block e);
+						write w ";";
+						end_block w
 					| TCall ({ eexpr = TIdent "__checked__" }, [ e ] ) ->
 						write w "checked";
 						expr_s w (mk_block e)
@@ -1831,12 +1847,12 @@ let generate con =
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
+					let combination_error c1 c2 =
+						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
+
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
 					let params_extends =
-						if hxgen
-						(* this is temprorary, see https://github.com/HaxeFoundation/haxe/issues/3526 *)
-						|| not (Meta.has (Meta.Custom ":nativeTypeConstraints") cl.cl_meta)
-						then
+						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
 							[""]
 						else
 							List.fold_left (fun acc (name, t) ->
@@ -1852,21 +1868,61 @@ let generate con =
 
 												(* non-sealed class *)
 												| TInst ({ cl_interface = false; cl_final = false},_) ->
-													base_class_constraints := (t_s t) :: !base_class_constraints;
+													base_class_constraints := (CsConstraint (t_s t)) :: !base_class_constraints;
 													acc;
 
 												(* interface *)
 												| TInst ({ cl_interface = true}, _) ->
-													(t_s t) :: acc
+													(CsConstraint (t_s t)) :: acc
+
+												(* cs constraints *)
+												(* See https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters *)
+												| TAbstract({ a_path = (_, c); a_module = { m_path = ([pack],"Constraints") } }, params) ->
+													(match pack, c with
+														| "haxe", "Constructible" ->
+															(match params with
+																(* Only for parameterless constructors *)
+																| [TFun ([],TAbstract({a_path=[],"Void"},_))] ->
+																	if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
+																	if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
+																	CsConstructible :: acc;
+																| _ -> acc;
+															)
+														| "cs", "CsStruct" ->
+															if (List.memq CsClass acc) then combination_error CsClass CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
+															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
+															CsStruct :: acc;
+														| "cs", "CsUnmanaged" ->
+															if (List.memq CsStruct acc) then combination_error CsUnmanaged CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsUnmanaged CsConstructible;
+															CsUnmanaged :: acc;
+														| "cs", "CsClass" ->
+															if (List.memq CsStruct acc) then combination_error CsClass CsStruct;
+															CsClass :: acc;
+														| _, _ -> acc;
+													)
 
 												(* skip anything other *)
 												| _ ->
 													acc
 										) [] constraints in
 
-										let s_constraints = (!base_class_constraints @ other_constraints) in
+										let s_constraints = (List.sort
+											(* C# expects some ordering for built-in constraints: *)
+											(fun c1 c2 -> match c1, c2 with
+												| a, b when a == b -> 0
+												(* - "new()" type constraint should be last *)
+												| CsConstructible, _ -> 1
+												| _, CsConstructible -> -1
+												(* - "class", "struct" and "unmanaged" should be first *)
+												| CsClass, _ | CsStruct, _ | CsUnmanaged, _ -> -1
+												| _, CsClass | _, CsStruct | _, CsUnmanaged -> 1
+												| _, _ -> 0
+										) (!base_class_constraints @ other_constraints)) in
+
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " s_constraints) :: acc)
+											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
@@ -2456,14 +2512,35 @@ let generate con =
 			(match cl.cl_init with
 				| None -> ()
 				| Some init ->
+					let needs_block,write_expr =
+						let unchecked = needs_unchecked init in
+						if cl.cl_params = [] then
+							unchecked, (fun() ->
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init)
+							)
+						else begin
+							write w "static bool __hx_init_called = false;";
+							newline w;
+							true, (fun() ->
+								let flag = (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params))) ^ ".__hx_init_called" in
+								write w ("if(" ^ flag ^ ") return;");
+								newline w;
+								write w (flag ^ " = true;");
+								newline w;
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init);
+								newline w
+							)
+						end
+					in
 					print w "static %s() " (snd cl.cl_path);
-					if needs_unchecked init then begin
+					if needs_block then begin
 						begin_block w;
-						write w "unchecked ";
-						expr_s false w (mk_block init);
+						write_expr();
 						end_block w;
 					end else
-						expr_s false w (mk_block init);
+						write_expr();
 					line_reset_directive w;
 					newline w;
 					newline w

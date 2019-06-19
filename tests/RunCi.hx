@@ -39,6 +39,14 @@ class RunCi {
 					//pass
 			}
 
+			switch (systemName) {
+				case "Windows":
+					// change codepage to UTF-8
+					runCommand("chcp", ["65001"]);
+				case _:
+					//pass
+			}
+
 			infoMsg('test $test');
 			var success = true;
 			try {
@@ -46,12 +54,14 @@ class RunCi {
 				haxelibInstallGit("haxe-utest", "utest", "master");
 
 				var args = switch (ci) {
+					case null:
+						[];
 					case TravisCI:
 						["-D","travis"];
 					case AppVeyor:
 						["-D","appveyor"];
-					case _:
-						[];
+					case AzurePipelines:
+						["-D","azure"];
 				}
 				switch (test) {
 					case Macro:
@@ -72,6 +82,8 @@ class RunCi {
 						runci.targets.Js.run(args);
 					case Java:
 						runci.targets.Java.run(args);
+					case Jvm:
+						runci.targets.Jvm.run(args);
 					case Cs:
 						runci.targets.Cs.run(args);
 					case Flash9:

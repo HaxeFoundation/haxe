@@ -22,11 +22,11 @@
 package haxe.display;
 
 /**
-    Position in a text document expressed as zero-based line and character offset.
+    Position in a text document expressed as 1-based line and character offset.
 **/
 typedef Position = {
     /**
-        Line position in a document (zero-based).
+        Line position in a document (1-based).
     **/
     var line:Int;
 
@@ -37,7 +37,7 @@ typedef Position = {
 }
 
 /**
-    A range in a text document expressed as (zero-based) start and end positions.
+    A range in a text document expressed as (1-based) start and end positions.
 **/
 typedef Range = {
     /**

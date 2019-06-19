@@ -58,6 +58,16 @@ class Format {
 	}
 
 	/**
+		Decode any image data into ARGB pixels
+	**/
+	#if (hl_ver >= version("1.10.0"))
+	@:hlNative("fmt","dxt_decode")
+	public static function decodeDXT( src : hl.Bytes, dst : hl.Bytes, width : Int, height : Int, dxtFormat : Int ) : Bool {
+		return false;
+	}
+	#end
+
+	/**
 		Upscale/downscale an image.
 		Currently supported flag bits: 1 = bilinear filtering
 	**/
@@ -76,7 +86,6 @@ class Format {
 
 }
 
-#if !hl_disable_mikkt
 class Mikktspace {
 	public var buffer : hl.BytesAccess<Single>;
 	public var stride : Int;
@@ -99,4 +108,3 @@ class Mikktspace {
 		return false;
 	}
 }
-#end

@@ -24,15 +24,20 @@ import flash.Boot;
 @:coreApi class Std {
 
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped flash.Boot.__instanceof(v,t);
+		return flash.Boot.__instanceof(v,t);
 	}
 
-	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
 		return flash.Lib.as(value, c);
 	}
 
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	public static inline function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+		return downcast(value, c);
+	}
+
 	public static function string( s : Dynamic ) : String {
-		return untyped flash.Boot.__string_rec(s,"");
+		return flash.Boot.__string_rec(s,"");
 	}
 
 	public inline static function int( x : Float ) : Int {
@@ -51,6 +56,6 @@ import flash.Boot;
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped x <= 0 ? 0 : Math.floor(Math.random()*x);
+		return x <= 0 ? 0 : Math.floor(Math.random()*x);
 	}
 }

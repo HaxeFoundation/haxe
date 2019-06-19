@@ -601,7 +601,12 @@ exception Completion of string
 
 let unquote v =
 	let len = String.length v in
-	if len > 0 && v.[0] = '"' && v.[len - 1] = '"' then String.sub v 1 (len - 2) else v
+	if len > 0 then
+		match v.[0], v.[len - 1] with
+			| '"', '"'
+			| '\'', '\'' -> String.sub v 1 (len - 2)
+			| _ -> v
+	else v
 
 let handle_display_argument com file_pos pre_compilation did_something =
 	match file_pos with
@@ -799,6 +804,6 @@ let handle_syntax_completion com kind p =
 			Buffer.add_string b "</il>";
 			let s = Buffer.contents b in
 			raise (Completion s)
-		| Some(f,_) ->
-			let ctx = Genjson.create_context GMFull in
+		| Some(f,_,jsonrpc) ->
+			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
 			f(fields_to_json ctx l kind None)

@@ -116,6 +116,9 @@ let build_dependencies t =
 				| None -> ()
 				| Some e -> add_expr e
 			end
+		| TArray ({ eexpr = TIdent "__global__" },{ eexpr = TConst (TString s) }) ->
+			let path = parse_path s in
+			add_path path DKExpr;
 		| _ ->
 			Type.iter add_expr e
 	and add_field f =
@@ -246,7 +249,7 @@ let build_swf9 com file swc =
 				hls_fields = [|f|];
 			}
 		) code in
-		[tag (TActionScript3 ((if Common.defined com Define.SwfUseDoAbc then Some(1,boot_name) else None), As3hlparse.flatten inits))]
+		[tag (TActionScript3 ((Some (1,boot_name)), As3hlparse.flatten inits))]
 	) in
 	let cid = ref 0 in
 	let classes = ref [{ f9_cid = None; f9_classname = boot_name }] in

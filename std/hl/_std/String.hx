@@ -19,10 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-import haxe.iterators.StringIterator;
-import haxe.iterators.StringKeyValueIterator;
-
 @:coreApi
 class String {
 
@@ -80,19 +76,18 @@ class String {
 	}
 
 	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
-		var last = 0;
 		var max = this.length;
 		if( startIndex != null ) {
 			max = startIndex + str.length;
 			if( max < 0 ) max = 0;
 			if( max > this.length ) max = this.length;
 		}
-		max <<= 1;
-		while( true ) {
-			var p = findChar(last, max, str.bytes, str.length << 1);
-			if( p < 0 )
-				return (last >> 1) - 1;
-			last = p + 2;
+		var pos = max - str.length;
+		var slen = str.length << 1;
+		while( pos >= 0 ) {
+			if( bytes.compare(pos << 1, str.bytes, 0, slen) == 0 )
+				return pos;
+			pos--;
 		}
 		return -1;
 	}
@@ -173,14 +168,6 @@ class String {
 		return this;
 	}
 
-	public inline function iterator() : StringIterator {
-		return new StringIterator(this);
-	}
-
-	public inline function keyValueIterator() : StringKeyValueIterator {
-		return new StringKeyValueIterator(this);
-	}
-
 	public static function fromCharCode( code : Int ) : String {
 		if( code >= 0 && code < 0x10000 ) {
 			if( code >= 0xD800 && code <= 0xDFFF ) throw "Invalid unicode char " + code;
@@ -208,10 +195,14 @@ class String {
 	}
 
 	@:keep function __compare( v : Dynamic ) : Int {
-		var s = Std.instance(v, String);
+		var s = Std.downcast(v, String);
 		if( s == null )
 			return hl.Api.comparePointer(this, v);
+		#if (hl_ver >= version("1.10.0"))
+		var v = bytes.compare16(s.bytes, length < s.length ? length : s.length);
+		#else
 		var v = bytes.compare(0, s.bytes, 0, (length < s.length ? length : s.length) << 1);
+		#end
 		return v == 0 ? length - s.length : v;
 	}
 

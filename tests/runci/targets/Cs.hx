@@ -5,10 +5,13 @@ import runci.System.*;
 import runci.Config.*;
 
 class Cs {
+	static var miscCsDir(get,never):String;
+	static inline function get_miscCsDir() return miscDir + 'cs/';
+
 	static public function getCsDependencies() {
 		switch (systemName) {
 			case "Linux":
-				if (commandSucceed("mono", ["--version"]))
+				if (!isCi() && commandSucceed("mono", ["--version"]))
 					infoMsg('mono has already been installed.');
 				else
 					Linux.requireAptPackages(["mono-devel", "mono-mcs"]);
@@ -76,7 +79,10 @@ class Cs {
 		// runCommand("haxe", ["build.hxml", "-cs", "export/cs"]);
 		// runCs("export/cs/bin/Main.exe");
 
-		changeDirectory(miscDir + "csTwoLibs");
+		changeDirectory(miscCsDir);
+		runCommand("haxe", ["run.hxml"]);
+
+		changeDirectory(miscCsDir + "csTwoLibs");
 		for (i in 1...5)
 		{
 			runCommand("haxe", ['compile-$i.hxml','-D','fast_cast']);

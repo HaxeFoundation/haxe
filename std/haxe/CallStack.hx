@@ -195,18 +195,22 @@ class CallStack {
 			return makeStack(s);
 		#elseif java
 			var stack = [];
-			for ( el in java.internal.Exceptions.currentException().getStackTrace() ) {
-				var className = el.getClassName();
-				var methodName = el.getMethodName();
-				var fileName = el.getFileName();
-				var lineNumber = el.getLineNumber();
-				var method = Method( className, methodName );
-				if ( fileName != null || lineNumber >= 0 ) {
-					stack.push( FilePos( method, fileName, lineNumber ) );
-				}
-				else {
-					stack.push( method );
-				}
+			switch(#if jvm jvm.Exception #else java.internal.Exceptions#end.currentException()) {
+				case null:
+				case current:
+					for ( el in current.getStackTrace() ) {
+						var className = el.getClassName();
+						var methodName = el.getMethodName();
+						var fileName = el.getFileName();
+						var lineNumber = el.getLineNumber();
+						var method = Method( className, methodName );
+						if ( fileName != null || lineNumber >= 0 ) {
+							stack.push( FilePos( method, fileName, lineNumber ) );
+						}
+						else {
+							stack.push( method );
+						}
+					}
 			}
 			return stack;
 		#elseif cs
@@ -370,12 +374,12 @@ class CallStack {
 			return stack;
 		#elseif hl
 			var stack = [];
-			var r = ~/^([A-Za-z0-9.$_]+)\.([A-Za-z0-9_]+)\((.+):([0-9]+)\)$/;
+			var r = ~/^([A-Za-z0-9.$_]+)\.([~A-Za-z0-9_]+(\.[0-9]+)?)\((.+):([0-9]+)\)$/;
 			var r_fun = ~/^fun\$([0-9]+)\((.+):([0-9]+)\)$/;
 			for( i in 0...s.length-1 ) {
 				var str = @:privateAccess String.fromUCS2(s[i]);
 				if( r.match(str) )
-					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(3), Std.parseInt(r.matched(4))));
+					stack.push(FilePos(Method(r.matched(1), r.matched(2)), r.matched(4), Std.parseInt(r.matched(5))));
 				else if( r_fun.match(str) )
 					stack.push(FilePos(LocalFunction(Std.parseInt(r_fun.matched(1))), r_fun.matched(2), Std.parseInt(r_fun.matched(3))));
 				else

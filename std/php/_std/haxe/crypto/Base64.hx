@@ -21,7 +21,9 @@
  */
 package haxe.crypto;
 
-import php.Global;
+import php.Global.*;
+import php.Syntax;
+import php.NativeArray;
 import haxe.io.Bytes;
 
 class Base64 {
@@ -29,14 +31,20 @@ class Base64 {
 	public static var CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	public static var BYTES(default,null) = haxe.io.Bytes.ofString(CHARS);
 
+	public static var URL_CHARS(default,null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+	public static var URL_BYTES(default,null) = haxe.io.Bytes.ofString(URL_CHARS);
+
+	static final NORMAL_62_63:NativeArray = Syntax.arrayDecl('+', '/');
+	static final URL_62_63:NativeArray = Syntax.arrayDecl('-', '_');
+
 	public static inline function encode( bytes : Bytes, complement = true ) : String {
-		var result = Global.base64_encode( bytes.toString() );
-		return (complement ? result : Global.rtrim(result, "="));
+		var result = base64_encode(bytes.toString());
+		return (complement ? result : rtrim(result, "="));
 	}
 
 	public static inline function decode( str : String, complement = true ) : Bytes {
 		if(!complement) {
-			switch (Global.strlen(str) % 3) {
+			switch (strlen(str) % 3) {
 				case 1:
 					str += "==";
 				case 2:
@@ -44,6 +52,24 @@ class Base64 {
 				default:
 			}
 		}
-		return Bytes.ofString( Global.base64_decode( str, true ) );
+		return Bytes.ofString(base64_decode( str, true ));
+	}
+
+	public static inline function urlEncode( bytes : Bytes, complement = true ) : String {
+		var result = str_replace(NORMAL_62_63, URL_62_63, base64_encode(bytes.toString()));
+		return (complement ? result : rtrim(result, "="));
+	}
+
+	public static inline function urlDecode( str : String, complement = true ) : Bytes {
+		if(!complement) {
+			switch (strlen(str) % 3) {
+				case 1:
+					str += "==";
+				case 2:
+					str += "=";
+				default:
+			}
+		}
+		return Bytes.ofString(base64_decode(str_replace(URL_62_63, NORMAL_62_63, str), true));
 	}
 }

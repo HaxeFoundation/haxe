@@ -524,6 +524,8 @@ let unescape s =
 							| Invalid_escape_sequence (c,i,msg) as e -> raise e
 							| _ -> fail_no_hex ()
 					in
+					if u >= 0xD800 && u < 0xE000 then
+						fail (Some "UTF-16 surrogates are not allowed in strings.");
 					UTF8.add_uchar b (UChar.uchar_of_int u);
 					inext := !inext + a;
 				| _ ->
@@ -716,7 +718,7 @@ let s_display_kind = function
 	| DKMarked -> "DKMarked"
 	| DKPattern _ -> "DKPattern"
 
-let s_expr e =
+module Printer = struct
 	let rec s_expr_inner tabs (e,_) =
 		match e with
 		| EConst c -> s_constant c
@@ -831,7 +833,9 @@ let s_expr e =
 		| (EBlock [],_) -> ""
 		| (EBlock el,_) -> s_block (tabs ^ "\t") el "" "" ""
 		| _ -> s_expr_inner (tabs ^ "\t") e ^ ";"
-	in s_expr_inner "" e
+
+	let s_expr e = s_expr_inner "" e
+end
 
 let get_value_meta meta =
 	try
@@ -960,11 +964,12 @@ module Expr = struct
 				loop e1
 			| EVars vl ->
 				add "EVars";
-				List.iter (fun ((n,p),_,_,eo) -> match eo with
+				List.iter (fun ((n,p),_,cto,eo) ->
+					add (Printf.sprintf "%s  %s%s" tabs n (match cto with None -> "" | Some (ct,_) -> ":" ^ Printer.s_complex_type "" ct));
+					match eo with
 					| None -> ()
 					| Some e ->
-						add n;
-						loop' (Printf.sprintf "%s  " tabs) e
+						loop' (Printf.sprintf "%s      " tabs) e
 				) vl
 			| EFunction(so,f) ->
 				add "EFunction";

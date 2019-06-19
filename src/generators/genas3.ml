@@ -19,6 +19,7 @@
 
 open Type
 open Common
+open FlashProps
 
 type context_infos = {
 	com : Common.context;
@@ -230,18 +231,6 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
-
-(**
-	Returns `true` is `expr` represent a constant string.
-	Recursively looks through casts, metas and parentheses.
-*)
-let rec is_const_string expr =
-	match expr.eexpr with
-		| TConst (TString _) -> true
-		| TCast (e, _) -> is_const_string e
-		| TMeta (_, e) -> is_const_string e
-		| TParenthesis e -> is_const_string e
-		| _ -> false
 
 let parent e =
 	match e.eexpr with
@@ -533,11 +522,55 @@ and gen_call ctx e el r =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
 		print ctx ") as %s)" s
+	| TField (e1, f), el ->
+		begin
+		let default () = gen_call_default ctx e el in
+		let mk_prop_acccess prop_cl prop_tl prop_cf = mk (TField (e1, FInstance (prop_cl, prop_tl, prop_cf))) prop_cf.cf_type e.epos in
+		let mk_static_acccess cl prop_cf = mk (TField (e1, FStatic (cl, prop_cf))) prop_cf.cf_type e.epos in
+		let gen_assign lhs rhs = gen_expr ctx (mk (TBinop (OpAssign, lhs, rhs)) rhs.etype e.epos) in
+		match f, el with
+		| FInstance (cl, tl, cf), [] ->
+			(match is_extern_instance_accessor ~isget:true cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FInstance (cl, tl, cf), [evalue] ->
+			(match is_extern_instance_accessor ~isget:false cl tl cf with
+			| Some (prop_cl, prop_tl, prop_cf) ->
+				let efield = mk_prop_acccess prop_cl prop_tl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [] ->
+			(match is_extern_static_accessor ~isget:true cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_expr ctx efield
+			| None ->
+				default ())
+
+		| FStatic (cl, cf), [evalue] ->
+			(match is_extern_static_accessor ~isget:false cl cf with
+			| Some prop_cf ->
+				let efield = mk_static_acccess cl prop_cf in
+				gen_assign efield evalue
+			| None ->
+				default ())
+		| _ ->
+			default ()
+		end
 	| _ ->
-		gen_value ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
+		gen_call_default ctx e el
+
+and gen_call_default ctx e el =
+	gen_value ctx e;
+	spr ctx "(";
+	concat ctx "," (gen_value ctx) el;
+	spr ctx ")"
 
 and gen_value_op ctx e =
 	match e.eexpr with
@@ -696,14 +729,6 @@ and gen_expr ctx e =
 		gen_expr ctx f.tf_expr;
 		ctx.in_static <- old;
 		h();
-	| TCall ({ eexpr = TField (e, ((FDynamic "iterator") | (FAnon { cf_name = "iterator" }))) }, []) when is_const_string e ->
-		print ctx "new haxe.iterators.StringIterator(";
-		gen_value ctx e;
-		print ctx ")"
-	| TCall ({ eexpr = TField (e, ((FDynamic "keyValueIterator") | (FAnon { cf_name = "keyValueIterator" }))) }, []) when is_const_string e ->
-		print ctx "new haxe.iterators.StringKeyValueIterator(";
-		gen_value ctx e;
-		print ctx ")"
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->
@@ -1249,6 +1274,7 @@ let generate_base_enum ctx =
 	newline ctx
 
 let generate com =
+	com.warning "-as3 target is deprecated. Use -swf instead. See https://github.com/HaxeFoundation/haxe/issues/8295" Globals.null_pos;
 	let infos = {
 		com = com;
 	} in

@@ -1,7 +1,6 @@
 package unit.issues;
 
 class Issue8079 extends unit.Test {
-#if !python
 	function test() {
 		var instance = ({}:Dynamic);
 		if(instance.timeout != null) {
@@ -9,5 +8,4 @@ class Issue8079 extends unit.Test {
 		}
 		utest.Assert.pass();
 	}
-#end
 }

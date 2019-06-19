@@ -1,10 +1,10 @@
 package flash.media;
 
 extern class AVSegmentedSource extends AVSource {
-	var cookieHeader(never,default) : String;
-	var masterUpdateInterval(never,default) : Int;
-	var networkingParams : AVNetworkingParams;
-	var useRedirectedUrl(never,default) : Bool;
+	@:flash.property var cookieHeader(never,set) : String;
+	@:flash.property var masterUpdateInterval(never,set) : Int;
+	@:flash.property var networkingParams(get,set) : AVNetworkingParams;
+	@:flash.property var useRedirectedUrl(never,set) : Bool;
 	function new() : Void;
 	function addCustomHeader(headerName : String, args : flash.Vector<String>) : Void;
 	function clearPauseAtPeriodEnd(periodIndex : Int) : AVResult;
@@ -24,6 +24,7 @@ extern class AVSegmentedSource extends AVSource {
 	function getTimelineSubscribedTagForBackgroundManifest(tagDataIndex : Int) : AVTagData;
 	function getTrackCount(periodIndex : Int, payloadType : String) : Int;
 	function getTrackInfo(periodIndex : Int, payloadType : String, trackIndex : Int) : AVTrackInfo;
+	private function get_networkingParams() : AVNetworkingParams;
 	function insertByLocalTime(periodIndex : Int, insertionTime : Float, handle : Int, userData : Int = 0, replaceDuration : Float = 0) : AVInsertionResult;
 	function insertByVirtualTime(insertionTime : Float, handle : Int, userData : Int = 0, replaceDuration : Float = 0) : AVInsertionResult;
 	function load(url : String, ?containerType : String, userData : Int = 0) : AVResult;
@@ -42,6 +43,10 @@ extern class AVSegmentedSource extends AVSource {
 	function setPauseAtPeriodEnd(periodIndex : Int, userData : Int = 0) : AVResult;
 	function setSubscribedTags(tagArray : Array<Dynamic>) : AVResult;
 	function setSubscribedTagsForBackgroundManifest(tagArray : Array<Dynamic>) : AVResult;
+	private function set_cookieHeader(value : String) : String;
+	private function set_masterUpdateInterval(value : Int) : Int;
+	private function set_networkingParams(value : AVNetworkingParams) : AVNetworkingParams;
+	private function set_useRedirectedUrl(value : Bool) : Bool;
 	static final AUDIO : String;
 	static final AUDIO_DESCRIPTION : String;
 	static final AUDIO_LANGUAGE : String;

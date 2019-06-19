@@ -24,6 +24,7 @@ package haxe;
 import php.Global;
 
 @:coreApi
+@:deprecated('haxe.Utf8 is deprecated. Use UnicodeString instead.')
 class Utf8 {
 
 	var __b : String;

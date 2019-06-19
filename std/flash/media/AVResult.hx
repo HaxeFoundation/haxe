@@ -1,8 +1,9 @@
 package flash.media;
 
 extern class AVResult {
-	var result(default,never) : Int;
+	@:flash.property var result(get,never) : Int;
 	function new(inResult : Int) : Void;
+	private function get_result() : Int;
 	static final ASYNC_OPERATION_IN_PROGRESS : Int;
 	static final AUDIO_ONLY_STREAM_END : Int;
 	static final AUDIO_ONLY_STREAM_START : Int;

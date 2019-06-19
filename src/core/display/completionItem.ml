@@ -230,14 +230,16 @@ module CompletionModuleType = struct
 			("kind",jint (to_int cm.kind)) ::
 			(match ctx.generation_mode with
 			| GMFull | GMWithoutDoc ->
+				("meta",generate_metadata ctx cm.meta) ::
 				("pos",generate_pos ctx cm.pos) ::
 				("params",jlist (generate_ast_type_param ctx) cm.params) ::
-				("meta",generate_metadata ctx cm.meta) ::
 				("isExtern",jbool cm.is_extern) ::
 				("isFinal",jbool cm.is_final) ::
 				(if ctx.generation_mode = GMFull then ["doc",jopt jstring cm.doc] else [])
 			| GMMinimum ->
-				[]
+				match generate_minimum_metadata ctx cm.meta with
+					| None -> []
+					| Some meta -> [("meta",meta)]
 			)
 		in
 		jobject fields
@@ -369,7 +371,7 @@ module CompletionType = struct
 		"opt",jbool cfa.ct_optional;
 		"t",generate_type ctx cfa.ct_type;
 		"value",jopt (fun e -> jobject [
-			"string",jstring (Ast.s_expr e);
+			"string",jstring (Ast.Printer.s_expr e);
 		]) cfa.ct_value;
 	]
 
@@ -653,10 +655,8 @@ let to_json ctx item =
 			in
 			let rec loop internal params platforms targets l = match l with
 				| HasParam s :: l -> loop internal (s :: params) platforms targets l
-				| Platform pl :: l -> loop internal params (platform_name pl :: platforms) targets l
 				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets l
-				| UsedOn usage :: l -> loop internal params platforms (usage_to_string usage :: targets) l
-				| UsedOnEither usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
+				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
 				| UsedInternally :: l -> loop true params platforms targets l
 				| [] -> internal,params,platforms,targets
 			in

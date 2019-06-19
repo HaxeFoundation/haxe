@@ -21,6 +21,8 @@
  */
 package haxe.io;
 
+import php.Global;
+
 class Bytes {
 
 	public var length(default,null) : Int;
@@ -185,12 +187,12 @@ class Bytes {
 	public static inline function ofData( b : BytesData ) : Bytes {
 		return new Bytes(b.length, b);
 	}
-	
+
 	public static function ofHex( s : String ) : Bytes {
-		var len = s.length;
+		var len = Global.strlen(s);
 		if ( (len & 1) != 0 ) throw "Not a hex string (odd number of digits)";
 		var b : String = php.Global.hex2bin(s);
-		return new Bytes(b.length, b);
+		return new Bytes(Global.strlen(b), b);
 	}
 
 	/**
