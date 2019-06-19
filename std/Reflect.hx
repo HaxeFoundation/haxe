@@ -195,9 +195,9 @@ extern class Reflect {
 
 		This is only guaranteed to work on anonymous structures.
 
-		If `o` is null, the result is unspecified.
+		If `o` is null, the result is `null`.
 	**/
-	public static function copy<T>( o : T ) : T;
+	public static function copy<T>( o : Null<T> ) : Null<T>;
 
 	/**
 		Transform a function taking an array of arguments into a function that can

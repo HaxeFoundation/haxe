@@ -1813,6 +1813,7 @@ module StdReflect = struct
 	)
 
 	let copy = vfun1 (fun o -> match vresolve o with
+		| VNull -> VNull
 		| VObject o -> VObject { o with ofields = Array.copy o.ofields }
 		| VInstance vi -> vinstance {
 			ifields = Array.copy vi.ifields;

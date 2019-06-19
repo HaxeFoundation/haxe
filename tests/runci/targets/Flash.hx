@@ -36,6 +36,8 @@ class Flash {
 		}
 	}
 
+	static public var playerCmd:String;
+
 	static public function setupFlashPlayerDebugger():Void {
 		var mmcfgPath = switch (systemName) {
 			case "Linux":
@@ -48,7 +50,7 @@ class Flash {
 
 		switch (systemName) {
 			case "Linux":
-				var playerCmd = "flashplayerdebugger";
+				playerCmd = "flashplayerdebugger";
 				if(Sys.command("type", [playerCmd]) != 0) {
 					Linux.requireAptPackages([
 						"libglib2.0", "libfreetype6"
@@ -56,16 +58,22 @@ class Flash {
 					var majorVersion = getLatestFPVersion()[0];
 					runCommand("wget", ["-nv", 'http://fpdownload.macromedia.com/pub/flashplayer/updaters/${majorVersion}/flash_player_sa_linux_debug.x86_64.tar.gz'], true);
 					runCommand("tar", ["-xf", "flash_player_sa_linux_debug.x86_64.tar.gz", "-C", Sys.getEnv("HOME")]);
-					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+					playerCmd = Path.join([Sys.getEnv("HOME"), "flashplayerdebugger"]);
 				}
 				if (!FileSystem.exists(mmcfgPath)) {
 					File.saveContent(mmcfgPath, "ErrorReportingEnable=1\nTraceOutputFileEnable=1");
 				}
-				runCommand(playerCmd, ["-v"]);
+				switch (ci) {
+					case AzurePipelines:
+						runCommand("xvfb-run", ["-a", playerCmd, "-v"]);
+					case _:
+						runCommand(playerCmd, ["-v"]);
+				}
 			case "Mac":
 				if (commandResult("brew", ["cask", "list", "flash-player-debugger"]).exitCode == 0) {
 					return;
 				}
+				runCommand("brew", ["update"]);
 				runCommand("brew", ["cask", "install", "flash-player-debugger"]);
 
 				// Disable the "application downloaded from Internet" warning
@@ -92,11 +100,12 @@ class Flash {
 		Sys.println('going to run $swf');
 		switch (systemName) {
 			case "Linux":
-				var playerCmd = "flashplayerdebugger";
-				if(Sys.command("type", [playerCmd]) != 0) {
-					playerCmd = Sys.getEnv("HOME") + "/flashplayerdebugger";
+				switch (ci) {
+					case AzurePipelines:
+						new Process("xvfb-run", ["-a", playerCmd, swf]);
+					case _:
+						new Process(playerCmd, [swf]);
 				}
-				new Process(playerCmd, [swf]);
 			case "Mac":
 				Sys.command("open", ["-a", "/Applications/Flash Player Debugger.app", swf]);
 		}

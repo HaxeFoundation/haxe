@@ -624,7 +624,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		let rec loop t = match follow t with
 		| TFun (args,r) ->
 			begin match e.eexpr with
-				| TField(e1,fa) when not (match fa with FEnum _ -> true | _ -> false) ->
+				| TField(e1,fa) when not (match fa with FEnum _ | FDynamic _ -> true | _ -> false) ->
 					begin match fa with
 						| FInstance(_,_,cf) | FStatic(_,cf) when Meta.has Meta.Generic cf.cf_meta ->
 							type_generic_function ctx (e1,fa) el with_type p

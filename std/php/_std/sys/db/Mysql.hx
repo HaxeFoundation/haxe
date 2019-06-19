@@ -64,7 +64,9 @@ private class MysqlConnection implements Connection {
 	public function request( s : String ) : ResultSet {
 		var result = db.query(s);
 		if (result == false) throw 'Failed to perform db query: ' + db.error;
-		if (result == true) return null;
+		if (result == true) {
+			return new WriteMysqlResultSet(db.affected_rows);
+		}
 
 		return new MysqlResultSet(result);
 	}
@@ -238,4 +240,22 @@ private class MysqlResultSet implements ResultSet {
 
 	function get_length() return result.num_rows;
 	function get_nfields() return result.field_count;
+}
+
+private class WriteMysqlResultSet extends MysqlResultSet {
+	var affectedRows:Int = 0;
+
+	public function new(affectedRows:Int) {
+		super(null);
+		this.affectedRows = affectedRows;
+	}
+
+	override public function hasNext() : Bool {
+		return false;
+	}
+
+	override function fetchNext() {}
+
+	override function get_length() return affectedRows;
+	override function get_nfields() return 0;
 }
