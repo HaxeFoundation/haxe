@@ -1834,6 +1834,20 @@ type eq_kind =
 	| EqBothDynamic
 	| EqDoNotFollowNull (* like EqStrict, but does not follow Null<T> *)
 
+let run_for_any fn a b any =
+	try fn a b
+	with Unify_error l ->
+		let l =
+			List.map
+				(fun err -> match err with
+					| Cannot_unify (ta,tb) when ta == a -> Cannot_unify (any,tb)
+					| Cannot_unify (ta,tb) when tb == b -> Cannot_unify (ta,any)
+					| _ -> err
+				)
+				l
+		in
+		raise (Unify_error l)
+
 let rec type_eq param a b =
 	let can_follow t = match param with
 		| EqCoreType -> false
@@ -1890,6 +1904,10 @@ let rec type_eq param a b =
 		)
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
+	| TAbstract ({ a_path = [],"Any"; a_this = t },[]), _ ->
+		run_for_any (type_eq param) t b a
+	| _, TAbstract ({ a_path = [],"Any"; a_this = t },[]) ->
+		run_for_any (type_eq param) a t b
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) ->
 		if a1 != a2 && not (param = EqCoreType && a1.a_path = a2.a_path) then error [cannot_unify a b];
 		type_eq_params param a b tl1 tl2
@@ -2214,7 +2232,11 @@ let rec unify a b =
 			()
 		| _ ->
 			error [cannot_unify a b])
-	| TAbstract (aa,tl), _  ->
+	| TAbstract ({ a_path = [],"Any"; a_this = t },[]), _ ->
+		run_for_any unify t b a
+	| _, TAbstract ({ a_path = [],"Any"; a_this = t },[]) ->
+		run_for_any unify a t b
+	| TAbstract (aa,tl), _ ->
 		if not (List.exists (unify_to aa tl b) aa.a_to) then error [cannot_unify a b];
 	| TInst ({ cl_kind = KTypeParameter ctl } as c,pl), TAbstract (bb,tl) ->
 		(* one of the constraints must satisfy the abstract *)
