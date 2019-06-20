@@ -29,9 +29,11 @@ open Common
 open Error
 
 let type_function_arg ctx t e opt p =
-	(match follow t with
+	delay ctx PTypeField (fun() ->
+		match follow t with
 		| TAbstract ({a_path = [],"Void"},_) -> error "Arguments of type Void are not allowed" p
-		| _ -> ());
+		| _ -> ()
+	);
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
 		ctx.t.tnull t, e
