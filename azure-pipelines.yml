@@ -99,7 +99,6 @@ stages:
           - script: haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              SAUCE_USERNAME: $(SAUCE_USERNAME)
               SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
             displayName: Test
 
