@@ -245,7 +245,7 @@ stages:
     condition: and(succeeded(), not(variables['System.PullRequest.PullRequestId']))
     jobs:
       - job: S3
-        condition: and(succeeded(), variables['AWS_ACCESS_KEY_ID'], variables['S3_HXBUILDS_ADDR'])
+        condition: and(succeeded(), variables['HXBUILDS_AWS_ACCESS_KEY_ID'], variables['HXBUILDS_S3ADDR'])
         pool:
           vmImage: 'ubuntu-16.04'
         steps:
@@ -287,46 +287,49 @@ stages:
             displayName: "Install awscli"
           - script: |
               set -ex
-              aws s3 cp linuxBinaries/*_bin.tar.gz      $(S3_HXBUILDS_ADDR)/linux64/
-              aws s3 cp macBinaries/*_bin.tar.gz        $(S3_HXBUILDS_ADDR)/mac/
-              aws s3 cp win64Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows64/
-              aws s3 cp win64Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows64-installer
-              aws s3 cp win32Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows/
-              aws s3 cp win32Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows-installer/
+              aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/linux64/
+              aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/mac/
+              aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/windows64/
+              aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/windows64-installer
+              aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/windows/
+              aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/windows-installer/
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             displayName: Upload binaries
           - script: |
               set -ex
-              aws s3 cp linuxBinaries/*_bin.tar.gz      $(S3_HXBUILDS_ADDR)/linux64/haxe_latest.tar.gz
-              aws s3 cp macBinaries/*_bin.tar.gz        $(S3_HXBUILDS_ADDR)/mac/haxe_latest.tar.gz
-              aws s3 cp win64Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows64/haxe_latest.zip
-              aws s3 cp win64Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows64-installer/haxe_latest.
-              aws s3 cp win32Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows/haxe_latest.zip
-              aws s3 cp win32Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows-installer/haxe_latest.zip
+              aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/linux64/haxe_latest.tar.gz
+              aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/mac/haxe_latest.tar.gz
+              aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/windows64/haxe_latest.zip
+              aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/windows64-installer/haxe_latest.
+              aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/windows/haxe_latest.zip
+              aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/windows-installer/haxe_latest.zip
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'development'))
             displayName: Update "latest"
           - script: |
               set -ex
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/linux64
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/linux64/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/mac
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/mac/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows64
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows64/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows64-installer
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows64-installer/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows-installer
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows-installer/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/linux64
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/linux64/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/mac
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/mac/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/windows64
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/windows64/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/windows64-installer
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/windows64-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/windows
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/windows/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/windows-installer
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/windows-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             displayName: Update indices
       - job: ApiHaxeOrg
         condition: and(succeeded(), variables['GHP_USERNAME'], variables['GHP_EMAIL'])
