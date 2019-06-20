@@ -641,44 +641,43 @@ let find_file ctx f =
 			| p :: l ->
 				let file = p ^ f in
 				let dir = Filename.dirname file in
-				let found = ref "" in
-				let dir_listing =
-					try Hashtbl.find ctx.readdir_cache dir
-					with Not_found ->
-						let ls =
-							try Some (Sys.readdir dir);
-							with Sys_error _ -> None
-						in
-						Hashtbl.add ctx.readdir_cache dir ls;
-						ls
-				in
-				Option.may
-					(Array.iter (fun file_name ->
-						let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
-						let pf,current_f =
-							if is_core_api then false,current_f
-							else begin
-								let ext = extension current_f in
-								let pf_ext = extension (remove_extension current_f) in
-								if platform_ext = pf_ext then
-									true,(remove_extension (remove_extension current_f)) ^ ext
-								else
-									false,current_f
+				if Hashtbl.mem ctx.readdir_cache dir then
+					loop (had_empty || p = "") l
+				else begin
+					let found = ref "" in
+					let dir_listing =
+						try Some (Sys.readdir dir);
+						with Sys_error _ -> None
+					in
+					Hashtbl.add ctx.readdir_cache dir dir_listing;
+					Option.may
+						(Array.iter (fun file_name ->
+							let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
+							let pf,current_f =
+								if is_core_api then false,current_f
+								else begin
+									let ext = extension current_f in
+									let pf_ext = extension (remove_extension current_f) in
+									if platform_ext = pf_ext then
+										true,(remove_extension (remove_extension current_f)) ^ ext
+									else
+										false,current_f
+								end
+							in
+							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
+							if is_core_api || pf || not is_cached then begin
+								let full_path = if dir = "." then file_name else Filename.concat dir file_name in
+								if is_cached then
+									Hashtbl.remove ctx.file_lookup_cache current_f;
+								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+								if current_f = f then
+									found := full_path;
 							end
-						in
-						let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
-						if is_core_api || pf || not is_cached then begin
-							let full_path = if dir = "." then file_name else Filename.concat dir file_name in
-							if is_cached then
-								Hashtbl.remove ctx.file_lookup_cache current_f;
-							Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-							if current_f = f then
-								found := full_path;
-						end
-					))
-					dir_listing;
-				if !found <> "" then !found
-				else loop (had_empty || p = "") l
+						))
+						dir_listing;
+					if !found <> "" then !found
+					else loop (had_empty || p = "") l
+				end
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
