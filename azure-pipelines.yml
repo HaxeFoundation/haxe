@@ -99,7 +99,8 @@ stages:
           - script: haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
+              ${{ if variables['SAUCE_ACCESS_KEY'] }}:
+                SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
             displayName: Test
 
       - job: TestMac
