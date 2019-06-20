@@ -93,6 +93,16 @@ let get_this ctx p =
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
 
+let assign_to_this_is_allowed ctx =
+	match ctx.curclass.cl_kind with
+		| KAbstractImpl _ ->
+			(match ctx.curfield.cf_kind with
+				| Method MethInline -> true
+				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| _ -> false
+			)
+		| _ -> false
+
 let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl {cl_kind = KGenericBuild _} ->

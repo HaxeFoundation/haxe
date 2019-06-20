@@ -384,6 +384,7 @@ type flag_tclass_field =
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfOverridden
+	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
 (* Flags *)
 
