@@ -1252,7 +1252,7 @@ let create_property (ctx,cctx,fctx) c f (get,set,t,eo) p =
 		with Not_found ->
 			()
 	in
-	let delay_check = if c.cl_interface then delay_late ctx PBuildClass else delay ctx PConnectField in
+	let delay_check = delay ctx PConnectField in
 	let get = (match get with
 		| "null",_ -> AccNo
 		| "dynamic",_ -> AccCall
