@@ -452,6 +452,8 @@ let handle_display ctx e_ast dk with_type =
 		| DMHover ->
 			let t = TFun(arg,mono) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "expression")) p
+		| DMDefinition | DMTypeDefinition ->
+			raise_position []
 		| _ ->
 			error "Unsupported method" p
 		end
@@ -466,6 +468,8 @@ let handle_display ctx e_ast dk with_type =
 		| DMHover ->
 			let t = TFun(arg,ret) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
+		| DMDefinition | DMTypeDefinition ->
+			raise_position []
 		| _ ->
 			error "Unsupported method" p
 		end
