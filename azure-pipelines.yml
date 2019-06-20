@@ -291,8 +291,10 @@ stages:
               aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/
               aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/
               aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/
+              aws s3 cp win64Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
               aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows/
               aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows-installer/
+              aws s3 cp win32Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows-choco/
             env:
               AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
@@ -303,8 +305,10 @@ stages:
               aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/haxe_latest.tar.gz
               aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/haxe_latest.zip
               aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/haxe_latest.zip
+              aws s3 cp win64Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows64-choco/haxe_latest.nupkg
               aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows/haxe_latest.zip
               aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows-installer/haxe_latest.zip
+              aws s3 cp win32Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows-choco/haxe_latest.nupkg
             env:
               AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
@@ -320,10 +324,14 @@ stages:
               aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64/
               haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-installer
               aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-choco
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
               haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows
               aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows/
               haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-installer
               aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-choco
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-choco/
               haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe
               aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/
             workingDirectory: $(Build.SourcesDirectory)/tests
