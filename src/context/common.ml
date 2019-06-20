@@ -622,6 +622,16 @@ let find_file ctx f =
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+		let remove_extension file =
+			try String.sub file 0 (String.rindex file '.')
+			with Not_found -> file
+		in
+		let extension file =
+			try
+				let dot_pos = String.rindex file '.' in
+				String.sub file dot_pos (String.length file - dot_pos)
+			with Not_found -> file
+		in
 		let f_dir = Filename.dirname f
 		and platform_ext = "." ^ (platform_name_macro ctx)
 		and is_core_api = defined ctx Define.CoreApi in
@@ -648,10 +658,10 @@ let find_file ctx f =
 						let pf,current_f =
 							if is_core_api then false,current_f
 							else begin
-								let ext = Filename.extension current_f in
-								let pf_ext = Filename.extension (Filename.remove_extension current_f) in
+								let ext = extension current_f in
+								let pf_ext = extension (remove_extension current_f) in
 								if platform_ext = pf_ext then
-									true,(Filename.remove_extension (Filename.remove_extension current_f)) ^ ext
+									true,(remove_extension (remove_extension current_f)) ^ ext
 								else
 									false,current_f
 							end
