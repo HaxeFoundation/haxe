@@ -1656,6 +1656,12 @@ let macro_api ccom get_api =
 			);
 			vnull
 		);
+		"flush_disk_cache", vfun0 (fun () ->
+			let com = (get_api()).get_com() in
+			Hashtbl.clear com.file_lookup_cache;
+			Hashtbl.clear com.readdir_cache;
+			vnull
+		);
 		"get_pos_infos", vfun1 (fun p ->
 			let p = decode_pos p in
 			encode_obj ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",encode_string p.Globals.pfile]

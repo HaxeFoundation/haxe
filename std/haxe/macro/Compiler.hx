@@ -435,6 +435,14 @@ class Compiler {
 	}
 	#end
 
+	/**
+		Clears cached results of file lookups
+	**/
+	public static function flushDiskCache() {
+		#if (neko || eval)
+		load("flush_disk_cache", 0)();
+		#end
+	}
 #end
 
 	#if (js || lua || macro)
