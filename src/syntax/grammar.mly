@@ -107,6 +107,7 @@ let semicolon s =
 			syntax_error Missing_semicolon s (next_pos s)
 
 let parsing_macro_cond = ref false
+let parsing_macro_reification = ref false
 
 let rec	parse_file s =
 	last_doc := None;
@@ -1072,20 +1073,30 @@ and inline_function = parser
 	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
 	| [< '(Kwd Function,p1) >] -> false, p1
 
-and parse_macro_expr p = parser
-	| [< '(DblDot,_); t = parse_complex_type >] ->
-		let _, to_type, _  = reify !in_macro in
-		let t = to_type t p in
-		(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
-	| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
-		reify_expr (EVars vl,p1) !in_macro
-	| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
-		reify_expr (EVars vl,p1) !in_macro
-	| [< d = parse_class None [] [] false >] ->
-		let _,_,to_type = reify !in_macro in
-		(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] },null_pos)),p)
-	| [< e = secure_expr >] ->
-		reify_expr e !in_macro
+and parse_macro_expr p
+	if !parsing_macro_reification then
+		serror()
+	else begin
+		parsing_macro_reification := true;
+		Std.finally
+			(fun() -> parsing_macro_reification := false)
+			(fun() ->
+				parser
+				| [< '(DblDot,_); t = parse_complex_type >] ->
+					let _, to_type, _  = reify !in_macro in
+					let t = to_type t p in
+					(ECheckType (t,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ComplexType"; tparams = [] },null_pos)),p)
+				| [< '(Kwd Var,p1); vl = psep Comma (parse_var_decl false) >] ->
+					reify_expr (EVars vl,p1) !in_macro
+				| [< '(Kwd Final,p1); vl = psep Comma (parse_var_decl true) >] ->
+					reify_expr (EVars vl,p1) !in_macro
+				| [< d = parse_class None [] [] false >] ->
+					let _,_,to_type = reify !in_macro in
+					(ECheckType (to_type d,(CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "TypeDefinition"; tparams = [] },null_pos)),p)
+				| [< e = secure_expr >] ->
+				reify_expr e !in_macro
+			)
+	end
 
 and parse_function p1 inl = parser
 	| [< name = popt dollar_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = popt parse_type_hint; s >] ->
