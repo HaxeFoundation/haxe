@@ -704,6 +704,16 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 							else
 								List.map Interp.decode_field (Interp.decode_array v)
 						in
+						List.iter
+							(fun f ->
+								List.iter
+									(fun (a,_) ->
+										if a = AMacro then
+											error "Cannot create macro methods in build macros" f.cff_pos
+									)
+									f.cff_access
+							)
+							fields;
 						Some (EVars [("fields",null_pos),false,Some (CTAnonymous fields,p),None],p)
 					)
 				| MMacroType ->
