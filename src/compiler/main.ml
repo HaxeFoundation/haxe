@@ -934,7 +934,12 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
 			ignore(load_display_module_in_macro true);
-			failwith "No completion point was found";
+			match ctx.com.display.dms_kind with
+			| DMDefault -> 
+			| DMSignature -> raise (DisplayException(DisplaySignatures None)) 
+			| DMHover -> raise (DisplayException(DisplayHover None))
+			| DMDefinition | DMTypeDefinition -> raise_positions []
+			| _ -> failwith "No completion point was found";
 		end;
 		let t = Timer.timer ["filters"] in
 		let main, types, modules = run_or_diagnose Finalization.generate tctx in
@@ -1064,11 +1069,11 @@ with
 				DisplayOutput.print_fields fields
 		in
 		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
+	| DisplayException(DisplayHover Some ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
 		DisplayPosition.display_position#reset;
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures(signatures,_,display_arg,_)) ->
+	| DisplayException(DisplaySignatures Some (signatures,_,display_arg,_)) ->
 		DisplayPosition.display_position#reset;
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))

@@ -370,7 +370,7 @@ and load_complex_type' ctx allow_display (t,p) =
 		let tl = List.map (fun (t,pn) ->
 			try
 				load_complex_type ctx allow_display (t,pn)
-			with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+			with DisplayException(DisplayFields Some(l,CRTypeHint,p)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
@@ -412,7 +412,7 @@ and load_complex_type' ctx allow_display (t,p) =
 			let il = List.map (fun (t,pn) ->
 				try
 					load_instance ctx ~allow_display (t,pn) false
-				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+				with DisplayException(DisplayFields Some(l,CRTypeHint,p)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
