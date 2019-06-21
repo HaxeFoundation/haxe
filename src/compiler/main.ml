@@ -935,8 +935,8 @@ try
 			(* If we didn't find a completion point, load the display file in macro mode. *)
 			ignore(load_display_module_in_macro true);
 			match ctx.com.display.dms_kind with
-			| DMDefault -> 
-			| DMSignature -> raise (DisplayException(DisplaySignatures None)) 
+			| DMDefault -> raise (DisplayException(DisplayFields None))
+			| DMSignature -> raise (DisplayException(DisplaySignatures None))
 			| DMHover -> raise (DisplayException(DisplayHover None))
 			| DMDefinition | DMTypeDefinition -> raise_positions []
 			| _ -> failwith "No completion point was found";
@@ -1039,7 +1039,7 @@ with
 	| DisplayException(DisplayPackage pack) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields(fields,cr,_)) ->
+	| DisplayException(DisplayFields Some(fields,cr,_)) ->
 		DisplayPosition.display_position#reset;
 		let fields = if !measure_times then begin
 			Timer.close_times();
