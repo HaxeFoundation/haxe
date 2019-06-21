@@ -688,7 +688,7 @@ try
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
-		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
+		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
@@ -934,12 +934,16 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
 			ignore(load_display_module_in_macro true);
-			match ctx.com.display.dms_kind with
-			| DMDefault -> raise (DisplayException(DisplayFields None))
-			| DMSignature -> raise (DisplayException(DisplaySignatures None))
-			| DMHover -> raise (DisplayException(DisplayHover None))
-			| DMDefinition | DMTypeDefinition -> raise_positions []
-			| _ -> failwith "No completion point was found";
+			let no_completion_point_found = "No completion point was found" in
+			match com.json_out with
+			| Some _ -> (match ctx.com.display.dms_kind with
+				| DMDefault -> raise (DisplayException(DisplayFields None))
+				| DMSignature -> raise (DisplayException(DisplaySignatures None))
+				| DMHover -> raise (DisplayException(DisplayHover None))
+				| DMDefinition | DMTypeDefinition -> raise_positions []
+				| _ -> failwith no_completion_point_found)
+			| None ->
+				failwith no_completion_point_found;
 		end;
 		let t = Timer.timer ["filters"] in
 		let main, types, modules = run_or_diagnose Finalization.generate tctx in
