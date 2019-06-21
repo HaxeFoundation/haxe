@@ -144,6 +144,22 @@ let raise_toplevel ctx dk with_type po p =
 	let expected_type = get_expected_type ctx with_type in
 	raise_fields (DisplayToplevel.collect ctx (match dk with DKPattern _ -> TKPattern p | _ -> TKExpr p) with_type) (CRToplevel expected_type) po
 
+let display_dollar_type ctx p make_type =
+	let mono = mk_mono() in
+	let doc = Some "Outputs type of argument as a warning and uses argument as value" in
+	let arg = ["expression",false,mono] in
+	begin match ctx.com.display.dms_kind with
+	| DMSignature ->
+		raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
+	| DMHover ->
+		let t = TFun(arg,mono) in
+		raise_hover (make_ci_expr (mk (TIdent "trace") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
+	| DMDefinition | DMTypeDefinition ->
+		raise_position []
+	| _ ->
+		error "Unsupported method" p
+	end
+
 let rec handle_signature_display ctx e_ast with_type =
 	ctx.in_display <- true;
 	let p = pos e_ast in
@@ -205,11 +221,15 @@ let rec handle_signature_display ctx e_ast with_type =
 	in
 	match fst e_ast with
 		| ECall(e1,el) ->
-			let def () = try
-				type_expr ctx e1 WithType.value
-			with Error (Unknown_ident "trace",_) ->
-				let e = expr_of_type_path (["haxe";"Log"],"trace") p in
-				type_expr ctx e WithType.value
+			let def () =
+				try
+					type_expr ctx e1 WithType.value
+				with
+				| Error (Unknown_ident "trace",_) ->
+					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
+					type_expr ctx e WithType.value
+				| Error (Unknown_ident "$type",p) ->
+					display_dollar_type ctx p (fun t -> t,(DisplayEmitter.completion_type_of_type ctx t))
 			in
 			let e1 = match e1 with
 				| (EField (e,"bind"),p) ->
@@ -441,22 +461,8 @@ let handle_display ctx e_ast dk with_type =
 		(t,ct)
 	in
 	let e = match e_ast,with_type with
-	| (EConst (Ident "$type"),_),_ ->
-		let mono = mk_mono() in
-		let doc = Some "Outputs type of argument as a warning and uses argument as value" in
-		let arg = ["expression",false,mono] in
-		let p = pos e_ast in
-		begin match ctx.com.display.dms_kind with
-		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
-		| DMHover ->
-			let t = TFun(arg,mono) in
-			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "expression")) p
-		| DMDefinition | DMTypeDefinition ->
-			raise_position []
-		| _ ->
-			error "Unsupported method" p
-		end
+	| (EConst (Ident "$type"),p),_ ->
+		display_dollar_type ctx p tpair
 	| (EConst (Ident "trace"),_),_ ->
 		let doc = Some "Print given arguments" in
 		let arg = ["value",false,t_dynamic] in
