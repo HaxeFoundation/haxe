@@ -170,7 +170,7 @@ let load_type_def ctx p t =
 let resolve_position_by_path ctx path p =
 	let mt = load_type_def ctx p path in
 	let p = (t_infos mt).mt_pos in
-	raise_position [p]
+	raise_positions [p]
 
 let check_param_constraints ctx types t pl c p =
 	match follow t with
@@ -861,7 +861,7 @@ let handle_path_display ctx path p =
 			   which might not even exist anyway. *)
 			let mt = ctx.g.do_load_module ctx (sl,s) p in
 			let p = { pfile = mt.m_extra.m_file; pmin = 0; pmax = 0} in
-			DisplayException.raise_position [p]
+			DisplayException.raise_positions [p]
 		| (IDKModule(sl,s),_),DMHover ->
 			let m = ctx.g.do_load_module ctx (sl,s) p in
 			begin try

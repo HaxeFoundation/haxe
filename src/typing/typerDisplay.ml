@@ -155,7 +155,7 @@ let display_dollar_type ctx p make_type =
 		let t = TFun(arg,mono) in
 		raise_hover (make_ci_expr (mk (TIdent "trace") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
 	| DMDefinition | DMTypeDefinition ->
-		raise_position []
+		raise_positions []
 	| _ ->
 		error "Unsupported method" p
 	end
@@ -387,7 +387,7 @@ and display_expr ctx e_ast e dk with_type p =
 			[]
 		in
 		let pl = loop e in
-		raise_position pl
+		raise_positions pl
 	| DMTypeDefinition ->
 		raise_position_of_type e.etype
 	| DMDefault when not (!Parser.had_resume)->
@@ -475,7 +475,7 @@ let handle_display ctx e_ast dk with_type =
 			let t = TFun(arg,ret) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
 		| DMDefinition | DMTypeDefinition ->
-			raise_position []
+			raise_positions []
 		| _ ->
 			error "Unsupported method" p
 		end

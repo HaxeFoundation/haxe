@@ -1013,7 +1013,7 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
-	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
+	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin
 			DisplayPosition.display_position#reset;
 			match ctx.com.json_out with
@@ -1074,7 +1074,7 @@ with
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| DisplayException(DisplayPosition pl) ->
+	| DisplayException(DisplayPositions pl) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import,pos) ->
