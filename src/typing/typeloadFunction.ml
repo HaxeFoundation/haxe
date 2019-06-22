@@ -29,6 +29,11 @@ open Common
 open Error
 
 let type_function_arg ctx t e opt p =
+	(* TODO https://github.com/HaxeFoundation/haxe/issues/8461 *)
+	(* delay ctx PTypeField (fun() ->
+		if ExtType.is_void (follow t) then
+			error "Arguments of type Void are not allowed" p
+	); *)
 	if opt then
 		let e = (match e with None -> Some (EConst (Ident "null"),null_pos) | _ -> e) in
 		ctx.t.tnull t, e
