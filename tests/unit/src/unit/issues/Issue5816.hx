@@ -6,8 +6,8 @@ class Issue5816 extends unit.Test {
 	static var value:Int64 = 0;
 
 	function test() {
-		eq((0:Int64), value);
+		t(value == 0);
 		value++;
-		eq((1:Int64), value);
+		t(value == 1);
 	}
 }
