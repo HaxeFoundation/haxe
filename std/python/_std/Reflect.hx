@@ -136,7 +136,8 @@ class Reflect {
 		return true;
 	}
 
-	public static function copy<T>( o : T ) : T {
+	public static function copy<T>( o : Null<T> ) : Null<T> {
+		if(o == null) return null;
 		var o2 : Dynamic = {};
 		for ( f in Reflect.fields(o) )
 			Reflect.setField(o2, f, Reflect.field(o,f));

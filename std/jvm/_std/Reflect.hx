@@ -164,7 +164,7 @@ class Reflect {
 		return (cast o : jvm.DynamicObject)._hx_deleteField(field);
 	}
 
-	public static function copy<T>(o:T):T {
+	public static function copy<T>(o:Null<T>):Null<T> {
 		if (!Jvm.instanceof(o, jvm.DynamicObject)) {
 			return null;
 		}
