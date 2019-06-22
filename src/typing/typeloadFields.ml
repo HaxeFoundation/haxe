@@ -1495,7 +1495,7 @@ let init_class ctx c p context_init herits fields =
 	begin match cctx.uninitialized_final with
 		| Some pf when c.cl_constructor = None ->
 			display_error ctx "This class has uninitialized final vars, which requires a constructor" p;
-			error "Example of an uninitialized final var" pf
+			display_error ctx "Example of an uninitialized final var" pf;
 		| _ ->
 			()
 	end;

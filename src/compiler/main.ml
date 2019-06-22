@@ -467,6 +467,8 @@ and init ctx =
 	let com = ctx.com in
 	let classes = ref [([],"Std")] in
 try
+	set_binary_mode_out stdout true;
+	set_binary_mode_out stderr true;
 	let xml_out = ref None in
 	let json_out = ref None in
 	let swf_header = ref None in
@@ -686,7 +688,7 @@ try
 		(* FIXME: replace with -D define *)
 		("Optimization",["--no-traces"],[], define Define.NoTraces, "","don't compile trace calls in the program");
 		("Batch",["--next"],[], Arg.Unit (fun() -> assert false), "","separate several haxe compilations");
-		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all haxe compilations separated by --next");
+		("Batch",["--each"],[], Arg.Unit (fun() -> assert false), "","append preceding parameters to all Haxe compilations separated by --next");
 		("Services",["--display"],[], Arg.String (fun input ->
 			let input = String.trim input in
 			if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
@@ -932,7 +934,16 @@ try
 			if ctx.has_next || ctx.has_error then raise Abort;
 			(* If we didn't find a completion point, load the display file in macro mode. *)
 			ignore(load_display_module_in_macro true);
-			failwith "No completion point was found";
+			let no_completion_point_found = "No completion point was found" in
+			match com.json_out with
+			| Some _ -> (match ctx.com.display.dms_kind with
+				| DMDefault -> raise (DisplayException(DisplayFields None))
+				| DMSignature -> raise (DisplayException(DisplaySignatures None))
+				| DMHover -> raise (DisplayException(DisplayHover None))
+				| DMDefinition | DMTypeDefinition -> raise_positions []
+				| _ -> failwith no_completion_point_found)
+			| None ->
+				failwith no_completion_point_found;
 		end;
 		let t = Timer.timer ["filters"] in
 		let main, types, modules = run_or_diagnose Finalization.generate tctx in
@@ -1011,7 +1022,7 @@ with
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
 		message ctx (CMInfo(msg,null_pos))
-	| DisplayException(DisplayHover _ | DisplayPosition _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
+	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin
 			DisplayPosition.display_position#reset;
 			match ctx.com.json_out with
@@ -1032,7 +1043,7 @@ with
 	| DisplayException(DisplayPackage pack) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields(fields,cr,_)) ->
+	| DisplayException(DisplayFields Some(fields,cr,_)) ->
 		DisplayPosition.display_position#reset;
 		let fields = if !measure_times then begin
 			Timer.close_times();
@@ -1062,17 +1073,17 @@ with
 				DisplayOutput.print_fields fields
 		in
 		raise (DisplayOutput.Completion s)
-	| DisplayException(DisplayHover ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
+	| DisplayException(DisplayHover Some ({hitem = {CompletionItem.ci_type = Some (t,_)}} as hover)) ->
 		DisplayPosition.display_position#reset;
 		let doc = CompletionItem.get_documentation hover.hitem in
 		raise (DisplayOutput.Completion (DisplayOutput.print_type t hover.hpos doc))
-	| DisplayException(DisplaySignatures(signatures,_,display_arg,_)) ->
+	| DisplayException(DisplaySignatures Some (signatures,_,display_arg,_)) ->
 		DisplayPosition.display_position#reset;
 		if ctx.com.display.dms_kind = DMSignature then
 			raise (DisplayOutput.Completion (DisplayOutput.print_signature signatures display_arg))
 		else
 			raise (DisplayOutput.Completion (DisplayOutput.print_signatures signatures))
-	| DisplayException(DisplayPosition pl) ->
+	| DisplayException(DisplayPositions pl) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (DisplayOutput.print_positions pl))
 	| Parser.TypePath (p,c,is_import,pos) ->

@@ -26,7 +26,6 @@ class Macro {
 
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-macro.hxml"]);
-		runCommand("haxe", ["compile-each.hxml", "--run", "Main"]);
 
 		// changeDirectory(threadsDir);
 		// runCommand("haxe", ["build.hxml", "--interp"]);

@@ -19,9 +19,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 /**
@@ -31,9 +28,22 @@ package js.lib;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView>
 **/
-extern interface ArrayBufferView {
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
-	
+@:forward
+abstract ArrayBufferView(_ArrayBufferView)
+	from Int8Array
+	from Uint8Array
+	from Uint8ClampedArray
+	from Int16Array
+	from Uint16Array
+	from Int32Array
+	from Uint32Array
+	from Float32Array
+	from Float64Array
+	from DataView
+{}
+
+private typedef _ArrayBufferView = {
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 }

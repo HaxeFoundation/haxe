@@ -1,4 +1,4 @@
-2019-06-10: 4.0.0-rc.3
+2019-06-13: 4.0.0-rc.3
 
 	New features:
 
@@ -44,6 +44,7 @@
 	all : fixed `@:allow(package)` allowing too much (#8306)
 	all : fixed various issues with startIndex handling on String.indexOf and String.lastIndexOf
 	all : fixed infinite recursion related to printing of objects with circular references (#8113)
+	sys : fixed various Unicode issues (#8135)
 	macro : fixed Array.pop handling (#8075)
 	macro : fixed assertion failure when throwing exception (#8039)
 	macro : fixed various uncatchable exceptions being thrown

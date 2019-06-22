@@ -2495,7 +2495,10 @@ module Generator = struct
 		let ctx = mk_context com in
 		Codegen.map_source_header com (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
-			spr ctx "from functools import partial as _hx_partial";
+			spr ctx "from functools import partial as _hx_partial\n";
+		spr ctx "import sys\n";
+		spr ctx "if sys.stdout.encoding != 'utf-8':\n    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)\n";
+		spr ctx "if sys.stderr.encoding != 'utf-8':\n    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf8', buffering=1)\n\n";
 		gen_imports ctx;
 		gen_resources ctx;
 		gen_types ctx;

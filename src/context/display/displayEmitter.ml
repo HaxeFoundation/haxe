@@ -144,9 +144,9 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		begin match mt with
 		| TClassDecl c when Meta.has Meta.CoreApi c.cl_meta ->
 			let c' = ctx.g.do_load_core_class ctx c in
-			raise_position [c.cl_name_pos;c'.cl_name_pos]
+			raise_positions [c.cl_name_pos;c'.cl_name_pos]
 		| _ ->
-			raise_position [(t_infos mt).mt_name_pos];
+			raise_positions [(t_infos mt).mt_name_pos];
 		end
 	| DMUsage _ ->
 		let infos = t_infos mt in
@@ -190,7 +190,7 @@ let raise_position_of_type t =
 	let mt =
 		let rec follow_null t =
 			match t with
-				| TMono r -> (match !r with None -> raise_position [null_pos] | Some t -> follow_null t)
+				| TMono r -> (match !r with None -> raise_positions [null_pos] | Some t -> follow_null t)
 				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 				| TDynamic _ -> !t_dynamic_def
@@ -199,12 +199,12 @@ let raise_position_of_type t =
 		try
 			Type.module_type_of_type (follow_null t)
 		with
-			Exit -> raise_position [null_pos]
+			Exit -> raise_positions [null_pos]
 	in
-	raise_position [(t_infos mt).mt_name_pos]
+	raise_positions [(t_infos mt).mt_name_pos]
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [v.v_pos]
+	| DMDefinition -> raise_positions [v.v_pos]
 	| DMTypeDefinition -> raise_position_of_type v.v_type
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,KVar)
 	| DMHover ->
@@ -213,7 +213,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| _ -> ()
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [cf.cf_name_pos]
+	| DMDefinition -> raise_positions [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type cf.cf_type
 	| DMUsage _ ->
 		let name,kind = match cf.cf_name,origin with
@@ -242,7 +242,7 @@ let maybe_display_field ctx origin scope cf p =
 	if display_position#enclosed_in p then display_field ctx origin scope cf p
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_position [ef.ef_name_pos]
+	| DMDefinition -> raise_positions [ef.ef_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ef.ef_type
 	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,KEnumField)
 	| DMHover ->

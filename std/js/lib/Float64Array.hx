@@ -19,25 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 @:native("Float64Array")
-extern class Float64Array implements ArrayBufferView implements ArrayAccess<Float> {
+extern class Float64Array implements ArrayAccess<Float> {
 	static inline var BYTES_PER_ELEMENT : Int = 8;
 	
 	@:pure
 	static function of( items : haxe.extern.Rest<Array<Dynamic>> ) : Float64Array;
 	@:pure
 	static function from( source : Array<Float>, ?mapFn : Float -> Float -> Float, ?thisArg : Dynamic ) : Float64Array;
+
 	@:native("BYTES_PER_ELEMENT")
-	var BYTES_PER_ELEMENT_(default,null) : Int;
-	var length(default,null) : Int;
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
+	final BYTES_PER_ELEMENT_ : Int;
+	final length : Int;
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	@:overload( function( length : Int ) : Void {} )

@@ -471,7 +471,7 @@ module Inheritance = struct
 			try
 				let t = try
 					Typeload.load_instance ~allow_display:true ctx (ct,p) false
-				with DisplayException(DisplayFields(l,CRTypeHint,p)) ->
+				with DisplayException(DisplayFields Some(l,CRTypeHint,p)) ->
 					(* We don't allow `implements` on interfaces. Just raise fields completion with no fields. *)
 					if not is_extends && c.cl_interface then raise_fields [] CRImplements p;
 					let l = List.filter (fun item -> match item.ci_kind with
