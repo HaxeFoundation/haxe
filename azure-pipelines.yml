@@ -64,12 +64,9 @@ stages:
             lua:
               TEST: lua
         steps:
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'linuxBinaries'
@@ -134,11 +131,9 @@ stages:
             lua:
               TEST: lua
         steps:
-          - script: |
-              set -ex
-              brew update
-              brew install neko --HEAD
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: mac
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'macBinaries'
@@ -202,12 +197,9 @@ stages:
             # lua:
             #   TEST: lua
         steps:
-          - powershell: |
-              Set-PSDebug -Trace 1
-              choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-              Set-PSDebug -Trace 0
-              Write-Host "##vso[task.setvariable variable=NEKOPATH]C:/ProgramData/chocolatey/lib/neko"
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: windows
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win64Binaries'
@@ -265,12 +257,9 @@ stages:
             inputs:
               artifactName: 'win32Binaries'
               targetPath: win32Binaries
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - script: |
               set -ex
               tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -349,12 +338,9 @@ stages:
           vmImage: 'ubuntu-16.04'
         steps:
           - checkout: none
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'linuxBinaries'
