@@ -192,4 +192,4 @@ let find_references tctx com with_definition =
 	) usages in
 	t();
 	Display.ReferencePosition.set ("",null_pos,KVar);
-	DisplayException.raise_position usages
+	DisplayException.raise_positions usages
