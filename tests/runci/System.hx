@@ -15,13 +15,13 @@ class System {
 
 
 	static public function successMsg(msg:String):Void {
-		Sys.println('\x1b[32m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[32m' + msg + '\x1b[0m' : msg);
 	}
 	static public function failMsg(msg:String):Void {
-		Sys.println('\x1b[31m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[31m' + msg + '\x1b[0m' : msg);
 	}
 	static public function infoMsg(msg:String):Void {
-		Sys.println('\x1b[36m' + msg + '\x1b[0m');
+		Sys.println(colorSupported ? '\x1b[36m' + msg + '\x1b[0m' : msg);
 	}
 
 	static public function commandSucceed(cmd:String, args:Array<String>):Bool {
@@ -102,6 +102,7 @@ class System {
 	}
 
 	static public function addToPATH(path:String):Void {
+		infoMsg('Prepending $path to PATH.');
 		switch (systemName) {
 			case "Windows":
 				Sys.putEnv("PATH", path + ";" + Sys.getEnv("PATH"));

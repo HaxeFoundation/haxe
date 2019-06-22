@@ -80,6 +80,7 @@ var y = Reflect.copy(x);
 Reflect.field(y, "a") == 2;
 Reflect.field(y, "b") == null;
 Reflect.field(y, "c") == null;
+Reflect.copy(null) == null;
 
 //compare
 Reflect.compare(1,2) < 0;

@@ -20,10 +20,10 @@ type kind =
 	| Statistics of string
 	| ModuleSymbols of string
 	| Metadata of string
-	| DisplaySignatures of ((tsignature * CompletionType.ct_function) * documentation) list * int * int * signature_kind
-	| DisplayHover of hover_result
-	| DisplayPosition of pos list
-	| DisplayFields of CompletionItem.t list * CompletionResultKind.t * pos option (* insert pos *)
+	| DisplaySignatures of (((tsignature * CompletionType.ct_function) * documentation) list * int * int * signature_kind) option
+	| DisplayHover of hover_result option
+	| DisplayPositions of pos list
+	| DisplayFields of (CompletionItem.t list * CompletionResultKind.t * pos option (* insert pos *)) option
 	| DisplayPackage of string list
 
 exception DisplayException of kind
@@ -32,10 +32,10 @@ let raise_diagnostics s = raise (DisplayException(Diagnostics s))
 let raise_statistics s = raise (DisplayException(Statistics s))
 let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
 let raise_metadata s = raise (DisplayException(Metadata s))
-let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures(l,isig,iarg,kind)))
-let raise_hover item expected p = raise (DisplayException(DisplayHover({hitem = item;hpos = p;hexpected = expected})))
-let raise_position pl = raise (DisplayException(DisplayPosition pl))
-let raise_fields ckl cr po = raise (DisplayException(DisplayFields(ckl,cr,po)))
+let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures(Some(l,isig,iarg,kind))))
+let raise_hover item expected p = raise (DisplayException(DisplayHover(Some {hitem = item;hpos = p;hexpected = expected})))
+let raise_positions pl = raise (DisplayException(DisplayPositions pl))
+let raise_fields ckl cr po = raise (DisplayException(DisplayFields(Some(ckl,cr,po))))
 let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
@@ -56,7 +56,9 @@ let to_json ctx de =
 	| Statistics _
 	| ModuleSymbols _
 	| Metadata _ -> assert false
-	| DisplaySignatures(sigs,isig,iarg,kind) ->
+	| DisplaySignatures None ->
+		jnull
+	| DisplaySignatures Some(sigs,isig,iarg,kind) ->
 		(* We always want full info for signatures *)
 		let ctx = Genjson.create_context GMFull in
 		let fsig ((_,signature),doc) =
@@ -74,7 +76,9 @@ let to_json ctx de =
 			"signatures",jlist fsig sigs;
 			"kind",jint sigkind;
 		]
-	| DisplayHover hover ->
+	| DisplayHover None ->
+		jnull
+	| DisplayHover (Some hover) ->
 		let name_source_kind_to_int = function
 			| WithType.FunctionArgument -> 0
 			| WithType.StructureField -> 1
@@ -97,9 +101,11 @@ let to_json ctx de =
 			"item",CompletionItem.to_json ctx hover.hitem;
 			"expected",expected;
 		]
-	| DisplayPosition pl ->
+	| DisplayPositions pl ->
 		jarray (List.map generate_pos_as_location pl)
-	| DisplayFields(fields,kind,po) ->
+	| DisplayFields None ->
+		jnull
+	| DisplayFields Some(fields,kind,po) ->
 		fields_to_json ctx fields kind po
 	| DisplayPackage pack ->
 		jarray (List.map jstring pack)
