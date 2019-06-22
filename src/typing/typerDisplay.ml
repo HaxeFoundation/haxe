@@ -493,7 +493,7 @@ let handle_display ctx e_ast dk with_type =
 			raise err
 		end else
 			raise_toplevel ctx dk with_type (Some p) p
-	| DisplayException(DisplayFields(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+	| DisplayException(DisplayFields Some(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item ->
@@ -587,7 +587,7 @@ let handle_edisplay ctx e dk with_type =
 	| DKPattern outermost,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields(l,CRToplevel _,p)) ->
+		with DisplayException(DisplayFields Some(l,CRToplevel _,p)) ->
 			raise_fields l (CRPattern ((get_expected_type ctx with_type),outermost)) p
 		end
 	| _ -> handle_display ctx e dk with_type
