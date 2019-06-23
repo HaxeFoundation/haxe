@@ -51,6 +51,8 @@ extern class ConstPointer<T>
 
    public static function fromRaw<T>(ptr:RawConstPointer<T>) : ConstPointer<T>;
 
+   @:native("::cpp::Pointer_obj::fromRaw")
+   public static function fromStar<T>(star:Star<T>) : ConstPointer<T>;
 
    public static function fromPointer<T>(inNativePointer:Dynamic) : ConstPointer<T>;
 
