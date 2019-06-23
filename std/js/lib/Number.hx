@@ -24,6 +24,11 @@ package js.lib;
 import js.Syntax;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
+/**
+	The `Number` JavaScript object is a wrapper object allowing you to work with numerical values.
+
+	Documentation [Number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
+ */
 @:forward
 abstract Number(_Number) {
 	// Cast
