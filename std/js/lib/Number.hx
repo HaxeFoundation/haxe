@@ -21,108 +21,292 @@
  */
 package js.lib;
 
+import js.Syntax;
 import js.lib.intl.NumberFormat.NumberFormatOptions;
 
-@:native("Number")
-extern class Number {
-	/**
-		Cast Haxe's Int to js.lib.Number.
-	**/
-	@:pure public static inline function fromInt(value:Int):Number {
-		return cast value;
+@:forward
+abstract Number(_Number) {
+	// Cast
+	@:from static inline function from(x:Float):Number {
+		return _Number.fromFloat(x);
+	}
+	
+	@:to inline function toFloat():Float {
+		return this.toFloat();
 	}
 
-	/**
-		Cast js.lib.Number to Haxe's Int.
-	**/
-	@:pure public inline function toInt():Int {
-		return cast this;
+	@:to inline function toInt():Int {
+		return this.toInt();
 	}
 
-	/**
-		Cast Haxe's Float to js.lib.Number.
-	**/
-	@:pure public static inline function fromFloat(value:Float):Number {
-		return cast value;
+	// Operator overloading : Unary
+	@:op(~A) inline function bitwiseMegation():Number {
+		return ~(this.toInt());
 	}
 
-	/**
-		Cast js.lib.Number to Haxe's Float.
-	**/
-	@:pure public inline function toFloat():Float {
-		return cast this;
+	@:op(-A) inline function minus():Number {
+		return -(this.toFloat());
 	}
 
+	@:op(++A) inline function prefixIncrement():Number {
+		return this.prefixIncrement();
+	}
+
+	@:op(A++) inline function postfixIncrement():Number {
+		return this.postfixIncrement();
+	}
+
+	@:op(--A) inline function prefixDecrement():Number {
+		return this.prefixDecrement();
+	}
+
+	@:op(A--) inline function postfixDecrement():Number {
+		return this.postfixDecrement();
+	}
+
+	// Operator overloading : Arithmetic
+	@:op(A % B) static inline function mod(a:Number, b:Number):Number {
+		return (a:Float) % (b:Float);
+	}
+	@:op(A % B) static inline function modFloat(a:Number, b:Float):Number {
+		return (a:Float) % b;
+	}
+	@:op(A % B) static inline function floatMod(a:Float, b:Number):Number {
+		return a % (b:Float);
+	}
+
+	@:op(A * B) static inline function mul(a:Number, b:Number):Number {
+		return (a:Float) * (b:Float);
+	}
+	@:op(A * B) @:commutative static inline function mulWithFloat(a:Number, b:Float):Number {
+		return (a:Float) * b;
+	}
+
+	@:op(A / B) static inline function div(a:Number, b:Number):Number {
+		return (a:Float) / (b:Float);
+	}
+	@:op(A / B) static inline function divFloat(a:Number, b:Float):Number {
+		return (a:Float) / b;
+	}
+	@:op(A / B) static inline function floatDiv(a:Float, b:Number):Number {
+		return a / (b:Float);
+	}
+
+	@:op(A + B) static inline function add(a:Number, b:Number):Number {
+		return (a:Float) + (b:Float);
+	}
+	@:op(A + B) @:commutative static inline function addWidthFloat(a:Number, b:Float):Number {
+		return (a:Float) + b;
+	}
+
+	@:op(A - B) static inline function sub(a:Number, b:Number):Number {
+		return (a:Float) - (b:Float);
+	}
+	@:op(A - B) static inline function subFloat(a:Number, b:Float):Number {
+		return (a:Float) - b;
+	}
+	@:op(A - B) static inline function floatSub(a:Float, b:Number):Number {
+		return a - (b:Float);
+	}
+
+	// Operator overloading : Bitwise
+	@:op(A << B) static inline function shiftLeft(a:Number, b:Int):Number {
+		return (a:Int) << b;
+	}
+
+	@:op(A >> B) static inline function shiftRight(a:Number, b:Int):Number {
+		return (a:Int) >> b;
+	}
+
+	@:op(A >>> B) static inline function unsignedShiftRight(a:Number, b:Int):Number {
+		return (a:Int) >>> b;
+	}
+
+	@:op(A & B) static inline function and(a:Number, b:Number):Number {
+		return (a:Int) & (b:Int);
+	}
+	@:op(A & B) static inline function andWithInt(a:Number, b:Int):Number {
+		return (a:Int) & b;
+	}
+
+	@:op(A | B) static inline function or(a:Number, b:Number):Number {
+		return (a:Int) | (b:Int);
+	}
+	@:op(A | B) static inline function orWithInt(a:Number, b:Int):Number {
+		return (a:Int) | b;
+	}
+
+	@:op(A ^ B) static inline function xor(a:Number, b:Number):Number {
+		return (a:Int) ^ (b:Int);
+	}
+	@:op(A ^ B) static inline function xorWithInt(a:Number, b:Int):Number {
+		return (a:Int) ^ b;
+	}
+
+	// Operator overloading : Comparison
+	@:op(A == B) @:commutative static inline function eqWithFloat(a:Number, b:Float):Bool {
+		return (a:Float) == b;
+	}
+
+	@:op(A != B) @:commutative static inline function neqWithFloat(a:Number, b:Float):Bool {
+		return (a:Float) != b;
+	}
+
+	@:op(A < B) static inline function ltFloat(a:Number, b:Float):Bool {
+		return (a:Float) < b;
+	}
+	@:op(A < B) static inline function floatLt(a:Float, b:Number):Bool {
+		return a < (b:Float);
+	}
+
+	@:op(A <= B) static inline function lteFloat(a:Number, b:Float) {
+		return (a:Float) <= b;
+	}
+	@:op(A <= B) static inline function floatLte(a:Float, b:Number) {
+		return a <= (b:Float);
+	}
+
+	@:op(A > B) static inline function gtFloat(a:Number, b:Float):Bool {
+		return (a:Float) > b;
+	}
+	@:op(A > B) static inline function floatGt(a:Float, b:Number):Bool {
+		return a > (b:Float);
+	}
+
+	@:op(A >= B) static inline function gteFloat(a:Number, b:Float) {
+		return (a:Float) >= b;
+	}
+	@:op(A >= B) static inline function floatGte(a:Float, b:Number) {
+		return a >= (b:Float);
+	}
+
+	// Static
 	/**
 		The smallest interval between two representable numbers.
 	**/
-	static final EPSILON:Float;
+	public static var EPSILON(get, never):Float;
+	inline static function get_EPSILON() return _Number.EPSILON;
 
 	/**
 		The maximum safe integer in JavaScript `(2^53 - 1)`.
 	**/
-	static final MAX_SAFE_INTEGER:Int;
+	public static var MAX_SAFE_INTEGER(get, never):Int;
+	inline static function get_MAX_SAFE_INTEGER() return _Number.MAX_SAFE_INTEGER;
 
 	/**
 		The largest positive representable number.
 	**/
-	static final MAX_VALUE:Float;
+	public static var MAX_VALUE(get, never):Float;
+	inline static function get_MAX_VALUE() return _Number.MAX_VALUE;
 
 	/**
 		The minimum safe integer in JavaScript `(-(2^53 - 1))`.
 	**/
-	static final MIN_SAFE_INTEGER:Int;
+	public static var MIN_SAFE_INTEGER(get, never):Int;
+	inline static function get_MIN_SAFE_INTEGER() return _Number.MIN_SAFE_INTEGER;
 
 	/**
 		The smallest positive representable number - that is, the positive number closest to zero (without actually being zero).
 	**/
-	static final MIN_VALUE:Float;
+	public static var MIN_VALUE(get, never):Float;
+	inline static function get_MIN_VALUE() return _Number.MIN_VALUE;
 
 	/**
 		Special "not a number" value.
 	**/
-	static final NaN:Float;
+	public static var NaN(get, never):Float;
+	inline static function get_NaN() return _Number.NaN;
 
 	/**
 		Special value representing negative infinity; returned on overflow.
 	**/
-	static final NEGATIVE_INFINITY:Float;
+	public static var NEGATIVE_INFINITY(get, never):Float;
+	inline static function get_NEGATIVE_INFINITY() return _Number.NEGATIVE_INFINITY;
 
 	/**
 		Special value representing infinity; returned on overflow.
 	**/
-	static final POSITIVE_INFINITY:Float;
+	public static var POSITIVE_INFINITY(get, never):Float;
+	inline static function get_POSITIVE_INFINITY() return _Number.POSITIVE_INFINITY;
 
 	/**
 		Determine whether the passed value is NaN.
 	**/
-	@:pure static function isNaN(value:Any):Bool;
+	public static inline function isNaN(value:Any):Bool return _Number.isNaN(value);
 
 	/**
 		Determine whether the passed value is a finite number.
 	**/
-	@:pure static function isFinite(value:Any):Bool;
+	public static inline function isFinite(value:Any):Bool return _Number.isFinite(value);
 
 	/**
 		Determine whether the passed value is an integer.
 	**/
-	@:pure static function isInteger(value:Any):Bool;
+	public static inline function isInteger(value:Any):Bool return _Number.isInteger(value);
 
 	/**
 		Determine whether the passed value is a safe integer (number between `-(2^53 - 1)` and `(2^53 - 1)`.
 	**/
-	@:pure static function isSafeInteger(testValue:Any):Bool;
+	public static inline function isSafeInteger(testValue:Any):Bool return _Number.isSafeInteger(testValue);
 
 	/**
 		The value is the same as `parseFloat()` of the global object.
 	**/
-	@:pure static function parseFloat(string:String):Float;
+	public static inline function parseFloat(string:String):Float return _Number.parseFloat(string);
 
 	/**
 		The value is the same as `parseInt()` of the global object. 
 	**/
-	static function parseInt(string:String, ?radix:Int):Int;
+	public static inline function parseInt(string:String, ?radix:Int):Int return _Number.parseInt(string, radix);
+}
 
+@:native("Number")
+private extern class _Number {
+	static inline function fromFloat(value:Float):Number {
+		return cast value;
+	}
+
+	inline function toFloat():Float {
+		return cast this;
+	}
+
+	inline function toInt():Int {
+		return cast this;
+	}
+
+	inline function prefixIncrement():Number {
+		return Syntax.code("++{0}", this);
+	}
+
+	inline function postfixIncrement():Number {
+		return Syntax.code("{0}++", this);
+	}
+
+	inline function prefixDecrement():Number {
+		return Syntax.code("--{0}", this);
+	}
+
+	inline function postfixDecrement():Number {
+		return Syntax.code("{0}--", this);
+	}
+
+	static final EPSILON:Float;
+	static final MAX_SAFE_INTEGER:Int;
+	static final MAX_VALUE:Float;
+	static final MIN_SAFE_INTEGER:Int;
+	static final MIN_VALUE:Float;
+	static final NaN:Float;
+	static final NEGATIVE_INFINITY:Float;
+	static final POSITIVE_INFINITY:Float;
+
+	@:pure static function isNaN(value:Any):Bool;
+	@:pure static function isFinite(value:Any):Bool;
+	@:pure static function isInteger(value:Any):Bool;
+	@:pure static function isSafeInteger(testValue:Any):Bool;
+	@:pure static function parseFloat(string:String):Float;
+	@:pure static function parseInt(string:String, ?radix:Int):Int;
+
+	@:selfCall
 	@:pure function new(value:Any):Void;
 
 	/**
