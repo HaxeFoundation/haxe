@@ -245,18 +245,22 @@ stages:
             inputs:
               artifactName: 'linuxBinaries'
               targetPath: linuxBinaries
+            displayName: Download linuxBinaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'macBinaries'
               targetPath: macBinaries
+            displayName: Download macBinaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win64Binaries'
               targetPath: win64Binaries
+            displayName: Download win64Binaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win32Binaries'
               targetPath: win32Binaries
+            displayName: Download win32Binaries
           - template: extra/azure-pipelines/install-neko-snapshot.yaml
             parameters:
               platform: linux64
@@ -351,6 +355,7 @@ stages:
             inputs:
               artifactName: 'linuxBinaries'
               targetPath: linuxBinaries
+            displayName: Download linuxBinaries
           - script: |
               set -ex
               tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -364,6 +369,7 @@ stages:
             inputs:
               artifactName: 'xmldoc'
               targetPath: xmldoc
+            displayName: Download xmldoc
           - script: |
               set -ex
               LOCAL="`pwd`/extra/api.haxe.org"
