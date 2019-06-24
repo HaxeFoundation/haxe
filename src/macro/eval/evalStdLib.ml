@@ -2561,11 +2561,11 @@ module StdSys = struct
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
 		match com.main_class with
-		| None -> assert false
+		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
 			| Some(Type.TInst (c, _)) -> create_unknown (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
-			| _ -> assert false
+			| _ -> vnull
 	)
 
 	let putEnv = vfun2 (fun s v ->
