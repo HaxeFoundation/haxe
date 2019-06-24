@@ -14,9 +14,10 @@ let make_static_call ctx c cf a pl args t p =
 				let e,f = push_this ctx e in
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e (WithType.with_type (apply_params a.a_params pl a.a_this))
+					| Some e -> type_expr ctx e WithType.value
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
+				unify ctx e.etype (apply_params a.a_params pl a.a_this) p;
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
 				e
