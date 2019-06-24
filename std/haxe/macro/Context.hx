@@ -69,6 +69,32 @@ class Context {
 	}
 
 	/**
+		Gets a list of all current compilation warnings as they would be
+		displayed by the compiler.
+	**/
+	public static function getWarnings() : Array<String> {
+		return load("get_warnings",0)();
+	}
+
+	/**
+		Prevents all current warnings from being displayed by the compiler.
+	**/
+	public static function clearWarnings() {
+		load("clear_warnings",0)();
+	}
+
+	/**
+		Filters all current warnings. Warnings filtered out will not be
+		displayed by the compiler.
+
+		`predicate` will be called with each warning as a `String` representing
+		the warning as it would be displayed by the compiler.
+	**/
+	public static function filterWarnings( predicate : String -> Bool ) {
+		load("filter_warnings",1)(predicate);
+	}
+
+	/**
 		Resolves a file name `file` based on the current class paths.
 
 		The resolution follows the usual class path rules where the last

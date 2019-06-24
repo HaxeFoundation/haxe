@@ -1502,6 +1502,18 @@ let macro_api ccom get_api =
 			(ccom()).info msg p;
 			vnull
 		);
+		"get_warnings", vfun0 (fun() ->
+			encode_array (List.map encode_string ((ccom()).get_warnings()));
+		);
+		"clear_warnings", vfun0 (fun() ->
+			(ccom()).clear_warnings();
+			vnull
+		);
+		"filter_warnings", vfun1 (fun predicate ->
+			let predicate = prepare_callback predicate 1 in
+			((ccom()).filter_warnings (fun w -> (decode_bool (predicate [(encode_string w)]))));
+			vnull
+		);
 		"class_path", vfun0 (fun() ->
 			encode_array (List.map encode_string (ccom()).class_path);
 		);
