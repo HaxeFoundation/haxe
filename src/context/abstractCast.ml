@@ -15,8 +15,7 @@ let make_static_call ctx c cf a pl args t p =
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
 				let expected_type = apply_params a.a_params pl a.a_this in
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e WithType.value
-					 (* (WithType.with_type expected_type) *)
+					| Some e -> type_expr ctx e (WithType.with_type expected_type)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				unify ctx e.etype expected_type p;
