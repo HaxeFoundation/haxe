@@ -496,7 +496,7 @@ let unescape s =
 				| 'r' -> Buffer.add_char b '\r'
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
-				| '0'..'3' ->
+				| '0'..'1' ->
 					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
 					Buffer.add_char b c;
 					inext := !inext + 2;
