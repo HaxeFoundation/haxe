@@ -2095,8 +2095,11 @@ and type_array_decl ctx el with_type p =
 			unify_min_raise ctx.com.basic el
 		with Error (Unify l,p) ->
 			if ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then t_dynamic else begin
-				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
-				raise (Error (Unify l, p))
+				(* display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p; *)
+				raise (Error (
+						Stack (Custom "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>", Unify l),
+						p
+					))
 			end
 		in
 		mk (TArrayDecl el) (ctx.t.tarray t) p

@@ -75,10 +75,18 @@ let limit_string s offset =
 	in
 	String.concat "" (loop 0 words)
 
-let error ctx msg p =
-	let msg = try List.assoc msg deprecated with Not_found -> msg in
-	message ctx (CMError(msg,p));
-	ctx.has_error <- true
+let rec error ctx msg p =
+	match ctx.com.pending_messages with
+	| Some add -> add (fun() -> error ctx msg p)
+	| None ->
+		let msg = try List.assoc msg deprecated with Not_found -> msg in
+		message ctx (CMError(msg,p));
+		ctx.has_error <- true
+
+let rec warning ctx msg p =
+	match ctx.com.pending_messages with
+	| Some add -> add (fun() -> warning ctx msg p)
+	| None -> message ctx (CMWarning(msg,p))
 
 let reserved_flags = [
 	"cross";"js";"lua";"neko";"flash";"php";"cpp";"cs";"java";"python";
@@ -487,7 +495,7 @@ try
 	Common.raw_define com "haxe4";
 	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
-	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
+	com.warning <- warning ctx;
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
@@ -820,7 +828,7 @@ try
 			if com.display.dms_error_policy = EPCollect then
 				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
 			else
-				(fun msg p -> message ctx (CMWarning(msg,p)));
+				warning ctx;
 		com.error <- error ctx;
 	end;
 	Lexer.old_format := Common.defined com Define.OldErrorFormat;
