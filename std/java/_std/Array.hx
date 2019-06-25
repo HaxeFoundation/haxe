@@ -36,6 +36,7 @@ import java.NativeArray;
 	private var __a:NativeArray<T>;
 
 	@:skipReflection static var __hx_toString_depth = 0;
+	@:skipReflection static inline final __hx_defaultCapacity = 4;
 
 	@:functionCode('
 			return new Array<X>(_native);
@@ -143,7 +144,7 @@ import java.NativeArray;
 		var length = length;
 		if (length >= __a.length)
 		{
-			var newLen = (length << 1) + 1;
+			var newLen = length == 0 ? __hx_defaultCapacity : (length << 1);
 			var newarr = new NativeArray(newLen);
 			System.arraycopy(__a, 0, newarr, 0, __a.length);
 
