@@ -56,6 +56,9 @@ import java.Boot;
 
 	public static function getProperty( o : Dynamic, field : String ) : Dynamic
 	{
+		if (o == null || field == null) {
+			return null;
+		}
 		if (Std.is(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, true);
 		}

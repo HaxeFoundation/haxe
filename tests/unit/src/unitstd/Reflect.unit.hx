@@ -37,8 +37,8 @@ Reflect.getProperty(c, "v") == "var";
 Reflect.getProperty(c, "prop") == "prop";
 Reflect.getProperty(c, "func")() == "foo";
 Reflect.getProperty(c, "propAcc") == "1";
-//Reflect.getProperty(null, "a") == null;
-//Reflect.getProperty(null, null) == null;
+Reflect.getProperty(null, "a") == null;
+Reflect.getProperty(null, null) == null;
 
 // setProperty
 Reflect.setProperty(x, "a", 2);
