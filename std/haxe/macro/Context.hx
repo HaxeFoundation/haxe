@@ -72,7 +72,7 @@ class Context {
 		Gets a list of all current compilation warnings as they would be
 		displayed by the compiler.
 	**/
-	public static function getWarnings() : Array<String> {
+	public static function getWarnings() : Array<{ message : String, pos : Position }> {
 		return load("get_warnings",0)();
 	}
 
@@ -90,7 +90,7 @@ class Context {
 		`predicate` will be called with each warning as a `String` representing
 		the warning as it would be displayed by the compiler.
 	**/
-	public static function filterWarnings( predicate : String -> Bool ) {
+	public static function filterWarnings( predicate : String -> Position -> Bool ) {
 		load("filter_warnings",1)(predicate);
 	}
 
