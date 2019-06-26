@@ -487,6 +487,7 @@ try
 	Common.raw_define com "haxe4";
 	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
