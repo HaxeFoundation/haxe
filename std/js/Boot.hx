@@ -57,7 +57,7 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	static function getClass(o:Null<Dynamic>) : Null<Dynamic> {
+	@:pure static function getClass(o:Null<Dynamic>) : Null<Dynamic> {
 		if (o == null) {
 			return null;
 		} else if (Std.is(o, Array)) {
@@ -160,7 +160,7 @@ class Boot {
 		}
 	}
 
-	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
+	@:pure private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
 		if( cc == null )
 			return false;
 		if( cc == cl )
