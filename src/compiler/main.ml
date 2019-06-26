@@ -489,16 +489,16 @@ try
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
-	let filter_warnings = (fun keep_other predicate -> (List.filter (fun msg -> (
+	let filter_warnings = (fun keep_other predicate -> (List.filter (fun msg ->
 		(match msg with
 		| CMError(_,_) | CMInfo(_,_) -> keep_other;
 		| CMWarning(str,p) -> (predicate str p);)
-	)) (List.rev ctx.messages))) in
-	com.get_warnings <- (fun () -> (List.map (fun msg -> (
+	) (List.rev ctx.messages))) in
+	com.get_warnings <- (fun () -> (List.map (fun msg ->
 		(match msg with
 		| CMError(_,_) | CMInfo(_,_) -> assert false;
 		| CMWarning(str,p) -> str, p;)
-	)) (filter_warnings false (fun _ _ -> true))));
+	) (filter_warnings false (fun _ _ -> true))));
 	com.clear_warnings <- (fun () -> (ctx.messages <- (List.rev (filter_warnings true (fun _ _ -> false)))));
 	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (filter_warnings true predicate))));
 	com.error <- error ctx;
