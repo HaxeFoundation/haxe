@@ -180,9 +180,9 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
-	mutable get_warnings : unit -> string list;
+	mutable get_warnings : unit -> (string * pos) list;
 	mutable clear_warnings : unit -> unit;
-	mutable filter_warnings : (string -> bool) -> unit;
+	mutable filter_warnings : (string -> pos -> bool) -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;

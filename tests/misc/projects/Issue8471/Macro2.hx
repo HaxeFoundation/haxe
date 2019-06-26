@@ -14,9 +14,10 @@ class Macro2 {
 		Context.warning("3", Context.currentPos());
 
 		var warnings = Context.getWarnings();
-		var order = Lambda.fold(warnings, (w, acc) -> w.length == 11 ? acc + w.charAt(10) : acc, "");
-		Context.filterWarnings(function(w) {
-			if (w.length == 11) order += w.charAt(10);
+		var order = Lambda.fold(warnings, (w, acc) -> w.message.length == 1 ? acc + w.message.charAt(0) : acc, "");
+
+		Context.filterWarnings(function(w, _) {
+			if (w.length == 1) order += w.charAt(0);
 			return true;
 		});
 

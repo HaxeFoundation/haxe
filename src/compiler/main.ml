@@ -489,9 +489,18 @@ try
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
-	com.get_warnings <- (fun () -> (List.map compiler_message_string (List.rev ctx.messages)));
-	com.clear_warnings <- (fun () -> (ctx.messages <- []));
-	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (List.filter (fun msg -> (predicate (compiler_message_string msg))) (List.rev ctx.messages)))));
+	let filter_warnings = (fun predicate -> (List.filter (fun msg -> (
+		(match msg with
+		| CMError(_,_) | CMInfo(_,_) -> true;
+		| CMWarning(str,p) -> (predicate str p);)
+	)) (List.rev ctx.messages))) in
+	com.get_warnings <- (fun () -> (List.map (fun msg -> (
+		(match msg with
+		| CMError(_,_) | CMInfo(_,_) -> assert false;
+		| CMWarning(str,p) -> str, p;)
+	)) (filter_warnings (fun _ _ -> true))));
+	com.clear_warnings <- (fun () -> (ctx.messages <- (List.rev (filter_warnings (fun _ _ -> false)))));
+	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (filter_warnings predicate))));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();

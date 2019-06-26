@@ -19,6 +19,6 @@ class Macro {
 	static function afterGenerate() {
 		var nbWarnings = Context.getWarnings().length;
 		Context.warning('There were $nbWarnings warning(s) on after generate', Context.currentPos());
-		Context.filterWarnings(w -> w != "Warning : This warning will disappear too");
+		Context.filterWarnings((w, _) -> w != "This warning will disappear too");
 	}
 }
