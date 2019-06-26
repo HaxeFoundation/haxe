@@ -198,11 +198,6 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
-let is_reference_type t =
-	match Abstract.follow_with_abstracts t with
-	| TAbstract _ -> false
-	| _ -> true
-
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -309,7 +304,7 @@ struct
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							if is_reference_type obj.etype then
+							if not (is_java_basic_type obj.etype) then
 								try
 									Type.unify obj.etype (type_of_module_type md);
 									mk_is false obj md
