@@ -500,7 +500,7 @@ try
 		| CMWarning(str,p) -> str, p;)
 	)) (filter_warnings false (fun _ _ -> true))));
 	com.clear_warnings <- (fun () -> (ctx.messages <- (List.rev (filter_warnings true (fun _ _ -> false)))));
-	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (filter_warnings false predicate))));
+	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (filter_warnings true predicate))));
 	com.error <- error ctx;
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
