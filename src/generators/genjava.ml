@@ -198,6 +198,10 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
+let is_reference_type t =
+	match Abstract.follow_with_abstracts t with
+	| TAbstract _ -> false
+	| _ -> true
 
 (* ******************************************* *)
 (* JavaSpecificESynf *)
@@ -305,7 +309,12 @@ struct
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							mk_is false obj md
+							if is_reference_type obj.etype then
+								try
+									Type.unify obj.etype (type_of_module_type md);
+									mk_is false obj md
+								with Unify_error _ -> e
+							else e
 					)
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
