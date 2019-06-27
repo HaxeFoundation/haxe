@@ -489,19 +489,18 @@ try
 	Common.define_value com Define.Dce "std";
 	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
-	let filter_warnings = (fun keep_other predicate -> (List.filter (fun msg ->
-		(match msg with
-		| CMError(_,_) | CMInfo(_,_) -> keep_other;
-		| CMWarning(str,p) -> (predicate str p);)
-	) (List.rev ctx.messages))) in
-	com.get_warnings <- (fun () -> (List.map (fun msg ->
-		(match msg with
-		| CMError(_,_) | CMInfo(_,_) -> assert false;
-		| CMWarning(str,p) -> str, p;)
-	) (filter_warnings false (fun _ _ -> true))));
-	com.clear_warnings <- (fun () -> (ctx.messages <- (List.rev (filter_warnings true (fun _ _ -> false)))));
-	com.filter_warnings <- (fun predicate -> (ctx.messages <- (List.rev (filter_warnings true predicate))));
 	com.error <- error ctx;
+	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+		(match msg with
+		| CMError(_,_) -> keep_errors;
+		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+	) (List.rev ctx.messages))) in
+	com.get_messages <- (fun () -> (List.map (fun msg ->
+		(match msg with
+		| CMError(_,_) -> assert false;
+		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+	) (filter_messages false (fun _ -> true))));
+	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;

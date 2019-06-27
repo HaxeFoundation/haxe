@@ -13,11 +13,20 @@ class Macro2 {
 		Context.warning("2", Context.currentPos());
 		Context.warning("3", Context.currentPos());
 
-		var warnings = Context.getWarnings();
-		var order = Lambda.fold(warnings, (w, acc) -> w.message.length == 1 ? acc + w.message.charAt(0) : acc, "");
+		var messages = Context.getMessages();
+		var order = Lambda.fold(messages, (msg, acc) -> switch msg {
+			case Warning(w, _) if (w.length == 1): acc + w;
+			case Info(_, _): acc + 'i';
+			case _: acc;
+		}, "") + "|";
 
-		Context.filterWarnings(function(w, _) {
-			if (w.length == 1) order += w.charAt(0);
+		Context.filterMessages(function(msg) {
+			switch msg {
+				case Warning(w, _) if (w.length == 1): order += w;
+				case Info(_, _): order += 'i';
+				case _:
+			}
+
 			return true;
 		});
 

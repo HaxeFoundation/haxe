@@ -9,16 +9,19 @@ class Macro {
 	}
 
 	static function afterTyping(_) {
-		var nbWarnings = Context.getWarnings().length;
-		Context.clearWarnings();
-		Context.warning('There were $nbWarnings warning(s) on after typing', Context.currentPos());
+		var nbMessages = Context.getMessages().length;
+		Context.filterMessages(_ -> false);
+		Context.warning('There were $nbMessages messages on after typing', Context.currentPos());
 		Context.warning("This warning will not disappear", Context.currentPos());
 		Context.warning("This warning will disappear too", Context.currentPos());
 	}
 
 	static function afterGenerate() {
-		var nbWarnings = Context.getWarnings().length;
-		Context.warning('There were $nbWarnings warning(s) on after generate', Context.currentPos());
-		Context.filterWarnings((w, _) -> w != "This warning will disappear too");
+		var nbMessages = Context.getMessages().length;
+		Context.warning('There were $nbMessages messages on after generate', Context.currentPos());
+		Context.filterMessages(msg -> switch msg {
+			case Warning(w, _): w != "This warning will disappear too";
+			case Info(_, _): true;
+		});
 	}
 }
