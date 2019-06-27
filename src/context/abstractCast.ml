@@ -19,6 +19,7 @@ let make_static_call ctx c cf a pl args t p =
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
 				unify ctx e.etype expected_type p;
+				let e = { e with etype = t } in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
 				e
