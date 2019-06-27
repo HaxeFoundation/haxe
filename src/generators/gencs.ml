@@ -2789,6 +2789,18 @@ let generate con =
 				| TClassDecl cl ->
 					if not cl.cl_extern then begin
 						(if requires_root then write w "using haxe.root;\n"; newline w;);
+						(if (Meta.has Meta.CsUsing cl.cl_meta) then
+							match (Meta.get Meta.CsUsing cl.cl_meta) with
+								| _,[],p ->
+									gen.gcon.error "One or several string constants expected" p
+								| _,e,_ ->
+									(List.iter (fun e ->
+										match e with
+										| (EConst(String s)),_-> write w (Printf.sprintf "using %s;\n" s)
+										| _,p -> gen.gcon.error "One or several string constants expected" p
+									) e);
+									newline w
+						);
 						gen_class w cl;
 						newline w;
 						newline w
