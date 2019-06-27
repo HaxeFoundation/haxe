@@ -296,12 +296,11 @@ let rec type_ident_raise ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
+		if mode = MSet then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
 		| MSet, KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
-			| Method MethInline -> ()
-			| Method _ when ctx.curfield.cf_name = "_new" -> ()
-			| _ -> error "Abstract 'this' value can only be modified inside an inline function" p);
+			if not (assign_to_this_is_allowed ctx) then
+				error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
 		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
