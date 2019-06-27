@@ -15,7 +15,9 @@ class Java {
 	}
 
 	static public function run(args:Array<String>) {
+		deleteDirectoryRecursively("bin/java");
 		getJavaDependencies();
+
 		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
@@ -34,7 +36,9 @@ class Java {
 
 		infoMsg("Testing java-lib extras");
 		changeDirectory('$unitDir/bin');
-		runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
+		if (!FileSystem.exists('java-lib-tests')) {
+			runCommand("git", ["clone", "https://github.com/waneck/java-lib-tests.git", "--depth", "1"], true);
+		}
 		for (dir in FileSystem.readDirectory('java-lib-tests'))
 		{
 			var path = 'java-lib-tests/$dir';
