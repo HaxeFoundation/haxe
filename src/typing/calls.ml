@@ -740,19 +740,21 @@ let array_access ctx e1 e2 mode p =
 		| _ -> raise Not_found)
 	with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
-		let rec loop et =
-			match follow et with
-			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
+		let rec loop ?(skip_abstract=false) et =
+			match skip_abstract,follow et with
+			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
 				apply_params pl tl t
-			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
+			| _, TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
 				apply_params pl tl (loop (TInst (c,stl)))
-			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
+			| _, TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
-			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
+			| _, TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
 				t_dynamic
-			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
-				loop (apply_params a.a_params tl a.a_this)
-			| _ ->
+			| false, TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
+				let at = apply_params a.a_params tl a.a_this in
+				let skip_abstract = fast_eq et at in
+				loop ~skip_abstract at
+			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p

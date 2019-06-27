@@ -29,7 +29,7 @@ import js.Boot;
 	}
 
 	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S @:privateAccess {
-		return js.Syntax.instanceof(value, c) || Boot.__implements(value, c) ? cast value : null;
+		return if (js.Boot.__downcastCheck(value, c)) cast value else null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
