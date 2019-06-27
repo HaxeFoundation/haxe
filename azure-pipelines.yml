@@ -309,9 +309,9 @@ stages:
               # so let's use web redirection to keep the original file name.
               [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
               [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-              aws s3api put-object --acl public-read --website-redirect-location "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}" --bucket "$HXBUILDS_S3BUCKET" --key "${HXBUILDS_S3PATH}/haxe/windows64-choco/haxe_latest.nupkg"
+              aws s3 cp $(HXBUILDS_S3ADDR)/haxe/windows64-choco/${FILE_NAME} $(HXBUILDS_S3ADDR)/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
               [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-              aws s3api put-object --acl public-read --website-redirect-location "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}" --bucket "$HXBUILDS_S3BUCKET" --key "${HXBUILDS_S3PATH}/haxe/windows-choco/haxe_latest.nupkg"
+              aws s3 cp $(HXBUILDS_S3ADDR)/haxe/windows-choco/${FILE_NAME}   $(HXBUILDS_S3ADDR)/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
             env:
               AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
               AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
