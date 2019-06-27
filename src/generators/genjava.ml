@@ -198,7 +198,6 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
-
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -305,7 +304,12 @@ struct
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							mk_is false obj md
+							if not (is_java_basic_type obj.etype) then
+								try
+									Type.unify obj.etype (type_of_module_type md);
+									mk_is false obj md
+								with Unify_error _ -> e
+							else e
 					)
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e

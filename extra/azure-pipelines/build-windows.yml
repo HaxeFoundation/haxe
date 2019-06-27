@@ -29,13 +29,9 @@ jobs:
           choco install --no-progress nsis.portable --version 3.02 -y
           choco install --no-progress curl wget 7zip.portable -y
         displayName: Install dependencies
-      - powershell: |
-          Set-PSDebug -Trace 1
-          choco install --no-progress neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-          neko -version
-          Set-PSDebug -Trace 0
-          Write-Host "##vso[task.setvariable variable=NEKOPATH]C:/ProgramData/chocolatey/lib/neko"
-        displayName: Install Neko
+      - template: install-neko-snapshot.yaml
+        parameters:
+          platform: windows
       - powershell: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $(CYGWIN_SETUP)

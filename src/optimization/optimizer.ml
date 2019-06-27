@@ -316,6 +316,7 @@ let rec make_constant_expression ctx ?(concat_strings=false) e =
 	let e = reduce_loop ctx e in
 	match e.eexpr with
 	| TConst _ -> Some e
+	| TField({eexpr = TTypeExpr _},FEnum _) -> Some e
 	| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod|OpShl|OpShr|OpUShr|OpOr|OpAnd|OpXor) as op,e1,e2) -> (match make_constant_expression ctx e1,make_constant_expression ctx e2 with
 		| Some ({eexpr = TConst (TString s1)}), Some ({eexpr = TConst (TString s2)}) when concat_strings ->
 			Some (mk (TConst (TString (s1 ^ s2))) ctx.com.basic.tstring (punion e1.epos e2.epos))
