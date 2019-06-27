@@ -18,8 +18,12 @@ let make_static_call ctx c cf a pl args t p =
 					| Some e -> type_expr ctx e (WithType.with_type expected_type)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				unify ctx e.etype expected_type p;
-				let e = { e with etype = t } in
+				let rec is_mono t = match t with
+					| TMono r -> (match !r with None -> true | Some t -> is_mono t)
+					| _ -> false
+				in
+				if not (is_mono e.etype) then
+					unify ctx e.etype expected_type p;
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
 				e
