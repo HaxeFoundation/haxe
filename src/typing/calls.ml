@@ -28,16 +28,6 @@ let make_call ctx e params t ?(force_inline=false) p =
 			| _ ->
 				raise Exit
 		in
-		(match cl, ctx.curclass.cl_kind, params with
-			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
-				if
-					has_meta Meta.This v_meta
-					&& not (assign_to_this_is_allowed ctx)
-					&& has_class_field_flag f CfModifiesThis
-				then
-					error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
-			| _ -> ()
-		);
 		if not force_inline then begin
 			if f.cf_kind <> Method MethInline then raise Exit;
 		end else begin
@@ -67,6 +57,16 @@ let make_call ctx e params t ?(force_inline=false) p =
 				None
 		in
 		ignore(follow f.cf_type); (* force evaluation *)
+		(match cl, ctx.curclass.cl_kind, params with
+			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
+				if
+					has_meta Meta.This v_meta
+					&& not (assign_to_this_is_allowed ctx)
+					&& has_class_field_flag f CfModifiesThis
+				then
+					error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
+			| _ -> ()
+		);
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr_unoptimized,f.cf_expr with
