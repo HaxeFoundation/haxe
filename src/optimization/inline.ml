@@ -106,20 +106,25 @@ let api_inline2 com c field params p =
 	| _ ->
 		None
 
-let api_inline ctx c field params p = match c.cl_path, field, params with
-	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
-		let tstring = ctx.com.basic.tstring in
-		let tbool = ctx.com.basic.tbool in
-		let tint = ctx.com.basic.tint in
+let api_inline ctx c field params p =
+	let mk_typeexpr path =
+		let m = (try Hashtbl.find ctx.g.modules path with Not_found -> assert false) in
+		add_dependency ctx.m.curmod m;
+		ExtList.List.find_map (function
+			| TClassDecl cl when cl.cl_path = path -> Some (make_static_this cl p)
+			| _ -> None
+		) m.m_types
+	in
 
-		let esyntax () =
-			let m = (try Hashtbl.find ctx.g.modules (["js"],"Syntax") with Not_found -> assert false) in
-			add_dependency ctx.m.curmod m;
-			ExtList.List.find_map (function
-				| TClassDecl ({ cl_path = ["js"],"Syntax" } as cl) -> Some (make_static_this cl p)
-				| _ -> None
-			) m.m_types
-		in
+	let eJsSyntax () = mk_typeexpr (["js"],"Syntax") in
+	let eJsBoot () = mk_typeexpr (["js"],"Boot") in
+
+	let tstring = ctx.com.basic.tstring in
+	let tbool = ctx.com.basic.tbool in
+	let tint = ctx.com.basic.tint in
+
+	match c.cl_path, field, params with
+	| ([],"Std"),"is",[o;t] | (["js"],"Boot"),"__instanceof",[o;t] when ctx.com.platform = Js ->
 		let is_trivial e =
 			match e.eexpr with
 			| TConst _ | TLocal _ -> true
@@ -127,7 +132,7 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		in
 
 		let typeof t =
-			let tof = Texpr.Builder.fcall (esyntax()) "typeof" [o] tstring p in
+			let tof = Texpr.Builder.fcall (eJsSyntax()) "typeof" [o] tstring p in
 			mk (TBinop (Ast.OpEq, tof, (mk (TConst (TString t)) tstring p))) tbool p
 		in
 
@@ -139,19 +144,27 @@ let api_inline ctx c field params p = match c.cl_path, field, params with
 		| TTypeExpr (TAbstractDecl ({ a_path = [],"Int" })) when is_trivial o ->
 			(* generate typeof(o) == "number" && (o|0) === o check *)
 			let lhs = mk (TBinop (Ast.OpOr, o, mk (TConst (TInt Int32.zero)) tint p)) tint p in
-			let jscheck = Texpr.Builder.fcall (esyntax()) "strictEq" [lhs;o] tbool p in
+			let jscheck = Texpr.Builder.fcall (eJsSyntax()) "strictEq" [lhs;o] tbool p in
 			Some(mk (TBinop (Ast.OpBoolAnd, typeof "number", jscheck)) tbool p)
 		| TTypeExpr (TClassDecl ({ cl_path = [],"Array" })) ->
 			(* generate (o instanceof Array) && o.__enum__ == null check *)
-			let iof = Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p in
+			let iof = Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p in
 			let enum = mk (TField (o, FDynamic "__enum__")) (mk_mono()) p in
 			let null = mk (TConst TNull) (mk_mono()) p in
 			let not_enum = mk (TBinop (Ast.OpEq, enum, null)) tbool p in
 			Some (mk (TBinop (Ast.OpBoolAnd, iof, not_enum)) tbool p)
-		| TTypeExpr (TClassDecl cls) when not cls.cl_interface ->
-			Some (Texpr.Builder.fcall (esyntax()) "instanceof" [o;t] tbool p)
+		| TTypeExpr (TClassDecl cls) ->
+			if cls.cl_interface then
+				Some (Texpr.Builder.fcall (eJsBoot()) "__implements" [o;t] tbool p)
+			else
+				Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 		| _ ->
 			None)
+	| (["js"],"Boot"),"__downcastCheck",[o; {eexpr = TTypeExpr (TClassDecl cls) } as t] when ctx.com.platform = Js ->
+		if cls.cl_interface then
+			Some (Texpr.Builder.fcall (make_static_this c p) "__implements" [o;t] tbool p)
+		else
+			Some (Texpr.Builder.fcall (eJsSyntax()) "instanceof" [o;t] tbool p)
 	| (["cs" | "java"],"Lib"),("nativeArray"),[{ eexpr = TArrayDecl args } as edecl; _]
 	| (["haxe";"ds";"_Vector"],"Vector_Impl_"),("fromArrayCopy"),[{ eexpr = TArrayDecl args } as edecl] -> (try
 			let platf = match ctx.com.platform with

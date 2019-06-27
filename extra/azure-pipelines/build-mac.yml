@@ -17,17 +17,9 @@ jobs:
           brew update
           brew bundle --file=tests/Brewfile --no-upgrade
         displayName: Install dependencies
-      - script: |
-          set -ex
-          mkdir $HOME/neko
-          pushd $HOME/neko
-          git clone --recursive https://github.com/HaxeFoundation/neko.git .
-          cmake . -DSTATIC_DEPS=all -G Ninja
-          ninja download_static_deps || ninja download_static_deps || ninja download_static_deps
-          ninja -j 4
-          sudo ninja install
-          popd
-        displayName: Install Neko
+      - template: install-neko-snapshot.yaml
+        parameters:
+          platform: mac
       - script: |
           set -ex
           opam init

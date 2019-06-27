@@ -631,7 +631,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"stackalloc"; "static"; "string"; "struct"; "switch"; "this"; "throw"; "true"; "try"; "typeof"; "uint"; "ulong";
 		"unchecked"; "unsafe"; "ushort"; "using"; "virtual"; "volatile"; "void"; "while"; "add"; "ascending"; "by"; "descending";
 		"dynamic"; "equals"; "from"; "get"; "global"; "group"; "into"; "join"; "let"; "on"; "orderby"; "partial";
-		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"];
+		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"; "await"];
 	res
 
 let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
