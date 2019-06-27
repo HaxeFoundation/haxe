@@ -191,11 +191,13 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				(e,opt) :: loop el args
 			with
 				WithTypeError (ul,p)->
-					if opt then
+					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						arg_error ul name false p
+						match List.rev !skipped with
+						| [] -> arg_error ul name opt p
+						| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in

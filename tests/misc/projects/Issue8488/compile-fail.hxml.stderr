@@ -1,0 +1,4 @@
+Main.hx:5: characters 40-41 : Unknown identifier : _
+Main.hx:5: characters 40-41 : For function argument 'v'
+Main.hx:5: characters 45-48 : String should be Int
+Main.hx:5: characters 45-48 : For optional function argument 'a'
