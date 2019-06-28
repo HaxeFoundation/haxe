@@ -28,14 +28,18 @@ extern class Bytearray implements ArrayAccess<Int> {
 
 	public var length(get,never):Int;
 
+	@:overload(function ():Void {})
 	@:overload(function (it:Array<Int>):Void {})
 	@:overload(function (it:NativeIterable<Int>):Void {})
 	@:overload(function (size:Int):Void {})
 	public function new (source:String,encoding:String,?errors:Dynamic):Void;
 
-	inline function get_length ():Int {
+	private inline function get_length ():Int {
 		return python.internal.UBuiltins.len(this);
 	}
+
+	function append(x:Int):Void;
+	function extend(t:Bytearray):Void;
 
 	public inline function get(i:Int):Int {
 		return Syntax.arrayAccess(this, i);
