@@ -141,6 +141,7 @@ let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun
 let pass_name = function
 	| PBuildModule -> "build-module"
 	| PBuildClass -> "build-class"
+	| PConnectField -> "connect-field"
 	| PTypeField -> "type-field"
 	| PCheckConstraint -> "check-constraint"
 	| PForce -> "force"
