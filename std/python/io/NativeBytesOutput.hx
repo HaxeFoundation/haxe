@@ -47,4 +47,8 @@ class NativeBytesOutput extends NativeOutput<RawIOBase>{
 	{
 		stream.write(new Bytearray([c]));
 	}
+
+	override function writeBytes( s : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+		return stream.write(python.Syntax.code("{0}[{1}:{2}]", s.getData(), pos, pos + len));
+	}
 }
