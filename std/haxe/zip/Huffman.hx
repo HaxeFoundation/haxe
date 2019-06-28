@@ -21,10 +21,12 @@
  */
 package haxe.zip;
 
+import haxe.ds.Vector;
+
 enum Huffman {
 	Found( i : Int );
 	NeedBit( left : Huffman, right : Huffman );
-	NeedBits( n : Int, table : Array<Huffman> );
+	NeedBits( n : Int, table : Vector<Huffman> );
 }
 
 class HuffTools {
@@ -53,14 +55,14 @@ class HuffTools {
 			default: throw "assert";
 			}
 		var size = 1 << d;
-		var table = new Array();
+		var table = new Vector(size);
 		for( i in 0...size )
-			table.push(Found(-1));
+			table[i] = Found(-1);
 		treeWalk(table,0,0,d,t);
 		return NeedBits(d,table);
 	}
 
-	function treeWalk(table,p,cd,d,t) {
+	function treeWalk(table:Vector<Huffman>,p,cd,d,t) {
 		switch( t ) {
 		case NeedBit(a,b):
 			if( d > 0 ) {
@@ -84,12 +86,12 @@ class HuffTools {
 	}
 
 	public function make(lengths,pos,nlengths,maxbits) {
-		var counts = new Array();
-		var tmp = new Array();
 		if( maxbits > 32 ) throw "Invalid huffman";
+		var counts = new Vector(maxbits);
+		var tmp = new Vector(maxbits);
 		for( i in 0...maxbits ) {
-			counts.push(0);
-			tmp.push(0);
+			counts[i] = 0;
+			tmp[i] = 0;
 		}
 		for( i in 0...nlengths ) {
 			var p = lengths[i+pos];
