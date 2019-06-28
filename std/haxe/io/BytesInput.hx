@@ -100,6 +100,10 @@ class BytesInput extends Input {
 			return untyped b[pos++];
 			#elseif java
 			return untyped b[pos++] & 0xFF;
+			#elseif python // dodge https://github.com/HaxeFoundation/haxe/issues/5080
+			var b = b[pos];
+			pos++;
+			return b;
 			#else
 			return b[pos++];
 			#end
