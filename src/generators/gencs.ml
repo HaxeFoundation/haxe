@@ -158,18 +158,24 @@ let get_overloads_for_optional_args gen cl cf is_static =
 	| [],Method (MethNormal | MethDynamic | MethInline) ->
 		(match cf.cf_expr, follow cf.cf_type with
 		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
+			let type_params = List.map snd cl.cl_params in
 			let rec collect_overloads tf_args_rev args_rev default_values_rev =
 				match tf_args_rev, args_rev with
 				| (_, Some default_value) :: rest_tf_args_rev, _ :: rest_args_rev ->
 					let field_expr =
-						if is_static then
-							make_static_field cl cf cf.cf_pos
-						else begin
-							let this_expr =
-								mk (TConst TThis) (type_of_module_type (TClassDecl cl)) cf.cf_pos
+						let cl_type = TInst (cl,type_params) in
+						if cf.cf_name = "new" then
+							mk (TConst TThis) cl_type cf.cf_pos
+						else if is_static then
+							let class_expr =
+								mk (TTypeExpr (TClassDecl cl)) cl_type cf.cf_pos
 							in
-							mk_field_access gen this_expr cf.cf_name cf.cf_pos
-						end
+							mk (TField (class_expr, FStatic(cl,cf))) cf.cf_type cf.cf_pos
+						else
+							let this_expr =
+								mk (TConst TThis) cl_type cf.cf_pos
+							in
+							mk (TField (this_expr, FInstance(cl,type_params,cf))) cf.cf_type cf.cf_pos
 					in
 					let default_values_rev = default_values_rev @ [default_value] in
 					let args_exprs =
@@ -2206,7 +2212,8 @@ let generate con =
 					let overloads =
 						match cf.cf_overloads with
 						| [] when is_overload -> []
-						| [] -> get_overloads_for_optional_args gen cl cf is_static
+						| [] when has_meta Meta.NativeGen cl.cl_meta ->
+							get_overloads_for_optional_args gen cl cf is_static
 						| overloads -> overloads
 					in
 					List.iter (fun cf ->
@@ -2293,6 +2300,14 @@ let generate con =
 													None, el
 										in
 										match expr.eexpr with
+											(* auto-generated ctor overloading for optional args (see get_overloads_for_optional_args) *)
+											| TBlock([{ eexpr = TCall ({ eexpr = TConst TThis }, args) } as this_call]) ->
+												write w ": ";
+												let t = Timer.timer ["expression to string"] in
+												expr_s false w this_call;
+												write w " ";
+												t();
+												write w "{}"
 											| TBlock(bl) ->
 												let super_call, rest = get_super_call bl in
 												(match super_call with

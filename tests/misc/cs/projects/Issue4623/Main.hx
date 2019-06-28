@@ -1,3 +1,4 @@
+@:nativeGen
 class Main {
 	static var voidResult:String;
 
@@ -33,5 +34,26 @@ class Main {
 		if(expected != result) {
 			throw 'Invalid result of test(4). Expected: $expected. Got: $result';
 		}
+
+		var n:CtorTest = untyped __cs__('new global::CtorTest(20);') ;
+		if(n.a != 20 || n.b != 'hello') {
+			throw 'Invalid result of new CtorTest(20)';
+		}
+
+		var n:CtorTest = untyped __cs__('new global::CtorTest();') ;
+		if(n.a != 10 || n.b != 'hello') {
+			throw 'Invalid result of new CtorTest()';
+		}
+	}
+}
+
+@:nativeGen
+class CtorTest {
+	public var a:Int;
+	public var b:String;
+
+	public function new(a:Int = 10, b:String = 'hello') {
+		this.a = a;
+		this.b = b;
 	}
 }
