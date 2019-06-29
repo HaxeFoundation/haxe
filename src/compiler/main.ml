@@ -589,7 +589,7 @@ try
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			message ctx (CMInfo(s_version true,null_pos));
+			com.info (s_version true) null_pos;
 			did_something := true;
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
@@ -1022,7 +1022,7 @@ with
 	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
-		message ctx (CMInfo(msg,null_pos))
+		com.info msg null_pos
 	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin
 			DisplayPosition.display_position#reset;
