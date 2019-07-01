@@ -518,7 +518,7 @@ class inline_state ctx ethis params cf f p = object(self)
 					| TBlock el -> List.iter add el
 					| _ -> add e
 				end;
-				mk (TBlock (DynArray.to_list el)) e.etype e.epos
+				mk (TBlock (DynArray.to_list el)) tret e.epos
 		in
 		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
