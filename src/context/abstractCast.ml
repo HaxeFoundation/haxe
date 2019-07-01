@@ -18,15 +18,19 @@ let make_static_call ctx c cf a pl args t p =
 					| Some e -> type_expr ctx e (WithType.with_type expected_type)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				let rec is_mono t = match t with
-					| TMono r -> (match !r with None -> true | Some t -> is_mono t)
-					| _ -> false
+				let need_cast =
+					try
+						type_eq EqBothDynamic e.etype t;
+						false
+					with
+						Unify_error _ -> true
 				in
-				if not (is_mono e.etype) then
+				if need_cast then
 					unify ctx e.etype expected_type p;
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
-				e
+				if need_cast then mk (TCast(e,None)) t e.epos
+				else e
 			| _ -> assert false
 	end else
 		make_static_call ctx c cf (apply_params a.a_params pl) args t p
