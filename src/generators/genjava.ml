@@ -198,7 +198,6 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
-
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -305,7 +304,12 @@ struct
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							mk_is false obj md
+							if not (is_java_basic_type obj.etype) then
+								try
+									Type.unify obj.etype (type_of_module_type md);
+									mk_is false obj md
+								with Unify_error _ -> e
+							else e
 					)
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
@@ -412,7 +416,7 @@ struct
 		and modify it to:
 		{
 			var execute_def = true;
-			switch(str.hashCode())
+			switch(str == null ? 0 : str.hashCode())
 			{
 				case (hashcode of a):
 					if (str == "a")
@@ -454,12 +458,20 @@ struct
 
 		let hash_cache = ref None in
 
-		let local_hashcode = ref { local with
+		let call_hashcode = { local with
 			eexpr = TCall({ local with
 				eexpr = TField(local, FDynamic "hashCode");
 				etype = TFun([], basic.tint);
 			}, []);
 			etype = basic.tint
+		}
+		and is_null_check = mk (TBinop (OpEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
+		let local_hashcode = ref { call_hashcode with
+			eexpr = TIf (
+				is_null_check,
+				mk (TConst (TInt (Int32.of_int 0))) basic.tint local.epos,
+				Some call_hashcode
+			)
 		} in
 
 		let get_hash_cache () =

@@ -290,6 +290,8 @@ class TestUnicode extends utest.Test {
 #end
 	}
 
+	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
+	#if (travis || appveyor || azure)
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
@@ -304,7 +306,7 @@ class TestUnicode extends utest.Test {
 
 		// stdin.readUntil
 		UnicodeSequences.normalBoth(str -> {
-				// make sure the 0x70 byte is not part of the test string 
+				// make sure the 0x70 byte is not part of the test string
 				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, str + endLine);
 			});
 
@@ -334,7 +336,7 @@ class TestUnicode extends utest.Test {
 
 		// args
 		#if !cs // C# behaves like Windows here
-		if (#if (java || eval || hl) Sys.systemName() != "Windows" #else true #end) {
+		if (#if (java || eval || hl || cpp) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
@@ -342,6 +344,7 @@ class TestUnicode extends utest.Test {
 		}
 		#end
 	}
+	#end
 
 	function testIO() {
 		// getBytes

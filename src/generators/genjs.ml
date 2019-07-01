@@ -49,7 +49,7 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	has_resolveClass : bool;
-	has_instanceof : bool;
+	has_interface_check : bool;
 	es_version : int;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -1113,7 +1113,7 @@ let generate_class_es3 ctx c =
 	generate_class___name__ ctx c;
 	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1268,7 +1268,7 @@ let generate_class_es6 ctx c =
 	generate_class___name__ ctx c;
 	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1294,7 +1294,7 @@ let generate_class_es6 ctx c =
 
 	(match c.cl_super with
 	| Some (csup,_) ->
-		if ctx.has_instanceof || has_feature ctx "Type.getSuperClass" then begin
+		if ctx.has_interface_check || has_feature ctx "Type.getSuperClass" then begin
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx
@@ -1471,7 +1471,7 @@ let generate_require ctx path meta =
 
 let need_to_generate_interface ctx cl_iface =
 	ctx.has_resolveClass (* generate so we can resolve it for whatever reason *)
-	|| ctx.has_instanceof (* generate because we need __interfaces__ for run-time type checks *)
+	|| ctx.has_interface_check (* generate because we need __interfaces__ for run-time type checks *)
 	|| is_directly_used ctx.com cl_iface.cl_meta (* generate because it's just directly accessed in code *)
 
 let generate_type ctx = function
@@ -1529,7 +1529,7 @@ let alloc_ctx com es_version =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		has_resolveClass = Common.has_feature com "Type.resolveClass";
-		has_instanceof = Common.has_feature com "js.Boot.__instanceof";
+		has_interface_check = Common.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
 		statics = [];
 		inits = [];

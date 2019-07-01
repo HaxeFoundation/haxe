@@ -482,6 +482,9 @@ and gen_call ctx e el r =
 		spr ctx ")";
 	| TIdent "__unprotect__", [e] ->
 		gen_value ctx e
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		spr ctx (type_str ctx t e.epos);
 	| TIdent "__vector__", [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";

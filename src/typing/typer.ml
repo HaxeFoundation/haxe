@@ -296,12 +296,11 @@ let rec type_ident_raise ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
+		if mode = MSet then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
 		| MSet, KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
-			| Method MethInline -> ()
-			| Method _ when ctx.curfield.cf_name = "_new" -> ()
-			| _ -> error "Abstract 'this' value can only be modified inside an inline function" p);
+			if not (assign_to_this_is_allowed ctx) then
+				error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
 		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
@@ -1458,6 +1457,14 @@ and type_vars ctx vl p =
 				check_error ctx e p;
 				add_local ctx VGenerated v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
+	delay ctx PTypeField (fun() ->
+		List.iter
+			(fun (v,_) ->
+				if ExtType.is_void (follow v.v_type) then
+					error "Variables of type Void are not allowed" v.v_pos
+			)
+			vl
+	);
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p
@@ -2102,6 +2109,7 @@ and type_array_decl ctx el with_type p =
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (mk_mono()) p in
 	let et = ref (EConst(Ident "null"),p) in
+	let comprehension_pos = p in
 	let rec map_compr (e,p) =
 		match e with
 		| EFor(it,e2) -> (EFor (it, map_compr e2),p)
@@ -2114,10 +2122,10 @@ and type_array_comprehension ctx e with_type p =
 			end
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
-			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
+			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 		| _ ->
-			et := (EArrayDecl [],p);
+			et := (EArrayDecl [],comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in

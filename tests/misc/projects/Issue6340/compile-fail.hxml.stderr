@@ -1,0 +1,1 @@
+Main.hx:11: characters 3-11 : Abstract 'this' value can only be modified inside an inline function. 'set_argb' modifies 'this'

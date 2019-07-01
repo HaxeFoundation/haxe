@@ -10,14 +10,17 @@ using StringTools;
 
 class Js {
 	static public function getJSDependencies() {
-		switch (systemName) {
-			case "Linux":
+		switch [ci, systemName] {
+			case [_, "Linux"]:
 				if (commandSucceed("node", ["-v"])) {
 					infoMsg('node has already been installed.');
 				} else {
 					Linux.requireAptPackages(["nodejs"]);
 				}
-			case "Mac":
+			case [AzurePipelines, "Mac"]:
+				runCommand("brew", ["install", "node@10"], true);
+				runCommand("brew", ["link", "--overwrite", "--force", "node@10"]);
+			case _:
 				//pass
 		}
 
@@ -64,21 +67,26 @@ class Js {
 			env.exists("SAUCE_USERNAME") &&
 			env.exists("SAUCE_ACCESS_KEY")
 		) {
-			// sauce-connect should have been started
+			var sc = switch (ci) {
+				case AzurePipelines:
+					var scVersion = "sc-4.5.3-linux";
+					runCommand("wget", ["-q", 'https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
+					runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
 
-			// var scVersion = "sc-4.3-linux";
-			// runCommand("wget", ['https://saucelabs.com/downloads/${scVersion}.tar.gz'], true);
-			// runCommand("tar", ["-xf", '${scVersion}.tar.gz']);
-
-			// //start sauce-connect
-			// var scReadyFile = "sauce-connect-ready-" + Std.random(100);
-			// var sc = new Process('${scVersion}/bin/sc', [
-			// 	"-i", Sys.getEnv("TRAVIS_JOB_NUMBER"),
-			// 	"-f", scReadyFile
-			// ]);
-			// while(!FileSystem.exists(scReadyFile)) {
-			// 	Sys.sleep(0.5);
-			// }
+					//start sauce-connect
+					var scReadyFile = "sauce-connect-ready-" + Std.random(100);
+					var p = new Process('${scVersion}/bin/sc', [
+						"-i", Sys.getEnv("SAUCE_TUNNEL_ID"),
+						"-f", scReadyFile
+					]);
+					while(!FileSystem.exists(scReadyFile)) {
+						Sys.sleep(0.5);
+					}
+					p;
+				case _:
+					// sauce-connect should have been started
+					null;
+			}
 
 			changeDirectory(unitDir);
 			runCommand("npm", ["install", "wd", "q"], true);
@@ -87,7 +95,9 @@ class Js {
 			runCommand("node", ["bin/RunSauceLabs.js"].concat([for (js in jsOutputs) "unit-js.html?js=" + js.urlEncode()]));
 
 			server.close();
-			// sc.close();
+
+			if (sc != null)
+				sc.close();
 		}
 
 		infoMsg("Test optimization:");

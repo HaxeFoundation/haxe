@@ -58,10 +58,12 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	static function getClass(o:Dynamic):Dynamic {
-		if (Std.is(o, Array))
+	@:pure static function getClass(o:Null<Dynamic>) : Null<Dynamic> {
+		if (o == null) {
+			return null;
+		} else if (Std.is(o, Array)) {
 			return Array;
-		else {
+		} else {
 			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);
 			if (cl != null)
 				return cl;
@@ -158,8 +160,8 @@ class Boot {
 		}
 	}
 
-	private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
-		if (cc == null)
+	@:pure private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
+		if( cc == null )
 			return false;
 		if (cc == cl)
 			return true;
@@ -177,33 +179,28 @@ class Boot {
 	@:ifFeature("typed_catch") @:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		if (cl == null)
 			return false;
-		switch (cl) {
-			case Int:
-				return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
-			case Float:
-				return js.Syntax.typeof(o) == "number";
-			case Bool:
-				return js.Syntax.typeof(o) == "boolean";
-			case String:
-				return js.Syntax.typeof(o) == "string";
-			case Array:
-				return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
-			case Dynamic:
-				return o != null;
-			default:
-				if (o != null) {
-					// Check if o is an instance of a Haxe class or a native JS object
-					if (js.Syntax.typeof(cl) == "function") {
-						if (js.Syntax.instanceof(o, cl))
-							return true;
-						if (__interfLoop(getClass(o), cl))
-							return true;
-					} else if (js.Syntax.typeof(cl) == "object" && __isNativeObj(cl)) {
-						if (js.Syntax.instanceof(o, cl))
-							return true;
-					}
-				} else {
-					return false;
+		switch( cl ) {
+		case Int:
+			return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
+		case Float:
+			return js.Syntax.typeof(o) == "number";
+		case Bool:
+			return js.Syntax.typeof(o) == "boolean";
+		case String:
+			return js.Syntax.typeof(o) == "string";
+		case Array:
+			return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
+		case Dynamic:
+			return o != null;
+		default:
+			if( o != null ) {
+				// Check if o is an instance of a Haxe class or a native JS object
+				if( js.Syntax.typeof(cl) == "function" ) {
+					if (__downcastCheck(o, cl))
+						return true;
+				} else if ( js.Syntax.typeof(cl) == "object" && __isNativeObj(cl) ) {
+					if( js.Syntax.instanceof(o, cl) )
+						return true;
 				}
 				// do not use isClass/isEnum here
 				untyped __feature__("Class.*", if (cl == Class && o.__name__ != null) return true);
@@ -216,8 +213,12 @@ class Boot {
 		}
 	}
 
-	static inline function __implements(o:Dynamic, t:Class<Dynamic>):Bool {
-		return o != null && isInterface(t) && __interfLoop(getClass(o), t);
+	static function __downcastCheck(o : Dynamic, cl : Class<Dynamic>) : Bool {
+		return js.Syntax.instanceof(o, cl) || (isInterface(cl) && inline __implements(o, cl));
+	}
+
+	static function __implements(o : Dynamic, iface : Class<Dynamic>) : Bool {
+		return __interfLoop(getClass(o), iface);
 	}
 
 	@:ifFeature("typed_cast") private static function __cast(o:Dynamic, t:Dynamic) {

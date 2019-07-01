@@ -62,6 +62,13 @@ class Context {
 	}
 
 	/**
+		Displays a compilation info `msg` at the given `Position` `pos`.
+	**/
+	public static function info( msg : String, pos : Position ) {
+		load("info",2)(msg, pos);
+	}
+
+	/**
 		Resolves a file name `file` based on the current class paths.
 
 		The resolution follows the usual class path rules where the last

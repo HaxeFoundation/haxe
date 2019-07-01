@@ -1518,6 +1518,9 @@ and gen_call ctx retval e el r =
 			| 2l -> A3OSign16
 			| _ -> assert false
 		))
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		gen_type ctx (type_id ctx t)
 	| TIdent "__vector__", [ep] ->
 		gen_type ctx (type_id ctx r);
 		write ctx HGetGlobalScope;

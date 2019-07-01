@@ -90,9 +90,9 @@ package hl;
 		return 0;
 	}
 
-	#if (hl_ver >= version("1.10"))
-	@:hlNative("std", "bytes_compare16")
-	public function compare16(bytes:Bytes, size:Int):Int {
+	#if (hl_ver >= version("1.10.0"))
+	@:hlNative("std","bytes_compare16")
+	public function compare16( bytes : Bytes, size : Int ) : Int {
 		return 0;
 	}
 	#end

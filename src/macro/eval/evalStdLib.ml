@@ -1813,6 +1813,7 @@ module StdReflect = struct
 	)
 
 	let copy = vfun1 (fun o -> match vresolve o with
+		| VNull -> VNull
 		| VObject o -> VObject { o with ofields = Array.copy o.ofields }
 		| VInstance vi -> vinstance {
 			ifields = Array.copy vi.ifields;
@@ -1864,11 +1865,15 @@ module StdReflect = struct
 	)
 
 	let getProperty = vfun2 (fun o name ->
-		let name = decode_vstring name in
-		let name_get = hash (concat r_get_ name).sstring in
-		let vget = field o name_get in
-		if vget <> VNull then call_value_on o vget []
-		else dynamic_field o (hash name.sstring)
+		if o = VNull then
+			vnull
+		else begin
+			let name = decode_vstring name in
+			let name_get = hash (concat r_get_ name).sstring in
+			let vget = field o name_get in
+			if vget <> VNull then call_value_on o vget []
+			else dynamic_field o (hash name.sstring)
+		end
 	)
 
 	let hasField = vfun2 (fun o field ->
@@ -2560,11 +2565,11 @@ module StdSys = struct
 		let ctx = get_ctx() in
 		let com = ctx.curapi.get_com() in
 		match com.main_class with
-		| None -> assert false
+		| None -> vnull
 		| Some p ->
 			match ctx.curapi.get_type (s_type_path p) with
 			| Some(Type.TInst (c, _)) -> create_unknown (Extc.get_full_path c.Type.cl_pos.Globals.pfile)
-			| _ -> assert false
+			| _ -> vnull
 	)
 
 	let putEnv = vfun2 (fun s v ->

@@ -1319,9 +1319,9 @@ module TexprConverter = struct
 				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
 				SKEnum,RunTimeFinite
 			| TAnon _ ->
-				SKValue,CompileTimeFinite
+				SKValue,Infinite
 			| TInst(_,_) ->
-				SKValue,CompileTimeFinite
+				SKValue,Infinite
 			| _ ->
 				SKValue,Infinite
 		in

@@ -19,16 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-// This file is generated from typedarray.webidl. Do not edit!
-
 package js.lib;
 
 @:native("DataView")
-extern class DataView implements ArrayBufferView {
-	var buffer(default,null) : ArrayBuffer;
-	var byteOffset(default,null) : Int;
-	var byteLength(default,null) : Int;
+extern class DataView {
+	final buffer : ArrayBuffer;
+	final byteOffset : Int;
+	final byteLength : Int;
 	
 	/** @throws DOMError */
 	function new( buffer : ArrayBuffer, ?byteOffset : Int, ?byteLength : Int ) : Void;

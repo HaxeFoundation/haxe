@@ -314,7 +314,7 @@
 		"devcomment": "this used to have UsedOn TObjectDecl(_)",
 		"name": "Fixed",
 		"metadata": ":fixed",
-		"doc": "Delcares an anonymous object to have fixed fields"
+		"doc": "Declares an anonymous object to have fixed fields"
 	},
 	{
 		"name": "FlashProperty",
