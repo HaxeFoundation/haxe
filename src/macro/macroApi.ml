@@ -1514,7 +1514,6 @@ let macro_api ccom get_api =
 		);
 		"get_messages", vfun0 (fun() ->
 			encode_array (List.map (fun msg -> encode_message msg) ((ccom()).get_messages()));
-			vnull
 		);
 		"filter_messages", vfun1 (fun predicate ->
 			let predicate = prepare_callback predicate 2 in
