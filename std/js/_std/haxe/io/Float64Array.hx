@@ -31,9 +31,6 @@ abstract Float64Array(Float64ArrayData) {
 	public var length(get, never):Int;
 	public var view(get, never):ArrayBufferView;
 
-	public var length(get, never):Int;
-	public var view(get, never):ArrayBufferView;
-
 	public inline function new(elements:Int):Void {
 		this = new Float64ArrayData(elements);
 	}
