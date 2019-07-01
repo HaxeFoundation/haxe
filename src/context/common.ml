@@ -178,6 +178,7 @@ type context = {
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
+	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
@@ -448,6 +449,7 @@ let create version s_version args =
 			values = defines;
 		};
 		get_macros = (fun() -> None);
+		info = (fun _ _ -> assert false);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
 		pass_debug_messages = DynArray.create();
