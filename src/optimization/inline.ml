@@ -403,7 +403,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
 					| TConst TNull , Some c -> c
-					| _ , Some c when not ctx.com.config.pf_static || is_nullable v.v_type ->
+					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not ctx.com.config.pf_static || is_nullable v.v_type) ->
 						l.i_force_temp <- true;
 						l.i_default_value <- Some c;
 						e
