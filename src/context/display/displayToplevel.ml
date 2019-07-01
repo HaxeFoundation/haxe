@@ -253,7 +253,7 @@ let collect ctx tk with_type =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
+			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) && ctx.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
