@@ -70,7 +70,7 @@ let completion_item_of_expr ctx e =
 			in
 			of_field e origin cf CFSMember make_ci_class_field
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
-		| TField(e1,FAnon cf) ->
+		| TField(e1,(FAnon cf | FClosure(None,cf))) ->
 			begin match follow e1.etype with
 				| TAnon an ->
 					let origin = match e1.etype with
