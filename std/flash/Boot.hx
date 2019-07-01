@@ -299,103 +299,52 @@ class Boot extends flash.display.MovieClip {
 						ret.push(__this__[i]);
 					i++;
 				}
-				String.prototype.keyValueIterator = function():StringKeyValueIterator {
-					var s:String = __this__;
-					return new StringKeyValueIterator(s);
+				return ret;
+			};
+			aproto.mapHX = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					ret.push(f(__this__[i]));
+					i++;
 				}
-				var aproto = Array.prototype;
-				aproto.copy = function() {
-					return __this__.slice();
-				};
-				aproto.insert = function(i, x) {
-					__this__.splice(i, 0, x);
-				};
-				aproto.remove = function(obj) {
-					var idx = __this__.indexOf(obj);
-					if (idx == -1)
-						return false;
-					#if flash19
-					__this__.removeAt(idx);
-					#else
-					__this__.splice(idx, 1);
-					#end
-					return true;
+				return ret;
+			};
+			aproto.setPropertyIsEnumerable("mapHX", false);
+			aproto.setPropertyIsEnumerable("filterHX", false);
+			String.prototype.charCodeAtHX = function(i):Null<Int> {
+			#else
+			aproto["filter"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					if (f(__this__[i]))
+						ret.push(__this__[i]);
+					i++;
 				}
-				aproto.iterator = function() {
-					var cur = 0;
-					var arr:Array<Dynamic> = __this__;
-					return {
-						hasNext: function() {
-							return cur < arr.length;
-						},
-						next: function() {
-							return arr[cur++];
-						}
-					}
-				};
-				aproto.resize = function(len) {
-					__this__.length = len;
-				};
-				aproto.setPropertyIsEnumerable("copy", false);
-				aproto.setPropertyIsEnumerable("insert", false);
-				aproto.setPropertyIsEnumerable("remove", false);
-				aproto.setPropertyIsEnumerable("iterator", false);
-				aproto.setPropertyIsEnumerable("resize", false);
-				#if (as3 || no_flash_override)
-				aproto.filterHX = function(f) {
-					var ret = [];
-					var i = 0;
-					var l = __this__.length;
-					while (i < l) {
-						if (f(__this__[i]))
-							ret.push(__this__[i]);
-						i++;
-					}
-					return ret;
-				};
-				aproto.mapHX = function(f) {
-					var ret = [];
-					var i = 0;
-					var l = __this__.length;
-					while (i < l) {
-						ret.push(f(__this__[i]));
-						i++;
-					}
-					return ret;
-				};
-				aproto.setPropertyIsEnumerable("mapHX", false);
-				aproto.setPropertyIsEnumerable("filterHX", false);
-				String.prototype.charCodeAtHX = function(i):Null<Int> {
-				#else
-				aproto["filter"] = function(f) {
-					var ret = [];
-					var i = 0;
-					var l = __this__.length;
-					while (i < l) {
-						if (f(__this__[i]))
-							ret.push(__this__[i]);
-						i++;
-					}
-					return ret;
-				};
-				aproto["map"] = function(f) {
-					var ret = [];
-					var i = 0;
-					var l = __this__.length;
-					while (i < l) {
-						ret.push(f(__this__[i]));
-						i++;
-					}
-					return ret;
-				};
-				aproto.setPropertyIsEnumerable("map", false);
-				aproto.setPropertyIsEnumerable("filter", false);
-				String.prototype.charCodeAt = function(i):Null<Int> {
-				#end
+				return ret;
+			};
+			aproto["map"] = function(f) {
+				var ret = [];
+				var i = 0;
+				var l = __this__.length;
+				while (i < l) {
+					ret.push(f(__this__[i]));
+					i++;
+				}
+				return ret;
+			};
+			aproto.setPropertyIsEnumerable("map", false);
+			aproto.setPropertyIsEnumerable("filter", false);
+			String.prototype.charCodeAt = function(i):Null<Int> {
+			#end
 				var s:String = __this__;
 				var x:Float = s.cca(i);
 				if (__global__["isNaN"](x))
 					return null;
 				return Std.int(x);
 			};
-			}}
+	}
+}
