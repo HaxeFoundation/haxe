@@ -89,6 +89,26 @@ class Reflect {
 		return untyped __global__.__hxcpp_same_closure(f1, f2);
 	}
 
+	public static function isObject(v:Dynamic):Bool
+		untyped {
+			if (v == null)
+				return false;
+			var t:Int = v.__GetType();
+			return t == ObjectType.vtObject || t == ObjectType.vtClass || t == ObjectType.vtString || t == ObjectType.vtArray;
+		}
+
+	public static function isEnumValue(v:Dynamic):Bool
+		untyped {
+			return v != null && v.__GetType() == ObjectType.vtEnum;
+		}
+
+	public static function deleteField(o:Dynamic, field:String):Bool
+		untyped {
+			if (o == null)
+				return false;
+			return untyped __global__.__hxcpp_anon_remove(o, field);
+		}
+
 	public static function copy<T>(o:Null<T>):Null<T> {
 		if (o == null)
 			return null;

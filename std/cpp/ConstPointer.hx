@@ -24,23 +24,16 @@ package cpp;
 
 @:coreType @:include("cpp/Pointer.h") @:native("cpp.Pointer") @:semantics(variable)
 extern class ConstPointer<T> {
-	/**
-		`ptr` actually returns the pointer - not strictly a 'T' - for pointers to
-		smart pointers.
-		Use `value` or `ref` to get dereferenced value.
-	**/
+	// ptr actually returns the pointer - not strictly a 'T' - for pointers to smart pointers
+	// Use value or ref to get dereferenced value
 	public var ptr:Star<T>;
 
 	public var value(get, never):T;
 
-	/**
-		Typecast to non-const.
-	**/
+	// Typecast to non-const
 	public var raw(get, never):RawPointer<T>;
 
-	/**
-		Const version.
-	**/
+	// const version
 	public var constRaw(get, never):RawConstPointer<T>;
 
 	public function get_value():Reference<T>;
@@ -53,10 +46,12 @@ extern class ConstPointer<T> {
 	public function gt(inOther:ConstPointer<T>):Bool;
 	public function geq(inOther:ConstPointer<T>):Bool;
 
-	@:native("::cpp::Pointer_obj::fromRaw")
-	public static function fromStar<T>(star:Star<T>):ConstPointer<T>;
+	public function setRaw<O>(ptr:RawPointer<O>):Void;
 
 	public static function fromRaw<T>(ptr:RawConstPointer<T>):ConstPointer<T>;
+
+	@:native("::cpp::Pointer_obj::fromRaw")
+	public static function fromStar<T>(star:Star<T>):ConstPointer<T>;
 
 	public static function fromPointer<T>(inNativePointer:Dynamic):ConstPointer<T>;
 

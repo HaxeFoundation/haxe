@@ -40,10 +40,8 @@
 		untyped {
 			var tmp;
 			return if ($typeof(o) != $tobject) null else if (o.__properties__ != null
-				&& (tmp = $objget(o.__properties__, $fasthash("get_".__s + field.__s))) != null)
-				$call($objget(o, $fasthash(tmp)), o, $array())
-			else
-				$objget(o, $fasthash(field.__s));
+				&& (tmp = $objget(o.__properties__, $fasthash("get_".__s + field.__s))) != null) $call($objget(o, $fasthash(tmp)), o, $array()) else $objget(o,
+				$fasthash(field.__s));
 		}
 
 	public static inline function setProperty(o:Dynamic, field:String, value:Dynamic):Void
@@ -114,6 +112,11 @@
 	public static function isEnumValue(v:Dynamic):Bool
 		untyped {
 			return $typeof(v) == $tobject && v.__enum__ != null;
+		}
+
+	public inline static function deleteField(o:Dynamic, field:String):Bool
+		untyped {
+			return $objremove(o, $fasthash(field.__s));
 		}
 
 	public static function copy<T>(o:Null<T>):Null<T> {

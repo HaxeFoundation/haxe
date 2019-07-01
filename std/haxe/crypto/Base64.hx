@@ -29,9 +29,6 @@ class Base64 {
 	public static var CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	public static var BYTES(default, null) = haxe.io.Bytes.ofString(CHARS);
 
-	public static var CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-	public static var BYTES(default, null) = haxe.io.Bytes.ofString(CHARS);
-
 	public static var URL_CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 	public static var URL_BYTES(default, null) = haxe.io.Bytes.ofString(URL_CHARS);
 

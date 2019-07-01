@@ -33,15 +33,11 @@ class BytesBuffer {
 	var b:cs.system.io.MemoryStream;
 	#elseif java
 	var b:java.io.ByteArrayOutputStream;
-	#elseif python
-	var b:python.Bytearray;
 	#else
 	var b:Array<Int>;
 	#end
 
-	/**
-		The length of the buffer in bytes.
-	**/
+	/** The length of the buffer in bytes. **/
 	public var length(get, never):Int;
 
 	public function new() {
@@ -56,8 +52,6 @@ class BytesBuffer {
 		b = new cs.system.io.MemoryStream();
 		#elseif java
 		b = new java.io.ByteArrayOutputStream();
-		#elseif python
-		b = new python.Bytearray();
 		#else
 		b = new Array();
 		#end
@@ -86,8 +80,6 @@ class BytesBuffer {
 		b.WriteByte(cast byte);
 		#elseif java
 		b.write(byte);
-		#elseif python
-		b.append(byte);
 		#else
 		b.push(byte);
 		#end
@@ -107,8 +99,6 @@ class BytesBuffer {
 		var b2 = @:privateAccess src.b;
 		for (i in 0...src.length)
 			b.push(b2[i]);
-		#elseif python
-		b.extend(src.getData());
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -125,8 +115,6 @@ class BytesBuffer {
 			b.writeMultiByte(v, "unicode")
 		else
 			b.writeUTFBytes(v);
-		#elseif python
-		b.extend(new python.Bytearray(v, "UTF-8"));
 		#else
 		add(Bytes.ofString(v, encoding));
 		#end
@@ -186,8 +174,6 @@ class BytesBuffer {
 		var b2 = @:privateAccess src.b;
 		for (i in pos...pos + len)
 			b.push(b2[i]);
-		#elseif python
-		b.extend(python.Syntax.code("{0}[{1}:{2}]", src.getData(), pos, pos + len));
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -215,7 +201,8 @@ class BytesBuffer {
 			var buf = b.toByteArray();
 			var bytes = new Bytes(buf.length, buf);
 			#elseif python
-			var bytes = new Bytes(b.length, b);
+			var buf = new python.Bytearray(b);
+			var bytes = new Bytes(buf.length, buf);
 			#elseif js
 			var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
 			#else
