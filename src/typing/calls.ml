@@ -468,14 +468,10 @@ let rec acc_get ctx g p =
 		(* do not create a closure for static calls *)
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
-		begin match f.cf_expr with
-		| None when ctx.com.display.dms_display ->
+		begin match f.cf_kind,f.cf_expr with
+		| _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
-		| None ->
-			error "Recursive inline is not supported" p
-		| Some _ when not (ctx.com.display.dms_inline) ->
-			mk (TField (e,cmode)) t p
-		| Some { eexpr = TFunction _ } ->
+		| Method _,_->
 			let chk_class c = (c.cl_extern || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
@@ -519,12 +515,16 @@ let rec acc_get ctx g p =
 					end
 				| _ -> e_def
 			end
-		| Some e ->
+		| Var _,Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			let e = loop e in
 			let e = Inline.inline_metadata e f.cf_meta in
 			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
 			else e
+		| Var _,None when ctx.com.display.dms_display ->
+			 mk (TField (e,cmode)) t p
+		| Var _,None ->
+			error "Recursive inline is not supported" p
 		end
 	| AKMacro _ ->
 		assert false
