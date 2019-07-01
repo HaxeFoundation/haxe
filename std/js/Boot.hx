@@ -58,10 +58,12 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	static function getClass(o:Dynamic):Dynamic {
-		if (Std.is(o, Array))
+	@:pure static function getClass(o:Null<Dynamic>):Null<Dynamic> {
+		if (o == null) {
+			return null;
+		} else if (Std.is(o, Array)) {
 			return Array;
-		else {
+		} else {
 			var cl = untyped __define_feature__("js.Boot.getClass", o.__class__);
 			if (cl != null)
 				return cl;
@@ -158,7 +160,7 @@ class Boot {
 		}
 	}
 
-	private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
+	@:pure private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
 		if (cc == null)
 			return false;
 		if (cc == cl)
@@ -194,9 +196,7 @@ class Boot {
 				if (o != null) {
 					// Check if o is an instance of a Haxe class or a native JS object
 					if (js.Syntax.typeof(cl) == "function") {
-						if (js.Syntax.instanceof(o, cl))
-							return true;
-						if (__interfLoop(getClass(o), cl))
+						if (__downcastCheck(o, cl))
 							return true;
 					} else if (js.Syntax.typeof(cl) == "object" && __isNativeObj(cl)) {
 						if (js.Syntax.instanceof(o, cl))
@@ -216,8 +216,12 @@ class Boot {
 		}
 	}
 
-	static inline function __implements(o:Dynamic, t:Class<Dynamic>):Bool {
-		return o != null && isInterface(t) && __interfLoop(getClass(o), t);
+	static function __downcastCheck(o:Dynamic, cl:Class<Dynamic>):Bool {
+		return js.Syntax.instanceof(o, cl) || (isInterface(cl) && inline __implements(o, cl));
+	}
+
+	static function __implements(o:Dynamic, iface:Class<Dynamic>):Bool {
+		return __interfLoop(getClass(o), iface);
 	}
 
 	@:ifFeature("typed_cast") private static function __cast(o:Dynamic, t:Dynamic) {

@@ -47,11 +47,7 @@
 
 	function toString():String;
 
-	function toString():String;
-
 	private function compareTo(anotherString:String):Int;
-
-	private function codePointAt(idx:Int):Int;
 
 	private function codePointAt(idx:Int):Int;
 
