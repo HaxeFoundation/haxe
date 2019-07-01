@@ -76,6 +76,7 @@ type enum_type =
 	| IQuoteStatus
 	| IImportMode
 	| IDisplayKind
+	| IMessage
 
 (**
 	Our access to the interpreter from the macro api
@@ -170,6 +171,7 @@ let enum_name = function
 	| IImportMode -> "ImportMode"
 	| IQuoteStatus -> "QuoteStatus"
 	| IDisplayKind -> "DisplayKind"
+	| IMessage -> "Message"
 
 let all_enums =
 	let last = IImportMode in
@@ -389,6 +391,14 @@ and encode_display_kind dk =
 	| DKPattern outermost -> 4, [vbool outermost]
 	in
 	encode_enum ~pos:None IDisplayKind tag pl
+
+and encode_message msg =
+	let tag, pl = match msg with
+		| CMInfo(msg,p) -> 0, [(encode_string msg); (encode_pos p)]
+		| CMWarning(msg,p) -> 1, [(encode_string msg); (encode_pos p)]
+		| CMError(_,_) -> assert false
+	in
+	encode_enum ~pos:None IMessage tag pl
 
 and encode_expr e =
 	let rec loop (e,p) =
@@ -1500,6 +1510,16 @@ let macro_api ccom get_api =
 			let msg = decode_string msg in
 			let p = decode_pos p in
 			(ccom()).info msg p;
+			vnull
+		);
+		"get_messages", vfun0 (fun() ->
+			encode_array (List.map (fun msg -> encode_message msg) ((ccom()).get_messages()));
+		);
+		"filter_messages", vfun1 (fun predicate ->
+			let predicate = prepare_callback predicate 2 in
+			(ccom()).filter_messages (fun msg -> (
+				decode_bool (predicate [encode_message msg])
+			));
 			vnull
 		);
 		"class_path", vfun0 (fun() ->

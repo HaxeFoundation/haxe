@@ -180,6 +180,8 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable info : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
+	mutable get_messages : unit -> compiler_message list;
+	mutable filter_messages : (compiler_message -> bool) -> unit;
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
@@ -452,6 +454,8 @@ let create version s_version args =
 		info = (fun _ _ -> assert false);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
+		get_messages = (fun() -> []);
+		filter_messages = (fun _ -> ());
 		pass_debug_messages = DynArray.create();
 		basic = {
 			tvoid = m;
