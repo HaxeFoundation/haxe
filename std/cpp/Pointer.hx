@@ -34,15 +34,14 @@ extern class Pointer<T> extends ConstPointer<T> implements ArrayAccess<T> {
 
 	public function setAt(inIndex:Int, value:T):Void;
 
-   @:native("::cpp::Pointer_obj::fromRaw")
-   public static function fromStar<T>(star:Star<T>) : Pointer<T>;
+	@:native("::cpp::Pointer_obj::fromRaw")
+	public static function fromStar<T>(star:Star<T>):Pointer<T>;
 
-   @:native("::cpp::Pointer_obj::fromHandle")
-   static function nativeFromHandle<T>(inHandle:Dynamic,?inKind:String):AutoCast;
-   inline public static function fromHandle<T>(inHandle:Dynamic,?inKind:String) : Pointer<T>
-   {
-     return cast nativeFromHandle(inHandle,inKind);
-   }
+	@:native("::cpp::Pointer_obj::fromHandle")
+	static function nativeFromHandle<T>(inHandle:Dynamic, ?inKind:String):AutoCast;
+	inline public static function fromHandle<T>(inHandle:Dynamic, ?inKind:String):Pointer<T> {
+		return cast nativeFromHandle(inHandle, inKind);
+	}
 
 	@:native("::cpp::Pointer_obj::fromHandle")
 	static function nativeFromHandle<T>(inHandle:Dynamic, ?inKind:String):AutoCast;

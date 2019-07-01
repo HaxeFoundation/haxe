@@ -66,7 +66,7 @@ class FileSystem {
 		};
 	}
 
-	public inline static function fullPath( relPath : String ) : String {
+	public inline static function fullPath(relPath:String):String {
 		return LFileSystem.realpath(Path.normalize(absolutePath(relPath)));
 	}
 

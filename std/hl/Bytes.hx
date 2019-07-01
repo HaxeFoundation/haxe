@@ -91,8 +91,8 @@ package hl;
 	}
 
 	#if (hl_ver >= version("1.10.0"))
-	@:hlNative("std","bytes_compare16")
-	public function compare16( bytes : Bytes, size : Int ) : Int {
+	@:hlNative("std", "bytes_compare16")
+	public function compare16(bytes:Bytes, size:Int):Int {
 		return 0;
 	}
 	#end

@@ -53,8 +53,8 @@ extern class ConstPointer<T> {
 	public function gt(inOther:ConstPointer<T>):Bool;
 	public function geq(inOther:ConstPointer<T>):Bool;
 
-   @:native("::cpp::Pointer_obj::fromRaw")
-   public static function fromStar<T>(star:Star<T>) : ConstPointer<T>;
+	@:native("::cpp::Pointer_obj::fromRaw")
+	public static function fromStar<T>(star:Star<T>):ConstPointer<T>;
 
 	public static function fromRaw<T>(ptr:RawConstPointer<T>):ConstPointer<T>;
 

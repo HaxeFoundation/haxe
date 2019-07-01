@@ -49,8 +49,10 @@ class DynamicObject implements java.lang.Cloneable extends Object {
 		var first = true;
 		try {
 			for (key in _hx_fields.keys()) {
-				if (first) first = false
-				else buf.add(", ");
+				if (first)
+					first = false
+				else
+					buf.add(", ");
 				buf.add(key);
 				buf.add(": ");
 				buf.add(_hx_fields.get(key));

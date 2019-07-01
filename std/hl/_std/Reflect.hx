@@ -125,8 +125,8 @@ class Reflect {
 		return hl.Api.deleteField(o, @:privateAccess field.bytes.hash());
 	}
 
-	@:hlNative("std","obj_copy")
-	public static function copy<T>( o : Null<T> ) : Null<T> {
+	@:hlNative("std", "obj_copy")
+	public static function copy<T>(o:Null<T>):Null<T> {
 		return null;
 	}
 

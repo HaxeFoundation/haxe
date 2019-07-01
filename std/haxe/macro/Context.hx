@@ -64,8 +64,8 @@ class Context {
 	/**
 		Displays a compilation info `msg` at the given `Position` `pos`.
 	**/
-	public static function info( msg : String, pos : Position ) {
-		load("info",2)(msg, pos);
+	public static function info(msg:String, pos:Position) {
+		load("info", 2)(msg, pos);
 	}
 
 	/**

@@ -32,9 +32,9 @@ class BytesBuffer {
 	#elseif cs
 	var b:cs.system.io.MemoryStream;
 	#elseif java
-	var b : java.io.ByteArrayOutputStream;
+	var b:java.io.ByteArrayOutputStream;
 	#elseif python
-	var b : python.Bytearray;
+	var b:python.Bytearray;
 	#else
 	var b:Array<Int>;
 	#end
@@ -121,7 +121,10 @@ class BytesBuffer {
 		#if neko
 		untyped StringBuf.__add(b, v.__s);
 		#elseif flash
-		if( encoding == RawNative ) b.writeMultiByte(v, "unicode") else b.writeUTFBytes(v);
+		if (encoding == RawNative)
+			b.writeMultiByte(v, "unicode")
+		else
+			b.writeUTFBytes(v);
 		#elseif python
 		b.extend(new python.Bytearray(v, "UTF-8"));
 		#else
@@ -197,28 +200,28 @@ class BytesBuffer {
 		Returns either a copy or a reference of the current bytes.
 		Once called, the buffer should no longer be used.
 	**/
-	public function getBytes() : Bytes untyped {
-		#if neko
-		var str = StringBuf.__to_string(b);
-		var bytes = new Bytes(__dollar__ssize(str),str);
-		#elseif flash
-		var bytes = new Bytes(b.length,b);
-		b.position = 0;
-		#elseif cs
-		var buf = b.GetBuffer();
-		var bytes = new Bytes(cast b.Length, buf);
-		#elseif java
-		var buf = b.toByteArray();
-		var bytes = new Bytes(buf.length, buf);
-		#elseif python
-		var bytes = new Bytes(b.length, b);
-		#elseif js
-		var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
-		#else
-		var bytes = new Bytes(b.length,b);
-		#end
-		b = null;
-		return bytes;
-	}
-
+	public function getBytes():Bytes
+		untyped {
+			#if neko
+			var str = StringBuf.__to_string(b);
+			var bytes = new Bytes(__dollar__ssize(str), str);
+			#elseif flash
+			var bytes = new Bytes(b.length, b);
+			b.position = 0;
+			#elseif cs
+			var buf = b.GetBuffer();
+			var bytes = new Bytes(cast b.Length, buf);
+			#elseif java
+			var buf = b.toByteArray();
+			var bytes = new Bytes(buf.length, buf);
+			#elseif python
+			var bytes = new Bytes(b.length, b);
+			#elseif js
+			var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
+			#else
+			var bytes = new Bytes(b.length, b);
+			#end
+			b = null;
+			return bytes;
+		}
 }

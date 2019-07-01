@@ -197,7 +197,7 @@ extern class Reflect {
 
 		If `o` is null, the result is `null`.
 	**/
-	public static function copy<T>( o : Null<T> ) : Null<T>;
+	public static function copy<T>(o:Null<T>):Null<T>;
 
 	/**
 		Transform a function taking an array of arguments into a function that can

@@ -144,10 +144,8 @@ final class Array<T> implements ArrayAccess<T> {
 		}
 	}
 
-	public function push(x : T) : Int
-	{
-		if (length >= __a.Length)
-		{
+	public function push(x:T):Int {
+		if (length >= __a.Length) {
 			var newLen = length == 0 ? __hx_defaultCapacity : (length << 1);
 			var newarr = new NativeArray(newLen);
 			__a.CopyTo(newarr, 0);

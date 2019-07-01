@@ -235,7 +235,7 @@ enum ValueType {
 		return asEnumImpl(e).tag;
 	}
 
-	public static inline function enumParameters( e : EnumValue ) : Array<Dynamic> {
+	public static inline function enumParameters(e:EnumValue):Array<Dynamic> {
 		return asEnumImpl(e).params.toArray();
 	}
 

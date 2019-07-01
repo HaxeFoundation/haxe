@@ -89,10 +89,12 @@ class Reflect {
 		return untyped __global__.__hxcpp_same_closure(f1, f2);
 	}
 
-	public static function copy<T>( o : Null<T> ) : Null<T> {
-		if (o==null) return null;
-		if(untyped o.__GetType()==ObjectType.vtString ) return o;
-		if(untyped o.__GetType()==ObjectType.vtArray )
+	public static function copy<T>(o:Null<T>):Null<T> {
+		if (o == null)
+			return null;
+		if (untyped o.__GetType() == ObjectType.vtString)
+			return o;
+		if (untyped o.__GetType() == ObjectType.vtArray)
 			return untyped o.__Field("copy", untyped __cpp__("hx::paccDynamic"))();
 		var o2:Dynamic = {};
 		for (f in Reflect.fields(o))

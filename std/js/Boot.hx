@@ -58,7 +58,7 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
-	@:pure static function getClass(o:Null<Dynamic>) : Null<Dynamic> {
+	@:pure static function getClass(o:Null<Dynamic>):Null<Dynamic> {
 		if (o == null) {
 			return null;
 		} else if (Std.is(o, Array)) {
@@ -160,8 +160,8 @@ class Boot {
 		}
 	}
 
-	@:pure private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
-		if( cc == null )
+	@:pure private static function __interfLoop(cc:Dynamic, cl:Dynamic) {
+		if (cc == null)
 			return false;
 		if (cc == cl)
 			return true;
@@ -179,78 +179,78 @@ class Boot {
 	@:ifFeature("typed_catch") @:pure private static function __instanceof(o:Dynamic, cl:Dynamic) {
 		if (cl == null)
 			return false;
-		switch( cl ) {
-		case Int:
-			return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
-		case Float:
-			return js.Syntax.typeof(o) == "number";
-		case Bool:
-			return js.Syntax.typeof(o) == "boolean";
-		case String:
-			return js.Syntax.typeof(o) == "string";
-		case Array:
-			return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
-		case Dynamic:
-			return o != null;
-		default:
-			if( o != null ) {
-				// Check if o is an instance of a Haxe class or a native JS object
-				if( js.Syntax.typeof(cl) == "function" ) {
-					if (__downcastCheck(o, cl))
-						return true;
-				} else if ( js.Syntax.typeof(cl) == "object" && __isNativeObj(cl) ) {
-					if( js.Syntax.instanceof(o, cl) )
-						return true;
+		switch (cl) {
+			case Int:
+				return js.Syntax.typeof(o) == "number" && js.Syntax.strictEq(o | 0, o);
+			case Float:
+				return js.Syntax.typeof(o) == "number";
+			case Bool:
+				return js.Syntax.typeof(o) == "boolean";
+			case String:
+				return js.Syntax.typeof(o) == "string";
+			case Array:
+				return js.Syntax.instanceof(o, Array) #if js_enums_as_arrays && o.__enum__ == null #end;
+			case Dynamic:
+				return o != null;
+			default:
+				if (o != null) {
+					// Check if o is an instance of a Haxe class or a native JS object
+					if (js.Syntax.typeof(cl) == "function") {
+						if (__downcastCheck(o, cl))
+							return true;
+					} else if (js.Syntax.typeof(cl) == "object" && __isNativeObj(cl)) {
+						if (js.Syntax.instanceof(o, cl))
+							return true;
+					}
+					// do not use isClass/isEnum here
+					untyped __feature__("Class.*", if (cl == Class && o.__name__ != null) return true);
+					untyped __feature__("Enum.*", if (cl == Enum && o.__ename__ != null) return true);
+					#if js_enums_as_arrays
+					return o.__enum__ == cl;
+					#else
+					return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
+					#end
 				}
-				// do not use isClass/isEnum here
-				untyped __feature__("Class.*", if (cl == Class && o.__name__ != null) return true);
-				untyped __feature__("Enum.*", if (cl == Enum && o.__ename__ != null) return true);
-				#if js_enums_as_arrays
-				return o.__enum__ == cl;
-				#else
-				return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
-				#end
+		}
+
+		static function __downcastCheck(o:Dynamic, cl:Class<Dynamic>):Bool {
+			return js.Syntax.instanceof(o, cl) || (isInterface(cl) && inline __implements(o, cl));
+		}
+
+		static function __implements(o:Dynamic, iface:Class<Dynamic>):Bool {
+			return __interfLoop(getClass(o), iface);
+		}
+
+		@:ifFeature("typed_cast") private static function __cast(o:Dynamic, t:Dynamic) {
+			if (o == null || __instanceof(o, t))
+				return o;
+			else
+				throw "Cannot cast " + Std.string(o) + " to " + Std.string(t);
+		}
+
+		static var __toStr:js.lib.Function;
+
+		static function __init__() {
+			Boot.__toStr = (cast {}).toString;
+		}
+
+		// get native JS [[Class]]
+		static function __nativeClassName(o:Dynamic):String {
+			var name:String = __toStr.call(o).slice(8, -1);
+			// exclude general Object and Function
+			// also exclude Math and JSON, because instanceof cannot be called on them
+			if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")
+				return null;
+			return name;
+		}
+
+		// check for usable native JS object
+		static function __isNativeObj(o:Dynamic):Bool {
+			return __nativeClassName(o) != null;
+		}
+
+		// resolve native JS class in the global scope:
+		static function __resolveNativeClass(name:String) {
+			return js.Lib.global[cast name];
 		}
 	}
-
-	static function __downcastCheck(o : Dynamic, cl : Class<Dynamic>) : Bool {
-		return js.Syntax.instanceof(o, cl) || (isInterface(cl) && inline __implements(o, cl));
-	}
-
-	static function __implements(o : Dynamic, iface : Class<Dynamic>) : Bool {
-		return __interfLoop(getClass(o), iface);
-	}
-
-	@:ifFeature("typed_cast") private static function __cast(o:Dynamic, t:Dynamic) {
-		if (o == null || __instanceof(o, t))
-			return o;
-		else
-			throw "Cannot cast " + Std.string(o) + " to " + Std.string(t);
-	}
-
-	static var __toStr:js.lib.Function;
-
-	static function __init__() {
-		Boot.__toStr = (cast {}).toString;
-	}
-
-	// get native JS [[Class]]
-	static function __nativeClassName(o:Dynamic):String {
-		var name:String = __toStr.call(o).slice(8, -1);
-		// exclude general Object and Function
-		// also exclude Math and JSON, because instanceof cannot be called on them
-		if (name == "Object" || name == "Function" || name == "Math" || name == "JSON")
-			return null;
-		return name;
-	}
-
-	// check for usable native JS object
-	static function __isNativeObj(o:Dynamic):Bool {
-		return __nativeClassName(o) != null;
-	}
-
-	// resolve native JS class in the global scope:
-	static function __resolveNativeClass(name:String) {
-		return js.Lib.global[cast name];
-	}
-}

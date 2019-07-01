@@ -28,7 +28,7 @@ import js.Boot;
 		return @:privateAccess js.Boot.__instanceof(v, t);
 	}
 
-	public static inline function downcast<T:{},S:T>( value : T, c : Class<S> ) : S @:privateAccess {
+	public static inline function downcast<T:{}, S:T>(value:T, c:Class<S>):S@:privateAccess {
 		return if (js.Boot.__downcastCheck(value, c)) cast value else null;
 	}
 

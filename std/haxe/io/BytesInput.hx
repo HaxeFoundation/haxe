@@ -97,22 +97,22 @@ class BytesInput extends Input {
 		#if flash
 		return try b.readUnsignedByte() catch (e:Dynamic) throw new Eof();
 		#else
-			if( this.len == 0 )
-				throw new Eof();
-			len--;
-			#if neko
-			return untyped __dollar__sget(b,pos++);
-			#elseif cpp
-			return untyped b[pos++];
-			#elseif java
-			return untyped b[pos++] & 0xFF;
-			#elseif python // dodge https://github.com/HaxeFoundation/haxe/issues/5080
-			var b = b[pos];
-			pos++;
-			return b;
-			#else
-			return b[pos++];
-			#end
+		if (this.len == 0)
+			throw new Eof();
+		len--;
+		#if neko
+		return untyped __dollar__sget(b, pos++);
+		#elseif cpp
+		return untyped b[pos++];
+		#elseif java
+		return untyped b[pos++] & 0xFF;
+		#elseif python // dodge https://github.com/HaxeFoundation/haxe/issues/5080
+		var b = b[pos];
+		pos++;
+		return b;
+		#else
+		return b[pos++];
+		#end
 		#end
 	}
 

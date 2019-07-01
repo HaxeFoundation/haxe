@@ -131,8 +131,7 @@ import java.NativeArray;
 
 	public function push(x:T):Int {
 		var length = length;
-		if (length >= __a.length)
-		{
+		if (length >= __a.length) {
 			var newLen = length == 0 ? __hx_defaultCapacity : (length << 1);
 			var newarr = new NativeArray(newLen);
 			System.arraycopy(__a, 0, newarr, 0, __a.length);
