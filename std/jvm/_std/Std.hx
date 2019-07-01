@@ -78,7 +78,7 @@ class Std {
 				case _:
 					return integerFormatter.parse(x).intValue();
 			}
-		} catch(_:Dynamic) {
+		} catch (_:Dynamic) {
 			return null;
 		}
 	}
@@ -88,12 +88,12 @@ class Std {
 			x = StringTools.trim(x);
 			x = x.split("+").join(""); // TODO: stupid
 			return doubleFormatter.parse(x.toUpperCase()).doubleValue();
-		} catch(_:Dynamic) {
+		} catch (_:Dynamic) {
 			return Math.NaN;
 		}
 	}
 
-	inline public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
 		return Std.is(value, c) ? cast value : null;
 	}
 

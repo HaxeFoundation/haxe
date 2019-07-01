@@ -19,14 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 @:coreApi
 extern class StringBuf {
-	public var length(get,never) : Int;
+	public var length(get, never):Int;
 	public function new():Void;
-	private function get_length() : Int;
-	public function add<T>( x : T ) : Void;
-	public function addChar( c : Int ) : Void;
-	public function addSub( s : String, pos : Int, ?len : Int) : Void;
-	public function toString() : String;
+	private function get_length():Int;
+	public function add<T>(x:T):Void;
+	public function addChar(c:Int):Void;
+	public function addSub(s:String, pos:Int, ?len:Int):Void;
+	public function toString():String;
 }

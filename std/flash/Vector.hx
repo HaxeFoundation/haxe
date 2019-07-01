@@ -19,45 +19,45 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package flash;
 
 /**
 	The Vector class is very similar to Array but is only supported by the Flash Player 10+
 **/
 @:require(flash10) extern class Vector<T> implements ArrayAccess<T> {
+	var length:Int;
+	var fixed:Bool;
 
-	var length : Int;
-	var fixed : Bool;
-
-	function new( ?length : UInt, ?fixed : Bool ) : Void;
-	function concat( ?a : Vector<T> ) : Vector<T>;
-	function join( sep : String ) : String;
-	function pop() : Null<T>;
-	function push(x : T) : Int;
-	function reverse() : Void;
-	function shift() : Null<T>;
-	function unshift( x : T ) : Void;
-	function slice( ?pos : Int, ?end : Int ) : Vector<T>;
-	function sort( f : T -> T -> Int ) : Void;
-	function splice( pos : Int, len : Int ) : Vector<T>;
-	function toString() : String;
-	function indexOf( x : T, ?from : Int ) : Int;
-	function lastIndexOf( x : T, ?from : Int ) : Int;
+	function new(?length:UInt, ?fixed:Bool):Void;
+	function concat(?a:Vector<T>):Vector<T>;
+	function join(sep:String):String;
+	function pop():Null<T>;
+	function push(x:T):Int;
+	function reverse():Void;
+	function shift():Null<T>;
+	function unshift(x:T):Void;
+	function slice(?pos:Int, ?end:Int):Vector<T>;
+	function sort(f:T->T->Int):Void;
+	function splice(pos:Int, len:Int):Vector<T>;
+	function toString():String;
+	function indexOf(x:T, ?from:Int):Int;
+	function lastIndexOf(x:T, ?from:Int):Int;
 
 	#if flash19
-	function insertAt(index : Int, element : T) : Void;
+	function insertAt(index:Int, element:T):Void;
 	#else
-	inline function insertAt(index : Int, element: T) : Void {
+	inline function insertAt(index:Int, element:T):Void {
 		(cast this).splice(index, 0, element);
 	}
 	#end
-	@:require(flash19) function removeAt(index:Int) : T;
+	@:require(flash19) function removeAt(index:Int):T;
 
-	public inline static function ofArray<T>( v : Array<T> ) : Vector<T> {
+	public inline static function ofArray<T>(v:Array<T>):Vector<T> {
 		return untyped __vector__(v);
 	}
 
-	public inline static function convert<T,U>( v : Vector<T> ) : Vector<U> {
+	public inline static function convert<T, U>(v:Vector<T>):Vector<U> {
 		return untyped __vector__(v);
 	}
 
@@ -88,7 +88,7 @@ package flash;
 		new Signal((Vector.typeReference() : Class<Vector<Int>>));
 		```
 	**/
-	public inline static function typeReference<T>() : Class<Vector<T>> {
+	public inline static function typeReference<T>():Class<Vector<T>> {
 		return untyped __vector__();
 	}
 }

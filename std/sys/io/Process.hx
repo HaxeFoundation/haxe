@@ -19,23 +19,24 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 extern class Process {
 	/**
 		Standard output. The output stream where a process writes its output data.
 	**/
-	var stdout(default, null) : haxe.io.Input;
+	var stdout(default, null):haxe.io.Input;
 
 	/**
 		Standard error. The output stream to output error messages or diagnostics.
 	**/
-	var stderr(default, null) : haxe.io.Input;
+	var stderr(default, null):haxe.io.Input;
 
 	/**
 		Standard input. The stream data going into a process.
 	**/
-	var stdin(default, null) : haxe.io.Output;
+	var stdin(default, null):haxe.io.Output;
 
 	/**
 		Construct a `Process` object, which run the given command immediately.
@@ -49,15 +50,15 @@ extern class Process {
 		It can run executables, as well as shell commands that are not executables (e.g. on Windows: `dir`, `cd`, `echo` etc).
 
 		`detached` allows the created process to be standalone. You cannot communicate with it but you can look at its exit code.
-		
+
 		`close()` should be called when the `Process` is no longer used.
 	**/
-	function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void;
+	function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void;
 
 	/**
 		Return the process ID.
 	**/
-	function getPid() : Int;
+	function getPid():Int;
 
 	/**
 		Query the exit code of the process.
@@ -65,17 +66,16 @@ extern class Process {
 		If `block` is false, it will return either the process exit code if it's already terminated or null if it's still running.
 		If the process has already exited, return the exit code immediately.
 	**/
-	function exitCode( block : Bool = true ) : Null<Int>;
+	function exitCode(block:Bool = true):Null<Int>;
 
 	/**
 		Close the process handle and release the associated resources.
 		All `Process` fields should not be used after `close()` is called.
 	**/
-	function close() : Void;
+	function close():Void;
 
 	/**
 		Kill the process.
 	**/
-	function kill() : Void;
-
+	function kill():Void;
 }

@@ -19,22 +19,23 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib;
 
 import python.Tuple;
 
-private abstract Choice <A,B>(Dynamic) {
-	@:from public static inline function fromA <A,B>(x:A):Choice<A,B> return cast x;
-	@:from public static inline function fromB <A,B>(x:B):Choice<A,B> return cast x;
+private abstract Choice<A, B>(Dynamic) {
+	@:from public static inline function fromA<A, B>(x:A):Choice<A, B>
+		return cast x;
+
+	@:from public static inline function fromB<A, B>(x:B):Choice<A, B>
+		return cast x;
 }
 
 typedef Pattern = Choice<String, Regex>;
-
 typedef Repl = Choice<String, MatchObject->String>;
 
-extern class MatchObject
-{
-
+extern class MatchObject {
 	public var pos(default, null):Int;
 	public var endpos(default, null):Int;
 	public var lastindex(default, null):Int;
@@ -44,20 +45,19 @@ extern class MatchObject
 
 	public function expand(template:String):String;
 
-	@:overload(function (x:String):String {})
+	@:overload(function(x:String):String {})
 	public function group(?i:Int = 0):String;
 
 	public function groups(defaultVal:String = null):Tuple<String>;
 	public function groupdict(defaultVal:Dict<String, String> = null):Dict<String, String>;
 
-	@:overload(function (x:String):Int {})
-	public function start (?i:Int = 0):Int;
+	@:overload(function(x:String):Int {})
+	public function start(?i:Int = 0):Int;
 
-	@:overload(function (x:String):Int {})
-	public function end (?i:Int = 0):Int;
+	@:overload(function(x:String):Int {})
+	public function end(?i:Int = 0):Int;
 
-	public function span (?i:Int):Tuple2<Int, Int>;
-
+	public function span(?i:Int):Tuple2<Int, Int>;
 
 	public inline function groupById(s:String):String {
 		return group(s);
@@ -70,12 +70,10 @@ extern class MatchObject
 	public inline function endById(s:String):Int {
 		return end(s);
 	}
-
 }
 
 private class RegexHelper {
-	public static function findallDynamic(r:Regex, string:String, ?pos:Int, ?endpos:Int):Array<Dynamic>
-	{
+	public static function findallDynamic(r:Regex, string:String, ?pos:Int, ?endpos:Int):Array<Dynamic> {
 		if (endpos == null) {
 			if (pos == null) {
 				return python.Syntax.field(r, "findall")(string);
@@ -85,42 +83,35 @@ private class RegexHelper {
 		} else {
 			return python.Syntax.field(r, "findall")(string, pos, endpos);
 		}
-
 	}
 }
 
-extern class Regex
-{
+extern class Regex {
 	public function search(string:String, pos:Int = 0, ?endpos:Int):Null<MatchObject>;
 	public function match(string:String, pos:Int = 0, ?endpos:Int):Null<MatchObject>;
 
-	public function split(string:String, maxsplit:Int=0):Array<String>;
+	public function split(string:String, maxsplit:Int = 0):Array<String>;
 
-	public inline function findallString(string:String, ?pos:Int, ?endpos:Int):Array<String>
-	{
+	public inline function findallString(string:String, ?pos:Int, ?endpos:Int):Array<String> {
 		return cast this.findallDynamic(string, pos, endpos);
 	}
 
-
-	public inline function findallDynamic(string:String, ?pos:Int, ?endpos:Int):Array<Dynamic>
-	{
+	public inline function findallDynamic(string:String, ?pos:Int, ?endpos:Int):Array<Dynamic> {
 		return RegexHelper.findallDynamic(this, string, pos, endpos);
 	}
 
 	public inline function findallTuple(string:String, ?pos:Int, ?endpos:Int):Array<Tuple<String>> {
-
 		return cast this.findallDynamic(string, pos, endpos);
 	}
 
-	public inline function findallArray(string:String, ?pos:Int, ?endpos:Int):Array<Array<String>>
-	{
-		return findallTuple(string, pos, endpos).map(function (t) return t.toArray());
+	public inline function findallArray(string:String, ?pos:Int, ?endpos:Int):Array<Array<String>> {
+		return findallTuple(string, pos, endpos).map(function(t) return t.toArray());
 	}
 
 	public function finditer(string:String, ?pos:Int, ?endpos:Int):NativeIterator<MatchObject>;
 
-	public function sub(repl:Repl, string:String, count:Int=0):String;
-	public function subn(repl:Repl, string:String, count:Int=0):String;
+	public function sub(repl:Repl, string:String, count:Int = 0):String;
+	public function subn(repl:Repl, string:String, count:Int = 0):String;
 
 	public var flags(default, null):Int;
 	public var groups(default, null):Int;
@@ -128,11 +119,8 @@ extern class Regex
 	public var pattern(default, null):String;
 }
 
-
 @:pythonImport("re")
-extern class Re
-{
-
+extern class Re {
 	public static var A:Int;
 	public static var ASCII:Int;
 	public static var DEBUG:Int;
@@ -154,40 +142,36 @@ extern class Re
 	public static var U:Int;
 	public static var UNICODE:Int;
 
-	public static function compile (pattern:String, ?flags:Int = 0):Regex;
+	public static function compile(pattern:String, ?flags:Int = 0):Regex;
 
-	public static function match (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
+	public static function match(pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
 
-	public static function search (pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
+	public static function search(pattern:Pattern, string:String, flags:Int = 0):Null<MatchObject>;
 
-	public static function split(pattern:Pattern, string:String, maxsplit:Int=0, flags:Int=0):Array<String>;
+	public static function split(pattern:Pattern, string:String, maxsplit:Int = 0, flags:Int = 0):Array<String>;
 
-	public static inline function findallDynamic(pattern:Pattern, string:String, flags:Int=0):Array<Dynamic>
-	{
+	public static inline function findallDynamic(pattern:Pattern, string:String, flags:Int = 0):Array<Dynamic> {
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
-	public static inline function findallString(pattern:Pattern, string:String,	flags:Int=0):Array<String>
-	{
+	public static inline function findallString(pattern:Pattern, string:String, flags:Int = 0):Array<String> {
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
-	public static inline function findallTuple(pattern:Pattern, string:String, flags:Int=0):Array<Tuple<String>>
-	{
+	public static inline function findallTuple(pattern:Pattern, string:String, flags:Int = 0):Array<Tuple<String>> {
 		return python.Syntax.field(pattern, "findall")(string, flags);
 	}
 
-	public static inline function findallArray(pattern:Pattern, string:String, flags:Int=0):Array<Array<String>>
-	{
-		return findallTuple(pattern, string,flags).map(function (t) return t.toArray());
+	public static inline function findallArray(pattern:Pattern, string:String, flags:Int = 0):Array<Array<String>> {
+		return findallTuple(pattern, string, flags).map(function(t) return t.toArray());
 	}
 
-	public static function finditer(pattern:Pattern, string:String,   flags:Int=0):NativeIterator<MatchObject>;
+	public static function finditer(pattern:Pattern, string:String, flags:Int = 0):NativeIterator<MatchObject>;
 
-	@:overload(function (pattern:Pattern, repl:String, string:String,  ?count:Int=0, ?flags:Int=0):String {})
-	public static function sub(pattern:Pattern, repl:MatchObject->String, string:String,  ?count:Int=0, ?flags:Int=0):String;
+	@:overload(function(pattern:Pattern, repl:String, string:String, ?count:Int = 0, ?flags:Int = 0):String {})
+	public static function sub(pattern:Pattern, repl:MatchObject->String, string:String, ?count:Int = 0, ?flags:Int = 0):String;
 
-	public static function subn(pattern:Pattern, repl:Repl, string:String, count:Int=0, flags:Int=0):String;
+	public static function subn(pattern:Pattern, repl:Repl, string:String, count:Int = 0, flags:Int = 0):String;
 
 	public static function escape(string:String):String;
 

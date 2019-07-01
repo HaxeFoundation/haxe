@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import cpp.NativeProcess;
 
 private class Stdin extends haxe.io.Output {
-
-	var p : Dynamic;
-	var buf : haxe.io.Bytes;
+	var p:Dynamic;
+	var buf:haxe.io.Bytes;
 
 	public function new(p:Dynamic) {
 		this.p = p;
@@ -39,83 +39,82 @@ private class Stdin extends haxe.io.Output {
 	}
 
 	public override function writeByte(c) {
-		buf.set(0,c);
-		writeBytes(buf,0,1);
+		buf.set(0, c);
+		writeBytes(buf, 0, 1);
 	}
 
-	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+	public override function writeBytes(buf:haxe.io.Bytes, pos:Int, len:Int):Int {
 		try {
-			return NativeProcess.process_stdin_write(p,buf.getData(),pos,len);
-		} catch( e : Dynamic ) {
+			return NativeProcess.process_stdin_write(p, buf.getData(), pos, len);
+		} catch (e:Dynamic) {
 			throw new haxe.io.Eof();
 		}
 		return 0;
 	}
-
 }
 
 private class Stdout extends haxe.io.Input {
+	var p:Dynamic;
+	var out:Bool;
+	var buf:haxe.io.Bytes;
 
-	var p : Dynamic;
-	var out : Bool;
-	var buf : haxe.io.Bytes;
-
-	public function new(p:Dynamic,out) {
+	public function new(p:Dynamic, out) {
 		this.p = p;
 		this.out = out;
 		buf = haxe.io.Bytes.alloc(1);
 	}
 
 	public override function readByte() {
-		if( readBytes(buf,0,1) == 0 )
+		if (readBytes(buf, 0, 1) == 0)
 			throw haxe.io.Error.Blocked;
 		return buf.get(0);
 	}
 
-	public override function readBytes( str : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+	public override function readBytes(str:haxe.io.Bytes, pos:Int, len:Int):Int {
 		var result:Int;
 		try {
-			result = out? NativeProcess.process_stdout_read(p,str.getData(),pos,len) :
-                       NativeProcess.process_stderr_read(p,str.getData(),pos,len);
-		} catch( e : Dynamic ) {
+			result = out ? NativeProcess.process_stdout_read(p, str.getData(), pos, len) : NativeProcess.process_stderr_read(p, str.getData(), pos, len);
+		} catch (e:Dynamic) {
 			throw new haxe.io.Eof();
 		}
-		if (result==0)throw new haxe.io.Eof();
+		if (result == 0)
+			throw new haxe.io.Eof();
 		return result;
 	}
 }
 
 @:coreApi
 class Process {
+	var p:Dynamic;
 
-	var p : Dynamic;
-	public var stdout(default,null) : haxe.io.Input;
-	public var stderr(default,null) : haxe.io.Input;
-	public var stdin(default,null) : haxe.io.Output;
+	public var stdout(default, null):haxe.io.Input;
+	public var stderr(default, null):haxe.io.Input;
+	public var stdin(default, null):haxe.io.Output;
 
-	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
-		if( detached ) throw "Detached process is not supported on this platform";
-		p = try NativeProcess.process_run(cmd,args) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
+	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
+		if (detached)
+			throw "Detached process is not supported on this platform";
+		p = try NativeProcess.process_run(cmd, args) catch (e:Dynamic) throw "Process creation failure : " + cmd;
 		stdin = new Stdin(p);
-		stdout = new Stdout(p,true);
-		stderr = new Stdout(p,false);
+		stdout = new Stdout(p, true);
+		stderr = new Stdout(p, false);
 	}
 
-	public function getPid() : Int {
+	public function getPid():Int {
 		return NativeProcess.process_pid(p);
 	}
 
-	public function exitCode( block : Bool = true ) : Null<Int> {
-		if( block == false ) throw "Non blocking exitCode() not supported on this platform";
+	public function exitCode(block:Bool = true):Null<Int> {
+		if (block == false)
+			throw "Non blocking exitCode() not supported on this platform";
 		return NativeProcess.process_exit(p);
 	}
 
-	public function close() : Void {
+	public function close():Void {
 		NativeProcess.process_close(p);
 	}
 
-	public function kill() : Void {
+	public function kill():Void {
 		NativeProcess.process_kill(p);
 	}
-
 }

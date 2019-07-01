@@ -20,43 +20,46 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi class EReg {
+	var r:flash.utils.RegExp;
+	var result:Dynamic;
 
-	var r : flash.utils.RegExp;
-	var result : Dynamic;
-
-	public function new( r : String, opt : String ) : Void {
-		this.r = new flash.utils.RegExp(r,opt);
+	public function new(r:String, opt:String):Void {
+		this.r = new flash.utils.RegExp(r, opt);
 	}
 
-	public function match( s : String ) : Bool {
-		if( r.global ) r.lastIndex = 0;
+	public function match(s:String):Bool {
+		if (r.global)
+			r.lastIndex = 0;
 		result = r.exec(s);
 		return (result != null);
 	}
 
-	public function matched( n : Int ) : String {
-		return if( result != null && n >= 0 && n < (result : Array<Dynamic>).length ) result[n] else throw "EReg::matched";
+	public function matched(n:Int):String {
+		return if (result != null && n >= 0 && n < (result:Array<Dynamic>).length) result[n] else throw "EReg::matched";
 	}
 
-	public function matchedLeft() : String {
-		if( result == null ) throw "No string matched";
-		var s : String = result.input;
+	public function matchedLeft():String {
+		if (result == null)
+			throw "No string matched";
+		var s:String = result.input;
 		return s.substr(0, result.index);
 	}
 
-	public function matchedRight() : String {
-		if( result == null ) throw "No string matched";
+	public function matchedRight():String {
+		if (result == null)
+			throw "No string matched";
 		var rl = (result.index : Int) + (result[0] : String).length;
-		var s : String = result.input;
-		return s.substr(rl,s.length - rl);
+		var s:String = result.input;
+		return s.substr(rl, s.length - rl);
 	}
 
-	public function matchedPos() : { pos : Int, len : Int } {
-		if( result == null ) throw "No string matched";
-		return { pos : result.index, len : (result[0] : String).length };
+	public function matchedPos():{pos:Int, len:Int} {
+		if (result == null)
+			throw "No string matched";
+		return {pos: result.index, len: (result[0] : String).length};
 	}
 
-	public function matchSub( s : String, pos : Int, len : Int = -1):Bool {
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return if (r.global) {
 			r.lastIndex = pos;
 			result = r.exec(len < 0 ? s : s.substr(0, pos + len));
@@ -66,7 +69,7 @@
 			}
 			b;
 		} else {
-			var b = match( len < 0 ? s.substr(pos) : s.substr(pos,len) );
+			var b = match(len < 0 ? s.substr(pos) : s.substr(pos, len));
 			if (b) {
 				result.input = s;
 				result.index += pos;
@@ -75,18 +78,18 @@
 		}
 	}
 
-	public function split( s : String ) : Array<String> {
+	public function split(s:String):Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		var s : String = (s:Dynamic).replace(r, d);
+		var s:String = (s : Dynamic).replace(r, d);
 		return s.split(d);
 	}
 
-	public function replace( s : String, by : String ) : String {
-		return (s:Dynamic).replace(r,by);
+	public function replace(s:String, by:String):String {
+		return (s : Dynamic).replace(r, by);
 	}
 
-	public function map( s : String, f : EReg -> String ) : String {
+	public function map(s:String, f:EReg->String):String {
 		var offset = 0;
 		var buf = new StringBuf();
 		var first = true;
@@ -103,8 +106,7 @@
 			if (p.len == 0) {
 				buf.add(s.substr(p.pos, 1));
 				offset = p.pos + 1;
-			}
-			else
+			} else
 				offset = p.pos + p.len;
 			first = false;
 		} while (r.global);
@@ -113,8 +115,9 @@
 		return buf.toString();
 	}
 
-	public static inline function escape( s : String ) : String {
+	public static inline function escape(s:String):String {
 		return (cast s).replace(escapeRe, "\\$&");
 	}
+
 	static var escapeRe = new flash.utils.RegExp("[.*+?^${}()|[\\]\\\\]", "g");
 }

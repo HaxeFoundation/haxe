@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.codecs;
 
 import python.lib.codecs.Codec;
@@ -29,7 +30,6 @@ import python.lib.codecs.StreamWriter;
 extern class StreamReaderWriter extends StreamReader implements IStreamWriter {
 	public function write(object:Dynamic):Void;
 	public function writelines(list:Array<String>):Void;
-
 }
 
 @:remove extern interface IStreamReaderWriter extends IStreamReader extends IStreamWriter {}

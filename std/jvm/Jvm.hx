@@ -1,3 +1,25 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 package jvm;
 
 import haxe.extern.Rest;
@@ -50,7 +72,8 @@ class Jvm {
 		return argTypes;
 	}
 
-	static public function unifyCallArguments(args:NativeArray<Dynamic>, params:NativeArray<java.lang.Class<Dynamic>>, allowPadding:Bool = false):Option<NativeArray<Dynamic>> {
+	static public function unifyCallArguments(args:NativeArray<Dynamic>, params:NativeArray<java.lang.Class<Dynamic>>,
+			allowPadding:Bool = false):Option<NativeArray<Dynamic>> {
 		var callArgs:NativeArray<Dynamic> = {
 			if (args.length < params.length) {
 				var callArgs = new NativeArray(params.length);
@@ -104,7 +127,7 @@ class Jvm {
 				continue;
 			}
 			if (arg == (cast java.lang.Double.DoubleClass) && argType == cast java.lang.Integer.IntegerClass) {
-		 		callArgs[i] = nullIntToNullFloat(args[i]);
+				callArgs[i] = nullIntToNullFloat(args[i]);
 			} else {
 				return None;
 			}
@@ -248,18 +271,30 @@ class Jvm {
 		}
 		if (instanceof(obj, java.NativeString)) {
 			switch (name) {
-				case "length": return (obj : String).length;
-				case "charAt": return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "charCodeAt": return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "indexOf": return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "iterator": return function() return new haxe.iterators.StringIterator(obj);
-				case "keyValueIterator": return function() return new haxe.iterators.StringKeyValueIterator(obj);
-				case "lastIndexOf": return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "split": return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "substr": return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "substring": return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "toLowerCase": return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
-				case "toUpperCase": return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "length":
+					return (obj : String).length;
+				case "charAt":
+					return (cast jvm.StringExt.charAt : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "charCodeAt":
+					return (cast jvm.StringExt.charCodeAt : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "indexOf":
+					return (cast jvm.StringExt.indexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "iterator":
+					return function() return new haxe.iterators.StringIterator(obj);
+				case "keyValueIterator":
+					return function() return new haxe.iterators.StringKeyValueIterator(obj);
+				case "lastIndexOf":
+					return (cast jvm.StringExt.lastIndexOf : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "split":
+					return (cast jvm.StringExt.split : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "substr":
+					return (cast jvm.StringExt.substr : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "substring":
+					return (cast jvm.StringExt.substring : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "toLowerCase":
+					return (cast jvm.StringExt.toLowerCase : java.lang.invoke.MethodHandle).bindTo(obj);
+				case "toUpperCase":
+					return (cast jvm.StringExt.toUpperCase : java.lang.invoke.MethodHandle).bindTo(obj);
 			}
 		}
 		return readFieldNoObject(obj, name);

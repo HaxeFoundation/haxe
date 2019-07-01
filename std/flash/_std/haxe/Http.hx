@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 typedef Http = HttpFlash;
@@ -30,9 +31,9 @@ class HttpFlash extends haxe.http.HttpBase {
 		Cancels `this` Http request if `request` has been called and a response
 		has not yet been received.
 	**/
-	public function cancel()
-	{
-		if (req == null) return;
+	public function cancel() {
+		if (req == null)
+			return;
 		req.close();
 		req = null;
 	}
@@ -47,7 +48,7 @@ class HttpFlash extends haxe.http.HttpBase {
 		});
 		loader.addEventListener("httpStatus", function(e:flash.events.HTTPStatusEvent) {
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
-			if(e.status != 0)
+			if (e.status != 0)
 				onStatus(e.status);
 		});
 		loader.addEventListener("ioError", function(e:flash.events.IOErrorEvent) {
@@ -63,14 +64,14 @@ class HttpFlash extends haxe.http.HttpBase {
 		// headers
 		var param = false;
 		var vars = new flash.net.URLVariables();
-		for(p in params) {
+		for (p in params) {
 			param = true;
-			Reflect.setField(vars,p.name,p.value);
+			Reflect.setField(vars, p.name, p.value);
 		}
 		var small_url = url;
-		if(param && !post) {
+		if (param && !post) {
 			var k = url.split("?");
-			if(k.length > 1) {
+			if (k.length > 1) {
 				small_url = k.shift();
 				vars.decode(k.join("?"));
 			}
@@ -79,22 +80,22 @@ class HttpFlash extends haxe.http.HttpBase {
 		small_url.split("xxx");
 
 		var request = new flash.net.URLRequest(small_url);
-		for(h in headers)
-			request.requestHeaders.push(new flash.net.URLRequestHeader(h.name,h.value));
+		for (h in headers)
+			request.requestHeaders.push(new flash.net.URLRequestHeader(h.name, h.value));
 
-		if(postData != null) {
+		if (postData != null) {
 			request.data = postData;
 			request.method = "POST";
 		} else {
 			request.data = vars;
-			request.method = if(post) "POST" else "GET";
+			request.method = if (post) "POST" else "GET";
 		}
 
 		try {
 			loader.load(request);
-		}catch(e : Dynamic) {
+		} catch (e:Dynamic) {
 			req = null;
-			onError("Exception: "+Std.string(e));
+			onError("Exception: " + Std.string(e));
 		}
 	}
 }

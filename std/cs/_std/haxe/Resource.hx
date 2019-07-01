@@ -19,14 +19,14 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 @:coreApi class Resource {
+	@:keep static var content:Array<String>;
+	static var paths:Map<String, String>;
 
-	@:keep static var content : Array<String>;
-	static var paths : Map<String,String>;
-
-	@:keep static function getPaths():Map<String,String> {
+	@:keep static function getPaths():Map<String, String> {
 		if (paths != null)
 			return paths;
 
@@ -40,12 +40,12 @@ package haxe;
 		return paths = p;
 	}
 
-	public static inline function listNames() : Array<String> {
+	public static inline function listNames():Array<String> {
 		return content.copy();
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getString( name : String ) : String {
+	public static function getString(name:String):String {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		if (path == null)
@@ -57,7 +57,7 @@ package haxe;
 	}
 
 	@:access(haxe.io.Path.escape)
-	public static function getBytes( name : String ) : haxe.io.Bytes {
+	public static function getBytes(name:String):haxe.io.Bytes {
 		name = haxe.io.Path.escape(name, true);
 		var path = getPaths().get(name);
 		if (path == null)

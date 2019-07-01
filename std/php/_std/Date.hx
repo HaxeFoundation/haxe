@@ -23,48 +23,47 @@
 import php.Global.*;
 import php.Syntax.*;
 
-@:coreApi final class Date
-{
-	private var __t : Float;
+@:coreApi final class Date {
+	private var __t:Float;
 
-	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void {
+	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
 		__t = mktime(hour, min, sec, month + 1, day, year);
 	}
 
-	public function getTime() : Float {
+	public function getTime():Float {
 		return __t * 1000.0;
 	}
 
-	private function getPhpTime() : Float {
+	private function getPhpTime():Float {
 		return __t;
 	}
 
-	public function getFullYear() : Int {
+	public function getFullYear():Int {
 		return int(date("Y", int(__t)));
 	}
 
-	public function getMonth() : Int {
-		var m : Int = int(date("n", int(__t)));
+	public function getMonth():Int {
+		var m:Int = int(date("n", int(__t)));
 		return -1 + m;
 	}
 
-	public function getDate() : Int {
+	public function getDate():Int {
 		return int(date("j", int(__t)));
 	}
 
-	public function getHours() : Int {
+	public function getHours():Int {
 		return int(date("G", int(__t)));
 	}
 
-	public function getMinutes() : Int {
+	public function getMinutes():Int {
 		return int(date("i", int(__t)));
 	}
 
-	public function getSeconds() : Int {
+	public function getSeconds():Int {
 		return int(date("s", int(__t)));
 	}
 
-	public function getDay() : Int {
+	public function getDay():Int {
 		return int(date("w", int(__t)));
 	}
 
@@ -72,25 +71,23 @@ import php.Syntax.*;
 		return date("Y-m-d H:i:s", int(__t));
 	}
 
-	public static function now() : Date {
+	public static function now():Date {
 		return fromPhpTime(round(microtime(true), 3));
 	}
 
-	static function fromPhpTime( t : Float ) : Date {
+	static function fromPhpTime(t:Float):Date {
 		var d = new Date(2000, 1, 1, 0, 0, 0);
 		d.__t = t;
 		return d;
 	}
 
-	public static function fromTime( t : Float ) : Date {
+	public static function fromTime(t:Float):Date {
 		var d = new Date(2000, 1, 1, 0, 0, 0);
 		d.__t = t / 1000;
 		return d;
 	}
 
-	public static function fromString( s : String ) : Date {
+	public static function fromString(s:String):Date {
 		return fromPhpTime(strtotime(s));
 	}
 }
-
-

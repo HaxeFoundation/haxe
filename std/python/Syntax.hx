@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 #if macro
@@ -26,25 +27,23 @@ import haxe.macro.Expr;
 import haxe.macro.Context;
 import haxe.macro.ExprTools;
 #end
-
 import haxe.extern.Rest;
 
 @:noPackageRestrict
 extern class Syntax {
-
 	#if macro
 	static var self = macro python.Syntax;
 	#end
 
-	@:noUsing macro public static function importModule (module:String):haxe.macro.Expr {
-		return macro ($self.code($v{"import " + module}):Void);
+	@:noUsing macro public static function importModule(module:String):haxe.macro.Expr {
+		return macro($self.code($v{"import " + module}) : Void);
 	}
 
-	@:noUsing macro public static function importAs (module:String, className : String):haxe.macro.Expr {
+	@:noUsing macro public static function importAs(module:String, className:String):haxe.macro.Expr {
 		var n = className.split(".").join("_");
 		var e = "import " + module + " as " + n;
 
-		return macro ($self.code($v{e}):Void);
+		return macro($self.code($v{e}) : Void);
 	}
 
 	#if !macro
@@ -54,7 +53,7 @@ extern class Syntax {
 
 	@:noUsing
 	@:deprecated("python.Syntax.newInstance() is deprecated. Use python.Syntax.construct() instead.")
-	macro public static function newInstance (c:Expr, params:Array<Expr>):haxe.macro.Expr {
+	macro public static function newInstance(c:Expr, params:Array<Expr>):haxe.macro.Expr {
 		return macro $self._newInstance($c, $a{params});
 	}
 
@@ -79,7 +78,8 @@ extern class Syntax {
 	@:noUsing
 	@:deprecated("python.Syntax.pythonCode() is deprecated. Use python.Syntax.code() instead.")
 	macro public static function pythonCode(b:ExprOf<String>, rest:Array<Expr>):Expr {
-		if (rest == null) rest = [];
+		if (rest == null)
+			rest = [];
 		return macro @:pos(Context.currentPos()) untyped $self._pythonCode($b, $a{rest});
 	};
 
@@ -102,23 +102,21 @@ extern class Syntax {
 	@:noUsing
 	extern public static function arraySet(a:Dynamic, i:Dynamic, v:Dynamic):Dynamic;
 
-
 	extern static function _foreach(id:Dynamic, it:Dynamic, block:Dynamic):Dynamic;
-
 
 	@:noUsing
 	macro public static function foreach<T>(v:Expr, it:Expr, b:Expr):haxe.macro.Expr {
 		var id = switch (v.expr) {
 			case EConst(CIdent(x)): x;
-			case _ : Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
+			case _: Context.error("unexpected " + ExprTools.toString(v) + ": const ident expected", v.pos);
 		}
 
 		var iter = try {
-			var it = macro ($it.__iter__() : python.NativeIterator.NativeIteratorRaw<T>);
+			var it = macro($it.__iter__() : python.NativeIterator.NativeIteratorRaw<T>);
 			Context.typeof(it);
 			it;
 		} catch (e:Dynamic) {
-			macro ($it : python.NativeIterable.NativeIterableRaw<T>);
+			macro($it : python.NativeIterable.NativeIterableRaw<T>);
 		}
 
 		return macro {
@@ -127,13 +125,12 @@ extern class Syntax {
 		}
 	}
 
-	@:noUsing macro public static function importFromAs (from:String, module:String, className : String):haxe.macro.Expr {
-
+	@:noUsing macro public static function importFromAs(from:String, module:String, className:String):haxe.macro.Expr {
 		var n = className.split(".").join("_");
 
 		var e = "from " + from + " import " + module + " as " + n;
 
-		return macro ($self.code($v{e}):Void);
+		return macro($self.code($v{e}) : Void);
 	}
 
 	@:noUsing
@@ -144,7 +141,7 @@ extern class Syntax {
 	extern static function call(e:Dynamic, args:Array<Dynamic>):Dynamic;
 
 	@:noUsing
-	extern public static function field (o:Dynamic, field:String):Dynamic;
+	extern public static function field(o:Dynamic, field:String):Dynamic;
 
 	@:noUsing
 	macro public static function tuple(args:Array<Expr>):Dynamic {
@@ -157,7 +154,7 @@ extern class Syntax {
 	@:noUsing
 	extern public static function varArgs(args:Array<Dynamic>):Dynamic;
 
-	macro public static function callNamedUntyped (e:Expr, args:Expr):Expr {
+	macro public static function callNamedUntyped(e:Expr, args:Expr):Expr {
 		return macro @:pos(e.pos) $self._callNamedUntyped($e, $args);
 	}
 
