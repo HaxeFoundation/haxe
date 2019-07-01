@@ -1259,6 +1259,11 @@ module TexprConverter = struct
 		| _ ->
 			Some(con,params)
 
+	let rec extract_const e = match e.eexpr with
+		| TConst ct -> Some ct
+		| TCast(e1,None) -> extract_const e1
+		| _ -> None
+
 	let all_ctors ctx e cases =
 		let infer_type() = match cases with
 			| [] -> e,e.etype,false
@@ -1303,8 +1308,11 @@ module TexprConverter = struct
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
 					if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
-						| Some {eexpr = TConst ct | TCast ({eexpr = TConst ct},None)} ->
-							if ct != TNull then add (ConConst ct,null_pos)
+						| Some e ->
+							begin match extract_const e with
+							| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
+							| None -> add (ConStatic(c,cf),null_pos)
+							end;
 						| _ -> add (ConStatic(c,cf),null_pos)
 				) c.cl_ordered_statics;
 				SKValue,CompileTimeFinite
@@ -1345,7 +1353,11 @@ module TexprConverter = struct
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->
 							match cf.cf_expr with
-							| Some ({eexpr = TConst ct2 | TCast({eexpr = TConst ct2},None)}) -> ct1 = ct2
+							| Some e ->
+								begin match extract_const e with
+								| Some ct2 -> ct1 = ct2
+								| None -> false
+								end
 							| _ -> false
 						) c.cl_ordered_statics in
 						cf.cf_name
