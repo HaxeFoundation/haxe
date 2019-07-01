@@ -33,6 +33,7 @@ import cs.system.net.sockets.SocketShutdown;
 import cs.system.net.sockets.SocketType;
 import cs.system.threading.Thread;
 import cs.system.net.sockets.Socket in NativeSocket;
+import cs.types.UInt8;
 import haxe.io.Bytes;
 import haxe.io.Error;
 import haxe.io.Input;
@@ -65,6 +66,10 @@ class Socket {
 		Creates a new unconnected socket.
 	**/
 	public function new() : Void {
+		init();
+	}
+	
+	function init() : Void{
 		sock = new NativeSocket( AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp );
 		sock.Blocking = true;
 	}
