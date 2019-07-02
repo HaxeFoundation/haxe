@@ -13,5 +13,9 @@ class Issue4481 extends unit.Test {
 			case 'a': 0;
 			case _: 1;
 		});
+
+		switch s {
+			case '': assert();
+		}
 	}
 }
