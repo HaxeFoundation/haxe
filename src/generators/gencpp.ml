@@ -5385,11 +5385,13 @@ let script_type t optional = if optional then begin
    | _ -> "Object"
    end else match type_string t with
    | "bool" -> "Int"
-   | "int" -> "Int"
+   | "int" | "::cpp::Int32" -> "Int"
    | "Float" -> "Float"
    | "::String" -> "String"
    | "Null" -> "Void"
    | "Void" -> "Void"
+   | "float" | "::cpp::Float32" | "::cpp::Float64" -> "Float"
+   | "::cpp::Int64" | "::cpp::UInt64" -> "Object"
    | _ -> "Object"
 ;;
 
