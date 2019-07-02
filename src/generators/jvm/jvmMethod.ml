@@ -573,6 +573,7 @@ class builder jc name jsig = object(self)
 			code#lookupswitch offset_def a;
 		end;
 		let restore = self#start_branch in
+		let offset_exit = ref code#get_fp in
 		let def_term,r_def = match def with
 			| None ->
 				true,ref 0
@@ -584,7 +585,6 @@ class builder jc name jsig = object(self)
 				pop_scope();
 				self#is_terminated,self#maybe_make_jump
 		in
-
 		let rec loop acc cases = match cases with
 		| (rl,f) :: cases ->
 			restore();
@@ -599,7 +599,8 @@ class builder jc name jsig = object(self)
 			List.rev acc
 		in
 		let rl = loop [] cases in
-		self#close_jumps (def <> None) ((def_term,if def = None then offset_def else r_def) :: rl)
+		self#close_jumps (def <> None) ((def_term,if def = None then offset_def else r_def) :: rl);
+		if def = None then code#get_fp else !offset_exit
 
 	(** Adds a local with a given [name], signature [jsig] and an [init_state].
 	    This function returns a tuple consisting of:
