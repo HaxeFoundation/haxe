@@ -2298,25 +2298,27 @@ and type_meta ctx m e1 with_type p =
 	ctx.meta <- old;
 	e
 
+and type_call_target ctx e with_type inline p =
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	if not inline then
+		e
+	else match e with
+		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
+			begin match extract_field fa with
+			| Some cf -> AKInline(e1,cf,fa,t)
+			| None -> e
+			end;
+		| AKUsing(e,c,cf,ef,_) ->
+			AKUsing(e,c,cf,ef,true)
+		| AKExpr {eexpr = TLocal _} ->
+			display_error ctx "Cannot force inline on local functions" p;
+			e
+		| _ ->
+			e
+
 and type_call ctx e el (with_type:WithType.t) inline p =
 	let def () =
-		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
-		let e = if not inline then
-			e
-		else match e with
-			| AKExpr {eexpr = TField(e1,fa); etype = t} ->
-				begin match extract_field fa with
-				| Some cf -> AKInline(e1,cf,fa,t)
-				| None -> e
-				end;
-			| AKUsing(e,c,cf,ef,_) ->
-				AKUsing(e,c,cf,ef,true)
-			| AKExpr {eexpr = TLocal _} ->
-				display_error ctx "Cannot force inline on local functions" p;
-				e
-			| _ ->
-				e
-		in
+		let e = type_call_target ctx e with_type inline p in
 		build_call ctx e el with_type p
 	in
 	match e, el with
@@ -2665,4 +2667,5 @@ let rec create com =
 unify_min_ref := unify_min;
 make_call_ref := make_call;
 build_call_ref := build_call;
+type_call_target_ref := type_call_target;
 type_block_ref := type_block
