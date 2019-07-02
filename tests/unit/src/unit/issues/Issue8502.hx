@@ -1,7 +1,7 @@
 package unit.issues;
-#if cpp
 
 class Issue8502 extends Test {
+#if cpp
   public function test() {
 		var t:scripthost.Issue8502 = Type.createInstance(Type.resolveClass('unit.issues.Issue8502_2'), []);
     eq(t.doTest1(25), 'cppia 25');
@@ -13,8 +13,10 @@ class Issue8502 extends Test {
     eq(t.doTest4u(25), 'cppia 25');
     eq(t.doTest5u(25), 'cppia 25');
   }
+#end
 }
 
+#if cpp
 class Issue8502_2 extends scripthost.Issue8502 {
 	override public function doTest1(f:cpp.Float32):String {
 		return 'cppia ' + super.doTest1(f);
