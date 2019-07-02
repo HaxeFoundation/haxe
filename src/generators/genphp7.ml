@@ -156,22 +156,27 @@ let std_type_path = ([], "Std")
 *)
 let polyfills_file = "_polyfills.php"
 
+let php_keywords_list =
+	["__halt_compiler"; "abstract"; "and"; "array"; "as"; "break"; "callable"; "case"; "catch"; "class";
+	"clone"; "const"; "continue"; "declare"; "default"; "die"; "do"; "echo"; "else"; "elseif"; "empty";
+	"enddeclare"; "endfor"; "endforeach"; "endif"; "endswitch"; "endwhile"; "eval"; "exit"; "extends"; "final";
+	"finally"; "for"; "foreach"; "function"; "global"; "goto"; "if"; "implements"; "include"; "include_once";
+	"instanceof"; "insteadof"; "interface"; "isset"; "list"; "namespace"; "new"; "or"; "print"; "private";
+	"protected"; "public"; "require"; "require_once"; "return"; "static"; "switch"; "throw"; "trait"; "try";
+	"unset"; "use"; "var"; "while"; "xor"; "yield"; "__class__"; "__dir__"; "__file__"; "__function__"; "__line__";
+	"__method__"; "__trait__"; "__namespace__"; "int"; "float"; "bool"; "string"; "true"; "false"; "null"; "parent";
+	"void"; "iterable"; "object"; "fn"]
+
+let php_keywords_tbl = begin
+	let tbl = Hashtbl.create 100 in
+	List.iter (fun kwd -> Hashtbl.add tbl kwd ()) php_keywords_list;
+	tbl
+end
+
 (**
 	Check if specified string is a reserved word in PHP
 *)
-let is_keyword str =
-	match String.lowercase str with
-		| "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
-		| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
-		| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
-		| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
-		| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
-		| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
-		| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
-		| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-		| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object"
-			-> true
-		| _ -> false
+let is_keyword str = Hashtbl.mem php_keywords_tbl (String.lowercase str)
 
 (**
 	Check if specified type is Void
@@ -3076,7 +3081,50 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#write ("function " ^ by_ref ^ name ^ " (");
 			write_args writer#write writer#write_function_arg func.tf_args;
 			writer#write ") ";
-			writer#write_expr (inject_defaults ctx func)
+			if not (self#write_body_if_special_method name) then
+				writer#write_expr (inject_defaults ctx func)
+		(**
+			Writes a body for a special method if `field` represents one.
+			Returns `true` if `field` is such a method.
+		*)
+		method private write_body_if_special_method name =
+			(* php.Boot.isPhpKeyword(str:String) *)
+			if self#get_type_path = boot_type_path && name = "isPhpKeyword" then
+				begin
+					writer#write "{\n";
+					writer#indent_more;
+					writer#write_line "switch(strtolower($str)) {";
+					writer#indent_more;
+					writer#write_indentation;
+					let cnt = ref 0 in
+					List.iter
+						(fun kwd ->
+							if !cnt <= 5 then incr cnt
+							else begin
+								cnt := 0;
+								writer#write "\n";
+								writer#write_indentation
+							end;
+							writer#write ("case '" ^ kwd ^ "': ")
+						)
+						php_keywords_list;
+					writer#write "\n";
+					writer#indent_more;
+					writer#write_statement "return true";
+					writer#indent_less;
+					writer#write_line "default:";
+					writer#indent_more;
+					writer#write_statement "return false";
+					writer#indent_less;
+					writer#indent_less;
+					writer#write_line "}";
+					writer#indent_less;
+					writer#write_indentation;
+					writer#write "}";
+					true
+				end
+			else
+				false
 		(**
 			Set sourcemap generator
 		*)
