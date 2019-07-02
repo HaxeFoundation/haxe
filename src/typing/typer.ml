@@ -1735,9 +1735,14 @@ and type_new ctx path el with_type force_inline p =
 		| _ ->
 			error "Constructor is not a function" p
 	in
-	let t = if (fst path).tparams <> [] then
-		Typeload.load_instance ctx path false
-	else try
+	let t = if (fst path).tparams <> [] then begin
+		try
+			Typeload.load_instance ctx path false
+		with Error _ as exc when ctx.com.display.dms_display ->
+			(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
+			List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+			raise exc
+	end else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 		let t = Typeload.load_instance ctx path true in
 		let t_follow = follow t in
@@ -1747,9 +1752,10 @@ and type_new ctx path el with_type force_inline p =
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Generic.Generic_Exception _ ->
+	with
+	| Generic.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
+		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
@@ -1773,6 +1779,10 @@ and type_new ctx path el with_type force_inline p =
 			end
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
+		end
+	| Error _ as exc when ctx.com.display.dms_display ->
+		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+		raise exc
 	in
 	DisplayEmitter.check_display_type ctx t (pos path);
 	let t = follow t in
