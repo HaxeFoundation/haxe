@@ -28,6 +28,9 @@ import js.html.XMLHttpRequest;
 class Browser {
 	/** The global window object. */
 	public static var window(get, never):js.html.Window;
+	
+        /** The global scope with additional fields available only in a worker context. */
+	public static var self(get, never):js.html.DedicatedWorkerGlobalScope;
 
 	extern inline static function get_window()
 		return untyped __js__("window");
