@@ -361,19 +361,19 @@ let get_std_class_paths () =
 			let lib_path = Filename.concat prefix_path "lib" in
 			let share_path = Filename.concat prefix_path "share" in
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 		else
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
 let rec process_params create pl =
