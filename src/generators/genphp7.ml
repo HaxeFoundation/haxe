@@ -1541,6 +1541,12 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_indentation =
 			self#write indentation
 		(**
+			Writes current indentation followed by `str` to output buffer
+		*)
+		method write_with_indentation str =
+			self#write indentation;
+			self#write str
+		(**
 			Writes specified line to output buffer and appends \n
 		*)
 		method write_line line =
@@ -1696,8 +1702,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item ~separate_line:true expr) exprs;
 					self#indent_less;
-					self#write_indentation;
-					self#write "])"
+					self#write_with_indentation "])"
 		(**
 			Write associative array declaration
 		*)
@@ -1714,8 +1719,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					let write_field ((key,_,_), value) = self#write_array_item ~separate_line:true ~key:key value in
 					List.iter write_field fields;
 					self#indent_less;
-					self#write_indentation;
-					self#write "]"
+					self#write_with_indentation "]"
 		(**
 			Writes TArray to output buffer
 		*)
@@ -1901,8 +1905,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							write_body ()
 					);
 					self#indent_less;
-					self#write_indentation;
-					self#write "}"
+					self#write_with_indentation "}"
 		(**
 			Writes TReturn to output buffer
 		*)
@@ -1964,8 +1967,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						self#write_indentation;
 						self#write_as_block ~inline:true expr;
 						self#indent_less;
-						self#write_indentation;
-						self#write "}";
+						self#write_with_indentation "}";
 					end;
 				if not !dynamic then self#write " else ";
 				first_catch := false;
@@ -1984,8 +1986,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			else
 				(match catches with [_] -> () | _ -> self#write "\n");
 			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+			self#write_with_indentation "}"
 		(**
 			Writes TCast to output buffer
 		*)
@@ -3071,8 +3072,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			let func = inject_defaults ctx func in
 			writer#write_fake_block func;
 			writer#indent_less;
-			writer#write_indentation;
-			writer#write "}"
+			writer#write_with_indentation "}"
 		(**
 			Writes method declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3119,8 +3119,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 					writer#indent_less;
 					writer#write_line "}";
 					writer#indent_less;
-					writer#write_indentation;
-					writer#write "}";
+					writer#write_with_indentation "}";
 					true
 				end
 			else
@@ -3176,8 +3175,7 @@ class enum_builder ctx (enm:tenum) =
 			in
 			writer#indent 1;
 			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
-			writer#write_indentation;
-			writer#write ("static public function " ^ name ^ " (");
+			writer#write_with_indentation ("static public function " ^ name ^ " (");
 			write_args writer#write (writer#write_arg true) args;
 			writer#write ") {\n";
 			writer#indent_more;
@@ -3191,14 +3189,12 @@ class enum_builder ctx (enm:tenum) =
 				| [] ->
 					(* writer#write ((writer#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")") *)
 					writer#write_line "static $inst = null;";
-					writer#write_indentation;
-					writer#write "if (!$inst) $inst = ";
+					writer#write_with_indentation "if (!$inst) $inst = ";
 					write_construction [];
 					writer#write ";\n";
 					writer#write_line "return $inst;"
 				| args ->
-					writer#write_indentation;
-					writer#write "return ";
+					writer#write_with_indentation "return ";
 					write_construction args;
 					writer#write ";\n";
 			);
@@ -3505,8 +3501,7 @@ class class_builder ctx (cls:tclass) =
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
 				let field_access = "self::$" ^ (field_name field) in
-				writer#write_indentation;
-				writer#write (field_access ^ " = ");
+				writer#write_with_indentation (field_access ^ " = ");
 				(match field.cf_expr with
 					| Some expr -> writer#write_expr expr
 					| None -> fail field.cf_pos __POS__
@@ -3523,8 +3518,7 @@ class class_builder ctx (cls:tclass) =
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
-					writer#write_indentation;
-					writer#write ("self::$" ^ (field_name field) ^ " = ");
+					writer#write_with_indentation ("self::$" ^ (field_name field) ^ " = ");
 					writer#write_expr expr
 				in
 				(*
@@ -3599,8 +3593,7 @@ class class_builder ctx (cls:tclass) =
 				| Some expr ->
 					writer#indent 1;
 					self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
-					writer#write_indentation;
-					writer#write ("const " ^ (field_name field) ^ " = ");
+					writer#write_with_indentation ("const " ^ (field_name field) ^ " = ");
 					writer#write_expr expr;
 					writer#write ";\n"
 		(**
@@ -3639,8 +3632,7 @@ class class_builder ctx (cls:tclass) =
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
-			writer#write_indentation;
-			writer#write ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
+			writer#write_with_indentation ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
 					writer#write " (";
