@@ -224,6 +224,9 @@ module Pattern = struct
 			in
 			loop e
 		in
+		let display_mode () =
+			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
+		in
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
@@ -484,18 +487,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
