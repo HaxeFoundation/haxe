@@ -328,4 +328,4 @@ FORCE:
 .ml.cmo:
 	$(CC_CMD)
 
-.PHONY: prebuild haxe libs haxelib
+.PHONY: haxe libs haxelib
