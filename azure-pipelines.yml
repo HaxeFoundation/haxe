@@ -64,12 +64,9 @@ stages:
             lua:
               TEST: lua
         steps:
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'linuxBinaries'
@@ -99,8 +96,8 @@ stages:
           - script: haxe RunCi.hxml
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              SAUCE_USERNAME: $(SAUCE_USERNAME)
-              SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
+              ${{ if variables['SAUCE_ACCESS_KEY'] }}:
+                SAUCE_ACCESS_KEY: $(SAUCE_ACCESS_KEY)
             displayName: Test
 
       - job: TestMac
@@ -134,11 +131,9 @@ stages:
             lua:
               TEST: lua
         steps:
-          - script: |
-              set -ex
-              brew update
-              brew install neko --HEAD
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: mac
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'macBinaries'
@@ -202,12 +197,9 @@ stages:
             # lua:
             #   TEST: lua
         steps:
-          - powershell: |
-              Set-PSDebug -Trace 1
-              choco install neko --prerelease --ignore-dependencies -s 'https://ci.appveyor.com/nuget/neko' -y
-              Set-PSDebug -Trace 0
-              Write-Host "##vso[task.setvariable variable=NEKOPATH]C:/ProgramData/chocolatey/lib/neko"
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: windows
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win64Binaries'
@@ -245,7 +237,7 @@ stages:
     condition: and(succeeded(), not(variables['System.PullRequest.PullRequestId']))
     jobs:
       - job: S3
-        condition: and(succeeded(), variables['AWS_ACCESS_KEY_ID'], variables['S3_HXBUILDS_ADDR'])
+        condition: and(succeeded(), variables['HXBUILDS_AWS_ACCESS_KEY_ID'], variables['HXBUILDS_S3ADDR'])
         pool:
           vmImage: 'ubuntu-16.04'
         steps:
@@ -253,24 +245,25 @@ stages:
             inputs:
               artifactName: 'linuxBinaries'
               targetPath: linuxBinaries
+            displayName: Download linuxBinaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'macBinaries'
               targetPath: macBinaries
+            displayName: Download macBinaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win64Binaries'
               targetPath: win64Binaries
+            displayName: Download win64Binaries
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win32Binaries'
               targetPath: win32Binaries
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+            displayName: Download win32Binaries
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - script: |
               set -ex
               tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -287,46 +280,67 @@ stages:
             displayName: "Install awscli"
           - script: |
               set -ex
-              aws s3 cp linuxBinaries/*_bin.tar.gz      $(S3_HXBUILDS_ADDR)/linux64/
-              aws s3 cp macBinaries/*_bin.tar.gz        $(S3_HXBUILDS_ADDR)/mac/
-              aws s3 cp win64Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows64/
-              aws s3 cp win64Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows64-installer
-              aws s3 cp win32Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows/
-              aws s3 cp win32Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows-installer/
+              COMMIT_HASH=`git rev-parse HEAD`
+              COMMIT_HASH_SHORT=${COMMIT_HASH:0:7}
+              COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
+              FILE_NAME=haxe_${COMMIT_DATE}_$(Build.SourceBranchName)_${COMMIT_HASH_SHORT}
+              aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/haxe/linux64/${FILE_NAME}.tar.gz
+              aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/${FILE_NAME}.tar.gz
+              aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/${FILE_NAME}.zip
+              aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/${FILE_NAME}.zip
+              aws s3 cp win64Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
+              aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows/${FILE_NAME}.zip
+              aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows-installer/${FILE_NAME}.zip
+              aws s3 cp win32Binaries/*.nupkg           $(HXBUILDS_S3ADDR)/haxe/windows-choco/
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             displayName: Upload binaries
           - script: |
               set -ex
-              aws s3 cp linuxBinaries/*_bin.tar.gz      $(S3_HXBUILDS_ADDR)/linux64/haxe_latest.tar.gz
-              aws s3 cp macBinaries/*_bin.tar.gz        $(S3_HXBUILDS_ADDR)/mac/haxe_latest.tar.gz
-              aws s3 cp win64Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows64/haxe_latest.zip
-              aws s3 cp win64Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows64-installer/haxe_latest.
-              aws s3 cp win32Binaries/*_bin.zip         $(S3_HXBUILDS_ADDR)/windows/haxe_latest.zip
-              aws s3 cp win32Binaries/*_installer.zip   $(S3_HXBUILDS_ADDR)/windows-installer/haxe_latest.zip
+              aws s3 cp linuxBinaries/*_bin.tar.gz      $(HXBUILDS_S3ADDR)/haxe/linux64/haxe_latest.tar.gz
+              aws s3 cp macBinaries/*_bin.tar.gz        $(HXBUILDS_S3ADDR)/haxe/mac/haxe_latest.tar.gz
+              aws s3 cp win64Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows64/haxe_latest.zip
+              aws s3 cp win64Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows64-installer/haxe_latest.zip
+              aws s3 cp win32Binaries/*_bin.zip         $(HXBUILDS_S3ADDR)/haxe/windows/haxe_latest.zip
+              aws s3 cp win32Binaries/*_installer.zip   $(HXBUILDS_S3ADDR)/haxe/windows-installer/haxe_latest.zip
+
+              # Chocolatey packages have to be named with version number,
+              # so let's use web redirection to keep the original file name.
+              [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
+              [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+              aws s3 cp $(HXBUILDS_S3ADDR)/haxe/windows64-choco/${FILE_NAME} $(HXBUILDS_S3ADDR)/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
+              [[ `echo win32Binaries/*.nupkg` =~ win32Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
+              aws s3 cp $(HXBUILDS_S3ADDR)/haxe/windows-choco/${FILE_NAME}   $(HXBUILDS_S3ADDR)/haxe/windows-choco/haxe_latest.nupkg   --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows-choco/${FILE_NAME}"
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'development'))
             displayName: Update "latest"
           - script: |
               set -ex
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/linux64
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/linux64/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/mac
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/mac/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows64
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows64/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows64-installer
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows64-installer/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)/windows-installer
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/windows-installer/
-              haxe --run runci.Indexer $(S3_HXBUILDS_ADDR)
-              aws s3 cp index.html     $(S3_HXBUILDS_ADDR)/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/linux64
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/linux64/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/mac
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/mac/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-installer
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-choco
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-installer
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-installer/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-choco
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-choco/
+              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe
+              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/
             workingDirectory: $(Build.SourcesDirectory)/tests
             env:
-              AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
+              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             displayName: Update indices
       - job: ApiHaxeOrg
         condition: and(succeeded(), variables['GHP_USERNAME'], variables['GHP_EMAIL'])
@@ -334,16 +348,14 @@ stages:
           vmImage: 'ubuntu-16.04'
         steps:
           - checkout: none
-          - script: |
-              set -ex
-              sudo add-apt-repository -y ppa:haxe/snapshots
-              sudo apt-get update -qqy
-              sudo apt-get install -qqy neko
-            displayName: Setup Neko
+          - template: extra/azure-pipelines/install-neko-snapshot.yaml
+            parameters:
+              platform: linux64
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'linuxBinaries'
               targetPath: linuxBinaries
+            displayName: Download linuxBinaries
           - script: |
               set -ex
               tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
@@ -357,6 +369,7 @@ stages:
             inputs:
               artifactName: 'xmldoc'
               targetPath: xmldoc
+            displayName: Download xmldoc
           - script: |
               set -ex
               LOCAL="`pwd`/extra/api.haxe.org"

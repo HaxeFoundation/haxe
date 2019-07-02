@@ -826,7 +826,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			in
 			self#texpr rvalue_any e1;
 			jm#cast TInt;
-			jm#int_switch is_exhaustive cases def
+			ignore(jm#int_switch is_exhaustive cases def);
 		end else if List.for_all is_const_string_pattern cases then begin
 			let cases = List.map (fun (el,e) ->
 				let il = List.map (fun e -> match e.eexpr with
@@ -841,8 +841,19 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			in
 			self#texpr rvalue_any e1;
 			jm#cast string_sig;
+			let r = ref 0 in
+			(* all strings can be null and we're not supposed to cause NPEs here... *)
+			code#dup;
+			jm#if_then
+				(fun () -> jm#get_code#if_nonnull_ref string_sig)
+				(fun () ->
+					code#pop;
+					r := code#get_fp;
+					code#goto r
+				);
 			jm#invokevirtual string_path "hashCode" (method_sig [] (Some TInt));
-			jm#int_switch is_exhaustive cases def
+			let r_default = jm#int_switch is_exhaustive cases def in
+			r := r_default - !r;
 		end else begin
 			(* TODO: rewriting this is stupid *)
 			let pop_scope = jm#push_scope in
@@ -2146,7 +2157,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 			load();
 			jm#invokespecial jc#get_super_path "_hx_getField" jsig;
 		) in
-		jm#int_switch false cases (Some def);
+		ignore(jm#int_switch false cases (Some def));
 		jm#return
 	end;
 	let fields = List.filter (fun (_,_,kind) -> match kind with
@@ -2190,7 +2201,7 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 				end;
 			)
 		) fields in
-		jm#int_switch false cases (Some def);
+		ignore(jm#int_switch false cases (Some def));
 		jm#return
 	end
 

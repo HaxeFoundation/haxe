@@ -29,7 +29,7 @@ package haxe;
 	type, the underlying type will be `Dynamic`.
 **/
 @:callable
-abstract Function(Dynamic) { }
+abstract Function(Dynamic) {}
 
 /**
 	This type unifies with an enum instance if all constructors of the enum
@@ -38,7 +38,7 @@ abstract Function(Dynamic) { }
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
-abstract FlatEnum(Dynamic) { }
+abstract FlatEnum(Dynamic) {}
 
 /**
 	This type unifies with any instance of classes that have a constructor
@@ -54,9 +54,9 @@ abstract FlatEnum(Dynamic) { }
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.
 **/
-abstract Constructible<T>(Dynamic) { }
+abstract Constructible<T>(Dynamic) {}
 
-interface IMap<K,V> {
+interface IMap<K, V> {
 	public function get(k:K):Null<V>;
 	public function set(k:K, v:V):Void;
 	public function exists(k:K):Bool;
@@ -64,6 +64,6 @@ interface IMap<K,V> {
 	public function keys():Iterator<K>;
 	public function iterator():Iterator<V>;
 	public function keyValueIterator():KeyValueIterator<K, V>;
-	public function copy():IMap<K,V>;
+	public function copy():IMap<K, V>;
 	public function toString():String;
 }

@@ -296,12 +296,11 @@ let rec type_ident_raise ctx i p mode =
 		else
 			AKNo i
 	| "this" ->
+		if mode = MSet then add_class_field_flag ctx.curfield CfModifiesThis;
 		(match mode, ctx.curclass.cl_kind with
 		| MSet, KAbstractImpl _ ->
-			(match ctx.curfield.cf_kind with
-			| Method MethInline -> ()
-			| Method _ when ctx.curfield.cf_name = "_new" -> ()
-			| _ -> error "Abstract 'this' value can only be modified inside an inline function" p);
+			if not (assign_to_this_is_allowed ctx) then
+				error "Abstract 'this' value can only be modified inside an inline function" p;
 			AKExpr (get_this ctx p)
 		| (MCall, KAbstractImpl _) | (MGet, _)-> AKExpr(get_this ctx p)
 		| _ -> AKNo i)
@@ -1458,6 +1457,14 @@ and type_vars ctx vl p =
 				check_error ctx e p;
 				add_local ctx VGenerated v t_dynamic pv, None (* TODO: What to do with this... *)
 	) vl in
+	delay ctx PTypeField (fun() ->
+		List.iter
+			(fun (v,_) ->
+				if ExtType.is_void (follow v.v_type) then
+					error "Variables of type Void are not allowed" v.v_pos
+			)
+			vl
+	);
 	match vl with
 	| [v,eo] ->
 		mk (TVar (v,eo)) ctx.t.tvoid p
@@ -1728,9 +1735,14 @@ and type_new ctx path el with_type force_inline p =
 		| _ ->
 			error "Constructor is not a function" p
 	in
-	let t = if (fst path).tparams <> [] then
-		Typeload.load_instance ctx path false
-	else try
+	let t = if (fst path).tparams <> [] then begin
+		try
+			Typeload.load_instance ctx path false
+		with Error _ as exc when ctx.com.display.dms_display ->
+			(* If we fail for some reason, process the arguments in case we want to display them (#7650). *)
+			List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+			raise exc
+	end else try
 		ctx.call_argument_stack <- el :: ctx.call_argument_stack;
 		let t = Typeload.load_instance ctx path true in
 		let t_follow = follow t in
@@ -1740,9 +1752,10 @@ and type_new ctx path el with_type force_inline p =
 			| TInst({cl_kind = KGeneric } as c,tl) -> follow (Generic.build_generic ctx c p tl)
 			| _ -> t
 		end
-	with Generic.Generic_Exception _ ->
+	with
+	| Generic.Generic_Exception _ ->
 		(* Try to infer generic parameters from the argument list (issue #2044) *)
-		match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
+		begin match resolve_typedef (Typeload.load_type_def ctx p (fst path)) with
 		| TClassDecl ({cl_constructor = Some cf} as c) ->
 			let monos = List.map (fun _ -> mk_mono()) c.cl_params in
 			let ct, f = get_constructor ctx c monos p in
@@ -1766,6 +1779,10 @@ and type_new ctx path el with_type force_inline p =
 			end
 		| mt ->
 			error ((s_type_path (t_infos mt).mt_path) ^ " cannot be constructed") p
+		end
+	| Error _ as exc when ctx.com.display.dms_display ->
+		List.iter (fun e -> ignore(type_expr ctx e WithType.value)) el;
+		raise exc
 	in
 	DisplayEmitter.check_display_type ctx t (pos path);
 	let t = follow t in
@@ -2102,6 +2119,7 @@ and type_array_decl ctx el with_type p =
 and type_array_comprehension ctx e with_type p =
 	let v = gen_local ctx (mk_mono()) p in
 	let et = ref (EConst(Ident "null"),p) in
+	let comprehension_pos = p in
 	let rec map_compr (e,p) =
 		match e with
 		| EFor(it,e2) -> (EFor (it, map_compr e2),p)
@@ -2114,10 +2132,10 @@ and type_array_comprehension ctx e with_type p =
 			end
 		| EParenthesis e2 -> (EParenthesis (map_compr e2),p)
 		| EBinop(OpArrow,a,b) ->
-			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),p);
+			et := (ENew(({tpackage=["haxe";"ds"];tname="Map";tparams=[];tsub=None},null_pos),[]),comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"set"),p),[a;b]),p)
 		| _ ->
-			et := (EArrayDecl [],p);
+			et := (EArrayDecl [],comprehension_pos);
 			(ECall ((EField ((EConst (Ident v.v_name),p),"push"),p),[(e,p)]),p)
 	in
 	let e = map_compr e in
@@ -2280,25 +2298,27 @@ and type_meta ctx m e1 with_type p =
 	ctx.meta <- old;
 	e
 
+and type_call_target ctx e with_type inline p =
+	let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
+	if not inline then
+		e
+	else match e with
+		| AKExpr {eexpr = TField(e1,fa); etype = t} ->
+			begin match extract_field fa with
+			| Some cf -> AKInline(e1,cf,fa,t)
+			| None -> e
+			end;
+		| AKUsing(e,c,cf,ef,_) ->
+			AKUsing(e,c,cf,ef,true)
+		| AKExpr {eexpr = TLocal _} ->
+			display_error ctx "Cannot force inline on local functions" p;
+			e
+		| _ ->
+			e
+
 and type_call ctx e el (with_type:WithType.t) inline p =
 	let def () =
-		let e = maybe_type_against_enum ctx (fun () -> type_access ctx (fst e) (snd e) MCall) with_type true p in
-		let e = if not inline then
-			e
-		else match e with
-			| AKExpr {eexpr = TField(e1,fa); etype = t} ->
-				begin match extract_field fa with
-				| Some cf -> AKInline(e1,cf,fa,t)
-				| None -> e
-				end;
-			| AKUsing(e,c,cf,ef,_) ->
-				AKUsing(e,c,cf,ef,true)
-			| AKExpr {eexpr = TLocal _} ->
-				display_error ctx "Cannot force inline on local functions" p;
-				e
-			| _ ->
-				e
-		in
+		let e = type_call_target ctx e with_type inline p in
 		build_call ctx e el with_type p
 	in
 	match e, el with
@@ -2647,4 +2667,5 @@ let rec create com =
 unify_min_ref := unify_min;
 make_call_ref := make_call;
 build_call_ref := build_call;
+type_call_target_ref := type_call_target;
 type_block_ref := type_block

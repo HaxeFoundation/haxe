@@ -384,6 +384,7 @@ type flag_tclass_field =
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfOverridden
+	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
 (* Flags *)
 
@@ -2287,7 +2288,7 @@ and unify_from ab tl a b ?(allow_transitive_cast=true) t =
 		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
 		(fun() ->
 			let t = apply_params ab.a_params tl t in
-			let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+			let unify_func = if allow_transitive_cast then unify else type_eq EqRightDynamic in
 			unify_func a t)
 
 and unify_to ab tl b ?(allow_transitive_cast=true) t =

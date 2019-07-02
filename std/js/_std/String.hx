@@ -20,32 +20,32 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi extern class String {
-	var length(default,null) : Int;
+	var length(default, null):Int;
 
-	@:pure function new(string:String) : Void;
-	@:pure function toUpperCase() : String;
-	@:pure function toLowerCase() : String;
-	@:pure function charAt( index : Int) : String;
-	@:pure function indexOf( str : String, ?startIndex : Int ) : Int;
-	@:pure function lastIndexOf( str : String, ?startIndex : Int ) : Int;
-	@:pure function split( delimiter : String ) : Array<String>;
-	@:pure function toString() : String;
-	@:pure function substring( startIndex : Int, ?endIndex : Int ) : String;
+	@:pure function new(string:String):Void;
+	@:pure function toUpperCase():String;
+	@:pure function toLowerCase():String;
+	@:pure function charAt(index:Int):String;
+	@:pure function indexOf(str:String, ?startIndex:Int):Int;
+	@:pure function lastIndexOf(str:String, ?startIndex:Int):Int;
+	@:pure function split(delimiter:String):Array<String>;
+	@:pure function toString():String;
+	@:pure function substring(startIndex:Int, ?endIndex:Int):String;
 
-	@:pure inline function charCodeAt( index : Int) : Null<Int> {
+	@:pure inline function charCodeAt(index:Int):Null<Int> {
 		return @:privateAccess HxOverrides.cca(this, index);
 	}
 
-	@:pure inline function substr( pos : Int, ?len : Int ) : String {
+	@:pure inline function substr(pos:Int, ?len:Int):String {
 		return @:privateAccess HxOverrides.substr(this, pos, len);
 	}
 
-	@:pure static inline function fromCharCode( code : Int ) : String {
+	@:pure static inline function fromCharCode(code:Int):String {
 		return untyped __define_feature__('String.fromCharCode', js.Syntax.code("String.fromCodePoint({0})", code));
 	}
 
-	static function __init__() : Void {
-		untyped __feature__('String.fromCharCode', js.Syntax.code("if( String.fromCodePoint == null ) String.fromCodePoint = function(c) { return c < 0x10000 ? String.fromCharCode(c) : String.fromCharCode((c>>10)+0xD7C0)+String.fromCharCode((c&0x3FF)+0xDC00); }"));
+	static function __init__():Void {
+		untyped __feature__('String.fromCharCode',
+			js.Syntax.code("if( String.fromCodePoint == null ) String.fromCodePoint = function(c) { return c < 0x10000 ? String.fromCharCode(c) : String.fromCharCode((c>>10)+0xD7C0)+String.fromCharCode((c&0x3FF)+0xDC00); }"));
 	}
-
 }

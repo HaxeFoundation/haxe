@@ -38,6 +38,9 @@ class Php {
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
 
+		changeDirectory(miscPhpDir);
+		runThroughPhpVersions(runCommand.bind("haxe", ["run.hxml"]));
+
 		var binDir = "bin/php";
 
 		var prefixes = [[]];
@@ -61,9 +64,6 @@ class Php {
 			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
 			runThroughPhpVersions(runCommand.bind("php", ["bin/php/Main/index.php"]));
-
-			changeDirectory(miscPhpDir);
-			runThroughPhpVersions(runCommand.bind("haxe", ["run.hxml"]));
 		}
 	}
 

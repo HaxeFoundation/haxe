@@ -19,43 +19,38 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python;
 
 import python.Bytes;
 import python.Tuple;
 
 class NativeStringTools {
-
-	public static function format (s:String, args:Array<Dynamic>):String
-	{
+	public static function format(s:String, args:Array<Dynamic>):String {
 		return python.Syntax.field(s, "format")(python.Syntax.varArgs(args));
 	}
 
-	public static inline function encode(s:String, encoding:String="utf-8", errors:String="strict"):Bytes {
-		return (python.Syntax.callField(s, "encode", encoding, errors):Bytes);
+	public static inline function encode(s:String, encoding:String = "utf-8", errors:String = "strict"):Bytes {
+		return (python.Syntax.callField(s, "encode", encoding, errors) : Bytes);
 	}
 
 	public static inline function contains(s:String, e:String):Bool {
-		return python.Syntax.isIn(e,s);
+		return python.Syntax.isIn(e, s);
 	}
 
-	public static inline function strip(s:String, ?chars:String):String
-	{
+	public static inline function strip(s:String, ?chars:String):String {
 		return python.Syntax.field(s, "strip")(chars);
 	}
 
-	public static inline function rpartition (s:String, sep:String):Tuple3<String, String, String>
-	{
+	public static inline function rpartition(s:String, sep:String):Tuple3<String, String, String> {
 		return python.Syntax.field(s, "rpartition")(sep);
 	}
 
-	public static inline function startswith (s:String, prefix:String):Bool
-	{
+	public static inline function startswith(s:String, prefix:String):Bool {
 		return python.Syntax.field(s, "startswith")(prefix);
 	}
 
-	public static inline function endswith (s:String, suffix:String):Bool
-	{
+	public static inline function endswith(s:String, suffix:String):Bool {
 		return python.Syntax.field(s, "endswith")(suffix);
 	}
 }

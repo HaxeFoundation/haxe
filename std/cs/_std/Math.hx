@@ -19,91 +19,76 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-@:coreApi @:nativeGen class Math
-{
+@:coreApi @:nativeGen class Math {
 	@:readOnly
 	private static var rand = new cs.system.Random();
 
 	@:readOnly
-	public static var PI(default,null) = cs.system.Math.PI;
+	public static var PI(default, null) = cs.system.Math.PI;
 	@:readOnly
-	public static var NaN(default,null) = cs.system.Double.NaN;
+	public static var NaN(default, null) = cs.system.Double.NaN;
 	@:readOnly
-	public static var NEGATIVE_INFINITY(default,null) = cs.system.Double.NegativeInfinity;
+	public static var NEGATIVE_INFINITY(default, null) = cs.system.Double.NegativeInfinity;
 	@:readOnly
-	public static var POSITIVE_INFINITY(default,null) = cs.system.Double.PositiveInfinity;
+	public static var POSITIVE_INFINITY(default, null) = cs.system.Double.PositiveInfinity;
 
-	public static inline function abs(v:Float):Float
-	{
+	public static inline function abs(v:Float):Float {
 		return cs.system.Math.Abs(v);
 	}
 
-	public static inline function min(a:Float, b:Float):Float
-	{
-		return cs.system.Math.Min(a,b);
+	public static inline function min(a:Float, b:Float):Float {
+		return cs.system.Math.Min(a, b);
 	}
 
-	public static inline function max(a:Float, b:Float):Float
-	{
-		return cs.system.Math.Max(a,b);
+	public static inline function max(a:Float, b:Float):Float {
+		return cs.system.Math.Max(a, b);
 	}
 
-	public static inline function sin(v:Float):Float
-	{
+	public static inline function sin(v:Float):Float {
 		return cs.system.Math.Sin(v);
 	}
 
-	public static inline function cos(v:Float):Float
-	{
+	public static inline function cos(v:Float):Float {
 		return cs.system.Math.Cos(v);
 	}
 
-	public static inline function atan2(y:Float, x:Float):Float
-	{
+	public static inline function atan2(y:Float, x:Float):Float {
 		return cs.system.Math.Atan2(y, x);
 	}
 
-	public static inline function tan(v:Float):Float
-	{
+	public static inline function tan(v:Float):Float {
 		return cs.system.Math.Tan(v);
 	}
 
-	public static inline function exp(v:Float):Float
-	{
+	public static inline function exp(v:Float):Float {
 		return cs.system.Math.Exp(v);
 	}
 
-	public static inline function log(v:Float):Float
-	{
+	public static inline function log(v:Float):Float {
 		return cs.system.Math.Log(v);
 	}
 
-	public static inline function sqrt(v:Float):Float
-	{
+	public static inline function sqrt(v:Float):Float {
 		return cs.system.Math.Sqrt(v);
 	}
 
-	public static inline function fround(v:Float):Float
-	{
+	public static inline function fround(v:Float):Float {
 		return cs.system.Math.Floor(v + 0.5);
 	}
 
-	public static inline function ffloor(v:Float):Float
-	{
+	public static inline function ffloor(v:Float):Float {
 		return cs.system.Math.Floor(v);
 	}
 
-	public static inline function fceil(v:Float):Float
-	{
+	public static inline function fceil(v:Float):Float {
 		return cs.system.Math.Ceiling(v);
 	}
 
-	public static function round(v:Float):Int
-	{
+	public static function round(v:Float):Int {
 		var vint = Std.int(v);
 		var dec = v - vint;
 		if (dec >= 1 || dec <= -1)
-			return vint; //overflow
+			return vint; // overflow
 		if (dec >= .5)
 			return vint + 1;
 		if (dec < -.5)
@@ -111,48 +96,39 @@
 		return vint;
 	}
 
-	public static inline function floor(v:Float):Int
-	{
+	public static inline function floor(v:Float):Int {
 		return Std.int(cs.system.Math.Floor(v));
 	}
 
-	public static inline function ceil(v:Float):Int
-	{
+	public static inline function ceil(v:Float):Int {
 		return Std.int(cs.system.Math.Ceiling(v));
 	}
 
-	public static inline function atan(v:Float):Float
-	{
+	public static inline function atan(v:Float):Float {
 		return cs.system.Math.Atan(v);
 	}
 
-	public static inline function asin(v:Float):Float
-	{
+	public static inline function asin(v:Float):Float {
 		return cs.system.Math.Asin(v);
 	}
 
-	public static inline function acos(v:Float):Float
-	{
+	public static inline function acos(v:Float):Float {
 		return cs.system.Math.Acos(v);
 	}
 
-	public static inline function pow(v:Float, exp:Float):Float
-	{
+	public static inline function pow(v:Float, exp:Float):Float {
 		return cs.system.Math.Pow(v, exp);
 	}
 
-	public static inline function random() : Float
-	{
+	public static inline function random():Float {
 		return rand.NextDouble();
 	}
 
-	public static inline function isFinite( f : Float ) : Bool
-	{
+	public static inline function isFinite(f:Float):Bool {
 		return !cs.system.Double.IsInfinity(f) && !cs.system.Double.IsNaN(f);
 	}
 
-	public static inline function isNaN( f : Float ) : Bool
-	{
+	public static inline function isNaN(f:Float):Bool {
 		return cs.system.Double.IsNaN(f);
 	}
 }

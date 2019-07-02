@@ -57,6 +57,16 @@ let make_call ctx e params t ?(force_inline=false) p =
 				None
 		in
 		ignore(follow f.cf_type); (* force evaluation *)
+		(match cl, ctx.curclass.cl_kind, params with
+			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
+				if
+					has_meta Meta.This v_meta
+					&& not (assign_to_this_is_allowed ctx)
+					&& has_class_field_flag f CfModifiesThis
+				then
+					error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
+			| _ -> ()
+		);
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		let force_inline = is_forced_inline cl f in
 		(match f.cf_expr_unoptimized,f.cf_expr with
@@ -181,11 +191,13 @@ let rec unify_call_args' ctx el args r callp inline force_inline =
 				(e,opt) :: loop el args
 			with
 				WithTypeError (ul,p)->
-					if opt then
+					if opt && List.length el < List.length args then
 						let e_def = skip name ul t p in
 						(e_def,true) :: loop (e :: el) args
 					else
-						arg_error ul name false p
+						match List.rev !skipped with
+						| [] -> arg_error ul name opt p
+						| (s,ul,p) :: _ -> arg_error ul s true p
 			end
 	in
 	let el = try loop el args with exc -> ctx.in_call_args <- in_call_args; raise exc; in
@@ -456,14 +468,10 @@ let rec acc_get ctx g p =
 		(* do not create a closure for static calls *)
 		let cmode = (match fmode with FStatic _ -> fmode | FInstance (c,tl,f) -> FClosure (Some (c,tl),f) | _ -> assert false) in
 		ignore(follow f.cf_type); (* force computing *)
-		begin match f.cf_expr with
-		| None when ctx.com.display.dms_display ->
+		begin match f.cf_kind,f.cf_expr with
+		| _ when not (ctx.com.display.dms_inline) ->
 			mk (TField (e,cmode)) t p
-		| None ->
-			error "Recursive inline is not supported" p
-		| Some _ when not (ctx.com.display.dms_inline) ->
-			mk (TField (e,cmode)) t p
-		| Some { eexpr = TFunction _ } ->
+		| Method _,_->
 			let chk_class c = (c.cl_extern || has_class_field_flag f CfExtern) && not (Meta.has Meta.Runtime f.cf_meta) in
 			let wrap_extern c =
 				let c2 =
@@ -507,12 +515,16 @@ let rec acc_get ctx g p =
 					end
 				| _ -> e_def
 			end
-		| Some e ->
+		| Var _,Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			let e = loop e in
 			let e = Inline.inline_metadata e f.cf_meta in
 			if not (type_iseq f.cf_type e.etype) then mk (TCast(e,None)) f.cf_type e.epos
 			else e
+		| Var _,None when ctx.com.display.dms_display ->
+			 mk (TField (e,cmode)) t p
+		| Var _,None ->
+			error "Recursive inline is not supported" p
 		end
 	| AKMacro _ ->
 		assert false
@@ -740,19 +752,21 @@ let array_access ctx e1 e2 mode p =
 		| _ -> raise Not_found)
 	with Not_found ->
 		unify ctx e2.etype ctx.t.tint e2.epos;
-		let rec loop et =
-			match follow et with
-			| TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
+		let rec loop ?(skip_abstract=false) et =
+			match skip_abstract,follow et with
+			| _, TInst ({ cl_array_access = Some t; cl_params = pl },tl) ->
 				apply_params pl tl t
-			| TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
+			| _, TInst ({ cl_super = Some (c,stl); cl_params = pl },tl) ->
 				apply_params pl tl (loop (TInst (c,stl)))
-			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
+			| _, TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
-			| TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
+			| _, TInst ({ cl_path = [],"Array"},[t]) when t == t_dynamic ->
 				t_dynamic
-			| TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
-				loop (apply_params a.a_params tl a.a_this)
-			| _ ->
+			| false, TAbstract(a,tl) when Meta.has Meta.ArrayAccess a.a_meta ->
+				let at = apply_params a.a_params tl a.a_this in
+				let skip_abstract = fast_eq et at in
+				loop ~skip_abstract at
+			| _, _ ->
 				let pt = mk_mono() in
 				let t = ctx.t.tarray pt in
 				(try unify_raise ctx et t p

@@ -20,49 +20,64 @@
  * DEALINGS IN THE SOFTWARE.
  */
 @:coreApi class Date {
-	var d : lua.Os.DateType;
-	var t : lua.Time;
+	var d:lua.Os.DateType;
+	var t:lua.Time;
 
-	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
-		t =  lua.Os.time({
-			year  : year,
-			month : month+1,
-			day   : day,
-			hour  : hour,
-			min   : min,
-			sec   : sec
+	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int) {
+		t = lua.Os.time({
+			year: year,
+			month: month + 1,
+			day: day,
+			hour: hour,
+			min: min,
+			sec: sec
 		});
-		d =lua.Os.date("*t", t);
+		d = lua.Os.date("*t", t);
 	};
-	public function getTime()     : Float return cast t * 1000;
-	public function getHours()    : Int return d.hour;
-	public function getMinutes()  : Int return d.min;
-	public function getSeconds()  : Int return d.sec;
-	public function getFullYear() : Int return d.year;
-	public function getMonth()    : Int return d.month-1;
-	public function getDate()     : Int return d.day;
-	public function getDay()      : Int return d.wday-1;
 
-	public inline function toString() : String {
+	public function getTime():Float
+		return cast t * 1000;
+
+	public function getHours():Int
+		return d.hour;
+
+	public function getMinutes():Int
+		return d.min;
+
+	public function getSeconds():Int
+		return d.sec;
+
+	public function getFullYear():Int
+		return d.year;
+
+	public function getMonth():Int
+		return d.month - 1;
+
+	public function getDate():Int
+		return d.day;
+
+	public function getDay():Int
+		return d.wday - 1;
+
+	public inline function toString():String {
 		return lua.Boot.dateStr(this);
 	}
 
-	public static inline function now() : Date {
-		return fromTime(lua.Os.time()*1000);
+	public static inline function now():Date {
+		return fromTime(lua.Os.time() * 1000);
 	}
 
-	public static inline function fromTime( t : Float ) : Date {
-		var d : Dynamic = {}
+	public static inline function fromTime(t:Float):Date {
+		var d:Dynamic = {}
 		untyped {
-			lua.Lua.setmetatable(d, untyped {__index : Date.prototype});
-			d.t = t/1000;
+			lua.Lua.setmetatable(d, untyped {__index: Date.prototype});
+			d.t = t / 1000;
 			d.d = lua.Os.date("*t", Std.int(d.t));
 		}
 		return d;
 	}
 
-	public static inline function fromString( s : String ) : Date {
+	public static inline function fromString(s:String):Date {
 		return lua.Boot.strDate(s);
 	}
 }
-

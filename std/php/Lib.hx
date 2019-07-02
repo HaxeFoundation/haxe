@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package php;
 
 import haxe.ds.StringMap;
@@ -34,7 +35,7 @@ class Lib {
 	/**
 		Print the specified value on the default output.
 	**/
-	public static inline function print( v : Dynamic ) : Void {
+	public static inline function print(v:Dynamic):Void {
 		Global.echo(Std.string(v));
 	}
 
@@ -42,7 +43,7 @@ class Lib {
 		Print the specified value on the default output followed by
 		a newline character.
 	**/
-	public static function println( v : Dynamic ) : Void {
+	public static function println(v:Dynamic):Void {
 		print(v);
 		print("\n");
 	}
@@ -52,7 +53,7 @@ class Lib {
 		that includes its type and value. Arrays and objects are
 		explored recursively with values indented to show structure.
 	**/
-	public static inline function dump(v : Dynamic) : Void {
+	public static inline function dump(v:Dynamic):Void {
 		Global.var_dump(v);
 	}
 
@@ -60,63 +61,63 @@ class Lib {
 		Serialize using native PHP serialization. This will return a binary
 		`String` that can be stored for long term usage.
 	**/
-	public static inline function serialize( v : Dynamic ) : String {
+	public static inline function serialize(v:Dynamic):String {
 		return Global.serialize(v);
 	}
 
 	/**
 		Unserialize a `String` using native PHP serialization. See `php.Lib.serialize()`.
 	**/
-	public static inline function unserialize( s : String ) : Dynamic {
+	public static inline function unserialize(s:String):Dynamic {
 		return Global.unserialize(s);
 	}
 
 	/**
 		Find out whether an extension is loaded.
 	**/
-	public static inline function extensionLoaded(name : String) {
+	public static inline function extensionLoaded(name:String) {
 		return Global.extension_loaded(name);
 	}
 
-	public static inline function isCli() : Bool {
+	public static inline function isCli():Bool {
 		return 0 == Global.strncasecmp(Const.PHP_SAPI, 'cli', 3);
 	}
 
 	/**
 		Output file content from the given file name.
 	**/
-	public static inline function printFile(file : String) {
-		return Global.fpassthru(Global.fopen(file,  "r"));
+	public static inline function printFile(file:String) {
+		return Global.fpassthru(Global.fopen(file, "r"));
 	}
 
-	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
+	public static inline function toPhpArray(a:Array<Dynamic>):NativeArray {
 		return @:privateAccess a.arr;
 	}
 
-	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
+	public static inline function toHaxeArray(a:NativeArray):Array<Dynamic> {
 		return @:privateAccess Array.wrap(a);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : NativeAssocArray<T>) : Map<String,T> {
+	public static function hashOfAssociativeArray<T>(arr:NativeAssocArray<T>):Map<String, T> {
 		var result = new StringMap();
 		@:privateAccess result.data = arr;
 		return result;
 	}
 
-	public static inline function associativeArrayOfHash(hash : haxe.ds.StringMap<Dynamic>) : NativeArray {
+	public static inline function associativeArrayOfHash(hash:haxe.ds.StringMap<Dynamic>):NativeArray {
 		return @:privateAccess hash.data;
 	}
 
-	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+	public static function objectOfAssociativeArray(arr:NativeArray):Dynamic {
 		Syntax.foreach(arr, function(key:Scalar, value:Dynamic) {
-			if(Global.is_array(value)) {
+			if (Global.is_array(value)) {
 				arr[key] = objectOfAssociativeArray(value);
 			}
 		});
 		return Boot.createAnon(arr);
 	}
 
-	public static inline function associativeArrayOfObject(ob : Dynamic) : NativeArray {
+	public static inline function associativeArrayOfObject(ob:Dynamic):NativeArray {
 		return Syntax.array(ob);
 	}
 
@@ -124,7 +125,7 @@ class Lib {
 		See the documentation for the equivalent PHP function for details on usage:
 		<http://php.net/manual/en/function.mail.php>
 	**/
-	public static inline function mail(to : String, subject : String, message : String, ?additionalHeaders : String, ?additionalParameters : String) : Bool {
+	public static inline function mail(to:String, subject:String, message:String, ?additionalHeaders:String, ?additionalParameters:String):Bool {
 		return Global.mail(to, subject, message, additionalHeaders, additionalParameters);
 	}
 
@@ -133,8 +134,8 @@ class Lib {
 		If `e` is not a value caught in `try...catch` or if called outside of `catch` block, then `e` is thrown as
 		a new exception.
 	**/
-	extern public static inline function rethrow( e : Dynamic ) {
-		if(Syntax.code("isset($__hx__caught_e, $__hx__real_e)") && e == Syntax.code("$__hx__real_e")) {
+	extern public static inline function rethrow(e:Dynamic) {
+		if (Syntax.code("isset($__hx__caught_e, $__hx__real_e)") && e == Syntax.code("$__hx__real_e")) {
 			Syntax.code("throw $__hx__caught_e");
 		}
 		throw e;
@@ -144,7 +145,7 @@ class Lib {
 		Tries to load all compiled php files and returns list of types.
 	**/
 	public static function getClasses():Dynamic {
-		if(!loaded) {
+		if (!loaded) {
 			loaded = true;
 			var reflection = new ReflectionClass(Boot.getPhpName('php.Boot'));
 			loadLib(Global.dirname(reflection.getFileName(), 2));
@@ -154,9 +155,9 @@ class Lib {
 		Syntax.foreach(Boot.getRegisteredAliases(), function(phpName:String, haxeName:String) {
 			var parts = haxeName.split('.');
 			var obj = result;
-			while(parts.length > 1) {
+			while (parts.length > 1) {
 				var pack = parts.shift();
-				if(Syntax.field(obj, pack) == null) {
+				if (Syntax.field(obj, pack) == null) {
 					Syntax.setField(obj, pack, {});
 				}
 				obj = Syntax.field(obj, pack);
@@ -166,16 +167,18 @@ class Lib {
 
 		return result;
 	}
+
 	static var loaded:Bool = false;
 
 	/**
 		Loads types defined in the specified directory.
 	**/
-	public static function loadLib(pathToLib : String) : Void {
+	public static function loadLib(pathToLib:String):Void {
 		var absolutePath = Global.realpath(pathToLib);
-		if(absolutePath == false) throw 'Failed to read path: $pathToLib';
+		if (absolutePath == false)
+			throw 'Failed to read path: $pathToLib';
 		Syntax.foreach(Global.glob('$absolutePath/*.php'), function(_, fileName) {
-			if(!Global.is_dir(fileName)) {
+			if (!Global.is_dir(fileName)) {
 				Global.require_once(fileName);
 			}
 		});

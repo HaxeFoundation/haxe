@@ -208,3 +208,47 @@ let mkdir_from_path path =
 
 let full_dot_path pack mname tname =
 	if tname = mname then (pack,mname) else (pack @ [mname],tname)
+
+module FilePath = struct
+	type t = {
+		directory : string option;
+		file_name : string option;
+		extension : string option;
+		backslash : bool;
+	}
+
+	let create directory file_name extension backslash = {
+		directory = directory;
+		file_name = file_name;
+		extension = extension;
+		backslash = backslash;
+	}
+
+	let parse path = match path with
+		| "." | ".." ->
+			create (Some path) None None false
+		| _ ->
+			let c1 = String.rindex path '/' in
+			let c2 = String.rindex path '\\' in
+			let split s at = String.sub s 0 at,String.sub s (at + 1) (String.length s - at - 1) in
+			let dir,path,backslash = if c1 < c2 then begin
+				let dir,path = split path c2 in
+				Some dir,path,true
+			end else if c2 < c1 then begin
+				let dir,path = split path c1 in
+				Some dir,path,false
+			end else
+				None,path,false
+			in
+			let file,ext = if String.length path = 0 then
+				None,None
+			else begin
+				let cp = String.rindex path '.' in
+				if cp <> -1 then begin
+					let file,ext = split path cp in
+					Some file,Some ext
+				end else
+					Some path,None
+			end in
+			create dir file ext backslash
+end

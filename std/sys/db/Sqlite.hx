@@ -19,13 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.db;
 
 class Sqlite {
-
-	public static function open( file : String ) : Connection {
+	public static function open(file:String):Connection {
 		throw "Not implemented for this platform";
 		return null;
 	}
-
 }

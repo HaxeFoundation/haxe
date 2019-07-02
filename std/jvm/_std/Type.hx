@@ -135,8 +135,8 @@ class Type {
 		// 1. attempt: direct constructor lookup
 		try {
 			var ctor = MethodHandles.lookup().findConstructor(cl, methodType);
-            return ctor.invokeWithArguments(args);
-		} catch(_:NoSuchMethodException) { }
+			return ctor.invokeWithArguments(args);
+		} catch (_:NoSuchMethodException) {}
 
 		// 2. attempt direct new lookup
 		try {
@@ -144,7 +144,7 @@ class Type {
 			var obj = cl.getConstructor(emptyClass).newInstance(emptyArg);
 			ctor.bindTo(obj).invokeWithArguments(args);
 			return obj;
-		} catch (_:NoSuchMethodException) { }
+		} catch (_:NoSuchMethodException) {}
 
 		// 3. attempt: unify actual constructor
 		for (ctor in cl.getDeclaredConstructors()) {

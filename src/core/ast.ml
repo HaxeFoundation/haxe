@@ -497,8 +497,10 @@ let unescape s =
 				| 't' -> Buffer.add_char b '\t'
 				| '"' | '\'' | '\\' -> Buffer.add_char b c
 				| '0'..'3' ->
-					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
-					Buffer.add_char b c;
+					let u = (try (int_of_string ("0o" ^ String.sub s i 3)) with _ -> fail None) in
+					if u > 127 then
+						fail (Some ("Values greater than \\177 are not allowed. Use \\u00" ^ (Printf.sprintf "%02x" u) ^ " instead."));
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'x' ->
 					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence.") in
@@ -506,7 +508,7 @@ let unescape s =
 					let u = (try (int_of_string ("0x" ^ hex)) with _ -> fail_no_hex ()) in
 					if u > 127 then
 						fail (Some ("Values greater than \\x7f are not allowed. Use \\u00" ^ hex ^ " instead."));
-					UTF8.add_uchar b (UChar.uchar_of_int u);
+					Buffer.add_char b (char_of_int u);
 					inext := !inext + 2;
 				| 'u' ->
 					let fail_no_hex () = fail (Some "Must be followed by a hexadecimal sequence enclosed in curly brackets.") in

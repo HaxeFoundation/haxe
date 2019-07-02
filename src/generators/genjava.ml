@@ -198,7 +198,6 @@ let mk_cast_if_needed t_to e =
 	else
 		mk_cast t_to e
 
-
 (* ******************************************* *)
 (* JavaSpecificESynf *)
 (* ******************************************* *)
@@ -305,7 +304,12 @@ struct
 								| _ -> { e with eexpr = TBlock([run obj; { e with eexpr = TConst(TBool true) }]) }
 							)
 						| _ ->
-							mk_is false obj md
+							if not (is_java_basic_type obj.etype) then
+								try
+									Type.unify obj.etype (type_of_module_type md);
+									mk_is false obj md
+								with Unify_error _ -> e
+							else e
 					)
 				(* end Std.is() *)
 				| _ -> Type.map_expr run e
@@ -412,7 +416,7 @@ struct
 		and modify it to:
 		{
 			var execute_def = true;
-			switch(str.hashCode())
+			switch(str == null ? 0 : str.hashCode())
 			{
 				case (hashcode of a):
 					if (str == "a")
@@ -575,7 +579,9 @@ struct
 			(el, e)
 		in
 
-		let switch = { eswitch with
+		let is_not_null_check = mk (TBinop (OpNotEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
+		let if_not_null e = { e with eexpr = TIf (is_not_null_check, e, None) } in
+		let switch = if_not_null { eswitch with
 			eexpr = TSwitch(!local_hashcode, List.map change_case (reorder_cases ecases []), None);
 		} in
 		(if !has_case then begin
