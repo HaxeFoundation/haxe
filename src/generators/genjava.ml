@@ -458,21 +458,6 @@ struct
 
 		let hash_cache = ref None in
 
-		(* let call_hashcode = { local with
-			eexpr = TCall({ local with
-				eexpr = TField(local, FDynamic "hashCode");
-				etype = TFun([], basic.tint);
-			}, []);
-			etype = basic.tint
-		}
-		and is_null_check = mk (TBinop (OpEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
-		let local_hashcode = ref { call_hashcode with
-			eexpr = TIf (
-				is_null_check,
-				mk (TConst (TInt (Int32.of_int 0))) basic.tint local.epos,
-				Some call_hashcode
-			)
-		} in *)
 		let local_hashcode = ref { local with
 			eexpr = TCall({ local with
 				eexpr = TField(local, FDynamic "hashCode");
