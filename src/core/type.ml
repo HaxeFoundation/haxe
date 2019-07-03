@@ -2045,7 +2045,7 @@ let rec unify a b =
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		let i = ref 0 in
 		(try
-			(match r2 with
+			(match follow r2 with
 			| TAbstract ({a_path=[],"Void"},_) -> incr i
 			| _ -> unify r1 r2; incr i);
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
