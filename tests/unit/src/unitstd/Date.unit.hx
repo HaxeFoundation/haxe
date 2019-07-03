@@ -31,7 +31,7 @@ date1.getTime() == date2.getTime();
 
 var referenceDate = new Date(1970, 0, 1, 2, 0, 0);
 referenceDate.toString() == "1970-01-01 02:00:00";
-referenceDate.getTime() == 3600000.;
+referenceDate.getTime() == 7200000.;
 
 var date = new Date(1970, 0, 1, 1, 59, 59);
 date.getTime() < referenceDate.getTime();
