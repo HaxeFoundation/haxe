@@ -76,7 +76,12 @@ class UdpSocket extends Socket {
 	public function readFrom( buf : haxe.io.Bytes, pos : Int, len : Int, addr : Address ) : Int {
 		var endpoint:EndPoint = cast new IPEndPoint(IPAddress.Any, 0);
 		var data:NativeArray<UInt8> = new NativeArray(len);
-		var length:Int = this.sock.ReceiveFrom(data, endpoint);
+		var length:Int = -1;
+		try{
+			length = this.sock.ReceiveFrom(data, endpoint);
+		}catch (e:Dynamic){
+			return length;
+		}
 		var ipEndpoint:IPEndPoint = cast endpoint;
 		addr.host = ipEndpoint.Address.Address.high;
 		addr.port = ipEndpoint.Port;
