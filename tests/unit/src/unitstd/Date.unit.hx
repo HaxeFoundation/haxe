@@ -25,7 +25,7 @@ var date = Date.fromTime(405781340000);
 date.getTime() == 405781340000;
 
 // timezone issues
-var date1 = Date.fromTime(1455551955 * 1000.); // 15 Feb 2016 16:59:15 GMT
+var date1 = Date.fromTime(1455555555 * 1000.); // 15 Feb 2016 16:59:15 GMT
 var date2 = new Date(2016, 1, 15, 16, 59, 15);
 date1.getTime() == date2.getTime();
 
