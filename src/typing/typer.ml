@@ -1132,11 +1132,6 @@ and type_unop ctx op flag e p =
 	loop acc
 
 and type_ident ctx i p mode =
-	if p.pfile = "src/Main.hx" && mode = MGet then begin
-		print_string "";
-		print_string "";
-		print_string "";
-	end;
 	try
 		type_ident_raise ctx i p mode
 	with Not_found -> try
