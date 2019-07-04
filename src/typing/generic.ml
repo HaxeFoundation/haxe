@@ -49,7 +49,7 @@ let make_generic ctx ps pt p =
 				| _ when not top -> "_" (* allow unknown/incompatible types as type parameters to retain old behavior *)
 				| TMono _ -> raise (Generic_Exception (("Could not determine type for parameter " ^ s), p))
 				| TDynamic _ -> "Dynamic"
-				| t -> raise (Generic_Exception (("Type parameter must be a class or enum instance (found " ^ (s_type (print_context()) t) ^ ")"), p))
+				| t -> raise (Generic_Exception (("Unsupported type parameter: " ^ (s_type (print_context()) t) ^ ")"), p))
 			and loop_tl tl = match tl with
 				| [] -> ""
 				| tl -> "_" ^ String.concat "_" (List.map (loop false) tl)
