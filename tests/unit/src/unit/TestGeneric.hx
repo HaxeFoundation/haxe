@@ -63,4 +63,9 @@ class TestGeneric extends Test {
 		eq(a.t.a, 1);
 		eq(a.t.b, null);
 	}
+
+	function testGenericFn() {
+		var a = new MyGeneric<Int->Int>(function(i:Int):Int return i * i);
+		eq(4, a.t(2));
+	}
 }
