@@ -716,7 +716,6 @@ let rec get_fun_modifiers meta access modifiers =
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 let generate con =
-	let restore_types = save_types con.types in
 	(try
 		let gen = new_ctx con in
 		let basic = con.basic in
@@ -3436,5 +3435,4 @@ let generate con =
 
 	with TypeNotFound path ->
 		con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
-	debug_mode := false;
-	restore_types()
+	debug_mode := false

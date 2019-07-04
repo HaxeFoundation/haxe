@@ -961,7 +961,6 @@ let rec get_fun_modifiers meta access modifiers =
 		| _ :: meta -> get_fun_modifiers meta access modifiers
 
 let generate con =
-	let restore_types = save_types con.types in
 	let exists = ref false in
 	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
 		if String.ends_with file "hxjava-std.jar" then begin
@@ -2667,5 +2666,4 @@ let generate con =
 	end
 
 	with TypeNotFound path -> con.error ("Error. Module '" ^ (s_type_path path) ^ "' is required and was not included in build.") null_pos);
-	debug_mode := false;
-	restore_types()
+	debug_mode := false
