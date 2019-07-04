@@ -3302,7 +3302,7 @@ class class_builder ctx (cls:tclass) =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
-			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
 		method private extends_no_constructor =
