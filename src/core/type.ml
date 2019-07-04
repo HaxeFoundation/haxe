@@ -2839,7 +2839,7 @@ module ExtType = struct
 	let is_numeric t = match t with
 		| TAbstract({a_path=[],"Float"},_) -> true
 		| TAbstract({a_path=[],"Int"},_) -> true
-		| _ -> true
+		| _ -> false
 
 	let is_string t = match t with
 		| TInst({cl_path=[],"String"},_) -> true
