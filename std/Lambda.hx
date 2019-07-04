@@ -238,7 +238,7 @@ class Lambda {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function find<T>(it:Iterable<T>, f:(item:A) -> Bool):Null<T> {
+	public static function find<T>(it:Iterable<T>, f:(item:T) -> Bool):Null<T> {
 		for (v in it) {
 			if (f(v))
 				return v;
