@@ -32,7 +32,18 @@
 	There are some extra functions available in the `DateTools` class.
 
 	In the context of Haxe dates, a timestamp is defined as the number of
-	milliseconds elapsed since 1st January 1970.
+	milliseconds elapsed since 1st January 1970 UTC.
+
+	## Supported range
+
+	Most Haxe targets support dates outside the range of years 1970 through 2038.
+	Due to platform limitations, there are some exceptions:
+
+	- hl, cpp, and eval only support years 1970 and up
+	- neko only supports the range 1902 to 2038
+
+	Additionally, the `Date.fromTime()` function will not work with timestamps
+	outside the 1970 through 2038 range on any platform.
 **/
 extern class Date {
 	/**
