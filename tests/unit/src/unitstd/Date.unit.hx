@@ -52,7 +52,7 @@ date.getTime() < referenceDate.getTime();
 #end
 
 // < 1902 (negative timestamp, outside of signed 32-bit integer range)
-#if !(hl, neko, eval, cpp)
+#if !(hl || neko || eval || cpp)
 var date = new Date(1888, 0, 1, 15, 4, 2);
 date.getHours() == 15;
 date.getMinutes() == 4;
