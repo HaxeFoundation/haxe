@@ -378,10 +378,15 @@ let type_generic_function ctx (e,fa) el ?(using_param=None) with_type p =
 				unify_existing_field cf2.cf_type cf2.cf_pos;
 				cf2
 			in
-			if cf.cf_name_pos = cf2.cf_name_pos then
+			cf2
+			(*
+				java.Lib.array() relies on the ability to shadow @:generic function for certain types
+				see https://github.com/HaxeFoundation/haxe/issues/8393#issuecomment-508685760
+			*)
+			(* if cf.cf_name_pos = cf2.cf_name_pos then
 				cf2
 			else
-				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p
+				error ("Cannot specialize @:generic because the generated function name is already used: " ^ name) p *)
 		with Not_found ->
 			let cf2 = mk_field name (map_monos cf.cf_type) cf.cf_pos cf.cf_name_pos in
 			if stat then begin
