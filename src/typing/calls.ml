@@ -537,11 +537,14 @@ let rec acc_get ctx g p =
 	| AKMacro _ ->
 		assert false
 
-let rec build_call ctx acc el (with_type:WithType.t) p =
+let rec build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
+	let check_assign () = if mode = MSet then invalid_assign p in
 	match acc with
 	| AKInline (ethis,f,fmode,t) when Meta.has Meta.Generic f.cf_meta ->
+		check_assign();
 		type_generic_function ctx (ethis,fmode) el with_type p
 	| AKInline (ethis,f,fmode,t) ->
+		check_assign();
 		(match follow t with
 			| TFun (args,r) ->
 				let _,_,mk_call = unify_field_call ctx fmode el args r p true in
@@ -550,6 +553,7 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 				error (s_type (print_context()) t ^ " cannot be called") p
 		)
 	| AKUsing (et,cl,ef,eparam,forced_inline (* TOOD? *)) when Meta.has Meta.Generic ef.cf_meta ->
+		check_assign();
 		(match et.eexpr with
 		| TField(ec,fa) ->
 			type_generic_function ctx (ec,fa) el ~using_param:(Some eparam) with_type p
@@ -559,10 +563,11 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		| Method MethMacro ->
 			let ethis = type_module_type ctx (TClassDecl cl) None p in
 			let eparam,f = push_this ctx eparam in
-			let e = build_call ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
+			let e = build_call ~mode ctx (AKMacro (ethis,ef)) (eparam :: el) with_type p in
 			f();
 			e
 		| _ ->
+			check_assign();
 			let t = follow (field_type ctx cl [] ef p) in
 			(* for abstracts we have to apply their parameters to the static function *)
 			let t,tthis = match follow eparam.etype with
@@ -589,11 +594,11 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 		let f = (match ethis.eexpr with
 		| TTypeExpr (TClassDecl c) ->
 			(match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name el p with
-			| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) WithType.value)
+			| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
 			| Some (EMeta((Meta.MergeBlock,_,_),(EBlock el,_)),_) -> (fun () -> let e = (!type_block_ref) ctx el with_type p in mk (TMeta((Meta.MergeBlock,[],p), e)) e.etype e.epos)
-			| Some e -> (fun() -> type_expr ctx e with_type))
+			| Some e -> (fun() -> type_expr ~mode ctx e with_type))
 		| _ ->
-			(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
+			(* member-macro call : since we will make a static call, let's find the actual class and not its subclass *)
 			(match follow ethis.etype with
 			| TInst (c,_) ->
 				let rec loop c =
@@ -601,8 +606,8 @@ let rec build_call ctx acc el (with_type:WithType.t) p =
 						let eparam,f = push_this ctx ethis in
 						ethis_f := f;
 						let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name (eparam :: el) p with
-							| None -> (fun() -> type_expr ctx (EConst (Ident "null"),p) WithType.value)
-							| Some e -> (fun() -> type_expr ctx e WithType.value)
+							| None -> (fun() -> type_expr ~mode ctx (EConst (Ident "null"),p) WithType.value)
+							| Some e -> (fun() -> type_expr ~mode ctx e WithType.value)
 						in
 						e
 					else

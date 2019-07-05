@@ -42,7 +42,7 @@ let check_assign ctx e =
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		error "Invalid assign" e.epos
+		invalid_assign e.epos
 
 type type_class =
 	| KInt
@@ -1431,7 +1431,7 @@ and type_access ctx e p mode =
 		let resume_typing = type_expr ~mode in
 		AKExpr (TyperDisplay.handle_edisplay ~resume_typing ctx e dk WithType.value)
 	| _ ->
-		AKExpr (type_expr ctx (e,p) WithType.value)
+		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
 
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
@@ -2233,11 +2233,11 @@ and type_if ctx e e1 e2 with_type p =
 		in
 		mk (TIf (e,e1,Some e2)) t p)
 
-and type_meta ctx m e1 with_type p =
+and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
 	let old = ctx.meta in
 	ctx.meta <- m :: ctx.meta;
-	let e () = type_expr ctx e1 with_type in
+	let e () = type_expr ~mode ctx e1 with_type in
 	let e = match m with
 		| (Meta.ToString,_,_) ->
 			let e = e() in
@@ -2319,10 +2319,10 @@ and type_call_target ctx e with_type inline p =
 		| _ ->
 			e
 
-and type_call ctx e el (with_type:WithType.t) inline p =
+and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
 		let e = type_call_target ctx e with_type inline p in
-		build_call ctx e el with_type p
+		build_call ~mode ctx e el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2496,7 +2496,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type false p
+		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
@@ -2529,7 +2529,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
-		type_meta ctx m e1 with_type p
+		type_meta ~mode ctx m e1 with_type p
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)

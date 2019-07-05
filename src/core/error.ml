@@ -290,3 +290,5 @@ let error_require r p =
 		"'" ^ r ^ "' to be enabled"
 	in
 	error ("Accessing this field requires " ^ r) p
+
+let invalid_assign p = error "Invalid assign" p
