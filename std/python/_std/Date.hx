@@ -38,7 +38,7 @@ import python.Syntax;
 	}
 
 	public inline function getTime():Float {
-		return python.lib.Time.mktime(date.timetuple()) * 1000;
+		return date.timestamp() * 1000;
 	}
 
 	public inline function getHours():Int {
@@ -70,16 +70,7 @@ import python.Syntax;
 	}
 
 	public function toString():String {
-		inline function st(x)
-			return Std.string(x);
-
-		var m = getMonth() + 1;
-		var d = getDate();
-		var h = getHours();
-		var mi = getMinutes();
-		var s = getSeconds();
-		return st(getFullYear()) + "-" + (if (m < 10) "0" + st(m) else "" + st(m)) + "-" + (if (d < 10) "0" + st(d) else "" + st(d)) + " "
-			+ (if (h < 10) "0" + st(h) else "" + st(h)) + ":" + (if (mi < 10) "0" + st(mi) else "" + st(mi)) + ":" + (if (s < 10) "0" + st(s) else "" + st(s));
+		return date.strftime("%Y-%m-%d %H:%M:%S");
 	}
 
 	static public function now():Date {
