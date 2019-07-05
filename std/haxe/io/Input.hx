@@ -292,7 +292,7 @@ class Input {
 			return n;
 		#elseif lua
 		var n = bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		return lua.Boot.clamp(n);
+		return lua.Boot.clampInt32(n);
 		#else
 		return bigEndian ? ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24) : ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 		#end
