@@ -66,7 +66,7 @@ import python.Syntax;
 	}
 
 	public inline function getDay():Int {
-		return date.isoweekday();
+		return date.isoweekday() % 7;
 	}
 
 	public function toString():String {

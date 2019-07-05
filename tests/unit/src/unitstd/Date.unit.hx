@@ -66,3 +66,12 @@ date.getMonth() == 0;
 date.getDate() == 1;
 date.getDay() == 6;
 date.getTime() > referenceDate.getTime();
+
+// weekdays
+(new Date(2019, 6, 1, 12, 0, 0)).getDay() == 1;
+(new Date(2019, 6, 2, 12, 0, 0)).getDay() == 2;
+(new Date(2019, 6, 3, 12, 0, 0)).getDay() == 3;
+(new Date(2019, 6, 4, 12, 0, 0)).getDay() == 4;
+(new Date(2019, 6, 5, 12, 0, 0)).getDay() == 5;
+(new Date(2019, 6, 6, 12, 0, 0)).getDay() == 6;
+(new Date(2019, 6, 7, 12, 0, 0)).getDay() == 0;
