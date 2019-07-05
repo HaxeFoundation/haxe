@@ -420,7 +420,64 @@ abstract UnicodeString(String) from String to String {
 		return l;
 	}
 	#end
-	#end
+
+    static public function fromCodePoint(code: Int): String {
+        #if neko
+            var buf = (neko.Lib.load("UTF8", "utf8_buf_alloc", 1))(4);
+            (neko.Lib.load("UTF8", "utf8_buf_add", 2))(buf, code);
+            return (neko.Lib.load("UTF8", "utf8_buf_content", 1))(buf);
+        #elseif cpp // utf8
+            return untyped __cpp__('[code]{
+                char c[5] = {};
+                if (code < 0x80) {
+                    c[0] = code;
+                } else if (code < 0x800) {
+                    c[0] = code >> 6 | 0x1C0;
+                    c[1] = (code & 0x3F) | 0x80;
+                } else if (0xD800 <= code && code < 0xE000) {
+                    // invalid utf8 block
+                } else if (code < 0x10000) {
+                    c[0] = code >> 12 | 0xE0;
+                    c[1] = (code >> 6 & 0x3F)  | 0x80;
+                    c[2] = (code & 0x3F) | 0x80;
+                } else if (code < 0x110000) {
+                    c[0] = code >> 18 | 0xF0;
+                    c[1] = (code >> 12 & 0x3F) | 0x80;
+                    c[2] = (code >>  6 & 0x3F) | 0x80;
+                    c[3] = (code & 0x3F) | 0x80;
+                } else {
+                    c[0] = 0xEF;
+                    c[1] = 0xBF;
+                    c[2] = 0xBD;
+                }
+                return String(c, 5);
+            }()');
+        #elseif flash
+            var fromCharCode = untyped __global__["fromCharCode"];
+            return fromCharCode(code);
+        #elseif java
+            return untyped __java__('new String(Character.toChars({0}))', code);
+        #elseif cs
+            return untyped __cs__('System.Char.ConvertFromUtf32({0})', code);
+        #elseif js
+            return untyped __js__('String.fromCodePoint({0})', code);
+        #elseif python
+            return python.lib.Builtins.chr(code);
+        #elseif hl
+            return String.fromCharCode(code);
+        #elseif lua
+            return untyped __lua__('utf8.char({0})', code);
+        #elseif php
+            return php.Syntax.call(null, 'IntlChar::chr', code);
+        #elseif interp
+            return String.fromCharCode(code);
+        #else
+            throw "UnicodeString.fromCodePoint is not implemented for this target";
+        #end
+    }
+
+    #end
+
 	@:op(A < B) static function lt(a:UnicodeString, b:UnicodeString):Bool;
 
 	@:op(A <= B) static function lte(a:UnicodeString, b:UnicodeString):Bool;

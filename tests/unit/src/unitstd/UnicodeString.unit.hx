@@ -148,6 +148,11 @@ var actualKeyCodes = [for(i => c in s) [i, c]];
 aeq(keys, actualKeyCodes.map(a -> a[0]));
 aeq(codes, actualKeyCodes.map(a -> a[1]));
 
+// fromCodePoint
+UnicodeString.fromCodePoint(132878) == "𠜎";
+UnicodeString.fromCodePoint(122) == "z";
+UnicodeString.fromCodePoint(1103) == "я";
+
 // validate
 UnicodeString.validate(haxe.io.Bytes.ofHex("f0a9b8bde38182c3ab61"), UTF8) == true;
 UnicodeString.validate(haxe.io.Bytes.ofHex("ed9fbf"), UTF8) == true;
