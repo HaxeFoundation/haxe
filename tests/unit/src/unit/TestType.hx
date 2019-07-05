@@ -569,6 +569,9 @@ class TestType extends Test {
 		var ta = gf3(t, [])[0];
 		f(t == ta);
 		hsf(TestType, "gf3_haxe_Template_Array_haxe_Template");
+
+		eq(overloadFake(1), 1);
+		eq(overloadFake("bar"), "barfoo");
 	}
 
 	@:generic static function gf1<T>(a:T) {
@@ -583,6 +586,14 @@ class TestType extends Test {
 		var clone = new A("foo");
 		b.push(clone);
 		return b;
+	}
+
+	@:generic static function overloadFake<A>(a:A) {
+		return a;
+	}
+
+	static function overloadFake_String(a:String) {
+		return a + "foo";
 	}
 
 	function testSuperPropAccess() {
