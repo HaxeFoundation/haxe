@@ -39,6 +39,7 @@ var date = new Date(1970, 0, 1, 1, 59, 59);
 date.getTime() < referenceDate.getTime();
 
 // < 1970 (negative timestamp)
+#if !(hl || eval)
 var date = new Date(1904, 11, 12, 1, 4, 1);
 date.getHours() == 1;
 date.getMinutes() == 4;
@@ -48,8 +49,10 @@ date.getMonth() == 11;
 date.getDate() == 12;
 date.getDay() == 1;
 date.getTime() < referenceDate.getTime();
+#end
 
 // < 1902 (negative timestamp, outside of signed 32-bit integer range)
+#if !(hl, neko, eval, cpp)
 var date = new Date(1888, 0, 1, 15, 4, 2);
 date.getHours() == 15;
 date.getMinutes() == 4;
@@ -59,9 +62,10 @@ date.getMonth() == 0;
 date.getDate() == 1;
 date.getDay() == 0;
 date.getTime() < referenceDate.getTime();
-
+#end
 
 // Y2038 (outside of signed 32-bit integer range)
+#if !neko
 var date = new Date(2039, 0, 1, 1, 59, 59);
 date.getHours() == 1;
 date.getMinutes() == 59;
@@ -71,8 +75,10 @@ date.getMonth() == 0;
 date.getDate() == 1;
 date.getDay() == 6;
 date.getTime() > referenceDate.getTime();
+#end
 
 // Y2112 (outside of unsigned 32-bit integer range)
+#if !(hl || neko)
 var date = new Date(2112, 0, 1, 1, 59, 59);
 date.getHours() == 1;
 date.getMinutes() == 59;
@@ -82,6 +88,7 @@ date.getMonth() == 0;
 date.getDate() == 1;
 date.getDay() == 5;
 date.getTime() > referenceDate.getTime();
+#end
 
 /*
 // fromTime outside the 1970...2038 range (not supported)
