@@ -2293,6 +2293,9 @@ let cpp_enum_name_of field =
 
 let is_object_element ctx member_type =
   match member_type with
+   | TCppInst x
+   | TCppInterface x
+       -> not (is_extern_class x)
    | TCppDynamic
    | TCppObject
    | TCppObjectPtr
@@ -2303,12 +2306,9 @@ let is_object_element ctx member_type =
    | TCppObjectArray _
    | TCppWrapped _
    | TCppScalarArray _
-   | TCppInst _
-   | TCppInterface _
    | TCppClass
        -> true
    | _ -> false
-
 ;;
 
 let is_gc_element ctx member_type =
