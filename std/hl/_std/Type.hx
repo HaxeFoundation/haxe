@@ -206,7 +206,7 @@ class Type {
 			case HUI8, HUI16, HI32:
 				return TInt;
 			case HF32, HF64:
-				return TFloat;
+				return (v : Int) == (v:Float) ? TInt : TFloat;
 			case HBool:
 				return TBool;
 			case HDynObj:
