@@ -4267,18 +4267,24 @@ let is_override class_def field =
    List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
 ;;
 
-let current_virtual_functions clazz =
+let current_virtual_functions clazz parents override_types =
   List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
     | _, Method MethDynamic -> result
-    | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
-    | _,_ -> result ) [] clazz.cl_ordered_fields)
+    | TFun (args,return_type), Method _ ->
+        if override_types then
+           (elem,args,return_type) :: (List.filter (fun (e,a,r) -> e.cf_name<>elem.cf_name) result)
+        else if (is_override clazz elem.cf_name ) then
+           result
+        else
+           (elem,args,return_type) :: result
+    | _,_ -> result ) parents clazz.cl_ordered_fields)
 ;;
 
-let all_virtual_functions clazz =
-  let rec all_virtual_functions clazz =
-   (match clazz.cl_super with
-   | Some def -> all_virtual_functions (fst def)
-   | _ -> [] ) @ current_virtual_functions clazz
+let all_virtual_functions clazz override_types =
+   let rec all_virtual_functions clazz =
+      current_virtual_functions clazz (match clazz.cl_super with
+         | Some def -> all_virtual_functions (fst def)
+         | _ -> [] ) override_types
    in
    all_virtual_functions clazz
 ;;
@@ -4772,7 +4778,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             List.filter (fun f -> f.cf_name=field_name) fields_and_constructor in
       List.iter visit_field fields_and_constructor;
       if (include_super_args) then
-         List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def ));
+         List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def false));
 
       (* Add super & interfaces *)
       if is_native_gen_class class_def then
@@ -5620,7 +5626,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    in
 
    let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
-   let functions = List.filter not_toString (all_virtual_functions class_def) in
+   let functions = List.filter not_toString (all_virtual_functions class_def true) in
 
    (* Constructor definition *)
    let cargs = (constructor_arg_var_list class_def baseCtx) in
@@ -6255,9 +6261,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       let new_sctipt_functions = if newInteface then
-            all_virtual_functions class_def
+            all_virtual_functions class_def false
          else
-            current_virtual_functions class_def
+            current_virtual_functions class_def [] false
       in
       let sctipt_name = class_name ^ "__scriptable" in
 
