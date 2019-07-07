@@ -5642,14 +5642,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
-      out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
+      let staticHead = if isHeader then "inline static " else "" in
+      out (staticHead ^ ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
       out ("\t" ^ ptr_name ^ " __this = new " ^ class_name ^ "();\n");
          out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
       out ("\treturn __this;\n");
       out ("}\n\n");
 
       if can_quick_alloc then begin
-         out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
+         out (staticHead ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
             (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
          out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
          out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
