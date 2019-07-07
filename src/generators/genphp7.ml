@@ -2097,7 +2097,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if ((is_constant expr) && not (is_constant_null expr)) || (is_concatenation expr) then
+				if ((is_constant expr) && not (is_constant_null expr))
+					|| (is_concatenation expr)
+					|| is_php_global expr
+					|| is_php_class_const expr
+				then
 					self#write_expr expr
 				else begin
 					self#write "(";
