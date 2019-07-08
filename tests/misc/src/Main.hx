@@ -45,8 +45,8 @@ class Main {
 		}
 		browse("projects");
 		return {
-			count: $v{count},
-			failures: $v{failures}
+			count: count,
+			failures: failures
 		}
 	}
 
