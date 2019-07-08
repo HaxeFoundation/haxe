@@ -23,68 +23,107 @@
 package;
 
 import haxe.Int64;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
-@:SuppressWarnings("deprecation")
 @:coreApi class Date {
-	private var date:java.util.Date;
+	private var date:Calendar;
+	private var dateUTC:Calendar;
 
 	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
-		// issue #1769
-		year = year != 0 ? year - 1900 : 0;
-		date = new java.util.Date(year, month, day, hour, min, sec);
+		date = new GregorianCalendar(year, month, day, hour, min, sec);
+		dateUTC = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+		dateUTC.setTimeInMillis(date.getTimeInMillis());
 	}
 
 	public inline function getTime():Float {
-		return cast date.getTime();
+		return cast date.getTimeInMillis();
 	}
 
 	public inline function getHours():Int {
-		return date.getHours();
+		return date.get(Calendar.HOUR_OF_DAY);
 	}
 
 	public inline function getMinutes():Int {
-		return date.getMinutes();
+		return date.get(Calendar.MINUTE);
 	}
 
 	public inline function getSeconds():Int {
-		return date.getSeconds();
+		return date.get(Calendar.SECOND);
 	}
 
 	public inline function getFullYear():Int {
-		return date.getYear() + 1900;
+		return date.get(Calendar.YEAR);
 	}
 
 	public inline function getMonth():Int {
-		return date.getMonth();
+		return date.get(Calendar.MONTH);
 	}
 
 	public inline function getDate():Int {
-		return date.getDate();
+		return date.get(Calendar.DAY_OF_MONTH);
 	}
 
 	public inline function getDay():Int {
-		return date.getDay();
+		// SUNDAY in Java == 1, MONDAY == 2, ...
+		return cast date.get(Calendar.DAY_OF_WEEK) - 1;
+	}
+
+	public inline function getUTCHours():Int {
+		return dateUTC.get(Calendar.HOUR_OF_DAY);
+	}
+
+	public inline function getUTCMinutes():Int {
+		return dateUTC.get(Calendar.MINUTE);
+	}
+
+	public inline function getUTCSeconds():Int {
+		return dateUTC.get(Calendar.SECOND);
+	}
+
+	public inline function getUTCFullYear():Int {
+		return dateUTC.get(Calendar.YEAR);
+	}
+
+	public inline function getUTCMonth():Int {
+		return dateUTC.get(Calendar.MONTH);
+	}
+
+	public inline function getUTCDate():Int {
+		return dateUTC.get(Calendar.DAY_OF_MONTH);
+	}
+
+	public inline function getUTCDay():Int {
+		// SUNDAY in Java == 1, MONDAY == 2, ...
+		return cast dateUTC.get(Calendar.DAY_OF_WEEK) - 1;
+	}
+
+	public inline function getTimezoneOffset():Int {
+		return -Std.int(date.get(Calendar.ZONE_OFFSET) / 60000);
 	}
 
 	public function toString():String {
-		var m = date.getMonth() + 1;
-		var d = date.getDate();
-		var h = date.getHours();
-		var mi = date.getMinutes();
-		var s = date.getSeconds();
-		return (date.getYear() + 1900) + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
+		var m = getMonth() + 1;
+		var d = getDate();
+		var h = getHours();
+		var mi = getMinutes();
+		var s = getSeconds();
+		return getFullYear() + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " "
 			+ (if (h < 10) "0" + h else "" + h) + ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
 	}
 
 	static public function now():Date {
 		var d = new Date(0, 0, 0, 0, 0, 0);
-		d.date = new java.util.Date();
+		d.date = Calendar.getInstance();
+		d.dateUTC.setTimeInMillis(d.date.getTimeInMillis());
 		return d;
 	}
 
 	static public function fromTime(t:Float):Date {
 		var d = new Date(0, 0, 0, 0, 0, 0);
-		d.date = new java.util.Date(cast(t, Int64));
+		d.date.setTimeInMillis(cast t);
+		d.dateUTC.setTimeInMillis(cast t);
 		return d;
 	}
 
@@ -92,8 +131,7 @@ import haxe.Int64;
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var d:Date = new Date(0, 0, 0, Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]));
-				return d;
+				return Date.fromTime(Std.parseInt(k[0]) * 3600000. + Std.parseInt(k[1]) * 60000. + Std.parseInt(k[2]) * 1000.);
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
 				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);
