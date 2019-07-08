@@ -748,14 +748,14 @@ let apply_params_stack = ref []
 
 let try_apply_params_rec cparams params t success =
 	let old_stack = !apply_params_stack in
-		try
-			success (apply_params ~stack:apply_params_stack cparams params t)
-		with
-			| ApplyParamsRecursion ->
-				apply_params_stack := old_stack;
-			| err ->
-				apply_params_stack := old_stack;
-				raise err
+	try
+		success (apply_params ~stack:apply_params_stack cparams params t)
+	with
+		| ApplyParamsRecursion ->
+			apply_params_stack := old_stack;
+		| err ->
+			apply_params_stack := old_stack;
+			raise err
 
 let rec follow t =
 	match t with
