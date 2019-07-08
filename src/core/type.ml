@@ -650,8 +650,10 @@ let dup t =
 	in
 	loop t
 
+exception ApplyParamsRecursion
+
 (* substitute parameters with other types *)
-let apply_params cparams params t =
+let apply_params ?stack cparams params t =
 	match cparams with
 	| [] -> t
 	| _ ->
@@ -679,7 +681,18 @@ let apply_params cparams params t =
 		| TType (t2,tl) ->
 			(match tl with
 			| [] -> t
-			| _ -> TType (t2,List.map loop tl))
+			| _ ->
+				let new_applied_params = List.map loop tl in
+				(match stack with
+				| None -> ()
+				| Some stack ->
+					List.iter (fun (subject, old_applied_params) ->
+						if subject == t && old_applied_params == params then
+							raise ApplyParamsRecursion
+					) !stack;
+					stack := (t, new_applied_params) :: !stack;
+				);
+				TType (t2,new_applied_params))
 		| TAbstract (a,tl) ->
 			(match tl with
 			| [] -> t
@@ -1960,6 +1973,7 @@ let type_iseq_strict a b =
 let unify_stack = new_rec_stack()
 let abstract_cast_stack = new_rec_stack()
 let unify_new_monos = new_rec_stack()
+let apply_params_stack = ref []
 
 let print_stacks() =
 	let ctx = print_context() in
@@ -1970,6 +1984,17 @@ let print_stacks() =
 	List.iter (fun m -> print_endline ("\t" ^ st m)) unify_new_monos.rec_stack;
 	print_endline "abstract_cast_stack";
 	List.iter (fun (a,b) -> Printf.printf "\t%s , %s\n" (st a) (st b)) abstract_cast_stack.rec_stack
+
+let try_apply_params_rec cparams params t success =
+	let old_stack = !apply_params_stack in
+		try
+			success (apply_params ~stack:apply_params_stack cparams params t)
+		with
+			| ApplyParamsRecursion ->
+				apply_params_stack := old_stack;
+			| err ->
+				apply_params_stack := old_stack;
+				raise err
 
 let rec unify a b =
 	if a == b then
@@ -1988,12 +2013,12 @@ let rec unify a b =
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
-			(fun() -> unify (apply_params t.t_params tl t.t_type) b)
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (fun a -> unify a b))
 			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) ->
 		rec_stack unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
-			(fun() -> unify a (apply_params t.t_params tl t.t_type))
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (unify a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
