@@ -29,13 +29,13 @@ var date2 = new Date(2016, 1, 15, 16, 59, 15);
 date1.getTime() == date2.getTime(); // depends on Azure timezone setting!
 #end
 
-var referenceDate = new Date(1970, 0, 1, 2, 0, 0);
-referenceDate.toString() == "1970-01-01 02:00:00";
+var referenceDate = new Date(1970, 0, 12, 2, 0, 0);
+referenceDate.toString() == "1970-01-12 02:00:00";
 #if azure
-referenceDate.getTime() == 7200000.; // depends on Azure timezone setting!
+referenceDate.getTime() == 957600000.; // depends on Azure timezone setting!
 #end
 
-var date = new Date(1970, 0, 1, 1, 59, 59);
+var date = new Date(1970, 0, 12, 1, 59, 59);
 date.getTime() < referenceDate.getTime();
 
 // < 1970 (negative timestamp)
