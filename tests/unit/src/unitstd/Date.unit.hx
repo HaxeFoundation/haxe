@@ -39,7 +39,8 @@ var date = new Date(1970, 0, 1, 1, 59, 59);
 date.getTime() < referenceDate.getTime();
 
 // < 1970 (negative timestamp)
-#if !(hl || eval)
+// neko, cpp, and python only fail on Windows
+#if !(hl || eval || neko || cpp || python)
 var date = new Date(1904, 11, 12, 1, 4, 1);
 date.getHours() == 1;
 date.getMinutes() == 4;
@@ -52,7 +53,9 @@ date.getTime() < referenceDate.getTime();
 #end
 
 // < 1902 (negative timestamp, outside of signed 32-bit integer range)
-#if !(hl || neko || eval || cpp)
+// lua only fails on Mac
+// python only fails on Windows
+#if !(hl || neko || eval || cpp || lua || python)
 var date = new Date(1888, 0, 1, 15, 4, 2);
 date.getHours() == 15;
 date.getMinutes() == 4;
