@@ -1,7 +1,6 @@
 import sys.FileSystem;
 import sys.io.File;
 import haxe.io.Path;
-import haxe.macro.Expr;
 
 using StringTools;
 
@@ -17,13 +16,14 @@ class Main {
 		Sys.exit(result.failures);
 	}
 
-	macro static public function compileProjects():ExprOf<Result> {
+	static public function compileProjects():Result {
 		var count = 0;
 		var failures = 0;
-		var filter = haxe.macro.Context.definedValue("MISC_TEST_FILTER");
+		var filter = haxe.macro.Compiler.getDefine("MISC_TEST_FILTER");
 		var filterRegex = filter == null ? ~/.*/ : new EReg(filter, "");
 		function browse(dirPath) {
 			var dir = FileSystem.readDirectory(dirPath);
+			dir.sort(Reflect.compare);
 			for (file in dir) {
 				var path = Path.join([dirPath, file]);
 				if (FileSystem.isDirectory(path)) {
@@ -44,12 +44,10 @@ class Main {
 			}
 		}
 		browse("projects");
-		return macro $v{
-			{
-				count: $v{count},
-				failures: $v{failures}
-			}
-		};
+		return {
+			count: $v{count},
+			failures: $v{failures}
+		}
 	}
 
 	static function prepareExpectedOutput(s:String):String {
