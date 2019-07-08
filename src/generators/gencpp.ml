@@ -4267,8 +4267,39 @@ let is_override class_def field =
    List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
 ;;
 
+(*
+   Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
+   The order is important because cppia looks up functions by index
+*)
+
+
+let current_virtual_functions_rev clazz base_functions =
+   List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+      | _, Method MethDynamic -> result
+      | TFun (args,return_type), Method _  ->
+          if (is_override clazz elem.cf_name ) then
+             List.map (fun (e,a,r) ->  if e.cf_name<>elem.cf_name then (e,a,r) else  (elem,args,return_type) ) result
+          else
+             (elem,args,return_type) :: result
+      | _,_ -> result
+    ) base_functions clazz.cl_ordered_fields
+;;
+
+let all_virtual_functions clazz =
+  let rec all_virtual_functions_rec clazz =
+   current_virtual_functions_rev clazz (match clazz.cl_super with
+       | Some def -> all_virtual_functions_rec (fst def)
+       | _ -> []
+     )
+   in
+   List.rev (all_virtual_functions_rec clazz)
+;;
+
+
+
+(*
 let current_virtual_functions clazz parents override_types =
-  List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+  List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
     | _, Method MethDynamic -> result
     | TFun (args,return_type), Method _ ->
         if override_types then
@@ -4277,17 +4308,18 @@ let current_virtual_functions clazz parents override_types =
            result
         else
            (elem,args,return_type) :: result
-    | _,_ -> result ) parents clazz.cl_ordered_fields)
+    | _,_ -> result ) parents (List.rev clazz.cl_ordered_fields)
 ;;
 
 let all_virtual_functions clazz override_types =
    let rec all_virtual_functions clazz =
       current_virtual_functions clazz (match clazz.cl_super with
          | Some def -> all_virtual_functions (fst def)
-         | _ -> [] ) override_types
+         | _ -> [] ) false
    in
    all_virtual_functions clazz
 ;;
+*)
 
 
 let rec unreflective_type t =
@@ -4778,7 +4810,7 @@ let find_referenced_types_flags ctx obj field_name super_deps constructor_deps h
             List.filter (fun f -> f.cf_name=field_name) fields_and_constructor in
       List.iter visit_field fields_and_constructor;
       if (include_super_args) then
-         List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def false));
+         List.iter visit_field (List.map (fun (a,_,_) -> a ) (all_virtual_functions class_def ));
 
       (* Add super & interfaces *)
       if is_native_gen_class class_def then
@@ -5626,7 +5658,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
    in
 
    let not_toString = fun (field,args,_) -> field.cf_name<>"toString" || class_def.cl_interface in
-   let functions = List.filter not_toString (all_virtual_functions class_def true) in
+   let functions = List.filter not_toString (all_virtual_functions class_def) in
 
    (* Constructor definition *)
    let cargs = (constructor_arg_var_list class_def baseCtx) in
@@ -6262,9 +6294,9 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       in
 
       let new_sctipt_functions = if newInteface then
-            all_virtual_functions class_def false
+            all_virtual_functions class_def
          else
-            current_virtual_functions class_def [] false
+            List.rev (current_virtual_functions_rev class_def [])
       in
       let sctipt_name = class_name ^ "__scriptable" in
 
