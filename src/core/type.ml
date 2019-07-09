@@ -2277,10 +2277,11 @@ and unify_anons a b a1 a2 =
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
-				if fast_eq f1.cf_type f2.cf_type then
-					unify_with_access f1 f1.cf_type f2
-				else
-					unify_with_access f1 (field_type f1) f2;
+				let f1_type =
+					if fast_eq f1.cf_type f2.cf_type then f1.cf_type
+					else field_type f1
+				in
+				unify_with_access f1 f1_type f2;
 				(match !(a1.a_status) with
 				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
