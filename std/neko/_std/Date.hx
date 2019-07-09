@@ -62,6 +62,38 @@ import neko.Lib;
 		return Std.parseInt(new String(date_format(__t, untyped "%w".__s)));
 	}
 
+	public function getUTCFullYear():Int {
+		return date_get_utc_day(__t).y;
+	}
+
+	public function getUTCMonth():Int {
+		return date_get_utc_day(__t).m - 1;
+	}
+
+	public function getUTCDate():Int {
+		return date_get_utc_day(__t).d;
+	}
+
+	public function getUTCHours():Int {
+		return date_get_utc_hour(__t).h;
+	}
+
+	public function getUTCMinutes():Int {
+		return date_get_utc_hour(__t).m;
+	}
+
+	public function getUTCSeconds():Int {
+		return date_get_utc_hour(__t).s;
+	}
+
+	public function getUTCDay():Int {
+		return Std.parseInt(new String(date_utc_format(__t, untyped "%w".__s)));
+	}
+
+	public function getTimezoneOffset():Int {
+		return -date_get_tz(__t);
+	}
+
 	@:keep public function toString():String {
 		return new String(date_format(__t, null));
 	}
@@ -91,10 +123,14 @@ import neko.Lib;
 	static var date_new = Lib.load("std", "date_new", 1);
 	static var date_now = Lib.load("std", "date_now", 0);
 	static var date_format = Lib.load("std", "date_format", 2);
+	static var date_utc_format = Lib.load("std", "date_utc_format", 2);
 	static var date_set_hour = Lib.load("std", "date_set_hour", 4);
 	static var date_set_day = Lib.load("std", "date_set_day", 4);
 	static var date_get_day:Dynamic->{y: Int, m: Int, d: Int} = Lib.load("std", "date_get_day", 1);
 	static var date_get_hour:Dynamic->{h: Int, m: Int, s: Int} = Lib.load("std", "date_get_hour", 1);
+	static var date_get_utc_day:Dynamic->{y: Int, m: Int, d: Int} = Lib.load("std", "date_get_utc_day", 1);
+	static var date_get_utc_hour:Dynamic->{h: Int, m: Int, s: Int} = Lib.load("std", "date_get_utc_hour", 1);
+	static var date_get_tz = Lib.load("std", "date_get_tz", 1);
 	static var int32_to_float = Lib.load("std", "int32_to_float", 1);
 	static var int32_add = Lib.load("std", "int32_add", 2);
 	static var int32_shl = Lib.load("std", "int32_shl", 2);
