@@ -21,6 +21,13 @@ date.toString() == "1982-11-10 14:02:20";
 
 var date = Date.fromTime(405781340000);
 date.getTime() == 405781340000;
+date.getUTCHours() == 13;
+date.getUTCMinutes() == 2;
+date.getUTCSeconds() == 20;
+date.getUTCFullYear() == 1982;
+date.getUTCMonth() == 10;
+date.getUTCDate() == 10;
+date.getUTCDay() == 3;
 
 // timezone issues
 var date1 = Date.fromTime(1455555555 * 1000.); // 15 Feb 2016 16:59:15 GMT
@@ -121,3 +128,50 @@ date.getDate() == 5; // could fail on very large UTC offsets
 (new Date(2019, 6, 5, 12, 0, 0)).getDay() == 5;
 (new Date(2019, 6, 6, 12, 0, 0)).getDay() == 6;
 (new Date(2019, 6, 7, 12, 0, 0)).getDay() == 0;
+
+// fromString
+var date = Date.fromString("2019-07-08 12:22:00");
+date.getHours() == 12;
+date.getMinutes() == 22;
+date.getSeconds() == 0;
+date.getFullYear() == 2019;
+date.getMonth() == 6;
+date.getDate() == 8;
+date.getDay() == 1;
+
+var date = Date.fromString("2019-03-02");
+date.getHours() == 0;
+date.getMinutes() == 0;
+date.getSeconds() == 0;
+date.getFullYear() == 2019;
+date.getMonth() == 2;
+date.getDate() == 2;
+date.getDay() == 6;
+
+// fromString HH:MM:SS should interpret the time as UTC
+var date = Date.fromString("04:05:06");
+date.getUTCHours() == 4;
+date.getUTCMinutes() == 5;
+date.getUTCSeconds() == 6;
+date.getUTCFullYear() == 1970;
+date.getUTCMonth() == 0;
+date.getUTCDate() == 1;
+date.getUTCDay() == 4;
+date.getTime() == 14706000.;
+
+// timezone offset
+// see https://en.wikipedia.org/wiki/UTC_offset
+Date.fromString("2015-01-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-02-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-03-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-04-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-05-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-06-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-07-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-08-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-09-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-10-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-11-08 12:22:00").getTimezoneOffset() % 15 == 0;
+Date.fromString("2015-12-08 12:22:00").getTimezoneOffset() % 15 == 0;
+
+Date.fromString("2015-06-15 10:00:00").getTimezoneOffset() == Date.fromString("2014-06-15 10:00:00").getTimezoneOffset();
