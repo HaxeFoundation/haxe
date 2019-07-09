@@ -56,7 +56,9 @@ extern class Datetime {
 	public function weekday():Int;
 	/* 1-7 */
 	public function isoweekday():Int;
+	public function utcoffset():Int;
 
 	// python 3.3
 	public function timestamp():Float;
+	public function astimezone(?tz:Tzinfo):Datetime;
 }

@@ -22,19 +22,20 @@
 
 import python.lib.datetime.Datetime;
 import python.lib.datetime.Timedelta;
+import python.lib.datetime.Timezone;
 import python.Syntax;
 
 @:coreApi class Date {
-	static var EPOCH_UTC = Datetime.fromtimestamp(0, python.lib.datetime.Timezone.utc);
-
 	private var date:Datetime;
+	private var dateUTC:Datetime;
 
 	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
 		if (year < Datetime.min.year)
 			year = Datetime.min.year;
 		if (day == 0)
 			day = 1;
-		date = new Datetime(year, month + 1, day, hour, min, sec, 0);
+		date = new Datetime(year, month + 1, day, hour, min, sec, 0).astimezone();
+		dateUTC = date.astimezone(Timezone.utc);
 	}
 
 	public inline function getTime():Float {
@@ -69,37 +70,65 @@ import python.Syntax;
 		return date.isoweekday() % 7;
 	}
 
+	public inline function getUTCHours():Int {
+		return dateUTC.hour;
+	}
+
+	public inline function getUTCMinutes():Int {
+		return dateUTC.minute;
+	}
+
+	public inline function getUTCSeconds():Int {
+		return dateUTC.second;
+	}
+
+	public inline function getUTCFullYear():Int {
+		return dateUTC.year;
+	}
+
+	public inline function getUTCMonth():Int {
+		return dateUTC.month - 1;
+	}
+
+	public inline function getUTCDate():Int {
+		return dateUTC.day;
+	}
+
+	public inline function getUTCDay():Int {
+		return dateUTC.isoweekday() % 7;
+	}
+
+	public function getTimezoneOffset():Int {
+		return -Std.int(Syntax.binop(date.utcoffset(), "/", new Timedelta(0, 60)));
+	}
+
 	public function toString():String {
 		return date.strftime("%Y-%m-%d %H:%M:%S");
 	}
 
 	static public function now():Date {
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = Datetime.now();
+		d.date = Datetime.now().astimezone();
+		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
 	}
 
 	static public function fromTime(t:Float):Date {
 		var d = new Date(1970, 0, 1, 0, 0, 0);
-		d.date = Datetime.fromtimestamp(t / 1000.0);
+		d.date = Datetime.fromtimestamp(t / 1000.0).astimezone();
+		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
 	}
 
 	static function UTC(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Float {
-		var dt = new Datetime(year, month + 1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc);
-		return datetimeTimestamp(dt, EPOCH_UTC);
-	}
-
-	static function datetimeTimestamp(dt:Datetime, epoch:Datetime):Float {
-		return (Syntax.binop(dt, "-", epoch) : Timedelta).total_seconds() * 1000;
+		return new Datetime(year, month + 1, day, hour, min, sec, 0, python.lib.datetime.Timezone.utc).timestamp() * 1000;
 	}
 
 	static public function fromString(s:String):Date {
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var d:Date = new Date(0, 0, 0, Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]));
-				return d;
+				return Date.fromTime(Std.parseInt(k[0]) * 3600000. + Std.parseInt(k[1]) * 60000. + Std.parseInt(k[2]) * 1000.);
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
 				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);
