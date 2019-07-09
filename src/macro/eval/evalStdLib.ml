@@ -674,6 +674,8 @@ module StdCrc32 = struct
 end
 
 module StdDate = struct
+	open Unix
+
 	let encode_date d = encode_instance key_Date ~kind:(IDate d)
 
 	let this vthis = match vthis with
@@ -688,29 +690,33 @@ module StdDate = struct
 		| 19 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\) \\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = int_of_string (Str.matched_group 4 s);
 				tm_min = int_of_string (Str.matched_group 5 s);
 				tm_sec = int_of_string (Str.matched_group 6 s);
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 10 ->
 			let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
-			let t = catch_unix_error Unix.localtime (Unix.time()) in
-			let t = { t with
+			let t = {
 				tm_year = int_of_string (Str.matched_group 1 s) - 1900;
 				tm_mon = int_of_string (Str.matched_group 2 s) - 1;
 				tm_mday = int_of_string (Str.matched_group 3 s);
 				tm_hour = 0;
 				tm_min = 0;
 				tm_sec = 0;
+				tm_wday = 0;
+				tm_yday = 0;
+				tm_isdst = false;
 			} in
-			encode_date (fst (catch_unix_error Unix.mktime t))
+			encode_date (fst (catch_unix_error mktime t))
 		| 8 ->
 			let r = Str.regexp "^\\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
 			if not (Str.string_match r s 0) then exc_string ("Invalid date format : " ^ s);
@@ -723,15 +729,29 @@ module StdDate = struct
 			exc_string ("Invalid date format : " ^ s)
 	)
 
-	let getDate = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mday)
-	let getDay = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_wday)
-	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error Unix.localtime (this vthis)).tm_year) + 1900))
-	let getHours = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_hour)
-	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_min)
-	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_mon)
-	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error Unix.localtime (this vthis)).tm_sec)
+	let getDate = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mday)
+	let getDay = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_wday)
+	let getFullYear = vifun0 (fun vthis -> vint (((catch_unix_error localtime (this vthis)).tm_year) + 1900))
+	let getHours = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_hour)
+	let getMinutes = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_min)
+	let getMonth = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_mon)
+	let getSeconds = vifun0 (fun vthis -> vint (catch_unix_error localtime (this vthis)).tm_sec)
+	let getUTCDate = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mday)
+	let getUTCDay = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_wday)
+	let getUTCFullYear = vifun0 (fun vthis -> vint (((catch_unix_error gmtime (this vthis)).tm_year) + 1900))
+	let getUTCHours = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_hour)
+	let getUTCMinutes = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_min)
+	let getUTCMonth = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_mon)
+	let getUTCSeconds = vifun0 (fun vthis -> vint (catch_unix_error gmtime (this vthis)).tm_sec)
 	let getTime = vifun0 (fun vthis -> vfloat ((this vthis) *. 1000.))
-	let now = vfun0 (fun () -> encode_date (catch_unix_error Unix.time()))
+	let getTimezoneOffset = vifun0 (fun vthis ->
+		let tmLocal = catch_unix_error localtime (this vthis) in
+		let tmUTC = catch_unix_error gmtime (this vthis) in
+		let tsLocal = fst (catch_unix_error mktime tmLocal) in
+		let tsUTC = fst (catch_unix_error mktime tmUTC) in
+		vint (int_of_float ((tsUTC -. tsLocal) /. 60.))
+	)
+	let now = vfun0 (fun () -> encode_date (catch_unix_error time()))
 	let toString = vifun0 (fun vthis -> vstring (s_date (this vthis)))
 end
 
@@ -3312,7 +3332,15 @@ let init_standard_library builtins =
 		"getMinutes",StdDate.getMinutes;
 		"getMonth",StdDate.getMonth;
 		"getSeconds",StdDate.getSeconds;
+		"getUTCDate",StdDate.getUTCDate;
+		"getUTCDay",StdDate.getUTCDay;
+		"getUTCFullYear",StdDate.getUTCFullYear;
+		"getUTCHours",StdDate.getUTCHours;
+		"getUTCMinutes",StdDate.getUTCMinutes;
+		"getUTCMonth",StdDate.getUTCMonth;
+		"getUTCSeconds",StdDate.getUTCSeconds;
 		"getTime",StdDate.getTime;
+		"getTimezoneOffset",StdDate.getTimezoneOffset;
 		"toString",StdDate.toString;
 	];
 	init_fields builtins (["sys";"thread"],"Deque") [] [
