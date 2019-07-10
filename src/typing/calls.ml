@@ -60,7 +60,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		(match cl, ctx.curclass.cl_kind, params with
 			| Some c, KAbstractImpl _, { eexpr = TLocal { v_meta = v_meta } } :: _ when c == ctx.curclass ->
 				if
-					has_meta Meta.This v_meta
+					f.cf_name <> "_new"
+					&& has_meta Meta.This v_meta
 					&& not (assign_to_this_is_allowed ctx)
 					&& has_class_field_flag f CfModifiesThis
 				then
