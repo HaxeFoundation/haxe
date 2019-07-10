@@ -64,6 +64,8 @@ stages:
             lua:
               TEST: lua
         steps:
+          - checkout: self
+            fetchDepth: 1
           - template: extra/azure-pipelines/install-neko-snapshot.yaml
             parameters:
               platform: linux64
@@ -131,6 +133,8 @@ stages:
             lua:
               TEST: lua
         steps:
+          - checkout: self
+            fetchDepth: 1
           - template: extra/azure-pipelines/install-neko-snapshot.yaml
             parameters:
               platform: mac
@@ -197,6 +201,8 @@ stages:
             # lua:
             #   TEST: lua
         steps:
+          - checkout: self
+            fetchDepth: 1
           - template: extra/azure-pipelines/install-neko-snapshot.yaml
             parameters:
               platform: windows
@@ -241,6 +247,8 @@ stages:
         pool:
           vmImage: 'ubuntu-16.04'
         steps:
+          - checkout: self
+            fetchDepth: 1
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'linuxBinaries'
