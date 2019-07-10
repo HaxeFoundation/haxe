@@ -2038,7 +2038,7 @@ and type_local_function ctx name inline f with_type p =
 		tf_expr = e;
 	} in
 	let e = mk (TFunction tf) ft p in
-	(match v with
+	match v with
 	| None -> e
 	| Some v ->
 		Typeload.generate_value_meta ctx.com None (fun m -> v.v_meta <- m :: v.v_meta) f.f_args;
@@ -2050,21 +2050,24 @@ and type_local_function ctx name inline f with_type p =
 			| LocalUsage.Use _ | LocalUsage.Assign _ | LocalUsage.Declare _ -> ()
 		in
 		let is_rec = (try local_usage loop e; false with Exit -> true) in
-		let decl = (if is_rec then begin
-			if inline then display_error ctx "Inline function cannot be recursive" e.epos;
-			let el =
+		let exprs =
+			if with_type <> WithType.NoValue && not inline then [mk (TLocal v) v.v_type p]
+			else []
+		in
+		let exprs =
+			if is_rec then begin
+				if inline then display_error ctx "Inline function cannot be recursive" e.epos;
 				(mk (TVar (v,Some (mk (TConst TNull) ft p))) ctx.t.tvoid p) ::
 				(mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p) ::
-				(if with_type = WithType.NoValue then [] else [mk (TLocal v) ft p])
-			in
-			let e = mk (TBlock el) ft p in
-			{e with eexpr = TMeta((Meta.MergeBlock,[],null_pos),e)}
-		end else if inline && not ctx.com.display.dms_display then
-			mk (TBlock []) ctx.t.tvoid p (* do not add variable since it will be inlined *)
-		else
-			mk (TVar (v,Some e)) ctx.t.tvoid p
-		) in
-		if with_type <> WithType.NoValue && not inline then mk (TBlock [decl;mk (TLocal v) v.v_type p]) v.v_type p else decl)
+				exprs
+			end else if inline && not ctx.com.display.dms_display then
+				(mk (TBlock []) ctx.t.tvoid p) :: exprs (* do not add variable since it will be inlined *)
+			else
+				(mk (TVar (v,Some e)) ctx.t.tvoid p) :: exprs
+		in
+		match exprs with
+		| [e] -> e
+		| _ -> mk (TBlock exprs) v.v_type p
 
 and type_array_decl ctx el with_type p =
 	let tp = (match with_type with
