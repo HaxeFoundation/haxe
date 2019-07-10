@@ -660,6 +660,7 @@ let find_file ctx f =
 						with Sys_error _ -> None
 					in
 					Hashtbl.add ctx.readdir_cache dir dir_listing;
+					let normalized_f = normalize_dir_separator f in
 					Option.may
 						(Array.iter (fun file_name ->
 							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
@@ -680,7 +681,7 @@ let find_file ctx f =
 								if is_cached then
 									Hashtbl.remove ctx.file_lookup_cache current_f;
 								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if normalize_dir_separator current_f = normalize_dir_separator f then
+								if normalize_dir_separator current_f = normalized_f then
 									found := full_path;
 							end
 						))
