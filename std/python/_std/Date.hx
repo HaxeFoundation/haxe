@@ -34,7 +34,7 @@ import python.Syntax;
 			year = Datetime.min.year;
 		if (day == 0)
 			day = 1;
-		date = new Datetime(year, month + 1, day, hour, min, sec, 0).astimezone();
+		date = makeLocal(new Datetime(year, month + 1, day, hour, min, sec, 0));
 		dateUTC = date.astimezone(Timezone.utc);
 	}
 
@@ -108,16 +108,24 @@ import python.Syntax;
 
 	static public function now():Date {
 		var d = new Date(2000, 0, 1, 0, 0, 0);
-		d.date = Datetime.now().astimezone();
+		d.date = makeLocal(Datetime.now());
 		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
 	}
 
 	static public function fromTime(t:Float):Date {
 		var d = new Date(2000, 0, 1, 0, 0, 0);
-		d.date = Datetime.fromtimestamp(t / 1000.0).astimezone();
+		d.date = makeLocal(Datetime.fromtimestamp(t / 1000.0));
 		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
+	}
+
+	static function makeLocal(date:Datetime):Datetime {
+		var ver = python.lib.Sys.version_info;
+		if (ver[0] > 3 || (ver[0] == 3 && ver[1] >= 6)) // >= 3.6
+			return date.astimezone();
+		var tzinfo = Datetime.now(Timezone.utc).astimezone().tzinfo;
+		return date.replace({tzinfo: tzinfo});
 	}
 
 	static function UTC(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Float {
