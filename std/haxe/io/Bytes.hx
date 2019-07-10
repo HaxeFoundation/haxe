@@ -329,7 +329,7 @@ class Bytes {
 		return if (v & 0x80000000 != 0) v | 0x80000000 else v;
 		#elseif lua
 		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos + 3) << 24);
-		return lua.Boot.clamp(if (v & 0x80000000 != 0) v | 0x80000000 else v);
+		return lua.Boot.clampInt32(if (v & 0x80000000 != 0) v | 0x80000000 else v);
 		#else
 		return get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos + 3) << 24);
 		#end

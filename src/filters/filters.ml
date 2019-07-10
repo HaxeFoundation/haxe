@@ -795,6 +795,11 @@ let run com tctx main =
 		(* ForRemap.apply tctx; *)
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
+	] in
+	let t = filter_timer detail_times ["expr 0"] in
+	List.iter (run_expression_filters tctx filters) new_types;
+	t();
+	let filters = [
 		check_local_vars_init;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;

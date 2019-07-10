@@ -61,6 +61,7 @@ class HostClasses {
 		"sys.FileSystem",
 		"sys.io.File",
 		"sys.io.FileInput",
+		"sys.io.Process",
 		"sys.net.UdpSocket",
 		"sys.net.Socket",
 		"sys.ssl.Certificate",

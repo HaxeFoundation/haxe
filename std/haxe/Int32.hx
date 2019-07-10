@@ -170,7 +170,7 @@ abstract Int32(Int) from Int to Int {
 
 	#if (lua || python || php)
 	@:op(~A) private static inline function complement(a:Int32):Int32
-		#if lua return lua.Boot.clamp(~a); #else return clamp(~a); #end
+		#if lua return lua.Boot.clampInt32(~a); #else return clamp(~a); #end
 	#else
 	@:op(~A) private function complement():Int32;
 	#end
@@ -273,7 +273,7 @@ abstract Int32(Int) from Int to Int {
 		#elseif python
 		return (python.Syntax.code("{0} % {1}", (x + python.Syntax.opPow(2, 31)), python.Syntax.opPow(2, 32)) : Int) - python.Syntax.opPow(2, 31);
 		#elseif lua
-		return lua.Boot.clamp(x);
+		return lua.Boot.clampInt32(x);
 		#else
 		return (x);
 		#end

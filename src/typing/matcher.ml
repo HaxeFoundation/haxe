@@ -1610,4 +1610,10 @@ module Match = struct
 			print_endline "TEXPR END";
 		end;
 		{e with epos = p}
+
+	let match_expr ctx e cases def with_type postfix_match p = match cases,def with
+		| [],None when (match with_type with WithType.NoValue -> true | _ -> false) ->
+			type_expr ctx e WithType.value
+		| _ ->
+			match_expr ctx e cases def with_type postfix_match p
 end

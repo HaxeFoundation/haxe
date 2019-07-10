@@ -50,6 +50,13 @@ let as_bool = function
 	| JBool b -> Some b
 	| _ -> None
 
+let as_links = function
+	| JArray s -> Some (List.map (function
+			| JString s -> s
+			| _ -> raise (Prebuild_error "link should be a string")
+		) s)
+	| _ -> None
+
 let get_optional_field name map default fields =
 	try
 		let field = List.find (fun (n, _) -> n = name) fields in
@@ -71,11 +78,12 @@ let parse_define json =
 		| JObject fl -> fl
 		| _ -> raise (Prebuild_error "not an object")
 	in
-	(*name*) get_field "name" as_string fields,
-	(*define*) get_field "define" as_string fields,
-	(*doc*) get_field "doc" as_string fields,
-	(*params*) get_optional_field "params" as_params [] fields,
-	(*platforms*) get_optional_field "platforms" as_platforms [] fields
+	(* name *) get_field "name" as_string fields,
+	(* define *) get_field "define" as_string fields,
+	(* doc *) get_field "doc" as_string fields,
+	(* params *) get_optional_field "params" as_params [] fields,
+	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
+	(* links *) get_optional_field "links" as_links [] fields
 
 let parse_meta json =
 	let fields = match json with
@@ -88,7 +96,8 @@ let parse_meta json =
 	(* params *) get_optional_field "params" as_params [] fields,
 	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
 	(* targets *) get_optional_field "targets" as_targets [] fields,
-	(* internal *) get_optional_field "internal" as_bool false fields
+	(* internal *) get_optional_field "internal" as_bool false fields,
+	(* links *) get_optional_field "links" as_links [] fields
 
 let parse_file_array path map =
 	let file = open_in path in
@@ -106,27 +115,30 @@ let gen_platforms = function
 
 let gen_params = List.map (function param -> "HasParam \"" ^ param ^ "\"" )
 
+let gen_links = List.map (function link -> "Link \"" ^ link ^ "\"" )
+
 let gen_define_type defines =
-	String.concat "\n" (List.map (function (name, _, _, _, _) -> "\t| " ^ name) defines)
+	String.concat "\n" (List.map (function (name, _, _, _, _, _) -> "\t| " ^ name) defines)
 
 let gen_define_info defines =
 	let define_str = List.map (function
-		(name, define, doc, params, platforms) ->
+		(name, define, doc, params, platforms, links) ->
 			let platforms_str = gen_platforms platforms in
 			let params_str = gen_params params in
-			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str)) ^ "])"
+			let links_str = gen_links links in
+			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str)) ^ "])"
 	) defines in
 	String.concat "\n" define_str
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
-		| ("InlineConstructorArgument", _, _, _, _, _, _) -> "\t| InlineConstructorArgument of int * int"
-		| (name, _, _, _, _, _, _) -> "\t| " ^ name
+		| ("InlineConstructorArgument", _, _, _, _, _, _, _) -> "\t| InlineConstructorArgument of int * int"
+		| (name, _, _, _, _, _, _, _) -> "\t| " ^ name
 	) metas)
 
 let gen_meta_info metas =
 	let meta_str = List.map (function
-		(name, metadata, doc, params, platforms, targets, internal) ->
+		(name, metadata, doc, params, platforms, targets, internal, links) ->
 			let platforms_str = gen_platforms platforms in
 			let params_str = gen_params params in
 			let targets_str = (match targets with
@@ -134,12 +146,13 @@ let gen_meta_info metas =
 				| targets -> ["UsedOn [" ^ (String.concat ";" targets) ^ "]"]
 			) in
 			let internal_str = if internal then ["UsedInternally"] else [] in
+			let links_str = gen_links links in
 			let name = (match name with
 				(* this is a hacky, I know *)
 				| "InlineConstructorArgument" -> "InlineConstructorArgument _"
 				| _ -> name
 			) in
-			"\t| " ^ name ^ " -> \"" ^ metadata ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str)) ^ "])"
+			"\t| " ^ name ^ " -> \"" ^ metadata ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ targets_str @ internal_str @ links_str)) ^ "])"
 	) metas in
 	String.concat "\n" meta_str
 
@@ -153,6 +166,7 @@ open Globals
 type define_parameter =
 	| HasParam of string
 	| Platforms of platform list
+	| Link of string
 
 "
 
@@ -176,6 +190,7 @@ type meta_parameter =
 	| Platforms of platform list
 	| UsedOn of meta_usage list
 	| UsedInternally
+	| Link of string
 
 "
 

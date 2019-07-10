@@ -311,6 +311,11 @@ let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, 
 let is_string expr = is_string_type expr.etype
 
 (**
+	Check if specified type is Array
+*)
+let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _) -> true | _ -> false
+
+(**
 	Check if specified type represents a function
 *)
 let is_function_type t = match follow t with TFun _ -> true | _ -> false
@@ -1606,6 +1611,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					vars#used var.v_name;
 					self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
+				| TBinop (OpAssign, { eexpr = TArray (target, index) }, value) when is_array_type target.etype ->
+					self#write_expr_set_array_item target index value
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
@@ -1720,6 +1727,14 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					List.iter write_field fields;
 					self#indent_less;
 					self#write_with_indentation "]"
+		(**
+			Writes `target[index] = value` assuming `target` is of `Array` type
+		*)
+		method write_expr_set_array_item target index value =
+			self#write_expr target;
+			self#write "->offsetSet(";
+			write_args self#write self#write_expr [index; value];
+			self#write ")"
 		(**
 			Writes TArray to output buffer
 		*)
@@ -2082,7 +2097,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if ((is_constant expr) && not (is_constant_null expr)) || (is_concatenation expr) then
+				if ((is_constant expr) && not (is_constant_null expr))
+					|| (is_concatenation expr)
+					|| is_php_global expr
+					|| is_php_class_const expr
+				then
 					self#write_expr expr
 				else begin
 					self#write "(";
@@ -3302,7 +3321,7 @@ class class_builder ctx (cls:tclass) =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
-			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
 		method private extends_no_constructor =

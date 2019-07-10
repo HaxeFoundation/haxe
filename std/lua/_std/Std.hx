@@ -47,7 +47,7 @@ import lua.NativeStringTools;
 		if (!Math.isFinite(x) || Math.isNaN(x))
 			return 0;
 		else
-			return lua.Boot.clamp(x);
+			return lua.Boot.clampInt32(x);
 	}
 
 	public static function parseInt(x:String):Null<Int> {

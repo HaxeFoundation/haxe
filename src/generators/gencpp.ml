@@ -2293,6 +2293,9 @@ let cpp_enum_name_of field =
 
 let is_object_element ctx member_type =
   match member_type with
+   | TCppInst x
+   | TCppInterface x
+       -> not (is_extern_class x)
    | TCppDynamic
    | TCppObject
    | TCppObjectPtr
@@ -2303,12 +2306,9 @@ let is_object_element ctx member_type =
    | TCppObjectArray _
    | TCppWrapped _
    | TCppScalarArray _
-   | TCppInst _
-   | TCppInterface _
    | TCppClass
        -> true
    | _ -> false
-
 ;;
 
 let is_gc_element ctx member_type =
@@ -4267,21 +4267,59 @@ let is_override class_def field =
    List.exists (fun f -> f.cf_name = field) class_def.cl_overrides
 ;;
 
-let current_virtual_functions clazz =
-  List.rev (List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
-    | _, Method MethDynamic -> result
-    | TFun (args,return_type), Method _  when not (is_override clazz elem.cf_name ) -> (elem,args,return_type) :: result
-    | _,_ -> result ) [] clazz.cl_ordered_fields)
+(*
+   Functions are added in reverse order (oldest on right), then list is reversed because this is easier in ocaml
+   The order is important because cppia looks up functions by index
+*)
+
+
+let current_virtual_functions_rev clazz base_functions =
+   List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+      | _, Method MethDynamic -> result
+      | TFun (args,return_type), Method _  ->
+          if (is_override clazz elem.cf_name ) then
+             List.map (fun (e,a,r) ->  if e.cf_name<>elem.cf_name then (e,a,r) else  (elem,args,return_type) ) result
+          else
+             (elem,args,return_type) :: result
+      | _,_ -> result
+    ) base_functions clazz.cl_ordered_fields
 ;;
 
 let all_virtual_functions clazz =
-  let rec all_virtual_functions clazz =
-   (match clazz.cl_super with
-   | Some def -> all_virtual_functions (fst def)
-   | _ -> [] ) @ current_virtual_functions clazz
+  let rec all_virtual_functions_rec clazz =
+   current_virtual_functions_rev clazz (match clazz.cl_super with
+       | Some def -> all_virtual_functions_rec (fst def)
+       | _ -> []
+     )
+   in
+   List.rev (all_virtual_functions_rec clazz)
+;;
+
+
+
+(*
+let current_virtual_functions clazz parents override_types =
+  List.fold_left (fun result elem -> match follow elem.cf_type, elem.cf_kind  with
+    | _, Method MethDynamic -> result
+    | TFun (args,return_type), Method _ ->
+        if override_types then
+           (elem,args,return_type) :: (List.filter (fun (e,a,r) -> e.cf_name<>elem.cf_name) result)
+        else if (is_override clazz elem.cf_name ) then
+           result
+        else
+           (elem,args,return_type) :: result
+    | _,_ -> result ) parents (List.rev clazz.cl_ordered_fields)
+;;
+
+let all_virtual_functions clazz override_types =
+   let rec all_virtual_functions clazz =
+      current_virtual_functions clazz (match clazz.cl_super with
+         | Some def -> all_virtual_functions (fst def)
+         | _ -> [] ) false
    in
    all_virtual_functions clazz
 ;;
+*)
 
 
 let rec unreflective_type t =
@@ -5385,11 +5423,13 @@ let script_type t optional = if optional then begin
    | _ -> "Object"
    end else match type_string t with
    | "bool" -> "Int"
-   | "int" -> "Int"
+   | "int" | "::cpp::Int32" -> "Int"
    | "Float" -> "Float"
    | "::String" -> "String"
    | "Null" -> "Void"
    | "Void" -> "Void"
+   | "float" | "::cpp::Float32" | "::cpp::Float64" -> "Float"
+   | "::cpp::Int64" | "::cpp::UInt64" -> "Object"
    | _ -> "Object"
 ;;
 
@@ -5634,14 +5674,15 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
 
    let outputConstructor ctx out isHeader =
       let classScope = if isHeader then "" else class_name ^ "::" in
-      out (ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
+      let staticHead = if isHeader then "inline static " else "" in
+      out (staticHead ^ ptr_name ^ " " ^ classScope ^ "__new(" ^constructor_type_args ^") {\n");
       out ("\t" ^ ptr_name ^ " __this = new " ^ class_name ^ "();\n");
          out ("\t__this->__construct(" ^ constructor_args ^ ");\n");
       out ("\treturn __this;\n");
       out ("}\n\n");
 
       if can_quick_alloc then begin
-         out ((if isHeader then "static " else "") ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
+         out (staticHead ^ ptr_name ^ " " ^ classScope ^ "__alloc(hx::Ctx *_hx_ctx" ^
             (if constructor_type_args="" then "" else "," ^constructor_type_args)  ^") {\n");
          out ("\t" ^ class_name ^ " *__this = (" ^ class_name ^ "*)(hx::Ctx::alloc(_hx_ctx, sizeof(" ^ class_name ^ "), " ^ isContainer ^", " ^ gcName ^ "));\n");
          out ("\t*(void **)__this = " ^ class_name ^ "::_hx_vtable;\n");
@@ -6255,7 +6296,7 @@ let generate_class_files baseCtx super_deps constructor_deps class_def inScripta
       let new_sctipt_functions = if newInteface then
             all_virtual_functions class_def
          else
-            current_virtual_functions class_def
+            List.rev (current_virtual_functions_rev class_def [])
       in
       let sctipt_name = class_name ^ "__scriptable" in
 

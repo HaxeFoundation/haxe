@@ -1427,6 +1427,9 @@ and type_access ctx e p mode =
 		handle_efield ctx e p mode
 	| EArray (e1,e2) ->
 		type_array_access ctx e1 e2 p mode
+	| EDisplay (e,dk) ->
+		let resume_typing = type_expr ~mode in
+		AKExpr (TyperDisplay.handle_edisplay ~resume_typing ctx e dk WithType.value)
 	| _ ->
 		AKExpr (type_expr ctx (e,p) WithType.value)
 
@@ -2395,7 +2398,7 @@ and type_call ctx e el (with_type:WithType.t) inline p =
 	| _ ->
 		def ()
 
-and type_expr ctx (e,p) (with_type:WithType.t) =
+and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	match e with
 	| EField ((EConst (String s),ps),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" ps;
@@ -2404,11 +2407,11 @@ and type_expr ctx (e,p) (with_type:WithType.t) =
 		error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.in_display then error "Cannot use super as value" p;
-		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p MGet) with_type false p in
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode) with_type false p in
 		acc_get ctx e p
 	| EField _
 	| EArray _ ->
-		acc_get ctx (type_access ctx e p MGet) p
+		acc_get ctx (type_access ctx e p mode) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
