@@ -33,7 +33,7 @@ class Metadata extends DisplayTestCase {
 		class Some { }
 	**/
 	function testHover() {
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(1)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(1)));
 	}
 
 	/**
@@ -94,9 +94,9 @@ class Metadata extends DisplayTestCase {
 		}
 	**/
 	function testExpression5() {
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(1)));
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(2)));
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(3)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(1)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(2)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(3)));
 	}
 
 	/**
@@ -105,8 +105,8 @@ class Metadata extends DisplayTestCase {
 		}
 	**/
 	function testExpression6() {
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(1)));
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(2)));
-		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field", metadataDoc(pos(3)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(1)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(2)));
+		eq("Marks a class or class field as generic so each type parameter combination generates its own type/field.", metadataDoc(pos(3)));
 	}
 }

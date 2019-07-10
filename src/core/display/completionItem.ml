@@ -653,14 +653,15 @@ let to_json ctx item =
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
 			in
-			let rec loop internal params platforms targets l = match l with
-				| HasParam s :: l -> loop internal (s :: params) platforms targets l
-				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets l
-				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
-				| UsedInternally :: l -> loop true params platforms targets l
-				| [] -> internal,params,platforms,targets
+			let rec loop internal params platforms targets links l = match l with
+				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
+				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
+				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) links l
+				| UsedInternally :: l -> loop true params platforms targets links l
+				| Link url :: l -> loop internal params platforms targets (url :: links) l
+				| [] -> internal,params,platforms,targets,links
 			in
-			let internal,params,platforms,targets = loop false [] [] [] params in
+			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
 			"Metadata",jobject [
 				"name",jstring name;
 				"doc",jstring doc;
@@ -668,6 +669,7 @@ let to_json ctx item =
 				"platforms",jlist jstring platforms;
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
+				"links",jlist jstring links;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
