@@ -56,8 +56,6 @@ let parse_version s =
 	let parse_release dotted_str =
 		match parse dotted_str with
 			| [SVNum _ as major; SVNum _ as minor; SVNum _ as patch] -> (major, minor, patch)
-			| [SVNum _ as major; SVNum _ as minor] -> (major, minor, SVNum 0)
-			| [SVNum _ as major] -> (major, SVNum 0, SVNum 0)
 			| _ -> error()
 	in
 	let index = try Some (String.index s '-') with Not_found -> None in

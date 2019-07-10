@@ -20,19 +20,26 @@ class Php {
 			infoMsg('php ${phpVer} has already been installed.');
 			return;
 		}
-		switch (systemName) {
-			case "Linux":
+		switch [ci, systemName] {
+			case [TravisCI, "Linux"]:
 				runCommand("phpenv", ["global", "7.0"], false, true);
-			case "Mac":
+			case [_, "Linux"]:
+				Linux.requireAptPackages(["php-cli", "php-mbstring"]);
+			case [_, "Mac"]:
 				runCommand("brew", ["install", "php"], true);
-			case "Windows":
+			case [_, "Windows"]:
 				runCommand("cinst", ["php", "-version", "7.1.8", "-y"], true);
+			case _:
+				throw 'unknown combination: $ci, $systemName';
 		}
 		runCommand("php", ["-v"]);
 	}
 
 	static public function run(args:Array<String>) {
 		getPhpDependencies();
+
+		changeDirectory(miscPhpDir);
+		runThroughPhpVersions(runCommand.bind("haxe", ["run.hxml"]));
 
 		var binDir = "bin/php";
 
@@ -57,14 +64,11 @@ class Php {
 			}
 			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
 			runThroughPhpVersions(runCommand.bind("php", ["bin/php/Main/index.php"]));
-
-			changeDirectory(miscPhpDir);
-			runThroughPhpVersions(runCommand.bind("haxe", ["run.hxml"]));
 		}
 	}
 
 	static function runThroughPhpVersions(fn:()->Void) {
-	if(isCi() && systemName == "Linux") {
+		if(ci == TravisCI && systemName == "Linux") {
 			for(version in ['7.0', '7.1'/*, '7.2', '7.3'*/]) { //7.2 and 7.3 are not available on travis Ubuntu trusty
 				runCommand("phpenv", ["global", version]);
 				fn();

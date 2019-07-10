@@ -19,34 +19,29 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.internal;
 
 import java.lang.System;
 
 @:native('haxe.lang.FieldLookup')
 @:keep
-@:static class FieldLookup
-{
-
+@:static class FieldLookup {
 	@:functionCode('
 		return s.hashCode();
 	')
-	public static function hash(s:String):Int
-	{
+	public static function hash(s:String):Int {
 		return 0;
 	}
 
-	public static function findHash(hash:String, hashs:java.NativeArray<String>, length:Int):Int
-	{
+	public static function findHash(hash:String, hashs:java.NativeArray<String>, length:Int):Int {
 		var min = 0;
 		var max = length;
 
-		while (min < max)
-		{
-			var mid = Std.int((max + min) / 2); //overflow safe
+		while (min < max) {
+			var mid = Std.int((max + min) / 2); // overflow safe
 			var classify = untyped hash.compareTo(hashs[mid]);
-			if (classify < 0)
-			{
+			if (classify < 0) {
 				max = mid;
 			} else if (classify > 0) {
 				min = mid + 1;
@@ -54,7 +49,7 @@ import java.lang.System;
 				return mid;
 			}
 		}
-		//if not found, return a negative value of where it should be inserted
+		// if not found, return a negative value of where it should be inserted
 		return ~min;
 	}
 
@@ -73,43 +68,29 @@ import java.lang.System;
 		a[length - 1] = null;
 	}
 
-	extern
-	static inline function __insert<T>(a:java.NativeArray<T>, length:Int, pos:Int, x:T):java.NativeArray<T>
-	{
+	extern static inline function __insert<T>(a:java.NativeArray<T>, length:Int, pos:Int, x:T):java.NativeArray<T> {
 		var capacity = a.length;
-		if (pos == length)
-		{
-			if (capacity == length)
-			{
+		if (pos == length) {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				System.arraycopy(a, 0, newarr, 0, a.length);
 				a = newarr;
 			}
-		}
-		else if (pos == 0)
-		{
-			if (capacity == length)
-			{
+		} else if (pos == 0) {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				System.arraycopy(a, 0, newarr, 1, length);
 				a = newarr;
-			}
-			else
-			{
+			} else {
 				System.arraycopy(a, 0, a, 1, length);
 			}
-		}
-		else
-		{
-			if (capacity == length)
-			{
+		} else {
+			if (capacity == length) {
 				var newarr = new NativeArray((length << 1) + 1);
 				System.arraycopy(a, 0, newarr, 0, pos);
 				System.arraycopy(a, pos, newarr, pos + 1, length - pos);
 				a = newarr;
-			}
-			else
-			{
+			} else {
 				System.arraycopy(a, pos, a, pos + 1, length - pos);
 				System.arraycopy(a, 0, a, 0, pos);
 			}
@@ -118,7 +99,12 @@ import java.lang.System;
 		return a;
 	}
 
-	public static function insertString(a:java.NativeArray<String>, length:Int, pos:Int, x:String):java.NativeArray<String> return __insert(a, length, pos, x);
-	public static function insertFloat(a:java.NativeArray<Float>, length:Int, pos:Int, x:Float):java.NativeArray<Float> return __insert(a, length, pos, x);
-	public static function insertDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):java.NativeArray<Dynamic> return __insert(a, length, pos, x);
+	public static function insertString(a:java.NativeArray<String>, length:Int, pos:Int, x:String):java.NativeArray<String>
+		return __insert(a, length, pos, x);
+
+	public static function insertFloat(a:java.NativeArray<Float>, length:Int, pos:Int, x:Float):java.NativeArray<Float>
+		return __insert(a, length, pos, x);
+
+	public static function insertDynamic(a:java.NativeArray<Dynamic>, length:Int, pos:Int, x:Dynamic):java.NativeArray<Dynamic>
+		return __insert(a, length, pos, x);
 }

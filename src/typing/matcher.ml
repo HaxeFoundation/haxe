@@ -224,6 +224,9 @@ module Pattern = struct
 			in
 			loop e
 		in
+		let display_mode () =
+			if pctx.is_postfix_match then DKMarked else DKPattern toplevel
+		in
 		let try_typing e =
 			let old = ctx.untyped in
 			ctx.untyped <- true;
@@ -484,18 +487,18 @@ module Pattern = struct
 				let pat = loop e in
 				let locals' = ctx.locals in
 				ctx.locals <- locals;
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				ctx.locals <- locals';
 				pat
 			(* For signature completion, we don't want to recurse into the inner pattern because there's probably
 			   a EDisplay(_,DMMarked) in there. We can handle display immediately because inner patterns should not
 			   matter (#7326) *)
 			| EDisplay(e1,DKCall) ->
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				loop e1
 			| EDisplay(e,dk) ->
 				let pat = loop e in
-				ignore(TyperDisplay.handle_edisplay ctx e (DKPattern toplevel) (WithType.with_type t));
+				ignore(TyperDisplay.handle_edisplay ctx e (display_mode()) (WithType.with_type t));
 				pat
 			| EMeta((Meta.StoredTypedExpr,_,_),e1) ->
 				let e1 = MacroContext.type_stored_expr ctx e1 in
@@ -1259,6 +1262,11 @@ module TexprConverter = struct
 		| _ ->
 			Some(con,params)
 
+	let rec extract_const e = match e.eexpr with
+		| TConst ct -> Some ct
+		| TCast(e1,None) -> extract_const e1
+		| _ -> None
+
 	let all_ctors ctx e cases =
 		let infer_type() = match cases with
 			| [] -> e,e.etype,false
@@ -1303,8 +1311,11 @@ module TexprConverter = struct
 				List.iter (fun cf ->
 					ignore(follow cf.cf_type);
 					if Meta.has Meta.Impl cf.cf_meta && Meta.has Meta.Enum cf.cf_meta then match cf.cf_expr with
-						| Some {eexpr = TConst ct | TCast ({eexpr = TConst ct},None)} ->
-							if ct != TNull then add (ConConst ct,null_pos)
+						| Some e ->
+							begin match extract_const e with
+							| Some ct -> if ct <> TNull then add (ConConst ct,null_pos)
+							| None -> add (ConStatic(c,cf),null_pos)
+							end;
 						| _ -> add (ConStatic(c,cf),null_pos)
 				) c.cl_ordered_statics;
 				SKValue,CompileTimeFinite
@@ -1319,9 +1330,9 @@ module TexprConverter = struct
 				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
 				SKEnum,RunTimeFinite
 			| TAnon _ ->
-				SKValue,CompileTimeFinite
+				SKValue,Infinite
 			| TInst(_,_) ->
-				SKValue,CompileTimeFinite
+				SKValue,Infinite
 			| _ ->
 				SKValue,Infinite
 		in
@@ -1345,7 +1356,11 @@ module TexprConverter = struct
 					| ConConst ct1 ->
 						let cf = List.find (fun cf ->
 							match cf.cf_expr with
-							| Some ({eexpr = TConst ct2 | TCast({eexpr = TConst ct2},None)}) -> ct1 = ct2
+							| Some e ->
+								begin match extract_const e with
+								| Some ct2 -> ct1 = ct2
+								| None -> false
+								end
 							| _ -> false
 						) c.cl_ordered_statics in
 						cf.cf_name
@@ -1595,4 +1610,10 @@ module Match = struct
 			print_endline "TEXPR END";
 		end;
 		{e with epos = p}
+
+	let match_expr ctx e cases def with_type postfix_match p = match cases,def with
+		| [],None when (match with_type with WithType.NoValue -> true | _ -> false) ->
+			type_expr ctx e WithType.value
+		| _ ->
+			match_expr ctx e cases def with_type postfix_match p
 end

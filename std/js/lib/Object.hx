@@ -19,10 +19,12 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import haxe.extern.Rest;
 import haxe.DynamicAccess;
+
 /**
 	The `js.lib.Object` constructor creates an object wrapper.
 
@@ -52,9 +54,21 @@ extern class Object {
 	static function defineProperty<T:{}>(obj:T, prop:String, descriptor:ObjectPropertyDescriptor):T;
 
 	/**
+		Returns an array containing all of the [key, value] pairs of a given
+		object's own enumerable string properties.
+	**/
+	@:pure static function entries(obj:{}):Array<ObjectEntry>;
+
+	/**
 		Freezes an object: other code can't delete or change any properties.
 	**/
 	static function freeze<T:{}>(obj:T):T;
+
+	/**
+		Returns a new object from an iterable of key-value pairs
+		(reverses Object.entries).
+	**/
+	@:pure static function fromEntries<T:{}>(iterable:Any):T;
 
 	/**
 		Returns a property descriptor for a named property on an object.
@@ -121,9 +135,15 @@ extern class Object {
 	static function setPrototypeOf<T:{}>(obj:T, prototype:Null<{}>):T;
 
 	/**
+		Returns an array containing the values that correspond to all of
+		a given object's own enumerable string properties.
+	**/
+	@:pure static function values(obj:{}):Array<Any>;
+
+	/**
 		Allows the addition of properties to all objects of type Object.
 	**/
-	static var prototype(default,never):ObjectPrototype;
+	static var prototype(default, never):ObjectPrototype;
 
 	/**
 		The Object constructor creates an object wrapper.
@@ -141,33 +161,33 @@ typedef ObjectPrototype = {
 		property as a direct property of that object and not inherited through
 		the prototype chain.
 	**/
-	var hasOwnProperty(default,never):Function;
+	var hasOwnProperty(default, never):Function;
 
 	/**
 		Returns a boolean indicating whether the object this method is called
 		upon is in the prototype chain of the specified object.
 	**/
-	var isPrototypeOf(default,never):Function;
+	var isPrototypeOf(default, never):Function;
 
 	/**
 		Returns a boolean indicating if the internal enumerable attribute is set.
 	**/
-	var propertyIsEnumerable(default,never):Function;
+	var propertyIsEnumerable(default, never):Function;
 
 	/**
 		Calls `toString()`.
 	**/
-	var toLocaleString(default,never):Function;
+	var toLocaleString(default, never):Function;
 
 	/**
 		Returns a string representation of the object.
 	**/
-	var toString(default,never):Function;
+	var toString(default, never):Function;
 
 	/**
 		Returns the primitive value of the specified object.
 	**/
-	var valueOf(default,never):Function;
+	var valueOf(default, never):Function;
 }
 
 /**
@@ -221,4 +241,18 @@ typedef ObjectPropertyDescriptor = {
 		and with `this` set to the object through which the property is assigned.
 	**/
 	var ?set:Any->Void;
+}
+
+/**
+	Key/value access helper for `js.lib.Object.entries()`.
+**/
+abstract ObjectEntry(Array<Any>) {
+	public var key(get, never):String;
+	public var value(get, never):Any;
+
+	inline function get_key():String
+		return this[0];
+
+	inline function get_value():Any
+		return this[1];
 }

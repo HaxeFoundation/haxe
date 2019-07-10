@@ -19,17 +19,20 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package python.lib.ssl;
 
 import python.lib.ssl.SSLSocket;
 
 @:pythonImport("ssl", "SSLContext")
 extern class SSLContext {
-	public function new (protocol:String):Void;
+	public function new(protocol:String):Void;
 	#if (python_version >= 3.6)
-	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null, session:SSLSession = null ):python.lib.ssl.SSLSocket;
+	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true,
+		server_hostname:String = null, session:SSLSession = null):python.lib.ssl.SSLSocket;
 	#else
-	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true, server_hostname:String = null ):python.lib.ssl.SSLSocket;
+	public function wrap_socket(s:python.lib.socket.Socket, server_side:Bool = false, do_handshake_on_connect:Bool = true, suppress_ragged_eofs:Bool = true,
+		server_hostname:String = null):python.lib.ssl.SSLSocket;
 	#end
 	public var options:Int;
 
@@ -42,7 +45,6 @@ extern class SSLContext {
 
 	@:require(python_version >= 3.4)
 	public function load_default_certs():Void;
-	//public function load_cert_chain(certfile:String, keyfile:String = null, password:String = null):Void;
-	//public function set_servername_callback(callback:SSLSocket -> String -> SSLContext -> Void ):Void;
-
+	// public function load_cert_chain(certfile:String, keyfile:String = null, password:String = null):Void;
+	// public function set_servername_callback(callback:SSLSocket -> String -> SSLContext -> Void ):Void;
 }

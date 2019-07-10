@@ -1,0 +1,33 @@
+parameters:
+  platform: '' # can be linux64, mac, windows, or windows64
+
+steps:
+  - ${{ if startsWith(parameters.platform, 'windows') }}:
+    - powershell: |
+        Invoke-WebRequest https://build.haxe.org/builds/neko/${{parameters.platform}}/neko_latest.zip -OutFile $(Agent.TempDirectory)/neko_latest.zip
+        Expand-Archive $(Agent.TempDirectory)/neko_latest.zip -DestinationPath $(Agent.TempDirectory)
+        $NEKOPATH = Get-ChildItem $(Agent.TempDirectory)/neko-*-win
+        Write-Host "##vso[task.prependpath]$NEKOPATH"
+        Write-Host "##vso[task.setvariable variable=NEKOPATH]$NEKOPATH"
+      displayName: Install Neko using snapshot from S3
+  - ${{ if not(startsWith(parameters.platform, 'windows')) }}:
+    - bash: |
+        set -ex
+        DOWNLOADDIR=$(Agent.TempDirectory)
+        curl -sSL https://build.haxe.org/builds/neko/${{parameters.platform}}/neko_latest.tar.gz -o $(Agent.TempDirectory)/neko_latest.tar.gz
+        tar -xf $(Agent.TempDirectory)/neko_latest.tar.gz -C $(Agent.TempDirectory)
+        NEKOPATH=`echo $(Agent.TempDirectory)/neko-*-*`
+        sudo mkdir -p /usr/local/bin
+        sudo mkdir -p /usr/local/lib/neko
+        sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
+        sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
+        sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
+        set +x
+        echo "##vso[task.prependpath]$NEKOPATH"
+        echo "##vso[task.setvariable variable=NEKOPATH]$NEKOPATH"
+      displayName: Install Neko using snapshot from S3
+  - ${{ if eq(parameters.platform, 'linux64') }}:
+    - bash: sudo ldconfig
+      displayName: ldconfig
+  - script: neko -version 2>&1
+    displayName: Print Neko version

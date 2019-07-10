@@ -136,6 +136,15 @@ let pack_similarity pack1 pack2 =
 	in
 	loop 0 pack1 pack2
 
+(* Returns `true` if `pack1` contains or is `pack2` *)
+let pack_contains pack1 pack2 =
+	let rec loop pack1 pack2 = match pack1,pack2 with
+		| [],_ -> true
+		| (s1 :: pack1),(s2 :: pack2) when s1 = s2 -> loop pack1 pack2
+		| _ -> false
+	in
+	loop pack1 pack2
+
 let is_pack_visible pack =
 	not (List.exists (fun s -> String.length s > 0 && s.[0] = '_') pack)
 
@@ -179,7 +188,7 @@ let collect ctx tk with_type =
 				if not (path_exists cctx path) && not is_private && not (Meta.has Meta.NoCompletion meta) then begin
 					add_path cctx path;
 					(* If we share a package, the module's main type shadows everything with the same name. *)
-					let shadowing_name = if pack_similarity curpack pack > 0 && tname = name then (Some name) else None in
+					let shadowing_name = if pack_contains pack curpack && tname = name then (Some name) else None in
 					(* Also, this means we can access it as if it was imported (assuming it's not shadowed by something else. *)
 					let is = get_import_status cctx (shadowing_name <> None) path in
 					add (make_ci_type (CompletionModuleType.of_type_decl pack name (d,p)) is None) shadowing_name
@@ -244,7 +253,7 @@ let collect ctx tk with_type =
 		(* enum constructors *)
 		let rec enum_ctors t =
 			match t with
-			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) ->
+			| TAbstractDecl ({a_impl = Some c} as a) when Meta.has Meta.Enum a.a_meta && not (path_exists cctx a.a_path) && ctx.curclass != c ->
 				add_path cctx a.a_path;
 				List.iter (fun cf ->
 					let ccf = CompletionClassField.make cf CFSMember (Self (decl_of_class c)) true in
@@ -322,8 +331,8 @@ let collect ctx tk with_type =
 
 		(* keywords *)
 		let kwds = [
-			Function; Var; If; Else; While; Do; For; Break; Return; Continue; Switch;
-			Try; New; Throw; Untyped; Cast;
+			Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+			Try; New; Throw; Untyped; Cast; Inline;
 		] in
 		List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 

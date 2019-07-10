@@ -43,6 +43,12 @@
 		"doc": "Generate cpp instruction assembly."
 	},
 	{
+		"name": "CsVer",
+		"define": "cs_ver",
+		"doc": "The C# version to target.",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "NoCppiaAst",
 		"define": "nocppiaast",
 		"doc": "Use legacy cppia generation."
@@ -358,9 +364,15 @@
 		"params": ["version: 20-45"]
 	},
 	{
+		"name": "NetcoreVer",
+		"define": "netcore_ver",
+		"doc": "<version:x.x.x> Sets the .NET core version to be targeted",
+		"platforms": ["cs"]
+	},
+	{
 		"name": "NetTarget",
 		"define": "net_target",
-		"doc": "Sets the .NET target. `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
+		"doc": "Sets the .NET target. `netcore` (.NET core), `xbox`, `micro` (Micro Framework), `compact` (Compact Framework) are some valid values. (default: `net`)",
 		"platforms": ["cs"],
 		"params": ["name"]
 	},

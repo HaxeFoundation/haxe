@@ -127,7 +127,7 @@ class UnitBuilder {
 	static public function read(path:String) {
 		var p = Context.makePosition( { min:0, max:0, file:path } );
 		var file = sys.io.File.getContent(path);
-		var code = Context.parseInlineString("{" + file + "}", p);
+		var code = Context.parseInlineString("{" + file + "\n}", p);
 		function mkBlock(e:Expr) {
 			return switch(e.expr) {
 				case EBlock(b): b;

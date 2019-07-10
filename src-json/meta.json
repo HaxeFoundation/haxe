@@ -329,7 +329,7 @@
 		"devcomment": "this used to have UsedOn TObjectDecl(_)",
 		"name": "Fixed",
 		"metadata": ":fixed",
-		"doc": "Delcares an anonymous object to have fixed fields."
+		"doc": "Declares an anonymous object to have fixed fields."
 	},
 	{
 		"name": "FlashProperty",
@@ -823,6 +823,13 @@
 		"params": ["Function specification (no expression)"],
 		"targets": ["TClassField"],
 		"links": ["https://haxe.org/manual/target-javascript-external-libraries.html"]
+	},
+	{
+		"name": "Persistent",
+		"metadata": ":persistent",
+		"doc": "Keeps the value of static variables in macro context across compilations.",
+		"targets": ["TAnyField"],
+		"platforms": ["eval"]
 	},
 	{
 		"name": "PhpGlobal",

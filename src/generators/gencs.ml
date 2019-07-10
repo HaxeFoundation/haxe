@@ -30,6 +30,20 @@ open Printf
 open Option
 open ExtString
 
+type cs_native_constraint =
+	| CsStruct
+	| CsClass
+	| CsUnmanaged
+	| CsConstructible
+	| CsConstraint of string
+
+let get_constraint = function
+	| CsStruct -> "struct"
+	| CsClass -> "class"
+	| CsUnmanaged -> "unmanaged"
+	| CsConstructible -> "new()"
+	| CsConstraint s -> s
+
 let rec is_cs_basic_type t =
 	match follow t with
 		| TInst( { cl_path = (["haxe"], "Int32") }, [] )
@@ -133,6 +147,62 @@ let rec change_md = function
 	| TClassDecl( { cl_kind = KAbstractImpl (a) }) when Meta.has Meta.CoreType a.a_meta ->
 		TAbstractDecl a
 	| md -> md
+
+(**
+	Generates method overloads for a method with trailing optional arguments.
+	E.g. for `function method(a:Int, b:Bool = false) {...}`
+	generates `function method(a:Int) { method(a, false); }`
+*)
+let get_overloads_for_optional_args gen cl cf is_static =
+	match cf.cf_params,cf.cf_kind with
+	| [],Method (MethNormal | MethDynamic | MethInline) ->
+		(match cf.cf_expr, follow cf.cf_type with
+		| Some ({ eexpr = TFunction fn } as method_expr), TFun (args, return_type) ->
+			let type_params = List.map snd cl.cl_params in
+			let rec collect_overloads tf_args_rev args_rev default_values_rev =
+				match tf_args_rev, args_rev with
+				| (_, Some default_value) :: rest_tf_args_rev, _ :: rest_args_rev ->
+					let field_expr =
+						let cl_type = TInst (cl,type_params) in
+						if cf.cf_name = "new" then
+							mk (TConst TThis) cl_type cf.cf_pos
+						else if is_static then
+							let class_expr =
+								mk (TTypeExpr (TClassDecl cl)) cl_type cf.cf_pos
+							in
+							mk (TField (class_expr, FStatic(cl,cf))) cf.cf_type cf.cf_pos
+						else
+							let this_expr =
+								mk (TConst TThis) cl_type cf.cf_pos
+							in
+							mk (TField (this_expr, FInstance(cl,type_params,cf))) cf.cf_type cf.cf_pos
+					in
+					let default_values_rev = default_values_rev @ [default_value] in
+					let args_exprs =
+						List.rev (
+							default_values_rev
+							@ (List.map (fun (v,_) -> mk_local v v.v_pos ) rest_tf_args_rev)
+						)
+					in
+					let call = { fn.tf_expr with eexpr = TCall (field_expr, args_exprs) } in
+					let fn_body =
+						if ExtType.is_void (follow return_type) then call
+						else { fn.tf_expr with eexpr = TReturn (Some call) }
+					in
+					let fn =
+						{ fn with tf_args = List.rev rest_tf_args_rev; tf_expr = mk_block fn_body }
+					in
+					{ cf with
+						cf_overloads = [];
+						cf_type = TFun (List.rev rest_args_rev, return_type);
+						cf_expr = Some { method_expr with eexpr = TFunction fn };
+					} :: collect_overloads rest_tf_args_rev rest_args_rev default_values_rev
+				| _ -> []
+			in
+			collect_overloads (List.rev fn.tf_args) (List.rev args) []
+		| _ -> []
+		)
+	| _ -> []
 
 (* used in c#-specific filters to skip some of them for the special haxe.lang.Runtime class *)
 let in_runtime_class gen =
@@ -385,8 +455,6 @@ struct
 					{ e with eexpr = TCall(mk_static_field_access_infer string_ext "fromCharCode" e.epos [], [run cc]) }
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charAt" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("charCodeAt" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("iterator" as field) })) }, args )
-				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("keyValueIterator" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("indexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("lastIndexOf" as field) })) }, args )
 				| TCall( { eexpr = TField(ef, FInstance({ cl_path = [], "String" }, _, { cf_name = ("split" as field) })) }, args )
@@ -619,7 +687,7 @@ let reserved = let res = Hashtbl.create 120 in
 		"stackalloc"; "static"; "string"; "struct"; "switch"; "this"; "throw"; "true"; "try"; "typeof"; "uint"; "ulong";
 		"unchecked"; "unsafe"; "ushort"; "using"; "virtual"; "volatile"; "void"; "while"; "add"; "ascending"; "by"; "descending";
 		"dynamic"; "equals"; "from"; "get"; "global"; "group"; "into"; "join"; "let"; "on"; "orderby"; "partial";
-		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"];
+		"remove"; "select"; "set"; "value"; "var"; "where"; "yield"; "await"];
 	res
 
 let dynamic_anon = TAnon( { a_fields = PMap.empty; a_status = ref Closed } )
@@ -738,9 +806,34 @@ let generate con =
 			ns
 		in
 
+		let change_class_field cl name =
+			let change_ctor name = if name = "new" then snd cl.cl_path else name in
+			let rec gen name =
+				let name = name ^ "_" ^ name in
+				if PMap.mem name cl.cl_fields || PMap.mem name cl.cl_statics then gen name
+				else name
+			in
+			change_id (if name = snd cl.cl_path then gen name else (change_ctor name))
+		in
+		let change_enum_field enum name =
+			let rec gen name =
+				let name = name ^ "_" ^ name in
+				if PMap.mem name enum.e_constrs then gen name
+				else name
+			in
+			change_id (if name = snd enum.e_path then gen name else name)
+		in
 		let change_field = change_id in
 		let write_id w name = write w (change_id name) in
+		let write_class_field cl w name = write w (change_class_field cl name) in
+		let write_enum_field enum w name = write w (change_enum_field enum name) in
 		let write_field w name = write w (change_field name) in
+		let get_write_field field_access =
+			match field_access with
+			| FInstance (cl,_,f) | FStatic (cl,f) | FClosure (Some (cl,_),f) -> write_class_field cl
+			| FEnum (enum,f) -> write_enum_field enum
+			| _ -> write_field
+		in
 
 		let ptr =
 			if Common.defined gen.gcon Define.Unsafe then
@@ -906,6 +999,7 @@ let generate con =
 					Null<> type parameters will be transformed into Dynamic.
 				*)
 				| true, TInst ( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> dynamic_anon
+				| true, TInst ( { cl_path = ([], "String") }, _ ) -> t
 				| true, TInst ( { cl_kind = KTypeParameter _ }, _ ) -> t
 				| true, TInst _
 				| true, TEnum _
@@ -1208,7 +1302,7 @@ let generate con =
 						if is_event (gen.greal_type ef.etype) propname then begin
 							expr_s w ef;
 							write w ".";
-							write_field w propname;
+							(get_write_field f) w propname;
 							write w " += ";
 							expr_s w ev
 						end else
@@ -1219,7 +1313,7 @@ let generate con =
 						if is_event (gen.greal_type ef.etype) propname then begin
 							expr_s w ef;
 							write w ".";
-							write_field w propname;
+							(get_write_field f) w propname;
 							write w " -= ";
 							expr_s w ev
 						end else
@@ -1233,7 +1327,7 @@ let generate con =
 							else begin
 								expr_s w ef;
 								write w ".";
-								write_field w propname
+								(get_write_field f) w propname
 							end
 						else
 							do_call w e []
@@ -1243,17 +1337,17 @@ let generate con =
 						if is_extern_prop (gen.greal_type ef.etype) propname then begin
 							expr_s w ef;
 							write w ".";
-							write_field w propname;
+							(get_write_field f) w propname;
 							write w " = ";
 							expr_s w v
 						end else
 							do_call w e [v]
-					| TField (e, (FStatic(_, cf) | FInstance(_, _, cf))) when Meta.has Meta.Native cf.cf_meta ->
+					| TField (e, ((FStatic(_, cf) | FInstance(_, _, cf)) as f)) when Meta.has Meta.Native cf.cf_meta ->
 						let rec loop meta = match meta with
 							| (Meta.Native, [EConst (String s), _],_) :: _ ->
-								expr_s w e; write w "."; write_field w s
+								expr_s w e; write w "."; (get_write_field f) w s
 							| _ :: tl -> loop tl
-							| [] -> expr_s w e; write w "."; write_field w (cf.cf_name)
+							| [] -> expr_s w e; write w "."; (get_write_field f) w (cf.cf_name)
 						in
 						loop cf.cf_meta
 					| TConst c ->
@@ -1296,9 +1390,9 @@ let generate con =
 					| TIdent "__sizeof__" -> write w "sizeof"
 					| TLocal var ->
 						write_id w var.v_name
-					| TField (_, FEnum(e, ef)) ->
+					| TField (_, (FEnum(e, ef) as f)) ->
 						let s = ef.ef_name in
-						print w "%s." ("global::" ^ module_s (TEnumDecl e)); write_field w s
+						print w "%s." ("global::" ^ module_s (TEnumDecl e)); (get_write_field f) w s
 					| TArray (e1, e2) ->
 						expr_s w e1; write w "["; expr_s w e2; write w "]"
 					| TBinop ((Ast.OpAssign as op), e1, e2)
@@ -1324,7 +1418,7 @@ let generate con =
 							| TAbstractDecl a -> write w (t_s (TAbstract(a, List.map (fun _ -> t_empty) a.a_params)))
 						);
 						write w ".";
-						write_field w (field_name s)
+						(get_write_field s) w (field_name s)
 					| TField (e, s) when is_pointer gen e.etype ->
 						(* take off the extra cast if possible *)
 						let e = match e.eexpr with
@@ -1332,9 +1426,9 @@ let generate con =
 								e1
 							| _ -> e
 						in
-						expr_s w e; write w "->"; write_field w (field_name s)
+						expr_s w e; write w "->"; (get_write_field s) w (field_name s)
 					| TField (e, s) ->
-						expr_s w e; write w "."; write_field w (field_name s)
+						expr_s w e; write w "."; (get_write_field s) w (field_name s)
 					| TTypeExpr mt ->
 						(match change_md mt with
 							| TClassDecl { cl_path = (["haxe"], "Int64") } -> write w ("global::" ^ module_s mt)
@@ -1396,8 +1490,11 @@ let generate con =
 						expr_s w e;
 						write w "]"
 					| TCall ({ eexpr = TIdent "__unsafe__" }, [ e ] ) ->
-						write w "unsafe";
-						expr_s w (mk_block e)
+						write w "unsafe ";
+						begin_block w;
+						expr_s w (mk_block e);
+						write w ";";
+						end_block w
 					| TCall ({ eexpr = TIdent "__checked__" }, [ e ] ) ->
 						write w "checked";
 						expr_s w (mk_block e)
@@ -1831,6 +1928,9 @@ let generate con =
 			match cl_params with
 				| (_ :: _) when not (erase_generics && is_hxgeneric (TClassDecl cl)) ->
 					let get_param_name t = match follow t with TInst(cl, _) -> snd cl.cl_path | _ -> assert false in
+					let combination_error c1 c2 =
+						gen.gcon.error ("The " ^ (get_constraint c1) ^ " constraint cannot be combined with the " ^ (get_constraint c2) ^ " constraint.") cl.cl_pos in
+
 					let params = sprintf "<%s>" (String.concat ", " (List.map (fun (_, tcl) -> get_param_name tcl) cl_params)) in
 					let params_extends =
 						if hxgen || not (Meta.has (Meta.NativeGen) cl.cl_meta) then
@@ -1849,21 +1949,61 @@ let generate con =
 
 												(* non-sealed class *)
 												| TInst ({ cl_interface = false; cl_final = false},_) ->
-													base_class_constraints := (t_s t) :: !base_class_constraints;
+													base_class_constraints := (CsConstraint (t_s t)) :: !base_class_constraints;
 													acc;
 
 												(* interface *)
 												| TInst ({ cl_interface = true}, _) ->
-													(t_s t) :: acc
+													(CsConstraint (t_s t)) :: acc
+
+												(* cs constraints *)
+												(* See https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters *)
+												| TAbstract({ a_path = (_, c); a_module = { m_path = ([pack],"Constraints") } }, params) ->
+													(match pack, c with
+														| "haxe", "Constructible" ->
+															(match params with
+																(* Only for parameterless constructors *)
+																| [TFun ([],TAbstract({a_path=[],"Void"},_))] ->
+																	if (List.memq CsStruct acc) then combination_error CsConstructible CsStruct;
+																	if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsConstructible;
+																	CsConstructible :: acc;
+																| _ -> acc;
+															)
+														| "cs", "CsStruct" ->
+															if (List.memq CsClass acc) then combination_error CsClass CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsConstructible CsStruct;
+															if (List.memq CsUnmanaged acc) then combination_error CsUnmanaged CsStruct;
+															CsStruct :: acc;
+														| "cs", "CsUnmanaged" ->
+															if (List.memq CsStruct acc) then combination_error CsUnmanaged CsStruct;
+															if (List.memq CsConstructible acc) then combination_error CsUnmanaged CsConstructible;
+															CsUnmanaged :: acc;
+														| "cs", "CsClass" ->
+															if (List.memq CsStruct acc) then combination_error CsClass CsStruct;
+															CsClass :: acc;
+														| _, _ -> acc;
+													)
 
 												(* skip anything other *)
 												| _ ->
 													acc
 										) [] constraints in
 
-										let s_constraints = (!base_class_constraints @ other_constraints) in
+										let s_constraints = (List.sort
+											(* C# expects some ordering for built-in constraints: *)
+											(fun c1 c2 -> match c1, c2 with
+												| a, b when a == b -> 0
+												(* - "new()" type constraint should be last *)
+												| CsConstructible, _ -> 1
+												| _, CsConstructible -> -1
+												(* - "class", "struct" and "unmanaged" should be first *)
+												| CsClass, _ | CsStruct, _ | CsUnmanaged, _ -> -1
+												| _, CsClass | _, CsStruct | _, CsUnmanaged -> 1
+												| _, _ -> 0
+										) (!base_class_constraints @ other_constraints)) in
+
 										if s_constraints <> [] then
-											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " s_constraints) :: acc)
+											(sprintf " where %s : %s" (get_param_name t) (String.concat ", " (List.map get_constraint s_constraints)) :: acc)
 										else
 											acc;
 									| _ -> acc
@@ -1887,7 +2027,7 @@ let generate con =
 			let visibility = if is_interface then "" else "public" in
 			let visibility, modifiers = get_fun_modifiers event.cf_meta visibility ["event"] in
 			let v_n = if is_static then "static" else "" in
-			gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_field event.cf_name);
+			gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_class_field cl event.cf_name);
 			if custom && not is_interface then begin
 				write w " ";
 				begin_block w;
@@ -1923,7 +2063,7 @@ let generate con =
 			let v_n = if is_static then "static" else if is_override && not is_interface then "override" else if is_virtual then "virtual" else "" in
 			gen_nocompletion w prop.cf_meta;
 
-			gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_field prop.cf_name);
+			gen_field_decl w visibility v_n modifiers (t_s (run_follow gen t)) (change_class_field cl prop.cf_name);
 
 			let check cf = match cf with
 				| Some ({ cf_overloads = o :: _ } as cf) ->
@@ -1994,7 +2134,7 @@ let generate con =
 			gen_attributes w cf.cf_meta;
 			let is_interface = cl.cl_interface in
 			let name, is_new, is_explicit_iface = match cf.cf_name with
-				| "new" -> snd cl.cl_path, true, false
+				| "new" -> cf.cf_name, true, false
 				| name when String.contains name '.' ->
 					let fn_name, path = parse_explicit_iface name in
 					(s_type_path path) ^ "." ^ fn_name, false, true
@@ -2035,7 +2175,7 @@ let generate con =
 						let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
 						let modifiers = modifiers @ modf in
 						gen_nocompletion w cf.cf_meta;
-						gen_field_decl w access (if is_static then "static" else "") modifiers (t_s (run_follow gen cf.cf_type)) (change_field name);
+						gen_field_decl w access (if is_static then "static" else "") modifiers (t_s (run_follow gen cf.cf_type)) (change_class_field cl name);
 						(match cf.cf_expr with
 							| Some e ->
 								write w " = ";
@@ -2069,10 +2209,17 @@ let generate con =
 								gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
 						) cf.cf_overloads;
 				| Method mkind ->
+					let overloads =
+						match cf.cf_overloads with
+						| [] when is_overload -> []
+						| [] when has_meta Meta.NativeGen cl.cl_meta ->
+							get_overloads_for_optional_args gen cl cf is_static
+						| overloads -> overloads
+					in
 					List.iter (fun cf ->
 						if cl.cl_interface || cf.cf_expr <> None then
 							gen_class_field w ~is_overload:true is_static cl (has_class_field_flag cf CfFinal) cf
-					) cf.cf_overloads;
+					) overloads;
 					let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
 					let is_virtual = if not is_virtual || (has_class_field_flag cf CfFinal) then false else is_virtual in
 					let is_override = List.memq cf cl.cl_overrides in
@@ -2098,7 +2245,7 @@ let generate con =
 					gen_nocompletion w cf.cf_meta;
 
 					(* public static void funcName *)
-					gen_field_decl w visibility v_n modifiers (if not is_new then (rett_s (run_follow gen ret_type)) else "") (change_field name);
+					gen_field_decl w visibility v_n modifiers (if not is_new then (rett_s (run_follow gen ret_type)) else "") (change_class_field cl name);
 
 					let params, params_ext = get_string_params cl cf.cf_params in
 					(* <T>(string arg1, object arg2) with T : object *)
@@ -2153,6 +2300,14 @@ let generate con =
 													None, el
 										in
 										match expr.eexpr with
+											(* auto-generated ctor overloading for optional args (see get_overloads_for_optional_args) *)
+											| TBlock([{ eexpr = TCall ({ eexpr = TConst TThis }, args) } as this_call]) ->
+												write w ": ";
+												let t = Timer.timer ["expression to string"] in
+												expr_s false w this_call;
+												write w " ";
+												t();
+												write w "{}"
 											| TBlock(bl) ->
 												let super_call, rest = get_super_call bl in
 												(match super_call with
@@ -2453,14 +2608,35 @@ let generate con =
 			(match cl.cl_init with
 				| None -> ()
 				| Some init ->
+					let needs_block,write_expr =
+						let unchecked = needs_unchecked init in
+						if cl.cl_params = [] then
+							unchecked, (fun() ->
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init)
+							)
+						else begin
+							write w "static bool __hx_init_called = false;";
+							newline w;
+							true, (fun() ->
+								let flag = (t_s (TInst(cl, List.map (fun _ -> t_empty) cl.cl_params))) ^ ".__hx_init_called" in
+								write w ("if(" ^ flag ^ ") return;");
+								newline w;
+								write w (flag ^ " = true;");
+								newline w;
+								if unchecked then write w "unchecked";
+								expr_s false w (mk_block init);
+								newline w
+							)
+						end
+					in
 					print w "static %s() " (snd cl.cl_path);
-					if needs_unchecked init then begin
+					if needs_block then begin
 						begin_block w;
-						write w "unchecked ";
-						expr_s false w (mk_block init);
+						write_expr();
 						end_block w;
 					end else
-						expr_s false w (mk_block init);
+						write_expr();
 					line_reset_directive w;
 					newline w;
 					newline w

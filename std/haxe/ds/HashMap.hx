@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.ds;
 
 /**
@@ -28,7 +29,7 @@ package haxe.ds;
 
 	@see https://haxe.org/manual/std-Map.html
 **/
-abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
+abstract HashMap<K:{function hashCode():Int;}, V>(HashMapData<K, V>) {
 	/**
 		Creates a new HashMap.
 	**/
@@ -72,11 +73,11 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	public inline function keys() {
 		return this.keys.iterator();
 	}
-	
+
 	/**
 		See `Map.copy`
 	**/
-	public function copy() : HashMap<K, V> {
+	public function copy():HashMap<K, V> {
 		var copied = new HashMapData();
 		copied.keys = this.keys.copy();
 		copied.values = this.values.copy();
@@ -91,9 +92,10 @@ abstract HashMap<K:{ function hashCode():Int; }, V >(HashMapData<K,V>) {
 	}
 }
 
-private class HashMapData<K:{ function hashCode():Int; },V> {
+private class HashMapData<K:{function hashCode():Int;}, V> {
 	public var keys:IntMap<K>;
 	public var values:IntMap<V>;
+
 	public inline function new() {
 		keys = new IntMap();
 		values = new IntMap();

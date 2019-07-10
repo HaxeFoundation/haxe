@@ -474,8 +474,8 @@ class TestType extends Test {
 
 	function testInline()
 	{
-		typedAs(inlineTest1([1]), var void:Void);
-		typedAs(inlineTest2([1]), var void:Void);
+		typedAs(inlineTest1([1]), (function():Void{})());
+		typedAs(inlineTest2([1]), (function():Void{})());
 	}
 
 	inline function inlineTest1<T>(map:Array<T>) {
@@ -538,6 +538,7 @@ class TestType extends Test {
 		gf1("foo");
 		gf1(true);
 		gf1({foo: 1});
+		gf1(function(i:Int):String return '$i');
 
 		gf1(new haxe.Template("foo"));
 
@@ -550,6 +551,7 @@ class TestType extends Test {
 
 		hsf(TestType, "gf1_haxe_ds_GenericStack_Int");
 		hsf(TestType, "gf1_anon_foo_Int");
+		hsf(TestType, "gf1_func_Int_String");
 		t(typeError(gf1(null))); // monos don't work
 
 		eq("foo[1,2]", gf2("foo", [1, 2]));

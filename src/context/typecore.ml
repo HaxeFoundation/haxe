@@ -47,6 +47,7 @@ type macro_mode =
 type typer_pass =
 	| PBuildModule			(* build the module structure and setup module type parameters *)
 	| PBuildClass			(* build the class structure *)
+	| PConnectField			(* handle associated fields, which may affect each other. E.g. a property and its getter *)
 	| PTypeField			(* type the class field, allow access to types structures *)
 	| PCheckConstraint		(* perform late constraint checks with inferred types *)
 	| PForce				(* usually ensure that lazy have been evaluated *)
@@ -140,6 +141,7 @@ let analyzer_run_on_expr_ref : (Common.context -> texpr -> texpr) ref = ref (fun
 let pass_name = function
 	| PBuildModule -> "build-module"
 	| PBuildClass -> "build-class"
+	| PConnectField -> "connect-field"
 	| PTypeField -> "type-field"
 	| PCheckConstraint -> "check-constraint"
 	| PForce -> "force"
@@ -393,7 +395,10 @@ let rec can_access ctx ?(in_overload=false) c cf stat =
 				let allowed f = is_parent c ctx.curclass || (List.exists (has Meta.Allow c f) !cur_paths) in
 				if is_constr
 				then (match c.cl_constructor with
-					| Some cf -> if allowed cf then true else raise Not_found
+					| Some cf ->
+						if allowed cf then true
+						else if cf.cf_expr = None then false (* maybe it's an inherited auto-generated constructor *)
+						else raise Not_found
 					| _ -> false
 				)
 				else try allowed (PMap.find cf.cf_name (if stat then c.cl_statics else c.cl_fields)) with Not_found -> false

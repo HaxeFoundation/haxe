@@ -34,20 +34,5 @@ class Main {
 
 		#if (version("1.0.0-rc.1") == version("1.0.0-rc.1"))
 		#else #error "Failed semver comparison" #end
-
-		#if (version("1.0.0") == version("1.0"))
-		#else #error "Failed semver comparison" #end
-
-		#if (version("1.0.1") >= version("1"))
-		#else #error "Failed semver comparison" #end
-
-		#if (version("1.0.1") > version("1"))
-		#else #error "Failed semver comparison" #end
-
-		#if (version("1.1.0") > version("1"))
-		#else #error "Failed semver comparison" #end
-
-		#if (version("2.0.0") > version("1.0"))
-		#else #error "Failed semver comparison" #end
 	}
 }

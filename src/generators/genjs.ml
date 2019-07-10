@@ -49,7 +49,7 @@ type ctx = {
 	js_modern : bool;
 	js_flatten : bool;
 	has_resolveClass : bool;
-	has_instanceof : bool;
+	has_interface_check : bool;
 	es_version : int;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -343,7 +343,6 @@ let is_dynamic_iterator ctx e =
 	let check x =
 		let rec loop t = match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
-			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_kind = KTypeParameter _}, _)
 			| TAnon _
 			| TDynamic _
@@ -353,32 +352,12 @@ let is_dynamic_iterator ctx e =
 				loop (Abstract.get_underlying_type a tl)
 			| _ -> false
 		in
-		(has_feature ctx "HxOverrides.iter" || has_feature ctx "String.iterator") && loop x.etype
+		has_feature ctx "HxOverrides.iter" && loop x.etype
 	in
 	match e.eexpr with
 	| TField (x,f) when field_name f = "iterator" -> check x
 	| _ ->
 		false
-
-let is_dynamic_key_value_iterator ctx e =
-	let check x =
-		let rec loop t = match follow t with
-			| TInst ({ cl_path = [],"String" },_)
-			| TInst ({ cl_kind = KTypeParameter _}, _)
-			| TAnon _
-			| TDynamic _
-			| TMono _ ->
-				true
-			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				loop (Abstract.get_underlying_type a tl)
-			| _ ->
-				false
-		in
-		has_feature ctx "String.keyValueIterator" && loop x.etype
-	in
-	match e.eexpr with
-	| TField (x,f) when field_name f = "keyValueIterator" -> check x
-	| _ -> false
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -481,11 +460,6 @@ let rec gen_call ctx e el in_value =
 	| TField (x,f), [] when field_name f = "iterator" && is_dynamic_iterator ctx e ->
 		add_feature ctx "use.$getIterator";
 		print ctx "$getIterator(";
-		gen_value ctx x;
-		print ctx ")";
-	| TField (x,f), [] when field_name f = "keyValueIterator" && is_dynamic_key_value_iterator ctx e ->
-		add_feature ctx "use.$getKeyValueIterator";
-		print ctx "$getKeyValueIterator(";
 		gen_value ctx x;
 		print ctx ")";
 	| _ ->
@@ -1104,6 +1078,13 @@ let generate_class___name__ ctx c =
 		newline ctx;
 	end
 
+let generate_class___isInterface__ ctx c =
+	if c.cl_interface && has_feature ctx "js.Boot.isInterface" then begin
+		let p = s_path ctx c.cl_path in
+		print ctx "%s.__isInterface__ = true" p;
+		newline ctx;
+	end
+
 let generate_class_es3 ctx c =
 	let p = s_path ctx c.cl_path in
 	if ctx.js_flatten then
@@ -1130,8 +1111,9 @@ let generate_class_es3 ctx c =
 		newline ctx;
 	end;
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1284,8 +1266,9 @@ let generate_class_es6 ctx c =
 	end;
 
 	generate_class___name__ ctx c;
+	generate_class___isInterface__ ctx c;
 
-	if ctx.has_instanceof then
+	if ctx.has_interface_check then
 		(match c.cl_implements with
 		| [] -> ()
 		| l ->
@@ -1311,7 +1294,7 @@ let generate_class_es6 ctx c =
 
 	(match c.cl_super with
 	| Some (csup,_) ->
-		if ctx.has_instanceof || has_feature ctx "Type.getSuperClass" then begin
+		if ctx.has_interface_check || has_feature ctx "Type.getSuperClass" then begin
 			let psup = ctx.type_accessor (TClassDecl csup) in
 			print ctx "%s.__super__ = %s" p psup;
 			newline ctx
@@ -1488,7 +1471,7 @@ let generate_require ctx path meta =
 
 let need_to_generate_interface ctx cl_iface =
 	ctx.has_resolveClass (* generate so we can resolve it for whatever reason *)
-	|| ctx.has_instanceof (* generate because we need __interfaces__ for run-time type checks *)
+	|| ctx.has_interface_check (* generate because we need __interfaces__ for run-time type checks *)
 	|| is_directly_used ctx.com cl_iface.cl_meta (* generate because it's just directly accessed in code *)
 
 let generate_type ctx = function
@@ -1546,7 +1529,7 @@ let alloc_ctx com es_version =
 		js_modern = not (Common.defined com Define.JsClassic);
 		js_flatten = not (Common.defined com Define.JsUnflatten);
 		has_resolveClass = Common.has_feature com "Type.resolveClass";
-		has_instanceof = Common.has_feature com "js.Boot.__instanceof";
+		has_interface_check = Common.has_feature com "js.Boot.__interfLoop";
 		es_version = es_version;
 		statics = [];
 		inits = [];
@@ -1769,11 +1752,7 @@ let generate com =
 		newline ctx;
 	end;
 	if has_feature ctx "use.$getIterator" then begin
-		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else if (typeof o == 'string') return HxOverrides.strIter(o); else return o.iterator(); }";
-		newline ctx;
-	end;
-	if has_feature ctx "use.$getKeyValueIterator" then begin
-		print ctx "function $getKeyValueIterator(o) { if (typeof o == 'string') return HxOverrides.strKVIter(o); else return o.keyValueIterator(); }";
+		print ctx "function $getIterator(o) { if( o instanceof Array ) return HxOverrides.iter(o); else return o.iterator(); }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin

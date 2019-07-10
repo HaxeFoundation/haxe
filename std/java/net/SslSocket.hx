@@ -19,17 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package java.net;
 
 @:native('haxe.java.net.SslSocket') class SslSocket extends sys.net.Socket {
-
-	override private function create() : Void
-	{
-		try
-		{
+	override private function create():Void {
+		try {
 			this.sock = java.javax.net.ssl.SSLSocketFactory.getDefault().createSocket();
 			this.server = java.javax.net.ssl.SSLServerSocketFactory.getDefault().createServerSocket();
-		} catch(e:Dynamic) throw e;
+		} catch (e:Dynamic)
+			throw e;
 	}
-
 }

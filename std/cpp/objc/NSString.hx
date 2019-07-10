@@ -19,27 +19,28 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package cpp.objc;
 
-@:native("NSString")  @:objc extern class NSStringData { }
+@:native("NSString") @:objc extern class NSStringData {}
 
 @:objc
-extern abstract NSString( NSStringData )
-{
-   inline function new(s:NSStringData) this = s;
-   @:native("(id)") extern static function toObject(d:NSStringData) : NSObject;
+extern abstract NSString(NSStringData) {
+	inline function new(s:NSStringData)
+		this = s;
 
-   @:native("(NSString *)") extern static function castFromString(s:String) : NSString;
-   @:native("String") extern static function castToString(s:NSStringData) : String;
+	@:native("(id)") extern static function toObject(d:NSStringData):NSObject;
 
+	@:native("(NSString *)") extern static function castFromString(s:String):NSString;
 
-   @:from extern
-   static public inline function fromString(s:String):NSString return castFromString(s);
+	@:native("String") extern static function castToString(s:NSStringData):String;
 
+	@:from extern static public inline function fromString(s:String):NSString
+		return castFromString(s);
 
-   @:to extern
-   public inline function toString():String return castToString(this);
+	@:to extern public inline function toString():String
+		return castToString(this);
 
-   @:to extern public inline function toNSObject():NSObject return toObject(this);
+	@:to extern public inline function toNSObject():NSObject
+		return toObject(this);
 }
-

@@ -19,7 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package lua;
+
 import lua.Lua;
 import lua.Io;
 import lua.NativeStringTools;
@@ -33,57 +35,62 @@ class Lib {
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
-	public static inline function println( v : Dynamic ) : Void {
+	public static inline function println(v:Dynamic):Void {
 		Lua.print(Std.string(v));
 	}
 
 	/**
 		Print the specified value on the default output.
 	**/
-	public static inline function print(v:Dynamic) : Void {
+	public static inline function print(v:Dynamic):Void {
 		Io.write(Std.string(v));
 		Io.flush();
 	}
 
 	/**
-	  Copies the table argument and converts it to an Array
+		Copies the table argument and converts it to an Array
 	**/
-	public inline static function tableToArray<T>(t:Table<Int,T>, ?length:Int) : Array<T> {
+	public inline static function tableToArray<T>(t:Table<Int, T>, ?length:Int):Array<T> {
 		return Boot.defArray(PairTools.copy(t), length);
 	}
 
 	/**
-	  Copies the table argument and converts it to an Object.
+		Copies the table argument and converts it to an Object.
 	**/
-	public inline static function tableToObject<T>(t:Table<String,T>) : Dynamic<T> {
+	public inline static function tableToObject<T>(t:Table<String, T>):Dynamic<T> {
 		return Boot.tableToObject(PairTools.copy(t));
 	}
 
 	/**
-	  Perform Lua-style pattern quoting on a given string.
+		Perform Lua-style pattern quoting on a given string.
 	**/
-	public inline static function patternQuote(str:String) : String {
-		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String){ return "%" + c; });
+	public inline static function patternQuote(str:String):String {
+		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String) {
+			return "%" + c;
+		});
 	}
 
 	/**
-	  Fills an array with the result of a simple iterator.
+		Fills an array with the result of a simple iterator.
 	**/
-	public static function fillArray<T>(itr:Void->T) : Array<T> {
-		var i: T = null;
-		var ret : Array<T> = [];
-		while({i = itr(); i != null;}){
+	public static function fillArray<T>(itr:Void->T):Array<T> {
+		var i:T = null;
+		var ret:Array<T> = [];
+		while ({
+			i = itr();
+			i != null;
+		}) {
 			ret.push(i);
 		}
 		return ret;
 	}
 
 	/**
-	  Simple test for the presence of an available shell.
+		Simple test for the presence of an available shell.
 	**/
-	public static function isShellAvailable() : Bool {
-		var ret : Dynamic = Os.execute();
-		if (Lua.type(ret) == "bool"){
+	public static function isShellAvailable():Bool {
+		var ret:Dynamic = Os.execute();
+		if (Lua.type(ret) == "bool") {
 			return ret;
 		} else {
 			return ret != 0;

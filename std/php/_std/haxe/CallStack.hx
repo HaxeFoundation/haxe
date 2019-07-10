@@ -1,3 +1,25 @@
+/*
+ * Copyright (C)2005-2019 Haxe Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 package haxe;
 
 import php.*;
@@ -9,10 +31,10 @@ private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 **/
 enum StackItem {
 	CFunction;
-	Module( m : String );
-	FilePos( s : Null<StackItem>, file : String, line : Int, ?column : Null<Int> );
-	Method( classname : String, method : String );
-	LocalFunction( ?v : Int );
+	Module(m:String);
+	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
+	Method(classname:String, method:String);
+	LocalFunction(?v:Int);
 }
 
 class CallStack {
@@ -21,15 +43,15 @@ class CallStack {
 		@param String - generated php file name.
 		@param Int - Line number in generated file.
 	**/
-	static public var mapPosition : String->Int->Null<{?source:String, ?originalLine:Int}>;
+	static public var mapPosition:String->Int->Null<{?source:String, ?originalLine:Int}>;
 
 	@:ifFeature("haxe.CallStack.exceptionStack")
-	static var lastExceptionTrace : NativeTrace;
+	static var lastExceptionTrace:NativeTrace;
 
 	/**
 		Return the call stack elements, or an empty array if not available.
 	**/
-	public static function callStack() : Array<StackItem> {
+	public static function callStack():Array<StackItem> {
 		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
 	}
 
@@ -38,39 +60,40 @@ class CallStack {
 		the place the last exception was thrown and the place it was
 		caught, or an empty array if not available.
 	**/
-	public static function exceptionStack() : Array<StackItem> {
+	public static function exceptionStack():Array<StackItem> {
 		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
 	}
 
 	/**
 		Returns a representation of the stack as a printable string.
 	**/
-	public static function toString( stack : Array<StackItem> ) {
+	public static function toString(stack:Array<StackItem>) {
 		var b = new StringBuf();
-		for( s in stack ) {
+		for (s in stack) {
 			b.add("\nCalled from ");
-			itemToString(b,s);
+			itemToString(b, s);
 		}
 		return b.toString();
 	}
 
-	static function itemToString( b:StringBuf, s ) {
-		switch( s ) {
+	static function itemToString(b:StringBuf, s) {
+		switch (s) {
 			case CFunction:
 				b.add("a C function");
 			case Module(m):
 				b.add("module ");
 				b.add(m);
-			case FilePos(s,file,line,_):
-				if( s != null ) {
-					itemToString(b,s);
+			case FilePos(s, file, line, _):
+				if (s != null) {
+					itemToString(b, s);
 					b.add(" (");
 				}
 				b.add(file);
 				b.add(" line ");
 				b.add(line);
-				if( s != null ) b.add(")");
-			case Method(cname,meth):
+				if (s != null)
+					b.add(")");
+			case Method(cname, meth):
 				b.add(cname);
 				b.add(".");
 				b.add(meth);
@@ -80,17 +103,17 @@ class CallStack {
 	}
 
 	@:ifFeature("haxe.CallStack.exceptionStack")
-	static function saveExceptionTrace( e:Throwable ) : Void {
+	static function saveExceptionTrace(e:Throwable):Void {
 		lastExceptionTrace = e.getTrace();
 
-		//Reduce exception stack to the place where exception was caught
+		// Reduce exception stack to the place where exception was caught
 		var currentTrace = Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS);
 		var count = Global.count(currentTrace);
 
 		for (i in -(count - 1)...1) {
 			var exceptionEntry:NativeAssocArray<Dynamic> = Global.end(lastExceptionTrace);
 
-			if(!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
+			if (!Global.isset(exceptionEntry['file']) || !Global.isset(currentTrace[-i]['file'])) {
 				Global.array_pop(lastExceptionTrace);
 			} else if (currentTrace[-i]['file'] == exceptionEntry['file'] && currentTrace[-i]['line'] == exceptionEntry['line']) {
 				Global.array_pop(lastExceptionTrace);
@@ -99,7 +122,7 @@ class CallStack {
 			}
 		}
 
-		//Remove arguments from trace to avoid blocking some objects from GC
+		// Remove arguments from trace to avoid blocking some objects from GC
 		var count = Global.count(lastExceptionTrace);
 		for (i in 0...count) {
 			lastExceptionTrace[i]['args'] = new NativeArray();
@@ -114,7 +137,7 @@ class CallStack {
 		Global.array_unshift(lastExceptionTrace, thrownAt);
 	}
 
-	static function makeStack (native:NativeTrace) : Array<StackItem> {
+	static function makeStack(native:NativeTrace):Array<StackItem> {
 		var result = [];
 		var count = Global.count(native);
 
@@ -125,10 +148,12 @@ class CallStack {
 			if (i + 1 < count) {
 				var next = native[i + 1];
 
-				if(!Global.isset(next['function'])) next['function'] = '';
-				if(!Global.isset(next['class'])) next['class'] = '';
+				if (!Global.isset(next['function']))
+					next['function'] = '';
+				if (!Global.isset(next['class']))
+					next['class'] = '';
 
-				if ((next['function']:String).indexOf('{closure}') >= 0) {
+				if ((next['function'] : String).indexOf('{closure}') >= 0) {
 					item = LocalFunction();
 				} else if (Global.strlen(next['class']) > 0 && Global.strlen(next['function']) > 0) {
 					var cls = Boot.getClassName(next['class']);
@@ -151,5 +176,4 @@ class CallStack {
 
 		return result;
 	}
-
 }

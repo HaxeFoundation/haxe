@@ -232,18 +232,6 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
-(**
-	Returns `true` is `expr` represent a constant string.
-	Recursively looks through casts, metas and parentheses.
-*)
-let rec is_const_string expr =
-	match expr.eexpr with
-		| TConst (TString _) -> true
-		| TCast (e, _) -> is_const_string e
-		| TMeta (_, e) -> is_const_string e
-		| TParenthesis e -> is_const_string e
-		| _ -> false
-
 let parent e =
 	match e.eexpr with
 	| TParenthesis _ -> e
@@ -494,6 +482,9 @@ and gen_call ctx e el r =
 		spr ctx ")";
 	| TIdent "__unprotect__", [e] ->
 		gen_value ctx e
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		spr ctx (type_str ctx t e.epos);
 	| TIdent "__vector__", [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";
@@ -741,14 +732,6 @@ and gen_expr ctx e =
 		gen_expr ctx f.tf_expr;
 		ctx.in_static <- old;
 		h();
-	| TCall ({ eexpr = TField (e, ((FDynamic "iterator") | (FAnon { cf_name = "iterator" }))) }, []) when is_const_string e ->
-		print ctx "new haxe.iterators.StringIterator(";
-		gen_value ctx e;
-		print ctx ")"
-	| TCall ({ eexpr = TField (e, ((FDynamic "keyValueIterator") | (FAnon { cf_name = "keyValueIterator" }))) }, []) when is_const_string e ->
-		print ctx "new haxe.iterators.StringKeyValueIterator(";
-		gen_value ctx e;
-		print ctx ")"
 	| TCall (v,el) ->
 		gen_call ctx v el e.etype
 	| TArrayDecl el ->

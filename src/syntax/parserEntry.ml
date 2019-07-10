@@ -114,7 +114,12 @@ let parse ctx code file =
 	in_macro := Define.defined ctx Define.Macro;
 	Lexer.skip_header code;
 
-	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
+	let sharp_error s p =
+		let line = StringError.string_error ("#" ^ s) ["#if";"#elseif";"#else";"#end";"#error";"#line"] "Unknown token" in
+		error (Custom line) p
+	in
+
+	let sraw = Stream.from (fun _ -> Some (Lexer.sharp_token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
@@ -153,6 +158,8 @@ let parse ctx code file =
 			) in
 			!(Lexer.cur).Lexer.lline <- line - 1;
 			next_token();
+		| Sharp s ->
+			sharp_error s (pos tk)
 		| _ ->
 			tk
 
@@ -178,6 +185,10 @@ let parse ctx code file =
 			enter_macro (snd tk)
 		| Sharp "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
+		| Sharp ("error" | "line") ->
+			skip_tokens p test
+		| Sharp s ->
+			sharp_error s (pos tk)
 		| Eof ->
 			syntax_error Unclosed_conditional ~pos:(Some p) sraw tk
 		| _ ->

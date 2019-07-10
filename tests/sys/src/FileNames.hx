@@ -17,12 +17,6 @@ class FileNames {
 		"(two words)",
 		"[two words]",
 
-		// Chinese, Japanese
-		#if !(cs || python || php || neko || cpp || java || lua || eval)
-		"中文，にほんご",
-		// this is a (Unicode) equivalent, but fails on OS X: "中文，にほんご",
-		#end
-
 		// "aaa...a"
 		[for (i in 0...100) "a"].join(""),
 	]
