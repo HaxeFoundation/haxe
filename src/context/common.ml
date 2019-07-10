@@ -625,7 +625,6 @@ let normalize_dir_separator path =
 	else path
 
 let find_file ctx f =
-	let f = normalize_dir_separator f in
 	try
 		(match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
@@ -663,7 +662,7 @@ let find_file ctx f =
 					Hashtbl.add ctx.readdir_cache dir dir_listing;
 					Option.may
 						(Array.iter (fun file_name ->
-							let current_f = if f_dir = "." then file_name else Filename.concat f_dir file_name in
+							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
 							let pf,current_f =
 								if is_core_api then false,current_f
 								else begin
@@ -677,11 +676,11 @@ let find_file ctx f =
 							in
 							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
 							if is_core_api || pf || not is_cached then begin
-								let full_path = if dir = "." then file_name else Filename.concat dir file_name in
+								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
 								if is_cached then
 									Hashtbl.remove ctx.file_lookup_cache current_f;
 								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
-								if current_f = f then
+								if normalize_dir_separator current_f = normalize_dir_separator f then
 									found := full_path;
 							end
 						))
