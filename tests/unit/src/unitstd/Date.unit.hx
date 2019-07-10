@@ -149,15 +149,22 @@ date.getDate() == 2;
 date.getDay() == 6;
 
 // fromString HH:MM:SS should interpret the time as UTC
+#if python
+// disabled on Windows due to https://bugs.python.org/issue37527
+if (Sys.systemName() != "Windows") {
+#end
 var date = Date.fromString("04:05:06");
-date.getUTCHours() == 4;
-date.getUTCMinutes() == 5;
-date.getUTCSeconds() == 6;
-date.getUTCFullYear() == 1970;
-date.getUTCMonth() == 0;
-date.getUTCDate() == 1;
-date.getUTCDay() == 4;
-date.getTime() == 14706000.;
+t(date.getUTCHours() == 4);
+t(date.getUTCMinutes() == 5);
+t(date.getUTCSeconds() == 6);
+t(date.getUTCFullYear() == 1970);
+t(date.getUTCMonth() == 0);
+t(date.getUTCDate() == 1);
+t(date.getUTCDay() == 4);
+t(date.getTime() == 14706000.);
+#if python
+}
+#end
 
 // timezone offset
 // see https://en.wikipedia.org/wiki/UTC_offset

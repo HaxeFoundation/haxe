@@ -121,11 +121,14 @@ import python.Syntax;
 	}
 
 	static function makeLocal(date:Datetime):Datetime {
-		var ver = python.lib.Sys.version_info;
-		if (ver[0] > 3 || (ver[0] == 3 && ver[1] >= 6)) // >= 3.6
+		try {
 			return date.astimezone();
-		var tzinfo = Datetime.now(Timezone.utc).astimezone().tzinfo;
-		return date.replace({tzinfo: tzinfo});
+		} catch (e:Dynamic) {
+			// No way in vanilla Python <=3.5 to get the local timezone
+			// Additionally dates close to the epoch <86400 will throw on astimezone
+			var tzinfo = Datetime.now(Timezone.utc).astimezone().tzinfo;
+			return date.replace({tzinfo: tzinfo});
+		}
 	}
 
 	static function UTC(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Float {
