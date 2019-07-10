@@ -322,15 +322,7 @@ class Boot {
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var t = lua.Os.time({
-					year: 0,
-					month: 1,
-					day: 1,
-					hour: Lua.tonumber(k[0]),
-					min: Lua.tonumber(k[1]),
-					sec: Lua.tonumber(k[2])
-				});
-				return std.Date.fromTime(t);
+				return std.Date.fromTime(Lua.tonumber(k[0]) * 3600000. + Lua.tonumber(k[1]) * 60000. + Lua.tonumber(k[2]) * 1000.);
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
 				return new std.Date(Lua.tonumber(k[0]), Lua.tonumber(k[1]) - 1, Lua.tonumber(k[2]), 0, 0, 0);
@@ -338,7 +330,7 @@ class Boot {
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
-				return new std.Date(cast y[0], Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]), Lua.tonumber(t[0]), Lua.tonumber(t[1]), Lua.tonumber(t[2]));
+				return new std.Date(Lua.tonumber(y[0]), Lua.tonumber(y[1]) - 1, Lua.tonumber(y[2]), Lua.tonumber(t[0]), Lua.tonumber(t[1]), Lua.tonumber(t[2]));
 			default:
 				throw "Invalid date format : " + s;
 		}

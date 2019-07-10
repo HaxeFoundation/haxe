@@ -75,6 +75,59 @@ import hl.Ref;
 		return v;
 	}
 
+	public function getUTCFullYear():Int {
+		var v = 0;
+		date_get_utc_inf(t, v, null, null, null, null, null, null);
+		return v;
+	}
+
+	public function getUTCMonth():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, v, null, null, null, null, null);
+		return v;
+	}
+
+	public function getUTCDate():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, null, v, null, null, null, null);
+		return v;
+	}
+
+	public function getUTCHours():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, null, null, v, null, null, null);
+		return v;
+	}
+
+	public function getUTCMinutes():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, null, null, null, v, null, null);
+		return v;
+	}
+
+	public function getUTCSeconds():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, null, null, null, null, v, null);
+		return v;
+	}
+
+	public function getUTCDay():Int {
+		var v = 0;
+		date_get_utc_inf(t, null, null, null, null, null, null, v);
+		return v;
+	}
+
+	public function getTimezoneOffset():Int {
+		var y = 0;
+		var mo = 0;
+		var d = 0;
+		var h = 0;
+		var m = 0;
+		var s = 0;
+		date_get_utc_inf(t, y, mo, d, h, m, s, null);
+		return Std.int((date_new(y, mo, d, h, m, s) - t) / 60);
+	}
+
 	@:keep public function toString():String {
 		var outLen = 0;
 		var bytes = date_to_string(t, outLen);
@@ -132,6 +185,9 @@ import hl.Ref;
 
 	@:hlNative
 	static function date_get_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+
+	@:hlNative
+	static function date_get_utc_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
 
 	@:hlNative
 	static function date_to_string(t:Int, outLen:Ref<Int>):hl.Bytes {

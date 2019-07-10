@@ -67,6 +67,39 @@ import php.Syntax.*;
 		return int(date("w", int(__t)));
 	}
 
+	public function getUTCFullYear():Int {
+		return int(gmdate("Y", int(__t)));
+	}
+
+	public function getUTCMonth():Int {
+		var m:Int = int(gmdate("n", int(__t)));
+		return -1 + m;
+	}
+
+	public function getUTCDate():Int {
+		return int(gmdate("j", int(__t)));
+	}
+
+	public function getUTCHours():Int {
+		return int(gmdate("G", int(__t)));
+	}
+
+	public function getUTCMinutes():Int {
+		return int(gmdate("i", int(__t)));
+	}
+
+	public function getUTCSeconds():Int {
+		return int(gmdate("s", int(__t)));
+	}
+
+	public function getUTCDay():Int {
+		return int(gmdate("w", int(__t)));
+	}
+
+	public function getTimezoneOffset():Int {
+		return -Std.int(int(date("Z", int(__t))) / 60);
+	}
+
 	public function toString():String {
 		return date("Y-m-d H:i:s", int(__t));
 	}
@@ -88,6 +121,20 @@ import php.Syntax.*;
 	}
 
 	public static function fromString(s:String):Date {
-		return fromPhpTime(strtotime(s));
+		switch (s.length) {
+			case 8: // hh:mm:ss
+				var k = s.split(":");
+				return Date.fromTime(Std.parseInt(k[0]) * 3600000. + Std.parseInt(k[1]) * 60000. + Std.parseInt(k[2]) * 1000.);
+			case 10: // YYYY-MM-DD
+				var k = s.split("-");
+				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);
+			case 19: // YYYY-MM-DD hh:mm:ss
+				var k = s.split(" ");
+				var y = k[0].split("-");
+				var t = k[1].split(":");
+				return new Date(Std.parseInt(y[0]), Std.parseInt(y[1]) - 1, Std.parseInt(y[2]), Std.parseInt(t[0]), Std.parseInt(t[1]), Std.parseInt(t[2]));
+			default:
+				throw "Invalid date format : " + s;
+		}
 	}
 }
