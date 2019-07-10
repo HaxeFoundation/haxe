@@ -107,14 +107,14 @@ import python.Syntax;
 	}
 
 	static public function now():Date {
-		var d = new Date(1970, 0, 1, 0, 0, 0);
+		var d = new Date(2000, 0, 1, 0, 0, 0);
 		d.date = Datetime.now().astimezone();
 		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
 	}
 
 	static public function fromTime(t:Float):Date {
-		var d = new Date(1970, 0, 1, 0, 0, 0);
+		var d = new Date(2000, 0, 1, 0, 0, 0);
 		d.date = Datetime.fromtimestamp(t / 1000.0).astimezone();
 		d.dateUTC = d.date.astimezone(Timezone.utc);
 		return d;
