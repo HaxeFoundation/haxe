@@ -118,11 +118,11 @@ let last_pos s = pos (last_token s)
 
 let next_token s = match Stream.peek s with
 	| Some (Eof,p) ->
-		(Eof,{p with pmax = max_int})
+		(Eof,p)
 	| Some tk -> tk
 	| None ->
 		let last_pos = pos (last_token s) in
-		(Eof,{last_pos with pmax = max_int})
+		(Eof,last_pos)
 
 let next_pos s = pos (next_token s)
 
@@ -153,6 +153,13 @@ let last_doc : (string * int) option ref = ref None
 let syntax_errors = ref []
 
 let syntax_error error_msg ?(pos=None) s v =
+	(match error_msg with
+	| Expected ["}"] ->
+		print_string "";
+		print_string "";
+		print_string "";
+	| _-> ()
+	);
 	let p = (match pos with Some p -> p | None -> next_pos s) in
 	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
 	if not !in_display then error error_msg p;
