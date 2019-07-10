@@ -181,4 +181,4 @@ Date.fromString("2015-10-08 12:22:00").getTimezoneOffset() % 15 == 0;
 Date.fromString("2015-11-08 12:22:00").getTimezoneOffset() % 15 == 0;
 Date.fromString("2015-12-08 12:22:00").getTimezoneOffset() % 15 == 0;
 
-Date.fromString("2015-06-15 10:00:00").getTimezoneOffset() == Date.fromString("2014-06-15 10:00:00").getTimezoneOffset();
+Date.fromString("2015-06-15 10:00:00").getTimezoneOffset() == Date.fromString("2016-06-15 10:00:00").getTimezoneOffset();
