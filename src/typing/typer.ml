@@ -2072,6 +2072,7 @@ and type_local_function ctx name inline f with_type p =
 			mk (TMeta ((Meta.MergeBlock, [], null_pos), block)) v.v_type p
 
 and type_array_decl ctx el with_type p =
+	let allow_array_dynamic = ref false in
 	let tp = (match with_type with
 	| WithType.WithType(t,_) ->
 		let rec loop seen t =
@@ -2079,7 +2080,9 @@ and type_array_decl ctx el with_type p =
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
 				(match follow tp with
 				| TMono _ -> None
-				| _ -> Some tp)
+				| _ as t ->
+					if t == t_dynamic then allow_array_dynamic := true;
+					Some tp)
 			| TAnon _ ->
 				(try
 					Some (get_iterable_param t)
@@ -2099,7 +2102,12 @@ and type_array_decl ctx el with_type p =
 				| [t] -> Some t
 				| _ -> None)
 			| t ->
-				if t == t_dynamic then Some t else None)
+				if t == t_dynamic then begin
+					allow_array_dynamic := true;
+					Some t
+				end else
+					None
+			)
 		in
 		loop [] t
 	| _ ->
@@ -2111,7 +2119,9 @@ and type_array_decl ctx el with_type p =
 		let t = try
 			unify_min_raise ctx.com.basic el
 		with Error (Unify l,p) ->
-			if ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then t_dynamic else begin
+			if !allow_array_dynamic || ctx.untyped || ctx.com.display.dms_error_policy = EPIgnore then
+				t_dynamic
+			else begin
 				display_error ctx "Arrays of mixed types are only allowed if the type is forced to Array<Dynamic>" p;
 				raise (Error (Unify l, p))
 			end
