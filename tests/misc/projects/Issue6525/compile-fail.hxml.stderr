@@ -1,2 +1,2 @@
-Main.hx:16: characters 3-16 : Cannot access private field testPack
-Main.hx:17: characters 3-16 : Cannot access private field testPack
+Main.hx:16: characters 8-16 : Cannot access private field testPack
+Main.hx:17: characters 8-16 : Cannot access private field testPack
