@@ -79,20 +79,29 @@ let to_json ctx de =
 	| DisplayHover None ->
 		jnull
 	| DisplayHover (Some hover) ->
-		let name_source_kind_to_int = function
-			| WithType.FunctionArgument -> 0
-			| WithType.StructureField -> 1
+		let named_source_kind = function
+			| WithType.FunctionArgument name -> (0, name)
+			| WithType.StructureField name -> (1, name)
+			| _ -> assert false
 		in
 		let ctx = Genjson.create_context GMFull in
-		let generate_name (name,kind) = jobject [
-			"name",jstring name;
-			"kind",jint (name_source_kind_to_int kind);
-		] in
+		let generate_name kind =
+			let i, name = named_source_kind kind in
+			jobject [
+				"name",jstring name;
+				"kind",jint i;
+			]
+		in
 		let expected = match hover.hexpected with
-			| Some(WithType.WithType(t,name)) ->
-				jobject (("type",generate_type ctx t) :: (match name with None -> [] | Some name -> ["name",generate_name name]))
-			| Some(Value(Some name)) ->
-				jobject ["name",generate_name name]
+			| Some(WithType.WithType(t,src)) ->
+				jobject (("type",generate_type ctx t)
+				:: (match src with
+					| None -> []
+					| Some ImplicitReturn -> []
+					| Some src -> ["name",generate_name src])
+				)
+			| Some(Value(Some ((FunctionArgument name | StructureField name) as src))) ->
+				jobject ["name",generate_name src]
 			| _ -> jnull
 		in
 		jobject [

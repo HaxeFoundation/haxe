@@ -2824,6 +2824,10 @@ module TExprToExpr = struct
 end
 
 module ExtType = struct
+	let is_mono = function
+		| TMono _ -> true
+		| _ -> false
+
 	let is_void = function
 		| TAbstract({a_path=[],"Void"},_) -> true
 		| _ -> false

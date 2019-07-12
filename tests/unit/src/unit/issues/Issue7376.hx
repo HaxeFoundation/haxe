@@ -3,7 +3,7 @@ package unit.issues;
 import utest.Assert;
 
 class Issue7376 extends unit.Test {
-	function test() {
+	function testTryCatch() {
 		foo(bool -> {
 			try {
 				intJob();
@@ -12,17 +12,43 @@ class Issue7376 extends unit.Test {
 			}
 		});
 
+		var fn = bool -> {
+			try {
+				intJob();
+			} catch(e:Dynamic) {
+				voidJob();
+			}
+		}
+		foo(fn);
+
+		noAssert();
+	}
+
+	function testSwitch() {
 		foo(bool -> switch bool {
 			case true: intJob();
 			case false:
 		});
 
-		foo(bool -> bool ? intJob() : voidJob());
+		var fn = bool -> switch bool {
+			case true: intJob();
+			case false:
+		}
+		foo(fn);
 
 		noAssert();
 	}
 
-	@:pure(false) static function foo(f:Bool->Void) f(true);
+	function testIfElse() {
+		foo(bool -> bool ? intJob() : voidJob());
+
+		var fn = bool -> if(bool) intJob() else {};
+		foo(fn);
+
+		noAssert();
+	}
+
+	@:pure(false) static function foo(f:(Bool)->Void) f(true);
 	@:pure(false) static function intJob():Int return 0;
 	@:pure(false) static function voidJob():Void {}
 }

@@ -283,6 +283,13 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
+let unify_min_for_type_source ctx el src =
+	match src with
+	| Some WithType.ImplicitReturn when List.exists (fun e -> ExtType.is_void (follow e.etype)) el ->
+		ctx.com.basic.tvoid
+	| _ ->
+		unify_min ctx el
+
 let rec type_ident_raise ctx i p mode =
 	match i with
 	| "true" ->
@@ -1890,7 +1897,8 @@ and type_try ctx e1 catches with_type p =
 	let e1,catches,t = match with_type with
 		| WithType.NoValue -> e1,catches,ctx.t.tvoid
 		| WithType.Value _ -> e1,catches,unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | _ -> false) ->
+			e1,catches,unify_min_for_type_source ctx el src
 		| WithType.WithType(t,_) ->
 			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 			let catches = List.map (fun (v,e) ->
@@ -2184,17 +2192,12 @@ and type_return ?(implicit=false) ctx e with_type p =
 	| Some e ->
 		try
 			let with_expected_type =
-				match implicit, follow ctx.ret with
-				| true, t when ExtType.is_void t -> WithType.NoValue
-				| true, TMono _ ->
-					(*
-						Treat `(...) -> {}` as an empty function (just like `function(...) {}`)
-						instead of returning an object
-					*)
-					(match fst e with
-					| EBlock [] -> WithType.NoValue
-					| _ -> WithType.with_type ctx.ret)
-				| _ -> WithType.with_type ctx.ret
+				if implicit then
+					match follow ctx.ret, fst e with
+					| t, _ when ExtType.is_void t -> WithType.NoValue
+					| _ -> WithType.of_implicit_return ctx.ret
+				else
+					WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
 			let e =
@@ -2261,7 +2264,8 @@ and type_if ctx e e1 e2 with_type p =
 		let e1,e2,t = match with_type with
 			| WithType.NoValue -> e1,e2,ctx.t.tvoid
 			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
+			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | _ -> false) ->
+				e1,e2,unify_min_for_type_source ctx [e1; e2] src
 			| WithType.WithType(t,_) ->
 				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
@@ -2464,7 +2468,15 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
-	| EBlock [] when with_type <> WithType.NoValue ->
+	| EBlock [] when (match with_type with
+			| NoValue -> false
+			(*
+				If expected type is unknown then treat `(...) -> {}` as an empty function
+				(just like `function(...) {}`) instead of returning an object.
+			*)
+			| WithType (t, Some ImplicitReturn) -> not (ExtType.is_mono (follow t))
+			| _ -> true
+		) ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
 		let locals = save_locals ctx in
@@ -2709,6 +2721,7 @@ let rec create com =
 
 ;;
 unify_min_ref := unify_min;
+unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 build_call_ref := build_call;
 type_call_target_ref := type_call_target;
