@@ -1999,9 +1999,14 @@ and type_local_function ctx name inline f with_type p =
 					| TMono _ -> unify ctx t2 t1 p
 					| _ -> ()
 				) args args2;
-				(* unify for top-down inference unless we are expecting Void *)
+				let is_arrow_function =
+					match f.f_expr with
+					| Some (EMeta((Meta.ImplicitReturn,_,_), (EReturn _,_)),_) -> true
+					| _ -> false
+				in
+				(* unify for top-down inference unless we are expecting Void for non-arrow function *)
 				begin match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ -> ()
+					| TAbstract({a_path = [],"Void"},_),_ when not is_arrow_function -> ()
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
@@ -2166,7 +2171,7 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e with_type p =
+and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
@@ -2178,8 +2183,24 @@ and type_return ctx e with_type p =
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
-			let e = type_expr ctx e (WithType.with_type ctx.ret) in
-			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
+			let with_expected_type =
+				match implicit, follow ctx.ret with
+				| true, t when ExtType.is_void t -> WithType.NoValue
+				| true, TMono _ ->
+					(*
+						Treat `(...) -> {}` as an empty function (just like `function(...) {}`)
+						instead of returning an object
+					*)
+					(match fst e with
+					| EBlock [] -> WithType.NoValue
+					| _ -> WithType.with_type ctx.ret)
+				| _ -> WithType.with_type ctx.ret
+			in
+			let e = type_expr ctx e with_expected_type in
+			let e =
+				if implicit && with_expected_type = WithType.NoValue then e
+				else AbstractCast.cast_or_unify ctx ctx.ret e p
+			in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
 				begin match (Texpr.skip e).eexpr with
@@ -2310,6 +2331,11 @@ and type_meta ctx m e1 with_type p =
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
+			end
+		| (Meta.ImplicitReturn,_,_) ->
+			begin match e1 with
+			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
+			| _ -> e()
 			end
 		| _ -> e()
 	in
