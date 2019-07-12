@@ -5,7 +5,7 @@ class Issue8128 {
 	@:js('
 		issues_Issue8128.tmp = function() {
 			return;
-		}
+		};
 	')
 	static function test() {
 		tmp = () -> {};
