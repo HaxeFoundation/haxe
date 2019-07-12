@@ -366,8 +366,9 @@
 	{
 		"name": "NetcoreVer",
 		"define": "netcore_ver",
-		"doc": "<version:x.x.x> Sets the .NET core version to be targeted",
-		"platforms": ["cs"]
+		"doc": "Sets the .NET core version to be targeted",
+		"platforms": ["cs"],
+		"params": ["version: x.x.x"]
 	},
 	{
 		"name": "NetTarget",
