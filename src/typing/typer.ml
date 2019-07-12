@@ -1897,7 +1897,7 @@ and type_try ctx e1 catches with_type p =
 	let e1,catches,t = match with_type with
 		| WithType.NoValue -> e1,catches,ctx.t.tvoid
 		| WithType.Value _ -> e1,catches,unify_min ctx el
-		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | _ -> false) ->
+		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
 			e1,catches,unify_min_for_type_source ctx el src
 		| WithType.WithType(t,_) ->
 			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
@@ -2264,7 +2264,7 @@ and type_if ctx e e1 e2 with_type p =
 		let e1,e2,t = match with_type with
 			| WithType.NoValue -> e1,e2,ctx.t.tvoid
 			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | _ -> false) ->
+			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
 				e1,e2,unify_min_for_type_source ctx [e1; e2] src
 			| WithType.WithType(t,_) ->
 				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in

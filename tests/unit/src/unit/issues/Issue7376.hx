@@ -21,6 +21,15 @@ class Issue7376 extends unit.Test {
 		}
 		foo(fn);
 
+		var fn = bool -> {
+			try {
+				intJob();
+			} catch(e:Dynamic) {
+				return;
+			}
+		}
+		foo(fn);
+
 		noAssert();
 	}
 
@@ -36,6 +45,13 @@ class Issue7376 extends unit.Test {
 		}
 		foo(fn);
 
+		// TODO
+		// var fn = bool -> switch bool {
+		// 	case true: intJob();
+		// 	case false: return;
+		// }
+		// foo(fn);
+
 		noAssert();
 	}
 
@@ -43,6 +59,9 @@ class Issue7376 extends unit.Test {
 		foo(bool -> bool ? intJob() : voidJob());
 
 		var fn = bool -> if(bool) intJob() else {};
+		foo(fn);
+
+		var fn = bool -> if (bool) intJob() else return;
 		foo(fn);
 
 		noAssert();
