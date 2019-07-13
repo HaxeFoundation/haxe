@@ -2187,18 +2187,11 @@ and type_return ?(implicit=false) ctx e with_type p =
 	| Some e ->
 		try
 			let with_expected_type =
-				if implicit then
-					match follow ctx.ret, fst e with
-					(* | t, _ when ExtType.is_void t -> WithType.NoValue *)
-					| _ -> WithType.of_implicit_return ctx.ret
-				else
-					WithType.with_type ctx.ret
+				if implicit then WithType.of_implicit_return ctx.ret
+				else WithType.with_type ctx.ret
 			in
 			let e = type_expr ctx e with_expected_type in
-			let e =
-				if implicit && with_expected_type = WithType.NoValue then e
-				else AbstractCast.cast_or_unify ctx ctx.ret e p
-			in
+			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
 				begin match (Texpr.skip e).eexpr with
