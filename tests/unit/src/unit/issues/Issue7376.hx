@@ -45,12 +45,11 @@ class Issue7376 extends unit.Test {
 		}
 		foo(fn);
 
-		// TODO
-		// var fn = bool -> switch bool {
-		// 	case true: intJob();
-		// 	case false: return;
-		// }
-		// foo(fn);
+		var fn = bool -> switch bool {
+			case true: intJob();
+			case false: return;
+		}
+		foo(fn);
 
 		noAssert();
 	}

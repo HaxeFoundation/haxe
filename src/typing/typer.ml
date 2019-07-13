@@ -2181,6 +2181,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 		unify ctx v ctx.ret p;
 		let expect_void = match with_type with
 			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p

@@ -1551,8 +1551,9 @@ module Match = struct
 		in
 		let tmono,with_type,allow_min_void = match with_type with
 			| WithType.WithType(t,src) ->
-				(match follow t with
-				| TMono _ -> Some t,WithType.value,(match src with Some WithType.ImplicitReturn -> true | _ -> false)
+				(match follow t, src with
+				| TMono _, Some ImplicitReturn -> Some t, WithType.Value src, true
+				| TMono _, _ -> Some t,WithType.value,false
 				| _ -> None,with_type,false)
 			| _ -> None,with_type,false
 		in
