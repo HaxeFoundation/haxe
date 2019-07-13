@@ -2825,7 +2825,7 @@ end
 
 module ExtType = struct
 	let is_mono = function
-		| TMono _ -> true
+		| TMono { contents = None } -> true
 		| _ -> false
 
 	let is_void = function

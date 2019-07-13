@@ -2007,14 +2007,9 @@ and type_local_function ctx name inline f with_type p =
 					| TMono _ -> unify ctx t2 t1 p
 					| _ -> ()
 				) args args2;
-				let is_arrow_function =
-					match f.f_expr with
-					| Some (EMeta((Meta.ImplicitReturn,_,_), (EReturn _,_)),_) -> true
-					| _ -> false
-				in
-				(* unify for top-down inference unless we are expecting Void for non-arrow function *)
+				(* unify for top-down inference unless we are expecting Void *)
 				begin match follow tr,follow rt with
-					| TAbstract({a_path = [],"Void"},_),_ when not is_arrow_function -> ()
+					| TAbstract({a_path = [],"Void"},_),_ -> ()
 					| _,TMono _ -> unify ctx rt tr p
 					| _ -> ()
 				end
@@ -2194,7 +2189,7 @@ and type_return ?(implicit=false) ctx e with_type p =
 			let with_expected_type =
 				if implicit then
 					match follow ctx.ret, fst e with
-					| t, _ when ExtType.is_void t -> WithType.NoValue
+					(* | t, _ when ExtType.is_void t -> WithType.NoValue *)
 					| _ -> WithType.of_implicit_return ctx.ret
 				else
 					WithType.with_type ctx.ret
