@@ -231,6 +231,8 @@ let rec type_id ctx t =
 			type_path ctx c.cl_path)
 	| TAbstract ({ a_path = [],"Null"},_) ->
 		HMPath ([],"Object")
+	| TAbstract ({ a_path = ["flash"],"AnyType"},_) ->
+		HMAny
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
@@ -263,6 +265,8 @@ let classify ctx t =
 	| TAbstract ({ a_path = [],"Bool" },_) | TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
 	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
+		KDynamic
+	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
 		KDynamic
 	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
@@ -1034,6 +1038,8 @@ let rec gen_type ctx t =
 		write ctx (HGetLex t);
 		List.iter (gen_type ctx) tl;
 		write ctx (HApplyType (List.length tl));
+	| HMAny ->
+		write ctx (HNull)
 	| _ ->
 		write ctx (HGetLex t)
 
