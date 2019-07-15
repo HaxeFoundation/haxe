@@ -200,7 +200,6 @@ let rec follow_basic t =
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[])
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
@@ -280,7 +279,7 @@ let classify ctx t =
 		(match !(a.a_status) with
 		| Statics _ -> KNone
 		| _ -> KDynamic)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[]) ->
+	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
 	| TInst _ | TAbstract _ ->
 		KType (type_id ctx t)
