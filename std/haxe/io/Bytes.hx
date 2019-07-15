@@ -39,9 +39,9 @@ class Bytes {
 		#end
 	}
 
-  /**
-   * Gets the byte at index `pos`.
-   **/
+	/**
+	  Returns the byte at index `pos`.
+	**/
 	public inline function get(pos:Int):Int {
 		#if neko
 		return untyped $sget(b, pos);
@@ -58,9 +58,9 @@ class Bytes {
 		#end
 	}
 
-  /**
-   * Sets the byte value at index `pos` to value `v`.
-   **/
+	/**
+	  Stores given byte `v` at given position `pos`.
+	**/
 	public inline function set(pos:Int, v:Int):Void {
 		#if neko
 		untyped $sset(b, pos, v);
@@ -79,9 +79,9 @@ class Bytes {
 		#end
 	}
 
-  /**
-   * Copies `len` bytes from `src` into this instance. 
-   **/
+	/**
+	  Copies `len` bytes from `src` into this instance. 
+	**/
 	public function blit(pos:Int, src:Bytes, srcpos:Int, len:Int):Void {
 		#if !neko
 		if (pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length)
@@ -120,9 +120,9 @@ class Bytes {
 		#end
 	}
 
-  /**
-   * Sets the value of this instance's `len` bytes to `value`, starting from index `pos`.
-   **/
+	/**
+	  Sets the value of this instance's `len` bytes to `value`, starting from index `pos`.
+	**/
 	public function fill(pos:Int, len:Int, value:Int) {
 		#if flash
 		var v4 = value & 0xFF;
@@ -142,9 +142,9 @@ class Bytes {
 		#end
 	}
 
-  /**
-  * Returns a new `Bytes` instance that contains a copy of this instance's `len` bytes, starting at index `pos`. 
-  **/
+	/**
+	  Returns a new `Bytes` instance that contains a copy of this instance's `len` bytes, starting at index `pos`. 
+	**/
 	public function sub(pos:Int, len:Int):Bytes {
 		#if !neko
 		if (pos < 0 || len < 0 || pos + len > length)
@@ -171,10 +171,11 @@ class Bytes {
 		return new Bytes(len, b.slice(pos, pos + len));
 		#end
 	}
-  /**
-   * Returns `0` if this instance's bytes and given `other`'s bytes are identical, or a value
-   * different than `0` otherwise.
-   **/
+	
+	/**
+	  Returns `0` if this instance's bytes and given `other`'s bytes are identical, or a value
+	  different than `0` otherwise.
+	**/
 	public function compare(other:Bytes):Int {
 		#if neko
 		return untyped __dollar__compare(b, other.b);
@@ -221,7 +222,7 @@ class Bytes {
 
 	/**
 		Returns the IEEE double precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds
+		Result is unspecified if reading outside of the bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
@@ -243,7 +244,7 @@ class Bytes {
 
 	/**
 		Returns the IEEE single precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds
+		Result is unspecified if reading outside of the bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
