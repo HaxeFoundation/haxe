@@ -108,6 +108,6 @@ class FileSystem {
 			"/";
 		} else {
 			haxe.io.Path.removeTrailingSlashes(path);
-		};
+		}
 	}
 }
