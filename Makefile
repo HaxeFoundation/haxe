@@ -123,7 +123,7 @@ build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
 _build/src/syntax/grammar.ml:src/syntax/grammar.mly
-	camlp4o -impl $< -o $@
+	camlp5o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
 ifneq ($(ADD_REVISION),0)
@@ -211,7 +211,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
+	opam install $(OPAM_LIBS) camlp5 ocamlfind --yes
 
 # Dependencies
 

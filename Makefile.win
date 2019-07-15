@@ -34,7 +34,6 @@ endif
 
 ifdef FILTER
 CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
 PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std _build "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" "$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre-1.dll | sed -e 's/^\s*//')"
