@@ -749,7 +749,9 @@ let apply_params_stack = ref []
 let try_apply_params_rec cparams params t success =
 	let old_stack = !apply_params_stack in
 	try
-		success (apply_params ~stack:apply_params_stack cparams params t)
+		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
+		apply_params_stack := old_stack;
+		result
 	with
 		| ApplyParamsRecursion ->
 			apply_params_stack := old_stack;
