@@ -21,6 +21,7 @@
  */
 @:coreApi class Date {
 	var d:lua.Os.DateType;
+	var dUTC:lua.Os.DateType;
 	var t:lua.Time;
 
 	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int) {
@@ -33,6 +34,7 @@
 			sec: sec
 		});
 		d = lua.Os.date("*t", t);
+		dUTC = lua.Os.date("!*t", t);
 	};
 
 	public function getTime():Float
@@ -59,6 +61,32 @@
 	public function getDay():Int
 		return d.wday - 1;
 
+	public function getUTCHours():Int
+		return dUTC.hour;
+
+	public function getUTCMinutes():Int
+		return dUTC.min;
+
+	public function getUTCSeconds():Int
+		return dUTC.sec;
+
+	public function getUTCFullYear():Int
+		return dUTC.year;
+
+	public function getUTCMonth():Int
+		return dUTC.month - 1;
+
+	public function getUTCDate():Int
+		return dUTC.day;
+
+	public function getUTCDay():Int
+		return dUTC.wday - 1;
+
+	public function getTimezoneOffset():Int {
+		var tUTC = lua.Os.time(dUTC);
+		return Std.int((tUTC - t) / 60);
+	}
+
 	public inline function toString():String {
 		return lua.Boot.dateStr(this);
 	}
@@ -73,6 +101,7 @@
 			lua.Lua.setmetatable(d, untyped {__index: Date.prototype});
 			d.t = t / 1000;
 			d.d = lua.Os.date("*t", Std.int(d.t));
+			d.dUTC = lua.Os.date("!*t", Std.int(d.t));
 		}
 		return d;
 	}

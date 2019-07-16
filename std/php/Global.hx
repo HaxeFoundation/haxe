@@ -1302,6 +1302,11 @@ extern class Global {
 	static function date(format:String, ?timestamp:Int):EitherType<String, Bool>;
 
 	/**
+		@see http://php.net/manual/en/function.gmdate.php
+	**/
+	static function gmdate(format:String, ?timestamp:Int):EitherType<String, Bool>;
+
+	/**
 		@see http://php.net/manual/en/function.time.php
 	**/
 	static function time():Int;

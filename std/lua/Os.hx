@@ -114,9 +114,9 @@ extern class Os {
 	A typedef that matches the date parameter `Os.time()` will accept.
 **/
 typedef TimeParam = {
-	year:Float,
-	month:Float,
-	day:Float,
+	year:Int,
+	month:Int,
+	day:Int,
 	?hour:Int,
 	?min:Int,
 	?sec:Int,

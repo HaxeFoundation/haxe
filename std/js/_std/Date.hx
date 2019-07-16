@@ -30,6 +30,15 @@
 	@:pure function getDate():Int;
 	@:pure function getDay():Int;
 
+	@:pure function getUTCHours():Int;
+	@:pure function getUTCMinutes():Int;
+	@:pure function getUTCSeconds():Int;
+	@:pure function getUTCFullYear():Int;
+	@:pure function getUTCMonth():Int;
+	@:pure function getUTCDate():Int;
+	@:pure function getUTCDay():Int;
+	@:pure function getTimezoneOffset():Int;
+
 	@:pure inline function toString():String {
 		return @:privateAccess HxOverrides.dateStr(this);
 	}

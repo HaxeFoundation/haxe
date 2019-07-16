@@ -21,6 +21,7 @@
  */
 
 import cs.system.DateTime;
+import cs.system.DateTimeKind;
 import cs.system.TimeSpan;
 import haxe.Int64;
 
@@ -31,17 +32,25 @@ import haxe.Int64;
 	@:readOnly private static var epochTicks:Int64 = new DateTime(1970, 1, 1).Ticks;
 
 	private var date:DateTime;
+	private var dateUTC:DateTime;
 
 	@:overload public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
 		if (day <= 0)
 			day = 1;
 		if (year <= 0)
 			year = 1;
-		date = new DateTime(year, month + 1, day, hour, min, sec);
+		date = new DateTime(year, month + 1, day, hour, min, sec, DateTimeKind.Local);
+		dateUTC = date.ToUniversalTime();
 	}
 
 	@:overload private function new(native:DateTime) {
-		date = native;
+		if (native.Kind == DateTimeKind.Utc) {
+			dateUTC = native;
+			date = dateUTC.ToLocalTime();
+		} else {
+			date = native;
+			dateUTC = date.ToUniversalTime();
+		}
 	}
 
 	public inline function getTime():Float {
@@ -80,14 +89,40 @@ import haxe.Int64;
 		return cast(date.DayOfWeek, Int);
 	}
 
+	public inline function getUTCHours():Int {
+		return dateUTC.Hour;
+	}
+
+	public inline function getUTCMinutes():Int {
+		return dateUTC.Minute;
+	}
+
+	public inline function getUTCSeconds():Int {
+		return dateUTC.Second;
+	}
+
+	public inline function getUTCFullYear():Int {
+		return dateUTC.Year;
+	}
+
+	public inline function getUTCMonth():Int {
+		return dateUTC.Month - 1;
+	}
+
+	public inline function getUTCDate():Int {
+		return dateUTC.Day;
+	}
+
+	public inline function getUTCDay():Int {
+		return cast(dateUTC.DayOfWeek, Int);
+	}
+
+	public inline function getTimezoneOffset():Int {
+		return Std.int((cast(dateUTC.Ticks - date.Ticks, Float) / cast(TimeSpan.TicksPerMillisecond, Float)) / 60000.);
+	}
+
 	public function toString():String {
-		var m = getMonth() + 1;
-		var d = getDate();
-		var h = getHours();
-		var mi = getMinutes();
-		var s = getSeconds();
-		return (getFullYear()) + "-" + (if (m < 10) "0" + m else "" + m) + "-" + (if (d < 10) "0" + d else "" + d) + " " + (if (h < 10) "0" + h else "" + h)
-			+ ":" + (if (mi < 10) "0" + mi else "" + mi) + ":" + (if (s < 10) "0" + s else "" + s);
+		return date.ToString("yyyy-MM-dd HH\\:mm\\:ss");
 	}
 
 	static public inline function now():Date {
@@ -107,16 +142,15 @@ import haxe.Int64;
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var d:Date = new Date(1, 1, 1, Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]));
-				return d;
+				return new Date(new DateTime(1970, 1, 1, Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]), DateTimeKind.Utc));
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
-				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);
+				return new Date(new DateTime(Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]), 0, 0, 0, DateTimeKind.Local));
 			case 19: // YYYY-MM-DD hh:mm:ss
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
-				return new Date(Std.parseInt(y[0]), Std.parseInt(y[1]) - 1, Std.parseInt(y[2]), Std.parseInt(t[0]), Std.parseInt(t[1]), Std.parseInt(t[2]));
+				return new Date(new DateTime(Std.parseInt(y[0]), Std.parseInt(y[1]), Std.parseInt(y[2]), Std.parseInt(t[0]), Std.parseInt(t[1]), Std.parseInt(t[2]), DateTimeKind.Local));
 			default:
 				throw "Invalid date format : " + s;
 		}
