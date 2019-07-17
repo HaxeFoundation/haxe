@@ -24,6 +24,8 @@ package haxe;
 
 import haxe.ds.List;
 
+using StringTools;
+
 private enum TemplateExpr {
 	OpVar(v:String);
 	OpExpr(expr:Void->Dynamic);
@@ -204,9 +206,24 @@ class Template {
 				pe.add(parseBlock(parseTokens(p)));
 			return OpMacro(p, pe);
 		}
+		function kwdEnd(kwd:String):Int {
+			var pos = -1;
+			var length = kwd.length;
+			if (p.substr(0, length) == kwd) {
+				pos = length;
+				for (c in p.substr(length)) {
+					switch c {
+						case ' '.code: pos++;
+						case _: break;
+					}
+				}
+			}
+			return pos;
+		}
 		// 'end' , 'else', 'elseif' can't be found here
-		if (p.substr(0, 3) == "if ") {
-			p = p.substr(3, p.length - 3);
+		var pos = kwdEnd("if");
+		if (pos > 0) {
+			p = p.substr(pos, p.length - pos);
 			var e = parseExpr(p);
 			var eif = parseBlock(tokens);
 			var t = tokens.first();
@@ -228,8 +245,9 @@ class Template {
 			}
 			return OpIf(e, eif, eelse);
 		}
-		if (p.substr(0, 8) == "foreach ") {
-			p = p.substr(8, p.length - 8);
+		var pos = kwdEnd("foreach");
+		if (pos >= 0) {
+			p = p.substr(pos, p.length - pos);
 			var e = parseExpr(p);
 			var efor = parseBlock(tokens);
 			var t = tokens.pop();
@@ -254,8 +272,16 @@ class Template {
 			l.add({p: p, s: p.indexOf('"') >= 0});
 			data = expr_splitter.matchedRight();
 		}
-		if (data.length != 0)
-			l.add({p: data, s: true});
+		if (data.length != 0) {
+			for (i => c in data) {
+				switch c {
+					case ' '.code:
+					case _:
+						l.add({p: data.substr(i), s: true});
+						break;
+				}
+			}
+		}
 		var e:Void->Dynamic;
 		try {
 			e = makeExpr(l);
@@ -318,22 +344,42 @@ class Template {
 		return makePath(makeExpr2(l), l);
 	}
 
+	function skipSpaces(l:List<ExprToken>) {
+		var p = l.first();
+		while (p != null) {
+			for (c in p.p) {
+				if (c != " ".code) {
+					return;
+				}
+			}
+			l.pop();
+			p = l.first();
+		}
+	}
+
 	function makeExpr2(l:List<ExprToken>):Void->Dynamic {
+		skipSpaces(l);
 		var p = l.pop();
+		skipSpaces(l);
 		if (p == null)
 			throw "<eof>";
 		if (p.s)
 			return makeConst(p.p);
 		switch (p.p) {
 			case "(":
+				skipSpaces(l);
 				var e1:Dynamic = makeExpr(l);
+				skipSpaces(l);
 				var p = l.pop();
 				if (p == null || p.s)
 					throw p;
 				if (p.p == ")")
 					return e1;
+				skipSpaces(l);
 				var e2:Dynamic = makeExpr(l);
+				skipSpaces(l);
 				var p2 = l.pop();
+				skipSpaces(l);
 				if (p2 == null || p2.p != ")")
 					throw p2;
 				return switch (p.p) {
