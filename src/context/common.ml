@@ -189,7 +189,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
-	readdir_cache : (string,(string array) option) Hashtbl.t;
+	readdir_cache : (string * string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
@@ -626,9 +626,9 @@ let normalize_dir_separator path =
 
 let find_file ctx f =
 	try
-		(match Hashtbl.find ctx.file_lookup_cache f with
+		match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
-		| Some f -> f)
+		| Some f -> f
 	with Exit ->
 		raise Not_found
 	| Not_found ->
@@ -651,7 +651,7 @@ let find_file ctx f =
 			| p :: l ->
 				let file = p ^ f in
 				let dir = Filename.dirname file in
-				if Hashtbl.mem ctx.readdir_cache dir then
+				if Hashtbl.mem ctx.readdir_cache (p,dir) then
 					loop (had_empty || p = "") l
 				else begin
 					let found = ref "" in
@@ -659,7 +659,7 @@ let find_file ctx f =
 						try Some (Sys.readdir dir);
 						with Sys_error _ -> None
 					in
-					Hashtbl.add ctx.readdir_cache dir dir_listing;
+					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
 					let normalized_f = normalize_dir_separator f in
 					Option.may
 						(Array.iter (fun file_name ->
@@ -692,9 +692,9 @@ let find_file ctx f =
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
-		(match r with
+		match r with
 		| None -> raise Not_found
-		| Some f -> f)
+		| Some f -> f
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in
