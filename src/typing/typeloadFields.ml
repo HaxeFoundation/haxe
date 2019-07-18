@@ -217,6 +217,10 @@ let transform_abstract_field com this_t a_t a f =
 			if fu.f_expr <> None then error "MultiType constructors cannot have a body" f.cff_pos;
 			f.cff_access <- (AExtern,null_pos) :: f.cff_access;
 		end;
+		(try
+			let _, p = List.find (fun (acc, _) -> acc = AMacro) f.cff_access in
+			error "Macro abstract constructors are not supported" p
+		with Not_found -> ());
 		(* We don't want the generated expression positions to shadow the real code. *)
 		let p = { p with pmax = p.pmin } in
 		let fu = {
