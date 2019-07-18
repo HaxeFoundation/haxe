@@ -44,6 +44,32 @@ type uv_file
 (* type uv_stat_t *)
 type uv_buf_t
 
+(* Non-abstract type definitions  *)
+
+type uv_stat_t = {
+  dev: int;
+  kind: int;
+  perm: int;
+  nlink: int;
+  uid: int;
+  gid: int;
+  rdev: int;
+  ino: int;
+  size: int64;
+  blksize: int;
+  blocks: int;
+  flags: int;
+  gen: int;
+  atime: int64;
+  atime_nsec: int;
+  mtime: int64;
+  mtime_nsec: int;
+  ctime: int64;
+  ctime_nsec: int;
+  birthtime: int64;
+  birthtime_nsec: int;
+}
+
 (* ------------- LOOP ----------------------------------------------- *)
 
 external loop_init : unit -> uv_loop_t = "w_loop_init"
@@ -58,6 +84,7 @@ type fs_cb_bytes = string -> unit
 type fs_cb_path = string -> unit
 type fs_cb_file = uv_file -> unit
 type fs_cb_int = int -> unit
+type fs_cb_stat= uv_stat_t -> unit
 type fs_cb_scandir = (string * int) list -> unit
 
 external fs_close : uv_loop_t -> uv_file -> fs_cb -> unit = "w_fs_close"
@@ -67,6 +94,9 @@ external fs_mkdir : uv_loop_t -> string -> int -> fs_cb -> unit = "w_fs_mkdir"
 external fs_mkdtemp : uv_loop_t -> string -> fs_cb_path -> unit = "w_fs_mkdtemp"
 external fs_rmdir : uv_loop_t -> string -> fs_cb -> unit = "w_fs_rmdir"
 external fs_scandir : uv_loop_t -> string -> int -> fs_cb_scandir -> unit = "w_fs_scandir"
+external fs_stat : uv_loop_t -> string -> fs_cb_stat -> unit = "w_fs_stat"
+external fs_fstat : uv_loop_t -> uv_file -> fs_cb_stat -> unit = "w_fs_fstat"
+external fs_lstat : uv_loop_t -> string -> fs_cb_stat -> unit = "w_fs_lstat"
 external fs_rename : uv_loop_t -> string -> string -> fs_cb -> unit = "w_fs_rename"
 external fs_fsync : uv_loop_t -> uv_file -> fs_cb -> unit = "w_fs_fsync"
 external fs_fdatasync : uv_loop_t -> uv_file -> fs_cb -> unit = "w_fs_fdatasync"
@@ -90,6 +120,9 @@ external fs_mkdir_sync : uv_loop_t -> string -> int -> unit = "w_fs_mkdir_sync"
 external fs_mkdtemp_sync : uv_loop_t -> string -> string = "w_fs_mkdtemp_sync"
 external fs_rmdir_sync : uv_loop_t -> string -> unit = "w_fs_rmdir_sync"
 external fs_scandir_sync : uv_loop_t -> string -> int -> (string * int) list = "w_fs_scandir_sync"
+external fs_stat_sync : uv_loop_t -> string -> uv_stat_t = "w_fs_stat_sync"
+external fs_fstat_sync : uv_loop_t -> uv_file -> uv_stat_t = "w_fs_fstat_sync"
+external fs_lstat_sync : uv_loop_t -> string -> uv_stat_t = "w_fs_lstat_sync"
 external fs_rename_sync : uv_loop_t -> string -> string -> unit = "w_fs_rename_sync"
 external fs_fsync_sync : uv_loop_t -> uv_file -> unit = "w_fs_fsync_sync"
 external fs_fdatasync_sync : uv_loop_t -> uv_file -> unit = "w_fs_fdatasync_sync"

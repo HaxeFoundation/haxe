@@ -132,20 +132,30 @@ UV_FS_HANDLER(handle_fs_cb_bytes, value2 = caml_copy_string((const char *)req->p
 UV_FS_HANDLER(handle_fs_cb_path, value2 = caml_copy_string((const char *)req->path););
 UV_FS_HANDLER(handle_fs_cb_int, value2 = (value)req->result;);
 UV_FS_HANDLER(handle_fs_cb_file, value2 = (value)req->result;);
-/*UV_FS_HANDLER(handle_fs_cb_stat, value2 = construct_fs_stat(
-		req->statbuf.st_dev,
-		req->statbuf.st_mode,
-		req->statbuf.st_nlink,
-		req->statbuf.st_uid,
-		req->statbuf.st_gid,
-		req->statbuf.st_rdev,
-		req->statbuf.st_ino,
-		req->statbuf.st_size,
-		req->statbuf.st_blksize,
-		req->statbuf.st_blocks,
-		req->statbuf.st_flags,
-		req->statbuf.st_gen
-	));*/
+UV_FS_HANDLER(handle_fs_cb_stat, {
+		value2 = caml_alloc(21, 0);
+		Field(value2, 0) = Val_long(req->statbuf.st_dev);
+		Field(value2, 1) = Val_long(req->statbuf.st_mode & S_IFMT);
+		Field(value2, 2) = Val_long(req->statbuf.st_mode & 07777);
+		Field(value2, 3) = Val_long(req->statbuf.st_nlink);
+		Field(value2, 4) = Val_long(req->statbuf.st_uid);
+		Field(value2, 5) = Val_long(req->statbuf.st_gid);
+		Field(value2, 6) = Val_long(req->statbuf.st_rdev);
+		Field(value2, 7) = Val_long(req->statbuf.st_ino);
+		Field(value2, 8) = caml_copy_int64(req->statbuf.st_size);
+		Field(value2, 9) = Val_long(req->statbuf.st_blksize);
+		Field(value2, 10) = Val_long(req->statbuf.st_blocks);
+		Field(value2, 11) = Val_long(req->statbuf.st_flags);
+		Field(value2, 12) = Val_long(req->statbuf.st_gen);
+		Field(value2, 13) = caml_copy_int64(req->statbuf.st_atim.tv_sec);
+		Field(value2, 14) = Val_long(req->statbuf.st_atim.tv_nsec);
+		Field(value2, 15) = caml_copy_int64(req->statbuf.st_mtim.tv_sec);
+		Field(value2, 16) = Val_long(req->statbuf.st_mtim.tv_nsec);
+		Field(value2, 17) = caml_copy_int64(req->statbuf.st_ctim.tv_sec);
+		Field(value2, 18) = Val_long(req->statbuf.st_ctim.tv_nsec);
+		Field(value2, 19) = caml_copy_int64(req->statbuf.st_birthtim.tv_sec);
+		Field(value2, 20) = Val_long(req->statbuf.st_birthtim.tv_nsec);
+	});
 UV_FS_HANDLER(handle_fs_cb_scandir, {
 		uv_dirent_t ent;
 		value2 = Val_int(0);
@@ -304,9 +314,9 @@ FS_WRAP2(fs_mkdir, String_val, (int), handle_fs_cb);
 FS_WRAP1(fs_mkdtemp, String_val, handle_fs_cb_path);
 FS_WRAP1(fs_rmdir, String_val, handle_fs_cb);
 FS_WRAP2(fs_scandir, String_val, (int), handle_fs_cb_scandir);
-//FS_WRAP1(fs_stat, vdynamic *, const char*, _STAT, _BYTES, _CB_STAT, handle_fs_cb_stat, return);
-//FS_WRAP1(fs_fstat, vdynamic *, uv_file, _STAT, _FILE, _CB_STAT, handle_fs_cb_stat, return);
-//FS_WRAP1(fs_lstat, vdynamic *, const char*, _STAT, _BYTES, _CB_STAT, handle_fs_cb_stat, return);
+FS_WRAP1(fs_stat, String_val, handle_fs_cb_stat);
+FS_WRAP1(fs_fstat, (uv_file), handle_fs_cb_stat);
+FS_WRAP1(fs_lstat, String_val, handle_fs_cb_stat);
 FS_WRAP2(fs_rename, String_val, String_val, handle_fs_cb);
 FS_WRAP1(fs_fsync, (uv_file), handle_fs_cb);
 FS_WRAP1(fs_fdatasync, (uv_file), handle_fs_cb);
