@@ -33,7 +33,13 @@ package haxe.iterators;
 	same reason, the last key value returned might be less than `s.length - 1`.
 **/
 class StringKeyValueIteratorUnicode {
+	#if js
+	var native_iter: Dynamic;
+	var done = false;
+	#else
 	var byteOffset = 0;
+	#end
+
 	var charOffset = 0;
 	var s:String;
 
@@ -42,13 +48,20 @@ class StringKeyValueIteratorUnicode {
 	**/
 	public inline function new(s:String) {
 		this.s = s;
+		#if js
+		this.native_iter = untyped __js__("{0}[Symbol.iterator]()", this.s);
+		#end
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
 	public inline function hasNext() {
+		#if js
+		return !this.done;
+		#else
 		return byteOffset < s.length;
+		#end
 	}
 
 	/**
@@ -56,6 +69,13 @@ class StringKeyValueIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
+		#if js
+		var next = untyped __js__("{0}.next()", this.native_iter);
+		this.done = untyped __js__("{0}.done", next);
+		var c = untyped __js__("{0}.value", next);
+		return {key: charOffset++, value: c};
+		#else
+
 		#if utf16
 		var c = StringTools.utf16CodePointAt(s, byteOffset++);
 		if (c >= StringTools.MIN_SURROGATE_CODE_POINT) {
@@ -64,7 +84,9 @@ class StringKeyValueIteratorUnicode {
 		return {key: charOffset++, value: c};
 		#else
 		return {key: charOffset++, value: StringTools.fastCodeAt(s, byteOffset++)};
-		#end
+		#end // end of utf16
+
+		#end // end of js
 	}
 
 	/**
