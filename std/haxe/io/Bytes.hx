@@ -81,6 +81,10 @@ class Bytes {
 
 	/**
 	  Copies `len` bytes from `src` into this instance. 
+    @param pos Zero-based location in this instance from which to start copying bytes.
+    @param src Source `Bytes` instance from which to copy bytes.
+    @param srcpos Zero-based location at `src` from which bytes will be copied.
+    @param len Number of bytes to be copied. 
 	**/
 	public function blit(pos:Int, src:Bytes, srcpos:Int, len:Int):Void {
 		#if !neko
@@ -121,7 +125,7 @@ class Bytes {
 	}
 
 	/**
-	  Sets the value of this instance's `len` bytes to `value`, starting from index `pos`.
+    Sets `len` consecutive bytes starting from index `pos` of this instance to `value`.
 	**/
 	public function fill(pos:Int, len:Int, value:Int) {
 		#if flash
@@ -143,7 +147,7 @@ class Bytes {
 	}
 
 	/**
-	  Returns a new `Bytes` instance that contains a copy of this instance's `len` bytes, starting at index `pos`. 
+	  Returns a new `Bytes` instance that contains a copy of `len` bytes of this instance, starting at index `pos`. 
 	**/
 	public function sub(pos:Int, len:Int):Bytes {
 		#if !neko
@@ -173,8 +177,14 @@ class Bytes {
 	}
 	
 	/**
-	  Returns `0` if this instance's bytes and given `other`'s bytes are identical, or a value
-	  different than `0` otherwise.
+	  Returns `0` if this instance's bytes and given `other`'s bytes are identical. 
+    
+    Otherwise, returns a negative value if this instance's `length` is less than `other`'s `length` or if the
+    first different value in `other` is greater than the value on `this` instance. 
+    
+    Returns positive if this instance's `length` is greater than `other`'s `length` or if the first different
+    value in `other`'s is smaller than the value on `this` instance.
+
 	**/
 	public function compare(other:Bytes):Int {
 		#if neko
