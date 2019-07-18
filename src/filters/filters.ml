@@ -370,7 +370,21 @@ let check_unification ctx e t =
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 	| TClassDecl c ->
+		let vars = ref [] in
+		let rec save_vars e =
+			let add v = vars := (v, v.v_type) :: !vars in
+			match e.eexpr with
+				| TFunction fn ->
+					List.iter (fun (v, _) -> add v) fn.tf_args;
+					save_vars fn.tf_expr
+				| TVar (v, e) ->
+					add v;
+					Option.may save_vars e
+				| _ ->
+					iter save_vars e
+		in
 		let mk_field_restore f =
+			Option.may save_vars f.cf_expr;
 			let rec mk_overload_restore f =
 				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in
@@ -395,6 +409,7 @@ let save_class_state ctx t = match t with
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
 		let init = c.cl_init in
+		Option.may save_vars init;
 		c.cl_restore <- (fun() ->
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
@@ -409,6 +424,7 @@ let save_class_state ctx t = match t with
 			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
 			c.cl_descendants <- [];
+			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
 	| _ ->
 		()
