@@ -3065,6 +3065,36 @@ module StdUtf8 = struct
 	)
 end
 
+module StdUv = struct
+	open Uv
+
+	let loop_ref = ref None
+	let loop () = Option.get !loop_ref
+
+	module Loop = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvLoop l)} -> l
+			| v -> unexpected_value v "UVLoop"
+	end
+
+	module FileSystem = struct
+		let exists = vfun1 (fun path ->
+			let s = decode_string path in
+			try
+				Uv.fs_access_sync (loop ()) s 0;
+				vtrue
+			with _ ->
+				vfalse
+		)
+	end
+
+	let init = vfun0 (fun () ->
+		loop_ref := Some (Uv.loop_init ());
+		(*encode_instance key_eval_uv_Loop ~kind:(IUv (UvLoop (Uv.loop_init ())))*)
+		vnull
+	)
+end
+
 let init_fields builtins path static_fields instance_fields =
 	let map (name,v) = (hash name,v) in
 	let path = path_hash path in
@@ -3660,4 +3690,12 @@ let init_standard_library builtins =
 	] [
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
-	]
+	];
+	init_fields builtins (["eval";"uv"],"Loop") [] [];
+	init_fields builtins (["eval";"uv"],"File") [] [];
+	init_fields builtins (["eval"],"Uv") [
+		"init",StdUv.init
+	] [];
+	init_fields builtins (["nusys"],"FileSystem") [
+		"exists",StdUv.FileSystem.exists
+	] [];

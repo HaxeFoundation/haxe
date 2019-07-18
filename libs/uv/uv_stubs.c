@@ -308,12 +308,12 @@ HL_PRIM int HL_NAME(w_fs_write_sync)(uv_loop_t *loop, uv_file file, const uv_buf
 
 */
 FS_WRAP1(fs_close, (uv_file), handle_fs_cb);
-FS_WRAP3(fs_open, String_val, (int), (int), handle_fs_cb_file);
+FS_WRAP3(fs_open, String_val, Int_val, Int_val, handle_fs_cb_file);
 FS_WRAP1(fs_unlink, String_val, handle_fs_cb);
-FS_WRAP2(fs_mkdir, String_val, (int), handle_fs_cb);
+FS_WRAP2(fs_mkdir, String_val, Int_val, handle_fs_cb);
 FS_WRAP1(fs_mkdtemp, String_val, handle_fs_cb_path);
 FS_WRAP1(fs_rmdir, String_val, handle_fs_cb);
-FS_WRAP2(fs_scandir, String_val, (int), handle_fs_cb_scandir);
+FS_WRAP2(fs_scandir, String_val, Int_val, handle_fs_cb_scandir);
 FS_WRAP1(fs_stat, String_val, handle_fs_cb_stat);
 FS_WRAP1(fs_fstat, (uv_file), handle_fs_cb_stat);
 FS_WRAP1(fs_lstat, String_val, handle_fs_cb_stat);
@@ -322,14 +322,14 @@ FS_WRAP1(fs_fsync, (uv_file), handle_fs_cb);
 FS_WRAP1(fs_fdatasync, (uv_file), handle_fs_cb);
 FS_WRAP2(fs_ftruncate, (uv_file), Int64_val, handle_fs_cb);
 //FS_WRAP4(fs_sendfile, void, uv_file, uv_file, int64_t, size_t, _VOID, _FILE _FILE _I32 _I32, _CB, handle_fs_cb, );
-FS_WRAP2(fs_access, String_val, (int), handle_fs_cb);
-FS_WRAP2(fs_chmod, String_val, (int), handle_fs_cb);
-FS_WRAP2(fs_fchmod, (uv_file), (int), handle_fs_cb);
+FS_WRAP2(fs_access, String_val, Int_val, handle_fs_cb);
+FS_WRAP2(fs_chmod, String_val, Int_val, handle_fs_cb);
+FS_WRAP2(fs_fchmod, (uv_file), Int_val, handle_fs_cb);
 FS_WRAP3(fs_utime, String_val, Double_val, Double_val, handle_fs_cb);
 FS_WRAP3(fs_futime, (uv_file), Double_val, Double_val, handle_fs_cb);
 FS_WRAP2(fs_link, String_val, String_val, handle_fs_cb);
-FS_WRAP3(fs_symlink, String_val, String_val, (int), handle_fs_cb);
+FS_WRAP3(fs_symlink, String_val, String_val, Int_val, handle_fs_cb);
 FS_WRAP1(fs_readlink, String_val, handle_fs_cb_bytes);
 FS_WRAP1(fs_realpath, String_val, handle_fs_cb_bytes);
-FS_WRAP3(fs_chown, String_val, (uv_uid_t), (uv_gid_t), handle_fs_cb);
-FS_WRAP3(fs_fchown, (uv_file), (uv_uid_t), (uv_gid_t), handle_fs_cb);
+FS_WRAP3(fs_chown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
+FS_WRAP3(fs_fchown, (uv_file), (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);

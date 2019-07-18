@@ -93,6 +93,11 @@ type vprototype_kind =
 	| PInstance
 	| PObject
 
+type vuv_value =
+	| UvLoop of Uv.t_loop
+	| UvFile of Uv.t_file
+	| UvStat of Uv.t_stat
+
 type value =
 	| VNull
 	| VTrue
@@ -165,6 +170,7 @@ and vinstance_kind =
 	| ITypeDecl of Type.module_type
 	| ILazyType of (Type.tlazy ref) * (unit -> value)
 	| IRef of Obj.t
+	| IUv of vuv_value (* libuv internals *)
 	| INormal
 
 and vinstance = {
