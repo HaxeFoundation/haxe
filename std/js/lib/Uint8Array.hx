@@ -32,7 +32,7 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 	Documentation [Uint8Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Uint8Array")
-extern class Uint8Array implements ArrayAccess<Int> {
+extern class Uint8Array implements ArrayBufferView implements ArrayAccess<Int> {
 	/**
 		Returns a number value of the element size. 1 in the case of an `Uint8Array`.
 	 */
