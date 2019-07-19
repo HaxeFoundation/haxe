@@ -31,7 +31,7 @@ class StringKeyValueIteratorUnicode {
 		Create a new `StringKeyValueIteratorUnicode` over String `s`.
 	**/
 	public inline function new(s:String) {
-        this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
+		this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
 	}
 
 	/**
@@ -46,9 +46,9 @@ class StringKeyValueIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
-        var next = this.nativeIter.next();
-        this.done = next.done;
-        return {key: charOffset++, value: next.value};
+		var next = this.nativeIter.next();
+		this.done = next.done;
+		return {key: charOffset++, value: next.value};
 	}
 
 	/**

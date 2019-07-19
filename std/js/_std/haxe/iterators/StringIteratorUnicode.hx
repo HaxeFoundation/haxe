@@ -25,13 +25,13 @@ package haxe.iterators;
 @coreApi
 class StringIteratorUnicode {
 	var nativeIter: js.lib.Iterator<Int>;
-    var done = false;
+	var done = false;
 
 	/**
 		Create a new `StringIteratorUnicode` over String `s`.
 	**/
 	public inline function new(s:String) {
-        this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
+		this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
 	}
 
 	/**
@@ -46,9 +46,9 @@ class StringIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
-        var next = this.nativeIter.next();
-        this.done = next.done;
-        return next.value;
+		var next = this.nativeIter.next();
+		this.done = next.done;
+		return next.value;
 	}
 
 	/**
