@@ -22,6 +22,7 @@
 
 package sys;
 
+import haxe.io.BytesOutput;
 import sys.net.Host;
 import sys.net.Socket;
 
@@ -55,23 +56,20 @@ class Http extends haxe.http.HttpBase {
 		var old = onError;
 		var err = false;
 		onError = function(e) {
-			#if neko
-			responseData = neko.Lib.stringReference(output.getBytes());
-			#else
-			responseData = output.getBytes().toString();
-			#end
+			responseBytes = output.getBytes();
 			err = true;
 			// Resetting back onError before calling it allows for a second "retry" request to be sent without onError being wrapped twice
 			onError = old;
 			onError(e);
 		}
 		customRequest(post, output);
-		if (!err)
-			#if neko
-			onData(responseData = neko.Lib.stringReference(output.getBytes()));
-			#else
-			onData(responseData = output.getBytes().toString());
-			#end
+		if (!err) {
+			responseBytes = output.getBytes();
+			if (hasOnData()) {
+				onData(responseData);
+			}
+			onBytes(responseBytes);
+		}
 	}
 
 	@:noCompletion
@@ -91,7 +89,7 @@ class Http extends haxe.http.HttpBase {
 	}
 
 	public function customRequest(post:Bool, api:haxe.io.Output, ?sock:sys.net.Socket, ?method:String) {
-		this.responseData = null;
+		this.responseAsString = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if (!url_regexp.match(url)) {
 			onError("Invalid URL");
@@ -175,69 +173,74 @@ class Http extends haxe.http.HttpBase {
 			}
 		}
 
-		var b = new StringBuf();
+		var b = new BytesOutput();
 		if (method != null) {
-			b.add(method);
-			b.add(" ");
+			b.writeString(method);
+			b.writeString(" ");
 		} else if (post)
-			b.add("POST ");
+			b.writeString("POST ");
 		else
-			b.add("GET ");
+			b.writeString("GET ");
 
 		if (Http.PROXY != null) {
-			b.add("http://");
-			b.add(host);
+			b.writeString("http://");
+			b.writeString(host);
 			if (port != 80) {
-				b.add(":");
-				b.add(port);
+				b.writeString(":");
+				b.writeString('$port');
 			}
 		}
-		b.add(request);
+		b.writeString(request);
 
 		if (!post && uri != null) {
 			if (request.indexOf("?", 0) >= 0)
-				b.add("&");
+				b.writeString("&");
 			else
-				b.add("?");
-			b.add(uri);
+				b.writeString("?");
+			b.writeString(uri);
 		}
-		b.add(" HTTP/1.1\r\nHost: " + host + "\r\n");
+		b.writeString(" HTTP/1.1\r\nHost: " + host + "\r\n");
 		if (postData != null)
-			b.add("Content-Length: " + postData.length + "\r\n");
+			b.writeString("Content-Length: " + postData.length + "\r\n"); // TODO: this is wrong since `String.length` is UTF8-ware.
+		else if (postBytes != null)
+			b.writeString("Content-Length: " + postBytes.length + "\r\n");
 		else if (post && uri != null) {
 			if (multipart || !Lambda.exists(headers, function(h) return h.name == "Content-Type")) {
-				b.add("Content-Type: ");
+				b.writeString("Content-Type: ");
 				if (multipart) {
-					b.add("multipart/form-data");
-					b.add("; boundary=");
-					b.add(boundary);
+					b.writeString("multipart/form-data");
+					b.writeString("; boundary=");
+					b.writeString(boundary);
 				} else
-					b.add("application/x-www-form-urlencoded");
-				b.add("\r\n");
+					b.writeString("application/x-www-form-urlencoded");
+				b.writeString("\r\n");
 			}
 			if (multipart)
-				b.add("Content-Length: " + (uri.length + file.size + boundary.length + 6) + "\r\n");
+				b.writeString("Content-Length: " + (uri.length + file.size + boundary.length + 6) + "\r\n");
 			else
-				b.add("Content-Length: " + uri.length + "\r\n");
+				b.writeString("Content-Length: " + uri.length + "\r\n");
 		}
-		b.add("Connection: close\r\n");
+		b.writeString("Connection: close\r\n");
 		for (h in headers) {
-			b.add(h.name);
-			b.add(": ");
-			b.add(h.value);
-			b.add("\r\n");
+			b.writeString(h.name);
+			b.writeString(": ");
+			b.writeString(h.value);
+			b.writeString("\r\n");
 		}
-		b.add("\r\n");
+		b.writeString("\r\n");
 		if (postData != null)
-			b.add(postData);
+			b.writeString(postData);
+		else if (postBytes != null)
+			b.writeFullBytes(@:privateAccess postBytes.bytes, 0, postBytes.length);
 		else if (post && uri != null)
-			b.add(uri);
+			b.writeString(uri);
 		try {
 			if (Http.PROXY != null)
 				sock.connect(new Host(Http.PROXY.host), Http.PROXY.port);
 			else
 				sock.connect(new Host(host), port);
-			sock.write(b.toString());
+			var bytes = b.getBytes();
+			sock.output.writeFullBytes(bytes, 0, bytes.length);
 			if (multipart) {
 				var bufsize = 4096;
 				var buf = haxe.io.Bytes.alloc(bufsize);
@@ -251,10 +254,10 @@ class Http extends haxe.http.HttpBase {
 					sock.output.writeFullBytes(buf, 0, len);
 					file.size -= len;
 				}
-				sock.write("\r\n");
-				sock.write("--");
-				sock.write(boundary);
-				sock.write("--");
+				sock.output.writeString("\r\n");
+				sock.output.writeString("--");
+				sock.output.writeString(boundary);
+				sock.output.writeString("--");
 			}
 			readHttpResponse(api, sock);
 			sock.close();
