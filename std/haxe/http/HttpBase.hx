@@ -22,7 +22,7 @@
 
 package haxe.http;
 
-import haxe.io.BytesView;
+import haxe.io.Bytes;
 
 private typedef StringKeyValue = {
 	var name:String;
@@ -48,10 +48,10 @@ class HttpBase {
 
 	public var responseData(get, never):Null<String>;
 
-	var responseBytes:Null<BytesView>;
+	var responseBytes:Null<Bytes>;
 	var responseAsString:Null<String>;
 	var postData:Null<String>;
-	var postBytes:Null<BytesView>;
+	var postBytes:Null<Bytes>;
 	var headers:Array<StringKeyValue>;
 	var params:Array<StringKeyValue>;
 
@@ -156,7 +156,7 @@ class HttpBase {
 
 		This method provides a fluent interface.
 	**/
-	public function setPostBytes(data:Null<BytesView>) {
+	public function setPostBytes(data:Null<Bytes>) {
 		postBytes = data;
 		#if hx3compat
 		return this;
@@ -200,7 +200,7 @@ class HttpBase {
 		The intended usage is to bind it to a custom function:
 		`httpInstance.onBytes = function(data) { // handle result }`
 	**/
-	public dynamic function onBytes(data:BytesView) {}
+	public dynamic function onBytes(data:Bytes) {}
 
 	/**
 		This method is called upon a request error, with `msg` containing the
@@ -234,7 +234,7 @@ class HttpBase {
 	function get_responseData() {
 		if (responseAsString == null && responseBytes != null) {
 			#if neko
-			responseAsString = neko.Lib.stringReference(@:privateAccess responseBytes.bytes);
+			responseAsString = neko.Lib.stringReference(responseBytes);
 			#else
 			responseAsString = responseBytes.toString();
 			#end

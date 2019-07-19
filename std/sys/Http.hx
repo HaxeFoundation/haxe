@@ -231,7 +231,7 @@ class Http extends haxe.http.HttpBase {
 		if (postData != null)
 			b.writeString(postData);
 		else if (postBytes != null)
-			b.writeFullBytes(@:privateAccess postBytes.bytes, 0, postBytes.length);
+			b.writeFullBytes(postBytes, 0, postBytes.length);
 		else if (post && uri != null)
 			b.writeString(uri);
 		try {
