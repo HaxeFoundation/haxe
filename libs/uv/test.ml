@@ -6,16 +6,18 @@ print_string "init loop...\n"; flush_all ();
 let loop = Uv.loop_init () in
 (*let cb_c () = print_string "closed\n" in
 let cb file = print_string "hey I got a file I guess\n"; flush_all (); Uv.fs_close loop file cb_c in*)
-let cb file =
-	print_string "hey I got a file I guess\n"; flush_all ();
-	let stat = Uv.fs_fstat_sync loop file in
-	print_string ("length: " ^ (Int64.to_string stat.size) ^ "\n"); flush_all ();
-	Uv.fs_close_sync loop file;
-	print_string "closed\n"; flush_all ();
+let cb = function
+	| CbError err -> print_string ("got an error: " ^ err ^ "\n"); flush_all ();
+	| CbSuccess file ->
+		print_string "hey I got a file I guess\n"; flush_all ();
+		let stat = Uv.fs_fstat_sync loop file in
+		print_string ("length: " ^ (Int64.to_string stat.size) ^ "\n"); flush_all ();
+		Uv.fs_close_sync loop file;
+		print_string "closed\n"; flush_all ();
 in
 print_string "open files...\n"; flush_all ();
 Uv.fs_open loop "uv.ml" 0 511 cb;
-Uv.fs_open loop "Makefile" 0 511 cb;
+Uv.fs_open loop "non-ext" 0 511 cb;
 print_string "sync open...\n"; flush_all ();
 let other_file = Uv.fs_open_sync loop "Makefile" 0 511 in
 print_string "run gc...\n"; flush_all ();

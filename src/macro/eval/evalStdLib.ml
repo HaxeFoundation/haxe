@@ -3068,8 +3068,23 @@ end
 module StdUv = struct
 	open Uv
 
+	(* Reference to the active libuv loop *)
 	let loop_ref = ref None
 	let loop () = Option.get !loop_ref
+
+	(* Wrap a Haxe callback which will take no result *)
+	let wrap_cb_unit cb = (fun res ->
+		ignore (match res with
+			| Uv.CbError err -> call_value cb [encode_string err; vnull]
+			| Uv.CbSuccess () -> call_value cb [vnull; vnull])
+	)
+
+	(* Wrap a Haxe callback which will take a result, as encoded by `enc` *)
+	(*let wrap_cb cb enc = (fun res ->
+		match res with
+			| Uv.CbError err -> call_value cb [encode_string err; vnull]
+			| Uv.CbSuccess val -> call_value cb [vnull; enc val]
+	)*)
 
 	module Loop = struct
 		let this vthis = match vthis with
@@ -3078,19 +3093,39 @@ module StdUv = struct
 	end
 
 	module FileSystem = struct
+		let access = vfun2 (fun path mode ->
+			let path = decode_string path in
+			let mode = decode_int mode in
+			Uv.fs_access_sync (loop ()) path 0;
+			vnull
+		)
 		let exists = vfun1 (fun path ->
-			let s = decode_string path in
+			let path = decode_string path in
 			try
-				Uv.fs_access_sync (loop ()) s 0;
+				Uv.fs_access_sync (loop ()) path 0;
 				vtrue
 			with _ ->
 				vfalse
 		)
 	end
 
+	module AsyncFileSystem = struct
+		let access = vfun3 (fun path mode cb ->
+			let path = decode_string path in
+			(*let mode = decode_int mode in*)
+			Uv.fs_access (loop ()) path 0 (wrap_cb_unit cb);
+			vnull
+		)
+	end
+
 	let init = vfun0 (fun () ->
 		loop_ref := Some (Uv.loop_init ());
 		(*encode_instance key_eval_uv_Loop ~kind:(IUv (UvLoop (Uv.loop_init ())))*)
+		vnull
+	)
+
+	let run = vfun0 (fun () ->
+		Uv.run (loop ()) 0;
 		vnull
 	)
 end
@@ -3694,8 +3729,13 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"uv"],"Loop") [] [];
 	init_fields builtins (["eval";"uv"],"File") [] [];
 	init_fields builtins (["eval"],"Uv") [
-		"init",StdUv.init
+		"init",StdUv.init;
+		"run",StdUv.run
 	] [];
 	init_fields builtins (["nusys"],"FileSystem") [
+		"access",StdUv.FileSystem.access;
 		"exists",StdUv.FileSystem.exists
 	] [];
+	init_fields builtins (["nusys";"async"],"FileSystem") [
+		"access",StdUv.AsyncFileSystem.access
+	] []

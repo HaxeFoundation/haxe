@@ -47,28 +47,32 @@ type t_buf
 (* Non-abstract type definitions  *)
 
 type t_stat = {
-  dev: int;
-  kind: int;
-  perm: int;
-  nlink: int;
-  uid: int;
-  gid: int;
-  rdev: int;
-  ino: int;
-  size: int64;
-  blksize: int;
-  blocks: int;
-  flags: int;
-  gen: int;
-  atime: int64;
-  atime_nsec: int;
-  mtime: int64;
-  mtime_nsec: int;
-  ctime: int64;
-  ctime_nsec: int;
-  birthtime: int64;
-  birthtime_nsec: int;
+	dev: int;
+	kind: int;
+	perm: int;
+	nlink: int;
+	uid: int;
+	gid: int;
+	rdev: int;
+	ino: int;
+	size: int64;
+	blksize: int;
+	blocks: int;
+	flags: int;
+	gen: int;
+	atime: int64;
+	atime_nsec: int;
+	mtime: int64;
+	mtime_nsec: int;
+	ctime: int64;
+	ctime_nsec: int;
+	birthtime: int64;
+	birthtime_nsec: int;
 }
+
+type 'a cb_result =
+	| CbError of string (* error message *)
+	| CbSuccess of 'a
 
 (* ------------- LOOP ----------------------------------------------- *)
 
@@ -79,13 +83,13 @@ external loop_alive : t_loop -> bool = "w_loop_alive"
 
 (* ------------- FILESYSTEM ----------------------------------------- *)
 
-type fs_cb = unit -> unit
-type fs_cb_bytes = string -> unit
-type fs_cb_path = string -> unit
-type fs_cb_file = t_file -> unit
-type fs_cb_int = int -> unit
-type fs_cb_stat= t_stat -> unit
-type fs_cb_scandir = (string * int) list -> unit
+type fs_cb = unit cb_result -> unit
+type fs_cb_bytes = string cb_result -> unit
+type fs_cb_path = string cb_result -> unit
+type fs_cb_file = t_file cb_result -> unit
+type fs_cb_int = int cb_result -> unit
+type fs_cb_stat= t_stat cb_result -> unit
+type fs_cb_scandir = (string * int) list cb_result -> unit
 
 external fs_close : t_loop -> t_file -> fs_cb -> unit = "w_fs_close"
 external fs_open : t_loop -> string -> int -> int -> fs_cb_file -> unit = "w_fs_open"

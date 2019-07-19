@@ -33,6 +33,7 @@
 /libs/xml-light/xml_lexer.ml
 /libs/xml-light/xml_parser.ml
 /libs/xml-light/xml_parser.mli
+/libs/uv/test
 /std/tools/haxedoc/haxedoc
 /std/tools/haxedoc/haxedoc.n
 /std/tools/haxelib/haxelib
