@@ -23,7 +23,7 @@
 package haxe.iterators;
 
 class StringKeyValueIteratorUnicode {
-	var nativeIter: Dynamic;
+	var nativeIter: js.lib.Iterator<Int>;
 	var done = false;
 	var charOffset = 0;
 
