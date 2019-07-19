@@ -141,6 +141,7 @@ class HttpBase {
 	**/
 	public function setPostData(data:Null<String>) {
 		postData = data;
+		postBytes = null;
 		#if hx3compat
 		return this;
 		#end
@@ -158,6 +159,7 @@ class HttpBase {
 	**/
 	public function setPostBytes(data:Null<Bytes>) {
 		postBytes = data;
+		postData = null;
 		#if hx3compat
 		return this;
 		#end
