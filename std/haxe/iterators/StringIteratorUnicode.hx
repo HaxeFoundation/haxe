@@ -31,13 +31,7 @@ package haxe.iterators;
 	String's length due to the fact that it deals with surrogate pairs.
 **/
 class StringIteratorUnicode {
-	#if js
-	var native_iter: Dynamic;
-	var done = false;
-	#else
 	var offset = 0;
-	#end
-
 	var s:String;
 
 	/**
@@ -45,20 +39,13 @@ class StringIteratorUnicode {
 	**/
 	public inline function new(s:String) {
 		this.s = s;
-		#if js
-		this.native_iter = untyped __js__("{0}[Symbol.iterator]()", this.s);
-		#end
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
 	public inline function hasNext() {
-		#if js
-		return !this.done;
-		#else
 		return offset < s.length;
-		#end
 	}
 
 	/**
@@ -66,12 +53,6 @@ class StringIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
-		#if js
-		var next = untyped __js__("{0}.next()", this.native_iter);
-		this.done = untyped __js__("{0}.done", next);
-		return untyped __js__("{0}.value", next);
-		#else
-
 		#if utf16
 		var c = StringTools.utf16CodePointAt(s, offset++);
 		if (c >= StringTools.MIN_SURROGATE_CODE_POINT) {
@@ -80,9 +61,7 @@ class StringIteratorUnicode {
 		return c;
 		#else
 		return StringTools.fastCodeAt(s, offset++);
-		#end // end of utf16
-
-		#end // end of js
+		#end
 	}
 
 	/**

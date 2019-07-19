@@ -22,33 +22,23 @@
 
 package haxe.iterators;
 
-/**
-	This iterator can be used to iterate across strings in a cross-platform
-	way. It handles surrogate pairs on platforms that require it. On each
-	iteration, it returns the next character offset as key and the next
-	character code as value.
-
-	Note that in the general case, because of surrogate pairs, the key values
-	should not be used as offsets for various String API operations. For the
-	same reason, the last key value returned might be less than `s.length - 1`.
-**/
 class StringKeyValueIteratorUnicode {
-	var byteOffset = 0;
+	var nativeIter: Dynamic;
+	var done = false;
 	var charOffset = 0;
-	var s:String;
 
 	/**
 		Create a new `StringKeyValueIteratorUnicode` over String `s`.
 	**/
 	public inline function new(s:String) {
-		this.s = s;
+        this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
 	public inline function hasNext() {
-		return byteOffset < s.length;
+		return !this.done;
 	}
 
 	/**
@@ -56,15 +46,9 @@ class StringKeyValueIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
-		#if utf16
-		var c = StringTools.utf16CodePointAt(s, byteOffset++);
-		if (c >= StringTools.MIN_SURROGATE_CODE_POINT) {
-			byteOffset++;
-		}
-		return {key: charOffset++, value: c};
-		#else
-		return {key: charOffset++, value: StringTools.fastCodeAt(s, byteOffset++)};
-		#end
+        var next = this.nativeIter.next();
+        this.done = next.done;
+        return {key: charOffset++, value: next.value};
 	}
 
 	/**
