@@ -177,14 +177,13 @@ class Bytes {
 	}
 	
 	/**
-		Returns `0` if this instance's bytes and given `other`'s bytes are identical. 
+		Returns `0` if this instance's bytes and given `other`'s bytes are identical.
 		
-		Otherwise, returns a negative value if this instance's `length` is less than `other`'s `length` or if the
-		first different value in `other` is greater than the value on `this` instance. 
-		
-		Returns positive if this instance's `length` is greater than `other`'s `length` or if the first different
-		value in `other`'s is smaller than the value on `this` instance.
+		Returns a negative value if this instance's `length` is less than `other`'s, or a positive value 
+		if this instance's `length` is greater than `other`'s.
 
+		In case of equal `length`s, returns negative if the first different value in `other` is greater than the
+		value in `this` instance, or returns positive otherwise.
 	**/
 	public function compare(other:Bytes):Int {
 		#if neko
@@ -478,7 +477,7 @@ class Bytes {
 	}
 
 	/**
-		Returns string representation of the bytes as UTF8
+		Returns `String` representation of the bytes as UTF8.
 	**/
 	public function toString():String {
 		#if neko
@@ -498,6 +497,9 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns hexadecimal `String` representation of this instance's bytes.
+	**/
 	public function toHex():String {
 		var s = new StringBuf();
 		var chars = [];
@@ -512,10 +514,16 @@ class Bytes {
 		return s.toString();
 	}
 
+	/**
+		Returns this instance's bytes as `BytesData`.
+	**/
 	public inline function getData():BytesData {
 		return b;
 	}
 
+	/**
+		Returns a new `Bytes` instance of given `length` size and bytes with undefined values.
+	**/
 	public static function alloc(length:Int):Bytes {
 		#if neko
 		return new Bytes(length, untyped __dollar__smake(length));
@@ -543,7 +551,7 @@ class Bytes {
 	}
 
 	/**
-		Returns bytes representation of the given String, using specific encoding (UTF-8 by default)
+		Returns bytes representation of given `String`, using specific encoding (UTF-8 by default).
 	**/
 	@:pure
 	public static function ofString(s:String, ?encoding:Encoding):Bytes {
@@ -619,6 +627,9 @@ class Bytes {
 		#end
 	}
 
+	/**
+		Returns bytes representation of given `BytesData`.
+	**/
 	public static function ofData(b:BytesData) {
 		#if flash
 		return new Bytes(b.length, b);
@@ -632,8 +643,8 @@ class Bytes {
 	}
 
 	/**
-		Convert hexadecimal string to Bytes.
-		Support only straight hex string ( Example: "0FDA14058916052309" )
+		Converts given hexadecimal `String` to `Bytes`.
+		Support only straight hex string ( Example: `"0FDA14058916052309"` )
 	**/
 	public static function ofHex(s:String):Bytes {
 		var len:Int = s.length;
@@ -652,7 +663,7 @@ class Bytes {
 	}
 
 	/**
-		Read the most efficiently possible the n-th byte of the data.
+		Reads the `pos`-th byte of given `b` bytes, in the most efficiently way possible.
 		Behavior when reading outside of the available data is unspecified.
 	**/
 	public inline static function fastGet(b:BytesData, pos:Int):Int {
