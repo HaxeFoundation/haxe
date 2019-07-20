@@ -125,6 +125,7 @@ let create com api is_macro =
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
 		static_inits = IntMap.empty;
+		reset_static_inits = IntMap.empty;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
@@ -375,7 +376,12 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	IntMap.iter (fun _ (proto,delays) -> List.iter (fun f -> f proto) delays) ctx.static_inits
+	IntMap.iter
+		(fun path data ->
+			(* List.iter (fun f -> f proto) delays *)
+			ctx.reset_static_inits <- IntMap.add path data ctx.reset_static_inits;
+		)
+		ctx.static_inits
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)

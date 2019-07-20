@@ -255,6 +255,7 @@ and context = {
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
+	mutable reset_static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
@@ -440,6 +441,11 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
+	(try
+		let proto, delays = IntMap.find path ctx.reset_static_inits in
+		ctx.reset_static_inits <- IntMap.remove path ctx.reset_static_inits;
+		List.iter (fun f -> f proto) delays
+	with Not_found -> ());
 	IntMap.find path ctx.static_prototypes
 
 let get_static_prototype ctx path p =
