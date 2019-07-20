@@ -441,11 +441,14 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	(try
-		let proto, delays = IntMap.find path ctx.reset_static_inits in
-		ctx.reset_static_inits <- IntMap.remove path ctx.reset_static_inits;
-		List.iter (fun f -> f proto) delays
-	with Not_found -> ());
+	let inits =
+		try
+			let inits = IntMap.find path ctx.reset_static_inits in
+			ctx.reset_static_inits <- IntMap.remove path ctx.reset_static_inits;
+			Some inits
+		with Not_found -> None
+	in
+	Option.may (fun (proto, delays) -> List.iter (fun f -> f proto) delays) inits;
 	IntMap.find path ctx.static_prototypes
 
 let get_static_prototype ctx path p =
