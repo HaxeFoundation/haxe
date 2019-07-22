@@ -23,6 +23,7 @@
 package sys;
 
 import haxe.io.BytesOutput;
+import haxe.io.Bytes;
 import sys.net.Host;
 import sys.net.Socket;
 
