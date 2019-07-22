@@ -197,9 +197,11 @@ class Http extends haxe.http.HttpBase {
 			b.writeString(uri);
 		}
 		b.writeString(" HTTP/1.1\r\nHost: " + host + "\r\n");
-		if (postData != null)
-			b.writeString("Content-Length: " + postData.length + "\r\n"); // TODO: this is wrong since `String.length` is UTF8-ware.
-		else if (postBytes != null)
+		if (postData != null) {
+			postBytes = Bytes.ofString(postData);
+			postData = null;
+		}
+		if (postBytes != null)
 			b.writeString("Content-Length: " + postBytes.length + "\r\n");
 		else if (post && uri != null) {
 			if (multipart || !Lambda.exists(headers, function(h) return h.name == "Content-Type")) {
@@ -225,9 +227,7 @@ class Http extends haxe.http.HttpBase {
 			b.writeString("\r\n");
 		}
 		b.writeString("\r\n");
-		if (postData != null)
-			b.writeString(postData);
-		else if (postBytes != null)
+		if (postBytes != null)
 			b.writeFullBytes(postBytes, 0, postBytes.length);
 		else if (post && uri != null)
 			b.writeString(uri);
