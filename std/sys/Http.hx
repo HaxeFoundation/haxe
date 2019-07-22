@@ -64,11 +64,7 @@ class Http extends haxe.http.HttpBase {
 		}
 		customRequest(post, output);
 		if (!err) {
-			responseBytes = output.getBytes();
-			if (hasOnData()) {
-				onData(responseData);
-			}
-			onBytes(responseBytes);
+			success(output.getBytes());
 		}
 	}
 
@@ -90,6 +86,7 @@ class Http extends haxe.http.HttpBase {
 
 	public function customRequest(post:Bool, api:haxe.io.Output, ?sock:sys.net.Socket, ?method:String) {
 		this.responseAsString = null;
+		this.responseBytes = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if (!url_regexp.match(url)) {
 			onError("Invalid URL");

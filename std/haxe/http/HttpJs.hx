@@ -23,6 +23,10 @@
 package haxe.http;
 
 #if js
+import js.html.XMLHttpRequestResponseType;
+import js.html.Blob;
+import haxe.io.Bytes;
+
 class HttpJs extends haxe.http.HttpBase {
 	public var async:Bool;
 	public var withCredentials:Bool;
@@ -47,7 +51,8 @@ class HttpJs extends haxe.http.HttpBase {
 	}
 
 	public override function request(?post:Bool) {
-		responseData = null;
+		this.responseAsString = null;
+		this.responseBytes = null;
 		var r = req = js.Browser.createXMLHttpRequest();
 		var onreadystatechange = function(_) {
 			if (r.readyState != 4)
@@ -59,7 +64,7 @@ class HttpJs extends haxe.http.HttpBase {
 				var rlocalProtocol = ~/^(?:about|app|app-storage|.+-extension|file|res|widget):$/;
 				var isLocal = rlocalProtocol.match(protocol);
 				if (isLocal) {
-					s = r.responseText != null ? 200 : 404;
+					s = r.response != null ? 200 : 404;
 				}
 			}
 			if (s == js.Lib.undefined)
@@ -68,7 +73,7 @@ class HttpJs extends haxe.http.HttpBase {
 				onStatus(s);
 			if (s != null && s >= 200 && s < 400) {
 				req = null;
-				onData(responseData = r.responseText);
+				success(Bytes.ofData(r.response));
 			} else if (s == null) {
 				req = null;
 				onError("Failed to connect or resolve host");
@@ -82,13 +87,18 @@ class HttpJs extends haxe.http.HttpBase {
 						onError("Unknown host");
 					default:
 						req = null;
-						responseData = r.responseText;
+						responseBytes = Bytes.ofData(r.response);
 						onError("Http Error #" + r.status);
 				}
 		};
 		if (async)
 			r.onreadystatechange = onreadystatechange;
-		var uri = postData;
+		var uri:Null<Any> = switch [postData, postBytes] {
+			case [null, null]: null;
+			case [str, null]: str;
+			case [null, bytes]: new Blob([bytes.getData()]);
+			case _: null;
+		}
 		if (uri != null)
 			post = true;
 		else
@@ -96,8 +106,8 @@ class HttpJs extends haxe.http.HttpBase {
 				if (uri == null)
 					uri = "";
 				else
-					uri += "&";
-				uri += StringTools.urlEncode(p.name) + "=" + StringTools.urlEncode(p.value);
+					uri = uri + "&";
+				uri = uri + StringTools.urlEncode(p.name) + "=" + StringTools.urlEncode(p.value);
 			}
 		try {
 			if (post)
@@ -108,6 +118,7 @@ class HttpJs extends haxe.http.HttpBase {
 				uri = null;
 			} else
 				r.open("GET", url, async);
+			r.responseType = ARRAYBUFFER;
 		} catch (e:Dynamic) {
 			req = null;
 			onError(e.toString());

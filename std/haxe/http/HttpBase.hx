@@ -46,9 +46,9 @@ class HttpBase {
 	**/
 	public var url:String;
 
-	public var responseData(get, never):Null<String>;
+	public var responseData(get,never):Null<String>;
+	public var responseBytes(default,null):Null<Bytes>;
 
-	var responseBytes:Null<Bytes>;
 	var responseAsString:Null<String>;
 	var postData:Null<String>;
 	var postBytes:Null<Bytes>;
@@ -226,11 +226,15 @@ class HttpBase {
 		Override this if extending `haxe.Http` with overriding `onData`
 	**/
 	function hasOnData():Bool {
-		#if neko // Cannot compare closures
-		return true;
-		#else
-		return onData == emptyOnData;
-		#end
+		return !Reflect.compareMethods(onData, emptyOnData);
+	}
+
+	function success(data:Bytes) {
+		responseBytes = data;
+		if (hasOnData()) {
+			onData(responseData);
+		}
+		onBytes(responseBytes);
 	}
 
 	function get_responseData() {
