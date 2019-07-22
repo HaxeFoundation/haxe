@@ -75,7 +75,7 @@ class Lambda {
 		The order of elements is preserved.
 		If `f` is null, the result is unspecified.
 	**/
-	public static inline function mapi<A, B>(it:Iterable<A>, f:(index:A, element:B) -> B):Array<B> {
+	public static inline function mapi<A, B>(it:Iterable<A>, f:(index:A, item:B) -> B):Array<B> {
 		var i = 0;
 		return [for (x in it) f(i++, x)];
 	}
