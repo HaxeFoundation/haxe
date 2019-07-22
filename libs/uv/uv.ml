@@ -1,3 +1,14 @@
+(* ------------- CONSTANTS ------------------------------------------ *)
+
+let s_IFMT = 0xF000
+let s_IFBLK = 0x6000
+let s_IFCHR = 0x2000
+let s_IFDIR = 0x4000
+let s_IFIFO = 0x1000
+let s_IFLNK = 0xA000
+let s_IFREG = 0x8000
+let s_IFSOCK = 0xC000
+
 (* ------------- TYPES ---------------------------------------------- *)
 
 (* Handle types *)
@@ -70,75 +81,77 @@ type t_stat = {
 	birthtime_nsec: int;
 }
 
-type 'a cb_result =
-	| CbError of string (* error message *)
-	| CbSuccess of 'a
+type 'a uv_result =
+	| UvError of int (* error number *)
+	| UvSuccess of 'a
 
 (* ------------- LOOP ----------------------------------------------- *)
 
-external loop_init : unit -> t_loop = "w_loop_init"
-external loop_close : t_loop -> unit = "w_loop_close"
-external run : t_loop -> int -> bool = "w_run"
-external loop_alive : t_loop -> bool = "w_loop_alive"
+external loop_init : unit -> t_loop uv_result = "w_loop_init"
+external loop_close : t_loop -> unit uv_result = "w_loop_close"
+external run : t_loop -> int -> bool uv_result = "w_run"
+external loop_alive : t_loop -> bool uv_result = "w_loop_alive"
 
 (* ------------- FILESYSTEM ----------------------------------------- *)
 
-type fs_cb = unit cb_result -> unit
-type fs_cb_bytes = string cb_result -> unit
-type fs_cb_path = string cb_result -> unit
-type fs_cb_file = t_file cb_result -> unit
-type fs_cb_int = int cb_result -> unit
-type fs_cb_stat= t_stat cb_result -> unit
-type fs_cb_scandir = (string * int) list cb_result -> unit
+type fs_cb = unit uv_result -> unit
+type fs_cb_bytes = string uv_result -> unit
+type fs_cb_path = string uv_result -> unit
+type fs_cb_file = t_file uv_result -> unit
+type fs_cb_int = int uv_result -> unit
+type fs_cb_stat= t_stat uv_result -> unit
+type fs_cb_scandir = (string * int) list uv_result -> unit
 
+external fs_access : t_loop -> string -> int -> fs_cb -> unit = "w_fs_access"
+external fs_chmod : t_loop -> string -> int -> fs_cb -> unit = "w_fs_chmod"
+external fs_chown : t_loop -> string -> int -> int -> fs_cb -> unit = "w_fs_chown"
 external fs_close : t_loop -> t_file -> fs_cb -> unit = "w_fs_close"
-external fs_open : t_loop -> string -> int -> int -> fs_cb_file -> unit = "w_fs_open"
-external fs_unlink : t_loop -> string -> fs_cb -> unit = "w_fs_unlink"
+external fs_fchmod : t_loop -> t_file -> int -> fs_cb -> unit = "w_fs_fchmod"
+external fs_fchown : t_loop -> t_file -> int -> int -> fs_cb -> unit = "w_fs_fchown"
+external fs_fdatasync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fdatasync"
+external fs_fstat : t_loop -> t_file -> fs_cb_stat -> unit = "w_fs_fstat"
+external fs_fsync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fsync"
+external fs_ftruncate : t_loop -> t_file -> int64 -> fs_cb -> unit = "w_fs_ftruncate"
+external fs_futime : t_loop -> t_file -> float -> float -> fs_cb -> unit = "w_fs_futime"
+external fs_link : t_loop -> string -> string -> fs_cb -> unit = "w_fs_link"
+external fs_lstat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_lstat"
 external fs_mkdir : t_loop -> string -> int -> fs_cb -> unit = "w_fs_mkdir"
 external fs_mkdtemp : t_loop -> string -> fs_cb_path -> unit = "w_fs_mkdtemp"
+external fs_open : t_loop -> string -> int -> int -> fs_cb_file -> unit = "w_fs_open"
+external fs_read : t_loop -> t_file -> bytes -> int -> int -> int -> fs_cb_int -> unit = "w_fs_read_bytecode" "w_fs_read"
+external fs_readlink : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_readlink"
+external fs_realpath : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_realpath"
+external fs_rename : t_loop -> string -> string -> fs_cb -> unit = "w_fs_rename"
 external fs_rmdir : t_loop -> string -> fs_cb -> unit = "w_fs_rmdir"
 external fs_scandir : t_loop -> string -> int -> fs_cb_scandir -> unit = "w_fs_scandir"
 external fs_stat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_stat"
-external fs_fstat : t_loop -> t_file -> fs_cb_stat -> unit = "w_fs_fstat"
-external fs_lstat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_lstat"
-external fs_rename : t_loop -> string -> string -> fs_cb -> unit = "w_fs_rename"
-external fs_fsync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fsync"
-external fs_fdatasync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fdatasync"
-external fs_ftruncate : t_loop -> t_file -> int64 -> fs_cb -> unit = "w_fs_ftruncate"
-external fs_access : t_loop -> string -> int -> fs_cb -> unit = "w_fs_access"
-external fs_chmod : t_loop -> string -> int -> fs_cb -> unit = "w_fs_chmod"
-external fs_fchmod : t_loop -> t_file -> int -> fs_cb -> unit = "w_fs_fchmod"
-external fs_utime : t_loop -> string -> float -> float -> fs_cb -> unit = "w_fs_utime"
-external fs_futime : t_loop -> t_file -> float -> float -> fs_cb -> unit = "w_fs_futime"
-external fs_link : t_loop -> string -> string -> fs_cb -> unit = "w_fs_link"
 external fs_symlink : t_loop -> string -> string -> int -> fs_cb -> unit = "w_fs_symlink"
-external fs_readlink : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_readlink"
-external fs_realpath : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_realpath"
-external fs_chown : t_loop -> string -> int -> int -> fs_cb -> unit = "w_fs_chown"
-external fs_fchown : t_loop -> t_file -> int -> int -> fs_cb -> unit = "w_fs_fchown"
+external fs_unlink : t_loop -> string -> fs_cb -> unit = "w_fs_unlink"
+external fs_utime : t_loop -> string -> float -> float -> fs_cb -> unit = "w_fs_utime"
 
-external fs_close_sync : t_loop -> t_file -> unit = "w_fs_close_sync"
-external fs_open_sync : t_loop -> string -> int -> int -> t_file = "w_fs_open_sync"
-external fs_unlink_sync : t_loop -> string -> unit = "w_fs_unlink_sync"
-external fs_mkdir_sync : t_loop -> string -> int -> unit = "w_fs_mkdir_sync"
-external fs_mkdtemp_sync : t_loop -> string -> string = "w_fs_mkdtemp_sync"
-external fs_rmdir_sync : t_loop -> string -> unit = "w_fs_rmdir_sync"
-external fs_scandir_sync : t_loop -> string -> int -> (string * int) list = "w_fs_scandir_sync"
-external fs_stat_sync : t_loop -> string -> t_stat = "w_fs_stat_sync"
-external fs_fstat_sync : t_loop -> t_file -> t_stat = "w_fs_fstat_sync"
-external fs_lstat_sync : t_loop -> string -> t_stat = "w_fs_lstat_sync"
-external fs_rename_sync : t_loop -> string -> string -> unit = "w_fs_rename_sync"
-external fs_fsync_sync : t_loop -> t_file -> unit = "w_fs_fsync_sync"
-external fs_fdatasync_sync : t_loop -> t_file -> unit = "w_fs_fdatasync_sync"
-external fs_ftruncate_sync : t_loop -> t_file -> int64 -> unit = "w_fs_ftruncate_sync"
-external fs_access_sync : t_loop -> string -> int -> unit = "w_fs_access_sync"
-external fs_chmod_sync : t_loop -> string -> int -> unit = "w_fs_chmod_sync"
-external fs_fchmod_sync : t_loop -> t_file -> int -> unit = "w_fs_fchmod_sync"
-external fs_utime_sync : t_loop -> string -> float -> float -> unit = "w_fs_utime_sync"
-external fs_futime_sync : t_loop -> t_file -> float -> float -> unit = "w_fs_futime_sync"
-external fs_link_sync : t_loop -> string -> string -> unit = "w_fs_link_sync"
-external fs_symlink_sync : t_loop -> string -> string -> int -> unit = "w_fs_symlink_sync"
-external fs_readlink_sync : t_loop -> string -> string = "w_fs_readlink_sync"
-external fs_realpath_sync : t_loop -> string -> string = "w_fs_realpath_sync"
-external fs_chown_sync : t_loop -> string -> int -> int -> unit = "w_fs_chown_sync"
-external fs_fchown_sync : t_loop -> t_file -> int -> int -> unit = "w_fs_fchown_sync"
+external fs_access_sync : t_loop -> string -> int -> unit uv_result = "w_fs_access_sync"
+external fs_chmod_sync : t_loop -> string -> int -> unit uv_result = "w_fs_chmod_sync"
+external fs_chown_sync : t_loop -> string -> int -> int -> unit uv_result = "w_fs_chown_sync"
+external fs_close_sync : t_loop -> t_file -> unit uv_result = "w_fs_close_sync"
+external fs_fchmod_sync : t_loop -> t_file -> int -> unit uv_result = "w_fs_fchmod_sync"
+external fs_fchown_sync : t_loop -> t_file -> int -> int -> unit uv_result = "w_fs_fchown_sync"
+external fs_fdatasync_sync : t_loop -> t_file -> unit uv_result = "w_fs_fdatasync_sync"
+external fs_fstat_sync : t_loop -> t_file -> t_stat uv_result = "w_fs_fstat_sync"
+external fs_fsync_sync : t_loop -> t_file -> unit uv_result = "w_fs_fsync_sync"
+external fs_ftruncate_sync : t_loop -> t_file -> int64 -> unit uv_result = "w_fs_ftruncate_sync"
+external fs_futime_sync : t_loop -> t_file -> float -> float -> unit uv_result = "w_fs_futime_sync"
+external fs_link_sync : t_loop -> string -> string -> unit uv_result = "w_fs_link_sync"
+external fs_lstat_sync : t_loop -> string -> t_stat uv_result = "w_fs_lstat_sync"
+external fs_mkdir_sync : t_loop -> string -> int -> unit uv_result = "w_fs_mkdir_sync"
+external fs_mkdtemp_sync : t_loop -> string -> string uv_result = "w_fs_mkdtemp_sync"
+external fs_open_sync : t_loop -> string -> int -> int -> t_file uv_result = "w_fs_open_sync"
+external fs_read_sync : t_loop -> t_file -> bytes -> int -> int -> int -> int uv_result = "w_fs_read_sync_bytecode" "w_fs_read_sync"
+external fs_readlink_sync : t_loop -> string -> string uv_result = "w_fs_readlink_sync"
+external fs_realpath_sync : t_loop -> string -> string uv_result = "w_fs_realpath_sync"
+external fs_rename_sync : t_loop -> string -> string -> unit uv_result = "w_fs_rename_sync"
+external fs_rmdir_sync : t_loop -> string -> unit uv_result = "w_fs_rmdir_sync"
+external fs_scandir_sync : t_loop -> string -> int -> (string * int) list uv_result = "w_fs_scandir_sync"
+external fs_stat_sync : t_loop -> string -> t_stat uv_result = "w_fs_stat_sync"
+external fs_symlink_sync : t_loop -> string -> string -> int -> unit uv_result = "w_fs_symlink_sync"
+external fs_unlink_sync : t_loop -> string -> unit uv_result = "w_fs_unlink_sync"
+external fs_utime_sync : t_loop -> string -> float -> float -> unit uv_result = "w_fs_utime_sync"

@@ -25,29 +25,47 @@
 
 // ------------- ERROR HANDLING -------------------------------------
 
+#define UV_ERROR(errno) do { \
+		value res = caml_alloc(1, 0); \
+		Field(res, 0) = Val_int(errno); \
+		CAMLreturn(res); \
+	} while (0)
+
+#define UV_SUCCESS_UNIT do { \
+		value res = caml_alloc(1, 1); \
+		Field(res, 0) = Val_unit; \
+		CAMLreturn(res); \
+	} while (0)
+
+#define UV_SUCCESS(success_value) do { \
+		value res = caml_alloc(1, 1); \
+		Field(res, 0) = (value)(success_value); \
+		CAMLreturn(res); \
+	} while (0)
+
 #define UV_ALLOC_CHECK(var, type) \
 	type *var = UV_ALLOC(type); \
 	if (var == NULL) { \
-		caml_failwith("malloc " #type " failed"); \
+		UV_ERROR(0); \
 	} else {}
 #define UV_ALLOC_CHECK_C(var, type, cleanup) \
 	type *var = UV_ALLOC(type); \
 	if (var == NULL) { \
 		cleanup; \
-		caml_failwith("malloc " #type " failed"); \
+		UV_ERROR(0); \
 	} else {}
 // TODO: proper exceptions for libuv errors
 #define UV_ERROR_CHECK(expr) do { \
 		int __tmp_result = expr; \
 		if (__tmp_result < 0) { \
-			caml_failwith(strdup(uv_strerror(__tmp_result))); \
+			UV_ERROR(__tmp_result); \
 		} \
 	} while (0)
 #define UV_ERROR_CHECK_C(expr, cleanup) do { \
 		int __tmp_result = expr; \
 		if (__tmp_result < 0) { \
 			cleanup; \
-			caml_failwith(strdup(uv_strerror(__tmp_result))); \
+			UV_ERROR(__tmp_result); \
 		} \
 	} while (0)
 
@@ -57,30 +75,30 @@ CAMLprim value w_loop_init(value unit) {
 	CAMLparam1(unit);
 	UV_ALLOC_CHECK(loop, uv_loop_t);
 	UV_ERROR_CHECK_C(uv_loop_init(loop), free(loop));
-	CAMLreturn((value)loop);
+	UV_SUCCESS(loop);
 }
 
 CAMLprim value w_loop_close(value loop) {
 	CAMLparam1(loop);
 	UV_ERROR_CHECK(uv_loop_close((uv_loop_t *)loop));
 	free((uv_loop_t *)loop);
-	CAMLreturn(Val_unit);
+	UV_SUCCESS_UNIT;
 }
 
 CAMLprim value w_run(value loop, value mode) {
 	CAMLparam2(loop, mode);
-	CAMLreturn(Val_bool(uv_run((uv_loop_t *)loop, (uv_run_mode)mode) == 0));
+	UV_SUCCESS(Val_bool(uv_run((uv_loop_t *)loop, (uv_run_mode)Int_val(mode)) == 0));
 }
 
 CAMLprim value w_loop_alive(value loop) {
 	CAMLparam1(loop);
-	CAMLreturn(Val_bool(uv_loop_alive((uv_loop_t *)loop) != 0));
+	UV_SUCCESS(Val_bool(uv_loop_alive((uv_loop_t *)loop) != 0));
 }
 
 CAMLprim value w_stop(value loop) {
 	CAMLparam1(loop);
 	uv_stop((uv_loop_t *)loop);
-	CAMLreturn(Val_unit);
+	UV_SUCCESS_UNIT;
 }
 
 // ------------- FILESYSTEM -----------------------------------------
@@ -90,7 +108,7 @@ static void handle_fs_cb(uv_fs_t *req) {
 	value cb = (value)UV_REQ_DATA(req);
 	value res = caml_alloc(1, req->result < 0 ? 0 : 1);
 	if (req->result < 0)
-		Field(res, 0) = caml_copy_string(uv_strerror(req->result));
+		Field(res, 0) = req->result;
 	else
 		Field(res, 0) = Val_unit;
 	caml_callback(cb, res);
@@ -110,7 +128,7 @@ static value handle_fs_cb_sync(uv_fs_t *req) {
 		value cb = (value)UV_REQ_DATA(req); \
 		value res = caml_alloc(1, req->result < 0 ? 0 : 1); \
 		if (req->result < 0) \
-			Field(res, 0) = caml_copy_string(uv_strerror(req->result)); \
+			Field(res, 0) = req->result; \
 		else { \
 			value value2; \
 			do setup while (0); \
@@ -131,7 +149,7 @@ static value handle_fs_cb_sync(uv_fs_t *req) {
 
 UV_FS_HANDLER(handle_fs_cb_bytes, value2 = caml_copy_string((const char *)req->ptr););
 UV_FS_HANDLER(handle_fs_cb_path, value2 = caml_copy_string((const char *)req->path););
-UV_FS_HANDLER(handle_fs_cb_int, value2 = (value)req->result;);
+UV_FS_HANDLER(handle_fs_cb_int, value2 = Val_int(req->result););
 UV_FS_HANDLER(handle_fs_cb_file, value2 = (value)req->result;);
 UV_FS_HANDLER(handle_fs_cb_stat, {
 		value2 = caml_alloc(21, 0);
@@ -163,7 +181,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		while (uv_fs_scandir_next(req, &ent) != UV_EOF) {
 			value dirent = caml_alloc(2, 0);
 			Store_field(dirent, 0, caml_copy_string(ent.name));
-			Store_field(dirent, 1, ent.type);
+			Store_field(dirent, 1, Val_int(ent.type));
 			value node = caml_alloc(2, 0);
 			Store_field(node, 0, dirent); // car
 			Store_field(node, 1, value2); // cdr
@@ -178,7 +196,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_REQ_DATA(req) = (void *)cb; \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
 		UV_ERROR_CHECK_C(uv_ ## name((uv_loop_t *)loop, (uv_fs_t *)req, arg1conv(arg1), handler), free((uv_fs_t *)req)); \
-		CAMLreturn(Val_unit); \
+		UV_SUCCESS_UNIT; \
 	} \
 	CAMLprim value w_ ## name ## _sync(value loop, value arg1) { \
 		CAMLparam2(loop, arg1); \
@@ -189,7 +207,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		value ret = handler ## _sync(req); \
 		uv_fs_req_cleanup(req); \
 		free(req); \
-		CAMLreturn(ret); \
+		UV_SUCCESS(ret); \
 	}
 
 #define FS_WRAP2(name, arg1conv, arg2conv, handler) \
@@ -199,7 +217,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_REQ_DATA(req) = (void *)cb; \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
 		UV_ERROR_CHECK_C(uv_ ## name((uv_loop_t *)loop, (uv_fs_t *)req, arg1conv(arg1), arg2conv(arg2), handler), free((uv_fs_t *)req)); \
-		CAMLreturn(Val_unit); \
+		UV_SUCCESS_UNIT; \
 	} \
 	CAMLprim value w_ ## name ## _sync(value loop, value arg1, value arg2) { \
 		CAMLparam3(loop, arg1, arg2); \
@@ -210,7 +228,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		value ret = handler ## _sync(req); \
 		uv_fs_req_cleanup(req); \
 		free(req); \
-		CAMLreturn(ret); \
+		UV_SUCCESS(ret); \
 	}
 
 #define FS_WRAP3(name, arg1conv, arg2conv, arg3conv, handler) \
@@ -220,7 +238,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_REQ_DATA(req) = (void *)cb; \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
 		UV_ERROR_CHECK_C(uv_ ## name((uv_loop_t *)loop, (uv_fs_t *)req, arg1conv(arg1), arg2conv(arg2), arg3conv(arg3), handler), free((uv_fs_t *)req)); \
-		CAMLreturn(Val_unit); \
+		UV_SUCCESS_UNIT; \
 	} \
 	CAMLprim value w_ ## name ## _sync(value loop, value arg1, value arg2, value arg3) { \
 		CAMLparam4(loop, arg1, arg2, arg3); \
@@ -231,15 +249,35 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		value ret = handler ## _sync(req); \
 		uv_fs_req_cleanup(req); \
 		free(req); \
-		CAMLreturn(ret); \
+		UV_SUCCESS(ret); \
 	}
 
-/**
-	FIXME:
-		w_fs_read, w_fs_write, w_fs_read_sync, and w_fs_write_sync
-		have a signature different from libuv due to no struct passing support in
-		hashlink; currently only a single uv_buf_t can be passed at a time.
-**/
+CAMLprim value w_fs_read(value loop, value file, value buffer, value offset, value length, value position, value cb) {
+	CAMLparam5(loop, file, buffer, offset, length);
+	CAMLxparam2(position, cb);
+	UV_ALLOC_CHECK(req, uv_fs_t);
+	UV_REQ_DATA(req) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(req));
+	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));
+	UV_ERROR_CHECK_C(uv_fs_read((uv_loop_t *)loop, (uv_fs_t *)req, (uv_file)file, &buf, 1, Val_int(position), handle_fs_cb_int), free(req));
+	UV_SUCCESS_UNIT;
+}
+CAMLprim value w_fs_read_bytecode(value *argv, int argc) {
+	return w_fs_read(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+CAMLprim value w_fs_read_sync(value loop, value file, value buffer, value offset, value length, value position) {
+	CAMLparam5(loop, file, buffer, offset, length);
+	CAMLxparam1(position);
+	UV_ALLOC_CHECK(req, uv_fs_t);
+	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));
+	uv_buf_t bufs[1] = {buf};
+	UV_ERROR_CHECK_C(uv_fs_read((uv_loop_t *)loop, (uv_fs_t *)req, (uv_file)file, bufs, 1, Int_val(position), NULL), free(req));
+	UV_SUCCESS(handle_fs_cb_int_sync(req));
+}
+CAMLprim value w_fs_read_sync_bytecode(value *argv, int argc) {
+	return w_fs_read_sync(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
 	/*
 HL_PRIM void HL_NAME(w_fs_read)(uv_loop_t *loop, uv_file file, const uv_buf_t *buf, int32_t offset, vclosure *cb) {
 	UV_ALLOC_CHECK(req, uv_fs_t);
@@ -266,8 +304,7 @@ HL_PRIM int HL_NAME(w_fs_write_sync)(uv_loop_t *loop, uv_file file, const uv_buf
 	UV_ERROR_CHECK_C(uv_fs_write(loop, req, file, buf, 1, offset, NULL), free(req));
 	return handle_fs_cb_int_sync(req);
 }
-
-*/
+	*/
 FS_WRAP1(fs_close, (uv_file), handle_fs_cb);
 FS_WRAP3(fs_open, String_val, Int_val, Int_val, handle_fs_cb_file);
 FS_WRAP1(fs_unlink, String_val, handle_fs_cb);

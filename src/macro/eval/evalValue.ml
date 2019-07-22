@@ -97,6 +97,7 @@ type vuv_value =
 	| UvLoop of Uv.t_loop
 	| UvFile of Uv.t_file
 	| UvStat of Uv.t_stat
+	| UvDirent of (string * int)
 
 type value =
 	| VNull

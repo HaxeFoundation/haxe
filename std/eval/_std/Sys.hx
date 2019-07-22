@@ -92,5 +92,7 @@ class Sys {
 		// it into the interpreter, and then stderr() et. al. don't work.
 		var _ = (null : sys.io.FileOutput);
 		var _ = (null : sys.io.FileInput);
+
+		var _ = (null : haxe.Error);
 	}
 }

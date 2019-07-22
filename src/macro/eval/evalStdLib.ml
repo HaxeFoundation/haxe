@@ -3072,19 +3072,50 @@ module StdUv = struct
 	let loop_ref = ref None
 	let loop () = Option.get !loop_ref
 
+	(* Wrap a libuv error code *)
+	let wrap_error errno =
+		let key = path_hash (["haxe"],"Error") in
+		let ctx = get_ctx() in
+		let fnew = get_instance_constructor ctx key null_pos in
+		let proto = get_instance_prototype ctx key null_pos in
+		let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | _ -> exc_string "failure to throw error") in
+		let f = Lazy.force v in
+		let vthis = create_instance_direct proto INormal in
+		let vl = [vint errno] in
+		ignore(f (vthis :: vl));
+		vthis
+
+	let wrap_sync = function
+		| Uv.UvError err -> exc (wrap_error err)
+		| Uv.UvSuccess v -> v
+
 	(* Wrap a Haxe callback which will take no result *)
 	let wrap_cb_unit cb = (fun res ->
 		ignore (match res with
-			| Uv.CbError err -> call_value cb [encode_string err; vnull]
-			| Uv.CbSuccess () -> call_value cb [vnull; vnull])
+			| Uv.UvError err -> call_value cb [wrap_error err; vnull]
+			| Uv.UvSuccess () -> call_value cb [vnull; vnull])
 	)
 
 	(* Wrap a Haxe callback which will take a result, as encoded by `enc` *)
 	(*let wrap_cb cb enc = (fun res ->
-		match res with
-			| Uv.CbError err -> call_value cb [encode_string err; vnull]
-			| Uv.CbSuccess val -> call_value cb [vnull; enc val]
+		ignore (match res with
+			| Uv.UvError err -> call_value cb [encode_string err; vnull]
+			| Uv.UvSuccess val -> call_value cb [vnull; enc val])
 	)*)
+
+	module DirectoryEntry = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvDirent e)} -> e
+			| v -> unexpected_value v "UVDirent"
+		let get_name = vifun0 (fun vthis ->
+			let this = this vthis in
+			encode_string (fst this)
+		)
+		let get_type = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (snd this)
+		)
+	end
 
 	module Loop = struct
 		let this vthis = match vthis with
@@ -3092,40 +3123,308 @@ module StdUv = struct
 			| v -> unexpected_value v "UVLoop"
 	end
 
+	module Stat = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvStat l)} -> l
+			| v -> unexpected_value v "UVStat"
+		let get_dev = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.dev
+		)
+		let get_mode = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.kind
+		)
+		let get_nlink = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.nlink
+		)
+		let get_uid = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.uid
+		)
+		let get_gid = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.gid
+		)
+		let get_rdev = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.rdev
+		)
+		let get_ino = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.ino
+		)
+		let get_size = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (Int64.to_int this.size)
+		)
+		let get_blksize = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.blksize
+		)
+		let get_blocks = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.blocks
+		)
+		let get_flags = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.flags
+		)
+		let get_gen = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint this.gen
+		)
+		let isBlockDevice = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFBLK)
+		)
+		let isCharacterDevice = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFCHR)
+		)
+		let isDirectory = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFDIR)
+		)
+		let isFIFO = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFIFO)
+		)
+		let isFile = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFREG)
+		)
+		let isSocket = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFSOCK)
+		)
+		let isSymbolicLink = vifun0 (fun vthis ->
+			let this = this vthis in
+			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFLNK)
+		)
+	end
+
+	module File = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvFile f)} -> f
+			| v -> unexpected_value v "UVFile"
+		let chmod = vifun1 (fun vthis mode ->
+			let this = this vthis in
+			let mode = decode_int mode in
+			wrap_sync (Uv.fs_fchmod_sync (loop ()) this mode);
+			vnull
+		)
+		let chown = vifun2 (fun vthis uid gid ->
+			let this = this vthis in
+			let uid = decode_int uid in
+			let gid = decode_int gid in
+			wrap_sync (Uv.fs_fchown_sync (loop ()) this uid gid);
+			vnull
+		)
+		let close = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_close_sync (loop ()) this);
+			vnull
+		)
+		let datasync = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_fdatasync_sync (loop ()) this);
+			vnull
+		)
+		let read = vifun4 (fun vthis buffer_i offset length position ->
+			let this = this vthis in
+			let buffer = decode_bytes buffer_i in
+			let offset = decode_int offset in
+			let length = decode_int length in
+			let position = decode_int position in
+			if length <= 0 || offset < 0 || length + offset > (Bytes.length buffer) then
+				exc_string "invalid call";
+			let bytesRead = wrap_sync (Uv.fs_read_sync (loop ()) this buffer offset length position) in
+			encode_obj [key_bytesRead,vint bytesRead;key_buffer,buffer_i]
+		)
+		let stat = vifun0 (fun vthis ->
+			let this = this vthis in
+			let stat = wrap_sync (Uv.fs_fstat_sync (loop ()) this) in
+			encode_instance key_eval_uv_Stat ~kind:(IUv (UvStat stat))
+		)
+		let sync = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_fsync_sync (loop ()) this);
+			vnull
+		)
+		let truncate = vifun1 (fun vthis len ->
+			let this = this vthis in
+			let len = decode_int len in
+			wrap_sync (Uv.fs_ftruncate_sync (loop ()) this (Int64.of_int len));
+			vnull
+		)
+		let utimes_native = vifun2 (fun vthis atime mtime ->
+			let this = this vthis in
+			let atime = decode_float atime in
+			let mtime = decode_float mtime in
+			wrap_sync (Uv.fs_futime_sync (loop ()) this atime mtime);
+			vnull
+		)
+	end
+
 	module FileSystem = struct
 		let access = vfun2 (fun path mode ->
 			let path = decode_string path in
+			let mode = default_int mode 0 in
+			wrap_sync (Uv.fs_access_sync (loop ()) path mode);
+			vnull
+		)
+		let chmod = vfun3 (fun path mode followSymLinks ->
+			let path = decode_string path in
 			let mode = decode_int mode in
-			Uv.fs_access_sync (loop ()) path 0;
+			let followSymLinks = decode_bool followSymLinks in
+			(if followSymLinks then
+				wrap_sync (Uv.fs_chmod_sync (loop ()) path mode)
+			else
+				exc_string "not implemented");
+			vnull
+		)
+		let chown = vfun4 (fun path uid gid followSymLinks ->
+			let path = decode_string path in
+			let uid = decode_int uid in
+			let gid = decode_int gid in
+			let followSymLinks = decode_bool followSymLinks in
+			(if followSymLinks then
+				wrap_sync (Uv.fs_chown_sync (loop ()) path uid gid)
+			else
+				exc_string "not implemented");
 			vnull
 		)
 		let exists = vfun1 (fun path ->
 			let path = decode_string path in
 			try
-				Uv.fs_access_sync (loop ()) path 0;
+				wrap_sync (Uv.fs_access_sync (loop ()) path 0);
 				vtrue
 			with _ ->
 				vfalse
+		)
+		let link = vfun2 (fun existingPath newPath ->
+			let existingPath = decode_string existingPath in
+			let newPath = decode_string newPath in
+			wrap_sync (Uv.fs_link_sync (loop ()) existingPath newPath);
+			vnull
+		)
+		let mkdir_native = vfun2 (fun path mode ->
+			let path = decode_string path in
+			let mode = decode_int mode in
+			wrap_sync (Uv.fs_mkdir_sync (loop ()) path mode);
+			vnull
+		)
+		let mkdtemp = vfun1 (fun prefix ->
+			let prefix = decode_string prefix in
+			let res = wrap_sync (Uv.fs_mkdtemp_sync (loop ()) prefix) in
+			encode_string res
+		)
+		let open_ = vfun4 (fun path flags mode binary ->
+			let path = decode_string path in
+			let flags = default_int flags 0 in
+			let mode = default_int mode 0o666 in
+			(*let binary = default_bool binary true in*)
+			let handle = wrap_sync (Uv.fs_open_sync (loop ()) path 2 mode) in
+			encode_instance key_nusys_io_File ~kind:(IUv (UvFile handle))
+		)
+		let readdirTypes = vfun1 (fun path ->
+			let path = decode_string path in
+			let entries = wrap_sync (Uv.fs_scandir_sync (loop ()) path 0) in
+			encode_array (List.map (fun e -> encode_instance key_eval_uv_DirectoryEntry ~kind:(IUv (UvDirent e))) entries)
+		)
+		let readlink = vfun1 (fun path ->
+			let path = decode_string path in
+			let res = wrap_sync (Uv.fs_readlink_sync (loop ()) path) in
+			encode_string res
+		)
+		let realpath = vfun1 (fun path ->
+			let path = decode_string path in
+			let res = wrap_sync (Uv.fs_realpath_sync (loop ()) path) in
+			encode_string res
+		)
+		let rename = vfun2 (fun oldPath newPath ->
+			let oldPath = decode_string oldPath in
+			let newPath = decode_string newPath in
+			wrap_sync (Uv.fs_rename_sync (loop ()) oldPath newPath);
+			vnull
+		)
+		let rmdir = vfun1 (fun path ->
+			let path = decode_string path in
+			wrap_sync (Uv.fs_rmdir_sync (loop ()) path);
+			vnull
+		)
+		let stat = vfun2 (fun path followSymLinks ->
+			let path = decode_string path in
+			let followSymLinks = default_bool followSymLinks true in
+			let stat = wrap_sync (if followSymLinks then
+				Uv.fs_stat_sync (loop ()) path
+			else
+				Uv.fs_lstat_sync (loop ()) path) in
+			encode_instance key_eval_uv_Stat ~kind:(IUv (UvStat stat))
+		)
+		let symlink = vfun3 (fun target newPath tp ->
+			let target = decode_string target in
+			let newPath = decode_string newPath in
+			let tp = decode_int tp in
+			wrap_sync (Uv.fs_symlink_sync (loop ()) target newPath tp);
+			vnull
+		)
+		let unlink = vfun1 (fun path ->
+			let path = decode_string path in
+			wrap_sync (Uv.fs_unlink_sync (loop ()) path);
+			vnull
+		)
+		let utimes_native = vfun3 (fun path atime mtime ->
+			let path = decode_string path in
+			let atime = decode_float atime in
+			let mtime = decode_float mtime in
+			wrap_sync (Uv.fs_utime_sync (loop ()) path atime mtime);
+			vnull
 		)
 	end
 
 	module AsyncFileSystem = struct
 		let access = vfun3 (fun path mode cb ->
 			let path = decode_string path in
-			(*let mode = decode_int mode in*)
-			Uv.fs_access (loop ()) path 0 (wrap_cb_unit cb);
+			let mode = default_int mode 0 in
+			(try Uv.fs_access (loop ()) path mode (wrap_cb_unit cb)
+				with Failure err -> exc_string err);
+			vnull
+		)
+		let exists = vfun2 (fun path cb ->
+			let path = decode_string path in
+			(try Uv.fs_access (loop ()) path 0 (fun res ->
+				ignore (match res with
+					| Uv.UvError err -> call_value cb [vnull; vfalse]
+					| Uv.UvSuccess () -> call_value cb [vnull; vtrue])
+				)
+				with Failure err -> exc_string err);
+			vnull
+		)
+		let readdirTypes = vfun2 (fun path cb ->
+			let path = decode_string path in
+			(try Uv.fs_scandir (loop ()) path 0 (fun res ->
+				ignore (match res with
+					| Uv.UvError err -> call_value cb [vnull; vfalse]
+					| Uv.UvSuccess entries ->
+						let entries = encode_array (List.map (fun e -> encode_instance key_eval_uv_DirectoryEntry ~kind:(IUv (UvDirent e))) entries) in
+						call_value cb [vnull; entries])
+				)
+				with Failure err -> exc_string err);
 			vnull
 		)
 	end
 
 	let init = vfun0 (fun () ->
-		loop_ref := Some (Uv.loop_init ());
+		loop_ref := Some (wrap_sync (Uv.loop_init ()));
 		(*encode_instance key_eval_uv_Loop ~kind:(IUv (UvLoop (Uv.loop_init ())))*)
 		vnull
 	)
 
 	let run = vfun0 (fun () ->
-		Uv.run (loop ()) 0;
+		ignore (wrap_sync (Uv.run (loop ()) 0));
 		vnull
 	)
 end
@@ -3730,12 +4029,65 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"uv"],"File") [] [];
 	init_fields builtins (["eval"],"Uv") [
 		"init",StdUv.init;
-		"run",StdUv.run
+		"run",StdUv.run;
 	] [];
 	init_fields builtins (["nusys"],"FileSystem") [
 		"access",StdUv.FileSystem.access;
-		"exists",StdUv.FileSystem.exists
+		"chmod",StdUv.FileSystem.chmod;
+		"chown",StdUv.FileSystem.chown;
+		"exists",StdUv.FileSystem.exists;
+		"link",StdUv.FileSystem.link;
+		"mkdir_native",StdUv.FileSystem.mkdir_native;
+		"mkdtemp",StdUv.FileSystem.mkdtemp;
+		"open",StdUv.FileSystem.open_;
+		"readdirTypes",StdUv.FileSystem.readdirTypes;
+		"readlink",StdUv.FileSystem.readlink;
+		"realpath",StdUv.FileSystem.realpath;
+		"rename",StdUv.FileSystem.rename;
+		"rmdir",StdUv.FileSystem.rmdir;
+		"stat",StdUv.FileSystem.stat;
+		"symlink",StdUv.FileSystem.symlink;
+		"unlink",StdUv.FileSystem.unlink;
+		"utimes_native",StdUv.FileSystem.utimes_native;
 	] [];
 	init_fields builtins (["nusys";"async"],"FileSystem") [
-		"access",StdUv.AsyncFileSystem.access
-	] []
+		"access",StdUv.AsyncFileSystem.access;
+		"exists",StdUv.AsyncFileSystem.exists;
+		"readdirTypes",StdUv.AsyncFileSystem.readdirTypes;
+	] [];
+	init_fields builtins (["nusys";"io"],"File") [] [
+		"chmod",StdUv.File.chmod;
+		"chown",StdUv.File.chown;
+		"close",StdUv.File.close;
+		"datasync",StdUv.File.datasync;
+		"read",StdUv.File.read;
+		"stat",StdUv.File.stat;
+		"sync",StdUv.File.sync;
+		"truncate",StdUv.File.truncate;
+		"utimes_native",StdUv.File.utimes_native;
+	];
+	init_fields builtins (["eval";"uv"],"DirectoryEntry") [] [
+		"get_name",StdUv.DirectoryEntry.get_name;
+		"get_type",StdUv.DirectoryEntry.get_type;
+	];
+	init_fields builtins (["eval";"uv"],"Stat") [] [
+		"get_dev",StdUv.Stat.get_dev;
+		"get_mode",StdUv.Stat.get_mode;
+		"get_nlink",StdUv.Stat.get_nlink;
+		"get_uid",StdUv.Stat.get_uid;
+		"get_gid",StdUv.Stat.get_gid;
+		"get_rdev",StdUv.Stat.get_rdev;
+		"get_ino",StdUv.Stat.get_ino;
+		"get_size",StdUv.Stat.get_size;
+		"get_blksize",StdUv.Stat.get_blksize;
+		"get_blocks",StdUv.Stat.get_blocks;
+		"get_flags",StdUv.Stat.get_flags;
+		"get_gen",StdUv.Stat.get_gen;
+		"isBlockDevice",StdUv.Stat.isBlockDevice;
+		"isCharacterDevice",StdUv.Stat.isCharacterDevice;
+		"isDirectory",StdUv.Stat.isDirectory;
+		"isFIFO",StdUv.Stat.isFIFO;
+		"isFile",StdUv.Stat.isFile;
+		"isSocket",StdUv.Stat.isSocket;
+		"isSymbolicLink",StdUv.Stat.isSymbolicLink;
+	];

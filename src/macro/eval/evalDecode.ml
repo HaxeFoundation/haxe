@@ -80,15 +80,17 @@ let decode_bool v = match v with
 	| VFalse -> false
 	| _ -> unexpected_value v "bool"
 
-let decode_func v = match v with
-	| VFunction (f, _) -> f
-	| _ -> unexpected_value v "function"
-
 let default_int v vd = match v with
 	| VNull -> vd
 	| VInt32 i -> Int32.to_int i
 	| VFloat f -> int_of_float f
 	| _ -> unexpected_value v "int"
+
+let default_bool v vd = match v with
+	| VNull -> vd
+	| VTrue -> true
+	| VFalse -> false
+	| _ -> unexpected_value v "bool"
 
 let decode_unsafe v = match v with
 	| VInstance {ikind = IRef o} -> o
