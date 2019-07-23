@@ -928,7 +928,7 @@
 	{
 		"name": "Property",
 		"metadata": ":property",
-		"doc": "Marks a property field to be compiled as a native C# property.",
+		"doc": "Marks a field to be compiled as a native C# property.",
 		"platforms": ["cs"],
 		"targets": ["TClassField"]
 	},
