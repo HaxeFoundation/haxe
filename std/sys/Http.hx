@@ -63,6 +63,7 @@ class Http extends haxe.http.HttpBase {
 			onError = old;
 			onError(e);
 		}
+		post = post || postBytes != null || postData != null;
 		customRequest(post, output);
 		if (!err) {
 			success(output.getBytes());
