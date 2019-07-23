@@ -127,3 +127,4 @@ tests/benchs/dump/
 tests/display/.unittest/
 tests/unit/.unittest/
 tests/threads/export/
+tests/echoServer/bin
