@@ -365,6 +365,26 @@ let check_unification ctx e t =
 	end;
 	e
 
+let rec fix_return_dynamic_from_void_function ctx return_is_void e =
+	match e.eexpr with
+	| TFunction fn ->
+		let is_void = ExtType.is_void (follow fn.tf_type) in
+		let body = fix_return_dynamic_from_void_function ctx is_void fn.tf_expr in
+		{ e with eexpr = TFunction { fn with tf_expr = body } }
+	| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
+		let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
+		let exprs = [
+			fix_return_dynamic_from_void_function ctx return_is_void return_expr;
+			{ e with eexpr = TReturn None; epos = return_pos };
+		] in
+		{ e with
+			eexpr = TMeta (
+				(Meta.MergeBlock, [], null_pos),
+				mk (TBlock exprs) e.etype e.epos
+			);
+		}
+	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -816,6 +836,7 @@ let run com tctx main =
 	List.iter (run_expression_filters tctx filters) new_types;
 	t();
 	let filters = [
+		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
