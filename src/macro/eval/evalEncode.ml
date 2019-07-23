@@ -248,6 +248,13 @@ let encode_pos p =
 		ikind = IPos p;
 	}
 
+let encode_current_pos () =
+	let ctx = get_ctx () in
+	let eval = get_eval ctx in
+	encode_pos (match eval.env with
+		| None -> null_pos
+		| Some env -> { pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax })
+
 let encode_lazytype t f =
 	vinstance {
 		ifields = [||];
@@ -290,3 +297,13 @@ let encode_lazy f =
 		v
 	) in
 	VLazy r
+
+let encode_constructed tp vl =
+	let key = path_hash tp in
+	let ctx = get_ctx () in
+	let fnew = get_instance_constructor ctx key null_pos in
+	let proto = get_instance_prototype ctx key null_pos in
+	let f = (match Lazy.force fnew with VFunction (f,_) -> f | _ -> exc_string "cannot construct") in
+	let vthis = create_instance_direct proto INormal in
+	ignore (f (vthis :: vl));
+	vthis

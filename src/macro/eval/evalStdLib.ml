@@ -3074,16 +3074,7 @@ module StdUv = struct
 
 	(* Wrap a libuv error code *)
 	let wrap_error errno =
-		let key = path_hash (["haxe"],"Error") in
-		let ctx = get_ctx() in
-		let fnew = get_instance_constructor ctx key null_pos in
-		let proto = get_instance_prototype ctx key null_pos in
-		let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | _ -> exc_string "failure to throw error") in
-		let f = Lazy.force v in
-		let vthis = create_instance_direct proto INormal in
-		let vl = [vint errno] in
-		ignore(f (vthis :: vl));
-		vthis
+		encode_constructed (["haxe"],"Error") [encode_enum_value key_haxe_ErrorType 0 [|vint errno|] None; encode_current_pos ()]
 
 	let wrap_sync = function
 		| Uv.UvError err -> exc (wrap_error err)
