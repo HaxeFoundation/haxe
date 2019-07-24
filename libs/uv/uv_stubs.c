@@ -27,15 +27,30 @@
 // access the data of a handle or request
 #define UV_HANDLE_DATA(h) (((uv_handle_t *)(h))->data)
 #define UV_HANDLE_DATA_A(h) ((value *)(&UV_HANDLE_DATA(h)))
-#define UV_HANDLE_DATA_SUB(h, t) ((t *)((uv_handle_t *)(h))->data)
 #define UV_REQ_DATA(r) (((uv_req_t *)(r))->data)
 #define UV_REQ_DATA_A(r) ((value *)(&UV_REQ_DATA(r)))
 
 // malloc a single value of the given type
 #define UV_ALLOC(t) ((t *)malloc(sizeof(t)))
 
-// unwrap an abstract block
+// unwrap an abstract block (see UV_ALLOC_CHECK notes below)
 #define UV_UNWRAP(v, t) ((t *)Field(v, 0))
+
+/**
+	OCaml requires a two-method implementation for any function that takes 6 or
+	more arguments. The "bytecode" part receives an array and simply forwards it
+	to the "native" part (assuming no unboxed calls). These macros define the
+	bytecode part for the given function.
+**/
+
+#define BC_WRAP6(name) \
+	CAMLprim value name ## _bytecode(value *argv, int argc) { \
+		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]); \
+	}
+#define BC_WRAP7(name) \
+	CAMLprim value name ## _bytecode(value *argv, int argc) { \
+		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]); \
+	}
 
 // ------------- ERROR HANDLING -------------------------------------
 
@@ -130,6 +145,10 @@ CAMLprim value w_stop(value loop) {
 
 // ------------- FILESYSTEM -----------------------------------------
 
+// (no-op) typecast to juggle value and uv_file (which is an unboxed integer)
+#define Val_file(f) ((value)(f))
+#define File_val(v) ((uv_file)(v))
+
 /**
 	FS handlers all have the same structure.
 
@@ -164,9 +183,6 @@ CAMLprim value w_stop(value loop) {
 		do setup while (0); \
 		CAMLreturn(value2); \
 	}
-
-#define Val_file(f) ((value)(f))
-#define File_val(v) ((uv_file)(v))
 
 UV_FS_HANDLER(handle_fs_cb, value2 = Val_unit;);
 UV_FS_HANDLER(handle_fs_cb_bytes, value2 = caml_copy_string((const char *)req->ptr););
@@ -212,13 +228,23 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		}
 	});
 
-#define FS_WRAP(name, sign, locals, call, handler) \
+/**
+	Most FS functions from libuv can be wrapped with FS_WRAP (or one of the
+	FS_WRAP# variants defined below) - create a request, register a callback for
+	it, register the callback with the GC, perform request. Then, either in the
+	handler function (synchronous or asynchronous), the result is checked and
+	given to the OCaml callback if successful, with the appropriate value
+	conversions done, as defined in the various UV_FS_HANDLERs above.
+**/
+
+#define FS_WRAP(name, sign, locals, precall, call, handler) \
 	CAMLprim value w_ ## name(value loop, sign, value cb) { \
 		CAMLparam2(loop, cb); \
 		locals; \
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		UV_REQ_DATA(UV_UNWRAP(req, uv_fs_t)) = (void *)cb; \
 		caml_register_global_root(UV_REQ_DATA_A(UV_UNWRAP(req, uv_fs_t))); \
+		precall \
 		UV_ERROR_CHECK_C(uv_ ## name(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(req, uv_fs_t), call, handler), free(UV_UNWRAP(req, uv_fs_t))); \
 		UV_SUCCESS_UNIT; \
 	} \
@@ -227,6 +253,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		locals; \
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
+		precall \
 		UV_ERROR_CHECK_C(uv_ ## name(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(req, uv_fs_t), call, NULL), free(UV_UNWRAP(req, uv_fs_t))); \
 		UV_ERROR_CHECK_C(UV_UNWRAP(req, uv_fs_t)->result, { uv_fs_req_cleanup(UV_UNWRAP(req, uv_fs_t)); free(UV_UNWRAP(req, uv_fs_t)); }); \
 		CAMLlocal1(ret); \
@@ -238,62 +265,15 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 
 #define COMMA ,
 #define FS_WRAP1(name, arg1conv, handler) \
-	FS_WRAP(name, value arg1, CAMLxparam1(arg1), arg1conv(arg1), handler)
+	FS_WRAP(name, value arg1, CAMLxparam1(arg1), , arg1conv(arg1), handler);
 #define FS_WRAP2(name, arg1conv, arg2conv, handler) \
-	FS_WRAP(name, value arg1 COMMA value arg2, CAMLxparam2(arg1, arg2), arg1conv(arg1) COMMA arg2conv(arg2), handler)
+	FS_WRAP(name, value arg1 COMMA value arg2, CAMLxparam2(arg1, arg2), , arg1conv(arg1) COMMA arg2conv(arg2), handler);
 #define FS_WRAP3(name, arg1conv, arg2conv, arg3conv, handler) \
-	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3, CAMLxparam3(arg1, arg2, arg3), arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3), handler)
+	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3, CAMLxparam3(arg1, arg2, arg3), , arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3), handler);
 #define FS_WRAP4(name, arg1conv, arg2conv, arg3conv, arg4conv, handler) \
-	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3 COMMA value arg4, CAMLxparam4(arg1, arg2, arg3, arg4), arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3) COMMA arg4conv(arg4), handler) \
-	CAMLprim value w_ ## name ## _bytecode(value *argv, int argc) { \
-		return w_ ## name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]); \
-	}
+	FS_WRAP(name, value arg1 COMMA value arg2 COMMA value arg3 COMMA value arg4, CAMLxparam4(arg1, arg2, arg3, arg4), , arg1conv(arg1) COMMA arg2conv(arg2) COMMA arg3conv(arg3) COMMA arg4conv(arg4), handler); \
+	BC_WRAP6(w_ ## name);
 
-CAMLprim value w_fs_read(value loop, value file, value buffer, value offset, value length, value position, value cb) {
-	CAMLparam5(loop, file, buffer, offset, length);
-	CAMLxparam2(position, cb);
-	UV_ALLOC_CHECK(req, uv_fs_t);
-	UV_REQ_DATA(req) = (void *)cb;
-	caml_register_global_root(UV_REQ_DATA_A(req));
-	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));
-	UV_ERROR_CHECK_C(uv_fs_read((uv_loop_t *)loop, UV_UNWRAP(req, uv_fs_t), File_val(file), &buf, 1, Int_val(position), handle_fs_cb_int), free(UV_UNWRAP(req, uv_fs_t)));
-	UV_SUCCESS_UNIT;
-}
-CAMLprim value w_fs_read_bytecode(value *argv, int argc) {
-	return w_fs_read(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
-}
-
-CAMLprim value w_fs_read_sync(value loop, value file, value buffer, value offset, value length, value position) {
-	CAMLparam5(loop, file, buffer, offset, length);
-	CAMLxparam1(position);
-	UV_ALLOC_CHECK(req, uv_fs_t);
-	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));
-	uv_buf_t bufs[1] = {buf};
-	UV_ERROR_CHECK_C(uv_fs_read((uv_loop_t *)loop, UV_UNWRAP(req, uv_fs_t), File_val(file), bufs, 1, Int_val(position), NULL), free(UV_UNWRAP(req, uv_fs_t)));
-	CAMLlocal1(ret);
-	ret = handle_fs_cb_int_sync(UV_UNWRAP(req, uv_fs_t));
-	uv_fs_req_cleanup(UV_UNWRAP(req, uv_fs_t));
-	free(UV_UNWRAP(req, uv_fs_t));
-	UV_SUCCESS(ret);
-}
-CAMLprim value w_fs_read_sync_bytecode(value *argv, int argc) {
-	return w_fs_read_sync(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
-}
-	/*
-
-HL_PRIM void HL_NAME(w_fs_write)(uv_loop_t *loop, uv_file file, const uv_buf_t *buf, int32_t offset, vclosure *cb) {
-	UV_ALLOC_CHECK(req, uv_fs_t);
-	UV_REQ_DATA(req) = (void *)cb;
-	UV_ERROR_CHECK_C(uv_fs_write(loop, req, file, buf, 1, offset, handle_fs_cb_int), free(req));
-	hl_add_root(UV_REQ_DATA(req));
-}
-
-HL_PRIM int HL_NAME(w_fs_write_sync)(uv_loop_t *loop, uv_file file, const uv_buf_t *buf, int32_t offset) {
-	UV_ALLOC_CHECK(req, uv_fs_t);
-	UV_ERROR_CHECK_C(uv_fs_write(loop, req, file, buf, 1, offset, NULL), free(req));
-	return handle_fs_cb_int_sync(req);
-}
-	*/
 FS_WRAP1(fs_close, File_val, handle_fs_cb);
 FS_WRAP3(fs_open, String_val, Int_val, Int_val, handle_fs_cb_file);
 FS_WRAP1(fs_unlink, String_val, handle_fs_cb);
@@ -320,6 +300,33 @@ FS_WRAP1(fs_readlink, String_val, handle_fs_cb_bytes);
 FS_WRAP1(fs_realpath, String_val, handle_fs_cb_bytes);
 FS_WRAP3(fs_chown, String_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
 FS_WRAP3(fs_fchown, File_val, (uv_uid_t)Int_val, (uv_gid_t)Int_val, handle_fs_cb);
+
+/**
+	`fs_read` and `fs_write` require a tiny bit of setup just before the libuv
+	request is actually started; namely, a buffer structure needs to be set up,
+	which is simply a wrapper of a pointer to the OCaml bytes value.
+
+	libuv actually supports multiple buffers in both calls, but this is not
+	mirrored in the Haxe API, so only a single-buffer call is used.
+**/
+
+FS_WRAP(fs_read,
+	value file COMMA value buffer COMMA value offset COMMA value length COMMA value position,
+	CAMLxparam5(file, buffer, offset, length, position),
+	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));,
+	File_val(file) COMMA &buf COMMA 1 COMMA Int_val(position),
+	handle_fs_cb_int);
+BC_WRAP7(w_fs_read);
+BC_WRAP6(w_fs_read_sync);
+
+FS_WRAP(fs_write,
+	value file COMMA value buffer COMMA value offset COMMA value length COMMA value position,
+	CAMLxparam5(file, buffer, offset, length, position),
+	uv_buf_t buf = uv_buf_init(&Byte(buffer, Int_val(offset)), Int_val(length));,
+	File_val(file) COMMA &buf COMMA 1 COMMA Int_val(position),
+	handle_fs_cb_int);
+BC_WRAP7(w_fs_write);
+BC_WRAP6(w_fs_write_sync);
 
 // ------------- FILESYSTEM EVENTS ----------------------------------
 
@@ -352,9 +359,6 @@ CAMLprim value w_fs_event_start(value loop, value path, value persistent, value 
 	if (!Bool_val(persistent))
 		uv_unref(UV_UNWRAP(handle, uv_handle_t));
 	UV_SUCCESS(handle);
-}
-CAMLprim value w_fs_event_start_bytecode(value *argv, int argc) {
-	return w_fs_event_start(argv[0], argv[1], argv[2], argv[3], argv[4]);
 }
 
 CAMLprim value w_fs_event_stop(value handle) {

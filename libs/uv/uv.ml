@@ -162,5 +162,5 @@ external fs_utime_sync : t_loop -> string -> float -> float -> unit uv_result = 
 
 type fs_event_cb = (string * int) uv_result -> unit
 
-external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start_bytecode" "w_fs_event_start"
+external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start"
 external fs_event_stop : t_fs_event -> unit uv_result = "w_fs_event_stop"
