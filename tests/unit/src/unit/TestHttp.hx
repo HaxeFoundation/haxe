@@ -6,6 +6,7 @@ class TestHttp extends Test {
 	public function setupClass() {
 		#if flash
 		flash.system.Security.allowDomain("*");
+		flash.system.Security.allowInsecureDomain("*");
 		flash.system.Security.loadPolicyFile("http://localhost:20200/crossdomain.xml");
 		#end
 	}
@@ -21,6 +22,7 @@ class TestHttp extends Test {
 		test();
 	}
 
+	@:timeout(1000)
 	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';
 		var d = new haxe.Http('http://localhost:20200/echoServer.n');
@@ -39,6 +41,7 @@ class TestHttp extends Test {
 		d.request();
 	});
 
+	@:timeout(1000)
 	public function testPostBytes(async:Async) run(async, () -> {
 		var srcData = haxe.io.Bytes.alloc(#if lua 128 #else 256 #end);
 		for(i in 0...srcData.length) {
