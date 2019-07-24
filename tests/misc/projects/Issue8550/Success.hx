@@ -1,4 +1,4 @@
-class Fail {
+class Success {
 	static function main() {
 		trace(Int);
 	}
