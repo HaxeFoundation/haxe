@@ -1549,9 +1549,13 @@ module Match = struct
 			| None -> cases
 			| Some (eo,p) -> cases @ [[EConst (Ident "_"),p],None,eo,p]
 		in
-		let tmono,with_type = match with_type with
-			| WithType.WithType(t,_) -> (match follow t with TMono _ -> Some t,WithType.value | _ -> None,with_type)
-			| _ -> None,with_type
+		let tmono,with_type,allow_min_void = match with_type with
+			| WithType.WithType(t,src) ->
+				(match follow t, src with
+				| TMono _, Some ImplicitReturn -> Some t, WithType.Value src, true
+				| TMono _, _ -> Some t,WithType.value,false
+				| _ -> None,with_type,false)
+			| _ -> None,with_type,false
 		in
 		let cases = List.map (fun (el,eg,eo,p) ->
 			let p = match eo with Some e when p = null_pos -> pos e | _ -> p in
@@ -1580,7 +1584,8 @@ module Match = struct
 								(* If we have no block we have to use the `case pattern` position because that's all we have. *)
 								mk (TBlock []) ctx.t.tvoid case.Case.case_pos
 						) cases in
-						unify_min ctx el
+						if allow_min_void then unify_min_for_type_source ctx el (Some WithType.ImplicitReturn)
+						else unify_min ctx el
 					end
 				| WithType.WithType(t,_) -> t
 		in
