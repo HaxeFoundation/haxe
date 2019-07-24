@@ -40,9 +40,9 @@ class TestHttp extends Test {
 	});
 
 	public function testPostBytes(async:Async) run(async, () -> {
-		var srcData = haxe.io.Bytes.alloc(100);
+		var srcData = haxe.io.Bytes.alloc(#if lua 128 #else 256 #end);
 		for(i in 0...srcData.length) {
-			srcData.set(i, Std.random(256));
+			srcData.set(i, i);
 		}
 		var d = new haxe.Http('http://localhost:20200/echoServer.n');
 		d.onBytes = echoData -> {
@@ -50,8 +50,11 @@ class TestHttp extends Test {
 				assert('Binary data from Http request is corrupted. Wrong amount of bytes.');
 			}
 			for(i in 0...echoData.length) {
-				if(srcData.get(i) != echoData.get(i)) {
-					assert('Binary data from Http request is corrupted. Invalid byte value at index #$i.');
+				switch [srcData.get(i), echoData.get(i)] {
+					case [a, b] if(a != b):
+						assert('Binary data from Http request is corrupted. Invalid byte value at index #$i: (src) $a != $b (echo)');
+						break;
+					case _:
 				}
 			}
 			noAssert();
