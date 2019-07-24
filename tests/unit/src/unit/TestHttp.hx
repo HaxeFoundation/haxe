@@ -45,9 +45,12 @@ class TestHttp extends Test {
 		}
 		var d = new haxe.Http('http://localhost:20200/echoServer.n');
 		d.onBytes = echoData -> {
+			if(srcData.length != echoData.length) {
+				assert('Binary data from Http request is corrupted. Wrong amount of bytes.');
+			}
 			for(i in 0...echoData.length) {
 				if(srcData.get(i) != echoData.get(i)) {
-					assert('Binary data from Http request is corrupted');
+					assert('Binary data from Http request is corrupted. Invalid byte value at index #$i.');
 				}
 			}
 			noAssert();
