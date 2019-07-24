@@ -385,6 +385,17 @@ let rec fix_return_dynamic_from_void_function ctx return_is_void e =
 		}
 	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
 
+let check_abstract_as_value e =
+	let rec loop e =
+		match e.eexpr with
+		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
+		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+			error "Cannot use abstract as value" e.epos
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -838,6 +849,7 @@ let run com tctx main =
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
+		check_abstract_as_value;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;
