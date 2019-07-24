@@ -1,14 +1,3 @@
-(* ------------- CONSTANTS ------------------------------------------ *)
-
-let s_IFMT = 0xF000
-let s_IFBLK = 0x6000
-let s_IFCHR = 0x2000
-let s_IFDIR = 0x4000
-let s_IFIFO = 0x1000
-let s_IFLNK = 0xA000
-let s_IFREG = 0x8000
-let s_IFSOCK = 0xC000
-
 (* ------------- TYPES ---------------------------------------------- *)
 
 (* Handle types *)
@@ -59,8 +48,7 @@ type t_buf
 
 type t_stat = {
 	dev: int;
-	kind: int;
-	perm: int;
+	mode: int;
 	nlink: int;
 	uid: int;
 	gid: int;
@@ -129,6 +117,7 @@ external fs_stat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_stat"
 external fs_symlink : t_loop -> string -> string -> int -> fs_cb -> unit = "w_fs_symlink"
 external fs_unlink : t_loop -> string -> fs_cb -> unit = "w_fs_unlink"
 external fs_utime : t_loop -> string -> float -> float -> fs_cb -> unit = "w_fs_utime"
+external fs_write : t_loop -> t_file -> bytes -> int -> int -> int -> fs_cb_int -> unit = "w_fs_write_bytecode" "w_fs_write"
 
 external fs_access_sync : t_loop -> string -> int -> unit uv_result = "w_fs_access_sync"
 external fs_chmod_sync : t_loop -> string -> int -> unit uv_result = "w_fs_chmod_sync"
@@ -157,6 +146,7 @@ external fs_stat_sync : t_loop -> string -> t_stat uv_result = "w_fs_stat_sync"
 external fs_symlink_sync : t_loop -> string -> string -> int -> unit uv_result = "w_fs_symlink_sync"
 external fs_unlink_sync : t_loop -> string -> unit uv_result = "w_fs_unlink_sync"
 external fs_utime_sync : t_loop -> string -> float -> float -> unit uv_result = "w_fs_utime_sync"
+external fs_write_sync : t_loop -> t_file -> bytes -> int -> int -> int -> int uv_result = "w_fs_write_sync_bytecode" "w_fs_write_sync"
 
 (* ------------- FILESYSTEM EVENTS ---------------------------------- *)
 

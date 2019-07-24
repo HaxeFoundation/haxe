@@ -3133,12 +3133,8 @@ module StdUv = struct
 				let this = this vthis in
 				vint (f this)
 			)
-		let check_mode c = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = c)
-		)
 		let get_dev = int_getter (fun this -> this.dev)
-		let get_mode = int_getter (fun this -> this.kind)
+		let get_mode = int_getter (fun this -> this.mode)
 		let get_nlink = int_getter (fun this -> this.nlink)
 		let get_uid = int_getter (fun this -> this.uid)
 		let get_gid = int_getter (fun this -> this.gid)
@@ -3149,13 +3145,6 @@ module StdUv = struct
 		let get_blocks = int_getter (fun this -> this.blocks)
 		let get_flags = int_getter (fun this -> this.flags)
 		let get_gen = int_getter (fun this -> this.gen)
-		let isBlockDevice = check_mode Uv.s_IFBLK
-		let isCharacterDevice = check_mode Uv.s_IFCHR
-		let isDirectory = check_mode Uv.s_IFDIR
-		let isFIFO = check_mode Uv.s_IFIFO
-		let isFile = check_mode Uv.s_IFREG
-		let isSocket = check_mode Uv.s_IFSOCK
-		let isSymbolicLink = check_mode Uv.s_IFLNK
 	end
 
 	module File = struct
@@ -3219,6 +3208,17 @@ module StdUv = struct
 			wrap_sync (Uv.fs_futime_sync (loop ()) this atime mtime);
 			vnull
 		)
+		let write = vifun4 (fun vthis buffer_i offset length position ->
+			let this = this vthis in
+			let buffer = decode_bytes buffer_i in
+			let offset = decode_int offset in
+			let length = decode_int length in
+			let position = decode_int position in
+			if length <= 0 || offset < 0 || length + offset > (Bytes.length buffer) then
+				exc_string "invalid call";
+			let bytesWritten = wrap_sync (Uv.fs_write_sync (loop ()) this buffer offset length position) in
+			encode_obj [key_bytesWritten,vint bytesWritten;key_buffer,buffer_i]
+		)
 	end
 
 	module FileSystem = struct
@@ -3231,7 +3231,7 @@ module StdUv = struct
 		let chmod = vfun3 (fun path mode followSymLinks ->
 			let path = decode_string path in
 			let mode = decode_int mode in
-			let followSymLinks = decode_bool followSymLinks in
+			let followSymLinks = default_bool followSymLinks true in
 			(if followSymLinks then
 				wrap_sync (Uv.fs_chmod_sync (loop ()) path mode)
 			else
@@ -4031,6 +4031,7 @@ let init_standard_library builtins =
 		"sync",StdUv.File.sync;
 		"truncate",StdUv.File.truncate;
 		"utimes_native",StdUv.File.utimes_native;
+		"write",StdUv.File.write;
 	];
 	init_fields builtins (["eval";"uv"],"DirectoryEntry") [] [
 		"get_name",StdUv.DirectoryEntry.get_name;
@@ -4052,11 +4053,4 @@ let init_standard_library builtins =
 		"get_blocks",StdUv.Stat.get_blocks;
 		"get_flags",StdUv.Stat.get_flags;
 		"get_gen",StdUv.Stat.get_gen;
-		"isBlockDevice",StdUv.Stat.isBlockDevice;
-		"isCharacterDevice",StdUv.Stat.isCharacterDevice;
-		"isDirectory",StdUv.Stat.isDirectory;
-		"isFIFO",StdUv.Stat.isFIFO;
-		"isFile",StdUv.Stat.isFile;
-		"isSocket",StdUv.Stat.isSocket;
-		"isSymbolicLink",StdUv.Stat.isSymbolicLink;
 	];
