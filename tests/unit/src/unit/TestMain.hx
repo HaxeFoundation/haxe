@@ -71,6 +71,7 @@ class TestMain {
 			new TestCasts(),
 			new TestSyntaxModule(),
 			new TestNull(),
+			new TestHttp(),
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end
