@@ -10,17 +10,18 @@ class TestHttp extends Test {
 		#end
 	}
 
-	function run(test:()->Void) {
+	function run(async:Async, test:()->Void) {
 		#if (js && !nodejs)
 		if(js.Syntax.code('typeof XMLHttpRequest == "undefined"')) {
 			noAssert();
+			async.done();
 			return;
 		}
 		#end
 		test();
 	}
 
-	public function testPostData(async:Async) run(() -> {
+	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';
 		var d = new haxe.Http('http://localhost:20200/echoServer.n');
 		d.onData = echoStr -> {
@@ -38,7 +39,7 @@ class TestHttp extends Test {
 		d.request();
 	});
 
-	public function testPostBytes(async:Async) run(() -> {
+	public function testPostBytes(async:Async) run(async, () -> {
 		var srcData = haxe.io.Bytes.alloc(100);
 		for(i in 0...srcData.length) {
 			srcData.set(i, Std.random(256));
