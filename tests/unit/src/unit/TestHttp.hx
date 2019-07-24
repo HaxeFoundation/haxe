@@ -30,7 +30,7 @@ class TestHttp extends Test {
 			noAssert();
 			async.done();
 		}
-		d.onError = e -> throw 'Failed Http request with string data: $e';
+		d.onError = e -> assert('Failed Http request with string data: $e');
 		d.setPostData(srcStr);
 		d.request();
 	});
@@ -50,7 +50,7 @@ class TestHttp extends Test {
 			noAssert();
 			async.done();
 		}
-		d.onError = e -> throw 'Failed Http request with binary data: $e';
+		d.onError = e -> assert('Failed Http request with binary data: $e');
 		d.setPostBytes(srcData);
 		d.request();
 	});
