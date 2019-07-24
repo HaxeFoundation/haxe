@@ -3097,7 +3097,7 @@ module StdUv = struct
 	module DirectoryEntry = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvDirent e)} -> e
-			| v -> unexpected_value v "UVDirent"
+			| v -> unexpected_value v "UvDirent"
 		let get_name = vifun0 (fun vthis ->
 			let this = this vthis in
 			encode_string (fst this)
@@ -3108,92 +3108,54 @@ module StdUv = struct
 		)
 	end
 
+	module FileWatcher = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvFsEvent e)} -> e
+			| v -> unexpected_value v "UvFsEvent"
+		let close = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_event_stop this);
+			vnull
+		)
+	end
+
 	module Loop = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvLoop l)} -> l
-			| v -> unexpected_value v "UVLoop"
+			| v -> unexpected_value v "UvLoop"
 	end
 
 	module Stat = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvStat l)} -> l
-			| v -> unexpected_value v "UVStat"
-		let get_dev = vifun0 (fun vthis ->
+			| v -> unexpected_value v "UvStat"
+		let int_getter f = vifun0 (fun vthis ->
+				let this = this vthis in
+				vint (f this)
+			)
+		let check_mode c = vifun0 (fun vthis ->
 			let this = this vthis in
-			vint this.dev
+			vbool ((this.kind land Uv.s_IFMT) = c)
 		)
-		let get_mode = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.kind
-		)
-		let get_nlink = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.nlink
-		)
-		let get_uid = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.uid
-		)
-		let get_gid = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.gid
-		)
-		let get_rdev = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.rdev
-		)
-		let get_ino = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.ino
-		)
-		let get_size = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint (Int64.to_int this.size)
-		)
-		let get_blksize = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.blksize
-		)
-		let get_blocks = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.blocks
-		)
-		let get_flags = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.flags
-		)
-		let get_gen = vifun0 (fun vthis ->
-			let this = this vthis in
-			vint this.gen
-		)
-		let isBlockDevice = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFBLK)
-		)
-		let isCharacterDevice = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFCHR)
-		)
-		let isDirectory = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFDIR)
-		)
-		let isFIFO = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFIFO)
-		)
-		let isFile = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFREG)
-		)
-		let isSocket = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFSOCK)
-		)
-		let isSymbolicLink = vifun0 (fun vthis ->
-			let this = this vthis in
-			vbool ((this.kind land Uv.s_IFMT) = Uv.s_IFLNK)
-		)
+		let get_dev = int_getter (fun this -> this.dev)
+		let get_mode = int_getter (fun this -> this.kind)
+		let get_nlink = int_getter (fun this -> this.nlink)
+		let get_uid = int_getter (fun this -> this.uid)
+		let get_gid = int_getter (fun this -> this.gid)
+		let get_rdev = int_getter (fun this -> this.rdev)
+		let get_ino = int_getter (fun this -> this.ino)
+		let get_size = int_getter (fun this -> Int64.to_int this.size)
+		let get_blksize = int_getter (fun this -> this.blksize)
+		let get_blocks = int_getter (fun this -> this.blocks)
+		let get_flags = int_getter (fun this -> this.flags)
+		let get_gen = int_getter (fun this -> this.gen)
+		let isBlockDevice = check_mode Uv.s_IFBLK
+		let isCharacterDevice = check_mode Uv.s_IFCHR
+		let isDirectory = check_mode Uv.s_IFDIR
+		let isFIFO = check_mode Uv.s_IFIFO
+		let isFile = check_mode Uv.s_IFREG
+		let isSocket = check_mode Uv.s_IFSOCK
+		let isSymbolicLink = check_mode Uv.s_IFLNK
 	end
 
 	module File = struct
@@ -3317,7 +3279,7 @@ module StdUv = struct
 			let flags = default_int flags 0 in
 			let mode = default_int mode 0o666 in
 			(*let binary = default_bool binary true in*)
-			let handle = wrap_sync (Uv.fs_open_sync (loop ()) path 2 mode) in
+			let handle = wrap_sync (Uv.fs_open_sync (loop ()) path flags mode) in
 			encode_instance key_nusys_io_File ~kind:(IUv (UvFile handle))
 		)
 		let readdirTypes = vfun1 (fun path ->
@@ -3374,6 +3336,17 @@ module StdUv = struct
 			wrap_sync (Uv.fs_utime_sync (loop ()) path atime mtime);
 			vnull
 		)
+		let watch_native = vfun4 (fun path persistent recursive cb ->
+			let path = decode_string path in
+			let persistent = default_bool persistent true in
+			let recursive = default_bool recursive false in
+			let handle = wrap_sync (Uv.fs_event_start (loop ()) path persistent recursive (fun res ->
+				ignore (match res with
+					| Uv.UvError err -> call_value cb [wrap_error err; vnull; vnull]
+					| Uv.UvSuccess (path, event) -> call_value cb [vnull; encode_string path; vint event])
+				)) in
+			encode_instance key_eval_uv_FileWatcher ~kind:(IUv (UvFsEvent handle))
+		)
 	end
 
 	module AsyncFileSystem = struct
@@ -3414,8 +3387,9 @@ module StdUv = struct
 		vnull
 	)
 
-	let run = vfun0 (fun () ->
-		ignore (wrap_sync (Uv.run (loop ()) 0));
+	let run = vfun1 (fun singleTick ->
+		let singleTick = decode_bool singleTick in
+		ignore (wrap_sync (Uv.run (loop ()) (if singleTick then 1 else 0)));
 		vnull
 	)
 end
@@ -4040,6 +4014,7 @@ let init_standard_library builtins =
 		"symlink",StdUv.FileSystem.symlink;
 		"unlink",StdUv.FileSystem.unlink;
 		"utimes_native",StdUv.FileSystem.utimes_native;
+		"watch_native",StdUv.FileSystem.watch_native;
 	] [];
 	init_fields builtins (["nusys";"async"],"FileSystem") [
 		"access",StdUv.AsyncFileSystem.access;
@@ -4060,6 +4035,9 @@ let init_standard_library builtins =
 	init_fields builtins (["eval";"uv"],"DirectoryEntry") [] [
 		"get_name",StdUv.DirectoryEntry.get_name;
 		"get_type",StdUv.DirectoryEntry.get_type;
+	];
+	init_fields builtins (["eval";"uv"],"FileWatcher") [] [
+		"close",StdUv.FileWatcher.close;
 	];
 	init_fields builtins (["eval";"uv"],"Stat") [] [
 		"get_dev",StdUv.Stat.get_dev;

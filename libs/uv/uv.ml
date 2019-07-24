@@ -124,6 +124,7 @@ external fs_realpath : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_realpath"
 external fs_rename : t_loop -> string -> string -> fs_cb -> unit = "w_fs_rename"
 external fs_rmdir : t_loop -> string -> fs_cb -> unit = "w_fs_rmdir"
 external fs_scandir : t_loop -> string -> int -> fs_cb_scandir -> unit = "w_fs_scandir"
+external fs_sendfile : t_loop -> t_file -> t_file -> int -> int -> fs_cb -> unit = "w_fs_sendfile_bytecode" "w_fs_sendfile"
 external fs_stat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_stat"
 external fs_symlink : t_loop -> string -> string -> int -> fs_cb -> unit = "w_fs_symlink"
 external fs_unlink : t_loop -> string -> fs_cb -> unit = "w_fs_unlink"
@@ -151,7 +152,15 @@ external fs_realpath_sync : t_loop -> string -> string uv_result = "w_fs_realpat
 external fs_rename_sync : t_loop -> string -> string -> unit uv_result = "w_fs_rename_sync"
 external fs_rmdir_sync : t_loop -> string -> unit uv_result = "w_fs_rmdir_sync"
 external fs_scandir_sync : t_loop -> string -> int -> (string * int) list uv_result = "w_fs_scandir_sync"
+external fs_sendfile_sync : t_loop -> t_file -> t_file -> int -> int -> unit uv_result = "w_fs_sendfile_sync_bytecode" "w_fs_sendfile_sync"
 external fs_stat_sync : t_loop -> string -> t_stat uv_result = "w_fs_stat_sync"
 external fs_symlink_sync : t_loop -> string -> string -> int -> unit uv_result = "w_fs_symlink_sync"
 external fs_unlink_sync : t_loop -> string -> unit uv_result = "w_fs_unlink_sync"
 external fs_utime_sync : t_loop -> string -> float -> float -> unit uv_result = "w_fs_utime_sync"
+
+(* ------------- FILESYSTEM EVENTS ---------------------------------- *)
+
+type fs_event_cb = (string * int) uv_result -> unit
+
+external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start_bytecode" "w_fs_event_start"
+external fs_event_stop : t_fs_event -> unit uv_result = "w_fs_event_stop"

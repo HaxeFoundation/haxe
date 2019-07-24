@@ -96,6 +96,7 @@ type vprototype_kind =
 type vuv_value =
 	| UvLoop of Uv.t_loop
 	| UvFile of Uv.t_file
+	| UvFsEvent of Uv.t_fs_event
 	| UvStat of Uv.t_stat
 	| UvDirent of (string * int)
 
