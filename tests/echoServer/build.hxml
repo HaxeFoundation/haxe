@@ -1,2 +1,2 @@
 -main EchoServer
--neko bin/echoServer.n
+-neko www/echoServer.n

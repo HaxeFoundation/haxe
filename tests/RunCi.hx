@@ -52,7 +52,7 @@ class RunCi {
 			}
 
 			//run neko-based http echo server
-			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/bin/', '-p', '20200']);
+			var echoServer = new sys.io.Process('nekotools', ['server', '-d', 'echoServer/www/', '-p', '20200']);
 
 			infoMsg('test $test');
 			var success = true;
