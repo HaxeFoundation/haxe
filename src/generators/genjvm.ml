@@ -1030,14 +1030,31 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						jm#get_code#bconst (op = CmpNe)
 					)
 					(fun () ->
-						jm#cast ~not_null:true sig2;
-						self#texpr rvalue_any e2;
+						(match (get_unboxed_type sig1), sig2 with
+						| (TFloat | TDouble as unboxed_sig1), TInt ->
+							jm#cast ~not_null:true unboxed_sig1;
+							self#texpr rvalue_any e2;
+							jm#cast ~not_null:true unboxed_sig1
+						| _ ->
+							jm#cast ~not_null:true sig2;
+							self#texpr rvalue_any e2
+						);
 						self#boolop (self#do_compare op)
 					);
 				CmpNormal(CmpEq,TBool)
 			| true,false ->
-				self#texpr rvalue_any e1;
-				self#texpr rvalue_any e2;
+				let cast =
+					match sig1, (get_unboxed_type sig2) with
+					| TInt, (TFloat | TDouble as unboxed_sig2) ->
+						self#texpr rvalue_any e1;
+						jm#cast ~not_null:true unboxed_sig2;
+						self#texpr rvalue_any e2;
+						(fun() -> jm#cast ~not_null:true unboxed_sig2)
+					| _ ->
+						self#texpr rvalue_any e1;
+						self#texpr rvalue_any e2;
+						(fun() -> jm#cast ~not_null:true sig1)
+				in
 				jm#get_code#dup;
 				jm#if_then_else
 					(self#if_not_null sig2)
@@ -1047,7 +1064,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 						jm#get_code#bconst (op = CmpNe);
 					)
 					(fun () ->
-						jm#cast ~not_null:true sig1;
+						cast();
 						self#boolop (self#do_compare op)
 					);
 				CmpNormal(CmpEq,TBool)
