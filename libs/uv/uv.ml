@@ -73,11 +73,14 @@ type 'a uv_result =
 	| UvError of int (* error number *)
 	| UvSuccess of 'a
 
+type cb_close = unit -> unit
+
 (* ------------- LOOP ----------------------------------------------- *)
 
 external loop_init : unit -> t_loop uv_result = "w_loop_init"
 external loop_close : t_loop -> unit uv_result = "w_loop_close"
 external run : t_loop -> int -> bool uv_result = "w_run"
+external stop : t_loop -> unit uv_result = "w_stop"
 external loop_alive : t_loop -> bool uv_result = "w_loop_alive"
 
 (* ------------- FILESYSTEM ----------------------------------------- *)
@@ -153,4 +156,4 @@ external fs_write_sync : t_loop -> t_file -> bytes -> int -> int -> int -> int u
 type fs_event_cb = (string * int) uv_result -> unit
 
 external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start"
-external fs_event_stop : t_fs_event -> unit uv_result = "w_fs_event_stop"
+external fs_event_stop : t_fs_event -> fs_cb -> unit uv_result = "w_fs_event_stop"

@@ -129,18 +129,18 @@ CAMLprim value w_loop_close(value loop) {
 
 CAMLprim value w_run(value loop, value mode) {
 	CAMLparam2(loop, mode);
-	UV_SUCCESS(Val_bool(uv_run(UV_UNWRAP(loop, uv_loop_t), (uv_run_mode)Int_val(mode)) == 0));
-}
-
-CAMLprim value w_loop_alive(value loop) {
-	CAMLparam1(loop);
-	UV_SUCCESS(Val_bool(uv_loop_alive(UV_UNWRAP(loop, uv_loop_t)) != 0));
+	UV_SUCCESS(Val_bool(uv_run(UV_UNWRAP(loop, uv_loop_t), (uv_run_mode)Int_val(mode))));
 }
 
 CAMLprim value w_stop(value loop) {
 	CAMLparam1(loop);
 	uv_stop(UV_UNWRAP(loop, uv_loop_t));
 	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_loop_alive(value loop) {
+	CAMLparam1(loop);
+	UV_SUCCESS(Val_bool(uv_loop_alive(UV_UNWRAP(loop, uv_loop_t)) != 0));
 }
 
 // ------------- FILESYSTEM -----------------------------------------
@@ -335,12 +335,12 @@ static void handle_fs_event_cb(uv_fs_event_t *handle, const char *filename, int 
 	cb = (value)UV_HANDLE_DATA(handle);
 	res = caml_alloc(1, status < 0 ? 0 : 1);
 	if (status < 0)
-		Store_field(res, 0, status);
+		Store_field(res, 0, Val_int(status));
 	else {
 		CAMLlocal1(event);
 		event = caml_alloc(2, 0);
 		Store_field(event, 0, caml_copy_string(filename));
-		Store_field(event, 1, events);
+		Store_field(event, 1, Val_int(events));
 		Store_field(res, 0, event);
 	}
 	caml_callback(cb, res);
@@ -353,17 +353,28 @@ CAMLprim value w_fs_event_start(value loop, value path, value persistent, value 
 	UV_ERROR_CHECK_C(uv_fs_event_init(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(handle, uv_fs_event_t)), free(UV_UNWRAP(handle, uv_fs_event_t)));
 	UV_HANDLE_DATA(UV_UNWRAP(handle, uv_fs_event_t)) = (void *)cb;
 	caml_register_global_root(UV_HANDLE_DATA_A(UV_UNWRAP(handle, uv_fs_event_t)));
-	fflush(stdout);
 	UV_ERROR_CHECK_C(uv_fs_event_start(UV_UNWRAP(handle, uv_fs_event_t), handle_fs_event_cb, String_val(path), Bool_val(recursive) ? UV_FS_EVENT_RECURSIVE : 0), free(UV_UNWRAP(handle, uv_fs_event_t)));
 	if (!Bool_val(persistent))
 		uv_unref(UV_UNWRAP(handle, uv_handle_t));
 	UV_SUCCESS(handle);
 }
 
-CAMLprim value w_fs_event_stop(value handle) {
-	CAMLparam1(handle);
-	UV_ERROR_CHECK_C(uv_fs_event_stop(UV_UNWRAP(handle, uv_fs_event_t)), free(UV_UNWRAP(handle, uv_fs_event_t)));
+static void handle_close_cb(uv_handle_t *handle) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = (value)UV_HANDLE_DATA(handle);
 	caml_remove_global_root(UV_HANDLE_DATA_A(UV_UNWRAP(handle, uv_fs_event_t)));
-	free(UV_UNWRAP(handle, uv_fs_event_t));
+	free(handle);
+	res = caml_alloc(1, 1);
+	Store_field(res, 0, Val_unit);
+	caml_callback(cb, res);
+	CAMLreturn0;
+}
+
+CAMLprim value w_fs_event_stop(value handle, value cb) {
+	CAMLparam2(handle, cb);
+	UV_ERROR_CHECK_C(uv_fs_event_stop(UV_UNWRAP(handle, uv_fs_event_t)), free(UV_UNWRAP(handle, uv_fs_event_t)));
+	UV_HANDLE_DATA(UV_UNWRAP(handle, uv_fs_event_t)) = (void *)cb;
+	uv_close(UV_UNWRAP(handle, uv_handle_t), handle_close_cb);
 	UV_SUCCESS_UNIT;
 }

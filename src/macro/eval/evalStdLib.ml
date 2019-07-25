@@ -3112,9 +3112,9 @@ module StdUv = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvFsEvent e)} -> e
 			| v -> unexpected_value v "UvFsEvent"
-		let close = vifun0 (fun vthis ->
+		let close = vifun1 (fun vthis cb ->
 			let this = this vthis in
-			wrap_sync (Uv.fs_event_stop this);
+			wrap_sync (Uv.fs_event_stop this (wrap_cb_unit cb));
 			vnull
 		)
 	end
@@ -3383,13 +3383,22 @@ module StdUv = struct
 
 	let init = vfun0 (fun () ->
 		loop_ref := Some (wrap_sync (Uv.loop_init ()));
-		(*encode_instance key_eval_uv_Loop ~kind:(IUv (UvLoop (Uv.loop_init ())))*)
 		vnull
 	)
 
 	let run = vfun1 (fun singleTick ->
 		let singleTick = decode_bool singleTick in
-		ignore (wrap_sync (Uv.run (loop ()) (if singleTick then 1 else 0)));
+		let res = (wrap_sync (Uv.run (loop ()) (if singleTick then 1 else 0))) in
+		vbool res
+	)
+
+	let stop = vfun0 (fun () ->
+		wrap_sync (Uv.stop (loop ()));
+		vnull
+	)
+
+	let close = vfun0 (fun () ->
+		wrap_sync (Uv.loop_close (loop ()));
 		vnull
 	)
 end
@@ -3995,6 +4004,8 @@ let init_standard_library builtins =
 	init_fields builtins (["eval"],"Uv") [
 		"init",StdUv.init;
 		"run",StdUv.run;
+		"stop",StdUv.stop;
+		"close",StdUv.close;
 	] [];
 	init_fields builtins (["nusys"],"FileSystem") [
 		"access",StdUv.FileSystem.access;
