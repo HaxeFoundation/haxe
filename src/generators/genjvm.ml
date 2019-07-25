@@ -1043,15 +1043,14 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 					);
 				CmpNormal(CmpEq,TBool)
 			| true,false ->
+				self#texpr rvalue_any e1;
 				let cast =
 					match sig1, (get_unboxed_type sig2) with
 					| TInt, (TFloat | TDouble as unboxed_sig2) ->
-						self#texpr rvalue_any e1;
 						jm#cast ~not_null:true unboxed_sig2;
 						self#texpr rvalue_any e2;
 						(fun() -> jm#cast ~not_null:true unboxed_sig2)
 					| _ ->
-						self#texpr rvalue_any e1;
 						self#texpr rvalue_any e2;
 						(fun() -> jm#cast ~not_null:true sig1)
 				in
