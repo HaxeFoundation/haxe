@@ -23,8 +23,8 @@
 package haxe.iterators;
 
 class StringKeyValueIteratorUnicode {
-	var nativeIter: js.lib.Iterator<Int>;
-	var done = false;
+	var nativeIter: js.lib.Iterator<String>;
+	var current: {value: String, done: Bool};
 	var charOffset = 0;
 
 	/**
@@ -32,13 +32,14 @@ class StringKeyValueIteratorUnicode {
 	**/
 	public inline function new(s:String) {
 		this.nativeIter = js.lib.Symbol.iterator.ofObject(s)();
+		this.current = this.nativeIter.next();
 	}
 
 	/**
 		See `Iterator.hasNext`
 	**/
 	public inline function hasNext() {
-		return !this.done;
+		return !this.current.done;
 	}
 
 	/**
@@ -46,9 +47,9 @@ class StringKeyValueIteratorUnicode {
 	**/
 	@:access(StringTools)
 	public inline function next() {
-		var next = this.nativeIter.next();
-		this.done = next.done;
-		return {key: charOffset++, value: next.value};
+		var c = StringTools.utf16CodePointAt(this.current.value, 0);
+		this.current = nativeIter.next();
+		return {key: charOffset++, value: c};
 	}
 
 	/**
