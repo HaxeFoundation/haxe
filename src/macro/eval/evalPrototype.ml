@@ -355,7 +355,7 @@ let add_types ctx types ready =
 		| _ ->
 			DynArray.add fl_static_init (proto,delays);
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
-			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
+			ctx.static_inits <- IntMap.add proto.ppath (ref false,proto,non_persistent_delays) ctx.static_inits;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;

@@ -254,8 +254,7 @@ and context = {
 	mutable static_prototypes : vprototype IntMap.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
-	mutable static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
-	mutable reset_static_inits : (vprototype * (vprototype -> unit) list) IntMap.t;
+	mutable static_inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
@@ -441,14 +440,13 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	let inits =
-		try
-			let inits = IntMap.find path ctx.reset_static_inits in
-			ctx.reset_static_inits <- IntMap.remove path ctx.reset_static_inits;
-			Some inits
-		with Not_found -> None
-	in
-	Option.may (fun (proto, delays) -> List.iter (fun f -> f proto) delays) inits;
+	(try
+		let (needs_reset, proto, delays) = IntMap.find path ctx.static_inits in
+		if !needs_reset then begin
+			needs_reset := false;
+			List.iter (fun f -> f proto) delays
+		end
+	with Not_found -> ());
 	IntMap.find path ctx.static_prototypes
 
 let get_static_prototype ctx path p =
