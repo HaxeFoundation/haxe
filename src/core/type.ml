@@ -687,7 +687,41 @@ let apply_params ?stack cparams params t =
 				| None -> ()
 				| Some stack ->
 					List.iter (fun (subject, old_applied_params) ->
-						if subject == t && old_applied_params == params then
+						(*
+							E.g.:
+							```
+							typedef Rec<T> = { function method():Rec<Array<T>> }
+							```
+							We need to make sure that we are not applying the result of previous
+							application to the same place, which would mean the result of current
+							application would go into `apply_params` again and then again and so on.
+
+							Argument `stack` holds all previous results of `apply_params` to typedefs in current
+							unification process.
+
+							Imagine we are trying to unify `Rec<Int>` with something.
+
+							Once `apply_params Array<T> Int Rec<Array<T>>` is called for the first time the result
+							will be `Rec< Array<Int> >`. Store `Array<Int>` into `stack`
+
+							Then the next params application looks like this:
+								`apply_params Array<T> Array<Int> Rec<Array<T>>`
+							Notice the second argument is actually the result of a previous `apply_params` call.
+							And the result of the current call is `Rec< Array<Array<Int>> >`.
+
+							The third call would be:
+								`apply_params Array<T> Array<Array<Int>> Rec<Array<T>>`
+							and so on.
+
+							To stop infinite params application we need to check that we are trying to apply params
+							produced by the previous `apply_params Array<Int> _ Rec<Array<T>>` to the same `Rec<Array<T>>`
+						*)
+						if
+							subject == t (* Check the place that we're applying to is the same `Rec<Array<T>>` *)
+							&& old_applied_params == params (* Check that params we're applying are the same params
+																produced by the previous call to
+																`apply_params Array<T> _ Rec<Array<T>>` *)
+						then
 							raise ApplyParamsRecursion
 					) !stack;
 					stack := (t, new_applied_params) :: !stack;
