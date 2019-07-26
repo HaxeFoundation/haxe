@@ -203,6 +203,50 @@ class eval_debug_context = object(self)
 
 end
 
+module StaticPrototypes : sig
+	type t
+	val create : unit -> t
+	val add : vprototype -> t -> unit
+	val remove : IntMap.key -> t -> unit
+	val set_needs_reset : t -> unit
+	val add_init : vprototype -> (vprototype -> unit) list -> t -> unit
+	val get : IntMap.key -> t -> vprototype
+end =
+struct
+	type t = {
+		mutable map : vprototype IntMap.t;
+		mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t;
+	}
+
+	let create () = {
+		map = IntMap.empty;
+		inits = IntMap.empty;
+	}
+
+	let add proto t =
+		t.map <- IntMap.add proto.ppath proto t.map
+
+	let remove path t =
+		t.map <- IntMap.remove path t.map
+
+	let set_needs_reset t =
+		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) t.inits
+
+	let add_init proto delays t =
+		t.inits <- IntMap.add proto.ppath (ref false, proto, delays) t.inits
+
+	let get path t =
+		(try
+			let (needs_reset, proto, delays) = IntMap.find path t.inits in
+			if !needs_reset then begin
+				needs_reset := false;
+				List.iter (fun f -> f proto) delays
+			end
+		with Not_found -> ());
+		IntMap.find path t.map
+
+end
+
 type exception_mode =
 	| CatchAll
 	| CatchUncaught
@@ -251,10 +295,9 @@ and context = {
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
-	mutable static_prototypes : vprototype IntMap.t;
+	mutable static_prototypes : StaticPrototypes.t;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
-	mutable static_inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t;
 	(* eval *)
 	toplevel : value;
 	eval : eval;
@@ -440,14 +483,7 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	(try
-		let (needs_reset, proto, delays) = IntMap.find path ctx.static_inits in
-		if !needs_reset then begin
-			needs_reset := false;
-			List.iter (fun f -> f proto) delays
-		end
-	with Not_found -> ());
-	IntMap.find path ctx.static_prototypes
+	StaticPrototypes.get path ctx.static_prototypes
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path

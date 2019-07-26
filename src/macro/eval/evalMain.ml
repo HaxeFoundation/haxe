@@ -120,11 +120,10 @@ let create com api is_macro =
 		string_prototype = fake_proto key_String;
 		array_prototype = fake_proto key_Array;
 		vector_prototype = fake_proto key_eval_Vector;
-		static_prototypes = IntMap.empty;
+		static_prototypes = StaticPrototypes.create();
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
-		static_inits = IntMap.empty;
 		(* eval *)
 		toplevel = 	vobject {
 			ofields = [||];
@@ -375,7 +374,7 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) ctx.static_inits
+	StaticPrototypes.set_needs_reset ctx.static_prototypes
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
