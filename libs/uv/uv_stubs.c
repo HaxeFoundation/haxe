@@ -22,11 +22,11 @@
 	a `value`. To ensure it is not garbage-collected, we add the data pointer of
 	the handle or request to OCaml's global GC roots, then remove it after the
 	callback is called.
+
+	Handle-specific macros are defined further, in the HANDLE DATA section.
 **/
 
-// access the data of a handle or request
-#define UV_HANDLE_DATA(h) (((uv_handle_t *)(h))->data)
-#define UV_HANDLE_DATA_A(h) ((value *)(&UV_HANDLE_DATA(h)))
+// access the data of a request
 #define UV_REQ_DATA(r) (((uv_req_t *)(r))->data)
 #define UV_REQ_DATA_A(r) ((value *)(&UV_REQ_DATA(r)))
 
@@ -113,34 +113,36 @@
 
 // ------------- LOOP -----------------------------------------------
 
+#define Loop_val(l) UV_UNWRAP(l, uv_loop_t)
+
 CAMLprim value w_loop_init(value unit) {
 	CAMLparam1(unit);
 	UV_ALLOC_CHECK(loop, uv_loop_t);
-	UV_ERROR_CHECK_C(uv_loop_init(UV_UNWRAP(loop, uv_loop_t)), free(UV_UNWRAP(loop, uv_loop_t)));
+	UV_ERROR_CHECK_C(uv_loop_init(Loop_val(loop)), free(Loop_val(loop)));
 	UV_SUCCESS(loop);
 }
 
 CAMLprim value w_loop_close(value loop) {
 	CAMLparam1(loop);
-	UV_ERROR_CHECK(uv_loop_close(UV_UNWRAP(loop, uv_loop_t)));
-	free(UV_UNWRAP(loop, uv_loop_t));
+	UV_ERROR_CHECK(uv_loop_close(Loop_val(loop)));
+	free(Loop_val(loop));
 	UV_SUCCESS_UNIT;
 }
 
 CAMLprim value w_run(value loop, value mode) {
 	CAMLparam2(loop, mode);
-	UV_SUCCESS(Val_bool(uv_run(UV_UNWRAP(loop, uv_loop_t), (uv_run_mode)Int_val(mode))));
+	UV_SUCCESS(Val_bool(uv_run(Loop_val(loop), (uv_run_mode)Int_val(mode))));
 }
 
 CAMLprim value w_stop(value loop) {
 	CAMLparam1(loop);
-	uv_stop(UV_UNWRAP(loop, uv_loop_t));
+	uv_stop(Loop_val(loop));
 	UV_SUCCESS_UNIT;
 }
 
 CAMLprim value w_loop_alive(value loop) {
 	CAMLparam1(loop);
-	UV_SUCCESS(Val_bool(uv_loop_alive(UV_UNWRAP(loop, uv_loop_t)) != 0));
+	UV_SUCCESS(Val_bool(uv_loop_alive(Loop_val(loop)) != 0));
 }
 
 // ------------- FILESYSTEM -----------------------------------------
@@ -244,7 +246,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_REQ_DATA(UV_UNWRAP(req, uv_fs_t)) = (void *)cb; \
 		caml_register_global_root(UV_REQ_DATA_A(UV_UNWRAP(req, uv_fs_t))); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(req, uv_fs_t), call, handler), free(UV_UNWRAP(req, uv_fs_t))); \
+		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), UV_UNWRAP(req, uv_fs_t), call, handler), free(UV_UNWRAP(req, uv_fs_t))); \
 		UV_SUCCESS_UNIT; \
 	} \
 	CAMLprim value w_ ## name ## _sync(value loop, sign) { \
@@ -253,7 +255,7 @@ UV_FS_HANDLER(handle_fs_cb_scandir, {
 		UV_ALLOC_CHECK(req, uv_fs_t); \
 		caml_register_global_root(UV_REQ_DATA_A(req)); \
 		precall \
-		UV_ERROR_CHECK_C(uv_ ## name(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(req, uv_fs_t), call, NULL), free(UV_UNWRAP(req, uv_fs_t))); \
+		UV_ERROR_CHECK_C(uv_ ## name(Loop_val(loop), UV_UNWRAP(req, uv_fs_t), call, NULL), free(UV_UNWRAP(req, uv_fs_t))); \
 		UV_ERROR_CHECK_C(UV_UNWRAP(req, uv_fs_t)->result, { uv_fs_req_cleanup(UV_UNWRAP(req, uv_fs_t)); free(UV_UNWRAP(req, uv_fs_t)); }); \
 		CAMLlocal1(ret); \
 		ret = handler ## _sync(UV_UNWRAP(req, uv_fs_t)); \
@@ -327,12 +329,92 @@ FS_WRAP(fs_write,
 BC_WRAP7(w_fs_write);
 BC_WRAP6(w_fs_write_sync);
 
+// ------------- HANDLE DATA ----------------------------------------
+
+/**
+	There is a single `void *data` field on requests and handles. For requests,
+	we use this to directly store the `value` for the callback function. For
+	handles, however, it is sometimes necessary to register multiple different
+	callbacks, hence a separate allocated struct is needed to hold them all.
+	All of the fields of the struct are registered with the garbage collector
+	immediately upon creation, although initially some of the callback fields are
+	set to unit values.
+**/
+
+#define UV_HANDLE_DATA(h) (((uv_handle_t *)(h))->data)
+#define UV_HANDLE_DATA_SUB(h, t) (((uv_w_handle_t *)UV_HANDLE_DATA(h))->u.t)
+
+#define Handle_val(h) UV_UNWRAP(h, uv_handle_t)
+
+typedef struct {
+	value cb_close;
+	union {
+		struct {
+			value cb1;
+			value cb2;
+		} all;
+		struct {
+			value cb_fs_event;
+			value unused1;
+		} fs_event;
+		struct {
+			value cb_read;
+			value cb_connection;
+		} tcp;
+	} u;
+} uv_w_handle_t;
+
+static uv_w_handle_t *alloc_data_fs_event(value cb_fs_event) {
+	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
+	if (data != NULL) {
+		data->cb_close = Val_unit;
+		caml_register_global_root(&(data->cb_close));
+		data->u.fs_event.cb_fs_event = cb_fs_event;
+		caml_register_global_root(&(data->u.fs_event.cb_fs_event));
+	}
+	return data;
+}
+
+static uv_w_handle_t *alloc_data_tcp(value cb_read, value cb_connection) {
+	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
+	if (data != NULL) {
+		data->cb_close = Val_unit;
+		caml_register_global_root(&(data->cb_close));
+		data->u.tcp.cb_read = cb_read;
+		caml_register_global_root(&(data->u.tcp.cb_read));
+		data->u.tcp.cb_connection = cb_connection;
+		caml_register_global_root(&(data->u.tcp.cb_connection));
+	}
+	return data;
+}
+
+static void unalloc_data(uv_w_handle_t *data) {
+	caml_remove_global_root(&(data->cb_close));
+	caml_remove_global_root(&(data->u.all.cb1));
+	caml_remove_global_root(&(data->u.all.cb2));
+	free(data);
+}
+
+static void handle_close_cb(uv_handle_t *handle) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = ((uv_w_handle_t *)UV_HANDLE_DATA(handle))->cb_close;
+	unalloc_data(UV_HANDLE_DATA(handle));
+	free(handle);
+	res = caml_alloc(1, 1);
+	Store_field(res, 0, Val_unit);
+	caml_callback(cb, res);
+	CAMLreturn0;
+}
+
 // ------------- FILESYSTEM EVENTS ----------------------------------
+
+#define FsEvent_val(e) UV_UNWRAP(e, uv_fs_event_t)
 
 static void handle_fs_event_cb(uv_fs_event_t *handle, const char *filename, int events, int status) {
 	CAMLparam0();
 	CAMLlocal2(cb, res);
-	cb = (value)UV_HANDLE_DATA(handle);
+	cb = UV_HANDLE_DATA_SUB(handle, fs_event).cb_fs_event;
 	res = caml_alloc(1, status < 0 ? 0 : 1);
 	if (status < 0)
 		Store_field(res, 0, Val_int(status));
@@ -350,31 +432,215 @@ static void handle_fs_event_cb(uv_fs_event_t *handle, const char *filename, int 
 CAMLprim value w_fs_event_start(value loop, value path, value persistent, value recursive, value cb) {
 	CAMLparam4(loop, path, recursive, cb);
 	UV_ALLOC_CHECK(handle, uv_fs_event_t);
-	UV_ERROR_CHECK_C(uv_fs_event_init(UV_UNWRAP(loop, uv_loop_t), UV_UNWRAP(handle, uv_fs_event_t)), free(UV_UNWRAP(handle, uv_fs_event_t)));
-	UV_HANDLE_DATA(UV_UNWRAP(handle, uv_fs_event_t)) = (void *)cb;
-	caml_register_global_root(UV_HANDLE_DATA_A(UV_UNWRAP(handle, uv_fs_event_t)));
-	UV_ERROR_CHECK_C(uv_fs_event_start(UV_UNWRAP(handle, uv_fs_event_t), handle_fs_event_cb, String_val(path), Bool_val(recursive) ? UV_FS_EVENT_RECURSIVE : 0), free(UV_UNWRAP(handle, uv_fs_event_t)));
+	UV_ERROR_CHECK_C(uv_fs_event_init(Loop_val(loop), FsEvent_val(handle)), free(FsEvent_val(handle)));
+	UV_HANDLE_DATA(FsEvent_val(handle)) = alloc_data_fs_event(cb);
+	if (UV_HANDLE_DATA(FsEvent_val(handle)) == NULL)
+		UV_ERROR(0);
+	UV_ERROR_CHECK_C(
+		uv_fs_event_start(FsEvent_val(handle), handle_fs_event_cb, String_val(path), Bool_val(recursive) ? UV_FS_EVENT_RECURSIVE : 0),
+		{ unalloc_data(UV_HANDLE_DATA(FsEvent_val(handle))); free(FsEvent_val(handle)); }
+		);
 	if (!Bool_val(persistent))
-		uv_unref(UV_UNWRAP(handle, uv_handle_t));
+		uv_unref(Handle_val(handle));
 	UV_SUCCESS(handle);
-}
-
-static void handle_close_cb(uv_handle_t *handle) {
-	CAMLparam0();
-	CAMLlocal2(cb, res);
-	cb = (value)UV_HANDLE_DATA(handle);
-	caml_remove_global_root(UV_HANDLE_DATA_A(UV_UNWRAP(handle, uv_fs_event_t)));
-	free(handle);
-	res = caml_alloc(1, 1);
-	Store_field(res, 0, Val_unit);
-	caml_callback(cb, res);
-	CAMLreturn0;
 }
 
 CAMLprim value w_fs_event_stop(value handle, value cb) {
 	CAMLparam2(handle, cb);
-	UV_ERROR_CHECK_C(uv_fs_event_stop(UV_UNWRAP(handle, uv_fs_event_t)), free(UV_UNWRAP(handle, uv_fs_event_t)));
-	UV_HANDLE_DATA(UV_UNWRAP(handle, uv_fs_event_t)) = (void *)cb;
-	uv_close(UV_UNWRAP(handle, uv_handle_t), handle_close_cb);
+	UV_ERROR_CHECK_C(
+		uv_fs_event_stop(FsEvent_val(handle)),
+		{ unalloc_data(UV_HANDLE_DATA(FsEvent_val(handle))); free(FsEvent_val(handle)); }
+		);
+	((uv_w_handle_t *)UV_HANDLE_DATA(FsEvent_val(handle)))->cb_close = cb;
+	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
+}
+
+// ------------- STREAM ---------------------------------------------
+
+#define Stream_val(s) UV_UNWRAP(s, uv_stream_t)
+#define Write_val(r) UV_UNWRAP(r, uv_write_t)
+
+static void handle_stream_cb(uv_req_t *req, int status) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = (value)UV_REQ_DATA(req);
+	res = caml_alloc(1, status < 0 ? 0 : 1);
+	if (status < 0)
+		Store_field(res, 0, Val_int(status));
+	else
+		Store_field(res, 0, Val_unit);
+	caml_callback(cb, res);
+	caml_remove_global_root(UV_REQ_DATA_A(req));
+	free(req);
+	CAMLreturn0;
+}
+
+static void handle_stream_cb_connection(uv_stream_t *stream, int status) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = UV_HANDLE_DATA_SUB(stream, tcp).cb_connection;
+	res = caml_alloc(1, status < 0 ? 0 : 1);
+	if (status < 0)
+		Store_field(res, 0, Val_int(status));
+	else
+		Store_field(res, 0, Val_unit);
+	caml_callback(cb, res);
+	CAMLreturn0;
+}
+
+static void handle_stream_cb_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+	buf->base = malloc(suggested_size);
+	buf->len = suggested_size;
+}
+
+static void handle_stream_cb_read(uv_stream_t *stream, long int nread, const uv_buf_t *buf) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = UV_HANDLE_DATA_SUB(stream, tcp).cb_read;
+	res = caml_alloc(1, nread < 0 ? 0 : 1);
+	if (nread < 0)
+		Store_field(res, 0, Val_int(nread));
+	else {
+		CAMLlocal1(bytes);
+		/**
+			FIXME: libuv will not reuse the buffer `buf` after this (we `free` it).
+			Ideally we could allocate an OCaml `bytes` value and make it reference
+			the buffer base directly.
+			Alternatively, in `handle_stream_cb_alloc` we allocate an OCaml string,
+			then trim it somehow.
+			For now, we do a `memcpy` of each buffer.
+		**/
+		bytes = caml_alloc_string(nread);
+		if (buf->base != NULL) {
+			if (nread > 0)
+				memcpy(&Byte(bytes, 0), buf->base, nread);
+			free(buf->base);
+		}
+		Store_field(res, 0, bytes);
+	}
+	caml_callback(cb, res);
+	CAMLreturn0;
+}
+/*
+static void w_listen(uv_stream_t *stream, int backlog, vclosure *cb) {
+	UV_HANDLE_DATA_SUB(stream, uv_w_stream_t)->cb_connection = cb;
+	UV_ERROR_CHECK(uv_listen(stream, backlog, handle_stream_cb_connection));
+}
+*/
+
+static value w_write(value stream, value data, value cb) {
+	CAMLparam3(stream, data, cb);
+	UV_ALLOC_CHECK(req, uv_write_t);
+	UV_REQ_DATA(Write_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(Write_val(req)));
+	uv_buf_t buf = uv_buf_init(&Byte(data, 0), caml_string_length(data));
+	UV_ERROR_CHECK_C(uv_write(Write_val(req), Stream_val(stream), &buf, 1, (void (*)(uv_write_t *, int))handle_stream_cb), free(Write_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+static value w_read_start(value stream, value cb) {
+	CAMLparam2(stream, cb);
+	UV_HANDLE_DATA_SUB(Stream_val(stream), tcp).cb_read = cb;
+	UV_ERROR_CHECK(uv_read_start(Stream_val(stream), handle_stream_cb_alloc, handle_stream_cb_read));
+	UV_SUCCESS_UNIT;
+}
+
+// ------------- NETWORK MACROS -------------------------------------
+
+#define UV_SOCKADDR_IPV4(var, host, port) \
+	struct sockaddr_in var; \
+	var.sin_family = AF_INET; \
+	var.sin_port = htons((unsigned short)port); \
+	var.sin_addr.s_addr = htonl(host);
+#define UV_SOCKADDR_IPV6(var, host, port) \
+	struct sockaddr_in6 var; \
+	memset(&var, 0, sizeof(var)); \
+	var.sin6_family = AF_INET6; \
+	var.sin6_port = htons((unsigned short)port); \
+	memcpy(var.sin6_addr.s6_addr, host, 16);
+
+// ------------- TCP ------------------------------------------------
+
+#define Tcp_val(h) UV_UNWRAP(h, uv_tcp_t)
+#define Connect_val(r) UV_UNWRAP(r, uv_connect_t)
+
+CAMLprim value w_tcp_init(value loop) {
+	CAMLparam1(loop);
+	UV_ALLOC_CHECK(handle, uv_tcp_t);
+	UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(handle)), free(Tcp_val(handle)));
+	UV_HANDLE_DATA(Tcp_val(handle)) = alloc_data_tcp(Val_unit, Val_unit);
+	if (UV_HANDLE_DATA(Tcp_val(handle)) == NULL)
+		UV_ERROR(0);
+	UV_SUCCESS(handle);
+}
+
+CAMLprim value w_tcp_nodelay(value handle, value enable) {
+	CAMLparam2(handle, enable);
+	UV_ERROR_CHECK(uv_tcp_nodelay(Tcp_val(handle), Bool_val(enable)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_keepalive(value handle, value enable, value delay) {
+	CAMLparam3(handle, enable, delay);
+	UV_ERROR_CHECK(uv_tcp_keepalive(Tcp_val(handle), Bool_val(enable), Int_val(delay)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_accept(value loop, value server) {
+	CAMLparam2(loop, server);
+	CAMLlocal1(client);
+	UV_ERROR_CHECK_C(uv_tcp_init(Loop_val(loop), Tcp_val(client)), free(Tcp_val(client)));
+	UV_HANDLE_DATA(Tcp_val(client)) = alloc_data_tcp(Val_unit, Val_unit);
+	if (UV_HANDLE_DATA(Tcp_val(client)) == NULL)
+		UV_ERROR(0);
+	UV_ERROR_CHECK_C(uv_accept(Stream_val(server), Stream_val(client)), free(Tcp_val(client)));
+	UV_SUCCESS(client);
+}
+
+CAMLprim value w_tcp_bind_ipv4(value handle, value host, value port) {
+	CAMLparam3(handle, host, port);
+	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_ERROR_CHECK(uv_tcp_bind(Tcp_val(handle), (const struct sockaddr *)&addr, 0));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_bind_ipv6(value handle, value host, value port) {
+	CAMLparam3(handle, host, port);
+	UV_SOCKADDR_IPV6(addr, &Byte(host, 0), Int_val(port));
+	UV_ERROR_CHECK(uv_tcp_bind(Tcp_val(handle), (const struct sockaddr *)&addr, 0));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_connect_ipv4(value handle, value host, value port, value cb) {
+	CAMLparam4(handle, host, port, cb);
+	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_ALLOC_CHECK(req, uv_connect_t);
+	UV_REQ_DATA(Connect_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(Connect_val(req)));
+	UV_ERROR_CHECK_C(uv_tcp_connect(Connect_val(req), Tcp_val(handle), (const struct sockaddr *)&addr, (void (*)(uv_connect_t *, int))handle_stream_cb), free(Connect_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_connect_ipv6(value handle, value host, value port, value cb) {
+	CAMLparam4(handle, host, port, cb);
+	UV_SOCKADDR_IPV6(addr, &Byte(host, 0), Int_val(port));
+	UV_ALLOC_CHECK(req, uv_connect_t);
+	UV_REQ_DATA(Connect_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(Connect_val(req)));
+	UV_ERROR_CHECK_C(uv_tcp_connect(Connect_val(req), Tcp_val(handle), (const struct sockaddr *)&addr, (void (*)(uv_connect_t *, int))handle_stream_cb), free(Connect_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_read_stop(value handle) {
+	CAMLparam1(handle);
+	UV_ERROR_CHECK(uv_read_stop(Stream_val(handle)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_tcp_write(value handle, value data, value cb) {
+	return w_write(handle, data, cb);
+}
+CAMLprim value w_tcp_read_start(value handle, value cb) {
+	return w_read_start(handle, cb);
 }

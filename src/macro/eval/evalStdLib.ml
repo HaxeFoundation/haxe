@@ -3088,11 +3088,11 @@ module StdUv = struct
 	)
 
 	(* Wrap a Haxe callback which will take a result, as encoded by `enc` *)
-	(*let wrap_cb cb enc = (fun res ->
+	let wrap_cb cb enc = (fun res ->
 		ignore (match res with
-			| Uv.UvError err -> call_value cb [encode_string err; vnull]
-			| Uv.UvSuccess val -> call_value cb [vnull; enc val])
-	)*)
+			| Uv.UvError err -> call_value cb [wrap_error err; vnull]
+			| Uv.UvSuccess v -> call_value cb [vnull; enc v])
+	)
 
 	module DirectoryEntry = struct
 		let this vthis = match vthis with
@@ -3117,12 +3117,6 @@ module StdUv = struct
 			wrap_sync (Uv.fs_event_stop this (wrap_cb_unit cb));
 			vnull
 		)
-	end
-
-	module Loop = struct
-		let this vthis = match vthis with
-			| VInstance {ikind = IUv (UvLoop l)} -> l
-			| v -> unexpected_value v "UvLoop"
 	end
 
 	module Stat = struct
@@ -3381,6 +3375,38 @@ module StdUv = struct
 		)
 	end
 
+	module Socket = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvTcp t)} -> t
+			| v -> unexpected_value v "UvTcp"
+		let new_ = (fun _ ->
+			let s = wrap_sync (Uv.tcp_init (loop ())) in
+			encode_instance key_nusys_async_net_Socket ~kind:(IUv (UvTcp s))
+		)
+		let connectTCP = vifun2 (fun vthis port cb ->
+			let this = this vthis in
+			let port = decode_int port in
+			wrap_sync (Uv.tcp_connect_ipv4 this (0x7F000001) port (wrap_cb_unit cb));
+			vnull
+		)
+		let write = vifun2 (fun vthis data cb ->
+			let this = this vthis in
+			let data = decode_bytes data in
+			wrap_sync (Uv.tcp_write this data (wrap_cb_unit cb));
+			vnull
+		)
+		let startRead = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.tcp_read_start this (wrap_cb cb encode_bytes));
+			vnull
+		)
+		let stopRead = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.tcp_read_stop this);
+			vnull
+		)
+	end
+
 	let init = vfun0 (fun () ->
 		loop_ref := Some (wrap_sync (Uv.loop_init ()));
 		vnull
@@ -3566,7 +3592,8 @@ let init_constructors builtins =
 	add key_sys_net_Deque
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
-		)
+		);
+	add key_nusys_async_net_Socket StdUv.Socket.new_
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -3999,7 +4026,6 @@ let init_standard_library builtins =
 		"addChar",StdUtf8.addChar;
 		"toString",StdUtf8.toString;
 	];
-	init_fields builtins (["eval";"uv"],"Loop") [] [];
 	init_fields builtins (["eval";"uv"],"File") [] [];
 	init_fields builtins (["eval"],"Uv") [
 		"init",StdUv.init;
@@ -4064,4 +4090,10 @@ let init_standard_library builtins =
 		"get_blocks",StdUv.Stat.get_blocks;
 		"get_flags",StdUv.Stat.get_flags;
 		"get_gen",StdUv.Stat.get_gen;
+	];
+	init_fields builtins (["nusys";"async";"net"],"Socket") [] [
+		"connectTCP",StdUv.Socket.connectTCP;
+		"write",StdUv.Socket.write;
+		"startRead",StdUv.Socket.startRead;
+		"stopRead",StdUv.Socket.stopRead;
 	];

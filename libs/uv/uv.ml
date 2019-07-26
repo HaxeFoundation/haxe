@@ -73,7 +73,7 @@ type 'a uv_result =
 	| UvError of int (* error number *)
 	| UvSuccess of 'a
 
-type cb_close = unit -> unit
+type unit_cb = unit uv_result -> unit
 
 (* ------------- LOOP ----------------------------------------------- *)
 
@@ -85,7 +85,6 @@ external loop_alive : t_loop -> bool uv_result = "w_loop_alive"
 
 (* ------------- FILESYSTEM ----------------------------------------- *)
 
-type fs_cb = unit uv_result -> unit
 type fs_cb_bytes = string uv_result -> unit
 type fs_cb_path = string uv_result -> unit
 type fs_cb_file = t_file uv_result -> unit
@@ -93,33 +92,33 @@ type fs_cb_int = int uv_result -> unit
 type fs_cb_stat= t_stat uv_result -> unit
 type fs_cb_scandir = (string * int) list uv_result -> unit
 
-external fs_access : t_loop -> string -> int -> fs_cb -> unit = "w_fs_access"
-external fs_chmod : t_loop -> string -> int -> fs_cb -> unit = "w_fs_chmod"
-external fs_chown : t_loop -> string -> int -> int -> fs_cb -> unit = "w_fs_chown"
-external fs_close : t_loop -> t_file -> fs_cb -> unit = "w_fs_close"
-external fs_fchmod : t_loop -> t_file -> int -> fs_cb -> unit = "w_fs_fchmod"
-external fs_fchown : t_loop -> t_file -> int -> int -> fs_cb -> unit = "w_fs_fchown"
-external fs_fdatasync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fdatasync"
+external fs_access : t_loop -> string -> int -> unit_cb -> unit = "w_fs_access"
+external fs_chmod : t_loop -> string -> int -> unit_cb -> unit = "w_fs_chmod"
+external fs_chown : t_loop -> string -> int -> int -> unit_cb -> unit = "w_fs_chown"
+external fs_close : t_loop -> t_file -> unit_cb -> unit = "w_fs_close"
+external fs_fchmod : t_loop -> t_file -> int -> unit_cb -> unit = "w_fs_fchmod"
+external fs_fchown : t_loop -> t_file -> int -> int -> unit_cb -> unit = "w_fs_fchown"
+external fs_fdatasync : t_loop -> t_file -> unit_cb -> unit = "w_fs_fdatasync"
 external fs_fstat : t_loop -> t_file -> fs_cb_stat -> unit = "w_fs_fstat"
-external fs_fsync : t_loop -> t_file -> fs_cb -> unit = "w_fs_fsync"
-external fs_ftruncate : t_loop -> t_file -> int64 -> fs_cb -> unit = "w_fs_ftruncate"
-external fs_futime : t_loop -> t_file -> float -> float -> fs_cb -> unit = "w_fs_futime"
-external fs_link : t_loop -> string -> string -> fs_cb -> unit = "w_fs_link"
+external fs_fsync : t_loop -> t_file -> unit_cb -> unit = "w_fs_fsync"
+external fs_ftruncate : t_loop -> t_file -> int64 -> unit_cb -> unit = "w_fs_ftruncate"
+external fs_futime : t_loop -> t_file -> float -> float -> unit_cb -> unit = "w_fs_futime"
+external fs_link : t_loop -> string -> string -> unit_cb -> unit = "w_fs_link"
 external fs_lstat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_lstat"
-external fs_mkdir : t_loop -> string -> int -> fs_cb -> unit = "w_fs_mkdir"
+external fs_mkdir : t_loop -> string -> int -> unit_cb -> unit = "w_fs_mkdir"
 external fs_mkdtemp : t_loop -> string -> fs_cb_path -> unit = "w_fs_mkdtemp"
 external fs_open : t_loop -> string -> int -> int -> fs_cb_file -> unit = "w_fs_open"
 external fs_read : t_loop -> t_file -> bytes -> int -> int -> int -> fs_cb_int -> unit = "w_fs_read_bytecode" "w_fs_read"
 external fs_readlink : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_readlink"
 external fs_realpath : t_loop -> string -> fs_cb_bytes -> unit = "w_fs_realpath"
-external fs_rename : t_loop -> string -> string -> fs_cb -> unit = "w_fs_rename"
-external fs_rmdir : t_loop -> string -> fs_cb -> unit = "w_fs_rmdir"
+external fs_rename : t_loop -> string -> string -> unit_cb -> unit = "w_fs_rename"
+external fs_rmdir : t_loop -> string -> unit_cb -> unit = "w_fs_rmdir"
 external fs_scandir : t_loop -> string -> int -> fs_cb_scandir -> unit = "w_fs_scandir"
-external fs_sendfile : t_loop -> t_file -> t_file -> int -> int -> fs_cb -> unit = "w_fs_sendfile_bytecode" "w_fs_sendfile"
+external fs_sendfile : t_loop -> t_file -> t_file -> int -> int -> unit_cb -> unit = "w_fs_sendfile_bytecode" "w_fs_sendfile"
 external fs_stat : t_loop -> string -> fs_cb_stat -> unit = "w_fs_stat"
-external fs_symlink : t_loop -> string -> string -> int -> fs_cb -> unit = "w_fs_symlink"
-external fs_unlink : t_loop -> string -> fs_cb -> unit = "w_fs_unlink"
-external fs_utime : t_loop -> string -> float -> float -> fs_cb -> unit = "w_fs_utime"
+external fs_symlink : t_loop -> string -> string -> int -> unit_cb -> unit = "w_fs_symlink"
+external fs_unlink : t_loop -> string -> unit_cb -> unit = "w_fs_unlink"
+external fs_utime : t_loop -> string -> float -> float -> unit_cb -> unit = "w_fs_utime"
 external fs_write : t_loop -> t_file -> bytes -> int -> int -> int -> fs_cb_int -> unit = "w_fs_write_bytecode" "w_fs_write"
 
 external fs_access_sync : t_loop -> string -> int -> unit uv_result = "w_fs_access_sync"
@@ -156,4 +155,20 @@ external fs_write_sync : t_loop -> t_file -> bytes -> int -> int -> int -> int u
 type fs_event_cb = (string * int) uv_result -> unit
 
 external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start"
-external fs_event_stop : t_fs_event -> fs_cb -> unit uv_result = "w_fs_event_stop"
+external fs_event_stop : t_fs_event -> unit_cb -> unit uv_result = "w_fs_event_stop"
+
+(* ------------- TCP ------------------------------------------------ *)
+
+type stream_bytes_cb = bytes uv_result -> unit
+
+external tcp_init : t_loop -> t_tcp uv_result = "w_tcp_init"
+external tcp_nodelay : t_tcp -> bool -> unit uv_result = "w_tcp_nodelay"
+external tcp_keepalive : t_tcp -> bool -> int -> unit uv_result = "w_tcp_keepalive"
+external tcp_accept : t_loop -> t_tcp -> t_tcp uv_result = "w_tcp_accept"
+external tcp_bind_ipv4 : t_tcp -> int -> int -> unit uv_result = "w_tcp_bind_ipv4"
+external tcp_bind_ipv6 : t_tcp -> bytes -> int -> unit uv_result = "w_tcp_bind_ipv6"
+external tcp_connect_ipv4 : t_tcp -> int -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv4"
+external tcp_connect_ipv6 : t_tcp -> bytes -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv6"
+external tcp_read_start : t_tcp -> stream_bytes_cb -> unit uv_result = "w_tcp_read_start"
+external tcp_read_stop : t_tcp -> unit uv_result = "w_tcp_read_stop"
+external tcp_write : t_tcp -> bytes -> unit_cb -> unit uv_result = "w_tcp_write"

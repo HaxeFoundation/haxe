@@ -99,6 +99,7 @@ type vuv_value =
 	| UvFsEvent of Uv.t_fs_event
 	| UvStat of Uv.t_stat
 	| UvDirent of (string * int)
+	| UvTcp of Uv.t_tcp
 
 type value =
 	| VNull
