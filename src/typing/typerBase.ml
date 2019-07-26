@@ -4,11 +4,6 @@ open Type
 open Typecore
 open Error
 
-type access_mode =
-	| MGet
-	| MSet
-	| MCall
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
@@ -25,6 +20,7 @@ type object_decl_kind =
 	| ODKPlain
 
 let build_call_ref : (typer -> access_kind -> expr list -> WithType.t -> pos -> texpr) ref = ref (fun _ _ _ _ _ -> assert false)
+let type_call_target_ref : (typer -> expr -> WithType.t -> bool -> pos -> access_kind) ref = ref (fun _ _ _ _ _ -> assert false)
 
 let relative_path ctx file =
 	let slashes path = String.concat "/" (ExtString.String.nsplit path "\\") in
@@ -92,6 +88,16 @@ let get_this ctx p =
 		mk (TLocal v) v.v_type p
 	| FunConstructor | FunMember ->
 		mk (TConst TThis) ctx.tthis p
+
+let assign_to_this_is_allowed ctx =
+	match ctx.curclass.cl_kind with
+		| KAbstractImpl _ ->
+			(match ctx.curfield.cf_kind with
+				| Method MethInline -> true
+				| Method _ when ctx.curfield.cf_name = "_new" -> true
+				| _ -> false
+			)
+		| _ -> false
 
 let rec type_module_type ctx t tparams p =
 	match t with

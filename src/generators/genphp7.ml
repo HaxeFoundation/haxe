@@ -156,22 +156,27 @@ let std_type_path = ([], "Std")
 *)
 let polyfills_file = "_polyfills.php"
 
+let php_keywords_list =
+	["__halt_compiler"; "abstract"; "and"; "array"; "as"; "break"; "callable"; "case"; "catch"; "class";
+	"clone"; "const"; "continue"; "declare"; "default"; "die"; "do"; "echo"; "else"; "elseif"; "empty";
+	"enddeclare"; "endfor"; "endforeach"; "endif"; "endswitch"; "endwhile"; "eval"; "exit"; "extends"; "final";
+	"finally"; "for"; "foreach"; "function"; "global"; "goto"; "if"; "implements"; "include"; "include_once";
+	"instanceof"; "insteadof"; "interface"; "isset"; "list"; "namespace"; "new"; "or"; "print"; "private";
+	"protected"; "public"; "require"; "require_once"; "return"; "static"; "switch"; "throw"; "trait"; "try";
+	"unset"; "use"; "var"; "while"; "xor"; "yield"; "__class__"; "__dir__"; "__file__"; "__function__"; "__line__";
+	"__method__"; "__trait__"; "__namespace__"; "int"; "float"; "bool"; "string"; "true"; "false"; "null"; "parent";
+	"void"; "iterable"; "object"; "fn"]
+
+let php_keywords_tbl = begin
+	let tbl = Hashtbl.create 100 in
+	List.iter (fun kwd -> Hashtbl.add tbl kwd ()) php_keywords_list;
+	tbl
+end
+
 (**
 	Check if specified string is a reserved word in PHP
 *)
-let is_keyword str =
-	match String.lowercase str with
-		| "__halt_compiler" | "abstract" | "and" | "array" | "as" | "break" | "callable" | "case" | "catch" | "class"
-		| "clone" | "const" | "continue" | "declare" | "default" | "die" | "do" | "echo" | "else" | "elseif" | "empty"
-		| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch" | "endwhile" | "eval" | "exit" | "extends"
-		| "final" | "finally" | "for" | "foreach" | "function" | "global" | "goto" | "if" | "implements" | "include"
-		| "include_once" | "instanceof" | "insteadof" | "interface" | "isset" | "list" | "namespace" | "new" | "or"
-		| "print" | "private" | "protected" | "public" | "require" | "require_once" | "return" | "static" | "switch"
-		| "throw" | "trait" | "try" | "unset" | "use" | "var" | "while" | "xor" | "yield" | "__class__" | "__dir__"
-		| "__file__" | "__function__" | "__line__" | "__method__" | "__trait__" | "__namespace__" | "int" | "float"
-		| "bool" | "string" | "true" | "false" | "null" | "parent" | "void" | "iterable" | "object"
-			-> true
-		| _ -> false
+let is_keyword str = Hashtbl.mem php_keywords_tbl (String.lowercase str)
 
 (**
 	Check if specified type is Void
@@ -304,6 +309,11 @@ let is_string_type t = match follow t with TInst ({ cl_path = ([], "String") }, 
 	Check if specified expression is of String type
 *)
 let is_string expr = is_string_type expr.etype
+
+(**
+	Check if specified type is Array
+*)
+let is_array_type t = match follow t with TInst ({ cl_path = ([], "Array") }, _) -> true | _ -> false
 
 (**
 	Check if specified type represents a function
@@ -1536,6 +1546,12 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		method write_indentation =
 			self#write indentation
 		(**
+			Writes current indentation followed by `str` to output buffer
+		*)
+		method write_with_indentation str =
+			self#write indentation;
+			self#write str
+		(**
 			Writes specified line to output buffer and appends \n
 		*)
 		method write_line line =
@@ -1595,6 +1611,8 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					vars#used var.v_name;
 					self#write ("$" ^ var.v_name)
 				| TArray (target, index) -> self#write_expr_array_access target index
+				| TBinop (OpAssign, { eexpr = TArray (target, index) }, value) when is_array_type target.etype ->
+					self#write_expr_set_array_item target index value
 				| TBinop (operation, expr1, expr2) when needs_dereferencing (is_assignment_binop operation) expr1 ->
 					self#write_expr { expr with eexpr = TBinop (operation, self#dereference expr1, expr2) }
 				| TBinop (operation, expr1, expr2) -> self#write_expr_binop operation expr1 expr2
@@ -1691,8 +1709,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#indent_more;
 					List.iter (fun expr -> self#write_array_item ~separate_line:true expr) exprs;
 					self#indent_less;
-					self#write_indentation;
-					self#write "])"
+					self#write_with_indentation "])"
 		(**
 			Write associative array declaration
 		*)
@@ -1709,8 +1726,15 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					let write_field ((key,_,_), value) = self#write_array_item ~separate_line:true ~key:key value in
 					List.iter write_field fields;
 					self#indent_less;
-					self#write_indentation;
-					self#write "]"
+					self#write_with_indentation "]"
+		(**
+			Writes `target[index] = value` assuming `target` is of `Array` type
+		*)
+		method write_expr_set_array_item target index value =
+			self#write_expr target;
+			self#write "->offsetSet(";
+			write_args self#write self#write_expr [index; value];
+			self#write ")"
 		(**
 			Writes TArray to output buffer
 		*)
@@ -1896,8 +1920,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							write_body ()
 					);
 					self#indent_less;
-					self#write_indentation;
-					self#write "}"
+					self#write_with_indentation "}"
 		(**
 			Writes TReturn to output buffer
 		*)
@@ -1959,8 +1982,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 						self#write_indentation;
 						self#write_as_block ~inline:true expr;
 						self#indent_less;
-						self#write_indentation;
-						self#write "}";
+						self#write_with_indentation "}";
 					end;
 				if not !dynamic then self#write " else ";
 				first_catch := false;
@@ -1979,8 +2001,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 			else
 				(match catches with [_] -> () | _ -> self#write "\n");
 			self#indent_less;
-			self#write_indentation;
-			self#write "}"
+			self#write_with_indentation "}"
 		(**
 			Writes TCast to output buffer
 		*)
@@ -2076,7 +2097,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 				self#write ")"
 			in
 			let write_for_concat expr =
-				if ((is_constant expr) && not (is_constant_null expr)) || (is_concatenation expr) then
+				if ((is_constant expr) && not (is_constant_null expr))
+					|| (is_concatenation expr)
+					|| is_php_global expr
+					|| is_php_class_const expr
+				then
 					self#write_expr expr
 				else begin
 					self#write "(";
@@ -3066,8 +3091,7 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			let func = inject_defaults ctx func in
 			writer#write_fake_block func;
 			writer#indent_less;
-			writer#write_indentation;
-			writer#write "}"
+			writer#write_with_indentation "}"
 		(**
 			Writes method declaration (except visibility and `static` keywords) to output buffer
 		*)
@@ -3076,7 +3100,49 @@ class virtual type_builder ctx (wrapper:type_wrapper) =
 			writer#write ("function " ^ by_ref ^ name ^ " (");
 			write_args writer#write writer#write_function_arg func.tf_args;
 			writer#write ") ";
-			writer#write_expr (inject_defaults ctx func)
+			if not (self#write_body_if_special_method name) then
+				writer#write_expr (inject_defaults ctx func)
+		(**
+			Writes a body for a special method if `field` represents one.
+			Returns `true` if `field` is such a method.
+		*)
+		method private write_body_if_special_method name =
+			(* php.Boot.isPhpKeyword(str:String) *)
+			if self#get_type_path = boot_type_path && name = "isPhpKeyword" then
+				begin
+					writer#write "{\n";
+					writer#indent_more;
+					writer#write_line "switch(strtolower($str)) {";
+					writer#indent_more;
+					writer#write_indentation;
+					let cnt = ref 0 in
+					List.iter
+						(fun kwd ->
+							if !cnt <= 5 then incr cnt
+							else begin
+								cnt := 0;
+								writer#write "\n";
+								writer#write_indentation
+							end;
+							writer#write ("case '" ^ kwd ^ "': ")
+						)
+						php_keywords_list;
+					writer#write "\n";
+					writer#indent_more;
+					writer#write_statement "return true";
+					writer#indent_less;
+					writer#write_line "default:";
+					writer#indent_more;
+					writer#write_statement "return false";
+					writer#indent_less;
+					writer#indent_less;
+					writer#write_line "}";
+					writer#indent_less;
+					writer#write_with_indentation "}";
+					true
+				end
+			else
+				false
 		(**
 			Set sourcemap generator
 		*)
@@ -3128,8 +3194,7 @@ class enum_builder ctx (enm:tenum) =
 			in
 			writer#indent 1;
 			self#write_doc (DocMethod (args, TEnum (enm, []), field.ef_doc));
-			writer#write_indentation;
-			writer#write ("static public function " ^ name ^ " (");
+			writer#write_with_indentation ("static public function " ^ name ^ " (");
 			write_args writer#write (writer#write_arg true) args;
 			writer#write ") {\n";
 			writer#indent_more;
@@ -3143,14 +3208,12 @@ class enum_builder ctx (enm:tenum) =
 				| [] ->
 					(* writer#write ((writer#use hxenum_type_path) ^ "::singleton(static::class, '" ^ name ^ "', " ^ index_str ^")") *)
 					writer#write_line "static $inst = null;";
-					writer#write_indentation;
-					writer#write "if (!$inst) $inst = ";
+					writer#write_with_indentation "if (!$inst) $inst = ";
 					write_construction [];
 					writer#write ";\n";
 					writer#write_line "return $inst;"
 				| args ->
-					writer#write_indentation;
-					writer#write "return ";
+					writer#write_with_indentation "return ";
 					write_construction args;
 					writer#write ";\n";
 			);
@@ -3258,7 +3321,7 @@ class class_builder ctx (cls:tclass) =
 			has_class_field_flag field CfFinal
 		(**
 			Check if there is no native php constructor in inheritance chain of this class.
-			E.g. `StsClass` does have a constructor while still can be called with `new StdClass()`.
+			E.g. `StdClass` does have a constructor while still can be called with `new StdClass()`.
 			So this method will return true for `MyClass` if `MyClass extends StdClass`.
 		*)
 		method private extends_no_constructor =
@@ -3457,8 +3520,7 @@ class class_builder ctx (cls:tclass) =
 			(* `static dynamic function` initialization *)
 			let write_dynamic_method_initialization field =
 				let field_access = "self::$" ^ (field_name field) in
-				writer#write_indentation;
-				writer#write (field_access ^ " = ");
+				writer#write_with_indentation (field_access ^ " = ");
 				(match field.cf_expr with
 					| Some expr -> writer#write_expr expr
 					| None -> fail field.cf_pos __POS__
@@ -3475,8 +3537,7 @@ class class_builder ctx (cls:tclass) =
 			(* `static var` initialization *)
 			let write_var_initialization field =
 				let write_assign expr =
-					writer#write_indentation;
-					writer#write ("self::$" ^ (field_name field) ^ " = ");
+					writer#write_with_indentation ("self::$" ^ (field_name field) ^ " = ");
 					writer#write_expr expr
 				in
 				(*
@@ -3551,8 +3612,7 @@ class class_builder ctx (cls:tclass) =
 				| Some expr ->
 					writer#indent 1;
 					self#write_doc (DocVar (writer#use_t field.cf_type, field.cf_doc));
-					writer#write_indentation;
-					writer#write ("const " ^ (field_name field) ^ " = ");
+					writer#write_with_indentation ("const " ^ (field_name field) ^ " = ");
 					writer#write_expr expr;
 					writer#write ";\n"
 		(**
@@ -3591,8 +3651,7 @@ class class_builder ctx (cls:tclass) =
 			let (args, return_type) = get_function_signature field in
 			List.iter (fun (arg_name, _, _) -> writer#declared_local_var arg_name) args;
 			self#write_doc (DocMethod (args, return_type, field.cf_doc));
-			writer#write_indentation;
-			writer#write ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
+			writer#write_with_indentation ((get_visibility field.cf_meta) ^ " function " ^ (field_name field));
 			(match field.cf_expr with
 				| None -> (* interface *)
 					writer#write " (";

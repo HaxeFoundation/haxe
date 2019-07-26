@@ -70,7 +70,7 @@ let completion_item_of_expr ctx e =
 			in
 			of_field e origin cf CFSMember make_ci_class_field
 		| TField(_,FEnum(en,ef)) -> of_enum_field e (Self (TEnumDecl en)) ef
-		| TField(e1,FAnon cf) ->
+		| TField(e1,(FAnon cf | FClosure(None,cf))) ->
 			begin match follow e1.etype with
 				| TAnon an ->
 					let origin = match e1.etype with
@@ -223,7 +223,7 @@ let rec handle_signature_display ctx e_ast with_type =
 		| ECall(e1,el) ->
 			let def () =
 				try
-					type_expr ctx e1 WithType.value
+					acc_get ctx (!type_call_target_ref ctx e1 with_type false (pos e1)) (pos e1)
 				with
 				| Error (Unknown_ident "trace",_) ->
 					let e = expr_of_type_path (["haxe";"Log"],"trace") p in
@@ -452,7 +452,7 @@ let handle_structure_display ctx e fields origin =
 	| _ ->
 		error "Expected object expression" p
 
-let handle_display ctx e_ast dk with_type =
+let handle_display ?resume_typing ctx e_ast dk with_type =
 	let old = ctx.in_display,ctx.in_call_args in
 	ctx.in_display <- true;
 	ctx.in_call_args <- false;
@@ -482,7 +482,9 @@ let handle_display ctx e_ast dk with_type =
 	| (EConst (Ident "_"),p),WithType.WithType(t,_) ->
 		mk (TConst TNull) t p (* This is "probably" a bind skip, let's just use the expected type *)
 	| (_,p),_ -> try
-		type_expr ctx e_ast with_type
+		match resume_typing with
+		| None -> type_expr ctx e_ast with_type
+		| Some fn -> fn ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
 		else raise_toplevel ctx dk with_type (Some p) p
@@ -563,7 +565,12 @@ let handle_display ctx e_ast dk with_type =
 	ctx.in_call_args <- snd old;
 	display_expr ctx e_ast e dk with_type p
 
-let handle_edisplay ctx e dk with_type =
+let handle_edisplay ?resume_typing ctx e dk with_type =
+	let handle_display ctx e dk with_type =
+		match resume_typing with
+		| Some resume_typing -> handle_display ~resume_typing ctx e dk with_type
+		| None -> handle_display ctx e dk with_type
+	in
 	match dk,ctx.com.display.dms_kind with
 	| DKCall,(DMSignature | DMDefault) -> handle_signature_display ctx e with_type
 	| DKStructure,DMDefault ->

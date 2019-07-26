@@ -19,32 +19,33 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 import haxe.io.Bytes;
 import haxe.io.BytesData;
 
 @:coreApi class Resource {
+	static var content:python.Dict<String, BytesData>;
 
-	static var content:python.Dict<String,BytesData>;
-
-	static function getContent():python.Dict<String,BytesData> {
-		if (content == null) content = untyped _hx_resources__();
+	static function getContent():python.Dict<String, BytesData> {
+		if (content == null)
+			content = untyped _hx_resources__();
 		return content;
 	}
 
-	public static inline function listNames() : Array<String> {
+	public static inline function listNames():Array<String> {
 		return python.internal.UBuiltins.list(getContent().keys());
 	}
 
-	public static function getString( name : String ) : String {
+	public static function getString(name:String):String {
 		var bytes = getBytes(name);
 		if (bytes != null)
 			return bytes.toString();
 		return null;
 	}
 
-	public static function getBytes( name : String ) : haxe.io.Bytes {
+	public static function getBytes(name:String):haxe.io.Bytes {
 		var data = getContent().get(name, null);
 		if (data == null)
 			return null;

@@ -19,9 +19,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package cpp;
+
+package cpp;
 
 @:native("size_t")
 @:scalar @:coreType @:notNull
-extern abstract SizeT from(Int) to(Int) {
-}
+extern abstract SizeT from(Int) to(Int) {}

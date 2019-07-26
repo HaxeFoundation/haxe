@@ -1145,7 +1145,7 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_expr pctx ct)
+							" = None"
 		) args in
 		String.concat "," sl
 
@@ -2269,11 +2269,15 @@ module Generator = struct
 				in
 				let f = handle_keywords ef.ef_name in
 				let param_str = print_args args in
-				let args_str = String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args) in
+				let args_str =
+					match args with
+					| [(n,_,_)] -> (handle_keywords n) ^ ","
+					| args -> String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args)
+				in
 				newline ctx;
 				newline ctx;
 				print ctx "    @staticmethod\n    def %s(%s):\n" f param_str;
-				print ctx "        return %s(\"%s\", %i, [%s])" p ef.ef_name ef.ef_index args_str;
+				print ctx "        return %s(\"%s\", %i, (%s))" p ef.ef_name ef.ef_index args_str;
 			| _ -> assert false
 		) param_constructors;
 
@@ -2281,7 +2285,7 @@ module Generator = struct
 			(* TODO: haxe source has api.quoteString for ef.ef_name *)
 			let f = handle_keywords ef.ef_name in
 			newline ctx;
-			print ctx "%s.%s = %s(\"%s\", %i, list())" p f p ef.ef_name ef.ef_index
+			print ctx "%s.%s = %s(\"%s\", %i, ())" p f p ef.ef_name ef.ef_index
 		) const_constructors;
 
 		if has_feature ctx "python._hx_class" then print ctx "\n%s._hx_class = %s" p p;

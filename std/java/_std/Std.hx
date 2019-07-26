@@ -25,8 +25,7 @@ import java.Lib;
 import java.internal.Exceptions;
 
 @:coreApi @:nativeGen class Std {
-	public static function is( v : Dynamic, t : Dynamic ) : Bool
-	{
+	public static function is(v:Dynamic, t:Dynamic):Bool {
 		if (v == null)
 			return false;
 		if (t == null)
@@ -36,8 +35,7 @@ import java.internal.Exceptions;
 			return false;
 		var name:String = clt.getName();
 
-		switch(name)
-		{
+		switch (name) {
 			case "double", "java.lang.Double":
 				return untyped __java__('haxe.lang.Runtime.isDouble(v)');
 			case "int", "java.lang.Integer":
@@ -53,11 +51,11 @@ import java.internal.Exceptions;
 		return clt.isAssignableFrom(clv);
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public static function string(s:Dynamic):String {
 		return cast(s, String) + "";
 	}
 
-	public static function int( x : Float ) : Int {
+	public static function int(x:Float):Int {
 		return cast x;
 	}
 
@@ -131,70 +129,69 @@ import java.internal.Exceptions;
 		else
 			return null;
 	')
-	public static function parseInt( x : String ) : Null<Int> {
+	public static function parseInt(x:String):Null<Int> {
 		return null;
 	}
 
-	public static function parseFloat( x : String ) : Float {
-		if (x == null) return Math.NaN;
+	public static function parseFloat(x:String):Float {
+		if (x == null)
+			return Math.NaN;
 		x = StringTools.ltrim(x);
-		var found = false, hasDot = false, hasSign = false,
-		    hasE = false, hasESign = false, hasEData = false;
+		var found = false,
+			hasDot = false,
+			hasSign = false,
+			hasE = false,
+			hasESign = false,
+			hasEData = false;
 		var i = -1;
-		inline function getch(i:Int):Int return cast (untyped x._charAt(i) : java.StdTypes.Char16);
+		inline function getch(i:Int):Int
+			return cast(untyped x._charAt(i) : java.StdTypes.Char16);
 
-		while (++i < x.length)
-		{
+		while (++i < x.length) {
 			var chr = getch(i);
-			if (chr >= '0'.code && chr <= '9'.code)
-			{
-				if (hasE)
-				{
+			if (chr >= '0'.code && chr <= '9'.code) {
+				if (hasE) {
 					hasEData = true;
 				}
 				found = true;
-			} else switch (chr) {
-				case 'e'.code | 'E'.code if(!hasE):
-					hasE = true;
-				case '.'.code if (!hasDot):
-					hasDot = true;
-				case '-'.code, '+'.code if (!found && !hasSign):
-					hasSign = true;
-				case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
-					hasESign = true;
-				case _:
-					break;
-			}
+			} else
+				switch (chr) {
+					case 'e'.code | 'E'.code if (!hasE):
+						hasE = true;
+					case '.'.code if (!hasDot):
+						hasDot = true;
+					case '-'.code, '+'.code if (!found && !hasSign):
+						hasSign = true;
+					case '-'.code | '+'.code if (found && !hasESign && hasE && !hasEData):
+						hasESign = true;
+					case _:
+						break;
+				}
 		}
-		if (hasE && !hasEData)
-		{
+		if (hasE && !hasEData) {
 			i--;
 			if (hasESign)
 				i--;
 		}
 
-		if (i != x.length)
-		{
-			x = x.substr(0,i);
+		if (i != x.length) {
+			x = x.substr(0, i);
 		}
-		return try
-			java.lang.Double.DoubleClass.parseDouble(x)
-		catch(e:Dynamic)
-			Math.NaN;
+		return try java.lang.Double.DoubleClass.parseDouble(x) catch (e:Dynamic) Math.NaN;
 	}
 
-	inline public static function downcast<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function downcast<T:{}, S:T>(value:T, c:Class<S>):S {
 		return Std.is(value, c) ? cast value : null;
 	}
 
 	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
-	inline public static function instance<T:{},S:T>( value : T, c : Class<S> ) : S {
+	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):S {
 		return downcast(value, c);
 	}
 
-	public static function random( x : Int ) : Int {
-		if (x <= 0) return 0;
+	public static function random(x:Int):Int {
+		if (x <= 0)
+			return 0;
 		return Std.int(Math.random() * x);
 	}
-
 }

@@ -365,12 +365,57 @@ let check_unification ctx e t =
 	end;
 	e
 
+let rec fix_return_dynamic_from_void_function ctx return_is_void e =
+	match e.eexpr with
+	| TFunction fn ->
+		let is_void = ExtType.is_void (follow fn.tf_type) in
+		let body = fix_return_dynamic_from_void_function ctx is_void fn.tf_expr in
+		{ e with eexpr = TFunction { fn with tf_expr = body } }
+	| TReturn (Some return_expr) when return_is_void && t_dynamic == follow return_expr.etype ->
+		let return_pos = { e.epos with pmax = return_expr.epos.pmin - 1 } in
+		let exprs = [
+			fix_return_dynamic_from_void_function ctx return_is_void return_expr;
+			{ e with eexpr = TReturn None; epos = return_pos };
+		] in
+		{ e with
+			eexpr = TMeta (
+				(Meta.MergeBlock, [], null_pos),
+				mk (TBlock exprs) e.etype e.epos
+			);
+		}
+	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
+
+let check_abstract_as_value e =
+	let rec loop e =
+		match e.eexpr with
+		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
+		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+			error "Cannot use abstract as value" e.epos
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
 let save_class_state ctx t = match t with
 	| TClassDecl c ->
+		let vars = ref [] in
+		let rec save_vars e =
+			let add v = vars := (v, v.v_type) :: !vars in
+			match e.eexpr with
+				| TFunction fn ->
+					List.iter (fun (v, _) -> add v) fn.tf_args;
+					save_vars fn.tf_expr
+				| TVar (v, e) ->
+					add v;
+					Option.may save_vars e
+				| _ ->
+					iter save_vars e
+		in
 		let mk_field_restore f =
+			Option.may save_vars f.cf_expr;
 			let rec mk_overload_restore f =
 				f.cf_name,f.cf_kind,f.cf_expr,f.cf_type,f.cf_meta,f.cf_params
 			in
@@ -395,6 +440,7 @@ let save_class_state ctx t = match t with
 		let ofr = List.map (mk_field_restore) c.cl_ordered_fields in
 		let osr = List.map (mk_field_restore) c.cl_ordered_statics in
 		let init = c.cl_init in
+		Option.may save_vars init;
 		c.cl_restore <- (fun() ->
 			c.cl_super <- sup;
 			c.cl_implements <- impl;
@@ -409,6 +455,7 @@ let save_class_state ctx t = match t with
 			c.cl_constructor <- Option.map restore_field csr;
 			c.cl_overrides <- over;
 			c.cl_descendants <- [];
+			List.iter (fun (v, t) -> v.v_type <- t) !vars;
 		)
 	| _ ->
 		()
@@ -795,7 +842,14 @@ let run com tctx main =
 		(* ForRemap.apply tctx; *)
 		VarLazifier.apply com;
 		AbstractCast.handle_abstract_casts tctx;
+	] in
+	let t = filter_timer detail_times ["expr 0"] in
+	List.iter (run_expression_filters tctx filters) new_types;
+	t();
+	let filters = [
+		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
+		check_abstract_as_value;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;

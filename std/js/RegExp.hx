@@ -19,7 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
- package js;
+
+package js;
 
 @:deprecated typedef RegExp = js.lib.RegExp;
 @:deprecated typedef RegExpMatch = js.lib.RegExp.RegExpMatch;

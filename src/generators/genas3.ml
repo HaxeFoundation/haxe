@@ -264,6 +264,7 @@ let rec type_str ctx t p =
 		| [], "Int" -> "int"
 		| [], "Float" -> "Number"
 		| [], "Bool" -> "Boolean"
+		| ["flash"], "AnyType" -> "*"
 		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
 		if e.e_extern then "Object" else s_path ctx true e.e_path p
@@ -482,6 +483,9 @@ and gen_call ctx e el r =
 		spr ctx ")";
 	| TIdent "__unprotect__", [e] ->
 		gen_value ctx e
+	| TIdent "__vector__", [] ->
+		let t = match r with TAbstract ({a_path = [],"Class"}, [vt]) -> vt | _ -> assert false in
+		spr ctx (type_str ctx t e.epos);
 	| TIdent "__vector__", [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";

@@ -361,19 +361,19 @@ let get_std_class_paths () =
 			let lib_path = Filename.concat prefix_path "lib" in
 			let share_path = Filename.concat prefix_path "share" in
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 		else
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
 let rec process_params create pl =
@@ -487,8 +487,20 @@ try
 	Common.raw_define com "haxe4";
 	Common.define_value com Define.Haxe (s_version false);
 	Common.define_value com Define.Dce "std";
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
 	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
 	com.error <- error ctx;
+	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+		(match msg with
+		| CMError(_,_) -> keep_errors;
+		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+	) (List.rev ctx.messages))) in
+	com.get_messages <- (fun () -> (List.map (fun msg ->
+		(match msg with
+		| CMError(_,_) -> assert false;
+		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+	) (filter_messages false (fun _ -> true))));
+	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
 	if CompilationServer.runs() then com.run_command <- run_command ctx;
 	com.class_path <- get_std_class_paths ();
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
@@ -588,7 +600,7 @@ try
 			com.debug <- true;
 		),"","add debug information to the compiled code");
 		("Miscellaneous",["--version"],["-version"],Arg.Unit (fun() ->
-			message ctx (CMInfo(s_version true,null_pos));
+			com.info (s_version true) null_pos;
 			did_something := true;
 		),"","print version and exit");
 		("Miscellaneous", ["-h";"--help"], ["-help"], Arg.Unit (fun () ->
@@ -872,7 +884,7 @@ try
 		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
 		let t = Timer.timer ["typing"] in
-		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
+		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 		let tctx = Typer.create com in
 		let add_signature desc =
 			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
@@ -1021,7 +1033,7 @@ with
 	| Failure msg when not (is_debug_run()) ->
 		error ctx ("Error: " ^ msg) null_pos
 	| HelpMessage msg ->
-		message ctx (CMInfo(msg,null_pos))
+		com.info msg null_pos
 	| DisplayException(DisplayHover _ | DisplayPositions _ | DisplayFields _ | DisplayPackage _  | DisplaySignatures _ as de) when ctx.com.json_out <> None ->
 		begin
 			DisplayPosition.display_position#reset;

@@ -12,14 +12,19 @@ let get_documentation_list() =
 		let d = Obj.magic i in
 		if d <> Last then begin
 			let t, (doc,flags) = infos d in
-			let pfs = ref [] in
+			let params = ref [] and pfs = ref [] in
 			List.iter (function
-			| HasParam s -> () (* TODO *)
-			| Platforms pl -> pfs := pl @ !pfs;
+				| HasParam s -> params := s :: !params
+				| Platforms fl -> pfs := fl @ !pfs
+				| Link _ -> ()
 			) flags;
+			let params = (match List.rev !params with
+				| [] -> ""
+				| l -> "<" ^ String.concat ">, <" l ^ "> "
+			) in
 			let pfs = platform_list_help (List.rev !pfs) in
 			if String.length t > !m then m := String.length t;
-			((String.concat "-" (ExtString.String.nsplit t "_")),doc ^ pfs) :: (loop (i + 1))
+			((String.concat "-" (ExtString.String.nsplit t "_")),params ^ doc ^ pfs) :: (loop (i + 1))
 		end else
 			[]
 	in

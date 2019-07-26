@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe;
 
 /**
@@ -36,14 +37,13 @@ package haxe;
 	the child class.
 **/
 class Timer {
-
 	#if (flash || js)
-		private var id : Null<Int>;
+	private var id:Null<Int>;
 	#elseif java
-		private var timer : java.util.Timer;
-		private var task : java.util.TimerTask;
+	private var timer:java.util.Timer;
+	private var task:java.util.TimerTask;
 	#else
-		private var event : MainLoop.MainEvent;
+	private var event:MainLoop.MainEvent;
 	#end
 
 	/**
@@ -57,23 +57,25 @@ class Timer {
 
 		The accuracy of this may be platform-dependent.
 	**/
-	public function new( time_ms : Int ){
+	public function new(time_ms:Int) {
 		#if flash
-			var me = this;
-			id = untyped __global__["flash.utils.setInterval"](function() { me.run(); },time_ms);
+		var me = this;
+		id = untyped __global__["flash.utils.setInterval"](function() {
+			me.run();
+		}, time_ms);
 		#elseif js
-			var me = this;
-			id = untyped setInterval(function() me.run(),time_ms);
+		var me = this;
+		id = untyped setInterval(function() me.run(), time_ms);
 		#elseif java
-			timer = new java.util.Timer();
-			timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
+		timer = new java.util.Timer();
+		timer.scheduleAtFixedRate(task = new TimerTask(this), haxe.Int64.ofInt(time_ms), haxe.Int64.ofInt(time_ms));
 		#else
-			var dt = time_ms / 1000;
-			event = MainLoop.add(function() {
-				@:privateAccess event.nextRun += dt;
-				run();
-			});
-			event.delay(dt);
+		var dt = time_ms / 1000;
+		event = MainLoop.add(function() {
+			@:privateAccess event.nextRun += dt;
+			run();
+		});
+		event.delay(dt);
 		#end
 	}
 
@@ -87,25 +89,25 @@ class Timer {
 	**/
 	public function stop() {
 		#if (flash || js)
-			if( id == null )
-				return;
-			#if flash
-				untyped __global__["flash.utils.clearInterval"](id);
-			#elseif js
-				untyped clearInterval(id);
-			#end
-			id = null;
+		if (id == null)
+			return;
+		#if flash
+		untyped __global__["flash.utils.clearInterval"](id);
+		#elseif js
+		untyped clearInterval(id);
+		#end
+		id = null;
 		#elseif java
-			if(timer != null) {
-				timer.cancel();
-				timer = null;
-			}
-			task = null;
+		if (timer != null) {
+			timer.cancel();
+			timer = null;
+		}
+		task = null;
 		#else
-			if( event != null ) {
-				event.stop();
-				event = null;
-			}
+		if (event != null) {
+			event.stop();
+			event = null;
+		}
 		#end
 	}
 
@@ -120,9 +122,7 @@ class Timer {
 		Once bound, it can still be rebound to different functions until `this`
 		Timer is stopped through a call to `this.stop`.
 	**/
-	public dynamic function run() {
-
-	}
+	public dynamic function run() {}
 
 	/**
 		Invokes `f` after `time_ms` milliseconds.
@@ -133,7 +133,7 @@ class Timer {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function delay( f : Void -> Void, time_ms : Int ) {
+	public static function delay(f:Void->Void, time_ms:Int) {
 		var t = new haxe.Timer(time_ms);
 		t.run = function() {
 			t.stop();
@@ -153,7 +153,7 @@ class Timer {
 
 		If `f` is null, the result is unspecified.
 	**/
-	public static function measure<T>( f : Void -> T, ?pos : PosInfos ) : T {
+	public static function measure<T>(f:Void->T, ?pos:PosInfos):T {
 		var t0 = stamp();
 		var r = f();
 		Log.trace((stamp() - t0) + "s", pos);
@@ -166,31 +166,30 @@ class Timer {
 		The value itself might differ depending on platforms, only differences
 		between two values make sense.
 	**/
-	public static inline function stamp() : Float {
+	public static inline function stamp():Float {
 		#if flash
-			return flash.Lib.getTimer() / 1000;
+		return flash.Lib.getTimer() / 1000;
 		#elseif (neko || php)
-			return Sys.time();
+		return Sys.time();
 		#elseif js
-			return js.lib.Date.now() / 1000;
+		return js.lib.Date.now() / 1000;
 		#elseif cpp
-			return untyped __global__.__time_stamp();
+		return untyped __global__.__time_stamp();
 		#elseif python
-			return Sys.cpuTime();
+		return Sys.cpuTime();
 		#elseif sys
-			return Sys.time();
-
+		return Sys.time();
 		#else
-			return 0;
+		return 0;
 		#end
 	}
-
 }
 
 #if java
 @:nativeGen
 private class TimerTask extends java.util.TimerTask {
 	var timer:Timer;
+
 	public function new(timer:Timer):Void {
 		super();
 		this.timer = timer;

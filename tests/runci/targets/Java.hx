@@ -24,6 +24,9 @@ class Java {
 		runCommand("haxe", ["compile-java.hxml","-dce","no"].concat(args));
 		runCommand("java", ["-jar", "bin/java/TestMain-Debug.jar"]);
 
+		changeDirectory(miscJavaDir);
+		runCommand("haxe", ["run.hxml"]);
+
 		changeDirectory(sysDir);
 		runCommand("haxe", ["compile-java.hxml"]);
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
@@ -50,8 +53,5 @@ class Java {
 				}
 			}
 		}
-
-		changeDirectory(miscJavaDir);
-		runCommand("haxe", ["run.hxml"]);
 	}
 }

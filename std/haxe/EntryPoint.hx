@@ -112,7 +112,7 @@ class EntryPoint {
 		#if nodejs
 		if (nextTick < 0)
 			return;
-		(untyped setTimeout) (run, nextTick);
+		(untyped setTimeout)(run, nextTick);
 		#else
 		var window:Dynamic = js.Browser.window;
 		var rqf:Dynamic = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;

@@ -384,6 +384,7 @@ type flag_tclass_field =
 	| CfExtern (* This is only set if the field itself is extern, not just the class. *)
 	| CfFinal
 	| CfOverridden
+	| CfModifiesThis (* This is set for methods which reassign `this`. E.g. `this = value` *)
 
 (* Flags *)
 
@@ -2044,7 +2045,7 @@ let rec unify a b =
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		let i = ref 0 in
 		(try
-			(match r2 with
+			(match follow r2 with
 			| TAbstract ({a_path=[],"Void"},_) -> incr i
 			| _ -> unify r1 r2; incr i);
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
@@ -2287,7 +2288,7 @@ and unify_from ab tl a b ?(allow_transitive_cast=true) t =
 		(fun (a2,b2) -> fast_eq a a2 && fast_eq b b2)
 		(fun() ->
 			let t = apply_params ab.a_params tl t in
-			let unify_func = if allow_transitive_cast then unify else type_eq EqStrict in
+			let unify_func = if allow_transitive_cast then unify else type_eq EqRightDynamic in
 			unify_func a t)
 
 and unify_to ab tl b ?(allow_transitive_cast=true) t =
@@ -2823,6 +2824,10 @@ module TExprToExpr = struct
 end
 
 module ExtType = struct
+	let is_mono = function
+		| TMono { contents = None } -> true
+		| _ -> false
+
 	let is_void = function
 		| TAbstract({a_path=[],"Void"},_) -> true
 		| _ -> false
@@ -2838,7 +2843,7 @@ module ExtType = struct
 	let is_numeric t = match t with
 		| TAbstract({a_path=[],"Float"},_) -> true
 		| TAbstract({a_path=[],"Int"},_) -> true
-		| _ -> true
+		| _ -> false
 
 	let is_string t = match t with
 		| TInst({cl_path=[],"String"},_) -> true
@@ -2881,63 +2886,6 @@ module ExtType = struct
 	let has_variable_semantics t = has_semantics t VariableSemantics
 	let has_reference_semantics t = has_semantics t ReferenceSemantics
 	let has_value_semantics t = has_semantics t ValueSemantics
-end
-
-module StringError = struct
-	(* Source: http://en.wikibooks.org/wiki/Algorithm_implementation/Strings/Levenshtein_distance#OCaml *)
-	let levenshtein a b =
-		let x = Array.init (String.length a) (fun i -> a.[i]) in
-		let y = Array.init (String.length b) (fun i -> b.[i]) in
-		let minimum (x:int) y z =
-			let m' (a:int) b = if a < b then a else b in
-			m' (m' x y) z
-		in
-		let init_matrix n m =
-			let init_col = Array.init m in
-				Array.init n (function
-				| 0 -> init_col (function j -> j)
-				| i -> init_col (function 0 -> i | _ -> 0)
-			)
-		in
-		match Array.length x, Array.length y with
-			| 0, n -> n
-			| m, 0 -> m
-			| m, n ->
-				let matrix = init_matrix (m + 1) (n + 1) in
-				for i = 1 to m do
-					let s = matrix.(i) and t = matrix.(i - 1) in
-					for j = 1 to n do
-						let cost = abs (compare x.(i - 1) y.(j - 1)) in
-						s.(j) <- minimum (t.(j) + 1) (s.(j - 1) + 1) (t.(j - 1) + cost)
-					done
-				done;
-				matrix.(m).(n)
-
-	let filter_similar f cl =
-		let rec loop sl = match sl with
-			| (x,i) :: sl when f x i -> x :: loop sl
-			| _ -> []
-		in
-		loop cl
-
-	let get_similar s sl =
-		if sl = [] then [] else
-		let cl = List.map (fun s2 -> s2,levenshtein s s2) sl in
-		let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
-		let cl = filter_similar (fun s2 i -> i <= (min (String.length s) (String.length s2)) / 3) cl in
-		cl
-
-	let string_error_raise s sl msg =
-		if sl = [] then msg else
-		let cl = get_similar s sl in
-		match cl with
-			| [] -> raise Not_found
-			| [s] -> Printf.sprintf "%s (Suggestion: %s)" msg s
-			| sl -> Printf.sprintf "%s (Suggestions: %s)" msg (String.concat ", " sl)
-
-	let string_error s sl msg =
-		try string_error_raise s sl msg
-		with Not_found -> msg
 end
 
 let class_module_type c = {

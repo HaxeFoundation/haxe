@@ -5,6 +5,7 @@
 --resource res1.txt@re/s?!%[]))("'1.txt
 --resource res2.bin@re/s?!%[]))("'1.bin
 --resource serializedValues.txt
+--macro Macro.init()
 --dce full
 -lib utest
 -D analyzer-optimize

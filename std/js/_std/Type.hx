@@ -86,6 +86,7 @@ enum ValueType {
 		return untyped __define_feature__("Type.resolveEnum", $hxEnums[name]);
 	}
 	#end
+
 	#if (js_es < 5)
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
 		switch (args.length) {
@@ -141,6 +142,7 @@ enum ValueType {
 		return js.lib.Object.create((cast cl).prototype);
 	}
 	#end
+
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		var f:Dynamic = Reflect.field(e, constr);
 		if (f == null)
@@ -216,8 +218,9 @@ enum ValueType {
 		return a;
 	}
 	#end
+
 	public static inline function getEnumConstructs(e:Enum<Dynamic>):Array<String> {
-		return ((cast e).__constructs__:Array<String>).copy();
+		return ((cast e).__constructs__ : Array<String>).copy();
 	}
 
 	@:access(js.Boot)
@@ -311,6 +314,7 @@ enum ValueType {
 			return params != null ? [for (p in params) e[p]] : [];
 		}
 	#end
+
 	public inline static function enumIndex(e:EnumValue):Int {
 		#if !js_enums_as_arrays
 		return untyped e._hx_index;

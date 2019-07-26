@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package haxe.extern;
 
 /**
@@ -29,7 +30,7 @@ package haxe.extern;
 	such as JavaScript or Python.
 
 	Otherwise, use of this type is discouraged.
-	
+
 	@see <https://haxe.org/manual/lf-externs.html>
 **/
-abstract EitherType<T1,T2>(Dynamic) from T1 to T1 from T2 to T2 {}
+abstract EitherType<T1, T2>(Dynamic) from T1 to T1 from T2 to T2 {}

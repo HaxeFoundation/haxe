@@ -1108,7 +1108,9 @@ and arrow_expr = parser
 
 and arrow_function p1 al er s =
 	let make e =
-		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
+		let p = pos e in
+		let return = (EMeta((Meta.ImplicitReturn, [], null_pos), (EReturn(Some e), p)), p) in
+		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some return;  }), punion p1 p
 	in
 	List.iter (fun (_,_,ml,_,_) ->	match ml with
 		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on arrow function arguments is not allowed") ~pos:(Some p) s ()
@@ -1386,10 +1388,10 @@ and expr_or_var = parser
 	| [< e = secure_expr >] -> e
 
 and parse_switch_cases eswitch cases = parser
-	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
+	| [< '(Kwd Default,p1); '(DblDot,pdot); s >] ->
 		let b,p2 = (block_with_pos [] p1 s) in
 		let b = match b with
-			| [] -> None,p1
+			| [] -> None,pdot
 			| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 		in
 		let l , def = parse_switch_cases eswitch cases s in
@@ -1403,9 +1405,7 @@ and parse_switch_cases eswitch cases = parser
 		| _ ->
 			let b,p2 = (block_with_pos [] p1 s) in
 			let b,p = match b with
-				| [] ->
-					let p2 = match eg with Some e -> pos e | None -> match List.rev el with (_,p) :: _ -> p | [] -> p1 in
-					None,punion p1 p2
+				| [] -> None,punion p1 pdot
 				| _ -> let p = punion p1 p2 in Some ((EBlock b,p)),p
 			in
 			parse_switch_cases eswitch ((el,eg,b,p) :: cases) s

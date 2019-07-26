@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package sys.io;
 
 import python.io.IoTools;
@@ -29,46 +30,53 @@ import python.lib.Subprocess;
 import python.lib.subprocess.Popen;
 
 class Process {
-
-	public var stdout(default,null) : haxe.io.Input;
-	public var stderr(default,null) : haxe.io.Input;
-	public var stdin(default,null) : haxe.io.Output;
+	public var stdout(default, null):haxe.io.Input;
+	public var stderr(default, null):haxe.io.Input;
+	public var stdin(default, null):haxe.io.Output;
 
 	var p:Popen;
 
-	public function new( cmd : String, ?args : Array<String>, ?detached : Bool ) : Void {
-		if( detached ) throw "Detached process is not supported on this platform";
-		p = Popen.create(args == null ? cmd : [cmd].concat(args), { shell : args == null, stdin : Subprocess.PIPE, stdout: Subprocess.PIPE, stderr : Subprocess.PIPE });
+	public function new(cmd:String, ?args:Array<String>, ?detached:Bool):Void {
+		if (detached)
+			throw "Detached process is not supported on this platform";
+		p = Popen.create(args == null ? cmd : [cmd].concat(args), {
+			shell: args == null,
+			stdin: Subprocess.PIPE,
+			stdout: Subprocess.PIPE,
+			stderr: Subprocess.PIPE
+		});
 		this.stdout = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stdout)));
 		this.stderr = IoTools.createFileInputFromText(new TextIOWrapper(new BufferedReader(p.stderr)));
-		this.stdin =  IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));
+		this.stdin = IoTools.createFileOutputFromText(new TextIOWrapper(new BufferedWriter(p.stdin)));
 	}
 
-	public function getPid() : Int {
+	public function getPid():Int {
 		return p.pid;
 	}
-	public function exitCode( block : Bool = true ) : Null<Int> {
-		if( block == false )
+
+	public function exitCode(block:Bool = true):Null<Int> {
+		if (block == false)
 			return p.poll();
 		return p.wait();
 	}
-	public function close() : Void {
+
+	public function close():Void {
 		var ver = python.lib.Sys.version_info;
 		if (ver[0] > 3 || (ver[0] == 3 && ver[1] >= 3)) // >= 3.3
 			try {
 				p.terminate();
 			} catch (e:python.Exceptions.ProcessLookupError) {
-				// it has already terminated 
+				// it has already terminated
 			}
 		else
 			try {
 				p.terminate();
 			} catch (e:python.Exceptions.OSError) {
-				// it has already terminated 
+				// it has already terminated
 			}
 	}
-	public function kill() : Void {
+
+	public function kill():Void {
 		p.kill();
 	}
-
 }

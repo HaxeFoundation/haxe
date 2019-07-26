@@ -100,7 +100,7 @@ Haxe            | Neko  | SWF |  Python   | HL    | PHP   | Lua  |
 4.0.0-preview.4 |       |        |        | 1.6   |       |      |
 4.0.0-preview.5 |       |        |        | 1.8   |       |      |
 4.0.0-rc.1      |       |        |        | 1.9   |       |      |
-
+4.0.0-rc.3      |       |        |        | 1.10  |       |      |
 
 ## Contributing
 

@@ -29,7 +29,6 @@ end
 
 module ExprPreprocessing = struct
 	let find_before_pos dm e =
-
 		let display_pos = ref (DisplayPosition.display_position#get) in
 		let was_annotated = ref false in
 		let is_annotated,is_completion = match dm with
@@ -135,6 +134,51 @@ module ExprPreprocessing = struct
 				EArrayDecl el,(pos e)
 			| EObjectDecl fl when is_annotated (pos e) && is_completion ->
 				annotate e DKStructure
+			| ESwitch(e1,cases,def) when is_annotated (pos e) ->
+				(* We must be "between" two cases, or at the end of the last case.
+				   Let's find the last case which has a position that is < the display
+				   position and mark it. *)
+				let did_mark = ref false in
+				let mark_case ec p =
+					did_mark := true;
+					let ep = mk_null p in
+					match ec with
+					| Some ec ->
+						let ec = match fst ec with
+							| EBlock el -> (EBlock (el @ [ep]),p)
+							| _ -> (EBlock [ec;ep],p)
+						in
+						Some ec
+					| None ->
+						Some (mk_null p)
+				in
+				let rec loop cases = match cases with
+					| [el,eg,ec,p1] ->
+						let ec = match def with
+						| None when (pos e).pmax > !display_pos.pmin -> (* this is so we don't trigger if we're on the } *)
+							mark_case ec p1 (* no default, must be the last case *)
+						| Some (_,p2) when p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax ->
+							mark_case ec p1 (* default is beyond display position, mark *)
+						| _ ->
+							ec (* default contains display position, don't mark *)
+						in
+						[el,eg,ec,p1]
+					| (el1,eg1,ec1,p1) :: (el2,eg2,ec2,p2) :: cases ->
+						if p1.pmax <= !display_pos.pmin && p2.pmin >= !display_pos.pmax then
+							(el1,eg1,mark_case ec1 p1,p1) :: (el2,eg2,ec2,p2) :: cases
+						else
+							(el1,eg1,ec1,p1) :: loop ((el2,eg2,ec2,p2) :: cases)
+					| [] ->
+						[]
+				in
+				let cases = loop cases in
+				let def = if !did_mark then
+					def
+				else match def with
+					| Some(eo,p) when (pos e).pmax > !display_pos.pmin -> Some (mark_case eo p,p)
+					| _ -> def
+				in
+				ESwitch(e1,cases,def),pos e
 			| EDisplay _ ->
 				raise Exit
 			| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->

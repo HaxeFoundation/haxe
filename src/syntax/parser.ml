@@ -118,11 +118,11 @@ let last_pos s = pos (last_token s)
 
 let next_token s = match Stream.peek s with
 	| Some (Eof,p) ->
-		(Eof,{p with pmax = max_int})
+		(Eof,p)
 	| Some tk -> tk
 	| None ->
 		let last_pos = pos (last_token s) in
-		(Eof,{last_pos with pmax = max_int})
+		(Eof,last_pos)
 
 let next_pos s = pos (next_token s)
 

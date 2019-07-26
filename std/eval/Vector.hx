@@ -19,10 +19,11 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package eval;
 
 extern class Vector<T> implements ArrayAccess<T> {
-	public function new(size:Int) : Void;
+	public function new(size:Int):Void;
 	public var length(default, null):Int;
 	public function blit<T>(srcPos:Int, dest:Vector<T>, destPos:Int, len:Int):Void;
 	public function toArray():Array<T>;

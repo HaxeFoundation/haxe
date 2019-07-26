@@ -26,9 +26,7 @@ import java.internal.Runtime;
 import java.Boot;
 
 @:coreApi class Reflect {
-
-	public static function hasField( o : Dynamic, field : String ) : Bool
-	{
+	public static function hasField(o:Dynamic, field:String):Bool {
 		if (Std.is(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, true, false) != Runtime.undefined;
 		}
@@ -36,8 +34,7 @@ import java.Boot;
 	}
 
 	@:keep
-	public static function field( o : Dynamic, field : String ) : Dynamic
-	{
+	public static function field(o:Dynamic, field:String):Dynamic {
 		if (Std.is(o, IHxObject)) {
 			return untyped (o : IHxObject).__hx_getField(field, false, false, false);
 		}
@@ -45,8 +42,7 @@ import java.Boot;
 	}
 
 	@:keep
-	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void
-	{
+	public static function setField(o:Dynamic, field:String, value:Dynamic):Void {
 		if (Std.is(o, IHxObject)) {
 			untyped (o : IHxObject).__hx_setField(field, value, false);
 		} else {
@@ -54,8 +50,7 @@ import java.Boot;
 		}
 	}
 
-	public static function getProperty( o : Dynamic, field : String ) : Dynamic
-	{
+	public static function getProperty(o:Dynamic, field:String):Dynamic {
 		if (o == null || field == null) {
 			return null;
 		}
@@ -68,8 +63,7 @@ import java.Boot;
 		return Runtime.slowGetField(o, field, false);
 	}
 
-	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void
-	{
+	public static function setProperty(o:Dynamic, field:String, value:Dynamic):Void {
 		if (Std.is(o, IHxObject)) {
 			untyped (o : IHxObject).__hx_setField(field, value, true);
 		} else if (Runtime.slowHasField(o, "set_" + field)) {
@@ -79,15 +73,13 @@ import java.Boot;
 		}
 	}
 
-	public static function callMethod( o : Dynamic, func : haxe.Constraints.Function, args : Array<Dynamic> ) : Dynamic
-	{
+	public static function callMethod(o:Dynamic, func:haxe.Constraints.Function, args:Array<Dynamic>):Dynamic {
 		var args = java.Lib.nativeArray(args, true);
 		return untyped (func : Function).__hx_invokeDynamic(args);
 	}
 
 	@:keep
-	public static function fields( o : Dynamic ) : Array<String>
-	{
+	public static function fields(o:Dynamic):Array<String> {
 		if (Std.is(o, IHxObject)) {
 			var ret:Array<String> = [];
 			untyped (o : IHxObject).__hx_getFields(ret);
@@ -99,19 +91,16 @@ import java.Boot;
 		}
 	}
 
-	public static function isFunction( f : Dynamic ) : Bool
-	{
+	public static function isFunction(f:Dynamic):Bool {
 		return Std.is(f, Function);
 	}
 
-	public static function compare<T>( a : T, b : T ) : Int
-	{
+	public static function compare<T>(a:T, b:T):Int {
 		return Runtime.compare(a, b);
 	}
 
 	@:access(java.internal.Closure)
-	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool
-	{
+	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {
 		if (f1 == f2) {
 			return true;
 		}
@@ -123,34 +112,34 @@ import java.Boot;
 		return false;
 	}
 
-	public static function isObject( v : Dynamic ) : Bool
-	{
-		return v != null && !(Std.is(v, HxEnum) || Std.is(v, Function) || Std.is(v, java.lang.Enum) || Std.is(v, java.lang.Number) || Std.is(v, java.lang.Boolean.BooleanClass));
+	public static function isObject(v:Dynamic):Bool {
+		return v != null
+			&& !(Std.is(v, HxEnum)
+				|| Std.is(v, Function)
+				|| Std.is(v, java.lang.Enum)
+				|| Std.is(v, java.lang.Number)
+				|| Std.is(v, java.lang.Boolean.BooleanClass));
 	}
 
-	public static function isEnumValue( v : Dynamic ) : Bool {
+	public static function isEnumValue(v:Dynamic):Bool {
 		return v != null && (Std.is(v, HxEnum) || Std.is(v, java.lang.Enum));
 	}
 
-	public static function deleteField( o : Dynamic, field : String ) : Bool
-	{
+	public static function deleteField(o:Dynamic, field:String):Bool {
 		return (Std.is(o, DynamicObject) && (o : DynamicObject).__hx_deleteField(field));
 	}
 
-	public static function copy<T>( o : Null<T> ) : Null<T>
-	{
-		if(o == null) return null;
-		var o2 : Dynamic = {};
-		for( f in Reflect.fields(o) )
-			Reflect.setField(o2,f,Reflect.field(o,f));
+	public static function copy<T>(o:Null<T>):Null<T> {
+		if (o == null)
+			return null;
+		var o2:Dynamic = {};
+		for (f in Reflect.fields(o))
+			Reflect.setField(o2, f, Reflect.field(o, f));
 		return cast o2;
 	}
 
-	@:overload(function( f : Array<Dynamic> -> Void ) : Dynamic {})
-	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
-	{
+	@:overload(function(f:Array<Dynamic>->Void):Dynamic {})
+	public static function makeVarArgs(f:Array<Dynamic>->Dynamic):Dynamic {
 		return new VarArgsFunction(f);
 	}
-
-
 }

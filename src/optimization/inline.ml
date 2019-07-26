@@ -203,6 +203,7 @@ type in_local = {
 	mutable i_read : int;
 	mutable i_called : int;
 	mutable i_force_temp : bool;
+	mutable i_default_value : texpr option;
 }
 
 type var_inline_kind =
@@ -283,6 +284,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
+				i_default_value = None;
 			} in
 			i.i_subst.v_meta <- List.filter (fun (m,_,_) -> m <> Meta.This) v.v_meta;
 			Hashtbl.add locals v.v_id i;
@@ -303,6 +305,7 @@ class inline_state ctx ethis params cf f p = object(self)
 				i_called = 0;
 				i_force_temp = false;
 				i_read = 0;
+				i_default_value = None;
 			}
 		in
 		if _in_local_fun then l.i_captured <- true;
@@ -400,6 +403,10 @@ class inline_state ctx ethis params cf f p = object(self)
 				let e = if dynamic_v <> dynamic_e then mk (TCast(e,None)) v.v_type e.epos else e in
 				let e = match e.eexpr, opt with
 					| TConst TNull , Some c -> c
+					| _ , Some c when (match c.eexpr with TConst TNull -> false | _ -> true) && (not ctx.com.config.pf_static || is_nullable v.v_type) ->
+						l.i_force_temp <- true;
+						l.i_default_value <- Some c;
+						e
 					| _ -> e
 				in
 				if has_side_effect e then begin
@@ -486,21 +493,33 @@ class inline_state ctx ethis params cf f p = object(self)
 			with Unify_error _ ->
 				mk (TCast (e,None)) tret e.epos
 		in
-		let e = (match e.eexpr, init with
-			| _, None when not self#has_return_value ->
+		let e = match init with
+			| None when not self#has_return_value ->
 				begin match e.eexpr with
 					| TBlock _ -> {e with etype = tret}
 					| _ -> mk (TBlock [e]) tret e.epos
 				end
-			| TBlock [e] , None -> wrap e
-			| _ , None -> wrap e
-			| TBlock l, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
-				mk (TBlock (el_v @ l)) tret e.epos
-			| _, Some vl ->
-				let el_v = List.map (fun (v,eo) -> mk (TVar (v,eo)) ctx.t.tvoid e.epos) vl in
-				mk (TBlock (el_v @ [e])) tret e.epos
-		) in
+			| None ->
+				begin match e.eexpr with
+					| TBlock [e] -> wrap e
+					| _ -> wrap e
+				end
+			| Some vl ->
+				let el = DynArray.create () in
+				let add = DynArray.add el in
+				List.iter (fun (v,eo) ->
+					add (mk (TVar (v,eo)) ctx.t.tvoid e.epos);
+				) vl;
+				List.iter (fun (l,e) -> match l.i_default_value with
+					| None -> ()
+					| Some e -> add (Texpr.set_default ctx.com.basic l.i_subst e e.epos)
+				) _inlined_vars;
+				begin match e.eexpr with
+					| TBlock el -> List.iter add el
+					| _ -> add e
+				end;
+				mk (TBlock (DynArray.to_list el)) tret e.epos
+		in
 		let e = inline_metadata e cf.cf_meta in
 		let e = Diagnostics.secure_generated_code ctx e in
 		if has_params then begin

@@ -19,8 +19,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-package sys.net;
 
+package sys.net;
 
 import haxe.io.Bytes;
 import haxe.io.BytesInput;
@@ -30,34 +30,36 @@ import haxe.io.BytesInput;
 **/
 @:coreapi
 class Host {
-
 	/**
 		The provided host string.
 	**/
-	public var host(default,null) : String;
+	public var host(default, null):String;
 
 	/**
 		The actual IP corresponding to the host.
 	**/
-	public var ip(default, null) : Int;
-	var _ip : String;
+	public var ip(default, null):Int;
+
+	var _ip:String;
 
 	/**
 		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
 		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
 	**/
-	public function new( name : String ) : Void {
+	public function new(name:String):Void {
 		host = name;
-		if (lua.NativeStringTools.find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null){
+		if (lua.NativeStringTools.find(name, "(%d+)%.(%d+)%.(%d+)%.(%d+)").begin != null) {
 			_ip = name;
 		} else {
 			var res = lua.lib.luv.net.Dns.getaddrinfo(name);
-			if (res.result == null) throw "Unrecognized node name";
+			if (res.result == null)
+				throw "Unrecognized node name";
 			_ip = res.result[1].addr;
-			if (_ip == "::1") _ip = "127.0.0.0";
+			if (_ip == "::1")
+				_ip = "127.0.0.0";
 		}
 		var num = 0;
-		for (a in _ip.split(".")){
+		for (a in _ip.split(".")) {
 			num = num * 256 + lua.Lua.tonumber(a);
 		}
 		ip = num;
@@ -66,21 +68,21 @@ class Host {
 	/**
 		Returns the IP representation of the host
 	**/
-	public function toString() : String {
+	public function toString():String {
 		return _ip;
 	}
 
 	/**
 		Perform a reverse-DNS query to resolve a host name from an IP.
 	**/
-	public function reverse() : String {
-		return lua.lib.luv.net.Dns.getnameinfo({ip : _ip}).result;
+	public function reverse():String {
+		return lua.lib.luv.net.Dns.getnameinfo({ip: _ip}).result;
 	}
 
 	/**
 		Returns the local computer host name
 	**/
-	static public function localhost() : String {
+	static public function localhost():String {
 		return lua.lib.luasocket.socket.Dns.gethostname();
 	}
 }

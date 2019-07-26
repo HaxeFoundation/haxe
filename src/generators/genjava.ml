@@ -416,7 +416,7 @@ struct
 		and modify it to:
 		{
 			var execute_def = true;
-			switch(str.hashCode())
+			switch(str == null ? 0 : str.hashCode())
 			{
 				case (hashcode of a):
 					if (str == "a")
@@ -579,7 +579,9 @@ struct
 			(el, e)
 		in
 
-		let switch = { eswitch with
+		let is_not_null_check = mk (TBinop (OpNotEq, local, { local with eexpr = TConst TNull })) basic.tbool local.epos in
+		let if_not_null e = { e with eexpr = TIf (is_not_null_check, e, None) } in
+		let switch = if_not_null { eswitch with
 			eexpr = TSwitch(!local_hashcode, List.map change_case (reorder_cases ecases []), None);
 		} in
 		(if !has_case then begin

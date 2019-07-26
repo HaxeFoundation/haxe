@@ -19,6 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+
 package js.lib;
 
 import js.lib.Map.MapEntry;
@@ -35,7 +36,7 @@ extern class Set<T> {
 	/**
 		The number of values in the `js.Set` object.
 	**/
-	var size(default,null):Int;
+	var size(default, null):Int;
 
 	/**
 		If an iterable object is passed, all of its elements will be added to
@@ -74,7 +75,7 @@ extern class Set<T> {
 		If a `thisArg` parameter is provided to forEach, it will be used as the
 		`this` value for each callback.
 	**/
-	function forEach(callback:(value:T, key:T, set:Set<T>)->Void, ?thisArg:Any):Void;
+	function forEach(callback:(value:T, key:T, set:Set<T>) -> Void, ?thisArg:Any):Void;
 
 	/**
 		Returns a new `js.lib.Iterator` object that contains the keys for each element
@@ -95,5 +96,5 @@ extern class Set<T> {
 		This is kept similar to the `js.Map` object, so that each entry has the
 		same value for its key and value here.
 	**/
-	function entries():Iterator<MapEntry<T,T>>;
+	function entries():Iterator<MapEntry<T, T>>;
 }
