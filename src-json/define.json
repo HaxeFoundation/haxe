@@ -303,12 +303,6 @@
 		"platforms": ["js"]
 	},
 	{
-		"name": "Jvm",
-		"define": "jvm",
-		"doc": "Generate jvm directly.",
-		"platforms": ["java"]
-	},
-	{
 		"name": "SourceMap",
 		"define": "source_map",
 		"doc": "Generate source map for compiled files.",

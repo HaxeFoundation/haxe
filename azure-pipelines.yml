@@ -44,7 +44,7 @@ stages:
               HXCPP_COMPILE_CACHE: ~/hxcache
               APT_PACKAGES: gcc-multilib g++-multilib
             java:
-              TEST: java,jvm
+              TEST: java
             cs:
               TEST: cs
             js:
@@ -119,7 +119,7 @@ stages:
               TEST: cpp
               HXCPP_COMPILE_CACHE: ~/hxcache
             java:
-              TEST: java,jvm
+              TEST: java
             cs:
               TEST: cs
             js:
@@ -184,7 +184,7 @@ stages:
               TEST: cpp
               HXCPP_COMPILE_CACHE: C:/hxcache
             java:
-              TEST: java,jvm
+              TEST: java
             cs:
               TEST: cs
             js:

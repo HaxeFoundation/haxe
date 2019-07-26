@@ -58,14 +58,6 @@ import java.NativeArray;
 		return a;
 	}
 
-	#if jvm
-	function getNative():NativeArray<T> {
-		var a = new NativeArray(length);
-		System.arraycopy(__a, 0, a, 0, length);
-		return a;
-	}
-	#end
-
 	public function new():Void {
 		this.length = 0;
 		this.__a = new NativeArray(0);
@@ -455,7 +447,7 @@ import java.NativeArray;
 		return __a[idx];
 	}
 
-	private function __set(idx:Int, v:T):#if jvm Void #else T #end
+	private function __set(idx:Int, v:T):T
 	{
 		var __a = __a;
 		if (idx >= __a.length) {
@@ -471,7 +463,7 @@ import java.NativeArray;
 		if (idx >= length)
 			this.length = idx + 1;
 
-		#if !jvm return #end __a[idx] = v;
+		return __a[idx] = v;
 	}
 
 	private inline function __unsafe_get(idx:Int):T {

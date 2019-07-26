@@ -861,7 +861,7 @@ let run com tctx main =
 			filters @ [
 				TryCatchWrapper.configure_cs com
 			]
-		| Java when not (Common.defined com Jvm)->
+		| Java ->
 			SetHXGen.run_filter com new_types;
 			filters @ [
 				TryCatchWrapper.configure_java com

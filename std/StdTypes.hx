@@ -26,9 +26,6 @@
 
 	@see https://haxe.org/manual/types-void.html
 **/
-#if jvm
-@:runtimeValue
-#end
 @:coreType abstract Void {}
 
 /**

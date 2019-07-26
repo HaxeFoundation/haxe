@@ -16,8 +16,6 @@ class UtilityProcess {
 		Path.join(["bin", "hl"]);
 #elseif lua
 		Path.join(["bin", "lua"]);
-#elseif (java && jvm)
-		Path.join(["bin", "jvm"]);
 #elseif java
 		Path.join(["bin", "java"]);
 #elseif neko
@@ -116,7 +114,7 @@ class UtilityProcess {
 			stderr: stderr
 		};
 	}
-	
+
 	public static function main():Void {
 		var args = Sys.args();
 		function sequenceIndex(d:String, mode:String):String return (switch (UnicodeSequences.valid[Std.parseInt(d)]) {

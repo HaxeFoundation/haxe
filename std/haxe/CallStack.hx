@@ -206,7 +206,7 @@ class CallStack {
 		return makeStack(s);
 		#elseif java
 		var stack = [];
-		switch (#if jvm jvm.Exception #else java.internal.Exceptions #end.currentException()) {
+		switch (java.internal.Exceptions.currentException()) {
 			case null:
 			case current:
 				for (el in current.getStackTrace()) {

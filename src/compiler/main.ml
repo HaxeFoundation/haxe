@@ -259,7 +259,6 @@ module Initialize = struct
 					old_flush()
 				);
 				Java.before_generate com;
-				if defined com Define.Jvm then add_std "jvm";
 				add_std "java";
 				"java"
 			| Python ->
@@ -321,10 +320,7 @@ let generate tctx ext xml_out interp swf_header =
 		| Cs ->
 			Gencs.generate,"cs"
 		| Java ->
-			if Common.defined com Jvm then
-				Genjvm.generate,"java"
-			else
-				Genjava.generate,"java"
+			Genjava.generate,"java"
 		| Python ->
 			Genpy.generate,"python"
 		| Hl ->

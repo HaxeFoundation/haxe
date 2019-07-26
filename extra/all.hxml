@@ -33,11 +33,6 @@
 -xml java.xml
 
 --next
--java all_jvm
--D jvm
--xml jvm.xml
-
---next
 -cs all_cs
 -D unsafe
 -xml cs.xml
