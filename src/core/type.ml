@@ -650,8 +650,10 @@ let dup t =
 	in
 	loop t
 
+exception ApplyParamsRecursion
+
 (* substitute parameters with other types *)
-let apply_params cparams params t =
+let apply_params ?stack cparams params t =
 	match cparams with
 	| [] -> t
 	| _ ->
@@ -679,7 +681,52 @@ let apply_params cparams params t =
 		| TType (t2,tl) ->
 			(match tl with
 			| [] -> t
-			| _ -> TType (t2,List.map loop tl))
+			| _ ->
+				let new_applied_params = List.map loop tl in
+				(match stack with
+				| None -> ()
+				| Some stack ->
+					List.iter (fun (subject, old_applied_params) ->
+						(*
+							E.g.:
+							```
+							typedef Rec<T> = { function method():Rec<Array<T>> }
+							```
+							We need to make sure that we are not applying the result of previous
+							application to the same place, which would mean the result of current
+							application would go into `apply_params` again and then again and so on.
+
+							Argument `stack` holds all previous results of `apply_params` to typedefs in current
+							unification process.
+
+							Imagine we are trying to unify `Rec<Int>` with something.
+
+							Once `apply_params Array<T> Int Rec<Array<T>>` is called for the first time the result
+							will be `Rec< Array<Int> >`. Store `Array<Int>` into `stack`
+
+							Then the next params application looks like this:
+								`apply_params Array<T> Array<Int> Rec<Array<T>>`
+							Notice the second argument is actually the result of a previous `apply_params` call.
+							And the result of the current call is `Rec< Array<Array<Int>> >`.
+
+							The third call would be:
+								`apply_params Array<T> Array<Array<Int>> Rec<Array<T>>`
+							and so on.
+
+							To stop infinite params application we need to check that we are trying to apply params
+							produced by the previous `apply_params Array<Int> _ Rec<Array<T>>` to the same `Rec<Array<T>>`
+						*)
+						if
+							subject == t (* Check the place that we're applying to is the same `Rec<Array<T>>` *)
+							&& old_applied_params == params (* Check that params we're applying are the same params
+																produced by the previous call to
+																`apply_params Array<T> _ Rec<Array<T>>` *)
+						then
+							raise ApplyParamsRecursion
+					) !stack;
+					stack := (t, new_applied_params) :: !stack;
+				);
+				TType (t2,new_applied_params))
 		| TAbstract (a,tl) ->
 			(match tl with
 			| [] -> t
@@ -730,6 +777,21 @@ let apply_params cparams params t =
 
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
+
+let apply_params_stack = ref []
+
+let try_apply_params_rec cparams params t success =
+	let old_stack = !apply_params_stack in
+	try
+		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
+		apply_params_stack := old_stack;
+		result
+	with
+		| ApplyParamsRecursion ->
+			apply_params_stack := old_stack;
+		| err ->
+			apply_params_stack := old_stack;
+			raise err
 
 let rec follow t =
 	match t with
@@ -1988,12 +2050,12 @@ let rec unify a b =
 	| TType (t,tl) , _ ->
 		rec_stack unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
-			(fun() -> unify (apply_params t.t_params tl t.t_type) b)
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (fun a -> unify a b))
 			(fun l -> error (cannot_unify a b :: l))
 	| _ , TType (t,tl) ->
 		rec_stack unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq a a2 && fast_eq b b2)
-			(fun() -> unify a (apply_params t.t_params tl t.t_type))
+			(fun() -> try_apply_params_rec t.t_params tl t.t_type (unify a))
 			(fun l -> error (cannot_unify a b :: l))
 	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
@@ -2251,7 +2313,11 @@ and unify_anons a b a1 a2 =
 				| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 			if (has_class_field_flag f2 CfPublic) && not (has_class_field_flag f1 CfPublic) then error [invalid_visibility n];
 			try
-				unify_with_access f1 (field_type f1) f2;
+				let f1_type =
+					if fast_eq f1.cf_type f2.cf_type then f1.cf_type
+					else field_type f1
+				in
+				unify_with_access f1 f1_type f2;
 				(match !(a1.a_status) with
 				| Statics c when not (Meta.has Meta.MaybeUsed f1.cf_meta) -> f1.cf_meta <- (Meta.MaybeUsed,[],f1.cf_pos) :: f1.cf_meta
 				| _ -> ());
