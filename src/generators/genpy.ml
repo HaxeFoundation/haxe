@@ -1145,7 +1145,7 @@ module Printer = struct
 						| None -> ""
 						| Some ct ->
 							had_value := true;
-							Printf.sprintf " = %s" (print_expr pctx ct)
+							" = None"
 		) args in
 		String.concat "," sl
 

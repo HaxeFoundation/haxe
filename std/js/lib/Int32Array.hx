@@ -33,7 +33,7 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 	Documentation [Int32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Int32Array")
-extern class Int32Array implements ArrayAccess<Int> {
+extern class Int32Array implements ArrayBufferView implements ArrayAccess<Int> {
 	/**
 		Returns a number value of the element size. 4 in the case of an `Int32Array`.
 	 */

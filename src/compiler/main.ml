@@ -361,19 +361,19 @@ let get_std_class_paths () =
 			let lib_path = Filename.concat prefix_path "lib" in
 			let share_path = Filename.concat prefix_path "share" in
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat lib_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/std");
 				Path.add_trailing_slash (Filename.concat share_path "haxe/extraLibs");
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 		else
 			[
+				"";
 				Path.add_trailing_slash (Filename.concat base_path "std");
-				Path.add_trailing_slash (Filename.concat base_path "extraLibs");
-				""
+				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
 let rec process_params create pl =
@@ -884,7 +884,7 @@ try
 		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
 		let t = Timer.timer ["typing"] in
-		Typecore.type_expr_ref := (fun ctx e with_type -> Typer.type_expr ctx e with_type);
+		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 		let tctx = Typer.create com in
 		let add_signature desc =
 			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());

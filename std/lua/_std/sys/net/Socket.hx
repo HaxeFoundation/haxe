@@ -239,22 +239,24 @@ private class SocketInput extends haxe.io.Input {
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
-		var k = len;
+		var leftToRead = len;
 		var b = s.getData();
 		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw haxe.io.Error.OutsideBounds;
+		var readCount = 0;
 		try {
-			while (k > 0) {
+			while (leftToRead > 0) {
 				b[pos] = cast readByte();
 				pos++;
-				k--;
+				readCount++;
+				leftToRead--;
 			}
 		} catch (e:haxe.io.Eof) {
-			if (pos == 0) {
+			if (readCount == 0) {
 				throw e;
 			}
 		}
-		return len - k;
+		return readCount;
 	}
 }
 

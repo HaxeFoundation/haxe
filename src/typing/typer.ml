@@ -42,7 +42,7 @@ let check_assign ctx e =
 	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
-		error "Invalid assign" e.epos
+		invalid_assign e.epos
 
 type type_class =
 	| KInt
@@ -282,6 +282,13 @@ let unify_min ctx el =
 	with Error (Unify l,p) ->
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
+
+let unify_min_for_type_source ctx el src =
+	match src with
+	| Some WithType.ImplicitReturn when List.exists (fun e -> ExtType.is_void (follow e.etype)) el ->
+		ctx.com.basic.tvoid
+	| _ ->
+		unify_min ctx el
 
 let rec type_ident_raise ctx i p mode =
 	match i with
@@ -1431,7 +1438,7 @@ and type_access ctx e p mode =
 		let resume_typing = type_expr ~mode in
 		AKExpr (TyperDisplay.handle_edisplay ~resume_typing ctx e dk WithType.value)
 	| _ ->
-		AKExpr (type_expr ctx (e,p) WithType.value)
+		AKExpr (type_expr ~mode ctx (e,p) WithType.value)
 
 and type_array_access ctx e1 e2 p mode =
 	let e1 = type_expr ctx e1 WithType.value in
@@ -1890,7 +1897,8 @@ and type_try ctx e1 catches with_type p =
 	let e1,catches,t = match with_type with
 		| WithType.NoValue -> e1,catches,ctx.t.tvoid
 		| WithType.Value _ -> e1,catches,unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+			e1,catches,unify_min_for_type_source ctx el src
 		| WithType.WithType(t,_) ->
 			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 			let catches = List.map (fun (v,e) ->
@@ -2166,19 +2174,24 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e with_type p =
+and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
 		let expect_void = match with_type with
 			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
-			let e = type_expr ctx e (WithType.with_type ctx.ret) in
+			let with_expected_type =
+				if implicit then WithType.of_implicit_return ctx.ret
+				else WithType.with_type ctx.ret
+			in
+			let e = type_expr ctx e with_expected_type in
 			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
@@ -2240,7 +2253,8 @@ and type_if ctx e e1 e2 with_type p =
 		let e1,e2,t = match with_type with
 			| WithType.NoValue -> e1,e2,ctx.t.tvoid
 			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
+			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+				e1,e2,unify_min_for_type_source ctx [e1; e2] src
 			| WithType.WithType(t,_) ->
 				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
@@ -2248,11 +2262,11 @@ and type_if ctx e e1 e2 with_type p =
 		in
 		mk (TIf (e,e1,Some e2)) t p)
 
-and type_meta ctx m e1 with_type p =
+and type_meta ?(mode=MGet) ctx m e1 with_type p =
 	if ctx.is_display_file then DisplayEmitter.check_display_metadata ctx [m];
 	let old = ctx.meta in
 	ctx.meta <- m :: ctx.meta;
-	let e () = type_expr ctx e1 with_type in
+	let e () = type_expr ~mode ctx e1 with_type in
 	let e = match m with
 		| (Meta.ToString,_,_) ->
 			let e = e() in
@@ -2311,6 +2325,11 @@ and type_meta ctx m e1 with_type p =
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
 			end
+		| (Meta.ImplicitReturn,_,_) ->
+			begin match e1 with
+			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
+			| _ -> e()
+			end
 		| _ -> e()
 	in
 	ctx.meta <- old;
@@ -2334,10 +2353,10 @@ and type_call_target ctx e with_type inline p =
 		| _ ->
 			e
 
-and type_call ctx e el (with_type:WithType.t) inline p =
+and type_call ?(mode=MGet) ctx e el (with_type:WithType.t) inline p =
 	let def () =
 		let e = type_call_target ctx e with_type inline p in
-		build_call ctx e el with_type p
+		build_call ~mode ctx e el with_type p
 	in
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
@@ -2438,7 +2457,15 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
-	| EBlock [] when with_type <> WithType.NoValue ->
+	| EBlock [] when (match with_type with
+			| NoValue -> false
+			(*
+				If expected type is unknown then treat `(...) -> {}` as an empty function
+				(just like `function(...) {}`) instead of returning an object.
+			*)
+			| WithType (t, Some ImplicitReturn) -> not (ExtType.is_mono (follow t))
+			| _ -> true
+		) ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
 		let locals = save_locals ctx in
@@ -2511,7 +2538,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = type_expr ctx e WithType.value in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el with_type false p
+		type_call ~mode ctx e el with_type false p
 	| ENew (t,el) ->
 		type_new ctx t el with_type false p
 	| EUnop (op,flag,e) ->
@@ -2544,7 +2571,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		let e = AbstractCast.cast_or_unify ctx t e p in
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
-		type_meta ctx m e1 with_type p
+		type_meta ~mode ctx m e1 with_type p
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
@@ -2683,6 +2710,7 @@ let rec create com =
 
 ;;
 unify_min_ref := unify_min;
+unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 build_call_ref := build_call;
 type_call_target_ref := type_call_target;
