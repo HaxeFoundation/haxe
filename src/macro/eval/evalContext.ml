@@ -203,48 +203,31 @@ class eval_debug_context = object(self)
 
 end
 
-module StaticPrototypes : sig
-	type t
-	val create : unit -> t
-	val add : vprototype -> t -> unit
-	val remove : IntMap.key -> t -> unit
-	val set_needs_reset : t -> unit
-	val add_init : vprototype -> (vprototype -> unit) list -> t -> unit
-	val get : IntMap.key -> t -> vprototype
-end =
-struct
-	type t = {
-		mutable map : vprototype IntMap.t;
-		mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t;
-	}
+class static_prototypes = object(self)
+	val mutable prototypes : vprototype IntMap.t = IntMap.empty
+	val mutable inits : (bool ref * vprototype * (vprototype -> unit) list) IntMap.t = IntMap.empty
 
-	let create () = {
-		map = IntMap.empty;
-		inits = IntMap.empty;
-	}
+	method add proto =
+		prototypes <- IntMap.add proto.ppath proto prototypes
 
-	let add proto t =
-		t.map <- IntMap.add proto.ppath proto t.map
+	method remove path =
+		prototypes <- IntMap.remove path prototypes
 
-	let remove path t =
-		t.map <- IntMap.remove path t.map
+	method set_needs_reset =
+		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) inits
 
-	let set_needs_reset t =
-		IntMap.iter (fun path (needs_reset, _, _) -> needs_reset := true) t.inits
+	method add_init proto delays =
+		inits <- IntMap.add proto.ppath (ref false, proto, delays) inits
 
-	let add_init proto delays t =
-		t.inits <- IntMap.add proto.ppath (ref false, proto, delays) t.inits
-
-	let get path t =
+	method get path =
 		(try
-			let (needs_reset, proto, delays) = IntMap.find path t.inits in
+			let (needs_reset, proto, delays) = IntMap.find path inits in
 			if !needs_reset then begin
 				needs_reset := false;
 				List.iter (fun f -> f proto) delays
 			end
 		with Not_found -> ());
-		IntMap.find path t.map
-
+		IntMap.find path prototypes
 end
 
 type exception_mode =
@@ -295,7 +278,7 @@ and context = {
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
-	mutable static_prototypes : StaticPrototypes.t;
+	mutable static_prototypes : static_prototypes;
 	mutable constructors : value Lazy.t IntMap.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
@@ -483,7 +466,7 @@ let pop_environment ctx env =
 (* Prototypes *)
 
 let get_static_prototype_raise ctx path =
-	StaticPrototypes.get path ctx.static_prototypes
+	ctx.static_prototypes#get path
 
 let get_static_prototype ctx path p =
 	try get_static_prototype_raise ctx path

@@ -120,7 +120,7 @@ let create com api is_macro =
 		string_prototype = fake_proto key_String;
 		array_prototype = fake_proto key_Array;
 		vector_prototype = fake_proto key_eval_Vector;
-		static_prototypes = StaticPrototypes.create();
+		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
 		get_object_prototype = get_object_prototype;
@@ -374,7 +374,7 @@ let setup get_api =
 
 let do_reuse ctx api =
 	ctx.curapi <- api;
-	StaticPrototypes.set_needs_reset ctx.static_prototypes
+	ctx.static_prototypes#set_needs_reset
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
