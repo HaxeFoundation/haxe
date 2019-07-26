@@ -45,9 +45,8 @@ class StringIteratorUnicode {
 	/**
 		See `Iterator.next`
 	**/
-	@:access(StringTools)
 	public inline function next() {
-		var c = StringTools.utf16CodePointAt(this.current.value, 0);
+		var c = (cast this.current.value).codePointAt(0);
 		this.current = nativeIter.next();
 		return c;
 	}
