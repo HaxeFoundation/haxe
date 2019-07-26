@@ -22,7 +22,7 @@ remove: [
 ]
 depends: [
   "ocamlfind" {build}
-  "camlp4"    {build}
+  "camlp5"    {build}
   "conf-libpcre"
   "conf-zlib"
   "conf-neko"

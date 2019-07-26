@@ -33,7 +33,7 @@ endif
 
 ifdef FILTER
 CC_CMD=($(OCAMLOPT) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp5o $(ALL_CFLAGS) -c src/syntax/parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
 PACKAGE_FILES=$(OUTPUT) haxelib$(EXTENSION) std "$$(cygpath -w "$$(which zlib1.dll)")" "$$(cygpath -w "$$(which libpcre-1.dll)")"

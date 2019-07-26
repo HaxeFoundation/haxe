@@ -61,7 +61,7 @@ endif
 
 CC_CMD = $(COMPILER) $(ALL_CFLAGS) -c $<
 
-CC_PARSER_CMD = $(COMPILER) -pp camlp4o $(ALL_CFLAGS) -c src/syntax/parser.ml
+CC_PARSER_CMD = $(COMPILER) -pp camlp5o $(ALL_CFLAGS) -c src/syntax/parser.ml
 
 RELDIR=../../..
 
