@@ -241,8 +241,6 @@ class HttpBase {
 		if (responseAsString == null && responseBytes != null) {
 			#if neko
 			responseAsString = neko.Lib.stringReference(responseBytes);
-			// #elseif nodejs
-			// responseAsString = js.node.Buffer.from(responseBytes.getData()).toString();
 			#else
 			responseAsString = responseBytes.getString(0, responseBytes.length, UTF8);
 			#end
