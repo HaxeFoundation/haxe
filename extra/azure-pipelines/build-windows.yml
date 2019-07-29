@@ -31,10 +31,7 @@ jobs:
         displayName: Install dependencies
       - template: install-neko-snapshot.yaml
         parameters:
-          ${{ if eq(parameters.arch, '64') }}:
-            platform: windows64
-          ${{ if eq(parameters.arch, '32') }}:
-            platform: windows
+          platform: windows
       - powershell: |
           Set-PSDebug -Trace 1
           curl.exe -fsSL -o cygwin-setup.exe --retry 3 $(CYGWIN_SETUP)

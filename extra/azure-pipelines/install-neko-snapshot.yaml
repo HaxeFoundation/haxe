@@ -6,9 +6,7 @@ steps:
     - powershell: |
         Invoke-WebRequest https://build.haxe.org/builds/neko/${{parameters.platform}}/neko_latest.zip -OutFile $(Agent.TempDirectory)/neko_latest.zip
         Expand-Archive $(Agent.TempDirectory)/neko_latest.zip -DestinationPath $(Agent.TempDirectory)
-        $WIN_ARCH = If ("${{parameters.platform}}" -eq "windows") {"win"} Else {"win64"}
-        $NEKOPATH = Get-ChildItem $(Agent.TempDirectory)/neko-*-$WIN_ARCH
-        Write-Host "$NEKOPATH"
+        $NEKOPATH = Get-ChildItem $(Agent.TempDirectory)/neko-*-*
         Write-Host "##vso[task.prependpath]$NEKOPATH"
         Write-Host "##vso[task.setvariable variable=NEKOPATH]$NEKOPATH"
       displayName: Install Neko using snapshot from S3

@@ -6,11 +6,6 @@ HAXELIB_OUTPUT=haxelib.exe
 PREBUILD_OUTPUT=prebuild.exe
 EXTENSION=.exe
 PACKAGE_SRC_EXTENSION=.zip
-ARCH?=32
-
-ifeq ($(ARCH),64)
-NEKO_ARCH_STR=64
-endif
 
 kill:
 	-@taskkill /F /IM haxe.exe
@@ -71,7 +66,7 @@ package_choco:
 	rm -rf out/choco
 
 $(INSTALLER_TMP_DIR)/neko-win.zip: $(INSTALLER_TMP_DIR)
-	wget -nv http://nekovm.org/media/neko-2.2.0-win$(NEKO_ARCH_STR).zip -O installer/neko-win.zip
+	wget -nv http://nekovm.org/media/neko-2.1.0-win.zip -O installer/neko-win.zip
 
 package_installer_win: $(INSTALLER_TMP_DIR)/neko-win.zip package_win
 	$(eval OUTFILE := $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_installer.zip)
