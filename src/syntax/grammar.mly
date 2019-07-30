@@ -1262,11 +1262,17 @@ and expr = parser
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
 			| [< >] ->
-				match Stream.npeek 2 s with
-				| [(Semicolon,_); (Kwd Else,_)] ->
-					Stream.junk s;
-					Stream.junk s;
-					Some (secure_expr s)
+				(* We check this in two steps to avoid the lexer missing tokens (#8565). *)
+				match Stream.npeek 1 s with
+				| [(Semicolon,_)] ->
+					begin match Stream.npeek 2 s with
+					| [(Semicolon,_);(Kwd Else,_)] ->
+						Stream.junk s;
+						Stream.junk s;
+						Some (secure_expr s)
+					| _ ->
+						None
+					end
 				| _ ->
 					None
 		) in

@@ -159,7 +159,7 @@ module PrototypeBuilder = struct
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)
 		if pctx.is_static then
-			ctx.static_prototypes <- IntMap.add pctx.key proto ctx.static_prototypes
+			ctx.static_prototypes#add proto
 		else begin
 			ctx.instance_prototypes <- IntMap.add pctx.key proto ctx.instance_prototypes;
 			if pctx.key = key_String then ctx.string_prototype <- proto
@@ -307,7 +307,7 @@ let add_types ctx types ready =
 			false
 		with Not_found ->
 			ctx.instance_prototypes <- IntMap.remove key ctx.instance_prototypes;
-			ctx.static_prototypes <- IntMap.remove key ctx.static_prototypes;
+			ctx.static_prototypes#remove key;
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
@@ -355,7 +355,7 @@ let add_types ctx types ready =
 		| _ ->
 			DynArray.add fl_static_init (proto,delays);
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
-			ctx.static_inits <- IntMap.add proto.ppath (proto,non_persistent_delays) ctx.static_inits;
+			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init;
