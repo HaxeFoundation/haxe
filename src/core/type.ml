@@ -1767,19 +1767,20 @@ let rec fast_eq_anon a b =
 			PMap.iter (fun name _ -> fields1 := name :: !fields1) a1.a_fields;
 			let fields2 = ref [] in
 			PMap.iter (fun name _ -> fields2 := name :: !fields2) a2.a_fields;
-			if !fields1 <> !fields2 then
-				false
-			else
-				try
-					List.for_all
-						(fun name ->
-							let f1 = PMap.find name a1.a_fields
-							and f2 = PMap.find name a2.a_fields in
-							fast_eq_anon f1.cf_type f2.cf_type
-						)
-						!fields1
-				with Not_found ->
-					false
+			let rec loop fields1 fields2 =
+				match fields1, fields2 with
+				| [], [] -> true
+				| _, [] | [], _ -> false
+				| f1 :: rest1, f2 :: rest2 ->
+					f1 = f2
+					&& (try
+						let f1 = PMap.find f1 a1.a_fields
+						and f2 = PMap.find f2 a2.a_fields in
+						fast_eq_anon f1.cf_type f2.cf_type
+					with Not_found -> false)
+					&& loop rest1 rest2
+			in
+			loop (List.sort compare !fields1) (List.sort compare !fields2)
 		in
 		(match !(a2.a_status), !(a1.a_status) with
 		| Statics c, Statics c2 when c == c2 -> fields_eq()
