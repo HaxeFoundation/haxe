@@ -25,7 +25,9 @@ package sys.net;
 import lua.lib.luasocket.Socket as LuaSocket;
 import lua.lib.luasocket.socket.*;
 import lua.*;
+
 import haxe.io.Bytes;
+import haxe.io.Error;
 
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
@@ -259,6 +261,7 @@ private class SocketInput extends haxe.io.Input {
 		}
 		return readCount;
 	}
+
 }
 
 private class SocketOutput extends haxe.io.Output {
@@ -274,6 +277,21 @@ private class SocketOutput extends haxe.io.Output {
 		if (res.message != null){
 			throw 'Error : Socket writeByte : ${res.message}';
 		}
+	}
+
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw Error.OutsideBounds;
+		var b = s.getData().slice(pos, pos +len).map(function(byte){
+			return lua.NativeStringTools.char(byte);
+		});
+		var encoded = Table.concat(cast b, 0);
+		var res = tcp.send(encoded);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
+
+		return len;
 	}
 
 }
