@@ -1743,6 +1743,36 @@ let rec fast_eq a b =
 		c1 == c2 && List.for_all2 fast_eq l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
 		a1 == a2 && List.for_all2 fast_eq l1 l2
+	| TAnon a1, TAnon a2 ->
+		let fields_eq() =
+			let fields1 = ref [] in
+			PMap.iter (fun name _ -> fields1 := name :: !fields1) a1.a_fields;
+			let fields2 = ref [] in
+			PMap.iter (fun name _ -> fields2 := name :: !fields2) a2.a_fields;
+			if !fields1 <> !fields2 then
+				false
+			else
+				try
+					List.for_all
+						(fun name ->
+							let f1 = PMap.find name a1.a_fields
+							and f2 = PMap.find name a2.a_fields in
+							fast_eq f1.cf_type f2.cf_type
+						)
+						!fields1
+				with Not_found ->
+					false
+		in
+		(match !(a2.a_status), !(a1.a_status) with
+		| Statics c, Statics c2 when c == c2 -> fields_eq()
+		| EnumStatics e, EnumStatics e2 when e == e2 -> fields_eq()
+		| AbstractStatics a, AbstractStatics a2 when a == a2 -> fields_eq()
+		| Extend tl1, Extend tl2 -> List.for_all2 fast_eq tl1 tl2
+		| Closed, Closed -> fields_eq()
+		| Opened, Opened -> fields_eq()
+		| Const, Const -> fields_eq()
+		| _ -> false
+		)
 	| _ , _ ->
 		false
 
