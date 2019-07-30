@@ -277,10 +277,19 @@ module IterationKind = struct
 			let el = ExtList.List.init length (fun i ->
 				let ei = make_int ctx.t (if ascending then i + offset else offset - i) p in
 				let e2 =
-					{ e2 with eexpr = TBlock (
-						(mk (TVar(v,Some ei)) t_void p) ::
-						(match e2.eexpr with TBlock el -> el | _ -> [e2])
-					)}
+					try
+						let rec loop e = match e.eexpr with
+							| TLocal v' when v == v' -> {ei with epos = e.epos}
+							| TUnop ((Decrement | Increment), _, { eexpr = TLocal v' }) when v == v' -> raise Exit
+							| TBinop ((OpAssign | OpAssignOp _), { eexpr = TLocal v' }, _) when v == v' -> raise Exit
+							| _ -> map_expr loop e
+						in
+						loop e2
+					with Exit ->
+						{ e2 with eexpr = TBlock (
+							(mk (TVar(v,Some ei)) t_void p) ::
+							(match e2.eexpr with TBlock el -> el | _ -> [e2])
+						)}
 				in
 				Texpr.duplicate_tvars e2
 			) in
