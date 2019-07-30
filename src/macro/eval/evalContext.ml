@@ -211,6 +211,7 @@ class static_prototypes = object(self)
 		prototypes <- IntMap.add proto.ppath proto prototypes
 
 	method remove path =
+		inits <- IntMap.remove path inits;
 		prototypes <- IntMap.remove path prototypes
 
 	method set_needs_reset =
