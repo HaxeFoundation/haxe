@@ -1743,36 +1743,6 @@ let rec fast_eq a b =
 		c1 == c2 && List.for_all2 fast_eq l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
 		a1 == a2 && List.for_all2 fast_eq l1 l2
-	| TAnon a1, TAnon a2 ->
-		let fields_eq() =
-			let fields1 = ref [] in
-			PMap.iter (fun name _ -> fields1 := name :: !fields1) a1.a_fields;
-			let fields2 = ref [] in
-			PMap.iter (fun name _ -> fields2 := name :: !fields2) a2.a_fields;
-			if !fields1 <> !fields2 then
-				false
-			else
-				try
-					List.for_all
-						(fun name ->
-							let f1 = PMap.find name a1.a_fields
-							and f2 = PMap.find name a2.a_fields in
-							fast_eq f1.cf_type f2.cf_type
-						)
-						!fields1
-				with Not_found ->
-					false
-		in
-		(match !(a2.a_status), !(a1.a_status) with
-		| Statics c, Statics c2 when c == c2 -> fields_eq()
-		| EnumStatics e, EnumStatics e2 when e == e2 -> fields_eq()
-		| AbstractStatics a, AbstractStatics a2 when a == a2 -> fields_eq()
-		| Extend tl1, Extend tl2 -> List.for_all2 fast_eq tl1 tl2
-		| Closed, Closed -> fields_eq()
-		| Opened, Opened -> fields_eq()
-		| Const, Const -> fields_eq()
-		| _ -> false
-		)
 	| _ , _ ->
 		false
 
@@ -1792,6 +1762,53 @@ let rec fast_eq_mono ml a b =
 		a1 == a2 && List.for_all2 (fast_eq_mono ml) l1 l2
 	| TMono _, _ ->
 		List.memq a ml
+	| _ , _ ->
+		false
+
+let rec fast_eq_anon a b =
+	if a == b then
+		true
+	else match a , b with
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq_anon t1 t2) l1 l2 && fast_eq_anon r1 r2
+	| TType (t1,l1), TType (t2,l2) ->
+		t1 == t2 && List.for_all2 fast_eq_anon l1 l2
+	| TEnum (e1,l1), TEnum (e2,l2) ->
+		e1 == e2 && List.for_all2 fast_eq_anon l1 l2
+	| TInst (c1,l1), TInst (c2,l2) ->
+		c1 == c2 && List.for_all2 fast_eq_anon l1 l2
+	| TAbstract (a1,l1), TAbstract (a2,l2) ->
+		a1 == a2 && List.for_all2 fast_eq_anon l1 l2
+	| TAnon a1, TAnon a2 ->
+		let fields_eq() =
+			let fields1 = ref [] in
+			PMap.iter (fun name _ -> fields1 := name :: !fields1) a1.a_fields;
+			let fields2 = ref [] in
+			PMap.iter (fun name _ -> fields2 := name :: !fields2) a2.a_fields;
+			if !fields1 <> !fields2 then
+				false
+			else
+				try
+					List.for_all
+						(fun name ->
+							let f1 = PMap.find name a1.a_fields
+							and f2 = PMap.find name a2.a_fields in
+							fast_eq_anon f1.cf_type f2.cf_type
+						)
+						!fields1
+				with Not_found ->
+					false
+		in
+		(match !(a2.a_status), !(a1.a_status) with
+		| Statics c, Statics c2 when c == c2 -> fields_eq()
+		| EnumStatics e, EnumStatics e2 when e == e2 -> fields_eq()
+		| AbstractStatics a, AbstractStatics a2 when a == a2 -> fields_eq()
+		| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 fast_eq_anon tl1 tl2
+		| Closed, Closed -> fields_eq()
+		| Opened, Opened -> fields_eq()
+		| Const, Const -> fields_eq()
+		| _ -> false
+		)
 	| _ , _ ->
 		false
 

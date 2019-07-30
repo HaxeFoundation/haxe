@@ -1610,7 +1610,7 @@ and type_object_decl ctx fl with_type p =
 		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq t t') seen) ->
+			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq_anon t t') seen) ->
 				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
