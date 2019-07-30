@@ -43,7 +43,7 @@ class TestHttp extends Test {
 
 	@:timeout(1000)
 	public function testPostBytes(async:Async) run(async, () -> {
-		var srcData = haxe.io.Bytes.alloc(#if lua 128 #else 256 #end);
+		var srcData = haxe.io.Bytes.alloc(256);
 		for(i in 0...srcData.length) {
 			srcData.set(i, i);
 		}

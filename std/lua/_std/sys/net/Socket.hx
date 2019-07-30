@@ -223,16 +223,17 @@ class Socket {
 }
 
 private class SocketInput extends haxe.io.Input {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function readByte():Int {
-		var res = s.receive(1);
-		if (res.message == "closed")
+		var res = tcp.receive(1);
+		if (res.message == "closed"){
 			throw new haxe.io.Eof();
+		}
 		else if (res.message != null)
 			throw 'Error : ${res.message}';
 		return res.result.charCodeAt(0);
@@ -261,13 +262,18 @@ private class SocketInput extends haxe.io.Input {
 }
 
 private class SocketOutput extends haxe.io.Output {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function writeByte(c:Int):Void {
-		s.send(String.fromCharCode(c));
+		var char = NativeStringTools.char(c);
+		var res = tcp.send(char);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
 	}
+
 }
