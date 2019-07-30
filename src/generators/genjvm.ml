@@ -2518,9 +2518,9 @@ class tclass_to_jvm gctx c = object(self)
 			let jsig = method_sig [array_sig string_sig] None in
 			let jm = jc#spawn_method "main" jsig [MPublic;MStatic] in
 			let _,load,_ = jm#add_local "args" (TArray(string_sig,None)) VarArgument in
-			if has_feature gctx.com "Sys.args" then begin
+			if has_feature gctx.com "haxe.root.Sys.args" then begin
 				load();
-				jm#putstatic ([],"Sys") "_args" (TArray(string_sig,None))
+				jm#putstatic (["haxe";"root"],"Sys") "_args" (TArray(string_sig,None))
 			end;
 			jm#invokestatic (["haxe"; "java"], "Init") "init" (method_sig [] None);
 			jm#invokestatic jc#get_this_path "main" (method_sig [] None);
