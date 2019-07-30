@@ -207,10 +207,10 @@ let rec jsignature_of_type stack t =
 		| Some t -> jsignature_of_type t
 		| None -> object_sig
 		end
-	| TInst({cl_path = ([],"String")},[]) -> string_sig
-	| TInst({cl_path = ([],"Array")},[t]) ->
+	| TInst({cl_path = (["haxe";"root"],"String")},[]) -> string_sig
+	| TInst({cl_path = (["haxe";"root"],"Array")},[t]) ->
 		let t = get_boxed_type (jsignature_of_type t) in
-		TObject(([],"Array"),[TType(WNone,t)])
+		TObject((["haxe";"root"],"Array"),[TType(WNone,t)])
 	| TInst({cl_path = (["java"],"NativeArray")},[t]) ->
 		TArray(jsignature_of_type t,None)
 	| TInst({cl_kind = KTypeParameter [t]},_) -> jsignature_of_type t
@@ -741,7 +741,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#invokestatic haxe_jvm_path "writeField" (method_sig [object_sig;string_sig;object_sig] None)
 		| TArray(e1,e2) ->
 			begin match follow e1.etype with
-				| TInst({cl_path = ([],"Array")} as c,[t]) ->
+				| TInst({cl_path = (["haxe";"root"],"Array")} as c,[t]) ->
 					let t = self#mknull t in
 					self#texpr rvalue_any e1;
 					if ak <> AKNone then code#dup;
@@ -1977,9 +1977,9 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			List.iter (self#texpr ret) el
 		| TArrayDecl el ->
 			begin match follow e.etype with
-			| TInst({cl_path = ([],"Array")},[t]) ->
+			| TInst({cl_path = (["haxe";"root"],"Array")},[t]) ->
 				self#new_native_array (jsignature_of_type (self#mknull t)) el;
-				jm#invokestatic ([],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig ([],"Array"))));
+				jm#invokestatic (["haxe";"root"],"Array") "ofNative" (method_sig [array_sig object_sig] (Some (object_path_sig (["haxe";"root"],"Array"))));
 				self#cast e.etype
 			| _ ->
 				assert false
@@ -1990,7 +1990,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			self#texpr ret e2;
 		| TArray(e1,e2) ->
 			begin match follow e1.etype with
-			| TInst({cl_path = ([],"Array")} as c,[t]) ->
+			| TInst({cl_path = (["haxe";"root"],"Array")} as c,[t]) ->
 				self#texpr rvalue_any e1;
 				self#texpr (rvalue_sig TInt) e2;
 				jm#cast TInt;
@@ -2947,9 +2947,17 @@ module Preprocessor = struct
 			in
 			List.iter field (cf :: cf.cf_overloads)
 
+	let make_root path =
+		["haxe";"root"],snd path
+
 	let preprocess gctx =
-		List.iter (function
-			| TClassDecl c when debug_path c.cl_path && not c.cl_interface -> preprocess_class gctx c
+		List.iter (fun mt ->
+			match mt with
+			| TClassDecl c ->
+				if fst c.cl_path = [] then c.cl_path <- make_root c.cl_path;
+				if debug_path c.cl_path && not c.cl_interface then preprocess_class gctx c
+			| TEnumDecl en ->
+				if fst en.e_path = [] then en.e_path <- make_root en.e_path;
 			| _ -> ()
 		) gctx.com.types
 end
@@ -2962,7 +2970,13 @@ let file_name_and_extension file =
 let generate com =
 	mkdir_from_path com.file;
 	let jar_name,manifest_suffix = match com.main_class with
-		| Some path -> snd path,"\nMain-Class: " ^ (s_type_path path)
+		| Some path ->
+			let pack = match fst path with
+				| [] -> ["haxe";"root"]
+				| pack -> pack
+			in
+			let name = snd path in
+			name,"\nMain-Class: " ^ (s_type_path (pack,name))
 		| None -> "jar",""
 	in
 	let jar_name = if com.debug then jar_name ^ "-Debug" else jar_name in
