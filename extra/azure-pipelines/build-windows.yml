@@ -53,6 +53,7 @@ jobs:
       - powershell: Write-Host "##vso[task.prependpath]${env:CYG_ROOT}/usr/$(MINGW_ARCH)-w64-mingw32/sys-root/mingw/bin"
         displayName: Expose mingw dll files
       - powershell: |
+          $env:PATH = "$(CYG_ROOT)/usr/x86_64-w64-mingw32/sys-root/mingw/bin;$(PATH)"
           Set-PSDebug -Trace 1
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win libs prebuild 2>&1')
           & "$(CYG_ROOT)/bin/bash.exe" @('-lc', 'cd "$OLDPWD" && opam config exec -- make -s -f Makefile.win -j`nproc` haxe 2>&1')
