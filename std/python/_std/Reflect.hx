@@ -81,7 +81,13 @@ class Reflect {
 	}
 
 	public static function isFunction(f:Dynamic):Bool {
-		return Inspect.isfunction(f) || Inspect.ismethod(f) || UBuiltins.hasattr(f, "func_code");
+		if (Inspect.isfunction(f) || Inspect.ismethod(f)) {
+			return true;
+		}
+		if (Boot.isAnonObject(f)) {
+			return Syntax.code("{0}._hx_hasattr({1})", f, "func_code");
+		}
+		return UBuiltins.hasattr(f, "func_code");
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
