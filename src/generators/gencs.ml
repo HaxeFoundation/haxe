@@ -918,13 +918,12 @@ let generate con =
 		) tl
 		in
 
-		let rec real_type ?(stack=[]) t =
+		let rec real_type stack t =
 			let t = gen.gfollow#run_f t in
 			if List.exists (fast_eq t) stack then
 				t_dynamic
 			else begin
 				let stack = t :: stack in
-				let real_type = real_type ~stack in
 				let ret = match t with
 					| TAbstract({ a_path = ([], "Null") }, [t]) ->
 						(*
@@ -937,16 +936,16 @@ let generate con =
 							if is_cs_basic_type t then
 								t_dynamic
 							else
-								real_type t
+								real_type stack t
 						else
-							(match real_type t with
+							(match real_type stack t with
 								| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
 								| t when is_cs_basic_type t -> TInst(null_t, [t])
-								| _ -> real_type t)
+								| _ -> real_type stack t)
 					| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-						real_type (Abstract.get_underlying_type a pl)
+						real_type stack (Abstract.get_underlying_type a pl)
 					| TAbstract ({ a_path = (["cs";"_Flags"], "EnumUnderlying") }, [t]) ->
-						real_type t
+						real_type stack t
 					| TInst( { cl_path = (["cs";"system"], "String") }, [] ) ->
 						gen.gcon.basic.tstring;
 					| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
@@ -969,7 +968,7 @@ let generate con =
 						TEnum(e, List.map (fun _ -> t_dynamic) params)
 					| TInst(cl, params) when Meta.has Meta.Enum cl.cl_meta ->
 						TInst(cl, List.map (fun _ -> t_dynamic) params)
-					| TInst(cl, params) -> TInst(cl, change_param_type ~stack (TClassDecl cl) params)
+					| TInst(cl, params) -> TInst(cl, change_param_type stack (TClassDecl cl) params)
 					| TAbstract _
 					| TType _ -> t
 					| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
@@ -988,7 +987,7 @@ let generate con =
 			To avoid confusion between Generic<Dynamic> (which has a different meaning in hxcs AST),
 			all those references are using dynamic_anon, which means Generic<{}>
 		*)
-		change_param_type ?(stack=[]) md tl =
+		change_param_type stack md tl =
 			let types = match md with
 				| TClassDecl c -> c.cl_params
 				| TEnumDecl e -> []
@@ -997,7 +996,7 @@ let generate con =
 			in
 			let is_hxgeneric = if types = [] then is_hxgen md else (RealTypeParams.is_hxgeneric md) in
 			let ret t =
-				let t_changed = real_type ~stack t in
+				let t_changed = real_type stack t in
 				match is_hxgeneric, t_changed with
 				| false, _ -> t
 				(*
@@ -1019,6 +1018,9 @@ let generate con =
 			else
 				List.map ret tl
 		in
+
+		let real_type = real_type []
+		and change_param_type = change_param_type [] in
 
 		let is_dynamic t = match real_type t with
 			| TMono _ | TDynamic _
