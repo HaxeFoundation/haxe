@@ -687,7 +687,7 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			| _ ->
 				default();
 			end
-		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(Some({cl_interface = true},_),{cf_name = s}) ->
+		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(Some({cl_interface = true},_),{cf_name = s}) | FClosure(None,{cf_name = s}) ->
 			self#texpr rvalue_any e1;
 			jm#string s;
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
@@ -697,8 +697,6 @@ class texpr_to_jvm gctx (jc : JvmClass.builder) (jm : JvmMethod.builder) (return
 			jm#read_closure false c.cl_path cf.cf_name jsig;
 			self#texpr rvalue_any e1;
 			jm#invokevirtual method_handle_path "bindTo" (method_sig [object_sig] (Some method_handle_sig));
-		| _ ->
-			assert false
 
 	method read_write ret ak e (f : unit -> unit) =
 		let apply dup =
