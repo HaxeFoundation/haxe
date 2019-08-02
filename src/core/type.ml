@@ -665,6 +665,7 @@ let apply_params ?stack cparams params t =
 		| _ -> assert false
 	in
 	let subst = loop cparams params in
+	let anons = ref [] in
 	let rec loop t =
 		try
 			List.assq t subst
@@ -749,17 +750,21 @@ let apply_params ?stack cparams params t =
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon a ->
-			let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
-			begin match !(a.a_status) with
-				| Opened ->
-					a.a_fields <- fields;
-					t
-				| _ ->
-					TAnon {
-						a_fields = fields;
-						a_status = a.a_status;
-					}
-			end
+			(try
+				List.assq a !anons
+			with Not_found ->
+				let result_t, result_anon =
+					match !(a.a_status) with
+					| Opened -> t, a
+					| _ ->
+						let a = { a_fields = PMap.empty; a_status = a.a_status; } in
+						TAnon a, a
+				in
+				anons := (a, result_t) :: !anons;
+				let fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields in
+				result_anon.a_fields <- fields;
+				result_t
+			)
 		| TLazy f ->
 			let ft = lazy_type f in
 			let ft2 = loop ft in

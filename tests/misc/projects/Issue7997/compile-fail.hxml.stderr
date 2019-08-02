@@ -1,0 +1,3 @@
+Main.hx:10: characters 10-18 : error: { path : haxe.display.JsonTypePath, params : haxe.display.JsonTypes } has no field args
+Main.hx:10: characters 10-18 :  have: haxe.display.JsonTypeKind<{ kind, args }>
+Main.hx:10: characters 10-18 :  want: haxe.display.JsonTypeKind<haxe.display.JsonTypePathWithParams>
