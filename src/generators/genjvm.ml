@@ -2269,12 +2269,12 @@ class tclass_to_jvm gctx c = object(self)
 			in
 			if !has_type_param then Some t else None
 		in
-		let make_bridge cf cf_impl t =
+		let make_bridge cf_impl t =
 			let jsig = jsignature_of_type t in
-			if not (jc#has_method cf.cf_name jsig) then begin
+			if not (jc#has_method cf_impl.cf_name jsig) then begin
 				begin match follow t with
 				| TFun(tl,tr) ->
-					let jm = jc#spawn_method cf.cf_name jsig [MPublic;MSynthetic;MBridge] in
+					let jm = jc#spawn_method cf_impl.cf_name jsig [MPublic;MSynthetic;MBridge] in
 					jm#load_this;
 					let jsig_impl = jsignature_of_type cf_impl.cf_type in
 					let jsigs,_ = match jsig_impl with TMethod(jsigs,jsig) -> jsigs,jsig | _ -> assert false in
@@ -2283,7 +2283,7 @@ class tclass_to_jvm gctx c = object(self)
 						load();
 						jm#cast jsig;
 					) tl jsigs;
-					jm#invokevirtual c.cl_path cf.cf_name jsig_impl;
+					jm#invokevirtual c.cl_path cf_impl.cf_name jsig_impl;
 					if not (ExtType.is_void (follow tr)) then jm#cast (jsignature_of_type tr);
 					jm#return;
 				| _ ->
@@ -2291,26 +2291,21 @@ class tclass_to_jvm gctx c = object(self)
 				end
 			end
 		in
-		let check cf cf_impl map_type =
-			match cf.cf_kind with
-			| Method (MethNormal | MethInline) ->
-				begin match map_type_params cf.cf_type with
-				| Some t -> make_bridge cf cf_impl t
-				| None -> ()
-				end
-			| _ ->
-				()
+		let check cf cf_impl =
+			match map_type_params cf.cf_type with
+			| Some t -> make_bridge cf_impl t
+			| None -> ()
 		in
-		let check cf cf_impl map_type =
-			check cf cf_impl map_type;
-			List.iter (fun cf -> check cf cf_impl map_type) cf.cf_overloads
+		let check cf cf_impl =
+			check cf cf_impl;
+			List.iter (fun cf -> check cf cf_impl) cf.cf_overloads
 		in
 		let rec loop map_type c_int =
 			List.iter (fun (c_int,tl) ->
 				let map_type t = apply_params c_int.cl_params tl (map_type t) in
 				List.iter (fun cf ->
-					match raw_class_field (fun cf -> map_type cf.cf_type) c (List.map snd c.cl_params) cf.cf_name with
-					| Some(c',_),_,cf_impl when c' == c -> check cf cf_impl map_type
+					match cf.cf_kind,raw_class_field (fun cf -> map_type cf.cf_type) c (List.map snd c.cl_params) cf.cf_name with
+					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c -> check cf cf_impl
 					| _ -> ()
 				) c_int.cl_ordered_fields;
 				loop map_type c_int
@@ -2322,9 +2317,9 @@ class tclass_to_jvm gctx c = object(self)
 			()
 		| fields,Some(c_sup,tl) ->
 			List.iter (fun cf_impl ->
-				match raw_class_field (fun cf -> apply_params c_sup.cl_params tl cf.cf_type) c_sup tl cf_impl.cf_name with
-				| Some(c,tl),_,cf -> check cf cf_impl (apply_params c.cl_params tl)
-				| _ -> assert false
+				match cf_impl.cf_kind,raw_class_field (fun cf -> apply_params c_sup.cl_params tl cf.cf_type) c_sup tl cf_impl.cf_name with
+				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) -> check cf cf_impl
+				| _ -> ()
 			) fields
 		| _ ->
 			assert false
