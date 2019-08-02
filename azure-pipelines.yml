@@ -325,31 +325,7 @@ stages:
               AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
             condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'development'))
             displayName: Update "latest"
-          - script: |
-              set -ex
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/linux64
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/linux64/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/mac
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/mac/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-installer
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-installer/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows64-choco
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows64-choco/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-installer
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-installer/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe/windows-choco
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/windows-choco/
-              haxe --run runci.Indexer $(HXBUILDS_S3ADDR)/haxe
-              aws s3 cp index.html     $(HXBUILDS_S3ADDR)/haxe/
-            workingDirectory: $(Build.SourcesDirectory)/tests
-            env:
-              AWS_ACCESS_KEY_ID: $(HXBUILDS_AWS_ACCESS_KEY_ID)
-              AWS_SECRET_ACCESS_KEY: $(HXBUILDS_AWS_SECRET_ACCESS_KEY)
-            displayName: Update indices
+
       - job: ApiHaxeOrg
         condition: and(succeeded(), variables['GHP_USERNAME'], variables['GHP_EMAIL'])
         pool:
