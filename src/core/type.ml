@@ -634,7 +634,7 @@ let map loop t =
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
 
-let dup t =
+let duplicate t =
 	let monos = ref [] in
 	let rec loop t =
 		match t with
@@ -1761,6 +1761,8 @@ let rec fast_eq_anon a b =
 	if fast_eq_check fast_eq_anon a b then
 		true
 	else match a , b with
+	| TMono { contents = Some t1 }, TMono { contents = Some t2 } ->
+		fast_eq_anon t1 t2
 	| TAnon a1, TAnon a2 ->
 		let fields_eq() =
 			let fields1 = ref [] in
