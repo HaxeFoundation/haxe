@@ -1,14 +1,15 @@
 package unit.issues;
 
 class Issue8243 extends unit.Test {
-#if !(hl || cpp) // TODO https://github.com/HaxeFoundation/haxe/issues/8243
+#if !hl // TODO https://github.com/HaxeFoundation/haxe/issues/8243
 
-	var involveRecursiveAbstractTyping:Null<Rec> = null;
+	var involveRecursiveAbstractTyping:Null<Rec> = [[[[]]]];
 
 	function test() {
-		t(involveRecursiveAbstractTyping == null);
+		eq('[[[[]]]]', involveRecursiveAbstractTyping.toString());
 	}
 #end
 }
 
-private abstract Rec(Array<Rec>) {}
+@:forward(toString)
+private abstract Rec(Array<Rec>) from Array<Rec> {}
