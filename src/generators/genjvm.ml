@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open Globals
 open Ast
 open Common
@@ -11,6 +30,9 @@ open JvmAttribute
 open JvmSignature
 open JvmMethod
 open JvmBuilder
+
+(* Note: This module is the bridge between Haxe structures and JVM structures. No module in generators/jvm should reference any
+   Haxe-specific type. *)
 
 (* hacks *)
 
@@ -119,7 +141,7 @@ type field_generation_info = {
 	mutable has_this_before_super : bool;
 	(* This is an ordered list of fields that are targets of super() calls which is determined during
 	   pre-processing. The generator can pop from this list assuming that it processes the expression
-	   in the same order (which is should). *)
+	   in the same order (which it should). *)
 	mutable super_call_fields : (tclass * tclass_field) list;
 }
 
