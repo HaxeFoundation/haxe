@@ -560,7 +560,8 @@ class builder jc name jsig = object(self)
 		) cases in
 		let offset_def = ref fp in
 		(* No idea what's a good heuristic here... *)
-		let use_tableswitch = (!imax - !imin) < (DynArray.length flat_cases + 10) in
+		let diff = !imax - !imin in
+		let use_tableswitch = diff < (DynArray.length flat_cases + 10) && diff >= 0 (* #8388 *) in
 		if use_tableswitch then begin
 			let offsets = Array.init (!imax - !imin + 1) (fun i ->
 				try IntMap.find (i + !imin) !case_lut
