@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open Globals
 open JvmGlobals
 open JvmData
@@ -560,7 +579,8 @@ class builder jc name jsig = object(self)
 		) cases in
 		let offset_def = ref fp in
 		(* No idea what's a good heuristic here... *)
-		let use_tableswitch = (!imax - !imin) < (DynArray.length flat_cases + 10) in
+		let diff = !imax - !imin in
+		let use_tableswitch = diff < (DynArray.length flat_cases + 10) && diff >= 0 (* #8388 *) in
 		if use_tableswitch then begin
 			let offsets = Array.init (!imax - !imin + 1) (fun i ->
 				try IntMap.find (i + !imin) !case_lut

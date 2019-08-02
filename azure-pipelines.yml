@@ -205,7 +205,7 @@ stages:
             fetchDepth: 20
           - template: extra/azure-pipelines/install-neko-snapshot.yaml
             parameters:
-              platform: windows
+              platform: windows64
           - task: DownloadPipelineArtifact@0
             inputs:
               artifactName: 'win64Binaries'
