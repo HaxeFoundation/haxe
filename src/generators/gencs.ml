@@ -918,65 +918,60 @@ let generate con =
 		) tl
 		in
 
-		let rec real_type stack t =
+		let rec real_type t =
 			let t = gen.gfollow#run_f t in
-			if List.exists (fast_eq t) stack then
-				t_dynamic
-			else begin
-				let stack = t :: stack in
-				let ret = match t with
-					| TAbstract({ a_path = ([], "Null") }, [t]) ->
-						(*
-							Null<> handling is a little tricky.
-							It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
-							It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
-							Null<T>, which will then return the type haxe.lang.Null<>
-						*)
-						if erase_generics then
-							if is_cs_basic_type t then
-								t_dynamic
-							else
-								real_type stack t
+			let ret = match t with
+				| TAbstract({ a_path = ([], "Null") }, [t]) ->
+					(*
+						Null<> handling is a little tricky.
+						It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
+						It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
+						Null<T>, which will then return the type haxe.lang.Null<>
+					*)
+					if erase_generics then
+						if is_cs_basic_type t then
+							t_dynamic
 						else
-							(match real_type stack t with
-								| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
-								| t when is_cs_basic_type t -> TInst(null_t, [t])
-								| _ -> real_type stack t)
-					| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-						real_type stack (Abstract.get_underlying_type a pl)
-					| TAbstract ({ a_path = (["cs";"_Flags"], "EnumUnderlying") }, [t]) ->
-						real_type stack t
-					| TInst( { cl_path = (["cs";"system"], "String") }, [] ) ->
-						gen.gcon.basic.tstring;
-					| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
-					| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
-					| TAbstract( { a_path = [],"Class" }, _ )
-					| TAbstract( { a_path = [],"Enum" }, _ )
-					| TAbstract( { a_path = ["haxe";"extern"],"Rest" }, _ )
-					| TInst( { cl_path = ([], "Class") }, _ )
-					| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
-					| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
-						t_dynamic
-					| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
-					| TEnum(_, [])
-					| TInst(_, []) -> t
-					| TInst(cl, params) when
-						has_tdyn params &&
-						Hashtbl.mem ifaces cl.cl_path ->
-							TInst(Hashtbl.find ifaces cl.cl_path, [])
-					| TEnum(e, params) ->
-						TEnum(e, List.map (fun _ -> t_dynamic) params)
-					| TInst(cl, params) when Meta.has Meta.Enum cl.cl_meta ->
-						TInst(cl, List.map (fun _ -> t_dynamic) params)
-					| TInst(cl, params) -> TInst(cl, change_param_type stack (TClassDecl cl) params)
-					| TAbstract _
-					| TType _ -> t
-					| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
-					| TFun _ -> TInst(fn_cl,[])
-					| _ -> t_dynamic
-				in
-				ret
-			end
+							real_type t
+					else
+						(match real_type t with
+							| TInst( { cl_kind = KTypeParameter _ }, _ ) -> TInst(null_t, [t])
+							| t when is_cs_basic_type t -> TInst(null_t, [t])
+							| _ -> real_type t)
+				| TAbstract (a, pl) when not (Meta.has Meta.CoreType a.a_meta) ->
+					real_type (Abstract.get_underlying_type a pl)
+				| TAbstract ({ a_path = (["cs";"_Flags"], "EnumUnderlying") }, [t]) ->
+					real_type t
+				| TInst( { cl_path = (["cs";"system"], "String") }, [] ) ->
+					gen.gcon.basic.tstring;
+				| TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
+				| TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
+				| TAbstract( { a_path = [],"Class" }, _ )
+				| TAbstract( { a_path = [],"Enum" }, _ )
+				| TAbstract( { a_path = ["haxe";"extern"],"Rest" }, _ )
+				| TInst( { cl_path = ([], "Class") }, _ )
+				| TInst( { cl_path = ([], "Enum") }, _ ) -> TInst(ttype,[])
+				| TInst( ({ cl_kind = KTypeParameter _ } as cl), _ ) when erase_generics && not (Meta.has Meta.NativeGeneric cl.cl_meta) ->
+					t_dynamic
+				| TInst({ cl_kind = KExpr _ }, _) -> t_dynamic
+				| TEnum(_, [])
+				| TInst(_, []) -> t
+				| TInst(cl, params) when
+					has_tdyn params &&
+					Hashtbl.mem ifaces cl.cl_path ->
+						TInst(Hashtbl.find ifaces cl.cl_path, [])
+				| TEnum(e, params) ->
+					TEnum(e, List.map (fun _ -> t_dynamic) params)
+				| TInst(cl, params) when Meta.has Meta.Enum cl.cl_meta ->
+					TInst(cl, List.map (fun _ -> t_dynamic) params)
+				| TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
+				| TAbstract _
+				| TType _ -> t
+				| TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ | AbstractStatics _ -> true | _ -> false) -> t
+				| TFun _ -> TInst(fn_cl,[])
+				| _ -> t_dynamic
+			in
+			ret
 		and
 
 		(*
@@ -987,7 +982,7 @@ let generate con =
 			To avoid confusion between Generic<Dynamic> (which has a different meaning in hxcs AST),
 			all those references are using dynamic_anon, which means Generic<{}>
 		*)
-		change_param_type stack md tl =
+		change_param_type md tl =
 			let types = match md with
 				| TClassDecl c -> c.cl_params
 				| TEnumDecl e -> []
@@ -996,7 +991,7 @@ let generate con =
 			in
 			let is_hxgeneric = if types = [] then is_hxgen md else (RealTypeParams.is_hxgeneric md) in
 			let ret t =
-				let t_changed = real_type stack t in
+				let t_changed = real_type t in
 				match is_hxgeneric, t_changed with
 				| false, _ -> t
 				(*
@@ -1018,9 +1013,6 @@ let generate con =
 			else
 				List.map ret tl
 		in
-
-		let real_type = real_type []
-		and change_param_type = change_param_type [] in
 
 		let is_dynamic t = match real_type t with
 			| TMono _ | TDynamic _
