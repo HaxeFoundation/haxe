@@ -2291,22 +2291,35 @@ class tclass_to_jvm gctx c = object(self)
 				end
 			end
 		in
-		let check cf cf_impl =
+		let check is_interface cf cf_impl =
 			match map_type_params cf.cf_type with
-			| Some t -> make_bridge cf_impl t
-			| None -> ()
+			| Some t ->
+				make_bridge cf_impl t
+			| None ->
+				(* If we implement an interface with variance, we need a bridge method too (#8528). *)
+				if is_interface && not (type_iseq cf.cf_type cf_impl.cf_type) then make_bridge cf_impl cf.cf_type
 		in
-		let check cf cf_impl =
-			check cf cf_impl;
-			List.iter (fun cf -> check cf cf_impl) cf.cf_overloads
+		let check is_interface cf cf_impl =
+			check is_interface cf cf_impl;
+			(* TODO: I think this is incorrect... have to investigate though *)
+			(* List.iter (fun cf -> check is_interface cf cf_impl) cf.cf_overloads *)
 		in
 		let rec loop map_type c_int =
 			List.iter (fun (c_int,tl) ->
 				let map_type t = apply_params c_int.cl_params tl (map_type t) in
 				List.iter (fun cf ->
 					match cf.cf_kind,raw_class_field (fun cf -> map_type cf.cf_type) c (List.map snd c.cl_params) cf.cf_name with
-					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c -> check cf cf_impl
-					| _ -> ()
+					| (Method (MethNormal | MethInline)),(Some(c',_),_,cf_impl) when c' == c ->
+						let tl = match follow (map_type cf.cf_type) with
+							| TFun(tl,_) -> tl
+							| _ -> assert false
+						in
+						begin match find_overload_rec' false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl) with
+							| Some(_,cf_impl) -> check true cf cf_impl
+							| None -> ()
+						end;
+					| _ ->
+						()
 				) c_int.cl_ordered_fields;
 				loop map_type c_int
 			) c_int.cl_implements
@@ -2318,7 +2331,7 @@ class tclass_to_jvm gctx c = object(self)
 		| fields,Some(c_sup,tl) ->
 			List.iter (fun cf_impl ->
 				match cf_impl.cf_kind,raw_class_field (fun cf -> apply_params c_sup.cl_params tl cf.cf_type) c_sup tl cf_impl.cf_name with
-				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) -> check cf cf_impl
+				| (Method (MethNormal | MethInline)),(Some(c,tl),_,cf) -> check false cf cf_impl
 				| _ -> ()
 			) fields
 		| _ ->
