@@ -1,16 +1,22 @@
-import haxe.display.JsonModuleTypes;
+enum Dummy {
+	One;
+	Two;
+	Three;
+}
 
 class Main {
 	static function main() {}
 
-	function guessName<T>(type1:Null<JsonType<T>>):Null<String> {
+	function guessName<T>():Null<String> {
 		function loop(type) {
 			return switch (type.kind) {
-				case TInst: type.args.path.typeName;
-				case TDynamic: loop(type.args);
-				case _: null;
+				case One: type.args.path.typeName;
+				case Two: loop(type.args);
+				case _:
+					$type(type);
+					null;
 			}
 		}
-		return null;
+		return loop(null);
 	}
 }

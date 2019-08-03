@@ -1087,35 +1087,35 @@ let s_module_type_kind = function
 	| TAbstractDecl a -> "TAbstractDecl(" ^ (s_type_path a.a_path) ^ ")"
 	| TTypeDecl t -> "TTypeDecl(" ^ (s_type_path t.t_path) ^ ")"
 
-let rec s_type ctx t =
+let rec s_type anons ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
 		| None -> Printf.sprintf "Unknown<%d>" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
-		| Some t -> s_type ctx t)
+		| Some t -> s_type anons ctx t)
 	| TEnum (e,tl) ->
-		s_type_path e.e_path ^ s_type_params ctx tl
+		s_type_path e.e_path ^ s_type_params anons ctx tl
 	| TInst (c,tl) ->
 		(match c.cl_kind with
 		| KExpr e -> Ast.Printer.s_expr e
-		| _ -> s_type_path c.cl_path ^ s_type_params ctx tl)
+		| _ -> s_type_path c.cl_path ^ s_type_params anons ctx tl)
 	| TType (t,tl) ->
-		s_type_path t.t_path ^ s_type_params ctx tl
+		s_type_path t.t_path ^ s_type_params anons ctx tl
 	| TAbstract (a,tl) ->
-		s_type_path a.a_path ^ s_type_params ctx tl
+		s_type_path a.a_path ^ s_type_params anons ctx tl
 	| TFun ([],t) ->
-		"Void -> " ^ s_fun ctx t false
+		"Void -> " ^ s_fun anons ctx t false
 	| TFun (l,t) ->
 		let args = match l with
 			| [] -> "()"
-			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun ctx t true)
+			| ["",b,t] -> Printf.sprintf "%s%s" (if b then "?" else "") (s_fun anons ctx t true)
 			| _ ->
 				let args = String.concat ", " (List.map (fun (s,b,t) ->
-					(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
+					(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun anons ctx t true
 				) l) in
 				"(" ^ args ^ ")"
 		in
-		Printf.sprintf "%s -> %s" args (s_fun ctx t false)
+		Printf.sprintf "%s -> %s" args (s_fun anons ctx t false)
 	| TAnon a ->
 		begin
 			match !(a.a_status) with
@@ -1123,32 +1123,46 @@ let rec s_type ctx t =
 			| EnumStatics e -> Printf.sprintf "{ EnumStatics %s }" (s_type_path e.e_path)
 			| AbstractStatics a -> Printf.sprintf "{ AbstractStatics %s }" (s_type_path a.a_path)
 			| _ ->
-				let fl = PMap.fold (fun f acc -> ((if Meta.has Meta.Optional f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
-				"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+				if List.memq a anons then
+					"{ *RECURSION* : ? }"
+				else begin
+					let fl =
+						let anons = a :: anons in
+						PMap.fold (fun f acc ->
+							let question_mark = if Meta.has Meta.Optional f.cf_meta then " ?" else " " in
+							(question_mark ^ f.cf_name ^ " : " ^ s_type anons ctx f.cf_type) :: acc
+						) a.a_fields []
+					in
+					"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
+				end
 		end
 	| TDynamic t2 ->
-		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+		"Dynamic" ^ s_type_params anons ctx (if t == t2 then [] else [t2])
 	| TLazy f ->
-		s_type ctx (lazy_type f)
+		s_type anons ctx (lazy_type f)
 
-and s_fun ctx t void =
+and s_fun anons ctx t void =
 	match t with
 	| TFun _ ->
-		"(" ^ s_type ctx t ^ ")"
+		"(" ^ s_type anons ctx t ^ ")"
 	| TAbstract ({ a_path = ([],"Void") },[]) when void ->
-		"(" ^ s_type ctx t ^ ")"
+		"(" ^ s_type anons ctx t ^ ")"
 	| TMono r ->
 		(match !r with
-		| None -> s_type ctx t
-		| Some t -> s_fun ctx t void)
+		| None -> s_type anons ctx t
+		| Some t -> s_fun anons ctx t void)
 	| TLazy f ->
-		s_fun ctx (lazy_type f) void
+		s_fun anons ctx (lazy_type f) void
 	| _ ->
-		s_type ctx t
+		s_type anons ctx t
 
-and s_type_params ctx = function
+and s_type_params anons ctx = function
 	| [] -> ""
-	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+	| l -> "<" ^ String.concat ", " (List.map (s_type anons ctx) l) ^ ">"
+
+let s_type = s_type []
+and s_fun = s_fun []
+and s_type_params = s_type_params []
 
 let s_access is_read = function
 	| AccNormal -> "default"
@@ -1697,6 +1711,7 @@ end
 
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
+	let anons = ref [] in
 	let rec loop t =
 		if t == a then
 			true
@@ -1713,7 +1728,9 @@ let rec link e a b =
 		| TLazy f ->
 			loop (lazy_type f)
 		| TAnon a ->
-			try
+			if List.memq a !anons then false
+			else try
+				anons := a :: !anons;
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
 				false
 			with
