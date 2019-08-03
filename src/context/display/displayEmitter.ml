@@ -82,6 +82,7 @@ let completion_type_of_type ctx ?(values=PMap.empty) t =
 		with _ ->
 			Unimported
 	in
+	let anons = ref [] in
 	let rec ppath mpath tpath tl = {
 		ct_pack = fst tpath;
 		ct_module_name = snd mpath;
@@ -135,10 +136,21 @@ let completion_type_of_type ctx ?(values=PMap.empty) t =
 				ctf_field = af;
 				ctf_type = from_type PMap.empty af.cf_type;
 			} in
-			CTAnonymous {
-				ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
-				ct_status = !(an.a_status);
-			}
+			if List.memq an !anons then
+				CTAnonymous {
+					ct_fields = [afield (mk_field "*RECURSION*" (mk_mono()) null_pos null_pos)];
+					ct_status = !(an.a_status)
+				}
+			else begin
+				(match !(an.a_status) with
+				| Opened | Closed -> anons := an :: !anons
+				| _ -> ()
+				);
+				CTAnonymous {
+					ct_fields = PMap.fold (fun cf acc -> afield cf :: acc) an.a_fields [];
+					ct_status = !(an.a_status);
+				}
+			end
 		| TDynamic t ->
 			CTDynamic (if t == t_dynamic then None else Some (from_type PMap.empty t))
 	in

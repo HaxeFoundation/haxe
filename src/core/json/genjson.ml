@@ -11,7 +11,8 @@ type generation_mode =
 type context = {
 	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
-	request : JsonRequest.json_request option
+	request : JsonRequest.json_request option;
+	mutable anons_stack : tanon list;
 }
 
 let jnull = Json.JNull
@@ -222,7 +223,9 @@ and generate_anon_status ctx status =
 
 and generate_anon ctx an =
 	let generate_anon_fields () =
+		ctx.anons_stack <- an :: ctx.anons_stack;
 		let fields = PMap.fold (fun cf acc -> generate_class_field ctx CFSMember cf :: acc) an.a_fields [] in
+		ctx.anons_stack <- List.tl ctx.anons_stack;
 		jarray fields
 	in
 	jobject [
@@ -690,7 +693,8 @@ let generate_module ctx m =
 let create_context ?jsonrpc gm = {
 	generation_mode = gm;
 	generate_abstract_impl = false;
-	request = match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc)
+	request = (match jsonrpc with None -> None | Some jsonrpc -> Some (new JsonRequest.json_request jsonrpc));
+	anons_stack = [];
 }
 
 let generate types file =
