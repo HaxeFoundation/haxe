@@ -47,7 +47,7 @@ jobs:
     steps:
       - checkout: self
         fetchDepth: 20
-      - template: extra/azure-pipelines/install-neko-snapshot.yaml
+      - template: install-neko-snapshot.yaml
         parameters:
           ${{ if eq(parameters.arch, '64') }}:
             platform: windows64
