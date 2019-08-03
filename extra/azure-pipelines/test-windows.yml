@@ -33,9 +33,8 @@ jobs:
           TEST: cs
         js:
           TEST: js
-        # https://github.com/microsoft/azure-pipelines-image-generation/issues/990
-        # php:
-        #   TEST: php
+        php:
+          TEST: php
         # TODO. flash has never been enabled on our AppVeyor builds.
         # flash:
         #   TEST: flash9,as3
