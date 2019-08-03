@@ -12,8 +12,10 @@ jobs:
       HAXELIB_ROOT: C:/haxelib
     strategy:
       matrix:
-        macro:
-          TEST: macro
+        # https://github.com/HaxeFoundation/haxe/issues/8600
+        ${{ if eq(parameters.arch, '64') }}:
+          macro:
+            TEST: macro
         neko:
           TEST: neko
         hl:
@@ -22,7 +24,11 @@ jobs:
           TEST: cpp
           HXCPP_COMPILE_CACHE: C:/hxcache
         java:
-          TEST: java,jvm
+          # https://github.com/HaxeFoundation/haxe/issues/8601
+          ${{ if eq(parameters.arch, '64') }}:
+            TEST: java,jvm
+          ${{ if eq(parameters.arch, '32') }}:
+            TEST: java
         cs:
           TEST: cs
         js:
