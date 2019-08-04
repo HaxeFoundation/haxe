@@ -224,17 +224,25 @@ let rec expr_to_value ctx env e =
 			end
 		| EField(e1,s) ->
 			let v1 = loop e1 in
-			let s = hash s in
+			let s' = hash s in
 			begin match v1 with
 			| VEnumValue ve ->
 				begin try
-					let i = find_enum_field_by_name ve s in
+					let i = find_enum_field_by_name ve s' in
 					ve.eargs.(i)
 				with Not_found ->
 					vnull
 				end
 			| _ ->
-				let v = EvalField.field v1 s in
+				let v = try
+					EvalField.field_raise v1 s'
+				with Not_found -> try
+					(* Maybe we have a getter? (#8599) *)
+					let vf = EvalField.field v1 (hash ("get_" ^ s)) in
+					safe_call env.env_eval (EvalPrinting.call_value_on v1 vf) []
+				with _ ->
+					vnull
+				in
 				v
 			end
 		| EArrayDecl el ->
@@ -248,7 +256,6 @@ let rec expr_to_value ctx env e =
 			| OpAssign ->
 				let v2 = loop e2 in
 				write_expr ctx env e1 v2;
-				v2
 			| OpAssignOp op ->
 				raise Exit (* Nobody does that, right? *)
 			| OpBoolAnd ->
@@ -360,23 +367,32 @@ let rec expr_to_value ctx env e =
 and write_expr ctx env expr value =
 	begin match fst expr with
 		| EField(e1,s) ->
-			let s = hash s in
+			let s' = hash s in
 			let v1 = expr_to_value ctx env e1 in
 			begin match v1 with
 			| VEnumValue ve ->
 				begin try
-					let i = find_enum_field_by_name ve s in
-					ve.eargs.(i) <- value
+					let i = find_enum_field_by_name ve s' in
+					ve.eargs.(i) <- value;
+					value
 				with Not_found ->
-					()
+					value
 				end
 			| _ ->
-				set_field v1 s value;
+				try
+					set_field v1 s' value;
+					value;
+				with Not_found -> try
+					let vf = EvalField.field v1 (hash ("set_" ^ s)) in
+					safe_call env.env_eval (EvalPrinting.call_value_on v1 vf) [value]
+				with _ ->
+					value
 			end
 		| EConst (Ident s) ->
 			begin try
 				let slot = get_var_slot_by_name env false env.env_debug.scopes s in
 				env.env_locals.(slot) <- value;
+				value
 			with Not_found ->
 				raise Exit
 			end
@@ -389,7 +405,8 @@ and write_expr ctx env expr value =
 				| VVector vv -> Array.set vv idx value
 				| VEnumValue ev -> Array.set ev.eargs idx value
 				| _ -> raise Exit
-			end
+			end;
+			value
 		| _ ->
 			raise Exit
 	end
