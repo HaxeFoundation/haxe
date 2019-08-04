@@ -49,6 +49,8 @@ type numeric_range =
 	| Int16Range
 	| Int32Range
 
+let i320xFF = Int32.of_int 0xFF
+
 let get_numeric_range i =
 	if i >= -128 && i <= 127 then Int8Range
 	else if i >= -32768 && i <= 32767 then Int16Range

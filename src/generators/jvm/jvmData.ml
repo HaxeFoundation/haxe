@@ -285,8 +285,8 @@ and jopcode =
 	(* other *)
 	| OpAthrow
 	| OpIinc of jbyte * jbyte
-	| OpLookupswitch of int (* num pad bytes *) * jbranchoffset ref (* default *) * (int * jbranchoffset ref) array
-	| OpTableswitch of int (* num pad bytes *) * jbranchoffset ref (* default *) * int (* low *) * int (* high *) * jbranchoffset ref array
+	| OpLookupswitch of int (* num pad bytes *) * jbranchoffset ref (* default *) * (Int32.t * jbranchoffset ref) array
+	| OpTableswitch of int (* num pad bytes *) * jbranchoffset ref (* default *) * Int32.t (* low *) * Int32.t (* high *) * jbranchoffset ref array
 	| OpMonitorenter
 	| OpMonitorexit
 	| OpRet of jbyte
