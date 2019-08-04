@@ -422,11 +422,23 @@ let rec wait_loop process_params verbose accept =
 	while true do
 		let read, write, close = accept() in
 		let was_compilation = ref false in
+		let removed_modules = ref [] in
+		let recache_removed_modules () =
+			List.iter (fun (k,m) ->
+				try
+					ignore(CompilationServer.find_module cs k);
+				with Not_found ->
+					CompilationServer.cache_module cs k m
+			) !removed_modules;
+			removed_modules := [];
+		in
 		let maybe_cache_context com =
 			if com.display.dms_full_typing then begin
 				CompilationServer.cache_context cs com;
 				ServerMessage.cached_modules com "" (List.length com.modules);
-			end;
+				removed_modules := [];
+			end else
+				recache_removed_modules();
 		in
 		let create params =
 			let ctx = create_context params in
@@ -460,7 +472,8 @@ let rec wait_loop process_params verbose accept =
 					let fkey = (file,sign) in
 					(* force parsing again : if the completion point have been changed *)
 					CompilationServer.remove_file cs fkey;
-					CompilationServer.taint_modules cs file;
+					removed_modules := CompilationServer.filter_modules cs file;
+					delays := recache_removed_modules :: !delays;
 				end;
 				try
 					if (Hashtbl.find arguments sign) <> ctx.com.class_path then begin

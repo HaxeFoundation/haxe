@@ -119,6 +119,17 @@ let cache_module cs key value =
 let taint_modules cs file =
 	Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- Some m) cs.cache.c_modules
 
+let filter_modules cs file =
+	let removed = DynArray.create () in
+	Hashtbl.filter_map_inplace (fun k m ->
+		if m.m_extra.m_file = file then begin
+			DynArray.add removed (k,m);
+			None
+		end else
+			Some m
+	) cs.cache.c_modules;
+	DynArray.to_list removed
+
 let iter_modules cs com f =
 	let sign = Define.get_signature com.defines in
 	Hashtbl.iter (fun (_,sign') m -> if sign = sign' then f m) cs.cache.c_modules

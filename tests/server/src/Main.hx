@@ -96,6 +96,27 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+
+	function testDisplayModuleRecache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+
+		var args2 = ["--main", "HelloWorld", "--interp", "--display", "HelloWorld.hx@64@type"];
+		runHaxe(args2);
+
+		runHaxe(args);
+		assertReuse("HelloWorld");
+
+		// make sure we still invalidate if the file does change
+		vfs.touchFile("HelloWorld.hx");
+		runHaxe(args2);
+
+		runHaxe(args);
+		assertSkipping("HelloWorld");
+	}
 }
 
 class Main {
