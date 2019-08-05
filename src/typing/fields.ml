@@ -329,7 +329,7 @@ let rec using_field ctx mode e i p =
 		remove_constant_flag e.etype (fun ok -> if ok then using_field ctx mode e i p else raise Not_found)
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
-let rec type_field cfg ctx e i p mode =
+let rec type_field stack cfg ctx e i p mode =
 	let no_field() =
 		if TypeFieldConfig.do_resume cfg then raise Not_found;
 		let t = match follow e.etype with
@@ -368,7 +368,9 @@ let rec type_field cfg ctx e i p mode =
 		with Not_found ->
 			false
 	in
-	match follow e.etype with
+	let t = follow e.etype in
+	let type_field = type_field (t :: stack) in
+	match t with
 	| TInst (c,params) ->
 		let rec loop_dyn c params =
 			match c.cl_dynamic with
@@ -560,7 +562,7 @@ let rec type_field cfg ctx e i p mode =
 			| MSet, _ ->
 				error "This operation is unsupported" p)
 		with Not_found -> try
-			if does_forward a false then
+			if does_forward a false && not (List.exists (fast_eq t) stack) then
 				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode
 			else
 				raise Not_found
@@ -595,5 +597,7 @@ let rec type_field cfg ctx e i p mode =
 			else no_field())
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
+
+let type_field = type_field []
 
 let type_field_default_cfg = type_field TypeFieldConfig.default
