@@ -40,6 +40,7 @@ class ServerMethods {
 	static inline var Modules = new HaxeRequestMethod<ContextParams, Response<Array<String>>>("server/modules");
 	static inline var Module = new HaxeRequestMethod<ModuleParams, Response<JsonModule>>("server/module");
 	static inline var Files = new HaxeRequestMethod<ContextParams, Response<Array<JsonServerFile>>>("server/files");
+	static inline var ModuleCreated = new HaxeRequestMethod<FileParams, NoData>("server/moduleCreated");
 }
 
 /* Configure */

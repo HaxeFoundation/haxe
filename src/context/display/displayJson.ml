@@ -179,6 +179,14 @@ let handler =
 			in
 			hctx.send_result (generate_module () m)
 		);
+		"server/moduleCreated", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let file = Path.unique_full_path file in
+			hctx.com.callbacks#add_after_init_macros (fun () ->
+				ignore(TypeloadParse.parse_module_file hctx.com file null_pos);
+				hctx.send_result (jstring file);
+			);
+		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
