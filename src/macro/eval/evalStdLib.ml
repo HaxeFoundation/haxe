@@ -3381,7 +3381,33 @@ module StdUv = struct
 			| v -> unexpected_value v "UvTcp"
 		let new_ = (fun _ ->
 			let s = wrap_sync (Uv.tcp_init (loop ())) in
-			encode_instance key_nusys_async_net_Socket ~kind:(IUv (UvTcp s))
+			encode_instance key_eval_uv_Socket ~kind:(IUv (UvTcp s))
+		)
+		let listen = vifun2 (fun vthis backlog cb ->
+			let this = this vthis in
+			let backlog = decode_int backlog in
+			wrap_sync (Uv.tcp_listen this backlog (wrap_cb_unit cb));
+			vnull;
+		)
+		let accept = vifun0 (fun vthis ->
+			let this = this vthis in
+			let res = wrap_sync (Uv.tcp_accept (loop ()) this) in
+			encode_instance key_eval_uv_Socket ~kind:(IUv (UvTcp res))
+		)
+		let bindTCP = vifun3 (fun vthis host port ipv6only ->
+			let this = this vthis in
+			let port = decode_int port in
+			let ipv6only = decode_bool ipv6only in
+			wrap_sync (match host with
+				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
+					let ip = decode_int ip in
+					Uv.tcp_bind_ipv4 this ip port
+				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
+					let ip = decode_bytes ip in
+					Uv.tcp_bind_ipv6 this ip port ipv6only
+				| _ -> assert false
+			);
+			vnull
 		)
 		let connectTCP = vifun2 (fun vthis port cb ->
 			let this = this vthis in
@@ -3403,6 +3429,78 @@ module StdUv = struct
 		let stopRead = vifun0 (fun vthis ->
 			let this = this vthis in
 			wrap_sync (Uv.tcp_read_stop this);
+			vnull
+		)
+		let end_ = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.tcp_shutdown this (fun res ->
+				match res with
+					| Uv.UvError err -> call_value cb [wrap_error err; vnull]; ()
+					| Uv.UvSuccess () -> wrap_sync (Uv.tcp_close this (wrap_cb_unit cb))
+				));
+			vnull
+		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.tcp_close this (wrap_cb_unit cb));
+			vnull
+		)
+	end
+
+	module Dns = struct
+		let lookup = vfun3 (fun hostname options cb ->
+			let hostname = decode_string hostname in
+			let flag_addrconfig = ref false in
+			let flag_v4mapped = ref false in
+			let hint_family = ref 0 in
+			(match options with
+				| VObject o ->
+					(match (object_field o key_family) with
+						| VEnumValue {eindex = 0} -> hint_family := 4
+						| VEnumValue {eindex = 1} -> hint_family := 6
+						| _ -> ());
+					(match (object_field o key_hints) with
+						| VInt32 h ->
+							let h = Int32.to_int h in
+							(if (h land 1) != 0 then flag_addrconfig := true);
+							(if (h land 2) != 0 then flag_v4mapped := true)
+						| _ -> ())
+				| _ -> ()
+			);
+			wrap_sync (Uv.dns_getaddrinfo (loop ()) hostname !flag_addrconfig !flag_v4mapped !hint_family (fun res ->
+				ignore (match res with
+					| Uv.UvError err -> call_value cb [wrap_error err; vnull]
+					| Uv.UvSuccess entries ->
+						let entries = encode_array (List.map (fun e -> match e with
+							| Uv.UvGai4 raw -> encode_enum_value key_sys_net_Address 0 [|VInt32 raw|] None
+							| Uv.UvGai6 raw -> encode_enum_value key_sys_net_Address 1 [|encode_bytes raw|] None) entries) in
+						call_value cb [vnull; entries]
+					)
+				));
+			vnull
+		)
+		let reverse = vfun2 (fun address cb ->
+			vnull
+		)
+	end
+
+	module Timer = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvTimer t)} -> t
+			| v -> unexpected_value v "UvTimer"
+		let new_ = (fun vl ->
+			match vl with
+				| [timeMs; cb] ->
+					let timeMs = decode_int timeMs in
+					let handle = wrap_sync (Uv.timer_start (loop ()) timeMs timeMs (fun () ->
+						ignore (call_value cb [])
+						)) in
+					encode_instance key_eval_uv_Timer ~kind:(IUv (UvTimer handle))
+				| _ -> assert false
+		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.timer_stop this (wrap_cb_unit cb));
 			vnull
 		)
 	end
@@ -3593,7 +3691,8 @@ let init_constructors builtins =
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
 		);
-	add key_nusys_async_net_Socket StdUv.Socket.new_
+	add key_eval_uv_Socket StdUv.Socket.new_;
+	add key_eval_uv_Timer StdUv.Timer.new_
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -4091,9 +4190,21 @@ let init_standard_library builtins =
 		"get_flags",StdUv.Stat.get_flags;
 		"get_gen",StdUv.Stat.get_gen;
 	];
-	init_fields builtins (["nusys";"async";"net"],"Socket") [] [
+	init_fields builtins (["eval";"uv"],"Socket") [] [
+		"bindTCP",StdUv.Socket.bindTCP;
 		"connectTCP",StdUv.Socket.connectTCP;
+		"listen",StdUv.Socket.listen;
+		"accept",StdUv.Socket.accept;
 		"write",StdUv.Socket.write;
 		"startRead",StdUv.Socket.startRead;
 		"stopRead",StdUv.Socket.stopRead;
+		"end",StdUv.Socket.end_;
+		"close",StdUv.Socket.close;
 	];
+	init_fields builtins (["nusys";"net"],"Dns") [
+		"lookup",StdUv.Dns.lookup;
+		"reverse",StdUv.Dns.reverse;
+	] [];
+	init_fields builtins (["eval";"uv"],"Timer") [] [
+		"close",StdUv.Timer.close;
+	]

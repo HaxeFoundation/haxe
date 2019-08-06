@@ -166,9 +166,29 @@ external tcp_nodelay : t_tcp -> bool -> unit uv_result = "w_tcp_nodelay"
 external tcp_keepalive : t_tcp -> bool -> int -> unit uv_result = "w_tcp_keepalive"
 external tcp_accept : t_loop -> t_tcp -> t_tcp uv_result = "w_tcp_accept"
 external tcp_bind_ipv4 : t_tcp -> int -> int -> unit uv_result = "w_tcp_bind_ipv4"
-external tcp_bind_ipv6 : t_tcp -> bytes -> int -> unit uv_result = "w_tcp_bind_ipv6"
+external tcp_bind_ipv6 : t_tcp -> bytes -> int -> bool -> unit uv_result = "w_tcp_bind_ipv6"
 external tcp_connect_ipv4 : t_tcp -> int -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv4"
 external tcp_connect_ipv6 : t_tcp -> bytes -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv6"
+external tcp_shutdown : t_tcp -> unit_cb -> unit uv_result = "w_tcp_shutdown"
+external tcp_close : t_tcp -> unit_cb -> unit uv_result = "w_tcp_close"
+external tcp_listen : t_tcp -> int -> unit_cb -> unit uv_result = "w_tcp_listen"
+external tcp_write : t_tcp -> bytes -> unit_cb -> unit uv_result = "w_tcp_write"
 external tcp_read_start : t_tcp -> stream_bytes_cb -> unit uv_result = "w_tcp_read_start"
 external tcp_read_stop : t_tcp -> unit uv_result = "w_tcp_read_stop"
-external tcp_write : t_tcp -> bytes -> unit_cb -> unit uv_result = "w_tcp_write"
+
+(* ------------- DNS ------------------------------------------------ *)
+
+type uv_gai_result =
+	| UvGai4 of int32
+	| UvGai6 of bytes
+
+type dns_gai_cb = (uv_gai_result list) uv_result -> unit
+
+external dns_getaddrinfo : t_loop -> string -> bool -> bool -> int -> dns_gai_cb -> unit uv_result = "w_dns_getaddrinfo_bytecode" "w_dns_getaddrinfo"
+
+(* ------------- TIMERS --------------------------------------------- *)
+
+type timer_cb = unit -> unit
+
+external timer_start : t_loop -> int -> int -> timer_cb -> t_timer uv_result = "w_timer_start"
+external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"
