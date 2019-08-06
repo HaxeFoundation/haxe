@@ -1,5 +1,6 @@
 import haxeserver.HaxeServerRequestResult;
-import haxe.display.JsonModuleTypes.JsonModuleType;
+import haxe.display.JsonModuleTypes;
+import haxe.display.Display;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -105,6 +106,10 @@ class HaxeServerTestCase implements ITest {
 		return null;
 	}
 
+	function parseCompletion():Array<DisplayItem<Dynamic>> {
+		return Json.parse(lastResult.stderr).result.result.items; // this is retarded
+	}
+
 	function assertSuccess(?p:haxe.PosInfos) {
 		Assert.isTrue(0 == errorMessages.length, p);
 	}
@@ -150,5 +155,15 @@ class HaxeServerTestCase implements ITest {
 		if (type != null) {
 			Assert.isTrue(check(type), null, p);
 		}
+	}
+
+	function assertHasCompletion<T>(completion:Array<DisplayItem<T>>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion) {
+			if (f(type)) {
+				Assert.pass();
+				return;
+			}
+		}
+		Assert.fail("No such completion", p);
 	}
 }

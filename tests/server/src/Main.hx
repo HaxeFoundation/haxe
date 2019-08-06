@@ -129,6 +129,22 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+
+	function testSyntaxCache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], "server/readClassPaths", {});
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([], "display/completion", {file: "HelloWorld.hx", offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
+		// assertHasCompletion(completion, module -> switch (module.kind) {
+		// 	case Type: module.args.path.typeName == "Empty";
+		// 	case _: false;
+		// });
+	}
 }
 
 class Main {
