@@ -257,6 +257,8 @@ let rec wait_loop process_params verbose accept =
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
 	let mark_loop = ref 0 in
+	let removed_modules = ref [] in
+	let is_removed_module m = List.exists (fun (_,m') -> m == m') !removed_modules in
 	TypeloadModule.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let t = Timer.timer ["server";"module cache"] in
 		let com2 = ctx.Typecore.com in
@@ -373,6 +375,8 @@ let rec wait_loop process_params verbose accept =
 				| MCode, MMacro | MMacro, MCode ->
 					(* this was just a dependency to check : do not add to the context *)
 					PMap.iter (Hashtbl.replace com2.resources) m.m_extra.m_binded_res;
+				| _ when is_removed_module m ->
+					()
 				| _ ->
 					ServerMessage.reusing com2 tabs m;
 					m.m_extra.m_added <- !compilation_step;
@@ -422,7 +426,6 @@ let rec wait_loop process_params verbose accept =
 	while true do
 		let read, write, close = accept() in
 		let was_compilation = ref false in
-		let removed_modules = ref [] in
 		let recache_removed_modules () =
 			List.iter (fun (k,m) ->
 				try

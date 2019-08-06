@@ -117,6 +117,18 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSkipping("HelloWorld");
 	}
+
+	function testMutuallyDependent() {
+		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
+		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
+
+		var args = ["MutuallyDependent1", "MutuallyDependent2"];
+		runHaxe(args);
+
+		args = args.concat(["--display", "MutuallyDependent1.hx@44@type"]);
+		runHaxe(args);
+		assertSuccess();
+	}
 }
 
 class Main {
