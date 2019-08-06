@@ -22,6 +22,16 @@
 
 package haxe.display;
 
+import haxe.display.Position;
+
+@:publicFields
+class Methods {
+	/**
+		The initialize request is sent from the client to Haxe to determine the capabilities.
+	**/
+	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
+}
+
 /* Initialize */
 typedef InitializeParams = {
 	final ?supportsResolve:Bool;
@@ -71,6 +81,28 @@ typedef Response<T> = {
 
 typedef FileParams = {
 	var file:FsPath;
+}
+
+abstract HaxeRequestMethod<TParams, TResponse>(String) to String {
+	public inline function new(method:String)
+		this = method;
+}
+
+abstract HaxeNotificationMethod<TParams>(String) to String {
+	public inline function new(method:String)
+		this = method;
+}
+
+typedef HaxeResponseErrorData = Array<{
+	var severity:HaxeResponseErrorSeverity;
+	var ?location:Location;
+	var message:String;
+}>;
+
+enum abstract HaxeResponseErrorSeverity(Int) {
+	var Error = 1;
+	var Warning;
+	var Hint;
 }
 
 enum NoData {}
