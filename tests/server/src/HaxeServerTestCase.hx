@@ -1,3 +1,4 @@
+import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes.JsonModuleType;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
@@ -13,7 +14,7 @@ class HaxeServerTestCase implements ITest {
 	var server:HaxeServerAsync;
 	var vfs:Vfs;
 	var testDir:String;
-	var storedTypes:Array<JsonModuleType<Any>>;
+	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
 	var errorMessages = [];
 	var i:Int = 0;
@@ -30,14 +31,11 @@ class HaxeServerTestCase implements ITest {
 		server.stop();
 	}
 
-	function runHaxe(args:Array<String>, storeTypes = false, done:Void->Void) {
+	function runHaxe(args:Array<String>, done:Void->Void) {
 		messages = [];
 		errorMessages = [];
-		storedTypes = [];
-		if (storeTypes) {
-			args = args.concat(['--display', '{ "method": "typer/compiledTypes", "id": 1 }']);
-		}
 		server.rawRequest(args, null, function(result) {
+			lastResult = result;
 			sendLogMessage(result.stdout);
 			for (print in result.prints) {
 				var line = print.trim();
@@ -46,16 +44,14 @@ class HaxeServerTestCase implements ITest {
 			if (result.hasError) {
 				sendErrorMessage(result.stderr);
 			}
-			if (storeTypes) {
-				storedTypes = try {
-					Json.parse(result.stderr).result.result;
-				} catch (e:Dynamic) {
-					trace(e);
-					[];
-				}
-			}
 			done();
 		}, sendErrorMessage);
+	}
+
+	function runHaxeJson(args:Array<String>, method:String, methodArgs:{}, done:Void->Void) {
+		var methodArgs = {method: method, id: 1, params: methodArgs};
+		args = args.concat(['--display', Json.stringify(methodArgs)]);
+		runHaxe(args, done);
 	}
 
 	function sendErrorMessage(msg:String) {
@@ -95,6 +91,12 @@ class HaxeServerTestCase implements ITest {
 	}
 
 	function getStoredType(typePackage:String, typeName:String) {
+		var storedTypes:Array<JsonModuleType<Any>> = try {
+			Json.parse(lastResult.stderr).result.result;
+		} catch (e:Dynamic) {
+			trace(e);
+			[];
+		}
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {
 				return type;

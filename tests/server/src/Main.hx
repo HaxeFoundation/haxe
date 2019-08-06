@@ -60,7 +60,7 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--no-output", "-java", "java"];
 		runHaxe(args);
-		runHaxe(args, true);
+		runHaxeJson(args, "typer/compiledTypes", {});
 		assertHasField("", "Type", "enumIndex", true);
 	}
 
