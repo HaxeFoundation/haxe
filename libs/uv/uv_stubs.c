@@ -746,11 +746,9 @@ CAMLprim value w_dns_getaddrinfo(value loop, value node, value flag_addrconfig, 
 	caml_register_global_root(UV_REQ_DATA_A(GetAddrInfo_val(req)));
 	int hint_flags_u = 0;
 	if (Bool_val(flag_addrconfig))
-		printf("addrconfig\n");
-		//hint_flags_u |= AI_ADDRCONFIG;
+		hint_flags_u |= AI_ADDRCONFIG;
 	if (Bool_val(flag_v4mapped))
-		printf("v4mapped\n");
-		//hint_flags_u |= AI_V4MAPPED;
+		hint_flags_u |= AI_V4MAPPED;
 	int hint_family_u = AF_UNSPEC;
 	if (Int_val(hint_family) == 4)
 		hint_family_u = AF_INET;
@@ -766,10 +764,7 @@ CAMLprim value w_dns_getaddrinfo(value loop, value node, value flag_addrconfig, 
 		.ai_canonname = NULL,
 		.ai_next = NULL
 	};
-	char *node_u = NULL;
-	if (caml_string_length(node) > 0)
-		node_u = &Byte(node, 0);
-	UV_ERROR_CHECK_C(uv_getaddrinfo(Loop_val(loop), GetAddrInfo_val(req), handle_dns_gai_cb, node_u, NULL, &hints), free(GetAddrInfo_val(req)));
+	UV_ERROR_CHECK_C(uv_getaddrinfo(Loop_val(loop), GetAddrInfo_val(req), handle_dns_gai_cb, &Byte(node, 0), NULL, &hints), free(GetAddrInfo_val(req)));
 	UV_SUCCESS_UNIT;
 }
 BC_WRAP6(w_dns_getaddrinfo);

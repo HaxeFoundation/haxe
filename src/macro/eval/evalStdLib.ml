@@ -3394,7 +3394,7 @@ module StdUv = struct
 			let res = wrap_sync (Uv.tcp_accept (loop ()) this) in
 			encode_instance key_eval_uv_Socket ~kind:(IUv (UvTcp res))
 		)
-		let bindTCP = vifun3 (fun vthis host port ipv6only ->
+		let bindTcp = vifun3 (fun vthis host port ipv6only ->
 			let this = this vthis in
 			let port = decode_int port in
 			let ipv6only = decode_bool ipv6only in
@@ -3409,10 +3409,17 @@ module StdUv = struct
 			);
 			vnull
 		)
-		let connectTCP = vifun2 (fun vthis port cb ->
+		let connectTcp = vifun3 (fun vthis host port cb ->
 			let this = this vthis in
 			let port = decode_int port in
-			wrap_sync (Uv.tcp_connect_ipv4 this (0x7F000001) port (wrap_cb_unit cb));
+			wrap_sync (match host with
+				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
+					let ip = decode_int ip in
+					Uv.tcp_connect_ipv4 this ip port (wrap_cb_unit cb)
+				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
+					let ip = decode_bytes ip in
+					Uv.tcp_connect_ipv6 this ip port (wrap_cb_unit cb)
+				| _ -> assert false);
 			vnull
 		)
 		let write = vifun2 (fun vthis data cb ->
@@ -3443,6 +3450,19 @@ module StdUv = struct
 		let close = vifun1 (fun vthis cb ->
 			let this = this vthis in
 			wrap_sync (Uv.tcp_close this (wrap_cb_unit cb));
+			vnull
+		)
+		let setKeepAlive = vifun2 (fun vthis enable initialDelay ->
+			let this = this vthis in
+			let enable = decode_bool enable in
+			let initialDelay = decode_int initialDelay in
+			wrap_sync (Uv.tcp_keepalive this enable initialDelay);
+			vnull
+		)
+		let setNoDelay = vifun1 (fun vthis noDelay ->
+			let this = this vthis in
+			let noDelay = decode_bool noDelay in
+			wrap_sync (Uv.tcp_nodelay this noDelay);
 			vnull
 		)
 	end
@@ -4191,8 +4211,8 @@ let init_standard_library builtins =
 		"get_gen",StdUv.Stat.get_gen;
 	];
 	init_fields builtins (["eval";"uv"],"Socket") [] [
-		"bindTCP",StdUv.Socket.bindTCP;
-		"connectTCP",StdUv.Socket.connectTCP;
+		"bindTcp",StdUv.Socket.bindTcp;
+		"connectTcp",StdUv.Socket.connectTcp;
 		"listen",StdUv.Socket.listen;
 		"accept",StdUv.Socket.accept;
 		"write",StdUv.Socket.write;
@@ -4200,6 +4220,8 @@ let init_standard_library builtins =
 		"stopRead",StdUv.Socket.stopRead;
 		"end",StdUv.Socket.end_;
 		"close",StdUv.Socket.close;
+		"setKeepAlive",StdUv.Socket.setKeepAlive;
+		"setNoDelay",StdUv.Socket.setNoDelay;
 	];
 	init_fields builtins (["nusys";"net"],"Dns") [
 		"lookup",StdUv.Dns.lookup;
