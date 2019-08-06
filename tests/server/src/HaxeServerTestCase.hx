@@ -1,6 +1,7 @@
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
+import haxe.display.Protocol;
 import haxe.Json;
 import haxeserver.process.HaxeServerProcessNode;
 import haxeserver.HaxeServerAsync;
@@ -49,7 +50,7 @@ class HaxeServerTestCase implements ITest {
 		}, sendErrorMessage);
 	}
 
-	function runHaxeJson(args:Array<String>, method:String, methodArgs:{}, done:Void->Void) {
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:Void->Void) {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		runHaxe(args, done);

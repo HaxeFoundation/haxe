@@ -1,5 +1,9 @@
 using StringTools;
 
+import haxe.display.Display;
+import haxe.display.FsPath;
+import haxe.display.Server;
+
 @:timeout(5000)
 class ServerTests extends HaxeServerTestCase {
 	function testNoModification() {
@@ -60,7 +64,7 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--no-output", "-java", "java"];
 		runHaxe(args);
-		runHaxeJson(args, "typer/compiledTypes", {});
+		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
 		assertHasField("", "Type", "enumIndex", true);
 	}
 
@@ -132,9 +136,9 @@ class ServerTests extends HaxeServerTestCase {
 
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
-		runHaxeJson(["-cp", "."], "server/readClassPaths", {});
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
-		runHaxeJson([], "display/completion", {file: "HelloWorld.hx", offset: 75, wasAutoTriggered: false});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		var completion = parseCompletion();
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "HelloWorld";
