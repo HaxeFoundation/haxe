@@ -121,13 +121,11 @@ let taint_modules cs file =
 
 let filter_modules cs file =
 	let removed = DynArray.create () in
-	Hashtbl.filter_map_inplace (fun k m ->
-		if m.m_extra.m_file = file then begin
-			DynArray.add removed (k,m);
-			None
-		end else
-			Some m
+	(* TODO: Using filter_map_inplace would be better, but we can't move to OCaml 4.03 yet *)
+	Hashtbl.iter (fun k m ->
+		if m.m_extra.m_file = file then	DynArray.add removed (k,m);
 	) cs.cache.c_modules;
+	DynArray.iter (fun (k,_) -> Hashtbl.remove cs.cache.c_modules k) removed;
 	DynArray.to_list removed
 
 let iter_modules cs com f =
