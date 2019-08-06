@@ -26,18 +26,6 @@ import haxe.display.JsonModuleTypes;
 import haxe.display.Protocol;
 import haxe.display.Position;
 
-enum abstract CompilerMetadata(String) to String {
-	var Op = ":op";
-	var Resolve = ":resolve";
-	var ArrayAccess = ":arrayAccess";
-	var Final = ":final";
-	var Optional = ":optional";
-	var Enum = ":enum";
-	var Value = ":value";
-	var Deprecated = ":deprecated";
-	// TODO
-}
-
 /** Completion **/
 typedef CompletionParams = PositionParams & {
 	var wasAutoTriggered:Bool;
