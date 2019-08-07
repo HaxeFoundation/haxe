@@ -1724,13 +1724,13 @@ let rec link e a b =
 		true
 	end
 
-let would_produce_recursive_anon field_accpetor field_donor =
+let would_produce_recursive_anon field_accepetor field_donor =
 	try
-		(match !(field_accpetor.a_status) with
+		(match !(field_accepetor.a_status) with
 		| Opened ->
 			PMap.iter (fun n field ->
 				match follow field.cf_type with
-				| TAnon a when field_accpetor == a -> raise Exit
+				| TAnon a when field_accepetor == a -> raise Exit
 				| _ -> ()
 			) field_donor.a_fields;
 		| _ -> ());
