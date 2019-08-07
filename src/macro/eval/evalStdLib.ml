@@ -3510,9 +3510,10 @@ module StdUv = struct
 			| v -> unexpected_value v "UvTimer"
 		let new_ = (fun vl ->
 			match vl with
-				| [timeMs; cb] ->
+				| [timeMs; persistent; cb] ->
 					let timeMs = decode_int timeMs in
-					let handle = wrap_sync (Uv.timer_start (loop ()) timeMs timeMs (fun () ->
+					let persistent = decode_bool persistent in
+					let handle = wrap_sync (Uv.timer_start (loop ()) timeMs persistent (fun () ->
 						ignore (call_value cb [])
 						)) in
 					encode_instance key_eval_uv_Timer ~kind:(IUv (UvTimer handle))

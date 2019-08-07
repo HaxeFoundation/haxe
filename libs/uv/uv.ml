@@ -190,5 +190,5 @@ external dns_getaddrinfo : t_loop -> string -> bool -> bool -> int -> dns_gai_cb
 
 type timer_cb = unit -> unit
 
-external timer_start : t_loop -> int -> int -> timer_cb -> t_timer uv_result = "w_timer_start"
+external timer_start : t_loop -> int -> bool -> timer_cb -> t_timer uv_result = "w_timer_start"
 external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"

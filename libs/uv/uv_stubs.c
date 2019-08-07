@@ -785,17 +785,19 @@ static void handle_timer_cb(uv_timer_t *handle) {
 	CAMLreturn0;
 }
 
-CAMLprim value w_timer_start(value loop, value timeout, value repeat, value cb) {
-	CAMLparam4(loop, timeout, repeat, cb);
+CAMLprim value w_timer_start(value loop, value timeout, value persistent, value cb) {
+	CAMLparam4(loop, timeout, persistent, cb);
 	UV_ALLOC_CHECK(handle, uv_timer_t);
 	UV_ERROR_CHECK_C(uv_timer_init(Loop_val(loop), Timer_val(handle)), free(Timer_val(handle)));
 	UV_HANDLE_DATA(Timer_val(handle)) = alloc_data_timer(cb);
 	if (UV_HANDLE_DATA(Timer_val(handle)) == NULL)
 		UV_ERROR(0);
 	UV_ERROR_CHECK_C(
-		uv_timer_start(Timer_val(handle), handle_timer_cb, Int_val(timeout), Int_val(repeat)),
+		uv_timer_start(Timer_val(handle), handle_timer_cb, Int_val(timeout), Int_val(timeout)),
 		{ unalloc_data(UV_HANDLE_DATA(Timer_val(handle))); free(Timer_val(handle)); }
 		);
+	if (!Bool_val(persistent))
+		uv_unref(Handle_val(handle));
 	UV_SUCCESS(handle);
 }
 
