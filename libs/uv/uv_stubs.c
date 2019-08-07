@@ -225,17 +225,20 @@ UV_FS_HANDLER(handle_fs_cb_stat, {
 	});
 UV_FS_HANDLER(handle_fs_cb_scandir, {
 		uv_dirent_t ent;
-		value2 = Val_int(0);
+		value2 = caml_alloc(2, 0);
+		CAMLlocal3(cur, dirent, node);
+		cur = value2;
 		while (uv_fs_scandir_next(req, &ent) != UV_EOF) {
-			CAMLlocal2(dirent, node);
 			dirent = caml_alloc(2, 0);
 			Store_field(dirent, 0, caml_copy_string(ent.name));
 			Store_field(dirent, 1, Val_int(ent.type));
 			node = caml_alloc(2, 0);
-			Store_field(node, 0, dirent); // car
-			Store_field(node, 1, value2); // cdr
-			value2 = node;
+			Store_field(node, 0, dirent);
+			Store_field(cur, 1, node);
+			cur = node;
 		}
+		Store_field(cur, 1, Val_unit);
+		value2 = Field(value2, 1);
 	});
 
 /**
@@ -707,28 +710,31 @@ static void handle_dns_gai_cb(uv_getaddrinfo_t *req, int status, struct addrinfo
 	if (status < 0)
 		Store_field(res, 0, Val_int(status));
 	else {
-		CAMLlocal4(node, infos, info, infostore);
-		infos = Val_int(0);
-		struct addrinfo *cur = gai_res;
-		while (cur != NULL) {
-			if (cur->ai_family == AF_INET) {
+		CAMLlocal5(infos, cur, info, node, infostore);
+		infos = caml_alloc(2, 0);
+		cur = infos;
+		struct addrinfo *gai_cur = gai_res;
+		while (gai_cur != NULL) {
+			if (gai_cur->ai_family == AF_INET) {
 				info = caml_alloc(1, 0);
-				Store_field(info, 0, caml_copy_int32(ntohl(((struct sockaddr_in *)cur->ai_addr)->sin_addr.s_addr)));
-			} else if (cur->ai_family == AF_INET6) {
+				Store_field(info, 0, caml_copy_int32(ntohl(((struct sockaddr_in *)gai_cur->ai_addr)->sin_addr.s_addr)));
+			} else if (gai_cur->ai_family == AF_INET6) {
 				info = caml_alloc(1, 1);
 				infostore = caml_alloc_string(sizeof(struct in6_addr));
-				memcpy(&Byte(infostore, 0), ((struct sockaddr_in6 *)cur->ai_addr)->sin6_addr.s6_addr, sizeof(struct in6_addr));
+				memcpy(&Byte(infostore, 0), ((struct sockaddr_in6 *)gai_cur->ai_addr)->sin6_addr.s6_addr, sizeof(struct in6_addr));
 				Store_field(info, 0, infostore);
 			} else {
-				cur = cur->ai_next;
+				gai_cur = gai_cur->ai_next;
 				continue;
 			}
+			gai_cur = gai_cur->ai_next;
 			node = caml_alloc(2, 0);
-			Store_field(node, 0, info); // car
-			Store_field(node, 1, infos); // cdr
-			infos = node;
-			cur = cur->ai_next;
+			Store_field(node, 0, info);
+			Store_field(cur, 1, node);
+			cur = node;
 		}
+		Store_field(cur, 1, Val_unit);
+		infos = Field(infos, 1);
 		uv_freeaddrinfo(gai_res);
 		Store_field(res, 0, infos);
 	}

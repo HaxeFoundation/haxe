@@ -3468,7 +3468,7 @@ module StdUv = struct
 	end
 
 	module Dns = struct
-		let lookup = vfun3 (fun hostname options cb ->
+		let lookup_native = vfun3 (fun hostname options cb ->
 			let hostname = decode_string hostname in
 			let flag_addrconfig = ref false in
 			let flag_v4mapped = ref false in
@@ -4224,7 +4224,7 @@ let init_standard_library builtins =
 		"setNoDelay",StdUv.Socket.setNoDelay;
 	];
 	init_fields builtins (["nusys";"net"],"Dns") [
-		"lookup",StdUv.Dns.lookup;
+		"lookup_native",StdUv.Dns.lookup_native;
 		"reverse",StdUv.Dns.reverse;
 	] [];
 	init_fields builtins (["eval";"uv"],"Timer") [] [
