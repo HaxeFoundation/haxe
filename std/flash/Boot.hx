@@ -304,7 +304,9 @@ class Boot extends flash.display.MovieClip {
 				if (idx == -1)
 					return false;
 				#if flash19
-				__this__.removeAt(idx);
+				// removeAt is only available through as3 namespace and genswf9 will only generate it for a known Array,
+				// so we have to type it properly (thus the typecheck). See https://github.com/HaxeFoundation/haxe/issues/8612
+				(__this__:Array<Dynamic>).removeAt(idx);
 				#else
 				__this__.splice(idx, 1);
 				#end
