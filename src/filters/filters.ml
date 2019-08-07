@@ -827,14 +827,28 @@ end
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in
 	let new_types = List.filter (fun t ->
-		(match t with
+		let cached = is_cached t in
+		begin match t with
 			| TClassDecl cls ->
 				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
-				(match cls.cl_super with
+				begin match cls.cl_super with
 					| Some (csup,_) -> add_descendant csup cls
-					| None -> ())
-			| _ -> ());
-		not (is_cached t)
+					| None -> ()
+				end;
+				(* Save cf_expr_unoptimized early: We want to inline with the original expression
+				   on the next compilation. *)
+				if not cached then begin
+					let field cf = match cf.cf_expr with
+						| Some {eexpr = TFunction tf} -> cf.cf_expr_unoptimized <- Some tf
+						| _ -> ()
+					in
+					List.iter field cls.cl_ordered_fields;
+					List.iter field cls.cl_ordered_statics;
+					Option.may field cls.cl_constructor;
+				end;
+			| _ -> ()
+		end;
+		not cached
 	) com.types in
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)

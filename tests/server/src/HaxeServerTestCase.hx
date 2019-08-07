@@ -92,8 +92,8 @@ class HaxeServerTestCase implements ITest {
 		return false;
 	}
 
-	function getStoredType(typePackage:String, typeName:String) {
-		var storedTypes:Array<JsonModuleType<Any>> = try {
+	function getStoredType<T>(typePackage:String, typeName:String) {
+		var storedTypes:Array<JsonModuleType<T>> = try {
 			Json.parse(lastResult.stderr).result.result;
 		} catch (e:Dynamic) {
 			trace(e);

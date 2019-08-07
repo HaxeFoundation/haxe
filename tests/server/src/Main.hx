@@ -150,6 +150,20 @@ class ServerTests extends HaxeServerTestCase {
 			case _: false;
 		});
 	}
+
+	function testVectorInliner() {
+		vfs.putContent("Vector.hx", getTemplate("Vector.hx"));
+		vfs.putContent("VectorInliner.hx", getTemplate("VectorInliner.hx"));
+		var args = ["-main", "VectorInliner", "--interp"];
+		runHaxe(args);
+		vfs.touchFile("VectorInliner.hx");
+		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+		var type = getStoredType("", "VectorInliner");
+		function moreHack(s:String) {
+			return ~/[\r\n\t]/g.replace(s, "");
+		}
+		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
+	}
 }
 
 class Main {
