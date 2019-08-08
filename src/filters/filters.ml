@@ -396,6 +396,32 @@ let check_abstract_as_value e =
 	loop e;
 	e
 
+let check_no_closure_meta e =
+	let error name pos = error ("Field " ^ name ^ " cannot be used as a value") pos in
+	let rec loop e =
+		match e.eexpr with
+		| TCall ({ eexpr = TField (target, _) }, args) -> List.iter loop (target :: args)
+		| TField (target, FStatic (cls, ({ cf_kind = Method _ } as field))) ->
+			if
+				Meta.has Meta.NoClosure field.cf_meta
+				|| Meta.has Meta.NoClosure cls.cl_meta
+			then
+				error field.cf_name e.epos;
+			loop target
+		| TField (target, FClosure (cls, field)) ->
+			let no_closure =
+				Meta.has Meta.NoClosure field.cf_meta
+				|| match cls with
+					| Some (c, _) -> Meta.has Meta.NoClosure c.cl_meta
+					| _ -> false
+			in
+			if no_closure then error field.cf_name e.epos;
+			loop target
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -864,6 +890,7 @@ let run com tctx main =
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
 		check_abstract_as_value;
+		check_no_closure_meta;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;

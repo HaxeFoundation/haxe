@@ -30,6 +30,7 @@ import haxe.extern.EitherType;
 	Special extern class to support PHP language specifics.
 	Don't use these functions unless you are really sure what you are doing.
 **/
+@:noClosure
 extern class Syntax {
 	/**
 		Embeds plain php code.
