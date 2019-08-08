@@ -252,7 +252,7 @@ class Http extends haxe.http.HttpBase {
 	}
 
 	function writeBody(body:String, fileInput:haxe.io.Input, fileSize:Int, boundary:String, sock:sys.net.Socket) {
-		if (body.length>0 && body!=null)
+		if (body!=null && body.length>0)
 			sock.write(body);
 		if (boundary!=null) {
 			var bufsize = 4096;
