@@ -561,7 +561,8 @@ let rec type_field cfg ctx e i p mode =
 				error "This operation is unsupported" p)
 		with Not_found -> try
 			if does_forward a false then
-				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode
+				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
+				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode
 			else
 				raise Not_found
 		with Not_found -> try

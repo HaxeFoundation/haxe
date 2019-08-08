@@ -8,6 +8,7 @@ type path = string list * string
 
 module IntMap = Ptmap
 module StringMap = Map.Make(struct type t = string let compare = String.compare end)
+module Int32Map = Map.Make(struct type t = Int32.t let compare = Int32.compare end)
 
 type platform =
 	| Cross

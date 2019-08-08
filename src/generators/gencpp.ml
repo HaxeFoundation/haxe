@@ -1728,43 +1728,48 @@ let cpp_is_dynamic_type = function
 ;;
 
 
-let rec cpp_type_of ctx haxe_type =
-   (match haxe_type with
-   | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of ctx t)
+let rec cpp_type_of stack ctx haxe_type =
+   if List.exists (fast_eq haxe_type) stack then
+      TCppDynamic
+   else begin
+      let stack = haxe_type :: stack in
+      (match haxe_type with
+      | TMono r -> (match !r with None -> TCppDynamic | Some t -> cpp_type_of stack ctx t)
 
-   | TEnum (enum,params) ->  TCppEnum(enum)
+      | TEnum (enum,params) ->  TCppEnum(enum)
 
-   | TInst ({ cl_path=([],"Array"); cl_kind = KTypeParameter _},_)
-      -> TCppObject
+      | TInst ({ cl_path=([],"Array"); cl_kind = KTypeParameter _},_)
+         -> TCppObject
 
-   | TInst ({ cl_kind = KTypeParameter _},_)
-      -> TCppDynamic
+      | TInst ({ cl_kind = KTypeParameter _},_)
+         -> TCppDynamic
 
-   | TInst (klass,params) ->
-      cpp_instance_type ctx klass params
+      | TInst (klass,params) ->
+         cpp_instance_type stack ctx klass params
 
-   | TAbstract (abs,pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
-       cpp_type_from_path ctx abs.a_path pl (fun () ->
-            cpp_type_of ctx (Abstract.get_underlying_type abs pl) )
+      | TAbstract (abs,pl) when not (Meta.has Meta.CoreType abs.a_meta) ->
+         cpp_type_from_path stack ctx abs.a_path pl (fun () ->
+               cpp_type_of stack ctx (Abstract.get_underlying_type abs pl) )
 
-   | TAbstract (a,params) ->
-       cpp_type_from_path ctx a.a_path params (fun () ->
-            if is_scalar_abstract a then begin
-               let native =  get_meta_string a.a_meta Meta.Native in
-               TCppScalar(if native="" then join_class_path a.a_path "::" else native)
-            end else
-               TCppDynamic)
+      | TAbstract (a,params) ->
+         cpp_type_from_path stack ctx a.a_path params (fun () ->
+               if is_scalar_abstract a then begin
+                  let native =  get_meta_string a.a_meta Meta.Native in
+                  TCppScalar(if native="" then join_class_path a.a_path "::" else native)
+               end else
+                  TCppDynamic)
 
-   | TType (type_def,params) ->
-       cpp_type_from_path ctx type_def.t_path params (fun () ->
-          cpp_type_of ctx (apply_params type_def.t_params params type_def.t_type) )
+      | TType (type_def,params) ->
+         cpp_type_from_path stack ctx type_def.t_path params (fun () ->
+            cpp_type_of stack ctx (apply_params type_def.t_params params type_def.t_type) )
 
-   | TFun _ -> TCppObject
-   | TAnon _ -> TCppObject
-   | TDynamic _ -> TCppDynamic
-   | TLazy func -> cpp_type_of ctx (lazy_type func)
-   )
-   and  cpp_type_from_path ctx path params default =
+      | TFun _ -> TCppObject
+      | TAnon _ -> TCppObject
+      | TDynamic _ -> TCppDynamic
+      | TLazy func -> cpp_type_of stack ctx (lazy_type func)
+      )
+   end
+   and  cpp_type_from_path stack ctx path params default =
       match path,params with
       | ([],"Void"),_ -> TCppVoid
       | ([],"void"),_ -> TCppVoid (* for old code with @:void *)
@@ -1795,25 +1800,25 @@ let rec cpp_type_of ctx haxe_type =
 
       (* Things with type parameters hxcpp knows about ... *)
       | (["cpp"],"FastIterator"), [p] ->
-            TCppFastIterator(cpp_type_of ctx p)
+            TCppFastIterator(cpp_type_of stack ctx p)
       | (["cpp"],"Pointer"), [p] ->
-            TCppPointer("Pointer", cpp_type_of ctx p)
+            TCppPointer("Pointer", cpp_type_of stack ctx p)
       | (["cpp"],"ConstPointer"), [p] ->
-            TCppPointer("ConstPointer", cpp_type_of ctx p)
+            TCppPointer("ConstPointer", cpp_type_of stack ctx p)
       | (["cpp"],"RawPointer"), [p] ->
-            TCppRawPointer("", cpp_type_of ctx p)
+            TCppRawPointer("", cpp_type_of stack ctx p)
       | (["cpp"],"RawConstPointer"), [p] ->
-            TCppRawPointer("const ", cpp_type_of ctx p)
+            TCppRawPointer("const ", cpp_type_of stack ctx p)
       | (["cpp"],"Function"), [function_type; abi] ->
-            cpp_function_type_of ctx function_type abi;
+            cpp_function_type_of stack ctx function_type abi;
       | (["cpp"],"Callable"), [function_type]
       | (["cpp"],"CallableData"), [function_type] ->
-            cpp_function_type_of_string ctx function_type "";
+            cpp_function_type_of_string stack ctx function_type "";
       | (("cpp"::["objc"]),"ObjcBlock"), [function_type] ->
-            let args,ret = (cpp_function_type_of_args_ret ctx function_type) in
+            let args,ret = (cpp_function_type_of_args_ret stack ctx function_type) in
             TCppObjCBlock(args,ret)
       | (["haxe";"extern"], "Rest"),[rest] ->
-            TCppRest(cpp_type_of ctx rest)
+            TCppRest(cpp_type_of stack ctx rest)
       | (("cpp"::["objc"]),"Protocol"), [interface_type] ->
             (match follow interface_type with
             | TInst (klass,[]) when klass.cl_interface ->
@@ -1823,16 +1828,16 @@ let rec cpp_type_of ctx haxe_type =
                    assert false;
             )
       | (["cpp"],"Reference"), [param] ->
-            TCppReference(cpp_type_of ctx param)
+            TCppReference(cpp_type_of stack ctx param)
       | (["cpp"],"Struct"), [param] ->
-            TCppStruct(cpp_type_of ctx param)
+            TCppStruct(cpp_type_of stack ctx param)
       | (["cpp"],"Star"), [param] ->
-            TCppStar(cpp_type_of_pointer ctx param,false)
+            TCppStar(cpp_type_of_pointer stack ctx param,false)
       | (["cpp"],"ConstStar"), [param] ->
-            TCppStar(cpp_type_of_pointer ctx param,true)
+            TCppStar(cpp_type_of_pointer stack ctx param,true)
 
       | ([],"Array"), [p] ->
-         let arrayOf = cpp_type_of ctx p in
+         let arrayOf = cpp_type_of stack ctx p in
          (match arrayOf with
             | TCppVoid (* ? *)
             | TCppDynamic ->
@@ -1857,55 +1862,55 @@ let rec cpp_type_of ctx haxe_type =
          )
 
       | ([],"Null"), [p] ->
-            cpp_type_of_null ctx p
+            cpp_type_of_null stack ctx p
 
       | _ -> default ()
 
-   and cpp_type_of_null ctx p =
-     let baseType = cpp_type_of ctx p in
+   and cpp_type_of_null stack ctx p =
+     let baseType = cpp_type_of stack ctx p in
      if (type_has_meta_key p Meta.NotNull) || (is_cpp_scalar baseType) then
         TCppObject
      else
         baseType
-   and cpp_type_of_pointer ctx p =
+   and cpp_type_of_pointer stack ctx p =
      match p with
-     | TAbstract ({ a_path = ([],"Null") },[t]) -> cpp_type_of ctx t
-     | x ->  cpp_type_of ctx x
+     | TAbstract ({ a_path = ([],"Null") },[t]) -> cpp_type_of stack ctx t
+     | x ->  cpp_type_of stack ctx x
    (* Optional types are Dynamic if they norally could not be null *)
-   and cpp_fun_arg_type_of ctx tvar opt =
+   and cpp_fun_arg_type_of stack ctx tvar opt =
       match opt with
-      | Some _ -> cpp_type_of_null ctx tvar.t_type
-      | _ -> cpp_type_of ctx tvar.t_type
+      | Some _ -> cpp_type_of_null stack ctx tvar.t_type
+      | _ -> cpp_type_of stack ctx tvar.t_type
 
-   and cpp_tfun_arg_type_of ctx opt t =
-      if opt then cpp_type_of_null ctx t else cpp_type_of ctx t
+   and cpp_tfun_arg_type_of stack ctx opt t =
+      if opt then cpp_type_of_null stack ctx t else cpp_type_of stack ctx t
 
-   and cpp_function_type_of ctx function_type abi =
+   and cpp_function_type_of stack ctx function_type abi =
       let abi = (match follow abi with
                  | TInst (klass1,_) -> get_meta_string klass1.cl_meta Meta.Abi
                  | _ -> assert false )
       in
-      cpp_function_type_of_string ctx function_type abi
-   and cpp_function_type_of_string ctx function_type abi_string =
-      let args,ret = cpp_function_type_of_args_ret ctx function_type in
+      cpp_function_type_of_string stack ctx function_type abi
+   and cpp_function_type_of_string stack ctx function_type abi_string =
+      let args,ret = cpp_function_type_of_args_ret stack ctx function_type in
       TCppFunction(args, ret, abi_string)
 
-   and cpp_function_type_of_args_ret ctx function_type =
+   and cpp_function_type_of_args_ret stack ctx function_type =
       match follow function_type with
       | TFun(args,ret) ->
           (* Optional types are Dynamic if they norally could not be null *)
           let  cpp_arg_type_of = fun(_,optional,haxe_type) ->
              if optional then
-                cpp_type_of_null ctx haxe_type
+                cpp_type_of_null stack ctx haxe_type
              else
-                cpp_type_of ctx haxe_type
+                cpp_type_of stack ctx haxe_type
           in
-          List.map cpp_arg_type_of args, cpp_type_of ctx ret
+          List.map cpp_arg_type_of args, cpp_type_of stack ctx ret
       | _ ->  (* ? *)
           [TCppVoid], TCppVoid
 
-   and cpp_instance_type ctx klass params =
-      cpp_type_from_path ctx klass.cl_path params (fun () ->
+   and cpp_instance_type stack ctx klass params =
+      cpp_type_from_path stack ctx klass.cl_path params (fun () ->
          if is_objc_class klass then
             TCppObjC(klass)
          else if klass.cl_interface && is_native_gen_class klass then
@@ -1917,6 +1922,17 @@ let rec cpp_type_of ctx haxe_type =
          else
             TCppInst(klass)
        )
+
+let cpp_type_of ctx = cpp_type_of [] ctx
+and cpp_type_from_path ctx = cpp_type_from_path [] ctx
+and cpp_type_of_null ctx = cpp_type_of_null [] ctx
+and cpp_type_of_pointer ctx = cpp_type_of_pointer [] ctx
+and cpp_fun_arg_type_of ctx = cpp_fun_arg_type_of [] ctx
+and cpp_tfun_arg_type_of ctx = cpp_tfun_arg_type_of [] ctx
+and cpp_function_type_of ctx = cpp_function_type_of [] ctx
+and cpp_function_type_of_string ctx = cpp_function_type_of_string [] ctx
+and cpp_function_type_of_args_ret ctx = cpp_function_type_of_args_ret [] ctx
+and cpp_instance_type ctx = cpp_instance_type [] ctx
 ;;
 
 

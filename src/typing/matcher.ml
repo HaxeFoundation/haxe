@@ -238,15 +238,7 @@ module Pattern = struct
 					PatConstructor(con_type_expr mt e.epos,[])
 				| _ ->
 					let pat = check_expr e in
-					begin try
-						Type.unify e.etype t
-					with (Unify_error l) ->
-						(* Hack: Allow matching the underlying type against its abstract. *)
-						begin match follow e.etype with
-							| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) && type_iseq t (Abstract.get_underlying_type a tl) -> ()
-							| _ -> raise_or_display ctx l p
-						end
-					end;
+					unify ctx e.etype t p;
 					pat
 		in
 		let handle_ident s p =
