@@ -1778,24 +1778,19 @@ let rec fast_eq_anon a b =
 		fast_eq_anon t1 t2
 	| TAnon a1, TAnon a2 ->
 		let fields_eq() =
-			let fields1 = ref [] in
-			PMap.iter (fun name _ -> fields1 := name :: !fields1) a1.a_fields;
-			let fields2 = ref [] in
-			PMap.iter (fun name _ -> fields2 := name :: !fields2) a2.a_fields;
 			let rec loop fields1 fields2 =
 				match fields1, fields2 with
 				| [], [] -> true
 				| _, [] | [], _ -> false
 				| f1 :: rest1, f2 :: rest2 ->
-					f1 = f2
-					&& (try
-						let f1 = PMap.find f1 a1.a_fields
-						and f2 = PMap.find f2 a2.a_fields in
-						fast_eq_anon f1.cf_type f2.cf_type
-					with Not_found -> false)
+					f1.cf_name = f2.cf_name
+					&& (try fast_eq_anon f1.cf_type f2.cf_type with Not_found -> false)
 					&& loop rest1 rest2
 			in
-			loop (List.sort compare !fields1) (List.sort compare !fields2)
+			let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
+			and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
+			and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
+			loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
 		in
 		(match !(a2.a_status), !(a1.a_status) with
 		| Statics c, Statics c2 -> c == c2
