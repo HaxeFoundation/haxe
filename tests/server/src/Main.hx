@@ -137,8 +137,10 @@ class ServerTests extends HaxeServerTestCase {
 	function testSyntaxCache() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
-		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		vfs.putContent("Empty.hx", "");
 		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
 		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		var completion = parseCompletion();
 		assertHasCompletion(completion, module -> switch (module.kind) {
@@ -146,6 +148,15 @@ class ServerTests extends HaxeServerTestCase {
 			case _: false;
 		});
 		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+		// check removal
+		vfs.putContent("Empty.hx", "");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "Empty";
 			case _: false;
 		});

@@ -204,7 +204,9 @@ let handler =
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			CompilationServer.taint_modules hctx.display#get_cs file;
+			let cs = hctx.display#get_cs in
+			CompilationServer.taint_modules cs file;
+			CompilationServer.remove_files cs file;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

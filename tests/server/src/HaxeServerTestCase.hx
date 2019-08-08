@@ -167,4 +167,14 @@ class HaxeServerTestCase implements ITest {
 		}
 		Assert.fail("No such completion", p);
 	}
+
+	function assertHasNoCompletion<T>(completion:Array<DisplayItem<T>>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion) {
+			if (f(type)) {
+				Assert.fail("Unexpected completion", p);
+				return;
+			}
+		}
+		Assert.pass();
+	}
 }

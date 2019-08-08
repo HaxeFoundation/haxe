@@ -21,6 +21,7 @@ type cache = {
 	c_files : ((string * string), cached_file) Hashtbl.t;
 	c_modules : (path * string, module_def) Hashtbl.t;
 	c_directories : (string, cached_directory list) Hashtbl.t;
+	c_removed_files : (string * string,unit) Hashtbl.t;
 }
 
 type context_sign = {
@@ -46,6 +47,7 @@ let create_cache () = {
 	c_files = Hashtbl.create 0;
 	c_modules = Hashtbl.create 0;
 	c_directories = Hashtbl.create 0;
+	c_removed_files = Hashtbl.create 0;
 }
 
 let create () =
@@ -145,7 +147,8 @@ let cache_file cs key time data =
 	Hashtbl.replace cs.cache.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
 
 let remove_file cs key =
-	Hashtbl.remove cs.cache.c_files key
+	Hashtbl.remove cs.cache.c_files key;
+	Hashtbl.replace cs.cache.c_removed_files key ()
 
 let remove_files cs file =
 	List.iter (fun (sign,_) -> remove_file cs (file,sign)) cs.signs
