@@ -1,11 +1,5 @@
 abstract Under<T>(T) {
-	function new(v:T) {
-		this = v;
-	}
-
-	@:from public static function from<T>(v:T) {
-		return v;
-	}
+	@:from public static function from<T>(v:T) return v;
 }
 
 class Main {

@@ -107,7 +107,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
-							if (List.exists (fast_eq t) stack) then raise Exit;
+							if (List.exists (fast_eq_anon t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
@@ -2096,10 +2096,10 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t (follow t')) seen) ->
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq_anon t (follow t')) seen) ->
 				let types =
 					List.fold_left
-						(fun acc t -> match loop (t :: seen) t with
+						(fun acc t' -> match loop (t :: seen) t' with
 							| None -> acc
 							| Some t -> t :: acc
 						)
