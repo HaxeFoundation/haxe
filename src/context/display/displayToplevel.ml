@@ -99,7 +99,7 @@ let init_or_update_server cs com timer_name =
 				try
 					ignore(find_file cs (file,sign));
 				with Not_found ->
-					ignore(TypeloadParse.parse_module_file com file null_pos);
+					try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
 			end;
 		) cs.cache.c_removed_files;
 		DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files;

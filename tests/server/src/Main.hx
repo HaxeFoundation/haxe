@@ -156,6 +156,10 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
 		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
 		assertHasNoCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "Empty";
 			case _: false;
