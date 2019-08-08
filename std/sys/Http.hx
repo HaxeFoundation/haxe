@@ -237,25 +237,10 @@ class Http extends haxe.http.HttpBase {
 				sock.connect(new Host(Http.PROXY.host), Http.PROXY.port);
 			else
 				sock.connect(new Host(host), port);
-			sock.write(b.toString());
-			if (multipart) {
-				var bufsize = 4096;
-				var buf = haxe.io.Bytes.alloc(bufsize);
-				while (file.size > 0) {
-					var size = if (file.size > bufsize) bufsize else file.size;
-					var len = 0;
-					try {
-						len = file.io.readBytes(buf, 0, size);
-					} catch (e:haxe.io.Eof)
-						break;
-					sock.output.writeFullBytes(buf, 0, len);
-					file.size -= len;
-				}
-				sock.write("\r\n");
-				sock.write("--");
-				sock.write(boundary);
-				sock.write("--");
-			}
+			if (multipart)
+				writeBody(b.toString(),file.io,file.size,boundary,sock);
+			else
+				writeBody(b.toString(),null,0,null,sock);
 			readHttpResponse(api, sock);
 			sock.close();
 		} catch (e:Dynamic) {
@@ -263,6 +248,29 @@ class Http extends haxe.http.HttpBase {
 				sock.close()
 			catch (e:Dynamic) {};
 			onError(Std.string(e));
+		}
+	}
+
+	function writeBody(body:String, fileInput:haxe.io.Input, fileSize:Int, boundary:String, sock:sys.net.Socket) {
+		if (body.length>0 && body!=null)
+			sock.write(body);
+		if (boundary!=null) {
+			var bufsize = 4096;
+			var buf = haxe.io.Bytes.alloc(bufsize);
+			while (fileSize > 0) {
+				var size = if (fileSize > bufsize) bufsize else fileSize;
+				var len = 0;
+				try {
+					len = fileInput.readBytes(buf, 0, size);
+				} catch (e:haxe.io.Eof)
+					break;
+				sock.output.writeFullBytes(buf, 0, len);
+				fileSize -= len;
+			}
+			sock.write("\r\n");
+			sock.write("--");
+			sock.write(boundary);
+			sock.write("--");
 		}
 	}
 
