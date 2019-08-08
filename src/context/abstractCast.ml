@@ -7,36 +7,36 @@ open Error
 
 let cast_stack = new_rec_stack()
 
-let make_static_call ctx c cf a pl args t p =
+let rec make_static_call ctx c cf a pl args t p =
 	if cf.cf_kind = Method MethMacro then begin
 		match args with
 			| [e] ->
 				let e,f = push_this ctx e in
 				ctx.with_type_stack <- (WithType.with_type t) :: ctx.with_type_stack;
-				let expected_type = apply_params a.a_params pl a.a_this in
 				let e = match ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [e] p with
-					| Some e -> type_expr ctx e (WithType.with_type expected_type)
+					| Some e -> type_expr ctx e (WithType.with_type t)
 					| None ->  type_expr ctx (EConst (Ident "null"),p) WithType.value
 				in
-				let need_cast =
-					try
-						type_eq EqBothDynamic e.etype t;
-						false
-					with
-						Unify_error _ -> true
-				in
-				if need_cast then
-					unify ctx e.etype expected_type p;
+				let e = cast_or_unify ctx t e p in
 				ctx.with_type_stack <- List.tl ctx.with_type_stack;
 				f();
-				if need_cast then mk (TCast(e,None)) t e.epos
-				else e
+				e
 			| _ -> assert false
 	end else
-		make_static_call ctx c cf (apply_params a.a_params pl) args t p
+		Typecore.make_static_call ctx c cf (apply_params a.a_params pl) args t p
 
-let do_check_cast ctx tleft eright p =
+and do_check_cast ctx tleft eright p =
 	let recurse cf f =
+		(*
+			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
+			unlike non-macro @:from methods, which generate unification errors if no other @:from methods are involved.
+		*)
+		if cf.cf_kind = Method MethMacro then begin
+			match cast_stack.rec_stack with
+			| previous_from :: _ when previous_from == cf ->
+				raise (Error (Unify [cannot_unify eright.etype tleft], eright.epos));
+			| _ -> ()
+		end;
 		if cf == ctx.curfield || rec_stack_memq cf cast_stack then error "Recursive implicit cast" p;
 		rec_stack_loop cast_stack cf f ()
 	in
@@ -91,7 +91,7 @@ let do_check_cast ctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-let cast_or_unify_raise ctx tleft eright p =
+and cast_or_unify_raise ctx tleft eright p =
 	try
 		(* can't do that anymore because this might miss macro calls (#4315) *)
 		(* if ctx.com.display <> DMNone then raise Not_found; *)
@@ -100,7 +100,7 @@ let cast_or_unify_raise ctx tleft eright p =
 		unify_raise ctx eright.etype tleft p;
 		eright
 
-let cast_or_unify ctx tleft eright p =
+and cast_or_unify ctx tleft eright p =
 	try
 		cast_or_unify_raise ctx tleft eright p
 	with Error (Unify l,p) ->
