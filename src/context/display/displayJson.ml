@@ -182,10 +182,11 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			hctx.com.callbacks#add_after_init_macros (fun () ->
-				ignore(TypeloadParse.parse_module_file hctx.com file null_pos);
-				hctx.send_result (jstring file);
-			);
+			let cs = hctx.display#get_cs in
+			List.iter (fun (sign,_) ->
+				Hashtbl.replace cs.cache.c_removed_files (file,sign) ()
+			) (CompilationServer.get_signs cs);
+			hctx.send_result (jstring file);
 		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
