@@ -634,7 +634,7 @@ let map loop t =
 	| TDynamic t2 ->
 		if t == t2 then	t else TDynamic (loop t2)
 
-let dup t =
+let duplicate t =
 	let monos = ref [] in
 	let rec loop t =
 		match t with
@@ -1742,39 +1742,66 @@ let link_dynamic a b = match follow a,follow b with
 	| TDynamic _,TMono r -> r := Some a
 	| _ -> ()
 
-let rec fast_eq a b =
+let fast_eq_check type_param_check a b =
 	if a == b then
 		true
 	else match a , b with
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq t1 t2) l1 l2 && fast_eq r1 r2
+		List.for_all2 (fun (_,_,t1) (_,_,t2) -> type_param_check t1 t2) l1 l2 && type_param_check r1 r2
 	| TType (t1,l1), TType (t2,l2) ->
-		t1 == t2 && List.for_all2 fast_eq l1 l2
+		t1 == t2 && List.for_all2 type_param_check l1 l2
 	| TEnum (e1,l1), TEnum (e2,l2) ->
-		e1 == e2 && List.for_all2 fast_eq l1 l2
+		e1 == e2 && List.for_all2 type_param_check l1 l2
 	| TInst (c1,l1), TInst (c2,l2) ->
-		c1 == c2 && List.for_all2 fast_eq l1 l2
+		c1 == c2 && List.for_all2 type_param_check l1 l2
 	| TAbstract (a1,l1), TAbstract (a2,l2) ->
-		a1 == a2 && List.for_all2 fast_eq l1 l2
+		a1 == a2 && List.for_all2 type_param_check l1 l2
 	| _ , _ ->
 		false
 
+let rec fast_eq a b = fast_eq_check fast_eq a b
+
 let rec fast_eq_mono ml a b =
-	if a == b then
+	if fast_eq_check (fast_eq_mono ml) a b then
 		true
 	else match a , b with
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq_mono ml t1 t2) l1 l2 && fast_eq_mono ml r1 r2
-	| TType (t1,l1), TType (t2,l2) ->
-		t1 == t2 && List.for_all2 (fast_eq_mono ml) l1 l2
-	| TEnum (e1,l1), TEnum (e2,l2) ->
-		e1 == e2 && List.for_all2 (fast_eq_mono ml) l1 l2
-	| TInst (c1,l1), TInst (c2,l2) ->
-		c1 == c2 && List.for_all2 (fast_eq_mono ml) l1 l2
-	| TAbstract (a1,l1), TAbstract (a2,l2) ->
-		a1 == a2 && List.for_all2 (fast_eq_mono ml) l1 l2
 	| TMono _, _ ->
 		List.memq a ml
+	| _ , _ ->
+		false
+
+let rec fast_eq_anon a b =
+	if fast_eq_check fast_eq_anon a b then
+		true
+	else match a , b with
+	| TMono { contents = Some t1 }, TMono { contents = Some t2 } ->
+		fast_eq_anon t1 t2
+	| TAnon a1, TAnon a2 ->
+		let fields_eq() =
+			let rec loop fields1 fields2 =
+				match fields1, fields2 with
+				| [], [] -> true
+				| _, [] | [], _ -> false
+				| f1 :: rest1, f2 :: rest2 ->
+					f1.cf_name = f2.cf_name
+					&& (try fast_eq_anon f1.cf_type f2.cf_type with Not_found -> false)
+					&& loop rest1 rest2
+			in
+			let fields1 = PMap.fold (fun field fields -> field :: fields) a1.a_fields []
+			and fields2 = PMap.fold (fun field fields -> field :: fields) a2.a_fields []
+			and sort_compare f1 f2 = compare f1.cf_name f2.cf_name in
+			loop (List.sort sort_compare fields1) (List.sort sort_compare fields2)
+		in
+		(match !(a2.a_status), !(a1.a_status) with
+		| Statics c, Statics c2 -> c == c2
+		| EnumStatics e, EnumStatics e2 -> e == e2
+		| AbstractStatics a, AbstractStatics a2 -> a == a2
+		| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 fast_eq_anon tl1 tl2
+		| Closed, Closed -> fields_eq()
+		| Opened, Opened -> fields_eq()
+		| Const, Const -> fields_eq()
+		| _ -> false
+		)
 	| _ , _ ->
 		false
 
