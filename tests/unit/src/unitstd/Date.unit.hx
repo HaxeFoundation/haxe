@@ -47,7 +47,8 @@ date.getTime() < referenceDate.getTime();
 
 // < 1970 (negative timestamp)
 // neko, cpp, and python only fail on Windows
-#if !(hl || eval || neko || cpp || python)
+// disabled - see #8600
+#if false // !(hl || eval || neko || cpp || python)
 var date = new Date(1904, 11, 12, 1, 4, 1);
 date.getHours() == 1;
 date.getMinutes() == 4;
@@ -62,7 +63,8 @@ date.getTime() < referenceDate.getTime();
 // < 1902 (negative timestamp, outside of signed 32-bit integer range)
 // lua only fails on Mac
 // python only fails on Windows
-#if !(hl || neko || eval || cpp || lua || python)
+// disabled - see #8600
+#if false // !(hl || neko || eval || cpp || lua || python)
 var date = new Date(1888, 0, 1, 15, 4, 2);
 date.getHours() == 15;
 date.getMinutes() == 4;
@@ -74,8 +76,10 @@ date.getDay() == 0;
 date.getTime() < referenceDate.getTime();
 #end
 
+
 // Y2038 (outside of signed 32-bit integer range)
-#if !neko
+// disabled - see #8600
+#if false // !neko
 var date = new Date(2039, 0, 1, 1, 59, 59);
 date.getHours() == 1;
 date.getMinutes() == 59;
@@ -88,7 +92,8 @@ date.getTime() > referenceDate.getTime();
 #end
 
 // Y2112 (outside of unsigned 32-bit integer range)
-#if !(hl || neko)
+// disabled - see #8600
+#if false // !(hl || neko)
 var date = new Date(2112, 0, 1, 1, 59, 59);
 date.getHours() == 1;
 date.getMinutes() == 59;

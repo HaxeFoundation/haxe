@@ -84,6 +84,27 @@ let read_class_paths com timer =
 			()
 	)
 
+let init_or_update_server cs com timer_name =
+	if not (CompilationServer.is_initialized cs) then begin
+		CompilationServer.set_initialized cs;
+		read_class_paths com timer_name
+	end else begin
+		(* Iterate all removed files of the current context. If they aren't part of the context again,
+		   re-parse them and remove them from c_removed_files. *)
+		let sign = Define.get_signature com.defines in
+		let removed_removed_files = DynArray.create () in
+		Hashtbl.iter (fun (file,sign') () ->
+			if sign = sign' then begin
+				DynArray.add removed_removed_files (file,sign');
+				try
+					ignore(find_file cs (file,sign));
+				with Not_found ->
+					ignore(TypeloadParse.parse_module_file com file null_pos);
+			end;
+		) cs.cache.c_removed_files;
+		DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files;
+	end
+
 module CollectionContext = struct
 	open ImportStatus
 
@@ -367,10 +388,7 @@ let collect ctx tk with_type =
 		)
 	| Some cs ->
 		(* online: iter context files *)
-		if not (CompilationServer.is_initialized cs) then begin
-			CompilationServer.set_initialized cs;
-			read_class_paths ctx.com ["display";"toplevel"];
-		end;
+		init_or_update_server cs ctx.com ["display";"toplevel"];
 		let files = CompilationServer.get_file_list cs ctx.com in
 		(* Sort files by reverse distance of their package to our current package. *)
 		let files = List.map (fun (file,cfile) ->

@@ -1724,6 +1724,19 @@ let rec link e a b =
 		true
 	end
 
+let would_produce_recursive_anon field_acceptor field_donor =
+	try
+		(match !(field_acceptor.a_status) with
+		| Opened ->
+			PMap.iter (fun n field ->
+				match follow field.cf_type with
+				| TAnon a when field_acceptor == a -> raise Exit
+				| _ -> ()
+			) field_donor.a_fields;
+		| _ -> ());
+		false
+	with Exit -> true
+
 let link_dynamic a b = match follow a,follow b with
 	| TMono r,TDynamic _ -> r := Some b
 	| TDynamic _,TMono r -> r := Some a
@@ -1996,6 +2009,7 @@ let rec type_eq param a b =
 			| AbstractStatics a -> (match !(a1.a_status) with AbstractStatics a2 when a == a2 -> () | _ -> error [])
 			| _ -> ()
 			);
+			if would_produce_recursive_anon a1 a2 || would_produce_recursive_anon a2 a1 then error [cannot_unify a b];
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
@@ -2334,6 +2348,7 @@ and unify_abstracts a b a1 tl1 a2 tl2 =
 			error [cannot_unify a b]
 
 and unify_anons a b a1 a2 =
+	if would_produce_recursive_anon a1 a2 then error [cannot_unify a b];
 	(try
 		PMap.iter (fun n f2 ->
 		try

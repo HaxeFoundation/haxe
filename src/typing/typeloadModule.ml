@@ -771,10 +771,16 @@ let init_module_type ctx context_init do_init (decl,p) =
 				if Meta.has Meta.CoreType a.a_meta then error "@:coreType abstracts cannot have an underlying type" p;
 				let at = load_complex_type ctx true t in
 				delay ctx PForce (fun () ->
-					begin match follow at with
-						| TAbstract(a2,_) when a == a2 -> error "Abstract underlying type cannot be recursive" a.a_pos
+					let rec loop stack t =
+						match follow t with
+						| TAbstract(a,_) when not (Meta.has Meta.CoreType a.a_meta) ->
+							if List.memq a stack then
+								error "Abstract underlying type cannot be recursive" a.a_pos
+							else
+								loop (a :: stack) a.a_this
 						| _ -> ()
-					end;
+					in
+					loop [] at
 				);
 				a.a_this <- at;
 				is_type := true;
