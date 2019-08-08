@@ -1798,9 +1798,9 @@ let rec fast_eq_anon a b =
 			loop (List.sort compare !fields1) (List.sort compare !fields2)
 		in
 		(match !(a2.a_status), !(a1.a_status) with
-		| Statics c, Statics c2 when c == c2 -> fields_eq()
-		| EnumStatics e, EnumStatics e2 when e == e2 -> fields_eq()
-		| AbstractStatics a, AbstractStatics a2 when a == a2 -> fields_eq()
+		| Statics c, Statics c2 -> c == c2
+		| EnumStatics e, EnumStatics e2 -> e == e2
+		| AbstractStatics a, AbstractStatics a2 -> a == a2
 		| Extend tl1, Extend tl2 -> fields_eq() && List.for_all2 fast_eq_anon tl1 tl2
 		| Closed, Closed -> fields_eq()
 		| Opened, Opened -> fields_eq()
