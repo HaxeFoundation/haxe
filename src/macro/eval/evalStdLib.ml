@@ -3145,6 +3145,10 @@ module StdUv = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvFile f)} -> f
 			| v -> unexpected_value v "UVFile"
+		let get_async = vifun0 (fun vthis ->
+			let this = this vthis in
+			encode_instance key_nusys_io_AsyncFile ~kind:(IUv (UvFile this))
+		)
 		let chmod = vifun1 (fun vthis mode ->
 			let this = this vthis in
 			let mode = decode_int mode in
@@ -3212,6 +3216,86 @@ module StdUv = struct
 				exc_string "invalid call";
 			let bytesWritten = wrap_sync (Uv.fs_write_sync (loop ()) this buffer offset length position) in
 			encode_obj [key_bytesWritten,vint bytesWritten;key_buffer,buffer_i]
+		)
+	end
+
+	module AsyncFile = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvFile f)} -> f
+			| v -> unexpected_value v "UVFile"
+		let chmod = vifun2 (fun vthis mode cb ->
+			let this = this vthis in
+			let mode = decode_int mode in
+			wrap_sync (Uv.fs_fchmod (loop ()) this mode (wrap_cb_unit cb));
+			vnull
+		)
+		let chown = vifun3 (fun vthis uid gid cb ->
+			let this = this vthis in
+			let uid = decode_int uid in
+			let gid = decode_int gid in
+			wrap_sync (Uv.fs_fchown (loop ()) this uid gid (wrap_cb_unit cb));
+			vnull
+		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_close (loop ()) this (wrap_cb_unit cb));
+			vnull
+		)
+		let datasync = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_fdatasync (loop ()) this (wrap_cb_unit cb));
+			vnull
+		)
+		let read = vifun5 (fun vthis buffer_i offset length position cb ->
+			let this = this vthis in
+			let buffer = decode_bytes buffer_i in
+			let offset = decode_int offset in
+			let length = decode_int length in
+			let position = decode_int position in
+			if length <= 0 || offset < 0 || length + offset > (Bytes.length buffer) then
+				exc_string "invalid call";
+			wrap_sync (Uv.fs_read (loop ()) this buffer offset length position (wrap_cb cb (fun bytesRead ->
+					encode_obj [key_bytesRead,vint bytesRead;key_buffer,buffer_i]
+				)));
+			vnull
+		)
+		let sync = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_fsync (loop ()) this (wrap_cb_unit cb));
+			vnull
+		)
+		let stat = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.fs_fstat (loop ()) this (wrap_cb cb (fun stat ->
+					encode_instance key_eval_uv_Stat ~kind:(IUv (UvStat stat))
+				)));
+			vnull
+		)
+		let truncate = vifun2 (fun vthis len cb ->
+			let this = this vthis in
+			let len = decode_int len in
+			wrap_sync (Uv.fs_ftruncate (loop ()) this (Int64.of_int len) (wrap_cb_unit cb));
+			vnull
+		)
+		let utimes_native = vifun3 (fun vthis atime mtime cb ->
+			let this = this vthis in
+			let atime = decode_float atime in
+			let mtime = decode_float mtime in
+			wrap_sync (Uv.fs_futime (loop ()) this atime mtime (wrap_cb_unit cb));
+			vnull
+		)
+		let write = vifun5 (fun vthis buffer_i offset length position cb ->
+			let this = this vthis in
+			let buffer = decode_bytes buffer_i in
+			let offset = decode_int offset in
+			let length = decode_int length in
+			let position = decode_int position in
+			if length <= 0 || offset < 0 || length + offset > (Bytes.length buffer) then
+				exc_string "invalid call";
+			wrap_sync (Uv.fs_write (loop ()) this buffer offset length position (wrap_cb cb (fun bytesWritten ->
+					encode_obj [key_bytesWritten,vint bytesWritten;key_buffer,buffer_i]
+				)));
+			vnull
 		)
 	end
 
@@ -3347,30 +3431,23 @@ module StdUv = struct
 		let access = vfun3 (fun path mode cb ->
 			let path = decode_string path in
 			let mode = default_int mode 0 in
-			(try Uv.fs_access (loop ()) path mode (wrap_cb_unit cb)
-				with Failure err -> exc_string err);
+			wrap_sync (Uv.fs_access (loop ()) path mode (wrap_cb_unit cb));
 			vnull
 		)
 		let exists = vfun2 (fun path cb ->
 			let path = decode_string path in
-			(try Uv.fs_access (loop ()) path 0 (fun res ->
+			wrap_sync (Uv.fs_access (loop ()) path 0 (fun res ->
 				ignore (match res with
 					| Uv.UvError err -> call_value cb [vnull; vfalse]
 					| Uv.UvSuccess () -> call_value cb [vnull; vtrue])
-				)
-				with Failure err -> exc_string err);
+				));
 			vnull
 		)
 		let readdirTypes = vfun2 (fun path cb ->
 			let path = decode_string path in
-			(try Uv.fs_scandir (loop ()) path 0 (fun res ->
-				ignore (match res with
-					| Uv.UvError err -> call_value cb [vnull; vfalse]
-					| Uv.UvSuccess entries ->
-						let entries = encode_array (List.map (fun e -> encode_instance key_eval_uv_DirectoryEntry ~kind:(IUv (UvDirent e))) entries) in
-						call_value cb [vnull; entries])
-				)
-				with Failure err -> exc_string err);
+			wrap_sync (Uv.fs_scandir (loop ()) path 0 (wrap_cb cb (fun entries ->
+					encode_array (List.map (fun e -> encode_instance key_eval_uv_DirectoryEntry ~kind:(IUv (UvDirent e))) entries)
+				)));
 			vnull
 		)
 	end
@@ -3442,7 +3519,7 @@ module StdUv = struct
 			let this = this vthis in
 			wrap_sync (Uv.tcp_shutdown this (fun res ->
 				match res with
-					| Uv.UvError err -> call_value cb [wrap_error err; vnull]; ()
+					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
 					| Uv.UvSuccess () -> wrap_sync (Uv.tcp_close this (wrap_cb_unit cb))
 				));
 			vnull
@@ -4179,6 +4256,7 @@ let init_standard_library builtins =
 		"readdirTypes",StdUv.AsyncFileSystem.readdirTypes;
 	] [];
 	init_fields builtins (["nusys";"io"],"File") [] [
+		"get_async",StdUv.File.get_async;
 		"chmod",StdUv.File.chmod;
 		"chown",StdUv.File.chown;
 		"close",StdUv.File.close;
@@ -4189,6 +4267,18 @@ let init_standard_library builtins =
 		"truncate",StdUv.File.truncate;
 		"utimes_native",StdUv.File.utimes_native;
 		"write",StdUv.File.write;
+	];
+	init_fields builtins (["nusys";"io"],"AsyncFile") [] [
+		"chmod",StdUv.AsyncFile.chmod;
+		"chown",StdUv.AsyncFile.chown;
+		"close",StdUv.AsyncFile.close;
+		"datasync",StdUv.AsyncFile.datasync;
+		"read",StdUv.AsyncFile.read;
+		"stat",StdUv.AsyncFile.stat;
+		"sync",StdUv.AsyncFile.sync;
+		"truncate",StdUv.AsyncFile.truncate;
+		"utimes_native",StdUv.AsyncFile.utimes_native;
+		"write",StdUv.AsyncFile.write;
 	];
 	init_fields builtins (["eval";"uv"],"DirectoryEntry") [] [
 		"get_name",StdUv.DirectoryEntry.get_name;
