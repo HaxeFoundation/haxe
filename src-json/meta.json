@@ -22,7 +22,7 @@
 	{
 		"name": "Accessor",
 		"metadata": ":accessor",
-		"doc": "Used internally by DCE to mark property accoessors.",
+		"doc": "Used internally by DCE to mark property accessors.",
 		"targets": ["TClassField"],
 		"internal": true
 	},
