@@ -19,6 +19,7 @@ class TestHttp extends Test {
 			return;
 		}
 		#elseif (azure && (hl || java || (flash && (Linux || Mac)) || (cs && Windows)))
+		noAssert();
 		async.done();
 		return;
 		#else
