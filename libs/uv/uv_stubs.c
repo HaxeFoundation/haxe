@@ -676,6 +676,43 @@ CAMLprim value w_tcp_connect_ipv6(value handle, value host, value port, value cb
 	UV_SUCCESS_UNIT;
 }
 
+static value w_tcp_getname(struct sockaddr_storage *storage) {
+	CAMLparam0();
+	CAMLlocal3(res, addr, infostore);
+	res = caml_alloc(2, 0);
+	if (storage->ss_family == AF_INET) {
+		addr = caml_alloc(1, 0);
+		Store_field(addr, 0, caml_copy_int32(ntohl(((struct sockaddr_in *)storage)->sin_addr.s_addr)));
+		Store_field(res, 1, Val_int(ntohs(((struct sockaddr_in *)storage)->sin_port)));
+	} else if (storage->ss_family == AF_INET6) {
+		addr = caml_alloc(1, 1);
+		infostore = caml_alloc_string(sizeof(struct in6_addr));
+		memcpy(&Byte(infostore, 0), ((struct sockaddr_in6 *)storage)->sin6_addr.s6_addr, sizeof(struct in6_addr));
+		Store_field(addr, 0, infostore);
+		Store_field(res, 1, Val_int(ntohs(((struct sockaddr_in6 *)storage)->sin6_port)));
+	} else {
+		UV_ERROR(0);
+	}
+	Store_field(res, 0, addr);
+	UV_SUCCESS(res);
+}
+
+CAMLprim value w_tcp_getsockname(value handle) {
+	CAMLparam1(handle);
+	struct sockaddr_storage storage;
+	int dummy = sizeof(struct sockaddr_storage);
+	UV_ERROR_CHECK(uv_tcp_getsockname(Tcp_val(handle), (struct sockaddr *)&storage, &dummy));
+	CAMLreturn(w_tcp_getname(&storage));
+}
+
+CAMLprim value w_tcp_getpeername(value handle) {
+	CAMLparam1(handle);
+	struct sockaddr_storage storage;
+	int dummy = sizeof(struct sockaddr_storage);
+	UV_ERROR_CHECK(uv_tcp_getpeername(Tcp_val(handle), (struct sockaddr *)&storage, &dummy));
+	CAMLreturn(w_tcp_getname(&storage));
+}
+
 CAMLprim value w_tcp_shutdown(value handle, value cb) {
 	return w_shutdown(handle, cb);
 }

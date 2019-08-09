@@ -3352,11 +3352,11 @@ module StdUv = struct
 			let res = wrap_sync (Uv.fs_mkdtemp_sync (loop ()) prefix) in
 			encode_string res
 		)
-		let open_ = vfun4 (fun path flags mode binary ->
+		let open_native = vfun4 (fun path flags mode binary ->
 			let path = decode_string path in
-			let flags = default_int flags 0 in
-			let mode = default_int mode 0o666 in
-			(*let binary = default_bool binary true in*)
+			let flags = decode_int flags in
+			let mode = decode_int mode in
+			(*let binary = decode_bool binary in*)
 			let handle = wrap_sync (Uv.fs_open_sync (loop ()) path flags mode) in
 			encode_instance key_nusys_io_File ~kind:(IUv (UvFile handle))
 		)
@@ -3542,6 +3542,19 @@ module StdUv = struct
 			wrap_sync (Uv.tcp_nodelay this noDelay);
 			vnull
 		)
+		let getName fn = vifun0 (fun vthis ->
+			let this = this vthis in
+			let addr = wrap_sync (fn this) in
+			match addr with
+				| {address; port} ->
+					encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
+							| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
+							| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+						); vint port|] None
+				| _ -> assert false
+		)
+		let getSockName = getName Uv.tcp_getsockname
+		let getPeerName = getName Uv.tcp_getpeername
 	end
 
 	module Dns = struct
@@ -3569,8 +3582,8 @@ module StdUv = struct
 					| Uv.UvError err -> call_value cb [wrap_error err; vnull]
 					| Uv.UvSuccess entries ->
 						let entries = encode_array (List.map (fun e -> match e with
-							| Uv.UvGai4 raw -> encode_enum_value key_sys_net_Address 0 [|VInt32 raw|] None
-							| Uv.UvGai6 raw -> encode_enum_value key_sys_net_Address 1 [|encode_bytes raw|] None) entries) in
+							| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
+							| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None) entries) in
 						call_value cb [vnull; entries]
 					)
 				));
@@ -4238,7 +4251,7 @@ let init_standard_library builtins =
 		"link",StdUv.FileSystem.link;
 		"mkdir_native",StdUv.FileSystem.mkdir_native;
 		"mkdtemp",StdUv.FileSystem.mkdtemp;
-		"open",StdUv.FileSystem.open_;
+		"open_native",StdUv.FileSystem.open_native;
 		"readdirTypes",StdUv.FileSystem.readdirTypes;
 		"readlink",StdUv.FileSystem.readlink;
 		"realpath",StdUv.FileSystem.realpath;
@@ -4313,6 +4326,8 @@ let init_standard_library builtins =
 		"close",StdUv.Socket.close;
 		"setKeepAlive",StdUv.Socket.setKeepAlive;
 		"setNoDelay",StdUv.Socket.setNoDelay;
+		"getSockName",StdUv.Socket.getSockName;
+		"getPeerName",StdUv.Socket.getPeerName;
 	];
 	init_fields builtins (["nusys";"net"],"Dns") [
 		"lookup_native",StdUv.Dns.lookup_native;

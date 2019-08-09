@@ -159,6 +159,15 @@ external fs_event_stop : t_fs_event -> unit_cb -> unit uv_result = "w_fs_event_s
 
 (* ------------- TCP ------------------------------------------------ *)
 
+type uv_ip_address =
+	| UvIpv4 of int32
+	| UvIpv6 of bytes
+
+type uv_ip_address_port = {
+	address: uv_ip_address;
+	port: int;
+}
+
 type stream_bytes_cb = bytes uv_result -> unit
 
 external tcp_init : t_loop -> t_tcp uv_result = "w_tcp_init"
@@ -169,6 +178,8 @@ external tcp_bind_ipv4 : t_tcp -> int -> int -> unit uv_result = "w_tcp_bind_ipv
 external tcp_bind_ipv6 : t_tcp -> bytes -> int -> bool -> unit uv_result = "w_tcp_bind_ipv6"
 external tcp_connect_ipv4 : t_tcp -> int -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv4"
 external tcp_connect_ipv6 : t_tcp -> bytes -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv6"
+external tcp_getsockname : t_tcp -> uv_ip_address_port uv_result = "w_tcp_getsockname"
+external tcp_getpeername : t_tcp -> uv_ip_address_port uv_result = "w_tcp_getpeername"
 external tcp_shutdown : t_tcp -> unit_cb -> unit uv_result = "w_tcp_shutdown"
 external tcp_close : t_tcp -> unit_cb -> unit uv_result = "w_tcp_close"
 external tcp_listen : t_tcp -> int -> unit_cb -> unit uv_result = "w_tcp_listen"
@@ -178,11 +189,7 @@ external tcp_read_stop : t_tcp -> unit uv_result = "w_tcp_read_stop"
 
 (* ------------- DNS ------------------------------------------------ *)
 
-type uv_gai_result =
-	| UvGai4 of int32
-	| UvGai6 of bytes
-
-type dns_gai_cb = (uv_gai_result list) uv_result -> unit
+type dns_gai_cb = (uv_ip_address list) uv_result -> unit
 
 external dns_getaddrinfo : t_loop -> string -> bool -> bool -> int -> dns_gai_cb -> unit uv_result = "w_dns_getaddrinfo_bytecode" "w_dns_getaddrinfo"
 
