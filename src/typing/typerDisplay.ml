@@ -526,7 +526,9 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
 						| TClassDecl c when has_constructor c -> true
-						| TAbstractDecl {a_impl = Some c} -> PMap.mem "_new" c.cl_statics
+						| TAbstractDecl {a_impl = Some c} ->
+							ignore(c.cl_build());
+							PMap.mem "_new" c.cl_statics
 						| _ -> false
 						end
 					with _ ->

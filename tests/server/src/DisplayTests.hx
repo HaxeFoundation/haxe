@@ -5,6 +5,26 @@ import haxe.display.FsPath;
 @:timeout(5000)
 // TODO: somebody has to clean this up
 class DisplayTests extends HaxeServerTestCase {
+	function testIssue7305() {
+		var content = 'class Main {
+	static public function main() {
+		new Map{-1-}
+	}
+}';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		assertHasCompletion(result, item -> switch (item.kind) {
+			case Type: item.args.path.pack.length == 0 && item.args.path.typeName == "Map";
+			case _: false;
+		});
+	}
+
 	function testIssue7317() {
 		var content = 'class Main {
 	public static function main() {
