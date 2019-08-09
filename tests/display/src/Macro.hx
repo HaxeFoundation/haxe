@@ -7,6 +7,7 @@ using Lambda;
 using StringTools;
 
 class Macro {
+	#if macro
 	static function buildTestCase():Array<Field> {
 		var fields = Context.getBuildFields();
 		var c = Context.getLocalClass().get();
@@ -46,6 +47,7 @@ class Macro {
 
 		return fields;
 	}
+	#end
 
 	macro static public function getCases(pack:String) {
 		var cases = [];

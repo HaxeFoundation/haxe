@@ -198,6 +198,6 @@ class ServerTests extends HaxeServerTestCase {
 class Main {
 	static public function main() {
 		Vfs.removeDir("test/cases");
-		utest.UTest.run([new ServerTests()]);
+		utest.UTest.run([new ServerTests(), new DisplayTests()]);
 	}
 }

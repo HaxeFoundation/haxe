@@ -19,7 +19,8 @@ class HaxeServerTestCase implements ITest {
 	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
 	var errorMessages = [];
-	var i:Int = 0;
+
+	static var i:Int = 0;
 
 	public function new() {}
 
@@ -107,8 +108,16 @@ class HaxeServerTestCase implements ITest {
 		return null;
 	}
 
-	function parseCompletion():Array<DisplayItem<Dynamic>> {
-		return Json.parse(lastResult.stderr).result.result.items; // this is retarded
+	function parseCompletion():CompletionResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseHover():HoverResult {
+		return Json.parse(lastResult.stderr).result;
+	}
+
+	function parseSignatureHelp():SignatureHelpResult {
+		return Json.parse(lastResult.stderr).result;
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
@@ -158,8 +167,8 @@ class HaxeServerTestCase implements ITest {
 		}
 	}
 
-	function assertHasCompletion<T>(completion:Array<DisplayItem<T>>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
-		for (type in completion) {
+	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
 			if (f(type)) {
 				Assert.pass();
 				return;
@@ -168,8 +177,8 @@ class HaxeServerTestCase implements ITest {
 		Assert.fail("No such completion", p);
 	}
 
-	function assertHasNoCompletion<T>(completion:Array<DisplayItem<T>>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
-		for (type in completion) {
+	function assertHasNoCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.result.items) {
 			if (f(type)) {
 				Assert.fail("Unexpected completion", p);
 				return;
