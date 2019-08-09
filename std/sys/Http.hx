@@ -24,6 +24,7 @@ package sys;
 
 import haxe.io.BytesOutput;
 import haxe.io.Bytes;
+import haxe.io.Input;
 import sys.net.Host;
 import sys.net.Socket;
 
@@ -252,7 +253,7 @@ class Http extends haxe.http.HttpBase {
 		}
 	}
 
-	function writeBody(body:Null<BytesOutput>, fileInput:Null<haxe.io.Input>, fileSize:Int, boundary:Null<String>, sock:sys.net.Socket) {
+	function writeBody(body:Null<BytesOutput>, fileInput:Null<Input>, fileSize:Int, boundary:Null<String>, sock:Socket) {
 		if (body != null) {
 			var bytes = body.getBytes();
 			sock.output.writeFullBytes(bytes, 0, bytes.length);

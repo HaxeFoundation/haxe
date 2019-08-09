@@ -18,6 +18,8 @@ class TestHttp extends Test {
 			async.done();
 			return;
 		}
+		#elseif (azure && (hl || java || (flash && Linux) || (cs && Windows)))
+		return;
 		#end
 		test();
 	}
