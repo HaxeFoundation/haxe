@@ -57,15 +57,15 @@ class Cpp {
 				}
 
 				if (testCppia) {
-					runCommand("haxe", ["compile-cppia-host.hxml"]);
-					runCommand("haxe", ["compile-cppia.hxml"]);
+					runCommand("haxe", ["compile-cppia-host.hxml"].concat(args));
+					runCommand("haxe", ["compile-cppia.hxml"].concat(args));
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia"]);
 					runCpp("bin/cppia/Host-debug", ["bin/unit.cppia", "-jit"]);
 				}
 		}
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-cpp.hxml"]);
+		runCommand("haxe", ["compile-cpp.hxml"].concat(args));
 		runCpp("bin/cpp/Main-debug", []);
 
 		if (systemName != "Windows") { // TODO: find out why we keep getting "missed async calls" error

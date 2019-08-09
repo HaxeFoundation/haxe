@@ -1108,7 +1108,9 @@ and arrow_expr = parser
 
 and arrow_function p1 al er s =
 	let make e =
-		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some (EReturn(Some e), (snd e));  }), punion p1 (pos e)
+		let p = pos e in
+		let return = (EMeta((Meta.ImplicitReturn, [], null_pos), (EReturn(Some e), p)), p) in
+		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some return;  }), punion p1 p
 	in
 	List.iter (fun (_,_,ml,_,_) ->	match ml with
 		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on arrow function arguments is not allowed") ~pos:(Some p) s ()
@@ -1260,11 +1262,17 @@ and expr = parser
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = secure_expr; s >] -> Some e2
 			| [< >] ->
-				match Stream.npeek 2 s with
-				| [(Semicolon,_); (Kwd Else,_)] ->
-					Stream.junk s;
-					Stream.junk s;
-					Some (secure_expr s)
+				(* We check this in two steps to avoid the lexer missing tokens (#8565). *)
+				match Stream.npeek 1 s with
+				| [(Semicolon,_)] ->
+					begin match Stream.npeek 2 s with
+					| [(Semicolon,_);(Kwd Else,_)] ->
+						Stream.junk s;
+						Stream.junk s;
+						Some (secure_expr s)
+					| _ ->
+						None
+					end
 				| _ ->
 					None
 		) in

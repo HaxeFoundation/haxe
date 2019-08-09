@@ -25,7 +25,7 @@ class Macro {
 		runCommand("haxe", ["compile.hxml"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-macro.hxml"]);
+		runCommand("haxe", ["compile-macro.hxml"].concat(args));
 
 		switch Sys.systemName() {
 			case 'Linux':

@@ -100,7 +100,7 @@ extern class PDO {
 	function getAttribute(attribute:Int):Dynamic;
 	function getAvailableDrivers():NativeArray;
 	function lastInsertId(?name:String):String;
-	function prepare(statement:String, driver_options:NativeArray):PDOStatement;
+	function prepare(statement:String, ?driver_options:NativeArray):PDOStatement;
 	function query(statement:String, ?mode:Int):PDOStatement;
 	function quote(String:String, ?parameter_type:Int = 2):String;
 	function rollBack():Bool;

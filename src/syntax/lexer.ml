@@ -198,7 +198,20 @@ let resolve_pos file =
 			| '\r' ->
 				ignore(input_char ch);
 				inc 2
-			| _ -> fun () -> 1
+			| c -> (fun () ->
+				let rec skip n =
+					if n > 0 then begin
+						ignore(input_char ch);
+						skip (n - 1)
+					end
+				in
+				let code = int_of_char c in
+				if code < 0xC0 then ()
+				else if code < 0xE0 then skip 1
+				else if code < 0xF0 then skip 2
+				else skip 3;
+				1
+			)
 		in
 		loop (p + i())
 	in

@@ -200,7 +200,6 @@ let rec follow_basic t =
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[])
 	| TType ({ t_path = ["flash";"utils"],"Function" },[])
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
@@ -231,6 +230,8 @@ let rec type_id ctx t =
 			type_path ctx c.cl_path)
 	| TAbstract ({ a_path = [],"Null"},_) ->
 		HMPath ([],"Object")
+	| TAbstract ({ a_path = ["flash"],"AnyType"},_) ->
+		HMAny
 	| TAbstract (a,_) when Meta.has Meta.CoreType a.a_meta ->
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
@@ -264,6 +265,8 @@ let classify ctx t =
 		KBool
 	| TAbstract ({ a_path = [],"Void" },_) | TEnum ({ e_path = [],"Void" },_) ->
 		KDynamic
+	| TAbstract ({ a_path = ["flash"],"AnyType" },_) ->
+		KDynamic
 	| TEnum ({ e_path = ["flash"],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
@@ -276,7 +279,7 @@ let classify ctx t =
 		(match !(a.a_status) with
 		| Statics _ -> KNone
 		| _ -> KDynamic)
-	| TType ({ t_path = ["flash";"utils"],"Object" },[]) ->
+	| TAbstract ({ a_path = ["flash";"utils"],"Object" },[]) ->
 		KType (HMPath ([],"Object"))
 	| TInst _ | TAbstract _ ->
 		KType (type_id ctx t)
@@ -1034,6 +1037,8 @@ let rec gen_type ctx t =
 		write ctx (HGetLex t);
 		List.iter (gen_type ctx) tl;
 		write ctx (HApplyType (List.length tl));
+	| HMAny ->
+		write ctx (HNull)
 	| _ ->
 		write ctx (HGetLex t)
 

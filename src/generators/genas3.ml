@@ -264,6 +264,7 @@ let rec type_str ctx t p =
 		| [], "Int" -> "int"
 		| [], "Float" -> "Number"
 		| [], "Bool" -> "Boolean"
+		| ["flash"], "AnyType" -> "*"
 		| _ -> s_path ctx true a.a_path p)
 	| TEnum (e,_) ->
 		if e.e_extern then "Object" else s_path ctx true e.e_path p

@@ -519,7 +519,12 @@ and generate_class_field' ctx cfs cf =
 						None
 			in
 			begin match value with
-				| None -> jnull
+				| None ->
+					if Meta.has (Meta.Custom ":testHack") cf.cf_meta then begin match cf.cf_expr with
+						| Some e -> jobject ["testHack",jstring (s_expr_pretty false "" false (s_type (print_context())) e)] (* TODO: haha *)
+						| None -> jnull
+					end else
+						jnull
 				| Some e -> jobject ["string",jstring (Ast.Printer.s_expr e)]
 			end
 		| GMMinimum ->

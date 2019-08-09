@@ -1189,6 +1189,7 @@ module StdFileSystem = struct
 
 	let patch_path s =
 		if String.length s > 1 && String.length s <= 3 && s.[1] = ':' then Path.add_trailing_slash s
+		else if s = "/" then "/"
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->

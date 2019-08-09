@@ -33,7 +33,7 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 	Documentation [Uint16Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Uint16Array")
-extern class Uint16Array implements ArrayAccess<Int> {
+extern class Uint16Array implements ArrayBufferView implements ArrayAccess<Int> {
 	/**
 		Returns a number value of the element size. 2 in the case of an `Uint16Array`.
 	 */

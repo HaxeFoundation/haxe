@@ -1,5 +1,5 @@
 brew "ocaml"
-brew "camlp4"
+brew "camlp5"
 brew "opam"
 brew "ninja"
 brew "zlib"

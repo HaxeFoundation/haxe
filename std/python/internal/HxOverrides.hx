@@ -174,7 +174,7 @@ class HxOverrides {
 		var a = python.Lib.dictAsAnon(python.Lib.anonToDict(a));
 		for (k in v.keys()) {
 			var val = v.get(k);
-			if (UBuiltins.hasattr(a, k)) {
+			if (Syntax.code('{0}._hx_hasattr({1})', a, k)) {
 				var x = UBuiltins.getattr(a, k);
 				UBuiltins.setattr(a, val, x);
 				UBuiltins.delattr(a, k);

@@ -173,8 +173,6 @@ let rec func ctx bb tf t p =
 			close_node g bb;
 			add_cfg_edge bb_func_end bb_next CFGGoto;
 			bb_next,ec
-		(*| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
-			error "Cannot use abstract as value" e.epos*)
 		| TConst _ | TTypeExpr _ ->
 			bb,e
 		| TThrow _ | TReturn _ | TBreak | TContinue ->

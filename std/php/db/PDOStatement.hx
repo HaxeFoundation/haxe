@@ -34,7 +34,7 @@ extern class PDOStatement {
 	function debugDumpParams():Bool;
 	function errorCode():String;
 	function errorInfo():NativeArray;
-	function execute(input_parameters:NativeArray):Bool;
+	function execute(?input_parameters:NativeArray):Bool;
 	function fetch(?fetch_style:Int = 4, ?cursor_orientation:Int = 0, ?cursor_offset:Int = 0):Dynamic;
 	function fetchAll(?fetch_style:Int, ?fetch_argument:Dynamic, ?ctor_args:NativeArray):NativeArray;
 	function fetchColumn(?column_number:Int = 0):String;

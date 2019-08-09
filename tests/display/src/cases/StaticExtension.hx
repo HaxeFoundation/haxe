@@ -44,4 +44,27 @@ class StaticExtension extends DisplayTestCase {
 		eq(true, hasField(fields, "doSomething", "Void -> Void"));
 		eq(true, hasField(fields, "doSomethingElse", "Void -> Void"));
 	}
+
+	/**
+		using cases.StaticExtension;
+
+		class Overload1 {
+			public static function test(o:String):Void { }
+		}
+
+		class Overload2 {
+			public static function test(o:String, i:Int):Void { }
+		}
+
+		class Main {
+			static public function main() {
+				"".{-1-}
+			}
+		}
+	**/
+	function testIssue8584() {
+		var fields = fields(pos(1));
+		eq(true, hasField(fields, "test", "(i : Int) -> Void"));
+		eq(false, hasField(fields, "test", "() -> Void"));
+	}
 }

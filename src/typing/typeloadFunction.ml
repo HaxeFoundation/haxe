@@ -128,14 +128,7 @@ let type_function ctx args ret fmode f do_display p =
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
 		let e = if !Parser.had_resume then e else Display.ExprPreprocessing.process_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
-		try
-			if Common.defined ctx.com Define.NoCOpt || not !Parser.had_resume then raise Exit;
-			let e = Optimizer.optimize_completion_expr e f.f_args in
-			if is_display_debug then print_endline ("after optimizing:\n" ^ (Expr.dump_with_pos e));
-			type_expr ctx e NoValue
-		with
-		| Parser.TypePath (_,None,_,_) | Exit ->
-			type_expr ctx e NoValue
+		type_expr ctx e NoValue
 	end in
 	let e = match e.eexpr with
 		| TMeta((Meta.MergeBlock,_,_), ({eexpr = TBlock el} as e1)) -> e1

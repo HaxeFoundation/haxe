@@ -189,6 +189,7 @@ type context = {
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	readdir_cache : (string * string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
@@ -467,6 +468,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
@@ -485,6 +487,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
@@ -617,34 +620,81 @@ let platform ctx p = ctx.platform = p
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let normalize_dir_separator path =
+	if is_windows then String.map (fun c -> if c = '/' then '\\' else c) path
+	else path
+
 let find_file ctx f =
 	try
-		(match Hashtbl.find ctx.file_lookup_cache f with
+		match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
-		| Some f -> f)
+		| Some f -> f
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+		let remove_extension file =
+			try String.sub file 0 (String.rindex file '.')
+			with Not_found -> file
+		in
+		let extension file =
+			try
+				let dot_pos = String.rindex file '.' in
+				String.sub file dot_pos (String.length file - dot_pos)
+			with Not_found -> file
+		in
+		let f_dir = Filename.dirname f
+		and platform_ext = "." ^ (platform_name_macro ctx)
+		and is_core_api = defined ctx Define.CoreApi in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
-				if Sys.file_exists file then begin
-					(try
-						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
-						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
-					with Not_found ->
-						file)
-				end else
+				let dir = Filename.dirname file in
+				if Hashtbl.mem ctx.readdir_cache (p,dir) then
 					loop (had_empty || p = "") l
+				else begin
+					let found = ref "" in
+					let dir_listing =
+						try Some (Sys.readdir dir);
+						with Sys_error _ -> None
+					in
+					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
+					let normalized_f = normalize_dir_separator f in
+					Option.may
+						(Array.iter (fun file_name ->
+							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
+							let pf,current_f =
+								if is_core_api then false,current_f
+								else begin
+									let ext = extension current_f in
+									let pf_ext = extension (remove_extension current_f) in
+									if platform_ext = pf_ext then
+										true,(remove_extension (remove_extension current_f)) ^ ext
+									else
+										false,current_f
+								end
+							in
+							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
+							if is_core_api || pf || not is_cached then begin
+								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
+								if is_cached then
+									Hashtbl.remove ctx.file_lookup_cache current_f;
+								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+								if normalize_dir_separator current_f = normalized_f then
+									found := full_path;
+							end
+						))
+						dir_listing;
+					if !found <> "" then !found
+					else loop (had_empty || p = "") l
+				end
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
-		(match r with
+		match r with
 		| None -> raise Not_found
-		| Some f -> f)
+		| Some f -> f
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in
