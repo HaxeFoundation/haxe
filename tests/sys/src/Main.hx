@@ -11,14 +11,7 @@ class Main {
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
-		#if (azure && php)
-		switch (Sys.systemName()) {
-			case "Windows":
-				// pass
-			case _:
-				runner.addCase(new net.TestSocket());
-		}
-		#else
+		#if !(azure && php && Windows)
 			runner.addCase(new net.TestSocket());
 		#end
 		var report = Report.create(runner);
