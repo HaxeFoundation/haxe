@@ -21,10 +21,11 @@ class TestHttp extends Test {
 		#elseif (azure && (hl || java || (flash && Linux) || (cs && Windows)))
 		async.done();
 		return;
-		#end
+		#else
 		test();
+		#end
 	}
-
+#if !(azure && hl)
 	@:timeout(1000)
 	public function testPostData(async:Async) run(async, () -> {
 		var srcStr = 'hello, world';
@@ -73,4 +74,5 @@ class TestHttp extends Test {
 		d.setPostBytes(srcData);
 		d.request();
 	});
+#end
 }
