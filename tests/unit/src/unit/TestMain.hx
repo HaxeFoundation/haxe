@@ -71,7 +71,16 @@ class TestMain {
 			new TestCasts(),
 			new TestSyntaxModule(),
 			new TestNull(),
-			new TestHttp(),
+			#if (azure && php)
+			switch (Sys.systemName()) {
+				case "Windows":
+					// pass
+				case _:
+					runner.addCase(new TestHttp());
+			}
+			#else
+				runner.addCase(new TestHttp());
+			#end
 			#if !no_pattern_matching
 			new TestMatch(),
 			#end

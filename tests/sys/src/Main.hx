@@ -11,7 +11,7 @@ class Main {
 		runner.addCase(new io.TestFile());
 		runner.addCase(new io.TestFileInput());
 		runner.addCase(new io.TestProcess());
-		#if php
+		#if (azure && php)
 		switch (Sys.systemName()) {
 			case "Windows":
 				// pass
