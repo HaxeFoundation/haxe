@@ -179,6 +179,15 @@ let handler =
 			in
 			hctx.send_result (generate_module () m)
 		);
+		"server/moduleCreated", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let file = Path.unique_full_path file in
+			let cs = hctx.display#get_cs in
+			List.iter (fun (sign,_) ->
+				Hashtbl.replace cs.cache.c_removed_files (file,sign) ()
+			) (CompilationServer.get_signs cs);
+			hctx.send_result (jstring file);
+		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
@@ -196,7 +205,9 @@ let handler =
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			CompilationServer.taint_modules hctx.display#get_cs file;
+			let cs = hctx.display#get_cs in
+			CompilationServer.taint_modules cs file;
+			CompilationServer.remove_files cs file;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

@@ -81,6 +81,7 @@ class Type {
 		return switch (c.native().getName()) {
 			case "java.lang.String": "String";
 			case "java.lang.Math": "Math";
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}
@@ -90,15 +91,17 @@ class Type {
 	}
 
 	public static function resolveClass(name:String):Class<Dynamic> {
-		if (name == "String") {
-			return java.NativeString;
-		} else if (name == "Math") {
-			return java.lang.Math;
+		if (name.indexOf(".") == -1) {
+			name = "haxe.root." + name;
 		}
 		return try {
 			java.lang.Class.forName(name).haxe();
 		} catch (e:java.lang.ClassNotFoundException) {
-			return null;
+			return switch (name) {
+				case "haxe.root.String": java.NativeString;
+				case "haxe.root.Math": java.lang.Math;
+				case _: null;
+			}
 		}
 	}
 

@@ -509,6 +509,13 @@
 		"internal": true
 	},
 	{
+		"name": "ImplicitReturn",
+		"metadata": ":implicitReturn",
+		"doc": "Generated automatically on the AST when an implicit return is inserted for arrow function.",
+		"targets": ["TExpr"],
+		"internal": true
+	},
+	{
 		"name": "Include",
 		"metadata": ":include",
 		"doc": "",

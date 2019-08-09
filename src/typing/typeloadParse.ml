@@ -144,9 +144,7 @@ let resolve_module_file com m remap p =
 	let timer = Timer.timer ["typing";"resolve_module_file"] in
 	Std.finally timer (resolve_module_file com m remap) p *)
 
-let parse_module' com m p =
-	let remap = ref (fst m) in
-	let file = resolve_module_file com m remap p in
+let parse_module_file com file p =
 	let handle_parser_error msg p =
 		let msg = Parser.error_msg msg in
 		match com.display.dms_error_policy with
@@ -166,6 +164,12 @@ let parse_module' com m p =
 			handle_parser_error msg p;
 			data
 	in
+	pack,decls
+
+let parse_module' com m p =
+	let remap = ref (fst m) in
+	let file = resolve_module_file com m remap p in
+	let pack,decls = parse_module_file com file p in
 	file,remap,pack,decls
 
 let parse_module ctx m p =

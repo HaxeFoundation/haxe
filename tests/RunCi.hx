@@ -70,6 +70,7 @@ class RunCi {
 					case AzurePipelines:
 						["-D","azure"];
 				}
+				args = args.concat(["-D", systemName]);
 				switch (test) {
 					case Macro:
 						runci.targets.Macro.run(args);

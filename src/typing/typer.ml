@@ -107,7 +107,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
-							if (List.exists (fast_eq t) stack) then raise Exit;
+							if (List.exists (fast_eq_anon t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
@@ -282,6 +282,13 @@ let unify_min ctx el =
 	with Error (Unify l,p) ->
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
+
+let unify_min_for_type_source ctx el src =
+	match src with
+	| Some WithType.ImplicitReturn when List.exists (fun e -> ExtType.is_void (follow e.etype)) el ->
+		ctx.com.basic.tvoid
+	| _ ->
+		unify_min ctx el
 
 let rec type_ident_raise ctx i p mode =
 	match i with
@@ -1348,7 +1355,7 @@ and handle_efield ctx e p mode =
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then begin
 										if ctx.com.json_out = None then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false,p))
-										else raise_fields (DisplayToplevel.collect ctx TKType WithType.no_value) CRTypeHint (Some p0);
+										else raise_fields (DisplayToplevel.collect ctx TKType WithType.no_value) (CRToplevel None) (Some p0);
 									end;
 									raise e)
 		in
@@ -1603,7 +1610,7 @@ and type_object_decl ctx fl with_type p =
 		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq t t') seen) ->
+			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq_anon t t') seen) ->
 				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
 				| [t] -> t
 				| _ -> ODKPlain)
@@ -1890,7 +1897,8 @@ and type_try ctx e1 catches with_type p =
 	let e1,catches,t = match with_type with
 		| WithType.NoValue -> e1,catches,ctx.t.tvoid
 		| WithType.Value _ -> e1,catches,unify_min ctx el
-		| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,catches,unify_min ctx el
+		| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+			e1,catches,unify_min_for_type_source ctx el src
 		| WithType.WithType(t,_) ->
 			let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 			let catches = List.map (fun (v,e) ->
@@ -2088,10 +2096,10 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq t (follow t')) seen) ->
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq_anon t (follow t')) seen) ->
 				let types =
 					List.fold_left
-						(fun acc t -> match loop (t :: seen) t with
+						(fun acc t' -> match loop (t :: seen) t' with
 							| None -> acc
 							| Some t -> t :: acc
 						)
@@ -2166,19 +2174,24 @@ and type_array_comprehension ctx e with_type p =
 		mk (TLocal v) v.v_type p;
 	]) v.v_type p
 
-and type_return ctx e with_type p =
+and type_return ?(implicit=false) ctx e with_type p =
 	match e with
 	| None ->
 		let v = ctx.t.tvoid in
 		unify ctx v ctx.ret p;
 		let expect_void = match with_type with
 			| WithType.WithType(t,_) -> ExtType.is_void (follow t)
+			| WithType.Value (Some ImplicitReturn) -> true
 			| _ -> false
 		in
 		mk (TReturn None) (if expect_void then v else t_dynamic) p
 	| Some e ->
 		try
-			let e = type_expr ctx e (WithType.with_type ctx.ret) in
+			let with_expected_type =
+				if implicit then WithType.of_implicit_return ctx.ret
+				else WithType.with_type ctx.ret
+			in
+			let e = type_expr ctx e with_expected_type in
 			let e = AbstractCast.cast_or_unify ctx ctx.ret e p in
 			begin match follow e.etype with
 			| TAbstract({a_path=[],"Void"},_) ->
@@ -2240,7 +2253,8 @@ and type_if ctx e e1 e2 with_type p =
 		let e1,e2,t = match with_type with
 			| WithType.NoValue -> e1,e2,ctx.t.tvoid
 			| WithType.Value _ -> e1,e2,unify_min ctx [e1; e2]
-			| WithType.WithType(t,_) when (match follow t with TMono _ -> true | _ -> false) -> e1,e2,unify_min ctx [e1; e2]
+			| WithType.WithType(t,src) when (match follow t with TMono _ -> true | t -> ExtType.is_void t) ->
+				e1,e2,unify_min_for_type_source ctx [e1; e2] src
 			| WithType.WithType(t,_) ->
 				let e1 = AbstractCast.cast_or_unify ctx t e1 e1.epos in
 				let e2 = AbstractCast.cast_or_unify ctx t e2 e2.epos in
@@ -2310,6 +2324,11 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 			| _ ->
 				display_error ctx "Call or function expected after inline keyword" p;
 				e();
+			end
+		| (Meta.ImplicitReturn,_,_) ->
+			begin match e1 with
+			| (EReturn e, p) -> type_return ~implicit:true ctx e with_type p
+			| _ -> e()
 			end
 		| _ -> e()
 	in
@@ -2438,7 +2457,15 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		Texpr.type_constant ctx.com.basic c p
 	| EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 false with_type p
-	| EBlock [] when with_type <> WithType.NoValue ->
+	| EBlock [] when (match with_type with
+			| NoValue -> false
+			(*
+				If expected type is unknown then treat `(...) -> {}` as an empty function
+				(just like `function(...) {}`) instead of returning an object.
+			*)
+			| WithType (t, Some ImplicitReturn) -> not (ExtType.is_mono (follow t))
+			| _ -> true
+		) ->
 		type_expr ctx (EObjectDecl [],p) with_type
 	| EBlock l ->
 		let locals = save_locals ctx in
@@ -2683,6 +2710,7 @@ let rec create com =
 
 ;;
 unify_min_ref := unify_min;
+unify_min_for_type_source_ref := unify_min_for_type_source;
 make_call_ref := make_call;
 build_call_ref := build_call;
 type_call_target_ref := type_call_target;

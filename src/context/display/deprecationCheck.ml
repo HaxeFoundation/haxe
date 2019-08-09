@@ -63,7 +63,11 @@ let run_on_expr com e =
 		| TNew(c,_,el) ->
 			List.iter expr el;
 			check_class com c e.epos;
-			(match c.cl_constructor with None -> () | Some cf -> check_cf com cf e.epos)
+			begin match c.cl_constructor with
+				(* The AST doesn't carry the correct overload for TNew, so let's ignore this case... (#8557). *)
+				| Some cf when cf.cf_overloads = [] -> check_cf com cf e.epos
+				| _ -> ()
+			end
 		| TTypeExpr(mt) | TCast(_,Some mt) ->
 			check_module_type com mt e.epos
 		| TMeta((Meta.Deprecated,_,_) as meta,e1) ->

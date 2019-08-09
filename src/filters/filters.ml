@@ -385,6 +385,17 @@ let rec fix_return_dynamic_from_void_function ctx return_is_void e =
 		}
 	| _ -> Type.map_expr (fix_return_dynamic_from_void_function ctx return_is_void) e
 
+let check_abstract_as_value e =
+	let rec loop e =
+		match e.eexpr with
+		| TField ({ eexpr = TTypeExpr _ }, _) -> ()
+		| TTypeExpr(TClassDecl {cl_kind = KAbstractImpl a}) when not (Meta.has Meta.RuntimeValue a.a_meta) ->
+			error "Cannot use abstract as value" e.epos
+		| _ -> Type.iter loop e
+	in
+	loop e;
+	e
+
 (* PASS 1 end *)
 
 (* Saves a class state so it can be restored later, e.g. after DCE or native path rewrite *)
@@ -816,14 +827,28 @@ end
 let run com tctx main =
 	let detail_times = Common.raw_defined com "filter-times" in
 	let new_types = List.filter (fun t ->
-		(match t with
+		let cached = is_cached t in
+		begin match t with
 			| TClassDecl cls ->
 				List.iter (fun (iface,_) -> add_descendant iface cls) cls.cl_implements;
-				(match cls.cl_super with
+				begin match cls.cl_super with
 					| Some (csup,_) -> add_descendant csup cls
-					| None -> ())
-			| _ -> ());
-		not (is_cached t)
+					| None -> ()
+				end;
+				(* Save cf_expr_unoptimized early: We want to inline with the original expression
+				   on the next compilation. *)
+				if not cached then begin
+					let field cf = match cf.cf_expr with
+						| Some {eexpr = TFunction tf} -> cf.cf_expr_unoptimized <- Some tf
+						| _ -> ()
+					in
+					List.iter field cls.cl_ordered_fields;
+					List.iter field cls.cl_ordered_statics;
+					Option.may field cls.cl_constructor;
+				end;
+			| _ -> ()
+		end;
+		not cached
 	) com.types in
 	NullSafety.run com new_types;
 	(* PASS 1: general expression filters *)
@@ -838,6 +863,7 @@ let run com tctx main =
 	let filters = [
 		fix_return_dynamic_from_void_function tctx true;
 		check_local_vars_init;
+		check_abstract_as_value;
 		if Common.defined com Define.OldConstructorInline then Optimizer.inline_constructors tctx else InlineConstructors.inline_constructors tctx;
 		Optimizer.reduce_expression tctx;
 		CapturedVars.captured_vars com;
