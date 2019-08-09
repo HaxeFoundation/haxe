@@ -1355,7 +1355,7 @@ and handle_efield ctx e p mode =
 									(* if there was no module name part, last guess is that we're trying to get package completion *)
 									if ctx.in_display then begin
 										if ctx.com.json_out = None then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None,false,p))
-										else raise_fields (DisplayToplevel.collect ctx TKType WithType.no_value) CRTypeHint (Some p0);
+										else raise_fields (DisplayToplevel.collect ctx TKType WithType.no_value) (CRToplevel None) (Some p0);
 									end;
 									raise e)
 		in
