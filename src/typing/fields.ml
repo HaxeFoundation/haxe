@@ -136,7 +136,29 @@ let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
+let check_no_closure_meta ctx fa mode p =
+	if mode <> MCall && not (DisplayPosition.display_position#enclosed_in p) then begin
+		let check_field f cl_meta =
+			match f.cf_kind with
+			| Method _ ->
+				if
+					Meta.has Meta.NoClosure cl_meta
+					|| Meta.has Meta.NoClosure f.cf_meta
+				then
+					error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
+			| _ -> ()
+		in
+		match fa with
+		| FStatic (c, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FInstance (c, _, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FClosure (Some (c, _), ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FClosure (None, ({ cf_kind = Method _} as f)) -> check_field f []
+		| FAnon ({ cf_kind = Method _} as f) -> check_field f []
+		| _ -> ()
+	end
+
 let field_access ctx mode f fmode t e p =
+	check_no_closure_meta ctx fmode mode p;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =

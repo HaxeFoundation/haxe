@@ -719,6 +719,12 @@
 		"links": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
+		"name": "NoClosure",
+		"metadata": ":noClosure",
+		"doc": "Prevents a method or all methods in a class from being used as a value.",
+		"targets": ["TClass", "TClassField"]
+	},
+	{
 		"name": "NoDebug",
 		"metadata": ":noDebug",
 		"doc": "Does not generate debug information even if `--debug` is set.",
