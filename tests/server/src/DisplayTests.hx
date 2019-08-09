@@ -5,6 +5,24 @@ import haxe.display.FsPath;
 @:timeout(5000)
 // TODO: somebody has to clean this up
 class DisplayTests extends HaxeServerTestCase {
+	function testIssue7317() {
+		var content = 'class Main {
+	public static function main() {
+		var obj = {};
+		obj.{-1-}
+	}
+}';
+		var transform = Marker.extractMarkers(content);
+		vfs.putContent("Main.hx", transform.source);
+		runHaxeJson([], DisplayMethods.Completion, {
+			file: new FsPath("Main.hx"),
+			offset: transform.markers[1],
+			wasAutoTriggered: true
+		});
+		var result = parseCompletion();
+		Assert.equals("obj", result.result.mode.args.item.args.name);
+	}
+
 	function testIssue8061() {
 		var content = 'class Main {
 	static function main() {
