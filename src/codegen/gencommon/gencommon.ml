@@ -947,12 +947,12 @@ let dump_descriptor gen name path_s module_s =
 				file
 	in
 	if Common.platform gen.gcon Java then
-		List.iter (fun (s,std,_,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".jar");
+		List.iter (fun java_lib ->
+			if not (java_lib#has_flag NativeLibraries.FlagIsStd) then begin
+				SourceWriter.write w (path java_lib#get_file_path ".jar");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.java_libs
+		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
 		List.iter (fun (s,std,_,_) ->
 			if not std then begin

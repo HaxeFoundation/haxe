@@ -21,6 +21,7 @@ open Ast
 open Type
 open Globals
 open Define
+open NativeLibraries
 
 type package_rule =
 	| Forbidden
@@ -206,8 +207,8 @@ type context = {
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
-	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
 	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
+	mutable native_libs : native_libraries;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
@@ -438,9 +439,11 @@ let create version s_version args =
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		swf_libs = [];
-		java_libs = [];
 		net_libs = [];
 		net_std = [];
+		native_libs = {
+			java_libs = [];
+		};
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];

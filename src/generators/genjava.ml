@@ -962,12 +962,12 @@ let rec get_fun_modifiers meta access modifiers =
 
 let generate con =
 	let exists = ref false in
-	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
-		if String.ends_with file "hxjava-std.jar" then begin
+	List.iter (fun java_lib ->
+		if String.ends_with java_lib#get_file_path "hxjava-std.jar" then begin
 			exists := true;
-			(file,true,close,la,gr)
-		end else
-			(file,std,close,la,gr)) con.java_libs;
+			java_lib#add_flag NativeLibraries.FlagIsStd;
+		end;
+	) con.native_libs.java_libs;
 	if not !exists then
 		failwith "Your version of hxjava is outdated. Please update it by running: `haxelib update hxjava`";
 	let gen = new_ctx con in

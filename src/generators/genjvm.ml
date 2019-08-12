@@ -3026,13 +3026,13 @@ let generate com =
 		}
 	} in
 	Std.finally (Timer.timer ["generate";"java";"preprocess"]) Preprocessor.preprocess gctx;
-	let class_paths = ExtList.List.filter_map (fun (file,std,_,_,_) ->
-		if std then None
+	let class_paths = ExtList.List.filter_map (fun java_lib ->
+		if java_lib#has_flag NativeLibraries.FlagIsStd then None
 		else begin
 			let dir = Printf.sprintf "%slib/" jar_dir in
 			Path.mkdir_from_path dir;
-			let name = file_name_and_extension file in
-			let ch_in = open_in_bin file in
+			let name = file_name_and_extension java_lib#get_file_path in
+			let ch_in = open_in_bin java_lib#get_file_path in
 			let ch_out = open_out_bin (Printf.sprintf "%s%s" dir name) in
 			let b = IO.read_all (IO.input_channel ch_in) in
 			output_string ch_out b;
@@ -3040,7 +3040,7 @@ let generate com =
 			close_out ch_out;
 			Some (Printf.sprintf "lib/%s" name)
 		end
-	) com.java_libs in
+	) com.native_libs.java_libs in
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^
 		(match class_paths with [] -> "" | _ -> "Class-Path: " ^ (String.concat " " class_paths ^ "\n")) ^

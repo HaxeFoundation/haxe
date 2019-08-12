@@ -254,8 +254,8 @@ module Initialize = struct
 			| Java ->
 				let old_flush = ctx.flush in
 				ctx.flush <- (fun () ->
-					List.iter (fun (_,_,close,_,_) -> close()) com.java_libs;
-					com.java_libs <- [];
+					List.iter (fun java_lib -> java_lib#close) com.native_libs.java_libs;
+					com.native_libs.java_libs <- [];
 					old_flush()
 				);
 				Java.before_generate com;
@@ -812,10 +812,10 @@ try
 				List.iter (fun (_,_,extract) ->
 					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
-				List.iter (fun (_,std,_,all_files,_) ->
-					if not std then
-						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) (all_files())
-				) com.java_libs;
+				List.iter (fun java_lib ->
+					if not (java_lib#has_flag NativeLibraries.FlagIsStd) then
+						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) java_lib#list_modules
+				) com.native_libs.java_libs;
 				List.iter (fun (_,std,all_files,_) ->
 					if not std then
 						List.iter (fun path -> classes := path :: !classes) (all_files())
