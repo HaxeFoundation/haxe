@@ -22,6 +22,8 @@
 
 package haxe;
 
+import haxe.io.Bytes;
+
 typedef Http = HttpFlash;
 
 class HttpFlash extends haxe.http.HttpBase {
@@ -39,12 +41,12 @@ class HttpFlash extends haxe.http.HttpBase {
 	}
 
 	public override function request(?post:Bool) {
-		responseData = null;
+		responseBytes = null;
 		var loader = req = new flash.net.URLLoader();
+		loader.dataFormat = BINARY;
 		loader.addEventListener("complete", function(e) {
 			req = null;
-			responseData = loader.data;
-			onData(loader.data);
+			success(Bytes.ofData(loader.data));
 		});
 		loader.addEventListener("httpStatus", function(e:flash.events.HTTPStatusEvent) {
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
@@ -53,7 +55,7 @@ class HttpFlash extends haxe.http.HttpBase {
 		});
 		loader.addEventListener("ioError", function(e:flash.events.IOErrorEvent) {
 			req = null;
-			responseData = loader.data;
+			responseBytes = Bytes.ofData(loader.data);
 			onError(e.text);
 		});
 		loader.addEventListener("securityError", function(e:flash.events.SecurityErrorEvent) {
@@ -85,6 +87,9 @@ class HttpFlash extends haxe.http.HttpBase {
 
 		if (postData != null) {
 			request.data = postData;
+			request.method = "POST";
+		} else if (postBytes != null) {
+			request.data = postBytes.getData();
 			request.method = "POST";
 		} else {
 			request.data = vars;

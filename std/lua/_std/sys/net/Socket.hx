@@ -25,7 +25,9 @@ package sys.net;
 import lua.lib.luasocket.Socket as LuaSocket;
 import lua.lib.luasocket.socket.*;
 import lua.*;
+
 import haxe.io.Bytes;
+import haxe.io.Error;
 
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
@@ -223,16 +225,17 @@ class Socket {
 }
 
 private class SocketInput extends haxe.io.Input {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function readByte():Int {
-		var res = s.receive(1);
-		if (res.message == "closed")
+		var res = tcp.receive(1);
+		if (res.message == "closed"){
 			throw new haxe.io.Eof();
+		}
 		else if (res.message != null)
 			throw 'Error : ${res.message}';
 		return res.result.charCodeAt(0);
@@ -258,16 +261,37 @@ private class SocketInput extends haxe.io.Input {
 		}
 		return readCount;
 	}
+
 }
 
 private class SocketOutput extends haxe.io.Output {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function writeByte(c:Int):Void {
-		s.send(String.fromCharCode(c));
+		var char = NativeStringTools.char(c);
+		var res = tcp.send(char);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
 	}
+
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw Error.OutsideBounds;
+		var b = s.getData().slice(pos, pos +len).map(function(byte){
+			return lua.NativeStringTools.char(byte);
+		});
+		var encoded = Table.concat(cast b, 0);
+		var res = tcp.send(encoded);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
+
+		return len;
+	}
+
 }
