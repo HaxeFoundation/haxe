@@ -954,12 +954,12 @@ let dump_descriptor gen name path_s module_s =
 			end
 		) gen.gcon.native_libs.java_libs
 	else if Common.platform gen.gcon Cs then
-		List.iter (fun (s,std,_,_) ->
-			if not std then begin
-				SourceWriter.write w (path s ".dll");
+		List.iter (fun net_lib ->
+			if not (net_lib#has_flag NativeLibraries.FlagIsStd) then begin
+				SourceWriter.write w (path net_lib#get_name ".dll");
 				SourceWriter.newline w;
 			end
-		) gen.gcon.net_libs;
+		) gen.gcon.native_libs.net_libs;
 	SourceWriter.write w "end libs";
 	SourceWriter.newline w;
 	let args = gen.gcon.c_args in

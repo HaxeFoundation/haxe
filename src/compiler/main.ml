@@ -246,7 +246,7 @@ module Initialize = struct
 			| Cs ->
 				let old_flush = ctx.flush in
 				ctx.flush <- (fun () ->
-					com.net_libs <- [];
+					com.native_libs.net_libs <- [];
 					old_flush()
 				);
 				Dotnet.before_generate com;
@@ -816,10 +816,10 @@ try
 					if not (java_lib#has_flag NativeLibraries.FlagIsStd) then
 						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) java_lib#list_modules
 				) com.native_libs.java_libs;
-				List.iter (fun (_,std,all_files,_) ->
-					if not std then
-						List.iter (fun path -> classes := path :: !classes) (all_files())
-				) com.net_libs;
+				List.iter (fun net_lib ->
+					if not (net_lib#has_flag NativeLibraries.FlagIsStd) then
+						List.iter (fun path -> classes := path :: !classes) net_lib#list_modules
+				) com.native_libs.net_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
 		end;

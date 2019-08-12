@@ -3347,15 +3347,16 @@ let generate con =
 		let hashes = Hashtbl.fold (fun i s acc -> incr nhash; (normalize_i i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
 		let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
 
-		let haxe_libs = List.filter (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "DceNo"))) gen.gcon.net_libs in
+		let haxe_libs = List.filter (function net_lib -> is_some (net_lib#lookup (["haxe";"lang"], "DceNo"))) gen.gcon.native_libs.net_libs in
 		(try
 			(* first let's see if we're adding a -net-lib that has already a haxe.lang.FieldLookup *)
-			let name,_,_,_ = List.find (function (_,_,_,lookup) -> is_some (lookup (["haxe";"lang"], "FieldLookup"))) gen.gcon.net_libs in
+			let net_lib = List.find (function net_lib -> is_some (net_lib#lookup (["haxe";"lang"], "FieldLookup"))) gen.gcon.native_libs.net_libs in
+			let name = net_lib#get_name in
 			if not (Common.defined gen.gcon Define.DllImport) then begin
 				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly. Please define `-D dll_import` to handle Haxe-generated dll import correctly") null_pos;
 				raise Not_found
 			end;
-			if not (List.exists (function (n,_,_,_) -> n = name) haxe_libs) then
+			if not (List.exists (function net_lib -> net_lib#get_name = name) haxe_libs) then
 				gen.gcon.warning ("The -net-lib with path " ^ name ^ " contains a Haxe-generated assembly, however it wasn't compiled with `-dce no`. Recompilation with `-dce no` is recommended") null_pos;
 			(* it has; in this case, we need to add the used fields on each __init__ *)
 			flookup_cl.cl_extern <- true;
@@ -3407,8 +3408,8 @@ let generate con =
 						| (p,_) -> p
 					in
 					let path = (pack, snd c.cl_path ^ extra) in
-					ignore (List.find (function (_,_,_,lookup) ->
-						is_some (lookup path)) haxe_libs);
+					ignore (List.find (function net_lib ->
+						is_some (net_lib#lookup path)) haxe_libs);
 					c.cl_extern <- true;
 				with | Not_found -> ())
 				| _ -> ()) gen.gtypes

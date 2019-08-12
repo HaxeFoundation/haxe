@@ -891,8 +891,8 @@ let get_classes_zip zip =
 	) (Zip.entries zip);
 	!ret
 
-class virtual java_library file_path = object(self)
-	inherit [java_lib_type] native_library file_path as super
+class virtual java_library name file_path = object(self)
+	inherit [java_lib_type] native_library name file_path as super
 
 	val hxpack_to_jpack = Hashtbl.create 16
 
@@ -900,8 +900,8 @@ class virtual java_library file_path = object(self)
 		Hashtbl.find hxpack_to_jpack path
 end
 
-class java_library_jar com file_path = object(self)
-	inherit java_library file_path
+class java_library_jar com name file_path = object(self)
+	inherit java_library name file_path
 
 	val zip = Zip.open_in file_path
 	val mutable cached_files = None
@@ -982,8 +982,8 @@ class java_library_jar com file_path = object(self)
 			r
 end
 
-class java_library_dir com file_path = object(self)
-	inherit java_library file_path
+class java_library_dir com name file_path = object(self)
+	inherit java_library name file_path
 
 	val mutable files = []
 
@@ -1022,19 +1022,19 @@ class java_library_dir com file_path = object(self)
 			| _ -> None
 end
 
-let add_java_lib com file std =
-	let file = if Sys.file_exists file then
-		file
-	else try Common.find_file com file with
-		| Not_found -> try Common.find_file com (file ^ ".jar") with
+let add_java_lib com name std =
+	let file = if Sys.file_exists name then
+		name
+	else try Common.find_file com name with
+		| Not_found -> try Common.find_file com (name ^ ".jar") with
 		| Not_found ->
-			failwith ("Java lib " ^ file ^ " not found")
+			failwith ("Java lib " ^ name ^ " not found")
 	in
 	let java_lib = match (Unix.stat file).st_kind with
 		| S_DIR ->
-			(new java_library_dir com file :> java_library)
+			(new java_library_dir com name file :> java_library)
 		| _ ->
-			(new java_library_jar com file :> java_library)
+			(new java_library_jar com name file :> java_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
 	java_lib#load;
