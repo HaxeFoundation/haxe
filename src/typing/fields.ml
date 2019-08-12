@@ -352,7 +352,7 @@ let rec using_field ctx mode e i p =
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field cfg ctx e i p mode =
-	let pfield = if (e.epos = p) then p else {p with pmin = e.epos.pmax + 1} in
+	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
 	let no_field() =
 		if TypeFieldConfig.do_resume cfg then raise Not_found;
 		let t = match follow e.etype with
