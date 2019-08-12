@@ -1053,7 +1053,7 @@ end
 class java_library_jar com name file_path = object(self)
 	inherit java_library name file_path
 
-	val zip = Zip.open_in file_path
+	val zip = lazy (Zip.open_in file_path)
 	val mutable cached_files = None
 	val cached_types = Hashtbl.create 12
 	val mutable closed = false
@@ -1069,10 +1069,11 @@ class java_library_jar com name file_path = object(self)
 						let pack = List.rev pack in
 						Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
 			| _ -> ()
-		) (Zip.entries zip)
+		) (Zip.entries (Lazy.force zip))
 
 	method private lookup' ((pack,name) : path) : java_lib_type =
 		try
+			let zip = Lazy.force zip in
 			let location = (String.concat "/" (pack @ [name]) ^ ".class") in
 			let entry = Zip.find_entry zip location in
 			let data = Zip.read_entry zip entry in
@@ -1104,7 +1105,7 @@ class java_library_jar com name file_path = object(self)
 	method close =
 		if not closed then begin
 			closed <- true;
-			Zip.close_in zip
+			Zip.close_in (Lazy.force zip)
 		end
 
 	method private list_modules' : path list =
@@ -1120,7 +1121,7 @@ class java_library_jar com name file_path = object(self)
 					| _ ->
 							ret := ([], jname_to_hx f) :: !ret)
 			| _ -> ()
-		) (Zip.entries zip);
+		) (Zip.entries (Lazy.force zip));
 		!ret
 
 	method list_modules : path list = match cached_files with
