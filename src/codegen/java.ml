@@ -779,7 +779,7 @@ let normalize_jclass com cls =
 				List.iter (fun jf ->
 					if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && jf.jf_signature = jf2.jf_signature) all_methods) then begin
 						let jf = if abstract && force_check then del_override jf else jf in
-						let jf = { jf with jf_flags = JPublic :: jf.jf_flags } in (* interfaces implementations are always public *)
+						let jf = if not (List.mem JPublic jf.jf_flags) then { jf with jf_flags = JPublic :: jf.jf_flags } else jf in (* interfaces implementations are always public *)
 
 						added_interface_fields := jf :: !added_interface_fields;
 					end
