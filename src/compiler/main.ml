@@ -809,17 +809,13 @@ try
 			(* TODO: this is something we're gonna remove once we have something nicer for generating flash externs *)
 			force_typing := true;
 			pre_compilation := (fun() ->
-				List.iter (fun swf_lib ->
-					List.iter (fun n -> classes := n :: !classes) swf_lib#list_modules
-				) com.native_libs.swf_libs;
-				List.iter (fun java_lib ->
-					if not (java_lib#has_flag NativeLibraries.FlagIsStd) then
-						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) java_lib#list_modules
-				) com.native_libs.java_libs;
-				List.iter (fun net_lib ->
-					if not (net_lib#has_flag NativeLibraries.FlagIsStd) then
-						List.iter (fun path -> classes := path :: !classes) net_lib#list_modules
-				) com.native_libs.net_libs;
+				let process_lib lib =
+					if not (lib#has_flag NativeLibraries.FlagIsStd) then
+						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) lib#list_modules
+				in
+				List.iter process_lib com.native_libs.net_libs;
+				List.iter process_lib com.native_libs.swf_libs;
+				List.iter process_lib com.native_libs.java_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
 		end;

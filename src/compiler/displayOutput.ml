@@ -444,7 +444,7 @@ module TypePathHandler = struct
 				end;
 			) r;
 		) com.class_path;
-		List.iter (fun swf_lib ->
+		let process_lib lib =
 			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else
 				let rec loop p1 p2 =
@@ -454,32 +454,11 @@ module TypePathHandler = struct
 					| a :: p1, b :: p2 -> if a = b then loop p1 p2
 				in
 				loop path p
-			) swf_lib#list_modules;
-		) com.native_libs.swf_libs;
-		List.iter (fun java_lib ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-				loop path p
-			) java_lib#list_modules
-		) com.native_libs.java_libs;
-		List.iter (fun net_lib ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-			loop path p
-			) net_lib#list_modules
-		) com.native_libs.net_libs;
+			) lib#list_modules;
+		in
+		List.iter process_lib com.native_libs.swf_libs;
+		List.iter process_lib com.native_libs.net_libs;
+		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 
 	(** raise field completion listing packages and modules in a given package *)
