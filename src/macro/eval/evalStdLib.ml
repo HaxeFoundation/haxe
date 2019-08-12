@@ -3544,7 +3544,7 @@ module StdUv = struct
 		)
 		let getName fn = vifun0 (fun vthis ->
 			let this = this vthis in
-			let addr = wrap_sync (fn this) in
+			let addr : Uv.uv_ip_address_port = wrap_sync (fn this) in
 			match addr with
 				| {address; port} ->
 					encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with

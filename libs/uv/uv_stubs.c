@@ -45,6 +45,8 @@
 #define Stream_val(v) UV_UNWRAP(v, uv_stream_t)
 #define Tcp_val(v) UV_UNWRAP(v, uv_tcp_t)
 #define Timer_val(v) UV_UNWRAP(v, uv_timer_t)
+#define Udp_val(v) UV_UNWRAP(v, uv_udp_t)
+#define UdpSend_val(v) UV_UNWRAP(v, uv_udp_send_t)
 #define Write_val(v) UV_UNWRAP(v, uv_write_t)
 
 // (no-op) typecast to juggle value and uv_file (which is an unboxed integer)
@@ -376,6 +378,10 @@ typedef struct {
 			value cb_connection;
 		} tcp;
 		struct {
+			value cb_read;
+			value unused1;
+		} udp;
+		struct {
 			value cb_timer;
 			value unused1;
 		} timer;
@@ -402,6 +408,17 @@ static uv_w_handle_t *alloc_data_tcp(value cb_read, value cb_connection) {
 		caml_register_global_root(&(data->u.tcp.cb_read));
 		data->u.tcp.cb_connection = cb_connection;
 		caml_register_global_root(&(data->u.tcp.cb_connection));
+	}
+	return data;
+}
+
+static uv_w_handle_t *alloc_data_udp(value cb_read) {
+	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
+	if (data != NULL) {
+		data->cb_close = Val_unit;
+		caml_register_global_root(&(data->cb_close));
+		data->u.udp.cb_read = cb_read;
+		caml_register_global_root(&(data->u.udp.cb_read));
 	}
 	return data;
 }
@@ -735,6 +752,103 @@ CAMLprim value w_tcp_read_start(value handle, value cb) {
 
 CAMLprim value w_tcp_read_stop(value handle) {
 	return w_read_stop(handle);
+}
+
+// ------------- UDP ------------------------------------------------
+
+static void handle_udp_cb_recv(uv_udp_t *handle, long int nread, const uv_buf_t *buf, const struct sockaddr *addr, unsigned int flags) {
+	CAMLparam0();
+	CAMLlocal2(cb, res);
+	cb = UV_HANDLE_DATA_SUB(handle, udp).cb_read;
+	res = caml_alloc(1, nread < 0 ? 0 : 1);
+	if (nread < 0)
+		Store_field(res, 0, Val_int(nread));
+	else {
+		CAMLlocal4(message, message_addr, message_addr_store, bytes);
+		message = caml_alloc(3, 0);
+		// FIXME: see comment in `handle_stream_cb_read`.
+		bytes = caml_alloc_string(nread);
+		if (buf->base != NULL) {
+			if (nread > 0)
+				memcpy(&Byte(bytes, 0), buf->base, nread);
+			free(buf->base);
+		}
+		Store_field(message, 0, bytes);
+		if (addr->sa_family == AF_INET) {
+			message_addr = caml_alloc(1, 0);
+			Store_field(message_addr, 0, caml_copy_int32(ntohl(((struct sockaddr_in *)addr)->sin_addr.s_addr)));
+			Store_field(message, 2, Val_int(ntohs(((struct sockaddr_in *)addr)->sin_port)));
+		} else if (addr->sa_family == AF_INET6) {
+			message_addr = caml_alloc(1, 1);
+			message_addr_store = caml_alloc_string(sizeof(struct in6_addr));
+			memcpy(&Byte(message_addr_store, 0), ((struct sockaddr_in6 *)addr)->sin6_addr.s6_addr, sizeof(struct in6_addr));
+			Store_field(message_addr, 0, message_addr_store);
+			Store_field(message, 2, Val_int(ntohs(((struct sockaddr_in6 *)addr)->sin6_port)));
+		}
+		Store_field(message, 1, message_addr);
+		Store_field(res, 0, message);
+	}
+	caml_callback(cb, res);
+	CAMLreturn0;
+}
+
+CAMLprim value w_udp_init(value loop) {
+	CAMLparam1(loop);
+	UV_ALLOC_CHECK(handle, uv_udp_t);
+	UV_ERROR_CHECK_C(uv_udp_init(Loop_val(loop), Udp_val(handle)), free(Udp_val(handle)));
+	UV_HANDLE_DATA(Udp_val(handle)) = alloc_data_udp(Val_unit);
+	if (UV_HANDLE_DATA(Udp_val(handle)) == NULL)
+		UV_ERROR(0);
+	UV_SUCCESS(handle);
+}
+
+CAMLprim value w_udp_bind_ipv4(value handle, value host, value port) {
+	CAMLparam3(handle, host, port);
+	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_ERROR_CHECK(uv_udp_bind(Udp_val(handle), (const struct sockaddr *)&addr, 0));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_udp_bind_ipv6(value handle, value host, value port, value ipv6only) {
+	CAMLparam3(handle, host, port);
+	UV_SOCKADDR_IPV6(addr, &Byte(host, 0), Int_val(port));
+	UV_ERROR_CHECK(uv_udp_bind(Udp_val(handle), (const struct sockaddr *)&addr, Bool_val(ipv6only) ? UV_TCP_IPV6ONLY : 0));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_udp_send_ipv4(value handle, value data, value host, value port, value cb) {
+	CAMLparam5(handle, data, host, port, cb);
+	UV_SOCKADDR_IPV4(addr, Int_val(host), Int_val(port));
+	UV_ALLOC_CHECK(req, uv_udp_send_t);
+	UV_REQ_DATA(UdpSend_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(UdpSend_val(req)));
+	uv_buf_t buf = uv_buf_init(&Byte(data, 0), caml_string_length(data));
+	UV_ERROR_CHECK_C(uv_udp_send(UdpSend_val(req), Udp_val(handle), &buf, 1, (const struct sockaddr *)&addr, (void (*)(uv_udp_send_t *, int))handle_stream_cb), free(UdpSend_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_udp_send_ipv6(value handle, value data, value host, value port, value cb) {
+	CAMLparam5(handle, data, host, port, cb);
+	UV_SOCKADDR_IPV6(addr, &Byte(host, 0), Int_val(port));
+	UV_ALLOC_CHECK(req, uv_udp_send_t);
+	UV_REQ_DATA(UdpSend_val(req)) = (void *)cb;
+	caml_register_global_root(UV_REQ_DATA_A(UdpSend_val(req)));
+	uv_buf_t buf = uv_buf_init(&Byte(data, 0), caml_string_length(data));
+	UV_ERROR_CHECK_C(uv_udp_send(UdpSend_val(req), Udp_val(handle), &buf, 1, (const struct sockaddr *)&addr, (void (*)(uv_udp_send_t *, int))handle_stream_cb), free(UdpSend_val(req)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_udp_recv_start(value handle, value cb) {
+	CAMLparam2(handle, cb);
+	UV_HANDLE_DATA_SUB(Udp_val(handle), udp).cb_read = cb;
+	UV_ERROR_CHECK(uv_udp_recv_start(Udp_val(handle), handle_stream_cb_alloc, handle_udp_cb_recv));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_udp_recv_stop(value handle) {
+	CAMLparam1(handle);
+	UV_ERROR_CHECK(uv_udp_recv_stop(Udp_val(handle)));
+	UV_SUCCESS_UNIT;
 }
 
 // ------------- DNS ------------------------------------------------

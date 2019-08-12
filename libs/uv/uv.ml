@@ -187,6 +187,24 @@ external tcp_write : t_tcp -> bytes -> unit_cb -> unit uv_result = "w_tcp_write"
 external tcp_read_start : t_tcp -> stream_bytes_cb -> unit uv_result = "w_tcp_read_start"
 external tcp_read_stop : t_tcp -> unit uv_result = "w_tcp_read_stop"
 
+(* ------------- UDP ------------------------------------------------ *)
+
+type udp_message = {
+	data: bytes;
+	address: uv_ip_address;
+	port: int;
+}
+
+type udp_read_cb = udp_message uv_result -> unit
+
+external udp_init : t_loop -> t_udp uv_result = "w_udp_init"
+external udp_bind_ipv4 : t_udp -> int -> int -> unit uv_result = "w_udp_bind_ipv4"
+external udp_bind_ipv6 : t_udp -> bytes -> int -> bool -> unit uv_result = "w_udp_bind_ipv6"
+external udp_send_ipv4 : t_udp -> bytes -> int -> int -> unit_cb -> unit uv_result = "w_udp_send_ipv4"
+external udp_send_ipv6 : t_udp -> bytes -> bytes -> int -> unit_cb -> unit uv_result = "w_udp_send_ipv6"
+external udp_recv_start : t_udp -> udp_read_cb -> unit uv_result = "w_udp_recv_start"
+external udp_recv_stop : t_udp -> unit uv_result = "w_udp_recv_stop"
+
 (* ------------- DNS ------------------------------------------------ *)
 
 type dns_gai_cb = (uv_ip_address list) uv_result -> unit
