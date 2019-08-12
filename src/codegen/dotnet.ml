@@ -1170,6 +1170,41 @@ class net_library com name file_path std = object(self)
 			Hashtbl.add cache path None;
 			None
 
+	method build (path : path) : (string * Ast.package) option =
+		let p = { pfile = file_path ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
+		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
+		let cp = ref [] in
+		let rec build path = try
+			if PMap.mem "net_loader_debug" com.defines.Define.values then
+				Printf.printf "looking up %s\n" (s_type_path path);
+			match self#lookup path with
+			| Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
+				when List.mem SSealed cls.cflags.tdf_semantics ->
+				let ctx = self#get_ctx in
+				let hxcls = convert_ilclass ctx p ~delegate:true cls in
+				let delegate = convert_delegate ctx p cls in
+				cp := (hxcls,p) :: (delegate,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx std ilpath in
+					build path
+				) cls.cnested
+			| Some cls ->
+				let ctx = self#get_ctx in
+				let hxcls = convert_ilclass ctx p cls in
+				cp := (hxcls,p) :: !cp;
+				List.iter (fun ilpath ->
+					let path = netpath_to_hx std ilpath in
+					build path
+				) cls.cnested
+			| _ -> ()
+		with | Not_found | Exit ->
+			()
+		in
+		build path;
+		match !cp with
+			| [] -> None
+			| cp -> Some (file_path, (pack,cp))
+
 	method get_name : string = name
 
 	initializer
@@ -1185,44 +1220,8 @@ let add_net_lib com file std =
 			failwith (".NET lib " ^ file ^ " not found")
 	in
 	let net_lib = new net_library com file real_file std in
-	let get_ctx () = net_lib#get_ctx in
-	let build path =
-		let p = { pfile = real_file ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
-		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
-		let cp = ref [] in
-		let rec build path = try
-			if PMap.mem "net_loader_debug" com.defines.Define.values then
-				Printf.printf "looking up %s\n" (s_type_path path);
-			match net_lib#lookup path with
-			| Some({csuper = Some{snorm = LClass( (["System"],[],("Delegate"|"MulticastDelegate")),_)}} as cls)
-				when List.mem SSealed cls.cflags.tdf_semantics ->
-				let ctx = get_ctx() in
-				let hxcls = convert_ilclass ctx p ~delegate:true cls in
-				let delegate = convert_delegate ctx p cls in
-				cp := (hxcls,p) :: (delegate,p) :: !cp;
-				List.iter (fun ilpath ->
-					let path = netpath_to_hx std ilpath in
-					build path
-				) cls.cnested
-			| Some cls ->
-				let ctx = get_ctx() in
-				let hxcls = convert_ilclass ctx p cls in
-				cp := (hxcls,p) :: !cp;
-				List.iter (fun ilpath ->
-					let path = netpath_to_hx std ilpath in
-					build path
-				) cls.cnested
-			| _ -> ()
-		with | Not_found | Exit ->
-			()
-		in
-		build path;
-		match !cp with
-			| [] -> None
-			| cp -> Some (real_file, (pack,cp))
-	in
 	let build path p =
-		build path
+		net_lib#build path
 	in
 	com.load_extern_type <- com.load_extern_type @ [build];
 	com.native_libs.net_libs <- (net_lib :> net_lib_type native_library) :: com.native_libs.net_libs
