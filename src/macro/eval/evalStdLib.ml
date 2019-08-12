@@ -3172,7 +3172,7 @@ module StdUv = struct
 			wrap_sync (Uv.fs_fdatasync_sync (loop ()) this);
 			vnull
 		)
-		let read = vifun4 (fun vthis buffer_i offset length position ->
+		let readBuffer = vifun4 (fun vthis buffer_i offset length position ->
 			let this = this vthis in
 			let buffer = decode_bytes buffer_i in
 			let offset = decode_int offset in
@@ -3206,7 +3206,7 @@ module StdUv = struct
 			wrap_sync (Uv.fs_futime_sync (loop ()) this atime mtime);
 			vnull
 		)
-		let write = vifun4 (fun vthis buffer_i offset length position ->
+		let writeBuffer = vifun4 (fun vthis buffer_i offset length position ->
 			let this = this vthis in
 			let buffer = decode_bytes buffer_i in
 			let offset = decode_int offset in
@@ -3246,7 +3246,7 @@ module StdUv = struct
 			wrap_sync (Uv.fs_fdatasync (loop ()) this (wrap_cb_unit cb));
 			vnull
 		)
-		let read = vifun5 (fun vthis buffer_i offset length position cb ->
+		let readBuffer = vifun5 (fun vthis buffer_i offset length position cb ->
 			let this = this vthis in
 			let buffer = decode_bytes buffer_i in
 			let offset = decode_int offset in
@@ -3284,7 +3284,7 @@ module StdUv = struct
 			wrap_sync (Uv.fs_futime (loop ()) this atime mtime (wrap_cb_unit cb));
 			vnull
 		)
-		let write = vifun5 (fun vthis buffer_i offset length position cb ->
+		let writeBuffer = vifun5 (fun vthis buffer_i offset length position cb ->
 			let this = this vthis in
 			let buffer = decode_bytes buffer_i in
 			let offset = decode_int offset in
@@ -4274,24 +4274,24 @@ let init_standard_library builtins =
 		"chown",StdUv.File.chown;
 		"close",StdUv.File.close;
 		"datasync",StdUv.File.datasync;
-		"read",StdUv.File.read;
+		"readBuffer",StdUv.File.readBuffer;
 		"stat",StdUv.File.stat;
 		"sync",StdUv.File.sync;
 		"truncate",StdUv.File.truncate;
 		"utimes_native",StdUv.File.utimes_native;
-		"write",StdUv.File.write;
+		"writeBuffer",StdUv.File.writeBuffer;
 	];
 	init_fields builtins (["nusys";"io"],"AsyncFile") [] [
 		"chmod",StdUv.AsyncFile.chmod;
 		"chown",StdUv.AsyncFile.chown;
 		"close",StdUv.AsyncFile.close;
 		"datasync",StdUv.AsyncFile.datasync;
-		"read",StdUv.AsyncFile.read;
+		"readBuffer",StdUv.AsyncFile.readBuffer;
 		"stat",StdUv.AsyncFile.stat;
 		"sync",StdUv.AsyncFile.sync;
 		"truncate",StdUv.AsyncFile.truncate;
 		"utimes_native",StdUv.AsyncFile.utimes_native;
-		"write",StdUv.AsyncFile.write;
+		"writeBuffer",StdUv.AsyncFile.writeBuffer;
 	];
 	init_fields builtins (["eval";"uv"],"DirectoryEntry") [] [
 		"get_name",StdUv.DirectoryEntry.get_name;
