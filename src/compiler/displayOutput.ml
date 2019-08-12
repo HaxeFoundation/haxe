@@ -444,8 +444,8 @@ module TypePathHandler = struct
 				end;
 			) r;
 		) com.class_path;
-		List.iter (fun (_,_,extract) ->
-			Hashtbl.iter (fun (path,name) _ ->
+		List.iter (fun swf_lib ->
+			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else
 				let rec loop p1 p2 =
 					match p1, p2 with
@@ -454,8 +454,8 @@ module TypePathHandler = struct
 					| a :: p1, b :: p2 -> if a = b then loop p1 p2
 				in
 				loop path p
-			) (extract());
-		) com.swf_libs;
+			) swf_lib#list_modules;
+		) com.native_libs.swf_libs;
 		List.iter (fun java_lib ->
 			List.iter (fun (path, name) ->
 				if path = p then classes := name :: !classes else

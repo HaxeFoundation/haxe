@@ -23,11 +23,11 @@ open ExtString
 type native_lib_flags =
 	| FlagIsStd
 
-class virtual ['a] native_library (name : string) (file_path : string) = object(self)
+class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
 	val mutable flags : native_lib_flags list = []
 
-	method add_flag (flag : 'b) = flags <- flag :: flags
-	method has_flag (flag : 'b) = List.mem flag flags
+	method add_flag flag = flags <- flag :: flags
+	method has_flag flag = List.mem flag flags
 
 	method get_name = name
 	method get_file_path = file_path
@@ -36,12 +36,15 @@ class virtual ['a] native_library (name : string) (file_path : string) = object(
 	method virtual list_modules : path list
 	method virtual load : unit
 	method virtual lookup : path -> 'a
+	method virtual get_data : 'data
 end
 
 type java_lib_type = (JData.jclass * string * string) option
 type net_lib_type = IlData.ilclass option
+type swf_lib_type = As3hl.hl_class option
 
 type native_libraries = {
-	mutable java_libs : java_lib_type native_library list;
-	mutable net_libs : net_lib_type native_library list;
+	mutable java_libs : (java_lib_type,unit) native_library list;
+	mutable net_libs : (net_lib_type,unit) native_library list;
+	mutable swf_libs : (swf_lib_type,Swf.swf) native_library list;
 }

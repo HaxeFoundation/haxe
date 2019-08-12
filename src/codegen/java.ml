@@ -892,7 +892,7 @@ let get_classes_zip zip =
 	!ret
 
 class virtual java_library name file_path = object(self)
-	inherit [java_lib_type] native_library name file_path as super
+	inherit [java_lib_type,unit] native_library name file_path as super
 
 	val hxpack_to_jpack = Hashtbl.create 16
 
@@ -1046,6 +1046,8 @@ class virtual java_library name file_path = object(self)
 				prerr_endline (Printexc.to_string e)
 			end;
 			None
+
+	method get_data = ()
 end
 
 class java_library_jar com name file_path = object(self)
@@ -1189,7 +1191,7 @@ let add_java_lib com name std =
 	let build path p = java_lib#build (create_ctx com) path p (ref [["java";"lang"], "String"]) in
 	(* TODO: add_dependency m mdep *)
 	com.load_extern_type <- com.load_extern_type @ [build];
-	com.native_libs.java_libs <- (java_lib :> java_lib_type native_library) :: com.native_libs.java_libs
+	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs
 
 let before_generate con =
 	let java_ver = try

@@ -206,7 +206,6 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
-	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	mutable native_libs : native_libraries;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
@@ -437,11 +436,11 @@ let create version s_version args =
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		swf_libs = [];
 		net_std = [];
 		native_libs = {
 			java_libs = [];
 			net_libs = [];
+			swf_libs = [];
 		};
 		net_path_map = Hashtbl.create 0;
 		c_args = [];

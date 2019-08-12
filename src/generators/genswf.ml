@@ -24,6 +24,7 @@ open Type
 open Common
 open Ast
 open Globals
+open NativeLibraries
 
 let tag ?(ext=false) d = {
 	tid = 0;
@@ -570,8 +571,8 @@ let generate swf_header com =
 	(* list exports *)
 	let exports = Hashtbl.create 0 in
 	let toremove = ref [] in
-	List.iter (fun (file,lib,_) ->
-		let _, tags = lib() in
+	List.iter (fun swf_lib ->
+		let _, tags = swf_lib#get_data in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
@@ -597,7 +598,7 @@ let generate swf_header com =
 				) el
 			| _ -> ()
 		) tags;
-	) com.swf_libs;
+	) com.native_libs.swf_libs;
 	(* build haxe swf *)
 	let tags = build_swf9 com file swc in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
@@ -638,11 +639,11 @@ let generate swf_header com =
 	let swf = header, fattr @ meta_data @ bg :: scene :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
 	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf (file,lib,cl) ->
-		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove lib cl) in
+	let swf = List.fold_left (fun swf swf_lib ->
+		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove swf_lib#get_data swf_lib#list_modules) in
 		priority := false;
 		swf
-	) swf com.swf_libs in
+	) swf com.native_libs.swf_libs in
 	let swf = match swf with
 	| header,tags when Common.defined com Define.SwfPreloaderFrame ->
 		let rec loop l =

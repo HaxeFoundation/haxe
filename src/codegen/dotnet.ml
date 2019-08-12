@@ -1111,7 +1111,7 @@ let add_net_std com file =
 	com.net_std <- file :: com.net_std
 
 class net_library com name file_path std = object(self)
-	inherit [net_lib_type] native_library name file_path
+	inherit [net_lib_type,unit] native_library name file_path
 
 	val mutable ilctx = None
 	val cache = Hashtbl.create 0
@@ -1205,7 +1205,7 @@ class net_library com name file_path std = object(self)
 			| [] -> None
 			| cp -> Some (file_path, (pack,cp))
 
-	method get_name : string = name
+	method get_data = ()
 
 	initializer
 		if std then self#add_flag FlagIsStd
@@ -1224,7 +1224,7 @@ let add_net_lib com file std =
 		net_lib#build path
 	in
 	com.load_extern_type <- com.load_extern_type @ [build];
-	com.native_libs.net_libs <- (net_lib :> net_lib_type native_library) :: com.native_libs.net_libs
+	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs
 
 let before_generate com =
 	(* netcore version *)

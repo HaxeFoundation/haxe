@@ -809,9 +809,9 @@ try
 			(* TODO: this is something we're gonna remove once we have something nicer for generating flash externs *)
 			force_typing := true;
 			pre_compilation := (fun() ->
-				List.iter (fun (_,_,extract) ->
-					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
-				) com.swf_libs;
+				List.iter (fun swf_lib ->
+					List.iter (fun n -> classes := n :: !classes) swf_lib#list_modules
+				) com.native_libs.swf_libs;
 				List.iter (fun java_lib ->
 					if not (java_lib#has_flag NativeLibraries.FlagIsStd) then
 						List.iter (fun path -> if path <> (["java";"lang"],"String") then classes := path :: !classes) java_lib#list_modules
