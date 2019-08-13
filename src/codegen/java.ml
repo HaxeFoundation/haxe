@@ -18,6 +18,7 @@
 *)
 open Unix
 open ExtString
+open NativeLibraries
 open Common
 open Globals
 open Ast
@@ -73,11 +74,11 @@ let real_java_path ctx (pack,name) =
 
 let lookup_jclass com path =
 	let path = jpath_to_hx path in
-	List.fold_right (fun (_,_,_,_,get_raw_class) acc ->
+	List.fold_right (fun java_lib acc ->
 		match acc with
-		| None -> get_raw_class path
+		| None -> java_lib#lookup path
 		| Some p -> Some p
-	) com.java_libs None
+	) com.native_libs.java_libs None
 
 let mk_type_path ctx path params =
 	let name, sub = try
@@ -778,7 +779,7 @@ let normalize_jclass com cls =
 				List.iter (fun jf ->
 					if not(List.mem JStatic jf.jf_flags) && not (List.exists (fun jf2 -> jf.jf_name = jf2.jf_name && not (List.mem JStatic jf2.jf_flags) && jf.jf_signature = jf2.jf_signature) all_methods) then begin
 						let jf = if abstract && force_check then del_override jf else jf in
-						let jf = { jf with jf_flags = JPublic :: jf.jf_flags } in (* interfaces implementations are always public *)
+						let jf = if not (List.mem JPublic jf.jf_flags) then { jf with jf_flags = JPublic :: jf.jf_flags } else jf in (* interfaces implementations are always public *)
 
 						added_interface_fields := jf :: !added_interface_fields;
 					end
@@ -890,101 +891,15 @@ let get_classes_zip zip =
 	) (Zip.entries zip);
 	!ret
 
-let add_java_lib com file std =
-	let file = if Sys.file_exists file then
-		file
-	else try Common.find_file com file with
-		| Not_found -> try Common.find_file com (file ^ ".jar") with
-		| Not_found ->
-			failwith ("Java lib " ^ file ^ " not found")
-	in
-	let hxpack_to_jpack = Hashtbl.create 16 in
-	let get_raw_class, close, list_all_files =
-		(* check if it is a directory or jar file *)
-		match (Unix.stat file).st_kind with
-		| S_DIR -> (* open classes directly from directory *)
-			let all = ref [] in
-			let rec iter_files pack dir path = try
-				let file = Unix.readdir dir in
-				let filepath = path ^ "/" ^ file in
-				(if String.ends_with file ".class" then
-					let name = String.sub file 0 (String.length file - 6) in
-					let path = jpath_to_hx (pack,name) in
-					if not (String.exists file "$") then all := path :: !all;
-					Hashtbl.add hxpack_to_jpack path (pack,name)
-				else if (Unix.stat filepath).st_kind = S_DIR && file <> "." && file <> ".." then
-					let pack = pack @ [file] in
-					iter_files (pack) (Unix.opendir filepath) filepath);
-				iter_files pack dir path
-			with | End_of_file | Unix.Unix_error _ ->
-				Unix.closedir dir
-			in
-			iter_files [] (Unix.opendir file) file;
-			let all = !all in
+class virtual java_library com name file_path = object(self)
+	inherit [java_lib_type,unit] native_library name file_path as super
 
-			(fun (pack, name) ->
-				let real_path = file ^ "/" ^ (String.concat "/" pack) ^ "/" ^ (name ^ ".class") in
-				try
-					let data = Std.input_file ~bin:true real_path in
-					Some(JReader.parse_class (IO.input_string data), real_path, real_path)
-				with
-					| _ -> None), (fun () -> ()), (fun () -> all)
-		| _ -> (* open zip file *)
-			let closed = ref false in
-			let zip = ref (Zip.open_in file) in
-			let check_open () =
-				if !closed then begin
-					prerr_endline ("JAR file " ^ file ^ " already closed"); (* if this happens, find when *)
-					zip := Zip.open_in file;
-					closed := false
-				end
-			in
-			List.iter (function
-				| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
-					let pack = String.nsplit filename "/" in
-					(match List.rev pack with
-						| [] -> ()
-						| name :: pack ->
-							let name = String.sub name 0 (String.length name - 6) in
-							let pack = List.rev pack in
-							Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
-				| _ -> ()
-			) (Zip.entries !zip);
-			(fun (pack, name) ->
-				check_open();
-				try
-					let location = (String.concat "/" (pack @ [name]) ^ ".class") in
-					let entry = Zip.find_entry !zip location in
-					let data = Zip.read_entry !zip entry in
-					Some(JReader.parse_class (IO.input_string data), file, file ^ "@" ^ location)
-				with
-					| Not_found ->
-						None),
-			(fun () -> if not !closed then begin closed := true; Zip.close_in !zip end),
-			(fun () -> check_open(); get_classes_zip !zip)
-	in
-	let cached_types = Hashtbl.create 12 in
-	let get_raw_class path =
-		try
-			Hashtbl.find cached_types path
-		with | Not_found -> try
-			let pack, name = Hashtbl.find hxpack_to_jpack path in
-			let try_file (pack,name) =
-				match get_raw_class (pack,name) with
-				| None ->
-						Hashtbl.add cached_types path None;
-						None
-				| Some (i, p1, p2) ->
-						Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
-						let ret = Some (normalize_jclass com i, p1, p2) in
-						Hashtbl.replace cached_types path ret;
-						ret
-			in
-			try_file (pack,name)
-		with Not_found ->
-			None
-	in
-	let replace_canonical_name p pack name_original name_replace decl =
+	val hxpack_to_jpack = Hashtbl.create 16
+
+	method convert_path (path : path) : path =
+		Hashtbl.find hxpack_to_jpack path
+
+	method private replace_canonical_name p pack name_original name_replace decl =
 		let mk_meta name = (Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst(String name), p], p) in
 		let add_meta name metas =
 			if Meta.has Meta.JavaCanonical metas then
@@ -1006,8 +921,9 @@ let add_java_lib com file std =
 			| EAbstract a ->
 				EAbstract { a with d_meta = add_meta (fst a.d_name) a.d_meta }
 			| d -> d
-	in
-	let rec build ctx path p types =
+
+	method build path (p : pos) : (string * Ast.package) option =
+		let rec build ctx path p types =
 		try
 			if List.mem path !types then
 				None
@@ -1018,14 +934,14 @@ let add_java_lib com file std =
 						false
 				in
 				types := path :: !types;
-				match get_raw_class path, path with
-				| None, ([], c) -> build ctx (["haxe";"root"], c) p types
+				match self#lookup path, path with
+					| None, ([], c) -> build ctx (["haxe";"root"], c) p types
 				| None, _ -> None
 				| Some (cls, real_path, pos_path), _ ->
 						let is_disallowed_inner = first && String.exists (snd cls.cpath) "$" in
 						let is_disallowed_inner = if is_disallowed_inner then begin
 								let outer, inner = String.split (snd cls.cpath) "$" in
-								match get_raw_class (fst path, outer) with
+								match self#lookup (fst path, outer) with
 									| None -> false
 									| _ -> true
 							end else
@@ -1034,7 +950,7 @@ let add_java_lib com file std =
 						if is_disallowed_inner then
 							None
 						else begin
-							if com.verbose then print_endline ("Parsed Java class " ^ (s_type_path cls.cpath));
+							if ctx.jcom.verbose then print_endline ("Parsed Java class " ^ (s_type_path cls.cpath));
 							let old_types = ctx.jtparams in
 							ctx.jtparams <- cls.ctypes :: ctx.jtparams;
 
@@ -1042,16 +958,16 @@ let add_java_lib com file std =
 
 							let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 
-							let ppath = Hashtbl.find hxpack_to_jpack path in
+							let ppath = self#convert_path path in
 							let inner = List.fold_left (fun acc (path,out,_,_) ->
 								let path = jpath_to_hx path in
 								(if out <> Some ppath then
 									acc
-								else match build ctx path p types with
+									else match build ctx path p types with
 									| Some(_,(_, classes)) ->
 										let base = snd ppath ^ "$" in
 										(List.map (fun (def,p) ->
-											replace_canonical_name p (fst ppath) base (snd ppath ^ ".") def, p) classes) @ acc
+											self#replace_canonical_name p (fst ppath) base (snd ppath ^ ".") def, p) classes) @ acc
 									| _ -> acc);
 							) [] cls.cinner_types in
 
@@ -1126,25 +1042,160 @@ let add_java_lib com file std =
 			prerr_endline ("Class reader failed: " ^ msg);
 			None
 		| e ->
-			if com.verbose then begin
+			if ctx.jcom.verbose then begin
 				(* prerr_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
 				prerr_endline (Printexc.to_string e)
 			end;
 			None
-	in
-	let build path p = build (create_ctx com) path p (ref [["java";"lang"], "String"]) in
-	let cached_files = ref None in
-	let list_all_files () = match !cached_files with
-		| None ->
-				let ret = list_all_files () in
-				cached_files := Some ret;
-				ret
-		| Some r -> r
-	in
+		in
+		build (create_ctx com) path p (ref [["java";"lang"], "String"])
 
+	method get_data = ()
+end
+
+class java_library_jar com name file_path = object(self)
+	inherit java_library com name file_path
+
+	val zip = lazy (Zip.open_in file_path)
+	val mutable cached_files = None
+	val cached_types = Hashtbl.create 12
+	val mutable closed = false
+
+	method load =
+		List.iter (function
+			| { Zip.is_directory = false; Zip.filename = filename } when String.ends_with filename ".class" ->
+				let pack = String.nsplit filename "/" in
+				(match List.rev pack with
+					| [] -> ()
+					| name :: pack ->
+						let name = String.sub name 0 (String.length name - 6) in
+						let pack = List.rev pack in
+						Hashtbl.add hxpack_to_jpack (jpath_to_hx (pack,name)) (pack,name))
+			| _ -> ()
+		) (Zip.entries (Lazy.force zip))
+
+	method private lookup' ((pack,name) : path) : java_lib_type =
+		try
+			let zip = Lazy.force zip in
+			let location = (String.concat "/" (pack @ [name]) ^ ".class") in
+			let entry = Zip.find_entry zip location in
+			let data = Zip.read_entry zip entry in
+			Some(JReader.parse_class (IO.input_string data), file_path, file_path ^ "@" ^ location)
+		with
+			| Not_found ->
+				None
+
+	method lookup (path : path) : java_lib_type =
+		try
+			Hashtbl.find cached_types path
+		with | Not_found -> try
+			let pack, name = self#convert_path path in
+			let try_file (pack,name) =
+				match self#lookup' (pack,name) with
+				| None ->
+						Hashtbl.add cached_types path None;
+						None
+				| Some (i, p1, p2) ->
+						Hashtbl.add cached_types path (Some(i,p1,p2)); (* type loop normalization *)
+						let ret = Some (normalize_jclass com i, p1, p2) in
+						Hashtbl.replace cached_types path ret;
+						ret
+			in
+			try_file (pack,name)
+		with Not_found ->
+			None
+
+	method close =
+		if not closed then begin
+			closed <- true;
+			Zip.close_in (Lazy.force zip)
+		end
+
+	method private list_modules' : path list =
+		let ret = ref [] in
+		List.iter (function
+			| { Zip.is_directory = false; Zip.filename = f } when (String.sub (String.uncapitalize f) (String.length f - 6) 6) = ".class" && not (String.exists f "$") ->
+					(match List.rev (String.nsplit f "/") with
+					| clsname :: pack ->
+						if not (String.contains clsname '$') then begin
+							let path = jpath_to_hx (List.rev pack, String.sub clsname 0 (String.length clsname - 6)) in
+							ret := path :: !ret
+						end
+					| _ ->
+							ret := ([], jname_to_hx f) :: !ret)
+			| _ -> ()
+		) (Zip.entries (Lazy.force zip));
+		!ret
+
+	method list_modules : path list = match cached_files with
+		| None ->
+			let ret = self#list_modules' in
+			cached_files <- Some ret;
+			ret
+		| Some r ->
+			r
+end
+
+class java_library_dir com name file_path = object(self)
+	inherit java_library com name file_path
+
+	val mutable files = []
+
+	method load =
+		let all = ref [] in
+		let rec iter_files pack dir path = try
+			let file = Unix.readdir dir in
+			let filepath = path ^ "/" ^ file in
+			(if String.ends_with file ".class" then
+				let name = String.sub file 0 (String.length file - 6) in
+				let path = jpath_to_hx (pack,name) in
+				if not (String.exists file "$") then all := path :: !all;
+				Hashtbl.add hxpack_to_jpack path (pack,name)
+			else if (Unix.stat filepath).st_kind = S_DIR && file <> "." && file <> ".." then
+				let pack = pack @ [file] in
+				iter_files (pack) (Unix.opendir filepath) filepath);
+			iter_files pack dir path
+		with | End_of_file | Unix.Unix_error _ ->
+			Unix.closedir dir
+		in
+		iter_files [] (Unix.opendir file_path) file_path;
+		files <- !all
+
+	method close =
+		()
+
+	method list_modules =
+		files
+
+	method lookup (pack,name) : java_lib_type =
+		let real_path = file_path ^ "/" ^ (String.concat "/" pack) ^ "/" ^ (name ^ ".class") in
+		try
+			let data = Std.input_file ~bin:true real_path in
+			Some(JReader.parse_class (IO.input_string data), real_path, real_path)
+		with
+			| _ -> None
+end
+
+let add_java_lib com name std =
+	let file = if Sys.file_exists name then
+		name
+	else try Common.find_file com name with
+		| Not_found -> try Common.find_file com (name ^ ".jar") with
+		| Not_found ->
+			failwith ("Java lib " ^ name ^ " not found")
+	in
+	let java_lib = match (Unix.stat file).st_kind with
+		| S_DIR ->
+			(new java_library_dir com name file :> java_library)
+		| _ ->
+			(new java_library_jar com name file :> java_library)
+	in
+	if std then java_lib#add_flag FlagIsStd;
+	java_lib#load;
+	let build path p = java_lib#build path p in
 	(* TODO: add_dependency m mdep *)
 	com.load_extern_type <- com.load_extern_type @ [build];
-	com.java_libs <- (file, std, close, list_all_files, get_raw_class) :: com.java_libs
+	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs
 
 let before_generate con =
 	let java_ver = try
