@@ -9,8 +9,10 @@ let warned_positions = Hashtbl.create 0
 
 let warn_deprecation com s p_usage =
 	if not (Hashtbl.mem warned_positions p_usage) then begin
-		Hashtbl.replace warned_positions p_usage true;
-		com.warning s p_usage;
+		Hashtbl.replace warned_positions p_usage s;
+		match com.display.dms_kind with
+		| DMDiagnostics _ -> ()
+		| _ -> com.warning s p_usage;
 	end
 
 let print_deprecation_message com meta s p_usage =

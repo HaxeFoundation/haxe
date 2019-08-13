@@ -70,6 +70,7 @@ module DiagnosticsKind = struct
 		| DKCompilerError
 		| DKRemovableCode
 		| DKParserError
+		| DKDeprecationWarning
 
 	let to_int = function
 		| DKUnusedImport -> 0
@@ -77,6 +78,7 @@ module DiagnosticsKind = struct
 		| DKCompilerError -> 2
 		| DKRemovableCode -> 3
 		| DKParserError -> 4
+		| DKDeprecationWarning -> 5
 end
 
 module CompletionResultKind = struct
