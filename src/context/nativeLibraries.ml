@@ -32,6 +32,7 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 	method get_name = name
 	method get_file_path = file_path
 
+	method virtual build : path -> pos -> (string * Ast.package) option
 	method virtual close : unit
 	method virtual list_modules : path list
 	method virtual load : unit

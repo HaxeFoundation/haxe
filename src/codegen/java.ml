@@ -891,7 +891,7 @@ let get_classes_zip zip =
 	) (Zip.entries zip);
 	!ret
 
-class virtual java_library name file_path = object(self)
+class virtual java_library com name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
 	val hxpack_to_jpack = Hashtbl.create 16
@@ -922,7 +922,8 @@ class virtual java_library name file_path = object(self)
 				EAbstract { a with d_meta = add_meta (fst a.d_name) a.d_meta }
 			| d -> d
 
-	method build ctx path (p : pos) types : (string * Ast.package) option =
+	method build path (p : pos) : (string * Ast.package) option =
+		let rec build ctx path p types =
 		try
 			if List.mem path !types then
 				None
@@ -934,7 +935,7 @@ class virtual java_library name file_path = object(self)
 				in
 				types := path :: !types;
 				match self#lookup path, path with
-				| None, ([], c) -> self#build ctx (["haxe";"root"], c) p types
+					| None, ([], c) -> build ctx (["haxe";"root"], c) p types
 				| None, _ -> None
 				| Some (cls, real_path, pos_path), _ ->
 						let is_disallowed_inner = first && String.exists (snd cls.cpath) "$" in
@@ -962,7 +963,7 @@ class virtual java_library name file_path = object(self)
 								let path = jpath_to_hx path in
 								(if out <> Some ppath then
 									acc
-								else match self#build ctx path p types with
+									else match build ctx path p types with
 									| Some(_,(_, classes)) ->
 										let base = snd ppath ^ "$" in
 										(List.map (fun (def,p) ->
@@ -1046,12 +1047,14 @@ class virtual java_library name file_path = object(self)
 				prerr_endline (Printexc.to_string e)
 			end;
 			None
+		in
+		build (create_ctx com) path p (ref [["java";"lang"], "String"])
 
 	method get_data = ()
 end
 
 class java_library_jar com name file_path = object(self)
-	inherit java_library name file_path
+	inherit java_library com name file_path
 
 	val zip = lazy (Zip.open_in file_path)
 	val mutable cached_files = None
@@ -1134,7 +1137,7 @@ class java_library_jar com name file_path = object(self)
 end
 
 class java_library_dir com name file_path = object(self)
-	inherit java_library name file_path
+	inherit java_library com name file_path
 
 	val mutable files = []
 
@@ -1189,7 +1192,7 @@ let add_java_lib com name std =
 	in
 	if std then java_lib#add_flag FlagIsStd;
 	java_lib#load;
-	let build path p = java_lib#build (create_ctx com) path p (ref [["java";"lang"], "String"]) in
+	let build path p = java_lib#build path p in
 	(* TODO: add_dependency m mdep *)
 	com.load_extern_type <- com.load_extern_type @ [build];
 	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs
