@@ -59,7 +59,7 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	}
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
-	public static function concat<A, B>(table:Table<A, B>, ?sep:String):String;
+	public static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;
 
 	public static function foreach<A, B>(table:Table<A, B>, f:A->B->Void):Void;
 	public static function foreachi<A, B>(table:Table<A, B>, f:A->B->Int->Void):Void;

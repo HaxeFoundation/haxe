@@ -56,6 +56,6 @@ typedef Range = {
 	Represents a location inside a resource, such as a line inside a text file.
 **/
 typedef Location = {
-	var file:String;
+	var file:FsPath;
 	var range:Range;
 }

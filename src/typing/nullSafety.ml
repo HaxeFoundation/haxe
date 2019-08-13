@@ -947,22 +947,32 @@ class expr_checker mode immediate_execution report =
 			E.g.: `Array<Null<String>>` vs `Array<String>` returns `true`, but also adds a compilation error.
 		*)
 		method can_pass_expr expr to_type p =
-			if self#is_nullable_expr expr && not (is_nullable_type to_type) then
-				false
-			else begin
-				let expr_type = unfold_null expr.etype in
-				try
-					new unificator#unify expr_type to_type;
-					true
-				with
-					| Safety_error err ->
-						self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
-						(* returning `true` because error is already logged in the line above *)
-						true
-					| e ->
-						fail ~msg:"Null safety unification failure" expr.epos __POS__
-				(* can_pass_type expr.etype to_type *)
-			end
+			match expr.eexpr, to_type with
+				| TObjectDecl fields, TAnon to_type ->
+					List.for_all
+						(fun ((name, _, _), field_expr) ->
+							try
+								let field_to_type = PMap.find name to_type.a_fields in
+								self#can_pass_expr field_expr field_to_type.cf_type p
+							with Not_found -> false)
+						fields
+				| _, _ ->
+					if self#is_nullable_expr expr && not (is_nullable_type to_type) then
+						false
+					else begin
+						let expr_type = unfold_null expr.etype in
+						try
+							new unificator#unify expr_type to_type;
+							true
+						with
+							| Safety_error err ->
+								self#error ("Cannot unify " ^ (str_type expr_type) ^ " with " ^ (str_type to_type)) [p; expr.epos];
+								(* returning `true` because error is already logged in the line above *)
+								true
+							| e ->
+								fail ~msg:"Null safety unification failure" expr.epos __POS__
+						(* can_pass_type expr.etype to_type *)
+					end
 		(**
 			Should be called for the root expressions of a method or for then initialization expressions of fields.
 		*)

@@ -23,6 +23,9 @@
 package haxe.http;
 
 #if nodejs
+import js.node.Buffer;
+import haxe.io.Bytes;
+
 class HttpNodeJs extends haxe.http.HttpBase {
 	var req:js.node.http.ClientRequest;
 
@@ -42,7 +45,8 @@ class HttpNodeJs extends haxe.http.HttpBase {
 	}
 
 	public override function request(?post:Bool) {
-		responseData = null;
+		responseAsString = null;
+		responseBytes = null;
 		var parsedUrl = js.node.Url.parse(url);
 		var secure = (parsedUrl.protocol == "https:");
 		var host = parsedUrl.hostname;
@@ -58,7 +62,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 
 			arr.push(i.value);
 		}
-		if (postData != null)
+		if (postData != null || postBytes != null)
 			post = true;
 		var uri = null;
 		for (p in params) {
@@ -81,18 +85,20 @@ class HttpNodeJs extends haxe.http.HttpBase {
 			headers: h
 		};
 		function httpResponse(res) {
+			res.setEncoding('binary');
 			var s = res.statusCode;
 			if (s != null)
 				onStatus(s);
-			var body = '';
-			res.on('data', function(d) {
-				body += d;
+			var data = [];
+			res.on('data', function(chunk:String) {
+				data.push(Buffer.from(chunk, 'binary'));
 			});
 			res.on('end', function(_) {
-				responseData = body;
+				var buf = (data.length == 1 ? data[0] : Buffer.concat(data));
+				responseBytes = Bytes.ofData(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 				req = null;
 				if (s != null && s >= 200 && s < 400) {
-					onData(body);
+					success(responseBytes);
 				} else {
 					onError("Http Error #" + s);
 				}
@@ -100,7 +106,13 @@ class HttpNodeJs extends haxe.http.HttpBase {
 		}
 		req = secure ? js.node.Https.request(untyped opts, httpResponse) : js.node.Http.request(untyped opts, httpResponse);
 		if (post)
-			req.write(postData);
+			if (postData != null) {
+				req.write(postData);
+			} else if(postBytes != null) {
+				req.setHeader("Content-Length", '${postBytes.length}');
+				req.write(Buffer.from(postBytes.getData()));
+			}
+
 		req.end();
 	}
 }
