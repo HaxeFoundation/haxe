@@ -254,7 +254,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							| _,[EConst(String s),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
 						in
-						ctx.com.warning msg p
+						DeprecationCheck.warn_deprecation ctx.com msg p
 					with Not_found ->
 						()
 					end;
