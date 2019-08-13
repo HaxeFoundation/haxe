@@ -3545,16 +3545,153 @@ module StdUv = struct
 		let getName fn = vifun0 (fun vthis ->
 			let this = this vthis in
 			let addr : Uv.uv_ip_address_port = wrap_sync (fn this) in
-			match addr with
-				| {address; port} ->
-					encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
-							| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
-							| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
-						); vint port|] None
-				| _ -> assert false
+			match addr with {address; port} ->
+				encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
+						| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
+						| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+					); vint port|] None
 		)
 		let getSockName = getName Uv.tcp_getsockname
 		let getPeerName = getName Uv.tcp_getpeername
+	end
+
+	module UdpSocket = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvUdp t)} -> t
+			| v -> unexpected_value v "UvUdp"
+		let new_ = (fun _ ->
+			let s = wrap_sync (Uv.udp_init (loop ())) in
+			encode_instance key_eval_uv_UdpSocket ~kind:(IUv (UvUdp s))
+		)
+		let addMembership = vifun2 (fun vthis address intfc ->
+			let this = this vthis in
+			let address = decode_string address in
+			let intfc = decode_string intfc in
+			wrap_sync (Uv.udp_set_membership this address intfc true);
+			vnull
+		)
+		let dropMembership = vifun2 (fun vthis address intfc ->
+			let this = this vthis in
+			let address = decode_string address in
+			let intfc = decode_string intfc in
+			wrap_sync (Uv.udp_set_membership this address intfc false);
+			vnull
+		)
+		let send = vfunction (fun vl -> match vl with
+			| [vthis; msg; offset; length; address; port; cb] ->
+				let this = this vthis in
+				let msg = decode_bytes msg in
+				let offset = decode_int offset in
+				let length = decode_int length in
+				let port = decode_int port in
+				wrap_sync (match address with
+					| VEnumValue {eindex = 0; eargs = [|ip|]} ->
+						let ip = decode_int ip in
+						Uv.udp_send_ipv4 this msg offset length ip port (wrap_cb_unit cb)
+					| VEnumValue {eindex = 1; eargs = [|ip|]} ->
+						let ip = decode_bytes ip in
+						Uv.udp_send_ipv6 this msg offset length ip port (wrap_cb_unit cb)
+					| _ -> assert false);
+				vnull
+			| _ -> assert false
+		)
+		let close = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.udp_close this (wrap_cb_unit cb));
+			vnull
+		)
+		let bindTcp = vifun3 (fun vthis host port ipv6only ->
+			let this = this vthis in
+			let port = decode_int port in
+			let ipv6only = decode_bool ipv6only in
+			wrap_sync (match host with
+				| VEnumValue {eindex = 0; eargs = [|ip|]} ->
+					let ip = decode_int ip in
+					Uv.udp_bind_ipv4 this ip port
+				| VEnumValue {eindex = 1; eargs = [|ip|]} ->
+					let ip = decode_bytes ip in
+					Uv.udp_bind_ipv6 this ip port ipv6only
+				| _ -> assert false
+			);
+			vnull
+		)
+		let startRead = vifun1 (fun vthis cb ->
+			let this = this vthis in
+			wrap_sync (Uv.udp_recv_start this (fun res ->
+				match res with
+					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
+					| Uv.UvSuccess {data; address; port} ->
+						let address = (match address with
+								| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
+								| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+							) in
+						let msg = encode_obj [key_data, encode_bytes data; key_address, address; key_port, vint port] in
+						ignore (call_value cb [vnull; msg])
+				));
+			vnull
+		)
+		let stopRead = vifun0 (fun vthis ->
+			let this = this vthis in
+			wrap_sync (Uv.udp_recv_stop this);
+			vnull
+		)
+		let getSockName = vifun0 (fun vthis ->
+			let this = this vthis in
+			let addr : Uv.uv_ip_address_port = wrap_sync (Uv.udp_getsockname this) in
+			match addr with {address; port} ->
+				encode_enum_value key_nusys_net_SocketAddress 0 [|(match address with
+						| Uv.UvIpv4 raw -> encode_enum_value key_nusys_net_Address 0 [|VInt32 raw|] None
+						| Uv.UvIpv6 raw -> encode_enum_value key_nusys_net_Address 1 [|encode_bytes raw|] None
+					); vint port|] None
+		)
+		let setBroadcast = vifun1 (fun vthis flag ->
+			let this = this vthis in
+			let flag = decode_bool flag in
+			wrap_sync (Uv.udp_set_broadcast this flag);
+			vnull
+		)
+		let setMulticastInterface = vifun1 (fun vthis intfc ->
+			let this = this vthis in
+			let intfc = decode_string intfc in
+			wrap_sync (Uv.udp_set_multicast_interface this intfc);
+			vnull
+		)
+		let setMulticastLoopback = vifun1 (fun vthis flag ->
+			let this = this vthis in
+			let flag = decode_bool flag in
+			wrap_sync (Uv.udp_set_multicast_loopback this flag);
+			vnull
+		)
+		let setMulticastTTL = vifun1 (fun vthis ttl ->
+			let this = this vthis in
+			let ttl = decode_int ttl in
+			wrap_sync (Uv.udp_set_multicast_ttl this ttl);
+			vnull
+		)
+		let setTTL = vifun1 (fun vthis ttl ->
+			let this = this vthis in
+			let ttl = decode_int ttl in
+			wrap_sync (Uv.udp_set_ttl this ttl);
+			vnull
+		)
+		let getRecvBufferSize = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (Uv.udp_get_recv_buffer_size this)
+		)
+		let getSendBufferSize = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (Uv.udp_get_send_buffer_size this)
+		)
+		let setRecvBufferSize = vifun1 (fun vthis size ->
+			let this = this vthis in
+			let size = decode_int size in
+			vint (Uv.udp_set_recv_buffer_size this size)
+		)
+		let setSendBufferSize = vifun1 (fun vthis size ->
+			let this = this vthis in
+			let size = decode_int size in
+			vint (Uv.udp_set_send_buffer_size this size)
+		)
 	end
 
 	module Dns = struct
@@ -3803,6 +3940,7 @@ let init_constructors builtins =
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
 		);
 	add key_eval_uv_Socket StdUv.Socket.new_;
+	add key_eval_uv_UdpSocket StdUv.UdpSocket.new_;
 	add key_eval_uv_Timer StdUv.Timer.new_
 
 let init_empty_constructors builtins =
@@ -4328,6 +4466,25 @@ let init_standard_library builtins =
 		"setNoDelay",StdUv.Socket.setNoDelay;
 		"getSockName",StdUv.Socket.getSockName;
 		"getPeerName",StdUv.Socket.getPeerName;
+	];
+	init_fields builtins (["eval";"uv"],"UdpSocket") [] [
+		"addMembership",StdUv.UdpSocket.addMembership;
+		"dropMembership",StdUv.UdpSocket.dropMembership;
+		"send",StdUv.UdpSocket.send;
+		"close",StdUv.UdpSocket.close;
+		"bindTcp",StdUv.UdpSocket.bindTcp;
+		"startRead",StdUv.UdpSocket.startRead;
+		"stopRead",StdUv.UdpSocket.stopRead;
+		"getSockName",StdUv.UdpSocket.getSockName;
+		"setBroadcast",StdUv.UdpSocket.setBroadcast;
+		"setMulticastInterface",StdUv.UdpSocket.setMulticastInterface;
+		"setMulticastLoopback",StdUv.UdpSocket.setMulticastLoopback;
+		"setMulticastTTL",StdUv.UdpSocket.setMulticastTTL;
+		"setTTL",StdUv.UdpSocket.setTTL;
+		"getRecvBufferSize",StdUv.UdpSocket.getRecvBufferSize;
+		"getSendBufferSize",StdUv.UdpSocket.getSendBufferSize;
+		"setRecvBufferSize",StdUv.UdpSocket.setRecvBufferSize;
+		"setSendBufferSize",StdUv.UdpSocket.setSendBufferSize;
 	];
 	init_fields builtins (["nusys";"net"],"Dns") [
 		"lookup_native",StdUv.Dns.lookup_native;

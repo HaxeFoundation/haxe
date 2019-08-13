@@ -100,6 +100,7 @@ type vuv_value =
 	| UvStat of Uv.t_stat
 	| UvDirent of (string * int)
 	| UvTcp of Uv.t_tcp
+	| UvUdp of Uv.t_udp
 	| UvTimer of Uv.t_timer
 
 type value =
