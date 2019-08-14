@@ -1207,7 +1207,7 @@ let add_java_lib com name std =
 	let build path p = java_lib#build path p in
 	(* TODO: add_dependency m mdep *)
 	com.load_extern_type <- com.load_extern_type @ [build];
-	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs
+	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
 	com.native_libs.all_libs <- java_lib#get_file_path :: com.native_libs.all_libs
 
 let before_generate con =

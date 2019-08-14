@@ -1221,7 +1221,7 @@ let add_net_lib com file std =
 	in
 	let net_lib = new net_library com file real_file std in
 	com.load_extern_type <- com.load_extern_type @ [net_lib#build];
-	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs
+	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
 	com.native_libs.all_libs <- net_lib#get_file_path :: com.native_libs.all_libs
 
 let before_generate com =
