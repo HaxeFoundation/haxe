@@ -42,7 +42,7 @@ let raise_package sl = raise (DisplayException(DisplayPackage sl))
 let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([],"")) None))
 
 let fields_to_json ctx fields kind po =
-	let ja = List.map (CompletionItem.to_json ctx) fields in
+	let ja = List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields in
 	last_completion_result := Array.of_list fields;
 	let fl =
 		("items",jarray ja) ::
@@ -107,7 +107,7 @@ let to_json ctx de =
 		jobject [
 			"documentation",jopt jstring (CompletionItem.get_documentation hover.hitem);
 			"range",generate_pos_as_range hover.hpos;
-			"item",CompletionItem.to_json ctx hover.hitem;
+			"item",CompletionItem.to_json ctx None hover.hitem;
 			"expected",expected;
 		]
 	| DisplayPositions pl ->

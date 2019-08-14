@@ -573,7 +573,7 @@ let get_documentation item = match item.ci_kind with
 	| ITType(mt,_) -> mt.doc
 	| _ -> None
 
-let to_json ctx item =
+let to_json ctx index item =
 	let open ClassFieldOrigin in
 	let kind,data = match item.ci_kind with
 		| ITLocal v -> "Local",generate_tvar ctx v
@@ -687,8 +687,17 @@ let to_json ctx item =
 			| _ -> assert false
 			end
 	in
+	let jindex = match index with
+		| None -> []
+		| Some index -> ["index",jint index]
+	in
 	jobject (
 		("kind",jstring kind) ::
 		("args",data) ::
-		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
+		(match item.ci_type with
+			| None ->
+				jindex
+			| Some t ->
+				("type",CompletionType.to_json ctx (snd t)) :: jindex
+		)
 	)

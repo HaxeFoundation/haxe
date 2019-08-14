@@ -111,7 +111,7 @@ let handler =
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
 				let ctx = Genjson.create_context GMFull in
-				hctx.send_result (jobject ["item",CompletionItem.to_json ctx item])
+				hctx.send_result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
 				hctx.send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
 			end
