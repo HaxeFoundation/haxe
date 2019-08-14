@@ -625,9 +625,9 @@ end
 let add_swf_lib com file extern =
 	let real_file = (try Common.find_file com file with Not_found -> failwith (" Library not found : " ^ file)) in
 	let swf_lib = new swf_library com file real_file in
-	CompilationServer.handle_native_lib com swf_lib;
 	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs;
-	com.native_libs.all_libs <- swf_lib#get_file_path :: com.native_libs.all_libs
+	com.native_libs.all_libs <- swf_lib#get_file_path :: com.native_libs.all_libs;
+	CompilationServer.handle_native_lib com swf_lib
 
 let remove_classes toremove lib l =
 	match !toremove with

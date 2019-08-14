@@ -515,7 +515,6 @@ try
 		| [] -> ()
 		| args -> (!process_ref) args
 	in
-	let arg_delays = ref [] in
 	(* category, official names, deprecated names, arg spec, usage hint, doc *)
 	let basic_args_spec = [
 		("Target",["--js"],["-js"],Arg.String (Initialize.set_platform com Js),"<file>","compile code to JavaScript file");
@@ -656,7 +655,7 @@ try
 		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
 		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
 			let std = file = "lib/hxjava-std.jar" in
-			arg_delays := (fun () -> Java.add_java_lib com file std) :: !arg_delays;
+			com.callbacks#add_before_typer_create (fun () -> Java.add_java_lib com file std);
 		),"<file>","add an external JAR or class directory library");
 		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
 			let file, is_std = match ExtString.String.nsplit file "@" with
@@ -666,7 +665,7 @@ try
 					file,true
 				| _ -> raise Exit
 			in
-			arg_delays := (fun () -> Dotnet.add_net_lib com file is_std) :: !arg_delays;
+			com.callbacks#add_before_typer_create (fun () -> Dotnet.add_net_lib com file is_std);
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
@@ -777,7 +776,6 @@ try
 			in
 			let args = loop [] args in
 			Arg.parse_argv ~current (Array.of_list ("" :: args)) all_args_spec args_callback "";
-			List.iter (fun fn -> fn()) !arg_delays
 		with
 		| Arg.Help _ ->
 			raise (HelpMessage (usage_string all_args usage))
@@ -801,7 +799,6 @@ try
 				end;
 			with Not_found ->
 				raise (Arg.Bad new_msg));
-		arg_delays := [];
 		if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then begin
 			Define.define com.defines HxcppSmartStings;
 		end;

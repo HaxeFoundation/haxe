@@ -240,17 +240,10 @@ let handle_native_lib com lib =
 			let file = lib#get_file_path in
 			let key = file in
 			let ftime = file_time file in
-			let setup_lookup lut =
-				let build path p =
-					try Some (Hashtbl.find lut path)
-					with Not_found -> None
-				in
-				com.load_extern_type <- com.load_extern_type @ [build];
-			in
 			begin match get_native_lib cs key with
 			| Some lib when ftime <= lib.c_nl_mtime ->
 				(* Cached lib is good, set up lookup into cached files. *)
-				setup_lookup lib.c_nl_files;
+				lib.c_nl_files;
 			| _ ->
 				(* Cached lib is outdated or doesn't exist yet, read library. *)
 				lib#load;
@@ -260,18 +253,15 @@ let handle_native_lib com lib =
 					if not (Hashtbl.mem h path) then begin
 						let p = { pfile = file ^ " @ " ^ Globals.s_type_path path; pmin = 0; pmax = 0; } in
 						try begin match lib#build path p with
-						| Some r ->
-							Hashtbl.add h path r
+						| Some r -> Hashtbl.add h path r
 						| None -> ()
 						end with _ ->
 							()
 					end
 				) lib#list_modules;
-				(* Remove temp lookup, see below. *)
-				com.load_extern_type <- List.filter (fun f -> f != build) com.load_extern_type;
 				(* Save and set up lookup. *)
 				add_native_lib cs key h ftime;
-				setup_lookup h;
+				h;
 			end;
 		in
 		(* This is some dicey nonsense: Native library handlers might actually
@@ -280,8 +270,14 @@ let handle_native_lib com lib =
 			`load_extern_type`. In order to deal with this, we temporarily register
 			the standard resolver and then remove it again after the handling.
 		*)
+		let old = com.load_extern_type in
 		com.load_extern_type <- com.load_extern_type @ [build];
-		com.callbacks#add_before_typer_create init
+		let lut = init() in
+		let build path p =
+			try Some (Hashtbl.find lut path)
+			with Not_found -> None
+		in
+		com.load_extern_type <- old @ [build];
 	| None ->
 		(* Offline mode, just read library as usual. *)
 		lib#load;

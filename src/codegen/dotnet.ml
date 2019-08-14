@@ -1222,7 +1222,8 @@ let add_net_lib com file std =
 	let net_lib = new net_library com file real_file std in
 	CompilationServer.handle_native_lib com net_lib;
 	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
-	com.native_libs.all_libs <- net_lib#get_file_path :: com.native_libs.all_libs
+	com.native_libs.all_libs <- net_lib#get_file_path :: com.native_libs.all_libs;
+	CompilationServer.handle_native_lib com net_lib
 
 let before_generate com =
 	(* netcore version *)
