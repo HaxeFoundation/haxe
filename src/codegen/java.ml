@@ -936,129 +936,129 @@ class virtual java_library com name file_path = object(self)
 
 	method build path (p : pos) : (string * Ast.package) option =
 		let rec build ctx path p types =
-		try
-			if List.mem path !types then
-				None
-			else begin
-				let first = match !types with
-					| [ ["java";"lang"], "String" ] | [] -> true
-					| p :: _ ->
-						false
-				in
-				types := path :: !types;
-				match self#lookup path, path with
+			try
+				if List.mem path !types then
+					None
+				else begin
+					let first = match !types with
+						| [ ["java";"lang"], "String" ] | [] -> true
+						| p :: _ ->
+							false
+					in
+					types := path :: !types;
+					match self#lookup path, path with
 					| None, ([], c) -> build ctx (["haxe";"root"], c) p types
-				| None, _ -> None
-				| Some (cls, real_path, pos_path), _ ->
-						let is_disallowed_inner = first && String.exists (snd cls.cpath) "$" in
-						let is_disallowed_inner = if is_disallowed_inner then begin
-								let outer, inner = String.split (snd cls.cpath) "$" in
-								match self#lookup (fst path, outer) with
-									| None -> false
-									| _ -> true
-							end else
-								false
-						in
-						if is_disallowed_inner then
-							None
-						else begin
-							if ctx.jcom.verbose then print_endline ("Parsed Java class " ^ (s_type_path cls.cpath));
-							let old_types = ctx.jtparams in
-							ctx.jtparams <- cls.ctypes :: ctx.jtparams;
-
-							let pos = { pfile = pos_path; pmin = 0; pmax = 0; } in
-
-							let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
-
-							let ppath = self#convert_path path in
-							let inner = List.fold_left (fun acc (path,out,_,_) ->
-								let path = jpath_to_hx path in
-								(if out <> Some ppath then
-									acc
-									else match build ctx path p types with
-									| Some(_,(_, classes)) ->
-										let base = snd ppath ^ "$" in
-										(List.map (fun (def,p) ->
-											self#replace_canonical_name p (fst ppath) base (snd ppath ^ ".") def, p) classes) @ acc
-									| _ -> acc);
-							) [] cls.cinner_types in
-
-							(* add _Statics class *)
-							let inner = try
-								if not (List.mem JInterface cls.cflags) then raise Not_found;
-								let smethods = List.filter (fun f -> List.mem JStatic f.jf_flags) cls.cmethods in
-								let sfields = List.filter (fun f -> List.mem JStatic f.jf_flags) cls.cfields in
-								if not (smethods <> [] || sfields <> []) then raise Not_found;
-								let obj = TObject( (["java";"lang"],"Object"), []) in
-								let ncls = convert_java_class ctx pos { cls with cmethods = smethods; cfields = sfields; cflags = []; csuper = obj; cinterfaces = []; cinner_types = []; ctypes = [] } in
-								match ncls with
-								| EClass c :: imports ->
-									(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
-								| _ -> assert false
-							with | Not_found ->
-								inner
+					| None, _ -> None
+					| Some (cls, real_path, pos_path), _ ->
+							let is_disallowed_inner = first && String.exists (snd cls.cpath) "$" in
+							let is_disallowed_inner = if is_disallowed_inner then begin
+									let outer, inner = String.split (snd cls.cpath) "$" in
+									match self#lookup (fst path, outer) with
+										| None -> false
+										| _ -> true
+								end else
+									false
 							in
-							let inner_alias = ref SS.empty in
-							List.iter (fun x ->
-								match fst x with
-								| EClass c ->
-									inner_alias := SS.add (fst c.d_name) !inner_alias;
-								| _ -> ()
-							) inner;
-							let alias_list = ref [] in
-							List.iter (fun x ->
-								match x with
-								| (EClass c, pos) -> begin
-									let parts = String.nsplit (fst c.d_name) "_24" in
-									match parts with
-										| _ :: _ ->
-											let alias_name = String.concat "_" parts in
-											if (not (SS.mem alias_name !inner_alias)) && (not (String.exists (snd path) "_24")) then begin
-												let alias_def = ETypedef {
-													d_name = alias_name,null_pos;
-													d_doc = None;
-													d_params = c.d_params;
-													d_meta = [];
-													d_flags = [];
-													d_data = CTPath {
-														tpackage = pack;
-														tname = snd path;
-														tparams = List.map (fun tp ->
-															TPType (CTPath {
-																tpackage = [];
-																tname = fst tp.tp_name;
-																tparams = [];
-																tsub = None;
-															},null_pos)
-														) c.d_params;
-														tsub = Some(fst c.d_name);
-													},null_pos;
-												} in
-												inner_alias := SS.add alias_name !inner_alias;
-												alias_list := (alias_def, pos) :: !alias_list;
-											end
-										| _ -> ()
-								end
-								| _ -> ()
-							) inner;
-							let inner = List.concat [!alias_list ; inner] in
-							let classes = List.map (fun t -> t,pos) (convert_java_class ctx pos cls) in
-							let imports, defs = List.partition (function | (EImport(_),_) -> true | _ -> false) (classes @ inner) in
-							let ret = Some ( real_path, (pack, imports @ defs) ) in
-							ctx.jtparams <- old_types;
-							ret
-						end
-			end
-		with
-		| JReader.Error_message msg ->
-			prerr_endline ("Class reader failed: " ^ msg);
-			None
-		| e ->
-			if ctx.jcom.verbose then begin
-				(* prerr_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
-				prerr_endline (Printexc.to_string e)
-			end;
-			None
+							if is_disallowed_inner then
+								None
+							else begin
+								if ctx.jcom.verbose then print_endline ("Parsed Java class " ^ (s_type_path cls.cpath));
+								let old_types = ctx.jtparams in
+								ctx.jtparams <- cls.ctypes :: ctx.jtparams;
+
+								let pos = { pfile = pos_path; pmin = 0; pmax = 0; } in
+
+								let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
+
+								let ppath = self#convert_path path in
+								let inner = List.fold_left (fun acc (path,out,_,_) ->
+									let path = jpath_to_hx path in
+									(if out <> Some ppath then
+										acc
+									else match build ctx path p types with
+										| Some(_,(_, classes)) ->
+											let base = snd ppath ^ "$" in
+											(List.map (fun (def,p) ->
+												self#replace_canonical_name p (fst ppath) base (snd ppath ^ ".") def, p) classes) @ acc
+										| _ -> acc);
+								) [] cls.cinner_types in
+
+								(* add _Statics class *)
+								let inner = try
+									if not (List.mem JInterface cls.cflags) then raise Not_found;
+									let smethods = List.filter (fun f -> List.mem JStatic f.jf_flags) cls.cmethods in
+									let sfields = List.filter (fun f -> List.mem JStatic f.jf_flags) cls.cfields in
+									if not (smethods <> [] || sfields <> []) then raise Not_found;
+									let obj = TObject( (["java";"lang"],"Object"), []) in
+									let ncls = convert_java_class ctx pos { cls with cmethods = smethods; cfields = sfields; cflags = []; csuper = obj; cinterfaces = []; cinner_types = []; ctypes = [] } in
+									match ncls with
+									| EClass c :: imports ->
+										(EClass { c with d_name = (fst c.d_name ^ "_Statics"),snd c.d_name }, pos) :: inner @ List.map (fun i -> i,pos) imports
+									| _ -> assert false
+								with | Not_found ->
+									inner
+								in
+								let inner_alias = ref SS.empty in
+								List.iter (fun x ->
+									match fst x with
+									| EClass c ->
+										inner_alias := SS.add (fst c.d_name) !inner_alias;
+									| _ -> ()
+								) inner;
+								let alias_list = ref [] in
+								List.iter (fun x ->
+									match x with
+									| (EClass c, pos) -> begin
+										let parts = String.nsplit (fst c.d_name) "_24" in
+										match parts with
+											| _ :: _ ->
+												let alias_name = String.concat "_" parts in
+												if (not (SS.mem alias_name !inner_alias)) && (not (String.exists (snd path) "_24")) then begin
+													let alias_def = ETypedef {
+														d_name = alias_name,null_pos;
+														d_doc = None;
+														d_params = c.d_params;
+														d_meta = [];
+														d_flags = [];
+														d_data = CTPath {
+															tpackage = pack;
+															tname = snd path;
+															tparams = List.map (fun tp ->
+																TPType (CTPath {
+																	tpackage = [];
+																	tname = fst tp.tp_name;
+																	tparams = [];
+																	tsub = None;
+																},null_pos)
+															) c.d_params;
+															tsub = Some(fst c.d_name);
+														},null_pos;
+													} in
+													inner_alias := SS.add alias_name !inner_alias;
+													alias_list := (alias_def, pos) :: !alias_list;
+												end
+											| _ -> ()
+									end
+									| _ -> ()
+								) inner;
+								let inner = List.concat [!alias_list ; inner] in
+								let classes = List.map (fun t -> t,pos) (convert_java_class ctx pos cls) in
+								let imports, defs = List.partition (function | (EImport(_),_) -> true | _ -> false) (classes @ inner) in
+								let ret = Some ( real_path, (pack, imports @ defs) ) in
+								ctx.jtparams <- old_types;
+								ret
+							end
+				end
+			with
+			| JReader.Error_message msg ->
+				prerr_endline ("Class reader failed: " ^ msg);
+				None
+			| e ->
+				if ctx.jcom.verbose then begin
+					(* prerr_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
+					prerr_endline (Printexc.to_string e)
+				end;
+				None
 		in
 		build (create_ctx com (self#has_flag FlagIsStd)) path p (ref [["java";"lang"], "String"])
 
@@ -1203,10 +1203,7 @@ let add_java_lib com name std =
 			(new java_library_jar com name file :> java_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
-	java_lib#load;
-	let build path p = java_lib#build path p in
-	(* TODO: add_dependency m mdep *)
-	com.load_extern_type <- com.load_extern_type @ [build];
+	CompilationServer.handle_native_lib com java_lib;
 	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
 	com.native_libs.all_libs <- java_lib#get_file_path :: com.native_libs.all_libs
 

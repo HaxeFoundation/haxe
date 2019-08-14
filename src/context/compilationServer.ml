@@ -16,12 +16,18 @@ type cached_directory = {
 	mutable c_mtime : float;
 }
 
+type cached_native_lib = {
+	c_nl_mtime : float;
+	c_nl_files : (path,(string * Ast.package)) Hashtbl.t;
+}
+
 type cache = {
 	c_haxelib : (string list, string list) Hashtbl.t;
 	c_files : ((string * string), cached_file) Hashtbl.t;
 	c_modules : (path * string, module_def) Hashtbl.t;
 	c_directories : (string, cached_directory list) Hashtbl.t;
 	c_removed_files : (string * string,unit) Hashtbl.t;
+	c_native_libs : (string,cached_native_lib) Hashtbl.t;
 }
 
 type context_sign = {
@@ -48,6 +54,7 @@ let create_cache () = {
 	c_modules = Hashtbl.create 0;
 	c_directories = Hashtbl.create 0;
 	c_removed_files = Hashtbl.create 0;
+	c_native_libs = Hashtbl.create 0;
 }
 
 let create () =
@@ -215,6 +222,71 @@ let add_directory cs key value =
 
 let clear_directories cs key =
 	Hashtbl.remove cs.cache.c_directories key
+
+(* native lib *)
+
+let add_native_lib cs key files timestamp =
+	Hashtbl.replace cs.cache.c_native_libs key { c_nl_files = files; c_nl_mtime = timestamp }
+
+let get_native_lib cs key =
+	try Some (Hashtbl.find cs.cache.c_native_libs key)
+	with Not_found -> None
+
+let handle_native_lib com lib =
+	let build = lib#build in
+	begin match get() with
+	| Some cs ->
+		let init () =
+			let file = lib#get_file_path in
+			let key = file in
+			let ftime = file_time file in
+			let setup_lookup lut =
+				let build path p =
+					try Some (Hashtbl.find lut path)
+					with Not_found -> None
+				in
+				com.load_extern_type <- com.load_extern_type @ [build];
+			in
+			begin match get_native_lib cs key with
+			| Some lib when ftime <= lib.c_nl_mtime ->
+				(* Cached lib is good, set up lookup into cached files. *)
+				setup_lookup lib.c_nl_files;
+			| _ ->
+				(* Cached lib is outdated or doesn't exist yet, read library. *)
+				lib#load;
+				(* Created lookup and eagerly read each known type. *)
+				let h = Hashtbl.create 0 in
+				List.iter (fun path ->
+					if not (Hashtbl.mem h path) then begin
+						let p = { pfile = file ^ " @ " ^ Globals.s_type_path path; pmin = 0; pmax = 0; } in
+						try begin match lib#build path p with
+						| Some r ->
+							Hashtbl.add h path r
+						| None -> ()
+						end with _ ->
+							()
+					end
+				) lib#list_modules;
+				(* Remove temp lookup, see below. *)
+				com.load_extern_type <- List.filter (fun f -> f != build) com.load_extern_type;
+				(* Save and set up lookup. *)
+				add_native_lib cs key h ftime;
+				setup_lookup h;
+			end;
+		in
+		(* This is some dicey nonsense: Native library handlers might actually
+			lookup something during the conversion to Haxe AST. For instance, the
+			SWF loader has a `is_valid_path` check in some cases which relies on
+			`load_extern_type`. In order to deal with this, we temporarily register
+			the standard resolver and then remove it again after the handling.
+		*)
+		com.load_extern_type <- com.load_extern_type @ [build];
+		com.callbacks#add_before_typer_create init
+	| None ->
+		(* Offline mode, just read library as usual. *)
+		lib#load;
+		com.load_extern_type <- com.load_extern_type @ [build];
+	end
 
 (* context *)
 
