@@ -117,6 +117,11 @@ and vobject = {
 	mutable oproto : vprototype;
 }
 
+and vprototype_inits = {
+	mutable pi_needs_reset : bool;
+	pi_delays : (vprototype -> unit) list;
+}
+
 and vprototype = {
 	(* The path of the prototype. Using rev_hash on this gives the original dot path. *)
 	ppath : int;
@@ -137,6 +142,8 @@ and vprototype = {
 	pkind : vprototype_kind;
 	(* The value of this prototype, i.e. VPrototype self. *)
 	mutable pvalue : value;
+	(* Collection of functions to reset field values of this prototype *)
+	mutable pinits : vprototype_inits option
 }
 
 and vinstance_kind =
@@ -259,3 +266,10 @@ let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.prin
 let rec vresolve v = match v with
 	| VLazy f -> vresolve (!f())
 	| _ -> v
+
+let reset_if_needed proto =
+	match proto.pinits with
+	| Some inits when inits.pi_needs_reset ->
+		inits.pi_needs_reset <- false;
+		List.iter (fun f -> f proto) inits.pi_delays
+	| _ -> ()

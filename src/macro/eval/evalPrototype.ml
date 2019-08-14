@@ -155,6 +155,7 @@ module PrototypeBuilder = struct
 			pparent = pctx.parent;
 			pkind = pctx.kind;
 			pvalue = vnull;
+			pinits = None;
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)

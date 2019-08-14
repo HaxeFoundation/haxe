@@ -389,6 +389,7 @@ let emit_vector_length_read exec p env = vint (Array.length (as_vector p (exec e
 let emit_bytes_length_read exec p env = vint (Bytes.length (as_bytes p (exec env)))
 
 let emit_proto_field_read proto i env =
+	reset_if_needed proto;
 	proto.pfields.(i)
 
 let emit_instance_field_read exec p i env = match exec env with
@@ -460,6 +461,7 @@ let emit_capture_write slot exec env =
 	v
 
 let emit_proto_field_write proto i exec2 env =
+	reset_if_needed proto;
 	let v = exec2 env in
 	proto.pfields.(i) <- v;
 	v
@@ -541,6 +543,7 @@ let emit_capture_read_write slot exec fop prefix env =
 	if prefix then v else v1
 
 let emit_proto_field_read_write proto i exec2 fop prefix env =
+	reset_if_needed proto;
 	let vf = proto.pfields.(i) in
 	let v2 = exec2 env in
 	let v = fop vf v2 in
