@@ -32,6 +32,7 @@ type java_lib_ctx = {
 	jcom : Common.context;
 	(* current tparams context *)
 	mutable jtparams : jtypes list;
+	is_std : bool;
 }
 
 exception ConversionError of string * pos
@@ -218,6 +219,12 @@ let del_override field =
 let get_canonical ctx p pack name =
 	(Meta.JavaCanonical, [EConst (String (String.concat "." pack)), p; EConst (String name), p], p)
 
+let show_in_completion ctx jc =
+	if not ctx.is_std then true
+	else match fst jc.cpath with
+		| ("java" | "javax" | "org") :: _ -> true
+		| _ -> false
+
 let convert_java_enum ctx p pe =
 	let meta = ref (get_canonical ctx p (fst pe.cpath) (snd pe.cpath) :: [Meta.Native, [EConst (String (real_java_path ctx pe.cpath) ), p], p ]) in
 	let data = ref [] in
@@ -228,6 +235,8 @@ let convert_java_enum ctx p pe =
 			data := { ec_name = f.jf_name,null_pos; ec_doc = None; ec_meta = []; ec_args = []; ec_pos = p; ec_params = []; ec_type = None; } :: !data;
 		| _ -> ()
 	) pe.cfields;
+
+	if not (show_in_completion ctx pe) then meta := (Meta.NoCompletion,[],null_pos) :: !meta;
 
 	EEnum {
 		d_name = jname_to_hx (snd pe.cpath),null_pos;
@@ -467,6 +476,8 @@ let convert_java_enum ctx p pe =
 				) f.jf_throws
 			) jc.cmethods) in
 
+			if not (show_in_completion ctx jc) then meta := (Meta.NoCompletion,[],null_pos) :: !meta;
+
 			(EClass {
 				d_name = jname_to_hx (snd jc.cpath),null_pos;
 				d_doc = None;
@@ -476,10 +487,11 @@ let convert_java_enum ctx p pe =
 				d_data = !fields;
 			}) :: imports
 
-	let create_ctx com =
+	let create_ctx com is_std =
 		{
 			jcom = com;
 			jtparams = [];
+			is_std = is_std;
 		}
 
 	let rec has_type_param = function
@@ -1048,7 +1060,7 @@ class virtual java_library com name file_path = object(self)
 			end;
 			None
 		in
-		build (create_ctx com) path p (ref [["java";"lang"], "String"])
+		build (create_ctx com (self#has_flag FlagIsStd)) path p (ref [["java";"lang"], "String"])
 
 	method get_data = ()
 end
