@@ -881,6 +881,7 @@ try
 		Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
 		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
+		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
 		let tctx = Typer.create com in
 		let add_signature desc =
 			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());

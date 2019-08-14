@@ -108,6 +108,7 @@ type platform_config = {
 }
 
 class compiler_callbacks = object(self)
+	val mutable before_typer_create = [];
 	val mutable after_init_macros = [];
 	val mutable after_typing = [];
 	val mutable before_save = [];
@@ -115,6 +116,9 @@ class compiler_callbacks = object(self)
 	val mutable after_filters = [];
 	val mutable after_generation = [];
 	val mutable null_safety_report = [];
+
+	method add_before_typer_create (f : unit -> unit) : unit =
+		before_typer_create <- f :: before_typer_create
 
 	method add_after_init_macros (f : unit -> unit) : unit =
 		after_init_macros <- f :: after_init_macros
@@ -137,6 +141,7 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
+	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
