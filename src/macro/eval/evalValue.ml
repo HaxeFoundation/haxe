@@ -119,7 +119,7 @@ and vobject = {
 
 and vprototype_inits = {
 	mutable pi_needs_reset : bool;
-	pi_delays : (vprototype -> unit) list;
+	mutable pi_delays : (vprototype -> unit) list;
 }
 
 and vprototype = {
@@ -143,7 +143,7 @@ and vprototype = {
 	(* The value of this prototype, i.e. VPrototype self. *)
 	mutable pvalue : value;
 	(* Collection of functions to reset field values of this prototype *)
-	mutable pinits : vprototype_inits option
+	pinits : vprototype_inits
 }
 
 and vinstance_kind =
@@ -268,8 +268,7 @@ let rec vresolve v = match v with
 	| _ -> v
 
 let reset_if_needed proto =
-	match proto.pinits with
-	| Some inits when inits.pi_needs_reset ->
-		inits.pi_needs_reset <- false;
-		List.iter (fun f -> f proto) inits.pi_delays
-	| _ -> ()
+	if proto.pinits.pi_needs_reset then begin
+		proto.pinits.pi_needs_reset <- false;
+		List.iter (fun f -> f proto) proto.pinits.pi_delays
+	end

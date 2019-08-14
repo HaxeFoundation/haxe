@@ -228,7 +228,10 @@ let fake_proto path =
 		pparent = None;
 		pkind = PInstance;
 		pvalue = vnull;
-		pinits = None;
+		pinits = {
+			pi_needs_reset = false;
+			pi_delays = [];
+		};
 	} in
 	proto.pvalue <- vprototype proto;
 	proto
@@ -271,7 +274,10 @@ let ref_proto =
 		pparent = None;
 		pkind = PInstance;
 		pvalue = vnull;
-		pinits = None;
+		pinits = {
+			pi_needs_reset = false;
+			pi_delays = [];
+		};
 	} in
 	proto.pvalue <- vprototype proto;
 	proto

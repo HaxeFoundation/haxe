@@ -155,7 +155,10 @@ module PrototypeBuilder = struct
 			pparent = pctx.parent;
 			pkind = pctx.kind;
 			pvalue = vnull;
-			pinits = None;
+			pinits = {
+				pi_needs_reset = false;
+				pi_delays = [];
+			};
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)

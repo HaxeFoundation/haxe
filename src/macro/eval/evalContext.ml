@@ -213,19 +213,10 @@ class static_prototypes = object(self)
 		prototypes <- IntMap.remove path prototypes
 
 	method set_needs_reset =
-		IntMap.iter
-			(fun path proto ->
-				match proto.pinits with
-				| Some inits -> inits.pi_needs_reset <- true
-				| None -> ()
-			)
-			prototypes
+		IntMap.iter (fun path proto -> proto.pinits.pi_needs_reset <- true) prototypes
 
 	method add_init proto delays =
-		proto.pinits <- Some {
-			pi_needs_reset = false;
-			pi_delays = delays;
-		}
+		proto.pinits.pi_delays <- delays
 
 	method get path =
 		let proto = IntMap.find path prototypes in
