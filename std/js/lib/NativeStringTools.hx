@@ -23,6 +23,7 @@
 package js.lib;
 
 import haxe.extern.EitherType;
+import js.Lib.undefined;
 import js.Syntax;
 import js.lib.intl.Collator.CollatorOptions;
 
@@ -41,13 +42,20 @@ class NativeStringTools {
 		Returns a number indicating whether a reference string comes before or after or is
 		the same as the given string in sort order.
 	 */
-	public static inline function localeCompare(string:String, compareString:String, ?locales:EitherType<String, Array<String>>, ?options:CollatorOptions):Bool {
+	public static inline function localeCompare(string:String, compareString:String, ?locales:EitherType<String, Array<String>>,
+			?options:CollatorOptions):Bool {
 		return if (locales == null) {
-			Syntax.code("{0}.localeCompare({1})", string, compareString);
-		} else if (options == null) {
-			Syntax.code("{0}.localeCompare({1}, {2})", string, compareString, locales);
+			if (options == null) {
+				Syntax.code("{0}.localeCompare({1})", string, compareString);
+			} else {
+				Syntax.code("{0}.localeCompare({1}, {2}, {3})", string, compareString, undefined, options);
+			}
 		} else {
-			Syntax.code("{0}.localeCompare({1}, {2}, {3})", string, compareString, locales, options);
+			if (options == null) {
+				Syntax.code("{0}.localeCompare({1}, {2})", string, compareString, locales);
+			} else {
+				Syntax.code("{0}.localeCompare({1}, {2}, {3})", string, compareString, locales, options);
+			}
 		}
 	}
 
@@ -55,11 +63,11 @@ class NativeStringTools {
 		The characters within a string are converted to lower case while respecting the current locale.
 		For most languages, this will return the same as toLowerCase().
 	 */
-	public static inline function toLocaleLowerCase(string:String, ?locale:EitherType<String, Array<String>>):String {
-		return if (locale == null) {
+	public static inline function toLocaleLowerCase(string:String, ?locales:EitherType<String, Array<String>>):String {
+		return if (locales == null) {
 			Syntax.code("{0}.toLocaleLowerCase()", string);
 		} else {
-			Syntax.code("{0}.toLocaleLowerCase({1})", string, locale);
+			Syntax.code("{0}.toLocaleLowerCase({1})", string, locales);
 		}
 	}
 
@@ -67,11 +75,11 @@ class NativeStringTools {
 		The characters within a string are converted to upper case while respecting the current locale.
 		For most languages, this will return the same as toUpperCase().
 	 */
-	public static inline function toLocaleUpperCase(string:String, ?locale:EitherType<String, Array<String>>):String {
-		return if (locale == null) {
+	public static inline function toLocaleUpperCase(string:String, ?locales:EitherType<String, Array<String>>):String {
+		return if (locales == null) {
 			Syntax.code("{0}.toLocaleUpperCase()", string);
 		} else {
-			Syntax.code("{0}.toLocaleUpperCase({1})", string, locale);
+			Syntax.code("{0}.toLocaleUpperCase({1})", string, locales);
 		}
 	}
 }
