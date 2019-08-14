@@ -150,7 +150,7 @@ let get_native_name meta =
 
 let check_native_name_override ctx child base =
 	let error() =
-		display_error ctx ("Field " ^ child.cf_name ^ " has different @:nativeName value than in superclass") child.cf_pos;
+		display_error ctx ("Field " ^ child.cf_name ^ " has different @:native value than in superclass") child.cf_pos;
 		display_error ctx ("Base field is defined here") base.cf_pos
 	in
 	try
