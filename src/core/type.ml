@@ -1770,10 +1770,17 @@ let rec fast_eq_mono ml a b =
 	| _ , _ ->
 		false
 
-let rec fast_eq_anon a b =
-	if fast_eq_check fast_eq_anon a b then
+let rec fast_eq_anon ?(mono_equals_dynamic=false) a b =
+	if fast_eq_check (fast_eq_anon ~mono_equals_dynamic) a b then
 		true
 	else match a , b with
+	(*
+		`mono_equals_dynamic` is here because of https://github.com/HaxeFoundation/haxe/issues/8588#issuecomment-520138371
+		Generally unbound monomorphs should not be considered equal to anything,
+		because it's unknown, which types they would be bound to.
+	*)
+	| t, TMono { contents = None } when t == t_dynamic -> mono_equals_dynamic
+	| TMono { contents = None }, t when t == t_dynamic -> mono_equals_dynamic
 	| TMono { contents = Some t1 }, TMono { contents = Some t2 } ->
 		fast_eq_anon t1 t2
 	| TAnon a1, TAnon a2 ->

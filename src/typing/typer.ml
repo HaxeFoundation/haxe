@@ -107,7 +107,7 @@ let maybe_type_against_enum ctx f with_type iscall p =
 				| TAbstract (a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
 					begin match get_abstract_froms a pl with
 						| [t2] ->
-							if (List.exists (fast_eq_anon t) stack) then raise Exit;
+							if (List.exists (fast_eq_anon ~mono_equals_dynamic:true t) stack) then raise Exit;
 							loop (t :: stack) t2
 						| _ -> raise Exit
 					end
@@ -1610,8 +1610,12 @@ and type_object_decl ctx fl with_type p =
 		let rec loop seen t =
 			match follow t with
 			| TAnon a -> ODKWithStructure a
-			| TAbstract (a,pl) as t when not (Meta.has Meta.CoreType a.a_meta) && not (List.exists (fun t' -> fast_eq_anon t t') seen) ->
-				(match List.fold_left (fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc) [] (get_abstract_froms a pl) with
+			| TAbstract (a,pl) as t
+				when not (Meta.has Meta.CoreType a.a_meta)
+					&& not (List.exists (fun t' -> fast_eq_anon ~mono_equals_dynamic:true t t') seen) ->
+				let froms = get_abstract_froms a pl
+				and fold = fun acc t' -> match loop (t :: seen) t' with ODKPlain -> acc | t -> t :: acc in
+				(match List.fold_left fold [] froms with
 				| [t] -> t
 				| _ -> ODKPlain)
 			| TDynamic t when (follow t != t_dynamic) ->
@@ -2096,7 +2100,7 @@ and type_array_decl ctx el with_type p =
 					Some (get_iterable_param t)
 				with Not_found ->
 					None)
-			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq_anon t (follow t')) seen) ->
+			| TAbstract (a,pl) as t when not (List.exists (fun t' -> fast_eq_anon ~mono_equals_dynamic:true t (follow t')) seen) ->
 				let types =
 					List.fold_left
 						(fun acc t' -> match loop (t :: seen) t' with
