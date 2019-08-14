@@ -442,11 +442,7 @@ let create version s_version args =
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
-		native_libs = {
-			java_libs = [];
-			net_libs = [];
-			swf_libs = [];
-		};
+		native_libs = create_native_libs();
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];
@@ -504,7 +500,8 @@ let clone com =
 		defines = {
 			values = com.defines.values;
 			defines_signature = com.defines.defines_signature;
-		}
+		};
+		native_libs = create_native_libs();
 	}
 
 let file_time file = Extc.filetime file
