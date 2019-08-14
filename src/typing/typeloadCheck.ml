@@ -130,6 +130,35 @@ let copy_meta meta_src meta_target sl =
 	) meta_src;
 	!meta
 
+(** retrieve string from @:native metadata or raise Not_found *)
+let get_native_name meta =
+	let rec get_native meta = match meta with
+		| [] -> raise Not_found
+		| (Meta.Native,[v],p as meta) :: _ ->
+			meta
+		| _ :: meta ->
+			get_native meta
+	in
+	let (_,e,mp) = get_native meta in
+	match e with
+	| [Ast.EConst (Ast.String name),p] ->
+		name,p
+	| [] ->
+		raise Not_found
+	| _ ->
+		error "String expected" mp
+
+let check_native_name_override ctx child base =
+	let error() =
+		display_error ctx ("Field " ^ child.cf_name ^ " has different @:nativeName value than in superclass") child.cf_pos;
+		display_error ctx ("Base field is defined here") base.cf_pos
+	in
+	try
+		let native_name = fst (get_native_name child.cf_meta) in
+		try if fst (get_native_name base.cf_meta) <> native_name then error()
+		with Not_found -> error()
+	with Not_found -> ()
+
 let check_overriding ctx c f =
 	match c.cl_super with
 	| None ->
@@ -142,6 +171,7 @@ let check_overriding ctx c f =
 			(if is_overload && not (Meta.has Meta.Overload f.cf_meta) then
 				display_error ctx ("Missing @:overload declaration for field " ^ i) p);
 			let t, f2 = get_super_field csup i in
+			check_native_name_override ctx f f2;
 			(* allow to define fields that are not defined for this platform version in superclass *)
 			(match f2.cf_kind with
 			| Var { v_read = AccRequire _ } -> raise Not_found;

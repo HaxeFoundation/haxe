@@ -25,23 +25,7 @@ open Error
 open Globals
 open FiltersCommon
 
-(** retrieve string from @:native metadata or raise Not_found *)
-let get_native_name meta =
-	let rec get_native meta = match meta with
-		| [] -> raise Not_found
-		| (Meta.Native,[v],p as meta) :: _ ->
-			meta
-		| _ :: meta ->
-			get_native meta
-	in
-	let (_,e,mp) = get_native meta in
-	match e with
-	| [Ast.EConst (Ast.String name),p] ->
-		name,p
-	| [] ->
-		raise Not_found
-	| _ ->
-		error "String expected" mp
+let get_native_name = TypeloadCheck.get_native_name
 
 (* PASS 1 begin *)
 
