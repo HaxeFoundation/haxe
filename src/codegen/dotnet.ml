@@ -1301,7 +1301,4 @@ let before_generate com =
 				Unix.closedir f
 		in
 		loop()
-	) !matched;
-
-	(* now force all libraries to initialize *)
-	List.iter (function net_lib -> ignore (net_lib#lookup ([],""))) com.native_libs.net_libs
+	) !matched
