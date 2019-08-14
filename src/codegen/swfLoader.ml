@@ -578,6 +578,7 @@ class swf_library com name file_path = object(self)
 
 	val mutable swf_data = None
 	val mutable swf_classes = None
+	val haxe_classes = Hashtbl.create 0
 
 	method load =
 		ignore(self#get_swf)
@@ -609,9 +610,15 @@ class swf_library com name file_path = object(self)
 		()
 
 	method build (path : path) (p : pos) : (string * Ast.package) option =
-		match (try Some (Hashtbl.find (self#extract) path) with Not_found -> None) with
-		| None -> None
-		| Some c -> Some (file_path, build_class com c file_path)
+		try
+			Some (file_path,Hashtbl.find haxe_classes path)
+		with Not_found -> try
+			let c = Hashtbl.find (self#extract) path in
+			let c = build_class com c file_path in
+			Hashtbl.add haxe_classes path c;
+			Some (file_path, c)
+		with Not_found ->
+			None
 
 	method get_data = self#get_swf
 end
