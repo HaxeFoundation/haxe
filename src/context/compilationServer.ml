@@ -147,8 +147,10 @@ let cache_file cs key time data =
 	Hashtbl.replace cs.cache.c_files key { c_time = time; c_package = fst data; c_decls = snd data; c_module_name = None }
 
 let remove_file cs key =
-	Hashtbl.remove cs.cache.c_files key;
-	Hashtbl.replace cs.cache.c_removed_files key ()
+	if Hashtbl.mem cs.cache.c_files key then begin
+		Hashtbl.remove cs.cache.c_files key;
+		Hashtbl.replace cs.cache.c_removed_files key ()
+	end
 
 let remove_files cs file =
 	List.iter (fun (sign,_) -> remove_file cs (file,sign)) cs.signs
