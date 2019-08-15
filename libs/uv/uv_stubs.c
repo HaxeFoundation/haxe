@@ -41,6 +41,7 @@
 #define GetAddrInfo_val(v) UV_UNWRAP(v, uv_getaddrinfo_t)
 #define Handle_val(v) UV_UNWRAP(v, uv_handle_t)
 #define Loop_val(v) UV_UNWRAP(v, uv_loop_t)
+#define Process_val(v) UV_UNWRAP(v, uv_process_t)
 #define Shutdown_val(v) UV_UNWRAP(v, uv_shutdown_t)
 #define Stream_val(v) UV_UNWRAP(v, uv_stream_t)
 #define Tcp_val(v) UV_UNWRAP(v, uv_tcp_t)
@@ -67,6 +68,14 @@
 #define BC_WRAP7(name) \
 	CAMLprim value name ## _bytecode(value *argv, int argc) { \
 		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]); \
+	}
+#define BC_WRAP8(name) \
+	CAMLprim value name ## _bytecode(value *argv, int argc) { \
+		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]); \
+	}
+#define BC_WRAP9(name) \
+	CAMLprim value name ## _bytecode(value *argv, int argc) { \
+		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]); \
 	}
 
 // ------------- ERROR HANDLING -------------------------------------
@@ -385,6 +394,10 @@ typedef struct {
 			value cb_timer;
 			value unused1;
 		} timer;
+		struct {
+			value cb_exit;
+			value unused1;
+		} process;
 	} u;
 } uv_w_handle_t;
 
@@ -430,6 +443,17 @@ static uv_w_handle_t *alloc_data_timer(value cb_timer) {
 		caml_register_global_root(&(data->cb_close));
 		data->u.timer.cb_timer = cb_timer;
 		caml_register_global_root(&(data->u.timer.cb_timer));
+	}
+	return data;
+}
+
+static uv_w_handle_t *alloc_data_process(value cb_exit) {
+	uv_w_handle_t *data = calloc(1, sizeof(uv_w_handle_t));
+	if (data != NULL) {
+		data->cb_close = Val_unit;
+		caml_register_global_root(&(data->cb_close));
+		data->u.process.cb_exit = cb_exit;
+		caml_register_global_root(&(data->u.process.cb_exit));
 	}
 	return data;
 }
@@ -1044,4 +1068,65 @@ CAMLprim value w_timer_stop(value handle, value cb) {
 	((uv_w_handle_t *)UV_HANDLE_DATA(Timer_val(handle)))->cb_close = cb;
 	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
+}
+
+// ------------- PROCESS --------------------------------------------
+
+static void handle_process_cb(uv_process_t *handle, int64_t exit_status, int term_signal) {
+	CAMLparam0();
+	CAMLlocal1(cb);
+	cb = UV_HANDLE_DATA_SUB(handle, process).cb_exit;
+	caml_callback(cb, Val_unit);
+	CAMLreturn0;
+}
+
+CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, value cwd, value flags, value uid, value gid) {
+	CAMLparam5(loop, cb, file, args, env);
+	CAMLxparam4(cwd, flags, uid, gid);
+	UV_ALLOC_CHECK(handle, uv_process_t);
+	UV_HANDLE_DATA(Process_val(handle)) = alloc_data_process(cb);
+	if (UV_HANDLE_DATA(Process_val(handle)) == NULL)
+		UV_ERROR(0);
+	char **args_u = malloc(sizeof(char *) * (Wosize_val(args) + 1));
+	for (int i = 0; i < Wosize_val(args); i++)
+		args_u[i] = strdup(String_val(Field(args, i)));
+	args_u[Wosize_val(args)] = NULL;
+	char **env_u = malloc(sizeof(char *) * (Wosize_val(env) + 1));
+	for (int i = 0; i < Wosize_val(env); i++)
+		env_u[i] = strdup(String_val(Field(env, i)));
+	env_u[Wosize_val(env)] = NULL;
+	uv_stdio_container_t stdio_u[3] = {
+		{.flags = UV_INHERIT_FD, .data = {.fd = 0}},
+		{.flags = UV_INHERIT_FD, .data = {.fd = 1}},
+		{.flags = UV_INHERIT_FD, .data = {.fd = 2}}
+	};
+	uv_process_options_t options = {
+		.exit_cb = handle_process_cb,
+		.file = String_val(file),
+		.args = args_u,
+		.env = env_u,
+		.cwd = String_val(cwd),
+		.flags = Int_val(flags),
+		.stdio_count = 3,
+		.stdio = stdio_u,
+		.uid = Int_val(uid),
+		.gid = Int_val(gid)
+	};
+	UV_ERROR_CHECK_C(
+		uv_spawn(Loop_val(loop), Process_val(handle), &options),
+		{ unalloc_data(UV_HANDLE_DATA(Process_val(handle))); free(Process_val(handle)); }
+		);
+	UV_SUCCESS(handle);
+}
+BC_WRAP9(w_spawn);
+
+CAMLprim value w_process_kill(value handle, value signum) {
+	CAMLparam2(handle, signum);
+	UV_ERROR_CHECK(uv_process_kill(Process_val(handle), Int_val(signum)));
+	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_process_get_pid(value handle) {
+	CAMLparam1(handle);
+	CAMLreturn(Process_val(handle)->pid);
 }
