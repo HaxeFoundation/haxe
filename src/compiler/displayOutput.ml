@@ -785,4 +785,4 @@ let handle_syntax_completion com kind p =
 			raise (Completion s)
 		| Some(f,_,jsonrpc) ->
 			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
-			f(fields_to_json ctx l kind None)
+			f(fields_to_json ctx l kind None None)
