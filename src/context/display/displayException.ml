@@ -55,26 +55,29 @@ let filter_somehow ctx items subject kind po =
 	let ret = DynArray.create () in
 	let acc_types = DynArray.create () in
 	let subject = match subject with
-		| None -> []
-		| Some(subject,_) -> List.map String.lowercase (ExtString.String.nsplit subject ".")
+		| None -> ""
+		| Some(subject,_) -> String.lowercase subject
 	in
-	let rec subject_matches subject sl = match subject with
-		| [] -> true
-		| s' :: sl' ->
-			let rec loop sl = match sl with
-				| [] -> false
-				| s :: sl when ExtString.String.exists s s' -> subject_matches sl' sl
-				| _ :: sl -> loop sl
-			in
-			loop sl
+	let subject_matches subject s =
+		let rec loop i =
+			if i < String.length s then begin
+				ignore(String.index_from subject i s.[i]);
+				loop (i + 1)
+			end
+		in
+		try
+			loop 0;
+			true
+		with Not_found ->
+			false
 	in
 	let rec loop items index =
 		match items with
 		| _ when DynArray.length ret > !max_completion_items ->
 			()
 		| item :: items ->
-			let parts = List.map String.lowercase (get_filter_parts item) in
-			if subject_matches subject parts then begin
+			let name = String.lowercase (get_filter_name item) in
+			if subject_matches subject name then begin
 				(* Treat types with lowest priority. The assumption is that they are the only kind
 				   which actually causes the limit to be hit, so we show everything else and then
 				   fill in types. *)

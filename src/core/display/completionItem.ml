@@ -567,20 +567,20 @@ let get_name item = match item.ci_kind with
 
 let get_type item = item.ci_type
 
-let get_filter_parts item = match item.ci_kind with
-	| ITLocal v -> [v.v_name]
-	| ITClassField(cf) | ITEnumAbstractField(_,cf) -> [cf.field.cf_name]
-	| ITEnumField ef -> [ef.efield.ef_name]
-	| ITType(cm,_) -> cm.pack @ [cm.name]
-	| ITPackage(path,_) -> fst path @ [snd path]
-	| ITModule path -> fst path @ [snd path]
-	| ITLiteral s -> [s]
-	| ITTimer(s,_) -> [s]
-	| ITMetadata meta -> [Meta.to_string meta]
-	| ITKeyword kwd -> [s_keyword kwd]
-	| ITAnonymous _ -> []
-	| ITExpression _ -> []
-	| ITTypeParameter c -> [snd c.cl_path]
+let get_filter_name item = match item.ci_kind with
+	| ITLocal v -> v.v_name
+	| ITClassField(cf) | ITEnumAbstractField(_,cf) -> cf.field.cf_name
+	| ITEnumField ef -> ef.efield.ef_name
+	| ITType(cm,_) -> s_type_path (cm.pack,cm.name)
+	| ITPackage(path,_) -> s_type_path path
+	| ITModule path -> s_type_path path
+	| ITLiteral s -> s
+	| ITTimer(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
+	| ITKeyword kwd -> s_keyword kwd
+	| ITAnonymous _ -> ""
+	| ITExpression _ -> ""
+	| ITTypeParameter c -> snd c.cl_path
 
 let get_documentation item = match item.ci_kind with
 	| ITClassField cf | ITEnumAbstractField(_,cf) -> cf.field.cf_doc
