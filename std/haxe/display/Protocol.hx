@@ -38,6 +38,9 @@ typedef InitializeParams = {
 
 	/** dot paths to exclude from readClassPaths / toplevel completion **/
 	final ?exclude:Array<String>;
+
+	/** The maximum number of completion items to return **/
+	final ?maxCompletionItems:Int;
 }
 
 /**

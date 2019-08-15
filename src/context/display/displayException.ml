@@ -49,7 +49,7 @@ let raise_package sl = raise (DisplayException(DisplayPackage sl))
 (* global state *)
 let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([],"")) None))
 let last_completion_pos = ref None
-let max_completion_items = ref 1000
+let max_completion_items = ref 0
 
 let filter_somehow ctx items subject kind po =
 	let ret = DynArray.create () in
@@ -99,7 +99,7 @@ let filter_somehow ctx items subject kind po =
 let fields_to_json ctx fields kind po subject =
 	last_completion_result := Array.of_list fields;
 	last_completion_pos := po;
-	let needs_filtering = Array.length !last_completion_result > !max_completion_items in
+	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
 	let ja = if needs_filtering then
 		filter_somehow ctx fields subject kind po
 	else
