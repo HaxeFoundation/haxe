@@ -236,8 +236,9 @@ let get_native_lib cs key =
 
 let handle_native_lib com lib =
 	let build = lib#build in
+	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
 	begin match get() with
-	| Some cs ->
+	| Some cs when Define.raw_defined com.defines "haxe.cacheNativeLibs" ->
 		let init () =
 			let file = lib#get_file_path in
 			let key = file in
@@ -280,7 +281,7 @@ let handle_native_lib com lib =
 			with Not_found -> None
 		in
 		com.load_extern_type <- old @ [build];
-	| None ->
+	| _ ->
 		(* Offline mode, just read library as usual. *)
 		lib#load;
 		com.load_extern_type <- com.load_extern_type @ [build];
