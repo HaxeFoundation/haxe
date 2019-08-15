@@ -60,8 +60,8 @@ let filter_somehow ctx items subject kind po =
 	in
 	let subject_matches subject s =
 		let rec loop i =
-			if i < String.length s then begin
-				ignore(String.index_from subject i s.[i]);
+			if i < String.length subject then begin
+				ignore(String.index_from s i subject.[i]);
 				loop (i + 1)
 			end
 		in
