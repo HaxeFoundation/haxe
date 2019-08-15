@@ -94,23 +94,23 @@ let filter_somehow ctx items subject kind po =
 		if DynArray.length ret < !max_completion_items then
 			DynArray.add ret (CompletionItem.to_json ctx (Some index) item);
 	) acc_types;
-	DynArray.to_list ret
+	DynArray.to_list ret,DynArray.length ret = !max_completion_items
 
 let fields_to_json ctx fields kind po subject =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
-	if needs_filtering then begin match subject with
+	let ja,did_filter = if needs_filtering then
+		filter_somehow ctx fields subject kind po
+	else
+		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields,false
+ 	in
+	if did_filter then begin match subject with
 		| Some(_,p) -> last_completion_pos := Some p;
 		| None -> last_completion_pos := None
 	end;
-	let ja = if needs_filtering then
-		filter_somehow ctx fields subject kind po
-	else
-		List.mapi (fun i item -> CompletionItem.to_json ctx (Some i) item) fields
- 	in
 	let fl =
 		("items",jarray ja) ::
-		("isIncomplete",jbool needs_filtering) ::
+		("isIncomplete",jbool did_filter) ::
 		("mode",CompletionResultKind.to_json ctx kind) ::
 		(match po with None -> [] | Some p -> ["replaceRange",generate_pos_as_range (Parser.cut_pos_at_display p)]) in
 	jobject fl
