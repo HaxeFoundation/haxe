@@ -58,15 +58,15 @@ let filter_somehow ctx items subject kind po =
 		| None -> ""
 		| Some(subject,_) -> String.lowercase subject
 	in
-	let subject_matches subject s =
-		let rec loop i =
+	let subject_matches s =
+		let rec loop i o =
 			if i < String.length subject then begin
-				ignore(String.index_from s i subject.[i]);
-				loop (i + 1)
+				let o = String.index_from s o subject.[i] in
+				loop (i + 1) o
 			end
 		in
 		try
-			loop 0;
+			loop 0 0;
 			true
 		with Not_found ->
 			false
@@ -77,7 +77,7 @@ let filter_somehow ctx items subject kind po =
 			()
 		| item :: items ->
 			let name = String.lowercase (get_filter_name item) in
-			if subject_matches subject name then begin
+			if subject_matches name then begin
 				(* Treat types with lowest priority. The assumption is that they are the only kind
 				   which actually causes the limit to be hit, so we show everything else and then
 				   fill in types. *)
