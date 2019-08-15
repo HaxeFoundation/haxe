@@ -98,8 +98,8 @@ let filter_somehow ctx items subject kind po =
 
 let fields_to_json ctx fields kind po subject =
 	last_completion_result := Array.of_list fields;
-	last_completion_pos := po;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
+	if needs_filtering then last_completion_pos := po;
 	let ja = if needs_filtering then
 		filter_somehow ctx fields subject kind po
 	else
