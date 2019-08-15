@@ -77,6 +77,10 @@
 	CAMLprim value name ## _bytecode(value *argv, int argc) { \
 		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]); \
 	}
+#define BC_WRAP10(name) \
+	CAMLprim value name ## _bytecode(value *argv, int argc) { \
+		return name(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9]); \
+	}
 
 // ------------- ERROR HANDLING -------------------------------------
 
@@ -1074,15 +1078,20 @@ CAMLprim value w_timer_stop(value handle, value cb) {
 
 static void handle_process_cb(uv_process_t *handle, int64_t exit_status, int term_signal) {
 	CAMLparam0();
-	CAMLlocal1(cb);
+	CAMLlocal3(cb, res, status);
 	cb = UV_HANDLE_DATA_SUB(handle, process).cb_exit;
-	caml_callback(cb, Val_unit);
+	res = caml_alloc(1, 1);
+	status = caml_alloc(2, 0);
+	Store_field(status, 0, Val_int(exit_status)); // FIXME: int64 -> int conversion
+	Store_field(status, 1, Val_int(term_signal));
+	Store_field(res, 0, status);
+	caml_callback(cb, res);
 	CAMLreturn0;
 }
 
-CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, value cwd, value flags, value uid, value gid) {
+CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, value cwd, value flags, value stdio, value uid, value gid) {
 	CAMLparam5(loop, cb, file, args, env);
-	CAMLxparam4(cwd, flags, uid, gid);
+	CAMLxparam5(cwd, flags, stdio, uid, gid);
 	UV_ALLOC_CHECK(handle, uv_process_t);
 	UV_HANDLE_DATA(Process_val(handle)) = alloc_data_process(cb);
 	if (UV_HANDLE_DATA(Process_val(handle)) == NULL)
@@ -1095,11 +1104,29 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 	for (int i = 0; i < Wosize_val(env); i++)
 		env_u[i] = strdup(String_val(Field(env, i)));
 	env_u[Wosize_val(env)] = NULL;
-	uv_stdio_container_t stdio_u[3] = {
-		{.flags = UV_INHERIT_FD, .data = {.fd = 0}},
-		{.flags = UV_INHERIT_FD, .data = {.fd = 1}},
-		{.flags = UV_INHERIT_FD, .data = {.fd = 2}}
-	};
+	uv_stdio_container_t *stdio_u = malloc(sizeof(uv_stdio_container_t) * Wosize_val(stdio));
+	CAMLlocal1(stdio_entry);
+	for (int i = 0; i < Wosize_val(stdio); i++) {
+		stdio_entry = Field(stdio, i);
+		if (Is_long(stdio_entry)) {
+			switch (Int_val(stdio_entry)) {
+				case 0: // Ignore
+					stdio_u[i].flags = UV_IGNORE;
+					break;
+				default: // 1, Inherit
+					stdio_u[i].flags = UV_INHERIT_FD;
+					stdio_u[i].data.fd = i;
+					break;
+			}
+		} else {
+			stdio_u[i].flags = UV_CREATE_PIPE;
+			// TODO: probably need to give a stream in data.stream?
+			if (Bool_val(Field(stdio_entry, 0)))
+				stdio_u[i].flags = UV_READABLE_PIPE;
+			if (Bool_val(Field(stdio_entry, 1)))
+				stdio_u[i].flags = UV_WRITABLE_PIPE;
+		}
+	}
 	uv_process_options_t options = {
 		.exit_cb = handle_process_cb,
 		.file = String_val(file),
@@ -1107,7 +1134,7 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 		.env = env_u,
 		.cwd = String_val(cwd),
 		.flags = Int_val(flags),
-		.stdio_count = 3,
+		.stdio_count = Wosize_val(stdio),
 		.stdio = stdio_u,
 		.uid = Int_val(uid),
 		.gid = Int_val(gid)
@@ -1116,9 +1143,10 @@ CAMLprim value w_spawn(value loop, value cb, value file, value args, value env, 
 		uv_spawn(Loop_val(loop), Process_val(handle), &options),
 		{ unalloc_data(UV_HANDLE_DATA(Process_val(handle))); free(Process_val(handle)); }
 		);
+	free(stdio_u);
 	UV_SUCCESS(handle);
 }
-BC_WRAP9(w_spawn);
+BC_WRAP10(w_spawn);
 
 CAMLprim value w_process_kill(value handle, value signum) {
 	CAMLparam2(handle, signum);
@@ -1128,5 +1156,5 @@ CAMLprim value w_process_kill(value handle, value signum) {
 
 CAMLprim value w_process_get_pid(value handle) {
 	CAMLparam1(handle);
-	CAMLreturn(Process_val(handle)->pid);
+	CAMLreturn(Val_int(Process_val(handle)->pid));
 }

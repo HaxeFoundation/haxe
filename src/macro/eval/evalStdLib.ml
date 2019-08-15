@@ -3753,6 +3753,47 @@ module StdUv = struct
 		)
 	end
 
+	module Process = struct
+		let this vthis = match vthis with
+			| VInstance {ikind = IUv (UvProcess t)} -> t
+			| v -> unexpected_value v "UvProcess"
+		let new_ = (fun vl ->
+			match vl with
+				| [exitCb; file; args; env; cwd; flags; stdio; uid; gid] ->
+					let file = decode_string file in
+					let args = Array.of_list (List.map decode_string (decode_array args)) in
+					let env = Array.of_list (List.map decode_string (decode_array env)) in
+					let cwd = decode_string cwd in
+					let flags = decode_int flags in
+					let stdio = Array.of_list (List.map (function
+							| VEnumValue {eindex = 0; eargs = [|readable; writable|]} ->
+								let readable = decode_bool readable in
+								let writable = decode_bool writable in
+								Uv.UvIoPipe (readable, writable)
+							| VEnumValue {eindex = 1} -> Uv.UvIoIgnore
+							| VEnumValue {eindex = 2} -> Uv.UvIoInherit
+							| _ -> assert false
+						) (decode_array stdio)) in
+					let uid = decode_int uid in
+					let gid = decode_int gid in
+					let process = wrap_sync (Uv.spawn (loop ()) (wrap_cb exitCb (fun res -> match res with
+							| code, signal -> encode_obj [key_code, vint code; key_signal, vint signal]
+						)) file args env cwd flags stdio uid gid) in
+					encode_instance key_eval_uv_Process ~kind:(IUv (UvProcess process))
+				| _ -> assert false
+		)
+		let kill = vifun1 (fun vthis signum ->
+			let this = this vthis in
+			let signum = decode_int signum in
+			wrap_sync (Uv.process_kill this signum);
+			vnull
+		)
+		let getPid = vifun0 (fun vthis ->
+			let this = this vthis in
+			vint (Uv.process_get_pid this)
+		)
+	end
+
 	let init = vfun0 (fun () ->
 		loop_ref := Some (wrap_sync (Uv.loop_init ()));
 		vnull
@@ -3941,7 +3982,8 @@ let init_constructors builtins =
 		);
 	add key_eval_uv_Socket StdUv.Socket.new_;
 	add key_eval_uv_UdpSocket StdUv.UdpSocket.new_;
-	add key_eval_uv_Timer StdUv.Timer.new_
+	add key_eval_uv_Timer StdUv.Timer.new_;
+	add key_eval_uv_Process StdUv.Process.new_
 
 let init_empty_constructors builtins =
 	let h = builtins.empty_constructor_builtins in
@@ -4492,4 +4534,8 @@ let init_standard_library builtins =
 	] [];
 	init_fields builtins (["eval";"uv"],"Timer") [] [
 		"close",StdUv.Timer.close;
+	];
+	init_fields builtins (["eval";"uv"],"Process") [] [
+		"kill",StdUv.Process.kill;
+		"getPid",StdUv.Process.getPid;
 	]
