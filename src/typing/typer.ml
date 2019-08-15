@@ -51,7 +51,8 @@ type type_class =
 	| KUnk
 	| KDyn
 	| KOther
-	| KParam of t
+	| KNumParam of t
+	| KStrParam of t
 	| KAbstract of tabstract * t list
 
 let rec classify t =
@@ -60,8 +61,10 @@ let rec classify t =
 	| TAbstract({a_impl = Some _} as a,tl) -> KAbstract (a,tl)
 	| TAbstract ({ a_path = [],"Int" },[]) -> KInt
 	| TAbstract ({ a_path = [],"Float" },[]) -> KFloat
-	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KParam t
-	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KParam t
+	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) a.a_to -> KNumParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KInt | KFloat -> true | _ -> false) ctl -> KNumParam t
+	| TAbstract (a,[]) when List.exists (fun t -> match classify t with KString -> true | _ -> false) a.a_to -> KStrParam t
+	| TInst ({ cl_kind = KTypeParameter ctl },_) when List.exists (fun t -> match classify t with KString -> true | _ -> false) ctl -> KStrParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -702,7 +705,7 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			| KAbstract ({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
 				call_to_string ctx e
 			| KInt | KFloat | KString -> e
-			| KUnk | KDyn | KParam _ | KOther ->
+			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				let std = type_type ctx ([],"Std") e.epos in
 				let acc = acc_get ctx (type_field_default_cfg ctx std "string" e.epos MCall) e.epos in
 				ignore(follow acc.etype);
@@ -756,18 +759,21 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			let ok1 = unify_int ctx e1 KUnk in
 			let ok2 = unify_int ctx e2 KUnk in
 			if ok1 && ok2 then tint else tfloat
-		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
+		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
 			t1
-		| KParam t, KInt | KInt, KParam t ->
+		| KNumParam t, KInt | KInt, KNumParam t ->
 			t
-		| KParam _, KFloat | KFloat, KParam _ | KParam _, KParam _ ->
+		| KNumParam _, KFloat | KFloat, KNumParam _ | KNumParam _, KNumParam _ ->
 			tfloat
-		| KParam t, KUnk ->
+		| KNumParam t, KUnk ->
 			unify ctx e2.etype tfloat e2.epos;
 			tfloat
-		| KUnk, KParam t ->
+		| KUnk, KNumParam t ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
+		| KStrParam _, _
+		| _, KStrParam _ ->
+			tstring
 		| KAbstract _,KFloat ->
 			unify ctx e1.etype tfloat e1.epos;
 			tfloat
@@ -782,8 +788,8 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 			ctx.t.tint
 		| KAbstract _,_
 		| _,KAbstract _
-		| KParam _, _
-		| _, KParam _
+		| KNumParam _, _
+		| _, KNumParam _
 		| KOther, _
 		| _ , KOther ->
 			let pr = print_context() in
@@ -807,13 +813,13 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		(match classify e1.etype, classify e2.etype with
 		| KFloat, KFloat ->
 			result := tfloat
-		| KParam t1, KParam t2 when Type.type_iseq t1 t2 ->
+		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
 			if op <> OpDiv then result := t1
-		| KParam _, KParam _ ->
+		| KNumParam _, KNumParam _ ->
 			result := tfloat
-		| KParam t, KInt | KInt, KParam t ->
+		| KNumParam t, KInt | KInt, KNumParam t ->
 			if op <> OpDiv then result := t
-		| KParam _, KFloat | KFloat, KParam _ ->
+		| KNumParam _, KFloat | KFloat, KNumParam _ ->
 			result := tfloat
 		| KFloat, k ->
 			ignore(unify_int ctx e2 k);
@@ -860,8 +866,10 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
-		| KParam _ , x when x <> KString && x <> KOther -> ()
-		| x , KParam _ when x <> KString && x <> KOther -> ()
+		| KNumParam _ , (KInt | KFloat | KNumParam _ | KDyn | KUnk ) -> ()
+		| (KInt | KFloat | KDyn | KUnk ), KNumParam _ -> ()
+		| KStrParam _ , (KString | KStrParam _ | KUnk | KDyn) -> ()
+		| (KString | KUnk | KDyn) , KStrParam _ -> ()
 		| KAbstract _,_
 		| _,KAbstract _
 		| KDyn , KUnk
@@ -870,8 +878,10 @@ and type_binop2 ?(abstract_overload_only=false) ctx op (e1 : texpr) (e2 : Ast.ex
 		| KString , KFloat
 		| KInt , KString
 		| KFloat , KString
-		| KParam _ , _
-		| _ , KParam _
+		| KNumParam _ , _
+		| _ , KNumParam _
+		| KStrParam _ , _
+		| _ , KStrParam _
 		| KOther , _
 		| _ , KOther ->
 			let pr = print_context() in
@@ -1038,7 +1048,7 @@ and type_unop ctx op flag e p =
 				if set then check_assign ctx e;
 				(match classify e.etype with
 				| KFloat -> ctx.t.tfloat
-				| KParam t ->
+				| KNumParam t ->
 					unify ctx e.etype ctx.t.tfloat e.epos;
 					t
 				| k ->
