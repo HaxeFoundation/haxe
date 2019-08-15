@@ -860,7 +860,8 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 			let ta = TAbstract(a, List.map (fun _ -> mk_mono()) a.a_params) in
 			let tthis = if fctx.is_abstract_member || Meta.has Meta.To cf.cf_meta then monomorphs a.a_params a.a_this else a.a_this in
 			let allows_no_expr = ref (Meta.has Meta.CoreType a.a_meta) in
-			let rec loop ml = match ml with
+			let rec loop ml =
+				(match ml with
 				| (Meta.From,_,_) :: _ ->
 					let r = exc_protect ctx (fun r ->
 						r := lazy_processing (fun () -> t);
@@ -939,7 +940,6 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						| _ ->
 							display_error ctx ("First argument of implementation function must be " ^ (s_type (print_context()) tthis)) cf.cf_pos
 					end;
-					loop ml
 				| ((Meta.Resolve,_,_) | (Meta.Op,[EField _,_],_)) :: _ ->
 					let targ = if fctx.is_abstract_member then tthis else ta in
 					let check_fun t1 t2 =
@@ -960,10 +960,10 @@ let check_abstract (ctx,cctx,fctx) c cf fd t ret p =
 						| _ ->
 							error ("Field type of resolve must be " ^ (s_type (print_context()) targ) ^ " -> String -> T") cf.cf_pos
 					end;
-				| _ :: ml ->
-					loop ml
-				| [] ->
-					()
+				| _ -> ());
+				match ml with
+				| _ :: ml -> loop ml
+				| [] -> ()
 			in
 			loop cf.cf_meta;
 			let check_bind () =

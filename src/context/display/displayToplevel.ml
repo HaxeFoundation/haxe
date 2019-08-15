@@ -436,6 +436,15 @@ let collect ctx tk with_type =
 	t();
 	l
 
+let collect_and_raise ctx tk with_type cr subject pinsert =
+	let fields = match !DisplayException.last_completion_pos with
+	| Some p' when (pos subject).pmin = p'.pmin ->
+		Array.to_list (!DisplayException.last_completion_result)
+	| _ ->
+		collect ctx tk with_type
+	in
+	DisplayException.raise_fields2 fields cr pinsert subject
+
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in
 	let cl = List.map (fun it ->

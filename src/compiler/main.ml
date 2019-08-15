@@ -1049,17 +1049,17 @@ with
 	| DisplayException(DisplayPackage pack) ->
 		DisplayPosition.display_position#reset;
 		raise (DisplayOutput.Completion (String.concat "." pack))
-	| DisplayException(DisplayFields Some(fields,cr,_)) ->
+	| DisplayException(DisplayFields Some r) ->
 		DisplayPosition.display_position#reset;
 		let fields = if !measure_times then begin
 			Timer.close_times();
 			(List.map (fun (name,value) ->
 				CompletionItem.make_ci_timer ("@TIME " ^ name) value
-			) (DisplayOutput.get_timer_fields !start_time)) @ fields
+			) (DisplayOutput.get_timer_fields !start_time)) @ r.fitems
 		end else
-			fields
+			r.fitems
 		in
-		let s = match cr with
+		let s = match r.fkind with
 			| CRToplevel _
 			| CRTypeHint
 			| CRExtends
@@ -1114,7 +1114,7 @@ with
 					| [] -> [],""
 				in
 				let kind = CRField ((CompletionItem.make_ci_module path,pos,None,None)) in
-				f (DisplayException.fields_to_json ctx fields kind None);
+				f (DisplayException.fields_to_json ctx fields kind None None);
 			| _ -> raise (DisplayOutput.Completion (DisplayOutput.print_fields fields))
 			end
 		end
