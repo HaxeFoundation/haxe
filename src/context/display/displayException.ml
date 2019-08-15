@@ -15,7 +15,7 @@ type fields_result = {
 	fitems : CompletionItem.t list;
 	fkind : CompletionResultKind.t;
 	finsert_pos : pos option;
-	fsubject : string option;
+	fsubject : placed_name option;
 }
 
 type signature_kind =
@@ -43,7 +43,7 @@ let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignature
 let raise_hover item expected p = raise (DisplayException(DisplayHover(Some {hitem = item;hpos = p;hexpected = expected})))
 let raise_positions pl = raise (DisplayException(DisplayPositions pl))
 let raise_fields ckl cr po = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;finsert_pos = po;fsubject = None}))))
-let raise_fields2 ckl cr po subject = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;finsert_pos = Some po;fsubject = Some subject}))))
+let raise_fields2 ckl cr po subject = raise (DisplayException(DisplayFields(Some({fitems = ckl;fkind = cr;finsert_pos = po;fsubject = Some subject}))))
 let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
@@ -56,7 +56,7 @@ let filter_somehow ctx items subject kind po =
 	let acc_types = DynArray.create () in
 	let subject = match subject with
 		| None -> []
-		| Some subject -> List.map String.lowercase (ExtString.String.nsplit subject ".")
+		| Some(subject,_) -> List.map String.lowercase (ExtString.String.nsplit subject ".")
 	in
 	let rec subject_matches subject sl = match subject with
 		| [] -> true
@@ -99,7 +99,10 @@ let filter_somehow ctx items subject kind po =
 let fields_to_json ctx fields kind po subject =
 	last_completion_result := Array.of_list fields;
 	let needs_filtering = !max_completion_items > 0 && Array.length !last_completion_result > !max_completion_items in
-	if needs_filtering then last_completion_pos := po;
+	if needs_filtering then begin match subject with
+		| Some(_,p) -> last_completion_pos := Some p;
+		| None -> last_completion_pos := None
+	end;
 	let ja = if needs_filtering then
 		filter_somehow ctx fields subject kind po
 	else

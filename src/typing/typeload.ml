@@ -355,7 +355,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
-		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint s {pn with pmin = pn.pmax - String.length s;}
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (Some {pn with pmin = pn.pmax - String.length s;})
 
 (*
 	build an instance from a complex type
@@ -846,7 +846,7 @@ let handle_path_display ctx path p =
 	in
 	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
 		| (IDKPackage [s],p),DMDefault ->
-			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport s p
+			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl

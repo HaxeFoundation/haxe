@@ -140,9 +140,9 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
 
-let raise_toplevel ctx dk with_type subject p =
+let raise_toplevel ctx dk with_type (subject,psubject) po =
 	let expected_type = get_expected_type ctx with_type in
-	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern p | _ -> TKExpr p) with_type (CRToplevel expected_type) subject p
+	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) po
 
 let display_dollar_type ctx p make_type =
 	let mono = mk_mono() in
@@ -404,7 +404,7 @@ and display_expr ctx e_ast e dk with_type p =
 				else begin
 					let name = try String.concat "." (string_list_of_expr_path_raise e_ast) with Exit -> "" in
 					let name = if name = "null" then "" else name in
-					raise_toplevel ctx dk with_type name (pos e_ast)
+					raise_toplevel ctx dk with_type (name,pos e_ast) None
 				end
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
@@ -491,14 +491,14 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 		| Some fn -> fn ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type n p
+		else raise_toplevel ctx dk with_type (n,p) (Some p)
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) None
 		with Not_found ->
 			raise err
 		end else
-			raise_toplevel ctx dk with_type (s_type_path path) p
+			raise_toplevel ctx dk with_type (s_type_path path,p) (Some p)
 	| DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
