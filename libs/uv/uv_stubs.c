@@ -788,9 +788,7 @@ static void handle_udp_cb_recv(uv_udp_t *handle, long int nread, const uv_buf_t 
 		Store_field(message, 1, message_addr);
 		Store_field(res, 0, message);
 	}
-	printf("here?\n"); fflush(stdout);
 	caml_callback(cb, res);
-	printf("after?\n"); fflush(stdout);
 	CAMLreturn0;
 }
 

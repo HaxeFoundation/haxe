@@ -3758,9 +3758,9 @@ module StdUv = struct
 		vnull
 	)
 
-	let run = vfun1 (fun singleTick ->
-		let singleTick = decode_bool singleTick in
-		let res = (wrap_sync (Uv.run (loop ()) (if singleTick then 1 else 0))) in
+	let run = vfun1 (fun mode ->
+		let mode = decode_int mode in
+		let res = (wrap_sync (Uv.run (loop ()) mode)) in
 		vbool res
 	)
 
