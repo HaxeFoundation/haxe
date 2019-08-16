@@ -294,7 +294,7 @@ let rec wait_loop process_params verbose accept =
 						| [] ->
 							if verbose then print_endline ("No library file was found for " ^ s_type_path m.m_path); (* TODO *)
 							raise Not_found (* no extern registration *)
-						| load :: l ->
+						| (_,load) :: l ->
 							match load m.m_path p with
 							| None -> loop l
 							| Some (file,_) ->

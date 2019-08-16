@@ -1805,7 +1805,7 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			NativeLibraryHandler.add_native_lib com file false;
+			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->

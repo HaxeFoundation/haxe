@@ -482,6 +482,8 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	let swf_version = ref false in
+	let native_libs = ref [] in
+	let add_native_lib file extern = native_libs := (file,extern) :: !native_libs in
 	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
 	Common.raw_define com "haxe3";
 	Common.raw_define com "haxe4";
@@ -646,23 +648,23 @@ try
 		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
 		("Target-specific",[],["--swf-lib";"-swf-lib"],Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
+			add_native_lib file false;
 		),"<file>","add the SWF library to the compiled SWF");
 		(* FIXME: replace with -D define *)
 		("Target-specific",[],["--swf-lib-extern";"-swf-lib-extern"],Arg.String (fun file ->
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file true);
+			add_native_lib file true;
 		),"<file>","use the SWF library for type checking");
 		("Target-specific",[],["--java-lib";"-java-lib"],Arg.String (fun file ->
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
+			add_native_lib file false;
 		),"<file>","add an external JAR or class directory library");
 		("Target-specific",[],["--net-lib";"-net-lib"],Arg.String (fun file ->
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
+			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
 		("Target-specific",["--native-lib"],[],Arg.String (fun file ->
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
+			add_native_lib file false;
 		),"<file>","add a native library");
 		("Target-specific",["--native-lib-extern"],[],Arg.String (fun file ->
-			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file true);
+			add_native_lib file true;
 		),"<file>","add an extern native library");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
@@ -876,6 +878,10 @@ try
 		let t = Timer.timer ["typing"] in
 		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
 		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
+		(* Native lib pass 1: Register *)
+		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) !native_libs in
+		(* Native lib pass 2: Initialize *)
+		List.iter (fun f -> f()) fl;
 		let tctx = Typer.create com in
 		let add_signature desc =
 			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());

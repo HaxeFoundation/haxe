@@ -1293,7 +1293,7 @@ let before_generate com =
 				let f = Unix.readdir f in
 				let finsens = String.lowercase f in
 				if String.ends_with finsens ".dll" then
-					add_net_lib com (path ^ "/" ^ f) true false;
+					add_net_lib com (path ^ "/" ^ f) true false ();
 				loop()
 			with | End_of_file ->
 				Unix.closedir f

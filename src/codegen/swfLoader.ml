@@ -132,7 +132,7 @@ let is_valid_path com pack name =
 	let rec loop = function
 		| [] ->
 			false
-		| load :: l ->
+		| (_,load) :: l ->
 			match load (pack,name) null_pos with
 			| None -> loop l
 			| Some (file,(_,a)) -> true
