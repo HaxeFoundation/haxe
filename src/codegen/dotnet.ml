@@ -496,7 +496,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
 				(AOverride,null_pos) :: acc
 			| None when ctx.ncom.verbose ->
-				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
+				print_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
 				acc
 			| _ -> acc
 	in
