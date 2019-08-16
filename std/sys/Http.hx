@@ -116,6 +116,7 @@ class Http extends haxe.http.HttpBase {
 				sock = new Socket();
 				#end
 			}
+			sock.setTimeout(10);
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
