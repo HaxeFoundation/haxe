@@ -343,18 +343,10 @@ import java.NativeArray;
 		}
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public inline function keys():Iterator<Int> {
 		return new IntMapKeyIterator(this);
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public inline function iterator():Iterator<T> {
 		return new IntMapValueIterator(this);
 	}
@@ -370,9 +362,6 @@ import java.NativeArray;
 		return copied;
 	}
 
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
 	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");

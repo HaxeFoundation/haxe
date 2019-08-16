@@ -26,10 +26,13 @@ class Sqlite {
 	/**
 		Opens a new SQLite connection on the specified path.
 
-		(cs) Note that you will need a SQLite ADO.NET Provider
+		(cs) You will need a SQLite ADO.NET Provider
 		(see http://www.mono-project.com/docs/database-access/providers/sqlite/).
 		Also note that this will try to open an assembly named `Mono.Data.Sqlite`
 		if it wasn't loaded yet.
+
+		(java) You will need a SQLite JDBC driver (e.g. 
+		https://bitbucket.org/xerial/sqlite-jdbc).
 	**/
 	public static function open(file:String):Connection {
 		throw "Not implemented for this platform";
