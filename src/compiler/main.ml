@@ -660,12 +660,6 @@ try
 		("Target-specific",[],["--net-lib";"-net-lib"],Arg.String (fun file ->
 			add_native_lib file false;
 		),"<file>[@std]","add an external .NET DLL file");
-		("Target-specific",["--native-lib"],[],Arg.String (fun file ->
-			add_native_lib file false;
-		),"<file>","add a native library");
-		("Target-specific",["--native-lib-extern"],[],Arg.String (fun file ->
-			add_native_lib file true;
-		),"<file>","add an extern native library");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
 		),"<file>","add a root std .NET DLL search path");
