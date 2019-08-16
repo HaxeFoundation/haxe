@@ -35,4 +35,5 @@ extern class Socket {
 	public static function select(recvt:Table<Int, Socket>, sendt:Table<Int, Socket>, ?timeout:Float):SelectResult;
 	public function close():Void;
 	public function getsockname():AddrInfo;
+	public function settimeout(value:Float, ?mode:TimeoutMode):Void;
 }
