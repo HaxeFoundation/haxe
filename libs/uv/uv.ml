@@ -150,12 +150,30 @@ external fs_unlink_sync : t_loop -> string -> unit uv_result = "w_fs_unlink_sync
 external fs_utime_sync : t_loop -> string -> float -> float -> unit uv_result = "w_fs_utime_sync"
 external fs_write_sync : t_loop -> t_file -> bytes -> int -> int -> int -> int uv_result = "w_fs_write_sync_bytecode" "w_fs_write_sync"
 
+(* ------------- HANDLE --------------------------------------------- *)
+
+(* 'a should be a subtype of t_handle (uv_handle_t) *)
+external close : 'a -> unit_cb -> unit uv_result = "w_close"
+external ref_ : 'a -> unit = "w_ref"
+external unref : 'a -> unit = "w_unref"
+
 (* ------------- FILESYSTEM EVENTS ---------------------------------- *)
 
 type fs_event_cb = (string * int) uv_result -> unit
 
-external fs_event_start : t_loop -> string -> bool -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start"
+external fs_event_start : t_loop -> string -> bool -> fs_event_cb -> t_fs_event uv_result = "w_fs_event_start"
 external fs_event_stop : t_fs_event -> unit_cb -> unit uv_result = "w_fs_event_stop"
+
+(* ------------- STREAM --------------------------------------------- *)
+
+type stream_bytes_cb = bytes uv_result -> unit
+
+(* 'a should be a subtype of t_stream (uv_stream_t) *)
+external shutdown : 'a -> unit_cb -> unit uv_result = "w_shutdown"
+external listen : 'a -> int -> unit_cb -> unit uv_result = "w_listen"
+external write : 'a -> bytes -> unit_cb -> unit uv_result = "w_write"
+external read_start : 'a -> stream_bytes_cb -> unit uv_result = "w_read_start"
+external read_stop : 'a -> unit uv_result = "w_read_stop"
 
 (* ------------- TCP ------------------------------------------------ *)
 
@@ -168,8 +186,6 @@ type uv_ip_address_port = {
 	port: int;
 }
 
-type stream_bytes_cb = bytes uv_result -> unit
-
 external tcp_init : t_loop -> t_tcp uv_result = "w_tcp_init"
 external tcp_nodelay : t_tcp -> bool -> unit uv_result = "w_tcp_nodelay"
 external tcp_keepalive : t_tcp -> bool -> int -> unit uv_result = "w_tcp_keepalive"
@@ -180,12 +196,6 @@ external tcp_connect_ipv4 : t_tcp -> int -> int -> unit_cb -> unit uv_result = "
 external tcp_connect_ipv6 : t_tcp -> bytes -> int -> unit_cb -> unit uv_result = "w_tcp_connect_ipv6"
 external tcp_getsockname : t_tcp -> uv_ip_address_port uv_result = "w_tcp_getsockname"
 external tcp_getpeername : t_tcp -> uv_ip_address_port uv_result = "w_tcp_getpeername"
-external tcp_shutdown : t_tcp -> unit_cb -> unit uv_result = "w_tcp_shutdown"
-external tcp_close : t_tcp -> unit_cb -> unit uv_result = "w_tcp_close"
-external tcp_listen : t_tcp -> int -> unit_cb -> unit uv_result = "w_tcp_listen"
-external tcp_write : t_tcp -> bytes -> unit_cb -> unit uv_result = "w_tcp_write"
-external tcp_read_start : t_tcp -> stream_bytes_cb -> unit uv_result = "w_tcp_read_start"
-external tcp_read_stop : t_tcp -> unit uv_result = "w_tcp_read_stop"
 
 (* ------------- UDP ------------------------------------------------ *)
 
@@ -227,7 +237,7 @@ external dns_getaddrinfo : t_loop -> string -> bool -> bool -> int -> dns_gai_cb
 
 type timer_cb = unit -> unit
 
-external timer_start : t_loop -> int -> bool -> timer_cb -> t_timer uv_result = "w_timer_start"
+external timer_start : t_loop -> int -> timer_cb -> t_timer uv_result = "w_timer_start"
 external timer_stop : t_timer -> unit_cb -> unit uv_result = "w_timer_stop"
 
 (* ------------- PROCESS -------------------------------------------- *)

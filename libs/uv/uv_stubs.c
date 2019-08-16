@@ -481,11 +481,23 @@ static void handle_close_cb(uv_handle_t *handle) {
 	CAMLreturn0;
 }
 
-static value w_close(value handle, value cb) {
+CAMLprim value w_close(value handle, value cb) {
 	CAMLparam2(handle, cb);
 	((uv_w_handle_t *)UV_HANDLE_DATA(Handle_val(handle)))->cb_close = cb;
 	uv_close(Handle_val(handle), handle_close_cb);
 	UV_SUCCESS_UNIT;
+}
+
+CAMLprim value w_ref(value handle) {
+	CAMLparam1(handle);
+	uv_ref(Handle_val(handle));
+	CAMLreturn(Val_unit);
+}
+
+CAMLprim value w_unref(value handle) {
+	CAMLparam1(handle);
+	uv_unref(Handle_val(handle));
+	CAMLreturn(Val_unit);
 }
 
 // ------------- FILESYSTEM EVENTS ----------------------------------
@@ -508,7 +520,7 @@ static void handle_fs_event_cb(uv_fs_event_t *handle, const char *filename, int 
 	CAMLreturn0;
 }
 
-CAMLprim value w_fs_event_start(value loop, value path, value persistent, value recursive, value cb) {
+CAMLprim value w_fs_event_start(value loop, value path, value recursive, value cb) {
 	CAMLparam4(loop, path, recursive, cb);
 	UV_ALLOC_CHECK(handle, uv_fs_event_t);
 	UV_ERROR_CHECK_C(uv_fs_event_init(Loop_val(loop), FsEvent_val(handle)), free(FsEvent_val(handle)));
@@ -519,8 +531,6 @@ CAMLprim value w_fs_event_start(value loop, value path, value persistent, value 
 		uv_fs_event_start(FsEvent_val(handle), handle_fs_event_cb, String_val(path), Bool_val(recursive) ? UV_FS_EVENT_RECURSIVE : 0),
 		{ unalloc_data(UV_HANDLE_DATA(FsEvent_val(handle))); free(FsEvent_val(handle)); }
 		);
-	if (!Bool_val(persistent))
-		uv_unref(Handle_val(handle));
 	UV_SUCCESS(handle);
 }
 
@@ -599,7 +609,7 @@ static void handle_stream_cb_read(uv_stream_t *stream, long int nread, const uv_
 	CAMLreturn0;
 }
 
-static value w_shutdown(value stream, value cb) {
+CAMLprim value w_shutdown(value stream, value cb) {
 	CAMLparam2(stream, cb);
 	UV_ALLOC_CHECK(req, uv_shutdown_t);
 	UV_REQ_DATA(Shutdown_val(req)) = (void *)cb;
@@ -608,14 +618,14 @@ static value w_shutdown(value stream, value cb) {
 	UV_SUCCESS_UNIT;
 }
 
-static value w_listen(value stream, value backlog, value cb) {
+CAMLprim value w_listen(value stream, value backlog, value cb) {
 	CAMLparam3(stream, backlog, cb);
 	UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_connection = cb;
 	UV_ERROR_CHECK(uv_listen(Stream_val(stream), Int_val(backlog), handle_stream_cb_connection));
 	UV_SUCCESS_UNIT;
 }
 
-static value w_write(value stream, value data, value cb) {
+CAMLprim value w_write(value stream, value data, value cb) {
 	CAMLparam3(stream, data, cb);
 	UV_ALLOC_CHECK(req, uv_write_t);
 	UV_REQ_DATA(Write_val(req)) = (void *)cb;
@@ -625,14 +635,14 @@ static value w_write(value stream, value data, value cb) {
 	UV_SUCCESS_UNIT;
 }
 
-static value w_read_start(value stream, value cb) {
+CAMLprim value w_read_start(value stream, value cb) {
 	CAMLparam2(stream, cb);
 	UV_HANDLE_DATA_SUB(Stream_val(stream), stream).cb_read = cb;
 	UV_ERROR_CHECK(uv_read_start(Stream_val(stream), handle_stream_cb_alloc, handle_stream_cb_read));
 	UV_SUCCESS_UNIT;
 }
 
-static value w_read_stop(value stream) {
+CAMLprim value w_read_stop(value stream) {
 	CAMLparam1(stream);
 	UV_ERROR_CHECK(uv_read_stop(Stream_val(stream)));
 	UV_SUCCESS_UNIT;
@@ -756,30 +766,6 @@ CAMLprim value w_tcp_getpeername(value handle) {
 	int dummy = sizeof(struct sockaddr_storage);
 	UV_ERROR_CHECK(uv_tcp_getpeername(Tcp_val(handle), (struct sockaddr *)&storage, &dummy));
 	CAMLreturn(w_getname(&storage));
-}
-
-CAMLprim value w_tcp_shutdown(value handle, value cb) {
-	return w_shutdown(handle, cb);
-}
-
-CAMLprim value w_tcp_close(value handle, value cb) {
-	return w_close(handle, cb);
-}
-
-CAMLprim value w_tcp_listen(value handle, value backlog, value cb) {
-	return w_listen(handle, backlog, cb);
-}
-
-CAMLprim value w_tcp_write(value handle, value data, value cb) {
-	return w_write(handle, data, cb);
-}
-
-CAMLprim value w_tcp_read_start(value handle, value cb) {
-	return w_read_start(handle, cb);
-}
-
-CAMLprim value w_tcp_read_stop(value handle) {
-	return w_read_stop(handle);
 }
 
 // ------------- UDP ------------------------------------------------
@@ -1047,8 +1033,8 @@ static void handle_timer_cb(uv_timer_t *handle) {
 	CAMLreturn0;
 }
 
-CAMLprim value w_timer_start(value loop, value timeout, value persistent, value cb) {
-	CAMLparam4(loop, timeout, persistent, cb);
+CAMLprim value w_timer_start(value loop, value timeout, value cb) {
+	CAMLparam3(loop, timeout, cb);
 	UV_ALLOC_CHECK(handle, uv_timer_t);
 	UV_ERROR_CHECK_C(uv_timer_init(Loop_val(loop), Timer_val(handle)), free(Timer_val(handle)));
 	UV_HANDLE_DATA(Timer_val(handle)) = alloc_data_timer(cb);
@@ -1058,8 +1044,6 @@ CAMLprim value w_timer_start(value loop, value timeout, value persistent, value 
 		uv_timer_start(Timer_val(handle), handle_timer_cb, Int_val(timeout), Int_val(timeout)),
 		{ unalloc_data(UV_HANDLE_DATA(Timer_val(handle))); free(Timer_val(handle)); }
 		);
-	if (!Bool_val(persistent))
-		uv_unref(Handle_val(handle));
 	UV_SUCCESS(handle);
 }
 

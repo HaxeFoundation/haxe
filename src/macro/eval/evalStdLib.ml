@@ -3094,6 +3094,17 @@ module StdUv = struct
 			| Uv.UvSuccess v -> call_value cb [vnull; enc v])
 	)
 
+	let wrap_ref this = vifun0 (fun vthis ->
+		let this = this vthis in
+		Uv.ref_ this;
+		vnull
+	)
+	let wrap_unref this = vifun0 (fun vthis ->
+		let this = this vthis in
+		Uv.unref this;
+		vnull
+	)
+
 	module DirectoryEntry = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvDirent e)} -> e
@@ -3112,11 +3123,27 @@ module StdUv = struct
 		let this vthis = match vthis with
 			| VInstance {ikind = IUv (UvFsEvent e)} -> e
 			| v -> unexpected_value v "UvFsEvent"
+		let new_ = (fun vl ->
+			match vl with
+				| [path; recursive; cb] ->
+					let path = decode_string path in
+					let recursive = decode_bool recursive in
+					let handle = wrap_sync (Uv.fs_event_start (loop ()) path recursive (wrap_cb cb (fun (path, event) ->
+							if event > 3 then
+								assert false;
+							(* event: 1 = Rename, 2 = Change, 3 = Rename + Change *)
+							encode_enum_value key_sys_FileWatcherEvent (event - 1) [|encode_string path|] None
+						))) in
+					encode_instance key_eval_uv_FileWatcher ~kind:(IUv (UvFsEvent handle))
+				| _ -> assert false
+		)
 		let close = vifun1 (fun vthis cb ->
 			let this = this vthis in
 			wrap_sync (Uv.fs_event_stop this (wrap_cb_unit cb));
 			vnull
 		)
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	module Stat = struct
@@ -3414,17 +3441,6 @@ module StdUv = struct
 			wrap_sync (Uv.fs_utime_sync (loop ()) path atime mtime);
 			vnull
 		)
-		let watch_native = vfun4 (fun path persistent recursive cb ->
-			let path = decode_string path in
-			let persistent = default_bool persistent true in
-			let recursive = default_bool recursive false in
-			let handle = wrap_sync (Uv.fs_event_start (loop ()) path persistent recursive (fun res ->
-				ignore (match res with
-					| Uv.UvError err -> call_value cb [wrap_error err; vnull; vnull]
-					| Uv.UvSuccess (path, event) -> call_value cb [vnull; encode_string path; vint event])
-				)) in
-			encode_instance key_eval_uv_FileWatcher ~kind:(IUv (UvFsEvent handle))
-		)
 	end
 
 	module AsyncFileSystem = struct
@@ -3463,7 +3479,7 @@ module StdUv = struct
 		let listen = vifun2 (fun vthis backlog cb ->
 			let this = this vthis in
 			let backlog = decode_int backlog in
-			wrap_sync (Uv.tcp_listen this backlog (wrap_cb_unit cb));
+			wrap_sync (Uv.listen this backlog (wrap_cb_unit cb));
 			vnull;
 		)
 		let accept = vifun0 (fun vthis ->
@@ -3502,31 +3518,31 @@ module StdUv = struct
 		let write = vifun2 (fun vthis data cb ->
 			let this = this vthis in
 			let data = decode_bytes data in
-			wrap_sync (Uv.tcp_write this data (wrap_cb_unit cb));
+			wrap_sync (Uv.write this data (wrap_cb_unit cb));
 			vnull
 		)
 		let startRead = vifun1 (fun vthis cb ->
 			let this = this vthis in
-			wrap_sync (Uv.tcp_read_start this (wrap_cb cb encode_bytes));
+			wrap_sync (Uv.read_start this (wrap_cb cb encode_bytes));
 			vnull
 		)
 		let stopRead = vifun0 (fun vthis ->
 			let this = this vthis in
-			wrap_sync (Uv.tcp_read_stop this);
+			wrap_sync (Uv.read_stop this);
 			vnull
 		)
 		let end_ = vifun1 (fun vthis cb ->
 			let this = this vthis in
-			wrap_sync (Uv.tcp_shutdown this (fun res ->
+			wrap_sync (Uv.shutdown this (fun res ->
 				match res with
 					| Uv.UvError err -> ignore (call_value cb [wrap_error err; vnull])
-					| Uv.UvSuccess () -> wrap_sync (Uv.tcp_close this (wrap_cb_unit cb))
+					| Uv.UvSuccess () -> wrap_sync (Uv.close this (wrap_cb_unit cb))
 				));
 			vnull
 		)
 		let close = vifun1 (fun vthis cb ->
 			let this = this vthis in
-			wrap_sync (Uv.tcp_close this (wrap_cb_unit cb));
+			wrap_sync (Uv.close this (wrap_cb_unit cb));
 			vnull
 		)
 		let setKeepAlive = vifun2 (fun vthis enable initialDelay ->
@@ -3553,6 +3569,8 @@ module StdUv = struct
 		)
 		let getSockName = getName Uv.tcp_getsockname
 		let getPeerName = getName Uv.tcp_getpeername
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	module UdpSocket = struct
@@ -3737,11 +3755,10 @@ module StdUv = struct
 			| v -> unexpected_value v "UvTimer"
 		let new_ = (fun vl ->
 			match vl with
-				| [timeMs; persistent; cb] ->
+				| [timeMs; cb] ->
 					let timeMs = decode_int timeMs in
-					let persistent = decode_bool persistent in
-					let handle = wrap_sync (Uv.timer_start (loop ()) timeMs persistent (fun () ->
-						ignore (call_value cb [])
+					let handle = wrap_sync (Uv.timer_start (loop ()) timeMs (fun () ->
+							ignore (call_value cb [])
 						)) in
 					encode_instance key_eval_uv_Timer ~kind:(IUv (UvTimer handle))
 				| _ -> assert false
@@ -3751,6 +3768,8 @@ module StdUv = struct
 			wrap_sync (Uv.timer_stop this (wrap_cb_unit cb));
 			vnull
 		)
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	module Process = struct
@@ -3792,6 +3811,8 @@ module StdUv = struct
 			let this = this vthis in
 			vint (Uv.process_get_pid this)
 		)
+		let ref_ = wrap_ref this
+		let unref = wrap_unref this
 	end
 
 	let init = vfun0 (fun () ->
@@ -3980,6 +4001,7 @@ let init_constructors builtins =
 		(fun _ ->
 			encode_instance key_sys_net_Deque ~kind:(IDeque (Deque.create()))
 		);
+	add key_eval_uv_FileWatcher StdUv.FileWatcher.new_;
 	add key_eval_uv_Socket StdUv.Socket.new_;
 	add key_eval_uv_UdpSocket StdUv.UdpSocket.new_;
 	add key_eval_uv_Timer StdUv.Timer.new_;
@@ -4441,7 +4463,6 @@ let init_standard_library builtins =
 		"symlink",StdUv.FileSystem.symlink;
 		"unlink",StdUv.FileSystem.unlink;
 		"utimes_native",StdUv.FileSystem.utimes_native;
-		"watch_native",StdUv.FileSystem.watch_native;
 	] [];
 	init_fields builtins (["nusys";"async"],"FileSystem") [
 		"access",StdUv.AsyncFileSystem.access;
@@ -4479,6 +4500,8 @@ let init_standard_library builtins =
 	];
 	init_fields builtins (["eval";"uv"],"FileWatcher") [] [
 		"close",StdUv.FileWatcher.close;
+		"ref",StdUv.FileWatcher.ref_;
+		"unref",StdUv.FileWatcher.unref;
 	];
 	init_fields builtins (["eval";"uv"],"Stat") [] [
 		"get_dev",StdUv.Stat.get_dev;
@@ -4508,6 +4531,8 @@ let init_standard_library builtins =
 		"setNoDelay",StdUv.Socket.setNoDelay;
 		"getSockName",StdUv.Socket.getSockName;
 		"getPeerName",StdUv.Socket.getPeerName;
+		"ref",StdUv.Socket.ref_;
+		"unref",StdUv.Socket.unref;
 	];
 	init_fields builtins (["eval";"uv"],"UdpSocket") [] [
 		"addMembership",StdUv.UdpSocket.addMembership;
@@ -4534,8 +4559,12 @@ let init_standard_library builtins =
 	] [];
 	init_fields builtins (["eval";"uv"],"Timer") [] [
 		"close",StdUv.Timer.close;
+		"ref",StdUv.Timer.ref_;
+		"unref",StdUv.Timer.unref;
 	];
 	init_fields builtins (["eval";"uv"],"Process") [] [
 		"kill",StdUv.Process.kill;
 		"getPid",StdUv.Process.getPid;
+		"ref",StdUv.Process.ref_;
+		"unref",StdUv.Process.unref;
 	]
