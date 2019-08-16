@@ -22,6 +22,7 @@ open ExtString
 
 type native_lib_flags =
 	| FlagIsStd
+	| FlagIsExtern
 
 class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
 	val mutable flags : native_lib_flags list = []

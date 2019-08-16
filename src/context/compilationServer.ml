@@ -235,9 +235,9 @@ let get_native_lib cs key =
 	with Not_found -> None
 
 let handle_native_lib com lib =
-	let build = lib#build in
 	com.native_libs.all_libs <- lib#get_file_path :: com.native_libs.all_libs;
-	begin match get() with
+	com.load_extern_type <- com.load_extern_type @ [lib#get_file_path,lib#build];
+	match get() with
 	| Some cs when Define.raw_defined com.defines "haxe.cacheNativeLibs" ->
 		let init () =
 			let file = lib#get_file_path in
@@ -267,25 +267,19 @@ let handle_native_lib com lib =
 				h;
 			end;
 		in
-		(* This is some dicey nonsense: Native library handlers might actually
-			lookup something during the conversion to Haxe AST. For instance, the
-			SWF loader has a `is_valid_path` check in some cases which relies on
-			`load_extern_type`. In order to deal with this, we temporarily register
-			the standard resolver and then remove it again after the handling.
-		*)
-		let old = com.load_extern_type in
-		com.load_extern_type <- com.load_extern_type @ [build];
-		let lut = init() in
-		let build path p =
-			try Some (Hashtbl.find lut path)
-			with Not_found -> None
-		in
-		com.load_extern_type <- old @ [build];
+		(fun () ->
+			let lut = init() in
+			let build path p =
+				try Some (Hashtbl.find lut path)
+				with Not_found -> None
+			in
+			com.load_extern_type <- List.map (fun (name,f) ->
+				name,if name = lib#get_file_path then build else f
+			) com.load_extern_type
+		)
 	| _ ->
 		(* Offline mode, just read library as usual. *)
-		lib#load;
-		com.load_extern_type <- com.load_extern_type @ [build];
-	end
+		(fun () -> lib#load)
 
 (* context *)
 

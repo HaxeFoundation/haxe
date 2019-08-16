@@ -606,7 +606,7 @@ let jclass_with_params com cls params = try
 			cinterfaces = List.map (japply_params jparams) cls.cinterfaces;
 		}
 	with Invalid_argument _ ->
-		if com.verbose then prerr_endline ("Differing parameters for class: " ^ s_type_path cls.cpath);
+		if com.verbose then print_endline ("Differing parameters for class: " ^ s_type_path cls.cpath);
 		cls
 
 let is_object = function | TObject( (["java";"lang"], "Object"), [] ) -> true | _ -> false
@@ -660,8 +660,8 @@ let compare_type com s1 s2 =
 				let implements = List.map (japply_params jparams) c.cinterfaces in
 				loop ~first_error:first_error super s2 || List.exists (fun super -> loop ~first_error:first_error super s2) implements
 			with | Not_found ->
-				prerr_endline ("-java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
-				prerr_endline "Did you forget to include a needed lib?";
+				print_endline ("-java-lib: The type " ^ (s_sig s1) ^ " is referred but was not found. Compilation may not occur correctly.");
+				print_endline "Did you forget to include a needed lib?";
 				if first_error then
 					not (loop ~first_error:false s2 s1)
 				else
@@ -694,13 +694,13 @@ let select_best com flist =
 				| -1 ->
 					loop cur_best flist
 				| -2 -> (* error - no type is compatible *)
-					if com.verbose then prerr_endline (f.jf_name ^ ": The types " ^ (s_sig r) ^ " and " ^ (s_sig r2) ^ " are incompatible");
+					if com.verbose then print_endline (f.jf_name ^ ": The types " ^ (s_sig r) ^ " and " ^ (s_sig r2) ^ " are incompatible");
 					(* bet that the current best has "beaten" other types *)
 					loop cur_best flist
 				| _ -> assert false
 			with | Exit -> (* incompatible type parameters *)
 				(* error mode *)
-				if com.verbose then prerr_endline (f.jf_name ^ ": Incompatible argument return signatures: " ^ (s_sig r) ^ " and " ^ (s_sig r2));
+				if com.verbose then print_endline (f.jf_name ^ ": Incompatible argument return signatures: " ^ (s_sig r) ^ " and " ^ (s_sig r2));
 				None)
 			| TMethod _, _ -> (* select the method *)
 				loop f flist
@@ -1051,12 +1051,12 @@ class virtual java_library com name file_path = object(self)
 				end
 			with
 			| JReader.Error_message msg ->
-				prerr_endline ("Class reader failed: " ^ msg);
+				print_endline ("Class reader failed: " ^ msg);
 				None
 			| e ->
 				if ctx.jcom.verbose then begin
-					(* prerr_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
-					prerr_endline (Printexc.to_string e)
+					(* print_endline (Printexc.get_backtrace ()); requires ocaml 3.11 *)
+					print_endline (Printexc.to_string e)
 				end;
 				None
 		in
@@ -1188,7 +1188,7 @@ class java_library_dir com name file_path = object(self)
 			| _ -> None
 end
 
-let add_java_lib com name std =
+let add_java_lib com name std extern =
 	let file = if Sys.file_exists name then
 		name
 	else try Common.find_file com name with
@@ -1203,6 +1203,7 @@ let add_java_lib com name std =
 			(new java_library_jar com name file :> java_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
+	if extern then java_lib#add_flag FlagIsExtern;
 	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
 	CompilationServer.handle_native_lib com java_lib
 

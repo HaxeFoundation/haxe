@@ -964,7 +964,7 @@ let load_module ctx m p =
 				let rec loop = function
 					| [] ->
 						raise (Error (Module_not_found m,p))
-					| load :: l ->
+					| (_,load) :: l ->
 						match load m p with
 						| None -> loop l
 						| Some (file,(_,a)) -> file, a
