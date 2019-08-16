@@ -137,9 +137,6 @@ private typedef __Int64 = ___Int64;
 
 @:coreApi
 abstract Int64(__Int64) from __Int64 to __Int64 {
-	/**
-		Makes a copy of `this` Int64.
-	**/
 	public #if !cppia inline #end function copy():Int64
 		return this;
 
@@ -152,10 +149,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return __Int64.ofInt(x);
 	}
 
-	/**
-		Returns an Int with the value of the Int64 `x`.
-		Throws an exception  if `x` cannot be represented in 32 bits.
-	**/
 	public static #if !cppia inline #end function toInt(x:Int64):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
@@ -163,57 +156,29 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
-	/**
-		Returns whether the value `val` is of type `haxe.Int64`
-	**/
 	public static #if !cppia inline #end function is(val:Dynamic):Bool
 		return __Int64.is(val);
 
-	/**
-		Returns the high 32-bit word of `x`.
-	**/
 	@:deprecated("Use high instead")
 	public static #if !cppia inline #end function getHigh(x:Int64):Int32
 		return x.high;
 
-	/**
-		Returns the low 32-bit word of `x`.
-	**/
 	@:deprecated("Use low instead")
 	public static #if !cppia inline #end function getLow(x:Int64):Int32
 		return x.low;
 
-	/**
-		Returns `true` if `x` is less than zero.
-	**/
 	public static #if !cppia inline #end function isNeg(x:Int64):Bool
 		return __Int64.isNeg(x);
 
-	/**
-		Returns `true` if `x` is exactly zero.
-	**/
 	public static #if !cppia inline #end function isZero(x:Int64):Bool
 		return __Int64.isZero(x);
 
-	/**
-		Compares `a` and `b` in signed mode.
-		Returns a negative value if `a < b`, positive if `a > b`,
-		or 0 if `a == b`.
-	**/
 	public static #if !cppia inline #end function compare(a:Int64, b:Int64):Int
 		return __Int64.compare(a, b);
 
-	/**
-		Compares `a` and `b` in unsigned mode.
-		Returns a negative value if `a < b`, positive if `a > b`,
-		or 0 if `a == b`.
-	**/
 	public static #if !cppia inline #end function ucompare(a:Int64, b:Int64):Int
 		return __Int64.ucompare(a, b);
 
-	/**
-		Returns a signed decimal `String` representation of `x`.
-	**/
 	public static #if !cppia inline #end function toStr(x:Int64):String
 		return x.toString();
 
@@ -228,10 +193,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return Int64Helper.fromFloat(f);
 	}
 
-	/**
-		Performs signed integer divison of `dividend` by `divisor`.
-		Returns `{ quotient : Int64, modulus : Int64 }`.
-	**/
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
 		var q = dividend / divisor;
 
@@ -243,9 +204,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return {quotient: q, modulus: m};
 	}
 
-	/**
-		Returns the negative of `x`.
-	**/
 	@:op(-A)
 	public static #if !cppia inline #end function neg(x:Int64):Int64
 		return __Int64.neg(x);
@@ -288,9 +246,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		#end
 	}
 
-	/**
-		Returns the sum of `a` and `b`.
-	**/
 	@:op(A + B)
 	public static #if !cppia inline #end function add(a:Int64, b:Int64):Int64
 		return __Int64.add(a, b);
@@ -300,9 +255,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function addInt(a:Int64, b:Int):Int64
 		return __Int64.addInt(a, b);
 
-	/**
-		Returns `a` minus `b`.
-	**/
 	@:op(A - B)
 	public static #if !cppia inline #end function sub(a:Int64, b:Int64):Int64 {
 		return __Int64.sub(a, b);
@@ -316,9 +268,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function intSub(a:Int, b:Int64):Int64
 		return __Int64.intSub(a, b);
 
-	/**
-		Returns the product of `a` and `b`.
-	**/
 	@:op(A * B)
 	public static #if !cppia inline #end function mul(a:Int64, b:Int64):Int64
 		return __Int64.mul(a, b);
@@ -328,9 +277,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function mulInt(a:Int64, b:Int):Int64
 		return mul(a, b);
 
-	/**
-		Returns the quotient of `a` divided by `b`.
-	**/
 	@:op(A / B)
 	public static #if !cppia inline #end function div(a:Int64, b:Int64):Int64 {
 		if (__Int64.isZero(b))
@@ -346,9 +292,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function intDiv(a:Int, b:Int64):Int64
 		return toInt(div(a, b));
 
-	/**
-		Returns the modulus of `a` divided by `b`.
-	**/
 	@:op(A % B)
 	public static #if !cppia inline #end function mod(a:Int64, b:Int64):Int64 {
 		if (__Int64.isZero(b))
@@ -364,9 +307,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function intMod(a:Int, b:Int64):Int64
 		return toInt(mod(a, b));
 
-	/**
-		Returns `true` if `a` is equal to `b`.
-	**/
 	@:op(A == B)
 	public static #if !cppia inline #end function eq(a:Int64, b:Int64):Bool
 		return __Int64.eq(a, b);
@@ -376,9 +316,6 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function eqInt(a:Int64, b:Int):Bool
 		return __Int64.eqInt(a, b);
 
-	/**
-		Returns `true` if `a` is not equal to `b`.
-	**/
 	@:op(A != B)
 	public static #if !cppia inline #end function neq(a:Int64, b:Int64):Bool
 		return __Int64.neq(a, b);
@@ -436,53 +373,30 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	private static #if !cppia inline #end function intGte(a:Int, b:Int64):Bool
 		return gte(a, b);
 
-	/**
-		Returns the bitwise NOT of `a`.
-	**/
 	@:op(~A)
 	private static #if !cppia inline #end function complement(a:Int64):Int64
 		return __Int64.complement(a);
 
-	/**
-		Returns the bitwise AND of `a` and `b`.
-	**/
 	@:op(A & B)
 	public static #if !cppia inline #end function and(a:Int64, b:Int64):Int64
 		return __Int64.bitAnd(a, b);
 
-	/**
-		Returns the bitwise OR of `a` and `b`.
-	**/
 	@:op(A | B)
 	public static #if !cppia inline #end function or(a:Int64, b:Int64):Int64
 		return __Int64.bitOr(a, b);
 
-	/**
-		Returns the bitwise XOR of `a` and `b`.
-	**/
 	@:op(A ^ B)
 	public static #if !cppia inline #end function xor(a:Int64, b:Int64):Int64
 		return __Int64.bitXor(a, b);
 
-	/**
-		Returns `a` left-shifted by `b` bits.
-	**/
 	@:op(A << B)
 	public static #if !cppia inline #end function shl(a:Int64, b:Int):Int64
 		return __Int64.shl(a, b);
 
-	/**
-		Returns `a` right-shifted by `b` bits in signed mode.
-		`a` is sign-extended.
-	**/
 	@:op(A >> B)
 	public static #if !cppia inline #end function shr(a:Int64, b:Int):Int64
 		return __Int64.shr(a, b);
 
-	/**
-		Returns `a` right-shifted by `b` bits in unsigned mode.
-		`a` is padded with zeroes.
-	**/
 	@:op(A >>> B)
 	public static #if !cppia inline #end function ushr(a:Int64, b:Int):Int64
 		return __Int64.ushr(a, b);
