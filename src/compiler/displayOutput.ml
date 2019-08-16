@@ -328,6 +328,7 @@ module Memory = struct
 				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
 				"parserCache",jint (mem_size cs.cache.c_files);
 				"moduleCache",jint (mem_size cs.cache.c_modules);
+				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
 			]
 		]
 

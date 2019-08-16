@@ -196,6 +196,11 @@ let collect ctx tk with_type =
 	in
 
 	let process_decls pack name decls =
+		let added_something = ref false in
+		let add item name =
+			added_something := true;
+			add item name
+		in
 		let run () = List.iter (fun (d,p) ->
 			begin try
 				let tname,is_private,meta = match d with
@@ -218,7 +223,8 @@ let collect ctx tk with_type =
 				()
 			end
 		) decls in
-		if is_pack_visible pack then run()
+		if is_pack_visible pack then run();
+		!added_something
 	in
 
 	(* Collection starts here *)
@@ -383,7 +389,7 @@ let collect ctx tk with_type =
 		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun path ->
 			if not (path_exists cctx path) then begin
 				let _,decls = Display.parse_module ctx path Globals.null_pos in
-				process_decls (fst path) (snd path) decls
+				ignore(process_decls (fst path) (snd path) decls)
 			end
 		)
 	| Some cs ->
@@ -396,20 +402,29 @@ let collect ctx tk with_type =
 			(file,cfile),i
 		) files in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+		let check_package pack = match List.rev pack with
+			| [] -> ()
+			| s :: sl -> add_package (List.rev sl,s)
+		in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
 			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				begin match List.rev cfile.c_package with
-					| [] -> ()
-					| s :: sl -> add_package (List.rev sl,s)
-				end;
 				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
-				process_decls cfile.c_package module_name cfile.c_decls
+				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
-		) files
+		) files;
+		List.iter (fun file ->
+			try
+				let lib = Hashtbl.find cs.cache.c_native_libs file in
+				Hashtbl.iter (fun path (_,(pack,decls)) ->
+					if process_decls pack (snd path) decls then check_package pack;
+				) lib.c_nl_files
+			with Not_found ->
+				()
+		) ctx.com.native_libs.all_libs
 	end;
 
 	(* packages *)

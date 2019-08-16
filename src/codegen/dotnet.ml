@@ -1220,9 +1220,8 @@ let add_net_lib com file std =
 			failwith (".NET lib " ^ file ^ " not found")
 	in
 	let net_lib = new net_library com file real_file std in
-	com.load_extern_type <- com.load_extern_type @ [net_lib#build];
 	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
-	com.native_libs.all_libs <- net_lib#get_file_path :: com.native_libs.all_libs
+	CompilationServer.handle_native_lib com net_lib
 
 let before_generate com =
 	(* netcore version *)
@@ -1300,7 +1299,4 @@ let before_generate com =
 				Unix.closedir f
 		in
 		loop()
-	) !matched;
-
-	(* now force all libraries to initialize *)
-	List.iter (function net_lib -> ignore (net_lib#lookup ([],""))) com.native_libs.net_libs
+	) !matched
