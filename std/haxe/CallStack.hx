@@ -29,7 +29,7 @@ enum StackItem {
 	CFunction;
 	Module(m:String);
 	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
-	Method(classname:String, method:String);
+	Method(classname:Null<String>, method:String);
 	LocalFunction(?v:Int);
 }
 
@@ -137,7 +137,7 @@ class CallStack {
 		infos.pop();
 		infos.reverse();
 		for (elem in infos)
-			stack.push(FilePos(null, elem._1, elem._2));
+			stack.push(FilePos(Method(null, elem._3), elem._1, elem._2));
 		return stack;
 		#elseif lua
 		var stack = [];
@@ -232,7 +232,7 @@ class CallStack {
 			var infos = python.lib.Traceback.extract_tb(exc._3);
 			infos.reverse();
 			for (elem in infos)
-				stack.push(FilePos(null, elem._1, elem._2));
+				stack.push(FilePos(Method(null, elem._3), elem._1, elem._2));
 		}
 		return stack;
 		#elseif js
