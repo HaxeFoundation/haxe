@@ -1220,7 +1220,8 @@ let add_net_lib com file std extern =
 			failwith (".NET lib " ^ file ^ " not found")
 	in
 	let net_lib = new net_library com file real_file std in
-	if not extern then com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
+	if extern then net_lib#add_flag FlagIsExtern;
+	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
 	CompilationServer.handle_native_lib com net_lib
 
 let before_generate com =
