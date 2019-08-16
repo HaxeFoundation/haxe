@@ -643,30 +643,27 @@ try
 			with
 				_ -> raise (Arg.Bad "Invalid SWF header format, expected width:height:fps[:color]")
 		),"<header>","define SWF header (width:height:fps:color)");
-		(* FIXME: replace with -D define *)
-		("Target-specific",["--swf-lib"],["-swf-lib"],Arg.String (fun file ->
+		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
+		("Target-specific",[],["--swf-lib";"-swf-lib"],Arg.String (fun file ->
 			process_libs(); (* linked swf order matters, and lib might reference swf as well *)
-			SwfLoader.add_swf_lib com file false
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
 		),"<file>","add the SWF library to the compiled SWF");
 		(* FIXME: replace with -D define *)
-		("Target-specific",["--swf-lib-extern"],["-swf-lib-extern"],Arg.String (fun file ->
-			SwfLoader.add_swf_lib com file true
+		("Target-specific",[],["--swf-lib-extern";"-swf-lib-extern"],Arg.String (fun file ->
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file true);
 		),"<file>","use the SWF library for type checking");
-		("Target-specific",["--flash-strict"],[], define Define.FlashStrict, "","more type strict flash API");
-		("Target-specific",["--java-lib"],["-java-lib"],Arg.String (fun file ->
-			let std = file = "lib/hxjava-std.jar" in
-			com.callbacks#add_before_typer_create (fun () -> Java.add_java_lib com file std);
+		("Target-specific",[],["--java-lib";"-java-lib"],Arg.String (fun file ->
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
 		),"<file>","add an external JAR or class directory library");
-		("Target-specific",["--net-lib"],["-net-lib"],Arg.String (fun file ->
-			let file, is_std = match ExtString.String.nsplit file "@" with
-				| [file] ->
-					file,false
-				| [file;"std"] ->
-					file,true
-				| _ -> raise Exit
-			in
-			com.callbacks#add_before_typer_create (fun () -> Dotnet.add_net_lib com file is_std);
+		("Target-specific",[],["--net-lib";"-net-lib"],Arg.String (fun file ->
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
 		),"<file>[@std]","add an external .NET DLL file");
+		("Target-specific",["--native-lib"],[],Arg.String (fun file ->
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file false);
+		),"<file>","add a native library");
+		("Target-specific",["--native-lib-extern"],[],Arg.String (fun file ->
+			com.callbacks#add_before_typer_create (fun () -> NativeLibraryHandler.add_native_lib com file true);
+		),"<file>","add an extern native library");
 		("Target-specific",["--net-std"],["-net-std"],Arg.String (fun file ->
 			Dotnet.add_net_std com file
 		),"<file>","add a root std .NET DLL search path");

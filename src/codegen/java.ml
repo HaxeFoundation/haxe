@@ -1188,7 +1188,7 @@ class java_library_dir com name file_path = object(self)
 			| _ -> None
 end
 
-let add_java_lib com name std =
+let add_java_lib com name std extern =
 	let file = if Sys.file_exists name then
 		name
 	else try Common.find_file com name with
@@ -1203,7 +1203,7 @@ let add_java_lib com name std =
 			(new java_library_jar com name file :> java_library)
 	in
 	if std then java_lib#add_flag FlagIsStd;
-	com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
+	if not extern then com.native_libs.java_libs <- (java_lib :> (java_lib_type,unit) native_library) :: com.native_libs.java_libs;
 	CompilationServer.handle_native_lib com java_lib
 
 let before_generate con =

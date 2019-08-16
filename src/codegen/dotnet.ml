@@ -1211,7 +1211,7 @@ class net_library com name file_path std = object(self)
 		if std then self#add_flag FlagIsStd
 end
 
-let add_net_lib com file std =
+let add_net_lib com file std extern =
 	let real_file = if Sys.file_exists file then
 		file
 	else try Common.find_file com file with
@@ -1220,7 +1220,7 @@ let add_net_lib com file std =
 			failwith (".NET lib " ^ file ^ " not found")
 	in
 	let net_lib = new net_library com file real_file std in
-	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
+	if not extern then com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
 	CompilationServer.handle_native_lib com net_lib
 
 let before_generate com =
@@ -1293,7 +1293,7 @@ let before_generate com =
 				let f = Unix.readdir f in
 				let finsens = String.lowercase f in
 				if String.ends_with finsens ".dll" then
-					add_net_lib com (path ^ "/" ^ f) true;
+					add_net_lib com (path ^ "/" ^ f) true false;
 				loop()
 			with | End_of_file ->
 				Unix.closedir f
