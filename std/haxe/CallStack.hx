@@ -278,7 +278,7 @@ class CallStack {
 				if (s != null)
 					b.add(")");
 			case Method(cname, meth):
-				b.add(cname);
+				b.add(cname == null ? "<unknown>" : cname);
 				b.add(".");
 				b.add(meth);
 			case LocalFunction(n):
