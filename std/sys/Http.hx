@@ -110,12 +110,9 @@ class Http extends haxe.http.HttpBase {
 				throw "Https is only supported with -lib hxssl";
 				#end
 			} else {
-				#if php
-				sock = new php.net.Socket();
-				#else
 				sock = new Socket();
-				#end
 			}
+			sock.setTimeout(cnxTimeout);
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);

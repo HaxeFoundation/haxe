@@ -55,6 +55,7 @@ class Socket {
 	var _socket:LuaSocket;
 
 	var blocking = false;
+	var timeout = null;
 
 	/**
 		Creates a new unconnected socket.
@@ -92,6 +93,7 @@ class Socket {
 		input = new SocketInput(res.result);
 		output = new SocketOutput(res.result);
 		_socket = res.result;
+		_socket.settimeout(timeout);
 	}
 
 	/**
@@ -103,6 +105,7 @@ class Socket {
 			throw 'Socket Listen Error : ${res.message}';
 		res.result.listen(connections);
 		_socket = res.result;
+		_socket.settimeout(timeout);
 	}
 
 	/**
@@ -171,8 +174,11 @@ class Socket {
 		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	public inline function setTimeout(timeout:Float):Void {
-		var client:TcpClient = cast _socket;
-		client.settimeout(timeout);
+		this.timeout = timeout;
+		if (_socket != null) {
+			var client:TcpClient = cast _socket;
+			client.settimeout(timeout);
+		}
 	}
 
 	/**
