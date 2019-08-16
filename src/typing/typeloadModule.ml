@@ -964,10 +964,10 @@ let load_module ctx m p =
 				let rec loop = function
 					| [] ->
 						raise (Error (Module_not_found m,p))
-					| (_,load) :: l ->
+					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (file,(_,a)) -> file, a
+						| Some (_,a) -> file, a
 				in
 				is_extern := true;
 				loop ctx.com.load_extern_type

@@ -203,7 +203,7 @@ let make_macro_api ctx p =
 					None
 				else
 					let (pack,name),tdef,p = Interp.decode_type_def td in
-					Some (name,(pack,[tdef,p]))
+					Some (pack,[tdef,p])
 			];
 		);
 		MacroApi.parse_string = parse_expr_string;

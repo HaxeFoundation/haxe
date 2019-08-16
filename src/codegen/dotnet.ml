@@ -1170,7 +1170,7 @@ class net_library com name file_path std = object(self)
 			Hashtbl.add cache path None;
 			None
 
-	method build (path : path) (p : pos) : (string * Ast.package) option =
+	method build (path : path) (p : pos) : Ast.package option =
 		let p = { pfile = file_path ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
@@ -1203,7 +1203,7 @@ class net_library com name file_path std = object(self)
 		build path;
 		match !cp with
 			| [] -> None
-			| cp -> Some (file_path, (pack,cp))
+			| cp -> Some (pack,cp)
 
 	method get_data = ()
 

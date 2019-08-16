@@ -934,7 +934,7 @@ class virtual java_library com name file_path = object(self)
 				EAbstract { a with d_meta = add_meta (fst a.d_name) a.d_meta }
 			| d -> d
 
-	method build path (p : pos) : (string * Ast.package) option =
+	method build path (p : pos) : Ast.package option =
 		let rec build ctx path p types =
 			try
 				if List.mem path !types then
@@ -976,7 +976,7 @@ class virtual java_library com name file_path = object(self)
 									(if out <> Some ppath then
 										acc
 									else match build ctx path p types with
-										| Some(_,(_, classes)) ->
+										| Some(_, classes) ->
 											let base = snd ppath ^ "$" in
 											(List.map (fun (def,p) ->
 												self#replace_canonical_name p (fst ppath) base (snd ppath ^ ".") def, p) classes) @ acc
@@ -1044,7 +1044,7 @@ class virtual java_library com name file_path = object(self)
 								let inner = List.concat [!alias_list ; inner] in
 								let classes = List.map (fun t -> t,pos) (convert_java_class ctx pos cls) in
 								let imports, defs = List.partition (function | (EImport(_),_) -> true | _ -> false) (classes @ inner) in
-								let ret = Some ( real_path, (pack, imports @ defs) ) in
+								let ret = Some (pack, imports @ defs) in
 								ctx.jtparams <- old_types;
 								ret
 							end

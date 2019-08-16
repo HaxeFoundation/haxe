@@ -18,7 +18,7 @@ type cached_directory = {
 
 type cached_native_lib = {
 	c_nl_mtime : float;
-	c_nl_files : (path,(string * Ast.package)) Hashtbl.t;
+	c_nl_files : (path,Ast.package) Hashtbl.t;
 }
 
 type cache = {
