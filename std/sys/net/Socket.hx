@@ -38,7 +38,7 @@ extern class Socket {
 	var output(default, null):haxe.io.Output;
 
 	/**
-			A custom value that can be associated with the socket. Can be used to retrieve your custom infos after a `select`.
+		A custom value that can be associated with the socket. Can be used to retrieve your custom infos after a `select`.
 	***/
 	var custom:Dynamic;
 
@@ -125,12 +125,14 @@ extern class Socket {
 	function setFastSend(b:Bool):Void;
 
 	/**
-		Wait until one of the sockets groups is ready for the given operation :
-		 - `read`contains sockets on which we want to wait for available data to be read,
+		Wait until one of the sockets group is ready for the given operation:
+
+		 - `read` contains sockets on which we want to wait for available data to be read,
 		 - `write` contains sockets on which we want to wait until we are allowed to write some data to their output buffers,
 		 - `others` contains sockets on which we want to wait for exceptional conditions.
 		 - `select` will block until one of the condition is met, in which case it will return the sockets for which the condition was true.
-		In case a `timeout` (in seconds) is specified, select might wait at worse until the timeout expires.
+
+		In case a `timeout` (in seconds) is specified, select might wait at worst until the timeout expires.
 	**/
 	static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 		?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>};

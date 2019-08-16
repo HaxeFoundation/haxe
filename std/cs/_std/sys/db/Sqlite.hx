@@ -25,11 +25,6 @@ package sys.db;
 class Sqlite {
 	static var type:Class<cs.system.data.IDbConnection>;
 
-	/**
-		Opens a new SQLite connection on the specified path.
-		Note that you will need a SQLite ADO.NET Provider (see http://www.mono-project.com/docs/database-access/providers/sqlite/).
-		Also note that this will try to open an assembly named `Mono.Data.Sqlite` if it wasn't loaded yet.
-	**/
 	public static function open(file:String):sys.db.Connection {
 		var cnxString = 'Data Source=$file';
 		if (type == null) {
