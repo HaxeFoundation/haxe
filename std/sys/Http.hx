@@ -22,6 +22,9 @@
 
 package sys;
 
+import haxe.io.BytesOutput;
+import haxe.io.Bytes;
+import haxe.io.Input;
 import sys.net.Host;
 import sys.net.Socket;
 
@@ -55,23 +58,17 @@ class Http extends haxe.http.HttpBase {
 		var old = onError;
 		var err = false;
 		onError = function(e) {
-			#if neko
-			responseData = neko.Lib.stringReference(output.getBytes());
-			#else
-			responseData = output.getBytes().toString();
-			#end
+			responseBytes = output.getBytes();
 			err = true;
 			// Resetting back onError before calling it allows for a second "retry" request to be sent without onError being wrapped twice
 			onError = old;
 			onError(e);
 		}
+		post = post || postBytes != null || postData != null;
 		customRequest(post, output);
-		if (!err)
-			#if neko
-			onData(responseData = neko.Lib.stringReference(output.getBytes()));
-			#else
-			onData(responseData = output.getBytes().toString());
-			#end
+		if (!err) {
+			success(output.getBytes());
+		}
 	}
 
 	@:noCompletion
@@ -91,7 +88,8 @@ class Http extends haxe.http.HttpBase {
 	}
 
 	public function customRequest(post:Bool, api:haxe.io.Output, ?sock:sys.net.Socket, ?method:String) {
-		this.responseData = null;
+		this.responseAsString = null;
+		this.responseBytes = null;
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9_-]+)(:[0-9]+)?(.*)$/;
 		if (!url_regexp.match(url)) {
 			onError("Invalid URL");
@@ -112,12 +110,9 @@ class Http extends haxe.http.HttpBase {
 				throw "Https is only supported with -lib hxssl";
 				#end
 			} else {
-				#if php
-				sock = new php.net.Socket();
-				#else
 				sock = new Socket();
-				#end
 			}
+			sock.setTimeout(cnxTimeout);
 		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
@@ -175,87 +170,76 @@ class Http extends haxe.http.HttpBase {
 			}
 		}
 
-		var b = new StringBuf();
+		var b = new BytesOutput();
 		if (method != null) {
-			b.add(method);
-			b.add(" ");
+			b.writeString(method);
+			b.writeString(" ");
 		} else if (post)
-			b.add("POST ");
+			b.writeString("POST ");
 		else
-			b.add("GET ");
+			b.writeString("GET ");
 
 		if (Http.PROXY != null) {
-			b.add("http://");
-			b.add(host);
+			b.writeString("http://");
+			b.writeString(host);
 			if (port != 80) {
-				b.add(":");
-				b.add(port);
+				b.writeString(":");
+				b.writeString('$port');
 			}
 		}
-		b.add(request);
+		b.writeString(request);
 
 		if (!post && uri != null) {
 			if (request.indexOf("?", 0) >= 0)
-				b.add("&");
+				b.writeString("&");
 			else
-				b.add("?");
-			b.add(uri);
+				b.writeString("?");
+			b.writeString(uri);
 		}
-		b.add(" HTTP/1.1\r\nHost: " + host + "\r\n");
-		if (postData != null)
-			b.add("Content-Length: " + postData.length + "\r\n");
+		b.writeString(" HTTP/1.1\r\nHost: " + host + "\r\n");
+		if (postData != null) {
+			postBytes = Bytes.ofString(postData);
+			postData = null;
+		}
+		if (postBytes != null)
+			b.writeString("Content-Length: " + postBytes.length + "\r\n");
 		else if (post && uri != null) {
 			if (multipart || !Lambda.exists(headers, function(h) return h.name == "Content-Type")) {
-				b.add("Content-Type: ");
+				b.writeString("Content-Type: ");
 				if (multipart) {
-					b.add("multipart/form-data");
-					b.add("; boundary=");
-					b.add(boundary);
+					b.writeString("multipart/form-data");
+					b.writeString("; boundary=");
+					b.writeString(boundary);
 				} else
-					b.add("application/x-www-form-urlencoded");
-				b.add("\r\n");
+					b.writeString("application/x-www-form-urlencoded");
+				b.writeString("\r\n");
 			}
 			if (multipart)
-				b.add("Content-Length: " + (uri.length + file.size + boundary.length + 6) + "\r\n");
+				b.writeString("Content-Length: " + (uri.length + file.size + boundary.length + 6) + "\r\n");
 			else
-				b.add("Content-Length: " + uri.length + "\r\n");
+				b.writeString("Content-Length: " + uri.length + "\r\n");
 		}
-		b.add("Connection: close\r\n");
+		b.writeString("Connection: close\r\n");
 		for (h in headers) {
-			b.add(h.name);
-			b.add(": ");
-			b.add(h.value);
-			b.add("\r\n");
+			b.writeString(h.name);
+			b.writeString(": ");
+			b.writeString(h.value);
+			b.writeString("\r\n");
 		}
-		b.add("\r\n");
-		if (postData != null)
-			b.add(postData);
+		b.writeString("\r\n");
+		if (postBytes != null)
+			b.writeFullBytes(postBytes, 0, postBytes.length);
 		else if (post && uri != null)
-			b.add(uri);
+			b.writeString(uri);
 		try {
 			if (Http.PROXY != null)
 				sock.connect(new Host(Http.PROXY.host), Http.PROXY.port);
 			else
 				sock.connect(new Host(host), port);
-			sock.write(b.toString());
-			if (multipart) {
-				var bufsize = 4096;
-				var buf = haxe.io.Bytes.alloc(bufsize);
-				while (file.size > 0) {
-					var size = if (file.size > bufsize) bufsize else file.size;
-					var len = 0;
-					try {
-						len = file.io.readBytes(buf, 0, size);
-					} catch (e:haxe.io.Eof)
-						break;
-					sock.output.writeFullBytes(buf, 0, len);
-					file.size -= len;
-				}
-				sock.write("\r\n");
-				sock.write("--");
-				sock.write(boundary);
-				sock.write("--");
-			}
+			if (multipart)
+				writeBody(b,file.io,file.size,boundary,sock)
+			else
+				writeBody(b,null,0,null,sock);
 			readHttpResponse(api, sock);
 			sock.close();
 		} catch (e:Dynamic) {
@@ -263,6 +247,31 @@ class Http extends haxe.http.HttpBase {
 				sock.close()
 			catch (e:Dynamic) {};
 			onError(Std.string(e));
+		}
+	}
+
+	function writeBody(body:Null<BytesOutput>, fileInput:Null<Input>, fileSize:Int, boundary:Null<String>, sock:Socket) {
+		if (body != null) {
+			var bytes = body.getBytes();
+			sock.output.writeFullBytes(bytes, 0, bytes.length);
+		}
+		if (boundary != null) {
+			var bufsize = 4096;
+			var buf = haxe.io.Bytes.alloc(bufsize);
+			while (fileSize > 0) {
+				var size = if (fileSize > bufsize) bufsize else fileSize;
+				var len = 0;
+				try {
+					len = fileInput.readBytes(buf, 0, size);
+				} catch (e:haxe.io.Eof)
+					break;
+				sock.output.writeFullBytes(buf, 0, len);
+				fileSize -= len;
+			}
+			sock.output.writeString("\r\n");
+			sock.output.writeString("--");
+			sock.output.writeString(boundary);
+			sock.output.writeString("--");
 		}
 	}
 

@@ -62,7 +62,7 @@ class Php {
 			if(isCi()) {
 				deleteDirectoryRecursively(binDir);
 			}
-			runCommand("haxe", ["compile-php.hxml"].concat(prefix));
+			runCommand("haxe", ["compile-php.hxml"].concat(prefix).concat(args));
 			runThroughPhpVersions(runCommand.bind("php", ["bin/php/Main/index.php"]));
 		}
 	}

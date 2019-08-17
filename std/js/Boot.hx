@@ -87,7 +87,7 @@ class Boot {
 			switch (t) {
 				case "object":
 					#if !js_enums_as_arrays
-					if (o.__enum__) {
+					__feature__("has_enum", if (o.__enum__) {
 						var e = $hxEnums[o.__enum__];
 						var n = e.__constructs__[o._hx_index];
 						var con = e[n];
@@ -97,11 +97,11 @@ class Boot {
 						} else {
 							return n;
 						}
-					}
+					});
 					#end
 					if (js.Syntax.instanceof(o, Array)) {
 						#if js_enums_as_arrays
-						if (o.__enum__) {
+						__feature__("has_enum", if (o.__enum__) {
 							if (o.length == 2)
 								return o[0];
 							var str = o[0] + "(";
@@ -113,7 +113,7 @@ class Boot {
 									str += __string_rec(o[i], s);
 							}
 							return str + ")";
-						}
+						});
 						#end
 						var str = "[";
 						s += "\t";
@@ -211,7 +211,11 @@ class Boot {
 				#if js_enums_as_arrays
 				return o.__enum__ == cl;
 				#else
-				return if (o.__enum__ != null) (untyped $hxEnums[o.__enum__]) == cl else false;
+				return untyped __feature__(
+					"has_enum",
+					if (o.__enum__ != null) ($hxEnums[o.__enum__]) == cl else false,
+					false
+				);
 				#end
 		}
 	}

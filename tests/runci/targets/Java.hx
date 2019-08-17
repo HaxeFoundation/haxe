@@ -28,11 +28,11 @@ class Java {
 		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-java.hxml"]);
+		runCommand("haxe", ["compile-java.hxml"].concat(args));
 		runCommand("java", ["-jar", "bin/java/Main-Debug.jar"]);
 
 		changeDirectory(threadsDir);
-		runCommand("haxe", ["build.hxml", "-java", "export/java"]);
+		runCommand("haxe", ["build.hxml", "-java", "export/java"].concat(args));
 		if (systemName != "Windows") { // #8154
 			runCommand("java", ["-jar", "export/java/Main.jar"]);
 		}

@@ -221,6 +221,7 @@ final class Array<T> implements ArrayAccess<Int, T> {
 			length = offset + 1;
 		}
 		arr[offset] = value;
+		Syntax.code("return {0}", value);
 	}
 
 	@:noCompletion

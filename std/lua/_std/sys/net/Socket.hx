@@ -25,7 +25,9 @@ package sys.net;
 import lua.lib.luasocket.Socket as LuaSocket;
 import lua.lib.luasocket.socket.*;
 import lua.*;
+
 import haxe.io.Bytes;
+import haxe.io.Error;
 
 /**
 	A TCP socket class : allow you to both connect to a given server and exchange messages or start your own server and wait for connections.
@@ -53,6 +55,7 @@ class Socket {
 	var _socket:LuaSocket;
 
 	var blocking = false;
+	var timeout = null;
 
 	/**
 		Creates a new unconnected socket.
@@ -90,6 +93,7 @@ class Socket {
 		input = new SocketInput(res.result);
 		output = new SocketOutput(res.result);
 		_socket = res.result;
+		_socket.settimeout(timeout);
 	}
 
 	/**
@@ -101,6 +105,7 @@ class Socket {
 			throw 'Socket Listen Error : ${res.message}';
 		res.result.listen(connections);
 		_socket = res.result;
+		_socket.settimeout(timeout);
 	}
 
 	/**
@@ -169,8 +174,11 @@ class Socket {
 		Gives a timeout after which blocking socket operations (such as reading and writing) will abort and throw an exception.
 	**/
 	public inline function setTimeout(timeout:Float):Void {
-		var client:TcpClient = cast _socket;
-		client.settimeout(timeout);
+		this.timeout = timeout;
+		if (_socket != null) {
+			var client:TcpClient = cast _socket;
+			client.settimeout(timeout);
+		}
 	}
 
 	/**
@@ -223,49 +231,73 @@ class Socket {
 }
 
 private class SocketInput extends haxe.io.Input {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function readByte():Int {
-		var res = s.receive(1);
-		if (res.message == "closed")
+		var res = tcp.receive(1);
+		if (res.message == "closed"){
 			throw new haxe.io.Eof();
+		}
 		else if (res.message != null)
 			throw 'Error : ${res.message}';
 		return res.result.charCodeAt(0);
 	}
 
 	override public function readBytes(s:Bytes, pos:Int, len:Int):Int {
-		var k = len;
+		var leftToRead = len;
 		var b = s.getData();
 		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw haxe.io.Error.OutsideBounds;
+		var readCount = 0;
 		try {
-			while (k > 0) {
+			while (leftToRead > 0) {
 				b[pos] = cast readByte();
 				pos++;
-				k--;
+				readCount++;
+				leftToRead--;
 			}
 		} catch (e:haxe.io.Eof) {
-			if (pos == 0) {
+			if (readCount == 0) {
 				throw e;
 			}
 		}
-		return len - k;
+		return readCount;
 	}
+
 }
 
 private class SocketOutput extends haxe.io.Output {
-	var s:TcpClient;
+	var tcp:TcpClient;
 
-	public function new(s:TcpClient) {
-		this.s = s;
+	public function new(tcp:TcpClient) {
+		this.tcp = tcp;
 	}
 
 	override public function writeByte(c:Int):Void {
-		s.send(String.fromCharCode(c));
+		var char = NativeStringTools.char(c);
+		var res = tcp.send(char);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
 	}
+
+	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
+		if (pos < 0 || len < 0 || pos + len > s.length)
+			throw Error.OutsideBounds;
+		var b = s.getData().slice(pos, pos +len).map(function(byte){
+			return lua.NativeStringTools.char(byte);
+		});
+		var encoded = Table.concat(cast b, 0);
+		var res = tcp.send(encoded);
+		if (res.message != null){
+			throw 'Error : Socket writeByte : ${res.message}';
+		}
+
+		return len;
+	}
+
 }

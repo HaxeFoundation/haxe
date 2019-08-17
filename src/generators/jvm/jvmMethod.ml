@@ -1,3 +1,22 @@
+(*
+	The Haxe Compiler
+	Copyright (C) 2005-2019  Haxe Foundation
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to the Free Software
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ *)
+
 open Globals
 open JvmGlobals
 open JvmData
@@ -542,28 +561,28 @@ class builder jc name jsig = object(self)
 				def,cases
 		in
 		let flat_cases = DynArray.create () in
-		let case_lut = ref IntMap.empty in
+		let case_lut = ref Int32Map.empty in
 		let fp = code#get_fp in
-		let imin = ref max_int in
-		let imax = ref min_int in
+		let imin = ref Int32.min_int in
+		let imax = ref Int32.max_int in
 		let cases = List.map (fun (il,f) ->
 			let rl = List.map (fun i32 ->
 				let r = ref fp in
-				let i = Int32.to_int i32 in
-				if i < !imin then imin := i;
-				if i > !imax then imax := i;
-				DynArray.add flat_cases (i,r);
-				case_lut := IntMap.add i r !case_lut;
+				if i32 < !imin then imin := i32;
+				if i32 > !imax then imax := i32;
+				DynArray.add flat_cases (i32,r);
+				case_lut := Int32Map.add i32 r !case_lut;
 				r
 			) il in
 			(rl,f)
 		) cases in
 		let offset_def = ref fp in
 		(* No idea what's a good heuristic here... *)
-		let use_tableswitch = (!imax - !imin) < (DynArray.length flat_cases + 10) in
+		let diff = Int32.sub !imax !imin in
+		let use_tableswitch = diff < (Int32.of_int (DynArray.length flat_cases + 10)) && diff >= Int32.zero (* #8388 *) in
 		if use_tableswitch then begin
-			let offsets = Array.init (!imax - !imin + 1) (fun i ->
-				try IntMap.find (i + !imin) !case_lut
+			let offsets = Array.init (Int32.to_int (Int32.sub !imax !imin) + 1) (fun i ->
+				try Int32Map.find (Int32.add (Int32.of_int i) !imin) !case_lut
 				with Not_found -> offset_def
 			) in
 			code#tableswitch offset_def !imin !imax offsets

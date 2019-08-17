@@ -58,6 +58,38 @@
 		return untyped __global__.__hxcpp_get_day(mSeconds);
 	}
 
+	public function getUTCHours():Int {
+		return untyped __global__.__hxcpp_get_utc_hours(mSeconds);
+	}
+
+	public function getUTCMinutes():Int {
+		return untyped __global__.__hxcpp_get_utc_minutes(mSeconds);
+	}
+
+	public function getUTCSeconds():Int {
+		return untyped __global__.__hxcpp_get_utc_seconds(mSeconds);
+	}
+
+	public function getUTCFullYear():Int {
+		return untyped __global__.__hxcpp_get_utc_year(mSeconds);
+	}
+
+	public function getUTCMonth():Int {
+		return untyped __global__.__hxcpp_get_utc_month(mSeconds);
+	}
+
+	public function getUTCDate():Int {
+		return untyped __global__.__hxcpp_get_utc_date(mSeconds);
+	}
+
+	public function getUTCDay():Int {
+		return untyped __global__.__hxcpp_get_utc_day(mSeconds);
+	}
+
+	public function getTimezoneOffset():Int {
+		return -Std.int((untyped __global__.__hxcpp_timezone_offset(mSeconds)) / 60);
+	}
+
 	public function toString():String {
 		return untyped __global__.__hxcpp_to_string(mSeconds);
 	}
@@ -80,8 +112,7 @@
 		switch (s.length) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var d:Date = new Date(0, 0, 0, Std.parseInt(k[0]), Std.parseInt(k[1]), Std.parseInt(k[2]));
-				return d;
+				return Date.fromTime(Std.parseInt(k[0]) * 3600000. + Std.parseInt(k[1]) * 60000. + Std.parseInt(k[2]) * 1000.);
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
 				return new Date(Std.parseInt(k[0]), Std.parseInt(k[1]) - 1, Std.parseInt(k[2]), 0, 0, 0);

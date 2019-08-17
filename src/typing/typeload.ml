@@ -254,7 +254,7 @@ let rec load_instance' ctx (t,p) allow_no_params =
 							| _,[EConst(String s),_],_ -> s
 							| _ -> "This typedef is deprecated in favor of " ^ (s_type (print_context()) td.t_type)
 						in
-						ctx.com.warning msg p
+						DeprecationCheck.warn_deprecation ctx.com msg p
 					with Not_found ->
 						()
 					end;
@@ -355,7 +355,7 @@ and load_instance ctx ?(allow_display=false) (t,pn) allow_no_params =
 		t
 	with Error (Module_not_found path,_) when (ctx.com.display.dms_kind = DMDefault) && DisplayPosition.display_position#enclosed_in pn ->
 		let s = s_type_path path in
-		raise_fields (DisplayToplevel.collect ctx TKType NoValue) CRTypeHint (Some {pn with pmin = pn.pmax - String.length s;});
+		DisplayToplevel.collect_and_raise ctx TKType NoValue CRTypeHint (s,pn) (Some {pn with pmin = pn.pmax - String.length s;})
 
 (*
 	build an instance from a complex type
@@ -370,12 +370,12 @@ and load_complex_type' ctx allow_display (t,p) =
 		let tl = List.map (fun (t,pn) ->
 			try
 				load_complex_type ctx allow_display (t,pn)
-			with DisplayException(DisplayFields Some(l,CRTypeHint,p)) ->
+			with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 				let l = List.filter (fun item -> match item.ci_kind with
 					| ITType({kind = Struct},_) -> true
 					| _ -> false
-				) l in
-				raise_fields l (CRStructExtension true) p
+				) r.fitems in
+				raise_fields l (CRStructExtension true) r.finsert_pos
 		) tl in
 		let tr = ref None in
 		let t = TMono tr in
@@ -412,12 +412,12 @@ and load_complex_type' ctx allow_display (t,p) =
 			let il = List.map (fun (t,pn) ->
 				try
 					load_instance ctx ~allow_display (t,pn) false
-				with DisplayException(DisplayFields Some(l,CRTypeHint,p)) ->
+				with DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) ->
 					let l = List.filter (fun item -> match item.ci_kind with
 						| ITType({kind = Struct},_) -> true
 						| _ -> false
-					) l in
-					raise_fields l (CRStructExtension false) p
+					) r.fitems in
+					raise_fields l (CRStructExtension false) r.finsert_pos
 			) tl in
 			let tr = ref None in
 			let t = TMono tr in
@@ -845,9 +845,8 @@ let handle_path_display ctx path p =
 		DisplayEmitter.display_field ctx origin CFSStatic cf p
 	in
 	match ImportHandling.convert_import_to_something_usable DisplayPosition.display_position#get path,ctx.com.display.dms_kind with
-		| (IDKPackage [_],p),DMDefault ->
-			let fields = DisplayToplevel.collect ctx TKType WithType.no_value in
-			raise_fields fields CRImport (Some p)
+		| (IDKPackage [s],p),DMDefault ->
+			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) (Some p)
 		| (IDKPackage sl,p),DMDefault ->
 			let sl = match List.rev sl with
 				| s :: sl -> List.rev sl

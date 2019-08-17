@@ -567,13 +567,28 @@ let get_name item = match item.ci_kind with
 
 let get_type item = item.ci_type
 
+let get_filter_name item = match item.ci_kind with
+	| ITLocal v -> v.v_name
+	| ITClassField(cf) | ITEnumAbstractField(_,cf) -> cf.field.cf_name
+	| ITEnumField ef -> ef.efield.ef_name
+	| ITType(cm,_) -> s_type_path (cm.pack,cm.name)
+	| ITPackage(path,_) -> s_type_path path
+	| ITModule path -> s_type_path path
+	| ITLiteral s -> s
+	| ITTimer(s,_) -> s
+	| ITMetadata meta -> Meta.to_string meta
+	| ITKeyword kwd -> s_keyword kwd
+	| ITAnonymous _ -> ""
+	| ITExpression _ -> ""
+	| ITTypeParameter c -> snd c.cl_path
+
 let get_documentation item = match item.ci_kind with
 	| ITClassField cf | ITEnumAbstractField(_,cf) -> cf.field.cf_doc
 	| ITEnumField ef -> ef.efield.ef_doc
 	| ITType(mt,_) -> mt.doc
 	| _ -> None
 
-let to_json ctx item =
+let to_json ctx index item =
 	let open ClassFieldOrigin in
 	let kind,data = match item.ci_kind with
 		| ITLocal v -> "Local",generate_tvar ctx v
@@ -653,14 +668,15 @@ let to_json ctx item =
 				| TTypeParameter -> "TTypeParameter"
 				| TVariable -> "TVariable"
 			in
-			let rec loop internal params platforms targets l = match l with
-				| HasParam s :: l -> loop internal (s :: params) platforms targets l
-				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets l
-				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) l
-				| UsedInternally :: l -> loop true params platforms targets l
-				| [] -> internal,params,platforms,targets
+			let rec loop internal params platforms targets links l = match l with
+				| HasParam s :: l -> loop internal (s :: params) platforms targets links l
+				| Platforms pls :: l -> loop internal params ((List.map platform_name pls) @ platforms) targets links l
+				| UsedOn usages :: l -> loop internal params platforms ((List.map usage_to_string usages) @ targets) links l
+				| UsedInternally :: l -> loop true params platforms targets links l
+				| Link url :: l -> loop internal params platforms targets (url :: links) l
+				| [] -> internal,params,platforms,targets,links
 			in
-			let internal,params,platforms,targets = loop false [] [] [] params in
+			let internal,params,platforms,targets,links = loop false [] [] [] [] params in
 			"Metadata",jobject [
 				"name",jstring name;
 				"doc",jstring doc;
@@ -668,6 +684,7 @@ let to_json ctx item =
 				"platforms",jlist jstring platforms;
 				"targets",jlist jstring targets;
 				"internal",jbool internal;
+				"links",jlist jstring links;
 			]
 		| ITKeyword kwd ->"Keyword",jobject [
 			"name",jstring (s_keyword kwd)
@@ -685,8 +702,17 @@ let to_json ctx item =
 			| _ -> assert false
 			end
 	in
+	let jindex = match index with
+		| None -> []
+		| Some index -> ["index",jint index]
+	in
 	jobject (
 		("kind",jstring kind) ::
 		("args",data) ::
-		(match item.ci_type with None -> [] | Some t -> ["type",CompletionType.to_json ctx (snd t)])
+		(match item.ci_type with
+			| None ->
+				jindex
+			| Some t ->
+				("type",CompletionType.to_json ctx (snd t)) :: jindex
+		)
 	)

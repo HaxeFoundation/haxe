@@ -1682,6 +1682,12 @@ let macro_api ccom get_api =
 			);
 			vnull
 		);
+		"flush_disk_cache", vfun0 (fun () ->
+			let com = (get_api()).get_com() in
+			Hashtbl.clear com.file_lookup_cache;
+			Hashtbl.clear com.readdir_cache;
+			vnull
+		);
 		"get_pos_infos", vfun1 (fun p ->
 			let p = decode_pos p in
 			encode_obj ["min",vint p.Globals.pmin;"max",vint p.Globals.pmax;"file",encode_string p.Globals.pfile]
@@ -1793,24 +1799,13 @@ let macro_api ccom get_api =
 			| None ->
 				());
 			Hashtbl.clear com.file_lookup_cache;
+			Hashtbl.clear com.readdir_cache;
 			vnull
 		);
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			(match com.platform with
-			| Globals.Flash -> SwfLoader.add_swf_lib com file false
-			| Globals.Java -> Java.add_java_lib com file false
-			| Globals.Cs ->
-				let file, is_std = match ExtString.String.nsplit file "@" with
-					| [file] ->
-						file,false
-					| [file;"std"] ->
-						file,true
-					| _ -> failwith ("unsupported file@`std` format: " ^ file)
-				in
-				Dotnet.add_net_lib com file is_std
-			| _ -> failwith "Unsupported platform");
+			NativeLibraryHandler.add_native_lib com file false ();
 			vnull
 		);
 		"add_native_arg", vfun1 (fun arg ->

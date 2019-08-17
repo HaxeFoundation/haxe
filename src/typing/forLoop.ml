@@ -440,7 +440,12 @@ let type_for_loop ctx handle_display it e2 p =
 			end
 		| EDisplay(e1,dk) -> loop (Some dk) e1
 		| EBinop(OpArrow,ei1,(EBinop(OpIn,ei2,e2),_)) -> IKKeyValue(loop_ident None ei1,loop_ident None ei2),e2
-		| _ -> error "For expression should be 'v in expr'" (snd it)
+		| _ ->
+			begin match dko with
+			| Some dk -> ignore(handle_display ctx e1 dk WithType.value);
+			| None -> ()
+			end;
+			error "For expression should be 'v in expr'" (snd it)
 	in
 	let ik,e1 = loop None it in
 	let e1 = type_expr ctx e1 WithType.value in

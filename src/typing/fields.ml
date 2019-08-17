@@ -136,7 +136,29 @@ let check_constructor_access ctx c f p =
 	if (Meta.has Meta.CompilerGenerated f.cf_meta) then display_error ctx (error_msg (No_constructor (TClassDecl c))) p;
 	if not (can_access ctx c f true || is_parent c ctx.curclass) && not ctx.untyped then display_error ctx (Printf.sprintf "Cannot access private constructor of %s" (s_class_path c)) p
 
+let check_no_closure_meta ctx fa mode p =
+	if mode <> MCall && not (DisplayPosition.display_position#enclosed_in p) then begin
+		let check_field f cl_meta =
+			match f.cf_kind with
+			| Method _ ->
+				if
+					Meta.has Meta.NoClosure cl_meta
+					|| Meta.has Meta.NoClosure f.cf_meta
+				then
+					error ("Method " ^ f.cf_name ^ " cannot be used as a value") p
+			| _ -> ()
+		in
+		match fa with
+		| FStatic (c, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FInstance (c, _, ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FClosure (Some (c, _), ({ cf_kind = Method _} as f)) -> check_field f c.cl_meta
+		| FClosure (None, ({ cf_kind = Method _} as f)) -> check_field f []
+		| FAnon ({ cf_kind = Method _} as f) -> check_field f []
+		| _ -> ()
+	end
+
 let field_access ctx mode f fmode t e p =
+	check_no_closure_meta ctx fmode mode p;
 	let bypass_accessor = if ctx.bypass_accessor > 0 then (ctx.bypass_accessor <- ctx.bypass_accessor - 1; true) else false in
 	let fnormal() = AKExpr (mk (TField (e,fmode)) t p) in
 	let normal() =
@@ -330,6 +352,7 @@ let rec using_field ctx mode e i p =
 
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 let rec type_field cfg ctx e i p mode =
+	let pfield = if (e.epos = p) then p else {p with pmin = p.pmax - (String.length i)} in
 	let no_field() =
 		if TypeFieldConfig.do_resume cfg then raise Not_found;
 		let t = match follow e.etype with
@@ -348,9 +371,9 @@ let rec type_field cfg ctx e i p mode =
 			match t with
 			| TAbstract(a,_) when has_special_field a ->
 				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") p;
+				display_error ctx ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| _ ->
-				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) p;
+				display_error ctx (StringError.string_error i (string_source t) (s_type (print_context()) t ^ " has no field " ^ i)) pfield;
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (mk_mono()) p)
 	in
@@ -402,7 +425,7 @@ let rec type_field cfg ctx e i p mode =
 				| MCall,Var {v_read = AccCall } ->
 					()
 				| MCall, Var _ ->
-					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" p
+					display_error ctx "Cannot access superclass variable for calling: needs to be a proper method" pfield
 				| MCall, _ ->
 					()
 				| MGet,Var _
@@ -411,8 +434,8 @@ let rec type_field cfg ctx e i p mode =
 				| _, Method _ ->
 					display_error ctx "Cannot create closure on super method" p
 				| _ ->
-					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" p);
-			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
+					display_error ctx "Normal variables cannot be accessed with 'super', use 'this' instead" pfield);
+			if not (can_access ctx c f false) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
 			field_access ctx mode f (match c2 with None -> FAnon f | Some (c,tl) -> FInstance (c,tl,f)) (apply_params c.cl_params params t) e p
 		with Not_found -> try
 			begin match e.eexpr with
@@ -442,7 +465,7 @@ let rec type_field cfg ctx e i p mode =
 					raise Not_found
 			end
 		with Not_found ->
-			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
+			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			no_field())
 	| TDynamic t ->
 		(try
@@ -452,12 +475,12 @@ let rec type_field cfg ctx e i p mode =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
-			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" p;
+			if Meta.has Meta.Impl f.cf_meta && not (Meta.has Meta.Enum f.cf_meta) then display_error ctx "Cannot access non-static abstract field statically" pfield;
 			if not (has_class_field_flag f CfPublic) && not ctx.untyped then begin
 				match !(a.a_status) with
 				| Closed | Extend _ -> () (* always allow anon private fields access *)
 				| Statics c when can_access ctx c f true -> ()
-				| _ -> display_error ctx ("Cannot access private field " ^ i) p
+				| _ -> display_error ctx ("Cannot access private field " ^ i) pfield
 			end;
 			let fmode, ft = (match !(a.a_status) with
 				| Statics c -> FStatic (c,f), field_type ctx c [] f p
@@ -510,7 +533,7 @@ let rec type_field cfg ctx e i p mode =
 		(try
 			let c = (match a.a_impl with None -> raise Not_found | Some c -> c) in
 			let f = PMap.find i c.cl_statics in
-			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) p;
+			if not (can_access ctx c f true) && not ctx.untyped then display_error ctx ("Cannot access private field " ^ i) pfield;
 			let field_type f =
 				if not (Meta.has Meta.Impl f.cf_meta) then begin
 					static_abstract_access_through_instance := true;
@@ -538,7 +561,7 @@ let rec type_field cfg ctx e i p mode =
 				AKNo f.cf_name
 			| (MGet | MCall), _ ->
 				let rec loop cfl = match cfl with
-					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) p
+					| [] -> error (Printf.sprintf "Field %s cannot be called on %s" f.cf_name (s_type (print_context()) e.etype)) pfield
 					| cf :: cfl ->
 						match follow (apply_params a.a_params pl (monomorphs cf.cf_params cf.cf_type)) with
 							| TFun((_,_,t1) :: _,_) when type_iseq t1 (Abstract.get_underlying_type a pl) ->
@@ -553,7 +576,7 @@ let rec type_field cfg ctx e i p mode =
 				let t = field_type f in
 				begin match follow t with
 					| TFun((_,_,t1) :: _,_) -> ()
-					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+					| _ -> error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 				end;
 				let ef = field_expr f t in
 				AKUsing (ef,c,f,e,false)
@@ -561,7 +584,8 @@ let rec type_field cfg ctx e i p mode =
 				error "This operation is unsupported" p)
 		with Not_found -> try
 			if does_forward a false then
-				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = apply_params a.a_params pl a.a_this} i p mode
+				let underlying_type = Abstract.get_underlying_type ~return_first:true a pl in
+				type_field (TypeFieldConfig.with_resume cfg) ctx {e with etype = underlying_type} i p mode
 			else
 				raise Not_found
 		with Not_found -> try
@@ -591,7 +615,7 @@ let rec type_field cfg ctx e i p mode =
 			if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
 			get_resolve (mode = MSet)
 		with Not_found ->
-			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") p
+			if !static_abstract_access_through_instance then error ("Invalid call to static function " ^ i ^ " through abstract instance") pfield
 			else no_field())
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()

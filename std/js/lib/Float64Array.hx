@@ -34,7 +34,7 @@ import js.lib.intl.NumberFormat.NumberFormatOptions;
 	Documentation [Float64Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
 @:native("Float64Array")
-extern class Float64Array implements ArrayAccess<Float> {
+extern class Float64Array implements ArrayBufferView implements ArrayAccess<Float> {
 	/**
 		Returns a number value of the element size. 8 in the case of an `Float64Array`.
 	 */

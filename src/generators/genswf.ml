@@ -24,6 +24,7 @@ open Type
 open Common
 open Ast
 open Globals
+open NativeLibraries
 
 let tag ?(ext=false) d = {
 	tid = 0;
@@ -276,12 +277,14 @@ let build_swf9 com file swc =
 					let ttf = try TTFParser.parse ch with e -> abort ("Error while parsing font " ^ file ^ " : " ^ Printexc.to_string e) p in
 					close_in ch;
 					let get_string e = match fst e with
-						| EConst (String s) -> Some s
+						| EConst (String s) -> s
 						| _ -> raise Not_found
 					in
 					let ttf_config = {
 						ttfc_range_str = "";
 						ttfc_font_name = None;
+						ttfc_font_weight = TFWRegular;
+						ttfc_font_posture = TFPNormal;
 					} in
 					begin match args with
 						| (EConst (String str),_) :: _ -> ttf_config.ttfc_range_str <- str;
@@ -291,8 +294,19 @@ let build_swf9 com file swc =
 						| _ :: [e] ->
 							begin match fst e with
 								| EObjectDecl fl ->
-									begin try ttf_config.ttfc_font_name <- get_string (Expr.field_assoc "fontName" fl)
-									with Not_found -> () end
+									(try ttf_config.ttfc_font_name <- Some(get_string (Expr.field_assoc "fontName" fl)) with Not_found -> ());
+									(try ttf_config.ttfc_font_weight <- (
+										match get_string (Expr.field_assoc "fontWeight" fl) with
+										| "regular" -> TFWRegular
+										| "bold" -> TFWBold
+										| _ -> abort "Invalid fontWeight value. Must be `regular` or `bold`." p
+									) with Not_found -> ());
+									(try ttf_config.ttfc_font_posture <- (
+										match get_string (Expr.field_assoc "fontStyle" fl) with
+										| "normal" -> TFPNormal
+										| "italic" -> TFPItalic
+										| _ -> abort "Invalid fontStyle value. Must be `normal` or `italic`." p
+									) with Not_found -> ());
 								| _ ->
 									()
 							end
@@ -557,8 +571,8 @@ let generate swf_header com =
 	(* list exports *)
 	let exports = Hashtbl.create 0 in
 	let toremove = ref [] in
-	List.iter (fun (file,lib,_) ->
-		let _, tags = lib() in
+	List.iter (fun swf_lib ->
+		let _, tags = swf_lib#get_data in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
@@ -584,7 +598,7 @@ let generate swf_header com =
 				) el
 			| _ -> ()
 		) tags;
-	) com.swf_libs;
+	) com.native_libs.swf_libs;
 	(* build haxe swf *)
 	let tags = build_swf9 com file swc in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
@@ -625,11 +639,11 @@ let generate swf_header com =
 	let swf = header, fattr @ meta_data @ bg :: scene :: debug @ swf_script_limits @ tags @ [tag TShowFrame] in
 	(* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf (file,lib,cl) ->
-		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove lib cl) in
+	let swf = List.fold_left (fun swf swf_lib ->
+		let swf = merge com file !priority swf (SwfLoader.remove_classes toremove swf_lib#get_data swf_lib#list_modules) in
 		priority := false;
 		swf
-	) swf com.swf_libs in
+	) swf com.native_libs.swf_libs in
 	let swf = match swf with
 	| header,tags when Common.defined com Define.SwfPreloaderFrame ->
 		let rec loop l =

@@ -87,6 +87,7 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
+			DisplayException.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> assert false) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
@@ -111,7 +112,7 @@ let handler =
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
 				let ctx = Genjson.create_context GMFull in
-				hctx.send_result (jobject ["item",CompletionItem.to_json ctx item])
+				hctx.send_result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
 				hctx.send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
 			end
@@ -179,6 +180,15 @@ let handler =
 			in
 			hctx.send_result (generate_module () m)
 		);
+		"server/moduleCreated", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			let file = Path.unique_full_path file in
+			let cs = hctx.display#get_cs in
+			List.iter (fun (sign,_) ->
+				Hashtbl.replace cs.cache.c_removed_files (file,sign) ()
+			) (CompilationServer.get_signs cs);
+			hctx.send_result (jstring file);
+		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let files = CompilationServer.get_files hctx.display#get_cs in
@@ -196,7 +206,9 @@ let handler =
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.unique_full_path file in
-			CompilationServer.taint_modules hctx.display#get_cs file;
+			let cs = hctx.display#get_cs in
+			CompilationServer.taint_modules cs file;
+			CompilationServer.remove_files cs file;
 			hctx.send_result jnull
 		);
 		"server/configure", (fun hctx ->

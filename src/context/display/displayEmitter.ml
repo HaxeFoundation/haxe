@@ -15,7 +15,12 @@ open Display
 open DisplayPosition
 
 let get_expected_name with_type = match with_type with
-	| WithType.Value (Some s) | WithType.WithType(_,Some s) -> Some s
+	| WithType.Value (Some src) | WithType.WithType(_,Some src) ->
+		(match src with
+		| WithType.FunctionArgument name -> Some name
+		| WithType.StructureField name -> Some name
+		| WithType.ImplicitReturn -> None
+		)
 	| _ -> None
 
 let sort_fields l with_type tk =
@@ -25,7 +30,7 @@ let sort_fields l with_type tk =
 	in
 	let expected_name = get_expected_name with_type in
 	let l = List.map (fun ci ->
-		let i = get_sort_index tk ci (Option.default Globals.null_pos p) (Option.map fst expected_name) in
+		let i = get_sort_index tk ci (Option.default Globals.null_pos p) expected_name in
 		ci,i
 	) l in
 	let sort l =

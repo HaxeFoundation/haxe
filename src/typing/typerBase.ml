@@ -4,11 +4,6 @@ open Type
 open Typecore
 open Error
 
-type access_mode =
-	| MGet
-	| MSet
-	| MCall
-
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
@@ -208,7 +203,7 @@ let get_abstract_froms a pl =
 		match follow (Type.field_type f) with
 		| TFun ([_,_,v],t) ->
 			(try
-				ignore(type_eq EqStrict t (TAbstract(a,List.map dup pl))); (* unify fields monomorphs *)
+				ignore(type_eq EqStrict t (TAbstract(a,List.map duplicate pl))); (* unify fields monomorphs *)
 				v :: acc
 			with Unify_error _ ->
 				acc)

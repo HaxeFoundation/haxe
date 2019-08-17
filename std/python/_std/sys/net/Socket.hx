@@ -92,7 +92,7 @@ private class SocketOutput extends haxe.io.Output {
 	public override function writeBytes(buf:haxe.io.Bytes, pos:Int, len:Int):Int {
 		try {
 			var data = buf.getData();
-			var payload = python.Syntax.code("data[{0}:{0}+{1}]", pos, len);
+			var payload = python.Syntax.code("{0}[{1}:{1}+{2}]", data, pos, len);
 			var r = __s.send(payload, 0);
 			return r;
 		} catch (e:BlockingIOError) {

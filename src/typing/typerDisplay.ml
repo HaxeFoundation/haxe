@@ -140,9 +140,9 @@ let get_expected_type ctx with_type =
 		| None -> None
 		| Some t -> Some (completion_type_of_type ctx t,completion_type_of_type ctx (follow t))
 
-let raise_toplevel ctx dk with_type po p =
+let raise_toplevel ctx dk with_type (subject,psubject) po =
 	let expected_type = get_expected_type ctx with_type in
-	raise_fields (DisplayToplevel.collect ctx (match dk with DKPattern _ -> TKPattern p | _ -> TKExpr p) with_type) (CRToplevel expected_type) po
+	DisplayToplevel.collect_and_raise ctx (match dk with DKPattern _ -> TKPattern psubject | _ -> TKExpr psubject) with_type (CRToplevel expected_type) (subject,psubject) po
 
 let display_dollar_type ctx p make_type =
 	let mono = mk_mono() in
@@ -401,7 +401,11 @@ and display_expr ctx e_ast e dk with_type p =
 				display_fields e1 e2 (String.length s)
 			| _ ->
 				if dk = DKDot then display_fields e_ast e 0
-				else raise_toplevel ctx dk with_type None p
+				else begin
+					let name = try String.concat "." (string_list_of_expr_path_raise e_ast) with Exit -> "" in
+					let name = if name = "null" then "" else name in
+					raise_toplevel ctx dk with_type (name,pos e_ast) None
+				end
 		end
 	| DMDefault | DMNone | DMModuleSymbols _ | DMDiagnostics _ | DMStatistics ->
 		let fields = DisplayFields.collect ctx e_ast e dk with_type p in
@@ -487,15 +491,15 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 		| Some fn -> fn ctx e_ast with_type
 	with Error (Unknown_ident n,_) when ctx.com.display.dms_kind = DMDefault ->
         if dk = DKDot && ctx.com.json_out = None then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type (Some p) p
+		else raise_toplevel ctx dk with_type (n,p) (Some p)
 	| Error ((Type_not_found (path,_) | Module_not_found path),_) as err when ctx.com.display.dms_kind = DMDefault ->
 		if ctx.com.json_out = None then	begin try
 			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) None
 		with Not_found ->
 			raise err
 		end else
-			raise_toplevel ctx dk with_type (Some p) p
-	| DisplayException(DisplayFields Some(l,CRTypeHint,p)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
+			raise_toplevel ctx dk with_type (s_type_path path,p) (Some p)
+	| DisplayException(DisplayFields Some({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let timer = Timer.timer ["display";"toplevel";"filter ctors"] in
 		ctx.pass <- PBuildClass;
 		let l = List.filter (fun item ->
@@ -526,7 +530,9 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 						let mt = ctx.g.do_load_type_def ctx null_pos {tpackage=mt.pack;tname=mt.module_name;tsub=Some mt.name;tparams=[]} in
 						begin match resolve_typedef mt with
 						| TClassDecl c when has_constructor c -> true
-						| TAbstractDecl {a_impl = Some c} -> PMap.mem "_new" c.cl_statics
+						| TAbstractDecl {a_impl = Some c} ->
+							ignore(c.cl_build());
+							PMap.mem "_new" c.cl_statics
 						| _ -> false
 						end
 					with _ ->
@@ -536,9 +542,9 @@ let handle_display ?resume_typing ctx e_ast dk with_type =
 			| ITTypeParameter {cl_kind = KTypeParameter tl} when get_constructible_constraint ctx tl null_pos <> None ->
 				true
 			| _ -> false
-		) l in
+		) r.fitems in
 		timer();
-		raise_fields l CRNew p
+		raise_fields l CRNew r.finsert_pos
 	in
 	let e = match e.eexpr with
 		| TField(e1,FDynamic "bind") when (match follow e1.etype with TFun _ -> true | _ -> false) -> e1
@@ -594,7 +600,7 @@ let handle_edisplay ?resume_typing ctx e dk with_type =
 	| DKPattern outermost,DMDefault ->
 		begin try
 			handle_display ctx e dk with_type
-		with DisplayException(DisplayFields Some(l,CRToplevel _,p)) ->
-			raise_fields l (CRPattern ((get_expected_type ctx with_type),outermost)) p
+		with DisplayException(DisplayFields Some({fkind = CRToplevel _} as r)) ->
+			raise_fields r.fitems (CRPattern ((get_expected_type ctx with_type),outermost)) r.finsert_pos
 		end
 	| _ -> handle_display ctx e dk with_type

@@ -21,6 +21,7 @@ open Ast
 open Type
 open Globals
 open Define
+open NativeLibraries
 
 type package_rule =
 	| Forbidden
@@ -107,6 +108,7 @@ type platform_config = {
 }
 
 class compiler_callbacks = object(self)
+	val mutable before_typer_create = [];
 	val mutable after_init_macros = [];
 	val mutable after_typing = [];
 	val mutable before_save = [];
@@ -114,6 +116,9 @@ class compiler_callbacks = object(self)
 	val mutable after_filters = [];
 	val mutable after_generation = [];
 	val mutable null_safety_report = [];
+
+	method add_before_typer_create (f : unit -> unit) : unit =
+		before_typer_create <- f :: before_typer_create
 
 	method add_after_init_macros (f : unit -> unit) : unit =
 		after_init_macros <- f :: after_init_macros
@@ -136,6 +141,7 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
+	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
@@ -182,13 +188,14 @@ type context = {
 	mutable warning : string -> pos -> unit;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
-	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
+	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
 	mutable get_macros : unit -> context option;
 	mutable run_command : string -> int;
 	file_lookup_cache : (string,string option) Hashtbl.t;
+	readdir_cache : (string * string,(string array) option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) Hashtbl.t;
 	module_to_file : (path,string) Hashtbl.t;
 	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) Hashtbl.t;
@@ -204,9 +211,7 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable neko_libs : string list;
 	mutable include_files : (string * string) list;
-	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
-	mutable java_libs : (string * bool * (unit -> unit) * (unit -> (path list)) * (path -> ((JData.jclass * string * string) option))) list; (* (path,std,close,all_files,lookup) *)
-	mutable net_libs : (string * bool * (unit -> path list) * (path -> IlData.ilclass option)) list; (* (path,std,all_files,lookup) *)
+	mutable native_libs : native_libraries;
 	mutable net_std : string list;
 	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable c_args : string list;
@@ -436,10 +441,8 @@ let create version s_version args =
 		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		swf_libs = [];
-		java_libs = [];
-		net_libs = [];
 		net_std = [];
+		native_libs = create_native_libs();
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];
@@ -467,6 +470,7 @@ let create version s_version args =
 			tarray = (fun _ -> assert false);
 		};
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		stored_typed_exprs = PMap.empty;
 		cached_macros = Hashtbl.create 0;
@@ -485,6 +489,7 @@ let clone com =
 		main_class = None;
 		features = Hashtbl.create 0;
 		file_lookup_cache = Hashtbl.create 0;
+		readdir_cache = Hashtbl.create 0;
 		parser_cache = Hashtbl.create 0;
 		module_to_file = Hashtbl.create 0;
 		callbacks = new compiler_callbacks;
@@ -495,7 +500,8 @@ let clone com =
 		defines = {
 			values = com.defines.values;
 			defines_signature = com.defines.defines_signature;
-		}
+		};
+		native_libs = create_native_libs();
 	}
 
 let file_time file = Extc.filetime file
@@ -536,7 +542,7 @@ let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
 	if com.config.pf_static then begin
 		raw_define_value com.defines "target.static" "true";
@@ -617,34 +623,81 @@ let platform ctx p = ctx.platform = p
 let platform_name_macro com =
 	if defined com Define.Macro then "macro" else platform_name com.platform
 
+let normalize_dir_separator path =
+	if is_windows then String.map (fun c -> if c = '/' then '\\' else c) path
+	else path
+
 let find_file ctx f =
 	try
-		(match Hashtbl.find ctx.file_lookup_cache f with
+		match Hashtbl.find ctx.file_lookup_cache f with
 		| None -> raise Exit
-		| Some f -> f)
+		| Some f -> f
 	with Exit ->
 		raise Not_found
 	| Not_found ->
+		let remove_extension file =
+			try String.sub file 0 (String.rindex file '.')
+			with Not_found -> file
+		in
+		let extension file =
+			try
+				let dot_pos = String.rindex file '.' in
+				String.sub file dot_pos (String.length file - dot_pos)
+			with Not_found -> file
+		in
+		let f_dir = Filename.dirname f
+		and platform_ext = "." ^ (platform_name_macro ctx)
+		and is_core_api = defined ctx Define.CoreApi in
 		let rec loop had_empty = function
 			| [] when had_empty -> raise Not_found
 			| [] -> loop true [""]
 			| p :: l ->
 				let file = p ^ f in
-				if Sys.file_exists file then begin
-					(try
-						let ext = String.rindex file '.' in
-						let file_pf = String.sub file 0 (ext + 1) ^ platform_name_macro ctx ^ String.sub file ext (String.length file - ext) in
-						if not (defined ctx Define.CoreApi) && Sys.file_exists file_pf then file_pf else file
-					with Not_found ->
-						file)
-				end else
+				let dir = Filename.dirname file in
+				if Hashtbl.mem ctx.readdir_cache (p,dir) then
 					loop (had_empty || p = "") l
+				else begin
+					let found = ref "" in
+					let dir_listing =
+						try Some (Sys.readdir dir);
+						with Sys_error _ -> None
+					in
+					Hashtbl.add ctx.readdir_cache (p,dir) dir_listing;
+					let normalized_f = normalize_dir_separator f in
+					Option.may
+						(Array.iter (fun file_name ->
+							let current_f = if f_dir = "." then file_name else f_dir ^ "/" ^ file_name in
+							let pf,current_f =
+								if is_core_api then false,current_f
+								else begin
+									let ext = extension current_f in
+									let pf_ext = extension (remove_extension current_f) in
+									if platform_ext = pf_ext then
+										true,(remove_extension (remove_extension current_f)) ^ ext
+									else
+										false,current_f
+								end
+							in
+							let is_cached = Hashtbl.mem ctx.file_lookup_cache current_f in
+							if is_core_api || pf || not is_cached then begin
+								let full_path = if dir = "." then file_name else dir ^ "/" ^ file_name in
+								if is_cached then
+									Hashtbl.remove ctx.file_lookup_cache current_f;
+								Hashtbl.add ctx.file_lookup_cache current_f (Some full_path);
+								if normalize_dir_separator current_f = normalized_f then
+									found := full_path;
+							end
+						))
+						dir_listing;
+					if !found <> "" then !found
+					else loop (had_empty || p = "") l
+				end
 		in
 		let r = (try Some (loop false ctx.class_path) with Not_found -> None) in
 		Hashtbl.add ctx.file_lookup_cache f r;
-		(match r with
+		match r with
 		| None -> raise Not_found
-		| Some f -> f)
+		| Some f -> f
 
 (* let find_file ctx f =
 	let timer = Timer.timer ["find_file"] in

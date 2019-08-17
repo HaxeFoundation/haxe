@@ -328,6 +328,7 @@ module Memory = struct
 				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
 				"parserCache",jint (mem_size cs.cache.c_files);
 				"moduleCache",jint (mem_size cs.cache.c_modules);
+				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
 			]
 		]
 
@@ -444,8 +445,8 @@ module TypePathHandler = struct
 				end;
 			) r;
 		) com.class_path;
-		List.iter (fun (_,_,extract) ->
-			Hashtbl.iter (fun (path,name) _ ->
+		let process_lib lib =
+			List.iter (fun (path,name) ->
 				if path = p then classes := name :: !classes else
 				let rec loop p1 p2 =
 					match p1, p2 with
@@ -454,32 +455,11 @@ module TypePathHandler = struct
 					| a :: p1, b :: p2 -> if a = b then loop p1 p2
 				in
 				loop path p
-			) (extract());
-		) com.swf_libs;
-		List.iter (fun (path,std,close,all_files,lookup) ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-				loop path p
-			) (all_files())
-		) com.java_libs;
-		List.iter (fun (path,std,all_files,lookup) ->
-			List.iter (fun (path, name) ->
-				if path = p then classes := name :: !classes else
-				let rec loop p1 p2 =
-					match p1, p2 with
-					| [], _ -> ()
-					| x :: _, [] -> packages := x :: !packages
-					| a :: p1, b :: p2 -> if a = b then loop p1 p2
-				in
-			loop path p
-			) (all_files())
-		) com.net_libs;
+			) lib#list_modules;
+		in
+		List.iter process_lib com.native_libs.swf_libs;
+		List.iter process_lib com.native_libs.net_libs;
+		List.iter process_lib com.native_libs.java_libs;
 		unique !packages, unique !classes
 
 	(** raise field completion listing packages and modules in a given package *)
@@ -806,4 +786,4 @@ let handle_syntax_completion com kind p =
 			raise (Completion s)
 		| Some(f,_,jsonrpc) ->
 			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
-			f(fields_to_json ctx l kind None)
+			f(fields_to_json ctx l kind None None)

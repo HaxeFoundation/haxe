@@ -22,6 +22,7 @@ open As3hl
 open Common
 open Globals
 open Ast
+open NativeLibraries
 
 let lowercase_pack pack =
 	let rec loop acc pack =
@@ -131,10 +132,10 @@ let is_valid_path com pack name =
 	let rec loop = function
 		| [] ->
 			false
-		| load :: l ->
+		| (file,load) :: l ->
 			match load (pack,name) null_pos with
 			| None -> loop l
-			| Some (file,(_,a)) -> true
+			| Some (_,a) -> true
 	in
 	let file = Printf.sprintf "%s/%s.hx" (String.concat "/" pack) name in
 	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
@@ -541,7 +542,6 @@ let remove_debug_infos as3 =
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
-	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try
@@ -572,39 +572,68 @@ let parse_swf com file =
 	t();
 	(h,tags)
 
-let add_swf_lib com file extern =
-	let swf_data = ref None in
-	let swf_classes = ref None in
-	let getSWF = (fun() ->
-		match !swf_data with
-		| None ->
-			let d = parse_swf com file in
-			swf_data := Some d;
-			d
-		| Some d -> d
-	) in
-	let extract = (fun() ->
-		match !swf_classes with
-		| None ->
-			let d = extract_data (getSWF()) in
-			swf_classes := Some d;
-			d
-		| Some d -> d
-	) in
-	let build cl p =
-		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
-		| None -> None
-		| Some c -> Some (file, build_class com c file)
-	in
-	com.load_extern_type <- com.load_extern_type @ [build];
-	if not extern then com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+class swf_library com name file_path = object(self)
+	inherit [swf_lib_type,Swf.swf] native_library name file_path
 
-let remove_classes toremove lib hcl =
-	let lib = lib() in
+	val mutable swf_data = None
+	val mutable swf_classes = None
+	val haxe_classes = Hashtbl.create 0
+
+	method load =
+		ignore(self#get_swf)
+
+	method get_swf = match swf_data with
+		| None ->
+			let d = parse_swf com file_path in
+			swf_data <- Some d;
+			d
+		| Some d ->
+			d
+
+	method extract = match swf_classes with
+		| None ->
+			let d = extract_data self#get_swf in
+			swf_classes <- Some d;
+			d
+		| Some d ->
+			d
+
+	method lookup path =
+		try Some (Hashtbl.find (self#extract) path)
+		with Not_found -> None
+
+	method list_modules =
+		Hashtbl.fold (fun path _ acc -> path :: acc) (self#extract) []
+
+	method close =
+		()
+
+	method build (path : path) (p : pos) : Ast.package option =
+		try
+			Some (Hashtbl.find haxe_classes path)
+		with Not_found -> try
+			let c = Hashtbl.find (self#extract) path in
+			let c = build_class com c file_path in
+			Hashtbl.add haxe_classes path c;
+			Some c
+		with Not_found ->
+			None
+
+	method get_data = self#get_swf
+end
+
+let add_swf_lib com file extern =
+	let real_file = (try Common.find_file com file with Not_found -> failwith (" Library not found : " ^ file)) in
+	let swf_lib = new swf_library com file real_file in
+	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs;
+	CompilationServer.handle_native_lib com swf_lib
+
+let remove_classes toremove lib l =
 	match !toremove with
 	| [] -> lib
 	| _ ->
-		let hcl = hcl() in
+		let hcl = Hashtbl.create 0 in
+		List.iter (fun path -> Hashtbl.add hcl path ()) l;
 		match List.filter (fun c -> Hashtbl.mem hcl c) (!toremove) with
 		| [] -> lib
 		| classes ->

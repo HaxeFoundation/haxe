@@ -50,13 +50,23 @@ extern class Datetime {
 
 	public function timetuple():StructTime;
 	public function strftime(format:String):String;
-	public function replace(?year:Int = 1970, ?month:Int = 1, ?day:Int = 1, ?hour:Int = 0, ?minute:Int = 0, ?second:Int, ?microsecond:Int,
-		?tzinfo:Tzinfo):Datetime;
+	public function replace(kwargs:python.KwArgs<{
+		?year:Int,
+		?month:Int,
+		?day:Int,
+		?hour:Int,
+		?minute:Int,
+		?second:Int,
+		?microsecond:Int,
+		?tzinfo:Tzinfo
+	}>):Datetime;
 	/* 0-6 */
 	public function weekday():Int;
 	/* 1-7 */
 	public function isoweekday():Int;
+	public function utcoffset():Int;
 
 	// python 3.3
 	public function timestamp():Float;
+	public function astimezone(?tz:Tzinfo):Datetime;
 }

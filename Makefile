@@ -123,7 +123,7 @@ build_dirs:
 	@mkdir -p $(BUILD_DIRECTORIES)
 
 _build/src/syntax/grammar.ml:src/syntax/grammar.mly
-	camlp4o -impl $< -o $@
+	camlp5o -impl $< -o $@
 
 _build/src/compiler/version.ml: FORCE
 ifneq ($(ADD_REVISION),0)
@@ -211,7 +211,7 @@ uninstall:
 	rm -rf $(DESTDIR)$(INSTALL_STD_DIR)
 
 opam_install:
-	opam install $(OPAM_LIBS) camlp4 ocamlfind --yes
+	opam install $(OPAM_LIBS) camlp5 ocamlfind --yes
 
 # Dependencies
 
@@ -229,13 +229,9 @@ package_src:
 package_unix:
 	mkdir -p $(PACKAGE_OUT_DIR)
 	rm -rf $(PACKAGE_FILE_NAME) $(PACKAGE_FILE_NAME).tar.gz
-	#delete all content which was generated in _build dir except interfaces
-	find _build/ -type f ! -name '*.cmi' -delete
-	#add ocaml version to the _build dir
-	ocaml -version > _build/ocaml.version
 	# Copy the package contents to $(PACKAGE_FILE_NAME)
 	mkdir -p $(PACKAGE_FILE_NAME)
-	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt _build $(PACKAGE_FILE_NAME)
+	cp -r $(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std extra/LICENSE.txt extra/CONTRIB.txt extra/CHANGES.txt $(PACKAGE_FILE_NAME)
 	# archive
 	tar -zcf $(PACKAGE_OUT_DIR)/$(PACKAGE_FILE_NAME)_bin.tar.gz $(PACKAGE_FILE_NAME)
 	rm -r $(PACKAGE_FILE_NAME)
