@@ -33,7 +33,7 @@ enum StackItem {
 	CFunction;
 	Module(m:String);
 	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
-	Method(classname:String, method:String);
+	Method(classname:Null<String>, method:String);
 	LocalFunction(?v:Int);
 }
 
@@ -94,7 +94,7 @@ class CallStack {
 				if (s != null)
 					b.add(")");
 			case Method(cname, meth):
-				b.add(cname);
+				b.add(cname == null ? "<unknown>" : cname);
 				b.add(".");
 				b.add(meth);
 			case LocalFunction(n):
