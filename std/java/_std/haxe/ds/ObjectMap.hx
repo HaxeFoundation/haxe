@@ -357,18 +357,10 @@ import java.NativeArray;
 		}
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public function keys():Iterator<K> {
 		return new ObjectMapKeyIterator(this);
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public function iterator():Iterator<V> {
 		return new ObjectMapValueIterator(this);
 	}
@@ -384,9 +376,6 @@ import java.NativeArray;
 		return copied;
 	}
 
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
 	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");
