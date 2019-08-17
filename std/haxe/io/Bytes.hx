@@ -59,7 +59,7 @@ class Bytes {
 	}
 
 	/**
-		Stores given byte `v` at given position `pos`.
+		Stores the given byte `v` at the given position `pos`.
 	**/
 	public inline function set(pos:Int, v:Int):Void {
 		#if neko
@@ -80,11 +80,12 @@ class Bytes {
 	}
 
 	/**
-		Copies `len` bytes from `src` into this instance. 
-		@param pos Zero-based location in this instance from which to start copying bytes.
+		Copies `len` bytes from `src` into this instance.
+		@param pos Zero-based location in `this` instance at which to start writing
+			bytes.
 		@param src Source `Bytes` instance from which to copy bytes.
 		@param srcpos Zero-based location at `src` from which bytes will be copied.
-		@param len Number of bytes to be copied. 
+		@param len Number of bytes to be copied.
 	**/
 	public function blit(pos:Int, src:Bytes, srcpos:Int, len:Int):Void {
 		#if !neko
@@ -125,7 +126,8 @@ class Bytes {
 	}
 
 	/**
-		Sets `len` consecutive bytes starting from index `pos` of this instance to `value`.
+		Sets `len` consecutive bytes starting from index `pos` of `this` instance
+		to `value`.
 	**/
 	public function fill(pos:Int, len:Int, value:Int) {
 		#if flash
@@ -147,7 +149,8 @@ class Bytes {
 	}
 
 	/**
-		Returns a new `Bytes` instance that contains a copy of `len` bytes of this instance, starting at index `pos`. 
+		Returns a new `Bytes` instance that contains a copy of `len` bytes of
+		`this` instance, starting at index `pos`.
 	**/
 	public function sub(pos:Int, len:Int):Bytes {
 		#if !neko
@@ -177,13 +180,16 @@ class Bytes {
 	}
 	
 	/**
-		Returns `0` if this instance's bytes and given `other`'s bytes are identical.
-		
-		Returns a negative value if this instance's `length` is less than `other`'s, or a positive value 
-		if this instance's `length` is greater than `other`'s.
+		Returns `0` if the bytes of `this` instance and the bytes of `other` are
+		identical.
 
-		In case of equal `length`s, returns negative if the first different value in `other` is greater than the
-		value in `this` instance, or returns positive otherwise.
+		Returns a negative value if the `length` of `this` instance is less than
+		the `length` of `other`, or a positive value if the `length` of `this`
+		instance is greater than the `length` of `other`.
+
+		In case of equal `length`s, returns a negative value if the first different
+		value in `other` is greater than the corresponding value in `this`
+		instance; otherwise returns a positive value.
 	**/
 	public function compare(other:Bytes):Int {
 		#if neko
@@ -230,8 +236,9 @@ class Bytes {
 	}
 
 	/**
-		Returns the IEEE double precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds.
+		Returns the IEEE double-precision value at the given position `pos` (in
+		little-endian encoding). Result is unspecified if `pos` is outside the
+		bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
@@ -252,8 +259,9 @@ class Bytes {
 	}
 
 	/**
-		Returns the IEEE single precision value at given position (in low endian encoding).
-		Result is unspecified if reading outside of the bounds.
+		Returns the IEEE single-precision value at the given position `pos` (in
+		little-endian encoding). Result is unspecified if `pos` is outside the
+		bounds.
 	**/
 	#if (neko_v21 || (cpp && !cppia) || flash)
 	inline
@@ -274,8 +282,9 @@ class Bytes {
 	}
 
 	/**
-		Store the IEEE double precision value at given position in low endian encoding.
-		Result is unspecified if writing outside of the bounds.
+		Stores the given IEEE double-precision value `v` at the given position
+		`pos` in little-endian encoding. Result is unspecified if writing outside
+		of bounds.
 	**/
 	#if (neko_v21 || flash)
 	inline
@@ -300,8 +309,9 @@ class Bytes {
 	}
 
 	/**
-		Store the IEEE single precision value at given position in low endian encoding.
-		Result is unspecified if writing outside of the bounds.
+		Stores the given IEEE single-precision value `v` at the given position
+		`pos` in little-endian encoding. Result is unspecified if writing outside
+		of bounds.
 	**/
 	#if (neko_v21 || flash)
 	inline
@@ -324,7 +334,8 @@ class Bytes {
 	}
 
 	/**
-		Returns the 16 bit unsigned integer at given position (in low endian encoding).
+		Returns the 16-bit unsigned integer at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function getUInt16(pos:Int):Int {
 		#if neko_v21
@@ -335,7 +346,8 @@ class Bytes {
 	}
 
 	/**
-		Store the 16 bit unsigned integer at given position (in low endian encoding).
+		Stores the given 16-bit unsigned integer `v` at the given position `pos`
+		(in little-endian encoding).
 	**/
 	public inline function setUInt16(pos:Int, v:Int):Void {
 		#if neko_v21
@@ -347,7 +359,8 @@ class Bytes {
 	}
 
 	/**
-		Returns the 32 bit integer at given position (in low endian encoding).
+		Returns the 32-bit integer at the given position `pos` (in little-endian
+		encoding).
 	**/
 	public inline function getInt32(pos:Int):Int {
 		#if neko_v21
@@ -364,14 +377,16 @@ class Bytes {
 	}
 
 	/**
-		Returns the 64 bit integer at given position (in low endian encoding).
+		Returns the 64-bit integer at the given position `pos` (in little-endian
+		encoding).
 	**/
 	public inline function getInt64(pos:Int):haxe.Int64 {
 		return haxe.Int64.make(getInt32(pos + 4), getInt32(pos));
 	}
 
 	/**
-		Store the 32 bit integer at given position (in low endian encoding).
+		Stores the given 32-bit integer `v` at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function setInt32(pos:Int, v:Int):Void {
 		#if neko_v21
@@ -385,13 +400,18 @@ class Bytes {
 	}
 
 	/**
-		Store the 64 bit integer at given position (in low endian encoding).
+		Stores the given 64-bit integer `v` at the given position `pos` (in
+		little-endian encoding).
 	**/
 	public inline function setInt64(pos:Int, v:haxe.Int64):Void {
 		setInt32(pos, v.low);
 		setInt32(pos + 4, v.high);
 	}
 
+	/**
+		Returns the `len`-bytes long string stored at the given position `pos`,
+		interpreted with the given `encoding` (UTF-8 by default).
+	**/
 	public function getString(pos:Int, len:Int, ?encoding:Encoding):String {
 		if (encoding == null)
 			encoding == UTF8;
@@ -477,7 +497,7 @@ class Bytes {
 	}
 
 	/**
-		Returns `String` representation of the bytes as UTF8.
+		Returns a `String` representation of the bytes interpreted as UTF-8.
 	**/
 	public function toString():String {
 		#if neko
@@ -498,7 +518,8 @@ class Bytes {
 	}
 
 	/**
-		Returns hexadecimal `String` representation of this instance's bytes.
+		Returns a hexadecimal `String` representation of the bytes of `this`
+		instance.
 	**/
 	public function toHex():String {
 		var s = new StringBuf();
@@ -515,14 +536,15 @@ class Bytes {
 	}
 
 	/**
-		Returns this instance's bytes as `BytesData`.
+		Returns the bytes of `this` instance as `BytesData`.
 	**/
 	public inline function getData():BytesData {
 		return b;
 	}
 
 	/**
-		Returns a new `Bytes` instance of given `length` size and bytes with undefined values.
+		Returns a new `Bytes` instance with the given `length`. The values of the
+		bytes are not initialized and may not be zero.
 	**/
 	public static function alloc(length:Int):Bytes {
 		#if neko
@@ -551,7 +573,8 @@ class Bytes {
 	}
 
 	/**
-		Returns bytes representation of given `String`, using specific encoding (UTF-8 by default).
+		Returns the `Bytes` representation of the given `String`, using the
+		specified encoding (UTF-8 by default).
 	**/
 	@:pure
 	public static function ofString(s:String, ?encoding:Encoding):Bytes {
@@ -628,7 +651,7 @@ class Bytes {
 	}
 
 	/**
-		Returns bytes representation of given `BytesData`.
+		Returns the `Bytes` representation of the given `BytesData`.
 	**/
 	public static function ofData(b:BytesData) {
 		#if flash
@@ -643,8 +666,9 @@ class Bytes {
 	}
 
 	/**
-		Converts given hexadecimal `String` to `Bytes`.
-		Support only straight hex string ( Example: `"0FDA14058916052309"` )
+		Converts the given hexadecimal `String` to `Bytes`. `s` must be a string of
+		even length consisting only of hexadecimal digits. For example:
+		`"0FDA14058916052309"`.
 	**/
 	public static function ofHex(s:String):Bytes {
 		var len:Int = s.length;
@@ -663,8 +687,9 @@ class Bytes {
 	}
 
 	/**
-		Reads the `pos`-th byte of given `b` bytes, in the most efficiently way possible.
-		Behavior when reading outside of the available data is unspecified.
+		Reads the `pos`-th byte of the given `b` bytes, in the most efficient way
+		possible. Behavior when reading outside of the available data is
+		unspecified.
 	**/
 	public inline static function fastGet(b:BytesData, pos:Int):Int {
 		#if neko
