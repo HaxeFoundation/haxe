@@ -379,6 +379,174 @@ let get_std_class_paths () =
 				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
+
+let process_args arg_spec =
+	(* Takes a list of arg specs including some custom info, and generates a
+	list in the format Arg.parse_argv wants. Handles multiple official or
+	deprecated names for the same arg; deprecated versions will display a
+	warning. *)
+	List.flatten(List.map (fun (cat, ok, dep, spec, hint, doc) ->
+		(* official argument names *)
+		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
+		(* deprecated argument names *)
+		(* let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in *)
+		(* For now, these warnings are a noop. Can replace this function to
+		enable error output: *)
+		(* let dep_fun = prerr_endline (dep_msg arg) in *)
+		let dep_fun arg spec = () in
+		let dep_spec arg spec = match spec with
+			| Arg.String f -> Arg.String (fun x -> dep_fun arg spec; f x)
+			| Arg.Unit f -> Arg.Unit (fun x -> dep_fun arg spec; f x)
+			| Arg.Bool f -> Arg.Bool (fun x -> dep_fun arg spec; f x)
+			| _ -> spec in
+		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
+	) arg_spec)
+
+let usage_string ?(print_cat=true) arg_spec usage =
+	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
+	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
+	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
+	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
+	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
+	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> (if print_cat then ["\n"^cat^":"] else []) @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
+		let label = make_label ok hint in
+		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
+	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
+
+let run_or_diagnose com f arg =
+	let handle_diagnostics global msg p kind =
+		add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
+		Diagnostics.run com global;
+	in
+	match com.display.dms_kind with
+	| DMDiagnostics global ->
+		begin try
+			f arg
+		with
+		| Error.Error(msg,p) ->
+			handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
+		| Parser.Error(msg,p) ->
+			handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+		| Lexer.Error(msg,p) ->
+			handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
+		end
+	| _ ->
+		f arg
+
+(** Creates the typer context and types [classes] into it. *)
+let do_type ctx native_libs config_macros classes =
+	let com = ctx.com in
+	ctx.setup();
+	Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
+	Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
+	let t = Timer.timer ["typing"] in
+	Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
+	List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
+	(* Native lib pass 1: Register *)
+	let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) native_libs in
+	(* Native lib pass 2: Initialize *)
+	List.iter (fun f -> f()) fl;
+	let tctx = Typer.create com in
+	let add_signature desc =
+		Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
+	in
+	add_signature "before_init_macros";
+	List.iter (MacroContext.call_init_macro tctx) (List.rev config_macros);
+	add_signature "after_init_macros";
+	List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
+	run_or_diagnose com (fun () ->
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev classes);
+		Finalization.finalize tctx;
+	) ();
+	(* If we are trying to find references, let's syntax-explore everything we know to check for the
+		identifier we are interested in. We then type only those modules that contain the identifier. *)
+	begin match !CompilationServer.instance,com.display.dms_kind with
+		| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
+		| _ -> ()
+	end;
+	t();
+	tctx
+
+let load_display_module_in_macro tctx display_file_dot_path clear = match display_file_dot_path with
+	| Some cpath ->
+		let p = null_pos in
+		begin try
+			let open Typecore in
+			let _, mctx = MacroContext.get_macro_context tctx p in
+			(* Tricky stuff: We want to remove the module from our lookups and load it again in
+				display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
+			if clear then begin
+				begin try
+					let m = Hashtbl.find mctx.g.modules cpath in
+					Hashtbl.remove mctx.g.modules cpath;
+					Hashtbl.remove mctx.g.types_module cpath;
+					List.iter (fun mt ->
+						let ti = t_infos mt in
+						Hashtbl.remove mctx.g.modules ti.mt_path;
+						Hashtbl.remove mctx.g.types_module ti.mt_path;
+					) m.m_types
+				with Not_found ->
+					()
+				end;
+			end;
+			let _ = MacroContext.load_macro_module tctx cpath true p in
+			Finalization.finalize mctx;
+			Some mctx
+		with DisplayException _ | Parser.TypePath _ as exc ->
+			raise exc
+		| _ ->
+			None
+		end
+	| None ->
+		None
+
+let handle_display ctx tctx display_file_dot_path =
+	let com = ctx.com in
+	if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
+	begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
+		| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
+		| _ -> ()
+	end;
+	if ctx.com.display.dms_exit_during_typing then begin
+		if ctx.has_next || ctx.has_error then raise Abort;
+		(* If we didn't find a completion point, load the display file in macro mode. *)
+		ignore(load_display_module_in_macro tctx display_file_dot_path true);
+		let no_completion_point_found = "No completion point was found" in
+		match com.json_out with
+		| Some _ -> (match ctx.com.display.dms_kind with
+			| DMDefault -> raise (DisplayException(DisplayFields None))
+			| DMSignature -> raise (DisplayException(DisplaySignatures None))
+			| DMHover -> raise (DisplayException(DisplayHover None))
+			| DMDefinition | DMTypeDefinition -> raise_positions []
+			| _ -> failwith no_completion_point_found)
+		| None ->
+			failwith no_completion_point_found;
+	end
+
+let filter ctx tctx display_file_dot_path =
+	let com = ctx.com in
+	let t = Timer.timer ["filters"] in
+	let main, types, modules = run_or_diagnose com Finalization.generate tctx in
+	com.main <- main;
+	com.types <- types;
+	com.modules <- modules;
+	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
+		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
+	if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
+		match load_display_module_in_macro  tctx display_file_dot_path false with
+		| None -> ()
+		| Some mctx ->
+			(* We don't need a full macro flush here because we're not going to run any macros. *)
+			let _, types, modules = Finalization.generate mctx in
+			mctx.Typecore.com.types <- types;
+			mctx.Typecore.com.Common.modules <- modules
+	end;
+	DisplayOutput.process_global_display_mode com tctx;
+	if not (Common.defined com Define.NoDeprecationWarnings) then
+		DeprecationCheck.run com;
+	Filters.run com tctx main;
+	t()
+
 let rec process_params create pl =
 	let each_params = ref [] in
 	let rec loop acc = function
@@ -428,39 +596,6 @@ let rec process_params create pl =
 		| _ -> pl
 	) in
 	loop [] pl
-
-and process_args arg_spec =
-	(* Takes a list of arg specs including some custom info, and generates a
-	list in the format Arg.parse_argv wants. Handles multiple official or
-	deprecated names for the same arg; deprecated versions will display a
-	warning. *)
-	List.flatten(List.map (fun (cat, ok, dep, spec, hint, doc) ->
-		(* official argument names *)
-		(List.map (fun (arg) -> (arg, spec, doc)) ok) @
-		(* deprecated argument names *)
-		(* let dep_msg arg = (Printf.sprintf "WARNING: %s is deprecated" arg) ^ (if List.length ok > 0 then (Printf.sprintf ". Use %s instead" (String.concat "/" ok)) else "") in *)
-		(* For now, these warnings are a noop. Can replace this function to
-		enable error output: *)
-		(* let dep_fun = prerr_endline (dep_msg arg) in *)
-		let dep_fun arg spec = () in
-		let dep_spec arg spec = match spec with
-			| Arg.String f -> Arg.String (fun x -> dep_fun arg spec; f x)
-			| Arg.Unit f -> Arg.Unit (fun x -> dep_fun arg spec; f x)
-			| Arg.Bool f -> Arg.Bool (fun x -> dep_fun arg spec; f x)
-			| _ -> spec in
-		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
-	) arg_spec)
-
-and usage_string ?(print_cat=true) arg_spec usage =
-	let make_label = fun names hint -> Printf.sprintf "%s %s" (String.concat ", " names) hint in
-	let args = (List.filter (fun (cat, ok, dep, spec, hint, doc) -> (List.length ok) > 0) arg_spec) in
-	let cat_order = ["Target";"Compilation";"Optimization";"Debug";"Batch";"Services";"Compilation Server";"Target-specific";"Miscellaneous"] in
-	let cats = List.filter (fun x -> List.mem x (List.map (fun (cat, _, _, _, _, _) -> cat) args)) cat_order in
-	let max_length = List.fold_left max 0 (List.map String.length (List.map (fun (_, ok, _, _, hint, _) -> make_label ok hint) args)) in
-	usage ^ (String.concat "\n" (List.flatten (List.map (fun cat -> (if print_cat then ["\n"^cat^":"] else []) @ (List.map (fun (cat, ok, dep, spec, hint, doc) ->
-		let label = make_label ok hint in
-		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
-	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
 
 and init ctx =
 	let usage = Printf.sprintf
@@ -846,132 +981,12 @@ try
 	let t = Timer.timer ["init"] in
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	t();
-	let run_or_diagnose f arg =
-		let handle_diagnostics global msg p kind =
-			add_diagnostics_message com msg p kind DisplayTypes.DiagnosticsSeverity.Error;
-			Diagnostics.run com global;
-		in
-		match com.display.dms_kind with
-		| DMDiagnostics global ->
-			begin try
-				f arg
-			with
-			| Error.Error(msg,p) ->
-				handle_diagnostics global (Error.error_msg msg) p DisplayTypes.DiagnosticsKind.DKCompilerError
-			| Parser.Error(msg,p) ->
-				handle_diagnostics global (Parser.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
-			| Lexer.Error(msg,p) ->
-				handle_diagnostics global (Lexer.error_msg msg) p DisplayTypes.DiagnosticsKind.DKParserError
-			end
-		| _ ->
-			f arg
-	in
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
-		ctx.setup();
-		Common.log com ("Classpath: " ^ (String.concat ";" com.class_path));
-		Common.log com ("Defines: " ^ (String.concat ";" (PMap.foldi (fun k v acc -> (match v with "1" -> k | _ -> k ^ "=" ^ v) :: acc) com.defines.Define.values [])));
-		let t = Timer.timer ["typing"] in
-		Typecore.type_expr_ref := (fun ?(mode=MGet) ctx e with_type -> Typer.type_expr ~mode ctx e with_type);
-		List.iter (fun f -> f ()) (List.rev com.callbacks#get_before_typer_create);
-		(* Native lib pass 1: Register *)
-		let fl = List.map (fun (file,extern) -> NativeLibraryHandler.add_native_lib com file extern) !native_libs in
-		(* Native lib pass 2: Initialize *)
-		List.iter (fun f -> f()) fl;
-		let tctx = Typer.create com in
-		let add_signature desc =
-			Option.may (fun cs -> CompilationServer.maybe_add_context_sign cs com desc) (CompilationServer.get ());
-		in
-		add_signature "before_init_macros";
-		List.iter (MacroContext.call_init_macro tctx) (List.rev !config_macros);
-		add_signature "after_init_macros";
-		List.iter (fun f -> f ()) (List.rev com.callbacks#get_after_init_macros);
-		run_or_diagnose (fun () ->
-			List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath null_pos)) (List.rev !classes);
-			Finalization.finalize tctx;
-		) ();
-		(* If we are trying to find references, let's syntax-explore everything we know to check for the
-		   identifier we are interested in. We then type only those modules that contain the identifier. *)
-		begin match !CompilationServer.instance,com.display.dms_kind with
-			| Some cs,DMUsage _ -> FindReferences.find_possible_references tctx cs;
-			| _ -> ()
-		end;
-		t();
-		if not ctx.com.display.dms_display && ctx.has_error then raise Abort;
-		let load_display_module_in_macro clear = match display_file_dot_path with
-			| Some cpath ->
-				let p = null_pos in
-				begin try
-					let open Typecore in
-					let _, mctx = MacroContext.get_macro_context tctx p in
-					(* Tricky stuff: We want to remove the module from our lookups and load it again in
-					   display mode. This covers some cases like --macro typing it in non-display mode (issue #7017). *)
-					if clear then begin
-						begin try
-							let m = Hashtbl.find mctx.g.modules cpath in
-							Hashtbl.remove mctx.g.modules cpath;
-							Hashtbl.remove mctx.g.types_module cpath;
-							List.iter (fun mt ->
-								let ti = t_infos mt in
-								Hashtbl.remove mctx.g.modules ti.mt_path;
-								Hashtbl.remove mctx.g.types_module ti.mt_path;
-							) m.m_types
-						with Not_found ->
-							()
-						end;
-					end;
-					let _ = MacroContext.load_macro_module tctx cpath true p in
-					Finalization.finalize mctx;
-					Some mctx
-				with DisplayException _ | Parser.TypePath _ as exc ->
-					raise exc
-				| _ ->
-					None
-				end
-			| None ->
-				None
-		in
-		begin match ctx.com.display.dms_kind,!Parser.delayed_syntax_completion with
-			| DMDefault,Some(kind,p) -> DisplayOutput.handle_syntax_completion com kind p
-			| _ -> ()
-		end;
-		if ctx.com.display.dms_exit_during_typing then begin
-			if ctx.has_next || ctx.has_error then raise Abort;
-			(* If we didn't find a completion point, load the display file in macro mode. *)
-			ignore(load_display_module_in_macro true);
-			let no_completion_point_found = "No completion point was found" in
-			match com.json_out with
-			| Some _ -> (match ctx.com.display.dms_kind with
-				| DMDefault -> raise (DisplayException(DisplayFields None))
-				| DMSignature -> raise (DisplayException(DisplaySignatures None))
-				| DMHover -> raise (DisplayException(DisplayHover None))
-				| DMDefinition | DMTypeDefinition -> raise_positions []
-				| _ -> failwith no_completion_point_found)
-			| None ->
-				failwith no_completion_point_found;
-		end;
-		let t = Timer.timer ["filters"] in
-		let main, types, modules = run_or_diagnose Finalization.generate tctx in
-		com.main <- main;
-		com.types <- types;
-		com.modules <- modules;
-		(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
-		   macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
-		if ctx.com.display.dms_force_macro_typing && (match ctx.com.display.dms_kind with DMDiagnostics _ -> false | _ -> true) then begin
-			match load_display_module_in_macro false with
-			| None -> ()
-			| Some mctx ->
-				(* We don't need a full macro flush here because we're not going to run any macros. *)
-				let _, types, modules = Finalization.generate mctx in
-				mctx.Typecore.com.types <- types;
-				mctx.Typecore.com.Common.modules <- modules
-		end;
-		DisplayOutput.process_global_display_mode com tctx;
-		if not (Common.defined com Define.NoDeprecationWarnings) then
-			DeprecationCheck.run com;
-		Filters.run com tctx main;
-		t();
+		let tctx = do_type ctx !native_libs !config_macros !classes in
+		handle_display ctx tctx display_file_dot_path;
+		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
 		begin match !xml_out with
 			| None -> ()
