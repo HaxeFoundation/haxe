@@ -79,7 +79,7 @@ let read_class_paths com timer =
 		match CompilationServer.get() with
 		| Some cs when pack <> fst path ->
 			let file = Path.unique_full_path file in
-			CompilationServer.remove_file cs (file,sign)
+			CompilationServer.remove_file_for_real cs (file,sign)
 		| _ ->
 			()
 	)

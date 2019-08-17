@@ -159,6 +159,10 @@ let remove_file cs key =
 		Hashtbl.replace cs.cache.c_removed_files key ()
 	end
 
+(* Like remove_file, but doesn't keep track of the file *)
+let remove_file_for_real cs key =
+	Hashtbl.remove cs.cache.c_files key
+
 let remove_files cs file =
 	List.iter (fun (sign,_) -> remove_file cs (file,sign)) cs.signs
 
