@@ -279,7 +279,7 @@ module Initialize = struct
 				"eval"
 end
 
-let generate tctx ext xml_out interp swf_header =
+let generate tctx ext interp swf_header =
 	let com = tctx.Typecore.com in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -379,6 +379,29 @@ let get_std_class_paths () =
 				Path.add_trailing_slash (Filename.concat base_path "extraLibs")
 			]
 
+let setup_common_context ctx com =
+	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
+	Common.raw_define com "haxe3";
+	Common.raw_define com "haxe4";
+	Common.define_value com Define.Haxe (s_version false);
+	Common.define_value com Define.Dce "std";
+	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
+	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
+	com.error <- error ctx;
+	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
+		(match msg with
+		| CMError(_,_) -> keep_errors;
+		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
+	) (List.rev ctx.messages))) in
+	com.get_messages <- (fun () -> (List.map (fun msg ->
+		(match msg with
+		| CMError(_,_) -> assert false;
+		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
+	) (filter_messages false (fun _ -> true))));
+	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
+	if CompilationServer.runs() then com.run_command <- run_command ctx;
+	com.class_path <- get_std_class_paths ();
+	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path
 
 let process_args arg_spec =
 	(* Takes a list of arg specs including some custom info, and generates a
@@ -412,6 +435,28 @@ let usage_string ?(print_cat=true) arg_spec usage =
 		let label = make_label ok hint in
 		Printf.sprintf "  %s%s  %s" label (String.make (max_length - (String.length label)) ' ') doc
 	) (List.filter (fun (cat', _, _, _, _, _) -> (if List.mem cat' cat_order then cat' else "Miscellaneous") = cat) args))) cats)))
+
+let process_display_configuration ctx =
+	let com = ctx.com in
+	if com.display.dms_kind <> DMNone then begin
+		com.warning <-
+			if com.display.dms_error_policy = EPCollect then
+				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
+			else
+				(fun msg p -> message ctx (CMWarning(msg,p)));
+		com.error <- error ctx;
+	end;
+	Lexer.old_format := Common.defined com Define.OldErrorFormat;
+	if !Lexer.old_format && !Parser.in_display then begin
+		let p = DisplayPosition.display_position#get in
+		(* convert byte position to utf8 position *)
+		try
+			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
+			let pos = UTF8.length (String.sub content 0 p.pmin) in
+			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
+		with _ ->
+			() (* ignore *)
+	end
 
 let run_or_diagnose com f arg =
 	let handle_diagnostics global msg p kind =
@@ -547,6 +592,24 @@ let filter ctx tctx display_file_dot_path =
 	Filters.run com tctx main;
 	t()
 
+let check_auxiliary_output com xml_out json_out =
+	begin match xml_out with
+		| None -> ()
+		| Some "hx" ->
+			Genhxold.generate com
+		| Some file ->
+			Common.log com ("Generating xml: " ^ file);
+			Path.mkdir_from_path file;
+			Genxml.generate com file
+	end;
+	begin match json_out with
+		| None -> ()
+		| Some file ->
+			Common.log com ("Generating json : " ^ file);
+			Path.mkdir_from_path file;
+			Genjson.generate com.types file
+	end
+
 let rec process_params create pl =
 	let each_params = ref [] in
 	let rec loop acc = function
@@ -622,28 +685,7 @@ try
 	let swf_version = ref false in
 	let native_libs = ref [] in
 	let add_native_lib file extern = native_libs := (file,extern) :: !native_libs in
-	Common.define_value com Define.HaxeVer (Printf.sprintf "%.3f" (float_of_int Globals.version /. 1000.));
-	Common.raw_define com "haxe3";
-	Common.raw_define com "haxe4";
-	Common.define_value com Define.Haxe (s_version false);
-	Common.define_value com Define.Dce "std";
-	com.info <- (fun msg p -> message ctx (CMInfo(msg,p)));
-	com.warning <- (fun msg p -> message ctx (CMWarning(msg,p)));
-	com.error <- error ctx;
-	let filter_messages = (fun keep_errors predicate -> (List.filter (fun msg ->
-		(match msg with
-		| CMError(_,_) -> keep_errors;
-		| CMInfo(_,_) | CMWarning(_,_) -> predicate msg;)
-	) (List.rev ctx.messages))) in
-	com.get_messages <- (fun () -> (List.map (fun msg ->
-		(match msg with
-		| CMError(_,_) -> assert false;
-		| CMInfo(_,_) | CMWarning(_,_) -> msg;)
-	) (filter_messages false (fun _ -> true))));
-	com.filter_messages <- (fun predicate -> (ctx.messages <- (List.rev (filter_messages true predicate))));
-	if CompilationServer.runs() then com.run_command <- run_command ctx;
-	com.class_path <- get_std_class_paths ();
-	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
+	setup_common_context ctx com;
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let process_ref = ref (fun args -> ()) in
 	let process_libs() =
@@ -949,28 +991,14 @@ try
 		end;
 	in
 	process_ref := process;
+	(* Handle CLI arguments *)
 	process ctx.com.args;
+	(* Process haxelibs *)
 	process_libs();
-	if com.display.dms_kind <> DMNone then begin
-		com.warning <-
-			if com.display.dms_error_policy = EPCollect then
-				(fun s p -> add_diagnostics_message com s p DKCompilerError DisplayTypes.DiagnosticsSeverity.Warning)
-			else
-				(fun msg p -> message ctx (CMWarning(msg,p)));
-		com.error <- error ctx;
-	end;
-	Lexer.old_format := Common.defined com Define.OldErrorFormat;
-	if !Lexer.old_format && !Parser.in_display then begin
-		let p = DisplayPosition.display_position#get in
-		(* convert byte position to utf8 position *)
-		try
-			let content = Std.input_file ~bin:true (Path.get_real_path p.pfile) in
-			let pos = UTF8.length (String.sub content 0 p.pmin) in
-			DisplayPosition.display_position#set { p with pmin = pos; pmax = pos }
-		with _ ->
-			() (* ignore *)
-	end;
+	(* Set up display configuration *)
+	process_display_configuration ctx;
 	let display_file_dot_path = DisplayOutput.process_display_file com classes in
+	(* Initialize target: This allows access to the appropriate std packages and sets the -D defines. *)
 	let ext = Initialize.initialize_target ctx com classes in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display.dms_display then begin match com.display.dms_kind with
@@ -984,27 +1012,13 @@ try
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then raise (HelpMessage (usage_string basic_args_spec usage));
 	end else begin
+		(* Actual compilation starts here *)
 		let tctx = do_type ctx !native_libs !config_macros !classes in
 		handle_display ctx tctx display_file_dot_path;
 		filter ctx tctx display_file_dot_path;
 		if ctx.has_error then raise Abort;
-		begin match !xml_out with
-			| None -> ()
-			| Some "hx" ->
-				Genhxold.generate com
-			| Some file ->
-				Common.log com ("Generating xml: " ^ file);
-				Path.mkdir_from_path file;
-				Genxml.generate com file
-		end;
-		begin match !json_out with
-			| None -> ()
-			| Some file ->
-				Common.log com ("Generating json : " ^ file);
-				Path.mkdir_from_path file;
-				Genjson.generate com.types file
-		end;
-		if not !no_output then generate tctx ext !xml_out !interp !swf_header;
+		check_auxiliary_output com !xml_out !json_out;
+		if not !no_output then generate tctx ext !interp !swf_header;
 	end;
 	Sys.catch_break false;
 	List.iter (fun f -> f()) (List.rev com.callbacks#get_after_generation);
