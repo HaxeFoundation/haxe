@@ -542,7 +542,7 @@ let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
 	if com.config.pf_static then begin
 		raw_define_value com.defines "target.static" "true";

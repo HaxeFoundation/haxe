@@ -259,7 +259,10 @@ module Initialize = struct
 					old_flush()
 				);
 				Java.before_generate com;
-				if defined com Define.Jvm then add_std "jvm";
+				if defined com Define.Jvm then begin
+					add_std "jvm";
+					com.package_rules <- PMap.remove "jvm" com.package_rules;
+				end;
 				add_std "java";
 				"java"
 			| Python ->
