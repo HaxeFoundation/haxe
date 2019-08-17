@@ -806,7 +806,7 @@ let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
 let hold ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let rec loop l =
@@ -819,7 +819,7 @@ let hold ctx r =
 	a.a_hold <- r :: a.a_hold
 
 let free ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let last = ref true in
