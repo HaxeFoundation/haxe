@@ -148,10 +148,7 @@ let find_possible_references kind name (pack,decls) =
 
 let find_possible_references tctx cs =
 	let name,pos,kind = Display.ReferencePosition.get () in
-	if not (CompilationServer.is_initialized cs) then begin
-		CompilationServer.set_initialized cs;
-		DisplayToplevel.read_class_paths tctx.com ["display";"references"];
-	end;
+	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
 	let files = CompilationServer.get_file_list cs tctx.com in
 	let t = Timer.timer ["display";"references";"candidates"] in
 	List.iter (fun (file,cfile) ->

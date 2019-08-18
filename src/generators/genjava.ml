@@ -962,12 +962,12 @@ let rec get_fun_modifiers meta access modifiers =
 
 let generate con =
 	let exists = ref false in
-	con.java_libs <- List.map (fun (file,std,close,la,gr) ->
-		if String.ends_with file "hxjava-std.jar" then begin
+	List.iter (fun java_lib ->
+		if String.ends_with java_lib#get_file_path "hxjava-std.jar" then begin
 			exists := true;
-			(file,true,close,la,gr)
-		end else
-			(file,std,close,la,gr)) con.java_libs;
+			java_lib#add_flag NativeLibraries.FlagIsStd;
+		end;
+	) con.native_libs.java_libs;
 	if not !exists then
 		failwith "Your version of hxjava is outdated. Please update it by running: `haxelib update hxjava`";
 	let gen = new_ctx con in
@@ -1215,68 +1215,72 @@ let generate con =
 		| _ -> false
 	in
 
-	let rec t_s pos t =
-		match real_type t with
-			(* basic types *)
-			| TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
-			| TAbstract ({ a_path = ([], "Void") },[]) ->
-					path_s_import pos (["java";"lang"], "Object") []
-			| TAbstract ({ a_path = ([],"Float") },[]) -> "double"
-			| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
-			| TType ({ t_path = ["java"], "Int64" },[])
-			| TAbstract ({ a_path = ["java"], "Int64" },[]) -> "long"
-			| TType ({ t_path = ["java"],"Int8" },[])
-			| TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
-			| TType ({ t_path = ["java"],"Int16" },[])
-			| TAbstract ({ a_path = ["java"],"Int16" },[]) -> "short"
-			| TType ({ t_path = ["java"],"Char16" },[])
-			| TAbstract ({ a_path = ["java"],"Char16" },[]) -> "char"
-			| TType ({ t_path = [],"Single" },[])
-			| TAbstract ({ a_path = [],"Single" },[]) -> "float"
-			| TInst ({ cl_path = ["haxe"],"Int32" },[])
-			| TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
-			| TInst ({ cl_path = ["haxe"],"Int64" },[])
-			| TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
-			| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
-				let rec check_t_s t =
-					match real_type t with
-						| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
-							(check_t_s param) ^ "[]"
-						| _ -> t_s pos (run_follow gen t)
-				in
-				(check_t_s param) ^ "[]"
-
-			(* end of basic types *)
-			| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
-			| TAbstract ({ a_path = [], "Dynamic" },[]) ->
-					path_s_import pos (["java";"lang"], "Object") []
-			| TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s pos (run_follow gen t))
-			| TInst ({ cl_path = [], "String" }, []) ->
-					path_s_import pos (["java";"lang"], "String") []
-			| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
-			| TInst ({ cl_path = [], "Class" }, [p]) | TInst ({ cl_path = [], "Enum" }, [p]) ->
-					path_param_s pos (TClassDecl cl_cl) (["java";"lang"], "Class") [p] []
-			| TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
-			| TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
-					path_s_import pos (["java";"lang"], "Class") []
-			| TEnum ({e_path = p; e_meta = meta}, _) ->
-					path_s_import pos p meta
-			| TInst (({cl_path = p; cl_meta = meta} as cl), _) when Meta.has Meta.Enum cl.cl_meta ->
-					path_s_import pos p meta
-			| TInst (({cl_path = p; cl_meta = meta} as cl), params) -> (path_param_s pos (TClassDecl cl) p params meta)
-			| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s pos (TTypeDecl t) p params meta)
-			| TAnon (anon) ->
-				(match !(anon.a_status) with
-					| Statics _ | EnumStatics _ | AbstractStatics _ ->
-							path_s_import pos (["java";"lang"], "Class") []
-					| _ ->
-							path_s_import pos (["java";"lang"], "Object") [])
-				| TDynamic _ ->
+	let rec t_s stack pos t =
+		if List.exists (fast_eq t) stack then
+			path_s_import pos (["java";"lang"], "Object") []
+		else begin
+			let stack = t :: stack in
+			match real_type t with
+				(* basic types *)
+				| TAbstract ({ a_path = ([], "Bool") },[]) -> "boolean"
+				| TAbstract ({ a_path = ([], "Void") },[]) ->
 						path_s_import pos (["java";"lang"], "Object") []
-			(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
-			| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
+				| TAbstract ({ a_path = ([],"Float") },[]) -> "double"
+				| TAbstract ({ a_path = ([],"Int") },[]) -> "int"
+				| TType ({ t_path = ["java"], "Int64" },[])
+				| TAbstract ({ a_path = ["java"], "Int64" },[]) -> "long"
+				| TType ({ t_path = ["java"],"Int8" },[])
+				| TAbstract ({ a_path = ["java"],"Int8" },[]) -> "byte"
+				| TType ({ t_path = ["java"],"Int16" },[])
+				| TAbstract ({ a_path = ["java"],"Int16" },[]) -> "short"
+				| TType ({ t_path = ["java"],"Char16" },[])
+				| TAbstract ({ a_path = ["java"],"Char16" },[]) -> "char"
+				| TType ({ t_path = [],"Single" },[])
+				| TAbstract ({ a_path = [],"Single" },[]) -> "float"
+				| TInst ({ cl_path = ["haxe"],"Int32" },[])
+				| TAbstract ({ a_path = ["haxe"],"Int32" },[]) -> "int"
+				| TInst ({ cl_path = ["haxe"],"Int64" },[])
+				| TAbstract ({ a_path = ["haxe"],"Int64" },[]) -> "long"
+				| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
+					let rec check_t_s t =
+						match real_type t with
+							| TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
+								(check_t_s param) ^ "[]"
+							| _ -> t_s stack pos (run_follow gen t)
+					in
+					(check_t_s param) ^ "[]"
 
-	and param_t_s pos t =
+				(* end of basic types *)
+				| TInst ({ cl_kind = KTypeParameter _; cl_path=p }, []) -> snd p
+				| TAbstract ({ a_path = [], "Dynamic" },[]) ->
+						path_s_import pos (["java";"lang"], "Object") []
+				| TMono r -> (match !r with | None -> "java.lang.Object" | Some t -> t_s stack pos (run_follow gen t))
+				| TInst ({ cl_path = [], "String" }, []) ->
+						path_s_import pos (["java";"lang"], "String") []
+				| TAbstract ({ a_path = [], "Class" }, [p]) | TAbstract ({ a_path = [], "Enum" }, [p])
+				| TInst ({ cl_path = [], "Class" }, [p]) | TInst ({ cl_path = [], "Enum" }, [p]) ->
+						path_param_s stack pos (TClassDecl cl_cl) (["java";"lang"], "Class") [p] []
+				| TAbstract ({ a_path = [], "Class" }, _) | TAbstract ({ a_path = [], "Enum" }, _)
+				| TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) ->
+						path_s_import pos (["java";"lang"], "Class") []
+				| TEnum ({e_path = p; e_meta = meta}, _) ->
+						path_s_import pos p meta
+				| TInst (({cl_path = p; cl_meta = meta} as cl), _) when Meta.has Meta.Enum cl.cl_meta ->
+						path_s_import pos p meta
+				| TInst (({cl_path = p; cl_meta = meta} as cl), params) -> (path_param_s stack pos (TClassDecl cl) p params meta)
+				| TType (({t_path = p; t_meta = meta} as t), params) -> (path_param_s stack pos (TTypeDecl t) p params meta)
+				| TAnon (anon) ->
+					(match !(anon.a_status) with
+						| Statics _ | EnumStatics _ | AbstractStatics _ ->
+								path_s_import pos (["java";"lang"], "Class") []
+						| _ ->
+								path_s_import pos (["java";"lang"], "Object") [])
+					| TDynamic _ ->
+							path_s_import pos (["java";"lang"], "Object") []
+				(* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
+				| _ -> if !strict_mode then begin trace ("[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"); assert false end else "[ !TypeError " ^ (Type.s_type (Type.print_context()) t) ^ " ]"
+		end
+	and param_t_s stack pos t =
 		match run_follow gen t with
 			| TAbstract ({ a_path = ([], "Bool") },[]) ->
 					path_s_import pos (["java";"lang"], "Boolean") []
@@ -1306,17 +1310,21 @@ let generate con =
 			| TAbstract ({ a_path = [],"Single" },[]) ->
 					path_s_import pos (["java";"lang"], "Float") []
 			| TDynamic _ -> "?"
-			| TInst (cl, params) -> t_s pos (TInst(cl, change_param_type (TClassDecl cl) params))
-			| TType (cl, params) -> t_s pos (TType(cl, change_param_type (TTypeDecl cl) params))
-			| TEnum (e, params) -> t_s pos (TEnum(e, change_param_type (TEnumDecl e) params))
-			| _ -> t_s pos t
+			| TInst (cl, params) -> t_s stack pos (TInst(cl, change_param_type (TClassDecl cl) params))
+			| TType (cl, params) -> t_s stack pos (TType(cl, change_param_type (TTypeDecl cl) params))
+			| TEnum (e, params) -> t_s stack pos (TEnum(e, change_param_type (TEnumDecl e) params))
+			| _ -> t_s stack pos t
 
-	and path_param_s pos md path params meta =
+	and path_param_s stack pos md path params meta =
 			match params with
 				| [] -> path_s_import pos path meta
 				| _ when has_tdynamic (change_param_type md params) -> path_s_import pos path meta
-				| _ -> sprintf "%s<%s>" (path_s_import pos path meta) (String.concat ", " (List.map (fun t -> param_t_s pos t) (change_param_type md params)))
+				| _ -> sprintf "%s<%s>" (path_s_import pos path meta) (String.concat ", " (List.map (fun t -> param_t_s stack pos t) (change_param_type md params)))
 	in
+
+	let t_s = t_s []
+	and param_t_s = param_t_s []
+	and path_param_s = path_param_s [] in
 
 	let rett_s pos t =
 		match t with

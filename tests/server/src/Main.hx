@@ -1,6 +1,10 @@
 using StringTools;
 
-@:timeout(5000)
+import haxe.display.Display;
+import haxe.display.FsPath;
+import haxe.display.Server;
+
+@:timeout(10000)
 class ServerTests extends HaxeServerTestCase {
 	function testNoModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
@@ -60,7 +64,7 @@ class ServerTests extends HaxeServerTestCase {
 		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
 		var args = ["-main", "Empty", "--no-output", "-java", "java"];
 		runHaxe(args);
-		runHaxe(args, true);
+		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
 		assertHasField("", "Type", "enumIndex", true);
 	}
 
@@ -96,11 +100,104 @@ class ServerTests extends HaxeServerTestCase {
 		runHaxe(args);
 		assertSuccess();
 	}
+
+	function testDisplayModuleRecache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["--main", "HelloWorld", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		assertReuse("HelloWorld");
+
+		var args2 = ["--main", "HelloWorld", "--interp", "--display", "HelloWorld.hx@64@type"];
+		runHaxe(args2);
+
+		runHaxe(args);
+		assertReuse("HelloWorld");
+
+		// make sure we still invalidate if the file does change
+		vfs.touchFile("HelloWorld.hx");
+		runHaxe(args2);
+
+		runHaxe(args);
+		assertSkipping("HelloWorld");
+	}
+
+	function testMutuallyDependent() {
+		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
+		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
+
+		var args = ["MutuallyDependent1", "MutuallyDependent2"];
+		runHaxe(args);
+
+		args = args.concat(["--display", "MutuallyDependent1.hx@44@type"]);
+		runHaxe(args);
+		assertSuccess();
+	}
+
+	function testSyntaxCache() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		runHaxeJson(["-cp", "."], ServerMethods.ReadClassPaths, null);
+		vfs.putContent("Empty.hx", "");
+		runHaxeJson([], ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+		// check removal
+		vfs.putContent("Empty.hx", "");
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Empty.hx")});
+		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "HelloWorld";
+			case _: false;
+		});
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+	}
+
+	function testSyntaxCache2() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		var args = ["-cp", ".", "--interp"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		vfs.putContent("Empty.hx", getTemplate("Empty.hx"));
+		runHaxeJson([] /* No args here because file watchers don't generally know */, ServerMethods.ModuleCreated, {file: new FsPath("Empty.hx")});
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+	}
+
+	function testVectorInliner() {
+		vfs.putContent("Vector.hx", getTemplate("Vector.hx"));
+		vfs.putContent("VectorInliner.hx", getTemplate("VectorInliner.hx"));
+		var args = ["-main", "VectorInliner", "--interp"];
+		runHaxe(args);
+		vfs.touchFile("VectorInliner.hx");
+		runHaxeJson(args, cast "typer/compiledTypes" /* TODO */, {});
+		var type = getStoredType("", "VectorInliner");
+		function moreHack(s:String) {
+			return ~/[\r\n\t]/g.replace(s, "");
+		}
+		utest.Assert.equals("function() {_Vector.Vector_Impl_.toIntVector(null);}", moreHack(type.args.statics[0].expr.testHack)); // lmao
+	}
 }
 
 class Main {
 	static public function main() {
 		Vfs.removeDir("test/cases");
-		utest.UTest.run([new ServerTests()]);
+		utest.UTest.run([new ServerTests(), new DisplayTests()]);
 	}
 }

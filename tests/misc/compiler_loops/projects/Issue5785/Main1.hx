@@ -7,7 +7,7 @@ typedef Stream<T> = {
 	function takeUntilBy<U>(otherObs:Observable<U>):Stream<U>;
 }
 
-class Main {
+class Main1 {
 
 	public static function main() {
 		var mouseMoves : Stream<Int> = null;

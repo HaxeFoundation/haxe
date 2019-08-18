@@ -30,37 +30,22 @@ import php.NativeIndexedArray;
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
 	var data:NativeIndexedArray<T>;
 
-	/**
-		Creates a new IntMap.
-	**/
 	public function new():Void {
 		data = new NativeIndexedArray();
 	}
 
-	/**
-		See `Map.set`
-	**/
 	public inline function set(key:Int, value:T):Void {
 		data[key] = value;
 	}
 
-	/**
-		See `Map.get`
-	**/
 	public inline function get(key:Int):Null<T> {
 		return Syntax.coalesce(data[key], null);
 	}
 
-	/**
-		See `Map.exists`
-	**/
 	public inline function exists(key:Int):Bool {
 		return Global.array_key_exists(key, data);
 	}
 
-	/**
-		See `Map.remove`
-	**/
 	public function remove(key:Int):Bool {
 		if (Global.array_key_exists(key, data)) {
 			Global.unset(data[key]);
@@ -70,23 +55,14 @@ import php.NativeIndexedArray;
 		return false;
 	}
 
-	/**
-		See `Map.keys`
-	**/
 	public inline function keys():Iterator<Int> {
 		return Global.array_keys(data).iterator();
 	}
 
-	/**
-		See `Map.iterator`
-	**/
 	public inline function iterator():Iterator<T> {
 		return Global.array_values(data).iterator();
 	}
 
-	/**
-		See `Map.keyValueIterator`
-	**/
 	@:runtime public inline function keyValueIterator():KeyValueIterator<Int, T> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
@@ -95,9 +71,6 @@ import php.NativeIndexedArray;
 		return Syntax.clone(this);
 	}
 
-	/**
-		See `Map.toString`
-	**/
 	public function toString():String {
 		var parts = new NativeArray();
 		Syntax.foreach(data, function(key:Int, value:T) {

@@ -12,7 +12,7 @@ class Main {
 		report.displaySuccessResults = NeverShowSuccessResults;
 
 		var haxeServer = @:privateAccess DisplayTestContext.haxeServer;
-		haxeServer.setDefaultRequestArguments(["-cp", "src", "--no-output", "-lib", "utest"]);
+		haxeServer.setDefaultRequestArguments(["-cp", "src", "-cp", "src-shared", "--no-output", "-lib", "utest"]);
 		DisplayTestContext.runHaxe([]);
 		runner.run();
 		haxeServer.close();

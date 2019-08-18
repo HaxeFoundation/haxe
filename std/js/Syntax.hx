@@ -28,6 +28,7 @@ import haxe.extern.Rest;
 	Generate JavaScript syntax not directly supported by Haxe.
 	Use only at low-level when specific target-specific code-generation is required.
 **/
+@:noClosure
 extern class Syntax {
 	/**
 		Inject `code` directly into generated source.

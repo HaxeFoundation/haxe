@@ -25,9 +25,6 @@ package haxe.crypto;
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a Sha256 of a String.
- */
 class Sha256 {
 	public static inline function encode(s:String):String {
 		return Global.hash('sha256', s);

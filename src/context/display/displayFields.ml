@@ -50,7 +50,7 @@ let collect_static_extensions ctx items e p =
 		| (c,_) :: l ->
 			let rec dup t = Type.map dup t in
 			let acc = List.fold_left (fun acc f ->
-				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name items then
+				if Meta.has Meta.NoUsing f.cf_meta || Meta.has Meta.NoCompletion f.cf_meta || Meta.has Meta.Impl f.cf_meta || PMap.mem f.cf_name acc then
 					acc
 				else begin
 					let f = { f with cf_type = opt_type f.cf_type } in
@@ -171,8 +171,11 @@ let collect ctx e_ast e dk with_type p =
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
+				let abstract_has_own_field field_name =
+					PMap.mem field_name c.cl_fields || PMap.mem field_name c.cl_statics
+				in
 				PMap.foldi (fun name item acc ->
-					if sl = [] || List.mem name sl && is_new_item acc name then
+					if (sl = [] || List.mem name sl && is_new_item acc name) && not (abstract_has_own_field name) then
 						PMap.add name item acc
 					else
 						acc

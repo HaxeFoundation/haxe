@@ -190,6 +190,9 @@ module Printer = struct
 		List.iter (fun (s,p,prange) ->
 			add DKRemovableCode p DiagnosticsSeverity.Warning (JObject ["description",JString s;"range",if prange = null_pos then JNull else Genjson.generate_pos_as_range prange])
 		) dctx.removable_code;
+		Hashtbl.iter (fun p s ->
+			add DKDeprecationWarning p DiagnosticsSeverity.Warning (JString s);
+		) DeprecationCheck.warned_positions;
 		let jl = Hashtbl.fold (fun file diag acc ->
 			let jl = Hashtbl.fold (fun _ (dk,p,sev,jargs) acc ->
 				(JObject [

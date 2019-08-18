@@ -79,10 +79,31 @@ let read_class_paths com timer =
 		match CompilationServer.get() with
 		| Some cs when pack <> fst path ->
 			let file = Path.unique_full_path file in
-			CompilationServer.remove_file cs (file,sign)
+			CompilationServer.remove_file_for_real cs (file,sign)
 		| _ ->
 			()
 	)
+
+let init_or_update_server cs com timer_name =
+	if not (CompilationServer.is_initialized cs) then begin
+		CompilationServer.set_initialized cs;
+		read_class_paths com timer_name
+	end else begin
+		(* Iterate all removed files of the current context. If they aren't part of the context again,
+		   re-parse them and remove them from c_removed_files. *)
+		let sign = Define.get_signature com.defines in
+		let removed_removed_files = DynArray.create () in
+		Hashtbl.iter (fun (file,sign') () ->
+			if sign = sign' then begin
+				DynArray.add removed_removed_files (file,sign');
+				try
+					ignore(find_file cs (file,sign));
+				with Not_found ->
+					try ignore(TypeloadParse.parse_module_file com file null_pos) with _ -> ()
+			end;
+		) cs.cache.c_removed_files;
+		DynArray.iter (Hashtbl.remove cs.cache.c_removed_files) removed_removed_files;
+	end
 
 module CollectionContext = struct
 	open ImportStatus
@@ -175,6 +196,11 @@ let collect ctx tk with_type =
 	in
 
 	let process_decls pack name decls =
+		let added_something = ref false in
+		let add item name =
+			added_something := true;
+			add item name
+		in
 		let run () = List.iter (fun (d,p) ->
 			begin try
 				let tname,is_private,meta = match d with
@@ -197,7 +223,8 @@ let collect ctx tk with_type =
 				()
 			end
 		) decls in
-		if is_pack_visible pack then run()
+		if is_pack_visible pack then run();
+		!added_something
 	in
 
 	(* Collection starts here *)
@@ -362,15 +389,12 @@ let collect ctx tk with_type =
 		explore_class_paths ctx.com ["display";"toplevel"] class_paths true add_package (fun path ->
 			if not (path_exists cctx path) then begin
 				let _,decls = Display.parse_module ctx path Globals.null_pos in
-				process_decls (fst path) (snd path) decls
+				ignore(process_decls (fst path) (snd path) decls)
 			end
 		)
 	| Some cs ->
 		(* online: iter context files *)
-		if not (CompilationServer.is_initialized cs) then begin
-			CompilationServer.set_initialized cs;
-			read_class_paths ctx.com ["display";"toplevel"];
-		end;
+		init_or_update_server cs ctx.com ["display";"toplevel"];
 		let files = CompilationServer.get_file_list cs ctx.com in
 		(* Sort files by reverse distance of their package to our current package. *)
 		let files = List.map (fun (file,cfile) ->
@@ -378,20 +402,29 @@ let collect ctx tk with_type =
 			(file,cfile),i
 		) files in
 		let files = List.sort (fun (_,i1) (_,i2) -> -compare i1 i2) files in
+		let check_package pack = match List.rev pack with
+			| [] -> ()
+			| s :: sl -> add_package (List.rev sl,s)
+		in
 		List.iter (fun ((file,cfile),_) ->
 			let module_name = CompilationServer.get_module_name_of_cfile file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
 			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				begin match List.rev cfile.c_package with
-					| [] -> ()
-					| s :: sl -> add_package (List.rev sl,s)
-				end;
 				Hashtbl.replace ctx.com.module_to_file (cfile.c_package,module_name) file;
-				process_decls cfile.c_package module_name cfile.c_decls
+				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
-		) files
+		) files;
+		List.iter (fun file ->
+			try
+				let lib = Hashtbl.find cs.cache.c_native_libs file in
+				Hashtbl.iter (fun path (pack,decls) ->
+					if process_decls pack (snd path) decls then check_package pack;
+				) lib.c_nl_files
+			with Not_found ->
+				()
+		) ctx.com.native_libs.all_libs
 	end;
 
 	(* packages *)
@@ -405,6 +438,15 @@ let collect ctx tk with_type =
 	let l = sort_fields l with_type tk in
 	t();
 	l
+
+let collect_and_raise ctx tk with_type cr subject pinsert =
+	let fields = match !DisplayException.last_completion_pos with
+	| Some p' when (pos subject).pmin = p'.pmin ->
+		Array.to_list (!DisplayException.last_completion_result)
+	| _ ->
+		collect ctx tk with_type
+	in
+	DisplayException.raise_fields2 fields cr pinsert subject
 
 let handle_unresolved_identifier ctx i p only_types =
 	let l = collect ctx (if only_types then TKType else TKExpr p) NoValue in

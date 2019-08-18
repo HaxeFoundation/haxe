@@ -859,6 +859,22 @@ class TestStrict {
 		shouldFail(a + b);
 		shouldFail(a += b);
 	}
+
+	static function anonFields_checkedForNull() {
+		var i:Null<Int> = null;
+		shouldFail(({a: i} : {a:Int}));
+		if (i != null) {
+			({a: i} : {a:Int});
+			({a: i} : {a:Null<Int>});
+			({a: 0, b: i} : {a:Int, b: Int});
+		}
+	}
+
+	static function immediateFunction_keepsSafety(?s:String) {
+		if (s != null) {
+			(function() s.length)();
+		}
+	}
 }
 
 private class FinalNullableFields {

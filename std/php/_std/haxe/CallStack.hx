@@ -26,14 +26,11 @@ import php.*;
 
 private typedef NativeTrace = NativeIndexedArray<NativeAssocArray<Dynamic>>;
 
-/**
-	Elements return by `CallStack` methods.
-**/
 enum StackItem {
 	CFunction;
 	Module(m:String);
 	FilePos(s:Null<StackItem>, file:String, line:Int, ?column:Null<Int>);
-	Method(classname:String, method:String);
+	Method(classname:Null<String>, method:String);
 	LocalFunction(?v:Int);
 }
 
@@ -48,25 +45,14 @@ class CallStack {
 	@:ifFeature("haxe.CallStack.exceptionStack")
 	static var lastExceptionTrace:NativeTrace;
 
-	/**
-		Return the call stack elements, or an empty array if not available.
-	**/
 	public static function callStack():Array<StackItem> {
 		return makeStack(Global.debug_backtrace(Const.DEBUG_BACKTRACE_IGNORE_ARGS));
 	}
 
-	/**
-		Return the exception stack : this is the stack elements between
-		the place the last exception was thrown and the place it was
-		caught, or an empty array if not available.
-	**/
 	public static function exceptionStack():Array<StackItem> {
 		return makeStack(lastExceptionTrace == null ? new NativeIndexedArray() : lastExceptionTrace);
 	}
 
-	/**
-		Returns a representation of the stack as a printable string.
-	**/
 	public static function toString(stack:Array<StackItem>) {
 		var b = new StringBuf();
 		for (s in stack) {
@@ -94,7 +80,7 @@ class CallStack {
 				if (s != null)
 					b.add(")");
 			case Method(cname, meth):
-				b.add(cname);
+				b.add(cname == null ? "<unknown>" : cname);
 				b.add(".");
 				b.add(meth);
 			case LocalFunction(n):

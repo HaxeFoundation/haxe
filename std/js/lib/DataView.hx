@@ -23,7 +23,7 @@
 package js.lib;
 
 @:native("DataView")
-extern class DataView {
+extern class DataView implements ArrayBufferView {
 	final buffer:ArrayBuffer;
 	final byteOffset:Int;
 	final byteLength:Int;
