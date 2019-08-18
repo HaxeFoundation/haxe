@@ -157,7 +157,6 @@ class CallStack {
 					Method(null, parts[2].substring(methodPos + 1, parts[2].length - 1));
 				}
 			}
-			// TODO: Give more information for FilePos
 			stack.push(FilePos(method, file, Std.parseInt(line)));
 		}
 		return stack;
