@@ -2251,10 +2251,14 @@ module Generator = struct
 		List.iter (fun ef ->
 			match follow ef.ef_type with
 			| TFun(args, _) ->
+				let arg_name hx_name =
+					let name = handle_keywords hx_name in
+					if name = p_name then p_name ^ "_" ^ name
+					else name
+				in
 				let print_args args =
 					let had_optional = ref false in
 					let sl = List.map (fun (n,o,_) ->
-						let name = handle_keywords n in
 						let arg_value = if !had_optional then
 							"= None"
 						else if o then begin
@@ -2263,7 +2267,7 @@ module Generator = struct
 						end else
 							""
 						in
-						Printf.sprintf "%s%s" name arg_value
+						Printf.sprintf "%s%s" (arg_name n) arg_value
 					) args in
 					String.concat "," sl
 				in
@@ -2271,8 +2275,8 @@ module Generator = struct
 				let param_str = print_args args in
 				let args_str =
 					match args with
-					| [(n,_,_)] -> (handle_keywords n) ^ ","
-					| args -> String.concat "," (List.map (fun (n,_,_) -> handle_keywords n) args)
+					| [(n,_,_)] -> (arg_name n) ^ ","
+					| args -> String.concat "," (List.map (fun (n,_,_) -> arg_name n) args)
 				in
 				newline ctx;
 				newline ctx;

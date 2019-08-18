@@ -132,10 +132,10 @@ let is_valid_path com pack name =
 	let rec loop = function
 		| [] ->
 			false
-		| load :: l ->
+		| (file,load) :: l ->
 			match load (pack,name) null_pos with
 			| None -> loop l
-			| Some (file,(_,a)) -> true
+			| Some (_,a) -> true
 	in
 	let file = Printf.sprintf "%s/%s.hx" (String.concat "/" pack) name in
 	loop com.load_extern_type || (try ignore(Common.find_file com file); true with Not_found -> false)
@@ -542,7 +542,6 @@ let remove_debug_infos as3 =
 let parse_swf com file =
 	let t = Timer.timer ["read";"swf"] in
 	let is_swc = file_extension file = "swc" || file_extension file = "ane" in
-	let file = (try Common.find_file com file with Not_found -> failwith ((if is_swc then "SWC" else "SWF") ^ " Library not found : " ^ file)) in
 	let ch = if is_swc then begin
 		let zip = Zip.open_in file in
 		try
@@ -578,6 +577,7 @@ class swf_library com name file_path = object(self)
 
 	val mutable swf_data = None
 	val mutable swf_classes = None
+	val haxe_classes = Hashtbl.create 0
 
 	method load =
 		ignore(self#get_swf)
@@ -608,18 +608,25 @@ class swf_library com name file_path = object(self)
 	method close =
 		()
 
-	method build (path : path) (p : pos) : (string * Ast.package) option =
-		match (try Some (Hashtbl.find (self#extract) path) with Not_found -> None) with
-		| None -> None
-		| Some c -> Some (file_path, build_class com c file_path)
+	method build (path : path) (p : pos) : Ast.package option =
+		try
+			Some (Hashtbl.find haxe_classes path)
+		with Not_found -> try
+			let c = Hashtbl.find (self#extract) path in
+			let c = build_class com c file_path in
+			Hashtbl.add haxe_classes path c;
+			Some c
+		with Not_found ->
+			None
 
 	method get_data = self#get_swf
 end
 
 let add_swf_lib com file extern =
-	let swf_lib = new swf_library com file file in
-	com.load_extern_type <- com.load_extern_type @ [swf_lib#build];
-	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs
+	let real_file = (try Common.find_file com file with Not_found -> failwith (" Library not found : " ^ file)) in
+	let swf_lib = new swf_library com file real_file in
+	if not extern then com.native_libs.swf_libs <- (swf_lib :> (swf_lib_type,Swf.swf) native_library) :: com.native_libs.swf_libs;
+	CompilationServer.handle_native_lib com swf_lib
 
 let remove_classes toremove lib l =
 	match !toremove with

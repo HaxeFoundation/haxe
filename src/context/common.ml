@@ -108,6 +108,7 @@ type platform_config = {
 }
 
 class compiler_callbacks = object(self)
+	val mutable before_typer_create = [];
 	val mutable after_init_macros = [];
 	val mutable after_typing = [];
 	val mutable before_save = [];
@@ -115,6 +116,9 @@ class compiler_callbacks = object(self)
 	val mutable after_filters = [];
 	val mutable after_generation = [];
 	val mutable null_safety_report = [];
+
+	method add_before_typer_create (f : unit -> unit) : unit =
+		before_typer_create <- f :: before_typer_create
 
 	method add_after_init_macros (f : unit -> unit) : unit =
 		after_init_macros <- f :: after_init_macros
@@ -137,6 +141,7 @@ class compiler_callbacks = object(self)
 	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
+	method get_before_typer_create = before_typer_create
 	method get_after_init_macros = after_init_macros
 	method get_after_typing = after_typing
 	method get_before_save = before_save
@@ -183,7 +188,7 @@ type context = {
 	mutable warning : string -> pos -> unit;
 	mutable get_messages : unit -> compiler_message list;
 	mutable filter_messages : (compiler_message -> bool) -> unit;
-	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
+	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
 	callbacks : compiler_callbacks;
 	defines : Define.define;
 	mutable print : string -> unit;
@@ -437,11 +442,7 @@ let create version s_version args =
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		net_std = [];
-		native_libs = {
-			java_libs = [];
-			net_libs = [];
-			swf_libs = [];
-		};
+		native_libs = create_native_libs();
 		net_path_map = Hashtbl.create 0;
 		c_args = [];
 		neko_libs = [];
@@ -499,7 +500,8 @@ let clone com =
 		defines = {
 			values = com.defines.values;
 			defines_signature = com.defines.defines_signature;
-		}
+		};
+		native_libs = create_native_libs();
 	}
 
 let file_time file = Extc.filetime file
@@ -540,7 +542,7 @@ let init_platform com pf =
 	com.platform <- pf;
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
-	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	com.package_rules <- List.fold_left forbid com.package_rules ("jvm" :: (List.map platform_name platforms));
 	com.config <- get_config com;
 	if com.config.pf_static then begin
 		raw_define_value com.defines "target.static" "true";

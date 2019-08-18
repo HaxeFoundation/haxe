@@ -806,7 +806,7 @@ let rtype ctx r =
 	DynArray.get ctx.m.mregs.arr r
 
 let hold ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let rec loop l =
@@ -819,7 +819,7 @@ let hold ctx r =
 	a.a_hold <- r :: a.a_hold
 
 let free ctx r =
-	if not ctx.optimize || Hashtbl.mem ctx.m.mvars r then () else
+	if not ctx.optimize then () else
 	let t = rtype ctx r in
 	let a = PMap.find t ctx.m.mallocs in
 	let last = ref true in
@@ -3290,6 +3290,15 @@ let generate_static ctx c f =
 				add_native lib name
 			| (Meta.HlNative,[(EConst(String(lib)),_)] ,_ ) :: _ ->
 				add_native lib f.cf_name
+			| (Meta.HlNative,[(EConst(Float(ver)),_)] ,_ ) :: _ ->
+				let cur_ver = (try Common.raw_defined_value ctx.com "hl-ver" with Not_found -> "") in
+				if cur_ver < ver then
+					let gen_content() =
+						op ctx (OThrow (make_string ctx ("Requires compiling with -D hl-ver=" ^ ver ^ " or higher") null_pos));
+					in
+					ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> abort "Missing function body" f.cf_pos) None None)
+				else
+				add_native "std" f.cf_name
 			| (Meta.HlNative,[] ,_ ) :: _ ->
 				add_native "std" f.cf_name
 			| (Meta.HlNative,_ ,p) :: _ ->

@@ -25,9 +25,6 @@ package haxe.crypto;
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a Sha1 of a String.
- */
 class Sha1 {
 	public static inline function encode(s:String):String {
 		return Global.sha1(s);

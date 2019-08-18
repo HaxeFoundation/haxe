@@ -27,7 +27,6 @@ import php.*;
 class BytesBuffer {
 	var b:NativeString;
 
-	/** The length of the buffer in bytes. **/
 	public var length(get, never):Int;
 
 	public function new() {
@@ -74,10 +73,6 @@ class BytesBuffer {
 		}
 	}
 
-	/**
-		Returns either a copy or a reference of the current bytes.
-		Once called, the buffer can no longer be used.
-	**/
 	public function getBytes():Bytes {
 		var bytes = @:privateAccess new Bytes(length, b);
 		b = null;

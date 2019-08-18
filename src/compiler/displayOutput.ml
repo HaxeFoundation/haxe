@@ -328,6 +328,7 @@ module Memory = struct
 				"haxelibCache",jint (mem_size cs.cache.c_haxelib);
 				"parserCache",jint (mem_size cs.cache.c_files);
 				"moduleCache",jint (mem_size cs.cache.c_modules);
+				"nativeLibCache",jint (mem_size cs.cache.c_native_libs);
 			]
 		]
 
@@ -785,4 +786,4 @@ let handle_syntax_completion com kind p =
 			raise (Completion s)
 		| Some(f,_,jsonrpc) ->
 			let ctx = Genjson.create_context ~jsonrpc:jsonrpc GMFull in
-			f(fields_to_json ctx l kind None)
+			f(fields_to_json ctx l kind None None)

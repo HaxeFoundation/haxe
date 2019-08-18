@@ -25,9 +25,6 @@ package haxe.crypto;
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a MD5 of a String.
-**/
 class Md5 {
 	public static inline function encode(s:String):String {
 		return Global.md5(s);

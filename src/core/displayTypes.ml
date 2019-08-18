@@ -125,7 +125,7 @@ module CompletionResultKind = struct
 							None
 				in
 				let fields =
-					("item",CompletionItem.to_json ctx item) ::
+					("item",CompletionItem.to_json ctx None item) ::
 					("range",generate_pos_as_range p) ::
 					("iterator", match iterator with
 						| None -> jnull

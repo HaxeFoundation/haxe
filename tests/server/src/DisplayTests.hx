@@ -1,3 +1,4 @@
+import haxe.display.Server;
 import utest.Assert;
 import haxe.display.Display;
 import haxe.display.FsPath;
@@ -136,5 +137,17 @@ typedef Foo = {
 		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[1], wasAutoTriggered: true});
 		var result = parseCompletion();
 		Assert.equals(Toplevel, result.result.mode.kind);
+	}
+
+	function testIssue8644() {
+		vfs.putContent("HelloJvm.hx", getTemplate("HelloJvm.hx"));
+		var args = ["-cp", ".", "--interp"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloJvm.hx"), offset: 55, wasAutoTriggered: false});
+		var completion = parseCompletion();
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "Jvm";
+			case _: false;
+		});
 	}
 }

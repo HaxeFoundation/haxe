@@ -496,7 +496,7 @@ let convert_ilmethod ctx p m is_explicit_impl =
 			| Some ilcls when not (List.mem SInterface ilcls.cflags.tdf_semantics) ->
 				(AOverride,null_pos) :: acc
 			| None when ctx.ncom.verbose ->
-				prerr_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
+				print_endline ("(net-lib) A referenced assembly for path " ^ ilpath_s path ^ " was not found");
 				acc
 			| _ -> acc
 	in
@@ -1170,7 +1170,7 @@ class net_library com name file_path std = object(self)
 			Hashtbl.add cache path None;
 			None
 
-	method build (path : path) (p : pos) : (string * Ast.package) option =
+	method build (path : path) (p : pos) : Ast.package option =
 		let p = { pfile = file_path ^ " @ " ^ s_type_path path; pmin = 0; pmax = 0; } in
 		let pack = match fst path with | ["haxe";"root"] -> [] | p -> p in
 		let cp = ref [] in
@@ -1203,7 +1203,7 @@ class net_library com name file_path std = object(self)
 		build path;
 		match !cp with
 			| [] -> None
-			| cp -> Some (file_path, (pack,cp))
+			| cp -> Some (pack,cp)
 
 	method get_data = ()
 
@@ -1211,7 +1211,7 @@ class net_library com name file_path std = object(self)
 		if std then self#add_flag FlagIsStd
 end
 
-let add_net_lib com file std =
+let add_net_lib com file std extern =
 	let real_file = if Sys.file_exists file then
 		file
 	else try Common.find_file com file with
@@ -1220,8 +1220,9 @@ let add_net_lib com file std =
 			failwith (".NET lib " ^ file ^ " not found")
 	in
 	let net_lib = new net_library com file real_file std in
-	com.load_extern_type <- com.load_extern_type @ [net_lib#build];
-	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs
+	if extern then net_lib#add_flag FlagIsExtern;
+	com.native_libs.net_libs <- (net_lib :> (net_lib_type,unit) native_library) :: com.native_libs.net_libs;
+	CompilationServer.handle_native_lib com net_lib
 
 let before_generate com =
 	(* netcore version *)
@@ -1293,13 +1294,10 @@ let before_generate com =
 				let f = Unix.readdir f in
 				let finsens = String.lowercase f in
 				if String.ends_with finsens ".dll" then
-					add_net_lib com (path ^ "/" ^ f) true;
+					add_net_lib com (path ^ "/" ^ f) true false ();
 				loop()
 			with | End_of_file ->
 				Unix.closedir f
 		in
 		loop()
-	) !matched;
-
-	(* now force all libraries to initialize *)
-	List.iter (function net_lib -> ignore (net_lib#lookup ([],""))) com.native_libs.net_libs
+	) !matched

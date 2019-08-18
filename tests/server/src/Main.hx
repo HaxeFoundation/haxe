@@ -4,7 +4,7 @@ import haxe.display.Display;
 import haxe.display.FsPath;
 import haxe.display.Server;
 
-@:timeout(5000)
+@:timeout(10000)
 class ServerTests extends HaxeServerTestCase {
 	function testNoModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));

@@ -28,7 +28,10 @@ package sys.thread;
 
 /**
 	Creates thread local storage.
- */
+
+	(hl) Warning: At the moment `Tls` does not protect the value from being
+	garbage collected. Keep the value reachable to avoid crashes.
+**/
 extern class Tls<T> {
 	public var value(get, set):T;
 

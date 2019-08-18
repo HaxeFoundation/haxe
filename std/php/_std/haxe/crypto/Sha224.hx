@@ -25,9 +25,6 @@ package haxe.crypto;
 import php.Global;
 import haxe.io.Bytes;
 
-/**
-	Creates a Sha224 of a String.
- */
 class Sha224 {
 	public static inline function encode(s:String):String {
 		return Global.hash('sha224', s);

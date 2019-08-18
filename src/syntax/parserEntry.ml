@@ -35,17 +35,29 @@ let is_true = function
 	| TBool false | TNull | TFloat 0. | TString "" -> false
 	| _ -> true
 
+let s_small_type v =
+	match v with
+	| TNull -> "null"
+	| TBool _ -> "boolean"
+	| TFloat _ -> "float"
+	| TString _ -> "string"
+	| TVersion _ -> "version"
+
+let parse_version s p =
+	try match parse_version s with release,pre -> TVersion (release,pre)
+	with Invalid_argument msg -> error (Custom msg) p
+
 let cmp v1 v2 =
 	match v1, v2 with
-	| TNull, TNull -> 0
+	| TNull, _ | _, TNull -> raise Exit
 	| TFloat a, TFloat b -> compare a b
 	| TString a, TString b -> compare a b
 	| TBool a, TBool b -> compare a b
 	| TString a, TFloat b -> compare (float_of_string a) b
 	| TFloat a, TString b -> compare a (float_of_string b)
-	| TString a, TVersion (release,pre) -> compare_version (parse_version a) (release,pre)
-	| TVersion (release,pre), TString b -> compare_version (release,pre) (parse_version b)
 	| TVersion (release1,pre1), TVersion (release2,pre2) -> compare_version (release1,pre1) (release2,pre2)
+	| _, TVersion _
+	| TVersion _, _ -> raise (Invalid_argument ("Cannot compare " ^ (s_small_type v1) ^ " and " ^ (s_small_type v2)))
 	| _ -> raise Exit (* always false *)
 
 let rec eval ctx (e,p) =
@@ -55,18 +67,15 @@ let rec eval ctx (e,p) =
 	| EConst (String s) -> TString s
 	| EConst (Int i) -> TFloat (float_of_string i)
 	| EConst (Float f) -> TFloat (float_of_string f)
-	| ECall ((EConst (Ident "version"),_),[(EConst (String s), p)]) ->
-		(try match parse_version s with release,pre -> TVersion (release,pre)
-		with Invalid_argument msg -> error (Custom msg) p)
+	| ECall ((EConst (Ident "version"),_),[(EConst (String s), p)]) -> parse_version s p
 	| EBinop (OpBoolAnd, e1, e2) -> TBool (is_true (eval ctx e1) && is_true (eval ctx e2))
 	| EBinop (OpBoolOr, e1, e2) -> TBool (is_true (eval ctx e1) || is_true(eval ctx e2))
 	| EUnop (Not, _, e) -> TBool (not (is_true (eval ctx e)))
 	| EParenthesis e -> eval ctx e
 	| EBinop (op, e1, e2) ->
-		let v1 = eval ctx e1 in
-		let v2 = eval ctx e2 in
+		let v1, v2 = eval_binop_exprs ctx e1 e2 in
 		let compare op =
-			try TBool (try op (cmp v1 v2) 0 with _ -> false)
+			try TBool (try op (cmp v1 v2) 0 with Exit -> false)
 			with Invalid_argument msg -> error (Custom msg) p
 		in
 		(match op with
@@ -87,6 +96,13 @@ let rec eval ctx (e,p) =
 		end
 	| _ ->
 		error (Custom "Invalid condition expression") p
+
+and eval_binop_exprs ctx e1 e2 =
+	match eval ctx e1, eval ctx e2 with
+	| (TVersion _ as v1), (TVersion _ as v2) -> (v1, v2)
+	| (TVersion _ as v1), TString s -> (v1, parse_version s (snd e2))
+	| TString s, (TVersion _ as v2) -> (parse_version s (snd e1), v2)
+	| v1, v2 -> (v1, v2)
 
 (* parse main *)
 let parse ctx code file =

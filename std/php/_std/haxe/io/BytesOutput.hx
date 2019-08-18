@@ -25,7 +25,6 @@ package haxe.io;
 class BytesOutput extends Output {
 	var b:BytesBuffer;
 
-	/** The length of the stream in bytes. **/
 	public var length(get, never):Int;
 
 	public function new() {
@@ -41,12 +40,6 @@ class BytesOutput extends Output {
 		return len;
 	}
 
-	/**
-		Returns the `Bytes` of this output.
-
-		This function should not be called more than once on a given
-		`BytesOutput` instance.
-	**/
 	public function getBytes():Bytes {
 		return b.getBytes();
 	}

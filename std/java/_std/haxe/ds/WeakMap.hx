@@ -381,27 +381,16 @@ import java.lang.ref.ReferenceQueue;
 		}
 	}
 
-	/**
-		Returns an iterator of all keys in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public inline function keys():Iterator<K> {
 		cleanupRefs();
 		return new WeakMapKeyIterator(this);
 	}
 
-	/**
-		Returns an iterator of all values in the hashtable.
-		Implementation detail: Do not set() any new value while iterating, as it may cause a resize, which will break iteration
-	**/
 	public inline function iterator():Iterator<V> {
 		cleanupRefs();
 		return new WeakMapValueIterator(this);
 	}
 
-	/**
-		See `Map.keyValueIterator`
-	**/
 	public inline function keyValueIterator():KeyValueIterator<K, V> {
 		return new haxe.iterators.MapKeyValueIterator(this);
 	}
@@ -413,9 +402,6 @@ import java.lang.ref.ReferenceQueue;
 		return copied;
 	}
 
-	/**
-		Returns an displayable representation of the hashtable content.
-	**/
 	public function toString():String {
 		var s = new StringBuf();
 		s.add("{");

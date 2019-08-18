@@ -22,6 +22,7 @@ open ExtString
 
 type native_lib_flags =
 	| FlagIsStd
+	| FlagIsExtern
 
 class virtual ['a,'data] native_library (name : string) (file_path : string) = object(self)
 	val mutable flags : native_lib_flags list = []
@@ -32,7 +33,7 @@ class virtual ['a,'data] native_library (name : string) (file_path : string) = o
 	method get_name = name
 	method get_file_path = file_path
 
-	method virtual build : path -> pos -> (string * Ast.package) option
+	method virtual build : path -> pos -> Ast.package option
 	method virtual close : unit
 	method virtual list_modules : path list
 	method virtual load : unit
@@ -48,4 +49,12 @@ type native_libraries = {
 	mutable java_libs : (java_lib_type,unit) native_library list;
 	mutable net_libs : (net_lib_type,unit) native_library list;
 	mutable swf_libs : (swf_lib_type,Swf.swf) native_library list;
+	mutable all_libs : string list;
+}
+
+let create_native_libs () = {
+	java_libs = [];
+	net_libs = [];
+	swf_libs = [];
+	all_libs = [];
 }

@@ -18,7 +18,7 @@ class AsyncMacro {
 					});
 					switch (f.expr.expr) {
 						case EBlock(el):
-							el.push(macro async.done());
+							el.push(macro @:pos(f.expr.pos) async.done());
 							f.expr = transformHaxeCalls(el);
 						case _:
 							Context.error("Block expression expected", f.expr.pos);
