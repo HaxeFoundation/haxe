@@ -663,11 +663,11 @@ let optimize_completion_expr e args =
 			old();
 			typing_side_effect := !told;
 			(EBlock (List.rev el),p)
-		| EFunction (v,f) ->
-			(match v with
-			| None -> ()
-			| Some (name,_) ->
-				decl name None (Some e));
+		| EFunction (kind,f) ->
+			(match kind with
+			| FKNamed (name,_) ->
+				decl name None (Some e)
+			| _ -> ());
 			let old = save() in
 			List.iter (fun ((n,_),_,_,t,e) -> decl n (Option.map fst t) e) f.f_args;
 			let e = map e in

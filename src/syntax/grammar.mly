@@ -1096,7 +1096,7 @@ and parse_function p1 inl = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			let e = EFunction ((match name with None -> None | Some (name,pn) -> Some (name,pn)),f), punion p1 (pos e) in
+			let e = EFunction ((match name with None -> FKAnonymous | Some (name,pn) -> FKNamed (name,pn)),f), punion p1 (pos e) in
 			if inl then make_meta Meta.Inline [] e p1
 			else e
 		in
@@ -1110,7 +1110,7 @@ and arrow_function p1 al er s =
 	let make e =
 		let p = pos e in
 		let return = (EMeta((Meta.ImplicitReturn, [], null_pos), (EReturn(Some e), p)), p) in
-		EFunction(None, { f_params = []; f_type = None; f_args = al; f_expr = Some return;  }), punion p1 p
+		EFunction(FKArrow, { f_params = []; f_type = None; f_args = al; f_expr = Some return;  }), punion p1 p
 	in
 	List.iter (fun (_,_,ml,_,_) ->	match ml with
 		| (_,_,p) :: _ -> syntax_error (Custom "Metadata on arrow function arguments is not allowed") ~pos:(Some p) s ()

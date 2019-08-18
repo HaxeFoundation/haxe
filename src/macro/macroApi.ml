@@ -77,6 +77,7 @@ type enum_type =
 	| IImportMode
 	| IDisplayKind
 	| IMessage
+	| IFunctionKind
 
 (**
 	Our access to the interpreter from the macro api
@@ -172,6 +173,7 @@ let enum_name = function
 	| IQuoteStatus -> "QuoteStatus"
 	| IDisplayKind -> "DisplayKind"
 	| IMessage -> "Message"
+	| IFunctionKind -> "FunctionKind"
 
 let all_enums =
 	let last = IImportMode in
@@ -438,8 +440,8 @@ and encode_expr e =
 						"expr",null loop eo;
 					]
 				) vl)]
-			| EFunction (name,f) ->
-				11, [null encode_placed_name name; encode_fun f]
+			| EFunction (kind,f) ->
+				11, [encode_function_kind kind; encode_fun f]
 			| EBlock el ->
 				12, [encode_array (List.map loop el)]
 			| EFor (e,eloop) ->
@@ -503,6 +505,12 @@ and encode_null_expr e =
 		encode_obj ["pos", vnull;"expr",vnull]
 	| Some e ->
 		encode_expr e
+
+and encode_function_kind kind =
+	match kind with
+	| FKAnonymous -> encode_enum IFunctionKind 0 []
+	| FKNamed name -> encode_enum IFunctionKind 1 [encode_placed_name name]
+	| FKArrow -> encode_enum IFunctionKind 2 []
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
@@ -699,6 +707,12 @@ and decode_display_kind v = match (decode_enum v) with
 	| 4, [outermost] -> DKPattern (decode_bool outermost)
 	| _ -> raise Invalid_expr
 
+and decode_function_kind kind = match decode_enum kind with
+	| 0, [] -> FKAnonymous
+	| 1, [name] -> FKNamed (decode_string name,Globals.null_pos)
+	| 2, [] -> FKArrow
+	| _ -> raise Invalid_expr
+
 and decode_expr v =
 	let rec loop v =
 		let p = decode_pos (field v "pos") in
@@ -741,8 +755,8 @@ and decode_expr v =
 				let final = if vfinal == vnull then false else decode_bool vfinal in
 				((decode_placed_name (field v "name_pos") (field v "name")),final,opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (decode_array vl))
-		| 11, [fname;f] ->
-			EFunction (opt (fun v -> decode_string v,Globals.null_pos) fname,decode_fun f)
+		| 11, [kind;f] ->
+			EFunction (decode_function_kind kind,decode_fun f)
 		| 12, [el] ->
 			EBlock (List.map loop (decode_array el))
 		| 13, [e1;e2] ->
