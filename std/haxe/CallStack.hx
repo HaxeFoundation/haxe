@@ -147,8 +147,18 @@ class CallStack {
 			var parts = s.split(":");
 			var file = parts[0];
 			var line = parts[1];
+			var method = if(parts.length <= 2) {
+				null;
+			} else {
+				var methodPos = parts[2].indexOf("'");
+				if(methodPos < 0) {
+					null;
+				} else {
+					Method(null, parts[2].substring(methodPos + 1, parts[2].length - 1));
+				}
+			}
 			// TODO: Give more information for FilePos
-			stack.push(FilePos(null, file, Std.parseInt(line)));
+			stack.push(FilePos(method, file, Std.parseInt(line)));
 		}
 		return stack;
 		#elseif hl
