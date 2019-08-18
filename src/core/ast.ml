@@ -739,7 +739,7 @@ module Printer = struct
 		| ENew (t,el) -> "new " ^ s_complex_type_path tabs t ^ "(" ^ s_expr_list tabs el ", " ^ ")"
 		| EUnop (op,Postfix,e) -> s_expr_inner tabs e ^ s_unop op
 		| EUnop (op,Prefix,e) -> s_unop op ^ s_expr_inner tabs e
-		| EFunction (FKNamed((n,_),_),f) -> "function " ^ n ^ s_func tabs f
+		| EFunction (FKNamed((n,_),inline),f) -> (if inline then "inline " else "") ^ "function " ^ n ^ s_func tabs f
 		| EFunction (FKAnonymous,f) -> "function" ^ s_func tabs f
 		| EFunction (FKArrow,f) -> "function" ^ s_func ~is_arrow:true tabs f
 		| EVars vl -> "var " ^ String.concat ", " (List.map (s_var tabs) vl)
